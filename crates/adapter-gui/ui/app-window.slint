@@ -3,6 +3,8 @@ import { CheckBox, LineEdit, Button, ScrollView, VerticalBox, HorizontalBox } fr
 export struct DeviceSelectionItem {
     name: string,
     selected: bool,
+    sample_rate_text: string,
+    buffer_size_text: string,
 }
 
 export component AppWindow inherits Window {
@@ -11,12 +13,14 @@ export component AppWindow inherits Window {
     in property <bool> show-audio-setup;
     in-out property <[DeviceSelectionItem]> input-devices;
     in-out property <[DeviceSelectionItem]> output-devices;
-    in-out property <string> sample-rate-text;
-    in-out property <string> buffer-size-text;
     in-out property <string> status-message;
 
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
+    callback update-input-sample-rate(int, string);
+    callback update-input-buffer-size(int, string);
+    callback update-output-sample-rate(int, string);
+    callback update-output-buffer-size(int, string);
     callback save-audio-settings();
 
     title: "OpenRig";
@@ -93,7 +97,7 @@ export component AppWindow inherits Window {
                     }
 
                     Text {
-                        text: "Escolha os devices de entrada e saída e defina sample rate e buffer size.";
+                        text: "Escolha os devices de entrada e saída. Cada device selecionado tem seu próprio sample rate e buffer size.";
                         color: #9ea7b3;
                         font-size: 18px;
                     }
@@ -106,7 +110,7 @@ export component AppWindow inherits Window {
                             border-radius: 16px;
                             border-width: 1px;
                             border-color: #363b42;
-                            min-height: 340px;
+                            min-height: 420px;
                             horizontal-stretch: 1;
 
                             VerticalBox {
@@ -122,15 +126,63 @@ export component AppWindow inherits Window {
 
                                 ScrollView {
                                     viewport-width: parent.width;
-                                    viewport-height: 250px;
+                                    viewport-height: 330px;
 
                                     VerticalBox {
-                                        spacing: 8px;
-                                        for device[i] in input-devices : CheckBox {
-                                            text: device.name;
-                                            checked: device.selected;
-                                            toggled => {
-                                                root.toggle-input-device(i, self.checked);
+                                        spacing: 10px;
+                                        for device[i] in input-devices : Rectangle {
+                                            background: #20242a;
+                                            border-radius: 12px;
+                                            border-width: 1px;
+                                            border-color: #363b42;
+
+                                            VerticalBox {
+                                                padding: 12px;
+                                                spacing: 10px;
+
+                                                CheckBox {
+                                                    text: device.name;
+                                                    checked: device.selected;
+                                                    toggled => {
+                                                        root.toggle-input-device(i, self.checked);
+                                                    }
+                                                }
+
+                                                HorizontalBox {
+                                                    spacing: 10px;
+
+                                                    VerticalBox {
+                                                        spacing: 6px;
+                                                        Text {
+                                                            text: "Sample Rate";
+                                                            color: #9ea7b3;
+                                                            font-size: 14px;
+                                                        }
+                                                        LineEdit {
+                                                            text: device.sample_rate_text;
+                                                            enabled: device.selected;
+                                                            edited(text) => {
+                                                                root.update-input-sample-rate(i, text);
+                                                            }
+                                                        }
+                                                    }
+
+                                                    VerticalBox {
+                                                        spacing: 6px;
+                                                        Text {
+                                                            text: "Buffer Size";
+                                                            color: #9ea7b3;
+                                                            font-size: 14px;
+                                                        }
+                                                        LineEdit {
+                                                            text: device.buffer_size_text;
+                                                            enabled: device.selected;
+                                                            edited(text) => {
+                                                                root.update-input-buffer-size(i, text);
+                                                            }
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -143,7 +195,7 @@ export component AppWindow inherits Window {
                             border-radius: 16px;
                             border-width: 1px;
                             border-color: #363b42;
-                            min-height: 340px;
+                            min-height: 420px;
                             horizontal-stretch: 1;
 
                             VerticalBox {
@@ -159,70 +211,66 @@ export component AppWindow inherits Window {
 
                                 ScrollView {
                                     viewport-width: parent.width;
-                                    viewport-height: 250px;
+                                    viewport-height: 330px;
 
                                     VerticalBox {
-                                        spacing: 8px;
-                                        for device[i] in output-devices : CheckBox {
-                                            text: device.name;
-                                            checked: device.selected;
-                                            toggled => {
-                                                root.toggle-output-device(i, self.checked);
+                                        spacing: 10px;
+                                        for device[i] in output-devices : Rectangle {
+                                            background: #20242a;
+                                            border-radius: 12px;
+                                            border-width: 1px;
+                                            border-color: #363b42;
+
+                                            VerticalBox {
+                                                padding: 12px;
+                                                spacing: 10px;
+
+                                                CheckBox {
+                                                    text: device.name;
+                                                    checked: device.selected;
+                                                    toggled => {
+                                                        root.toggle-output-device(i, self.checked);
+                                                    }
+                                                }
+
+                                                HorizontalBox {
+                                                    spacing: 10px;
+
+                                                    VerticalBox {
+                                                        spacing: 6px;
+                                                        Text {
+                                                            text: "Sample Rate";
+                                                            color: #9ea7b3;
+                                                            font-size: 14px;
+                                                        }
+                                                        LineEdit {
+                                                            text: device.sample_rate_text;
+                                                            enabled: device.selected;
+                                                            edited(text) => {
+                                                                root.update-output-sample-rate(i, text);
+                                                            }
+                                                        }
+                                                    }
+
+                                                    VerticalBox {
+                                                        spacing: 6px;
+                                                        Text {
+                                                            text: "Buffer Size";
+                                                            color: #9ea7b3;
+                                                            font-size: 14px;
+                                                        }
+                                                        LineEdit {
+                                                            text: device.buffer_size_text;
+                                                            enabled: device.selected;
+                                                            edited(text) => {
+                                                                root.update-output-buffer-size(i, text);
+                                                            }
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }
-                                }
-                            }
-                        }
-                    }
-
-                    HorizontalBox {
-                        spacing: 18px;
-
-                        Rectangle {
-                            background: #1d2025;
-                            border-radius: 16px;
-                            border-width: 1px;
-                            border-color: #363b42;
-                            horizontal-stretch: 1;
-
-                            VerticalBox {
-                                padding: 18px;
-                                spacing: 8px;
-
-                                Text {
-                                    text: "Sample Rate";
-                                    color: #f3f5f7;
-                                    font-size: 20px;
-                                    font-weight: 600;
-                                }
-
-                                LineEdit {
-                                    text <=> root.sample-rate-text;
-                                }
-                            }
-                        }
-
-                        Rectangle {
-                            background: #1d2025;
-                            border-radius: 16px;
-                            border-width: 1px;
-                            border-color: #363b42;
-                            horizontal-stretch: 1;
-
-                            VerticalBox {
-                                padding: 18px;
-                                spacing: 8px;
-
-                                Text {
-                                    text: "Buffer Size";
-                                    color: #f3f5f7;
-                                    font-size: 20px;
-                                    font-weight: 600;
-                                }
-
-                                LineEdit {
-                                    text <=> root.buffer-size-text;
                                 }
                             }
                         }

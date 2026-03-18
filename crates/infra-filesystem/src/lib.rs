@@ -6,18 +6,25 @@ use std::path::PathBuf;
 pub struct FilesystemStorage;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub struct GuiAudioSettings {
-    pub input_device_names: Vec<String>,
-    pub output_device_names: Vec<String>,
+pub struct GuiAudioDeviceSettings {
+    pub name: String,
     #[serde(default = "default_sample_rate")]
     pub sample_rate: u32,
     #[serde(default = "default_buffer_size_frames")]
     pub buffer_size_frames: u32,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct GuiAudioSettings {
+    #[serde(default)]
+    pub input_devices: Vec<GuiAudioDeviceSettings>,
+    #[serde(default)]
+    pub output_devices: Vec<GuiAudioDeviceSettings>,
+}
+
 impl GuiAudioSettings {
     pub fn is_complete(&self) -> bool {
-        !self.input_device_names.is_empty() && !self.output_device_names.is_empty()
+        !self.input_devices.is_empty() && !self.output_devices.is_empty()
     }
 }
 
@@ -27,6 +34,45 @@ fn default_sample_rate() -> u32 {
 
 fn default_buffer_size_frames() -> u32 {
     256
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+struct LegacyGuiAudioSettings {
+    #[serde(default)]
+    input_device_names: Vec<String>,
+    #[serde(default)]
+    output_device_names: Vec<String>,
+    #[serde(default = "default_sample_rate")]
+    sample_rate: u32,
+    #[serde(default = "default_buffer_size_frames")]
+    buffer_size_frames: u32,
+}
+
+impl From<LegacyGuiAudioSettings> for GuiAudioSettings {
+    fn from(value: LegacyGuiAudioSettings) -> Self {
+        let input_devices = value
+            .input_device_names
+            .into_iter()
+            .map(|name| GuiAudioDeviceSettings {
+                name,
+                sample_rate: value.sample_rate,
+                buffer_size_frames: value.buffer_size_frames,
+            })
+            .collect();
+        let output_devices = value
+            .output_device_names
+            .into_iter()
+            .map(|name| GuiAudioDeviceSettings {
+                name,
+                sample_rate: value.sample_rate,
+                buffer_size_frames: value.buffer_size_frames,
+            })
+            .collect();
+        Self {
+            input_devices,
+            output_devices,
+        }
+    }
 }
 
 impl FilesystemStorage {
@@ -44,8 +90,14 @@ impl FilesystemStorage {
         }
         let raw = fs::read_to_string(&path)
             .with_context(|| format!("failed to read gui settings from {:?}", path))?;
-        let settings = serde_yaml::from_str(&raw)
-            .with_context(|| format!("failed to parse gui settings from {:?}", path))?;
+        let settings = match serde_yaml::from_str::<GuiAudioSettings>(&raw) {
+            Ok(settings) => settings,
+            Err(_) => {
+                let legacy = serde_yaml::from_str::<LegacyGuiAudioSettings>(&raw)
+                    .with_context(|| format!("failed to parse gui settings from {:?}", path))?;
+                legacy.into()
+            }
+        };
         Ok(Some(settings))
     }
 

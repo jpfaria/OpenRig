@@ -1,8 +1,6 @@
 use anyhow::{anyhow, Result};
-use infra_cpal::{
-    list_input_device_descriptors, list_output_device_descriptors,
-};
-use infra_filesystem::{FilesystemStorage, GuiAudioSettings};
+use infra_cpal::{list_input_device_descriptors, list_output_device_descriptors};
+use infra_filesystem::{FilesystemStorage, GuiAudioDeviceSettings, GuiAudioSettings};
 use slint::{Model, ModelRc, VecModel};
 use std::rc::Rc;
 use ui_openrig::{AppRuntimeMode, InteractionMode, UiRuntimeContext};
@@ -24,35 +22,46 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             .into_iter()
             .map(|device| {
                 let name = device.name;
-                let selected = settings.input_device_names.iter().any(|saved| saved == &name);
+                let config = settings
+                    .input_devices
+                    .iter()
+                    .find(|saved| saved.name == name)
+                    .cloned()
+                    .unwrap_or_else(|| default_device_settings(name.clone()));
                 DeviceSelectionItem {
-                    name: name.into(),
-                    selected,
+                    name: config.name.into(),
+                    selected: true,
+                    sample_rate_text: config.sample_rate.to_string().into(),
+                    buffer_size_text: config.buffer_size_frames.to_string().into(),
                 }
             })
             .collect::<Vec<_>>(),
     ));
+    mark_unselected_devices(&input_devices, &settings.input_devices);
     let output_devices = Rc::new(VecModel::from(
         list_output_device_descriptors()?
             .into_iter()
             .map(|device| {
                 let name = device.name;
-                let selected = settings
-                    .output_device_names
+                let config = settings
+                    .output_devices
                     .iter()
-                    .any(|saved| saved == &name);
+                    .find(|saved| saved.name == name)
+                    .cloned()
+                    .unwrap_or_else(|| default_device_settings(name.clone()));
                 DeviceSelectionItem {
-                    name: name.into(),
-                    selected,
+                    name: config.name.into(),
+                    selected: true,
+                    sample_rate_text: config.sample_rate.to_string().into(),
+                    buffer_size_text: config.buffer_size_frames.to_string().into(),
                 }
             })
             .collect::<Vec<_>>(),
     ));
+    mark_unselected_devices(&output_devices, &settings.output_devices);
 
     window.set_input_devices(ModelRc::from(input_devices.clone()));
     window.set_output_devices(ModelRc::from(output_devices.clone()));
-    window.set_sample_rate_text(settings.sample_rate.to_string().into());
-    window.set_buffer_size_text(settings.buffer_size_frames.to_string().into());
 
     {
         let input_devices = input_devices.clone();
@@ -69,6 +78,34 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
     }
 
     {
+        let input_devices = input_devices.clone();
+        window.on_update_input_sample_rate(move |index, value| {
+            update_device_sample_rate(&input_devices, index as usize, value);
+        });
+    }
+
+    {
+        let input_devices = input_devices.clone();
+        window.on_update_input_buffer_size(move |index, value| {
+            update_device_buffer_size(&input_devices, index as usize, value);
+        });
+    }
+
+    {
+        let output_devices = output_devices.clone();
+        window.on_update_output_sample_rate(move |index, value| {
+            update_device_sample_rate(&output_devices, index as usize, value);
+        });
+    }
+
+    {
+        let output_devices = output_devices.clone();
+        window.on_update_output_buffer_size(move |index, value| {
+            update_device_buffer_size(&output_devices, index as usize, value);
+        });
+    }
+
+    {
         let weak_window = window.as_weak();
         let input_devices = input_devices.clone();
         let output_devices = output_devices.clone();
@@ -76,28 +113,24 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-
-            let sample_rate = match parse_positive_u32(window.get_sample_rate_text().as_str(), "sample_rate") {
-                Ok(value) => value,
+            let input_devices = match selected_device_settings(&input_devices, "input") {
+                Ok(devices) => devices,
                 Err(error) => {
                     window.set_status_message(error.to_string().into());
                     return;
                 }
             };
-            let buffer_size_frames =
-                match parse_positive_u32(window.get_buffer_size_text().as_str(), "buffer_size_frames") {
-                    Ok(value) => value,
-                    Err(error) => {
-                        window.set_status_message(error.to_string().into());
-                        return;
-                    }
-                };
+            let output_devices = match selected_device_settings(&output_devices, "output") {
+                Ok(devices) => devices,
+                Err(error) => {
+                    window.set_status_message(error.to_string().into());
+                    return;
+                }
+            };
 
             let settings = GuiAudioSettings {
-                input_device_names: selected_device_names(&input_devices),
-                output_device_names: selected_device_names(&output_devices),
-                sample_rate,
-                buffer_size_frames,
+                input_devices,
+                output_devices,
             };
 
             if !settings.is_complete() {
@@ -124,12 +157,70 @@ fn toggle_device_row(model: &Rc<VecModel<DeviceSelectionItem>>, index: usize, se
     }
 }
 
-fn selected_device_names(model: &Rc<VecModel<DeviceSelectionItem>>) -> Vec<String> {
+fn update_device_sample_rate(
+    model: &Rc<VecModel<DeviceSelectionItem>>,
+    index: usize,
+    value: slint::SharedString,
+) {
+    if let Some(mut row) = model.row_data(index) {
+        row.sample_rate_text = value;
+        model.set_row_data(index, row);
+    }
+}
+
+fn update_device_buffer_size(
+    model: &Rc<VecModel<DeviceSelectionItem>>,
+    index: usize,
+    value: slint::SharedString,
+) {
+    if let Some(mut row) = model.row_data(index) {
+        row.buffer_size_text = value;
+        model.set_row_data(index, row);
+    }
+}
+
+fn selected_device_settings(
+    model: &Rc<VecModel<DeviceSelectionItem>>,
+    device_kind: &str,
+) -> Result<Vec<GuiAudioDeviceSettings>> {
     (0..model.row_count())
         .filter_map(|index| model.row_data(index))
         .filter(|row| row.selected)
-        .map(|row| row.name.to_string())
+        .map(|row| {
+            Ok(GuiAudioDeviceSettings {
+                name: row.name.to_string(),
+                sample_rate: parse_positive_u32(
+                    row.sample_rate_text.as_str(),
+                    &format!("{}_sample_rate '{}'", device_kind, row.name),
+                )?,
+                buffer_size_frames: parse_positive_u32(
+                    row.buffer_size_text.as_str(),
+                    &format!("{}_buffer_size_frames '{}'", device_kind, row.name),
+                )?,
+            })
+        })
         .collect()
+}
+
+fn default_device_settings(name: String) -> GuiAudioDeviceSettings {
+    GuiAudioDeviceSettings {
+        name,
+        sample_rate: 48_000,
+        buffer_size_frames: 256,
+    }
+}
+
+fn mark_unselected_devices(
+    model: &Rc<VecModel<DeviceSelectionItem>>,
+    selected_devices: &[GuiAudioDeviceSettings],
+) {
+    for index in 0..model.row_count() {
+        let Some(mut row) = model.row_data(index) else {
+            continue;
+        };
+        row.selected = selected_devices.iter().any(|saved| saved.name == row.name.as_str());
+        model.set_row_data(index, row);
+    }
 }
 
 fn parse_positive_u32(value: &str, field: &str) -> Result<u32> {
