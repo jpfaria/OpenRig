@@ -1,6 +1,6 @@
 use anyhow::Result;
-use cpal::traits::StreamTrait;
 use application::validate::validate_setup;
+use cpal::traits::StreamTrait;
 use engine::engine::PedalboardEngine;
 use infra_cpal::{build_streams_for_setup, list_devices};
 use infra_yaml::{YamlSetupRepository, YamlStateRepository};
@@ -31,7 +31,10 @@ fn main() -> Result<()> {
     }
     engine.start();
     println!("=== Engine ===");
-    println!("running={} active_tracks={}", engine.engine_state.is_running, engine.engine_state.active_tracks);
+    println!(
+        "running={} active_tracks={}",
+        engine.engine_state.is_running, engine.engine_state.active_tracks
+    );
     loop {
         thread::sleep(Duration::from_secs(1));
     }

@@ -10,7 +10,7 @@ use stage_core::param::{
 };
 use stage_core::{AudioChannelLayout, StageProcessor};
 
-pub const MODEL_ID: &str = "marshall_jcm_800";
+pub const MODEL_ID: &str = "marshall_jcm_800_2203";
 
 pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
     input_level_db: 0.0,
@@ -69,11 +69,11 @@ pub const CAPTURES: &[MarshallJcm800Capture] = &[
 ];
 
 pub fn supports_model(model: &str) -> bool {
-    matches!(model, MODEL_ID | "jcm800" | "jcm_800")
+    model == MODEL_ID
 }
 
 pub fn model_schema() -> ModelParameterSchema {
-    let mut schema = model_schema_for("amp", MODEL_ID, "Marshall JCM 800", false);
+    let mut schema = model_schema_for("amp", MODEL_ID, "Marshall JCM 800 2203", false);
     let mut parameters = vec![
         float_parameter(
             "volume",

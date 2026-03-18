@@ -94,12 +94,12 @@ tracks:
 #            treble: 5.0
 #          ir_enabled: true
 
-      - type: delay
-        model: digital_basic
-        params:
-          time_ms: 200
-          feedback: 0.6
-          mix: 0.55
+#      - type: delay
+#        model: digital_basic
+#        params:
+#          time_ms: 200
+#          feedback: 0.6
+#          mix: 0.55
 
 #      - type: reverb
 #        model: plate_foundation
@@ -113,33 +113,64 @@ tracks:
 #        params:
 #          reference_hz: 440.0
 
-      - id: jcm800
-        type: select
-        selected: jcm800_g4
-        options:
-          jcm800_g4:
-            type: nam
-            model: neural_amp_modeler
-            params:
-              model_path: "captures/nam/heads/Marshall JCM 800 2203/JCM800 2203 - P5 B5 M5 T5 MV6 G4 - AZG - 700.nam"
-              ir_path: "captures/ir/cabs/Marshall 4x12 V30 IR/EV MIX B.wav"
-              input_db: 0.0
-              output_db: 0.0
-              noise_gate:
-                enabled: true
-                threshold_db: -80.0
-              eq:
-                enabled: true
-                bass: 5.0
-                middle: 5.0
-                treble: 5.0
-              ir_enabled: true
+
+      - type: amp
+        model: marshall_jcm_800_2203
+        params:
+          volume: 70.0
+          gain: 40.0
+
+
+#      - type: nam
+#        params:
+#          model_path: "captures/nam/amps/heads/Marshall JCM 800 2203/JCM800 2203 - P5 B5 M5 T5 MV6 G4 - AZG - 700.nam"
+#          ir_path: "captures/ir/cabs/Marshall 4x12 V30 IR/EV MIX B.wav"
+#          input_db: 0.0
+#          output_db: 0.0
+#          noise_gate:
+#            enabled: true
+#            threshold_db: -80.0
+#          eq:
+#            enabled: true
+#            bass: 5.0
+#            middle: 5.0
+#            treble: 5.0
+#          ir_enabled: true
+
+      - type: delay
+        model: digital_ping_pong
+        params:
+          time_ms: 200
+          feedback: 0.6
+          mix: 0.55
+
+#      - id: jcm800
+#        type: select
+#        selected: jcm800_g4
+#        options:
+#          jcm800_g4:
+#            type: nam
+#            model: neural_amp_modeler
+#            params:
+#              model_path: "captures/nam/amps/heads/Marshall JCM 800 2203/JCM800 2203 - P5 B5 M5 T5 MV6 G4 - AZG - 700.nam"
+#              ir_path: "captures/ir/cabs/Marshall 4x12 V30 IR/EV MIX B.wav"
+#              input_db: 0.0
+#              output_db: 0.0
+#              noise_gate:
+#                enabled: true
+#                threshold_db: -80.0
+#              eq:
+#                enabled: true
+#                bass: 5.0
+#                middle: 5.0
+#                treble: 5.0
+#              ir_enabled: true
 
 #          jcm800_g5:
 #            type: nam
 #            model: neural_amp_modeler
 #            params:
-#              model_path: "captures/nam/heads/Marshall JCM 800 2203/JCM800 2203 - P5 B5 M5 T5 MV6 G5 - AZG - 700.nam"
+#              model_path: "captures/nam/amps/heads/Marshall JCM 800 2203/JCM800 2203 - P5 B5 M5 T5 MV6 G5 - AZG - 700.nam"
 #              ir_path: "captures/ir/cabs/Marshall 4x12 V30 IR/EV MIX B.wav"
 #              input_db: 0.0
 #              output_db: 0.0
@@ -157,7 +188,7 @@ tracks:
 #            type: nam
 #            model: neural_amp_modeler
 #            params:
-#              model_path: "captures/nam/heads/Marshall JCM 800 2203/JCM800 2203 - P5 B5 M5 T5 MV6 G6 - AZG - 700.nam"
+#              model_path: "captures/nam/amps/heads/Marshall JCM 800 2203/JCM800 2203 - P5 B5 M5 T5 MV6 G6 - AZG - 700.nam"
 #              ir_path: "captures/ir/cabs/Marshall 4x12 V30 IR/EV MIX D.wav"
 #              input_db: 0.0
 #              output_db: 0.0
