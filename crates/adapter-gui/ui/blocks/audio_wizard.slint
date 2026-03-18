@@ -22,8 +22,8 @@ export component AudioWizard inherits Rectangle {
 
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
     private property <length> device-row-height: 48px;
-    private property <length> device-list-height: 20px + (visible-device-count * device-row-height) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px);
-    private property <length> wizard-card-height: 26px + 28px + 18px + device-list-height + 20px + 18px + 44px + 26px;
+    private property <length> device-list-height: (visible-device-count * device-row-height) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px);
+    private property <length> wizard-card-height: 26px + 22px + device-list-height + 22px + 44px + 26px;
 
     width: 920px;
     height: root.wizard-card-height;
@@ -50,58 +50,50 @@ export component AudioWizard inherits Rectangle {
             Rectangle { horizontal-stretch: 1; background: transparent; }
         }
 
-        Rectangle {
-            background: Theme.palette.card-secondary;
-            border-radius: 14px;
-            border-width: 1px;
-            border-color: Theme.palette.border;
+        VerticalBox {
+            spacing: Theme.spaces.small;
             height: root.device-list-height;
 
-            VerticalBox {
-                padding: 10px;
+            if wizard-step == 0 : VerticalBox {
                 spacing: Theme.spaces.small;
 
-                if wizard-step == 0 : VerticalBox {
-                    spacing: Theme.spaces.small;
-
-                    for device[i] in input-devices : DeviceRow {
-                        name: device.name;
-                        selected: device.selected;
-                        sample-rate-text: device.sample_rate_text;
-                        buffer-size-text: device.buffer_size_text;
-                        sample-rate-options: root.sample-rate-options;
-                        buffer-size-options: root.buffer-size-options;
-                        toggled(checked) => {
-                            root.toggle-input-device(i, checked);
-                        }
-                        sample-rate-selected(value) => {
-                            root.update-input-sample-rate(i, value);
-                        }
-                        buffer-size-selected(value) => {
-                            root.update-input-buffer-size(i, value);
-                        }
+                for device[i] in input-devices : DeviceRow {
+                    name: device.name;
+                    selected: device.selected;
+                    sample-rate-text: device.sample_rate_text;
+                    buffer-size-text: device.buffer_size_text;
+                    sample-rate-options: root.sample-rate-options;
+                    buffer-size-options: root.buffer-size-options;
+                    toggled(checked) => {
+                        root.toggle-input-device(i, checked);
+                    }
+                    sample-rate-selected(value) => {
+                        root.update-input-sample-rate(i, value);
+                    }
+                    buffer-size-selected(value) => {
+                        root.update-input-buffer-size(i, value);
                     }
                 }
+            }
 
-                if wizard-step == 1 : VerticalBox {
-                    spacing: Theme.spaces.small;
+            if wizard-step == 1 : VerticalBox {
+                spacing: Theme.spaces.small;
 
-                    for device[i] in output-devices : DeviceRow {
-                        name: device.name;
-                        selected: device.selected;
-                        sample-rate-text: device.sample_rate_text;
-                        buffer-size-text: device.buffer_size_text;
-                        sample-rate-options: root.sample-rate-options;
-                        buffer-size-options: root.buffer-size-options;
-                        toggled(checked) => {
-                            root.toggle-output-device(i, checked);
-                        }
-                        sample-rate-selected(value) => {
-                            root.update-output-sample-rate(i, value);
-                        }
-                        buffer-size-selected(value) => {
-                            root.update-output-buffer-size(i, value);
-                        }
+                for device[i] in output-devices : DeviceRow {
+                    name: device.name;
+                    selected: device.selected;
+                    sample-rate-text: device.sample_rate_text;
+                    buffer-size-text: device.buffer_size_text;
+                    sample-rate-options: root.sample-rate-options;
+                    buffer-size-options: root.buffer-size-options;
+                    toggled(checked) => {
+                        root.toggle-output-device(i, checked);
+                    }
+                    sample-rate-selected(value) => {
+                        root.update-output-sample-rate(i, value);
+                    }
+                    buffer-size-selected(value) => {
+                        root.update-output-buffer-size(i, value);
                     }
                 }
             }

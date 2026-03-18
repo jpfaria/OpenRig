@@ -12,6 +12,11 @@ export component AppWindow inherits Window {
     in-out property <string> status-message;
     in property <[string]> sample-rate-options: ["44100", "48000", "88200", "96000"];
     in property <[string]> buffer-size-options: ["32", "64", "128", "256", "512", "1024"];
+    private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
+    private property <length> device-row-height: 48px;
+    private property <length> device-list-height: (visible-device-count * device-row-height) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px);
+    private property <length> wizard-height: 26px + 22px + device-list-height + 22px + 44px + 26px;
+    private property <length> wizard-width: 920px;
 
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
@@ -22,10 +27,14 @@ export component AppWindow inherits Window {
     callback go-to-output-step();
     callback go-to-input-step();
     callback save-audio-settings();
+    private property <length> wizard-group-spacing: 28px;
+    private property <length> wizard-group-height: Theme.typo.brand.size + wizard-group-spacing + wizard-height;
 
     title: "OpenRig";
-    width: 1280px;
-    height: 900px;
+    min-width: 960px;
+    min-height: 720px;
+    preferred-width: 1280px;
+    preferred-height: 900px;
     background: Theme.palette.pure-black;
     default-font-family: "Helvetica Neue";
     Rectangle {
@@ -33,10 +42,14 @@ export component AppWindow inherits Window {
 
         if show-audio-setup : Rectangle {
             background: transparent;
+            width: root.wizard-width;
+            height: root.wizard-group-height;
+            x: parent.width / 2 - self.width / 2;
+            y: parent.height / 2 - self.height / 2;
 
             Text {
                 x: parent.width / 2 - self.width / 2;
-                y: 36px;
+                y: 0;
                 text: "OpenRig";
                 color: Theme.palette.text-primary;
                 font-size: Theme.typo.brand.size;
@@ -44,8 +57,10 @@ export component AppWindow inherits Window {
             }
 
             AudioWizard {
-                x: parent.width / 2 - self.width / 2;
-                y: 118px;
+                x: 0;
+                y: Theme.typo.brand.size + root.wizard-group-spacing;
+                width: root.wizard-width;
+                height: root.wizard-height;
                 wizard-step: root.wizard-step;
                 input-devices: root.input-devices;
                 output-devices: root.output-devices;

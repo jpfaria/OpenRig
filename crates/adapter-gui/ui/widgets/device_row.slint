@@ -46,7 +46,7 @@ export component DeviceRow inherits Rectangle {
         CheckBox {
             text: root.name;
             checked: root.selected;
-            min-width: 430px;
+            min-width: 320px;
             toggled => {
                 root.toggled(self.checked);
             }
