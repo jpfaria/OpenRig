@@ -1,0 +1,117 @@
+<svg width="1600" height="980" viewBox="0 0 1600 980" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="130" y1="70" x2="1470" y2="910" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B1220"/>
+      <stop offset="0.55" stop-color="#121826"/>
+      <stop offset="1" stop-color="#1E1B4B"/>
+    </linearGradient>
+    <linearGradient id="floor" x1="800" y1="560" x2="800" y2="940" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A" stop-opacity="0"/>
+      <stop offset="1" stop-color="#020617" stop-opacity="0.78"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="420" y1="450" x2="1180" y2="450" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F97316"/>
+      <stop offset="0.5" stop-color="#FB7185"/>
+      <stop offset="1" stop-color="#38BDF8"/>
+    </linearGradient>
+    <radialGradient id="warmGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(260 220) rotate(33) scale(310 220)">
+      <stop stop-color="#F97316"/>
+      <stop offset="1" stop-color="#F97316" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="coolGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1320 220) rotate(145) scale(320 240)">
+      <stop stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#38BDF8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="softBlur" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="36"/>
+    </filter>
+    <filter id="cardShadow" x="-20%" y="-20%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="24" stdDeviation="22" flood-color="#020617" flood-opacity="0.45"/>
+    </filter>
+    <filter id="smallShadow" x="-20%" y="-20%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#020617" flood-opacity="0.32"/>
+    </filter>
+    <linearGradient id="screenBg" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#111827"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1600" height="980" fill="#080C16"/>
+  <rect x="40" y="40" width="1520" height="900" rx="42" fill="url(#bg)"/>
+  <rect x="40" y="40" width="1520" height="900" rx="42" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="2"/>
+  <circle cx="260" cy="220" r="250" fill="url(#warmGlow)" filter="url(#softBlur)"/>
+  <circle cx="1320" cy="220" r="260" fill="url(#coolGlow)" filter="url(#softBlur)"/>
+  <rect x="40" y="520" width="1520" height="420" rx="0" fill="url(#floor)"/>
+
+  <text x="102" y="112" fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="68" font-weight="700" letter-spacing="3">OPENRIG</text>
+  <text x="104" y="156" fill="#CBD5E1" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="600" letter-spacing="1.5">PEDALBOARD • PLUGIN • REMOTE CONTROL • HARDWARE</text>
+
+  <g filter="url(#cardShadow)">
+    <rect x="100" y="220" width="430" height="282" rx="28" fill="#D6DCE8"/>
+    <rect x="118" y="236" width="394" height="220" rx="18" fill="url(#screenBg)"/>
+    <rect x="272" y="466" width="86" height="12" rx="6" fill="#A3ACBC"/>
+    <text x="146" y="282" fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">PLUGIN / DESKTOP</text>
+    <rect x="146" y="312" width="338" height="112" rx="18" fill="#0F172A" stroke="#FFFFFF" stroke-opacity="0.07"/>
+    <circle cx="186" cy="368" r="34" fill="#0B1120" stroke="#F97316" stroke-opacity="0.75" stroke-width="2"/>
+    <circle cx="256" cy="368" r="34" fill="#0B1120" stroke="#FB7185" stroke-opacity="0.75" stroke-width="2"/>
+    <circle cx="326" cy="368" r="34" fill="#0B1120" stroke="#38BDF8" stroke-opacity="0.75" stroke-width="2"/>
+    <circle cx="396" cy="368" r="34" fill="#0B1120" stroke="#A78BFA" stroke-opacity="0.75" stroke-width="2"/>
+    <path d="M160 410H466" stroke="#FFFFFF" stroke-opacity="0.08"/>
+    <rect x="160" y="430" width="140" height="10" rx="5" fill="#F97316"/>
+    <rect x="314" y="430" width="102" height="10" rx="5" fill="#FB7185"/>
+    <rect x="430" y="430" width="36" height="10" rx="5" fill="#38BDF8"/>
+  </g>
+
+  <g filter="url(#cardShadow)">
+    <rect x="1180" y="236" width="220" height="420" rx="36" fill="#0B1120"/>
+    <rect x="1188" y="244" width="204" height="404" rx="30" stroke="#FFFFFF" stroke-opacity="0.08"/>
+    <rect x="1232" y="274" width="116" height="20" rx="10" fill="#1E293B"/>
+    <rect x="1214" y="318" width="152" height="252" rx="24" fill="#E2E8F0"/>
+    <text x="1290" y="354" text-anchor="middle" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">MY TRACK</text>
+    <rect x="1240" y="382" width="100" height="12" rx="6" fill="#0F172A"/>
+    <rect x="1240" y="412" width="76" height="10" rx="5" fill="#F97316"/>
+    <rect x="1240" y="432" width="90" height="10" rx="5" fill="#FB7185"/>
+    <rect x="1240" y="452" width="110" height="10" rx="5" fill="#38BDF8"/>
+    <rect x="1240" y="500" width="52" height="52" rx="14" fill="#FFFFFF"/>
+    <rect x="1302" y="500" width="52" height="52" rx="14" fill="#FFFFFF"/>
+    <rect x="1240" y="570" width="114" height="18" rx="9" fill="#0F172A"/>
+    <text x="1290" y="618" text-anchor="middle" fill="#CBD5E1" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">PHONE / TABLET</text>
+  </g>
+
+  <g filter="url(#cardShadow)">
+    <rect x="480" y="600" width="640" height="220" rx="40" fill="#0B1120"/>
+    <rect x="492" y="612" width="616" height="196" rx="34" stroke="#FFFFFF" stroke-opacity="0.08"/>
+    <rect x="520" y="638" width="580" height="62" rx="22" fill="#111827"/>
+    <text x="810" y="678" text-anchor="middle" fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700">OPENRIG STAGE UNIT</text>
+    <rect x="546" y="724" width="112" height="62" rx="18" fill="#0F172A" stroke="#F97316" stroke-opacity="0.65" stroke-width="2"/>
+    <rect x="688" y="724" width="112" height="62" rx="18" fill="#0F172A" stroke="#FB7185" stroke-opacity="0.65" stroke-width="2"/>
+    <rect x="830" y="724" width="112" height="62" rx="18" fill="#0F172A" stroke="#38BDF8" stroke-opacity="0.65" stroke-width="2"/>
+    <rect x="972" y="724" width="112" height="62" rx="18" fill="#0F172A" stroke="#A78BFA" stroke-opacity="0.65" stroke-width="2"/>
+    <circle cx="602" cy="755" r="20" fill="#111827" stroke="#F8FAFC" stroke-opacity="0.7" stroke-width="2"/>
+    <circle cx="744" cy="755" r="20" fill="#111827" stroke="#F8FAFC" stroke-opacity="0.7" stroke-width="2"/>
+    <circle cx="886" cy="755" r="20" fill="#111827" stroke="#F8FAFC" stroke-opacity="0.7" stroke-width="2"/>
+    <circle cx="1028" cy="755" r="20" fill="#111827" stroke="#F8FAFC" stroke-opacity="0.7" stroke-width="2"/>
+    <text x="602" y="790" text-anchor="middle" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700">DRIVE</text>
+    <text x="744" y="790" text-anchor="middle" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700">DELAY</text>
+    <text x="886" y="790" text-anchor="middle" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700">REVERB</text>
+    <text x="1028" y="790" text-anchor="middle" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700">SCENE</text>
+  </g>
+
+  <g filter="url(#smallShadow)">
+    <path d="M180 700C180 670 212 642 258 642C306 642 338 670 338 700V728C338 744 328 758 312 764L286 774V824C286 844 270 860 250 860C230 860 214 844 214 824V774L206 770C190 764 180 746 180 728V700Z" fill="#D97706"/>
+    <rect x="232" y="456" width="36" height="210" rx="18" fill="#7C2D12"/>
+    <rect x="241" y="352" width="18" height="120" rx="9" fill="#A16207"/>
+    <rect x="230" y="330" width="40" height="28" rx="10" fill="#F4E7C4"/>
+    <circle cx="192" cy="690" r="10" fill="#F3F4F6"/>
+    <circle cx="326" cy="690" r="10" fill="#F3F4F6"/>
+  </g>
+
+  <path d="M340 690C422 690 448 684 480 676" stroke="url(#accent)" stroke-width="7" stroke-linecap="round"/>
+  <path d="M530 548C690 506 954 506 1178 428" stroke="url(#accent)" stroke-width="7" stroke-linecap="round" stroke-dasharray="1 18"/>
+  <path d="M1112 700C1168 676 1190 646 1190 610" stroke="url(#accent)" stroke-width="7" stroke-linecap="round" stroke-dasharray="1 18"/>
+
+  <circle cx="470" cy="678" r="8" fill="#F97316"/>
+  <circle cx="1170" cy="430" r="8" fill="#38BDF8"/>
+  <circle cx="1188" cy="610" r="8" fill="#FB7185"/>
+</svg>

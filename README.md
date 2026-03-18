@@ -6,6 +6,8 @@ OpenRig is a pedalboard platform built to give musicians one sound system across
 
 Build your rig once. Use it on stage, in the studio, and inside your DAW.
 
+![OpenRig hero scene](docs/assets/openrig-hero-scene.svg)
+
 ## What OpenRig Will Be
 
 - A standalone pedalboard app for Windows, macOS, and Linux
