@@ -1,7 +1,5 @@
 # OpenRig Hardware
 
-![OpenRig hardware illustration](assets/openrig-hardware-multiuser.svg)
-
 If you want generated marketing images instead of diagrams, use the prompts in [image-prompts.md](image-prompts.md).
 
 ## Goal

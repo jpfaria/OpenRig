@@ -6,8 +6,6 @@ OpenRig is a cross-platform pedalboard platform for guitar and acoustic processi
 
 It is being designed to run on Windows, macOS, and Linux, and to scale from desktop audio to a dedicated hardware rig with remote control interfaces.
 
-![OpenRig ecosystem](docs/assets/openrig-ecosystem.svg)
-
 ## Vision
 
 - One pedalboard core with reusable DSP, routing, setup, and state handling
@@ -34,8 +32,6 @@ It is being designed to run on Windows, macOS, and Linux, and to scale from desk
 - `Remote UI`: Flutter clients can control rigs, presets, and state from desktop or mobile
 
 ## Hardware Vision
-
-![OpenRig hardware](docs/assets/openrig-hardware-multiuser.svg)
 
 The hardware path is designed around a shared stage unit that can receive multiple instruments and let each musician control their own track from a phone or tablet.
 
