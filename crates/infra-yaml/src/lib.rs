@@ -1,66 +1,81 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use domain::ids::{BlockId, DeviceId, InputId, OutputId, SetupId, TrackId};
+use domain::value_objects::ParameterValue;
 use ports::{PresetRepository, SetupRepository, StateRepository};
 use preset::Preset;
 use serde::Deserialize;
+use serde_yaml::Value;
 use setup::block::{
-    AudioBlock, AudioBlockKind, CompressorBlock, CompressorParams, CoreBlock, CoreBlockKind,
-    CoreNamBlock, DelayBlock, DelayParams, EqBlock, EqParams, GateBlock, GateParams, NamBlock,
-    NamEqParams, NamNoiseGateParams, NamParams, ReverbBlock, ReverbParams, SelectBlock,
-    TremoloBlock, TremoloParams, TunerBlock, TunerParams,
+    normalize_block_params, AudioBlock, AudioBlockKind, CompressorBlock, CoreBlock, CoreBlockKind,
+    CoreNamBlock, DelayBlock, EqBlock, GateBlock, NamBlock, ReverbBlock, SelectBlock, TremoloBlock,
+    TunerBlock, COMPRESSOR_MODEL_STUDIO_CLEAN, DELAY_MODEL_DIGITAL_BASIC,
+    EQ_MODEL_THREE_BAND_BASIC, GATE_MODEL_NOISE_GATE_BASIC, NAM_MODEL_NEURAL_AMP_MODELER,
+    REVERB_MODEL_PLATE_FOUNDATION as DEFAULT_REVERB_MODEL, TREMOLO_MODEL_SINE,
+    TUNER_MODEL_CHROMATIC_BASIC,
 };
 use setup::device::{InputDevice, OutputDevice};
 use setup::io::{Input, Output};
+use setup::param::ParameterSet;
 use setup::setup::Setup;
 use setup::track::{Track, TrackBusMode, TrackOutputMixdown};
 use state::pedalboard_state::PedalboardState;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+
 pub struct YamlSetupRepository {
     pub path: PathBuf,
 }
+
 pub struct YamlStateRepository {
     pub path: PathBuf,
 }
+
 pub struct YamlPresetRepository {
     pub path: PathBuf,
 }
+
 impl SetupRepository for YamlSetupRepository {
     fn load_current_setup(&self) -> Result<Setup> {
         let raw = fs::read_to_string(&self.path)
             .with_context(|| format!("failed to read yaml {:?}", self.path))?;
         let dto: SetupYaml = serde_yaml::from_str(&raw)?;
-        Ok(dto.into_setup())
+        dto.into_setup()
     }
+
     fn save_setup(&self, _setup: &Setup) -> Result<()> {
         Ok(())
     }
 }
+
 impl StateRepository for YamlStateRepository {
     fn load_state(&self) -> Result<PedalboardState> {
         let raw = fs::read_to_string(&self.path)
             .with_context(|| format!("failed to read yaml {:?}", self.path))?;
         Ok(serde_yaml::from_str(&raw)?)
     }
+
     fn save_state(&self, state: &PedalboardState) -> Result<()> {
         let raw = serde_yaml::to_string(state)?;
         fs::write(&self.path, raw)?;
         Ok(())
     }
 }
+
 impl PresetRepository for YamlPresetRepository {
     fn load_preset(&self, _preset_id: &str) -> Result<Preset> {
         let raw = fs::read_to_string(&self.path)
             .with_context(|| format!("failed to read yaml {:?}", self.path))?;
         Ok(serde_yaml::from_str(&raw)?)
     }
+
     fn save_preset(&self, preset: &Preset) -> Result<()> {
         let raw = serde_yaml::to_string(preset)?;
         fs::write(&self.path, raw)?;
         Ok(())
     }
 }
+
 #[derive(Debug, Deserialize)]
 struct SetupYaml {
     #[serde(default = "default_setup_id")]
@@ -73,25 +88,33 @@ struct SetupYaml {
     outputs: Vec<OutputYaml>,
     tracks: Vec<TrackYaml>,
 }
+
 impl SetupYaml {
-    fn into_setup(self) -> Setup {
-        Setup {
+    fn into_setup(self) -> Result<Setup> {
+        Ok(Setup {
             id: SetupId(self.id),
             name: self.name,
             input_devices: self.input_devices.into_iter().map(Into::into).collect(),
             output_devices: self.output_devices.into_iter().map(Into::into).collect(),
             inputs: self.inputs.into_iter().map(Into::into).collect(),
             outputs: self.outputs.into_iter().map(Into::into).collect(),
-            tracks: self.tracks.into_iter().map(Into::into).collect(),
-        }
+            tracks: self
+                .tracks
+                .into_iter()
+                .map(TrackYaml::into_track)
+                .collect::<Result<Vec<_>>>()?,
+        })
     }
 }
+
 fn default_setup_id() -> String {
     "default-setup".to_string()
 }
+
 fn default_setup_name() -> String {
     "Default Setup".to_string()
 }
+
 #[derive(Debug, Deserialize)]
 struct InputDeviceYaml {
     id: String,
@@ -99,6 +122,7 @@ struct InputDeviceYaml {
     sample_rate: u32,
     buffer_size_frames: u32,
 }
+
 impl From<InputDeviceYaml> for InputDevice {
     fn from(value: InputDeviceYaml) -> Self {
         Self {
@@ -109,6 +133,7 @@ impl From<InputDeviceYaml> for InputDevice {
         }
     }
 }
+
 #[derive(Debug, Deserialize)]
 struct OutputDeviceYaml {
     id: String,
@@ -116,6 +141,7 @@ struct OutputDeviceYaml {
     sample_rate: u32,
     buffer_size_frames: u32,
 }
+
 impl From<OutputDeviceYaml> for OutputDevice {
     fn from(value: OutputDeviceYaml) -> Self {
         Self {
@@ -126,12 +152,14 @@ impl From<OutputDeviceYaml> for OutputDevice {
         }
     }
 }
+
 #[derive(Debug, Deserialize)]
 struct InputYaml {
     id: String,
     device_id: String,
     channels: Vec<usize>,
 }
+
 impl From<InputYaml> for Input {
     fn from(value: InputYaml) -> Self {
         Self {
@@ -141,12 +169,14 @@ impl From<InputYaml> for Input {
         }
     }
 }
+
 #[derive(Debug, Deserialize)]
 struct OutputYaml {
     id: String,
     device_id: String,
     channels: Vec<usize>,
 }
+
 impl From<OutputYaml> for Output {
     fn from(value: OutputYaml) -> Self {
         Self {
@@ -156,6 +186,7 @@ impl From<OutputYaml> for Output {
         }
     }
 }
+
 #[derive(Debug, Deserialize)]
 struct TrackYaml {
     id: String,
@@ -169,67 +200,77 @@ struct TrackYaml {
     #[serde(default, alias = "stages")]
     blocks: Vec<AudioBlockYaml>,
 }
-impl From<TrackYaml> for Track {
-    fn from(value: TrackYaml) -> Self {
-        let track_id = TrackId(value.id.clone());
-        Self {
+
+impl TrackYaml {
+    fn into_track(self) -> Result<Track> {
+        let track_id = TrackId(self.id.clone());
+        Ok(Track {
             id: track_id.clone(),
-            input_id: InputId(value.input_id),
-            output_ids: value.outputs.into_iter().map(OutputId).collect(),
-            bus_mode: value.bus_mode,
-            output_mixdown: value.output_mixdown,
-            gain: value.gain,
-            blocks: value
+            input_id: InputId(self.input_id),
+            output_ids: self.outputs.into_iter().map(OutputId).collect(),
+            bus_mode: self.bus_mode,
+            output_mixdown: self.output_mixdown,
+            gain: self.gain,
+            blocks: self
                 .blocks
                 .into_iter()
                 .enumerate()
                 .map(|(index, block)| block.into_audio_block(&track_id, index))
-                .collect(),
-        }
+                .collect::<Result<Vec<_>>>()?,
+        })
     }
 }
+
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum AudioBlockYaml {
     Nam {
         #[serde(default = "default_nam_model")]
         model: String,
-        params: NamParamsYaml,
+        #[serde(default)]
+        params: Value,
     },
     Delay {
         #[serde(default = "default_delay_model")]
         model: String,
-        params: DelayParamsYaml,
+        #[serde(default)]
+        params: Value,
     },
     Reverb {
         #[serde(default = "default_reverb_model")]
         model: String,
-        params: ReverbParamsYaml,
+        #[serde(default)]
+        params: Value,
     },
     Tuner {
         #[serde(default = "default_tuner_model")]
         model: String,
-        params: TunerParamsYaml,
+        #[serde(default)]
+        params: Value,
     },
     Compressor {
         #[serde(default = "default_compressor_model")]
         model: String,
-        params: CompressorParamsYaml,
+        #[serde(default)]
+        params: Value,
     },
     Gate {
         #[serde(default = "default_gate_model")]
         model: String,
-        params: GateParamsYaml,
+        #[serde(default)]
+        params: Value,
     },
     Eq {
         #[serde(default = "default_eq_model")]
         model: String,
-        params: EqParamsYaml,
+        #[serde(default)]
+        params: Value,
     },
     Tremolo {
         #[serde(default = "default_tremolo_model")]
         model: String,
-        params: TremoloParamsYaml,
+        #[serde(default)]
+        params: Value,
     },
     CoreNam {
         model_id: String,
@@ -242,248 +283,97 @@ enum AudioBlockYaml {
         options: HashMap<String, SelectOptionYaml>,
     },
 }
+
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum SelectOptionYaml {
     Nam {
         #[serde(default = "default_nam_model")]
         model: String,
-        params: NamParamsYaml,
+        #[serde(default)]
+        params: Value,
     },
 }
 
-#[derive(Debug, Default, Deserialize)]
-struct NamParamsYaml {
-    model_path: String,
-    ir_path: Option<String>,
-    #[serde(default)]
-    input_db: Option<f32>,
-    #[serde(default)]
-    output_db: Option<f32>,
-    #[serde(default)]
-    noise_gate: Option<NamNoiseGateYaml>,
-    #[serde(default)]
-    eq: Option<NamEqYaml>,
-    #[serde(default)]
-    ir_enabled: Option<bool>,
-}
-
-#[derive(Debug, Default, Deserialize)]
-struct NamNoiseGateYaml {
-    #[serde(default)]
-    enabled: Option<bool>,
-    #[serde(default, alias = "threshold")]
-    threshold_db: Option<f32>,
-}
-
-#[derive(Debug, Default, Deserialize)]
-struct NamEqYaml {
-    #[serde(default)]
-    enabled: Option<bool>,
-    #[serde(default)]
-    bass: Option<f32>,
-    #[serde(default)]
-    middle: Option<f32>,
-    #[serde(default)]
-    treble: Option<f32>,
-}
-
-#[derive(Debug, Default, Deserialize)]
-struct DelayParamsYaml {
-    time_ms: Option<f32>,
-    feedback: Option<f32>,
-    mix: Option<f32>,
-}
-
-#[derive(Debug, Default, Deserialize)]
-struct ReverbParamsYaml {
-    room_size: Option<f32>,
-    damping: Option<f32>,
-    mix: Option<f32>,
-}
-
-#[derive(Debug, Default, Deserialize)]
-struct TunerParamsYaml {
-    #[serde(default = "default_reference_hz")]
-    reference_hz: f32,
-}
-
-#[derive(Debug, Default, Deserialize)]
-struct CompressorParamsYaml {
-    threshold: Option<f32>,
-    ratio: Option<f32>,
-    attack_ms: Option<f32>,
-    release_ms: Option<f32>,
-    makeup_gain_db: Option<f32>,
-    mix: Option<f32>,
-}
-
-#[derive(Debug, Default, Deserialize)]
-struct GateParamsYaml {
-    threshold: Option<f32>,
-    attack_ms: Option<f32>,
-    release_ms: Option<f32>,
-}
-
-#[derive(Debug, Default, Deserialize)]
-struct EqParamsYaml {
-    low_gain_db: Option<f32>,
-    mid_gain_db: Option<f32>,
-    high_gain_db: Option<f32>,
-}
-
-#[derive(Debug, Default, Deserialize)]
-struct TremoloParamsYaml {
-    rate_hz: Option<f32>,
-    depth: Option<f32>,
-}
 impl AudioBlockYaml {
-    fn into_audio_block(self, track_id: &TrackId, index: usize) -> AudioBlock {
+    fn into_audio_block(self, track_id: &TrackId, index: usize) -> Result<AudioBlock> {
         let generated_id = generated_block_id(track_id, index);
 
         match self {
-            AudioBlockYaml::Nam { model, params } => AudioBlock {
+            AudioBlockYaml::Nam { model, params } => Ok(AudioBlock {
                 id: generated_id,
                 kind: AudioBlockKind::Nam(NamBlock {
-                    model,
-                    params: NamParams {
-                        model_path: params.model_path,
-                        ir_path: params.ir_path,
-                        input_db: params.input_db.unwrap_or(0.0),
-                        output_db: params.output_db.unwrap_or(0.0),
-                        noise_gate: NamNoiseGateParams {
-                            enabled: params
-                                .noise_gate
-                                .as_ref()
-                                .and_then(|value| value.enabled)
-                                .unwrap_or(true),
-                            threshold_db: params
-                                .noise_gate
-                                .as_ref()
-                                .and_then(|value| value.threshold_db)
-                                .unwrap_or(-80.0),
-                        },
-                        eq: NamEqParams {
-                            enabled: params
-                                .eq
-                                .as_ref()
-                                .and_then(|value| value.enabled)
-                                .unwrap_or(true),
-                            bass: params
-                                .eq
-                                .as_ref()
-                                .and_then(|value| value.bass)
-                                .unwrap_or(5.0),
-                            middle: params
-                                .eq
-                                .as_ref()
-                                .and_then(|value| value.middle)
-                                .unwrap_or(5.0),
-                            treble: params
-                                .eq
-                                .as_ref()
-                                .and_then(|value| value.treble)
-                                .unwrap_or(5.0),
-                        },
-                        ir_enabled: params.ir_enabled.unwrap_or(true),
-                    },
+                    model: model.clone(),
+                    params: load_model_params("nam", &model, params)?,
                 }),
-            },
-            AudioBlockYaml::Delay { model, params } => AudioBlock {
+            }),
+            AudioBlockYaml::Delay { model, params } => Ok(AudioBlock {
                 id: generated_id,
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::Delay(DelayBlock {
-                        model,
-                        params: DelayParams {
-                            time_ms: params.time_ms.unwrap_or(380.0),
-                            feedback: params.feedback.unwrap_or(0.35),
-                            mix: params.mix.unwrap_or(0.3),
-                        },
+                        model: model.clone(),
+                        params: load_model_params("delay", &model, params)?,
                     }),
                 }),
-            },
-            AudioBlockYaml::Reverb { model, params } => AudioBlock {
+            }),
+            AudioBlockYaml::Reverb { model, params } => Ok(AudioBlock {
                 id: generated_id,
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::Reverb(ReverbBlock {
-                        model,
-                        params: ReverbParams {
-                            room_size: params.room_size.unwrap_or(0.45),
-                            damping: params.damping.unwrap_or(0.35),
-                            mix: params.mix.unwrap_or(0.25),
-                        },
+                        model: model.clone(),
+                        params: load_model_params("reverb", &model, params)?,
                     }),
                 }),
-            },
-            AudioBlockYaml::Tuner { model, params } => AudioBlock {
+            }),
+            AudioBlockYaml::Tuner { model, params } => Ok(AudioBlock {
                 id: generated_id,
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::Tuner(TunerBlock {
-                        model,
-                        params: TunerParams {
-                            reference_hz: params.reference_hz,
-                        },
+                        model: model.clone(),
+                        params: load_model_params("tuner", &model, params)?,
                     }),
                 }),
-            },
-            AudioBlockYaml::Compressor { model, params } => AudioBlock {
+            }),
+            AudioBlockYaml::Compressor { model, params } => Ok(AudioBlock {
                 id: generated_id,
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::Compressor(CompressorBlock {
-                        model,
-                        params: CompressorParams {
-                            threshold: params.threshold.unwrap_or(-18.0),
-                            ratio: params.ratio.unwrap_or(4.0),
-                            attack_ms: params.attack_ms.unwrap_or(10.0),
-                            release_ms: params.release_ms.unwrap_or(80.0),
-                            makeup_gain_db: params.makeup_gain_db.unwrap_or(0.0),
-                            mix: params.mix.unwrap_or(1.0),
-                        },
+                        model: model.clone(),
+                        params: load_model_params("compressor", &model, params)?,
                     }),
                 }),
-            },
-            AudioBlockYaml::Gate { model, params } => AudioBlock {
+            }),
+            AudioBlockYaml::Gate { model, params } => Ok(AudioBlock {
                 id: generated_id,
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::Gate(GateBlock {
-                        model,
-                        params: GateParams {
-                            threshold: params.threshold.unwrap_or(-60.0),
-                            attack_ms: params.attack_ms.unwrap_or(5.0),
-                            release_ms: params.release_ms.unwrap_or(50.0),
-                        },
+                        model: model.clone(),
+                        params: load_model_params("gate", &model, params)?,
                     }),
                 }),
-            },
-            AudioBlockYaml::Eq { model, params } => AudioBlock {
+            }),
+            AudioBlockYaml::Eq { model, params } => Ok(AudioBlock {
                 id: generated_id,
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::Eq(EqBlock {
-                        model,
-                        params: EqParams {
-                            low_gain_db: params.low_gain_db.unwrap_or(0.0),
-                            mid_gain_db: params.mid_gain_db.unwrap_or(0.0),
-                            high_gain_db: params.high_gain_db.unwrap_or(0.0),
-                        },
+                        model: model.clone(),
+                        params: load_model_params("eq", &model, params)?,
                     }),
                 }),
-            },
-            AudioBlockYaml::Tremolo { model, params } => AudioBlock {
+            }),
+            AudioBlockYaml::Tremolo { model, params } => Ok(AudioBlock {
                 id: generated_id,
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::Tremolo(TremoloBlock {
-                        model,
-                        params: TremoloParams {
-                            rate_hz: params.rate_hz.unwrap_or(4.0),
-                            depth: params.depth.unwrap_or(0.5),
-                        },
+                        model: model.clone(),
+                        params: load_model_params("tremolo", &model, params)?,
                     }),
                 }),
-            },
-            AudioBlockYaml::CoreNam { model_id, ir_id } => AudioBlock {
+            }),
+            AudioBlockYaml::CoreNam { model_id, ir_id } => Ok(AudioBlock {
                 id: generated_id,
                 kind: AudioBlockKind::CoreNam(CoreNamBlock { model_id, ir_id }),
-            },
+            }),
             AudioBlockYaml::Select {
                 id,
                 selected,
@@ -492,66 +382,95 @@ impl AudioBlockYaml {
                 let selected_block_id = BlockId(format!("{}::{}", id, selected));
                 let options = options
                     .into_iter()
-                    .map(|(name, option)| AudioBlock {
-                        id: BlockId(format!("{}::{}", id, name)),
-                        kind: match option {
+                    .map(|(name, option)| {
+                        let option_id = BlockId(format!("{}::{}", id, name));
+                        let kind = match option {
                             SelectOptionYaml::Nam { model, params } => {
                                 AudioBlockKind::Nam(NamBlock {
-                                    model,
-                                    params: NamParams {
-                                        model_path: params.model_path,
-                                        ir_path: params.ir_path,
-                                        input_db: params.input_db.unwrap_or(0.0),
-                                        output_db: params.output_db.unwrap_or(0.0),
-                                        noise_gate: NamNoiseGateParams {
-                                            enabled: params
-                                                .noise_gate
-                                                .as_ref()
-                                                .and_then(|value| value.enabled)
-                                                .unwrap_or(true),
-                                            threshold_db: params
-                                                .noise_gate
-                                                .as_ref()
-                                                .and_then(|value| value.threshold_db)
-                                                .unwrap_or(-80.0),
-                                        },
-                                        eq: NamEqParams {
-                                            enabled: params
-                                                .eq
-                                                .as_ref()
-                                                .and_then(|value| value.enabled)
-                                                .unwrap_or(true),
-                                            bass: params
-                                                .eq
-                                                .as_ref()
-                                                .and_then(|value| value.bass)
-                                                .unwrap_or(5.0),
-                                            middle: params
-                                                .eq
-                                                .as_ref()
-                                                .and_then(|value| value.middle)
-                                                .unwrap_or(5.0),
-                                            treble: params
-                                                .eq
-                                                .as_ref()
-                                                .and_then(|value| value.treble)
-                                                .unwrap_or(5.0),
-                                        },
-                                        ir_enabled: params.ir_enabled.unwrap_or(true),
-                                    },
+                                    model: model.clone(),
+                                    params: load_model_params("nam", &model, params)?,
                                 })
                             }
-                        },
+                        };
+                        Ok(AudioBlock {
+                            id: option_id,
+                            kind,
+                        })
                     })
-                    .collect();
-                AudioBlock {
+                    .collect::<Result<Vec<_>>>()?;
+
+                Ok(AudioBlock {
                     id: BlockId(id),
                     kind: AudioBlockKind::Select(SelectBlock {
                         selected_block_id,
                         options,
                     }),
-                }
+                })
             }
+        }
+    }
+}
+
+fn load_model_params(effect_type: &str, model: &str, raw_params: Value) -> Result<ParameterSet> {
+    let flattened = flatten_parameter_set(raw_params)?;
+    normalize_block_params(effect_type, model, flattened).map_err(anyhow::Error::msg)
+}
+
+fn flatten_parameter_set(value: Value) -> Result<ParameterSet> {
+    let mut params = ParameterSet::default();
+    match value {
+        Value::Null => Ok(params),
+        Value::Mapping(mapping) => {
+            for (key, value) in mapping {
+                let key = yaml_key_to_string(key)?;
+                flatten_parameter_value(&mut params, &key, value)?;
+            }
+            Ok(params)
+        }
+        other => Err(anyhow!("params must be a mapping, got {:?}", other)),
+    }
+}
+
+fn flatten_parameter_value(params: &mut ParameterSet, path: &str, value: Value) -> Result<()> {
+    match value {
+        Value::Mapping(mapping) => {
+            for (key, nested_value) in mapping {
+                let key = yaml_key_to_string(key)?;
+                let nested_path = format!("{}.{}", path, key);
+                flatten_parameter_value(params, &nested_path, nested_value)?;
+            }
+            Ok(())
+        }
+        scalar => {
+            params.insert(path.to_string(), yaml_scalar_to_parameter_value(scalar)?);
+            Ok(())
+        }
+    }
+}
+
+fn yaml_key_to_string(value: Value) -> Result<String> {
+    match value {
+        Value::String(value) => Ok(value),
+        other => Err(anyhow!("yaml object keys must be strings, got {:?}", other)),
+    }
+}
+
+fn yaml_scalar_to_parameter_value(value: Value) -> Result<ParameterValue> {
+    match value {
+        Value::Null => Ok(ParameterValue::Null),
+        Value::Bool(value) => Ok(ParameterValue::Bool(value)),
+        Value::Number(value) => {
+            if let Some(number) = value.as_i64() {
+                Ok(ParameterValue::Int(number))
+            } else if let Some(number) = value.as_f64() {
+                Ok(ParameterValue::Float(number as f32))
+            } else {
+                Err(anyhow!("unsupported yaml number '{}'", value))
+            }
+        }
+        Value::String(value) => Ok(ParameterValue::String(value)),
+        Value::Sequence(_) | Value::Mapping(_) | Value::Tagged(_) => {
+            Err(anyhow!("unsupported yaml value in params"))
         }
     }
 }
@@ -561,37 +480,33 @@ fn generated_block_id(track_id: &TrackId, index: usize) -> BlockId {
 }
 
 fn default_delay_model() -> String {
-    "digital_basic".to_string()
+    DELAY_MODEL_DIGITAL_BASIC.to_string()
 }
 
 fn default_nam_model() -> String {
-    "neural_amp_modeler".to_string()
+    NAM_MODEL_NEURAL_AMP_MODELER.to_string()
 }
 
 fn default_reverb_model() -> String {
-    "plate_foundation".to_string()
+    DEFAULT_REVERB_MODEL.to_string()
 }
 
 fn default_tuner_model() -> String {
-    "chromatic_basic".to_string()
+    TUNER_MODEL_CHROMATIC_BASIC.to_string()
 }
 
 fn default_compressor_model() -> String {
-    "studio_clean".to_string()
+    COMPRESSOR_MODEL_STUDIO_CLEAN.to_string()
 }
 
 fn default_gate_model() -> String {
-    "noise_gate_basic".to_string()
+    GATE_MODEL_NOISE_GATE_BASIC.to_string()
 }
 
 fn default_eq_model() -> String {
-    "three_band_basic".to_string()
+    EQ_MODEL_THREE_BAND_BASIC.to_string()
 }
 
 fn default_tremolo_model() -> String {
-    "sine_tremolo".to_string()
-}
-
-fn default_reference_hz() -> f32 {
-    440.0
+    TREMOLO_MODEL_SINE.to_string()
 }

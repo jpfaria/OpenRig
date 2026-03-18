@@ -1,5 +1,5 @@
 use anyhow::{anyhow, bail, Result};
-use setup::block::{AudioBlockKind, CoreBlockKind};
+use setup::block::AudioBlockKind;
 use setup::setup::Setup;
 use setup::track::{Track, TrackBusMode};
 use std::collections::{HashMap, HashSet};
@@ -209,66 +209,20 @@ fn validate_track_blocks(track: &Track) -> Result<()> {
         if !block_ids.insert(block.id.clone()) {
             bail!("duplicated block id '{}'", block.id.0);
         }
-        match &block.kind {
-            AudioBlockKind::Nam(stage) => {
-                if stage.model.trim().is_empty() {
-                    bail!("block '{}' missing nam model", block.id.0);
-                }
-                if stage.params.model_path.trim().is_empty() {
-                    bail!("block '{}' missing model_path", block.id.0);
-                }
+        block
+            .validate_params()
+            .map_err(|error| anyhow!("block '{}': {}", block.id.0, error))?;
+        if let AudioBlockKind::Select(select) = &block.kind {
+            if select.options.is_empty() {
+                bail!("block '{}' has no select options", block.id.0);
             }
-            AudioBlockKind::Core(core) => match &core.kind {
-                CoreBlockKind::Delay(stage) => {
-                    if stage.model.trim().is_empty() {
-                        bail!("block '{}' missing delay model", block.id.0);
-                    }
-                }
-                CoreBlockKind::Reverb(stage) => {
-                    if stage.model.trim().is_empty() {
-                        bail!("block '{}' missing reverb model", block.id.0);
-                    }
-                }
-                CoreBlockKind::Tuner(stage) => {
-                    if stage.model.trim().is_empty() {
-                        bail!("block '{}' missing tuner model", block.id.0);
-                    }
-                }
-                CoreBlockKind::Compressor(stage) => {
-                    if stage.model.trim().is_empty() {
-                        bail!("block '{}' missing compressor model", block.id.0);
-                    }
-                }
-                CoreBlockKind::Gate(stage) => {
-                    if stage.model.trim().is_empty() {
-                        bail!("block '{}' missing gate model", block.id.0);
-                    }
-                }
-                CoreBlockKind::Eq(stage) => {
-                    if stage.model.trim().is_empty() {
-                        bail!("block '{}' missing eq model", block.id.0);
-                    }
-                }
-                CoreBlockKind::Tremolo(stage) => {
-                    if stage.model.trim().is_empty() {
-                        bail!("block '{}' missing tremolo model", block.id.0);
-                    }
-                }
-                _ => {}
-            },
-            AudioBlockKind::Select(select) => {
-                if select.options.is_empty() {
-                    bail!("block '{}' has no select options", block.id.0);
-                }
-                if !select
-                    .options
-                    .iter()
-                    .any(|option| option.id == select.selected_block_id)
-                {
-                    bail!("block '{}' selected option does not exist", block.id.0);
-                }
+            if !select
+                .options
+                .iter()
+                .any(|option| option.id == select.selected_block_id)
+            {
+                bail!("block '{}' selected option does not exist", block.id.0);
             }
-            _ => {}
         }
     }
     Ok(())

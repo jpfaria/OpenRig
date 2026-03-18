@@ -1,10 +1,13 @@
 use anyhow::{anyhow, Result};
 use domain::ids::TrackId;
-use setup::block::{AudioBlockKind, CoreBlockKind, NamBlock, SelectBlock};
+use setup::block::{
+    AudioBlockKind, CoreBlockKind, NamBlock, SelectBlock, NAM_MODEL_NEURAL_AMP_MODELER,
+};
 use setup::io::{Input, Output};
+use setup::param::ParameterSet;
 use setup::setup::Setup;
 use setup::track::{Track, TrackBusMode, TrackOutputMixdown};
-use stage_amp_nam::processor::{NamPluginParams, NamProcessor, DEFAULT_NAM_MODEL};
+use stage_amp_nam::processor::{NamPluginParams, NamProcessor};
 use stage_core::MonoProcessor;
 use stage_delay_digital::{build_delay_processor, DelayParams};
 use stage_dyn_compressor::{build_compressor_processor, CompressorParams};
@@ -172,13 +175,12 @@ fn build_runtime_processors(
             }
             AudioBlockKind::Core(core) => match &core.kind {
                 CoreBlockKind::Delay(stage) => {
+                    let time_ms = required_f32(&stage.params, "time_ms")?;
+                    let feedback = required_f32(&stage.params, "feedback")?;
+                    let mix = required_f32(&stage.params, "mix")?;
                     println!(
                         "[track:{}] loading delay model={} time_ms={} feedback={} mix={}",
-                        track.id.0,
-                        stage.model,
-                        stage.params.time_ms,
-                        stage.params.feedback,
-                        stage.params.mix
+                        track.id.0, stage.model, time_ms, feedback, mix
                     );
                     processors.push(RuntimeProcessor::Audio(build_audio_processor(
                         bus_mode,
@@ -186,9 +188,9 @@ fn build_runtime_processors(
                             build_delay_processor(
                                 &stage.model,
                                 DelayParams {
-                                    time_ms: stage.params.time_ms,
-                                    feedback: stage.params.feedback,
-                                    mix: stage.params.mix,
+                                    time_ms,
+                                    feedback,
+                                    mix,
                                 },
                                 DEFAULT_SAMPLE_RATE,
                             )
@@ -196,13 +198,12 @@ fn build_runtime_processors(
                     )?));
                 }
                 CoreBlockKind::Reverb(stage) => {
+                    let room_size = required_f32(&stage.params, "room_size")?;
+                    let damping = required_f32(&stage.params, "damping")?;
+                    let mix = required_f32(&stage.params, "mix")?;
                     println!(
                         "[track:{}] loading reverb model={} room_size={} damping={} mix={}",
-                        track.id.0,
-                        stage.model,
-                        stage.params.room_size,
-                        stage.params.damping,
-                        stage.params.mix
+                        track.id.0, stage.model, room_size, damping, mix
                     );
                     processors.push(RuntimeProcessor::Audio(build_audio_processor(
                         bus_mode,
@@ -210,9 +211,9 @@ fn build_runtime_processors(
                             build_reverb_processor(
                                 &stage.model,
                                 ReverbParams {
-                                    room_size: stage.params.room_size,
-                                    damping: stage.params.damping,
-                                    mix: stage.params.mix,
+                                    room_size,
+                                    damping,
+                                    mix,
                                 },
                                 DEFAULT_SAMPLE_RATE,
                             )
@@ -220,27 +221,34 @@ fn build_runtime_processors(
                     )?));
                 }
                 CoreBlockKind::Tuner(stage) => {
+                    let reference_hz = required_f32(&stage.params, "reference_hz")?;
                     println!(
                         "[track:{}] loading tuner model={} reference_hz={}",
-                        track.id.0, stage.model, stage.params.reference_hz
+                        track.id.0, stage.model, reference_hz
                     );
                     processors.push(RuntimeProcessor::Tuner(build_tuner_processor(
                         &stage.model,
-                        stage.params.reference_hz,
+                        reference_hz,
                         DEFAULT_SAMPLE_RATE as usize,
                     )?));
                 }
                 CoreBlockKind::Compressor(stage) => {
+                    let threshold = required_f32(&stage.params, "threshold")?;
+                    let ratio = required_f32(&stage.params, "ratio")?;
+                    let attack_ms = required_f32(&stage.params, "attack_ms")?;
+                    let release_ms = required_f32(&stage.params, "release_ms")?;
+                    let makeup_gain_db = required_f32(&stage.params, "makeup_gain_db")?;
+                    let mix = required_f32(&stage.params, "mix")?;
                     println!(
                         "[track:{}] loading compressor model={} threshold={} ratio={} attack_ms={} release_ms={} makeup_gain_db={} mix={}",
                         track.id.0,
                         stage.model,
-                        stage.params.threshold,
-                        stage.params.ratio,
-                        stage.params.attack_ms,
-                        stage.params.release_ms,
-                        stage.params.makeup_gain_db,
-                        stage.params.mix
+                        threshold,
+                        ratio,
+                        attack_ms,
+                        release_ms,
+                        makeup_gain_db,
+                        mix
                     );
                     processors.push(RuntimeProcessor::Audio(build_audio_processor(
                         bus_mode,
@@ -248,12 +256,12 @@ fn build_runtime_processors(
                             build_compressor_processor(
                                 &stage.model,
                                 CompressorParams {
-                                    threshold: stage.params.threshold,
-                                    ratio: stage.params.ratio,
-                                    attack_ms: stage.params.attack_ms,
-                                    release_ms: stage.params.release_ms,
-                                    makeup_gain_db: stage.params.makeup_gain_db,
-                                    mix: stage.params.mix,
+                                    threshold,
+                                    ratio,
+                                    attack_ms,
+                                    release_ms,
+                                    makeup_gain_db,
+                                    mix,
                                 },
                                 DEFAULT_SAMPLE_RATE,
                             )
@@ -261,13 +269,12 @@ fn build_runtime_processors(
                     )?));
                 }
                 CoreBlockKind::Gate(stage) => {
+                    let threshold = required_f32(&stage.params, "threshold")?;
+                    let attack_ms = required_f32(&stage.params, "attack_ms")?;
+                    let release_ms = required_f32(&stage.params, "release_ms")?;
                     println!(
                         "[track:{}] loading gate model={} threshold={} attack_ms={} release_ms={}",
-                        track.id.0,
-                        stage.model,
-                        stage.params.threshold,
-                        stage.params.attack_ms,
-                        stage.params.release_ms
+                        track.id.0, stage.model, threshold, attack_ms, release_ms
                     );
                     processors.push(RuntimeProcessor::Audio(build_audio_processor(
                         bus_mode,
@@ -275,9 +282,9 @@ fn build_runtime_processors(
                             build_gate_processor(
                                 &stage.model,
                                 GateParams {
-                                    threshold: stage.params.threshold,
-                                    attack_ms: stage.params.attack_ms,
-                                    release_ms: stage.params.release_ms,
+                                    threshold,
+                                    attack_ms,
+                                    release_ms,
                                 },
                                 DEFAULT_SAMPLE_RATE,
                             )
@@ -285,13 +292,12 @@ fn build_runtime_processors(
                     )?));
                 }
                 CoreBlockKind::Eq(stage) => {
+                    let low_gain_db = required_f32(&stage.params, "low_gain_db")?;
+                    let mid_gain_db = required_f32(&stage.params, "mid_gain_db")?;
+                    let high_gain_db = required_f32(&stage.params, "high_gain_db")?;
                     println!(
                         "[track:{}] loading eq model={} low_gain_db={} mid_gain_db={} high_gain_db={}",
-                        track.id.0,
-                        stage.model,
-                        stage.params.low_gain_db,
-                        stage.params.mid_gain_db,
-                        stage.params.high_gain_db
+                        track.id.0, stage.model, low_gain_db, mid_gain_db, high_gain_db
                     );
                     processors.push(RuntimeProcessor::Audio(build_audio_processor(
                         bus_mode,
@@ -299,9 +305,9 @@ fn build_runtime_processors(
                             build_eq_processor(
                                 &stage.model,
                                 EqParams {
-                                    low_gain_db: stage.params.low_gain_db,
-                                    mid_gain_db: stage.params.mid_gain_db,
-                                    high_gain_db: stage.params.high_gain_db,
+                                    low_gain_db,
+                                    mid_gain_db,
+                                    high_gain_db,
                                 },
                                 DEFAULT_SAMPLE_RATE,
                             )
@@ -309,19 +315,18 @@ fn build_runtime_processors(
                     )?));
                 }
                 CoreBlockKind::Tremolo(stage) => {
+                    let rate_hz = required_f32(&stage.params, "rate_hz")?;
+                    let depth = required_f32(&stage.params, "depth")?;
                     println!(
                         "[track:{}] loading tremolo model={} rate_hz={} depth={}",
-                        track.id.0, stage.model, stage.params.rate_hz, stage.params.depth
+                        track.id.0, stage.model, rate_hz, depth
                     );
                     processors.push(RuntimeProcessor::Audio(build_audio_processor(
                         bus_mode,
                         || {
                             build_tremolo_processor(
                                 &stage.model,
-                                TremoloParams {
-                                    rate_hz: stage.params.rate_hz,
-                                    depth: stage.params.depth,
-                                },
+                                TremoloParams { rate_hz, depth },
                                 DEFAULT_SAMPLE_RATE,
                             )
                         },
@@ -362,37 +367,74 @@ fn build_nam_audio_processor(
     bus_mode: ResolvedTrackBusMode,
     label: &str,
 ) -> Result<AudioProcessor> {
-    if stage.model != DEFAULT_NAM_MODEL {
+    if stage.model != NAM_MODEL_NEURAL_AMP_MODELER {
         return Err(anyhow!(
             "track '{}' uses unsupported nam model '{}'",
             track.id.0,
             stage.model
         ));
     }
+    let model_path = required_string(&stage.params, "model_path")?;
+    let ir_path = optional_string(&stage.params, "ir_path");
+    let input_db = required_f32(&stage.params, "input_db")?;
+    let output_db = required_f32(&stage.params, "output_db")?;
+    let noise_gate_enabled = required_bool(&stage.params, "noise_gate.enabled")?;
+    let noise_gate_threshold_db = required_f32(&stage.params, "noise_gate.threshold_db")?;
+    let eq_enabled = required_bool(&stage.params, "eq.enabled")?;
+    let bass = required_f32(&stage.params, "eq.bass")?;
+    let middle = required_f32(&stage.params, "eq.middle")?;
+    let treble = required_f32(&stage.params, "eq.treble")?;
+    let ir_enabled = required_bool(&stage.params, "ir_enabled")?;
     println!(
         "[track:{}] loading {} model={} file='{}'",
-        track.id.0, label, stage.model, stage.params.model_path
+        track.id.0, label, stage.model, model_path
     );
-    if let Some(ir_path) = &stage.params.ir_path {
+    if let Some(ir_path) = ir_path.as_deref() {
         println!("[track:{}] loading {} IR '{}'", track.id.0, label, ir_path);
     }
     build_audio_processor(bus_mode, || {
         Ok(Box::new(NamProcessor::new(
-            &stage.params.model_path,
-            stage.params.ir_path.as_deref(),
+            &model_path,
+            ir_path.as_deref(),
             NamPluginParams {
-                input_level_db: stage.params.input_db,
-                output_level_db: stage.params.output_db,
-                noise_gate_threshold_db: stage.params.noise_gate.threshold_db,
-                noise_gate_enabled: stage.params.noise_gate.enabled,
-                eq_enabled: stage.params.eq.enabled,
-                ir_enabled: stage.params.ir_enabled,
-                bass: stage.params.eq.bass,
-                middle: stage.params.eq.middle,
-                treble: stage.params.eq.treble,
+                input_level_db: input_db,
+                output_level_db: output_db,
+                noise_gate_threshold_db,
+                noise_gate_enabled,
+                eq_enabled,
+                ir_enabled,
+                bass,
+                middle,
+                treble,
             },
         )?))
     })
+}
+
+fn required_f32(params: &ParameterSet, path: &str) -> Result<f32> {
+    params
+        .get_f32(path)
+        .ok_or_else(|| anyhow!("missing or invalid float parameter '{}'", path))
+}
+
+fn required_bool(params: &ParameterSet, path: &str) -> Result<bool> {
+    params
+        .get_bool(path)
+        .ok_or_else(|| anyhow!("missing or invalid bool parameter '{}'", path))
+}
+
+fn required_string(params: &ParameterSet, path: &str) -> Result<String> {
+    params
+        .get_string(path)
+        .map(ToString::to_string)
+        .ok_or_else(|| anyhow!("missing or invalid string parameter '{}'", path))
+}
+
+fn optional_string(params: &ParameterSet, path: &str) -> Option<String> {
+    params
+        .get_optional_string(path)
+        .flatten()
+        .map(ToString::to_string)
 }
 
 fn load_selected_nam(

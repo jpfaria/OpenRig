@@ -1,5 +1,6 @@
 use anyhow::Result;
 use ports::{PresetRepository, SetupRepository, StateRepository, StateSyncPort};
+use setup::setup::Setup;
 use state::command::Command;
 use state::event::Event;
 use state::pedalboard_state::PedalboardState;
@@ -24,11 +25,19 @@ where
     T: StateRepository,
     Y: StateSyncPort,
 {
+    fn load_setup(&self) -> Result<Setup> {
+        self.setup_repo.load_current_setup()
+    }
+
     pub fn load_state(&self) -> Result<PedalboardState> {
         self.state_repo.load_state()
     }
 
-    pub fn handle_command(&self, mut state: PedalboardState, command: Command) -> Result<(PedalboardState, Event)> {
+    pub fn handle_command(
+        &self,
+        mut state: PedalboardState,
+        command: Command,
+    ) -> Result<(PedalboardState, Event)> {
         let event = match command {
             Command::LoadPreset { preset_id } => {
                 let preset = self.preset_repo.load_preset(&preset_id.0)?;
@@ -42,13 +51,37 @@ where
                 state.bypass_by_block.insert(block_id.clone(), bypass);
                 Event::BlockBypassChanged { block_id, bypass }
             }
-            Command::SetParameterValue { parameter_id, value } => {
-                state.parameter_values.insert(parameter_id.clone(), value);
-                Event::ParameterValueChanged { parameter_id, value }
+            Command::SetParameterValue {
+                parameter_id,
+                value,
+            } => {
+                let setup = self.load_setup()?;
+                let descriptor = setup
+                    .find_parameter_descriptor(&parameter_id)
+                    .map_err(anyhow::Error::msg)?
+                    .ok_or_else(|| anyhow::anyhow!("unknown parameter '{}'", parameter_id.0))?;
+                descriptor
+                    .validate_value(&value)
+                    .map_err(anyhow::Error::msg)?;
+                state
+                    .parameter_values
+                    .insert(parameter_id.clone(), value.clone());
+                Event::ParameterValueChanged {
+                    parameter_id,
+                    value,
+                }
             }
-            Command::SelectBlockOption { block_id, option_block_id } => {
-                state.selected_option_by_block.insert(block_id.clone(), option_block_id.clone());
-                Event::BlockOptionSelected { block_id, option_block_id }
+            Command::SelectBlockOption {
+                block_id,
+                option_block_id,
+            } => {
+                state
+                    .selected_option_by_block
+                    .insert(block_id.clone(), option_block_id.clone());
+                Event::BlockOptionSelected {
+                    block_id,
+                    option_block_id,
+                }
             }
             Command::SetTrackGain { track_id, value } => {
                 Event::TrackGainChanged { track_id, value }
