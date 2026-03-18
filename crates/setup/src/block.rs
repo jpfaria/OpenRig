@@ -3,7 +3,8 @@
 use domain::ids::BlockId;
 use domain::value_objects::ParameterValue;
 use serde::{Deserialize, Serialize};
-use stage_amp::{amp_model_schema, validate_amp_params};
+use stage_amp_combo::{amp_combo_model_schema, validate_amp_combo_params};
+use stage_amp_head::{amp_head_model_schema, validate_amp_head_params};
 use stage_core::ModelAudioMode;
 use stage_delay::delay_model_schema;
 use stage_dyn::compressor_model_schema;
@@ -65,7 +66,8 @@ pub struct CoreBlock {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CoreBlockKind {
-    Amp(AmpBlock),
+    AmpHead(AmpHeadBlock),
+    AmpCombo(AmpComboBlock),
     FullRig(FullRigBlock),
     Cab(CabBlock),
     IrLoader(IrLoaderBlock),
@@ -105,7 +107,8 @@ pub struct SelectBlock {
     pub options: Vec<AudioBlock>,
 }
 
-define_model_block!(AmpBlock);
+define_model_block!(AmpHeadBlock);
+define_model_block!(AmpComboBlock);
 define_model_block!(FullRigBlock);
 define_model_block!(CabBlock);
 define_model_block!(IrLoaderBlock);
@@ -189,8 +192,12 @@ impl AudioBlock {
 impl CoreBlock {
     fn validate_params(&self) -> Result<(), String> {
         match &self.kind {
-            CoreBlockKind::Amp(stage) => {
-                normalize_block_params("amp", &stage.model, stage.params.clone())?;
+            CoreBlockKind::AmpHead(stage) => {
+                normalize_block_params("amp_head", &stage.model, stage.params.clone())?;
+                Ok(())
+            }
+            CoreBlockKind::AmpCombo(stage) => {
+                normalize_block_params("amp_combo", &stage.model, stage.params.clone())?;
                 Ok(())
             }
             CoreBlockKind::FullRig(stage) => {
@@ -234,8 +241,11 @@ impl CoreBlock {
         block_id: &BlockId,
     ) -> Result<Vec<BlockParameterDescriptor>, String> {
         match &self.kind {
-            CoreBlockKind::Amp(stage) => {
-                describe_block_params(block_id, "amp", &stage.model, &stage.params)
+            CoreBlockKind::AmpHead(stage) => {
+                describe_block_params(block_id, "amp_head", &stage.model, &stage.params)
+            }
+            CoreBlockKind::AmpCombo(stage) => {
+                describe_block_params(block_id, "amp_combo", &stage.model, &stage.params)
             }
             CoreBlockKind::FullRig(stage) => {
                 describe_block_params(block_id, "full_rig", &stage.model, &stage.params)
@@ -267,8 +277,11 @@ impl CoreBlock {
 
     fn audio_descriptors(&self, block_id: &BlockId) -> Result<Vec<BlockAudioDescriptor>, String> {
         match &self.kind {
-            CoreBlockKind::Amp(stage) => {
-                Ok(vec![describe_block_audio(block_id, "amp", &stage.model)?])
+            CoreBlockKind::AmpHead(stage) => {
+                Ok(vec![describe_block_audio(block_id, "amp_head", &stage.model)?])
+            }
+            CoreBlockKind::AmpCombo(stage) => {
+                Ok(vec![describe_block_audio(block_id, "amp_combo", &stage.model)?])
             }
             CoreBlockKind::FullRig(stage) => {
                 Ok(vec![describe_block_audio(block_id, "full_rig", &stage.model)?])
@@ -312,8 +325,11 @@ pub fn normalize_block_params(
 ) -> Result<ParameterSet, String> {
     let schema = schema_for_block_model(effect_type, model)?;
     let normalized = params.normalized_against(&schema)?;
-    if effect_type == "amp" {
-        validate_amp_params(model, &normalized).map_err(|error| error.to_string())?;
+    if effect_type == "amp_head" {
+        validate_amp_head_params(model, &normalized).map_err(|error| error.to_string())?;
+    }
+    if effect_type == "amp_combo" {
+        validate_amp_combo_params(model, &normalized).map_err(|error| error.to_string())?;
     }
     if effect_type == "full_rig" {
         validate_full_rig_params(model, &normalized).map_err(|error| error.to_string())?;
@@ -326,7 +342,8 @@ pub fn schema_for_block_model(
     model: &str,
 ) -> Result<ModelParameterSchema, String> {
     match effect_type {
-        "amp" => amp_model_schema(model).map_err(|error| error.to_string()),
+        "amp" | "amp_head" => amp_head_model_schema(model).map_err(|error| error.to_string()),
+        "amp_combo" => amp_combo_model_schema(model).map_err(|error| error.to_string()),
         "full_rig" => full_rig_model_schema(model).map_err(|error| error.to_string()),
         "nam" => nam_model_schema(model).map_err(|error| error.to_string()),
         "delay" => delay_model_schema(model).map_err(|error| error.to_string()),

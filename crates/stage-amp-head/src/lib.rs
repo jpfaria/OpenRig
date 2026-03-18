@@ -11,52 +11,52 @@ use stage_core::param::{ModelParameterSchema, ParameterSet};
 use stage_core::{AudioChannelLayout, StageProcessor};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AmpBackendKind {
+pub enum AmpHeadBackendKind {
     Nam,
     Ir,
 }
 
-pub fn amp_backend_kind(model: &str) -> Result<AmpBackendKind> {
+pub fn amp_head_backend_kind(model: &str) -> Result<AmpHeadBackendKind> {
     if supports_j800_model(model) {
-        Ok(AmpBackendKind::Nam)
+        Ok(AmpHeadBackendKind::Nam)
     } else {
-        bail!("unsupported amp model '{}'", model)
+        bail!("unsupported amp-head model '{}'", model)
     }
 }
 
-pub fn amp_model_schema(model: &str) -> Result<ModelParameterSchema> {
+pub fn amp_head_model_schema(model: &str) -> Result<ModelParameterSchema> {
     if supports_j800_model(model) {
         Ok(j800_model_schema())
     } else {
-        bail!("unsupported amp model '{}'", model)
+        bail!("unsupported amp-head model '{}'", model)
     }
 }
 
-pub fn amp_asset_summary(model: &str, params: &ParameterSet) -> Result<String> {
+pub fn amp_head_asset_summary(model: &str, params: &ParameterSet) -> Result<String> {
     if supports_j800_model(model) {
         marshall_jcm_800_asset_summary(params)
     } else {
-        bail!("unsupported amp model '{}'", model)
+        bail!("unsupported amp-head model '{}'", model)
     }
 }
 
-pub fn validate_amp_params(model: &str, params: &ParameterSet) -> Result<()> {
+pub fn validate_amp_head_params(model: &str, params: &ParameterSet) -> Result<()> {
     if supports_j800_model(model) {
         validate_marshall_jcm_800_params(params)
     } else {
-        bail!("unsupported amp model '{}'", model)
+        bail!("unsupported amp-head model '{}'", model)
     }
 }
 
-pub fn build_amp_processor(
+pub fn build_amp_head_processor(
     model: &str,
     params: &ParameterSet,
     sample_rate: f32,
 ) -> Result<StageProcessor> {
-    build_amp_processor_for_layout(model, params, sample_rate, AudioChannelLayout::Mono)
+    build_amp_head_processor_for_layout(model, params, sample_rate, AudioChannelLayout::Mono)
 }
 
-pub fn build_amp_processor_for_layout(
+pub fn build_amp_head_processor_for_layout(
     model: &str,
     params: &ParameterSet,
     _sample_rate: f32,
@@ -65,6 +65,6 @@ pub fn build_amp_processor_for_layout(
     if supports_j800_model(model) {
         build_j800_processor(params, layout)
     } else {
-        bail!("unsupported amp model '{}'", model)
+        bail!("unsupported amp-head model '{}'", model)
     }
 }

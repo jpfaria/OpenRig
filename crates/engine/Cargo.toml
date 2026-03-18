@@ -11,7 +11,8 @@ stage-mod = { path = "../stage-mod" }
 stage-filter = { path = "../stage-filter" }
 stage-dyn = { path = "../stage-dyn" }
 stage-nam = { path = "../stage-nam" }
-stage-amp = { path = "../stage-amp" }
+stage-amp-head = { path = "../stage-amp-head" }
+stage-amp-combo = { path = "../stage-amp-combo" }
 stage-full-rig = { path = "../stage-full-rig" }
 stage-reverb = { path = "../stage-reverb" }
 stage-util = { path = "../stage-util" }

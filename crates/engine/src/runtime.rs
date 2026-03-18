@@ -5,7 +5,8 @@ use setup::io::{Input, Output};
 use setup::param::ParameterSet;
 use setup::setup::Setup;
 use setup::track::{Track, TrackOutputMixdown};
-use stage_amp::{amp_asset_summary, build_amp_processor_for_layout};
+use stage_amp_combo::{amp_combo_asset_summary, build_amp_combo_processor_for_layout};
+use stage_amp_head::{amp_head_asset_summary, build_amp_head_processor_for_layout};
 use stage_core::{
     AudioChannelLayout, ModelAudioMode, MonoProcessor, StageProcessor, StereoProcessor,
 };
@@ -237,20 +238,44 @@ fn build_runtime_processors(
                 processors.push(RuntimeProcessor::Audio(outcome.processor));
             }
             AudioBlockKind::Core(core) => match &core.kind {
-                CoreBlockKind::Amp(stage) => {
+                CoreBlockKind::AmpHead(stage) => {
                     println!(
-                        "[track:{}] loading amp model={} {}",
+                        "[track:{}] loading amp-head model={} {}",
                         track.id.0,
                         stage.model,
-                        amp_asset_summary(&stage.model, &stage.params)?
+                        amp_head_asset_summary(&stage.model, &stage.params)?
                     );
                     let outcome = build_audio_processor_for_model(
                         track,
-                        "amp",
+                        "amp_head",
                         &stage.model,
                         current_layout,
                         |layout| {
-                            build_amp_processor_for_layout(
+                            build_amp_head_processor_for_layout(
+                                &stage.model,
+                                &stage.params,
+                                DEFAULT_SAMPLE_RATE,
+                                layout,
+                            )
+                        },
+                    )?;
+                    current_layout = outcome.output_layout;
+                    processors.push(RuntimeProcessor::Audio(outcome.processor));
+                }
+                CoreBlockKind::AmpCombo(stage) => {
+                    println!(
+                        "[track:{}] loading amp-combo model={} {}",
+                        track.id.0,
+                        stage.model,
+                        amp_combo_asset_summary(&stage.model, &stage.params)?
+                    );
+                    let outcome = build_audio_processor_for_model(
+                        track,
+                        "amp_combo",
+                        &stage.model,
+                        current_layout,
+                        |layout| {
+                            build_amp_combo_processor_for_layout(
                                 &stage.model,
                                 &stage.params,
                                 DEFAULT_SAMPLE_RATE,

@@ -6,16 +6,16 @@ use preset::Preset;
 use serde::Deserialize;
 use serde_yaml::Value;
 use setup::block::{
-    normalize_block_params, AmpBlock, AudioBlock, AudioBlockKind, CompressorBlock, CoreBlock,
-    CoreBlockKind, CoreNamBlock, DelayBlock, EqBlock, FullRigBlock, GateBlock, NamBlock, ReverbBlock,
-    SelectBlock, TremoloBlock, TunerBlock,
+    normalize_block_params, AmpComboBlock, AmpHeadBlock, AudioBlock, AudioBlockKind,
+    CompressorBlock, CoreBlock, CoreBlockKind, CoreNamBlock, DelayBlock, EqBlock, FullRigBlock,
+    GateBlock, NamBlock, ReverbBlock, SelectBlock, TremoloBlock, TunerBlock,
 };
 use setup::device::{InputDevice, OutputDevice};
 use setup::io::{Input, Output};
 use setup::param::ParameterSet;
 use setup::setup::Setup;
 use setup::track::{Track, TrackOutputMixdown};
-use stage_amp::marshall_jcm_800::MODEL_ID as DEFAULT_AMP_MODEL;
+use stage_amp_head::marshall_jcm_800::MODEL_ID as DEFAULT_AMP_HEAD_MODEL;
 use stage_delay::digital_basic::MODEL_ID as DEFAULT_DELAY_MODEL;
 use stage_dyn::compressor_studio_clean::MODEL_ID as DEFAULT_COMPRESSOR_MODEL;
 use stage_dyn::gate_basic::MODEL_ID as DEFAULT_GATE_MODEL;
@@ -228,8 +228,15 @@ impl TrackYaml {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum AudioBlockYaml {
-    Amp {
-        #[serde(default = "default_amp_model")]
+    #[serde(rename = "amp-head", alias = "amp_head", alias = "amp")]
+    AmpHead {
+        #[serde(default = "default_amp_head_model")]
+        model: String,
+        #[serde(default)]
+        params: Value,
+    },
+    #[serde(rename = "amp-combo", alias = "amp_combo")]
+    AmpCombo {
         model: String,
         #[serde(default)]
         params: Value,
@@ -317,12 +324,21 @@ impl AudioBlockYaml {
         let generated_id = generated_block_id(track_id, index);
 
         match self {
-            AudioBlockYaml::Amp { model, params } => Ok(AudioBlock {
+            AudioBlockYaml::AmpHead { model, params } => Ok(AudioBlock {
                 id: generated_id,
                 kind: AudioBlockKind::Core(CoreBlock {
-                    kind: CoreBlockKind::Amp(AmpBlock {
+                    kind: CoreBlockKind::AmpHead(AmpHeadBlock {
                         model: model.clone(),
-                        params: load_model_params("amp", &model, params)?,
+                        params: load_model_params("amp_head", &model, params)?,
+                    }),
+                }),
+            }),
+            AudioBlockYaml::AmpCombo { model, params } => Ok(AudioBlock {
+                id: generated_id,
+                kind: AudioBlockKind::Core(CoreBlock {
+                    kind: CoreBlockKind::AmpCombo(AmpComboBlock {
+                        model: model.clone(),
+                        params: load_model_params("amp_combo", &model, params)?,
                     }),
                 }),
             }),
@@ -522,8 +538,8 @@ fn default_nam_model() -> String {
     GENERIC_NAM_MODEL_ID.to_string()
 }
 
-fn default_amp_model() -> String {
-    DEFAULT_AMP_MODEL.to_string()
+fn default_amp_head_model() -> String {
+    DEFAULT_AMP_HEAD_MODEL.to_string()
 }
 
 fn default_full_rig_model() -> String {
