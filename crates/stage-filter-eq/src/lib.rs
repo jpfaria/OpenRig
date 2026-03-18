@@ -3,10 +3,10 @@ pub mod three_band_basic;
 
 use anyhow::{bail, Result};
 use stage_core::param::{ModelParameterSchema, ParameterSet};
-use stage_core::MonoProcessor;
+use stage_core::{AudioChannelLayout, StageProcessor};
 use three_band_basic::{build_processor, model_schema, supports_model};
 
-pub const DEFAULT_EQ_MODEL: &str = "three_band_basic";
+pub const DEFAULT_EQ_MODEL: &str = "eq_three_band_basic";
 
 pub fn eq_model_schema(model: &str) -> Result<ModelParameterSchema> {
     if supports_model(model) {
@@ -20,9 +20,26 @@ pub fn build_eq_processor(
     model: &str,
     params: &ParameterSet,
     sample_rate: f32,
-) -> Result<Box<dyn MonoProcessor>> {
+) -> Result<StageProcessor> {
+    build_eq_processor_for_layout(model, params, sample_rate, AudioChannelLayout::Mono)
+}
+
+pub fn build_eq_processor_for_layout(
+    model: &str,
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<StageProcessor> {
     if supports_model(model) {
-        build_processor(params, sample_rate)
+        match layout {
+            AudioChannelLayout::Mono => {
+                Ok(StageProcessor::Mono(build_processor(params, sample_rate)?))
+            }
+            AudioChannelLayout::Stereo => bail!(
+                "eq model '{}' is mono-only and cannot build native stereo processing",
+                model
+            ),
+        }
     } else {
         bail!("unsupported eq model '{}'", model)
     }

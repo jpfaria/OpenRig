@@ -1,7 +1,50 @@
 //! Core building blocks shared by OpenRig stage families.
 pub mod param;
 
+use serde::{Deserialize, Serialize};
 use std::f32::consts::PI;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AudioChannelLayout {
+    Mono,
+    Stereo,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ModelChannelSupport {
+    Mono,
+    Stereo,
+    MonoAndStereo,
+}
+
+impl ModelChannelSupport {
+    pub const fn supports(self, layout: AudioChannelLayout) -> bool {
+        match (self, layout) {
+            (Self::Mono, AudioChannelLayout::Mono)
+            | (Self::Stereo, AudioChannelLayout::Stereo)
+            | (Self::MonoAndStereo, AudioChannelLayout::Mono)
+            | (Self::MonoAndStereo, AudioChannelLayout::Stereo) => true,
+            _ => false,
+        }
+    }
+
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Mono => "mono",
+            Self::Stereo => "stereo",
+            Self::MonoAndStereo => "mono_and_stereo",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StereoProcessingStyle {
+    TrueStereo,
+}
+
 pub trait MonoProcessor: Send + Sync + 'static {
     fn process_sample(&mut self, input: f32) -> f32;
     fn process_block(&mut self, buffer: &mut [f32]) {
@@ -10,6 +53,21 @@ pub trait MonoProcessor: Send + Sync + 'static {
         }
     }
 }
+
+pub trait StereoProcessor: Send + Sync + 'static {
+    fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2];
+    fn process_block(&mut self, buffer: &mut [[f32; 2]]) {
+        for frame in buffer {
+            *frame = self.process_frame(*frame);
+        }
+    }
+}
+
+pub enum StageProcessor {
+    Mono(Box<dyn MonoProcessor>),
+    Stereo(Box<dyn StereoProcessor>),
+}
+
 pub trait NamedModel {
     fn model_key(&self) -> &'static str;
     fn display_name(&self) -> &'static str;

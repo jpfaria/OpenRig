@@ -8,4 +8,5 @@ anyhow.workspace = true
 ports = { path = "../ports" }
 preset = { path = "../preset" }
 setup = { path = "../setup" }
+stage-core = { path = "../stage-core" }
 state = { path = "../state" }

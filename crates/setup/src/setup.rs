@@ -1,7 +1,7 @@
 use domain::ids::{BlockId, ParameterId, SetupId};
 use serde::{Deserialize, Serialize};
 
-use crate::block::AudioBlock;
+use crate::block::{AudioBlock, BlockAudioDescriptor};
 use crate::device::{InputDevice, OutputDevice};
 use crate::io::{Input, Output};
 use crate::param::BlockParameterDescriptor;
@@ -37,6 +37,16 @@ impl Setup {
             .parameter_descriptors()?
             .into_iter()
             .find(|descriptor| descriptor.id == *parameter_id))
+    }
+
+    pub fn block_audio_descriptors(&self) -> Result<Vec<BlockAudioDescriptor>, String> {
+        let mut descriptors = Vec::new();
+        for track in &self.tracks {
+            for block in &track.blocks {
+                descriptors.extend(block.audio_descriptors()?);
+            }
+        }
+        Ok(descriptors)
     }
 
     pub fn find_block(&self, block_id: &BlockId) -> Option<&AudioBlock> {

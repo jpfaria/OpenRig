@@ -1,18 +1,20 @@
 use anyhow::{anyhow, Result};
 use domain::ids::TrackId;
-use setup::block::{AudioBlockKind, CoreBlockKind, NamBlock, SelectBlock};
+use setup::block::{schema_for_block_model, AudioBlockKind, CoreBlockKind, NamBlock, SelectBlock};
 use setup::io::{Input, Output};
 use setup::param::ParameterSet;
 use setup::setup::Setup;
 use setup::track::{Track, TrackBusMode, TrackOutputMixdown};
-use stage_amp_nam::{build_nam_processor, processor::DEFAULT_NAM_MODEL};
-use stage_core::MonoProcessor;
-use stage_delay_digital::build_delay_processor;
-use stage_dyn_compressor::build_compressor_processor;
-use stage_dyn_gate::build_gate_processor;
-use stage_filter_eq::build_eq_processor;
-use stage_mod_tremolo::build_tremolo_processor;
-use stage_reverb_plate::build_reverb_processor;
+use stage_amp_nam::{build_nam_processor_for_layout, processor::DEFAULT_NAM_MODEL};
+use stage_core::{
+    AudioChannelLayout, ModelChannelSupport, MonoProcessor, StageProcessor, StereoProcessor,
+};
+use stage_delay_digital::build_delay_processor_for_layout;
+use stage_dyn_compressor::build_compressor_processor_for_layout;
+use stage_dyn_gate::build_gate_processor_for_layout;
+use stage_filter_eq::build_eq_processor_for_layout;
+use stage_mod_tremolo::build_tremolo_processor_for_layout;
+use stage_reverb_plate::build_reverb_processor_for_layout;
 use stage_util_tuner::{build_tuner_processor, chromatic::ChromaticTuner};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
@@ -63,10 +65,11 @@ impl AudioFrame {
 
 enum AudioProcessor {
     Mono(Box<dyn MonoProcessor>),
-    Stereo {
+    DualMono {
         left: Box<dyn MonoProcessor>,
         right: Box<dyn MonoProcessor>,
     },
+    Stereo(Box<dyn StereoProcessor>),
 }
 
 impl AudioProcessor {
@@ -79,11 +82,18 @@ impl AudioProcessor {
                     AudioFrame::Stereo(stereo)
                 }
             },
-            AudioProcessor::Stereo { left, right } => match frame {
+            AudioProcessor::DualMono { left, right } => match frame {
                 AudioFrame::Stereo([left_sample, right_sample]) => AudioFrame::Stereo([
                     left.process_sample(left_sample),
                     right.process_sample(right_sample),
                 ]),
+                AudioFrame::Mono(sample) => {
+                    debug_assert!(false, "stereo processor received mono frame");
+                    AudioFrame::Mono(sample)
+                }
+            },
+            AudioProcessor::Stereo(processor) => match frame {
+                AudioFrame::Stereo(stereo) => AudioFrame::Stereo(processor.process_frame(stereo)),
                 AudioFrame::Mono(sample) => {
                     debug_assert!(false, "stereo processor received mono frame");
                     AudioFrame::Mono(sample)
@@ -180,9 +190,19 @@ fn build_runtime_processors(
                         "[track:{}] loading delay model={} time_ms={} feedback={} mix={}",
                         track.id.0, stage.model, time_ms, feedback, mix
                     );
-                    processors.push(RuntimeProcessor::Audio(build_audio_processor(
+                    processors.push(RuntimeProcessor::Audio(build_audio_processor_for_model(
+                        track,
+                        "delay",
+                        &stage.model,
                         bus_mode,
-                        || build_delay_processor(&stage.model, &stage.params, DEFAULT_SAMPLE_RATE),
+                        |layout| {
+                            build_delay_processor_for_layout(
+                                &stage.model,
+                                &stage.params,
+                                DEFAULT_SAMPLE_RATE,
+                                layout,
+                            )
+                        },
                     )?));
                 }
                 CoreBlockKind::Reverb(stage) => {
@@ -193,9 +213,19 @@ fn build_runtime_processors(
                         "[track:{}] loading reverb model={} room_size={} damping={} mix={}",
                         track.id.0, stage.model, room_size, damping, mix
                     );
-                    processors.push(RuntimeProcessor::Audio(build_audio_processor(
+                    processors.push(RuntimeProcessor::Audio(build_audio_processor_for_model(
+                        track,
+                        "reverb",
+                        &stage.model,
                         bus_mode,
-                        || build_reverb_processor(&stage.model, &stage.params, DEFAULT_SAMPLE_RATE),
+                        |layout| {
+                            build_reverb_processor_for_layout(
+                                &stage.model,
+                                &stage.params,
+                                DEFAULT_SAMPLE_RATE,
+                                layout,
+                            )
+                        },
                     )?));
                 }
                 CoreBlockKind::Tuner(stage) => {
@@ -228,13 +258,17 @@ fn build_runtime_processors(
                         makeup_gain_db,
                         mix
                     );
-                    processors.push(RuntimeProcessor::Audio(build_audio_processor(
+                    processors.push(RuntimeProcessor::Audio(build_audio_processor_for_model(
+                        track,
+                        "compressor",
+                        &stage.model,
                         bus_mode,
-                        || {
-                            build_compressor_processor(
+                        |layout| {
+                            build_compressor_processor_for_layout(
                                 &stage.model,
                                 &stage.params,
                                 DEFAULT_SAMPLE_RATE,
+                                layout,
                             )
                         },
                     )?));
@@ -247,9 +281,19 @@ fn build_runtime_processors(
                         "[track:{}] loading gate model={} threshold={} attack_ms={} release_ms={}",
                         track.id.0, stage.model, threshold, attack_ms, release_ms
                     );
-                    processors.push(RuntimeProcessor::Audio(build_audio_processor(
+                    processors.push(RuntimeProcessor::Audio(build_audio_processor_for_model(
+                        track,
+                        "gate",
+                        &stage.model,
                         bus_mode,
-                        || build_gate_processor(&stage.model, &stage.params, DEFAULT_SAMPLE_RATE),
+                        |layout| {
+                            build_gate_processor_for_layout(
+                                &stage.model,
+                                &stage.params,
+                                DEFAULT_SAMPLE_RATE,
+                                layout,
+                            )
+                        },
                     )?));
                 }
                 CoreBlockKind::Eq(stage) => {
@@ -260,9 +304,19 @@ fn build_runtime_processors(
                         "[track:{}] loading eq model={} low_gain_db={} mid_gain_db={} high_gain_db={}",
                         track.id.0, stage.model, low_gain_db, mid_gain_db, high_gain_db
                     );
-                    processors.push(RuntimeProcessor::Audio(build_audio_processor(
+                    processors.push(RuntimeProcessor::Audio(build_audio_processor_for_model(
+                        track,
+                        "eq",
+                        &stage.model,
                         bus_mode,
-                        || build_eq_processor(&stage.model, &stage.params, DEFAULT_SAMPLE_RATE),
+                        |layout| {
+                            build_eq_processor_for_layout(
+                                &stage.model,
+                                &stage.params,
+                                DEFAULT_SAMPLE_RATE,
+                                layout,
+                            )
+                        },
                     )?));
                 }
                 CoreBlockKind::Tremolo(stage) => {
@@ -272,13 +326,17 @@ fn build_runtime_processors(
                         "[track:{}] loading tremolo model={} rate_hz={} depth={}",
                         track.id.0, stage.model, rate_hz, depth
                     );
-                    processors.push(RuntimeProcessor::Audio(build_audio_processor(
+                    processors.push(RuntimeProcessor::Audio(build_audio_processor_for_model(
+                        track,
+                        "tremolo",
+                        &stage.model,
                         bus_mode,
-                        || {
-                            build_tremolo_processor(
+                        |layout| {
+                            build_tremolo_processor_for_layout(
                                 &stage.model,
                                 &stage.params,
                                 DEFAULT_SAMPLE_RATE,
+                                layout,
                             )
                         },
                     )?));
@@ -296,20 +354,83 @@ fn build_runtime_processors(
     Ok(processors)
 }
 
-fn build_audio_processor<F>(
+fn build_audio_processor_for_model<F>(
+    track: &Track,
+    effect_type: &str,
+    model: &str,
     bus_mode: ResolvedTrackBusMode,
     mut builder: F,
 ) -> Result<AudioProcessor>
 where
-    F: FnMut() -> Result<Box<dyn MonoProcessor>>,
+    F: FnMut(AudioChannelLayout) -> Result<StageProcessor>,
 {
-    Ok(match bus_mode {
-        ResolvedTrackBusMode::Mono => AudioProcessor::Mono(builder()?),
-        ResolvedTrackBusMode::Stereo => AudioProcessor::Stereo {
-            left: builder()?,
-            right: builder()?,
+    let schema = schema_for_block_model(effect_type, model).map_err(|error| {
+        anyhow!(
+            "track '{}' {} model '{}': {}",
+            track.id.0,
+            effect_type,
+            model,
+            error
+        )
+    })?;
+
+    let processor = match bus_mode {
+        ResolvedTrackBusMode::Mono => match schema.channel_support {
+            ModelChannelSupport::Stereo => {
+                return Err(anyhow!(
+                    "track '{}' uses {} model '{}' which requires a stereo track",
+                    track.id.0,
+                    effect_type,
+                    model
+                ));
+            }
+            ModelChannelSupport::Mono | ModelChannelSupport::MonoAndStereo => {
+                let mono = expect_mono_processor(
+                    builder(AudioChannelLayout::Mono)?,
+                    track,
+                    effect_type,
+                    model,
+                )?;
+                AudioProcessor::Mono(mono)
+            }
         },
-    })
+        ResolvedTrackBusMode::Stereo => match schema.channel_support {
+            ModelChannelSupport::Mono => AudioProcessor::DualMono {
+                left: expect_mono_processor(
+                    builder(AudioChannelLayout::Mono)?,
+                    track,
+                    effect_type,
+                    model,
+                )?,
+                right: expect_mono_processor(
+                    builder(AudioChannelLayout::Mono)?,
+                    track,
+                    effect_type,
+                    model,
+                )?,
+            },
+            ModelChannelSupport::Stereo | ModelChannelSupport::MonoAndStereo => {
+                let stereo = expect_stereo_processor(
+                    builder(AudioChannelLayout::Stereo)?,
+                    track,
+                    effect_type,
+                    model,
+                )?;
+                AudioProcessor::Stereo(stereo)
+            }
+        },
+    };
+
+    println!(
+        "[track:{}] {} model={} native_channels={} runtime_mode={}",
+        track.id.0,
+        effect_type,
+        model,
+        schema.channel_support.as_str(),
+        audio_processor_runtime_mode(&processor)
+    );
+
+    Ok(processor)
 }
 
 fn build_nam_audio_processor(
@@ -334,9 +455,51 @@ fn build_nam_audio_processor(
     if let Some(ir_path) = ir_path.as_deref() {
         println!("[track:{}] loading {} IR '{}'", track.id.0, label, ir_path);
     }
-    build_audio_processor(bus_mode, || {
-        build_nam_processor(&stage.model, &stage.params)
+    build_audio_processor_for_model(track, "nam", &stage.model, bus_mode, |layout| {
+        build_nam_processor_for_layout(&stage.model, &stage.params, layout)
     })
+}
+
+fn expect_mono_processor(
+    processor: StageProcessor,
+    track: &Track,
+    effect_type: &str,
+    model: &str,
+) -> Result<Box<dyn MonoProcessor>> {
+    match processor {
+        StageProcessor::Mono(processor) => Ok(processor),
+        StageProcessor::Stereo(_) => Err(anyhow!(
+            "track '{}' {} model '{}' returned stereo processing where mono was required",
+            track.id.0,
+            effect_type,
+            model
+        )),
+    }
+}
+
+fn expect_stereo_processor(
+    processor: StageProcessor,
+    track: &Track,
+    effect_type: &str,
+    model: &str,
+) -> Result<Box<dyn StereoProcessor>> {
+    match processor {
+        StageProcessor::Stereo(processor) => Ok(processor),
+        StageProcessor::Mono(_) => Err(anyhow!(
+            "track '{}' {} model '{}' returned mono processing where stereo was required",
+            track.id.0,
+            effect_type,
+            model
+        )),
+    }
+}
+
+fn audio_processor_runtime_mode(processor: &AudioProcessor) -> &'static str {
+    match processor {
+        AudioProcessor::Mono(_) => "mono",
+        AudioProcessor::DualMono { .. } => "dual_mono",
+        AudioProcessor::Stereo(_) => "stereo",
+    }
 }
 
 fn required_f32(params: &ParameterSet, path: &str) -> Result<f32> {

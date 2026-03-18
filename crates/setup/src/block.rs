@@ -4,6 +4,7 @@ use domain::ids::BlockId;
 use domain::value_objects::ParameterValue;
 use serde::{Deserialize, Serialize};
 use stage_amp_nam::nam_model_schema;
+use stage_core::{ModelChannelSupport, StereoProcessingStyle};
 use stage_delay_digital::delay_model_schema;
 use stage_dyn_compressor::compressor_model_schema;
 use stage_dyn_gate::gate_model_schema;
@@ -28,6 +29,16 @@ macro_rules! define_model_block {
 pub struct AudioBlock {
     pub id: BlockId,
     pub kind: AudioBlockKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BlockAudioDescriptor {
+    pub block_id: BlockId,
+    pub effect_type: String,
+    pub model: String,
+    pub display_name: String,
+    pub channel_support: ModelChannelSupport,
+    pub stereo_processing: Option<StereoProcessingStyle>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -153,6 +164,23 @@ impl AudioBlock {
             AudioBlockKind::CoreNam(_) => Ok(Vec::new()),
         }
     }
+
+    pub fn audio_descriptors(&self) -> Result<Vec<BlockAudioDescriptor>, String> {
+        match &self.kind {
+            AudioBlockKind::Nam(stage) => {
+                Ok(vec![describe_block_audio(&self.id, "nam", &stage.model)?])
+            }
+            AudioBlockKind::Core(core) => core.audio_descriptors(&self.id),
+            AudioBlockKind::Select(select) => {
+                let mut descriptors = Vec::new();
+                for option in &select.options {
+                    descriptors.extend(option.audio_descriptors()?);
+                }
+                Ok(descriptors)
+            }
+            AudioBlockKind::CoreNam(_) => Ok(Vec::new()),
+        }
+    }
 }
 
 impl CoreBlock {
@@ -219,6 +247,39 @@ impl CoreBlock {
             _ => Ok(Vec::new()),
         }
     }
+
+    fn audio_descriptors(&self, block_id: &BlockId) -> Result<Vec<BlockAudioDescriptor>, String> {
+        match &self.kind {
+            CoreBlockKind::Delay(stage) => {
+                Ok(vec![describe_block_audio(block_id, "delay", &stage.model)?])
+            }
+            CoreBlockKind::Reverb(stage) => Ok(vec![describe_block_audio(
+                block_id,
+                "reverb",
+                &stage.model,
+            )?]),
+            CoreBlockKind::Tuner(stage) => {
+                Ok(vec![describe_block_audio(block_id, "tuner", &stage.model)?])
+            }
+            CoreBlockKind::Compressor(stage) => Ok(vec![describe_block_audio(
+                block_id,
+                "compressor",
+                &stage.model,
+            )?]),
+            CoreBlockKind::Gate(stage) => {
+                Ok(vec![describe_block_audio(block_id, "gate", &stage.model)?])
+            }
+            CoreBlockKind::Eq(stage) => {
+                Ok(vec![describe_block_audio(block_id, "eq", &stage.model)?])
+            }
+            CoreBlockKind::Tremolo(stage) => Ok(vec![describe_block_audio(
+                block_id,
+                "tremolo",
+                &stage.model,
+            )?]),
+            _ => Ok(Vec::new()),
+        }
+    }
 }
 
 pub fn normalize_block_params(
@@ -264,7 +325,30 @@ fn describe_block_params(
                 .cloned()
                 .or_else(|| spec.default_value.clone())
                 .unwrap_or(ParameterValue::Null);
-            spec.materialize(block_id, effect_type, model, current_value)
+            spec.materialize(
+                block_id,
+                effect_type,
+                model,
+                schema.channel_support,
+                schema.stereo_processing,
+                current_value,
+            )
         })
         .collect())
+}
+
+fn describe_block_audio(
+    block_id: &BlockId,
+    effect_type: &str,
+    model: &str,
+) -> Result<BlockAudioDescriptor, String> {
+    let schema = schema_for_block_model(effect_type, model)?;
+    Ok(BlockAudioDescriptor {
+        block_id: block_id.clone(),
+        effect_type: effect_type.to_string(),
+        model: schema.model,
+        display_name: schema.display_name,
+        channel_support: schema.channel_support,
+        stereo_processing: schema.stereo_processing,
+    })
 }

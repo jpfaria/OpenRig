@@ -4,7 +4,7 @@ pub mod foundation;
 use anyhow::{bail, Result};
 use foundation::{build_processor, model_schema, supports_model};
 use stage_core::param::{ModelParameterSchema, ParameterSet};
-use stage_core::{MonoProcessor, NamedModel};
+use stage_core::{AudioChannelLayout, NamedModel, StageProcessor};
 
 pub const DEFAULT_REVERB_MODEL: &str = "plate_foundation";
 
@@ -38,9 +38,26 @@ pub fn build_reverb_processor(
     model: &str,
     params: &ParameterSet,
     sample_rate: f32,
-) -> Result<Box<dyn MonoProcessor>> {
+) -> Result<StageProcessor> {
+    build_reverb_processor_for_layout(model, params, sample_rate, AudioChannelLayout::Mono)
+}
+
+pub fn build_reverb_processor_for_layout(
+    model: &str,
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<StageProcessor> {
     if supports_model(model) {
-        build_processor(params, sample_rate)
+        match layout {
+            AudioChannelLayout::Mono => {
+                Ok(StageProcessor::Mono(build_processor(params, sample_rate)?))
+            }
+            AudioChannelLayout::Stereo => bail!(
+                "reverb model '{}' is mono-only and cannot build native stereo processing",
+                model
+            ),
+        }
     } else {
         bail!("unsupported reverb model '{}'", model)
     }

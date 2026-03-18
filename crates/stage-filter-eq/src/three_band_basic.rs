@@ -2,9 +2,9 @@ use anyhow::{Error, Result};
 use stage_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use stage_core::{db_to_lin, MonoProcessor, OnePoleHighPass, OnePoleLowPass};
+use stage_core::{db_to_lin, ModelChannelSupport, MonoProcessor, OnePoleHighPass, OnePoleLowPass};
 
-pub const MODEL_ID: &str = "three_band_basic";
+pub const MODEL_ID: &str = "eq_three_band_basic";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct EqParams {
@@ -24,7 +24,7 @@ impl Default for EqParams {
 }
 
 pub fn supports_model(model: &str) -> bool {
-    matches!(model, MODEL_ID | "three_band" | "eq")
+    matches!(model, MODEL_ID | "three_band_basic" | "three_band" | "eq")
 }
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -32,6 +32,8 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: "eq".to_string(),
         model: MODEL_ID.to_string(),
         display_name: "Three Band EQ".to_string(),
+        channel_support: ModelChannelSupport::Mono,
+        stereo_processing: None,
         parameters: vec![
             float_parameter(
                 "low_gain_db",

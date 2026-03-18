@@ -5,7 +5,7 @@ use anyhow::{bail, Result};
 use chromatic::{model_schema, reference_hz_from_set, supports_model, ChromaticTuner};
 use stage_core::param::{ModelParameterSchema, ParameterSet};
 
-pub const DEFAULT_TUNER_MODEL: &str = "chromatic_basic";
+pub const DEFAULT_TUNER_MODEL: &str = "tuner_chromatic";
 
 pub fn tuner_model_schema(model: &str) -> Result<ModelParameterSchema> {
     if supports_model(model) {

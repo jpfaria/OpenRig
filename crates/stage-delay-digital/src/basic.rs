@@ -2,7 +2,7 @@ use anyhow::{Error, Result};
 use stage_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use stage_core::MonoProcessor;
+use stage_core::{ModelChannelSupport, MonoProcessor};
 
 pub const MODEL_ID: &str = "digital_basic";
 pub const MAX_DELAY_MS: f32 = 2_000.0;
@@ -39,6 +39,8 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: "delay".to_string(),
         model: MODEL_ID.to_string(),
         display_name: "Digital Basic Delay".to_string(),
+        channel_support: ModelChannelSupport::Mono,
+        stereo_processing: None,
         parameters: vec![
             float_parameter(
                 "time_ms",
@@ -127,7 +129,10 @@ impl BasicDelay {
     }
 }
 
-pub fn build_processor(params: &ParameterSet, sample_rate: f32) -> Result<Box<dyn MonoProcessor>> {
+pub fn build_mono_processor(
+    params: &ParameterSet,
+    sample_rate: f32,
+) -> Result<Box<dyn MonoProcessor>> {
     Ok(Box::new(BasicDelay::new(
         params_from_set(params)?,
         sample_rate,

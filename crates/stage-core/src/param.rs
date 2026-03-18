@@ -1,3 +1,4 @@
+use crate::{ModelChannelSupport, StereoProcessingStyle};
 use domain::ids::{BlockId, ParameterId};
 use domain::value_objects::ParameterValue;
 use serde::{Deserialize, Serialize};
@@ -98,6 +99,8 @@ pub struct ModelParameterSchema {
     pub effect_type: String,
     pub model: String,
     pub display_name: String,
+    pub channel_support: ModelChannelSupport,
+    pub stereo_processing: Option<StereoProcessingStyle>,
     pub parameters: Vec<ParameterSpec>,
 }
 
@@ -161,6 +164,8 @@ impl ParameterSpec {
         block_id: &BlockId,
         effect_type: &str,
         model: &str,
+        channel_support: ModelChannelSupport,
+        stereo_processing: Option<StereoProcessingStyle>,
         current_value: ParameterValue,
     ) -> BlockParameterDescriptor {
         BlockParameterDescriptor {
@@ -168,6 +173,8 @@ impl ParameterSpec {
             block_id: block_id.clone(),
             effect_type: effect_type.to_string(),
             model: model.to_string(),
+            channel_support,
+            stereo_processing,
             path: self.path.clone(),
             label: self.label.clone(),
             group: self.group.clone(),
@@ -188,6 +195,8 @@ pub struct BlockParameterDescriptor {
     pub block_id: BlockId,
     pub effect_type: String,
     pub model: String,
+    pub channel_support: ModelChannelSupport,
+    pub stereo_processing: Option<StereoProcessingStyle>,
     pub path: String,
     pub label: String,
     pub group: Option<String>,

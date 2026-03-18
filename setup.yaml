@@ -28,6 +28,7 @@ tracks:
   - id: guitar_main
     input_id: scarlett_mono_1
     outputs: [scarlett_out]
+    bus_mode: mono
     gain: 1.0
     stages:
 #      - type: nam
@@ -109,7 +110,7 @@ tracks:
 #          mix: 0.45
 
 #      - type: tuner
-#        model: chromatic_basic
+#        model: tuner_chromatic
 #        params:
 #          reference_hz: 440.0
 
@@ -191,3 +192,23 @@ tracks:
 #            middle: 5.0
 #            treble: 5.0
 #          ir_enabled: true
+
+#  - id: stereo_fx_demo
+#    input_id: scarlett_stereo
+#    outputs: [scarlett_out]
+#    bus_mode: stereo
+#    gain: 1.0
+#    stages:
+#      - type: delay
+#        model: digital_ping_pong
+#        params:
+#          time_ms: 430
+#          feedback: 0.58
+#          mix: 0.34
+#      - type: delay
+#        model: digital_wide
+#        params:
+#          left_time_ms: 320
+#          right_time_ms: 510
+#          feedback: 0.42
+#          mix: 0.28

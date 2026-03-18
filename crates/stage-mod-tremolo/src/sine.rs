@@ -2,10 +2,10 @@ use anyhow::{Error, Result};
 use stage_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use stage_core::MonoProcessor;
+use stage_core::{ModelChannelSupport, MonoProcessor};
 use std::f32::consts::TAU;
 
-pub const MODEL_ID: &str = "sine_tremolo";
+pub const MODEL_ID: &str = "tremolo_sine";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TremoloParams {
@@ -23,7 +23,7 @@ impl Default for TremoloParams {
 }
 
 pub fn supports_model(model: &str) -> bool {
-    matches!(model, MODEL_ID | "tremolo" | "basic")
+    matches!(model, MODEL_ID | "sine_tremolo" | "tremolo" | "basic")
 }
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -31,6 +31,8 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: "tremolo".to_string(),
         model: MODEL_ID.to_string(),
         display_name: "Sine Tremolo".to_string(),
+        channel_support: ModelChannelSupport::Mono,
+        stereo_processing: None,
         parameters: vec![
             float_parameter(
                 "rate_hz",

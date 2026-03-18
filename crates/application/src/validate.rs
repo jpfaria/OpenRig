@@ -1,7 +1,8 @@
 use anyhow::{anyhow, bail, Result};
-use setup::block::AudioBlockKind;
+use setup::block::{schema_for_block_model, AudioBlock, AudioBlockKind};
 use setup::setup::Setup;
 use setup::track::{Track, TrackBusMode};
+use stage_core::ModelChannelSupport;
 use std::collections::{HashMap, HashSet};
 pub fn validate_setup(setup: &Setup) -> Result<()> {
     if setup.input_devices.is_empty() {
@@ -147,8 +148,9 @@ pub fn validate_setup(setup: &Setup) -> Result<()> {
         let input_channel_count = *input_channel_counts
             .get(&track.input_id.0)
             .expect("validated input id must exist");
-        validate_track_bus_layout(track, input_channel_count, &output_channel_counts)?;
-        validate_track_blocks(track)?;
+        let resolved_bus_mode =
+            validate_track_bus_layout(track, input_channel_count, &output_channel_counts)?;
+        validate_track_blocks(track, resolved_bus_mode)?;
         if !track_ids.insert(track.id.clone()) {
             bail!("invalid setup: duplicated track id '{}'", track.id.0);
         }
@@ -160,7 +162,7 @@ fn validate_track_bus_layout(
     track: &Track,
     input_channel_count: usize,
     output_channel_counts: &HashMap<String, usize>,
-) -> Result<()> {
+) -> Result<TrackBusMode> {
     let resolved_bus_mode = match track.bus_mode {
         TrackBusMode::Auto => {
             if input_channel_count >= 2 {
@@ -197,10 +199,10 @@ fn validate_track_bus_layout(
         }
     }
 
-    Ok(())
+    Ok(resolved_bus_mode)
 }
 
-fn validate_track_blocks(track: &Track) -> Result<()> {
+fn validate_track_blocks(track: &Track, resolved_bus_mode: TrackBusMode) -> Result<()> {
     let mut block_ids = HashSet::new();
     for block in &track.blocks {
         if block.id.0.trim().is_empty() {
@@ -212,6 +214,7 @@ fn validate_track_blocks(track: &Track) -> Result<()> {
         block
             .validate_params()
             .map_err(|error| anyhow!("block '{}': {}", block.id.0, error))?;
+        validate_block_channel_support(track, block, resolved_bus_mode)?;
         if let AudioBlockKind::Select(select) = &block.kind {
             if select.options.is_empty() {
                 bail!("block '{}' has no select options", block.id.0);
@@ -227,6 +230,51 @@ fn validate_track_blocks(track: &Track) -> Result<()> {
     }
     Ok(())
 }
+
+fn validate_block_channel_support(
+    track: &Track,
+    block: &AudioBlock,
+    resolved_bus_mode: TrackBusMode,
+) -> Result<()> {
+    let model_ref = match &block.kind {
+        AudioBlockKind::Nam(stage) => Some(("nam", stage.model.as_str())),
+        AudioBlockKind::Core(core) => match &core.kind {
+            setup::block::CoreBlockKind::Delay(stage) => Some(("delay", stage.model.as_str())),
+            setup::block::CoreBlockKind::Reverb(stage) => Some(("reverb", stage.model.as_str())),
+            setup::block::CoreBlockKind::Tuner(stage) => Some(("tuner", stage.model.as_str())),
+            setup::block::CoreBlockKind::Compressor(stage) => {
+                Some(("compressor", stage.model.as_str()))
+            }
+            setup::block::CoreBlockKind::Gate(stage) => Some(("gate", stage.model.as_str())),
+            setup::block::CoreBlockKind::Eq(stage) => Some(("eq", stage.model.as_str())),
+            setup::block::CoreBlockKind::Tremolo(stage) => Some(("tremolo", stage.model.as_str())),
+            _ => None,
+        },
+        _ => None,
+    };
+
+    let Some((effect_type, model)) = model_ref else {
+        return Ok(());
+    };
+
+    let schema = schema_for_block_model(effect_type, model)
+        .map_err(|error| anyhow!("block '{}': {}", block.id.0, error))?;
+
+    if resolved_bus_mode == TrackBusMode::Mono
+        && matches!(schema.channel_support, ModelChannelSupport::Stereo)
+    {
+        bail!(
+            "track '{}' is mono but block '{}' uses {} model '{}' which requires stereo",
+            track.id.0,
+            block.id.0,
+            effect_type,
+            model
+        );
+    }
+
+    Ok(())
+}
+
 fn validate_unique_channels(channels: &[usize]) -> Result<()> {
     let mut seen = HashSet::new();
     for channel in channels {

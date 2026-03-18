@@ -4,7 +4,7 @@ use stage_core::param::{
     bool_parameter, file_path_parameter, float_parameter, optional_string, required_bool,
     required_f32, required_string, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use stage_core::MonoProcessor;
+use stage_core::{ModelChannelSupport, MonoProcessor};
 use std::ffi::CString;
 use std::os::raw::{c_char, c_void};
 
@@ -19,6 +19,8 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: "nam".to_string(),
         model: DEFAULT_NAM_MODEL.to_string(),
         display_name: "Neural Amp Modeler".to_string(),
+        channel_support: ModelChannelSupport::Mono,
+        stereo_processing: None,
         parameters: vec![
             file_path_parameter("model_path", "Model", None, None, &["nam"], false),
             file_path_parameter(
