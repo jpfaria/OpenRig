@@ -11,6 +11,7 @@ export component AppWindow inherits Window {
     in property <string> runtime-mode-label;
     in property <string> interaction-mode-label;
     in property <bool> show-audio-setup;
+    in-out property <int> wizard-step;
     in-out property <[DeviceSelectionItem]> input-devices;
     in-out property <[DeviceSelectionItem]> output-devices;
     in-out property <string> status-message;
@@ -21,6 +22,8 @@ export component AppWindow inherits Window {
     callback update-input-buffer-size(int, string);
     callback update-output-sample-rate(int, string);
     callback update-output-buffer-size(int, string);
+    callback go-to-output-step();
+    callback go-to-input-step();
     callback save-audio-settings();
 
     title: "OpenRig";
@@ -68,7 +71,7 @@ export component AppWindow inherits Window {
                                 font-weight: 700;
                             }
 
-                            Rectangle {
+                            if wizard-step == 0 : Rectangle {
                                 background: #1d2025;
                                 border-radius: 16px;
                                 border-width: 1px;
@@ -157,7 +160,7 @@ export component AppWindow inherits Window {
                                 }
                             }
 
-                            Rectangle {
+                            if wizard-step == 1 : Rectangle {
                                 background: #1d2025;
                                 border-radius: 16px;
                                 border-width: 1px;
@@ -249,7 +252,21 @@ export component AppWindow inherits Window {
                             HorizontalBox {
                                 spacing: 16px;
 
-                                Button {
+                                if wizard-step == 1 : Button {
+                                    text: "Voltar";
+                                    clicked => {
+                                        root.go-to-input-step();
+                                    }
+                                }
+
+                                if wizard-step == 0 : Button {
+                                    text: "Continuar";
+                                    clicked => {
+                                        root.go-to-output-step();
+                                    }
+                                }
+
+                                if wizard-step == 1 : Button {
                                     text: "Salvar e continuar";
                                     clicked => {
                                         root.save-audio-settings();

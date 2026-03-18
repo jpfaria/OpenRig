@@ -15,6 +15,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
     window.set_runtime_mode_label(context.runtime_mode.label().into());
     window.set_interaction_mode_label(context.interaction_mode.label().into());
     window.set_show_audio_setup(context.capabilities.can_select_audio_device);
+    window.set_wizard_step(if settings.is_complete() { 1 } else { 0 });
     window.set_status_message("".into());
 
     let input_devices = Rc::new(VecModel::from(
@@ -102,6 +103,41 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let output_devices = output_devices.clone();
         window.on_update_output_buffer_size(move |index, value| {
             update_device_buffer_size(&output_devices, index as usize, value);
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let input_devices = input_devices.clone();
+        window.on_go_to_output_step(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            match selected_device_settings(&input_devices, "input") {
+                Ok(devices) if !devices.is_empty() => {
+                    window.set_status_message("".into());
+                    window.set_wizard_step(1);
+                }
+                Ok(_) => {
+                    window.set_status_message(
+                        "Selecione pelo menos um input antes de continuar.".into(),
+                    );
+                }
+                Err(error) => {
+                    window.set_status_message(error.to_string().into());
+                }
+            }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        window.on_go_to_input_step(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            window.set_status_message("".into());
+            window.set_wizard_step(0);
         });
     }
 
