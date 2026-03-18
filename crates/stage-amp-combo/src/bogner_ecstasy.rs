@@ -1,31 +1,18 @@
 use anyhow::{anyhow, Result};
 use nam::{
     build_processor_with_assets_for_layout, model_schema_for,
-    processor::{
-        plugin_parameter_specs_with_defaults, plugin_params_from_set_with_defaults, NamPluginParams,
-    },
+    processor::{NamPluginParams, DEFAULT_PLUGIN_PARAMS},
 };
-use stage_core::param::{
-    enum_parameter, required_string, ModelParameterSchema, ParameterSet,
-};
+use stage_core::param::{enum_parameter, required_string, ModelParameterSchema, ParameterSet};
 use stage_core::{AudioChannelLayout, StageProcessor};
 
 pub const MODEL_ID: &str = "bogner_ecstasy";
 
-pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
-    input_level_db: 0.0,
-    output_level_db: 0.0,
-    noise_gate_threshold_db: -80.0,
-    noise_gate_enabled: true,
-    eq_enabled: true,
-    bass: 5.0,
-    middle: 5.0,
-    treble: 5.0,
-};
+pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BognerEcstasyParams {
-    pub channel: &'static str,
+    pub gain: &'static str,
     pub cabinet: &'static str,
 }
 
@@ -53,10 +40,10 @@ pub fn supports_model(model: &str) -> bool {
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp_combo", MODEL_ID, "Bogner Ecstasy", false);
-    let mut parameters = vec![
+    schema.parameters = vec![
         enum_parameter(
-            "channel",
-            "Channel",
+            "gain",
+            "Gain",
             Some("Amp Combo"),
             Some("clean"),
             &[
@@ -77,8 +64,6 @@ pub fn model_schema() -> ModelParameterSchema {
             ],
         ),
     ];
-    parameters.extend(plugin_parameter_specs_with_defaults(NAM_PLUGIN_DEFAULTS));
-    schema.parameters = parameters;
     schema
 }
 
@@ -87,8 +72,12 @@ pub fn build_processor_for_model(
     layout: AudioChannelLayout,
 ) -> Result<StageProcessor> {
     let capture = resolve_capture(params)?;
-    let plugin_params = plugin_params_from_set_with_defaults(params, NAM_PLUGIN_DEFAULTS)?;
-    build_processor_with_assets_for_layout(capture.model_path, None, plugin_params, layout)
+    build_processor_with_assets_for_layout(
+        capture.model_path,
+        None,
+        NAM_PLUGIN_FIXED_PARAMS,
+        layout,
+    )
 }
 
 pub fn validate_params(params: &ParameterSet) -> Result<()> {
@@ -101,29 +90,29 @@ pub fn asset_summary(params: &ParameterSet) -> Result<String> {
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static BognerEcstasyCapture> {
-    let channel = required_string(params, "channel").map_err(anyhow::Error::msg)?;
+    let gain = required_string(params, "gain").map_err(anyhow::Error::msg)?;
     let cabinet = required_string(params, "cabinet").map_err(anyhow::Error::msg)?;
 
     CAPTURES
         .iter()
-        .find(|capture| capture.params.channel == channel && capture.params.cabinet == cabinet)
+        .find(|capture| capture.params.gain == gain && capture.params.cabinet == cabinet)
         .ok_or_else(|| {
             anyhow!(
-                "amp-combo model '{}' does not support channel='{}' cabinet='{}'",
+                "amp-combo model '{}' does not support gain='{}' cabinet='{}'",
                 MODEL_ID,
-                channel,
+                gain,
                 cabinet
             )
         })
 }
 
 const fn capture(
-    channel: &'static str,
+    gain: &'static str,
     cabinet: &'static str,
     model_path: &'static str,
 ) -> BognerEcstasyCapture {
     BognerEcstasyCapture {
-        params: BognerEcstasyParams { channel, cabinet },
+        params: BognerEcstasyParams { gain, cabinet },
         model_path,
     }
 }
