@@ -1,41 +1,115 @@
-<svg width="960" height="320" viewBox="0 0 960 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="1440" height="720" viewBox="0 0 1440 720" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="bg" x1="80" y1="24" x2="880" y2="296" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0F172A"/>
-      <stop offset="1" stop-color="#111827"/>
+    <linearGradient id="bgA" x1="92" y1="40" x2="1314" y2="682" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0B1020"/>
+      <stop offset="0.55" stop-color="#111827"/>
+      <stop offset="1" stop-color="#1E1B4B"/>
     </linearGradient>
-    <linearGradient id="accent" x1="96" y1="64" x2="864" y2="256" gradientUnits="userSpaceOnUse">
+    <radialGradient id="glowWarm" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(248 188) rotate(44.2) scale(278 195)">
+      <stop stop-color="#FB923C"/>
+      <stop offset="1" stop-color="#FB923C" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowCool" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1128 170) rotate(146.8) scale(278 212)">
+      <stop stop-color="#38BDF8"/>
+      <stop offset="1" stop-color="#38BDF8" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="accentLine" x1="190" y1="332" x2="1250" y2="332" gradientUnits="userSpaceOnUse">
       <stop stop-color="#F97316"/>
       <stop offset="0.5" stop-color="#FB7185"/>
       <stop offset="1" stop-color="#38BDF8"/>
     </linearGradient>
-    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="10"/>
+    <linearGradient id="deviceStroke" x1="124" y1="88" x2="498" y2="438" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.06"/>
+    </linearGradient>
+    <linearGradient id="screen" x1="170" y1="146" x2="450" y2="394" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111827"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+    <filter id="blurSoft" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="28"/>
+    </filter>
+    <filter id="shadow" x="-20%" y="-20%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="24" stdDeviation="24" flood-color="#020617" flood-opacity="0.5"/>
     </filter>
   </defs>
-  <rect x="24" y="24" width="912" height="272" rx="36" fill="url(#bg)"/>
-  <rect x="32" y="32" width="896" height="256" rx="30" stroke="#FFFFFF" stroke-opacity="0.12"/>
-  <g filter="url(#soft)" opacity="0.45">
-    <circle cx="156" cy="158" r="86" fill="#F97316"/>
-    <circle cx="780" cy="112" r="58" fill="#38BDF8"/>
+
+  <rect width="1440" height="720" fill="#090D18"/>
+  <rect x="40" y="40" width="1360" height="640" rx="42" fill="url(#bgA)"/>
+  <rect x="40" y="40" width="1360" height="640" rx="42" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="2"/>
+
+  <circle cx="256" cy="174" r="198" fill="url(#glowWarm)" filter="url(#blurSoft)"/>
+  <circle cx="1160" cy="162" r="204" fill="url(#glowCool)" filter="url(#blurSoft)"/>
+
+  <g filter="url(#shadow)">
+    <rect x="110" y="98" width="404" height="474" rx="42" fill="#0B1120"/>
+    <rect x="110" y="98" width="404" height="474" rx="42" stroke="url(#deviceStroke)" stroke-width="2"/>
+    <rect x="140" y="128" width="344" height="212" rx="28" fill="url(#screen)"/>
+    <rect x="154" y="142" width="316" height="184" rx="22" stroke="#FFFFFF" stroke-opacity="0.06"/>
+
+    <text x="172" y="184" fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" letter-spacing="2">OPENRIG</text>
+    <text x="172" y="214" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="700" letter-spacing="1.5">LIVE RIG PROCESSOR</text>
+
+    <rect x="172" y="236" width="190" height="16" rx="8" fill="#172033"/>
+    <rect x="172" y="236" width="138" height="16" rx="8" fill="url(#accentLine)"/>
+    <text x="372" y="249" fill="#CBD5E1" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700">INPUT</text>
+
+    <rect x="172" y="272" width="190" height="16" rx="8" fill="#172033"/>
+    <rect x="172" y="272" width="164" height="16" rx="8" fill="#38BDF8"/>
+    <text x="372" y="285" fill="#CBD5E1" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="700">OUTPUT</text>
+
+    <path d="M174 312C196 272 218 272 240 312C262 352 284 352 306 312C328 272 350 272 372 312C394 352 416 352 438 312" stroke="url(#accentLine)" stroke-width="8" stroke-linecap="round"/>
+
+    <circle cx="192" cy="400" r="42" fill="#0F172A" stroke="#F97316" stroke-opacity="0.7" stroke-width="2"/>
+    <circle cx="312" cy="400" r="42" fill="#0F172A" stroke="#FB7185" stroke-opacity="0.7" stroke-width="2"/>
+    <circle cx="432" cy="400" r="42" fill="#0F172A" stroke="#38BDF8" stroke-opacity="0.7" stroke-width="2"/>
+    <circle cx="192" cy="400" r="6" fill="#F8FAFC"/>
+    <circle cx="312" cy="400" r="6" fill="#F8FAFC"/>
+    <circle cx="432" cy="400" r="6" fill="#F8FAFC"/>
+    <text x="172" y="468" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="700" letter-spacing="1.3">NAM</text>
+    <text x="286" y="468" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="700" letter-spacing="1.3">FX</text>
+    <text x="404" y="468" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="700" letter-spacing="1.3">IR</text>
+
+    <rect x="160" y="504" width="304" height="26" rx="13" fill="#0E1628"/>
+    <rect x="170" y="511" width="114" height="12" rx="6" fill="#F97316"/>
+    <rect x="296" y="511" width="82" height="12" rx="6" fill="#FB7185"/>
+    <rect x="390" y="511" width="60" height="12" rx="6" fill="#38BDF8"/>
   </g>
-  <rect x="88" y="74" width="214" height="172" rx="34" fill="#020617" stroke="url(#accent)" stroke-width="4"/>
-  <path d="M126 160C138 132 150 132 162 160C174 188 186 188 198 160C210 132 222 132 234 160C246 188 258 188 270 160" stroke="url(#accent)" stroke-width="10" stroke-linecap="round"/>
-  <circle cx="138" cy="110" r="11" fill="#E5E7EB"/>
-  <circle cx="252" cy="110" r="11" fill="#E5E7EB"/>
-  <circle cx="138" cy="210" r="11" fill="#E5E7EB"/>
-  <circle cx="252" cy="210" r="11" fill="#E5E7EB"/>
-  <path d="M330 109H851" stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="2"/>
-  <text x="330" y="95" fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="72" font-weight="700" letter-spacing="6">OPENRIG</text>
-  <text x="334" y="148" fill="#CBD5E1" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="600" letter-spacing="2">STANDALONE • VST3 • SERVER • HARDWARE</text>
-  <text x="334" y="191" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="23">
-    Cross-platform pedalboard engine for desktop, DAWs, remote control,
-  </text>
-  <text x="334" y="223" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="23">and a dedicated hardware unit.</text>
-  <rect x="334" y="244" width="156" height="24" rx="12" fill="#1E293B"/>
-  <rect x="342" y="250" width="74" height="12" rx="6" fill="#F97316"/>
-  <rect x="500" y="244" width="156" height="24" rx="12" fill="#1E293B"/>
-  <rect x="508" y="250" width="97" height="12" rx="6" fill="#FB7185"/>
-  <rect x="666" y="244" width="156" height="24" rx="12" fill="#1E293B"/>
-  <rect x="674" y="250" width="121" height="12" rx="6" fill="#38BDF8"/>
+
+  <g>
+    <text x="576" y="194" fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="104" font-weight="700" letter-spacing="8">OPENRIG</text>
+    <text x="582" y="246" fill="#CBD5E1" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700" letter-spacing="3">ONE DSP CORE FOR STANDALONE, VST3, SERVER, AND HARDWARE</text>
+    <path d="M582 280H1256" stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="2"/>
+    <text x="582" y="338" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="28">
+      Cross-platform pedalboard engine with NAM, IR, internal plugins,
+    </text>
+    <text x="582" y="378" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="28">
+      remote control workflows, and a dedicated embedded product path.
+    </text>
+
+    <g>
+      <rect x="582" y="438" width="182" height="88" rx="24" fill="#111827" stroke="#FFFFFF" stroke-opacity="0.08"/>
+      <text x="673" y="474" text-anchor="middle" fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">Standalone</text>
+      <text x="673" y="504" text-anchor="middle" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="16">Windows • macOS • Linux</text>
+
+      <rect x="786" y="438" width="182" height="88" rx="24" fill="#111827" stroke="#FFFFFF" stroke-opacity="0.08"/>
+      <text x="877" y="474" text-anchor="middle" fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">VST3</text>
+      <text x="877" y="504" text-anchor="middle" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="16">DAW integration and GUI</text>
+
+      <rect x="990" y="438" width="182" height="88" rx="24" fill="#111827" stroke="#FFFFFF" stroke-opacity="0.08"/>
+      <text x="1081" y="474" text-anchor="middle" fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">Server</text>
+      <text x="1081" y="504" text-anchor="middle" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="16">Headless and remote-ready</text>
+
+      <rect x="1194" y="438" width="126" height="88" rx="24" fill="#111827" stroke="#FFFFFF" stroke-opacity="0.08"/>
+      <text x="1257" y="474" text-anchor="middle" fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">HW</text>
+      <text x="1257" y="504" text-anchor="middle" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="16">Own unit</text>
+    </g>
+
+    <g opacity="0.92">
+      <path d="M584 580C646 552 702 552 764 580" stroke="#F97316" stroke-width="6" stroke-linecap="round"/>
+      <path d="M768 580C830 552 886 552 948 580" stroke="#FB7185" stroke-width="6" stroke-linecap="round"/>
+      <path d="M952 580C1014 552 1070 552 1132 580" stroke="#38BDF8" stroke-width="6" stroke-linecap="round"/>
+      <path d="M1136 580C1176 562 1212 562 1252 580" stroke="#A78BFA" stroke-width="6" stroke-linecap="round"/>
+    </g>
+  </g>
 </svg>
