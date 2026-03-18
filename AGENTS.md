@@ -1,0 +1,42 @@
+These instructions apply to the entire repository unless a deeper `AGENTS.md` overrides them.
+- This repo is currently a single Rust crate, not yet a multi-crate workspace.
+- Keep changes aligned with the current layout unless the user explicitly asks for a structural migration.
+- Main modules live under `src/app`, `src/application`, `src/domain`, `src/engine`, `src/infrastructure`, and `src/ui`.
+- Runtime setup is loaded from `config.yaml`.
+- Native NAM integration is built through `build.rs` and the `cpp/` CMake project.
+- Treat this project as core-first.
+- Keep `domain`, `application`, and `engine` conceptually independent from UI, YAML, filesystem, and audio backend details.
+- Preserve clear boundaries between domain logic, orchestration, engine/runtime code, infrastructure, and presentation.
+- Consider future adapters such as console, gRPC, GUI, and VST3, but do not force large migrations unless requested.
+- `src/domain`: domain entities and value objects only; no YAML, device I/O, filesystem, or UI concerns.
+- `src/application`: orchestration, validation, commands, and use-case logic.
+- `src/engine`: runtime audio processing concerns and executable projection of state.
+- `src/infrastructure`: YAML loading, device access, FFI, persistence adapters, and external integrations.
+- `src/ui`: presentation only; do not let console behavior shape the domain.
+- Do not treat the system as config-first. YAML is only one input format.
+- Keep `Setup` distinct from runtime state.
+- Keep logical application state conceptually distinct from engine and internal real-time state.
+- Model the pedalboard around generic audio blocks, not only NAM.
+- Treat NAM, IR, and internal effects as separate concepts even when combined in runtime flows.
+- Prefer abstractions that allow internal blocks such as delay, reverb, tremolo, EQ, dynamics, routing, and selectors.
+- File-based YAML loading belongs to infrastructure.
+- If setup or state persistence evolves, prefer ports and adapters over hard-wiring storage into domain or application logic.
+- Avoid introducing direct coupling from application logic to YAML, filesystem, database, or RPC clients.
+- Start validation with `cargo check` for Rust changes.
+- Expect `build.rs` to compile and link the C++ wrapper via CMake.
+- Changes touching NAM integration should review both Rust FFI code and `build.rs` or `cpp/` inputs together.
+- On macOS, the current native build links against CoreAudio-related frameworks.
+- Keep `config.yaml` consistent with domain models and setup validation.
+- Device names and model paths are machine-specific; avoid baking in new local paths unless the task explicitly requires it.
+- When changing schema or setup semantics, update loader and validation together.
+- Make minimal, targeted changes.
+- Preserve existing naming and module boundaries.
+- Avoid editing vendored sources under `NeuralAmpModelerCore/Dependencies` unless explicitly required.
+- Do not rely on generated files under `target/`.
+- Clean obvious unused imports or warnings introduced by your changes.
+- Tolerate temporary `dead_code` in broader domain modeling only when it supports the intended architecture.
+- For Rust-only changes, start with `cargo check`.
+- For setup or config changes, review `config.yaml` compatibility.
+- For native or audio changes, state clearly when verification is limited by local toolchain, OS, hardware, or device availability.
+- A multi-crate workspace may be the right long-term direction.
+- Until explicitly requested, evolve the current crate in a way that keeps that migration possible without prematurely restructuring the repo.

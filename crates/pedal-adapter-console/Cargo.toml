@@ -1,0 +1,14 @@
+[package]
+name = "pedal-adapter-console"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+pedal-application = { path = "../pedal-application" }
+pedal-engine = { path = "../pedal-engine" }
+pedal-infra-cpal = { path = "../pedal-infra-cpal" }
+pedal-infra-yaml = { path = "../pedal-infra-yaml" }
+pedal-ports = { path = "../pedal-ports" }
+pedal-state = { path = "../pedal-state" }
+pedal-setup = { path = "../pedal-setup" }

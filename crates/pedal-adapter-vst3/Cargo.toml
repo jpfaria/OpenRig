@@ -1,0 +1,4 @@
+[package]
+name = "pedal-adapter-vst3"
+version.workspace = true
+edition.workspace = true

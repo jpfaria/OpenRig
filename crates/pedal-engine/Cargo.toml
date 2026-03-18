@@ -1,0 +1,8 @@
+[package]
+name = "pedal-engine"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+pedal-setup = { path = "../pedal-setup" }
+pedal-state = { path = "../pedal-state" }

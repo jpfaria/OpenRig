@@ -1,0 +1,4 @@
+[package]
+name = "pedal-adapter-gui"
+version.workspace = true
+edition.workspace = true

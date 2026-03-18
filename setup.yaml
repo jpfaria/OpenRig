@@ -1,0 +1,26 @@
+id: default-setup
+name: Default Setup
+input_devices:
+  - id: scarlett_in_dev
+    match_name: Scarlett 2i2 4th Gen
+    sample_rate: 48000
+    buffer_size_frames: 256
+output_devices:
+  - id: scarlett_out_dev
+    match_name: Scarlett 2i2 4th Gen
+    sample_rate: 48000
+    buffer_size_frames: 256
+inputs:
+  - id: scarlett_mono_1
+    device_id: scarlett_in_dev
+    channels: [0]
+outputs:
+  - id: scarlett_out
+    device_id: scarlett_out_dev
+    channels: [0, 1]
+tracks:
+  - id: guitar_clean
+    input_id: scarlett_mono_1
+    outputs: [scarlett_out]
+    gain: 0.8
+    blocks: []

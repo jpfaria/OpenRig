@@ -1,0 +1,10 @@
+[package]
+name = "pedal-ports"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+pedal-preset = { path = "../pedal-preset" }
+pedal-setup = { path = "../pedal-setup" }
+pedal-state = { path = "../pedal-state" }
