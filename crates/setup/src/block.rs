@@ -4,7 +4,7 @@ use domain::ids::BlockId;
 use domain::value_objects::ParameterValue;
 use serde::{Deserialize, Serialize};
 use stage_amp_nam::nam_model_schema;
-use stage_core::{ModelChannelSupport, StereoProcessingStyle};
+use stage_core::ModelAudioMode;
 use stage_delay_digital::delay_model_schema;
 use stage_dyn_compressor::compressor_model_schema;
 use stage_dyn_gate::gate_model_schema;
@@ -37,8 +37,7 @@ pub struct BlockAudioDescriptor {
     pub effect_type: String,
     pub model: String,
     pub display_name: String,
-    pub channel_support: ModelChannelSupport,
-    pub stereo_processing: Option<StereoProcessingStyle>,
+    pub audio_mode: ModelAudioMode,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -329,8 +328,7 @@ fn describe_block_params(
                 block_id,
                 effect_type,
                 model,
-                schema.channel_support,
-                schema.stereo_processing,
+                schema.audio_mode,
                 current_value,
             )
         })
@@ -348,7 +346,6 @@ fn describe_block_audio(
         effect_type: effect_type.to_string(),
         model: schema.model,
         display_name: schema.display_name,
-        channel_support: schema.channel_support,
-        stereo_processing: schema.stereo_processing,
+        audio_mode: schema.audio_mode,
     })
 }

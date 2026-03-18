@@ -2,7 +2,7 @@ use anyhow::{Error, Result};
 use stage_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use stage_core::{ModelChannelSupport, MonoProcessor};
+use stage_core::{ModelAudioMode, MonoProcessor};
 
 pub const MODEL_ID: &str = "digital_basic";
 pub const MAX_DELAY_MS: f32 = 2_000.0;
@@ -39,8 +39,7 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: "delay".to_string(),
         model: MODEL_ID.to_string(),
         display_name: "Digital Basic Delay".to_string(),
-        channel_support: ModelChannelSupport::Mono,
-        stereo_processing: None,
+        audio_mode: ModelAudioMode::DualMono,
         parameters: vec![
             float_parameter(
                 "time_ms",

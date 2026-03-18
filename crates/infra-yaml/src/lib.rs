@@ -14,7 +14,7 @@ use setup::device::{InputDevice, OutputDevice};
 use setup::io::{Input, Output};
 use setup::param::ParameterSet;
 use setup::setup::Setup;
-use setup::track::{Track, TrackBusMode, TrackOutputMixdown};
+use setup::track::{Track, TrackOutputMixdown};
 use stage_amp_nam::processor::DEFAULT_NAM_MODEL;
 use stage_delay_digital::DEFAULT_DELAY_MODEL;
 use stage_dyn_compressor::DEFAULT_COMPRESSOR_MODEL;
@@ -198,8 +198,6 @@ struct TrackYaml {
     input_id: String,
     outputs: Vec<String>,
     #[serde(default)]
-    bus_mode: TrackBusMode,
-    #[serde(default)]
     output_mixdown: TrackOutputMixdown,
     gain: f32,
     #[serde(default, alias = "stages")]
@@ -213,7 +211,6 @@ impl TrackYaml {
             id: track_id.clone(),
             input_id: InputId(self.input_id),
             output_ids: self.outputs.into_iter().map(OutputId).collect(),
-            bus_mode: self.bus_mode,
             output_mixdown: self.output_mixdown,
             gain: self.gain,
             blocks: self

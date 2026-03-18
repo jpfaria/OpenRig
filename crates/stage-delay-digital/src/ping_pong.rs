@@ -2,7 +2,7 @@ use anyhow::{Error, Result};
 use stage_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use stage_core::{ModelChannelSupport, StereoProcessingStyle, StereoProcessor};
+use stage_core::{ModelAudioMode, StereoProcessor};
 
 use crate::basic::{MAX_DELAY_MS, MAX_FEEDBACK};
 
@@ -36,8 +36,7 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: "delay".to_string(),
         model: MODEL_ID.to_string(),
         display_name: "Digital Ping Pong Delay".to_string(),
-        channel_support: ModelChannelSupport::Stereo,
-        stereo_processing: Some(StereoProcessingStyle::TrueStereo),
+        audio_mode: ModelAudioMode::MonoToStereo,
         parameters: vec![
             float_parameter(
                 "time_ms",

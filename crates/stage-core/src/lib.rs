@@ -13,36 +13,49 @@ pub enum AudioChannelLayout {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum ModelChannelSupport {
-    Mono,
-    Stereo,
-    MonoAndStereo,
+pub enum ModelAudioMode {
+    MonoOnly,
+    DualMono,
+    TrueStereo,
+    MonoToStereo,
 }
 
-impl ModelChannelSupport {
-    pub const fn supports(self, layout: AudioChannelLayout) -> bool {
+impl ModelAudioMode {
+    pub const fn accepts_input(self, layout: AudioChannelLayout) -> bool {
         match (self, layout) {
-            (Self::Mono, AudioChannelLayout::Mono)
-            | (Self::Stereo, AudioChannelLayout::Stereo)
-            | (Self::MonoAndStereo, AudioChannelLayout::Mono)
-            | (Self::MonoAndStereo, AudioChannelLayout::Stereo) => true,
+            (Self::MonoOnly, AudioChannelLayout::Mono)
+            | (Self::DualMono, AudioChannelLayout::Mono)
+            | (Self::DualMono, AudioChannelLayout::Stereo)
+            | (Self::TrueStereo, AudioChannelLayout::Stereo)
+            | (Self::MonoToStereo, AudioChannelLayout::Mono)
+            | (Self::MonoToStereo, AudioChannelLayout::Stereo) => true,
             _ => false,
+        }
+    }
+
+    pub const fn output_layout(self, input: AudioChannelLayout) -> Option<AudioChannelLayout> {
+        match self {
+            Self::MonoOnly => match input {
+                AudioChannelLayout::Mono => Some(AudioChannelLayout::Mono),
+                AudioChannelLayout::Stereo => None,
+            },
+            Self::DualMono => Some(input),
+            Self::TrueStereo => match input {
+                AudioChannelLayout::Stereo => Some(AudioChannelLayout::Stereo),
+                AudioChannelLayout::Mono => None,
+            },
+            Self::MonoToStereo => Some(AudioChannelLayout::Stereo),
         }
     }
 
     pub const fn as_str(self) -> &'static str {
         match self {
-            Self::Mono => "mono",
-            Self::Stereo => "stereo",
-            Self::MonoAndStereo => "mono_and_stereo",
+            Self::MonoOnly => "mono_only",
+            Self::DualMono => "dual_mono",
+            Self::TrueStereo => "true_stereo",
+            Self::MonoToStereo => "mono_to_stereo",
         }
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum StereoProcessingStyle {
-    TrueStereo,
 }
 
 pub trait MonoProcessor: Send + Sync + 'static {

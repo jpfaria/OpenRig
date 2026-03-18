@@ -2,7 +2,7 @@ use anyhow::{Error, Result};
 use stage_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use stage_core::{db_to_lin, EnvelopeFollower, ModelChannelSupport, MonoProcessor};
+use stage_core::{db_to_lin, EnvelopeFollower, ModelAudioMode, MonoProcessor};
 
 pub const MODEL_ID: &str = "gate_basic";
 
@@ -32,8 +32,7 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: "gate".to_string(),
         model: MODEL_ID.to_string(),
         display_name: "Noise Gate".to_string(),
-        channel_support: ModelChannelSupport::Mono,
-        stereo_processing: None,
+        audio_mode: ModelAudioMode::DualMono,
         parameters: vec![
             float_parameter(
                 "threshold",

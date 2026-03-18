@@ -3,7 +3,7 @@ use arc_swap::ArcSwap;
 use stage_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use stage_core::ModelChannelSupport;
+use stage_core::ModelAudioMode;
 use std::sync::Arc;
 
 pub const MODEL_ID: &str = "tuner_chromatic";
@@ -21,8 +21,7 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: "tuner".to_string(),
         model: MODEL_ID.to_string(),
         display_name: "Chromatic Tuner".to_string(),
-        channel_support: ModelChannelSupport::Mono,
-        stereo_processing: None,
+        audio_mode: ModelAudioMode::DualMono,
         parameters: vec![float_parameter(
             "reference_hz",
             "Reference",

@@ -1,13 +1,13 @@
 use anyhow::{anyhow, Result};
-use domain::ids::TrackId;
+use domain::ids::{OutputId, TrackId};
 use setup::block::{schema_for_block_model, AudioBlockKind, CoreBlockKind, NamBlock, SelectBlock};
 use setup::io::{Input, Output};
 use setup::param::ParameterSet;
 use setup::setup::Setup;
-use setup::track::{Track, TrackBusMode, TrackOutputMixdown};
+use setup::track::{Track, TrackOutputMixdown};
 use stage_amp_nam::{build_nam_processor_for_layout, processor::DEFAULT_NAM_MODEL};
 use stage_core::{
-    AudioChannelLayout, ModelChannelSupport, MonoProcessor, StageProcessor, StereoProcessor,
+    AudioChannelLayout, ModelAudioMode, MonoProcessor, StageProcessor, StereoProcessor,
 };
 use stage_delay_digital::build_delay_processor_for_layout;
 use stage_dyn_compressor::build_compressor_processor_for_layout;
@@ -25,10 +25,10 @@ const DEBUG_LOG_INTERVAL_MS: u64 = 300;
 const DEFAULT_QUEUE_CAPACITY_FRAMES: usize = 48_000;
 const DEFAULT_SAMPLE_RATE: f32 = 48_000.0;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ResolvedTrackBusMode {
-    Mono,
-    Stereo,
+#[derive(Debug, Clone, Copy)]
+struct QueuedFrame {
+    sequence: u64,
+    frame: AudioFrame,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -70,6 +70,7 @@ enum AudioProcessor {
         right: Box<dyn MonoProcessor>,
     },
     Stereo(Box<dyn StereoProcessor>),
+    StereoFromMono(Box<dyn StereoProcessor>),
 }
 
 impl AudioProcessor {
@@ -132,13 +133,32 @@ impl AudioProcessor {
                     *frame = AudioFrame::Stereo(stereo_frame);
                 }
             }
+            AudioProcessor::StereoFromMono(processor) => {
+                let mut stereo = Vec::with_capacity(frames.len());
+                for frame in &*frames {
+                    match frame {
+                        AudioFrame::Mono(sample) => stereo.push([*sample, *sample]),
+                        AudioFrame::Stereo(_) => {
+                            debug_assert!(false, "mono-to-stereo processor received stereo frames");
+                            return;
+                        }
+                    }
+                }
+                processor.process_block(&mut stereo);
+                for (frame, stereo_frame) in frames.iter_mut().zip(stereo.into_iter()) {
+                    *frame = AudioFrame::Stereo(stereo_frame);
+                }
+            }
         }
     }
 }
 
 pub struct TrackRuntimeState {
-    bus_mode: ResolvedTrackBusMode,
-    queue: VecDeque<AudioFrame>,
+    input_layout: AudioChannelLayout,
+    output_layout: AudioChannelLayout,
+    processed_frames: VecDeque<QueuedFrame>,
+    next_sequence: u64,
+    output_positions: HashMap<OutputId, u64>,
     last_print: Instant,
     processors: Vec<RuntimeProcessor>,
 }
@@ -146,6 +166,11 @@ pub struct TrackRuntimeState {
 enum RuntimeProcessor {
     Audio(AudioProcessor),
     Tuner(ChromaticTuner),
+}
+
+struct ProcessorBuildOutcome {
+    processor: AudioProcessor,
+    output_layout: AudioChannelLayout,
 }
 
 pub struct RuntimeGraph {
@@ -166,68 +191,63 @@ pub fn build_runtime_graph(setup: &Setup) -> Result<RuntimeGraph> {
                     track.input_id.0
                 )
             })?;
-        let bus_mode = resolve_track_bus_mode(track, input_cfg);
+        let input_layout = layout_from_channels(input_cfg.channels.len())?;
+        let (processors, output_layout) = build_runtime_processors(track, input_layout)?;
         println!(
-            "[track:{}] runtime bus_mode={}",
+            "[track:{}] runtime input_layout={} output_layout={}",
             track.id.0,
-            match bus_mode {
-                ResolvedTrackBusMode::Mono => "mono",
-                ResolvedTrackBusMode::Stereo => "stereo",
-            }
+            layout_label(input_layout),
+            layout_label(output_layout)
         );
         tracks.insert(
             track.id.clone(),
             Arc::new(Mutex::new(TrackRuntimeState {
-                bus_mode,
-                queue: VecDeque::with_capacity(DEFAULT_QUEUE_CAPACITY_FRAMES),
+                input_layout,
+                output_layout,
+                processed_frames: VecDeque::with_capacity(DEFAULT_QUEUE_CAPACITY_FRAMES),
+                next_sequence: 0,
+                output_positions: track
+                    .output_ids
+                    .iter()
+                    .cloned()
+                    .map(|output_id| (output_id, 0))
+                    .collect(),
                 last_print: Instant::now(),
-                processors: build_runtime_processors(track, bus_mode)?,
+                processors,
             })),
         );
     }
     Ok(RuntimeGraph { tracks })
 }
 
-fn resolve_track_bus_mode(track: &Track, input_cfg: &Input) -> ResolvedTrackBusMode {
-    match track.bus_mode {
-        TrackBusMode::Auto => {
-            if input_cfg.channels.len() >= 2 {
-                ResolvedTrackBusMode::Stereo
-            } else {
-                ResolvedTrackBusMode::Mono
-            }
-        }
-        TrackBusMode::Mono => ResolvedTrackBusMode::Mono,
-        TrackBusMode::Stereo => ResolvedTrackBusMode::Stereo,
-    }
-}
-
 fn build_runtime_processors(
     track: &Track,
-    bus_mode: ResolvedTrackBusMode,
-) -> Result<Vec<RuntimeProcessor>> {
+    input_layout: AudioChannelLayout,
+) -> Result<(Vec<RuntimeProcessor>, AudioChannelLayout)> {
     let mut processors = Vec::new();
+    let mut current_layout = input_layout;
+
     for block in &track.blocks {
         match &block.kind {
             AudioBlockKind::Nam(stage) => {
-                processors.push(RuntimeProcessor::Audio(build_nam_audio_processor(
-                    track, stage, bus_mode, "nam",
-                )?));
+                let outcome = build_nam_audio_processor(track, stage, current_layout, "nam")?;
+                current_layout = outcome.output_layout;
+                processors.push(RuntimeProcessor::Audio(outcome.processor));
             }
             AudioBlockKind::Core(core) => match &core.kind {
                 CoreBlockKind::Delay(stage) => {
-                    let time_ms = required_f32(&stage.params, "time_ms")?;
-                    let feedback = required_f32(&stage.params, "feedback")?;
-                    let mix = required_f32(&stage.params, "mix")?;
+                    let time_ms = required_f32(&stage.params, "time_ms").unwrap_or_default();
+                    let feedback = required_f32(&stage.params, "feedback").unwrap_or_default();
+                    let mix = required_f32(&stage.params, "mix").unwrap_or_default();
                     println!(
                         "[track:{}] loading delay model={} time_ms={} feedback={} mix={}",
                         track.id.0, stage.model, time_ms, feedback, mix
                     );
-                    processors.push(RuntimeProcessor::Audio(build_audio_processor_for_model(
+                    let outcome = build_audio_processor_for_model(
                         track,
                         "delay",
                         &stage.model,
-                        bus_mode,
+                        current_layout,
                         |layout| {
                             build_delay_processor_for_layout(
                                 &stage.model,
@@ -236,21 +256,23 @@ fn build_runtime_processors(
                                 layout,
                             )
                         },
-                    )?));
+                    )?;
+                    current_layout = outcome.output_layout;
+                    processors.push(RuntimeProcessor::Audio(outcome.processor));
                 }
                 CoreBlockKind::Reverb(stage) => {
-                    let room_size = required_f32(&stage.params, "room_size")?;
-                    let damping = required_f32(&stage.params, "damping")?;
-                    let mix = required_f32(&stage.params, "mix")?;
+                    let room_size = required_f32(&stage.params, "room_size").unwrap_or_default();
+                    let damping = required_f32(&stage.params, "damping").unwrap_or_default();
+                    let mix = required_f32(&stage.params, "mix").unwrap_or_default();
                     println!(
                         "[track:{}] loading reverb model={} room_size={} damping={} mix={}",
                         track.id.0, stage.model, room_size, damping, mix
                     );
-                    processors.push(RuntimeProcessor::Audio(build_audio_processor_for_model(
+                    let outcome = build_audio_processor_for_model(
                         track,
                         "reverb",
                         &stage.model,
-                        bus_mode,
+                        current_layout,
                         |layout| {
                             build_reverb_processor_for_layout(
                                 &stage.model,
@@ -259,7 +281,9 @@ fn build_runtime_processors(
                                 layout,
                             )
                         },
-                    )?));
+                    )?;
+                    current_layout = outcome.output_layout;
+                    processors.push(RuntimeProcessor::Audio(outcome.processor));
                 }
                 CoreBlockKind::Tuner(stage) => {
                     let reference_hz = required_f32(&stage.params, "reference_hz")?;
@@ -291,11 +315,11 @@ fn build_runtime_processors(
                         makeup_gain_db,
                         mix
                     );
-                    processors.push(RuntimeProcessor::Audio(build_audio_processor_for_model(
+                    let outcome = build_audio_processor_for_model(
                         track,
                         "compressor",
                         &stage.model,
-                        bus_mode,
+                        current_layout,
                         |layout| {
                             build_compressor_processor_for_layout(
                                 &stage.model,
@@ -304,7 +328,9 @@ fn build_runtime_processors(
                                 layout,
                             )
                         },
-                    )?));
+                    )?;
+                    current_layout = outcome.output_layout;
+                    processors.push(RuntimeProcessor::Audio(outcome.processor));
                 }
                 CoreBlockKind::Gate(stage) => {
                     let threshold = required_f32(&stage.params, "threshold")?;
@@ -314,11 +340,11 @@ fn build_runtime_processors(
                         "[track:{}] loading gate model={} threshold={} attack_ms={} release_ms={}",
                         track.id.0, stage.model, threshold, attack_ms, release_ms
                     );
-                    processors.push(RuntimeProcessor::Audio(build_audio_processor_for_model(
+                    let outcome = build_audio_processor_for_model(
                         track,
                         "gate",
                         &stage.model,
-                        bus_mode,
+                        current_layout,
                         |layout| {
                             build_gate_processor_for_layout(
                                 &stage.model,
@@ -327,7 +353,9 @@ fn build_runtime_processors(
                                 layout,
                             )
                         },
-                    )?));
+                    )?;
+                    current_layout = outcome.output_layout;
+                    processors.push(RuntimeProcessor::Audio(outcome.processor));
                 }
                 CoreBlockKind::Eq(stage) => {
                     let low_gain_db = required_f32(&stage.params, "low_gain_db")?;
@@ -337,11 +365,11 @@ fn build_runtime_processors(
                         "[track:{}] loading eq model={} low_gain_db={} mid_gain_db={} high_gain_db={}",
                         track.id.0, stage.model, low_gain_db, mid_gain_db, high_gain_db
                     );
-                    processors.push(RuntimeProcessor::Audio(build_audio_processor_for_model(
+                    let outcome = build_audio_processor_for_model(
                         track,
                         "eq",
                         &stage.model,
-                        bus_mode,
+                        current_layout,
                         |layout| {
                             build_eq_processor_for_layout(
                                 &stage.model,
@@ -350,7 +378,9 @@ fn build_runtime_processors(
                                 layout,
                             )
                         },
-                    )?));
+                    )?;
+                    current_layout = outcome.output_layout;
+                    processors.push(RuntimeProcessor::Audio(outcome.processor));
                 }
                 CoreBlockKind::Tremolo(stage) => {
                     let rate_hz = required_f32(&stage.params, "rate_hz")?;
@@ -359,11 +389,11 @@ fn build_runtime_processors(
                         "[track:{}] loading tremolo model={} rate_hz={} depth={}",
                         track.id.0, stage.model, rate_hz, depth
                     );
-                    processors.push(RuntimeProcessor::Audio(build_audio_processor_for_model(
+                    let outcome = build_audio_processor_for_model(
                         track,
                         "tremolo",
                         &stage.model,
-                        bus_mode,
+                        current_layout,
                         |layout| {
                             build_tremolo_processor_for_layout(
                                 &stage.model,
@@ -372,28 +402,31 @@ fn build_runtime_processors(
                                 layout,
                             )
                         },
-                    )?));
+                    )?;
+                    current_layout = outcome.output_layout;
+                    processors.push(RuntimeProcessor::Audio(outcome.processor));
                 }
                 _ => {}
             },
             AudioBlockKind::Select(select) => {
-                processors.push(RuntimeProcessor::Audio(load_selected_nam(
-                    track, select, bus_mode,
-                )?));
+                let outcome = load_selected_nam(track, select, current_layout)?;
+                current_layout = outcome.output_layout;
+                processors.push(RuntimeProcessor::Audio(outcome.processor));
             }
             _ => {}
         }
     }
-    Ok(processors)
+
+    Ok((processors, current_layout))
 }
 
 fn build_audio_processor_for_model<F>(
     track: &Track,
     effect_type: &str,
     model: &str,
-    bus_mode: ResolvedTrackBusMode,
+    input_layout: AudioChannelLayout,
     mut builder: F,
-) -> Result<AudioProcessor>
+) -> Result<ProcessorBuildOutcome>
 where
     F: FnMut(AudioChannelLayout) -> Result<StageProcessor>,
 {
@@ -407,71 +440,110 @@ where
         )
     })?;
 
-    let processor = match bus_mode {
-        ResolvedTrackBusMode::Mono => match schema.channel_support {
-            ModelChannelSupport::Stereo => {
-                return Err(anyhow!(
-                    "track '{}' uses {} model '{}' which requires a stereo track",
-                    track.id.0,
-                    effect_type,
-                    model
-                ));
-            }
-            ModelChannelSupport::Mono | ModelChannelSupport::MonoAndStereo => {
-                let mono = expect_mono_processor(
-                    builder(AudioChannelLayout::Mono)?,
-                    track,
-                    effect_type,
-                    model,
-                )?;
-                AudioProcessor::Mono(mono)
-            }
+    let output_layout = schema
+        .audio_mode
+        .output_layout(input_layout)
+        .ok_or_else(|| {
+            anyhow!(
+                "track '{}' {} model '{}' with audio mode '{}' does not accept {} input",
+                track.id.0,
+                effect_type,
+                model,
+                schema.audio_mode.as_str(),
+                layout_label(input_layout)
+            )
+        })?;
+
+    let processor = match (schema.audio_mode, input_layout) {
+        (ModelAudioMode::MonoOnly, AudioChannelLayout::Mono) => {
+            AudioProcessor::Mono(expect_mono_processor(
+                builder(AudioChannelLayout::Mono)?,
+                track,
+                effect_type,
+                model,
+            )?)
+        }
+        (ModelAudioMode::DualMono, AudioChannelLayout::Mono) => {
+            AudioProcessor::Mono(expect_mono_processor(
+                builder(AudioChannelLayout::Mono)?,
+                track,
+                effect_type,
+                model,
+            )?)
+        }
+        (ModelAudioMode::DualMono, AudioChannelLayout::Stereo) => AudioProcessor::DualMono {
+            left: expect_mono_processor(
+                builder(AudioChannelLayout::Mono)?,
+                track,
+                effect_type,
+                model,
+            )?,
+            right: expect_mono_processor(
+                builder(AudioChannelLayout::Mono)?,
+                track,
+                effect_type,
+                model,
+            )?,
         },
-        ResolvedTrackBusMode::Stereo => match schema.channel_support {
-            ModelChannelSupport::Mono => AudioProcessor::DualMono {
-                left: expect_mono_processor(
-                    builder(AudioChannelLayout::Mono)?,
-                    track,
-                    effect_type,
-                    model,
-                )?,
-                right: expect_mono_processor(
-                    builder(AudioChannelLayout::Mono)?,
-                    track,
-                    effect_type,
-                    model,
-                )?,
-            },
-            ModelChannelSupport::Stereo | ModelChannelSupport::MonoAndStereo => {
-                let stereo = expect_stereo_processor(
-                    builder(AudioChannelLayout::Stereo)?,
-                    track,
-                    effect_type,
-                    model,
-                )?;
-                AudioProcessor::Stereo(stereo)
-            }
-        },
+        (ModelAudioMode::TrueStereo, AudioChannelLayout::Stereo) => {
+            AudioProcessor::Stereo(expect_stereo_processor(
+                builder(AudioChannelLayout::Stereo)?,
+                track,
+                effect_type,
+                model,
+            )?)
+        }
+        (ModelAudioMode::MonoToStereo, AudioChannelLayout::Mono) => {
+            AudioProcessor::StereoFromMono(expect_stereo_processor(
+                builder(AudioChannelLayout::Stereo)?,
+                track,
+                effect_type,
+                model,
+            )?)
+        }
+        (ModelAudioMode::MonoToStereo, AudioChannelLayout::Stereo) => {
+            AudioProcessor::Stereo(expect_stereo_processor(
+                builder(AudioChannelLayout::Stereo)?,
+                track,
+                effect_type,
+                model,
+            )?)
+        }
+        _ => {
+            return Err(anyhow!(
+                "track '{}' {} model '{}' with audio mode '{}' cannot run on {} input",
+                track.id.0,
+                effect_type,
+                model,
+                schema.audio_mode.as_str(),
+                layout_label(input_layout)
+            ));
+        }
     };
 
     println!(
-        "[track:{}] {} model={} native_channels={} runtime_mode={}",
+        "[track:{}] {} model={} audio_mode={} input_layout={} output_layout={} runtime_mode={}",
         track.id.0,
         effect_type,
         model,
-        schema.channel_support.as_str(),
+        schema.audio_mode.as_str(),
+        layout_label(input_layout),
+        layout_label(output_layout),
         audio_processor_runtime_mode(&processor)
     );
 
-    Ok(processor)
+    Ok(ProcessorBuildOutcome {
+        processor,
+        output_layout,
+    })
 }
 
 fn build_nam_audio_processor(
     track: &Track,
     stage: &NamBlock,
-    bus_mode: ResolvedTrackBusMode,
+    input_layout: AudioChannelLayout,
     label: &str,
-) -> Result<AudioProcessor> {
+) -> Result<ProcessorBuildOutcome> {
     if stage.model != DEFAULT_NAM_MODEL {
         return Err(anyhow!(
             "track '{}' uses unsupported nam model '{}'",
@@ -488,7 +560,7 @@ fn build_nam_audio_processor(
     if let Some(ir_path) = ir_path.as_deref() {
         println!("[track:{}] loading {} IR '{}'", track.id.0, label, ir_path);
     }
-    build_audio_processor_for_model(track, "nam", &stage.model, bus_mode, |layout| {
+    build_audio_processor_for_model(track, "nam", &stage.model, input_layout, |layout| {
         build_nam_processor_for_layout(&stage.model, &stage.params, layout)
     })
 }
@@ -532,6 +604,7 @@ fn audio_processor_runtime_mode(processor: &AudioProcessor) -> &'static str {
         AudioProcessor::Mono(_) => "mono",
         AudioProcessor::DualMono { .. } => "dual_mono",
         AudioProcessor::Stereo(_) => "stereo",
+        AudioProcessor::StereoFromMono(_) => "mono_to_stereo",
     }
 }
 
@@ -558,8 +631,8 @@ fn optional_string(params: &ParameterSet, path: &str) -> Option<String> {
 fn load_selected_nam(
     track: &Track,
     select: &SelectBlock,
-    bus_mode: ResolvedTrackBusMode,
-) -> Result<AudioProcessor> {
+    input_layout: AudioChannelLayout,
+) -> Result<ProcessorBuildOutcome> {
     let selected = select
         .options
         .iter()
@@ -573,7 +646,7 @@ fn load_selected_nam(
 
     match &selected.kind {
         AudioBlockKind::Nam(stage) => {
-            build_nam_audio_processor(track, stage, bus_mode, "selected NAM")
+            build_nam_audio_processor(track, stage, input_layout, "selected NAM")
         }
         other => Err(anyhow!(
             "track '{}' select block chose unsupported option: {:?}",
@@ -592,6 +665,7 @@ pub fn process_input_f32(
 ) {
     let mut peak = 0.0f32;
     let mut locked = runtime.lock().expect("track runtime poisoned");
+    let mut track_frames = Vec::with_capacity(data.len() / input_total_channels);
     let mut tuner_samples = Vec::new();
     let tuner_enabled = locked
         .processors
@@ -599,17 +673,12 @@ pub fn process_input_f32(
         .any(|processor| matches!(processor, RuntimeProcessor::Tuner(_)));
 
     for frame in data.chunks(input_total_channels) {
-        let track_frame = read_input_frame(locked.bus_mode, input_cfg, frame);
+        let track_frame = read_input_frame(locked.input_layout, input_cfg, frame);
         peak = peak.max(track_frame.peak());
-
         if tuner_enabled {
             tuner_samples.push(track_frame.mono_mix());
         }
-
-        locked.queue.push_back(track_frame);
-        if locked.queue.len() > DEFAULT_QUEUE_CAPACITY_FRAMES {
-            locked.queue.pop_front();
-        }
+        track_frames.push(track_frame);
     }
 
     if tuner_enabled && !tuner_samples.is_empty() {
@@ -620,15 +689,30 @@ pub fn process_input_f32(
         }
     }
 
+    for processor in &mut locked.processors {
+        if let RuntimeProcessor::Audio(processor) = processor {
+            processor.process_buffer(&mut track_frames);
+        }
+    }
+
+    for frame in track_frames {
+        let sequence = locked.next_sequence;
+        locked.next_sequence += 1;
+        locked
+            .processed_frames
+            .push_back(QueuedFrame { sequence, frame });
+    }
+    trim_processed_frames(&mut locked);
+
     if peak >= DEBUG_MIN_PEAK_TO_LOG
         && locked.last_print.elapsed() >= Duration::from_millis(DEBUG_LOG_INTERVAL_MS)
     {
         println!(
-            "[{}] audio detected | input_channels={:?} | peak={:.4} | queued={}",
+            "[{}] audio detected | input_channels={:?} | peak={:.4} | buffered={}",
             track.id.0,
             input_cfg.channels,
             peak,
-            locked.queue.len()
+            locked.processed_frames.len()
         );
         locked.last_print = Instant::now();
     }
@@ -643,69 +727,96 @@ pub fn process_output_f32(
 ) {
     let mut locked = runtime.lock().expect("track runtime poisoned");
     let num_frames = out.len() / output_total_channels;
-    let mut track_frames = Vec::with_capacity(num_frames);
-    for _ in 0..num_frames {
-        if let Some(track_frame) = locked.queue.pop_front() {
-            track_frames.push(track_frame);
-        } else {
-            track_frames.push(match locked.bus_mode {
-                ResolvedTrackBusMode::Mono => AudioFrame::Mono(0.0),
-                ResolvedTrackBusMode::Stereo => AudioFrame::Stereo([0.0, 0.0]),
-            });
+    let next_sequence = locked.next_sequence;
+    let mut cursor = *locked
+        .output_positions
+        .entry(output_cfg.id.clone())
+        .or_insert(next_sequence);
+
+    if let Some(oldest_sequence) = locked.processed_frames.front().map(|frame| frame.sequence) {
+        if cursor < oldest_sequence {
+            cursor = oldest_sequence;
         }
     }
 
-    for processor in &mut locked.processors {
-        match processor {
-            RuntimeProcessor::Audio(processor) => processor.process_buffer(&mut track_frames),
-            RuntimeProcessor::Tuner(_) => {}
-        }
-    }
-
-    for (frame, track_frame) in out
-        .chunks_mut(output_total_channels)
-        .zip(track_frames.into_iter())
-    {
+    for frame in out.chunks_mut(output_total_channels).take(num_frames) {
         frame.fill(0.0);
-        let mut processed = track_frame;
+        let mut processed = queued_frame_at(&locked.processed_frames, cursor)
+            .map(|frame| frame.frame)
+            .unwrap_or_else(|| silent_frame(locked.output_layout));
         processed.apply_gain(track.gain);
         write_output_frame(processed, output_cfg, frame, track.output_mixdown);
+        cursor += 1;
+    }
+
+    locked
+        .output_positions
+        .insert(output_cfg.id.clone(), cursor);
+    trim_processed_frames(&mut locked);
+}
+
+fn queued_frame_at(queue: &VecDeque<QueuedFrame>, sequence: u64) -> Option<QueuedFrame> {
+    let oldest_sequence = queue.front()?.sequence;
+    let index = sequence.checked_sub(oldest_sequence)? as usize;
+    queue.get(index).copied()
+}
+
+fn trim_processed_frames(state: &mut TrackRuntimeState) {
+    let min_cursor = state
+        .output_positions
+        .values()
+        .copied()
+        .min()
+        .unwrap_or(state.next_sequence);
+
+    while let Some(front) = state.processed_frames.front() {
+        if front.sequence < min_cursor {
+            state.processed_frames.pop_front();
+        } else {
+            break;
+        }
+    }
+
+    while state.processed_frames.len() > DEFAULT_QUEUE_CAPACITY_FRAMES {
+        state.processed_frames.pop_front();
+    }
+
+    if let Some(oldest_sequence) = state.processed_frames.front().map(|frame| frame.sequence) {
+        for cursor in state.output_positions.values_mut() {
+            if *cursor < oldest_sequence {
+                *cursor = oldest_sequence;
+            }
+        }
+    } else {
+        for cursor in state.output_positions.values_mut() {
+            *cursor = state.next_sequence;
+        }
     }
 }
 
 fn read_input_frame(
-    bus_mode: ResolvedTrackBusMode,
+    input_layout: AudioChannelLayout,
     input_cfg: &Input,
     frame: &[f32],
 ) -> AudioFrame {
-    match bus_mode {
-        ResolvedTrackBusMode::Mono => {
-            let sample = if input_cfg.channels.len() == 1 {
-                read_channel(frame, input_cfg.channels[0])
-            } else {
-                let sum = input_cfg
-                    .channels
-                    .iter()
-                    .map(|&channel_index| read_channel(frame, channel_index))
-                    .sum::<f32>();
-                sum / input_cfg.channels.len() as f32
-            };
-            AudioFrame::Mono(sample)
-        }
-        ResolvedTrackBusMode::Stereo => {
-            let left = read_channel(frame, input_cfg.channels[0]);
-            let right = input_cfg
-                .channels
-                .get(1)
-                .map(|&channel_index| read_channel(frame, channel_index))
-                .unwrap_or(left);
-            AudioFrame::Stereo([left, right])
-        }
+    match input_layout {
+        AudioChannelLayout::Mono => AudioFrame::Mono(read_channel(frame, input_cfg.channels[0])),
+        AudioChannelLayout::Stereo => AudioFrame::Stereo([
+            read_channel(frame, input_cfg.channels[0]),
+            read_channel(frame, input_cfg.channels[1]),
+        ]),
     }
 }
 
 fn read_channel(frame: &[f32], channel_index: usize) -> f32 {
     frame.get(channel_index).copied().unwrap_or(0.0)
+}
+
+fn silent_frame(layout: AudioChannelLayout) -> AudioFrame {
+    match layout {
+        AudioChannelLayout::Mono => AudioFrame::Mono(0.0),
+        AudioChannelLayout::Stereo => AudioFrame::Stereo([0.0, 0.0]),
+    }
 }
 
 fn write_output_frame(
@@ -747,5 +858,23 @@ fn apply_mixdown(mixdown: TrackOutputMixdown, left: f32, right: f32) -> f32 {
         TrackOutputMixdown::Average => (left + right) * 0.5,
         TrackOutputMixdown::Left => left,
         TrackOutputMixdown::Right => right,
+    }
+}
+
+fn layout_from_channels(channel_count: usize) -> Result<AudioChannelLayout> {
+    match channel_count {
+        1 => Ok(AudioChannelLayout::Mono),
+        2 => Ok(AudioChannelLayout::Stereo),
+        other => Err(anyhow!(
+            "only mono and stereo are supported right now; got {} channels",
+            other
+        )),
+    }
+}
+
+fn layout_label(layout: AudioChannelLayout) -> &'static str {
+    match layout {
+        AudioChannelLayout::Mono => "mono",
+        AudioChannelLayout::Stereo => "stereo",
     }
 }

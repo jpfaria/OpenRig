@@ -1,9 +1,10 @@
 use anyhow::{anyhow, bail, Result};
-use setup::block::{schema_for_block_model, AudioBlock, AudioBlockKind};
+use setup::block::{schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlockKind};
 use setup::setup::Setup;
-use setup::track::{Track, TrackBusMode};
-use stage_core::ModelChannelSupport;
+use setup::track::Track;
+use stage_core::AudioChannelLayout;
 use std::collections::{HashMap, HashSet};
+
 pub fn validate_setup(setup: &Setup) -> Result<()> {
     if setup.input_devices.is_empty() {
         bail!("invalid setup: no input devices configured");
@@ -20,6 +21,7 @@ pub fn validate_setup(setup: &Setup) -> Result<()> {
     if setup.tracks.is_empty() {
         bail!("invalid setup: no tracks configured");
     }
+
     let mut input_device_ids = HashSet::new();
     for input_device in &setup.input_devices {
         if input_device.id.0.trim().is_empty() {
@@ -50,6 +52,7 @@ pub fn validate_setup(setup: &Setup) -> Result<()> {
             );
         }
     }
+
     let mut output_device_ids = HashSet::new();
     for output_device in &setup.output_devices {
         if output_device.id.0.trim().is_empty() {
@@ -80,8 +83,9 @@ pub fn validate_setup(setup: &Setup) -> Result<()> {
             );
         }
     }
+
     let mut input_ids = HashSet::new();
-    let mut input_channel_counts = HashMap::new();
+    let mut input_layouts = HashMap::new();
     for input in &setup.inputs {
         if input.id.0.trim().is_empty() {
             bail!("invalid setup: input with empty id");
@@ -97,10 +101,13 @@ pub fn validate_setup(setup: &Setup) -> Result<()> {
         if !input_ids.insert(input.id.clone()) {
             bail!("invalid setup: duplicated input id '{}'", input.id.0);
         }
-        input_channel_counts.insert(input.id.0.clone(), input.channels.len());
+        input_layouts.insert(
+            input.id.0.clone(),
+            layout_from_channel_count("input", &input.id.0, input.channels.len())?,
+        );
     }
+
     let mut output_ids = HashSet::new();
-    let mut output_channel_counts = HashMap::new();
     for output in &setup.outputs {
         if output.id.0.trim().is_empty() {
             bail!("invalid setup: output with empty id");
@@ -116,8 +123,9 @@ pub fn validate_setup(setup: &Setup) -> Result<()> {
         if !output_ids.insert(output.id.clone()) {
             bail!("invalid setup: duplicated output id '{}'", output.id.0);
         }
-        output_channel_counts.insert(output.id.0.clone(), output.channels.len());
+        layout_from_channel_count("output", &output.id.0, output.channels.len())?;
     }
+
     let mut track_ids = HashSet::new();
     for track in &setup.tracks {
         if track.id.0.trim().is_empty() {
@@ -145,65 +153,41 @@ pub fn validate_setup(setup: &Setup) -> Result<()> {
                 );
             }
         }
-        let input_channel_count = *input_channel_counts
+
+        let input_layout = *input_layouts
             .get(&track.input_id.0)
             .expect("validated input id must exist");
-        let resolved_bus_mode =
-            validate_track_bus_layout(track, input_channel_count, &output_channel_counts)?;
-        validate_track_blocks(track, resolved_bus_mode)?;
+        validate_track_blocks(track, input_layout)?;
+
         if !track_ids.insert(track.id.clone()) {
             bail!("invalid setup: duplicated track id '{}'", track.id.0);
         }
     }
+
     Ok(())
 }
 
-fn validate_track_bus_layout(
-    track: &Track,
-    input_channel_count: usize,
-    output_channel_counts: &HashMap<String, usize>,
-) -> Result<TrackBusMode> {
-    let resolved_bus_mode = match track.bus_mode {
-        TrackBusMode::Auto => {
-            if input_channel_count >= 2 {
-                TrackBusMode::Stereo
-            } else {
-                TrackBusMode::Mono
-            }
-        }
-        mode => mode,
-    };
-
-    if resolved_bus_mode == TrackBusMode::Stereo && input_channel_count > 2 {
-        bail!(
-            "track '{}' resolves to stereo but input '{}' exposes {} channels; only 1 or 2 are supported for stereo tracks",
-            track.id.0,
-            track.input_id.0,
-            input_channel_count
-        );
+fn layout_from_channel_count(
+    kind: &str,
+    id: &str,
+    channel_count: usize,
+) -> Result<AudioChannelLayout> {
+    match channel_count {
+        1 => Ok(AudioChannelLayout::Mono),
+        2 => Ok(AudioChannelLayout::Stereo),
+        other => bail!(
+            "{} '{}' exposes {} channels; only mono (1) and stereo (2) are currently supported",
+            kind,
+            id,
+            other
+        ),
     }
-
-    if resolved_bus_mode == TrackBusMode::Stereo {
-        for output_id in &track.output_ids {
-            let output_channel_count = *output_channel_counts
-                .get(&output_id.0)
-                .expect("validated output id must exist");
-            if output_channel_count > 2 {
-                bail!(
-                    "track '{}' resolves to stereo but output '{}' exposes {} channels; only 1 or 2 are supported for stereo tracks",
-                    track.id.0,
-                    output_id.0,
-                    output_channel_count
-                );
-            }
-        }
-    }
-
-    Ok(resolved_bus_mode)
 }
 
-fn validate_track_blocks(track: &Track, resolved_bus_mode: TrackBusMode) -> Result<()> {
+fn validate_track_blocks(track: &Track, input_layout: AudioChannelLayout) -> Result<()> {
     let mut block_ids = HashSet::new();
+    let mut current_layout = input_layout;
+
     for block in &track.blocks {
         if block.id.0.trim().is_empty() {
             bail!("block with empty id");
@@ -214,65 +198,94 @@ fn validate_track_blocks(track: &Track, resolved_bus_mode: TrackBusMode) -> Resu
         block
             .validate_params()
             .map_err(|error| anyhow!("block '{}': {}", block.id.0, error))?;
-        validate_block_channel_support(track, block, resolved_bus_mode)?;
-        if let AudioBlockKind::Select(select) = &block.kind {
-            if select.options.is_empty() {
-                bail!("block '{}' has no select options", block.id.0);
-            }
-            if !select
-                .options
-                .iter()
-                .any(|option| option.id == select.selected_block_id)
-            {
-                bail!("block '{}' selected option does not exist", block.id.0);
-            }
-        }
+        current_layout = resolve_block_output_layout(track, block, current_layout)?;
     }
+
     Ok(())
 }
 
-fn validate_block_channel_support(
+fn resolve_block_output_layout(
     track: &Track,
     block: &AudioBlock,
-    resolved_bus_mode: TrackBusMode,
-) -> Result<()> {
-    let model_ref = match &block.kind {
+    input_layout: AudioChannelLayout,
+) -> Result<AudioChannelLayout> {
+    match &block.kind {
+        AudioBlockKind::Select(select) => {
+            if select.options.is_empty() {
+                bail!("block '{}' has no select options", block.id.0);
+            }
+
+            let selected = select
+                .options
+                .iter()
+                .find(|option| option.id == select.selected_block_id)
+                .ok_or_else(|| anyhow!("block '{}' selected option does not exist", block.id.0))?;
+
+            let mut resolved_layout = None;
+            for option in &select.options {
+                let option_layout = resolve_block_output_layout(track, option, input_layout)
+                    .map_err(|error| anyhow!("block '{}': {}", block.id.0, error))?;
+                if let Some(existing) = resolved_layout {
+                    if existing != option_layout {
+                        bail!(
+                            "track '{}' select block '{}' mixes incompatible output layouts across options",
+                            track.id.0,
+                            block.id.0
+                        );
+                    }
+                } else {
+                    resolved_layout = Some(option_layout);
+                }
+            }
+
+            resolve_block_output_layout(track, selected, input_layout)
+                .map_err(|error| anyhow!("block '{}': {}", block.id.0, error))
+        }
+        _ => {
+            let Some((effect_type, model)) = model_ref_for_block(block) else {
+                return Ok(input_layout);
+            };
+
+            let schema = schema_for_block_model(effect_type, model)
+                .map_err(|error| anyhow!("block '{}': {}", block.id.0, error))?;
+
+            schema.audio_mode.output_layout(input_layout).ok_or_else(|| {
+                anyhow!(
+                    "track '{}' block '{}' uses {} model '{}' with audio mode '{}' that does not accept a {} input bus",
+                    track.id.0,
+                    block.id.0,
+                    effect_type,
+                    model,
+                    schema.audio_mode.as_str(),
+                    layout_label(input_layout)
+                )
+            })
+        }
+    }
+}
+
+fn model_ref_for_block(block: &AudioBlock) -> Option<(&str, &str)> {
+    match &block.kind {
         AudioBlockKind::Nam(stage) => Some(("nam", stage.model.as_str())),
         AudioBlockKind::Core(core) => match &core.kind {
-            setup::block::CoreBlockKind::Delay(stage) => Some(("delay", stage.model.as_str())),
-            setup::block::CoreBlockKind::Reverb(stage) => Some(("reverb", stage.model.as_str())),
-            setup::block::CoreBlockKind::Tuner(stage) => Some(("tuner", stage.model.as_str())),
-            setup::block::CoreBlockKind::Compressor(stage) => {
-                Some(("compressor", stage.model.as_str()))
-            }
-            setup::block::CoreBlockKind::Gate(stage) => Some(("gate", stage.model.as_str())),
-            setup::block::CoreBlockKind::Eq(stage) => Some(("eq", stage.model.as_str())),
-            setup::block::CoreBlockKind::Tremolo(stage) => Some(("tremolo", stage.model.as_str())),
+            CoreBlockKind::Delay(stage) => Some(("delay", stage.model.as_str())),
+            CoreBlockKind::Reverb(stage) => Some(("reverb", stage.model.as_str())),
+            CoreBlockKind::Tuner(stage) => Some(("tuner", stage.model.as_str())),
+            CoreBlockKind::Compressor(stage) => Some(("compressor", stage.model.as_str())),
+            CoreBlockKind::Gate(stage) => Some(("gate", stage.model.as_str())),
+            CoreBlockKind::Eq(stage) => Some(("eq", stage.model.as_str())),
+            CoreBlockKind::Tremolo(stage) => Some(("tremolo", stage.model.as_str())),
             _ => None,
         },
         _ => None,
-    };
-
-    let Some((effect_type, model)) = model_ref else {
-        return Ok(());
-    };
-
-    let schema = schema_for_block_model(effect_type, model)
-        .map_err(|error| anyhow!("block '{}': {}", block.id.0, error))?;
-
-    if resolved_bus_mode == TrackBusMode::Mono
-        && matches!(schema.channel_support, ModelChannelSupport::Stereo)
-    {
-        bail!(
-            "track '{}' is mono but block '{}' uses {} model '{}' which requires stereo",
-            track.id.0,
-            block.id.0,
-            effect_type,
-            model
-        );
     }
+}
 
-    Ok(())
+fn layout_label(layout: AudioChannelLayout) -> &'static str {
+    match layout {
+        AudioChannelLayout::Mono => "mono",
+        AudioChannelLayout::Stereo => "stereo",
+    }
 }
 
 fn validate_unique_channels(channels: &[usize]) -> Result<()> {
