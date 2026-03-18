@@ -1,7 +1,9 @@
 use anyhow::{anyhow, Result};
 use nam::{
     build_processor_with_assets_for_layout, model_schema_for,
-    processor::{plugin_parameter_specs, plugin_params_from_set_with_defaults},
+    processor::{
+        plugin_parameter_specs_with_defaults, plugin_params_from_set_with_defaults, NamPluginParams,
+    },
 };
 use stage_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
@@ -9,6 +11,18 @@ use stage_core::param::{
 use stage_core::{AudioChannelLayout, StageProcessor};
 
 pub const MODEL_ID: &str = "marshall_jcm_800";
+
+pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
+    input_level_db: 0.0,
+    output_level_db: 0.0,
+    noise_gate_threshold_db: -80.0,
+    noise_gate_enabled: true,
+    eq_enabled: true,
+    ir_enabled: false,
+    bass: 5.0,
+    middle: 5.0,
+    treble: 5.0,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MarshallJcm800Params {
@@ -127,7 +141,10 @@ pub fn model_schema() -> ModelParameterSchema {
             ParameterUnit::Percent,
         ),
     ];
-    parameters.extend(plugin_parameter_specs(false));
+    parameters.extend(plugin_parameter_specs_with_defaults(
+        NAM_PLUGIN_DEFAULTS,
+        false,
+    ));
     schema.parameters = parameters;
     schema
 }
@@ -137,7 +154,7 @@ pub fn build_processor_for_model(
     layout: AudioChannelLayout,
 ) -> Result<StageProcessor> {
     let capture = resolve_capture(params)?;
-    let plugin_params = plugin_params_from_set_with_defaults(params, false)?;
+    let plugin_params = plugin_params_from_set_with_defaults(params, NAM_PLUGIN_DEFAULTS)?;
     build_processor_with_assets_for_layout(capture.model_path, None, plugin_params, layout)
 }
 

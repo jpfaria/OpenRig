@@ -1,9 +1,8 @@
 use anyhow::{bail, Result};
 use domain::value_objects::ParameterValue;
 use stage_core::param::{
-    bool_parameter, file_path_parameter, float_parameter, optional_string, required_bool,
-    required_f32, required_string, ModelParameterSchema, ParameterSet, ParameterSpec,
-    ParameterUnit,
+    bool_parameter, file_path_parameter, float_parameter, optional_string, required_string,
+    ModelParameterSchema, ParameterSet, ParameterSpec, ParameterUnit,
 };
 use stage_core::{ModelAudioMode, MonoProcessor};
 use std::ffi::CString;
@@ -49,12 +48,19 @@ pub fn model_schema(include_file_params: bool, include_ir_enabled: bool) -> Mode
 }
 
 pub fn plugin_parameter_specs(include_ir_enabled: bool) -> Vec<ParameterSpec> {
+    plugin_parameter_specs_with_defaults(DEFAULT_PLUGIN_PARAMS, include_ir_enabled)
+}
+
+pub fn plugin_parameter_specs_with_defaults(
+    defaults: NamPluginParams,
+    include_ir_enabled: bool,
+) -> Vec<ParameterSpec> {
     let mut parameters = vec![
         float_parameter(
             "input_db",
             "Input",
             None,
-            Some(0.0),
+            Some(defaults.input_level_db),
             -24.0,
             24.0,
             0.1,
@@ -64,7 +70,7 @@ pub fn plugin_parameter_specs(include_ir_enabled: bool) -> Vec<ParameterSpec> {
             "output_db",
             "Output",
             None,
-            Some(0.0),
+            Some(defaults.output_level_db),
             -24.0,
             24.0,
             0.1,
@@ -74,24 +80,29 @@ pub fn plugin_parameter_specs(include_ir_enabled: bool) -> Vec<ParameterSpec> {
             "noise_gate.enabled",
             "Enabled",
             Some("Noise Gate"),
-            Some(true),
+            Some(defaults.noise_gate_enabled),
         ),
         float_parameter(
             "noise_gate.threshold_db",
             "Threshold",
             Some("Noise Gate"),
-            Some(-80.0),
+            Some(defaults.noise_gate_threshold_db),
             -96.0,
             0.0,
             0.1,
             ParameterUnit::Decibels,
         ),
-        bool_parameter("eq.enabled", "Enabled", Some("EQ"), Some(true)),
+        bool_parameter(
+            "eq.enabled",
+            "Enabled",
+            Some("EQ"),
+            Some(defaults.eq_enabled),
+        ),
         float_parameter(
             "eq.bass",
             "Bass",
             Some("EQ"),
-            Some(5.0),
+            Some(defaults.bass),
             0.0,
             10.0,
             0.1,
@@ -101,7 +112,7 @@ pub fn plugin_parameter_specs(include_ir_enabled: bool) -> Vec<ParameterSpec> {
             "eq.middle",
             "Middle",
             Some("EQ"),
-            Some(5.0),
+            Some(defaults.middle),
             0.0,
             10.0,
             0.1,
@@ -111,7 +122,7 @@ pub fn plugin_parameter_specs(include_ir_enabled: bool) -> Vec<ParameterSpec> {
             "eq.treble",
             "Treble",
             Some("EQ"),
-            Some(5.0),
+            Some(defaults.treble),
             0.0,
             10.0,
             0.1,
@@ -120,7 +131,12 @@ pub fn plugin_parameter_specs(include_ir_enabled: bool) -> Vec<ParameterSpec> {
     ];
 
     if include_ir_enabled {
-        parameters.push(bool_parameter("ir_enabled", "IR Enabled", None, Some(true)));
+        parameters.push(bool_parameter(
+            "ir_enabled",
+            "IR Enabled",
+            None,
+            Some(defaults.ir_enabled),
+        ));
     }
 
     parameters
@@ -154,34 +170,52 @@ pub struct NamPluginParams {
     pub treble: f32,
 }
 
+pub const DEFAULT_PLUGIN_PARAMS: NamPluginParams = NamPluginParams {
+    input_level_db: 0.0,
+    output_level_db: 0.0,
+    noise_gate_threshold_db: -80.0,
+    noise_gate_enabled: true,
+    eq_enabled: true,
+    ir_enabled: true,
+    bass: 5.0,
+    middle: 5.0,
+    treble: 5.0,
+};
+
 pub fn params_from_set(params: &ParameterSet) -> Result<(String, Option<String>, NamPluginParams)> {
     Ok((
         required_string(params, "model_path").map_err(anyhow::Error::msg)?,
         optional_string(params, "ir_path"),
-        plugin_params_from_set_with_defaults(params, true)?,
+        plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)?,
     ))
 }
 
 pub fn plugin_params_from_set(params: &ParameterSet) -> Result<NamPluginParams> {
-    plugin_params_from_set_with_defaults(params, true)
+    plugin_params_from_set_with_defaults(params, DEFAULT_PLUGIN_PARAMS)
 }
 
 pub fn plugin_params_from_set_with_defaults(
     params: &ParameterSet,
-    ir_enabled_default: bool,
+    defaults: NamPluginParams,
 ) -> Result<NamPluginParams> {
     Ok(NamPluginParams {
-        input_level_db: required_f32(params, "input_db").map_err(anyhow::Error::msg)?,
-        output_level_db: required_f32(params, "output_db").map_err(anyhow::Error::msg)?,
-        noise_gate_threshold_db: required_f32(params, "noise_gate.threshold_db")
-            .map_err(anyhow::Error::msg)?,
-        noise_gate_enabled: required_bool(params, "noise_gate.enabled")
-            .map_err(anyhow::Error::msg)?,
-        eq_enabled: required_bool(params, "eq.enabled").map_err(anyhow::Error::msg)?,
-        ir_enabled: params.get_bool("ir_enabled").unwrap_or(ir_enabled_default),
-        bass: required_f32(params, "eq.bass").map_err(anyhow::Error::msg)?,
-        middle: required_f32(params, "eq.middle").map_err(anyhow::Error::msg)?,
-        treble: required_f32(params, "eq.treble").map_err(anyhow::Error::msg)?,
+        input_level_db: float_or_default(params, "input_db", defaults.input_level_db)?,
+        output_level_db: float_or_default(params, "output_db", defaults.output_level_db)?,
+        noise_gate_threshold_db: float_or_default(
+            params,
+            "noise_gate.threshold_db",
+            defaults.noise_gate_threshold_db,
+        )?,
+        noise_gate_enabled: bool_or_default(
+            params,
+            "noise_gate.enabled",
+            defaults.noise_gate_enabled,
+        )?,
+        eq_enabled: bool_or_default(params, "eq.enabled", defaults.eq_enabled)?,
+        ir_enabled: bool_or_default(params, "ir_enabled", defaults.ir_enabled)?,
+        bass: float_or_default(params, "eq.bass", defaults.bass)?,
+        middle: float_or_default(params, "eq.middle", defaults.middle)?,
+        treble: float_or_default(params, "eq.treble", defaults.treble)?,
     })
 }
 
@@ -261,5 +295,23 @@ impl MonoProcessor for NamProcessor {
             );
         }
         buffer.copy_from_slice(&self.scratch_output);
+    }
+}
+
+fn float_or_default(params: &ParameterSet, path: &str, default: f32) -> Result<f32> {
+    match params.get(path) {
+        Some(value) => value
+            .as_f32()
+            .ok_or_else(|| anyhow::anyhow!("invalid float parameter '{}'", path)),
+        None => Ok(default),
+    }
+}
+
+fn bool_or_default(params: &ParameterSet, path: &str, default: bool) -> Result<bool> {
+    match params.get(path) {
+        Some(value) => value
+            .as_bool()
+            .ok_or_else(|| anyhow::anyhow!("invalid bool parameter '{}'", path)),
+        None => Ok(default),
     }
 }
