@@ -13,6 +13,7 @@ use stage_delay_digital::build_delay_processor_for_layout;
 use stage_dyn_compressor::build_compressor_processor_for_layout;
 use stage_dyn_gate::build_gate_processor_for_layout;
 use stage_filter_eq::build_eq_processor_for_layout;
+use stage_full_rig::{build_full_rig_processor_for_layout, full_rig_asset_summary};
 use stage_mod_tremolo::build_tremolo_processor_for_layout;
 use stage_nam::{build_nam_processor_for_layout, DEFAULT_NAM_MODEL};
 use stage_reverb_plate::build_reverb_processor_for_layout;
@@ -250,6 +251,30 @@ fn build_runtime_processors(
                         current_layout,
                         |layout| {
                             build_amp_processor_for_layout(
+                                &stage.model,
+                                &stage.params,
+                                DEFAULT_SAMPLE_RATE,
+                                layout,
+                            )
+                        },
+                    )?;
+                    current_layout = outcome.output_layout;
+                    processors.push(RuntimeProcessor::Audio(outcome.processor));
+                }
+                CoreBlockKind::FullRig(stage) => {
+                    println!(
+                        "[track:{}] loading full-rig model={} {}",
+                        track.id.0,
+                        stage.model,
+                        full_rig_asset_summary(&stage.model, &stage.params)?
+                    );
+                    let outcome = build_audio_processor_for_model(
+                        track,
+                        "full_rig",
+                        &stage.model,
+                        current_layout,
+                        |layout| {
+                            build_full_rig_processor_for_layout(
                                 &stage.model,
                                 &stage.params,
                                 DEFAULT_SAMPLE_RATE,

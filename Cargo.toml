@@ -21,6 +21,7 @@ members = [
   "crates/nam",
   "crates/stage-nam",
   "crates/stage-amp",
+  "crates/stage-full-rig",
   "crates/stage-cab",
   "crates/infra-yaml",
   "crates/infra-filesystem",

@@ -14,6 +14,7 @@ state = { path = "../state" }
 ports = { path = "../ports" }
 stage-nam = { path = "../stage-nam" }
 stage-amp = { path = "../stage-amp" }
+stage-full-rig = { path = "../stage-full-rig" }
 stage-delay-digital = { path = "../stage-delay-digital" }
 stage-dyn-compressor = { path = "../stage-dyn-compressor" }
 stage-dyn-gate = { path = "../stage-dyn-gate" }

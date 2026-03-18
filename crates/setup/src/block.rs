@@ -9,6 +9,7 @@ use stage_delay_digital::delay_model_schema;
 use stage_dyn_compressor::compressor_model_schema;
 use stage_dyn_gate::gate_model_schema;
 use stage_filter_eq::eq_model_schema;
+use stage_full_rig::{full_rig_model_schema, validate_full_rig_params};
 use stage_mod_tremolo::tremolo_model_schema;
 use stage_nam::nam_model_schema;
 use stage_reverb_plate::reverb_model_schema;
@@ -65,6 +66,7 @@ pub struct CoreBlock {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CoreBlockKind {
     Amp(AmpBlock),
+    FullRig(FullRigBlock),
     Cab(CabBlock),
     IrLoader(IrLoaderBlock),
 
@@ -104,6 +106,7 @@ pub struct SelectBlock {
 }
 
 define_model_block!(AmpBlock);
+define_model_block!(FullRigBlock);
 define_model_block!(CabBlock);
 define_model_block!(IrLoaderBlock);
 define_model_block!(DriveBlock);
@@ -190,6 +193,10 @@ impl CoreBlock {
                 normalize_block_params("amp", &stage.model, stage.params.clone())?;
                 Ok(())
             }
+            CoreBlockKind::FullRig(stage) => {
+                normalize_block_params("full_rig", &stage.model, stage.params.clone())?;
+                Ok(())
+            }
             CoreBlockKind::Delay(stage) => {
                 normalize_block_params("delay", &stage.model, stage.params.clone())?;
                 Ok(())
@@ -230,6 +237,9 @@ impl CoreBlock {
             CoreBlockKind::Amp(stage) => {
                 describe_block_params(block_id, "amp", &stage.model, &stage.params)
             }
+            CoreBlockKind::FullRig(stage) => {
+                describe_block_params(block_id, "full_rig", &stage.model, &stage.params)
+            }
             CoreBlockKind::Delay(stage) => {
                 describe_block_params(block_id, "delay", &stage.model, &stage.params)
             }
@@ -259,6 +269,9 @@ impl CoreBlock {
         match &self.kind {
             CoreBlockKind::Amp(stage) => {
                 Ok(vec![describe_block_audio(block_id, "amp", &stage.model)?])
+            }
+            CoreBlockKind::FullRig(stage) => {
+                Ok(vec![describe_block_audio(block_id, "full_rig", &stage.model)?])
             }
             CoreBlockKind::Delay(stage) => {
                 Ok(vec![describe_block_audio(block_id, "delay", &stage.model)?])
@@ -302,6 +315,9 @@ pub fn normalize_block_params(
     if effect_type == "amp" {
         validate_amp_params(model, &normalized).map_err(|error| error.to_string())?;
     }
+    if effect_type == "full_rig" {
+        validate_full_rig_params(model, &normalized).map_err(|error| error.to_string())?;
+    }
     Ok(normalized)
 }
 
@@ -311,6 +327,7 @@ pub fn schema_for_block_model(
 ) -> Result<ModelParameterSchema, String> {
     match effect_type {
         "amp" => amp_model_schema(model).map_err(|error| error.to_string()),
+        "full_rig" => full_rig_model_schema(model).map_err(|error| error.to_string()),
         "nam" => nam_model_schema(model).map_err(|error| error.to_string()),
         "delay" => delay_model_schema(model).map_err(|error| error.to_string()),
         "reverb" => reverb_model_schema(model).map_err(|error| error.to_string()),
