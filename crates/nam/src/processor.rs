@@ -14,7 +14,7 @@ pub fn supports_model(model: &str) -> bool {
     model == DEFAULT_NAM_MODEL
 }
 
-pub fn model_schema(include_file_params: bool, include_ir_enabled: bool) -> ModelParameterSchema {
+pub fn model_schema(include_file_params: bool) -> ModelParameterSchema {
     let mut parameters = Vec::new();
 
     if include_file_params {
@@ -36,7 +36,7 @@ pub fn model_schema(include_file_params: bool, include_ir_enabled: bool) -> Mode
         ));
     }
 
-    parameters.extend(plugin_parameter_specs(include_ir_enabled));
+    parameters.extend(plugin_parameter_specs());
 
     ModelParameterSchema {
         effect_type: "nam".to_string(),
@@ -47,15 +47,12 @@ pub fn model_schema(include_file_params: bool, include_ir_enabled: bool) -> Mode
     }
 }
 
-pub fn plugin_parameter_specs(include_ir_enabled: bool) -> Vec<ParameterSpec> {
-    plugin_parameter_specs_with_defaults(DEFAULT_PLUGIN_PARAMS, include_ir_enabled)
+pub fn plugin_parameter_specs() -> Vec<ParameterSpec> {
+    plugin_parameter_specs_with_defaults(DEFAULT_PLUGIN_PARAMS)
 }
 
-pub fn plugin_parameter_specs_with_defaults(
-    defaults: NamPluginParams,
-    include_ir_enabled: bool,
-) -> Vec<ParameterSpec> {
-    let mut parameters = vec![
+pub fn plugin_parameter_specs_with_defaults(defaults: NamPluginParams) -> Vec<ParameterSpec> {
+    vec![
         float_parameter(
             "input_db",
             "Input",
@@ -128,18 +125,7 @@ pub fn plugin_parameter_specs_with_defaults(
             0.1,
             ParameterUnit::None,
         ),
-    ];
-
-    if include_ir_enabled {
-        parameters.push(bool_parameter(
-            "ir_enabled",
-            "IR Enabled",
-            None,
-            Some(defaults.ir_enabled),
-        ));
-    }
-
-    parameters
+    ]
 }
 
 #[repr(C)]
@@ -164,7 +150,6 @@ pub struct NamPluginParams {
     pub noise_gate_threshold_db: f32,
     pub noise_gate_enabled: bool,
     pub eq_enabled: bool,
-    pub ir_enabled: bool,
     pub bass: f32,
     pub middle: f32,
     pub treble: f32,
@@ -176,7 +161,6 @@ pub const DEFAULT_PLUGIN_PARAMS: NamPluginParams = NamPluginParams {
     noise_gate_threshold_db: -80.0,
     noise_gate_enabled: true,
     eq_enabled: true,
-    ir_enabled: true,
     bass: 5.0,
     middle: 5.0,
     treble: 5.0,
@@ -212,7 +196,6 @@ pub fn plugin_params_from_set_with_defaults(
             defaults.noise_gate_enabled,
         )?,
         eq_enabled: bool_or_default(params, "eq.enabled", defaults.eq_enabled)?,
-        ir_enabled: bool_or_default(params, "ir_enabled", defaults.ir_enabled)?,
         bass: float_or_default(params, "eq.bass", defaults.bass)?,
         middle: float_or_default(params, "eq.middle", defaults.middle)?,
         treble: float_or_default(params, "eq.treble", defaults.treble)?,
@@ -255,7 +238,7 @@ impl NamProcessor {
             treble: params.treble,
             noise_gate_enabled: params.noise_gate_enabled as u8,
             eq_enabled: params.eq_enabled as u8,
-            ir_enabled: params.ir_enabled as u8,
+            ir_enabled: ir_path.is_some() as u8,
         };
         let handle = unsafe { nam_create(&config) };
         if handle.is_null() {

@@ -18,7 +18,6 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
     noise_gate_threshold_db: -80.0,
     noise_gate_enabled: true,
     eq_enabled: true,
-    ir_enabled: false,
     bass: 5.0,
     middle: 5.0,
     treble: 5.0,
@@ -78,7 +77,7 @@ pub fn supports_model(model: &str) -> bool {
 }
 
 pub fn model_schema() -> ModelParameterSchema {
-    let mut schema = model_schema_for("amp", MODEL_ID, "Marshall JCM 800", false, false);
+    let mut schema = model_schema_for("amp", MODEL_ID, "Marshall JCM 800", false);
     let mut parameters = vec![
         float_parameter(
             "volume",
@@ -141,10 +140,7 @@ pub fn model_schema() -> ModelParameterSchema {
             ParameterUnit::Percent,
         ),
     ];
-    parameters.extend(plugin_parameter_specs_with_defaults(
-        NAM_PLUGIN_DEFAULTS,
-        false,
-    ));
+    parameters.extend(plugin_parameter_specs_with_defaults(NAM_PLUGIN_DEFAULTS));
     schema.parameters = parameters;
     schema
 }
