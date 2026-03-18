@@ -1,16 +1,37 @@
 # OpenRig
 
-OpenRig is a Rust guitar and acoustic pedalboard project built to grow from a simple working audio path into a professional multi-adapter architecture.
+![OpenRig logo](docs/assets/openrig-logo.svg)
 
-It is intended to run on Windows, macOS, and Linux.
+OpenRig is a cross-platform pedalboard platform for guitar and acoustic processing, built around one Rust DSP core that can run as a standalone app, a VST3 plugin, a server process, and a dedicated hardware unit.
+
+It is being designed to run on Windows, macOS, and Linux, and to scale from desktop audio to a custom Orange Pi based rig with remote control interfaces.
+
+![OpenRig ecosystem](docs/assets/openrig-ecosystem.svg)
+
+## Vision
+
+- One pedalboard core with reusable DSP, routing, setup, and state handling
+- Standalone desktop application for direct use on Windows, macOS, and Linux
+- VST3 plugin with a native GUI for integration inside DAWs
+- Server mode for headless audio hosting and remote control
+- Flutter client applications for desktop and mobile control surfaces
+- Dedicated hardware version based on Orange Pi and a custom 3D printed enclosure
 
 ## Direction
 
 - Core-first design
 - Clear separation between setup, application, engine, infrastructure, and adapters
 - Generic audio blocks instead of a NAM-only model
-- NAM, IR, and internal effects treated as distinct concepts
+- NAM, IR, internal effects, control surfaces, and runtime hosts treated as distinct concerns
 - First priority is a simple working path end to end
+
+## Product Modes
+
+- `Standalone`: OpenRig owns the audio device and runs as the main pedalboard application
+- `VST3`: OpenRig runs inside a DAW with the same processing model and a dedicated plugin GUI
+- `Server`: OpenRig runs headless and exposes control endpoints for remote UIs
+- `Hardware`: OpenRig runs on a dedicated Orange Pi based unit with an embedded screen and foot control workflow
+- `Remote UI`: Flutter clients can control rigs, presets, and state from desktop or mobile
 
 ## Current Vertical Slice
 
@@ -20,22 +41,24 @@ The current implementation is focused on a minimal working path:
 - Validate the setup structure
 - Resolve audio devices with CPAL
 - Load NAM processors through the native wrapper
+- Apply IR inside the NAM plugin-style processing path
 - Build a simple per-track runtime queue
 - Run audio input and output streams from the console adapter
 
 ## Stage Catalog
 Implemented today:
-- `stage-nam`: NAM model processing
-- `stage-delay`: digital delay
-- `stage-reverb`: plate reverb foundation
-- `stage-utility`: chromatic tuner
-- `stage-dynamics`: compressor and noise gate
-- `stage-eq`: three-band EQ
-- `stage-modulation`: tremolo
+- `stage-amp-nam`: NAM amp/pedal model processing with plugin-style controls and IR support
+- `stage-delay-digital`: digital delay
+- `stage-reverb-plate`: plate reverb foundation
+- `stage-util-tuner`: chromatic tuner
+- `stage-dyn-compressor`: compressor
+- `stage-dyn-gate`: noise gate
+- `stage-filter-eq`: three-band EQ
+- `stage-mod-tremolo`: tremolo
 Planned next expansions:
-- `stage-delay`: tape, analog, dual, ping-pong
-- `stage-reverb`: spring, hall, room as distinct algorithms
-- `stage-modulation`: chorus, phaser, flanger, rotary
+- `stage-delay-*`: tape, analog, dual, ping-pong
+- `stage-reverb-*`: spring, hall, room as distinct algorithms
+- `stage-mod-*`: chorus, phaser, flanger, rotary
 - `stage-gain`: boost, overdrive, distortion, fuzz
 - `stage-pitch`: octave, harmonizer, detune
 - `stage-cab`: IR and cabinet stage wiring in the live chain
@@ -51,6 +74,7 @@ Sources and inspirations:
 - A supported environment on Windows, macOS, or Linux
 - A valid audio device name configured in `setup.yaml`
 - NAM model files and captures available under `captures/`
+- IR files available when a block enables `ir_path`
 
 ## How to Run
 
@@ -73,7 +97,7 @@ cargo run -p adapter-console
 
 - The first working path is mono per track.
 - NAM blocks are processed in sequence.
-- IR paths are already part of the setup, but IR processing is not applied in the audio path yet.
+- NAM blocks can apply input/output gain, embedded noise gate, embedded EQ, and IR in the audio path.
 - The process keeps running until you stop it manually.
 
 ## Main Files
@@ -82,6 +106,6 @@ cargo run -p adapter-console
 - `state.yaml`: current logical state snapshot
 - `crates/adapter-console/src/main.rs`: console bootstrap
 - `crates/infra-cpal/src/lib.rs`: CPAL device and stream integration
-- `crates/infra-yaml/src/lib.rs`: YAML loader and compatibility mapping
+- `crates/infra-yaml/src/lib.rs`: YAML loader
 - `crates/engine/src/runtime.rs`: simple runtime queue and sample processing
-- `crates/stage-nam/src/processor.rs`: native NAM processor binding
+- `crates/stage-amp-nam/src/processor.rs`: native NAM processor binding

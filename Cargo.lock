@@ -273,14 +273,15 @@ dependencies = [
  "anyhow",
  "domain",
  "setup",
+ "stage-amp-nam",
  "stage-core",
- "stage-delay",
- "stage-dynamics",
- "stage-eq",
- "stage-modulation",
- "stage-nam",
- "stage-reverb",
- "stage-utility",
+ "stage-delay-digital",
+ "stage-dyn-compressor",
+ "stage-dyn-gate",
+ "stage-filter-eq",
+ "stage-mod-tremolo",
+ "stage-reverb-plate",
+ "stage-util-tuner",
  "state",
 ]
 
@@ -863,6 +864,15 @@ name = "stage-amp"
 version = "0.1.0"
 
 [[package]]
+name = "stage-amp-nam"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cmake",
+ "stage-core",
+]
+
+[[package]]
 name = "stage-cab"
 version = "0.1.0"
 dependencies = [
@@ -874,23 +884,34 @@ name = "stage-core"
 version = "0.1.0"
 
 [[package]]
-name = "stage-delay"
+name = "stage-delay-digital"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "stage-core",
 ]
 
 [[package]]
-name = "stage-dynamics"
+name = "stage-dyn-compressor"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "stage-core",
 ]
 
 [[package]]
-name = "stage-eq"
+name = "stage-dyn-gate"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "stage-core",
+]
+
+[[package]]
+name = "stage-filter-eq"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
  "stage-core",
 ]
 
@@ -899,18 +920,11 @@ name = "stage-gain"
 version = "0.1.0"
 
 [[package]]
-name = "stage-modulation"
-version = "0.1.0"
-dependencies = [
- "stage-core",
-]
-
-[[package]]
-name = "stage-nam"
+name = "stage-mod-tremolo"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "cmake",
+ "stage-core",
 ]
 
 [[package]]
@@ -918,9 +932,10 @@ name = "stage-pitch"
 version = "0.1.0"
 
 [[package]]
-name = "stage-reverb"
+name = "stage-reverb-plate"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "stage-core",
 ]
 
@@ -929,9 +944,10 @@ name = "stage-routing"
 version = "0.1.0"
 
 [[package]]
-name = "stage-utility"
+name = "stage-util-tuner"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "arc-swap",
 ]
 

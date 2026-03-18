@@ -1,6 +1,0 @@
-[package]
-name = "stage-dynamics"
-version.workspace = true
-edition.workspace = true
-[dependencies]
-stage-core = { path = "../stage-core" }

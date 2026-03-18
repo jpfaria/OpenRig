@@ -1,0 +1,62 @@
+<svg width="1280" height="760" viewBox="0 0 1280 760" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="88" y1="64" x2="1192" y2="696" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#E2E8F0"/>
+    </linearGradient>
+    <linearGradient id="core" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#111827"/>
+      <stop offset="1" stop-color="#0F172A"/>
+    </linearGradient>
+    <linearGradient id="signal" x1="324" y1="180" x2="954" y2="610" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F97316"/>
+      <stop offset="0.5" stop-color="#FB7185"/>
+      <stop offset="1" stop-color="#38BDF8"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="760" fill="url(#bg)"/>
+  <text x="92" y="84" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="700">OpenRig Ecosystem</text>
+  <text x="92" y="120" fill="#475569" font-family="Arial, Helvetica, sans-serif" font-size="22">One DSP core powering desktop, DAW, server, mobile control, and dedicated hardware.</text>
+
+  <rect x="442" y="266" width="396" height="228" rx="36" fill="url(#core)"/>
+  <rect x="456" y="280" width="368" height="200" rx="28" stroke="#FFFFFF" stroke-opacity="0.1"/>
+  <text x="640" y="332" text-anchor="middle" fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="42" font-weight="700">OpenRig Core</text>
+  <text x="640" y="376" text-anchor="middle" fill="#CBD5E1" font-family="Arial, Helvetica, sans-serif" font-size="22">Routing, pedalboard setup, DSP graph, NAM, IR, internal FX</text>
+  <text x="640" y="414" text-anchor="middle" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="20">Rust engine • YAML setup • audio adapters • future control API</text>
+
+  <rect x="112" y="172" width="248" height="128" rx="28" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+  <text x="236" y="220" text-anchor="middle" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700">Standalone App</text>
+  <text x="236" y="256" text-anchor="middle" fill="#475569" font-family="Arial, Helvetica, sans-serif" font-size="18">Windows, macOS, Linux</text>
+  <text x="236" y="282" text-anchor="middle" fill="#64748B" font-family="Arial, Helvetica, sans-serif" font-size="16">Local audio host</text>
+
+  <rect x="920" y="172" width="248" height="128" rx="28" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+  <text x="1044" y="220" text-anchor="middle" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700">VST3 Plugin</text>
+  <text x="1044" y="256" text-anchor="middle" fill="#475569" font-family="Arial, Helvetica, sans-serif" font-size="18">Runs inside DAWs</text>
+  <text x="1044" y="282" text-anchor="middle" fill="#64748B" font-family="Arial, Helvetica, sans-serif" font-size="16">Shared GUI and engine</text>
+
+  <rect x="112" y="488" width="248" height="128" rx="28" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+  <text x="236" y="536" text-anchor="middle" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700">Server Mode</text>
+  <text x="236" y="572" text-anchor="middle" fill="#475569" font-family="Arial, Helvetica, sans-serif" font-size="18">Headless audio service</text>
+  <text x="236" y="598" text-anchor="middle" fill="#64748B" font-family="Arial, Helvetica, sans-serif" font-size="16">Remote control ready</text>
+
+  <rect x="920" y="488" width="248" height="128" rx="28" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+  <text x="1044" y="536" text-anchor="middle" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700">Orange Pi Rig</text>
+  <text x="1044" y="572" text-anchor="middle" fill="#475569" font-family="Arial, Helvetica, sans-serif" font-size="18">Custom hardware enclosure</text>
+  <text x="1044" y="598" text-anchor="middle" fill="#64748B" font-family="Arial, Helvetica, sans-serif" font-size="16">3D printed pedalboard unit</text>
+
+  <rect x="490" y="566" width="300" height="104" rx="28" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+  <text x="640" y="608" text-anchor="middle" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700">Flutter Control UI</text>
+  <text x="640" y="640" text-anchor="middle" fill="#475569" font-family="Arial, Helvetica, sans-serif" font-size="18">Desktop and mobile editors</text>
+
+  <path d="M360 236H442" stroke="url(#signal)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M838 236H920" stroke="url(#signal)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M360 552H442" stroke="url(#signal)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M838 552H920" stroke="url(#signal)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M640 494V566" stroke="url(#signal)" stroke-width="8" stroke-linecap="round"/>
+
+  <circle cx="402" cy="236" r="8" fill="#F97316"/>
+  <circle cx="878" cy="236" r="8" fill="#FB7185"/>
+  <circle cx="402" cy="552" r="8" fill="#FB7185"/>
+  <circle cx="878" cy="552" r="8" fill="#38BDF8"/>
+  <circle cx="640" cy="532" r="8" fill="#38BDF8"/>
+</svg>

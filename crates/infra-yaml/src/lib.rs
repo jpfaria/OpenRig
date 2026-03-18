@@ -3,8 +3,10 @@ use domain::ids::{BlockId, DeviceId, InputId, OutputId, SetupId, TrackId};
 use ports::{PresetRepository, SetupRepository, StateRepository};
 use preset::Preset;
 use setup::block::{
-    AudioBlock, AudioBlockKind, CoreBlock, CoreBlockKind, CoreNamBlock, DelayBlock, NamBlock,
-    ReverbBlock, SelectBlock, TunerBlock,
+    AudioBlock, AudioBlockKind, CompressorBlock, CompressorParams, CoreBlock, CoreBlockKind,
+    CoreNamBlock, DelayBlock, DelayParams, EqBlock, EqParams, GateBlock, GateParams, NamBlock,
+    NamEqParams, NamNoiseGateParams, NamParams, ReverbBlock, ReverbParams, SelectBlock,
+    TremoloBlock, TremoloParams, TunerBlock, TunerParams,
 };
 use setup::device::{InputDevice, OutputDevice};
 use setup::io::{Input, Output};
@@ -184,29 +186,44 @@ impl From<TrackYaml> for Track {
 #[serde(tag = "type", rename_all = "snake_case")]
 enum AudioBlockYaml {
     Nam {
-        model_path: String,
-        #[serde(default)]
-        ir_path: Option<String>,
+        #[serde(default = "default_nam_model")]
+        model: String,
+        params: NamParamsYaml,
     },
     Delay {
         #[serde(default = "default_delay_model")]
         model: String,
-        time_ms: f32,
-        feedback: f32,
-        mix: f32,
+        params: DelayParamsYaml,
     },
     Reverb {
         #[serde(default = "default_reverb_model")]
         model: String,
-        room_size: f32,
-        damping: f32,
-        mix: f32,
+        params: ReverbParamsYaml,
     },
     Tuner {
         #[serde(default = "default_tuner_model")]
         model: String,
-        #[serde(default = "default_reference_hz")]
-        reference_hz: f32,
+        params: TunerParamsYaml,
+    },
+    Compressor {
+        #[serde(default = "default_compressor_model")]
+        model: String,
+        params: CompressorParamsYaml,
+    },
+    Gate {
+        #[serde(default = "default_gate_model")]
+        model: String,
+        params: GateParamsYaml,
+    },
+    Eq {
+        #[serde(default = "default_eq_model")]
+        model: String,
+        params: EqParamsYaml,
+    },
+    Tremolo {
+        #[serde(default = "default_tremolo_model")]
+        model: String,
+        params: TremoloParamsYaml,
     },
     CoreNam {
         model_id: String,
@@ -223,124 +240,221 @@ enum AudioBlockYaml {
 #[serde(tag = "type", rename_all = "snake_case")]
 enum SelectOptionYaml {
     Nam {
-        model_path: String,
-        #[serde(default)]
-        ir_path: Option<String>,
+        #[serde(default = "default_nam_model")]
+        model: String,
+        params: NamParamsYaml,
     },
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct NamParamsYaml {
+    model_path: String,
+    ir_path: Option<String>,
+    #[serde(default)]
+    input_db: Option<f32>,
+    #[serde(default)]
+    output_db: Option<f32>,
+    #[serde(default)]
+    noise_gate: Option<NamNoiseGateYaml>,
+    #[serde(default)]
+    eq: Option<NamEqYaml>,
+    #[serde(default)]
+    ir_enabled: Option<bool>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct NamNoiseGateYaml {
+    #[serde(default)]
+    enabled: Option<bool>,
+    #[serde(default, alias = "threshold")]
+    threshold_db: Option<f32>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct NamEqYaml {
+    #[serde(default)]
+    enabled: Option<bool>,
+    #[serde(default)]
+    bass: Option<f32>,
+    #[serde(default)]
+    middle: Option<f32>,
+    #[serde(default)]
+    treble: Option<f32>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct DelayParamsYaml {
+    time_ms: Option<f32>,
+    feedback: Option<f32>,
+    mix: Option<f32>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct ReverbParamsYaml {
+    room_size: Option<f32>,
+    damping: Option<f32>,
+    mix: Option<f32>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct TunerParamsYaml {
+    #[serde(default = "default_reference_hz")]
+    reference_hz: f32,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct CompressorParamsYaml {
+    threshold: Option<f32>,
+    ratio: Option<f32>,
+    attack_ms: Option<f32>,
+    release_ms: Option<f32>,
+    makeup_gain_db: Option<f32>,
+    mix: Option<f32>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct GateParamsYaml {
+    threshold: Option<f32>,
+    attack_ms: Option<f32>,
+    release_ms: Option<f32>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct EqParamsYaml {
+    low_gain_db: Option<f32>,
+    mid_gain_db: Option<f32>,
+    high_gain_db: Option<f32>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct TremoloParamsYaml {
+    rate_hz: Option<f32>,
+    depth: Option<f32>,
 }
 impl AudioBlockYaml {
     fn into_audio_block(self, track_id: &TrackId, index: usize) -> AudioBlock {
         let generated_id = generated_block_id(track_id, index);
 
         match self {
-            AudioBlockYaml::Nam {
-                model_path,
-                ir_path,
-            } => AudioBlock {
+            AudioBlockYaml::Nam { model, params } => AudioBlock {
                 id: generated_id,
-                kind: AudioBlockKind::Nam(NamBlock { model_path, ir_path }),
+                kind: AudioBlockKind::Nam(NamBlock {
+                    model,
+                    params: NamParams {
+                        model_path: params.model_path,
+                        ir_path: params.ir_path,
+                        input_db: params.input_db.unwrap_or(0.0),
+                        output_db: params.output_db.unwrap_or(0.0),
+                        noise_gate: NamNoiseGateParams {
+                            enabled: params
+                                .noise_gate
+                                .as_ref()
+                                .and_then(|value| value.enabled)
+                                .unwrap_or(true),
+                            threshold_db: params
+                                .noise_gate
+                                .as_ref()
+                                .and_then(|value| value.threshold_db)
+                                .unwrap_or(-80.0),
+                        },
+                        eq: NamEqParams {
+                            enabled: params.eq.as_ref().and_then(|value| value.enabled).unwrap_or(true),
+                            bass: params.eq.as_ref().and_then(|value| value.bass).unwrap_or(5.0),
+                            middle: params.eq.as_ref().and_then(|value| value.middle).unwrap_or(5.0),
+                            treble: params.eq.as_ref().and_then(|value| value.treble).unwrap_or(5.0),
+                        },
+                        ir_enabled: params.ir_enabled.unwrap_or(true),
+                    },
+                }),
             },
-            AudioBlockYaml::Delay {
-                model,
-                time_ms,
-                feedback,
-                mix,
-            } => AudioBlock {
+            AudioBlockYaml::Delay { model, params } => AudioBlock {
                 id: generated_id,
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::Delay(DelayBlock {
                         model,
-                        time_ms,
-                        feedback,
-                        mix,
+                        params: DelayParams {
+                            time_ms: params.time_ms.unwrap_or(380.0),
+                            feedback: params.feedback.unwrap_or(0.35),
+                            mix: params.mix.unwrap_or(0.3),
+                        },
                     }),
                 }),
             },
-            AudioBlockYaml::Reverb {
-                model,
-                room_size,
-                damping,
-                mix,
-            } => AudioBlock {
+            AudioBlockYaml::Reverb { model, params } => AudioBlock {
                 id: generated_id,
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::Reverb(ReverbBlock {
                         model,
-                        room_size,
-                        damping,
-                        mix,
+                        params: ReverbParams {
+                            room_size: params.room_size.unwrap_or(0.45),
+                            damping: params.damping.unwrap_or(0.35),
+                            mix: params.mix.unwrap_or(0.25),
+                        },
                     }),
                 }),
             },
-            AudioBlockYaml::Tuner {
-                model,
-                reference_hz,
-            } => AudioBlock {
+            AudioBlockYaml::Tuner { model, params } => AudioBlock {
                 id: generated_id,
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::Tuner(TunerBlock {
                         model,
-                        reference_hz,
+                        params: TunerParams {
+                            reference_hz: params.reference_hz,
+                        },
                     }),
                 }),
             },
-            AudioBlockYaml::Compressor {
-                threshold,
-                ratio,
-                attack_ms,
-                release_ms,
-                makeup_gain_db,
-                mix,
-            } => AudioBlock {
+            AudioBlockYaml::Compressor { model, params } => AudioBlock {
                 id: generated_id,
                 kind: AudioBlockKind::Core(CoreBlock {
-                    kind: CoreBlockKind::Compressor(setup::block::CompressorBlock {
-                        threshold,
-                        ratio,
-                        attack_ms,
-                        release_ms,
-                        makeup_gain_db,
-                        mix,
+                    kind: CoreBlockKind::Compressor(CompressorBlock {
+                        model,
+                        params: CompressorParams {
+                            threshold: params.threshold.unwrap_or(-18.0),
+                            ratio: params.ratio.unwrap_or(4.0),
+                            attack_ms: params.attack_ms.unwrap_or(10.0),
+                            release_ms: params.release_ms.unwrap_or(80.0),
+                            makeup_gain_db: params.makeup_gain_db.unwrap_or(0.0),
+                            mix: params.mix.unwrap_or(1.0),
+                        },
                     }),
                 }),
             },
-            AudioBlockYaml::Gate {
-                threshold,
-                attack_ms,
-                release_ms,
-            } => AudioBlock {
+            AudioBlockYaml::Gate { model, params } => AudioBlock {
                 id: generated_id,
                 kind: AudioBlockKind::Core(CoreBlock {
-                    kind: CoreBlockKind::Gate(setup::block::GateBlock {
-                        threshold,
-                        attack_ms,
-                        release_ms,
+                    kind: CoreBlockKind::Gate(GateBlock {
+                        model,
+                        params: GateParams {
+                            threshold: params.threshold.unwrap_or(-60.0),
+                            attack_ms: params.attack_ms.unwrap_or(5.0),
+                            release_ms: params.release_ms.unwrap_or(50.0),
+                        },
                     }),
                 }),
             },
-            AudioBlockYaml::Eq {
-                low_gain_db,
-                mid_gain_db,
-                high_gain_db,
-            } => AudioBlock {
+            AudioBlockYaml::Eq { model, params } => AudioBlock {
                 id: generated_id,
                 kind: AudioBlockKind::Core(CoreBlock {
-                    kind: CoreBlockKind::Eq(setup::block::EqBlock {
-                        low_gain_db,
-                        mid_gain_db,
-                        high_gain_db,
+                    kind: CoreBlockKind::Eq(EqBlock {
+                        model,
+                        params: EqParams {
+                            low_gain_db: params.low_gain_db.unwrap_or(0.0),
+                            mid_gain_db: params.mid_gain_db.unwrap_or(0.0),
+                            high_gain_db: params.high_gain_db.unwrap_or(0.0),
+                        },
                     }),
                 }),
             },
-            AudioBlockYaml::Tremolo {
-                rate_hz,
-                depth,
-            } => AudioBlock {
+            AudioBlockYaml::Tremolo { model, params } => AudioBlock {
                 id: generated_id,
                 kind: AudioBlockKind::Core(CoreBlock {
-                    kind: CoreBlockKind::Tremolo(setup::block::TremoloBlock {
-                        rate_hz,
-                        depth,
+                    kind: CoreBlockKind::Tremolo(TremoloBlock {
+                        model,
+                        params: TremoloParams {
+                            rate_hz: params.rate_hz.unwrap_or(4.0),
+                            depth: params.depth.unwrap_or(0.5),
+                        },
                     }),
                 }),
             },
@@ -355,8 +469,35 @@ impl AudioBlockYaml {
                     .map(|(name, option)| AudioBlock {
                         id: BlockId(format!("{}::{}", id, name)),
                         kind: match option {
-                            SelectOptionYaml::Nam { model_path, ir_path } => {
-                                AudioBlockKind::Nam(NamBlock { model_path, ir_path })
+                            SelectOptionYaml::Nam { model, params } => {
+                                AudioBlockKind::Nam(NamBlock {
+                                    model,
+                                    params: NamParams {
+                                        model_path: params.model_path,
+                                        ir_path: params.ir_path,
+                                        input_db: params.input_db.unwrap_or(0.0),
+                                        output_db: params.output_db.unwrap_or(0.0),
+                                        noise_gate: NamNoiseGateParams {
+                                            enabled: params
+                                                .noise_gate
+                                                .as_ref()
+                                                .and_then(|value| value.enabled)
+                                                .unwrap_or(true),
+                                            threshold_db: params
+                                                .noise_gate
+                                                .as_ref()
+                                                .and_then(|value| value.threshold_db)
+                                                .unwrap_or(-80.0),
+                                        },
+                                        eq: NamEqParams {
+                                            enabled: params.eq.as_ref().and_then(|value| value.enabled).unwrap_or(true),
+                                            bass: params.eq.as_ref().and_then(|value| value.bass).unwrap_or(5.0),
+                                            middle: params.eq.as_ref().and_then(|value| value.middle).unwrap_or(5.0),
+                                            treble: params.eq.as_ref().and_then(|value| value.treble).unwrap_or(5.0),
+                                        },
+                                        ir_enabled: params.ir_enabled.unwrap_or(true),
+                                    },
+                                })
                             }
                         },
                     })
@@ -378,15 +519,35 @@ fn generated_block_id(track_id: &TrackId, index: usize) -> BlockId {
 }
 
 fn default_delay_model() -> String {
-    "native_digital".to_string()
+    "digital_basic".to_string()
+}
+
+fn default_nam_model() -> String {
+    "neural_amp_modeler".to_string()
 }
 
 fn default_reverb_model() -> String {
-    "plate".to_string()
+    "plate_foundation".to_string()
 }
 
 fn default_tuner_model() -> String {
-    "chromatic".to_string()
+    "chromatic_basic".to_string()
+}
+
+fn default_compressor_model() -> String {
+    "studio_clean".to_string()
+}
+
+fn default_gate_model() -> String {
+    "noise_gate_basic".to_string()
+}
+
+fn default_eq_model() -> String {
+    "three_band_basic".to_string()
+}
+
+fn default_tremolo_model() -> String {
+    "sine_tremolo".to_string()
 }
 
 fn default_reference_hz() -> f32 {
