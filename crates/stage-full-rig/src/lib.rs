@@ -11,8 +11,6 @@ use roland_jc_120b_jazz_chorus::{
 use stage_core::param::{ModelParameterSchema, ParameterSet};
 use stage_core::{AudioChannelLayout, StageProcessor};
 
-pub const DEFAULT_FULL_RIG_MODEL: &str = roland_jc_120b_jazz_chorus::MODEL_ID;
-
 pub fn full_rig_model_schema(model: &str) -> Result<ModelParameterSchema> {
     if supports_roland_model(model) {
         Ok(roland_model_schema())

@@ -15,7 +15,7 @@ use stage_dyn::build_gate_processor_for_layout;
 use stage_filter::build_eq_processor_for_layout;
 use stage_full_rig::{build_full_rig_processor_for_layout, full_rig_asset_summary};
 use stage_mod::build_tremolo_processor_for_layout;
-use stage_nam::{build_nam_processor_for_layout, DEFAULT_NAM_MODEL};
+use stage_nam::{build_nam_processor_for_layout, GENERIC_NAM_MODEL_ID};
 use stage_reverb::build_reverb_processor_for_layout;
 use stage_util::{build_tuner_processor, tuner_chromatic::ChromaticTuner};
 use std::collections::{HashMap, VecDeque};
@@ -594,7 +594,7 @@ fn build_nam_audio_processor(
     input_layout: AudioChannelLayout,
     label: &str,
 ) -> Result<ProcessorBuildOutcome> {
-    if stage.model != DEFAULT_NAM_MODEL {
+    if stage.model != GENERIC_NAM_MODEL_ID {
         return Err(anyhow!(
             "track '{}' uses unsupported nam model '{}'",
             track.id.0,

@@ -6,8 +6,6 @@ use tremolo_sine::{build_processor, model_schema, supports_model};
 use stage_core::param::{ModelParameterSchema, ParameterSet};
 use stage_core::{AudioChannelLayout, StageProcessor};
 
-pub const DEFAULT_TREMOLO_MODEL: &str = "tremolo_sine";
-
 pub fn tremolo_model_schema(model: &str) -> Result<ModelParameterSchema> {
     if supports_model(model) {
         Ok(model_schema())
