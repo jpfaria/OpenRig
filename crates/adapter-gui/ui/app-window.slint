@@ -1,62 +1,12 @@
-import { CheckBox, ComboBox, VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { PrimaryActionButton, SecondaryActionButton } from "components/action-buttons.slint";
+import { DeviceRow } from "components/device-row.slint";
 
 export struct DeviceSelectionItem {
     name: string,
     selected: bool,
     sample_rate_text: string,
     buffer_size_text: string,
-}
-
-component PrimaryActionButton inherits Rectangle {
-    in property <string> text;
-    callback clicked();
-
-    width: 138px;
-    height: 44px;
-    border-radius: 14px;
-    background: @linear-gradient(180deg, #8e73ff 0%, #694dff 100%);
-
-    Text {
-        text: root.text;
-        color: #f6f8ff;
-        horizontal-alignment: center;
-        vertical-alignment: center;
-        font-size: 15px;
-        font-weight: 700;
-    }
-
-    TouchArea {
-        clicked => {
-            root.clicked();
-        }
-    }
-}
-
-component SecondaryActionButton inherits Rectangle {
-    in property <string> text;
-    callback clicked();
-
-    width: 108px;
-    height: 44px;
-    border-radius: 14px;
-    border-width: 1px;
-    border-color: #4e5aa6;
-    background: @linear-gradient(180deg, #1a2250 0%, #121838 100%);
-
-    Text {
-        text: root.text;
-        color: #dce2ff;
-        horizontal-alignment: center;
-        vertical-alignment: center;
-        font-size: 15px;
-        font-weight: 600;
-    }
-
-    TouchArea {
-        clicked => {
-            root.clicked();
-        }
-    }
 }
 
 export component AppWindow inherits Window {
@@ -89,25 +39,6 @@ export component AppWindow inherits Window {
     height: 900px;
     background: #040708;
     default-font-family: "Helvetica Neue";
-
-    pure function sample-rate-index(value: string) -> int {
-        return value == "44100" ? 0
-            : value == "48000" ? 1
-            : value == "88200" ? 2
-            : value == "96000" ? 3
-            : 1;
-    }
-
-    pure function buffer-size-index(value: string) -> int {
-        return value == "32" ? 0
-            : value == "64" ? 1
-            : value == "128" ? 2
-            : value == "256" ? 3
-            : value == "512" ? 4
-            : value == "1024" ? 5
-            : 3;
-    }
-
     Rectangle {
         background: @radial-gradient(circle, #0d1a7850 0%, #040708 72%);
 
@@ -165,45 +96,21 @@ export component AppWindow inherits Window {
                             if wizard-step == 0 : VerticalBox {
                                 spacing: 8px;
 
-                                for device[i] in input-devices : Rectangle {
-                                    background: @linear-gradient(180deg, #181d44 0%, #121730 100%);
-                                    height: root.device-row-height;
-                                    border-radius: 12px;
-                                    border-width: 1px;
-                                    border-color: #2d3669;
-
-                                    HorizontalBox {
-                                        padding: 10px;
-                                        spacing: 12px;
-
-                                        CheckBox {
-                                            text: device.name;
-                                            checked: device.selected;
-                                            min-width: 430px;
-                                            toggled => {
-                                                root.toggle-input-device(i, self.checked);
-                                            }
-                                        }
-
-                                        Rectangle { horizontal-stretch: 1; background: transparent; }
-
-                                        if device.selected : ComboBox {
-                                            min-width: 142px;
-                                            model: root.sample-rate-options;
-                                            current-index: root.sample-rate-index(device.sample_rate_text);
-                                            selected(value) => {
-                                                root.update-input-sample-rate(i, value);
-                                            }
-                                        }
-
-                                        if device.selected : ComboBox {
-                                            min-width: 142px;
-                                            model: root.buffer-size-options;
-                                            current-index: root.buffer-size-index(device.buffer_size_text);
-                                            selected(value) => {
-                                                root.update-input-buffer-size(i, value);
-                                            }
-                                        }
+                                for device[i] in input-devices : DeviceRow {
+                                    name: device.name;
+                                    selected: device.selected;
+                                    sample-rate-text: device.sample_rate_text;
+                                    buffer-size-text: device.buffer_size_text;
+                                    sample-rate-options: root.sample-rate-options;
+                                    buffer-size-options: root.buffer-size-options;
+                                    toggled(checked) => {
+                                        root.toggle-input-device(i, checked);
+                                    }
+                                    sample-rate-selected(value) => {
+                                        root.update-input-sample-rate(i, value);
+                                    }
+                                    buffer-size-selected(value) => {
+                                        root.update-input-buffer-size(i, value);
                                     }
                                 }
                             }
@@ -211,45 +118,21 @@ export component AppWindow inherits Window {
                             if wizard-step == 1 : VerticalBox {
                                 spacing: 8px;
 
-                                for device[i] in output-devices : Rectangle {
-                                    background: @linear-gradient(180deg, #181d44 0%, #121730 100%);
-                                    height: root.device-row-height;
-                                    border-radius: 12px;
-                                    border-width: 1px;
-                                    border-color: #2d3669;
-
-                                    HorizontalBox {
-                                        padding: 10px;
-                                        spacing: 12px;
-
-                                        CheckBox {
-                                            text: device.name;
-                                            checked: device.selected;
-                                            min-width: 430px;
-                                            toggled => {
-                                                root.toggle-output-device(i, self.checked);
-                                            }
-                                        }
-
-                                        Rectangle { horizontal-stretch: 1; background: transparent; }
-
-                                        if device.selected : ComboBox {
-                                            min-width: 142px;
-                                            model: root.sample-rate-options;
-                                            current-index: root.sample-rate-index(device.sample_rate_text);
-                                            selected(value) => {
-                                                root.update-output-sample-rate(i, value);
-                                            }
-                                        }
-
-                                        if device.selected : ComboBox {
-                                            min-width: 142px;
-                                            model: root.buffer-size-options;
-                                            current-index: root.buffer-size-index(device.buffer_size_text);
-                                            selected(value) => {
-                                                root.update-output-buffer-size(i, value);
-                                            }
-                                        }
+                                for device[i] in output-devices : DeviceRow {
+                                    name: device.name;
+                                    selected: device.selected;
+                                    sample-rate-text: device.sample_rate_text;
+                                    buffer-size-text: device.buffer_size_text;
+                                    sample-rate-options: root.sample-rate-options;
+                                    buffer-size-options: root.buffer-size-options;
+                                    toggled(checked) => {
+                                        root.toggle-output-device(i, checked);
+                                    }
+                                    sample-rate-selected(value) => {
+                                        root.update-output-sample-rate(i, value);
+                                    }
+                                    buffer-size-selected(value) => {
+                                        root.update-output-buffer-size(i, value);
                                     }
                                 }
                             }

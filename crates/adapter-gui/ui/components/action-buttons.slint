@@ -1,0 +1,44 @@
+component BaseActionButton inherits Rectangle {
+    in property <string> text;
+    in property <brush> fill;
+    in property <color> text-color;
+    in property <color> outline-color;
+    in property <int> text-weight: 600;
+    callback clicked();
+
+    height: 44px;
+    border-radius: 14px;
+    border-width: 1px;
+    background: root.fill;
+    border-color: root.outline-color;
+
+    Text {
+        text: root.text;
+        color: root.text-color;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        font-size: 15px;
+        font-weight: root.text-weight;
+    }
+
+    TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+export component PrimaryActionButton inherits BaseActionButton {
+    width: 138px;
+    fill: @linear-gradient(180deg, #8e73ff 0%, #694dff 100%);
+    outline-color: #7d63ff;
+    text-color: #f6f8ff;
+    text-weight: 700;
+}
+
+export component SecondaryActionButton inherits BaseActionButton {
+    width: 108px;
+    fill: @linear-gradient(180deg, #1a2250 0%, #121838 100%);
+    outline-color: #4e5aa6;
+    text-color: #dce2ff;
+}
