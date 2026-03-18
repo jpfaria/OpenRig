@@ -6,8 +6,6 @@ use plate_foundation::{build_processor, model_schema, supports_model};
 use stage_core::param::{ModelParameterSchema, ParameterSet};
 use stage_core::{AudioChannelLayout, NamedModel, StageProcessor};
 
-pub const DEFAULT_REVERB_MODEL: &str = "plate_foundation";
-
 pub enum ReverbModel {
     PlateFoundation,
 }
@@ -15,7 +13,7 @@ pub enum ReverbModel {
 impl NamedModel for ReverbModel {
     fn model_key(&self) -> &'static str {
         match self {
-            ReverbModel::PlateFoundation => DEFAULT_REVERB_MODEL,
+            ReverbModel::PlateFoundation => plate_foundation::MODEL_ID,
         }
     }
 

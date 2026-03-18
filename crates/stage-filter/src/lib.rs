@@ -6,8 +6,6 @@ use stage_core::param::{ModelParameterSchema, ParameterSet};
 use stage_core::{AudioChannelLayout, StageProcessor};
 use eq_three_band_basic::{build_processor, model_schema, supports_model};
 
-pub const DEFAULT_EQ_MODEL: &str = "eq_three_band_basic";
-
 pub fn eq_model_schema(model: &str) -> Result<ModelParameterSchema> {
     if supports_model(model) {
         Ok(model_schema())

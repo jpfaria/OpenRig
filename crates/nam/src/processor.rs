@@ -7,11 +7,10 @@ use stage_core::param::{
 use stage_core::{ModelAudioMode, MonoProcessor};
 use std::ffi::CString;
 use std::os::raw::{c_char, c_void};
-
-pub const DEFAULT_NAM_MODEL: &str = "neural_amp_modeler";
+use crate::GENERIC_NAM_MODEL_ID;
 
 pub fn supports_model(model: &str) -> bool {
-    model == DEFAULT_NAM_MODEL
+    model == GENERIC_NAM_MODEL_ID
 }
 
 pub fn model_schema(include_file_params: bool) -> ModelParameterSchema {
@@ -40,7 +39,7 @@ pub fn model_schema(include_file_params: bool) -> ModelParameterSchema {
 
     ModelParameterSchema {
         effect_type: "nam".to_string(),
-        model: DEFAULT_NAM_MODEL.to_string(),
+        model: GENERIC_NAM_MODEL_ID.to_string(),
         display_name: "Neural Amp Modeler".to_string(),
         audio_mode: ModelAudioMode::DualMono,
         parameters,

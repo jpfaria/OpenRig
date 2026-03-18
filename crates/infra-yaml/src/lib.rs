@@ -15,16 +15,16 @@ use setup::io::{Input, Output};
 use setup::param::ParameterSet;
 use setup::setup::Setup;
 use setup::track::{Track, TrackOutputMixdown};
-use stage_amp::DEFAULT_AMP_MODEL;
-use stage_delay::DEFAULT_DELAY_MODEL;
+use stage_amp::marshall_jcm_800::MODEL_ID as DEFAULT_AMP_MODEL;
+use stage_delay::digital_basic::MODEL_ID as DEFAULT_DELAY_MODEL;
 use stage_dyn::compressor_studio_clean::MODEL_ID as DEFAULT_COMPRESSOR_MODEL;
 use stage_dyn::gate_basic::MODEL_ID as DEFAULT_GATE_MODEL;
-use stage_filter::DEFAULT_EQ_MODEL;
-use stage_full_rig::DEFAULT_FULL_RIG_MODEL;
-use stage_mod::DEFAULT_TREMOLO_MODEL;
-use stage_nam::DEFAULT_NAM_MODEL;
-use stage_reverb::DEFAULT_REVERB_MODEL;
-use stage_util::DEFAULT_TUNER_MODEL;
+use stage_filter::eq_three_band_basic::MODEL_ID as DEFAULT_EQ_MODEL;
+use stage_full_rig::roland_jc_120b_jazz_chorus::MODEL_ID as DEFAULT_FULL_RIG_MODEL;
+use stage_mod::tremolo_sine::MODEL_ID as DEFAULT_TREMOLO_MODEL;
+use stage_nam::GENERIC_NAM_MODEL_ID;
+use stage_reverb::plate_foundation::MODEL_ID as DEFAULT_REVERB_MODEL;
+use stage_util::tuner_chromatic::MODEL_ID as DEFAULT_TUNER_MODEL;
 use state::pedalboard_state::PedalboardState;
 use std::collections::HashMap;
 use std::fs;
@@ -519,7 +519,7 @@ fn default_delay_model() -> String {
 }
 
 fn default_nam_model() -> String {
-    DEFAULT_NAM_MODEL.to_string()
+    GENERIC_NAM_MODEL_ID.to_string()
 }
 
 fn default_amp_model() -> String {

@@ -10,8 +10,6 @@ use marshall_jcm_800::{
 use stage_core::param::{ModelParameterSchema, ParameterSet};
 use stage_core::{AudioChannelLayout, StageProcessor};
 
-pub const DEFAULT_AMP_MODEL: &str = marshall_jcm_800::MODEL_ID;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AmpBackendKind {
     Nam,

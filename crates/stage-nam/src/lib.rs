@@ -1,19 +1,19 @@
 use anyhow::{bail, Result};
-use nam::{build_processor_for_layout, model_schema_for, GENERIC_NAM_MODEL_ID};
+use nam::{build_processor_for_layout, model_schema_for};
 use stage_core::param::{ModelParameterSchema, ParameterSet};
 use stage_core::{AudioChannelLayout, StageProcessor};
 
-pub const DEFAULT_NAM_MODEL: &str = GENERIC_NAM_MODEL_ID;
+pub use nam::GENERIC_NAM_MODEL_ID;
 
 pub fn supports_model(model: &str) -> bool {
-    model == DEFAULT_NAM_MODEL
+    model == GENERIC_NAM_MODEL_ID
 }
 
 pub fn nam_model_schema(model: &str) -> Result<ModelParameterSchema> {
     if supports_model(model) {
         Ok(model_schema_for(
             "nam",
-            DEFAULT_NAM_MODEL,
+            GENERIC_NAM_MODEL_ID,
             "Neural Amp Modeler",
             true,
         ))

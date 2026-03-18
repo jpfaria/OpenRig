@@ -19,8 +19,6 @@ use digital_wide::{
     supports_model as supports_wide_model,
 };
 
-pub const DEFAULT_DELAY_MODEL: &str = "digital_basic";
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DelayModel {
     DigitalBasic,
@@ -31,7 +29,7 @@ pub enum DelayModel {
 impl NamedModel for DelayModel {
     fn model_key(&self) -> &'static str {
         match self {
-            DelayModel::DigitalBasic => DEFAULT_DELAY_MODEL,
+            DelayModel::DigitalBasic => digital_basic::MODEL_ID,
             DelayModel::DigitalPingPong => digital_ping_pong::MODEL_ID,
             DelayModel::DigitalWide => digital_wide::MODEL_ID,
         }
