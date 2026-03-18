@@ -2,7 +2,7 @@ import { VerticalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { DeviceSelectionItem } from "models.slint";
 import { Header } from "blocks/blocks.slint";
-import { WizardConfigPage, HomePlaceholderPage } from "pages/pages.slint";
+import { WizardConfigPage } from "pages/pages.slint";
 
 export component DesktopMain inherits Rectangle {
     in property <bool> show-audio-setup;
@@ -23,7 +23,6 @@ export component DesktopMain inherits Rectangle {
     callback save-audio-settings();
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
     private property <length> wizard-page-height: 24px + 20px + 24px + ((visible-device-count * 44px) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px)) + 24px + 44px + 24px;
-    private property <length> content-height: show-audio-setup ? wizard-page-height : 220px;
 
     background: Theme.palette.background-gradient;
 
@@ -36,10 +35,10 @@ export component DesktopMain inherits Rectangle {
         Rectangle {
             x: parent.width / 2 - self.width / 2;
             width: 720px;
-            height: root.content-height;
+            height: root.wizard-page-height;
             background: transparent;
 
-            if show-audio-setup : WizardConfigPage {
+            WizardConfigPage {
                 wizard-step: root.wizard-step;
                 input-devices: root.input-devices;
                 output-devices: root.output-devices;
@@ -55,10 +54,6 @@ export component DesktopMain inherits Rectangle {
                 go-to-output-step => { root.go-to-output-step(); }
                 go-to-input-step => { root.go-to-input-step(); }
                 save-audio-settings => { root.save-audio-settings(); }
-            }
-
-            if !show-audio-setup : HomePlaceholderPage {
-                touch-optimized: false;
             }
         }
     }
