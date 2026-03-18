@@ -2,6 +2,8 @@
 
 ![OpenRig hardware illustration](assets/openrig-hardware-multiuser.svg)
 
+If you want generated marketing images instead of diagrams, use the prompts in [image-prompts.md](image-prompts.md).
+
 ## Goal
 
 OpenRig hardware is intended to be a shared stage unit that can receive one or more instruments at the same time and still let each musician control only their own track from a phone or tablet.
