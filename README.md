@@ -1,6 +1,6 @@
 # OpenRig
 
-<img src="docs/assets/openrig-logo.svg" alt="OpenRig logo" width="420">
+<img src="docs/assets/openrig-logo.svg" alt="OpenRig logo" width="300">
 
 OpenRig is a pedalboard platform built to give musicians one sound system across desktop, plugin, server, and dedicated hardware.
 

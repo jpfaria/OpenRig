@@ -1,26 +1,28 @@
-<svg width="960" height="220" viewBox="0 0 960 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="640" height="128" viewBox="0 0 640 128" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="accent" x1="58" y1="46" x2="270" y2="174" gradientUnits="userSpaceOnUse">
+    <linearGradient id="openrig_mark" x1="20" y1="20" x2="108" y2="108" gradientUnits="userSpaceOnUse">
       <stop stop-color="#F97316"/>
       <stop offset="0.5" stop-color="#FB7185"/>
       <stop offset="1" stop-color="#38BDF8"/>
     </linearGradient>
   </defs>
 
-  <rect width="960" height="220" fill="white"/>
-
   <g>
-    <rect x="52" y="42" width="228" height="136" rx="28" fill="#0F172A"/>
-    <rect x="52" y="42" width="228" height="136" rx="28" stroke="#E2E8F0" stroke-width="2"/>
-    <path d="M92 110C106 78 120 78 134 110C148 142 162 142 176 110C190 78 204 78 218 110C232 142 246 142 260 110" stroke="url(#accent)" stroke-width="10" stroke-linecap="round"/>
-    <circle cx="94" cy="78" r="8" fill="#F8FAFC"/>
-    <circle cx="238" cy="78" r="8" fill="#F8FAFC"/>
-    <circle cx="94" cy="142" r="8" fill="#F8FAFC"/>
-    <circle cx="238" cy="142" r="8" fill="#F8FAFC"/>
+    <rect x="12" y="12" width="104" height="104" rx="28" fill="#0F172A"/>
+    <rect x="12" y="12" width="104" height="104" rx="28" stroke="#E2E8F0" stroke-width="1.5"/>
+
+    <path d="M38 74C46 58 54 58 62 74C70 90 78 90 86 74" stroke="url(#openrig_mark)" stroke-width="7" stroke-linecap="round"/>
+
+    <rect x="33" y="34" width="10" height="28" rx="5" fill="#F8FAFC"/>
+    <rect x="59" y="28" width="10" height="34" rx="5" fill="#F8FAFC"/>
+    <rect x="85" y="38" width="10" height="24" rx="5" fill="#F8FAFC"/>
+
+    <circle cx="38" cy="88" r="4" fill="#F8FAFC"/>
+    <circle cx="62" cy="88" r="4" fill="#F8FAFC"/>
+    <circle cx="86" cy="88" r="4" fill="#F8FAFC"/>
   </g>
 
   <g>
-    <text x="320" y="104" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="78" font-weight="700" letter-spacing="5">OPENRIG</text>
-    <text x="324" y="146" fill="#64748B" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" letter-spacing="2">PEDALBOARD PLATFORM</text>
+    <text x="146" y="78" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="54" font-weight="700" letter-spacing="1.5">OpenRig</text>
   </g>
 </svg>
