@@ -1,0 +1,68 @@
+import { HorizontalBox } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+
+component BaseActionButton inherits Rectangle {
+    in property <string> text;
+    in property <brush> fill;
+    in property <color> text-color;
+    in property <color> outline-color;
+    in property <image> icon;
+    in property <bool> icon-leading: false;
+    in property <bool> has-icon: false;
+    in property <int> text-weight: 600;
+    callback clicked();
+
+    height: 44px;
+    border-radius: 14px;
+    border-width: 1px;
+    background: root.fill;
+    border-color: root.outline-color;
+
+    HorizontalBox {
+        padding-left: 16px;
+        padding-right: 16px;
+        spacing: 10px;
+
+        if root.has-icon && root.icon-leading : Image {
+            width: 16px;
+            height: 16px;
+            source: root.icon;
+        }
+
+        Text {
+            text: root.text;
+            color: root.text-color;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+            font-size: Theme.typo.button.size;
+            font-weight: root.text-weight;
+        }
+
+        if root.has-icon && !root.icon-leading : Image {
+            width: 16px;
+            height: 16px;
+            source: root.icon;
+        }
+    }
+
+    TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+export component PrimaryActionButton inherits BaseActionButton {
+    width: 148px;
+    fill: @linear-gradient(180deg, Theme.palette.accent-start 0%, Theme.palette.accent-end 100%);
+    outline-color: Theme.palette.accent-border;
+    text-color: #f6f8ff;
+    text-weight: 700;
+}
+
+export component SecondaryActionButton inherits BaseActionButton {
+    width: 122px;
+    fill: @linear-gradient(180deg, Theme.palette.secondary-start 0%, Theme.palette.secondary-end 100%);
+    outline-color: Theme.palette.secondary-border;
+    text-color: Theme.palette.text-secondary;
+}

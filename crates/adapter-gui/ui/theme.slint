@@ -1,0 +1,93 @@
+export struct Palette {
+    pure-black: brush,
+    deep-space: brush,
+    card: brush,
+    card-secondary: brush,
+    row-start: brush,
+    row-end: brush,
+    border: brush,
+    border-strong: brush,
+    text-primary: brush,
+    text-secondary: brush,
+    text-muted: brush,
+    accent-start: brush,
+    accent-end: brush,
+    accent-border: brush,
+    secondary-start: brush,
+    secondary-end: brush,
+    secondary-border: brush,
+    background-gradient: brush,
+}
+
+export struct Spaces {
+    small: length,
+    medium: length,
+    large: length,
+    xlarge: length,
+}
+
+struct Font {
+    size: length,
+    weight: float,
+}
+
+export struct Typo {
+    brand: Font,
+    section: Font,
+    body: Font,
+    caption: Font,
+    button: Font,
+}
+
+export global Theme {
+    in property <Palette> palette: {
+        pure-black: #040708,
+        deep-space: #070b2a,
+        card: #070b2a,
+        card-secondary: #090d33,
+        row-start: #181d44,
+        row-end: #121730,
+        border: #252d6d,
+        border-strong: #283171,
+        text-primary: #ffffff,
+        text-secondary: #dce2ff,
+        text-muted: #a6aed8,
+        accent-start: #8e73ff,
+        accent-end: #694dff,
+        accent-border: #7d63ff,
+        secondary-start: #1a2250,
+        secondary-end: #121838,
+        secondary-border: #4e5aa6,
+        background-gradient: @radial-gradient(circle, #0d1a7850 0%, #040708 72%),
+    };
+
+    in property <Spaces> spaces: {
+        small: 8px,
+        medium: 12px,
+        large: 18px,
+        xlarge: 26px,
+    };
+
+    in property <Typo> typo: {
+        brand: {
+            size: 24px,
+            weight: 700
+        },
+        section: {
+            size: 18px,
+            weight: 600
+        },
+        body: {
+            size: 15px,
+            weight: 500
+        },
+        caption: {
+            size: 13px,
+            weight: 400
+        },
+        button: {
+            size: 15px,
+            weight: 600
+        },
+    };
+}

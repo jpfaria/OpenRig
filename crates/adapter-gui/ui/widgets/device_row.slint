@@ -1,4 +1,5 @@
 import { CheckBox, ComboBox, HorizontalBox } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
 
 export component DeviceRow inherits Rectangle {
     in property <string> name;
@@ -12,10 +13,10 @@ export component DeviceRow inherits Rectangle {
     callback buffer-size-selected(string);
 
     height: 48px;
-    background: @linear-gradient(180deg, #181d44 0%, #121730 100%);
+    background: @linear-gradient(180deg, Theme.palette.row-start 0%, Theme.palette.row-end 100%);
     border-radius: 12px;
     border-width: 1px;
-    border-color: #2d3669;
+    border-color: Theme.palette.border;
 
     pure function sample-rate-index(value: string) -> int {
         return value == "44100" ? 0
@@ -36,7 +37,10 @@ export component DeviceRow inherits Rectangle {
     }
 
     HorizontalBox {
-        padding: 10px;
+        padding-left: 12px;
+        padding-right: 12px;
+        padding-top: 10px;
+        padding-bottom: 10px;
         spacing: 12px;
 
         CheckBox {
@@ -62,7 +66,7 @@ export component DeviceRow inherits Rectangle {
         if root.selected : ComboBox {
             min-width: 142px;
             model: root.buffer-size-options;
-            current-index: root.buffer-size-index(root.buffer-size-text);
+            current-index: root.buffer-size-index(root.buffer_size_text);
             selected(value) => {
                 root.buffer-size-selected(value);
             }

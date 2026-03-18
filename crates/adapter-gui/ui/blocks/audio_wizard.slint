@@ -1,0 +1,150 @@
+import { VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { DeviceSelectionItem } from "../models.slint";
+import { PrimaryActionButton, SecondaryActionButton, DeviceRow } from "../widgets/widgets.slint";
+
+export component AudioWizard inherits Rectangle {
+    in-out property <int> wizard-step;
+    in property <[DeviceSelectionItem]> input-devices;
+    in property <[DeviceSelectionItem]> output-devices;
+    in-out property <string> status-message;
+    in property <[string]> sample-rate-options;
+    in property <[string]> buffer-size-options;
+    callback toggle-input-device(int, bool);
+    callback toggle-output-device(int, bool);
+    callback update-input-sample-rate(int, string);
+    callback update-input-buffer-size(int, string);
+    callback update-output-sample-rate(int, string);
+    callback update-output-buffer-size(int, string);
+    callback go-to-output-step();
+    callback go-to-input-step();
+    callback save-audio-settings();
+
+    private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
+    private property <length> device-row-height: 48px;
+    private property <length> device-list-height: 20px + (visible-device-count * device-row-height) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px);
+    private property <length> wizard-card-height: 26px + 28px + 18px + device-list-height + 20px + 18px + 44px + 26px;
+
+    width: 920px;
+    height: root.wizard-card-height;
+    background: Theme.palette.card;
+    border-radius: 18px;
+    border-width: 1px;
+    border-color: Theme.palette.border-strong;
+
+    VerticalBox {
+        padding: Theme.spaces.xlarge;
+        spacing: Theme.spaces.large;
+
+        HorizontalBox {
+            spacing: Theme.spaces.medium;
+
+            Text {
+                text: wizard-step == 0 ? "Escolha os dispositivos de entrada" : "Escolha os dispositivos de saída";
+                color: Theme.palette.text-primary;
+                font-size: Theme.typo.section.size;
+                font-weight: Theme.typo.section.weight;
+                vertical-alignment: center;
+            }
+
+            Rectangle { horizontal-stretch: 1; background: transparent; }
+        }
+
+        Rectangle {
+            background: Theme.palette.card-secondary;
+            border-radius: 14px;
+            border-width: 1px;
+            border-color: Theme.palette.border;
+            height: root.device-list-height;
+
+            VerticalBox {
+                padding: 10px;
+                spacing: Theme.spaces.small;
+
+                if wizard-step == 0 : VerticalBox {
+                    spacing: Theme.spaces.small;
+
+                    for device[i] in input-devices : DeviceRow {
+                        name: device.name;
+                        selected: device.selected;
+                        sample-rate-text: device.sample_rate_text;
+                        buffer-size-text: device.buffer_size_text;
+                        sample-rate-options: root.sample-rate-options;
+                        buffer-size-options: root.buffer-size-options;
+                        toggled(checked) => {
+                            root.toggle-input-device(i, checked);
+                        }
+                        sample-rate-selected(value) => {
+                            root.update-input-sample-rate(i, value);
+                        }
+                        buffer-size-selected(value) => {
+                            root.update-input-buffer-size(i, value);
+                        }
+                    }
+                }
+
+                if wizard-step == 1 : VerticalBox {
+                    spacing: Theme.spaces.small;
+
+                    for device[i] in output-devices : DeviceRow {
+                        name: device.name;
+                        selected: device.selected;
+                        sample-rate-text: device.sample_rate_text;
+                        buffer-size-text: device.buffer_size_text;
+                        sample-rate-options: root.sample-rate-options;
+                        buffer-size-options: root.buffer-size-options;
+                        toggled(checked) => {
+                            root.toggle-output-device(i, checked);
+                        }
+                        sample-rate-selected(value) => {
+                            root.update-output-sample-rate(i, value);
+                        }
+                        buffer-size-selected(value) => {
+                            root.update-output-buffer-size(i, value);
+                        }
+                    }
+                }
+            }
+        }
+
+        HorizontalBox {
+            spacing: Theme.spaces.medium;
+            height: 44px;
+
+            if status-message != "" : Text {
+                text: status-message;
+                color: Theme.palette.text-secondary;
+                font-size: Theme.typo.caption.size;
+                vertical-alignment: center;
+            }
+
+            Rectangle { horizontal-stretch: 1; background: transparent; }
+
+            if wizard-step == 1 : SecondaryActionButton {
+                text: "Voltar";
+                has-icon: true;
+                icon-leading: true;
+                icon: @image-url("../assets/arrow-left.svg");
+                clicked => {
+                    root.go-to-input-step();
+                }
+            }
+
+            if wizard-step == 0 : PrimaryActionButton {
+                text: "Continuar";
+                has-icon: true;
+                icon: @image-url("../assets/arrow-right.svg");
+                clicked => {
+                    root.go-to-output-step();
+                }
+            }
+
+            if wizard-step == 1 : PrimaryActionButton {
+                text: "Salvar";
+                clicked => {
+                    root.save-audio-settings();
+                }
+            }
+        }
+    }
+}

@@ -1,13 +1,6 @@
-import { VerticalBox, HorizontalBox } from "std-widgets.slint";
-import { PrimaryActionButton, SecondaryActionButton } from "components/action-buttons.slint";
-import { DeviceRow } from "components/device-row.slint";
-
-export struct DeviceSelectionItem {
-    name: string,
-    selected: bool,
-    sample_rate_text: string,
-    buffer_size_text: string,
-}
+import { Theme } from "theme.slint";
+import { DeviceSelectionItem } from "models.slint";
+import { AudioWizard } from "blocks/blocks.slint";
 
 export component AppWindow inherits Window {
     in property <string> runtime-mode-label;
@@ -19,10 +12,6 @@ export component AppWindow inherits Window {
     in-out property <string> status-message;
     in property <[string]> sample-rate-options: ["44100", "48000", "88200", "96000"];
     in property <[string]> buffer-size-options: ["32", "64", "128", "256", "512", "1024"];
-    private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
-    private property <length> device-row-height: 48px;
-    private property <length> device-list-height: 20px + (visible-device-count * device-row-height) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px);
-    private property <length> wizard-card-height: 26px + 28px + 18px + device-list-height + 20px + 18px + 44px + 26px;
 
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
@@ -37,10 +26,10 @@ export component AppWindow inherits Window {
     title: "OpenRig";
     width: 1280px;
     height: 900px;
-    background: #040708;
+    background: Theme.palette.pure-black;
     default-font-family: "Helvetica Neue";
     Rectangle {
-        background: @radial-gradient(circle, #0d1a7850 0%, #040708 72%);
+        background: Theme.palette.background-gradient;
 
         if show-audio-setup : Rectangle {
             background: transparent;
@@ -49,130 +38,46 @@ export component AppWindow inherits Window {
                 x: parent.width / 2 - self.width / 2;
                 y: 36px;
                 text: "OpenRig";
-                color: #ffffff;
-                font-size: 24px;
-                font-weight: 700;
+                color: Theme.palette.text-primary;
+                font-size: Theme.typo.brand.size;
+                font-weight: Theme.typo.brand.weight;
             }
 
-            Rectangle {
+            AudioWizard {
                 x: parent.width / 2 - self.width / 2;
                 y: 118px;
-                width: 920px;
-                height: root.wizard-card-height;
-                background: #070b2a;
-                border-radius: 18px;
-                border-width: 1px;
-                border-color: #283171;
-
-                VerticalBox {
-                    padding: 26px;
-                    spacing: 18px;
-
-                    HorizontalBox {
-                        spacing: 16px;
-
-                        Text {
-                            text: wizard-step == 0 ? "Escolha os dispositivos de entrada" : "Escolha os dispositivos de saída";
-                            color: #ffffff;
-                            font-size: 18px;
-                            font-weight: 600;
-                            vertical-alignment: center;
-                        }
-
-                        Rectangle { horizontal-stretch: 1; background: transparent; }
-                    }
-
-                    Rectangle {
-                        background: #090d33;
-                        border-radius: 14px;
-                        border-width: 1px;
-                        border-color: #252d6d;
-                        height: root.device-list-height;
-
-                        VerticalBox {
-                            padding: 10px;
-                            spacing: 8px;
-
-                            if wizard-step == 0 : VerticalBox {
-                                spacing: 8px;
-
-                                for device[i] in input-devices : DeviceRow {
-                                    name: device.name;
-                                    selected: device.selected;
-                                    sample-rate-text: device.sample_rate_text;
-                                    buffer-size-text: device.buffer_size_text;
-                                    sample-rate-options: root.sample-rate-options;
-                                    buffer-size-options: root.buffer-size-options;
-                                    toggled(checked) => {
-                                        root.toggle-input-device(i, checked);
-                                    }
-                                    sample-rate-selected(value) => {
-                                        root.update-input-sample-rate(i, value);
-                                    }
-                                    buffer-size-selected(value) => {
-                                        root.update-input-buffer-size(i, value);
-                                    }
-                                }
-                            }
-
-                            if wizard-step == 1 : VerticalBox {
-                                spacing: 8px;
-
-                                for device[i] in output-devices : DeviceRow {
-                                    name: device.name;
-                                    selected: device.selected;
-                                    sample-rate-text: device.sample_rate_text;
-                                    buffer-size-text: device.buffer_size_text;
-                                    sample-rate-options: root.sample-rate-options;
-                                    buffer-size-options: root.buffer-size-options;
-                                    toggled(checked) => {
-                                        root.toggle-output-device(i, checked);
-                                    }
-                                    sample-rate-selected(value) => {
-                                        root.update-output-sample-rate(i, value);
-                                    }
-                                    buffer-size-selected(value) => {
-                                        root.update-output-buffer-size(i, value);
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    HorizontalBox {
-                        spacing: 12px;
-                        height: 44px;
-
-                        if status-message != "" : Text {
-                            text: status-message;
-                            color: #c8d0ee;
-                            font-size: 13px;
-                            vertical-alignment: center;
-                        }
-
-                        Rectangle { horizontal-stretch: 1; background: transparent; }
-
-                        if wizard-step == 1 : SecondaryActionButton {
-                            text: "Voltar";
-                            clicked => {
-                                root.go-to-input-step();
-                            }
-                        }
-
-                        if wizard-step == 0 : PrimaryActionButton {
-                            text: "Continuar";
-                            clicked => {
-                                root.go-to-output-step();
-                            }
-                        }
-
-                        if wizard-step == 1 : PrimaryActionButton {
-                            text: "Salvar";
-                            clicked => {
-                                root.save-audio-settings();
-                            }
-                        }
-                    }
+                wizard-step: root.wizard-step;
+                input-devices: root.input-devices;
+                output-devices: root.output-devices;
+                status-message: root.status-message;
+                sample-rate-options: root.sample-rate-options;
+                buffer-size-options: root.buffer-size-options;
+                toggle-input-device(index, selected) => {
+                    root.toggle-input-device(index, selected);
+                }
+                toggle-output-device(index, selected) => {
+                    root.toggle-output-device(index, selected);
+                }
+                update-input-sample-rate(index, value) => {
+                    root.update-input-sample-rate(index, value);
+                }
+                update-input-buffer-size(index, value) => {
+                    root.update-input-buffer-size(index, value);
+                }
+                update-output-sample-rate(index, value) => {
+                    root.update-output-sample-rate(index, value);
+                }
+                update-output-buffer-size(index, value) => {
+                    root.update-output-buffer-size(index, value);
+                }
+                go-to-output-step => {
+                    root.go-to-output-step();
+                }
+                go-to-input-step => {
+                    root.go-to-input-step();
+                }
+                save-audio-settings => {
+                    root.save-audio-settings();
                 }
             }
         }
