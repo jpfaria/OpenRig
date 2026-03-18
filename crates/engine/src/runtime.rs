@@ -73,32 +73,65 @@ enum AudioProcessor {
 }
 
 impl AudioProcessor {
-    fn process_frame(&mut self, frame: AudioFrame) -> AudioFrame {
+    fn process_buffer(&mut self, frames: &mut [AudioFrame]) {
         match self {
-            AudioProcessor::Mono(processor) => match frame {
-                AudioFrame::Mono(sample) => AudioFrame::Mono(processor.process_sample(sample)),
-                AudioFrame::Stereo(stereo) => {
-                    debug_assert!(false, "mono processor received stereo frame");
-                    AudioFrame::Stereo(stereo)
+            AudioProcessor::Mono(processor) => {
+                let mut mono = Vec::with_capacity(frames.len());
+                for frame in &*frames {
+                    match frame {
+                        AudioFrame::Mono(sample) => mono.push(*sample),
+                        AudioFrame::Stereo(_) => {
+                            debug_assert!(false, "mono processor received stereo frames");
+                            return;
+                        }
+                    }
                 }
-            },
-            AudioProcessor::DualMono { left, right } => match frame {
-                AudioFrame::Stereo([left_sample, right_sample]) => AudioFrame::Stereo([
-                    left.process_sample(left_sample),
-                    right.process_sample(right_sample),
-                ]),
-                AudioFrame::Mono(sample) => {
-                    debug_assert!(false, "stereo processor received mono frame");
-                    AudioFrame::Mono(sample)
+                processor.process_block(&mut mono);
+                for (frame, sample) in frames.iter_mut().zip(mono.into_iter()) {
+                    *frame = AudioFrame::Mono(sample);
                 }
-            },
-            AudioProcessor::Stereo(processor) => match frame {
-                AudioFrame::Stereo(stereo) => AudioFrame::Stereo(processor.process_frame(stereo)),
-                AudioFrame::Mono(sample) => {
-                    debug_assert!(false, "stereo processor received mono frame");
-                    AudioFrame::Mono(sample)
+            }
+            AudioProcessor::DualMono { left, right } => {
+                let mut left_buffer = Vec::with_capacity(frames.len());
+                let mut right_buffer = Vec::with_capacity(frames.len());
+                for frame in &*frames {
+                    match frame {
+                        AudioFrame::Stereo([left_sample, right_sample]) => {
+                            left_buffer.push(*left_sample);
+                            right_buffer.push(*right_sample);
+                        }
+                        AudioFrame::Mono(_) => {
+                            debug_assert!(false, "dual-mono processor received mono frames");
+                            return;
+                        }
+                    }
                 }
-            },
+                left.process_block(&mut left_buffer);
+                right.process_block(&mut right_buffer);
+                for ((frame, left_sample), right_sample) in frames
+                    .iter_mut()
+                    .zip(left_buffer.into_iter())
+                    .zip(right_buffer.into_iter())
+                {
+                    *frame = AudioFrame::Stereo([left_sample, right_sample]);
+                }
+            }
+            AudioProcessor::Stereo(processor) => {
+                let mut stereo = Vec::with_capacity(frames.len());
+                for frame in &*frames {
+                    match frame {
+                        AudioFrame::Stereo(stereo_frame) => stereo.push(*stereo_frame),
+                        AudioFrame::Mono(_) => {
+                            debug_assert!(false, "stereo processor received mono frames");
+                            return;
+                        }
+                    }
+                }
+                processor.process_block(&mut stereo);
+                for (frame, stereo_frame) in frames.iter_mut().zip(stereo.into_iter()) {
+                    *frame = AudioFrame::Stereo(stereo_frame);
+                }
+            }
         }
     }
 }
@@ -609,23 +642,34 @@ pub fn process_output_f32(
     output_total_channels: usize,
 ) {
     let mut locked = runtime.lock().expect("track runtime poisoned");
-    for frame in out.chunks_mut(output_total_channels) {
-        frame.fill(0.0);
-        let Some(mut track_frame) = locked.queue.pop_front() else {
-            continue;
-        };
-
-        for processor in &mut locked.processors {
-            match processor {
-                RuntimeProcessor::Audio(processor) => {
-                    track_frame = processor.process_frame(track_frame);
-                }
-                RuntimeProcessor::Tuner(_) => {}
-            }
+    let num_frames = out.len() / output_total_channels;
+    let mut track_frames = Vec::with_capacity(num_frames);
+    for _ in 0..num_frames {
+        if let Some(track_frame) = locked.queue.pop_front() {
+            track_frames.push(track_frame);
+        } else {
+            track_frames.push(match locked.bus_mode {
+                ResolvedTrackBusMode::Mono => AudioFrame::Mono(0.0),
+                ResolvedTrackBusMode::Stereo => AudioFrame::Stereo([0.0, 0.0]),
+            });
         }
+    }
 
-        track_frame.apply_gain(track.gain);
-        write_output_frame(track_frame, output_cfg, frame, track.output_mixdown);
+    for processor in &mut locked.processors {
+        match processor {
+            RuntimeProcessor::Audio(processor) => processor.process_buffer(&mut track_frames),
+            RuntimeProcessor::Tuner(_) => {}
+        }
+    }
+
+    for (frame, track_frame) in out
+        .chunks_mut(output_total_channels)
+        .zip(track_frames.into_iter())
+    {
+        frame.fill(0.0);
+        let mut processed = track_frame;
+        processed.apply_gain(track.gain);
+        write_output_frame(processed, output_cfg, frame, track.output_mixdown);
     }
 }
 

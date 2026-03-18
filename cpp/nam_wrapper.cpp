@@ -20,6 +20,8 @@ struct NamHandle {
   openrig::BasicNamToneStack tone_stack;
   std::vector<double> ir_input_buffer;
   std::vector<double> input_buffer;
+  std::vector<NAM_SAMPLE> model_input_buffer;
+  std::vector<NAM_SAMPLE> model_raw_output_buffer;
   std::vector<double> model_output_buffer;
   double* ir_input_channels[1] = {nullptr};
   double* input_channels[1] = {nullptr};
@@ -30,6 +32,7 @@ struct NamHandle {
   double noise_gate_threshold_db = -80.0;
   bool noise_gate_enabled = true;
   bool eq_enabled = true;
+  bool eq_is_neutral = true;
   bool ir_enabled = true;
 };
 
@@ -59,8 +62,30 @@ void* nam_create(const NamPluginConfig* config) {
     h->noise_gate_threshold_db = config->noise_gate_threshold_db;
     h->noise_gate_enabled = config->noise_gate_enabled != 0;
     h->eq_enabled = config->eq_enabled != 0;
+    h->eq_is_neutral =
+      std::abs(config->bass - 5.0f) < 1.0e-6f &&
+      std::abs(config->middle - 5.0f) < 1.0e-6f &&
+      std::abs(config->treble - 5.0f) < 1.0e-6f;
     h->ir_enabled = config->ir_enabled != 0;
+    h->dsp->Reset(sample_rate, 4096);
     h->noise_gate_trigger.AddListener(&h->noise_gate_gain);
+    if (h->noise_gate_enabled) {
+      const double time = 0.01;
+      const double ratio = 0.1;
+      const double open_time = 0.005;
+      const double hold_time = 0.01;
+      const double close_time = 0.05;
+      dsp::noise_gate::TriggerParams params(
+        time,
+        h->noise_gate_threshold_db,
+        ratio,
+        open_time,
+        hold_time,
+        close_time
+      );
+      h->noise_gate_trigger.SetParams(params);
+      h->noise_gate_trigger.SetSampleRate(sample_rate);
+    }
     h->tone_stack.Reset(sample_rate);
     h->tone_stack.SetBass(config->bass);
     h->tone_stack.SetMiddle(config->middle);
@@ -92,46 +117,31 @@ void nam_process(void* handle, const float* input, float* output, int nframes) {
   }
 
   h->input_buffer.resize(nframes);
+  h->model_input_buffer.resize(nframes);
+  h->model_raw_output_buffer.resize(nframes);
   h->model_output_buffer.resize(nframes);
-  std::vector<NAM_SAMPLE> model_input_buffer(nframes);
-  std::vector<NAM_SAMPLE> output_buffer(nframes, 0.0);
 
   for (int i = 0; i < nframes; ++i) {
     h->input_buffer[i] = static_cast<double>(input[i]) * h->input_gain;
-    model_input_buffer[i] = static_cast<NAM_SAMPLE>(h->input_buffer[i]);
+    h->model_input_buffer[i] = static_cast<NAM_SAMPLE>(h->input_buffer[i]);
   }
 
   double* trigger_input_channels[] = { h->input_buffer.data() };
   double** trigger_output = trigger_input_channels;
   if (h->noise_gate_enabled) {
-    const double time = 0.01;
-    const double ratio = 0.1;
-    const double open_time = 0.005;
-    const double hold_time = 0.01;
-    const double close_time = 0.05;
-    dsp::noise_gate::TriggerParams params(
-      time,
-      h->noise_gate_threshold_db,
-      ratio,
-      open_time,
-      hold_time,
-      close_time
-    );
-    h->noise_gate_trigger.SetParams(params);
-    h->noise_gate_trigger.SetSampleRate(h->sample_rate);
     trigger_output = h->noise_gate_trigger.Process(trigger_input_channels, 1, static_cast<size_t>(nframes));
     for (int i = 0; i < nframes; ++i) {
-      model_input_buffer[i] = static_cast<NAM_SAMPLE>(trigger_output[0][i]);
+      h->model_input_buffer[i] = static_cast<NAM_SAMPLE>(trigger_output[0][i]);
     }
   }
 
-  NAM_SAMPLE* input_channels[] = { model_input_buffer.data() };
-  NAM_SAMPLE* output_channels[] = { output_buffer.data() };
+  NAM_SAMPLE* input_channels[] = { h->model_input_buffer.data() };
+  NAM_SAMPLE* output_channels[] = { h->model_raw_output_buffer.data() };
 
   h->dsp->process(input_channels, output_channels, nframes);
 
   for (int i = 0; i < nframes; ++i) {
-    h->model_output_buffer[i] = static_cast<double>(output_buffer[i]);
+    h->model_output_buffer[i] = static_cast<double>(h->model_raw_output_buffer[i]);
   }
 
   h->model_output_channels[0] = h->model_output_buffer.data();
@@ -141,7 +151,7 @@ void nam_process(void* handle, const float* input, float* output, int nframes) {
   }
 
   double** eq_output = post_nam_output;
-  if (h->eq_enabled) {
+  if (h->eq_enabled && !h->eq_is_neutral) {
     eq_output = h->tone_stack.Process(post_nam_output, 1, nframes);
   }
 

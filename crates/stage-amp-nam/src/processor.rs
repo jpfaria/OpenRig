@@ -158,6 +158,7 @@ unsafe extern "C" {
 }
 pub struct NamProcessor {
     handle: *mut c_void,
+    scratch_output: Vec<f32>,
 }
 unsafe impl Send for NamProcessor {}
 unsafe impl Sync for NamProcessor {}
@@ -195,7 +196,10 @@ impl NamProcessor {
                 model_path.to_string_lossy()
             );
         }
-        Ok(Self { handle })
+        Ok(Self {
+            handle,
+            scratch_output: Vec::new(),
+        })
     }
 }
 
@@ -207,5 +211,21 @@ impl MonoProcessor for NamProcessor {
             nam_process(self.handle, input.as_ptr(), output.as_mut_ptr(), 1);
         }
         output[0]
+    }
+
+    fn process_block(&mut self, buffer: &mut [f32]) {
+        if buffer.is_empty() {
+            return;
+        }
+        self.scratch_output.resize(buffer.len(), 0.0);
+        unsafe {
+            nam_process(
+                self.handle,
+                buffer.as_ptr(),
+                self.scratch_output.as_mut_ptr(),
+                buffer.len() as i32,
+            );
+        }
+        buffer.copy_from_slice(&self.scratch_output);
     }
 }
