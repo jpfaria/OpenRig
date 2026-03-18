@@ -22,7 +22,8 @@ export component AudioWizard inherits Rectangle {
 
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
     private property <length> device-row-height: 44px;
-    private property <length> device-list-height: (visible-device-count * device-row-height) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px);
+    private property <length> list-header-height: 18px;
+    private property <length> device-list-height: list-header-height + 12px + (visible-device-count * device-row-height) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px);
     private property <length> wizard-card-height: 24px + 20px + 24px + device-list-height + 24px + 44px + 24px;
 
     width: 780px;
@@ -53,6 +54,38 @@ export component AudioWizard inherits Rectangle {
         VerticalBox {
             spacing: Theme.spaces.small;
             height: root.device-list-height;
+
+            HorizontalBox {
+                height: root.list-header-height;
+                spacing: Theme.spaces.medium;
+
+                Text {
+                    text: "Dispositivo";
+                    color: Theme.palette.text-muted;
+                    font-size: Theme.typo.caption.size;
+                    font-weight: Theme.typo.caption.weight;
+                    horizontal-stretch: 1;
+                    vertical-alignment: center;
+                }
+
+                Text {
+                    text: "Sample rate";
+                    color: Theme.palette.text-muted;
+                    font-size: Theme.typo.caption.size;
+                    font-weight: Theme.typo.caption.weight;
+                    width: 128px;
+                    vertical-alignment: center;
+                }
+
+                Text {
+                    text: "Buffer";
+                    color: Theme.palette.text-muted;
+                    font-size: Theme.typo.caption.size;
+                    font-weight: Theme.typo.caption.weight;
+                    width: 128px;
+                    vertical-alignment: center;
+                }
+            }
 
             if wizard-step == 0 : VerticalBox {
                 spacing: Theme.spaces.small;
