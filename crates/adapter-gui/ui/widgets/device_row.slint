@@ -12,9 +12,9 @@ export component DeviceRow inherits Rectangle {
     callback sample-rate-selected(string);
     callback buffer-size-selected(string);
 
-    height: 48px;
-    background: @linear-gradient(180deg, Theme.palette.row-start 0%, Theme.palette.row-end 100%);
-    border-radius: 12px;
+    height: 40px;
+    background: Theme.palette.deep-space;
+    border-radius: 4px;
     border-width: 1px;
     border-color: Theme.palette.border;
 
@@ -37,16 +37,17 @@ export component DeviceRow inherits Rectangle {
     }
 
     HorizontalBox {
-        padding-left: 12px;
-        padding-right: 12px;
-        padding-top: 10px;
-        padding-bottom: 10px;
-        spacing: 12px;
+        padding-left: Theme.spaces.medium;
+        padding-right: Theme.spaces.medium;
+        padding-top: Theme.spaces.medium;
+        padding-bottom: Theme.spaces.medium;
+        spacing: Theme.spaces.medium;
 
         CheckBox {
             text: root.name;
             checked: root.selected;
             horizontal-stretch: 1;
+            min-height: 18px;
             toggled => {
                 root.toggled(self.checked);
             }
@@ -55,7 +56,7 @@ export component DeviceRow inherits Rectangle {
         Rectangle { horizontal-stretch: 1; background: transparent; }
 
         if root.selected : ComboBox {
-            min-width: 142px;
+            min-width: 120px;
             model: root.sample-rate-options;
             current-index: root.sample-rate-index(root.sample-rate-text);
             selected(value) => {
@@ -64,7 +65,7 @@ export component DeviceRow inherits Rectangle {
         }
 
         if root.selected : ComboBox {
-            min-width: 142px;
+            min-width: 120px;
             model: root.buffer-size-options;
             current-index: root.buffer-size-index(root.buffer_size_text);
             selected(value) => {

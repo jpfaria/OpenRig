@@ -21,14 +21,14 @@ export component AudioWizard inherits Rectangle {
     callback save-audio-settings();
 
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
-    private property <length> device-row-height: 48px;
+    private property <length> device-row-height: 40px;
     private property <length> device-list-height: (visible-device-count * device-row-height) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px);
-    private property <length> wizard-card-height: 26px + 22px + device-list-height + 22px + 44px + 26px;
+    private property <length> wizard-card-height: 20px + 16px + device-list-height + 20px + 36px + 20px;
 
-    width: 920px;
+    width: 800px;
     height: root.wizard-card-height;
     background: Theme.palette.card;
-    border-radius: 18px;
+    border-radius: 10px;
     border-width: 1px;
     border-color: Theme.palette.border-strong;
 
@@ -101,7 +101,7 @@ export component AudioWizard inherits Rectangle {
 
         HorizontalBox {
             spacing: Theme.spaces.medium;
-            height: 44px;
+            height: 36px;
 
             if status-message != "" : Text {
                 text: status-message;
