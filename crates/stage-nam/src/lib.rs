@@ -15,6 +15,7 @@ pub fn nam_model_schema(model: &str) -> Result<ModelParameterSchema> {
             "nam",
             DEFAULT_NAM_MODEL,
             "Neural Amp Modeler",
+            true,
         ))
     } else {
         bail!("unsupported nam model '{}'", model)

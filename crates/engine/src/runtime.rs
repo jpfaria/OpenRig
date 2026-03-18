@@ -5,7 +5,7 @@ use setup::io::{Input, Output};
 use setup::param::ParameterSet;
 use setup::setup::Setup;
 use setup::track::{Track, TrackOutputMixdown};
-use stage_amp::build_amp_processor_for_layout;
+use stage_amp::{amp_asset_summary, build_amp_processor_for_layout};
 use stage_core::{
     AudioChannelLayout, ModelAudioMode, MonoProcessor, StageProcessor, StereoProcessor,
 };
@@ -237,14 +237,12 @@ fn build_runtime_processors(
             }
             AudioBlockKind::Core(core) => match &core.kind {
                 CoreBlockKind::Amp(stage) => {
-                    let model_path = required_string(&stage.params, "model_path")?;
                     println!(
-                        "[track:{}] loading amp model={} file='{}'",
-                        track.id.0, stage.model, model_path
+                        "[track:{}] loading amp model={} {}",
+                        track.id.0,
+                        stage.model,
+                        amp_asset_summary(&stage.model)?
                     );
-                    if let Some(ir_path) = optional_string(&stage.params, "ir_path").as_deref() {
-                        println!("[track:{}] loading amp IR '{}'", track.id.0, ir_path);
-                    }
                     let outcome = build_audio_processor_for_model(
                         track,
                         "amp",

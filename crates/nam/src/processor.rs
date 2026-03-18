@@ -14,91 +14,105 @@ pub fn supports_model(model: &str) -> bool {
     model == DEFAULT_NAM_MODEL
 }
 
-pub fn model_schema() -> ModelParameterSchema {
+pub fn model_schema(include_file_params: bool) -> ModelParameterSchema {
+    let mut parameters = Vec::new();
+
+    if include_file_params {
+        parameters.push(file_path_parameter(
+            "model_path",
+            "Model",
+            None,
+            None,
+            &["nam"],
+            false,
+        ));
+        parameters.push(file_path_parameter(
+            "ir_path",
+            "Impulse Response",
+            None,
+            Some(ParameterValue::Null),
+            &["wav"],
+            true,
+        ));
+    }
+
+    parameters.extend([
+        float_parameter(
+            "input_db",
+            "Input",
+            None,
+            Some(0.0),
+            -24.0,
+            24.0,
+            0.1,
+            ParameterUnit::Decibels,
+        ),
+        float_parameter(
+            "output_db",
+            "Output",
+            None,
+            Some(0.0),
+            -24.0,
+            24.0,
+            0.1,
+            ParameterUnit::Decibels,
+        ),
+        bool_parameter(
+            "noise_gate.enabled",
+            "Enabled",
+            Some("Noise Gate"),
+            Some(true),
+        ),
+        float_parameter(
+            "noise_gate.threshold_db",
+            "Threshold",
+            Some("Noise Gate"),
+            Some(-80.0),
+            -96.0,
+            0.0,
+            0.1,
+            ParameterUnit::Decibels,
+        ),
+        bool_parameter("eq.enabled", "Enabled", Some("EQ"), Some(true)),
+        float_parameter(
+            "eq.bass",
+            "Bass",
+            Some("EQ"),
+            Some(5.0),
+            0.0,
+            10.0,
+            0.1,
+            ParameterUnit::None,
+        ),
+        float_parameter(
+            "eq.middle",
+            "Middle",
+            Some("EQ"),
+            Some(5.0),
+            0.0,
+            10.0,
+            0.1,
+            ParameterUnit::None,
+        ),
+        float_parameter(
+            "eq.treble",
+            "Treble",
+            Some("EQ"),
+            Some(5.0),
+            0.0,
+            10.0,
+            0.1,
+            ParameterUnit::None,
+        ),
+        bool_parameter("ir_enabled", "IR Enabled", None, Some(true)),
+    ]);
+
     ModelParameterSchema {
         effect_type: "nam".to_string(),
         model: DEFAULT_NAM_MODEL.to_string(),
         display_name: "Neural Amp Modeler".to_string(),
         audio_mode: ModelAudioMode::DualMono,
-        parameters: vec![
-            file_path_parameter("model_path", "Model", None, None, &["nam"], false),
-            file_path_parameter(
-                "ir_path",
-                "Impulse Response",
-                None,
-                Some(ParameterValue::Null),
-                &["wav"],
-                true,
-            ),
-            float_parameter(
-                "input_db",
-                "Input",
-                None,
-                Some(0.0),
-                -24.0,
-                24.0,
-                0.1,
-                ParameterUnit::Decibels,
-            ),
-            float_parameter(
-                "output_db",
-                "Output",
-                None,
-                Some(0.0),
-                -24.0,
-                24.0,
-                0.1,
-                ParameterUnit::Decibels,
-            ),
-            bool_parameter(
-                "noise_gate.enabled",
-                "Enabled",
-                Some("Noise Gate"),
-                Some(true),
-            ),
-            float_parameter(
-                "noise_gate.threshold_db",
-                "Threshold",
-                Some("Noise Gate"),
-                Some(-80.0),
-                -96.0,
-                0.0,
-                0.1,
-                ParameterUnit::Decibels,
-            ),
-            bool_parameter("eq.enabled", "Enabled", Some("EQ"), Some(true)),
-            float_parameter(
-                "eq.bass",
-                "Bass",
-                Some("EQ"),
-                Some(5.0),
-                0.0,
-                10.0,
-                0.1,
-                ParameterUnit::None,
-            ),
-            float_parameter(
-                "eq.middle",
-                "Middle",
-                Some("EQ"),
-                Some(5.0),
-                0.0,
-                10.0,
-                0.1,
-                ParameterUnit::None,
-            ),
-            float_parameter(
-                "eq.treble",
-                "Treble",
-                Some("EQ"),
-                Some(5.0),
-                0.0,
-                10.0,
-                0.1,
-                ParameterUnit::None,
-            ),
-            bool_parameter("ir_enabled", "IR Enabled", None, Some(true)),
-        ],
+        parameters,
     }
 }
 
@@ -134,20 +148,24 @@ pub fn params_from_set(params: &ParameterSet) -> Result<(String, Option<String>,
     Ok((
         required_string(params, "model_path").map_err(anyhow::Error::msg)?,
         optional_string(params, "ir_path"),
-        NamPluginParams {
-            input_level_db: required_f32(params, "input_db").map_err(anyhow::Error::msg)?,
-            output_level_db: required_f32(params, "output_db").map_err(anyhow::Error::msg)?,
-            noise_gate_threshold_db: required_f32(params, "noise_gate.threshold_db")
-                .map_err(anyhow::Error::msg)?,
-            noise_gate_enabled: required_bool(params, "noise_gate.enabled")
-                .map_err(anyhow::Error::msg)?,
-            eq_enabled: required_bool(params, "eq.enabled").map_err(anyhow::Error::msg)?,
-            ir_enabled: required_bool(params, "ir_enabled").map_err(anyhow::Error::msg)?,
-            bass: required_f32(params, "eq.bass").map_err(anyhow::Error::msg)?,
-            middle: required_f32(params, "eq.middle").map_err(anyhow::Error::msg)?,
-            treble: required_f32(params, "eq.treble").map_err(anyhow::Error::msg)?,
-        },
+        plugin_params_from_set(params)?,
     ))
+}
+
+pub fn plugin_params_from_set(params: &ParameterSet) -> Result<NamPluginParams> {
+    Ok(NamPluginParams {
+        input_level_db: required_f32(params, "input_db").map_err(anyhow::Error::msg)?,
+        output_level_db: required_f32(params, "output_db").map_err(anyhow::Error::msg)?,
+        noise_gate_threshold_db: required_f32(params, "noise_gate.threshold_db")
+            .map_err(anyhow::Error::msg)?,
+        noise_gate_enabled: required_bool(params, "noise_gate.enabled")
+            .map_err(anyhow::Error::msg)?,
+        eq_enabled: required_bool(params, "eq.enabled").map_err(anyhow::Error::msg)?,
+        ir_enabled: required_bool(params, "ir_enabled").map_err(anyhow::Error::msg)?,
+        bass: required_f32(params, "eq.bass").map_err(anyhow::Error::msg)?,
+        middle: required_f32(params, "eq.middle").map_err(anyhow::Error::msg)?,
+        treble: required_f32(params, "eq.treble").map_err(anyhow::Error::msg)?,
+    })
 }
 
 unsafe extern "C" {

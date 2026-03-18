@@ -33,6 +33,15 @@ pub fn amp_model_schema(model: &str) -> Result<ModelParameterSchema> {
     }
 }
 
+pub fn amp_asset_summary(model: &str) -> Result<String> {
+    if supports_j800_model(model) {
+        let (model_path, ir_path) = j800::asset_paths();
+        Ok(format!("model='{}' ir='{}'", model_path, ir_path))
+    } else {
+        bail!("unsupported amp model '{}'", model)
+    }
+}
+
 pub fn build_amp_processor(
     model: &str,
     params: &ParameterSet,
