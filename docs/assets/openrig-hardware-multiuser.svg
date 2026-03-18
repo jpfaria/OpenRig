@@ -1,0 +1,107 @@
+<svg width="1440" height="960" viewBox="0 0 1440 960" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="120" y1="70" x2="1320" y2="894" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#E2E8F0"/>
+    </linearGradient>
+    <linearGradient id="rig" x1="444" y1="182" x2="986" y2="638" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#111827"/>
+    </linearGradient>
+    <linearGradient id="signal" x1="180" y1="220" x2="1254" y2="704" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F97316"/>
+      <stop offset="0.5" stop-color="#FB7185"/>
+      <stop offset="1" stop-color="#38BDF8"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="20" stdDeviation="20" flood-color="#0F172A" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <rect width="1440" height="960" fill="url(#bg)"/>
+
+  <text x="90" y="96" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="52" font-weight="700">OpenRig Hardware</text>
+  <text x="90" y="138" fill="#475569" font-family="Arial, Helvetica, sans-serif" font-size="24">One shared stage unit, multiple instruments, per-musician control from mobile devices.</text>
+
+  <g filter="url(#shadow)">
+    <rect x="426" y="198" width="588" height="450" rx="42" fill="url(#rig)"/>
+    <rect x="442" y="214" width="556" height="418" rx="34" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="2"/>
+
+    <text x="720" y="274" text-anchor="middle" fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="44" font-weight="700">OpenRig Stage Unit</text>
+    <text x="720" y="314" text-anchor="middle" fill="#CBD5E1" font-family="Arial, Helvetica, sans-serif" font-size="22">Multi-input hardware host with track routing, DSP, scenes, and remote control</text>
+
+    <rect x="504" y="356" width="432" height="108" rx="28" fill="#0B1220" stroke="#38BDF8" stroke-opacity="0.24"/>
+    <text x="720" y="398" text-anchor="middle" fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700">Shared Processing Core</text>
+    <text x="720" y="430" text-anchor="middle" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="18">NAM • IR • delay • reverb • EQ • dynamics • routing</text>
+
+    <rect x="486" y="506" width="148" height="78" rx="20" fill="#0B1220" stroke="#F97316" stroke-opacity="0.35"/>
+    <rect x="646" y="506" width="148" height="78" rx="20" fill="#0B1220" stroke="#FB7185" stroke-opacity="0.35"/>
+    <rect x="806" y="506" width="148" height="78" rx="20" fill="#0B1220" stroke="#38BDF8" stroke-opacity="0.35"/>
+    <text x="560" y="540" text-anchor="middle" fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700">Tracks</text>
+    <text x="560" y="566" text-anchor="middle" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="15">one or more per musician</text>
+    <text x="720" y="540" text-anchor="middle" fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700">Scenes</text>
+    <text x="720" y="566" text-anchor="middle" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="15">global and per-track state</text>
+    <text x="880" y="540" text-anchor="middle" fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700">Control API</text>
+    <text x="880" y="566" text-anchor="middle" fill="#94A3B8" font-family="Arial, Helvetica, sans-serif" font-size="15">tablet and phone clients</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="114" y="240" width="236" height="120" rx="28" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+    <text x="232" y="286" text-anchor="middle" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700">Guitar</text>
+    <text x="232" y="320" text-anchor="middle" fill="#475569" font-family="Arial, Helvetica, sans-serif" font-size="18">Input 1 • Track A</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="114" y="408" width="236" height="120" rx="28" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+    <text x="232" y="454" text-anchor="middle" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700">Bass</text>
+    <text x="232" y="488" text-anchor="middle" fill="#475569" font-family="Arial, Helvetica, sans-serif" font-size="18">Input 2 • Track B</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="114" y="576" width="236" height="120" rx="28" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+    <text x="232" y="622" text-anchor="middle" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700">Vocal / Keys</text>
+    <text x="232" y="656" text-anchor="middle" fill="#475569" font-family="Arial, Helvetica, sans-serif" font-size="18">Input 3+ • Track C</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="1090" y="232" width="226" height="146" rx="28" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+    <rect x="1122" y="256" width="162" height="86" rx="18" fill="#E2E8F0"/>
+    <rect x="1134" y="270" width="138" height="18" rx="9" fill="#0F172A"/>
+    <rect x="1134" y="300" width="92" height="10" rx="5" fill="#F97316"/>
+    <rect x="1134" y="318" width="116" height="10" rx="5" fill="#FB7185"/>
+    <text x="1203" y="364" text-anchor="middle" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">Musician A</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="1060" y="432" width="256" height="164" rx="28" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+    <rect x="1096" y="456" width="184" height="104" rx="20" fill="#E2E8F0"/>
+    <rect x="1110" y="474" width="156" height="18" rx="9" fill="#0F172A"/>
+    <rect x="1110" y="506" width="124" height="12" rx="6" fill="#FB7185"/>
+    <rect x="1110" y="526" width="146" height="12" rx="6" fill="#38BDF8"/>
+    <text x="1188" y="584" text-anchor="middle" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">Musician B</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="1102" y="654" width="214" height="140" rx="28" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
+    <rect x="1140" y="676" width="138" height="86" rx="18" fill="#E2E8F0"/>
+    <rect x="1152" y="692" width="114" height="16" rx="8" fill="#0F172A"/>
+    <rect x="1152" y="720" width="68" height="10" rx="5" fill="#F97316"/>
+    <rect x="1152" y="736" width="88" height="10" rx="5" fill="#38BDF8"/>
+    <text x="1209" y="784" text-anchor="middle" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">Musician C</text>
+  </g>
+
+  <path d="M350 300H426" stroke="url(#signal)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M350 468H426" stroke="url(#signal)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M350 636H426" stroke="url(#signal)" stroke-width="8" stroke-linecap="round"/>
+
+  <path d="M1014 304H1090" stroke="url(#signal)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M1014 514H1060" stroke="url(#signal)" stroke-width="8" stroke-linecap="round"/>
+  <path d="M1014 724H1102" stroke="url(#signal)" stroke-width="8" stroke-linecap="round"/>
+
+  <circle cx="388" cy="300" r="8" fill="#F97316"/>
+  <circle cx="388" cy="468" r="8" fill="#FB7185"/>
+  <circle cx="388" cy="636" r="8" fill="#38BDF8"/>
+  <circle cx="1052" cy="304" r="8" fill="#F97316"/>
+  <circle cx="1038" cy="514" r="8" fill="#FB7185"/>
+  <circle cx="1058" cy="724" r="8" fill="#38BDF8"/>
+</svg>

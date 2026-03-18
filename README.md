@@ -33,6 +33,14 @@ It is being designed to run on Windows, macOS, and Linux, and to scale from desk
 - `Hardware`: OpenRig runs on a dedicated unit with an embedded screen and foot control workflow
 - `Remote UI`: Flutter clients can control rigs, presets, and state from desktop or mobile
 
+## Hardware Vision
+
+![OpenRig hardware](docs/assets/openrig-hardware-multiuser.svg)
+
+The hardware path is designed around a shared stage unit that can receive multiple instruments and let each musician control their own track from a phone or tablet.
+
+See [docs/hardware.md](docs/hardware.md) for the product model and responsibilities of the hardware host versus the remote clients.
+
 ## Current Vertical Slice
 
 The current implementation is focused on a minimal working path:
