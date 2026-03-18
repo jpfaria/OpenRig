@@ -1,8 +1,8 @@
-//! Plate reverb implementations.
-pub mod foundation;
+//! Reverb implementations.
+pub mod plate_foundation;
 
 use anyhow::{bail, Result};
-use foundation::{build_processor, model_schema, supports_model};
+use plate_foundation::{build_processor, model_schema, supports_model};
 use stage_core::param::{ModelParameterSchema, ParameterSet};
 use stage_core::{AudioChannelLayout, NamedModel, StageProcessor};
 

@@ -1,8 +1,7 @@
 [package]
-name = "stage-dyn-gate"
+name = "stage-filter"
 version.workspace = true
 edition.workspace = true
-
 [dependencies]
 anyhow.workspace = true
 stage-core = { path = "../stage-core" }

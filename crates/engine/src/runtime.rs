@@ -9,15 +9,15 @@ use stage_amp::{amp_asset_summary, build_amp_processor_for_layout};
 use stage_core::{
     AudioChannelLayout, ModelAudioMode, MonoProcessor, StageProcessor, StereoProcessor,
 };
-use stage_delay_digital::build_delay_processor_for_layout;
-use stage_dyn_compressor::build_compressor_processor_for_layout;
-use stage_dyn_gate::build_gate_processor_for_layout;
-use stage_filter_eq::build_eq_processor_for_layout;
+use stage_delay::build_delay_processor_for_layout;
+use stage_dyn::build_compressor_processor_for_layout;
+use stage_dyn::build_gate_processor_for_layout;
+use stage_filter::build_eq_processor_for_layout;
 use stage_full_rig::{build_full_rig_processor_for_layout, full_rig_asset_summary};
-use stage_mod_tremolo::build_tremolo_processor_for_layout;
+use stage_mod::build_tremolo_processor_for_layout;
 use stage_nam::{build_nam_processor_for_layout, DEFAULT_NAM_MODEL};
-use stage_reverb_plate::build_reverb_processor_for_layout;
-use stage_util_tuner::{build_tuner_processor, chromatic::ChromaticTuner};
+use stage_reverb::build_reverb_processor_for_layout;
+use stage_util::{build_tuner_processor, tuner_chromatic::ChromaticTuner};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};

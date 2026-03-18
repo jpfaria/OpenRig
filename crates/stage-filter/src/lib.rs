@@ -1,30 +1,30 @@
-//! Compressor implementations.
-pub mod studio_clean;
+//! Filter implementations.
+pub mod eq_three_band_basic;
 
 use anyhow::{bail, Result};
 use stage_core::param::{ModelParameterSchema, ParameterSet};
 use stage_core::{AudioChannelLayout, StageProcessor};
-use studio_clean::{build_processor, model_schema, supports_model};
+use eq_three_band_basic::{build_processor, model_schema, supports_model};
 
-pub const DEFAULT_COMPRESSOR_MODEL: &str = "compressor_studio_clean";
+pub const DEFAULT_EQ_MODEL: &str = "eq_three_band_basic";
 
-pub fn compressor_model_schema(model: &str) -> Result<ModelParameterSchema> {
+pub fn eq_model_schema(model: &str) -> Result<ModelParameterSchema> {
     if supports_model(model) {
         Ok(model_schema())
     } else {
-        bail!("unsupported compressor model '{}'", model)
+        bail!("unsupported eq model '{}'", model)
     }
 }
 
-pub fn build_compressor_processor(
+pub fn build_eq_processor(
     model: &str,
     params: &ParameterSet,
     sample_rate: f32,
 ) -> Result<StageProcessor> {
-    build_compressor_processor_for_layout(model, params, sample_rate, AudioChannelLayout::Mono)
+    build_eq_processor_for_layout(model, params, sample_rate, AudioChannelLayout::Mono)
 }
 
-pub fn build_compressor_processor_for_layout(
+pub fn build_eq_processor_for_layout(
     model: &str,
     params: &ParameterSet,
     sample_rate: f32,
@@ -36,11 +36,11 @@ pub fn build_compressor_processor_for_layout(
                 Ok(StageProcessor::Mono(build_processor(params, sample_rate)?))
             }
             AudioChannelLayout::Stereo => bail!(
-                "compressor model '{}' is mono-only and cannot build native stereo processing",
+                "eq model '{}' is mono-only and cannot build native stereo processing",
                 model
             ),
         }
     } else {
-        bail!("unsupported compressor model '{}'", model)
+        bail!("unsupported eq model '{}'", model)
     }
 }

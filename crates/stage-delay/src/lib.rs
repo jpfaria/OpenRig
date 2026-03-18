@@ -1,20 +1,20 @@
-//! Digital delay implementations.
-pub mod basic;
-pub mod ping_pong;
-pub mod wide;
+//! Delay implementations.
+pub mod digital_basic;
+pub mod digital_ping_pong;
+pub mod digital_wide;
 
 use anyhow::{bail, Result};
-use basic::{
+use digital_basic::{
     build_mono_processor, model_schema as basic_model_schema,
     supports_model as supports_basic_model,
 };
-use ping_pong::{
+use digital_ping_pong::{
     build_stereo_processor as build_ping_pong_processor, model_schema as ping_pong_model_schema,
     supports_model as supports_ping_pong_model,
 };
 use stage_core::param::{ModelParameterSchema, ParameterSet};
 use stage_core::{AudioChannelLayout, NamedModel, StageProcessor};
-use wide::{
+use digital_wide::{
     build_stereo_processor as build_wide_processor, model_schema as wide_model_schema,
     supports_model as supports_wide_model,
 };
@@ -32,8 +32,8 @@ impl NamedModel for DelayModel {
     fn model_key(&self) -> &'static str {
         match self {
             DelayModel::DigitalBasic => DEFAULT_DELAY_MODEL,
-            DelayModel::DigitalPingPong => ping_pong::MODEL_ID,
-            DelayModel::DigitalWide => wide::MODEL_ID,
+            DelayModel::DigitalPingPong => digital_ping_pong::MODEL_ID,
+            DelayModel::DigitalWide => digital_wide::MODEL_ID,
         }
     }
 
