@@ -2,3 +2,8 @@
 name = "adapter-gui"
 version.workspace = true
 edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+eframe.workspace = true
+ui-openrig = { path = "../ui-openrig" }

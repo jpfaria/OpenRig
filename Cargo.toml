@@ -23,6 +23,7 @@ members = [
   "crates/stage-amp-combo",
   "crates/stage-full-rig",
   "crates/stage-cab",
+  "crates/ui-openrig",
   "crates/infra-yaml",
   "crates/infra-filesystem",
   "crates/infra-cpal",
@@ -49,3 +50,5 @@ tonic = "0.12"
 prost = "0.13"
 uuid = { version = "1", features = ["v4", "serde"] }
 arc-swap = "1.7"
+egui = "0.31"
+eframe = { version = "0.31", default-features = true }
