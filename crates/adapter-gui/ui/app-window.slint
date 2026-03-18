@@ -69,6 +69,10 @@ export component AppWindow inherits Window {
     in-out property <string> status-message;
     in property <[string]> sample-rate-options: ["44100", "48000", "88200", "96000"];
     in property <[string]> buffer-size-options: ["32", "64", "128", "256", "512", "1024"];
+    private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
+    private property <length> device-row-height: 48px;
+    private property <length> device-list-height: 20px + (visible-device-count * device-row-height) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px);
+    private property <length> wizard-card-height: 26px + 28px + 18px + device-list-height + 20px + 18px + 44px + 26px;
 
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
@@ -123,7 +127,7 @@ export component AppWindow inherits Window {
                 x: parent.width / 2 - self.width / 2;
                 y: 118px;
                 width: 920px;
-                height: 640px;
+                height: root.wizard-card-height;
                 background: #070b2a;
                 border-radius: 18px;
                 border-width: 1px;
@@ -136,21 +140,12 @@ export component AppWindow inherits Window {
                     HorizontalBox {
                         spacing: 16px;
 
-                        VerticalBox {
-                            spacing: 6px;
-
-                            Text {
-                                text: wizard-step == 0 ? "Escolha os dispositivos de entrada" : "Escolha os dispositivos de saída";
-                                color: #ffffff;
-                                font-size: 18px;
-                                font-weight: 600;
-                            }
-
-                            Text {
-                                text: wizard-step == 0 ? "Etapa 1 de 2" : "Etapa 2 de 2";
-                                color: #a6aed8;
-                                font-size: 12px;
-                            }
+                        Text {
+                            text: wizard-step == 0 ? "Escolha os dispositivos de entrada" : "Escolha os dispositivos de saída";
+                            color: #ffffff;
+                            font-size: 18px;
+                            font-weight: 600;
+                            vertical-alignment: center;
                         }
 
                         Rectangle { horizontal-stretch: 1; background: transparent; }
@@ -161,7 +156,7 @@ export component AppWindow inherits Window {
                         border-radius: 14px;
                         border-width: 1px;
                         border-color: #252d6d;
-                        vertical-stretch: 1;
+                        height: root.device-list-height;
 
                         VerticalBox {
                             padding: 10px;
@@ -172,6 +167,7 @@ export component AppWindow inherits Window {
 
                                 for device[i] in input-devices : Rectangle {
                                     background: @linear-gradient(180deg, #181d44 0%, #121730 100%);
+                                    height: root.device-row-height;
                                     border-radius: 12px;
                                     border-width: 1px;
                                     border-color: #2d3669;
@@ -217,6 +213,7 @@ export component AppWindow inherits Window {
 
                                 for device[i] in output-devices : Rectangle {
                                     background: @linear-gradient(180deg, #181d44 0%, #121730 100%);
+                                    height: root.device-row-height;
                                     border-radius: 12px;
                                     border-width: 1px;
                                     border-color: #2d3669;
