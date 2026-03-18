@@ -11,14 +11,14 @@ component PrimaryActionButton inherits Rectangle {
     in property <string> text;
     callback clicked();
 
-    min-width: 132px;
-    min-height: 42px;
-    background: #4f7cff;
-    border-radius: 12px;
+    min-width: 138px;
+    min-height: 44px;
+    border-radius: 14px;
+    background: @linear-gradient(180deg, #8e73ff 0%, #694dff 100%);
 
     Text {
         text: root.text;
-        color: #f8fbff;
+        color: #f6f8ff;
         horizontal-alignment: center;
         vertical-alignment: center;
         font-size: 15px;
@@ -37,15 +37,15 @@ component SecondaryActionButton inherits Rectangle {
     callback clicked();
 
     min-width: 108px;
-    min-height: 42px;
-    background: #252b35;
-    border-radius: 12px;
+    min-height: 44px;
+    border-radius: 14px;
     border-width: 1px;
-    border-color: #3a4453;
+    border-color: #4e5aa6;
+    background: @linear-gradient(180deg, #1a2250 0%, #121838 100%);
 
     Text {
         text: root.text;
-        color: #dbe2ec;
+        color: #dce2ff;
         horizontal-alignment: center;
         vertical-alignment: center;
         font-size: 15px;
@@ -83,7 +83,7 @@ export component AppWindow inherits Window {
     title: "OpenRig";
     width: 1280px;
     height: 900px;
-    background: #0e1116;
+    background: #040708;
 
     pure function sample-rate-index(value: string) -> int {
         return value == "44100" ? 0
@@ -104,56 +104,80 @@ export component AppWindow inherits Window {
     }
 
     Rectangle {
-        background: #0e1116;
+        background: @radial-gradient(circle, #0d1a7850 0%, #040708 72%);
 
         if show-audio-setup : Rectangle {
             background: transparent;
 
             Text {
-                x: 52px;
+                x: parent.width / 2 - self.width / 2;
                 y: 36px;
                 text: "OpenRig";
-                color: #f3f5f7;
-                font-size: 21px;
+                color: #ffffff;
+                font-size: 24px;
                 font-weight: 700;
             }
 
             Rectangle {
-                x: 188px;
-                y: 122px;
-                width: 904px;
-                height: 620px;
-                background: #151921;
+                x: parent.width / 2 - self.width / 2;
+                y: 118px;
+                width: 920px;
+                height: 640px;
+                background: #070b2a;
                 border-radius: 18px;
                 border-width: 1px;
-                border-color: #2a303a;
+                border-color: #283171;
 
                 VerticalBox {
                     padding: 26px;
                     spacing: 18px;
 
-                    VerticalBox {
-                        spacing: 6px;
+                    HorizontalBox {
+                        spacing: 16px;
 
-                        Text {
-                            text: wizard-step == 0 ? "Escolha os dispositivos de entrada" : "Escolha os dispositivos de saída";
-                            color: #f4f7fb;
-                            font-size: 18px;
-                            font-weight: 600;
+                        VerticalBox {
+                            spacing: 6px;
+
+                            Text {
+                                text: wizard-step == 0 ? "Escolha os dispositivos de entrada" : "Escolha os dispositivos de saída";
+                                color: #ffffff;
+                                font-size: 18px;
+                                font-weight: 600;
+                            }
+
+                            Text {
+                                text: wizard-step == 0 ? "Etapa 1 de 2" : "Etapa 2 de 2";
+                                color: #a6aed8;
+                                font-size: 12px;
+                            }
                         }
 
-                        Text {
-                            text: wizard-step == 0 ? "Etapa 1 de 2" : "Etapa 2 de 2";
-                            color: #7f8a9b;
-                            font-size: 12px;
+                        Rectangle { horizontal-stretch: 1; background: transparent; }
+
+                        Rectangle {
+                            min-width: 88px;
+                            min-height: 30px;
+                            border-radius: 999px;
+                            background: @linear-gradient(180deg, #1b245a 0%, #0f1435 100%);
+                            border-width: 1px;
+                            border-color: #3947a0;
+
+                            Text {
+                                text: wizard-step == 0 ? "Entrada" : "Saída";
+                                color: #dfe4ff;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                                font-size: 13px;
+                                font-weight: 600;
+                            }
                         }
                     }
 
                     Rectangle {
-                        background: #1c212a;
+                        background: #090d33;
                         border-radius: 14px;
                         border-width: 1px;
-                        border-color: #2f3642;
+                        border-color: #252d6d;
                         vertical-stretch: 1;
 
                         VerticalBox {
@@ -164,10 +188,10 @@ export component AppWindow inherits Window {
                                 spacing: 8px;
 
                                 for device[i] in input-devices : Rectangle {
-                                    background: #222833;
+                                    background: @linear-gradient(180deg, #181d44 0%, #121730 100%);
                                     border-radius: 12px;
                                     border-width: 1px;
-                                    border-color: #333b49;
+                                    border-color: #2d3669;
 
                                     HorizontalBox {
                                         padding: 10px;
@@ -176,7 +200,7 @@ export component AppWindow inherits Window {
                                         CheckBox {
                                             text: device.name;
                                             checked: device.selected;
-                                            min-width: 380px;
+                                            min-width: 430px;
                                             toggled => {
                                                 root.toggle-input-device(i, self.checked);
                                             }
@@ -209,10 +233,10 @@ export component AppWindow inherits Window {
                                 spacing: 8px;
 
                                 for device[i] in output-devices : Rectangle {
-                                    background: #222833;
+                                    background: @linear-gradient(180deg, #181d44 0%, #121730 100%);
                                     border-radius: 12px;
                                     border-width: 1px;
-                                    border-color: #333b49;
+                                    border-color: #2d3669;
 
                                     HorizontalBox {
                                         padding: 10px;
@@ -221,7 +245,7 @@ export component AppWindow inherits Window {
                                         CheckBox {
                                             text: device.name;
                                             checked: device.selected;
-                                            min-width: 380px;
+                                            min-width: 430px;
                                             toggled => {
                                                 root.toggle-output-device(i, self.checked);
                                             }
@@ -257,7 +281,7 @@ export component AppWindow inherits Window {
 
                         if status-message != "" : Text {
                             text: status-message;
-                            color: #bcc6d3;
+                            color: #c8d0ee;
                             font-size: 13px;
                             vertical-alignment: center;
                         }
