@@ -32,104 +32,76 @@ export component AppWindow inherits Window {
         background: #111315;
         border-radius: 18px;
 
-        VerticalBox {
-            padding: 24px;
-            spacing: 20px;
+        if show-audio-setup : ScrollView {
+            viewport-width: parent.width;
+            viewport-height: parent.height;
 
             Rectangle {
-                background: #1a1d22;
-                border-radius: 18px;
-                min-height: 88px;
-
-                HorizontalBox {
-                    padding: 18px;
-                    spacing: 16px;
-
-                    VerticalBox {
-                        spacing: 4px;
-                        Text {
-                            text: "OpenRig";
-                            color: #f3f5f7;
-                            font-size: 28px;
-                            font-weight: 700;
-                        }
-                        Text {
-                            text: runtime-mode-label + " • " + interaction-mode-label;
-                            color: #95a0ad;
-                            font-size: 15px;
-                        }
-                    }
-
-                    Rectangle { horizontal-stretch: 1; background: transparent; }
-
-                    Rectangle {
-                        background: #d68a36;
-                        border-radius: 999px;
-                        min-width: 128px;
-                        min-height: 34px;
-                        Text {
-                            text: runtime-mode-label;
-                            color: #101214;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                            font-size: 15px;
-                            font-weight: 700;
-                        }
-                    }
-                }
-            }
-
-            if show-audio-setup : Rectangle {
-                background: #16181c;
-                border-radius: 20px;
-                border-width: 1px;
-                border-color: #30343a;
+                background: transparent;
+                width: 1232px;
 
                 VerticalBox {
                     padding: 24px;
-                    spacing: 18px;
+                    spacing: 20px;
 
-                    Text {
-                        text: "Configuração inicial";
-                        color: #f3f5f7;
-                        font-size: 34px;
-                        font-weight: 700;
-                    }
+                    Rectangle {
+                        background: #16181c;
+                        border-radius: 20px;
+                        border-width: 1px;
+                        border-color: #30343a;
 
-                    Text {
-                        text: "Escolha os devices de entrada e saída. Cada device selecionado tem seu próprio sample rate e buffer size.";
-                        color: #9ea7b3;
-                        font-size: 18px;
-                    }
+                        VerticalBox {
+                            padding: 28px;
+                            spacing: 24px;
 
-                    HorizontalBox {
-                        spacing: 18px;
+                            Text {
+                                text: "OpenRig";
+                                color: #f3f5f7;
+                                font-size: 30px;
+                                font-weight: 700;
+                            }
 
-                        Rectangle {
-                            background: #1d2025;
-                            border-radius: 16px;
-                            border-width: 1px;
-                            border-color: #363b42;
-                            min-height: 420px;
-                            horizontal-stretch: 1;
+                            Text {
+                                text: "Configuração inicial";
+                                color: #f3f5f7;
+                                font-size: 34px;
+                                font-weight: 700;
+                            }
 
-                            VerticalBox {
-                                padding: 18px;
-                                spacing: 12px;
+                            Text {
+                                text: "Primeiro selecione os inputs. Depois configure sample rate e buffer size de cada input. Em seguida faça o mesmo para os outputs.";
+                                color: #9ea7b3;
+                                font-size: 18px;
+                                wrap: word-wrap;
+                            }
 
-                                Text {
-                                    text: "Input Devices";
-                                    color: #f3f5f7;
-                                    font-size: 22px;
-                                    font-weight: 600;
-                                }
+                            Rectangle {
+                                background: #1d2025;
+                                border-radius: 16px;
+                                border-width: 1px;
+                                border-color: #363b42;
 
-                                ScrollView {
-                                    viewport-width: parent.width;
-                                    viewport-height: 330px;
+                                VerticalBox {
+                                    padding: 18px;
+                                    spacing: 12px;
+
+                                    Text {
+                                        text: "Inputs";
+                                        color: #f3f5f7;
+                                        font-size: 22px;
+                                        font-weight: 600;
+                                    }
+
+                                    Text {
+                                        text: "Escolha um ou mais devices de entrada e configure cada um individualmente.";
+                                        color: #9ea7b3;
+                                        font-size: 15px;
+                                        wrap: word-wrap;
+                                    }
 
                                     VerticalBox {
                                         spacing: 10px;
+
                                         for device[i] in input-devices : Rectangle {
                                             background: #20242a;
                                             border-radius: 12px;
@@ -152,12 +124,15 @@ export component AppWindow inherits Window {
                                                     spacing: 10px;
 
                                                     VerticalBox {
+                                                        horizontal-stretch: 1;
                                                         spacing: 6px;
+
                                                         Text {
                                                             text: "Sample Rate";
                                                             color: #9ea7b3;
                                                             font-size: 14px;
                                                         }
+
                                                         LineEdit {
                                                             text: device.sample_rate_text;
                                                             enabled: device.selected;
@@ -168,12 +143,15 @@ export component AppWindow inherits Window {
                                                     }
 
                                                     VerticalBox {
+                                                        horizontal-stretch: 1;
                                                         spacing: 6px;
+
                                                         Text {
                                                             text: "Buffer Size";
                                                             color: #9ea7b3;
                                                             font-size: 14px;
                                                         }
+
                                                         LineEdit {
                                                             text: device.buffer_size_text;
                                                             enabled: device.selected;
@@ -188,33 +166,34 @@ export component AppWindow inherits Window {
                                     }
                                 }
                             }
-                        }
 
-                        Rectangle {
-                            background: #1d2025;
-                            border-radius: 16px;
-                            border-width: 1px;
-                            border-color: #363b42;
-                            min-height: 420px;
-                            horizontal-stretch: 1;
+                            Rectangle {
+                                background: #1d2025;
+                                border-radius: 16px;
+                                border-width: 1px;
+                                border-color: #363b42;
 
-                            VerticalBox {
-                                padding: 18px;
-                                spacing: 12px;
+                                VerticalBox {
+                                    padding: 18px;
+                                    spacing: 12px;
 
-                                Text {
-                                    text: "Output Devices";
-                                    color: #f3f5f7;
-                                    font-size: 22px;
-                                    font-weight: 600;
-                                }
+                                    Text {
+                                        text: "Outputs";
+                                        color: #f3f5f7;
+                                        font-size: 22px;
+                                        font-weight: 600;
+                                    }
 
-                                ScrollView {
-                                    viewport-width: parent.width;
-                                    viewport-height: 330px;
+                                    Text {
+                                        text: "Depois dos inputs, escolha um ou mais devices de saída e configure cada um individualmente.";
+                                        color: #9ea7b3;
+                                        font-size: 15px;
+                                        wrap: word-wrap;
+                                    }
 
                                     VerticalBox {
                                         spacing: 10px;
+
                                         for device[i] in output-devices : Rectangle {
                                             background: #20242a;
                                             border-radius: 12px;
@@ -237,12 +216,15 @@ export component AppWindow inherits Window {
                                                     spacing: 10px;
 
                                                     VerticalBox {
+                                                        horizontal-stretch: 1;
                                                         spacing: 6px;
+
                                                         Text {
                                                             text: "Sample Rate";
                                                             color: #9ea7b3;
                                                             font-size: 14px;
                                                         }
+
                                                         LineEdit {
                                                             text: device.sample_rate_text;
                                                             enabled: device.selected;
@@ -253,12 +235,15 @@ export component AppWindow inherits Window {
                                                     }
 
                                                     VerticalBox {
+                                                        horizontal-stretch: 1;
                                                         spacing: 6px;
+
                                                         Text {
                                                             text: "Buffer Size";
                                                             color: #9ea7b3;
                                                             font-size: 14px;
                                                         }
+
                                                         LineEdit {
                                                             text: device.buffer_size_text;
                                                             enabled: device.selected;
@@ -273,26 +258,27 @@ export component AppWindow inherits Window {
                                     }
                                 }
                             }
-                        }
-                    }
 
-                    HorizontalBox {
-                        spacing: 16px;
+                            HorizontalBox {
+                                spacing: 16px;
 
-                        Button {
-                            text: "Salvar e continuar";
-                            clicked => {
-                                root.save-audio-settings();
+                                Button {
+                                    text: "Salvar e continuar";
+                                    clicked => {
+                                        root.save-audio-settings();
+                                    }
+                                }
+
+                                Rectangle { horizontal-stretch: 1; background: transparent; }
+                            }
+
+                            if status-message != "" : Text {
+                                text: status-message;
+                                color: #c4ccd7;
+                                font-size: 15px;
+                                wrap: word-wrap;
                             }
                         }
-
-                        Rectangle { horizontal-stretch: 1; background: transparent; }
-                    }
-
-                    Text {
-                        text: status-message;
-                        color: #87d7a1;
-                        font-size: 16px;
                     }
                 }
             }

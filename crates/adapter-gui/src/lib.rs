@@ -15,7 +15,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
     window.set_runtime_mode_label(context.runtime_mode.label().into());
     window.set_interaction_mode_label(context.interaction_mode.label().into());
     window.set_show_audio_setup(context.capabilities.can_select_audio_device);
-    window.set_status_message("Selecione os devices e salve a configuração inicial.".into());
+    window.set_status_message("".into());
 
     let input_devices = Rc::new(VecModel::from(
         list_input_device_descriptors()?
