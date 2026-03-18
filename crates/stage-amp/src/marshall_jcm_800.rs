@@ -26,10 +26,6 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MarshallJcm800Params {
     pub volume: i32,
-    pub presence: i32,
-    pub bass: i32,
-    pub middle: i32,
-    pub treble: i32,
     pub gain: i32,
 }
 
@@ -40,36 +36,36 @@ pub struct MarshallJcm800Capture {
 }
 
 pub const CAPTURES: &[MarshallJcm800Capture] = &[
-    capture(50, 50, 50, 50, 50, 10, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV5 G1 - AZG - 700.nam"),
-    capture(50, 50, 50, 50, 50, 20, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV5 G2 - AZG - 700.nam"),
-    capture(50, 50, 50, 50, 50, 30, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV5 G3 - AZG - 700.nam"),
-    capture(50, 50, 50, 50, 50, 40, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV5 G4 - AZG - 700.nam"),
-    capture(50, 50, 50, 50, 50, 50, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV5 G5 - AZG - 700.nam"),
-    capture(50, 50, 50, 50, 50, 60, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV5 G6 - AZG - 700.nam"),
-    capture(50, 50, 50, 50, 50, 70, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV5 G7 - AZG - 700.nam"),
-    capture(50, 50, 50, 50, 50, 80, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV5 G8 - AZG - 700.nam"),
-    capture(50, 50, 50, 50, 50, 90, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV5 G9 - AZG - 700.nam"),
-    capture(50, 50, 50, 50, 50, 100, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV5 G10 - AZG - 700.nam"),
-    capture(60, 50, 50, 50, 50, 10, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV6 G1 - AZG - 700.nam"),
-    capture(60, 50, 50, 50, 50, 20, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV6 G2 - AZG - 700.nam"),
-    capture(60, 50, 50, 50, 50, 30, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV6 G3 - AZG - 700.nam"),
-    capture(60, 50, 50, 50, 50, 40, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV6 G4 - AZG - 700.nam"),
-    capture(60, 50, 50, 50, 50, 50, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV6 G5 - AZG - 700.nam"),
-    capture(60, 50, 50, 50, 50, 60, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV6 G6 - AZG - 700.nam"),
-    capture(60, 50, 50, 50, 50, 70, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV6 G7 - AZG - 700.nam"),
-    capture(60, 50, 50, 50, 50, 80, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV6 G8 - AZG - 700.nam"),
-    capture(60, 50, 50, 50, 50, 90, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV6 G9 - AZG - 700.nam"),
-    capture(60, 50, 50, 50, 50, 100, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV6 G10 - AZG - 700.nam"),
-    capture(70, 50, 50, 50, 50, 10, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV7 G1 - AZG - 700.nam"),
-    capture(70, 50, 50, 50, 50, 20, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV7 G2 - AZG - 700.nam"),
-    capture(70, 50, 50, 50, 50, 30, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV7 G3 - AZG - 700.nam"),
-    capture(70, 50, 50, 50, 50, 40, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV7 G4 - AZG - 700.nam"),
-    capture(70, 50, 50, 50, 50, 50, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV7 G5 - AZG - 700.nam"),
-    capture(70, 50, 50, 50, 50, 60, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV7 G6 - AZG - 700.nam"),
-    capture(70, 50, 50, 50, 50, 70, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV7 G7 - AZG - 700.nam"),
-    capture(70, 50, 50, 50, 50, 80, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV7 G8 - AZG - 700.nam"),
-    capture(70, 50, 50, 50, 50, 90, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV7 G9 - AZG - 700.nam"),
-    capture(70, 50, 50, 50, 50, 100, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV7 G10 - AZG - 700.nam"),
+    capture(50, 10, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV5 G1 - AZG - 700.nam"),
+    capture(50, 20, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV5 G2 - AZG - 700.nam"),
+    capture(50, 30, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV5 G3 - AZG - 700.nam"),
+    capture(50, 40, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV5 G4 - AZG - 700.nam"),
+    capture(50, 50, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV5 G5 - AZG - 700.nam"),
+    capture(50, 60, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV5 G6 - AZG - 700.nam"),
+    capture(50, 70, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV5 G7 - AZG - 700.nam"),
+    capture(50, 80, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV5 G8 - AZG - 700.nam"),
+    capture(50, 90, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV5 G9 - AZG - 700.nam"),
+    capture(50, 100, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV5 G10 - AZG - 700.nam"),
+    capture(60, 10, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV6 G1 - AZG - 700.nam"),
+    capture(60, 20, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV6 G2 - AZG - 700.nam"),
+    capture(60, 30, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV6 G3 - AZG - 700.nam"),
+    capture(60, 40, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV6 G4 - AZG - 700.nam"),
+    capture(60, 50, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV6 G5 - AZG - 700.nam"),
+    capture(60, 60, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV6 G6 - AZG - 700.nam"),
+    capture(60, 70, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV6 G7 - AZG - 700.nam"),
+    capture(60, 80, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV6 G8 - AZG - 700.nam"),
+    capture(60, 90, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV6 G9 - AZG - 700.nam"),
+    capture(60, 100, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV6 G10 - AZG - 700.nam"),
+    capture(70, 10, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV7 G1 - AZG - 700.nam"),
+    capture(70, 20, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV7 G2 - AZG - 700.nam"),
+    capture(70, 30, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV7 G3 - AZG - 700.nam"),
+    capture(70, 40, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV7 G4 - AZG - 700.nam"),
+    capture(70, 50, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV7 G5 - AZG - 700.nam"),
+    capture(70, 60, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV7 G6 - AZG - 700.nam"),
+    capture(70, 70, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV7 G7 - AZG - 700.nam"),
+    capture(70, 80, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV7 G8 - AZG - 700.nam"),
+    capture(70, 90, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV7 G9 - AZG - 700.nam"),
+    capture(70, 100, "captures/nam/amps/heads/marshall_jcm_800_2203/capture_matrix/JCM800 2203 - P5 B5 M5 T5 MV7 G10 - AZG - 700.nam"),
 ];
 
 pub fn supports_model(model: &str) -> bool {
@@ -87,46 +83,6 @@ pub fn model_schema() -> ModelParameterSchema {
             50.0,
             70.0,
             10.0,
-            ParameterUnit::Percent,
-        ),
-        float_parameter(
-            "bass",
-            "Bass",
-            Some("Amp"),
-            Some(50.0),
-            50.0,
-            50.0,
-            0.0,
-            ParameterUnit::Percent,
-        ),
-        float_parameter(
-            "presence",
-            "Presence",
-            Some("Amp"),
-            Some(50.0),
-            50.0,
-            50.0,
-            0.0,
-            ParameterUnit::Percent,
-        ),
-        float_parameter(
-            "middle",
-            "Middle",
-            Some("Amp"),
-            Some(50.0),
-            50.0,
-            50.0,
-            0.0,
-            ParameterUnit::Percent,
-        ),
-        float_parameter(
-            "treble",
-            "Treble",
-            Some("Amp"),
-            Some(50.0),
-            50.0,
-            50.0,
-            0.0,
             ParameterUnit::Percent,
         ),
         float_parameter(
@@ -166,10 +122,6 @@ pub fn asset_summary(params: &ParameterSet) -> Result<String> {
 fn resolve_capture(params: &ParameterSet) -> Result<&'static MarshallJcm800Capture> {
     let requested = MarshallJcm800Params {
         volume: read_percent(params, "volume")?,
-        presence: read_percent(params, "presence")?,
-        bass: read_percent(params, "bass")?,
-        middle: read_percent(params, "middle")?,
-        treble: read_percent(params, "treble")?,
         gain: read_percent(params, "gain")?,
     };
 
@@ -178,13 +130,9 @@ fn resolve_capture(params: &ParameterSet) -> Result<&'static MarshallJcm800Captu
         .find(|capture| capture.params == requested)
         .ok_or_else(|| {
             anyhow!(
-                "amp model '{}' does not support volume={} presence={} bass={} middle={} treble={} gain={}",
+                "amp model '{}' does not support volume={} gain={}",
                 MODEL_ID,
                 requested.volume,
-                requested.presence,
-                requested.bass,
-                requested.middle,
-                requested.treble,
                 requested.gain
             )
         })
@@ -206,20 +154,12 @@ fn read_percent(params: &ParameterSet, path: &str) -> Result<i32> {
 
 const fn capture(
     volume: i32,
-    presence: i32,
-    bass: i32,
-    middle: i32,
-    treble: i32,
     gain: i32,
     model_path: &'static str,
 ) -> MarshallJcm800Capture {
     MarshallJcm800Capture {
         params: MarshallJcm800Params {
             volume,
-            presence,
-            bass,
-            middle,
-            treble,
             gain,
         },
         model_path,
