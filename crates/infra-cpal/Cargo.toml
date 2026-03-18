@@ -1,0 +1,10 @@
+[package]
+name = "infra-cpal"
+version.workspace = true
+edition.workspace = true
+[dependencies]
+anyhow.workspace = true
+cpal.workspace = true
+domain = { path = "../domain" }
+engine = { path = "../engine" }
+setup = { path = "../setup" }

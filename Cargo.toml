@@ -1,21 +1,32 @@
 [workspace]
 members = [
-  "crates/pedal-domain",
-  "crates/pedal-application",
-  "crates/pedal-engine",
-  "crates/pedal-ports",
-  "crates/pedal-setup",
-  "crates/pedal-preset",
-  "crates/pedal-state",
-  "crates/pedal-nam",
-  "crates/pedal-ir",
-  "crates/pedal-infra-yaml",
-  "crates/pedal-infra-filesystem",
-  "crates/pedal-infra-cpal",
-  "crates/pedal-adapter-console",
-  "crates/pedal-adapter-grpc",
-  "crates/pedal-adapter-gui",
-  "crates/pedal-adapter-vst3",
+  "crates/domain",
+  "crates/application",
+  "crates/engine",
+  "crates/ports",
+  "crates/setup",
+  "crates/preset",
+  "crates/state",
+  "crates/stage-core",
+  "crates/stage-gain",
+  "crates/stage-dynamics",
+  "crates/stage-eq",
+  "crates/stage-modulation",
+  "crates/stage-delay",
+  "crates/stage-reverb",
+  "crates/stage-pitch",
+  "crates/stage-utility",
+  "crates/stage-routing",
+  "crates/stage-amp",
+  "crates/stage-nam",
+  "crates/stage-cab",
+  "crates/infra-yaml",
+  "crates/infra-filesystem",
+  "crates/infra-cpal",
+  "crates/adapter-console",
+  "crates/adapter-grpc",
+  "crates/adapter-gui",
+  "crates/adapter-vst3",
 ]
 resolver = "2"
 
@@ -34,3 +45,4 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 tonic = "0.12"
 prost = "0.13"
 uuid = { version = "1", features = ["v4", "serde"] }
+arc-swap = "1.7"

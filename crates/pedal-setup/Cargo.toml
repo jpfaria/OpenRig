@@ -1,8 +1,0 @@
-[package]
-name = "pedal-setup"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]
-serde.workspace = true
-pedal-domain = { path = "../pedal-domain" }

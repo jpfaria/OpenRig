@@ -1,0 +1,14 @@
+[package]
+name = "infra-yaml"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+serde_yaml.workspace = true
+domain = { path = "../domain" }
+preset = { path = "../preset" }
+setup = { path = "../setup" }
+state = { path = "../state" }
+ports = { path = "../ports" }

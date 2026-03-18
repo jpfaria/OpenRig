@@ -2,6 +2,8 @@
 
 OpenRig is a Rust guitar and acoustic pedalboard project built to grow from a simple working audio path into a professional multi-adapter architecture.
 
+It is intended to run on Windows, macOS, and Linux.
+
 ## Direction
 
 - Core-first design
@@ -21,11 +23,32 @@ The current implementation is focused on a minimal working path:
 - Build a simple per-track runtime queue
 - Run audio input and output streams from the console adapter
 
+## Stage Catalog
+Implemented today:
+- `stage-nam`: NAM model processing
+- `stage-delay`: digital delay
+- `stage-reverb`: plate reverb foundation
+- `stage-utility`: chromatic tuner
+- `stage-dynamics`: compressor and noise gate
+- `stage-eq`: three-band EQ
+- `stage-modulation`: tremolo
+Planned next expansions:
+- `stage-delay`: tape, analog, dual, ping-pong
+- `stage-reverb`: spring, hall, room as distinct algorithms
+- `stage-modulation`: chorus, phaser, flanger, rotary
+- `stage-gain`: boost, overdrive, distortion, fuzz
+- `stage-pitch`: octave, harmonizer, detune
+- `stage-cab`: IR and cabinet stage wiring in the live chain
+- `stage-amp`: preamp, amp, and power amp stages
+Sources and inspirations:
+- Native OpenRig implementations live in the `stage-*` crates
+- Several first-pass DSP ideas are ported or adapted from the local `rustortion` reference project
+- Supporting DSP dependencies are used where they make sense, instead of forcing a single external library for everything
 ## Requirements
 
 - Rust toolchain installed
 - CMake installed
-- A macOS environment with the CoreAudio frameworks available
+- A supported environment on Windows, macOS, or Linux
 - A valid audio device name configured in `setup.yaml`
 - NAM model files and captures available under `captures/`
 
@@ -43,7 +66,7 @@ cargo check
 5. Start the console adapter:
 
 ```bash
-cargo run -p pedal-adapter-console
+cargo run -p adapter-console
 ```
 
 ## Current Runtime Notes
@@ -57,8 +80,8 @@ cargo run -p pedal-adapter-console
 
 - `setup.yaml`: current runtime setup and device/model references
 - `state.yaml`: current logical state snapshot
-- `crates/pedal-adapter-console/src/main.rs`: console bootstrap
-- `crates/pedal-infra-cpal/src/lib.rs`: CPAL device and stream integration
-- `crates/pedal-infra-yaml/src/lib.rs`: YAML loader and compatibility mapping
-- `crates/pedal-engine/src/runtime.rs`: simple runtime queue and sample processing
-- `crates/pedal-nam/src/processor.rs`: native NAM processor binding
+- `crates/adapter-console/src/main.rs`: console bootstrap
+- `crates/infra-cpal/src/lib.rs`: CPAL device and stream integration
+- `crates/infra-yaml/src/lib.rs`: YAML loader and compatibility mapping
+- `crates/engine/src/runtime.rs`: simple runtime queue and sample processing
+- `crates/stage-nam/src/processor.rs`: native NAM processor binding

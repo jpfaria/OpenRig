@@ -1,0 +1,17 @@
+[package]
+name = "engine"
+version.workspace = true
+edition.workspace = true
+[dependencies]
+anyhow.workspace = true
+domain = { path = "../domain" }
+stage-core = { path = "../stage-core" }
+stage-delay = { path = "../stage-delay" }
+stage-modulation = { path = "../stage-modulation" }
+stage-eq = { path = "../stage-eq" }
+stage-dynamics = { path = "../stage-dynamics" }
+stage-nam = { path = "../stage-nam" }
+stage-reverb = { path = "../stage-reverb" }
+stage-utility = { path = "../stage-utility" }
+setup = { path = "../setup" }
+state = { path = "../state" }

@@ -1,4 +1,0 @@
-[package]
-name = "pedal-infra-filesystem"
-version.workspace = true
-edition.workspace = true

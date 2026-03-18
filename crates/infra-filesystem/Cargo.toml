@@ -1,0 +1,4 @@
+[package]
+name = "infra-filesystem"
+version.workspace = true
+edition.workspace = true

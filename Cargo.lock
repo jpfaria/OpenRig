@@ -3,6 +3,33 @@
 version = 4
 
 [[package]]
+name = "adapter-console"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "application",
+ "cpal",
+ "engine",
+ "infra-cpal",
+ "infra-yaml",
+ "ports",
+ "setup",
+ "state",
+]
+
+[[package]]
+name = "adapter-grpc"
+version = "0.1.0"
+
+[[package]]
+name = "adapter-gui"
+version = "0.1.0"
+
+[[package]]
+name = "adapter-vst3"
+version = "0.1.0"
+
+[[package]]
 name = "aho-corasick"
 version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -38,6 +65,26 @@ name = "anyhow"
 version = "1.0.102"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
+
+[[package]]
+name = "application"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ports",
+ "preset",
+ "setup",
+ "state",
+]
+
+[[package]]
+name = "arc-swap"
+version = "1.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9f3647c145568cec02c42054e07bdf9a5a698e15b466fb2341bfc393cd24aa5"
+dependencies = [
+ "rustversion",
+]
 
 [[package]]
 name = "autocfg"
@@ -206,10 +253,36 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c87e182de0887fd5361989c677c4e8f5000cd9491d6d563161a8f3a5519fc7f"
 
 [[package]]
+name = "domain"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "uuid",
+]
+
+[[package]]
 name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
+
+[[package]]
+name = "engine"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "domain",
+ "setup",
+ "stage-core",
+ "stage-delay",
+ "stage-dynamics",
+ "stage-eq",
+ "stage-modulation",
+ "stage-nam",
+ "stage-reverb",
+ "stage-utility",
+ "state",
+]
 
 [[package]]
 name = "equivalent"
@@ -321,6 +394,35 @@ dependencies = [
  "hashbrown 0.16.1",
  "serde",
  "serde_core",
+]
+
+[[package]]
+name = "infra-cpal"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cpal",
+ "domain",
+ "engine",
+ "setup",
+]
+
+[[package]]
+name = "infra-filesystem"
+version = "0.1.0"
+
+[[package]]
+name = "infra-yaml"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "domain",
+ "ports",
+ "preset",
+ "serde",
+ "serde_yaml",
+ "setup",
+ "state",
 ]
 
 [[package]]
@@ -540,143 +642,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
-name = "pedal-adapter-console"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "cpal",
- "pedal-application",
- "pedal-engine",
- "pedal-infra-cpal",
- "pedal-infra-yaml",
- "pedal-ports",
- "pedal-setup",
- "pedal-state",
-]
-
-[[package]]
-name = "pedal-adapter-grpc"
-version = "0.1.0"
-
-[[package]]
-name = "pedal-adapter-gui"
-version = "0.1.0"
-
-[[package]]
-name = "pedal-adapter-vst3"
-version = "0.1.0"
-
-[[package]]
-name = "pedal-application"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "pedal-ports",
- "pedal-preset",
- "pedal-setup",
- "pedal-state",
-]
-
-[[package]]
-name = "pedal-domain"
-version = "0.1.0"
-dependencies = [
- "serde",
- "uuid",
-]
-
-[[package]]
-name = "pedal-engine"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "pedal-domain",
- "pedal-nam",
- "pedal-setup",
- "pedal-state",
-]
-
-[[package]]
-name = "pedal-infra-cpal"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "cpal",
- "pedal-domain",
- "pedal-engine",
- "pedal-setup",
-]
-
-[[package]]
-name = "pedal-infra-filesystem"
-version = "0.1.0"
-
-[[package]]
-name = "pedal-infra-yaml"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "pedal-domain",
- "pedal-ports",
- "pedal-preset",
- "pedal-setup",
- "pedal-state",
- "serde",
- "serde_yaml",
-]
-
-[[package]]
-name = "pedal-ir"
-version = "0.1.0"
-dependencies = [
- "anyhow",
-]
-
-[[package]]
-name = "pedal-nam"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "cmake",
-]
-
-[[package]]
-name = "pedal-ports"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "pedal-preset",
- "pedal-setup",
- "pedal-state",
-]
-
-[[package]]
-name = "pedal-preset"
-version = "0.1.0"
-dependencies = [
- "pedal-domain",
- "serde",
-]
-
-[[package]]
-name = "pedal-setup"
-version = "0.1.0"
-dependencies = [
- "pedal-domain",
- "serde",
-]
-
-[[package]]
-name = "pedal-state"
-version = "0.1.0"
-dependencies = [
- "pedal-domain",
- "pedal-preset",
- "pedal-setup",
- "serde",
-]
-
-[[package]]
 name = "pin-project-lite"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -687,6 +652,24 @@ name = "pkg-config"
 version = "0.3.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7edddbd0b52d732b21ad9a5fab5c704c14cd949e5e9a1ec5929a24fded1b904c"
+
+[[package]]
+name = "ports"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "preset",
+ "setup",
+ "state",
+]
+
+[[package]]
+name = "preset"
+version = "0.1.0"
+dependencies = [
+ "domain",
+ "serde",
+]
 
 [[package]]
 name = "prettyplease"
@@ -856,6 +839,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "setup"
+version = "0.1.0"
+dependencies = [
+ "domain",
+ "serde",
+]
+
+[[package]]
 name = "shlex"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -866,6 +857,93 @@ name = "slab"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
+
+[[package]]
+name = "stage-amp"
+version = "0.1.0"
+
+[[package]]
+name = "stage-cab"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+]
+
+[[package]]
+name = "stage-core"
+version = "0.1.0"
+
+[[package]]
+name = "stage-delay"
+version = "0.1.0"
+dependencies = [
+ "stage-core",
+]
+
+[[package]]
+name = "stage-dynamics"
+version = "0.1.0"
+dependencies = [
+ "stage-core",
+]
+
+[[package]]
+name = "stage-eq"
+version = "0.1.0"
+dependencies = [
+ "stage-core",
+]
+
+[[package]]
+name = "stage-gain"
+version = "0.1.0"
+
+[[package]]
+name = "stage-modulation"
+version = "0.1.0"
+dependencies = [
+ "stage-core",
+]
+
+[[package]]
+name = "stage-nam"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cmake",
+]
+
+[[package]]
+name = "stage-pitch"
+version = "0.1.0"
+
+[[package]]
+name = "stage-reverb"
+version = "0.1.0"
+dependencies = [
+ "stage-core",
+]
+
+[[package]]
+name = "stage-routing"
+version = "0.1.0"
+
+[[package]]
+name = "stage-utility"
+version = "0.1.0"
+dependencies = [
+ "arc-swap",
+]
+
+[[package]]
+name = "state"
+version = "0.1.0"
+dependencies = [
+ "domain",
+ "preset",
+ "serde",
+ "setup",
+]
 
 [[package]]
 name = "syn"

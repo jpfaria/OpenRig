@@ -1,0 +1,4 @@
+[package]
+name = "adapter-gui"
+version.workspace = true
+edition.workspace = true

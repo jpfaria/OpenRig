@@ -1,0 +1,10 @@
+[package]
+name = "state"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+serde.workspace = true
+domain = { path = "../domain" }
+preset = { path = "../preset" }
+setup = { path = "../setup" }

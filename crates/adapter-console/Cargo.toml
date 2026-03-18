@@ -1,0 +1,14 @@
+[package]
+name = "adapter-console"
+version.workspace = true
+edition.workspace = true
+[dependencies]
+anyhow.workspace = true
+cpal.workspace = true
+application = { path = "../application" }
+engine = { path = "../engine" }
+infra-cpal = { path = "../infra-cpal" }
+infra-yaml = { path = "../infra-yaml" }
+ports = { path = "../ports" }
+state = { path = "../state" }
+setup = { path = "../setup" }

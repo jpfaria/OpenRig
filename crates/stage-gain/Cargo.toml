@@ -1,0 +1,5 @@
+[package]
+name = "stage-gain"
+version.workspace = true
+edition.workspace = true
+[dependencies]

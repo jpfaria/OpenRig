@@ -1,0 +1,6 @@
+[package]
+name = "stage-delay"
+version.workspace = true
+edition.workspace = true
+[dependencies]
+stage-core = { path = "../stage-core" }

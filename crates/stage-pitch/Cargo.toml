@@ -1,0 +1,5 @@
+[package]
+name = "stage-pitch"
+version.workspace = true
+edition.workspace = true
+[dependencies]

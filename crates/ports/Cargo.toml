@@ -1,0 +1,10 @@
+[package]
+name = "ports"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+preset = { path = "../preset" }
+setup = { path = "../setup" }
+state = { path = "../state" }
