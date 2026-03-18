@@ -98,6 +98,7 @@ impl AudioSetupWizard {
 
                     device_combo(
                         ui,
+                        "input_device_combo",
                         "Input Device",
                         &self.available_inputs,
                         &mut self.selected_input_name,
@@ -105,6 +106,7 @@ impl AudioSetupWizard {
                     ui.add_space(10.0);
                     device_combo(
                         ui,
+                        "output_device_combo",
                         "Output Device",
                         &self.available_outputs,
                         &mut self.selected_output_name,
@@ -144,6 +146,7 @@ impl AudioSetupWizard {
 
 fn device_combo(
     ui: &mut egui::Ui,
+    id_salt: &str,
     label: &str,
     devices: &[AudioDeviceDescriptor],
     selected_name: &mut Option<String>,
@@ -152,7 +155,7 @@ fn device_combo(
     let selected_text = selected_name
         .as_deref()
         .unwrap_or("Selecione um device");
-    egui::ComboBox::from_label("")
+    egui::ComboBox::from_id_salt(id_salt)
         .selected_text(selected_text)
         .width(480.0)
         .show_ui(ui, |ui| {
