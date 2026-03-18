@@ -1,5 +1,5 @@
 [package]
-name = "stage-amp-nam"
+name = "nam"
 version.workspace = true
 edition.workspace = true
 [dependencies]

@@ -5,7 +5,7 @@ use setup::io::{Input, Output};
 use setup::param::ParameterSet;
 use setup::setup::Setup;
 use setup::track::{Track, TrackOutputMixdown};
-use stage_amp_nam::{build_nam_processor_for_layout, processor::DEFAULT_NAM_MODEL};
+use stage_amp::build_amp_processor_for_layout;
 use stage_core::{
     AudioChannelLayout, ModelAudioMode, MonoProcessor, StageProcessor, StereoProcessor,
 };
@@ -14,6 +14,7 @@ use stage_dyn_compressor::build_compressor_processor_for_layout;
 use stage_dyn_gate::build_gate_processor_for_layout;
 use stage_filter_eq::build_eq_processor_for_layout;
 use stage_mod_tremolo::build_tremolo_processor_for_layout;
+use stage_nam::{build_nam_processor_for_layout, DEFAULT_NAM_MODEL};
 use stage_reverb_plate::build_reverb_processor_for_layout;
 use stage_util_tuner::{build_tuner_processor, chromatic::ChromaticTuner};
 use std::collections::{HashMap, VecDeque};
@@ -235,6 +236,32 @@ fn build_runtime_processors(
                 processors.push(RuntimeProcessor::Audio(outcome.processor));
             }
             AudioBlockKind::Core(core) => match &core.kind {
+                CoreBlockKind::Amp(stage) => {
+                    let model_path = required_string(&stage.params, "model_path")?;
+                    println!(
+                        "[track:{}] loading amp model={} file='{}'",
+                        track.id.0, stage.model, model_path
+                    );
+                    if let Some(ir_path) = optional_string(&stage.params, "ir_path").as_deref() {
+                        println!("[track:{}] loading amp IR '{}'", track.id.0, ir_path);
+                    }
+                    let outcome = build_audio_processor_for_model(
+                        track,
+                        "amp",
+                        &stage.model,
+                        current_layout,
+                        |layout| {
+                            build_amp_processor_for_layout(
+                                &stage.model,
+                                &stage.params,
+                                DEFAULT_SAMPLE_RATE,
+                                layout,
+                            )
+                        },
+                    )?;
+                    current_layout = outcome.output_layout;
+                    processors.push(RuntimeProcessor::Audio(outcome.processor));
+                }
                 CoreBlockKind::Delay(stage) => {
                     let time_ms = required_f32(&stage.params, "time_ms").unwrap_or_default();
                     let feedback = required_f32(&stage.params, "feedback").unwrap_or_default();

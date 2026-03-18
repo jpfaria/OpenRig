@@ -14,4 +14,5 @@ stage-dyn-gate = { path = "../stage-dyn-gate" }
 stage-filter-eq = { path = "../stage-filter-eq" }
 stage-mod-tremolo = { path = "../stage-mod-tremolo" }
 stage-util-tuner = { path = "../stage-util-tuner" }
-stage-amp-nam = { path = "../stage-amp-nam" }
+stage-nam = { path = "../stage-nam" }
+stage-amp = { path = "../stage-amp" }

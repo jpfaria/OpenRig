@@ -274,13 +274,14 @@ dependencies = [
  "anyhow",
  "domain",
  "setup",
- "stage-amp-nam",
+ "stage-amp",
  "stage-core",
  "stage-delay-digital",
  "stage-dyn-compressor",
  "stage-dyn-gate",
  "stage-filter-eq",
  "stage-mod-tremolo",
+ "stage-nam",
  "stage-reverb-plate",
  "stage-util-tuner",
  "state",
@@ -424,12 +425,13 @@ dependencies = [
  "serde",
  "serde_yaml",
  "setup",
- "stage-amp-nam",
+ "stage-amp",
  "stage-delay-digital",
  "stage-dyn-compressor",
  "stage-dyn-gate",
  "stage-filter-eq",
  "stage-mod-tremolo",
+ "stage-nam",
  "stage-reverb-plate",
  "stage-util-tuner",
  "state",
@@ -540,6 +542,16 @@ name = "minimal-lexical"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
+
+[[package]]
+name = "nam"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cmake",
+ "domain",
+ "stage-core",
+]
 
 [[package]]
 name = "ndk"
@@ -854,13 +866,14 @@ version = "0.1.0"
 dependencies = [
  "domain",
  "serde",
- "stage-amp-nam",
+ "stage-amp",
  "stage-core",
  "stage-delay-digital",
  "stage-dyn-compressor",
  "stage-dyn-gate",
  "stage-filter-eq",
  "stage-mod-tremolo",
+ "stage-nam",
  "stage-reverb-plate",
  "stage-util-tuner",
 ]
@@ -880,14 +893,9 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 [[package]]
 name = "stage-amp"
 version = "0.1.0"
-
-[[package]]
-name = "stage-amp-nam"
-version = "0.1.0"
 dependencies = [
  "anyhow",
- "cmake",
- "domain",
+ "nam",
  "stage-core",
 ]
 
@@ -947,6 +955,15 @@ name = "stage-mod-tremolo"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "stage-core",
+]
+
+[[package]]
+name = "stage-nam"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "nam",
  "stage-core",
 ]
 

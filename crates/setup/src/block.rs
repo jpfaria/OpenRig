@@ -3,13 +3,14 @@
 use domain::ids::BlockId;
 use domain::value_objects::ParameterValue;
 use serde::{Deserialize, Serialize};
-use stage_amp_nam::nam_model_schema;
+use stage_amp::amp_model_schema;
 use stage_core::ModelAudioMode;
 use stage_delay_digital::delay_model_schema;
 use stage_dyn_compressor::compressor_model_schema;
 use stage_dyn_gate::gate_model_schema;
 use stage_filter_eq::eq_model_schema;
 use stage_mod_tremolo::tremolo_model_schema;
+use stage_nam::nam_model_schema;
 use stage_reverb_plate::reverb_model_schema;
 use stage_util_tuner::tuner_model_schema;
 
@@ -185,6 +186,10 @@ impl AudioBlock {
 impl CoreBlock {
     fn validate_params(&self) -> Result<(), String> {
         match &self.kind {
+            CoreBlockKind::Amp(stage) => {
+                normalize_block_params("amp", &stage.model, stage.params.clone())?;
+                Ok(())
+            }
             CoreBlockKind::Delay(stage) => {
                 normalize_block_params("delay", &stage.model, stage.params.clone())?;
                 Ok(())
@@ -222,6 +227,9 @@ impl CoreBlock {
         block_id: &BlockId,
     ) -> Result<Vec<BlockParameterDescriptor>, String> {
         match &self.kind {
+            CoreBlockKind::Amp(stage) => {
+                describe_block_params(block_id, "amp", &stage.model, &stage.params)
+            }
             CoreBlockKind::Delay(stage) => {
                 describe_block_params(block_id, "delay", &stage.model, &stage.params)
             }
@@ -249,6 +257,9 @@ impl CoreBlock {
 
     fn audio_descriptors(&self, block_id: &BlockId) -> Result<Vec<BlockAudioDescriptor>, String> {
         match &self.kind {
+            CoreBlockKind::Amp(stage) => {
+                Ok(vec![describe_block_audio(block_id, "amp", &stage.model)?])
+            }
             CoreBlockKind::Delay(stage) => {
                 Ok(vec![describe_block_audio(block_id, "delay", &stage.model)?])
             }
@@ -295,6 +306,7 @@ pub fn schema_for_block_model(
     model: &str,
 ) -> Result<ModelParameterSchema, String> {
     match effect_type {
+        "amp" => amp_model_schema(model).map_err(|error| error.to_string()),
         "nam" => nam_model_schema(model).map_err(|error| error.to_string()),
         "delay" => delay_model_schema(model).map_err(|error| error.to_string()),
         "reverb" => reverb_model_schema(model).map_err(|error| error.to_string()),

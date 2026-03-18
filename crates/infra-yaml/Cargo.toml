@@ -12,7 +12,8 @@ preset = { path = "../preset" }
 setup = { path = "../setup" }
 state = { path = "../state" }
 ports = { path = "../ports" }
-stage-amp-nam = { path = "../stage-amp-nam" }
+stage-nam = { path = "../stage-nam" }
+stage-amp = { path = "../stage-amp" }
 stage-delay-digital = { path = "../stage-delay-digital" }
 stage-dyn-compressor = { path = "../stage-dyn-compressor" }
 stage-dyn-gate = { path = "../stage-dyn-gate" }

@@ -268,6 +268,7 @@ fn model_ref_for_block(block: &AudioBlock) -> Option<(&str, &str)> {
     match &block.kind {
         AudioBlockKind::Nam(stage) => Some(("nam", stage.model.as_str())),
         AudioBlockKind::Core(core) => match &core.kind {
+            CoreBlockKind::Amp(stage) => Some(("amp", stage.model.as_str())),
             CoreBlockKind::Delay(stage) => Some(("delay", stage.model.as_str())),
             CoreBlockKind::Reverb(stage) => Some(("reverb", stage.model.as_str())),
             CoreBlockKind::Tuner(stage) => Some(("tuner", stage.model.as_str())),

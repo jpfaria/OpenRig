@@ -7,7 +7,7 @@ These instructions apply to the entire repository unless a deeper `AGENTS.md` ov
 - `crates/adapter-console`, `crates/adapter-server`, `crates/adapter-gui`, `crates/adapter-vst3`
 - `crates/stage-*` for DSP stage implementations and shared stage utilities
 - Runtime setup is currently loaded from `setup.yaml`, and logical state is loaded from `state.yaml`.
-- Native NAM integration is built in `crates/stage-amp-nam/build.rs` and linked through the `cpp/` CMake project.
+- Native NAM integration is built in `crates/nam/build.rs` and linked through the `cpp/` CMake project.
 - Treat this project as core-first.
 - Keep `domain`, `application`, and `engine` conceptually independent from YAML, filesystem, device backends, and UI/adapter concerns.
 - Preserve clear boundaries between domain models, orchestration/use cases, runtime audio processing, infrastructure adapters, and presentation adapters.
@@ -32,7 +32,7 @@ These instructions apply to the entire repository unless a deeper `AGENTS.md` ov
 - Keep `setup.yaml` and `state.yaml` compatibility in sync with the corresponding models.
 - Device names and model paths are machine-specific; avoid baking in new local paths unless the task explicitly requires it.
 - Start validation with `cargo check` for Rust changes.
-- Changes touching NAM integration should review `crates/stage-amp-nam` Rust FFI code, `crates/stage-amp-nam/build.rs`, and `cpp/` inputs together.
+- Changes touching NAM integration should review `crates/nam` Rust FFI code, `crates/nam/build.rs`, and `cpp/` inputs together.
 - On macOS, native/audio verification may depend on CoreAudio-related frameworks, local toolchain state, and attached audio hardware.
 - For native or audio changes, state clearly when verification is limited by OS, toolchain, hardware, or device availability.
 - Make minimal, targeted changes.

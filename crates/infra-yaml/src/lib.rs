@@ -6,21 +6,22 @@ use preset::Preset;
 use serde::Deserialize;
 use serde_yaml::Value;
 use setup::block::{
-    normalize_block_params, AudioBlock, AudioBlockKind, CompressorBlock, CoreBlock, CoreBlockKind,
-    CoreNamBlock, DelayBlock, EqBlock, GateBlock, NamBlock, ReverbBlock, SelectBlock, TremoloBlock,
-    TunerBlock,
+    normalize_block_params, AmpBlock, AudioBlock, AudioBlockKind, CompressorBlock, CoreBlock,
+    CoreBlockKind, CoreNamBlock, DelayBlock, EqBlock, GateBlock, NamBlock, ReverbBlock,
+    SelectBlock, TremoloBlock, TunerBlock,
 };
 use setup::device::{InputDevice, OutputDevice};
 use setup::io::{Input, Output};
 use setup::param::ParameterSet;
 use setup::setup::Setup;
 use setup::track::{Track, TrackOutputMixdown};
-use stage_amp_nam::processor::DEFAULT_NAM_MODEL;
+use stage_amp::DEFAULT_AMP_MODEL;
 use stage_delay_digital::DEFAULT_DELAY_MODEL;
 use stage_dyn_compressor::DEFAULT_COMPRESSOR_MODEL;
 use stage_dyn_gate::DEFAULT_GATE_MODEL;
 use stage_filter_eq::DEFAULT_EQ_MODEL;
 use stage_mod_tremolo::DEFAULT_TREMOLO_MODEL;
+use stage_nam::DEFAULT_NAM_MODEL;
 use stage_reverb_plate::DEFAULT_REVERB_MODEL;
 use stage_util_tuner::DEFAULT_TUNER_MODEL;
 use state::pedalboard_state::PedalboardState;
@@ -226,6 +227,12 @@ impl TrackYaml {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum AudioBlockYaml {
+    Amp {
+        #[serde(default = "default_amp_model")]
+        model: String,
+        #[serde(default)]
+        params: Value,
+    },
     Nam {
         #[serde(default = "default_nam_model")]
         model: String,
@@ -302,6 +309,15 @@ impl AudioBlockYaml {
         let generated_id = generated_block_id(track_id, index);
 
         match self {
+            AudioBlockYaml::Amp { model, params } => Ok(AudioBlock {
+                id: generated_id,
+                kind: AudioBlockKind::Core(CoreBlock {
+                    kind: CoreBlockKind::Amp(AmpBlock {
+                        model: model.clone(),
+                        params: load_model_params("amp", &model, params)?,
+                    }),
+                }),
+            }),
             AudioBlockYaml::Nam { model, params } => Ok(AudioBlock {
                 id: generated_id,
                 kind: AudioBlockKind::Nam(NamBlock {
@@ -487,6 +503,10 @@ fn default_delay_model() -> String {
 
 fn default_nam_model() -> String {
     DEFAULT_NAM_MODEL.to_string()
+}
+
+fn default_amp_model() -> String {
+    DEFAULT_AMP_MODEL.to_string()
 }
 
 fn default_reverb_model() -> String {
