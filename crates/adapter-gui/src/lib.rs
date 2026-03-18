@@ -43,8 +43,8 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
 struct AudioSetupWizard {
     available_inputs: Vec<AudioDeviceDescriptor>,
     available_outputs: Vec<AudioDeviceDescriptor>,
-    selected_input_name: Option<String>,
-    selected_output_name: Option<String>,
+    selected_input_names: Vec<String>,
+    selected_output_names: Vec<String>,
     persisted: bool,
     save_error: Option<String>,
 }
@@ -55,25 +55,29 @@ impl AudioSetupWizard {
         let available_outputs = list_output_device_descriptors()?;
         let persisted = settings.is_complete();
 
-        let selected_input_name = settings
-            .input_device_name
-            .filter(|name| available_inputs.iter().any(|device| device.name == *name));
-        let selected_output_name = settings
-            .output_device_name
-            .filter(|name| available_outputs.iter().any(|device| device.name == *name));
+        let selected_input_names = settings
+            .input_device_names
+            .into_iter()
+            .filter(|name| available_inputs.iter().any(|device| device.name == *name))
+            .collect();
+        let selected_output_names = settings
+            .output_device_names
+            .into_iter()
+            .filter(|name| available_outputs.iter().any(|device| device.name == *name))
+            .collect();
 
         Ok(Self {
             available_inputs,
             available_outputs,
-            selected_input_name,
-            selected_output_name,
+            selected_input_names,
+            selected_output_names,
             persisted,
             save_error: None,
         })
     }
 
     fn has_valid_selection(&self) -> bool {
-        self.selected_input_name.is_some() && self.selected_output_name.is_some()
+        !self.selected_input_names.is_empty() && !self.selected_output_names.is_empty()
     }
 
     fn is_ready(&self) -> bool {
@@ -96,20 +100,18 @@ impl AudioSetupWizard {
                     ui.heading("Áudio");
                     ui.add_space(12.0);
 
-                    device_combo(
+                    device_checklist(
                         ui,
-                        "input_device_combo",
-                        "Input Device",
+                        "Input Devices",
                         &self.available_inputs,
-                        &mut self.selected_input_name,
+                        &mut self.selected_input_names,
                     );
                     ui.add_space(10.0);
-                    device_combo(
+                    device_checklist(
                         ui,
-                        "output_device_combo",
-                        "Output Device",
+                        "Output Devices",
                         &self.available_outputs,
-                        &mut self.selected_output_name,
+                        &mut self.selected_output_names,
                     );
 
                     ui.add_space(16.0);
@@ -119,8 +121,8 @@ impl AudioSetupWizard {
                         .clicked()
                     {
                         let result = FilesystemStorage::save_gui_audio_settings(&GuiAudioSettings {
-                            input_device_name: self.selected_input_name.clone(),
-                            output_device_name: self.selected_output_name.clone(),
+                            input_device_names: self.selected_input_names.clone(),
+                            output_device_names: self.selected_output_names.clone(),
                         });
                         match result {
                             Ok(()) => {
@@ -144,23 +146,29 @@ impl AudioSetupWizard {
     }
 }
 
-fn device_combo(
+fn device_checklist(
     ui: &mut egui::Ui,
-    id_salt: &str,
     label: &str,
     devices: &[AudioDeviceDescriptor],
-    selected_name: &mut Option<String>,
+    selected_names: &mut Vec<String>,
 ) {
     ui.label(label);
-    let selected_text = selected_name
-        .as_deref()
-        .unwrap_or("Selecione um device");
-    egui::ComboBox::from_id_salt(id_salt)
-        .selected_text(selected_text)
-        .width(480.0)
-        .show_ui(ui, |ui| {
+    egui::ScrollArea::vertical()
+        .id_salt(label)
+        .max_height(140.0)
+        .show(ui, |ui| {
             for device in devices {
-                ui.selectable_value(selected_name, Some(device.name.clone()), &device.name);
+                let mut checked = selected_names.iter().any(|name| name == &device.name);
+                if ui.checkbox(&mut checked, &device.name).changed() {
+                    if checked {
+                        if !selected_names.iter().any(|name| name == &device.name) {
+                            selected_names.push(device.name.clone());
+                            selected_names.sort();
+                        }
+                    } else {
+                        selected_names.retain(|name| name != &device.name);
+                    }
+                }
             }
         });
 }

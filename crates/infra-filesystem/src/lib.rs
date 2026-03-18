@@ -7,13 +7,13 @@ pub struct FilesystemStorage;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct GuiAudioSettings {
-    pub input_device_name: Option<String>,
-    pub output_device_name: Option<String>,
+    pub input_device_names: Vec<String>,
+    pub output_device_names: Vec<String>,
 }
 
 impl GuiAudioSettings {
     pub fn is_complete(&self) -> bool {
-        self.input_device_name.is_some() && self.output_device_name.is_some()
+        !self.input_device_names.is_empty() && !self.output_device_names.is_empty()
     }
 }
 
