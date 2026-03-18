@@ -1,0 +1,25 @@
+import { HorizontalBox } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+
+export component Header {
+    height: 50px;
+
+    HorizontalBox {
+        padding-left: 20px;
+        padding-right: 20px;
+        spacing: Theme.spaces.medium;
+
+        Text {
+            text: "OpenRig";
+            color: Theme.palette.text-primary;
+            font-size: Theme.typo.brand.size;
+            font-weight: Theme.typo.brand.weight;
+            vertical-alignment: center;
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+            background: transparent;
+        }
+    }
+}

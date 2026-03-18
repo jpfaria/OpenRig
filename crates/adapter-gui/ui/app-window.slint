@@ -1,6 +1,7 @@
+import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { DeviceSelectionItem } from "models.slint";
-import { AudioWizard } from "blocks/blocks.slint";
+import { Header, AudioWizard } from "blocks/blocks.slint";
 
 export component AppWindow inherits Window {
     in property <string> runtime-mode-label;
@@ -27,9 +28,6 @@ export component AppWindow inherits Window {
     callback go-to-output-step();
     callback go-to-input-step();
     callback save-audio-settings();
-    private property <length> wizard-group-spacing: 28px;
-    private property <length> wizard-group-height: Theme.typo.brand.size + wizard-group-spacing + wizard-height;
-
     title: "OpenRig";
     min-width: 960px;
     min-height: 720px;
@@ -40,59 +38,60 @@ export component AppWindow inherits Window {
     Rectangle {
         background: Theme.palette.background-gradient;
 
-        if show-audio-setup : Rectangle {
-            background: transparent;
-            width: root.wizard-width;
-            height: root.wizard-group-height;
-            x: parent.width / 2 - self.width / 2;
-            y: parent.height / 2 - self.height / 2;
+        if show-audio-setup : VerticalBox {
+            padding-top: 18px;
+            padding-bottom: 32px;
+            spacing: 42px;
 
-            Text {
-                x: parent.width / 2 - self.width / 2;
-                y: 0;
-                text: "OpenRig";
-                color: Theme.palette.text-primary;
-                font-size: Theme.typo.brand.size;
-                font-weight: Theme.typo.brand.weight;
-            }
+            Header {}
 
-            AudioWizard {
-                x: 0;
-                y: Theme.typo.brand.size + root.wizard-group-spacing;
-                width: root.wizard-width;
-                height: root.wizard-height;
-                wizard-step: root.wizard-step;
-                input-devices: root.input-devices;
-                output-devices: root.output-devices;
-                status-message: root.status-message;
-                sample-rate-options: root.sample-rate-options;
-                buffer-size-options: root.buffer-size-options;
-                toggle-input-device(index, selected) => {
-                    root.toggle-input-device(index, selected);
+            HorizontalBox {
+                Rectangle {
+                    horizontal-stretch: 1;
+                    background: transparent;
                 }
-                toggle-output-device(index, selected) => {
-                    root.toggle-output-device(index, selected);
+
+                AudioWizard {
+                    width: root.wizard-width;
+                    height: root.wizard-height;
+                    wizard-step: root.wizard-step;
+                    input-devices: root.input-devices;
+                    output-devices: root.output-devices;
+                    status-message: root.status-message;
+                    sample-rate-options: root.sample-rate-options;
+                    buffer-size-options: root.buffer-size-options;
+                    toggle-input-device(index, selected) => {
+                        root.toggle-input-device(index, selected);
+                    }
+                    toggle-output-device(index, selected) => {
+                        root.toggle-output-device(index, selected);
+                    }
+                    update-input-sample-rate(index, value) => {
+                        root.update-input-sample-rate(index, value);
+                    }
+                    update-input-buffer-size(index, value) => {
+                        root.update-input-buffer-size(index, value);
+                    }
+                    update-output-sample-rate(index, value) => {
+                        root.update-output-sample-rate(index, value);
+                    }
+                    update-output-buffer-size(index, value) => {
+                        root.update-output-buffer-size(index, value);
+                    }
+                    go-to-output-step => {
+                        root.go-to-output-step();
+                    }
+                    go-to-input-step => {
+                        root.go-to-input-step();
+                    }
+                    save-audio-settings => {
+                        root.save-audio-settings();
+                    }
                 }
-                update-input-sample-rate(index, value) => {
-                    root.update-input-sample-rate(index, value);
-                }
-                update-input-buffer-size(index, value) => {
-                    root.update-input-buffer-size(index, value);
-                }
-                update-output-sample-rate(index, value) => {
-                    root.update-output-sample-rate(index, value);
-                }
-                update-output-buffer-size(index, value) => {
-                    root.update-output-buffer-size(index, value);
-                }
-                go-to-output-step => {
-                    root.go-to-output-step();
-                }
-                go-to-input-step => {
-                    root.go-to-input-step();
-                }
-                save-audio-settings => {
-                    root.save-audio-settings();
+
+                Rectangle {
+                    horizontal-stretch: 1;
+                    background: transparent;
                 }
             }
         }
