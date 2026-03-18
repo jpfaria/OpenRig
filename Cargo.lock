@@ -280,6 +280,7 @@ dependencies = [
  "stage-dyn-compressor",
  "stage-dyn-gate",
  "stage-filter-eq",
+ "stage-full-rig",
  "stage-mod-tremolo",
  "stage-nam",
  "stage-reverb-plate",
@@ -430,6 +431,7 @@ dependencies = [
  "stage-dyn-compressor",
  "stage-dyn-gate",
  "stage-filter-eq",
+ "stage-full-rig",
  "stage-mod-tremolo",
  "stage-nam",
  "stage-reverb-plate",
@@ -872,6 +874,7 @@ dependencies = [
  "stage-dyn-compressor",
  "stage-dyn-gate",
  "stage-filter-eq",
+ "stage-full-rig",
  "stage-mod-tremolo",
  "stage-nam",
  "stage-reverb-plate",
@@ -943,6 +946,15 @@ name = "stage-filter-eq"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "stage-core",
+]
+
+[[package]]
+name = "stage-full-rig"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "nam",
  "stage-core",
 ]
 

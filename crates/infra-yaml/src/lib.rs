@@ -7,7 +7,7 @@ use serde::Deserialize;
 use serde_yaml::Value;
 use setup::block::{
     normalize_block_params, AmpBlock, AudioBlock, AudioBlockKind, CompressorBlock, CoreBlock,
-    CoreBlockKind, CoreNamBlock, DelayBlock, EqBlock, GateBlock, NamBlock, ReverbBlock,
+    CoreBlockKind, CoreNamBlock, DelayBlock, EqBlock, FullRigBlock, GateBlock, NamBlock, ReverbBlock,
     SelectBlock, TremoloBlock, TunerBlock,
 };
 use setup::device::{InputDevice, OutputDevice};
@@ -20,6 +20,7 @@ use stage_delay_digital::DEFAULT_DELAY_MODEL;
 use stage_dyn_compressor::DEFAULT_COMPRESSOR_MODEL;
 use stage_dyn_gate::DEFAULT_GATE_MODEL;
 use stage_filter_eq::DEFAULT_EQ_MODEL;
+use stage_full_rig::DEFAULT_FULL_RIG_MODEL;
 use stage_mod_tremolo::DEFAULT_TREMOLO_MODEL;
 use stage_nam::DEFAULT_NAM_MODEL;
 use stage_reverb_plate::DEFAULT_REVERB_MODEL;
@@ -233,6 +234,13 @@ enum AudioBlockYaml {
         #[serde(default)]
         params: Value,
     },
+    #[serde(rename = "full-rig", alias = "full_rig")]
+    FullRig {
+        #[serde(default = "default_full_rig_model")]
+        model: String,
+        #[serde(default)]
+        params: Value,
+    },
     Nam {
         #[serde(default = "default_nam_model")]
         model: String,
@@ -315,6 +323,15 @@ impl AudioBlockYaml {
                     kind: CoreBlockKind::Amp(AmpBlock {
                         model: model.clone(),
                         params: load_model_params("amp", &model, params)?,
+                    }),
+                }),
+            }),
+            AudioBlockYaml::FullRig { model, params } => Ok(AudioBlock {
+                id: generated_id,
+                kind: AudioBlockKind::Core(CoreBlock {
+                    kind: CoreBlockKind::FullRig(FullRigBlock {
+                        model: model.clone(),
+                        params: load_model_params("full_rig", &model, params)?,
                     }),
                 }),
             }),
@@ -507,6 +524,10 @@ fn default_nam_model() -> String {
 
 fn default_amp_model() -> String {
     DEFAULT_AMP_MODEL.to_string()
+}
+
+fn default_full_rig_model() -> String {
+    DEFAULT_FULL_RIG_MODEL.to_string()
 }
 
 fn default_reverb_model() -> String {

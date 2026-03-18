@@ -16,3 +16,4 @@ stage-mod-tremolo = { path = "../stage-mod-tremolo" }
 stage-util-tuner = { path = "../stage-util-tuner" }
 stage-nam = { path = "../stage-nam" }
 stage-amp = { path = "../stage-amp" }
+stage-full-rig = { path = "../stage-full-rig" }

@@ -13,6 +13,7 @@ stage-dyn-compressor = { path = "../stage-dyn-compressor" }
 stage-dyn-gate = { path = "../stage-dyn-gate" }
 stage-nam = { path = "../stage-nam" }
 stage-amp = { path = "../stage-amp" }
+stage-full-rig = { path = "../stage-full-rig" }
 stage-reverb-plate = { path = "../stage-reverb-plate" }
 stage-util-tuner = { path = "../stage-util-tuner" }
 setup = { path = "../setup" }
