@@ -1,0 +1,253 @@
+import { CheckBox, LineEdit, Button, ScrollView, VerticalBox, HorizontalBox } from "std-widgets.slint";
+
+export struct DeviceSelectionItem {
+    name: string,
+    selected: bool,
+}
+
+export component AppWindow inherits Window {
+    in property <string> runtime-mode-label;
+    in property <string> interaction-mode-label;
+    in property <bool> show-audio-setup;
+    in-out property <[DeviceSelectionItem]> input-devices;
+    in-out property <[DeviceSelectionItem]> output-devices;
+    in-out property <string> sample-rate-text;
+    in-out property <string> buffer-size-text;
+    in-out property <string> status-message;
+
+    callback toggle-input-device(int, bool);
+    callback toggle-output-device(int, bool);
+    callback save-audio-settings();
+
+    title: "OpenRig";
+    width: 1280px;
+    height: 900px;
+    background: #111315;
+
+    Rectangle {
+        background: #111315;
+        border-radius: 18px;
+
+        VerticalBox {
+            padding: 24px;
+            spacing: 20px;
+
+            Rectangle {
+                background: #1a1d22;
+                border-radius: 18px;
+                min-height: 88px;
+
+                HorizontalBox {
+                    padding: 18px;
+                    spacing: 16px;
+
+                    VerticalBox {
+                        spacing: 4px;
+                        Text {
+                            text: "OpenRig";
+                            color: #f3f5f7;
+                            font-size: 28px;
+                            font-weight: 700;
+                        }
+                        Text {
+                            text: runtime-mode-label + " • " + interaction-mode-label;
+                            color: #95a0ad;
+                            font-size: 15px;
+                        }
+                    }
+
+                    Rectangle { horizontal-stretch: 1; background: transparent; }
+
+                    Rectangle {
+                        background: #d68a36;
+                        border-radius: 999px;
+                        min-width: 128px;
+                        min-height: 34px;
+                        Text {
+                            text: runtime-mode-label;
+                            color: #101214;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                            font-size: 15px;
+                            font-weight: 700;
+                        }
+                    }
+                }
+            }
+
+            if show-audio-setup : Rectangle {
+                background: #16181c;
+                border-radius: 20px;
+                border-width: 1px;
+                border-color: #30343a;
+
+                VerticalBox {
+                    padding: 24px;
+                    spacing: 18px;
+
+                    Text {
+                        text: "Configuração inicial";
+                        color: #f3f5f7;
+                        font-size: 34px;
+                        font-weight: 700;
+                    }
+
+                    Text {
+                        text: "Escolha os devices de entrada e saída e defina sample rate e buffer size.";
+                        color: #9ea7b3;
+                        font-size: 18px;
+                    }
+
+                    HorizontalBox {
+                        spacing: 18px;
+
+                        Rectangle {
+                            background: #1d2025;
+                            border-radius: 16px;
+                            border-width: 1px;
+                            border-color: #363b42;
+                            min-height: 340px;
+                            horizontal-stretch: 1;
+
+                            VerticalBox {
+                                padding: 18px;
+                                spacing: 12px;
+
+                                Text {
+                                    text: "Input Devices";
+                                    color: #f3f5f7;
+                                    font-size: 22px;
+                                    font-weight: 600;
+                                }
+
+                                ScrollView {
+                                    viewport-width: parent.width;
+                                    viewport-height: 250px;
+
+                                    VerticalBox {
+                                        spacing: 8px;
+                                        for device[i] in input-devices : CheckBox {
+                                            text: device.name;
+                                            checked: device.selected;
+                                            toggled => {
+                                                root.toggle-input-device(i, self.checked);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            background: #1d2025;
+                            border-radius: 16px;
+                            border-width: 1px;
+                            border-color: #363b42;
+                            min-height: 340px;
+                            horizontal-stretch: 1;
+
+                            VerticalBox {
+                                padding: 18px;
+                                spacing: 12px;
+
+                                Text {
+                                    text: "Output Devices";
+                                    color: #f3f5f7;
+                                    font-size: 22px;
+                                    font-weight: 600;
+                                }
+
+                                ScrollView {
+                                    viewport-width: parent.width;
+                                    viewport-height: 250px;
+
+                                    VerticalBox {
+                                        spacing: 8px;
+                                        for device[i] in output-devices : CheckBox {
+                                            text: device.name;
+                                            checked: device.selected;
+                                            toggled => {
+                                                root.toggle-output-device(i, self.checked);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalBox {
+                        spacing: 18px;
+
+                        Rectangle {
+                            background: #1d2025;
+                            border-radius: 16px;
+                            border-width: 1px;
+                            border-color: #363b42;
+                            horizontal-stretch: 1;
+
+                            VerticalBox {
+                                padding: 18px;
+                                spacing: 8px;
+
+                                Text {
+                                    text: "Sample Rate";
+                                    color: #f3f5f7;
+                                    font-size: 20px;
+                                    font-weight: 600;
+                                }
+
+                                LineEdit {
+                                    text <=> root.sample-rate-text;
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            background: #1d2025;
+                            border-radius: 16px;
+                            border-width: 1px;
+                            border-color: #363b42;
+                            horizontal-stretch: 1;
+
+                            VerticalBox {
+                                padding: 18px;
+                                spacing: 8px;
+
+                                Text {
+                                    text: "Buffer Size";
+                                    color: #f3f5f7;
+                                    font-size: 20px;
+                                    font-weight: 600;
+                                }
+
+                                LineEdit {
+                                    text <=> root.buffer-size-text;
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalBox {
+                        spacing: 16px;
+
+                        Button {
+                            text: "Salvar e continuar";
+                            clicked => {
+                                root.save-audio-settings();
+                            }
+                        }
+
+                        Rectangle { horizontal-stretch: 1; background: transparent; }
+                    }
+
+                    Text {
+                        text: status-message;
+                        color: #87d7a1;
+                        font-size: 16px;
+                    }
+                }
+            }
+        }
+    }
+}

@@ -9,12 +9,24 @@ pub struct FilesystemStorage;
 pub struct GuiAudioSettings {
     pub input_device_names: Vec<String>,
     pub output_device_names: Vec<String>,
+    #[serde(default = "default_sample_rate")]
+    pub sample_rate: u32,
+    #[serde(default = "default_buffer_size_frames")]
+    pub buffer_size_frames: u32,
 }
 
 impl GuiAudioSettings {
     pub fn is_complete(&self) -> bool {
         !self.input_device_names.is_empty() && !self.output_device_names.is_empty()
     }
+}
+
+fn default_sample_rate() -> u32 {
+    48_000
+}
+
+fn default_buffer_size_frames() -> u32 {
+    256
 }
 
 impl FilesystemStorage {

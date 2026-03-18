@@ -5,7 +5,10 @@ edition.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-eframe.workspace = true
 infra-cpal = { path = "../infra-cpal" }
 infra-filesystem = { path = "../infra-filesystem" }
+slint.workspace = true
 ui-openrig = { path = "../ui-openrig" }
+
+[build-dependencies]
+slint-build.workspace = true
