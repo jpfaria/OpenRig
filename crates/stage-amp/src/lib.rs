@@ -1,15 +1,16 @@
 //! Amplifier models backed by reusable NAM/IR infrastructure.
-pub mod j800;
+pub mod marshall_jcm_800;
 
 use anyhow::{bail, Result};
-use j800::{
+use marshall_jcm_800::{
+    asset_summary as marshall_jcm_800_asset_summary,
     build_processor_for_model as build_j800_processor, model_schema as j800_model_schema,
-    supports_model as supports_j800_model,
+    supports_model as supports_j800_model, validate_params as validate_marshall_jcm_800_params,
 };
 use stage_core::param::{ModelParameterSchema, ParameterSet};
 use stage_core::{AudioChannelLayout, StageProcessor};
 
-pub const DEFAULT_AMP_MODEL: &str = j800::MODEL_ID;
+pub const DEFAULT_AMP_MODEL: &str = marshall_jcm_800::MODEL_ID;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AmpBackendKind {
@@ -33,10 +34,17 @@ pub fn amp_model_schema(model: &str) -> Result<ModelParameterSchema> {
     }
 }
 
-pub fn amp_asset_summary(model: &str) -> Result<String> {
+pub fn amp_asset_summary(model: &str, params: &ParameterSet) -> Result<String> {
     if supports_j800_model(model) {
-        let (model_path, ir_path) = j800::asset_paths();
-        Ok(format!("model='{}' ir='{}'", model_path, ir_path))
+        marshall_jcm_800_asset_summary(params)
+    } else {
+        bail!("unsupported amp model '{}'", model)
+    }
+}
+
+pub fn validate_amp_params(model: &str, params: &ParameterSet) -> Result<()> {
+    if supports_j800_model(model) {
+        validate_marshall_jcm_800_params(params)
     } else {
         bail!("unsupported amp model '{}'", model)
     }

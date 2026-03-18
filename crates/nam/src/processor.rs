@@ -2,7 +2,8 @@ use anyhow::{bail, Result};
 use domain::value_objects::ParameterValue;
 use stage_core::param::{
     bool_parameter, file_path_parameter, float_parameter, optional_string, required_bool,
-    required_f32, required_string, ModelParameterSchema, ParameterSet, ParameterUnit,
+    required_f32, required_string, ModelParameterSchema, ParameterSet, ParameterSpec,
+    ParameterUnit,
 };
 use stage_core::{ModelAudioMode, MonoProcessor};
 use std::ffi::CString;
@@ -14,7 +15,7 @@ pub fn supports_model(model: &str) -> bool {
     model == DEFAULT_NAM_MODEL
 }
 
-pub fn model_schema(include_file_params: bool) -> ModelParameterSchema {
+pub fn model_schema(include_file_params: bool, include_ir_enabled: bool) -> ModelParameterSchema {
     let mut parameters = Vec::new();
 
     if include_file_params {
@@ -36,7 +37,19 @@ pub fn model_schema(include_file_params: bool) -> ModelParameterSchema {
         ));
     }
 
-    parameters.extend([
+    parameters.extend(plugin_parameter_specs(include_ir_enabled));
+
+    ModelParameterSchema {
+        effect_type: "nam".to_string(),
+        model: DEFAULT_NAM_MODEL.to_string(),
+        display_name: "Neural Amp Modeler".to_string(),
+        audio_mode: ModelAudioMode::DualMono,
+        parameters,
+    }
+}
+
+pub fn plugin_parameter_specs(include_ir_enabled: bool) -> Vec<ParameterSpec> {
+    let mut parameters = vec![
         float_parameter(
             "input_db",
             "Input",
@@ -104,16 +117,13 @@ pub fn model_schema(include_file_params: bool) -> ModelParameterSchema {
             0.1,
             ParameterUnit::None,
         ),
-        bool_parameter("ir_enabled", "IR Enabled", None, Some(true)),
-    ]);
+    ];
 
-    ModelParameterSchema {
-        effect_type: "nam".to_string(),
-        model: DEFAULT_NAM_MODEL.to_string(),
-        display_name: "Neural Amp Modeler".to_string(),
-        audio_mode: ModelAudioMode::DualMono,
-        parameters,
+    if include_ir_enabled {
+        parameters.push(bool_parameter("ir_enabled", "IR Enabled", None, Some(true)));
     }
+
+    parameters
 }
 
 #[repr(C)]
@@ -148,11 +158,18 @@ pub fn params_from_set(params: &ParameterSet) -> Result<(String, Option<String>,
     Ok((
         required_string(params, "model_path").map_err(anyhow::Error::msg)?,
         optional_string(params, "ir_path"),
-        plugin_params_from_set(params)?,
+        plugin_params_from_set_with_defaults(params, true)?,
     ))
 }
 
 pub fn plugin_params_from_set(params: &ParameterSet) -> Result<NamPluginParams> {
+    plugin_params_from_set_with_defaults(params, true)
+}
+
+pub fn plugin_params_from_set_with_defaults(
+    params: &ParameterSet,
+    ir_enabled_default: bool,
+) -> Result<NamPluginParams> {
     Ok(NamPluginParams {
         input_level_db: required_f32(params, "input_db").map_err(anyhow::Error::msg)?,
         output_level_db: required_f32(params, "output_db").map_err(anyhow::Error::msg)?,
@@ -161,7 +178,7 @@ pub fn plugin_params_from_set(params: &ParameterSet) -> Result<NamPluginParams> 
         noise_gate_enabled: required_bool(params, "noise_gate.enabled")
             .map_err(anyhow::Error::msg)?,
         eq_enabled: required_bool(params, "eq.enabled").map_err(anyhow::Error::msg)?,
-        ir_enabled: required_bool(params, "ir_enabled").map_err(anyhow::Error::msg)?,
+        ir_enabled: params.get_bool("ir_enabled").unwrap_or(ir_enabled_default),
         bass: required_f32(params, "eq.bass").map_err(anyhow::Error::msg)?,
         middle: required_f32(params, "eq.middle").map_err(anyhow::Error::msg)?,
         treble: required_f32(params, "eq.treble").map_err(anyhow::Error::msg)?,

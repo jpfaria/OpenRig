@@ -12,8 +12,9 @@ pub fn model_schema_for(
     model: &str,
     display_name: &str,
     include_file_params: bool,
+    include_ir_enabled: bool,
 ) -> ModelParameterSchema {
-    let mut schema = processor::model_schema(include_file_params);
+    let mut schema = processor::model_schema(include_file_params, include_ir_enabled);
     schema.effect_type = effect_type.to_string();
     schema.model = model.to_string();
     schema.display_name = display_name.to_string();

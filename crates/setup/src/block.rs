@@ -3,7 +3,7 @@
 use domain::ids::BlockId;
 use domain::value_objects::ParameterValue;
 use serde::{Deserialize, Serialize};
-use stage_amp::amp_model_schema;
+use stage_amp::{amp_model_schema, validate_amp_params};
 use stage_core::ModelAudioMode;
 use stage_delay_digital::delay_model_schema;
 use stage_dyn_compressor::compressor_model_schema;
@@ -298,7 +298,11 @@ pub fn normalize_block_params(
     params: ParameterSet,
 ) -> Result<ParameterSet, String> {
     let schema = schema_for_block_model(effect_type, model)?;
-    params.normalized_against(&schema)
+    let normalized = params.normalized_against(&schema)?;
+    if effect_type == "amp" {
+        validate_amp_params(model, &normalized).map_err(|error| error.to_string())?;
+    }
+    Ok(normalized)
 }
 
 pub fn schema_for_block_model(

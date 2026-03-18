@@ -241,7 +241,7 @@ fn build_runtime_processors(
                         "[track:{}] loading amp model={} {}",
                         track.id.0,
                         stage.model,
-                        amp_asset_summary(&stage.model)?
+                        amp_asset_summary(&stage.model, &stage.params)?
                     );
                     let outcome = build_audio_processor_for_model(
                         track,
