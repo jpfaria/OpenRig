@@ -12,6 +12,11 @@ use setup::setup::Setup;
 use setup::track::Track;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AudioDeviceDescriptor {
+    pub name: String,
+}
 #[derive(Clone)]
 struct ResolvedInputDevice {
     config: InputDevice,
@@ -39,6 +44,32 @@ pub fn list_devices() -> Result<Vec<String>> {
             device.name().unwrap_or_else(|_| "<unknown>".into())
         ));
     }
+    Ok(devices)
+}
+
+pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
+    let host = cpal::default_host();
+    let mut devices = Vec::new();
+    for device in host.input_devices()? {
+        devices.push(AudioDeviceDescriptor {
+            name: device.name().unwrap_or_else(|_| "<unknown>".into()),
+        });
+    }
+    devices.sort_by(|a, b| a.name.cmp(&b.name));
+    devices.dedup_by(|a, b| a.name == b.name);
+    Ok(devices)
+}
+
+pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
+    let host = cpal::default_host();
+    let mut devices = Vec::new();
+    for device in host.output_devices()? {
+        devices.push(AudioDeviceDescriptor {
+            name: device.name().unwrap_or_else(|_| "<unknown>".into()),
+        });
+    }
+    devices.sort_by(|a, b| a.name.cmp(&b.name));
+    devices.dedup_by(|a, b| a.name == b.name);
     Ok(devices)
 }
 pub fn build_streams_for_setup(setup: &Setup, engine: &PedalboardEngine) -> Result<Vec<Stream>> {
