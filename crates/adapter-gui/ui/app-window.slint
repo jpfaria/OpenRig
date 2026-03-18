@@ -1,10 +1,62 @@
-import { Button, CheckBox, ComboBox, ScrollView, VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { CheckBox, ComboBox, VerticalBox, HorizontalBox } from "std-widgets.slint";
 
 export struct DeviceSelectionItem {
     name: string,
     selected: bool,
     sample_rate_text: string,
     buffer_size_text: string,
+}
+
+component PrimaryActionButton inherits Rectangle {
+    in property <string> text;
+    callback clicked();
+
+    min-width: 132px;
+    min-height: 42px;
+    background: #4f7cff;
+    border-radius: 12px;
+
+    Text {
+        text: root.text;
+        color: #f8fbff;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        font-size: 15px;
+        font-weight: 700;
+    }
+
+    TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+component SecondaryActionButton inherits Rectangle {
+    in property <string> text;
+    callback clicked();
+
+    min-width: 108px;
+    min-height: 42px;
+    background: #252b35;
+    border-radius: 12px;
+    border-width: 1px;
+    border-color: #3a4453;
+
+    Text {
+        text: root.text;
+        color: #dbe2ec;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        font-size: 15px;
+        font-weight: 600;
+    }
+
+    TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
 }
 
 export component AppWindow inherits Window {
@@ -31,155 +83,149 @@ export component AppWindow inherits Window {
     title: "OpenRig";
     width: 1280px;
     height: 900px;
-    background: #0f1217;
+    background: #0e1116;
 
     Rectangle {
-        background: #0f1217;
+        background: #0e1116;
 
         if show-audio-setup : Rectangle {
             background: transparent;
 
             Text {
-                x: 44px;
-                y: 34px;
+                x: 52px;
+                y: 36px;
                 text: "OpenRig";
                 color: #f3f5f7;
-                font-size: 22px;
+                font-size: 21px;
                 font-weight: 700;
             }
 
             Rectangle {
-                x: 190px;
-                y: 106px;
-                width: 900px;
-                height: 710px;
-                background: #161a21;
+                x: 188px;
+                y: 122px;
+                width: 904px;
+                height: 620px;
+                background: #151921;
                 border-radius: 18px;
                 border-width: 1px;
-                border-color: #2c323c;
+                border-color: #2a303a;
 
                 VerticalBox {
-                    padding: 24px;
+                    padding: 26px;
                     spacing: 18px;
 
-                    Text {
-                        text: wizard-step == 0 ? "Escolha o dispositivo de entrada" : "Escolha o dispositivo de saída";
-                        color: #f3f5f7;
-                        font-size: 20px;
-                        font-weight: 600;
-                    }
+                    VerticalBox {
+                        spacing: 6px;
 
-                    Text {
-                        text: wizard-step == 0 ? "Etapa 1 de 2" : "Etapa 2 de 2";
-                        color: #8b95a5;
-                        font-size: 13px;
+                        Text {
+                            text: wizard-step == 0 ? "Escolha os dispositivos de entrada" : "Escolha os dispositivos de saída";
+                            color: #f4f7fb;
+                            font-size: 18px;
+                            font-weight: 600;
+                        }
+
+                        Text {
+                            text: wizard-step == 0 ? "Etapa 1 de 2" : "Etapa 2 de 2";
+                            color: #7f8a9b;
+                            font-size: 12px;
+                        }
                     }
 
                     Rectangle {
-                        background: #1d222b;
+                        background: #1c212a;
                         border-radius: 14px;
                         border-width: 1px;
-                        border-color: #313844;
+                        border-color: #2f3642;
                         vertical-stretch: 1;
 
-                        ScrollView {
-                            viewport-width: 850px;
-                            viewport-height: parent.height - 2px;
+                        VerticalBox {
+                            padding: 10px;
+                            spacing: 8px;
 
-                            Rectangle {
-                                background: transparent;
-                                width: 850px;
+                            if wizard-step == 0 : VerticalBox {
+                                spacing: 8px;
 
-                                VerticalBox {
-                                    padding: 10px;
-                                    spacing: 8px;
+                                for device[i] in input-devices : Rectangle {
+                                    background: #222833;
+                                    border-radius: 12px;
+                                    border-width: 1px;
+                                    border-color: #333b49;
 
-                                    if wizard-step == 0 : VerticalBox {
-                                        spacing: 8px;
+                                    HorizontalBox {
+                                        padding: 10px;
+                                        spacing: 12px;
 
-                                        for device[i] in input-devices : Rectangle {
-                                            background: #232934;
-                                            border-radius: 12px;
-                                            border-width: 1px;
-                                            border-color: #343c49;
+                                        CheckBox {
+                                            text: device.name;
+                                            checked: device.selected;
+                                            min-width: 380px;
+                                            toggled => {
+                                                root.toggle-input-device(i, self.checked);
+                                            }
+                                        }
 
-                                            HorizontalBox {
-                                                padding: 10px;
-                                                spacing: 12px;
+                                        Rectangle { horizontal-stretch: 1; background: transparent; }
 
-                                                CheckBox {
-                                                    text: device.name;
-                                                    checked: device.selected;
-                                                    min-width: 420px;
-                                                    toggled => {
-                                                        root.toggle-input-device(i, self.checked);
-                                                    }
-                                                }
+                                        if device.selected : ComboBox {
+                                            min-width: 142px;
+                                            model: root.sample-rate-options;
+                                            current-value: device.sample_rate_text;
+                                            selected(value) => {
+                                                root.update-input-sample-rate(i, value);
+                                            }
+                                        }
 
-                                                Rectangle { horizontal-stretch: 1; background: transparent; }
-
-                                                if device.selected : ComboBox {
-                                                    min-width: 140px;
-                                                    model: root.sample-rate-options;
-                                                    current-value: device.sample_rate_text;
-                                                    selected(value) => {
-                                                        root.update-input-sample-rate(i, value);
-                                                    }
-                                                }
-
-                                                if device.selected : ComboBox {
-                                                    min-width: 140px;
-                                                    model: root.buffer-size-options;
-                                                    current-value: device.buffer_size_text;
-                                                    selected(value) => {
-                                                        root.update-input-buffer-size(i, value);
-                                                    }
-                                                }
+                                        if device.selected : ComboBox {
+                                            min-width: 142px;
+                                            model: root.buffer-size-options;
+                                            current-value: device.buffer_size_text;
+                                            selected(value) => {
+                                                root.update-input-buffer-size(i, value);
                                             }
                                         }
                                     }
+                                }
+                            }
 
-                                    if wizard-step == 1 : VerticalBox {
-                                        spacing: 8px;
+                            if wizard-step == 1 : VerticalBox {
+                                spacing: 8px;
 
-                                        for device[i] in output-devices : Rectangle {
-                                            background: #232934;
-                                            border-radius: 12px;
-                                            border-width: 1px;
-                                            border-color: #343c49;
+                                for device[i] in output-devices : Rectangle {
+                                    background: #222833;
+                                    border-radius: 12px;
+                                    border-width: 1px;
+                                    border-color: #333b49;
 
-                                            HorizontalBox {
-                                                padding: 10px;
-                                                spacing: 12px;
+                                    HorizontalBox {
+                                        padding: 10px;
+                                        spacing: 12px;
 
-                                                CheckBox {
-                                                    text: device.name;
-                                                    checked: device.selected;
-                                                    min-width: 420px;
-                                                    toggled => {
-                                                        root.toggle-output-device(i, self.checked);
-                                                    }
-                                                }
+                                        CheckBox {
+                                            text: device.name;
+                                            checked: device.selected;
+                                            min-width: 380px;
+                                            toggled => {
+                                                root.toggle-output-device(i, self.checked);
+                                            }
+                                        }
 
-                                                Rectangle { horizontal-stretch: 1; background: transparent; }
+                                        Rectangle { horizontal-stretch: 1; background: transparent; }
 
-                                                if device.selected : ComboBox {
-                                                    min-width: 140px;
-                                                    model: root.sample-rate-options;
-                                                    current-value: device.sample_rate_text;
-                                                    selected(value) => {
-                                                        root.update-output-sample-rate(i, value);
-                                                    }
-                                                }
+                                        if device.selected : ComboBox {
+                                            min-width: 142px;
+                                            model: root.sample-rate-options;
+                                            current-value: device.sample_rate_text;
+                                            selected(value) => {
+                                                root.update-output-sample-rate(i, value);
+                                            }
+                                        }
 
-                                                if device.selected : ComboBox {
-                                                    min-width: 140px;
-                                                    model: root.buffer-size-options;
-                                                    current-value: device.buffer_size_text;
-                                                    selected(value) => {
-                                                        root.update-output-buffer-size(i, value);
-                                                    }
-                                                }
+                                        if device.selected : ComboBox {
+                                            min-width: 142px;
+                                            model: root.buffer-size-options;
+                                            current-value: device.buffer_size_text;
+                                            selected(value) => {
+                                                root.update-output-buffer-size(i, value);
                                             }
                                         }
                                     }
@@ -193,28 +239,28 @@ export component AppWindow inherits Window {
 
                         if status-message != "" : Text {
                             text: status-message;
-                            color: #c4ccd7;
+                            color: #bcc6d3;
                             font-size: 13px;
                             vertical-alignment: center;
                         }
 
                         Rectangle { horizontal-stretch: 1; background: transparent; }
 
-                        if wizard-step == 1 : Button {
+                        if wizard-step == 1 : SecondaryActionButton {
                             text: "Voltar";
                             clicked => {
                                 root.go-to-input-step();
                             }
                         }
 
-                        if wizard-step == 0 : Button {
+                        if wizard-step == 0 : PrimaryActionButton {
                             text: "Continuar";
                             clicked => {
                                 root.go-to-output-step();
                             }
                         }
 
-                        if wizard-step == 1 : Button {
+                        if wizard-step == 1 : PrimaryActionButton {
                             text: "Salvar";
                             clicked => {
                                 root.save-audio-settings();
