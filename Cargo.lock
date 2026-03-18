@@ -276,15 +276,14 @@ dependencies = [
  "setup",
  "stage-amp",
  "stage-core",
- "stage-delay-digital",
- "stage-dyn-compressor",
- "stage-dyn-gate",
- "stage-filter-eq",
+ "stage-delay",
+ "stage-dyn",
+ "stage-filter",
  "stage-full-rig",
- "stage-mod-tremolo",
+ "stage-mod",
  "stage-nam",
- "stage-reverb-plate",
- "stage-util-tuner",
+ "stage-reverb",
+ "stage-util",
  "state",
 ]
 
@@ -427,15 +426,14 @@ dependencies = [
  "serde_yaml",
  "setup",
  "stage-amp",
- "stage-delay-digital",
- "stage-dyn-compressor",
- "stage-dyn-gate",
- "stage-filter-eq",
+ "stage-delay",
+ "stage-dyn",
+ "stage-filter",
  "stage-full-rig",
- "stage-mod-tremolo",
+ "stage-mod",
  "stage-nam",
- "stage-reverb-plate",
- "stage-util-tuner",
+ "stage-reverb",
+ "stage-util",
  "state",
 ]
 
@@ -870,15 +868,14 @@ dependencies = [
  "serde",
  "stage-amp",
  "stage-core",
- "stage-delay-digital",
- "stage-dyn-compressor",
- "stage-dyn-gate",
- "stage-filter-eq",
+ "stage-delay",
+ "stage-dyn",
+ "stage-filter",
  "stage-full-rig",
- "stage-mod-tremolo",
+ "stage-mod",
  "stage-nam",
- "stage-reverb-plate",
- "stage-util-tuner",
+ "stage-reverb",
+ "stage-util",
 ]
 
 [[package]]
@@ -918,7 +915,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "stage-delay-digital"
+name = "stage-delay"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -926,7 +923,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "stage-dyn-compressor"
+name = "stage-dyn"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -934,15 +931,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "stage-dyn-gate"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "stage-core",
-]
-
-[[package]]
-name = "stage-filter-eq"
+name = "stage-filter"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -963,7 +952,7 @@ name = "stage-gain"
 version = "0.1.0"
 
 [[package]]
-name = "stage-mod-tremolo"
+name = "stage-mod"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -984,7 +973,7 @@ name = "stage-pitch"
 version = "0.1.0"
 
 [[package]]
-name = "stage-reverb-plate"
+name = "stage-reverb"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -996,7 +985,7 @@ name = "stage-routing"
 version = "0.1.0"
 
 [[package]]
-name = "stage-util-tuner"
+name = "stage-util"
 version = "0.1.0"
 dependencies = [
  "anyhow",

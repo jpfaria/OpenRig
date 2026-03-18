@@ -5,15 +5,15 @@ use domain::value_objects::ParameterValue;
 use serde::{Deserialize, Serialize};
 use stage_amp::{amp_model_schema, validate_amp_params};
 use stage_core::ModelAudioMode;
-use stage_delay_digital::delay_model_schema;
-use stage_dyn_compressor::compressor_model_schema;
-use stage_dyn_gate::gate_model_schema;
-use stage_filter_eq::eq_model_schema;
+use stage_delay::delay_model_schema;
+use stage_dyn::compressor_model_schema;
+use stage_dyn::gate_model_schema;
+use stage_filter::eq_model_schema;
 use stage_full_rig::{full_rig_model_schema, validate_full_rig_params};
-use stage_mod_tremolo::tremolo_model_schema;
+use stage_mod::tremolo_model_schema;
 use stage_nam::nam_model_schema;
-use stage_reverb_plate::reverb_model_schema;
-use stage_util_tuner::tuner_model_schema;
+use stage_reverb::reverb_model_schema;
+use stage_util::tuner_model_schema;
 
 use crate::param::{BlockParameterDescriptor, ModelParameterSchema, ParameterSet};
 

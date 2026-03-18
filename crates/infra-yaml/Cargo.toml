@@ -15,10 +15,9 @@ ports = { path = "../ports" }
 stage-nam = { path = "../stage-nam" }
 stage-amp = { path = "../stage-amp" }
 stage-full-rig = { path = "../stage-full-rig" }
-stage-delay-digital = { path = "../stage-delay-digital" }
-stage-dyn-compressor = { path = "../stage-dyn-compressor" }
-stage-dyn-gate = { path = "../stage-dyn-gate" }
-stage-filter-eq = { path = "../stage-filter-eq" }
-stage-mod-tremolo = { path = "../stage-mod-tremolo" }
-stage-reverb-plate = { path = "../stage-reverb-plate" }
-stage-util-tuner = { path = "../stage-util-tuner" }
+stage-delay = { path = "../stage-delay" }
+stage-dyn = { path = "../stage-dyn" }
+stage-filter = { path = "../stage-filter" }
+stage-mod = { path = "../stage-mod" }
+stage-reverb = { path = "../stage-reverb" }
+stage-util = { path = "../stage-util" }

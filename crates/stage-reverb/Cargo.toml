@@ -1,5 +1,5 @@
 [package]
-name = "stage-reverb-plate"
+name = "stage-reverb"
 version.workspace = true
 edition.workspace = true
 [dependencies]

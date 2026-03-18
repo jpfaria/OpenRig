@@ -1,5 +1,5 @@
 [package]
-name = "stage-dyn-compressor"
+name = "stage-dyn"
 version.workspace = true
 edition.workspace = true
 

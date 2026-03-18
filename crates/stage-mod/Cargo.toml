@@ -1,8 +1,7 @@
 [package]
-name = "stage-util-tuner"
+name = "stage-mod"
 version.workspace = true
 edition.workspace = true
 [dependencies]
 anyhow.workspace = true
-arc-swap.workspace = true
 stage-core = { path = "../stage-core" }

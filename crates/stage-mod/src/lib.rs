@@ -1,8 +1,8 @@
-//! Tremolo modulation implementations.
-pub mod sine;
+//! Modulation implementations.
+pub mod tremolo_sine;
 
 use anyhow::{bail, Result};
-use sine::{build_processor, model_schema, supports_model};
+use tremolo_sine::{build_processor, model_schema, supports_model};
 use stage_core::param::{ModelParameterSchema, ParameterSet};
 use stage_core::{AudioChannelLayout, StageProcessor};
 

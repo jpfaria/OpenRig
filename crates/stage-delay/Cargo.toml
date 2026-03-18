@@ -1,5 +1,5 @@
 [package]
-name = "stage-delay-digital"
+name = "stage-delay"
 version.workspace = true
 edition.workspace = true
 [dependencies]

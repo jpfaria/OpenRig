@@ -1,8 +1,8 @@
-//! Tuner implementations.
-pub mod chromatic;
+//! Utility implementations.
+pub mod tuner_chromatic;
 
 use anyhow::{bail, Result};
-use chromatic::{model_schema, reference_hz_from_set, supports_model, ChromaticTuner};
+use tuner_chromatic::{model_schema, reference_hz_from_set, supports_model, ChromaticTuner};
 use stage_core::param::{ModelParameterSchema, ParameterSet};
 
 pub const DEFAULT_TUNER_MODEL: &str = "tuner_chromatic";
