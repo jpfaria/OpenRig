@@ -2,25 +2,74 @@ id: default-setup
 name: Default Setup
 input_devices:
   - id: scarlett_in_dev
-    match_name: Scarlett 2i2 4th Gen
+    match_name: "Scarlett 2i2 4th Gen"
     sample_rate: 48000
     buffer_size_frames: 256
 output_devices:
   - id: scarlett_out_dev
-    match_name: Scarlett 2i2 4th Gen
+    match_name: "Scarlett 2i2 4th Gen"
     sample_rate: 48000
     buffer_size_frames: 256
 inputs:
+  - id: scarlett_stereo
+    device_id: scarlett_in_dev
+    channels: [0, 1]
   - id: scarlett_mono_1
     device_id: scarlett_in_dev
     channels: [0]
+  - id: scarlett_mono_2
+    device_id: scarlett_in_dev
+    channels: [1]
 outputs:
   - id: scarlett_out
     device_id: scarlett_out_dev
     channels: [0, 1]
 tracks:
-  - id: guitar_clean
+  - id: guitar_main
     input_id: scarlett_mono_1
     outputs: [scarlett_out]
-    gain: 0.8
-    blocks: []
+    gain: 1.0
+    stages:
+      #      - id: jhs_main_s
+      #        type: nam
+      #        model_path: "captures/nam/pedals/JHS @ Andy Timmons/SLAMMIN_JHS_TIMMONS_MAIN_S.nam"
+
+      #      - id: boss_blues_50
+      #        type: nam
+      #        model_path: "captures/nam/pedals/Boss Blues Driver BD-2/Boss Blues Driver BD-2 Gain 50percent.nam"
+
+      #      - id: ibanez_ts9_tube_screamer_drv_7_tone_7_level_7
+      #        type: nam
+      #        model_path: "captures/nam/pedals/Ibanez TS9 Tube Screamer/Ibanez TS9 Tube Screamer Drive 7 Tone 7 Level 7.nam"
+
+      - id: ibanez_ts9_tube_screamer_drv_8_tone_4_level_5
+        type: nam
+        model_path: "captures/nam/pedals/Ibanez TS9 Tube Screamer/Ibanez TS9 Tube Screamer Drive 8 Tone 4 Level 5.nam"
+
+      - id: jcm800
+        type: select
+        selected: jcm800_g4
+        options:
+          jcm800_g4:
+            type: nam
+            model_path: "captures/nam/heads/Marshall JCM 800 2203/JCM800 2203 - P5 B5 M5 T5 MV6 G4 - AZG - 700.nam"
+            ir_path: "captures/ir/cabs/Marshall 4x12 V30 IR/EV MIX B.wav"
+
+          jcm800_g5:
+            type: nam
+            model_path: "captures/nam/heads/Marshall JCM 800 2203/JCM800 2203 - P5 B5 M5 T5 MV6 G5 - AZG - 700.nam"
+            ir_path: "captures/ir/cabs/Marshall 4x12 V30 IR/EV MIX B.wav"
+
+          jcm800_g6:
+            type: nam
+            model_path: "captures/nam/heads/Marshall JCM 800 2203/JCM800 2203 - P5 B5 M5 T5 MV6 G6 - AZG - 700.nam"
+            ir_path: "captures/ir/cabs/Marshall 4x12 V30 IR/EV MIX D.wav"
+
+#  - id: guitar_vox
+#    input_id: scarlett_mono_2
+#    outputs: [scarlett_out]
+#    gain: 0.8
+#    stages:
+#      - id: vox_1
+#        type: nam
+#        model_path: "captures/nam/full_rigs/VOX AC30/VOX AC30 + cab.nam"

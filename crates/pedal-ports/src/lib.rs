@@ -1,7 +1,7 @@
 use anyhow::Result;
-use pedal-preset::Preset;
-use pedal-setup::setup::Setup;
-use pedal-state::pedalboard_state::PedalboardState;
+use pedal_preset::Preset;
+use pedal_setup::setup::Setup;
+use pedal_state::pedalboard_state::PedalboardState;
 
 pub trait SetupRepository: Send + Sync {
     fn load_current_setup(&self) -> Result<Setup>;

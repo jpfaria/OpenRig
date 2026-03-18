@@ -1,73 +1,66 @@
 use anyhow::{Context, Result};
-use pedal-domain::ids::{BlockId, DeviceId, InputId, OutputId, SetupId, TrackId};
-use pedal-ports::{PresetRepository, SetupRepository, StateRepository};
-use pedal-preset::Preset;
-use pedal-setup::block::*;
-use pedal-setup::device::{InputDevice, OutputDevice};
-use pedal-setup::io::{Input, Output};
-use pedal-setup::setup::Setup;
-use pedal-setup::track::Track;
-use pedal-state::pedalboard_state::PedalboardState;
+use pedal_domain::ids::{BlockId, DeviceId, InputId, OutputId, SetupId, TrackId};
+use pedal_ports::{PresetRepository, SetupRepository, StateRepository};
+use pedal_preset::Preset;
+use pedal_setup::block::{AudioBlock, AudioBlockKind, CoreNamBlock, NamBlock, SelectBlock};
+use pedal_setup::device::{InputDevice, OutputDevice};
+use pedal_setup::io::{Input, Output};
+use pedal_setup::setup::Setup;
+use pedal_setup::track::Track;
+use pedal_state::pedalboard_state::PedalboardState;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-
 pub struct YamlSetupRepository {
     pub path: PathBuf,
 }
-
 pub struct YamlStateRepository {
     pub path: PathBuf,
 }
-
 pub struct YamlPresetRepository {
     pub path: PathBuf,
 }
-
 impl SetupRepository for YamlSetupRepository {
     fn load_current_setup(&self) -> Result<Setup> {
         let raw = fs::read_to_string(&self.path)
-            .with_context(|| format!("falha ao ler yaml {:?}", self.path))?;
+            .with_context(|| format!("failed to read yaml {:?}", self.path))?;
         let dto: SetupYaml = serde_yaml::from_str(&raw)?;
         Ok(dto.into_setup())
     }
-
     fn save_setup(&self, _setup: &Setup) -> Result<()> {
         Ok(())
     }
 }
-
 impl StateRepository for YamlStateRepository {
     fn load_state(&self) -> Result<PedalboardState> {
         let raw = fs::read_to_string(&self.path)
-            .with_context(|| format!("falha ao ler yaml {:?}", self.path))?;
+            .with_context(|| format!("failed to read yaml {:?}", self.path))?;
         Ok(serde_yaml::from_str(&raw)?)
     }
-
     fn save_state(&self, state: &PedalboardState) -> Result<()> {
         let raw = serde_yaml::to_string(state)?;
         fs::write(&self.path, raw)?;
         Ok(())
     }
 }
-
 impl PresetRepository for YamlPresetRepository {
     fn load_preset(&self, _preset_id: &str) -> Result<Preset> {
         let raw = fs::read_to_string(&self.path)
-            .with_context(|| format!("falha ao ler yaml {:?}", self.path))?;
+            .with_context(|| format!("failed to read yaml {:?}", self.path))?;
         Ok(serde_yaml::from_str(&raw)?)
     }
-
     fn save_preset(&self, preset: &Preset) -> Result<()> {
         let raw = serde_yaml::to_string(preset)?;
         fs::write(&self.path, raw)?;
         Ok(())
     }
 }
-
 #[derive(Debug, Deserialize)]
 struct SetupYaml {
+    #[serde(default = "default_setup_id")]
     id: String,
+    #[serde(default = "default_setup_name")]
     name: String,
     input_devices: Vec<InputDeviceYaml>,
     output_devices: Vec<OutputDeviceYaml>,
@@ -75,7 +68,6 @@ struct SetupYaml {
     outputs: Vec<OutputYaml>,
     tracks: Vec<TrackYaml>,
 }
-
 impl SetupYaml {
     fn into_setup(self) -> Setup {
         Setup {
@@ -89,30 +81,75 @@ impl SetupYaml {
         }
     }
 }
-
+fn default_setup_id() -> String {
+    "default-setup".to_string()
+}
+fn default_setup_name() -> String {
+    "Default Setup".to_string()
+}
 #[derive(Debug, Deserialize)]
-struct InputDeviceYaml { id: String, match_name: String, sample_rate: u32, buffer_size_frames: u32 }
+struct InputDeviceYaml {
+    id: String,
+    match_name: String,
+    sample_rate: u32,
+    buffer_size_frames: u32,
+}
 impl From<InputDeviceYaml> for InputDevice {
-    fn from(v: InputDeviceYaml) -> Self {
-        Self { id: DeviceId(v.id), match_name: v.match_name, sample_rate: v.sample_rate, buffer_size_frames: v.buffer_size_frames }
+    fn from(value: InputDeviceYaml) -> Self {
+        Self {
+            id: DeviceId(value.id),
+            match_name: value.match_name,
+            sample_rate: value.sample_rate,
+            buffer_size_frames: value.buffer_size_frames,
+        }
     }
 }
 #[derive(Debug, Deserialize)]
-struct OutputDeviceYaml { id: String, match_name: String, sample_rate: u32, buffer_size_frames: u32 }
+struct OutputDeviceYaml {
+    id: String,
+    match_name: String,
+    sample_rate: u32,
+    buffer_size_frames: u32,
+}
 impl From<OutputDeviceYaml> for OutputDevice {
-    fn from(v: OutputDeviceYaml) -> Self {
-        Self { id: DeviceId(v.id), match_name: v.match_name, sample_rate: v.sample_rate, buffer_size_frames: v.buffer_size_frames }
+    fn from(value: OutputDeviceYaml) -> Self {
+        Self {
+            id: DeviceId(value.id),
+            match_name: value.match_name,
+            sample_rate: value.sample_rate,
+            buffer_size_frames: value.buffer_size_frames,
+        }
     }
 }
 #[derive(Debug, Deserialize)]
-struct InputYaml { id: String, device_id: String, channels: Vec<usize> }
+struct InputYaml {
+    id: String,
+    device_id: String,
+    channels: Vec<usize>,
+}
 impl From<InputYaml> for Input {
-    fn from(v: InputYaml) -> Self { Self { id: InputId(v.id), device_id: DeviceId(v.device_id), channels: v.channels } }
+    fn from(value: InputYaml) -> Self {
+        Self {
+            id: InputId(value.id),
+            device_id: DeviceId(value.device_id),
+            channels: value.channels,
+        }
+    }
 }
 #[derive(Debug, Deserialize)]
-struct OutputYaml { id: String, device_id: String, channels: Vec<usize> }
+struct OutputYaml {
+    id: String,
+    device_id: String,
+    channels: Vec<usize>,
+}
 impl From<OutputYaml> for Output {
-    fn from(v: OutputYaml) -> Self { Self { id: OutputId(v.id), device_id: DeviceId(v.device_id), channels: v.channels } }
+    fn from(value: OutputYaml) -> Self {
+        Self {
+            id: OutputId(value.id),
+            device_id: DeviceId(value.device_id),
+            channels: value.channels,
+        }
+    }
 }
 #[derive(Debug, Deserialize)]
 struct TrackYaml {
@@ -120,29 +157,53 @@ struct TrackYaml {
     input_id: String,
     outputs: Vec<String>,
     gain: f32,
-    #[serde(default)]
+    #[serde(default, alias = "stages")]
     blocks: Vec<AudioBlockYaml>,
 }
 impl From<TrackYaml> for Track {
-    fn from(v: TrackYaml) -> Self {
+    fn from(value: TrackYaml) -> Self {
         Self {
-            id: TrackId(v.id),
-            input_id: InputId(v.input_id),
-            output_ids: v.outputs.into_iter().map(OutputId).collect(),
-            gain: v.gain,
-            blocks: v.blocks.into_iter().map(Into::into).collect(),
+            id: TrackId(value.id),
+            input_id: InputId(value.input_id),
+            output_ids: value.outputs.into_iter().map(OutputId).collect(),
+            gain: value.gain,
+            blocks: value.blocks.into_iter().map(Into::into).collect(),
         }
     }
 }
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum AudioBlockYaml {
-    Nam { id: String, model_path: String, ir_path: Option<String> },
-    CoreNam { id: String, model_id: String, ir_id: Option<String> },
+    Nam {
+        id: String,
+        model_path: String,
+        #[serde(default)]
+        ir_path: Option<String>,
+    },
+    CoreNam {
+        id: String,
+        model_id: String,
+        #[serde(default)]
+        ir_id: Option<String>,
+    },
+    Select {
+        id: String,
+        selected: String,
+        options: HashMap<String, SelectOptionYaml>,
+    },
+}
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+enum SelectOptionYaml {
+    Nam {
+        model_path: String,
+        #[serde(default)]
+        ir_path: Option<String>,
+    },
 }
 impl From<AudioBlockYaml> for AudioBlock {
-    fn from(v: AudioBlockYaml) -> Self {
-        match v {
+    fn from(value: AudioBlockYaml) -> Self {
+        match value {
             AudioBlockYaml::Nam { id, model_path, ir_path } => AudioBlock {
                 id: BlockId(id),
                 kind: AudioBlockKind::Nam(NamBlock { model_path, ir_path }),
@@ -151,6 +212,27 @@ impl From<AudioBlockYaml> for AudioBlock {
                 id: BlockId(id),
                 kind: AudioBlockKind::CoreNam(CoreNamBlock { model_id, ir_id }),
             },
+            AudioBlockYaml::Select { id, selected, options } => {
+                let selected_block_id = BlockId(format!("{}::{}", id, selected));
+                let options = options
+                    .into_iter()
+                    .map(|(name, option)| AudioBlock {
+                        id: BlockId(format!("{}::{}", id, name)),
+                        kind: match option {
+                            SelectOptionYaml::Nam { model_path, ir_path } => {
+                                AudioBlockKind::Nam(NamBlock { model_path, ir_path })
+                            }
+                        },
+                    })
+                    .collect();
+                AudioBlock {
+                    id: BlockId(id),
+                    kind: AudioBlockKind::Select(SelectBlock {
+                        selected_block_id,
+                        options,
+                    }),
+                }
+            }
         }
     }
 }

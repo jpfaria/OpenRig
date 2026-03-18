@@ -1,4 +1,4 @@
-use pedal-domain::ids::{InputId, OutputId, TrackId};
+use pedal_domain::ids::{InputId, OutputId, TrackId};
 use serde::{Deserialize, Serialize};
 
 use crate::block::AudioBlock;

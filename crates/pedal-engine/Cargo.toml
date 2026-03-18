@@ -2,7 +2,9 @@
 name = "pedal-engine"
 version.workspace = true
 edition.workspace = true
-
 [dependencies]
+anyhow.workspace = true
+pedal-domain = { path = "../pedal-domain" }
+pedal-nam = { path = "../pedal-nam" }
 pedal-setup = { path = "../pedal-setup" }
 pedal-state = { path = "../pedal-state" }

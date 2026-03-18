@@ -1,4 +1,4 @@
-use pedal-domain::ids::{BlockId, PresetId};
+use pedal_domain::ids::{BlockId, PresetId};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Event {

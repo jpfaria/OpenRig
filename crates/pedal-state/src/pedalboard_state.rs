@@ -1,4 +1,4 @@
-use pedal-domain::ids::{BlockId, PresetId, SetupId};
+use pedal_domain::ids::{BlockId, PresetId, SetupId};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

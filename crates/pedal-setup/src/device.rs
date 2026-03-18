@@ -1,4 +1,4 @@
-use pedal-domain::ids::DeviceId;
+use pedal_domain::ids::DeviceId;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

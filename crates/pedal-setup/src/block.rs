@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use pedal-domain::ids::BlockId;
+use pedal_domain::ids::BlockId;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -1,4 +1,4 @@
-use pedal-domain::ids::SetupId;
+use pedal_domain::ids::SetupId;
 use serde::{Deserialize, Serialize};
 
 use crate::device::{InputDevice, OutputDevice};

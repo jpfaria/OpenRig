@@ -1,8 +1,8 @@
 use anyhow::Result;
-use pedal-ports::{PresetRepository, SetupRepository, StateRepository, StateSyncPort};
-use pedal-state::command::Command;
-use pedal-state::event::Event;
-use pedal-state::pedalboard_state::PedalboardState;
+use pedal_ports::{PresetRepository, SetupRepository, StateRepository, StateSyncPort};
+use pedal_state::command::Command;
+use pedal_state::event::Event;
+use pedal_state::pedalboard_state::PedalboardState;
 
 pub struct ApplicationService<S, P, T, Y>
 where
