@@ -23,7 +23,8 @@ export component WizardConfigPage inherits Rectangle {
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
     private property <length> device-row-height: 44px;
     private property <length> device-list-height: (visible-device-count * device-row-height) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px);
-    private property <length> wizard-card-height: 24px + 20px + 24px + device-list-height + 24px + 44px + 24px;
+    private property <length> actions-top-gap: 24px;
+    private property <length> wizard-card-height: 24px + 20px + 24px + device-list-height + actions-top-gap + 44px + 24px;
 
     width: 720px;
     height: root.wizard-card-height;
@@ -90,6 +91,11 @@ export component WizardConfigPage inherits Rectangle {
                     }
                 }
             }
+        }
+
+        Rectangle {
+            height: root.actions-top-gap;
+            background: transparent;
         }
 
         HorizontalBox {
