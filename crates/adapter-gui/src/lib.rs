@@ -7,6 +7,11 @@ use ui_openrig::{AppRuntimeMode, InteractionMode, UiRuntimeContext};
 
 slint::include_modules!();
 
+const DEFAULT_SAMPLE_RATE: u32 = 48_000;
+const DEFAULT_BUFFER_SIZE_FRAMES: u32 = 256;
+const SUPPORTED_SAMPLE_RATES: &[u32] = &[44_100, 48_000, 88_200, 96_000];
+const SUPPORTED_BUFFER_SIZES: &[u32] = &[32, 64, 128, 256, 512, 1024];
+
 pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: InteractionMode) -> Result<()> {
     let context = UiRuntimeContext::new(runtime_mode, interaction_mode);
     let settings = FilesystemStorage::load_gui_audio_settings()?.unwrap_or_default();
@@ -28,6 +33,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                     .iter()
                     .find(|saved| saved.name == name)
                     .cloned()
+                    .map(normalize_device_settings)
                     .unwrap_or_else(|| default_device_settings(name.clone()));
                 DeviceSelectionItem {
                     name: config.name.into(),
@@ -49,6 +55,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                     .iter()
                     .find(|saved| saved.name == name)
                     .cloned()
+                    .map(normalize_device_settings)
                     .unwrap_or_else(|| default_device_settings(name.clone()));
                 DeviceSelectionItem {
                     name: config.name.into(),
@@ -241,9 +248,19 @@ fn selected_device_settings(
 fn default_device_settings(name: String) -> GuiAudioDeviceSettings {
     GuiAudioDeviceSettings {
         name,
-        sample_rate: 48_000,
-        buffer_size_frames: 256,
+        sample_rate: DEFAULT_SAMPLE_RATE,
+        buffer_size_frames: DEFAULT_BUFFER_SIZE_FRAMES,
     }
+}
+
+fn normalize_device_settings(mut settings: GuiAudioDeviceSettings) -> GuiAudioDeviceSettings {
+    if !SUPPORTED_SAMPLE_RATES.contains(&settings.sample_rate) {
+        settings.sample_rate = DEFAULT_SAMPLE_RATE;
+    }
+    if !SUPPORTED_BUFFER_SIZES.contains(&settings.buffer_size_frames) {
+        settings.buffer_size_frames = DEFAULT_BUFFER_SIZE_FRAMES;
+    }
+    settings
 }
 
 fn mark_unselected_devices(

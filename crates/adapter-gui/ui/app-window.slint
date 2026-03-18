@@ -1,4 +1,4 @@
-import { CheckBox, LineEdit, Button, ScrollView, VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { Button, CheckBox, ComboBox, ScrollView, VerticalBox, HorizontalBox } from "std-widgets.slint";
 
 export struct DeviceSelectionItem {
     name: string,
@@ -15,6 +15,8 @@ export component AppWindow inherits Window {
     in-out property <[DeviceSelectionItem]> input-devices;
     in-out property <[DeviceSelectionItem]> output-devices;
     in-out property <string> status-message;
+    in property <[string]> sample-rate-options: ["44100", "48000", "88200", "96000"];
+    in property <[string]> buffer-size-options: ["32", "64", "128", "256", "512", "1024"];
 
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
@@ -33,257 +35,184 @@ export component AppWindow inherits Window {
 
     Rectangle {
         background: #111315;
-        border-radius: 18px;
 
-        if show-audio-setup : ScrollView {
-            viewport-width: parent.width;
-            viewport-height: parent.height;
+        if show-audio-setup : Rectangle {
+            x: 24px;
+            y: 24px;
+            width: parent.width - 48px;
+            height: parent.height - 48px;
+            background: #16181c;
+            border-radius: 16px;
+            border-width: 1px;
+            border-color: #30343a;
 
-            Rectangle {
-                background: transparent;
-                width: 1232px;
+            VerticalBox {
+                padding: 20px;
+                spacing: 14px;
 
-                VerticalBox {
-                    padding: 24px;
-                    spacing: 20px;
+                Text {
+                    text: "OpenRig";
+                    color: #f3f5f7;
+                    font-size: 24px;
+                    font-weight: 700;
+                }
 
-                    Rectangle {
-                        background: #16181c;
-                        border-radius: 20px;
-                        border-width: 1px;
-                        border-color: #30343a;
+                Text {
+                    text: wizard-step == 0 ? "Escolha o input" : "Escolha o output";
+                    color: #f3f5f7;
+                    font-size: 24px;
+                    font-weight: 700;
+                }
 
-                        VerticalBox {
-                            padding: 28px;
-                            spacing: 24px;
+                Rectangle {
+                    background: #1d2025;
+                    border-radius: 14px;
+                    border-width: 1px;
+                    border-color: #363b42;
+                    vertical-stretch: 1;
 
-                            Text {
-                                text: "OpenRig";
-                                color: #f3f5f7;
-                                font-size: 30px;
-                                font-weight: 700;
-                            }
+                    ScrollView {
+                        viewport-width: parent.width;
+                        viewport-height: parent.height;
 
-                            Text {
-                                text: "Configuração inicial";
-                                color: #f3f5f7;
-                                font-size: 34px;
-                                font-weight: 700;
-                            }
+                        Rectangle {
+                            background: transparent;
+                            width: parent.width;
 
-                            if wizard-step == 0 : Rectangle {
-                                background: #1d2025;
-                                border-radius: 16px;
-                                border-width: 1px;
-                                border-color: #363b42;
+                            VerticalBox {
+                                padding: 12px;
+                                spacing: 10px;
 
-                                VerticalBox {
-                                    padding: 18px;
-                                    spacing: 12px;
+                                if wizard-step == 0 : VerticalBox {
+                                    spacing: 10px;
 
-                                    Text {
-                                        text: "Inputs";
-                                        color: #f3f5f7;
-                                        font-size: 22px;
-                                        font-weight: 600;
-                                    }
+                                    for device[i] in input-devices : Rectangle {
+                                        background: #20242a;
+                                        border-radius: 12px;
+                                        border-width: 1px;
+                                        border-color: #363b42;
 
-                                    VerticalBox {
-                                        spacing: 10px;
+                                        HorizontalBox {
+                                            padding: 12px;
+                                            spacing: 12px;
 
-                                        for device[i] in input-devices : Rectangle {
-                                            background: #20242a;
-                                            border-radius: 12px;
-                                            border-width: 1px;
-                                            border-color: #363b42;
+                                            Rectangle {
+                                                background: transparent;
+                                                horizontal-stretch: 1;
 
-                                            VerticalBox {
-                                                padding: 12px;
-                                                spacing: 10px;
-
-                                                HorizontalBox {
-                                                    spacing: 10px;
-                                                    alignment: start;
-
-                                                    CheckBox {
-                                                        text: device.name;
-                                                        checked: device.selected;
-                                                        min-width: 420px;
-                                                        toggled => {
-                                                            root.toggle-input-device(i, self.checked);
-                                                        }
+                                                CheckBox {
+                                                    text: device.name;
+                                                    checked: device.selected;
+                                                    toggled => {
+                                                        root.toggle-input-device(i, self.checked);
                                                     }
+                                                }
+                                            }
 
-                                                    if device.selected : Rectangle {
-                                                        background: transparent;
-                                                        min-width: 180px;
-                                                        VerticalBox {
-                                                            spacing: 6px;
-                                                            Text {
-                                                                text: "Sample Rate";
-                                                                color: #9ea7b3;
-                                                                font-size: 14px;
-                                                            }
-                                                            LineEdit {
-                                                                text: device.sample_rate_text;
-                                                                edited(text) => {
-                                                                    root.update-input-sample-rate(i, text);
-                                                                }
-                                                            }
-                                                        }
-                                                    }
+                                            if device.selected : ComboBox {
+                                                min-width: 150px;
+                                                model: root.sample-rate-options;
+                                                current-value: device.sample_rate_text;
+                                                selected(value) => {
+                                                    root.update-input-sample-rate(i, value);
+                                                }
+                                            }
 
-                                                    if device.selected : Rectangle {
-                                                        background: transparent;
-                                                        min-width: 180px;
-                                                        VerticalBox {
-                                                            spacing: 6px;
-                                                            Text {
-                                                                text: "Buffer Size";
-                                                                color: #9ea7b3;
-                                                                font-size: 14px;
-                                                            }
-                                                            LineEdit {
-                                                                text: device.buffer_size_text;
-                                                                edited(text) => {
-                                                                    root.update-input-buffer-size(i, text);
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-
-                                                    Rectangle { horizontal-stretch: 1; background: transparent; }
+                                            if device.selected : ComboBox {
+                                                min-width: 150px;
+                                                model: root.buffer-size-options;
+                                                current-value: device.buffer_size_text;
+                                                selected(value) => {
+                                                    root.update-input-buffer-size(i, value);
                                                 }
                                             }
                                         }
                                     }
                                 }
-                            }
 
-                            if wizard-step == 1 : Rectangle {
-                                background: #1d2025;
-                                border-radius: 16px;
-                                border-width: 1px;
-                                border-color: #363b42;
+                                if wizard-step == 1 : VerticalBox {
+                                    spacing: 10px;
 
-                                VerticalBox {
-                                    padding: 18px;
-                                    spacing: 12px;
+                                    for device[i] in output-devices : Rectangle {
+                                        background: #20242a;
+                                        border-radius: 12px;
+                                        border-width: 1px;
+                                        border-color: #363b42;
 
-                                    Text {
-                                        text: "Outputs";
-                                        color: #f3f5f7;
-                                        font-size: 22px;
-                                        font-weight: 600;
-                                    }
+                                        HorizontalBox {
+                                            padding: 12px;
+                                            spacing: 12px;
 
-                                    VerticalBox {
-                                        spacing: 10px;
+                                            Rectangle {
+                                                background: transparent;
+                                                horizontal-stretch: 1;
 
-                                        for device[i] in output-devices : Rectangle {
-                                            background: #20242a;
-                                            border-radius: 12px;
-                                            border-width: 1px;
-                                            border-color: #363b42;
-
-                                            VerticalBox {
-                                                padding: 12px;
-                                                spacing: 10px;
-
-                                                HorizontalBox {
-                                                    spacing: 10px;
-                                                    alignment: start;
-
-                                                    CheckBox {
-                                                        text: device.name;
-                                                        checked: device.selected;
-                                                        min-width: 420px;
-                                                        toggled => {
-                                                            root.toggle-output-device(i, self.checked);
-                                                        }
+                                                CheckBox {
+                                                    text: device.name;
+                                                    checked: device.selected;
+                                                    toggled => {
+                                                        root.toggle-output-device(i, self.checked);
                                                     }
+                                                }
+                                            }
 
-                                                    if device.selected : Rectangle {
-                                                        background: transparent;
-                                                        min-width: 180px;
-                                                        VerticalBox {
-                                                            spacing: 6px;
-                                                            Text {
-                                                                text: "Sample Rate";
-                                                                color: #9ea7b3;
-                                                                font-size: 14px;
-                                                            }
-                                                            LineEdit {
-                                                                text: device.sample_rate_text;
-                                                                edited(text) => {
-                                                                    root.update-output-sample-rate(i, text);
-                                                                }
-                                                            }
-                                                        }
-                                                    }
+                                            if device.selected : ComboBox {
+                                                min-width: 150px;
+                                                model: root.sample-rate-options;
+                                                current-value: device.sample_rate_text;
+                                                selected(value) => {
+                                                    root.update-output-sample-rate(i, value);
+                                                }
+                                            }
 
-                                                    if device.selected : Rectangle {
-                                                        background: transparent;
-                                                        min-width: 180px;
-                                                        VerticalBox {
-                                                            spacing: 6px;
-                                                            Text {
-                                                                text: "Buffer Size";
-                                                                color: #9ea7b3;
-                                                                font-size: 14px;
-                                                            }
-                                                            LineEdit {
-                                                                text: device.buffer_size_text;
-                                                                edited(text) => {
-                                                                    root.update-output-buffer-size(i, text);
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-
-                                                    Rectangle { horizontal-stretch: 1; background: transparent; }
+                                            if device.selected : ComboBox {
+                                                min-width: 150px;
+                                                model: root.buffer-size-options;
+                                                current-value: device.buffer_size_text;
+                                                selected(value) => {
+                                                    root.update-output-buffer-size(i, value);
                                                 }
                                             }
                                         }
                                     }
                                 }
-                            }
-
-                            HorizontalBox {
-                                spacing: 16px;
-
-                                if wizard-step == 1 : Button {
-                                    text: "Voltar";
-                                    clicked => {
-                                        root.go-to-input-step();
-                                    }
-                                }
-
-                                if wizard-step == 0 : Button {
-                                    text: "Continuar";
-                                    clicked => {
-                                        root.go-to-output-step();
-                                    }
-                                }
-
-                                if wizard-step == 1 : Button {
-                                    text: "Salvar e continuar";
-                                    clicked => {
-                                        root.save-audio-settings();
-                                    }
-                                }
-
-                                Rectangle { horizontal-stretch: 1; background: transparent; }
-                            }
-
-                            if status-message != "" : Text {
-                                text: status-message;
-                                color: #c4ccd7;
-                                font-size: 15px;
-                                wrap: word-wrap;
                             }
                         }
                     }
+                }
+
+                HorizontalBox {
+                    spacing: 12px;
+
+                    if wizard-step == 1 : Button {
+                        text: "Voltar";
+                        clicked => {
+                            root.go-to-input-step();
+                        }
+                    }
+
+                    Rectangle { horizontal-stretch: 1; background: transparent; }
+
+                    if wizard-step == 0 : Button {
+                        text: "Continuar";
+                        clicked => {
+                            root.go-to-output-step();
+                        }
+                    }
+
+                    if wizard-step == 1 : Button {
+                        text: "Salvar";
+                        clicked => {
+                            root.save-audio-settings();
+                        }
+                    }
+                }
+
+                if status-message != "" : Text {
+                    text: status-message;
+                    color: #c4ccd7;
+                    font-size: 14px;
+                    wrap: word-wrap;
                 }
             }
         }
