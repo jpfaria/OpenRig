@@ -28,7 +28,6 @@ tracks:
   - id: guitar_main
     input_id: scarlett_mono_1
     outputs: [scarlett_out]
-    bus_mode: mono
     gain: 1.0
     stages:
 #      - type: nam
@@ -196,7 +195,6 @@ tracks:
 #  - id: stereo_fx_demo
 #    input_id: scarlett_stereo
 #    outputs: [scarlett_out]
-#    bus_mode: stereo
 #    gain: 1.0
 #    stages:
 #      - type: delay
