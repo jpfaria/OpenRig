@@ -1,8 +1,8 @@
 use anyhow::{anyhow, bail, Result};
 use setup::block::{AudioBlockKind, CoreBlockKind};
 use setup::setup::Setup;
-use setup::track::Track;
-use std::collections::HashSet;
+use setup::track::{Track, TrackBusMode};
+use std::collections::{HashMap, HashSet};
 pub fn validate_setup(setup: &Setup) -> Result<()> {
     if setup.input_devices.is_empty() {
         bail!("invalid setup: no input devices configured");
@@ -25,16 +25,28 @@ pub fn validate_setup(setup: &Setup) -> Result<()> {
             bail!("invalid setup: input device with empty id");
         }
         if input_device.match_name.trim().is_empty() {
-            bail!("invalid setup: input device '{}' missing match_name", input_device.id.0);
+            bail!(
+                "invalid setup: input device '{}' missing match_name",
+                input_device.id.0
+            );
         }
         if input_device.sample_rate == 0 {
-            bail!("invalid setup: input device '{}' has invalid sample_rate", input_device.id.0);
+            bail!(
+                "invalid setup: input device '{}' has invalid sample_rate",
+                input_device.id.0
+            );
         }
         if input_device.buffer_size_frames == 0 {
-            bail!("invalid setup: input device '{}' has invalid buffer_size_frames", input_device.id.0);
+            bail!(
+                "invalid setup: input device '{}' has invalid buffer_size_frames",
+                input_device.id.0
+            );
         }
         if !input_device_ids.insert(input_device.id.clone()) {
-            bail!("invalid setup: duplicated input device id '{}'", input_device.id.0);
+            bail!(
+                "invalid setup: duplicated input device id '{}'",
+                input_device.id.0
+            );
         }
     }
     let mut output_device_ids = HashSet::new();
@@ -43,19 +55,32 @@ pub fn validate_setup(setup: &Setup) -> Result<()> {
             bail!("invalid setup: output device with empty id");
         }
         if output_device.match_name.trim().is_empty() {
-            bail!("invalid setup: output device '{}' missing match_name", output_device.id.0);
+            bail!(
+                "invalid setup: output device '{}' missing match_name",
+                output_device.id.0
+            );
         }
         if output_device.sample_rate == 0 {
-            bail!("invalid setup: output device '{}' has invalid sample_rate", output_device.id.0);
+            bail!(
+                "invalid setup: output device '{}' has invalid sample_rate",
+                output_device.id.0
+            );
         }
         if output_device.buffer_size_frames == 0 {
-            bail!("invalid setup: output device '{}' has invalid buffer_size_frames", output_device.id.0);
+            bail!(
+                "invalid setup: output device '{}' has invalid buffer_size_frames",
+                output_device.id.0
+            );
         }
         if !output_device_ids.insert(output_device.id.clone()) {
-            bail!("invalid setup: duplicated output device id '{}'", output_device.id.0);
+            bail!(
+                "invalid setup: duplicated output device id '{}'",
+                output_device.id.0
+            );
         }
     }
     let mut input_ids = HashSet::new();
+    let mut input_channel_counts = HashMap::new();
     for input in &setup.inputs {
         if input.id.0.trim().is_empty() {
             bail!("invalid setup: input with empty id");
@@ -71,8 +96,10 @@ pub fn validate_setup(setup: &Setup) -> Result<()> {
         if !input_ids.insert(input.id.clone()) {
             bail!("invalid setup: duplicated input id '{}'", input.id.0);
         }
+        input_channel_counts.insert(input.id.0.clone(), input.channels.len());
     }
     let mut output_ids = HashSet::new();
+    let mut output_channel_counts = HashMap::new();
     for output in &setup.outputs {
         if output.id.0.trim().is_empty() {
             bail!("invalid setup: output with empty id");
@@ -88,6 +115,7 @@ pub fn validate_setup(setup: &Setup) -> Result<()> {
         if !output_ids.insert(output.id.clone()) {
             bail!("invalid setup: duplicated output id '{}'", output.id.0);
         }
+        output_channel_counts.insert(output.id.0.clone(), output.channels.len());
     }
     let mut track_ids = HashSet::new();
     for track in &setup.tracks {
@@ -101,13 +129,25 @@ pub fn validate_setup(setup: &Setup) -> Result<()> {
             bail!("invalid setup: track '{}' has no outputs", track.id.0);
         }
         if !input_ids.contains(&track.input_id) {
-            bail!("invalid setup: track '{}' references missing input '{}'", track.id.0, track.input_id.0);
+            bail!(
+                "invalid setup: track '{}' references missing input '{}'",
+                track.id.0,
+                track.input_id.0
+            );
         }
         for output_id in &track.output_ids {
             if !output_ids.contains(output_id) {
-                bail!("invalid setup: track '{}' references missing output '{}'", track.id.0, output_id.0);
+                bail!(
+                    "invalid setup: track '{}' references missing output '{}'",
+                    track.id.0,
+                    output_id.0
+                );
             }
         }
+        let input_channel_count = *input_channel_counts
+            .get(&track.input_id.0)
+            .expect("validated input id must exist");
+        validate_track_bus_layout(track, input_channel_count, &output_channel_counts)?;
         validate_track_blocks(track)?;
         if !track_ids.insert(track.id.clone()) {
             bail!("invalid setup: duplicated track id '{}'", track.id.0);
@@ -115,6 +155,51 @@ pub fn validate_setup(setup: &Setup) -> Result<()> {
     }
     Ok(())
 }
+
+fn validate_track_bus_layout(
+    track: &Track,
+    input_channel_count: usize,
+    output_channel_counts: &HashMap<String, usize>,
+) -> Result<()> {
+    let resolved_bus_mode = match track.bus_mode {
+        TrackBusMode::Auto => {
+            if input_channel_count >= 2 {
+                TrackBusMode::Stereo
+            } else {
+                TrackBusMode::Mono
+            }
+        }
+        mode => mode,
+    };
+
+    if resolved_bus_mode == TrackBusMode::Stereo && input_channel_count > 2 {
+        bail!(
+            "track '{}' resolves to stereo but input '{}' exposes {} channels; only 1 or 2 are supported for stereo tracks",
+            track.id.0,
+            track.input_id.0,
+            input_channel_count
+        );
+    }
+
+    if resolved_bus_mode == TrackBusMode::Stereo {
+        for output_id in &track.output_ids {
+            let output_channel_count = *output_channel_counts
+                .get(&output_id.0)
+                .expect("validated output id must exist");
+            if output_channel_count > 2 {
+                bail!(
+                    "track '{}' resolves to stereo but output '{}' exposes {} channels; only 1 or 2 are supported for stereo tracks",
+                    track.id.0,
+                    output_id.0,
+                    output_channel_count
+                );
+            }
+        }
+    }
+
+    Ok(())
+}
+
 fn validate_track_blocks(track: &Track) -> Result<()> {
     let mut block_ids = HashSet::new();
     for block in &track.blocks {
@@ -175,7 +260,11 @@ fn validate_track_blocks(track: &Track) -> Result<()> {
                 if select.options.is_empty() {
                     bail!("block '{}' has no select options", block.id.0);
                 }
-                if !select.options.iter().any(|option| option.id == select.selected_block_id) {
+                if !select
+                    .options
+                    .iter()
+                    .any(|option| option.id == select.selected_block_id)
+                {
                     bail!("block '{}' selected option does not exist", block.id.0);
                 }
             }

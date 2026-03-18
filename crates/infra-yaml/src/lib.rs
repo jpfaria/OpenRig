@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use domain::ids::{BlockId, DeviceId, InputId, OutputId, SetupId, TrackId};
 use ports::{PresetRepository, SetupRepository, StateRepository};
 use preset::Preset;
+use serde::Deserialize;
 use setup::block::{
     AudioBlock, AudioBlockKind, CompressorBlock, CompressorParams, CoreBlock, CoreBlockKind,
     CoreNamBlock, DelayBlock, DelayParams, EqBlock, EqParams, GateBlock, GateParams, NamBlock,
@@ -11,9 +12,8 @@ use setup::block::{
 use setup::device::{InputDevice, OutputDevice};
 use setup::io::{Input, Output};
 use setup::setup::Setup;
-use setup::track::Track;
+use setup::track::{Track, TrackBusMode, TrackOutputMixdown};
 use state::pedalboard_state::PedalboardState;
-use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -161,6 +161,10 @@ struct TrackYaml {
     id: String,
     input_id: String,
     outputs: Vec<String>,
+    #[serde(default)]
+    bus_mode: TrackBusMode,
+    #[serde(default)]
+    output_mixdown: TrackOutputMixdown,
     gain: f32,
     #[serde(default, alias = "stages")]
     blocks: Vec<AudioBlockYaml>,
@@ -172,6 +176,8 @@ impl From<TrackYaml> for Track {
             id: track_id.clone(),
             input_id: InputId(value.input_id),
             output_ids: value.outputs.into_iter().map(OutputId).collect(),
+            bus_mode: value.bus_mode,
+            output_mixdown: value.output_mixdown,
             gain: value.gain,
             blocks: value
                 .blocks
@@ -358,10 +364,26 @@ impl AudioBlockYaml {
                                 .unwrap_or(-80.0),
                         },
                         eq: NamEqParams {
-                            enabled: params.eq.as_ref().and_then(|value| value.enabled).unwrap_or(true),
-                            bass: params.eq.as_ref().and_then(|value| value.bass).unwrap_or(5.0),
-                            middle: params.eq.as_ref().and_then(|value| value.middle).unwrap_or(5.0),
-                            treble: params.eq.as_ref().and_then(|value| value.treble).unwrap_or(5.0),
+                            enabled: params
+                                .eq
+                                .as_ref()
+                                .and_then(|value| value.enabled)
+                                .unwrap_or(true),
+                            bass: params
+                                .eq
+                                .as_ref()
+                                .and_then(|value| value.bass)
+                                .unwrap_or(5.0),
+                            middle: params
+                                .eq
+                                .as_ref()
+                                .and_then(|value| value.middle)
+                                .unwrap_or(5.0),
+                            treble: params
+                                .eq
+                                .as_ref()
+                                .and_then(|value| value.treble)
+                                .unwrap_or(5.0),
                         },
                         ir_enabled: params.ir_enabled.unwrap_or(true),
                     },
@@ -462,7 +484,11 @@ impl AudioBlockYaml {
                 id: generated_id,
                 kind: AudioBlockKind::CoreNam(CoreNamBlock { model_id, ir_id }),
             },
-            AudioBlockYaml::Select { id, selected, options } => {
+            AudioBlockYaml::Select {
+                id,
+                selected,
+                options,
+            } => {
                 let selected_block_id = BlockId(format!("{}::{}", id, selected));
                 let options = options
                     .into_iter()
@@ -490,10 +516,26 @@ impl AudioBlockYaml {
                                                 .unwrap_or(-80.0),
                                         },
                                         eq: NamEqParams {
-                                            enabled: params.eq.as_ref().and_then(|value| value.enabled).unwrap_or(true),
-                                            bass: params.eq.as_ref().and_then(|value| value.bass).unwrap_or(5.0),
-                                            middle: params.eq.as_ref().and_then(|value| value.middle).unwrap_or(5.0),
-                                            treble: params.eq.as_ref().and_then(|value| value.treble).unwrap_or(5.0),
+                                            enabled: params
+                                                .eq
+                                                .as_ref()
+                                                .and_then(|value| value.enabled)
+                                                .unwrap_or(true),
+                                            bass: params
+                                                .eq
+                                                .as_ref()
+                                                .and_then(|value| value.bass)
+                                                .unwrap_or(5.0),
+                                            middle: params
+                                                .eq
+                                                .as_ref()
+                                                .and_then(|value| value.middle)
+                                                .unwrap_or(5.0),
+                                            treble: params
+                                                .eq
+                                                .as_ref()
+                                                .and_then(|value| value.treble)
+                                                .unwrap_or(5.0),
                                         },
                                         ir_enabled: params.ir_enabled.unwrap_or(true),
                                     },
