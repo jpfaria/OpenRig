@@ -25,7 +25,7 @@ members = [
   "crates/infra-filesystem",
   "crates/infra-cpal",
   "crates/adapter-console",
-  "crates/adapter-grpc",
+  "crates/adapter-server",
   "crates/adapter-gui",
   "crates/adapter-vst3",
 ]

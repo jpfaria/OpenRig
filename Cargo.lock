@@ -18,11 +18,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "adapter-grpc"
+name = "adapter-gui"
 version = "0.1.0"
 
 [[package]]
-name = "adapter-gui"
+name = "adapter-server"
 version = "0.1.0"
 
 [[package]]

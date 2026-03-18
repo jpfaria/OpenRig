@@ -4,14 +4,14 @@ These instructions apply to the entire repository unless a deeper `AGENTS.md` ov
 - Current crate families are:
 - `crates/domain`, `crates/application`, `crates/engine`, `crates/ports`, `crates/setup`, `crates/preset`, `crates/state`
 - `crates/infra-yaml`, `crates/infra-filesystem`, `crates/infra-cpal`
-- `crates/adapter-console`, `crates/adapter-grpc`, `crates/adapter-gui`, `crates/adapter-vst3`
+- `crates/adapter-console`, `crates/adapter-server`, `crates/adapter-gui`, `crates/adapter-vst3`
 - `crates/stage-*` for DSP stage implementations and shared stage utilities
 - Runtime setup is currently loaded from `setup.yaml`, and logical state is loaded from `state.yaml`.
 - Native NAM integration is built in `crates/stage-amp-nam/build.rs` and linked through the `cpp/` CMake project.
 - Treat this project as core-first.
 - Keep `domain`, `application`, and `engine` conceptually independent from YAML, filesystem, device backends, and UI/adapter concerns.
 - Preserve clear boundaries between domain models, orchestration/use cases, runtime audio processing, infrastructure adapters, and presentation adapters.
-- Consider future adapters such as console, gRPC, GUI, and VST3, but do not force large migrations unless requested.
+- Consider future adapters such as console, server, GUI, and VST3, but do not force large migrations unless requested.
 - `crates/domain`: ids and value objects only; no YAML, device I/O, filesystem, audio backend, or UI concerns.
 - `crates/setup`: static pedalboard setup models and block definitions; keep setup modeling distinct from runtime state.
 - `crates/state`: logical application state, commands, events, and engine state; keep it conceptually separate from setup and from internal real-time buffers.

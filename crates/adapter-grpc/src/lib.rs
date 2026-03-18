@@ -1,1 +1,0 @@
-// Placeholder adapter crate.
