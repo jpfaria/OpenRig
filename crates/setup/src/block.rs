@@ -11,6 +11,7 @@ use stage_dyn::compressor_model_schema;
 use stage_dyn::gate_model_schema;
 use stage_filter::eq_model_schema;
 use stage_full_rig::{full_rig_model_schema, validate_full_rig_params};
+use stage_gain::{drive_model_schema, validate_drive_params};
 use stage_mod::tremolo_model_schema;
 use stage_nam::nam_model_schema;
 use stage_reverb::reverb_model_schema;
@@ -204,6 +205,10 @@ impl CoreBlock {
                 normalize_block_params("full_rig", &stage.model, stage.params.clone())?;
                 Ok(())
             }
+            CoreBlockKind::Drive(stage) => {
+                normalize_block_params("drive", &stage.model, stage.params.clone())?;
+                Ok(())
+            }
             CoreBlockKind::Delay(stage) => {
                 normalize_block_params("delay", &stage.model, stage.params.clone())?;
                 Ok(())
@@ -250,6 +255,9 @@ impl CoreBlock {
             CoreBlockKind::FullRig(stage) => {
                 describe_block_params(block_id, "full_rig", &stage.model, &stage.params)
             }
+            CoreBlockKind::Drive(stage) => {
+                describe_block_params(block_id, "drive", &stage.model, &stage.params)
+            }
             CoreBlockKind::Delay(stage) => {
                 describe_block_params(block_id, "delay", &stage.model, &stage.params)
             }
@@ -285,6 +293,9 @@ impl CoreBlock {
             }
             CoreBlockKind::FullRig(stage) => {
                 Ok(vec![describe_block_audio(block_id, "full_rig", &stage.model)?])
+            }
+            CoreBlockKind::Drive(stage) => {
+                Ok(vec![describe_block_audio(block_id, "drive", &stage.model)?])
             }
             CoreBlockKind::Delay(stage) => {
                 Ok(vec![describe_block_audio(block_id, "delay", &stage.model)?])
@@ -334,6 +345,9 @@ pub fn normalize_block_params(
     if effect_type == "full_rig" {
         validate_full_rig_params(model, &normalized).map_err(|error| error.to_string())?;
     }
+    if effect_type == "drive" {
+        validate_drive_params(model, &normalized).map_err(|error| error.to_string())?;
+    }
     Ok(normalized)
 }
 
@@ -345,6 +359,7 @@ pub fn schema_for_block_model(
         "amp" | "amp_head" => amp_head_model_schema(model).map_err(|error| error.to_string()),
         "amp_combo" => amp_combo_model_schema(model).map_err(|error| error.to_string()),
         "full_rig" => full_rig_model_schema(model).map_err(|error| error.to_string()),
+        "drive" => drive_model_schema(model).map_err(|error| error.to_string()),
         "nam" => nam_model_schema(model).map_err(|error| error.to_string()),
         "delay" => delay_model_schema(model).map_err(|error| error.to_string()),
         "reverb" => reverb_model_schema(model).map_err(|error| error.to_string()),

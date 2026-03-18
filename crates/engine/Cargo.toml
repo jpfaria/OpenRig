@@ -6,6 +6,7 @@ edition.workspace = true
 anyhow.workspace = true
 domain = { path = "../domain" }
 stage-core = { path = "../stage-core" }
+stage-gain = { path = "../stage-gain" }
 stage-delay = { path = "../stage-delay" }
 stage-mod = { path = "../stage-mod" }
 stage-filter = { path = "../stage-filter" }

@@ -15,6 +15,7 @@ use stage_dyn::build_compressor_processor_for_layout;
 use stage_dyn::build_gate_processor_for_layout;
 use stage_filter::build_eq_processor_for_layout;
 use stage_full_rig::{build_full_rig_processor_for_layout, full_rig_asset_summary};
+use stage_gain::{build_drive_processor_for_layout, drive_asset_summary};
 use stage_mod::build_tremolo_processor_for_layout;
 use stage_nam::{build_nam_processor_for_layout, GENERIC_NAM_MODEL_ID};
 use stage_reverb::build_reverb_processor_for_layout;
@@ -300,6 +301,30 @@ fn build_runtime_processors(
                         current_layout,
                         |layout| {
                             build_full_rig_processor_for_layout(
+                                &stage.model,
+                                &stage.params,
+                                DEFAULT_SAMPLE_RATE,
+                                layout,
+                            )
+                        },
+                    )?;
+                    current_layout = outcome.output_layout;
+                    processors.push(RuntimeProcessor::Audio(outcome.processor));
+                }
+                CoreBlockKind::Drive(stage) => {
+                    println!(
+                        "[track:{}] loading drive model={} {}",
+                        track.id.0,
+                        stage.model,
+                        drive_asset_summary(&stage.model, &stage.params)?
+                    );
+                    let outcome = build_audio_processor_for_model(
+                        track,
+                        "drive",
+                        &stage.model,
+                        current_layout,
+                        |layout| {
+                            build_drive_processor_for_layout(
                                 &stage.model,
                                 &stage.params,
                                 DEFAULT_SAMPLE_RATE,

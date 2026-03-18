@@ -7,8 +7,8 @@ use serde::Deserialize;
 use serde_yaml::Value;
 use setup::block::{
     normalize_block_params, AmpComboBlock, AmpHeadBlock, AudioBlock, AudioBlockKind,
-    CompressorBlock, CoreBlock, CoreBlockKind, CoreNamBlock, DelayBlock, EqBlock, FullRigBlock,
-    GateBlock, NamBlock, ReverbBlock, SelectBlock, TremoloBlock, TunerBlock,
+    CompressorBlock, CoreBlock, CoreBlockKind, CoreNamBlock, DelayBlock, DriveBlock, EqBlock,
+    FullRigBlock, GateBlock, NamBlock, ReverbBlock, SelectBlock, TremoloBlock, TunerBlock,
 };
 use setup::device::{InputDevice, OutputDevice};
 use setup::io::{Input, Output};
@@ -22,6 +22,7 @@ use stage_dyn::compressor_studio_clean::MODEL_ID as DEFAULT_COMPRESSOR_MODEL;
 use stage_dyn::gate_basic::MODEL_ID as DEFAULT_GATE_MODEL;
 use stage_filter::eq_three_band_basic::MODEL_ID as DEFAULT_EQ_MODEL;
 use stage_full_rig::roland_jc_120b_jazz_chorus::MODEL_ID as DEFAULT_FULL_RIG_MODEL;
+use stage_gain::blues_overdrive_bd_2::MODEL_ID as DEFAULT_DRIVE_MODEL;
 use stage_mod::tremolo_sine::MODEL_ID as DEFAULT_TREMOLO_MODEL;
 use stage_nam::GENERIC_NAM_MODEL_ID;
 use stage_reverb::plate_foundation::MODEL_ID as DEFAULT_REVERB_MODEL;
@@ -250,6 +251,12 @@ enum AudioBlockYaml {
         #[serde(default)]
         params: Value,
     },
+    Drive {
+        #[serde(default = "default_drive_model")]
+        model: String,
+        #[serde(default)]
+        params: Value,
+    },
     Nam {
         #[serde(default = "default_nam_model")]
         model: String,
@@ -350,6 +357,15 @@ impl AudioBlockYaml {
                     kind: CoreBlockKind::FullRig(FullRigBlock {
                         model: model.clone(),
                         params: load_model_params("full_rig", &model, params)?,
+                    }),
+                }),
+            }),
+            AudioBlockYaml::Drive { model, params } => Ok(AudioBlock {
+                id: generated_id,
+                kind: AudioBlockKind::Core(CoreBlock {
+                    kind: CoreBlockKind::Drive(DriveBlock {
+                        model: model.clone(),
+                        params: load_model_params("drive", &model, params)?,
                     }),
                 }),
             }),
@@ -550,6 +566,10 @@ fn default_amp_combo_model() -> String {
 
 fn default_full_rig_model() -> String {
     DEFAULT_FULL_RIG_MODEL.to_string()
+}
+
+fn default_drive_model() -> String {
+    DEFAULT_DRIVE_MODEL.to_string()
 }
 
 fn default_reverb_model() -> String {

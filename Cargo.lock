@@ -281,6 +281,7 @@ dependencies = [
  "stage-dyn",
  "stage-filter",
  "stage-full-rig",
+ "stage-gain",
  "stage-mod",
  "stage-nam",
  "stage-reverb",
@@ -432,6 +433,7 @@ dependencies = [
  "stage-dyn",
  "stage-filter",
  "stage-full-rig",
+ "stage-gain",
  "stage-mod",
  "stage-nam",
  "stage-reverb",
@@ -875,6 +877,7 @@ dependencies = [
  "stage-dyn",
  "stage-filter",
  "stage-full-rig",
+ "stage-gain",
  "stage-mod",
  "stage-nam",
  "stage-reverb",
@@ -962,6 +965,11 @@ dependencies = [
 [[package]]
 name = "stage-gain"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "nam",
+ "stage-core",
+]
 
 [[package]]
 name = "stage-mod"
