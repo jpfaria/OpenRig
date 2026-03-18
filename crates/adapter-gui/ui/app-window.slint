@@ -1,11 +1,11 @@
-import { VerticalBox, HorizontalBox } from "std-widgets.slint";
-import { Theme } from "theme.slint";
 import { DeviceSelectionItem } from "models.slint";
-import { Header, AudioWizard } from "blocks/blocks.slint";
+import { DesktopMain } from "desktop_main.slint";
+import { TouchMain } from "touch_main.slint";
 
 export component AppWindow inherits Window {
     in property <string> runtime-mode-label;
     in property <string> interaction-mode-label;
+    in property <bool> touch-optimized;
     in property <bool> show-audio-setup;
     in-out property <int> wizard-step;
     in-out property <[DeviceSelectionItem]> input-devices;
@@ -13,11 +13,6 @@ export component AppWindow inherits Window {
     in-out property <string> status-message;
     in property <[string]> sample-rate-options: ["44100", "48000", "88200", "96000"];
     in property <[string]> buffer-size-options: ["32", "64", "128", "256", "512", "1024"];
-    private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
-    private property <length> device-row-height: 44px;
-    private property <length> device-list-height: (visible-device-count * device-row-height) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px);
-    private property <length> wizard-height: 24px + 20px + 24px + device-list-height + 24px + 44px + 24px;
-    private property <length> wizard-width: 780px;
 
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
@@ -33,67 +28,47 @@ export component AppWindow inherits Window {
     min-height: 720px;
     preferred-width: 1280px;
     preferred-height: 900px;
-    background: Theme.palette.pure-black;
+    background: #040708;
     default-font-family: "Helvetica Neue";
-    Rectangle {
-        background: Theme.palette.background-gradient;
+    if !touch-optimized : DesktopMain {
+        width: 100%;
+        height: 100%;
+        show-audio-setup: root.show-audio-setup;
+        wizard-step: root.wizard-step;
+        input-devices: root.input-devices;
+        output-devices: root.output-devices;
+        status-message: root.status-message;
+        sample-rate-options: root.sample-rate-options;
+        buffer-size-options: root.buffer-size-options;
+        toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
+        toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
+        update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
+        update-input-buffer-size(index, value) => { root.update-input-buffer-size(index, value); }
+        update-output-sample-rate(index, value) => { root.update-output-sample-rate(index, value); }
+        update-output-buffer-size(index, value) => { root.update-output-buffer-size(index, value); }
+        go-to-output-step => { root.go-to-output-step(); }
+        go-to-input-step => { root.go-to-input-step(); }
+        save-audio-settings => { root.save-audio-settings(); }
+    }
 
-        if show-audio-setup : VerticalBox {
-            padding-top: 24px;
-            padding-bottom: 24px;
-            spacing: 24px;
-
-            Header {}
-
-            HorizontalBox {
-                Rectangle {
-                    horizontal-stretch: 1;
-                    background: transparent;
-                }
-
-                AudioWizard {
-                    width: root.wizard-width;
-                    height: root.wizard-height;
-                    wizard-step: root.wizard-step;
-                    input-devices: root.input-devices;
-                    output-devices: root.output-devices;
-                    status-message: root.status-message;
-                    sample-rate-options: root.sample-rate-options;
-                    buffer-size-options: root.buffer-size-options;
-                    toggle-input-device(index, selected) => {
-                        root.toggle-input-device(index, selected);
-                    }
-                    toggle-output-device(index, selected) => {
-                        root.toggle-output-device(index, selected);
-                    }
-                    update-input-sample-rate(index, value) => {
-                        root.update-input-sample-rate(index, value);
-                    }
-                    update-input-buffer-size(index, value) => {
-                        root.update-input-buffer-size(index, value);
-                    }
-                    update-output-sample-rate(index, value) => {
-                        root.update-output-sample-rate(index, value);
-                    }
-                    update-output-buffer-size(index, value) => {
-                        root.update-output-buffer-size(index, value);
-                    }
-                    go-to-output-step => {
-                        root.go-to-output-step();
-                    }
-                    go-to-input-step => {
-                        root.go-to-input-step();
-                    }
-                    save-audio-settings => {
-                        root.save-audio-settings();
-                    }
-                }
-
-                Rectangle {
-                    horizontal-stretch: 1;
-                    background: transparent;
-                }
-            }
-        }
+    if touch-optimized : TouchMain {
+        width: 100%;
+        height: 100%;
+        show-audio-setup: root.show-audio-setup;
+        wizard-step: root.wizard-step;
+        input-devices: root.input-devices;
+        output-devices: root.output-devices;
+        status-message: root.status-message;
+        sample-rate-options: root.sample-rate-options;
+        buffer-size-options: root.buffer-size-options;
+        toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
+        toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
+        update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
+        update-input-buffer-size(index, value) => { root.update-input-buffer-size(index, value); }
+        update-output-sample-rate(index, value) => { root.update-output-sample-rate(index, value); }
+        update-output-buffer-size(index, value) => { root.update-output-buffer-size(index, value); }
+        go-to-output-step => { root.go-to-output-step(); }
+        go-to-input-step => { root.go-to-input-step(); }
+        save-audio-settings => { root.save-audio-settings(); }
     }
 }

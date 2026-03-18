@@ -1,0 +1,33 @@
+import { VerticalBox } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+
+export component HomePlaceholderPage inherits Rectangle {
+    in property <bool> touch-optimized: false;
+
+    width: 720px;
+    height: 220px;
+    background: Theme.palette.card;
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: Theme.palette.border-strong;
+
+    VerticalBox {
+        padding: Theme.spaces.xlarge;
+        spacing: Theme.spaces.medium;
+
+        Text {
+            text: touch-optimized ? "Interface touch em construção" : "Interface desktop em construção";
+            color: Theme.palette.text-primary;
+            font-size: Theme.typo.section.size;
+            font-weight: Theme.typo.section.weight;
+        }
+
+        Text {
+            text: "A estrutura principal agora separa main e pages. O wizard de configuração fica isolado como página.";
+            color: Theme.palette.text-secondary;
+            font-size: Theme.typo.body.size;
+            font-weight: Theme.typo.body.weight;
+            wrap: word-wrap;
+        }
+    }
+}

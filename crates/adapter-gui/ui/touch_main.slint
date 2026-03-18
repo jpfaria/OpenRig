@@ -1,0 +1,65 @@
+import { VerticalBox } from "std-widgets.slint";
+import { Theme } from "theme.slint";
+import { DeviceSelectionItem } from "models.slint";
+import { Header } from "blocks/blocks.slint";
+import { WizardConfigPage, HomePlaceholderPage } from "pages/pages.slint";
+
+export component TouchMain inherits Rectangle {
+    in property <bool> show-audio-setup;
+    in-out property <int> wizard-step;
+    in property <[DeviceSelectionItem]> input-devices;
+    in property <[DeviceSelectionItem]> output-devices;
+    in-out property <string> status-message;
+    in property <[string]> sample-rate-options;
+    in property <[string]> buffer-size-options;
+    callback toggle-input-device(int, bool);
+    callback toggle-output-device(int, bool);
+    callback update-input-sample-rate(int, string);
+    callback update-input-buffer-size(int, string);
+    callback update-output-sample-rate(int, string);
+    callback update-output-buffer-size(int, string);
+    callback go-to-output-step();
+    callback go-to-input-step();
+    callback save-audio-settings();
+    private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
+    private property <length> wizard-page-height: 24px + 20px + 24px + ((visible-device-count * 44px) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px)) + 24px + 44px + 24px;
+    private property <length> content-height: show-audio-setup ? wizard-page-height : 220px;
+
+    background: Theme.palette.background-gradient;
+
+    VerticalBox {
+        padding-top: 20px;
+        spacing: 20px;
+
+        Header {}
+
+        Rectangle {
+            x: parent.width / 2 - self.width / 2;
+            width: 720px;
+            height: root.content-height;
+            background: transparent;
+
+            if show-audio-setup : WizardConfigPage {
+                wizard-step: root.wizard-step;
+                input-devices: root.input-devices;
+                output-devices: root.output-devices;
+                status-message: root.status-message;
+                sample-rate-options: root.sample-rate-options;
+                buffer-size-options: root.buffer-size-options;
+                toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
+                toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
+                update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
+                update-input-buffer-size(index, value) => { root.update-input-buffer-size(index, value); }
+                update-output-sample-rate(index, value) => { root.update-output-sample-rate(index, value); }
+                update-output-buffer-size(index, value) => { root.update-output-buffer-size(index, value); }
+                go-to-output-step => { root.go-to-output-step(); }
+                go-to-input-step => { root.go-to-input-step(); }
+                save-audio-settings => { root.save-audio-settings(); }
+            }
+
+            if !show-audio-setup : HomePlaceholderPage {
+                touch-optimized: true;
+            }
+        }
+    }
+}

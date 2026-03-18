@@ -3,7 +3,7 @@ import { Theme } from "../theme.slint";
 import { DeviceSelectionItem } from "../models.slint";
 import { PrimaryActionButton, SecondaryActionButton, DeviceRow } from "../widgets/widgets.slint";
 
-export component AudioWizard inherits Rectangle {
+export component WizardConfigPage inherits Rectangle {
     in-out property <int> wizard-step;
     in property <[DeviceSelectionItem]> input-devices;
     in property <[DeviceSelectionItem]> output-devices;
@@ -22,11 +22,10 @@ export component AudioWizard inherits Rectangle {
 
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
     private property <length> device-row-height: 44px;
-    private property <length> list-header-height: 18px;
-    private property <length> device-list-height: list-header-height + 12px + (visible-device-count * device-row-height) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px);
+    private property <length> device-list-height: (visible-device-count * device-row-height) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px);
     private property <length> wizard-card-height: 24px + 20px + 24px + device-list-height + 24px + 44px + 24px;
 
-    width: 780px;
+    width: 720px;
     height: root.wizard-card-height;
     background: Theme.palette.card;
     border-radius: 10px;
@@ -37,55 +36,16 @@ export component AudioWizard inherits Rectangle {
         padding: Theme.spaces.xlarge;
         spacing: Theme.spaces.large;
 
-        HorizontalBox {
-            spacing: Theme.spaces.medium;
-
-            Text {
-                text: wizard-step == 0 ? "Escolha os dispositivos de entrada" : "Escolha os dispositivos de saída";
-                color: Theme.palette.text-primary;
-                font-size: Theme.typo.section.size;
-                font-weight: Theme.typo.section.weight;
-                vertical-alignment: center;
-            }
-
-            Rectangle { horizontal-stretch: 1; background: transparent; }
+        Text {
+            text: wizard-step == 0 ? "Escolha os dispositivos de entrada" : "Escolha os dispositivos de saída";
+            color: Theme.palette.text-primary;
+            font-size: Theme.typo.section.size;
+            font-weight: Theme.typo.section.weight;
         }
 
         VerticalBox {
             spacing: Theme.spaces.small;
             height: root.device-list-height;
-
-            HorizontalBox {
-                height: root.list-header-height;
-                spacing: Theme.spaces.medium;
-
-                Text {
-                    text: "Dispositivo";
-                    color: Theme.palette.text-muted;
-                    font-size: Theme.typo.caption.size;
-                    font-weight: Theme.typo.caption.weight;
-                    horizontal-stretch: 1;
-                    vertical-alignment: center;
-                }
-
-                Text {
-                    text: "Sample rate";
-                    color: Theme.palette.text-muted;
-                    font-size: Theme.typo.caption.size;
-                    font-weight: Theme.typo.caption.weight;
-                    width: 128px;
-                    vertical-alignment: center;
-                }
-
-                Text {
-                    text: "Buffer";
-                    color: Theme.palette.text-muted;
-                    font-size: Theme.typo.caption.size;
-                    font-weight: Theme.typo.caption.weight;
-                    width: 128px;
-                    vertical-alignment: center;
-                }
-            }
 
             if wizard-step == 0 : VerticalBox {
                 spacing: Theme.spaces.small;

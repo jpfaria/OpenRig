@@ -15,11 +15,13 @@ const SUPPORTED_BUFFER_SIZES: &[u32] = &[32, 64, 128, 256, 512, 1024];
 pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: InteractionMode) -> Result<()> {
     let context = UiRuntimeContext::new(runtime_mode, interaction_mode);
     let settings = FilesystemStorage::load_gui_audio_settings()?.unwrap_or_default();
+    let needs_audio_setup = context.capabilities.can_select_audio_device && !settings.is_complete();
 
     let window = AppWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     window.set_runtime_mode_label(context.runtime_mode.label().into());
     window.set_interaction_mode_label(context.interaction_mode.label().into());
-    window.set_show_audio_setup(context.capabilities.can_select_audio_device);
+    window.set_touch_optimized(context.capabilities.touch_optimized);
+    window.set_show_audio_setup(needs_audio_setup);
     window.set_wizard_step(if settings.is_complete() { 1 } else { 0 });
     window.set_status_message("".into());
 
@@ -184,7 +186,10 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             }
 
             match FilesystemStorage::save_gui_audio_settings(&settings) {
-                Ok(()) => window.set_status_message("Configuração salva com sucesso.".into()),
+                Ok(()) => {
+                    window.set_status_message("".into());
+                    window.set_show_audio_setup(false);
+                }
                 Err(error) => window.set_status_message(error.to_string().into()),
             }
         });
