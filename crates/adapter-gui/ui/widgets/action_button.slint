@@ -12,16 +12,16 @@ component BaseActionButton inherits Rectangle {
     in property <int> text-weight: 600;
     callback clicked();
 
-    height: 36px;
+    height: 44px;
     border-radius: 18px;
     border-width: 1px;
     background: root.fill;
     border-color: root.outline-color;
 
     HorizontalBox {
-        padding-left: 14px;
-        padding-right: 14px;
-        spacing: 8px;
+        padding-left: 16px;
+        padding-right: 16px;
+        spacing: 12px;
 
         if root.has-icon && root.icon-leading : Image {
             width: 16px;
@@ -53,7 +53,7 @@ component BaseActionButton inherits Rectangle {
 }
 
 export component PrimaryActionButton inherits BaseActionButton {
-    width: 138px;
+    width: 136px;
     fill: @linear-gradient(180deg, Theme.palette.accent-start 0%, Theme.palette.accent-end 100%);
     outline-color: Theme.palette.accent-border;
     text-color: #f6f8ff;
@@ -61,7 +61,7 @@ export component PrimaryActionButton inherits BaseActionButton {
 }
 
 export component SecondaryActionButton inherits BaseActionButton {
-    width: 112px;
+    width: 120px;
     fill: @linear-gradient(180deg, Theme.palette.secondary-start 0%, Theme.palette.secondary-end 100%);
     outline-color: Theme.palette.secondary-border;
     text-color: Theme.palette.text-secondary;

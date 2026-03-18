@@ -14,10 +14,10 @@ export component AppWindow inherits Window {
     in property <[string]> sample-rate-options: ["44100", "48000", "88200", "96000"];
     in property <[string]> buffer-size-options: ["32", "64", "128", "256", "512", "1024"];
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
-    private property <length> device-row-height: 40px;
+    private property <length> device-row-height: 44px;
     private property <length> device-list-height: (visible-device-count * device-row-height) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px);
-    private property <length> wizard-height: 20px + 16px + device-list-height + 20px + 36px + 20px;
-    private property <length> wizard-width: 800px;
+    private property <length> wizard-height: 24px + 20px + 24px + device-list-height + 24px + 44px + 24px;
+    private property <length> wizard-width: 780px;
 
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
@@ -39,7 +39,7 @@ export component AppWindow inherits Window {
         background: Theme.palette.background-gradient;
 
         if show-audio-setup : VerticalBox {
-            padding-top: 10px;
+            padding-top: 24px;
             padding-bottom: 24px;
             spacing: 24px;
 
