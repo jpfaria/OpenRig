@@ -4,7 +4,7 @@
 
 OpenRig is a cross-platform pedalboard platform for guitar and acoustic processing, built around one Rust DSP core that can run as a standalone app, a VST3 plugin, a server process, and a dedicated hardware unit.
 
-It is being designed to run on Windows, macOS, and Linux, and to scale from desktop audio to a custom Orange Pi based rig with remote control interfaces.
+It is being designed to run on Windows, macOS, and Linux, and to scale from desktop audio to a dedicated hardware rig with remote control interfaces.
 
 ![OpenRig ecosystem](docs/assets/openrig-ecosystem.svg)
 
@@ -15,7 +15,7 @@ It is being designed to run on Windows, macOS, and Linux, and to scale from desk
 - VST3 plugin with a native GUI for integration inside DAWs
 - Server mode for headless audio hosting and remote control
 - Flutter client applications for desktop and mobile control surfaces
-- Dedicated hardware version based on Orange Pi and a custom 3D printed enclosure
+- Dedicated hardware version with a custom enclosure and integrated controls
 
 ## Direction
 
@@ -30,7 +30,7 @@ It is being designed to run on Windows, macOS, and Linux, and to scale from desk
 - `Standalone`: OpenRig owns the audio device and runs as the main pedalboard application
 - `VST3`: OpenRig runs inside a DAW with the same processing model and a dedicated plugin GUI
 - `Server`: OpenRig runs headless and exposes control endpoints for remote UIs
-- `Hardware`: OpenRig runs on a dedicated Orange Pi based unit with an embedded screen and foot control workflow
+- `Hardware`: OpenRig runs on a dedicated unit with an embedded screen and foot control workflow
 - `Remote UI`: Flutter clients can control rigs, presets, and state from desktop or mobile
 
 ## Current Vertical Slice

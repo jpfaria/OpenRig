@@ -40,7 +40,7 @@
   <text x="236" y="598" text-anchor="middle" fill="#64748B" font-family="Arial, Helvetica, sans-serif" font-size="16">Remote control ready</text>
 
   <rect x="920" y="488" width="248" height="128" rx="28" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
-  <text x="1044" y="536" text-anchor="middle" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700">Orange Pi Rig</text>
+  <text x="1044" y="536" text-anchor="middle" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700">Dedicated Hardware</text>
   <text x="1044" y="572" text-anchor="middle" fill="#475569" font-family="Arial, Helvetica, sans-serif" font-size="18">Custom hardware enclosure</text>
   <text x="1044" y="598" text-anchor="middle" fill="#64748B" font-family="Arial, Helvetica, sans-serif" font-size="16">3D printed pedalboard unit</text>
 
