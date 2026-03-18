@@ -11,8 +11,8 @@ component PrimaryActionButton inherits Rectangle {
     in property <string> text;
     callback clicked();
 
-    min-width: 138px;
-    min-height: 44px;
+    width: 138px;
+    height: 44px;
     border-radius: 14px;
     background: @linear-gradient(180deg, #8e73ff 0%, #694dff 100%);
 
@@ -36,8 +36,8 @@ component SecondaryActionButton inherits Rectangle {
     in property <string> text;
     callback clicked();
 
-    min-width: 108px;
-    min-height: 44px;
+    width: 108px;
+    height: 44px;
     border-radius: 14px;
     border-width: 1px;
     border-color: #4e5aa6;
@@ -84,7 +84,7 @@ export component AppWindow inherits Window {
     width: 1280px;
     height: 900px;
     background: #040708;
-    default-font-family: "Helvetica Neue";
+    default-font-family: "System Font";
 
     pure function sample-rate-index(value: string) -> int {
         return value == "44100" ? 0
@@ -154,24 +154,6 @@ export component AppWindow inherits Window {
                         }
 
                         Rectangle { horizontal-stretch: 1; background: transparent; }
-
-                        Rectangle {
-                            min-width: 88px;
-                            min-height: 30px;
-                            border-radius: 999px;
-                            background: @linear-gradient(180deg, #1b245a 0%, #0f1435 100%);
-                            border-width: 1px;
-                            border-color: #3947a0;
-
-                            Text {
-                                text: wizard-step == 0 ? "Entrada" : "Saída";
-                                color: #dfe4ff;
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
-                                font-size: 13px;
-                                font-weight: 600;
-                            }
-                        }
                     }
 
                     Rectangle {
@@ -279,6 +261,7 @@ export component AppWindow inherits Window {
 
                     HorizontalBox {
                         spacing: 12px;
+                        height: 44px;
 
                         if status-message != "" : Text {
                             text: status-message;
