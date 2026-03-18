@@ -16,6 +16,7 @@ use setup::param::ParameterSet;
 use setup::setup::Setup;
 use setup::track::{Track, TrackOutputMixdown};
 use stage_amp_head::marshall_jcm_800::MODEL_ID as DEFAULT_AMP_HEAD_MODEL;
+use stage_amp_combo::bogner_ecstasy::MODEL_ID as DEFAULT_AMP_COMBO_MODEL;
 use stage_delay::digital_basic::MODEL_ID as DEFAULT_DELAY_MODEL;
 use stage_dyn::compressor_studio_clean::MODEL_ID as DEFAULT_COMPRESSOR_MODEL;
 use stage_dyn::gate_basic::MODEL_ID as DEFAULT_GATE_MODEL;
@@ -237,6 +238,7 @@ enum AudioBlockYaml {
     },
     #[serde(rename = "amp-combo", alias = "amp_combo")]
     AmpCombo {
+        #[serde(default = "default_amp_combo_model")]
         model: String,
         #[serde(default)]
         params: Value,
@@ -540,6 +542,10 @@ fn default_nam_model() -> String {
 
 fn default_amp_head_model() -> String {
     DEFAULT_AMP_HEAD_MODEL.to_string()
+}
+
+fn default_amp_combo_model() -> String {
+    DEFAULT_AMP_COMBO_MODEL.to_string()
 }
 
 fn default_full_rig_model() -> String {
