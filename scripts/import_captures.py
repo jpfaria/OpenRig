@@ -97,12 +97,12 @@ def classify_nam_capture(relative_path: Path) -> tuple[Path, str]:
     if src == "premium":
         return (
             Path("nam") / "amps" / "complete" / src / Path(*map(normalize_component, remainder)),
-            "amps/complete",
+            "amps/combo",
         )
 
     return (
         Path("nam") / "amps" / "complete" / src / Path(*map(normalize_component, remainder)),
-        "amps/complete",
+        "amps/combo",
     )
 
 
