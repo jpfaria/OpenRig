@@ -1,5 +1,67 @@
-use std::f32::consts::TAU;
+use anyhow::{Error, Result};
+use stage_core::param::{
+    float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
+};
 use stage_core::MonoProcessor;
+use std::f32::consts::TAU;
+
+pub const MODEL_ID: &str = "sine_tremolo";
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TremoloParams {
+    pub rate_hz: f32,
+    pub depth: f32,
+}
+
+impl Default for TremoloParams {
+    fn default() -> Self {
+        Self {
+            rate_hz: 4.0,
+            depth: 0.5,
+        }
+    }
+}
+
+pub fn supports_model(model: &str) -> bool {
+    matches!(model, MODEL_ID | "tremolo" | "basic")
+}
+
+pub fn model_schema() -> ModelParameterSchema {
+    ModelParameterSchema {
+        effect_type: "tremolo".to_string(),
+        model: MODEL_ID.to_string(),
+        display_name: "Sine Tremolo".to_string(),
+        parameters: vec![
+            float_parameter(
+                "rate_hz",
+                "Rate",
+                None,
+                Some(TremoloParams::default().rate_hz),
+                0.1,
+                20.0,
+                0.1,
+                ParameterUnit::Hertz,
+            ),
+            float_parameter(
+                "depth",
+                "Depth",
+                None,
+                Some(TremoloParams::default().depth),
+                0.0,
+                1.0,
+                0.01,
+                ParameterUnit::None,
+            ),
+        ],
+    }
+}
+
+pub fn params_from_set(params: &ParameterSet) -> Result<TremoloParams> {
+    Ok(TremoloParams {
+        rate_hz: required_f32(params, "rate_hz").map_err(Error::msg)?,
+        depth: required_f32(params, "depth").map_err(Error::msg)?,
+    })
+}
 
 pub struct SineTremolo {
     rate_hz: f32,
@@ -26,4 +88,13 @@ impl MonoProcessor for SineTremolo {
         self.phase = (self.phase + (TAU * self.rate_hz / self.sample_rate)).rem_euclid(TAU);
         input * gain
     }
+}
+
+pub fn build_processor(params: &ParameterSet, sample_rate: f32) -> Result<Box<dyn MonoProcessor>> {
+    let params = params_from_set(params)?;
+    Ok(Box::new(SineTremolo::new(
+        params.rate_hz,
+        params.depth,
+        sample_rate,
+    )))
 }

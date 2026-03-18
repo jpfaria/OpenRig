@@ -1,4 +1,6 @@
 //! Core building blocks shared by OpenRig stage families.
+pub mod param;
+
 use std::f32::consts::PI;
 pub trait MonoProcessor: Send + Sync + 'static {
     fn process_sample(&mut self, input: f32) -> f32;

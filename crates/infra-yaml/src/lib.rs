@@ -8,16 +8,21 @@ use serde_yaml::Value;
 use setup::block::{
     normalize_block_params, AudioBlock, AudioBlockKind, CompressorBlock, CoreBlock, CoreBlockKind,
     CoreNamBlock, DelayBlock, EqBlock, GateBlock, NamBlock, ReverbBlock, SelectBlock, TremoloBlock,
-    TunerBlock, COMPRESSOR_MODEL_STUDIO_CLEAN, DELAY_MODEL_DIGITAL_BASIC,
-    EQ_MODEL_THREE_BAND_BASIC, GATE_MODEL_NOISE_GATE_BASIC, NAM_MODEL_NEURAL_AMP_MODELER,
-    REVERB_MODEL_PLATE_FOUNDATION as DEFAULT_REVERB_MODEL, TREMOLO_MODEL_SINE,
-    TUNER_MODEL_CHROMATIC_BASIC,
+    TunerBlock,
 };
 use setup::device::{InputDevice, OutputDevice};
 use setup::io::{Input, Output};
 use setup::param::ParameterSet;
 use setup::setup::Setup;
 use setup::track::{Track, TrackBusMode, TrackOutputMixdown};
+use stage_amp_nam::processor::DEFAULT_NAM_MODEL;
+use stage_delay_digital::DEFAULT_DELAY_MODEL;
+use stage_dyn_compressor::DEFAULT_COMPRESSOR_MODEL;
+use stage_dyn_gate::DEFAULT_GATE_MODEL;
+use stage_filter_eq::DEFAULT_EQ_MODEL;
+use stage_mod_tremolo::DEFAULT_TREMOLO_MODEL;
+use stage_reverb_plate::DEFAULT_REVERB_MODEL;
+use stage_util_tuner::DEFAULT_TUNER_MODEL;
 use state::pedalboard_state::PedalboardState;
 use std::collections::HashMap;
 use std::fs;
@@ -480,11 +485,11 @@ fn generated_block_id(track_id: &TrackId, index: usize) -> BlockId {
 }
 
 fn default_delay_model() -> String {
-    DELAY_MODEL_DIGITAL_BASIC.to_string()
+    DEFAULT_DELAY_MODEL.to_string()
 }
 
 fn default_nam_model() -> String {
-    NAM_MODEL_NEURAL_AMP_MODELER.to_string()
+    DEFAULT_NAM_MODEL.to_string()
 }
 
 fn default_reverb_model() -> String {
@@ -492,21 +497,21 @@ fn default_reverb_model() -> String {
 }
 
 fn default_tuner_model() -> String {
-    TUNER_MODEL_CHROMATIC_BASIC.to_string()
+    DEFAULT_TUNER_MODEL.to_string()
 }
 
 fn default_compressor_model() -> String {
-    COMPRESSOR_MODEL_STUDIO_CLEAN.to_string()
+    DEFAULT_COMPRESSOR_MODEL.to_string()
 }
 
 fn default_gate_model() -> String {
-    GATE_MODEL_NOISE_GATE_BASIC.to_string()
+    DEFAULT_GATE_MODEL.to_string()
 }
 
 fn default_eq_model() -> String {
-    EQ_MODEL_THREE_BAND_BASIC.to_string()
+    DEFAULT_EQ_MODEL.to_string()
 }
 
 fn default_tremolo_model() -> String {
-    TREMOLO_MODEL_SINE.to_string()
+    DEFAULT_TREMOLO_MODEL.to_string()
 }

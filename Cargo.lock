@@ -423,6 +423,14 @@ dependencies = [
  "serde",
  "serde_yaml",
  "setup",
+ "stage-amp-nam",
+ "stage-delay-digital",
+ "stage-dyn-compressor",
+ "stage-dyn-gate",
+ "stage-filter-eq",
+ "stage-mod-tremolo",
+ "stage-reverb-plate",
+ "stage-util-tuner",
  "state",
 ]
 
@@ -845,6 +853,15 @@ version = "0.1.0"
 dependencies = [
  "domain",
  "serde",
+ "stage-amp-nam",
+ "stage-core",
+ "stage-delay-digital",
+ "stage-dyn-compressor",
+ "stage-dyn-gate",
+ "stage-filter-eq",
+ "stage-mod-tremolo",
+ "stage-reverb-plate",
+ "stage-util-tuner",
 ]
 
 [[package]]
@@ -869,6 +886,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cmake",
+ "domain",
  "stage-core",
 ]
 
@@ -882,6 +900,10 @@ dependencies = [
 [[package]]
 name = "stage-core"
 version = "0.1.0"
+dependencies = [
+ "domain",
+ "serde",
+]
 
 [[package]]
 name = "stage-delay-digital"
@@ -949,6 +971,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "arc-swap",
+ "stage-core",
 ]
 
 [[package]]

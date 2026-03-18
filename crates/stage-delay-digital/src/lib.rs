@@ -2,7 +2,8 @@
 pub mod basic;
 
 use anyhow::{bail, Result};
-use basic::BasicDelay;
+use basic::{build_processor, model_schema, supports_model};
+use stage_core::param::{ModelParameterSchema, ParameterSet};
 use stage_core::{MonoProcessor, NamedModel};
 
 pub const DEFAULT_DELAY_MODEL: &str = "digital_basic";
@@ -26,32 +27,22 @@ impl NamedModel for DelayModel {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct DelayParams {
-    pub time_ms: f32,
-    pub feedback: f32,
-    pub mix: f32,
-}
-
-impl Default for DelayParams {
-    fn default() -> Self {
-        Self {
-            time_ms: 380.0,
-            feedback: 0.35,
-            mix: 0.3,
-        }
+pub fn delay_model_schema(model: &str) -> Result<ModelParameterSchema> {
+    if supports_model(model) {
+        Ok(model_schema())
+    } else {
+        bail!("unsupported delay model '{}'", model)
     }
 }
 
 pub fn build_delay_processor(
     model: &str,
-    params: DelayParams,
+    params: &ParameterSet,
     sample_rate: f32,
 ) -> Result<Box<dyn MonoProcessor>> {
-    match model {
-        DEFAULT_DELAY_MODEL | "native_digital" | "rust_style_digital" | "digital" => {
-            Ok(Box::new(BasicDelay::new(params, sample_rate)))
-        }
-        other => bail!("unsupported delay model '{}'", other),
+    if supports_model(model) {
+        build_processor(params, sample_rate)
+    } else {
+        bail!("unsupported delay model '{}'", model)
     }
 }

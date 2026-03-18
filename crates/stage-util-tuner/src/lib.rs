@@ -2,21 +2,29 @@
 pub mod chromatic;
 
 use anyhow::{bail, Result};
-use chromatic::ChromaticTuner;
+use chromatic::{model_schema, reference_hz_from_set, supports_model, ChromaticTuner};
+use stage_core::param::{ModelParameterSchema, ParameterSet};
 
 pub const DEFAULT_TUNER_MODEL: &str = "chromatic_basic";
 
+pub fn tuner_model_schema(model: &str) -> Result<ModelParameterSchema> {
+    if supports_model(model) {
+        Ok(model_schema())
+    } else {
+        bail!("unsupported tuner model '{}'", model)
+    }
+}
+
 pub fn build_tuner_processor(
     model: &str,
-    _reference_hz: f32,
+    params: &ParameterSet,
     sample_rate: usize,
 ) -> Result<ChromaticTuner> {
-    match model {
-        DEFAULT_TUNER_MODEL | "chromatic" => {
-            let (mut tuner, _handle) = ChromaticTuner::new(sample_rate);
-            tuner.set_enabled(true);
-            Ok(tuner)
-        }
-        other => bail!("unsupported tuner model '{}'", other),
+    if !supports_model(model) {
+        bail!("unsupported tuner model '{}'", model);
     }
+    let _reference_hz = reference_hz_from_set(params)?;
+    let (mut tuner, _handle) = ChromaticTuner::new(sample_rate);
+    tuner.set_enabled(true);
+    Ok(tuner)
 }

@@ -2,7 +2,8 @@
 pub mod foundation;
 
 use anyhow::{bail, Result};
-use foundation::FoundationPlateReverb;
+use foundation::{build_processor, model_schema, supports_model};
+use stage_core::param::{ModelParameterSchema, ParameterSet};
 use stage_core::{MonoProcessor, NamedModel};
 
 pub const DEFAULT_REVERB_MODEL: &str = "plate_foundation";
@@ -25,31 +26,22 @@ impl NamedModel for ReverbModel {
     }
 }
 
-pub struct ReverbParams {
-    pub room_size: f32,
-    pub damping: f32,
-    pub mix: f32,
-}
-
-impl Default for ReverbParams {
-    fn default() -> Self {
-        Self {
-            room_size: 0.45,
-            damping: 0.35,
-            mix: 0.25,
-        }
+pub fn reverb_model_schema(model: &str) -> Result<ModelParameterSchema> {
+    if supports_model(model) {
+        Ok(model_schema())
+    } else {
+        bail!("unsupported reverb model '{}'", model)
     }
 }
 
 pub fn build_reverb_processor(
     model: &str,
-    params: ReverbParams,
+    params: &ParameterSet,
     sample_rate: f32,
 ) -> Result<Box<dyn MonoProcessor>> {
-    match model {
-        DEFAULT_REVERB_MODEL | "plate" | "spring" | "hall" | "room" => {
-            Ok(Box::new(FoundationPlateReverb::new(params, sample_rate)))
-        }
-        other => bail!("unsupported reverb model '{}'", other),
+    if supports_model(model) {
+        build_processor(params, sample_rate)
+    } else {
+        bail!("unsupported reverb model '{}'", model)
     }
 }

@@ -1,8 +1,42 @@
+use anyhow::{Error, Result};
 use arc_swap::ArcSwap;
+use stage_core::param::{
+    float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
+};
 use std::sync::Arc;
+
+pub const MODEL_ID: &str = "chromatic_basic";
+const DEFAULT_REFERENCE_HZ: f32 = 440.0;
 const BUFFER_SIZE: usize = 4096;
 const A1_HZ: f32 = 50.1;
 const E6_HZ: f32 = 1245.0;
+
+pub fn supports_model(model: &str) -> bool {
+    matches!(model, MODEL_ID | "chromatic")
+}
+
+pub fn model_schema() -> ModelParameterSchema {
+    ModelParameterSchema {
+        effect_type: "tuner".to_string(),
+        model: MODEL_ID.to_string(),
+        display_name: "Chromatic Tuner".to_string(),
+        parameters: vec![float_parameter(
+            "reference_hz",
+            "Reference",
+            None,
+            Some(DEFAULT_REFERENCE_HZ),
+            400.0,
+            480.0,
+            1.0,
+            ParameterUnit::Hertz,
+        )],
+    }
+}
+
+pub fn reference_hz_from_set(params: &ParameterSet) -> Result<f32> {
+    required_f32(params, "reference_hz").map_err(Error::msg)
+}
+
 pub struct ChromaticTuner {
     buffer: Vec<f32>,
     sample_rate: usize,
@@ -57,7 +91,11 @@ impl ChromaticTuner {
         if self.buffer.is_empty() {
             return None;
         }
-        let rms = (self.buffer.iter().map(|sample| sample * sample).sum::<f32>()
+        let rms = (self
+            .buffer
+            .iter()
+            .map(|sample| sample * sample)
+            .sum::<f32>()
             / self.buffer.len() as f32)
             .sqrt();
         if rms < 0.01 {

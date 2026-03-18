@@ -1,5 +1,78 @@
+use anyhow::{Error, Result};
+use stage_core::param::{
+    float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
+};
 use stage_core::MonoProcessor;
-use crate::ReverbParams;
+
+pub const MODEL_ID: &str = "plate_foundation";
+
+pub struct ReverbParams {
+    pub room_size: f32,
+    pub damping: f32,
+    pub mix: f32,
+}
+
+impl Default for ReverbParams {
+    fn default() -> Self {
+        Self {
+            room_size: 0.45,
+            damping: 0.35,
+            mix: 0.25,
+        }
+    }
+}
+
+pub fn supports_model(model: &str) -> bool {
+    matches!(model, MODEL_ID | "plate" | "spring" | "hall" | "room")
+}
+
+pub fn model_schema() -> ModelParameterSchema {
+    ModelParameterSchema {
+        effect_type: "reverb".to_string(),
+        model: MODEL_ID.to_string(),
+        display_name: "Plate Foundation Reverb".to_string(),
+        parameters: vec![
+            float_parameter(
+                "room_size",
+                "Room Size",
+                None,
+                Some(ReverbParams::default().room_size),
+                0.0,
+                1.0,
+                0.01,
+                ParameterUnit::None,
+            ),
+            float_parameter(
+                "damping",
+                "Damping",
+                None,
+                Some(ReverbParams::default().damping),
+                0.0,
+                1.0,
+                0.01,
+                ParameterUnit::None,
+            ),
+            float_parameter(
+                "mix",
+                "Mix",
+                None,
+                Some(ReverbParams::default().mix),
+                0.0,
+                1.0,
+                0.01,
+                ParameterUnit::None,
+            ),
+        ],
+    }
+}
+
+pub fn params_from_set(params: &ParameterSet) -> Result<ReverbParams> {
+    Ok(ReverbParams {
+        room_size: required_f32(params, "room_size").map_err(Error::msg)?,
+        damping: required_f32(params, "damping").map_err(Error::msg)?,
+        mix: required_f32(params, "mix").map_err(Error::msg)?,
+    })
+}
 
 pub struct FoundationPlateReverb {
     params: ReverbParams,
@@ -60,6 +133,13 @@ impl MonoProcessor for FoundationPlateReverb {
         }
         (1.0 - self.params.mix).mul_add(input, self.params.mix * wet)
     }
+}
+
+pub fn build_processor(params: &ParameterSet, sample_rate: f32) -> Result<Box<dyn MonoProcessor>> {
+    Ok(Box::new(FoundationPlateReverb::new(
+        params_from_set(params)?,
+        sample_rate,
+    )))
 }
 fn room_feedback(room_size: f32) -> f32 {
     (0.2 + room_size.clamp(0.0, 1.0) * 0.77).clamp(0.0, 0.97)

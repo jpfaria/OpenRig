@@ -1,62 +1,29 @@
 //! Filter/EQ implementations.
+pub mod three_band_basic;
+
 use anyhow::{bail, Result};
-use stage_core::{db_to_lin, MonoProcessor, OnePoleHighPass, OnePoleLowPass};
+use stage_core::param::{ModelParameterSchema, ParameterSet};
+use stage_core::MonoProcessor;
+use three_band_basic::{build_processor, model_schema, supports_model};
 
 pub const DEFAULT_EQ_MODEL: &str = "three_band_basic";
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct EqParams {
-    pub low_gain_db: f32,
-    pub mid_gain_db: f32,
-    pub high_gain_db: f32,
+pub fn eq_model_schema(model: &str) -> Result<ModelParameterSchema> {
+    if supports_model(model) {
+        Ok(model_schema())
+    } else {
+        bail!("unsupported eq model '{}'", model)
+    }
 }
 
 pub fn build_eq_processor(
     model: &str,
-    params: EqParams,
+    params: &ParameterSet,
     sample_rate: f32,
 ) -> Result<Box<dyn MonoProcessor>> {
-    match model {
-        DEFAULT_EQ_MODEL | "three_band" | "eq" => Ok(Box::new(ThreeBandEq::new(
-            params.low_gain_db,
-            params.mid_gain_db,
-            params.high_gain_db,
-            sample_rate,
-        ))),
-        other => bail!("unsupported eq model '{}'", other),
-    }
-}
-
-pub struct ThreeBandEq {
-    low_gain: f32,
-    mid_gain: f32,
-    high_gain: f32,
-    low_pass: OnePoleLowPass,
-    high_pass: OnePoleHighPass,
-}
-
-impl ThreeBandEq {
-    pub fn new(
-        low_gain_db: f32,
-        mid_gain_db: f32,
-        high_gain_db: f32,
-        sample_rate: f32,
-    ) -> Self {
-        Self {
-            low_gain: db_to_lin(low_gain_db),
-            mid_gain: db_to_lin(mid_gain_db),
-            high_gain: db_to_lin(high_gain_db),
-            low_pass: OnePoleLowPass::new(250.0, sample_rate),
-            high_pass: OnePoleHighPass::new(2_000.0, sample_rate),
-        }
-    }
-}
-
-impl MonoProcessor for ThreeBandEq {
-    fn process_sample(&mut self, input: f32) -> f32 {
-        let low = self.low_pass.process(input);
-        let high = self.high_pass.process(input);
-        let mid = input - low - high;
-        low * self.low_gain + mid * self.mid_gain + high * self.high_gain
+    if supports_model(model) {
+        build_processor(params, sample_rate)
+    } else {
+        bail!("unsupported eq model '{}'", model)
     }
 }

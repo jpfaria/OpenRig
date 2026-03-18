@@ -1,20 +1,18 @@
 use anyhow::{anyhow, Result};
 use domain::ids::TrackId;
-use setup::block::{
-    AudioBlockKind, CoreBlockKind, NamBlock, SelectBlock, NAM_MODEL_NEURAL_AMP_MODELER,
-};
+use setup::block::{AudioBlockKind, CoreBlockKind, NamBlock, SelectBlock};
 use setup::io::{Input, Output};
 use setup::param::ParameterSet;
 use setup::setup::Setup;
 use setup::track::{Track, TrackBusMode, TrackOutputMixdown};
-use stage_amp_nam::processor::{NamPluginParams, NamProcessor};
+use stage_amp_nam::{build_nam_processor, processor::DEFAULT_NAM_MODEL};
 use stage_core::MonoProcessor;
-use stage_delay_digital::{build_delay_processor, DelayParams};
-use stage_dyn_compressor::{build_compressor_processor, CompressorParams};
-use stage_dyn_gate::{build_gate_processor, GateParams};
-use stage_filter_eq::{build_eq_processor, EqParams};
-use stage_mod_tremolo::{build_tremolo_processor, TremoloParams};
-use stage_reverb_plate::{build_reverb_processor, ReverbParams};
+use stage_delay_digital::build_delay_processor;
+use stage_dyn_compressor::build_compressor_processor;
+use stage_dyn_gate::build_gate_processor;
+use stage_filter_eq::build_eq_processor;
+use stage_mod_tremolo::build_tremolo_processor;
+use stage_reverb_plate::build_reverb_processor;
 use stage_util_tuner::{build_tuner_processor, chromatic::ChromaticTuner};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
@@ -184,17 +182,7 @@ fn build_runtime_processors(
                     );
                     processors.push(RuntimeProcessor::Audio(build_audio_processor(
                         bus_mode,
-                        || {
-                            build_delay_processor(
-                                &stage.model,
-                                DelayParams {
-                                    time_ms,
-                                    feedback,
-                                    mix,
-                                },
-                                DEFAULT_SAMPLE_RATE,
-                            )
-                        },
+                        || build_delay_processor(&stage.model, &stage.params, DEFAULT_SAMPLE_RATE),
                     )?));
                 }
                 CoreBlockKind::Reverb(stage) => {
@@ -207,17 +195,7 @@ fn build_runtime_processors(
                     );
                     processors.push(RuntimeProcessor::Audio(build_audio_processor(
                         bus_mode,
-                        || {
-                            build_reverb_processor(
-                                &stage.model,
-                                ReverbParams {
-                                    room_size,
-                                    damping,
-                                    mix,
-                                },
-                                DEFAULT_SAMPLE_RATE,
-                            )
-                        },
+                        || build_reverb_processor(&stage.model, &stage.params, DEFAULT_SAMPLE_RATE),
                     )?));
                 }
                 CoreBlockKind::Tuner(stage) => {
@@ -228,7 +206,7 @@ fn build_runtime_processors(
                     );
                     processors.push(RuntimeProcessor::Tuner(build_tuner_processor(
                         &stage.model,
-                        reference_hz,
+                        &stage.params,
                         DEFAULT_SAMPLE_RATE as usize,
                     )?));
                 }
@@ -255,14 +233,7 @@ fn build_runtime_processors(
                         || {
                             build_compressor_processor(
                                 &stage.model,
-                                CompressorParams {
-                                    threshold,
-                                    ratio,
-                                    attack_ms,
-                                    release_ms,
-                                    makeup_gain_db,
-                                    mix,
-                                },
+                                &stage.params,
                                 DEFAULT_SAMPLE_RATE,
                             )
                         },
@@ -278,17 +249,7 @@ fn build_runtime_processors(
                     );
                     processors.push(RuntimeProcessor::Audio(build_audio_processor(
                         bus_mode,
-                        || {
-                            build_gate_processor(
-                                &stage.model,
-                                GateParams {
-                                    threshold,
-                                    attack_ms,
-                                    release_ms,
-                                },
-                                DEFAULT_SAMPLE_RATE,
-                            )
-                        },
+                        || build_gate_processor(&stage.model, &stage.params, DEFAULT_SAMPLE_RATE),
                     )?));
                 }
                 CoreBlockKind::Eq(stage) => {
@@ -301,17 +262,7 @@ fn build_runtime_processors(
                     );
                     processors.push(RuntimeProcessor::Audio(build_audio_processor(
                         bus_mode,
-                        || {
-                            build_eq_processor(
-                                &stage.model,
-                                EqParams {
-                                    low_gain_db,
-                                    mid_gain_db,
-                                    high_gain_db,
-                                },
-                                DEFAULT_SAMPLE_RATE,
-                            )
-                        },
+                        || build_eq_processor(&stage.model, &stage.params, DEFAULT_SAMPLE_RATE),
                     )?));
                 }
                 CoreBlockKind::Tremolo(stage) => {
@@ -326,7 +277,7 @@ fn build_runtime_processors(
                         || {
                             build_tremolo_processor(
                                 &stage.model,
-                                TremoloParams { rate_hz, depth },
+                                &stage.params,
                                 DEFAULT_SAMPLE_RATE,
                             )
                         },
@@ -367,24 +318,15 @@ fn build_nam_audio_processor(
     bus_mode: ResolvedTrackBusMode,
     label: &str,
 ) -> Result<AudioProcessor> {
-    if stage.model != NAM_MODEL_NEURAL_AMP_MODELER {
+    if stage.model != DEFAULT_NAM_MODEL {
         return Err(anyhow!(
             "track '{}' uses unsupported nam model '{}'",
             track.id.0,
             stage.model
         ));
     }
-    let model_path = required_string(&stage.params, "model_path")?;
     let ir_path = optional_string(&stage.params, "ir_path");
-    let input_db = required_f32(&stage.params, "input_db")?;
-    let output_db = required_f32(&stage.params, "output_db")?;
-    let noise_gate_enabled = required_bool(&stage.params, "noise_gate.enabled")?;
-    let noise_gate_threshold_db = required_f32(&stage.params, "noise_gate.threshold_db")?;
-    let eq_enabled = required_bool(&stage.params, "eq.enabled")?;
-    let bass = required_f32(&stage.params, "eq.bass")?;
-    let middle = required_f32(&stage.params, "eq.middle")?;
-    let treble = required_f32(&stage.params, "eq.treble")?;
-    let ir_enabled = required_bool(&stage.params, "ir_enabled")?;
+    let model_path = required_string(&stage.params, "model_path")?;
     println!(
         "[track:{}] loading {} model={} file='{}'",
         track.id.0, label, stage.model, model_path
@@ -393,21 +335,7 @@ fn build_nam_audio_processor(
         println!("[track:{}] loading {} IR '{}'", track.id.0, label, ir_path);
     }
     build_audio_processor(bus_mode, || {
-        Ok(Box::new(NamProcessor::new(
-            &model_path,
-            ir_path.as_deref(),
-            NamPluginParams {
-                input_level_db: input_db,
-                output_level_db: output_db,
-                noise_gate_threshold_db,
-                noise_gate_enabled,
-                eq_enabled,
-                ir_enabled,
-                bass,
-                middle,
-                treble,
-            },
-        )?))
+        build_nam_processor(&stage.model, &stage.params)
     })
 }
 
@@ -415,12 +343,6 @@ fn required_f32(params: &ParameterSet, path: &str) -> Result<f32> {
     params
         .get_f32(path)
         .ok_or_else(|| anyhow!("missing or invalid float parameter '{}'", path))
-}
-
-fn required_bool(params: &ParameterSet, path: &str) -> Result<bool> {
-    params
-        .get_bool(path)
-        .ok_or_else(|| anyhow!("missing or invalid bool parameter '{}'", path))
 }
 
 fn required_string(params: &ParameterSet, path: &str) -> Result<String> {
