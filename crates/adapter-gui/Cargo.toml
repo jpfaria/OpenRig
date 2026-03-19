@@ -5,12 +5,16 @@ edition.workspace = true
 
 [dependencies]
 anyhow.workspace = true
+domain = { path = "../domain" }
 infra-cpal = { path = "../infra-cpal" }
 infra-filesystem = { path = "../infra-filesystem" }
+infra-yaml = { path = "../infra-yaml" }
+ports = { path = "../ports" }
 serde.workspace = true
 serde_yaml.workspace = true
 rfd = "0.15"
 slint.workspace = true
+setup = { path = "../setup" }
 ui-openrig = { path = "../ui-openrig" }
 
 [build-dependencies]

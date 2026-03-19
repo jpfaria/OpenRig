@@ -1,11 +1,15 @@
 use anyhow::{anyhow, Result};
 use infra_cpal::{list_input_device_descriptors, list_output_device_descriptors};
 use infra_filesystem::{FilesystemStorage, GuiAudioDeviceSettings, GuiAudioSettings};
+use infra_yaml::YamlSetupRepository;
+use ports::SetupRepository;
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 use slint::{Model, ModelRc, VecModel};
 use std::rc::Rc;
-use std::{env, fs, path::PathBuf};
+use std::{cell::RefCell, env, fs, path::PathBuf};
+use setup::setup::Setup;
+use setup::track::{Track, TrackOutputMixdown};
 use ui_openrig::{AppRuntimeMode, InteractionMode, UiRuntimeContext};
 
 slint::include_modules!();
@@ -26,24 +30,23 @@ struct AppConfigYaml {
     presets_path: Option<PathBuf>,
 }
 
-#[derive(Debug, Serialize)]
-struct ProjectTemplate {
-    device_settings: Vec<EmptyYamlItem>,
-    tracks: Vec<EmptyYamlItem>,
+#[derive(Debug, Clone)]
+struct ProjectSession {
+    setup: Setup,
 }
-
-#[derive(Debug, Serialize)]
-struct EmptyYamlItem;
 
 pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: InteractionMode) -> Result<()> {
     let context = UiRuntimeContext::new(runtime_mode, interaction_mode);
     let settings = FilesystemStorage::load_gui_audio_settings()?.unwrap_or_default();
     let needs_audio_setup = context.capabilities.can_select_audio_device && !settings.is_complete();
     let project_paths = resolve_project_paths();
+    let project_session = Rc::new(RefCell::new(None::<ProjectSession>));
 
     let window = AppWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     window.set_show_project_launcher(true);
+    window.set_show_project_tracks(false);
     window.set_project_path_label("".into());
+    window.set_project_title("Projeto".into());
     window.set_runtime_mode_label(context.runtime_mode.label().into());
     window.set_interaction_mode_label(context.interaction_mode.label().into());
     window.set_touch_optimized(context.capabilities.touch_optimized);
@@ -102,6 +105,8 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
 
     window.set_input_devices(ModelRc::from(input_devices.clone()));
     window.set_output_devices(ModelRc::from(output_devices.clone()));
+    let project_tracks = Rc::new(VecModel::from(Vec::<ProjectTrackItem>::new()));
+    window.set_project_tracks(ModelRc::from(project_tracks.clone()));
 
     {
         let input_devices = input_devices.clone();
@@ -227,6 +232,8 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
 
     {
         let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        let project_tracks = project_tracks.clone();
         window.on_open_project_file(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -238,37 +245,70 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             else {
                 return;
             };
-            window.set_status_message("".into());
-            window.set_project_path_label(format!("Projeto: {}", path.display()).into());
-            window.set_show_project_launcher(false);
+            match load_project_session(&path, &resolve_project_config_path(&path)) {
+                Ok(session) => {
+                    replace_project_tracks(&project_tracks, &session.setup);
+                    let title = project_title_for_path(Some(&path), &session.setup);
+                    *project_session.borrow_mut() = Some(session);
+                    window.set_status_message("".into());
+                    window.set_project_title(title.into());
+                    window.set_project_path_label(format!("Projeto: {}", path.display()).into());
+                    window.set_show_project_launcher(false);
+                    window.set_show_project_tracks(true);
+                }
+                Err(error) => {
+                    window.set_status_message(error.to_string().into());
+                }
+            }
         });
     }
 
     {
         let weak_window = window.as_weak();
         let project_paths = project_paths.clone();
+        let project_session = project_session.clone();
+        let project_tracks = project_tracks.clone();
         window.on_create_project_file(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let Some(path) = FileDialog::new()
-                .add_filter("OpenRig Project", &["yaml"])
-                .set_title("Criar projeto")
-                .set_file_name("project.yaml")
-                .save_file()
-            else {
+            let session = create_new_project_session(&project_paths.default_config_path);
+            replace_project_tracks(&project_tracks, &session.setup);
+            *project_session.borrow_mut() = Some(session);
+            window.set_status_message("".into());
+            window.set_project_title("Novo Projeto".into());
+            window.set_project_path_label("Projeto em memória".into());
+            window.set_show_project_launcher(false);
+            window.set_show_project_tracks(true);
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        let project_tracks = project_tracks.clone();
+        window.on_add_track(move || {
+            let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            match create_new_project(&path, &project_paths.default_config_path) {
-                Ok(()) => {
-                    window.set_status_message("".into());
-                    window.set_project_path_label(format!("Projeto: {}", path.display()).into());
-                    window.set_show_project_launcher(false);
-                }
-                Err(error) => {
-                    window.set_status_message(error.to_string().into());
-                }
-            }
+            let mut borrow = project_session.borrow_mut();
+            let Some(session) = borrow.as_mut() else {
+                window.set_status_message("Nenhum projeto carregado.".into());
+                return;
+            };
+            let next_index = session.setup.tracks.len() + 1;
+            session.setup.tracks.push(Track {
+                id: domain::ids::TrackId(format!("track:{}", next_index - 1)),
+                enabled: true,
+                input_device_id: domain::ids::DeviceId(String::new()),
+                input_channels: Vec::new(),
+                output_device_id: domain::ids::DeviceId(String::new()),
+                output_channels: Vec::new(),
+                preset_id: domain::ids::PresetId(String::new()),
+                output_mixdown: TrackOutputMixdown::Average,
+            });
+            replace_project_tracks(&project_tracks, &session.setup);
+            window.set_status_message("".into());
         });
     }
 
@@ -298,38 +338,83 @@ fn parse_path_argument(flag: &str) -> Option<PathBuf> {
     None
 }
 
-fn create_new_project(project_path: &PathBuf, default_config_path: &PathBuf) -> Result<()> {
-    let project_dir = project_path
-        .parent()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("."));
-    fs::create_dir_all(&project_dir)?;
-    let project = ProjectTemplate {
+fn create_new_project_session(default_config_path: &PathBuf) -> ProjectSession {
+    let _config = if default_config_path.exists() {
+        load_app_config(default_config_path).unwrap_or_default()
+    } else {
+        AppConfigYaml {
+            presets_path: Some(PathBuf::from("./presets")),
+        }
+    };
+    let setup = Setup {
         device_settings: Vec::new(),
+        presets: Vec::new(),
         tracks: Vec::new(),
     };
-    fs::write(project_path, serde_yaml::to_string(&project)?)?;
-
-    let config_path = project_dir.join("config.yaml");
-    if !config_path.exists() {
-        let config = if default_config_path.exists() {
-            load_app_config(default_config_path)?
-        } else {
-            AppConfigYaml {
-                presets_path: Some(PathBuf::from("./presets")),
-            }
-        };
-        fs::write(&config_path, serde_yaml::to_string(&config)?)?;
+    ProjectSession {
+        setup,
     }
-
-    let presets_dir = project_dir.join("presets");
-    fs::create_dir_all(presets_dir)?;
-    Ok(())
 }
 
 fn load_app_config(path: &PathBuf) -> Result<AppConfigYaml> {
     let raw = fs::read_to_string(path)?;
     Ok(serde_yaml::from_str(&raw)?)
+}
+
+fn resolve_project_config_path(project_path: &PathBuf) -> PathBuf {
+    project_path
+        .parent()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join("config.yaml")
+}
+
+fn load_project_session(project_path: &PathBuf, config_path: &PathBuf) -> Result<ProjectSession> {
+    let config = if config_path.exists() {
+        load_app_config(config_path)?
+    } else {
+        AppConfigYaml::default()
+    };
+    let setup = YamlSetupRepository {
+        path: project_path.clone(),
+        presets_path_override: config.presets_path,
+    }
+    .load_current_setup()?;
+    Ok(ProjectSession {
+        setup,
+    })
+}
+
+fn replace_project_tracks(model: &Rc<VecModel<ProjectTrackItem>>, setup: &Setup) {
+    let items = setup
+        .tracks
+        .iter()
+        .enumerate()
+        .map(|(index, track)| ProjectTrackItem {
+            title: format!("Track {}", index + 1).into(),
+            subtitle: if track.preset_id.0.is_empty() {
+                "sem preset".into()
+            } else {
+                track.preset_id.0.clone().into()
+            },
+            enabled: track.enabled,
+        })
+        .collect::<Vec<_>>();
+    model.set_vec(items);
+}
+
+fn project_title_for_path(project_path: Option<&PathBuf>, setup: &Setup) -> String {
+    project_path
+        .and_then(|path| path.file_stem())
+        .and_then(|name| name.to_str())
+        .map(|name| name.to_string())
+        .unwrap_or_else(|| {
+            if setup.tracks.is_empty() {
+                "Novo Projeto".to_string()
+            } else {
+                "Projeto".to_string()
+            }
+        })
 }
 
 fn toggle_device_row(model: &Rc<VecModel<DeviceSelectionItem>>, index: usize, selected: bool) {

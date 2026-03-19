@@ -129,11 +129,15 @@ name = "adapter-gui"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "domain",
  "infra-cpal",
  "infra-filesystem",
+ "infra-yaml",
+ "ports",
  "rfd",
  "serde",
  "serde_yaml",
+ "setup",
  "slint",
  "slint-build",
  "ui-openrig",

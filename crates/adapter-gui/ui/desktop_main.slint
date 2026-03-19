@@ -1,16 +1,19 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
-import { DeviceSelectionItem } from "models.slint";
+import { DeviceSelectionItem, ProjectTrackItem } from "models.slint";
 import { Header } from "blocks/blocks.slint";
-import { ProjectLauncherPage, WizardConfigPage } from "pages/pages.slint";
+import { ProjectLauncherPage, ProjectTracksPage, WizardConfigPage } from "pages/pages.slint";
 
 export component DesktopMain inherits Rectangle {
     in property <bool> show-project-launcher;
+    in property <bool> show-project-tracks;
     in property <string> project-path-label;
+    in property <string> project-title;
     in property <bool> show-audio-setup;
     in-out property <int> wizard-step;
     in property <[DeviceSelectionItem]> input-devices;
     in property <[DeviceSelectionItem]> output-devices;
+    in property <[ProjectTrackItem]> project-tracks;
     in-out property <string> status-message;
     in property <[string]> sample-rate-options;
     in property <[string]> buffer-size-options;
@@ -25,6 +28,7 @@ export component DesktopMain inherits Rectangle {
     callback save-audio-settings();
     callback open-project-file();
     callback create-project-file();
+    callback add-track();
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
     private property <length> wizard-page-height: 24px + 20px + 24px + ((visible-device-count * 44px) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px)) + 24px + 44px + 24px;
 
@@ -44,7 +48,7 @@ export component DesktopMain inherits Rectangle {
 
             Rectangle {
                 width: 720px;
-                height: root.show-project-launcher ? 320px : root.wizard-page-height;
+                height: root.show-project-launcher ? 320px : root.show-project-tracks ? 360px : root.wizard-page-height;
                 background: transparent;
 
                 if root.show-project-launcher : ProjectLauncherPage {
@@ -54,7 +58,14 @@ export component DesktopMain inherits Rectangle {
                     create-project-file => { root.create-project-file(); }
                 }
 
-                if !root.show-project-launcher : WizardConfigPage {
+                if root.show-project-tracks : ProjectTracksPage {
+                    project-title: root.project-title;
+                    tracks: root.project-tracks;
+                    status-message: root.status-message;
+                    add-track => { root.add-track(); }
+                }
+
+                if !root.show-project-launcher && !root.show-project-tracks : WizardConfigPage {
                     wizard-step: root.wizard-step;
                     input-devices: root.input-devices;
                     output-devices: root.output-devices;
