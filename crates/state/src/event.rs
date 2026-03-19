@@ -18,8 +18,4 @@ pub enum Event {
         block_id: BlockId,
         option_block_id: BlockId,
     },
-    TrackGainChanged {
-        track_id: String,
-        value: f32,
-    },
 }

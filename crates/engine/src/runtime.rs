@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Result};
-use domain::ids::{OutputId, TrackId};
+use domain::ids::TrackId;
 use setup::block::{schema_for_block_model, AudioBlockKind, CoreBlockKind, NamBlock, SelectBlock};
-use setup::io::{Input, Output};
 use setup::param::ParameterSet;
+use setup::preset::SetupPreset;
 use setup::setup::Setup;
 use setup::track::{Track, TrackOutputMixdown};
 use stage_amp_combo::{amp_combo_asset_summary, build_amp_combo_processor_for_layout};
@@ -56,15 +56,6 @@ impl AudioFrame {
         }
     }
 
-    fn apply_gain(&mut self, gain: f32) {
-        match self {
-            AudioFrame::Mono(sample) => *sample *= gain,
-            AudioFrame::Stereo([left, right]) => {
-                *left *= gain;
-                *right *= gain;
-            }
-        }
-    }
 }
 
 enum AudioProcessor {
@@ -162,7 +153,7 @@ pub struct TrackRuntimeState {
     output_layout: AudioChannelLayout,
     processed_frames: VecDeque<QueuedFrame>,
     next_sequence: u64,
-    output_positions: HashMap<OutputId, u64>,
+    output_position: u64,
     last_print: Instant,
     processors: Vec<RuntimeProcessor>,
 }
@@ -187,19 +178,19 @@ pub fn build_runtime_graph(setup: &Setup) -> Result<RuntimeGraph> {
         if !track.enabled {
             continue;
         }
-        let input_cfg = setup
-            .inputs
+        let preset = setup
+            .presets
             .iter()
-            .find(|input| input.id == track.input_id)
+            .find(|preset| preset.id == track.preset_id)
             .ok_or_else(|| {
                 anyhow!(
-                    "track '{}' references missing input '{}'",
+                    "track '{}' references missing preset '{}'",
                     track.id.0,
-                    track.input_id.0
+                    track.preset_id.0
                 )
             })?;
-        let input_layout = layout_from_channels(input_cfg.channels.len())?;
-        let (processors, output_layout) = build_runtime_processors(track, input_layout)?;
+        let input_layout = layout_from_channels(track.input_channels.len())?;
+        let (processors, output_layout) = build_runtime_processors(track, preset, input_layout)?;
         println!(
             "[track:{}] runtime input_layout={} output_layout={}",
             track.id.0,
@@ -213,12 +204,7 @@ pub fn build_runtime_graph(setup: &Setup) -> Result<RuntimeGraph> {
                 output_layout,
                 processed_frames: VecDeque::with_capacity(DEFAULT_QUEUE_CAPACITY_FRAMES),
                 next_sequence: 0,
-                output_positions: track
-                    .output_ids
-                    .iter()
-                    .cloned()
-                    .map(|output_id| (output_id, 0))
-                    .collect(),
+                output_position: 0,
                 last_print: Instant::now(),
                 processors,
             })),
@@ -229,12 +215,13 @@ pub fn build_runtime_graph(setup: &Setup) -> Result<RuntimeGraph> {
 
 fn build_runtime_processors(
     track: &Track,
+    preset: &SetupPreset,
     input_layout: AudioChannelLayout,
 ) -> Result<(Vec<RuntimeProcessor>, AudioChannelLayout)> {
     let mut processors = Vec::new();
     let mut current_layout = input_layout;
 
-    for block in &track.blocks {
+    for block in &preset.blocks {
         if !block.enabled {
             continue;
         }
@@ -764,7 +751,6 @@ fn load_selected_nam(
 
 pub fn process_input_f32(
     track: &Track,
-    input_cfg: &Input,
     runtime: &Arc<Mutex<TrackRuntimeState>>,
     data: &[f32],
     input_total_channels: usize,
@@ -779,7 +765,7 @@ pub fn process_input_f32(
         .any(|processor| matches!(processor, RuntimeProcessor::Tuner(_)));
 
     for frame in data.chunks(input_total_channels) {
-        let track_frame = read_input_frame(locked.input_layout, input_cfg, frame);
+        let track_frame = read_input_frame(locked.input_layout, &track.input_channels, frame);
         peak = peak.max(track_frame.peak());
         if tuner_enabled {
             tuner_samples.push(track_frame.mono_mix());
@@ -816,7 +802,7 @@ pub fn process_input_f32(
         println!(
             "[{}] audio detected | input_channels={:?} | peak={:.4} | buffered={}",
             track.id.0,
-            input_cfg.channels,
+            track.input_channels,
             peak,
             locked.processed_frames.len()
         );
@@ -826,18 +812,13 @@ pub fn process_input_f32(
 
 pub fn process_output_f32(
     track: &Track,
-    output_cfg: &Output,
     runtime: &Arc<Mutex<TrackRuntimeState>>,
     out: &mut [f32],
     output_total_channels: usize,
 ) {
     let mut locked = runtime.lock().expect("track runtime poisoned");
     let num_frames = out.len() / output_total_channels;
-    let next_sequence = locked.next_sequence;
-    let mut cursor = *locked
-        .output_positions
-        .entry(output_cfg.id.clone())
-        .or_insert(next_sequence);
+    let mut cursor = locked.output_position;
 
     if let Some(oldest_sequence) = locked.processed_frames.front().map(|frame| frame.sequence) {
         if cursor < oldest_sequence {
@@ -847,17 +828,19 @@ pub fn process_output_f32(
 
     for frame in out.chunks_mut(output_total_channels).take(num_frames) {
         frame.fill(0.0);
-        let mut processed = queued_frame_at(&locked.processed_frames, cursor)
+        let processed = queued_frame_at(&locked.processed_frames, cursor)
             .map(|frame| frame.frame)
             .unwrap_or_else(|| silent_frame(locked.output_layout));
-        processed.apply_gain(track.gain);
-        write_output_frame(processed, output_cfg, frame, track.output_mixdown);
+        write_output_frame(
+            processed,
+            &track.output_channels,
+            frame,
+            track.output_mixdown,
+        );
         cursor += 1;
     }
 
-    locked
-        .output_positions
-        .insert(output_cfg.id.clone(), cursor);
+    locked.output_position = cursor;
     trim_processed_frames(&mut locked);
 }
 
@@ -868,12 +851,7 @@ fn queued_frame_at(queue: &VecDeque<QueuedFrame>, sequence: u64) -> Option<Queue
 }
 
 fn trim_processed_frames(state: &mut TrackRuntimeState) {
-    let min_cursor = state
-        .output_positions
-        .values()
-        .copied()
-        .min()
-        .unwrap_or(state.next_sequence);
+    let min_cursor = state.output_position;
 
     while let Some(front) = state.processed_frames.front() {
         if front.sequence < min_cursor {
@@ -888,28 +866,24 @@ fn trim_processed_frames(state: &mut TrackRuntimeState) {
     }
 
     if let Some(oldest_sequence) = state.processed_frames.front().map(|frame| frame.sequence) {
-        for cursor in state.output_positions.values_mut() {
-            if *cursor < oldest_sequence {
-                *cursor = oldest_sequence;
-            }
+        if state.output_position < oldest_sequence {
+            state.output_position = oldest_sequence;
         }
     } else {
-        for cursor in state.output_positions.values_mut() {
-            *cursor = state.next_sequence;
-        }
+        state.output_position = state.next_sequence;
     }
 }
 
 fn read_input_frame(
     input_layout: AudioChannelLayout,
-    input_cfg: &Input,
+    input_channels: &[usize],
     frame: &[f32],
 ) -> AudioFrame {
     match input_layout {
-        AudioChannelLayout::Mono => AudioFrame::Mono(read_channel(frame, input_cfg.channels[0])),
+        AudioChannelLayout::Mono => AudioFrame::Mono(read_channel(frame, input_channels[0])),
         AudioChannelLayout::Stereo => AudioFrame::Stereo([
-            read_channel(frame, input_cfg.channels[0]),
-            read_channel(frame, input_cfg.channels[1]),
+            read_channel(frame, input_channels[0]),
+            read_channel(frame, input_channels[1]),
         ]),
     }
 }
@@ -927,19 +901,19 @@ fn silent_frame(layout: AudioChannelLayout) -> AudioFrame {
 
 fn write_output_frame(
     track_frame: AudioFrame,
-    output_cfg: &Output,
+    output_channels: &[usize],
     frame: &mut [f32],
     mixdown: TrackOutputMixdown,
 ) {
     match track_frame {
         AudioFrame::Mono(sample) => {
-            for &channel_index in &output_cfg.channels {
+            for &channel_index in output_channels {
                 if let Some(dst) = frame.get_mut(channel_index) {
                     *dst = sample;
                 }
             }
         }
-        AudioFrame::Stereo([left, right]) => match output_cfg.channels.as_slice() {
+        AudioFrame::Stereo([left, right]) => match output_channels {
             [] => {}
             [channel_index] => {
                 if let Some(dst) = frame.get_mut(*channel_index) {

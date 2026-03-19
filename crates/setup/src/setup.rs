@@ -1,31 +1,25 @@
-use domain::ids::{BlockId, ParameterId, SetupId};
-use serde::{Deserialize, Serialize};
+use domain::ids::{BlockId, ParameterId};
+use serde::Serialize;
 
 use crate::block::{AudioBlock, BlockAudioDescriptor};
-use crate::device::{InputDevice, OutputDevice};
-use crate::io::{Input, Output};
+use crate::device::DeviceSettings;
+use crate::preset::SetupPreset;
 use crate::param::BlockParameterDescriptor;
 use crate::track::Track;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Setup {
-    pub id: SetupId,
-    pub name: String,
-    pub input_devices: Vec<InputDevice>,
-    pub output_devices: Vec<OutputDevice>,
-    pub inputs: Vec<Input>,
-    pub outputs: Vec<Output>,
+    #[serde(default)]
+    pub device_settings: Vec<DeviceSettings>,
+    pub presets: Vec<SetupPreset>,
     pub tracks: Vec<Track>,
 }
 
 impl Setup {
     pub fn parameter_descriptors(&self) -> Result<Vec<BlockParameterDescriptor>, String> {
         let mut descriptors = Vec::new();
-        for track in &self.tracks {
-            if !track.enabled {
-                continue;
-            }
-            for block in &track.blocks {
+        for preset in &self.presets {
+            for block in &preset.blocks {
                 descriptors.extend(collect_block_parameter_descriptors(block)?);
             }
         }
@@ -44,11 +38,8 @@ impl Setup {
 
     pub fn block_audio_descriptors(&self) -> Result<Vec<BlockAudioDescriptor>, String> {
         let mut descriptors = Vec::new();
-        for track in &self.tracks {
-            if !track.enabled {
-                continue;
-            }
-            for block in &track.blocks {
+        for preset in &self.presets {
+            for block in &preset.blocks {
                 descriptors.extend(block.audio_descriptors()?);
             }
         }
@@ -58,7 +49,13 @@ impl Setup {
     pub fn find_block(&self, block_id: &BlockId) -> Option<&AudioBlock> {
         self.tracks
             .iter()
-            .flat_map(|track| track.blocks.iter())
+            .flat_map(|track| {
+                self.presets
+                    .iter()
+                    .find(|preset| preset.id == track.preset_id)
+                    .into_iter()
+                    .flat_map(|preset| preset.blocks.iter())
+            })
             .find_map(|block| find_block_recursive(block, block_id))
     }
 }

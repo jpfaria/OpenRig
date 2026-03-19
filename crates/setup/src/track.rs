@@ -1,7 +1,5 @@
-use domain::ids::{InputId, OutputId, TrackId};
+use domain::ids::{DeviceId, PresetId, TrackId};
 use serde::{Deserialize, Serialize};
-
-use crate::block::AudioBlock;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
@@ -13,18 +11,15 @@ pub enum TrackOutputMixdown {
     Right,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Track {
+    #[serde(skip)]
     pub id: TrackId,
-    #[serde(default = "default_enabled")]
     pub enabled: bool,
-    pub input_id: InputId,
-    pub output_ids: Vec<OutputId>,
+    pub input_device_id: DeviceId,
+    pub input_channels: Vec<usize>,
+    pub output_device_id: DeviceId,
+    pub output_channels: Vec<usize>,
+    pub preset_id: PresetId,
     pub output_mixdown: TrackOutputMixdown,
-    pub gain: f32,
-    pub blocks: Vec<AudioBlock>,
-}
-
-const fn default_enabled() -> bool {
-    true
 }

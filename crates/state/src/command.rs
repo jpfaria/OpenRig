@@ -18,8 +18,4 @@ pub enum Command {
         block_id: BlockId,
         option_block_id: BlockId,
     },
-    SetTrackGain {
-        track_id: String,
-        value: f32,
-    },
 }

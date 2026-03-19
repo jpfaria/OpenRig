@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Context, Result};
-use domain::ids::{BlockId, DeviceId, InputId, OutputId, SetupId, TrackId};
+use domain::ids::{BlockId, DeviceId, PresetId, TrackId};
 use domain::value_objects::ParameterValue;
 use ports::{PresetRepository, SetupRepository, StateRepository};
 use preset::Preset;
@@ -10,9 +10,9 @@ use setup::block::{
     CompressorBlock, CoreBlock, CoreBlockKind, CoreNamBlock, DelayBlock, DriveBlock, EqBlock,
     FullRigBlock, GateBlock, NamBlock, ReverbBlock, SelectBlock, TremoloBlock, TunerBlock,
 };
-use setup::device::{InputDevice, OutputDevice};
-use setup::io::{Input, Output};
+use setup::device::DeviceSettings;
 use setup::param::ParameterSet;
+use setup::preset::SetupPreset;
 use setup::setup::Setup;
 use setup::track::{Track, TrackOutputMixdown};
 use stage_amp_head::marshall_jcm_800::MODEL_ID as DEFAULT_AMP_HEAD_MODEL;
@@ -87,26 +87,21 @@ impl PresetRepository for YamlPresetRepository {
 
 #[derive(Debug, Deserialize)]
 struct SetupYaml {
-    #[serde(default = "default_setup_id")]
-    id: String,
-    #[serde(default = "default_setup_name")]
-    name: String,
-    input_devices: Vec<InputDeviceYaml>,
-    output_devices: Vec<OutputDeviceYaml>,
-    inputs: Vec<InputYaml>,
-    outputs: Vec<OutputYaml>,
+    #[serde(default)]
+    device_settings: Vec<DeviceSettingsYaml>,
+    presets: Vec<PresetYaml>,
     tracks: Vec<TrackYaml>,
 }
 
 impl SetupYaml {
     fn into_setup(self) -> Result<Setup> {
         Ok(Setup {
-            id: SetupId(self.id),
-            name: self.name,
-            input_devices: self.input_devices.into_iter().map(Into::into).collect(),
-            output_devices: self.output_devices.into_iter().map(Into::into).collect(),
-            inputs: self.inputs.into_iter().map(Into::into).collect(),
-            outputs: self.outputs.into_iter().map(Into::into).collect(),
+            device_settings: self.device_settings.into_iter().map(Into::into).collect(),
+            presets: self
+                .presets
+                .into_iter()
+                .map(PresetYaml::into_preset)
+                .collect::<Result<Vec<_>>>()?,
             tracks: self
                 .tracks
                 .into_iter()
@@ -117,78 +112,44 @@ impl SetupYaml {
     }
 }
 
-fn default_setup_id() -> String {
-    "default-setup".to_string()
+#[derive(Debug, Deserialize)]
+struct PresetYaml {
+    id: String,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default, alias = "stages")]
+    blocks: Vec<AudioBlockYaml>,
 }
 
-fn default_setup_name() -> String {
-    "Default Setup".to_string()
+impl PresetYaml {
+    fn into_preset(self) -> Result<SetupPreset> {
+        let preset_id = PresetId(self.id.clone());
+        Ok(SetupPreset {
+            id: preset_id.clone(),
+            name: self.name,
+            blocks: self
+                .blocks
+                .into_iter()
+                .enumerate()
+                .map(|(index, block)| block.into_audio_block(&generated_preset_track_id(&preset_id), index))
+                .collect::<Result<Vec<_>>>()?,
+        })
+    }
 }
 
 #[derive(Debug, Deserialize)]
-struct InputDeviceYaml {
+struct DeviceSettingsYaml {
     device_id: String,
     sample_rate: u32,
     buffer_size_frames: u32,
 }
 
-impl From<InputDeviceYaml> for InputDevice {
-    fn from(value: InputDeviceYaml) -> Self {
+impl From<DeviceSettingsYaml> for DeviceSettings {
+    fn from(value: DeviceSettingsYaml) -> Self {
         Self {
             device_id: DeviceId(value.device_id),
             sample_rate: value.sample_rate,
             buffer_size_frames: value.buffer_size_frames,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize)]
-struct OutputDeviceYaml {
-    device_id: String,
-    sample_rate: u32,
-    buffer_size_frames: u32,
-}
-
-impl From<OutputDeviceYaml> for OutputDevice {
-    fn from(value: OutputDeviceYaml) -> Self {
-        Self {
-            device_id: DeviceId(value.device_id),
-            sample_rate: value.sample_rate,
-            buffer_size_frames: value.buffer_size_frames,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize)]
-struct InputYaml {
-    id: String,
-    device: usize,
-    channels: Vec<usize>,
-}
-
-impl From<InputYaml> for Input {
-    fn from(value: InputYaml) -> Self {
-        Self {
-            id: InputId(value.id),
-            device: value.device,
-            channels: value.channels,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize)]
-struct OutputYaml {
-    id: String,
-    device: usize,
-    channels: Vec<usize>,
-}
-
-impl From<OutputYaml> for Output {
-    fn from(value: OutputYaml) -> Self {
-        Self {
-            id: OutputId(value.id),
-            device: value.device,
-            channels: value.channels,
         }
     }
 }
@@ -197,13 +158,13 @@ impl From<OutputYaml> for Output {
 struct TrackYaml {
     #[serde(default = "default_enabled")]
     enabled: bool,
-    input_id: String,
-    outputs: Vec<String>,
+    input_device_id: String,
+    input_channels: Vec<usize>,
+    output_device_id: String,
+    output_channels: Vec<usize>,
+    preset_id: String,
     #[serde(default)]
     output_mixdown: TrackOutputMixdown,
-    gain: f32,
-    #[serde(default, alias = "stages")]
-    blocks: Vec<AudioBlockYaml>,
 }
 
 impl TrackYaml {
@@ -212,16 +173,12 @@ impl TrackYaml {
         Ok(Track {
             id: track_id.clone(),
             enabled: self.enabled,
-            input_id: InputId(self.input_id),
-            output_ids: self.outputs.into_iter().map(OutputId).collect(),
+            input_device_id: DeviceId(self.input_device_id),
+            input_channels: self.input_channels,
+            output_device_id: DeviceId(self.output_device_id),
+            output_channels: self.output_channels,
+            preset_id: PresetId(self.preset_id),
             output_mixdown: self.output_mixdown,
-            gain: self.gain,
-            blocks: self
-                .blocks
-                .into_iter()
-                .enumerate()
-                .map(|(index, block)| block.into_audio_block(&track_id, index))
-                .collect::<Result<Vec<_>>>()?,
         })
     }
 }
@@ -648,6 +605,10 @@ fn generated_block_id(track_id: &TrackId, index: usize) -> BlockId {
 
 fn generated_track_id(index: usize) -> TrackId {
     TrackId(format!("track:{}", index))
+}
+
+fn generated_preset_track_id(preset_id: &PresetId) -> TrackId {
+    TrackId(format!("preset:{}", preset_id.0))
 }
 
 fn default_delay_model() -> String {

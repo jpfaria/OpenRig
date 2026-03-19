@@ -1,139 +1,16 @@
-id: default-setup
-name: Default Setup
-input_devices:
-  - device_id: "scarlett-input-device-id"
+device_settings:
+  - device_id: "coreaudio:AppleUSBAudioEngine:Focusrite:Scarlett 2i2 4th Gen:S21ANUD3C1EEBE:1,2"
     sample_rate: 48000
     buffer_size_frames: 256
-output_devices:
-  - device_id: "scarlett-output-device-id"
-    sample_rate: 48000
-    buffer_size_frames: 256
-inputs:
-  - id: scarlett_stereo
-    device: 0
-    channels: [0, 1]
-  - id: scarlett_mono_1
-    device: 0
-    channels: [0]
-  - id: scarlett_mono_2
-    device: 0
-    channels: [1]
-outputs:
-  - id: scarlett_out
-    device: 0
-    channels: [0, 1]
-tracks:
-  - enabled: true
-    input_id: scarlett_mono_1
-    outputs: [scarlett_out]
-    gain: 1.0
+
+presets:
+  - id: marshall_ping_pong
     stages:
-#      - type: nam
-#        model: neural_amp_modeler
-#        params:
-#          model_path: "captures/nam/pedals/JHS @ Andy Timmons/SLAMMIN_JHS_TIMMONS_MAIN_S.nam"
-#          input_db: 0.0
-#          output_db: 0.0
-#          noise_gate:
-#            enabled: true
-#            threshold_db: -80.0
-#          eq:
-#            enabled: true
-#            bass: 5.0
-#            middle: 5.0
-#            treble: 5.0
-#          ir_enabled: true
-
-#      - type: nam
-#        model: neural_amp_modeler
-#        params:
-#          model_path: "captures/nam/pedals/Boss Blues Driver BD-2/Boss Blues Driver BD-2 Gain 50percent.nam"
-#          input_db: 0.0
-#          output_db: 0.0
-#          noise_gate:
-#            enabled: true
-#            threshold_db: -80.0
-#          eq:
-#            enabled: true
-#            bass: 5.0
-#            middle: 5.0
-#            treble: 5.0
-#          ir_enabled: true
-
-#      - type: nam
-#        model: neural_amp_modeler
-#        params:
-#          model_path: "captures/nam/pedals/Ibanez TS9 Tube Screamer/Ibanez TS9 Tube Screamer Drive 7 Tone 7 Level 7.nam"
-#          input_db: 0.0
-#          output_db: 0.0
-#          noise_gate:
-#            enabled: true
-#            threshold_db: -80.0
-#          eq:
-#            enabled: true
-#            bass: 5.0
-#            middle: 5.0
-#            treble: 5.0
-#          ir_enabled: true
-
-#      - type: nam
-#        model: neural_amp_modeler
-#        params:
-#          model_path: "captures/nam/pedals/Ibanez TS9 Tube Screamer/Ibanez TS9 Tube Screamer Drive 8 Tone 4 Level 5.nam"
-#          input_db: 0.0
-#          output_db: 0.0
-#          noise_gate:
-#            enabled: true
-#            threshold_db: -80.0
-#          eq:
-#            enabled: true
-#            bass: 5.0
-#            middle: 5.0
-#            treble: 5.0
-#          ir_enabled: true
-
-#      - type: delay
-#        model: digital_basic
-#        params:
-#          time_ms: 200
-#          feedback: 0.6
-#          mix: 0.55
-
-#      - type: reverb
-#        model: plate_foundation
-#        params:
-#          room_size: 0.8
-#          damping: 0.25
-#          mix: 0.45
-
-#      - type: tuner
-#        model: tuner_chromatic
-#        params:
-#          reference_hz: 440.0
-
-
       - type: amp
         model: marshall_jcm_800_2203
         params:
           volume: 70.0
           gain: 40.0
-
-
-#      - type: nam
-#        params:
-#          model_path: "captures/nam/amps/heads/Marshall JCM 800 2203/JCM800 2203 - P5 B5 M5 T5 MV6 G4 - AZG - 700.nam"
-#          ir_path: "captures/ir/cabs/Marshall 4x12 V30 IR/EV MIX B.wav"
-#          input_db: 0.0
-#          output_db: 0.0
-#          noise_gate:
-#            enabled: true
-#            threshold_db: -80.0
-#          eq:
-#            enabled: true
-#            bass: 5.0
-#            middle: 5.0
-#            treble: 5.0
-#          ir_enabled: true
 
       - type: delay
         model: digital_ping_pong
@@ -142,100 +19,10 @@ tracks:
           feedback: 0.6
           mix: 0.55
 
-#      - id: jcm800
-#        type: select
-#        selected: jcm800_g4
-#        options:
-#          jcm800_g4:
-#            type: nam
-#            model: neural_amp_modeler
-#            params:
-#              model_path: "captures/nam/amps/heads/Marshall JCM 800 2203/JCM800 2203 - P5 B5 M5 T5 MV6 G4 - AZG - 700.nam"
-#              ir_path: "captures/ir/cabs/Marshall 4x12 V30 IR/EV MIX B.wav"
-#              input_db: 0.0
-#              output_db: 0.0
-#              noise_gate:
-#                enabled: true
-#                threshold_db: -80.0
-#              eq:
-#                enabled: true
-#                bass: 5.0
-#                middle: 5.0
-#                treble: 5.0
-#              ir_enabled: true
-
-#          jcm800_g5:
-#            type: nam
-#            model: neural_amp_modeler
-#            params:
-#              model_path: "captures/nam/amps/heads/Marshall JCM 800 2203/JCM800 2203 - P5 B5 M5 T5 MV6 G5 - AZG - 700.nam"
-#              ir_path: "captures/ir/cabs/Marshall 4x12 V30 IR/EV MIX B.wav"
-#              input_db: 0.0
-#              output_db: 0.0
-#              noise_gate:
-#                enabled: true
-#                threshold_db: -80.0
-#              eq:
-#                enabled: true
-#                bass: 5.0
-#                middle: 5.0
-#                treble: 5.0
-#              ir_enabled: true
-
-#          jcm800_g6:
-#            type: nam
-#            model: neural_amp_modeler
-#            params:
-#              model_path: "captures/nam/amps/heads/Marshall JCM 800 2203/JCM800 2203 - P5 B5 M5 T5 MV6 G6 - AZG - 700.nam"
-#              ir_path: "captures/ir/cabs/Marshall 4x12 V30 IR/EV MIX D.wav"
-#              input_db: 0.0
-#              output_db: 0.0
-#              noise_gate:
-#                enabled: true
-#                threshold_db: -80.0
-#              eq:
-#                enabled: true
-#                bass: 5.0
-#                middle: 5.0
-#                treble: 5.0
-#              ir_enabled: true
-
-#  - enabled: true
-#    input_id: scarlett_mono_2
-#    outputs: [scarlett_out]
-#    gain: 0.8
-#    stages:
-#      - type: nam
-#        model: neural_amp_modeler
-#        params:
-#          model_path: "captures/nam/full_rigs/VOX AC30/VOX AC30 + cab.nam"
-#          input_db: 0.0
-#          output_db: 0.0
-#          noise_gate:
-#            enabled: true
-#            threshold_db: -80.0
-#          eq:
-#            enabled: true
-#            bass: 5.0
-#            middle: 5.0
-#            treble: 5.0
-#          ir_enabled: true
-
-#  - id: stereo_fx_demo
-#    input_id: scarlett_stereo
-#    outputs: [scarlett_out]
-#    gain: 1.0
-#    stages:
-#      - type: delay
-#        model: digital_ping_pong
-#        params:
-#          time_ms: 430
-#          feedback: 0.58
-#          mix: 0.34
-#      - type: delay
-#        model: digital_wide
-#        params:
-#          left_time_ms: 320
-#          right_time_ms: 510
-#          feedback: 0.42
-#          mix: 0.28
+tracks:
+  - enabled: true
+    input_device_id: "coreaudio:AppleUSBAudioEngine:Focusrite:Scarlett 2i2 4th Gen:S21ANUD3C1EEBE:1,2"
+    input_channels: [0, 1]
+    output_device_id: "coreaudio:AppleUSBAudioEngine:Focusrite:Scarlett 2i2 4th Gen:S21ANUD3C1EEBE:1,2"
+    output_channels: [0, 1]
+    preset_id: marshall_ping_pong

@@ -83,9 +83,6 @@ where
                     option_block_id,
                 }
             }
-            Command::SetTrackGain { track_id, value } => {
-                Event::TrackGainChanged { track_id, value }
-            }
         };
 
         self.state_repo.save_state(&state)?;
