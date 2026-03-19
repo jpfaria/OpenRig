@@ -1,5 +1,7 @@
 use anyhow::{anyhow, bail, Result};
 use setup::block::{schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlockKind};
+use setup::device::InputDevice;
+use setup::io::Input;
 use setup::setup::Setup;
 use setup::track::Track;
 use stage_core::AudioChannelLayout;
@@ -23,63 +25,45 @@ pub fn validate_setup(setup: &Setup) -> Result<()> {
     }
 
     let mut input_device_ids = HashSet::new();
-    for input_device in &setup.input_devices {
-        if input_device.id.0.trim().is_empty() {
-            bail!("invalid setup: input device with empty id");
-        }
-        if input_device.match_name.trim().is_empty() {
-            bail!(
-                "invalid setup: input device '{}' missing match_name",
-                input_device.id.0
-            );
+    for (index, input_device) in setup.input_devices.iter().enumerate() {
+        if input_device.device_id.0.trim().is_empty() {
+            bail!("invalid setup: input device at index {} missing device_id", index);
         }
         if input_device.sample_rate == 0 {
-            bail!(
-                "invalid setup: input device '{}' has invalid sample_rate",
-                input_device.id.0
-            );
+            bail!("invalid setup: input device at index {} has invalid sample_rate", index);
         }
         if input_device.buffer_size_frames == 0 {
             bail!(
-                "invalid setup: input device '{}' has invalid buffer_size_frames",
-                input_device.id.0
+                "invalid setup: input device at index {} has invalid buffer_size_frames",
+                index
             );
         }
-        if !input_device_ids.insert(input_device.id.clone()) {
+        if !input_device_ids.insert(input_device.device_id.clone()) {
             bail!(
-                "invalid setup: duplicated input device id '{}'",
-                input_device.id.0
+                "invalid setup: duplicated input device_id '{}'",
+                input_device.device_id.0
             );
         }
     }
 
     let mut output_device_ids = HashSet::new();
-    for output_device in &setup.output_devices {
-        if output_device.id.0.trim().is_empty() {
-            bail!("invalid setup: output device with empty id");
-        }
-        if output_device.match_name.trim().is_empty() {
-            bail!(
-                "invalid setup: output device '{}' missing match_name",
-                output_device.id.0
-            );
+    for (index, output_device) in setup.output_devices.iter().enumerate() {
+        if output_device.device_id.0.trim().is_empty() {
+            bail!("invalid setup: output device at index {} missing device_id", index);
         }
         if output_device.sample_rate == 0 {
-            bail!(
-                "invalid setup: output device '{}' has invalid sample_rate",
-                output_device.id.0
-            );
+            bail!("invalid setup: output device at index {} has invalid sample_rate", index);
         }
         if output_device.buffer_size_frames == 0 {
             bail!(
-                "invalid setup: output device '{}' has invalid buffer_size_frames",
-                output_device.id.0
+                "invalid setup: output device at index {} has invalid buffer_size_frames",
+                index
             );
         }
-        if !output_device_ids.insert(output_device.id.clone()) {
+        if !output_device_ids.insert(output_device.device_id.clone()) {
             bail!(
-                "invalid setup: duplicated output device id '{}'",
-                output_device.id.0
+                "invalid setup: duplicated output device_id '{}'",
+                output_device.device_id.0
             );
         }
     }
@@ -90,8 +74,12 @@ pub fn validate_setup(setup: &Setup) -> Result<()> {
         if input.id.0.trim().is_empty() {
             bail!("invalid setup: input with empty id");
         }
-        if input.device_id.0.trim().is_empty() {
-            bail!("invalid setup: input '{}' missing device_id", input.id.0);
+        if input.device >= setup.input_devices.len() {
+            bail!(
+                "invalid setup: input '{}' references missing input device index {}",
+                input.id.0,
+                input.device
+            );
         }
         if input.channels.is_empty() {
             bail!("invalid setup: input '{}' has no channels", input.id.0);
@@ -112,8 +100,12 @@ pub fn validate_setup(setup: &Setup) -> Result<()> {
         if output.id.0.trim().is_empty() {
             bail!("invalid setup: output with empty id");
         }
-        if output.device_id.0.trim().is_empty() {
-            bail!("invalid setup: output '{}' missing device_id", output.id.0);
+        if output.device >= setup.output_devices.len() {
+            bail!(
+                "invalid setup: output '{}' references missing output device index {}",
+                output.id.0,
+                output.device
+            );
         }
         if output.channels.is_empty() {
             bail!("invalid setup: output '{}' has no channels", output.id.0);
@@ -127,10 +119,12 @@ pub fn validate_setup(setup: &Setup) -> Result<()> {
     }
 
     let mut track_ids = HashSet::new();
+    let inputs_by_id: HashMap<String, &Input> = setup
+        .inputs
+        .iter()
+        .map(|input| (input.id.0.clone(), input))
+        .collect();
     for track in &setup.tracks {
-        if track.id.0.trim().is_empty() {
-            bail!("invalid setup: track with empty id");
-        }
         if track.input_id.0.trim().is_empty() {
             bail!("invalid setup: track '{}' missing input_id", track.id.0);
         }
@@ -164,6 +158,8 @@ pub fn validate_setup(setup: &Setup) -> Result<()> {
         }
     }
 
+    validate_active_track_input_channel_conflicts(&setup.tracks, &inputs_by_id, &setup.input_devices)?;
+
     Ok(())
 }
 
@@ -185,10 +181,16 @@ fn layout_from_channel_count(
 }
 
 fn validate_track_blocks(track: &Track, input_layout: AudioChannelLayout) -> Result<()> {
+    if !track.enabled {
+        return Ok(());
+    }
     let mut block_ids = HashSet::new();
     let mut current_layout = input_layout;
 
     for block in &track.blocks {
+        if !block.enabled {
+            continue;
+        }
         if block.id.0.trim().is_empty() {
             bail!("block with empty id");
         }
@@ -201,6 +203,36 @@ fn validate_track_blocks(track: &Track, input_layout: AudioChannelLayout) -> Res
         current_layout = resolve_block_output_layout(track, block, current_layout)?;
     }
 
+    Ok(())
+}
+
+fn validate_active_track_input_channel_conflicts(
+    tracks: &[Track],
+    inputs_by_id: &HashMap<String, &Input>,
+    input_devices: &[InputDevice],
+) -> Result<()> {
+    let mut claimed_channels: HashMap<(String, usize), String> = HashMap::new();
+    for track in tracks.iter().filter(|track| track.enabled) {
+        let input = inputs_by_id
+            .get(&track.input_id.0)
+            .copied()
+            .ok_or_else(|| anyhow!("track '{}' references missing input '{}'", track.id.0, track.input_id.0))?;
+        let device = input_devices
+            .get(input.device)
+            .ok_or_else(|| anyhow!("track '{}' references invalid input device index {}", track.id.0, input.device))?;
+        for channel in &input.channels {
+            let key = (device.device_id.0.clone(), *channel);
+            if let Some(existing_track) = claimed_channels.insert(key.clone(), track.id.0.clone()) {
+                bail!(
+                    "invalid setup: active tracks '{}' and '{}' both use input device '{}' channel {}",
+                    existing_track,
+                    track.id.0,
+                    key.0,
+                    key.1
+                );
+            }
+        }
+    }
     Ok(())
 }
 

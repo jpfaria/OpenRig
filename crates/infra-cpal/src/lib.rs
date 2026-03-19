@@ -3,7 +3,6 @@ use cpal::traits::{DeviceTrait, HostTrait};
 use cpal::{
     BufferSize, SampleFormat, Stream, StreamConfig, SupportedBufferSize, SupportedStreamConfig,
 };
-use domain::ids::DeviceId;
 use engine::engine::PedalboardEngine;
 use engine::runtime::{process_input_f32, process_output_f32, TrackRuntimeState};
 use setup::device::{InputDevice, OutputDevice};
@@ -15,6 +14,7 @@ use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AudioDeviceDescriptor {
+    pub id: String,
     pub name: String,
 }
 #[derive(Clone)]
@@ -52,6 +52,7 @@ pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     let mut devices = Vec::new();
     for device in host.input_devices()? {
         devices.push(AudioDeviceDescriptor {
+            id: device.id()?.to_string(),
             name: device.name().unwrap_or_else(|_| "<unknown>".into()),
         });
     }
@@ -65,6 +66,7 @@ pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     let mut devices = Vec::new();
     for device in host.output_devices()? {
         devices.push(AudioDeviceDescriptor {
+            id: device.id()?.to_string(),
             name: device.name().unwrap_or_else(|_| "<unknown>".into()),
         });
     }
@@ -91,6 +93,9 @@ pub fn build_streams_for_setup(setup: &Setup, engine: &PedalboardEngine) -> Resu
         .collect();
     let mut streams = Vec::new();
     for track in &setup.tracks {
+        if !track.enabled {
+            continue;
+        }
         let input_cfg = input_defs_by_id
             .get(&track.input_id)
             .cloned()
@@ -102,13 +107,13 @@ pub fn build_streams_for_setup(setup: &Setup, engine: &PedalboardEngine) -> Resu
                 )
             })?;
         let resolved_input = resolved_input_devices
-            .get(&input_cfg.device_id)
+            .get(input_cfg.device)
             .cloned()
             .ok_or_else(|| {
                 anyhow!(
-                    "input '{}' references missing input device '{}'",
+                    "input '{}' references missing input device index {}",
                     input_cfg.id.0,
-                    input_cfg.device_id.0
+                    input_cfg.device
                 )
             })?;
         let runtime = engine
@@ -129,13 +134,13 @@ pub fn build_streams_for_setup(setup: &Setup, engine: &PedalboardEngine) -> Resu
                 )
             })?;
             let resolved_output = resolved_output_devices
-                .get(&output_cfg.device_id)
+                .get(output_cfg.device)
                 .cloned()
                 .ok_or_else(|| {
                     anyhow!(
-                        "output '{}' references missing output device '{}'",
+                        "output '{}' references missing output device index {}",
                         output_cfg.id.0,
-                        output_cfg.device_id.0
+                        output_cfg.device
                     )
                 })?;
             streams.push(build_output_stream_for_track(
@@ -151,80 +156,60 @@ pub fn build_streams_for_setup(setup: &Setup, engine: &PedalboardEngine) -> Resu
 fn resolve_input_devices(
     host: &cpal::Host,
     input_devices: &[InputDevice],
-) -> Result<HashMap<DeviceId, ResolvedInputDevice>> {
-    let mut resolved = HashMap::new();
+) -> Result<Vec<ResolvedInputDevice>> {
+    let mut resolved = Vec::new();
     for input_device in input_devices {
-        let device = find_input_device(host, &input_device.match_name)?.ok_or_else(|| {
-            anyhow!(
-                "input device '{}' not found by match_name '{}'",
-                input_device.id.0,
-                input_device.match_name
-            )
+        let device = find_input_device_by_id(host, &input_device.device_id.0)?.ok_or_else(|| {
+            anyhow!("input device '{}' not found by device_id", input_device.device_id.0)
         })?;
         let supported = device.default_input_config().with_context(|| {
-            format!(
-                "failed to get default input config for '{}'",
-                input_device.id.0
-            )
+            format!("failed to get default input config for '{}'", input_device.device_id.0)
         })?;
         validate_sample_rate(
             input_device.sample_rate,
-            supported.sample_rate().0,
-            &input_device.id.0,
+            supported.sample_rate(),
+            &input_device.device_id.0,
         )?;
         validate_buffer_size(
             input_device.buffer_size_frames,
             supported.buffer_size(),
-            &input_device.id.0,
+            &input_device.device_id.0,
         )?;
-        resolved.insert(
-            input_device.id.clone(),
-            ResolvedInputDevice {
-                config: input_device.clone(),
-                device,
-                supported,
-            },
-        );
+        resolved.push(ResolvedInputDevice {
+            config: input_device.clone(),
+            device,
+            supported,
+        });
     }
     Ok(resolved)
 }
 fn resolve_output_devices(
     host: &cpal::Host,
     output_devices: &[OutputDevice],
-) -> Result<HashMap<DeviceId, ResolvedOutputDevice>> {
-    let mut resolved = HashMap::new();
+) -> Result<Vec<ResolvedOutputDevice>> {
+    let mut resolved = Vec::new();
     for output_device in output_devices {
-        let device = find_output_device(host, &output_device.match_name)?.ok_or_else(|| {
-            anyhow!(
-                "output device '{}' not found by match_name '{}'",
-                output_device.id.0,
-                output_device.match_name
-            )
+        let device = find_output_device_by_id(host, &output_device.device_id.0)?.ok_or_else(|| {
+            anyhow!("output device '{}' not found by device_id", output_device.device_id.0)
         })?;
         let supported = device.default_output_config().with_context(|| {
-            format!(
-                "failed to get default output config for '{}'",
-                output_device.id.0
-            )
+            format!("failed to get default output config for '{}'", output_device.device_id.0)
         })?;
         validate_sample_rate(
             output_device.sample_rate,
-            supported.sample_rate().0,
-            &output_device.id.0,
+            supported.sample_rate(),
+            &output_device.device_id.0,
         )?;
         validate_buffer_size(
             output_device.buffer_size_frames,
             supported.buffer_size(),
-            &output_device.id.0,
+            &output_device.device_id.0,
         )?;
-        resolved.insert(
-            output_device.id.clone(),
-            ResolvedOutputDevice {
-                config: output_device.clone(),
-                device,
-                supported,
-            },
-        );
+        resolved.push(ResolvedOutputDevice {
+            config: output_device.clone(),
+            device,
+            supported,
+        });
     }
     Ok(resolved)
 }
@@ -262,12 +247,12 @@ fn validate_buffer_size(
 }
 fn validate_channels_against_devices(
     setup: &Setup,
-    input_devices: &HashMap<DeviceId, ResolvedInputDevice>,
-    output_devices: &HashMap<DeviceId, ResolvedOutputDevice>,
+    input_devices: &[ResolvedInputDevice],
+    output_devices: &[ResolvedOutputDevice],
 ) -> Result<()> {
     for input in &setup.inputs {
         let resolved = input_devices
-            .get(&input.device_id)
+            .get(input.device)
             .ok_or_else(|| anyhow!("input '{}' missing resolved device", input.id.0))?;
         let total_channels = resolved.supported.channels() as usize;
         for channel in &input.channels {
@@ -283,7 +268,7 @@ fn validate_channels_against_devices(
     }
     for output in &setup.outputs {
         let resolved = output_devices
-            .get(&output.device_id)
+            .get(output.device)
             .ok_or_else(|| anyhow!("output '{}' missing resolved device", output.id.0))?;
         let total_channels = resolved.supported.channels() as usize;
         for channel in &output.channels {
@@ -299,19 +284,17 @@ fn validate_channels_against_devices(
     }
     Ok(())
 }
-fn find_input_device(host: &cpal::Host, match_name: &str) -> Result<Option<cpal::Device>> {
+fn find_input_device_by_id(host: &cpal::Host, device_id: &str) -> Result<Option<cpal::Device>> {
     for device in host.input_devices()? {
-        let name = device.name().unwrap_or_else(|_| "<unknown>".into());
-        if name.contains(match_name) {
+        if device.id()?.to_string() == device_id {
             return Ok(Some(device));
         }
     }
     Ok(None)
 }
-fn find_output_device(host: &cpal::Host, match_name: &str) -> Result<Option<cpal::Device>> {
+fn find_output_device_by_id(host: &cpal::Host, device_id: &str) -> Result<Option<cpal::Device>> {
     for device in host.output_devices()? {
-        let name = device.name().unwrap_or_else(|_| "<unknown>".into());
-        if name.contains(match_name) {
+        if device.id()?.to_string() == device_id {
             return Ok(Some(device));
         }
     }
@@ -513,7 +496,7 @@ fn build_output_stream_for_track(
 fn build_stream_config(channels: u16, sample_rate: u32, buffer_size_frames: u32) -> StreamConfig {
     StreamConfig {
         channels,
-        sample_rate: cpal::SampleRate(sample_rate),
+        sample_rate,
         buffer_size: BufferSize::Fixed(buffer_size_frames),
     }
 }

@@ -7,6 +7,7 @@ pub struct FilesystemStorage;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct GuiAudioDeviceSettings {
+    pub device_id: String,
     pub name: String,
     #[serde(default = "default_sample_rate")]
     pub sample_rate: u32,
@@ -54,6 +55,7 @@ impl From<LegacyGuiAudioSettings> for GuiAudioSettings {
             .input_device_names
             .into_iter()
             .map(|name| GuiAudioDeviceSettings {
+                device_id: String::new(),
                 name,
                 sample_rate: value.sample_rate,
                 buffer_size_frames: value.buffer_size_frames,
@@ -63,6 +65,7 @@ impl From<LegacyGuiAudioSettings> for GuiAudioSettings {
             .output_device_names
             .into_iter()
             .map(|name| GuiAudioDeviceSettings {
+                device_id: String::new(),
                 name,
                 sample_rate: value.sample_rate,
                 buffer_size_frames: value.buffer_size_frames,

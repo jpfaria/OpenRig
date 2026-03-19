@@ -23,7 +23,7 @@ impl PedalboardEngine {
     }
     pub fn start(&mut self) {
         self.engine_state.is_running = true;
-        self.engine_state.active_tracks = self.setup.tracks.len();
+        self.engine_state.active_tracks = self.setup.tracks.iter().filter(|track| track.enabled).count();
     }
     pub fn stop(&mut self) {
         self.engine_state.is_running = false;

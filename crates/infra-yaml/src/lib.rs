@@ -110,7 +110,8 @@ impl SetupYaml {
             tracks: self
                 .tracks
                 .into_iter()
-                .map(TrackYaml::into_track)
+                .enumerate()
+                .map(|(index, track)| track.into_track(index))
                 .collect::<Result<Vec<_>>>()?,
         })
     }
@@ -126,8 +127,7 @@ fn default_setup_name() -> String {
 
 #[derive(Debug, Deserialize)]
 struct InputDeviceYaml {
-    id: String,
-    match_name: String,
+    device_id: String,
     sample_rate: u32,
     buffer_size_frames: u32,
 }
@@ -135,8 +135,7 @@ struct InputDeviceYaml {
 impl From<InputDeviceYaml> for InputDevice {
     fn from(value: InputDeviceYaml) -> Self {
         Self {
-            id: DeviceId(value.id),
-            match_name: value.match_name,
+            device_id: DeviceId(value.device_id),
             sample_rate: value.sample_rate,
             buffer_size_frames: value.buffer_size_frames,
         }
@@ -145,8 +144,7 @@ impl From<InputDeviceYaml> for InputDevice {
 
 #[derive(Debug, Deserialize)]
 struct OutputDeviceYaml {
-    id: String,
-    match_name: String,
+    device_id: String,
     sample_rate: u32,
     buffer_size_frames: u32,
 }
@@ -154,8 +152,7 @@ struct OutputDeviceYaml {
 impl From<OutputDeviceYaml> for OutputDevice {
     fn from(value: OutputDeviceYaml) -> Self {
         Self {
-            id: DeviceId(value.id),
-            match_name: value.match_name,
+            device_id: DeviceId(value.device_id),
             sample_rate: value.sample_rate,
             buffer_size_frames: value.buffer_size_frames,
         }
@@ -165,7 +162,7 @@ impl From<OutputDeviceYaml> for OutputDevice {
 #[derive(Debug, Deserialize)]
 struct InputYaml {
     id: String,
-    device_id: String,
+    device: usize,
     channels: Vec<usize>,
 }
 
@@ -173,7 +170,7 @@ impl From<InputYaml> for Input {
     fn from(value: InputYaml) -> Self {
         Self {
             id: InputId(value.id),
-            device_id: DeviceId(value.device_id),
+            device: value.device,
             channels: value.channels,
         }
     }
@@ -182,7 +179,7 @@ impl From<InputYaml> for Input {
 #[derive(Debug, Deserialize)]
 struct OutputYaml {
     id: String,
-    device_id: String,
+    device: usize,
     channels: Vec<usize>,
 }
 
@@ -190,7 +187,7 @@ impl From<OutputYaml> for Output {
     fn from(value: OutputYaml) -> Self {
         Self {
             id: OutputId(value.id),
-            device_id: DeviceId(value.device_id),
+            device: value.device,
             channels: value.channels,
         }
     }
@@ -198,7 +195,8 @@ impl From<OutputYaml> for Output {
 
 #[derive(Debug, Deserialize)]
 struct TrackYaml {
-    id: String,
+    #[serde(default = "default_enabled")]
+    enabled: bool,
     input_id: String,
     outputs: Vec<String>,
     #[serde(default)]
@@ -209,10 +207,11 @@ struct TrackYaml {
 }
 
 impl TrackYaml {
-    fn into_track(self) -> Result<Track> {
-        let track_id = TrackId(self.id.clone());
+    fn into_track(self, index: usize) -> Result<Track> {
+        let track_id = generated_track_id(index);
         Ok(Track {
             id: track_id.clone(),
+            enabled: self.enabled,
             input_id: InputId(self.input_id),
             output_ids: self.outputs.into_iter().map(OutputId).collect(),
             output_mixdown: self.output_mixdown,
@@ -232,6 +231,8 @@ impl TrackYaml {
 enum AudioBlockYaml {
     #[serde(rename = "amp-head", alias = "amp_head", alias = "amp")]
     AmpHead {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
         #[serde(default = "default_amp_head_model")]
         model: String,
         #[serde(default)]
@@ -239,6 +240,8 @@ enum AudioBlockYaml {
     },
     #[serde(rename = "amp-combo", alias = "amp_combo")]
     AmpCombo {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
         #[serde(default = "default_amp_combo_model")]
         model: String,
         #[serde(default)]
@@ -246,71 +249,95 @@ enum AudioBlockYaml {
     },
     #[serde(rename = "full-rig", alias = "full_rig")]
     FullRig {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
         #[serde(default = "default_full_rig_model")]
         model: String,
         #[serde(default)]
         params: Value,
     },
     Drive {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
         #[serde(default = "default_drive_model")]
         model: String,
         #[serde(default)]
         params: Value,
     },
     Nam {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
         #[serde(default = "default_nam_model")]
         model: String,
         #[serde(default)]
         params: Value,
     },
     Delay {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
         #[serde(default = "default_delay_model")]
         model: String,
         #[serde(default)]
         params: Value,
     },
     Reverb {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
         #[serde(default = "default_reverb_model")]
         model: String,
         #[serde(default)]
         params: Value,
     },
     Tuner {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
         #[serde(default = "default_tuner_model")]
         model: String,
         #[serde(default)]
         params: Value,
     },
     Compressor {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
         #[serde(default = "default_compressor_model")]
         model: String,
         #[serde(default)]
         params: Value,
     },
     Gate {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
         #[serde(default = "default_gate_model")]
         model: String,
         #[serde(default)]
         params: Value,
     },
     Eq {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
         #[serde(default = "default_eq_model")]
         model: String,
         #[serde(default)]
         params: Value,
     },
     Tremolo {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
         #[serde(default = "default_tremolo_model")]
         model: String,
         #[serde(default)]
         params: Value,
     },
     CoreNam {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
         model_id: String,
         #[serde(default)]
         ir_id: Option<String>,
     },
     Select {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
         id: String,
         selected: String,
         options: HashMap<String, SelectOptionYaml>,
@@ -321,6 +348,8 @@ enum AudioBlockYaml {
 #[serde(tag = "type", rename_all = "snake_case")]
 enum SelectOptionYaml {
     Nam {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
         #[serde(default = "default_nam_model")]
         model: String,
         #[serde(default)]
@@ -333,8 +362,13 @@ impl AudioBlockYaml {
         let generated_id = generated_block_id(track_id, index);
 
         match self {
-            AudioBlockYaml::AmpHead { model, params } => Ok(AudioBlock {
+            AudioBlockYaml::AmpHead {
+                enabled,
+                model,
+                params,
+            } => Ok(AudioBlock {
                 id: generated_id,
+                enabled,
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::AmpHead(AmpHeadBlock {
                         model: model.clone(),
@@ -342,8 +376,13 @@ impl AudioBlockYaml {
                     }),
                 }),
             }),
-            AudioBlockYaml::AmpCombo { model, params } => Ok(AudioBlock {
+            AudioBlockYaml::AmpCombo {
+                enabled,
+                model,
+                params,
+            } => Ok(AudioBlock {
                 id: generated_id,
+                enabled,
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::AmpCombo(AmpComboBlock {
                         model: model.clone(),
@@ -351,8 +390,13 @@ impl AudioBlockYaml {
                     }),
                 }),
             }),
-            AudioBlockYaml::FullRig { model, params } => Ok(AudioBlock {
+            AudioBlockYaml::FullRig {
+                enabled,
+                model,
+                params,
+            } => Ok(AudioBlock {
                 id: generated_id,
+                enabled,
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::FullRig(FullRigBlock {
                         model: model.clone(),
@@ -360,8 +404,13 @@ impl AudioBlockYaml {
                     }),
                 }),
             }),
-            AudioBlockYaml::Drive { model, params } => Ok(AudioBlock {
+            AudioBlockYaml::Drive {
+                enabled,
+                model,
+                params,
+            } => Ok(AudioBlock {
                 id: generated_id,
+                enabled,
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::Drive(DriveBlock {
                         model: model.clone(),
@@ -369,15 +418,25 @@ impl AudioBlockYaml {
                     }),
                 }),
             }),
-            AudioBlockYaml::Nam { model, params } => Ok(AudioBlock {
+            AudioBlockYaml::Nam {
+                enabled,
+                model,
+                params,
+            } => Ok(AudioBlock {
                 id: generated_id,
+                enabled,
                 kind: AudioBlockKind::Nam(NamBlock {
                     model: model.clone(),
                     params: load_model_params("nam", &model, params)?,
                 }),
             }),
-            AudioBlockYaml::Delay { model, params } => Ok(AudioBlock {
+            AudioBlockYaml::Delay {
+                enabled,
+                model,
+                params,
+            } => Ok(AudioBlock {
                 id: generated_id,
+                enabled,
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::Delay(DelayBlock {
                         model: model.clone(),
@@ -385,8 +444,13 @@ impl AudioBlockYaml {
                     }),
                 }),
             }),
-            AudioBlockYaml::Reverb { model, params } => Ok(AudioBlock {
+            AudioBlockYaml::Reverb {
+                enabled,
+                model,
+                params,
+            } => Ok(AudioBlock {
                 id: generated_id,
+                enabled,
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::Reverb(ReverbBlock {
                         model: model.clone(),
@@ -394,8 +458,13 @@ impl AudioBlockYaml {
                     }),
                 }),
             }),
-            AudioBlockYaml::Tuner { model, params } => Ok(AudioBlock {
+            AudioBlockYaml::Tuner {
+                enabled,
+                model,
+                params,
+            } => Ok(AudioBlock {
                 id: generated_id,
+                enabled,
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::Tuner(TunerBlock {
                         model: model.clone(),
@@ -403,8 +472,13 @@ impl AudioBlockYaml {
                     }),
                 }),
             }),
-            AudioBlockYaml::Compressor { model, params } => Ok(AudioBlock {
+            AudioBlockYaml::Compressor {
+                enabled,
+                model,
+                params,
+            } => Ok(AudioBlock {
                 id: generated_id,
+                enabled,
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::Compressor(CompressorBlock {
                         model: model.clone(),
@@ -412,8 +486,13 @@ impl AudioBlockYaml {
                     }),
                 }),
             }),
-            AudioBlockYaml::Gate { model, params } => Ok(AudioBlock {
+            AudioBlockYaml::Gate {
+                enabled,
+                model,
+                params,
+            } => Ok(AudioBlock {
                 id: generated_id,
+                enabled,
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::Gate(GateBlock {
                         model: model.clone(),
@@ -421,8 +500,13 @@ impl AudioBlockYaml {
                     }),
                 }),
             }),
-            AudioBlockYaml::Eq { model, params } => Ok(AudioBlock {
+            AudioBlockYaml::Eq {
+                enabled,
+                model,
+                params,
+            } => Ok(AudioBlock {
                 id: generated_id,
+                enabled,
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::Eq(EqBlock {
                         model: model.clone(),
@@ -430,8 +514,13 @@ impl AudioBlockYaml {
                     }),
                 }),
             }),
-            AudioBlockYaml::Tremolo { model, params } => Ok(AudioBlock {
+            AudioBlockYaml::Tremolo {
+                enabled,
+                model,
+                params,
+            } => Ok(AudioBlock {
                 id: generated_id,
+                enabled,
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::Tremolo(TremoloBlock {
                         model: model.clone(),
@@ -439,11 +528,17 @@ impl AudioBlockYaml {
                     }),
                 }),
             }),
-            AudioBlockYaml::CoreNam { model_id, ir_id } => Ok(AudioBlock {
+            AudioBlockYaml::CoreNam {
+                enabled,
+                model_id,
+                ir_id,
+            } => Ok(AudioBlock {
                 id: generated_id,
+                enabled,
                 kind: AudioBlockKind::CoreNam(CoreNamBlock { model_id, ir_id }),
             }),
             AudioBlockYaml::Select {
+                enabled,
                 id,
                 selected,
                 options,
@@ -453,23 +548,26 @@ impl AudioBlockYaml {
                     .into_iter()
                     .map(|(name, option)| {
                         let option_id = BlockId(format!("{}::{}", id, name));
-                        let kind = match option {
-                            SelectOptionYaml::Nam { model, params } => {
-                                AudioBlockKind::Nam(NamBlock {
+                        match option {
+                            SelectOptionYaml::Nam {
+                                enabled,
+                                model,
+                                params,
+                            } => Ok(AudioBlock {
+                                id: option_id,
+                                enabled,
+                                kind: AudioBlockKind::Nam(NamBlock {
                                     model: model.clone(),
                                     params: load_model_params("nam", &model, params)?,
-                                })
-                            }
-                        };
-                        Ok(AudioBlock {
-                            id: option_id,
-                            kind,
-                        })
+                                }),
+                            }),
+                        }
                     })
                     .collect::<Result<Vec<_>>>()?;
 
                 Ok(AudioBlock {
                     id: BlockId(id),
+                    enabled,
                     kind: AudioBlockKind::Select(SelectBlock {
                         selected_block_id,
                         options,
@@ -548,6 +646,10 @@ fn generated_block_id(track_id: &TrackId, index: usize) -> BlockId {
     BlockId(format!("{}:block:{}", track_id.0, index))
 }
 
+fn generated_track_id(index: usize) -> TrackId {
+    TrackId(format!("track:{}", index))
+}
+
 fn default_delay_model() -> String {
     DEFAULT_DELAY_MODEL.to_string()
 }
@@ -594,4 +696,8 @@ fn default_eq_model() -> String {
 
 fn default_tremolo_model() -> String {
     DEFAULT_TREMOLO_MODEL.to_string()
+}
+
+const fn default_enabled() -> bool {
+    true
 }

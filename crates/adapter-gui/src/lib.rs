@@ -29,15 +29,17 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         list_input_device_descriptors()?
             .into_iter()
             .map(|device| {
+                let device_id = device.id;
                 let name = device.name;
                 let config = settings
                     .input_devices
                     .iter()
-                    .find(|saved| saved.name == name)
+                    .find(|saved| saved.device_id == device_id)
                     .cloned()
                     .map(normalize_device_settings)
-                    .unwrap_or_else(|| default_device_settings(name.clone()));
+                    .unwrap_or_else(|| default_device_settings(device_id.clone(), name.clone()));
                 DeviceSelectionItem {
+                    device_id: config.device_id.into(),
                     name: config.name.into(),
                     selected: true,
                     sample_rate_text: config.sample_rate.to_string().into(),
@@ -51,15 +53,17 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         list_output_device_descriptors()?
             .into_iter()
             .map(|device| {
+                let device_id = device.id;
                 let name = device.name;
                 let config = settings
                     .output_devices
                     .iter()
-                    .find(|saved| saved.name == name)
+                    .find(|saved| saved.device_id == device_id)
                     .cloned()
                     .map(normalize_device_settings)
-                    .unwrap_or_else(|| default_device_settings(name.clone()));
+                    .unwrap_or_else(|| default_device_settings(device_id.clone(), name.clone()));
                 DeviceSelectionItem {
+                    device_id: config.device_id.into(),
                     name: config.name.into(),
                     selected: true,
                     sample_rate_text: config.sample_rate.to_string().into(),
@@ -236,6 +240,7 @@ fn selected_device_settings(
         .filter(|row| row.selected)
         .map(|row| {
             Ok(GuiAudioDeviceSettings {
+                device_id: row.device_id.to_string(),
                 name: row.name.to_string(),
                 sample_rate: parse_positive_u32(
                     row.sample_rate_text.as_str(),
@@ -250,8 +255,9 @@ fn selected_device_settings(
         .collect()
 }
 
-fn default_device_settings(name: String) -> GuiAudioDeviceSettings {
+fn default_device_settings(device_id: String, name: String) -> GuiAudioDeviceSettings {
     GuiAudioDeviceSettings {
+        device_id,
         name,
         sample_rate: DEFAULT_SAMPLE_RATE,
         buffer_size_frames: DEFAULT_BUFFER_SIZE_FRAMES,
@@ -276,7 +282,9 @@ fn mark_unselected_devices(
         let Some(mut row) = model.row_data(index) else {
             continue;
         };
-        row.selected = selected_devices.iter().any(|saved| saved.name == row.name.as_str());
+        row.selected = selected_devices
+            .iter()
+            .any(|saved| saved.device_id == row.device_id.as_str());
         model.set_row_data(index, row);
     }
 }

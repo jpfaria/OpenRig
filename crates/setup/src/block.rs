@@ -32,6 +32,8 @@ macro_rules! define_model_block {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioBlock {
     pub id: BlockId,
+    #[serde(default = "default_enabled")]
+    pub enabled: bool,
     pub kind: AudioBlockKind,
 }
 
@@ -139,6 +141,9 @@ define_model_block!(SynthBlock);
 
 impl AudioBlock {
     pub fn validate_params(&self) -> Result<(), String> {
+        if !self.enabled {
+            return Ok(());
+        }
         match &self.kind {
             AudioBlockKind::Nam(stage) => {
                 normalize_block_params("nam", &stage.model, stage.params.clone())?;
@@ -173,6 +178,9 @@ impl AudioBlock {
     }
 
     pub fn audio_descriptors(&self) -> Result<Vec<BlockAudioDescriptor>, String> {
+        if !self.enabled {
+            return Ok(Vec::new());
+        }
         match &self.kind {
             AudioBlockKind::Nam(stage) => {
                 Ok(vec![describe_block_audio(&self.id, "nam", &stage.model)?])
@@ -188,6 +196,10 @@ impl AudioBlock {
             AudioBlockKind::CoreNam(_) => Ok(Vec::new()),
         }
     }
+}
+
+const fn default_enabled() -> bool {
+    true
 }
 
 impl CoreBlock {

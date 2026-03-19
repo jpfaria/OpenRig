@@ -22,6 +22,9 @@ impl Setup {
     pub fn parameter_descriptors(&self) -> Result<Vec<BlockParameterDescriptor>, String> {
         let mut descriptors = Vec::new();
         for track in &self.tracks {
+            if !track.enabled {
+                continue;
+            }
             for block in &track.blocks {
                 descriptors.extend(collect_block_parameter_descriptors(block)?);
             }
@@ -42,6 +45,9 @@ impl Setup {
     pub fn block_audio_descriptors(&self) -> Result<Vec<BlockAudioDescriptor>, String> {
         let mut descriptors = Vec::new();
         for track in &self.tracks {
+            if !track.enabled {
+                continue;
+            }
             for block in &track.blocks {
                 descriptors.extend(block.audio_descriptors()?);
             }

@@ -1,31 +1,29 @@
 id: default-setup
 name: Default Setup
 input_devices:
-  - id: scarlett_in_dev
-    match_name: "Scarlett 2i2 4th Gen"
+  - device_id: "scarlett-input-device-id"
     sample_rate: 48000
     buffer_size_frames: 256
 output_devices:
-  - id: scarlett_out_dev
-    match_name: "Scarlett 2i2 4th Gen"
+  - device_id: "scarlett-output-device-id"
     sample_rate: 48000
     buffer_size_frames: 256
 inputs:
   - id: scarlett_stereo
-    device_id: scarlett_in_dev
+    device: 0
     channels: [0, 1]
   - id: scarlett_mono_1
-    device_id: scarlett_in_dev
+    device: 0
     channels: [0]
   - id: scarlett_mono_2
-    device_id: scarlett_in_dev
+    device: 0
     channels: [1]
 outputs:
   - id: scarlett_out
-    device_id: scarlett_out_dev
+    device: 0
     channels: [0, 1]
 tracks:
-  - id: guitar_main
+  - enabled: true
     input_id: scarlett_mono_1
     outputs: [scarlett_out]
     gain: 1.0
@@ -202,7 +200,7 @@ tracks:
 #                treble: 5.0
 #              ir_enabled: true
 
-#  - id: guitar_vox
+#  - enabled: true
 #    input_id: scarlett_mono_2
 #    outputs: [scarlett_out]
 #    gain: 0.8

@@ -184,6 +184,9 @@ pub struct RuntimeGraph {
 pub fn build_runtime_graph(setup: &Setup) -> Result<RuntimeGraph> {
     let mut tracks = HashMap::new();
     for track in &setup.tracks {
+        if !track.enabled {
+            continue;
+        }
         let input_cfg = setup
             .inputs
             .iter()
@@ -232,6 +235,9 @@ fn build_runtime_processors(
     let mut current_layout = input_layout;
 
     for block in &track.blocks {
+        if !block.enabled {
+            continue;
+        }
         match &block.kind {
             AudioBlockKind::Nam(stage) => {
                 let outcome = build_nam_audio_processor(track, stage, current_layout, "nam")?;
