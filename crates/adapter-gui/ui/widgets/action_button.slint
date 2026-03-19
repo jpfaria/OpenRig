@@ -68,3 +68,43 @@ export component SecondaryActionButton inherits BaseActionButton {
     outline-color: Theme.palette.secondary-border;
     text-color: Theme.palette.text-secondary;
 }
+
+component BaseIconActionButton inherits Rectangle {
+    in property <bool> enabled: true;
+    in property <brush> fill;
+    in property <color> outline-color;
+    in property <image> icon;
+    callback clicked();
+
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+    border-width: 1px;
+    background: root.enabled ? root.fill : Theme.palette.secondary-start;
+    border-color: root.outline-color;
+
+    Image {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: 18px;
+        height: 18px;
+        source: root.icon;
+    }
+
+    TouchArea {
+        enabled: root.enabled;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+export component PrimaryIconActionButton inherits BaseIconActionButton {
+    fill: @linear-gradient(180deg, Theme.palette.accent-start 0%, Theme.palette.accent-end 100%);
+    outline-color: Theme.palette.accent-border;
+}
+
+export component SecondaryIconActionButton inherits BaseIconActionButton {
+    fill: @linear-gradient(180deg, Theme.palette.secondary-start 0%, Theme.palette.secondary-end 100%);
+    outline-color: Theme.palette.secondary-border;
+}

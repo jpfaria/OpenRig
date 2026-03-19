@@ -1,8 +1,9 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { ProjectTrackItem } from "../models.slint";
-import { SButton, SCard, SText } from "../modules/surrealism-ui/index.slint";
+import { SCard, SText } from "../modules/surrealism-ui/index.slint";
 import { Themes } from "../modules/surrealism-ui/use/index.slint";
+import { PrimaryIconActionButton, SecondaryIconActionButton } from "../widgets/action_button.slint";
 
 export component ProjectTracksPage inherits SCard {
     in property <string> project-title;
@@ -35,30 +36,18 @@ export component ProjectTracksPage inherits SCard {
 
             Rectangle { horizontal-stretch: 1; background: transparent; }
 
-            SButton {
-                theme: Themes.Dark;
-                text: "Configurar projeto";
-                card-width: 148px;
-                card-height: 44px;
-                round: true;
+            SecondaryIconActionButton {
+                icon: @image-url("../assets/setup.svg");
                 clicked => { root.configure-project(); }
             }
 
-            SButton {
-                theme: Themes.Primary;
-                text: "Salvar projeto";
-                card-width: 132px;
-                card-height: 44px;
-                round: true;
+            PrimaryIconActionButton {
+                icon: @image-url("../assets/save.svg");
                 clicked => { root.save-project(); }
             }
 
-            SButton {
-                theme: Themes.Primary;
-                text: "Add Track";
-                card-width: 136px;
-                card-height: 44px;
-                round: true;
+            PrimaryIconActionButton {
+                icon: @image-url("../assets/plus.svg");
                 clicked => { root.add-track(); }
             }
         }
@@ -106,30 +95,27 @@ export component ProjectTracksPage inherits SCard {
                     HorizontalBox {
                         spacing: 10px;
 
-                        SButton {
-                            theme: Themes.Dark;
-                            text: "Salvar preset";
-                            card-width: 112px;
-                            card-height: 34px;
-                            round: true;
+                        SecondaryIconActionButton {
+                            width: 34px;
+                            height: 34px;
+                            border-radius: 12px;
+                            icon: @image-url("../assets/save.svg");
                             clicked => { root.save-track-preset(index); }
                         }
 
-                        SButton {
-                            theme: Themes.Dark;
-                            text: "Novo preset";
-                            card-width: 108px;
-                            card-height: 34px;
-                            round: true;
+                        SecondaryIconActionButton {
+                            width: 34px;
+                            height: 34px;
+                            border-radius: 12px;
+                            icon: @image-url("../assets/plus.svg");
                             clicked => { root.create-track-preset(index); }
                         }
 
-                        SButton {
-                            theme: Themes.Dark;
-                            text: "Configurar preset";
-                            card-width: 134px;
-                            card-height: 34px;
-                            round: true;
+                        SecondaryIconActionButton {
+                            width: 34px;
+                            height: 34px;
+                            border-radius: 12px;
+                            icon: @image-url("../assets/preset.svg");
                             clicked => { root.configure-track-preset(index); }
                         }
                     }
