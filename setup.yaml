@@ -1,28 +1,15 @@
+presets_path: ./presets
+
 device_settings:
   - device_id: "coreaudio:AppleUSBAudioEngine:Focusrite:Scarlett 2i2 4th Gen:S21ANUD3C1EEBE:1,2"
     sample_rate: 48000
     buffer_size_frames: 256
 
-presets:
-  - id: marshall_ping_pong
-    stages:
-      - type: amp
-        model: marshall_jcm_800_2203
-        params:
-          volume: 70.0
-          gain: 40.0
-
-      - type: delay
-        model: digital_ping_pong
-        params:
-          time_ms: 200
-          feedback: 0.6
-          mix: 0.55
-
 tracks:
-  - enabled: true
+  - description: guitar 1
+    enabled: true
     input_device_id: "coreaudio:AppleUSBAudioEngine:Focusrite:Scarlett 2i2 4th Gen:S21ANUD3C1EEBE:1,2"
-    input_channels: [0, 1]
+    input_channels: [0]
     output_device_id: "coreaudio:AppleUSBAudioEngine:Focusrite:Scarlett 2i2 4th Gen:S21ANUD3C1EEBE:1,2"
     output_channels: [0, 1]
-    preset_id: marshall_ping_pong
+    preset_id: example

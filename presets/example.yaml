@@ -1,0 +1,16 @@
+id: example
+stages:
+  - type: amp
+    model: marshall_jcm_800_2203
+    enabled: true
+    params:
+      volume: 70.0
+      gain: 40.0
+
+  - type: delay
+    model: digital_ping_pong
+    enabled: true
+    params:
+      time_ms: 200
+      feedback: 0.6
+      mix: 0.55

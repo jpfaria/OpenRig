@@ -5,15 +5,22 @@ use engine::engine::PedalboardEngine;
 use infra_cpal::{build_streams_for_setup, list_devices};
 use infra_yaml::{YamlSetupRepository, YamlStateRepository};
 use ports::{SetupRepository, StateRepository};
+use std::env;
 use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
+
 fn main() -> Result<()> {
+    let setup_path = parse_setup_path();
+    let setup_dir = setup_path
+        .parent()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("."));
     let setup_repo = YamlSetupRepository {
-        path: PathBuf::from("setup.yaml"),
+        path: setup_path,
     };
     let state_repo = YamlStateRepository {
-        path: PathBuf::from("state.yaml"),
+        path: setup_dir.join("state.yaml"),
     };
     let setup = setup_repo.load_current_setup()?;
     validate_setup(&setup)?;
@@ -42,4 +49,16 @@ fn main() -> Result<()> {
     loop {
         thread::sleep(Duration::from_secs(1));
     }
+}
+
+fn parse_setup_path() -> PathBuf {
+    let mut args = env::args().skip(1);
+    while let Some(arg) = args.next() {
+        if arg == "--setup" {
+            if let Some(path) = args.next() {
+                return PathBuf::from(path);
+            }
+        }
+    }
+    PathBuf::from("setup.yaml")
 }

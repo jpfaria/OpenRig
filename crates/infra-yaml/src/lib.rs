@@ -49,7 +49,12 @@ impl SetupRepository for YamlSetupRepository {
         let raw = fs::read_to_string(&self.path)
             .with_context(|| format!("failed to read yaml {:?}", self.path))?;
         let dto: SetupYaml = serde_yaml::from_str(&raw)?;
-        dto.into_setup()
+        let base_dir = self
+            .path
+            .parent()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("."));
+        dto.into_setup(&base_dir)
     }
 
     fn save_setup(&self, _setup: &Setup) -> Result<()> {
@@ -88,20 +93,27 @@ impl PresetRepository for YamlPresetRepository {
 #[derive(Debug, Deserialize)]
 struct SetupYaml {
     #[serde(default)]
+    presets_path: Option<PathBuf>,
+    #[serde(default)]
     device_settings: Vec<DeviceSettingsYaml>,
+    #[serde(default)]
     presets: Vec<PresetYaml>,
     tracks: Vec<TrackYaml>,
 }
 
 impl SetupYaml {
-    fn into_setup(self) -> Result<Setup> {
-        Ok(Setup {
-            device_settings: self.device_settings.into_iter().map(Into::into).collect(),
-            presets: self
-                .presets
+    fn into_setup(self, base_dir: &PathBuf) -> Result<Setup> {
+        let presets = if let Some(presets_path) = self.presets_path {
+            load_presets_from_dir(&base_dir.join(presets_path))?
+        } else {
+            self.presets
                 .into_iter()
                 .map(PresetYaml::into_preset)
-                .collect::<Result<Vec<_>>>()?,
+                .collect::<Result<Vec<_>>>()?
+        };
+        Ok(Setup {
+            device_settings: self.device_settings.into_iter().map(Into::into).collect(),
+            presets,
             tracks: self
                 .tracks
                 .into_iter()
@@ -110,6 +122,34 @@ impl SetupYaml {
                 .collect::<Result<Vec<_>>>()?,
         })
     }
+}
+
+fn load_presets_from_dir(dir: &PathBuf) -> Result<Vec<SetupPreset>> {
+    let mut entries = fs::read_dir(dir)
+        .with_context(|| format!("failed to read presets directory {:?}", dir))?
+        .collect::<std::result::Result<Vec<_>, _>>()
+        .with_context(|| format!("failed to iterate presets directory {:?}", dir))?;
+    entries.sort_by_key(|entry| entry.path());
+
+    let mut presets = Vec::new();
+    for entry in entries {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let Some(extension) = path.extension().and_then(|ext| ext.to_str()) else {
+            continue;
+        };
+        if extension != "yaml" && extension != "yml" {
+            continue;
+        }
+        let raw = fs::read_to_string(&path)
+            .with_context(|| format!("failed to read preset yaml {:?}", path))?;
+        let dto: PresetYaml = serde_yaml::from_str(&raw)
+            .with_context(|| format!("failed to parse preset yaml {:?}", path))?;
+        presets.push(dto.into_preset()?);
+    }
+    Ok(presets)
 }
 
 #[derive(Debug, Deserialize)]
