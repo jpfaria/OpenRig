@@ -11,3 +11,15 @@ pub struct PedalboardState {
     pub selected_option_by_block: HashMap<BlockId, BlockId>,
     pub parameter_values: HashMap<ParameterId, ParameterValue>,
 }
+
+impl Default for PedalboardState {
+    fn default() -> Self {
+        Self {
+            setup_id: SetupId("default".to_string()),
+            active_preset_id: None,
+            bypass_by_block: HashMap::new(),
+            selected_option_by_block: HashMap::new(),
+            parameter_values: HashMap::new(),
+        }
+    }
+}

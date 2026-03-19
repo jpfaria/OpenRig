@@ -1,5 +1,3 @@
-presets_path: ./presets
-
 device_settings:
   - device_id: "coreaudio:AppleUSBAudioEngine:Focusrite:Scarlett 2i2 4th Gen:S21ANUD3C1EEBE:1,2"
     sample_rate: 48000

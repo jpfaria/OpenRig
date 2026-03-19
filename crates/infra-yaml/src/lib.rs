@@ -34,6 +34,7 @@ use std::path::PathBuf;
 
 pub struct YamlSetupRepository {
     pub path: PathBuf,
+    pub presets_path_override: Option<PathBuf>,
 }
 
 pub struct YamlStateRepository {
@@ -54,7 +55,7 @@ impl SetupRepository for YamlSetupRepository {
             .parent()
             .map(PathBuf::from)
             .unwrap_or_else(|| PathBuf::from("."));
-        dto.into_setup(&base_dir)
+        dto.into_setup(&base_dir, self.presets_path_override.clone())
     }
 
     fn save_setup(&self, _setup: &Setup) -> Result<()> {
@@ -102,8 +103,9 @@ struct SetupYaml {
 }
 
 impl SetupYaml {
-    fn into_setup(self, base_dir: &PathBuf) -> Result<Setup> {
-        let presets = if let Some(presets_path) = self.presets_path {
+    fn into_setup(self, base_dir: &PathBuf, presets_path_override: Option<PathBuf>) -> Result<Setup> {
+        let presets_path = presets_path_override.or(self.presets_path);
+        let presets = if let Some(presets_path) = presets_path {
             load_presets_from_dir(&base_dir.join(presets_path))?
         } else {
             self.presets
