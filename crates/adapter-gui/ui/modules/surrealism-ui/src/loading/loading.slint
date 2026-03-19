@@ -108,8 +108,8 @@ export component Loading inherits Window {
                     height: ROOT-STYLES.sur-font.font-size * 2;
                     width: ROOT-STYLES.sur-font.font-size * 2;
                     source: root.loading-icon;
-                    rotation-angle: !root.is-show ? 0deg : 240deg * animation-tick() / root.duration;
-                    animate rotation-angle {
+                    transform-rotation: !root.is-show ? 0deg : 240deg * animation-tick() / root.duration;
+                    animate transform-rotation {
                         easing: ease-in-out;
                         iteration-count: -1;
                     }

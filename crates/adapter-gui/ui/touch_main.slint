@@ -2,15 +2,15 @@ import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectTrackItem } from "models.slint";
 import { Header } from "blocks/blocks.slint";
-import { ProjectLauncherPage, ProjectTracksPage, TrackEditorPage, WizardConfigPage } from "pages/pages.slint";
+import { ProjectLauncherPage, ProjectSettingsPage, ProjectTracksPage, TrackEditorPage, WizardConfigPage } from "pages/pages.slint";
 
 export component TouchMain inherits Rectangle {
     in property <bool> show-project-launcher;
     in property <bool> show-project-tracks;
     in property <bool> show-track-editor;
+    in property <bool> show-project-settings;
     in property <string> project-path-label;
     in property <string> project-title;
-    in property <bool> show-project-name-field;
     in-out property <string> project-name-draft;
     in property <bool> show-audio-setup;
     in-out property <int> wizard-step;
@@ -37,13 +37,15 @@ export component TouchMain inherits Rectangle {
     callback go-to-input-step();
     callback update-project-name(string);
     callback save-audio-settings();
+    callback close-project-settings();
     callback open-project-file();
     callback create-project-file();
+    callback back-to-launcher();
     callback add-track();
     callback save-project();
     callback configure-project();
+    callback configure-track(int);
     callback save-track-preset(int);
-    callback create-track-preset(int);
     callback configure-track-preset(int);
     callback update-track-name(string);
     callback select-track-input-device(int);
@@ -71,7 +73,7 @@ export component TouchMain inherits Rectangle {
 
             Rectangle {
                 width: 720px;
-                height: root.show-project-launcher ? 320px : root.show-track-editor ? 520px : root.show-project-tracks ? 520px : root.wizard-page-height;
+                height: root.show-project-launcher ? 320px : root.show-track-editor ? 520px : root.show-project-settings ? 720px : root.show-project-tracks ? 520px : root.wizard-page-height;
                 background: transparent;
 
                 if root.show-project-launcher : ProjectLauncherPage {
@@ -85,11 +87,12 @@ export component TouchMain inherits Rectangle {
                     project-title: root.project-title;
                     tracks: root.project-tracks;
                     status-message: root.status-message;
+                    back-to-launcher => { root.back-to-launcher(); }
                     add-track => { root.add-track(); }
                     save-project => { root.save-project(); }
                     configure-project => { root.configure-project(); }
+                    configure-track(index) => { root.configure-track(index); }
                     save-track-preset(index) => { root.save-track-preset(index); }
-                    create-track-preset(index) => { root.create-track-preset(index); }
                     configure-track-preset(index) => { root.configure-track-preset(index); }
                 }
 
@@ -111,9 +114,27 @@ export component TouchMain inherits Rectangle {
                     cancel-track => { root.cancel-track(); }
                 }
 
-                if !root.show-project-launcher && !root.show-project-tracks && !root.show-track-editor : WizardConfigPage {
+                if root.show-project-settings : ProjectSettingsPage {
+                    project-name: root.project-name-draft;
+                    input-devices: root.input-devices;
+                    output-devices: root.output-devices;
+                    status-message: root.status-message;
+                    sample-rate-options: root.sample-rate-options;
+                    buffer-size-options: root.buffer-size-options;
+                    toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
+                    toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
+                    update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
+                    update-input-buffer-size(index, value) => { root.update-input-buffer-size(index, value); }
+                    update-output-sample-rate(index, value) => { root.update-output-sample-rate(index, value); }
+                    update-output-buffer-size(index, value) => { root.update-output-buffer-size(index, value); }
+                    update-project-name(value) => { root.update-project-name(value); }
+                    save-project-settings => { root.save-audio-settings(); }
+                    close-project-settings => { root.close-project-settings(); }
+                }
+
+                if !root.show-project-launcher && !root.show-project-tracks && !root.show-track-editor && !root.show-project-settings : WizardConfigPage {
                     wizard-step: root.wizard-step;
-                    show-project-name-field: root.show-project-name-field;
+                    show-project-name-field: false;
                     project-name: root.project-name-draft;
                     input-devices: root.input-devices;
                     output-devices: root.output-devices;

@@ -24,7 +24,7 @@ import { SCard } from "../card/index.slint";
 import {ROOT_STYLES,DefaultSPopupProps} from "../../themes/index.slint";
 import { Themes,PaddingType,PaddingProps,ShadowType,BorderType,BorderProps } from "../../use/index.slint";
 
-export component Popup inherits Window {
+export component Popup inherits PopupWindow {
   height: 100%;
   width: 100%;
   padding: 0;
@@ -32,19 +32,12 @@ export component Popup inherits Window {
   padding-left: 0;
   padding-right: 0;
   padding-top: 0;
-  always-on-top:true;
   opacity: 1;
   visible: is-show;
   z: 1000;
   in-out property <bool> is-show :DefaultSPopupProps.is-show;
   in property <Themes> theme : DefaultSPopupProps.theme;
   in property <percent> mask-opacity : DefaultSPopupProps.mask-opacity;
-  public function open() {
-    self.is-show = true;
-  }
-  public function close() {
-    self.is-show = false;
-  }
   mask:=SCard {
     z: 100;
     height: 100%;

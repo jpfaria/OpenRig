@@ -3,17 +3,18 @@ import { Theme } from "../theme.slint";
 import { ProjectTrackItem } from "../models.slint";
 import { SCard, SText } from "../modules/surrealism-ui/index.slint";
 import { Themes } from "../modules/surrealism-ui/use/index.slint";
-import { PrimaryIconActionButton, SecondaryIconActionButton } from "../widgets/action_button.slint";
+import { IconAction } from "../widgets/widgets.slint";
 
 export component ProjectTracksPage inherits SCard {
     in property <string> project-title;
     in property <[ProjectTrackItem]> tracks;
     in-out property <string> status-message;
+    callback back-to-launcher();
     callback add-track();
     callback save-project();
     callback configure-project();
+    callback configure-track(int);
     callback save-track-preset(int);
-    callback create-track-preset(int);
     callback configure-track-preset(int);
 
     theme: Themes.Dark;
@@ -27,6 +28,11 @@ export component ProjectTracksPage inherits SCard {
         spacing: Theme.spaces.large;
 
         HorizontalBox {
+            IconAction {
+                icon: @image-url("../assets/arrow-left.svg");
+                clicked => { root.back-to-launcher(); }
+            }
+
             SText {
                 theme: Themes.Dark;
                 text: project-title;
@@ -36,17 +42,17 @@ export component ProjectTracksPage inherits SCard {
 
             Rectangle { horizontal-stretch: 1; background: transparent; }
 
-            SecondaryIconActionButton {
-                icon: @image-url("../assets/setup.svg");
+            IconAction {
+                icon: @image-url("../assets/gear.svg");
                 clicked => { root.configure-project(); }
             }
 
-            PrimaryIconActionButton {
+            IconAction {
                 icon: @image-url("../assets/save.svg");
                 clicked => { root.save-project(); }
             }
 
-            PrimaryIconActionButton {
+            IconAction {
                 icon: @image-url("../assets/plus.svg");
                 clicked => { root.add-track(); }
             }
@@ -64,60 +70,43 @@ export component ProjectTracksPage inherits SCard {
             for track[index] in tracks : SCard {
                 theme: Themes.Dark;
                 card-width: 640px;
-                height: 112px;
-                card-height: 112px;
+                height: 68px;
+                card-height: 68px;
 
-                VerticalBox {
+                HorizontalBox {
                     padding-left: 16px;
                     padding-right: 16px;
                     padding-top: 14px;
                     padding-bottom: 14px;
                     spacing: 12px;
 
-                    HorizontalBox {
-                        spacing: 12px;
-
-                        SText {
-                            theme: Themes.Dark;
-                            text: track.title;
-                            font-size: Theme.typo.button.size;
-                        }
-
-                        Rectangle { horizontal-stretch: 1; background: transparent; }
-
-                        SText {
-                            theme: Themes.Dark;
-                            text: track.subtitle;
-                            font-size: Theme.typo.caption.size;
-                        }
+                    SText {
+                        theme: Themes.Dark;
+                        text: track.title;
+                        font-size: Theme.typo.button.size;
                     }
 
-                    HorizontalBox {
-                        spacing: 10px;
+                    SText {
+                        theme: Themes.Dark;
+                        text: track.subtitle;
+                        font-size: Theme.typo.caption.size;
+                    }
 
-                        SecondaryIconActionButton {
-                            width: 34px;
-                            height: 34px;
-                            border-radius: 12px;
-                            icon: @image-url("../assets/save.svg");
-                            clicked => { root.save-track-preset(index); }
-                        }
+                    Rectangle { horizontal-stretch: 1; background: transparent; }
 
-                        SecondaryIconActionButton {
-                            width: 34px;
-                            height: 34px;
-                            border-radius: 12px;
-                            icon: @image-url("../assets/plus.svg");
-                            clicked => { root.create-track-preset(index); }
-                        }
+                    IconAction {
+                        icon: @image-url("../assets/gear.svg");
+                        clicked => { root.configure-track(index); }
+                    }
 
-                        SecondaryIconActionButton {
-                            width: 34px;
-                            height: 34px;
-                            border-radius: 12px;
-                            icon: @image-url("../assets/preset.svg");
-                            clicked => { root.configure-track-preset(index); }
-                        }
+                    IconAction {
+                        icon: @image-url("../assets/save.svg");
+                        clicked => { root.save-track-preset(index); }
+                    }
+
+                    IconAction {
+                        icon: @image-url("../assets/preset.svg");
+                        clicked => { root.configure-track-preset(index); }
                     }
                 }
             }

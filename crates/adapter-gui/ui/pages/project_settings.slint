@@ -1,0 +1,156 @@
+import { VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { DeviceSelectionItem } from "../models.slint";
+import { DeviceRow, PrimaryActionButton, SecondaryActionButton } from "../widgets/widgets.slint";
+import { SCard, SInput, SText } from "../modules/surrealism-ui/index.slint";
+import { Themes } from "../modules/surrealism-ui/use/index.slint";
+
+export component ProjectSettingsPage inherits SCard {
+    in-out property <string> project-name;
+    in property <[DeviceSelectionItem]> input-devices;
+    in property <[DeviceSelectionItem]> output-devices;
+    in-out property <string> status-message;
+    in property <[string]> sample-rate-options;
+    in property <[string]> buffer-size-options;
+    callback toggle-input-device(int, bool);
+    callback toggle-output-device(int, bool);
+    callback update-input-sample-rate(int, string);
+    callback update-input-buffer-size(int, string);
+    callback update-output-sample-rate(int, string);
+    callback update-output-buffer-size(int, string);
+    callback update-project-name(string);
+    callback save-project-settings();
+    callback close-project-settings();
+
+    theme: Themes.Dark;
+    card-width: 760px;
+    private property <length> rows-height:
+        ((input-devices.length + output-devices.length) * 44px)
+        + ((input-devices.length > 0 ? input-devices.length - 1 : 0) * 8px)
+        + ((output-devices.length > 0 ? output-devices.length - 1 : 0) * 8px);
+    card-height: 260px + rows-height;
+
+    VerticalBox {
+        padding: Theme.spaces.xlarge;
+        spacing: Theme.spaces.large;
+
+        HorizontalBox {
+            SText {
+                theme: Themes.Dark;
+                text: "Configurar projeto";
+                font-size: Theme.typo.section.size;
+                font-weight: Theme.typo.section.weight;
+            }
+
+            Rectangle { horizontal-stretch: 1; background: transparent; }
+
+            SecondaryActionButton {
+                text: "Fechar";
+                width: 108px;
+                height: 40px;
+                clicked => { root.close-project-settings(); }
+            }
+        }
+
+        VerticalBox {
+            spacing: Theme.spaces.small;
+
+            SText {
+                theme: Themes.Dark;
+                text: "Nome do projeto";
+                font-size: Theme.typo.caption.size;
+            }
+
+            SInput {
+                theme: Themes.Dark;
+                card-width: 680px;
+                text: root.project-name;
+                changed(value) => {
+                    root.update-project-name(value);
+                }
+            }
+        }
+
+        VerticalBox {
+            spacing: Theme.spaces.small;
+
+            SText {
+                theme: Themes.Dark;
+                text: "Dispositivos de entrada";
+                font-size: Theme.typo.caption.size;
+            }
+
+            for device[i] in input-devices : DeviceRow {
+                name: device.name;
+                selected: device.selected;
+                sample-rate-text: device.sample_rate_text;
+                buffer-size-text: device.buffer_size_text;
+                sample-rate-options: root.sample-rate-options;
+                buffer-size-options: root.buffer-size-options;
+                toggled(checked) => {
+                    root.toggle-input-device(i, checked);
+                }
+                sample-rate-selected(value) => {
+                    root.update-input-sample-rate(i, value);
+                }
+                buffer-size-selected(value) => {
+                    root.update-input-buffer-size(i, value);
+                }
+            }
+        }
+
+        VerticalBox {
+            spacing: Theme.spaces.small;
+
+            SText {
+                theme: Themes.Dark;
+                text: "Dispositivos de saída";
+                font-size: Theme.typo.caption.size;
+            }
+
+            for device[i] in output-devices : DeviceRow {
+                name: device.name;
+                selected: device.selected;
+                sample-rate-text: device.sample_rate_text;
+                buffer-size-text: device.buffer_size_text;
+                sample-rate-options: root.sample-rate-options;
+                buffer-size-options: root.buffer-size-options;
+                toggled(checked) => {
+                    root.toggle-output-device(i, checked);
+                }
+                sample-rate-selected(value) => {
+                    root.update-output-sample-rate(i, value);
+                }
+                buffer-size-selected(value) => {
+                    root.update-output-buffer-size(i, value);
+                }
+            }
+        }
+
+        HorizontalBox {
+            spacing: Theme.spaces.medium;
+
+            if status-message != "" : SText {
+                theme: Themes.Dark;
+                text: status-message;
+                font-size: Theme.typo.caption.size;
+            }
+
+            Rectangle { horizontal-stretch: 1; background: transparent; }
+
+            SecondaryActionButton {
+                text: "Cancelar";
+                width: 116px;
+                height: 40px;
+                clicked => { root.close-project-settings(); }
+            }
+
+            PrimaryActionButton {
+                text: "Salvar";
+                width: 120px;
+                height: 40px;
+                clicked => { root.save-project-settings(); }
+            }
+        }
+    }
+}

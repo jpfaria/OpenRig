@@ -3,7 +3,7 @@ use domain::ids::{BlockId, DeviceId, PresetId, TrackId};
 use domain::value_objects::ParameterValue;
 use ports::{PresetRepository, SetupRepository, StateRepository};
 use preset::Preset;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 use setup::block::{
     normalize_block_params, AmpComboBlock, AmpHeadBlock, AudioBlock, AudioBlockKind,
@@ -43,6 +43,30 @@ pub struct YamlStateRepository {
 
 pub struct YamlPresetRepository {
     pub path: PathBuf,
+}
+
+pub fn load_setup_preset_file(path: &PathBuf) -> Result<SetupPreset> {
+    let raw = fs::read_to_string(path)
+        .with_context(|| format!("failed to read preset yaml {:?}", path))?;
+    let dto: PresetYaml = serde_yaml::from_str(&raw)
+        .with_context(|| format!("failed to parse preset yaml {:?}", path))?;
+    dto.into_preset()
+}
+
+pub fn save_setup_preset_file(path: &PathBuf, preset: &SetupPreset) -> Result<()> {
+    let dto = PresetYaml::from_setup_preset(preset)?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(path, serde_yaml::to_string(&dto)?)?;
+    Ok(())
+}
+
+pub fn serialize_audio_blocks(blocks: &[AudioBlock]) -> Result<Vec<Value>> {
+    blocks
+        .iter()
+        .map(|block| Ok(serde_yaml::to_value(AudioBlockYaml::from_audio_block(block)?)?))
+        .collect()
 }
 
 impl SetupRepository for YamlSetupRepository {
@@ -157,7 +181,7 @@ fn load_presets_from_dir(dir: &PathBuf) -> Result<Vec<SetupPreset>> {
     Ok(presets)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct PresetYaml {
     id: String,
     #[serde(default)]
@@ -177,6 +201,18 @@ impl PresetYaml {
                 .into_iter()
                 .enumerate()
                 .map(|(index, block)| block.into_audio_block(&generated_preset_track_id(&preset_id), index))
+                .collect::<Result<Vec<_>>>()?,
+        })
+    }
+
+    fn from_setup_preset(preset: &SetupPreset) -> Result<Self> {
+        Ok(Self {
+            id: preset.id.0.clone(),
+            name: preset.name.clone(),
+            blocks: preset
+                .blocks
+                .iter()
+                .map(AudioBlockYaml::from_audio_block)
                 .collect::<Result<Vec<_>>>()?,
         })
     }
@@ -237,7 +273,7 @@ impl TrackYaml {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum AudioBlockYaml {
     #[serde(rename = "amp-head", alias = "amp_head", alias = "amp")]
@@ -355,7 +391,7 @@ enum AudioBlockYaml {
     },
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum SelectOptionYaml {
     Nam {
@@ -587,6 +623,127 @@ impl AudioBlockYaml {
             }
         }
     }
+
+    fn from_audio_block(block: &AudioBlock) -> Result<Self> {
+        match &block.kind {
+            AudioBlockKind::Nam(stage) => Ok(Self::Nam {
+                enabled: block.enabled,
+                model: stage.model.clone(),
+                params: parameter_set_to_yaml_value(&stage.params),
+            }),
+            AudioBlockKind::Core(core) => match &core.kind {
+                CoreBlockKind::AmpHead(stage) => Ok(Self::AmpHead {
+                    enabled: block.enabled,
+                    model: stage.model.clone(),
+                    params: parameter_set_to_yaml_value(&stage.params),
+                }),
+                CoreBlockKind::AmpCombo(stage) => Ok(Self::AmpCombo {
+                    enabled: block.enabled,
+                    model: stage.model.clone(),
+                    params: parameter_set_to_yaml_value(&stage.params),
+                }),
+                CoreBlockKind::FullRig(stage) => Ok(Self::FullRig {
+                    enabled: block.enabled,
+                    model: stage.model.clone(),
+                    params: parameter_set_to_yaml_value(&stage.params),
+                }),
+                CoreBlockKind::Drive(stage) => Ok(Self::Drive {
+                    enabled: block.enabled,
+                    model: stage.model.clone(),
+                    params: parameter_set_to_yaml_value(&stage.params),
+                }),
+                CoreBlockKind::Delay(stage) => Ok(Self::Delay {
+                    enabled: block.enabled,
+                    model: stage.model.clone(),
+                    params: parameter_set_to_yaml_value(&stage.params),
+                }),
+                CoreBlockKind::Reverb(stage) => Ok(Self::Reverb {
+                    enabled: block.enabled,
+                    model: stage.model.clone(),
+                    params: parameter_set_to_yaml_value(&stage.params),
+                }),
+                CoreBlockKind::Tuner(stage) => Ok(Self::Tuner {
+                    enabled: block.enabled,
+                    model: stage.model.clone(),
+                    params: parameter_set_to_yaml_value(&stage.params),
+                }),
+                CoreBlockKind::Compressor(stage) => Ok(Self::Compressor {
+                    enabled: block.enabled,
+                    model: stage.model.clone(),
+                    params: parameter_set_to_yaml_value(&stage.params),
+                }),
+                CoreBlockKind::Gate(stage) => Ok(Self::Gate {
+                    enabled: block.enabled,
+                    model: stage.model.clone(),
+                    params: parameter_set_to_yaml_value(&stage.params),
+                }),
+                CoreBlockKind::Eq(stage) => Ok(Self::Eq {
+                    enabled: block.enabled,
+                    model: stage.model.clone(),
+                    params: parameter_set_to_yaml_value(&stage.params),
+                }),
+                CoreBlockKind::Tremolo(stage) => Ok(Self::Tremolo {
+                    enabled: block.enabled,
+                    model: stage.model.clone(),
+                    params: parameter_set_to_yaml_value(&stage.params),
+                }),
+                unsupported => Err(anyhow!(
+                    "unsupported block kind for yaml export: {:?}",
+                    unsupported
+                )),
+            },
+            AudioBlockKind::CoreNam(stage) => Ok(Self::CoreNam {
+                enabled: block.enabled,
+                model_id: stage.model_id.clone(),
+                ir_id: stage.ir_id.clone(),
+            }),
+            AudioBlockKind::Select(select) => {
+                let id = block.id.0.clone();
+                let selected = select
+                    .selected_block_id
+                    .0
+                    .rsplit("::")
+                    .next()
+                    .unwrap_or(select.selected_block_id.0.as_str())
+                    .to_string();
+                let mut options = HashMap::new();
+                for option in &select.options {
+                    let name = option
+                        .id
+                        .0
+                        .rsplit("::")
+                        .next()
+                        .unwrap_or(option.id.0.as_str())
+                        .to_string();
+                    match &option.kind {
+                        AudioBlockKind::Nam(stage) => {
+                            options.insert(
+                                name,
+                                SelectOptionYaml::Nam {
+                                    enabled: option.enabled,
+                                    model: stage.model.clone(),
+                                    params: parameter_set_to_yaml_value(&stage.params),
+                                },
+                            );
+                        }
+                        unsupported => {
+                            return Err(anyhow!(
+                                "unsupported select option kind for yaml export: {:?}",
+                                unsupported
+                            ));
+                        }
+                    }
+                }
+
+                Ok(Self::Select {
+                    enabled: block.enabled,
+                    id,
+                    selected,
+                    options,
+                })
+            }
+        }
+    }
 }
 
 fn load_model_params(effect_type: &str, model: &str, raw_params: Value) -> Result<ParameterSet> {
@@ -623,6 +780,44 @@ fn flatten_parameter_value(params: &mut ParameterSet, path: &str, value: Value) 
             params.insert(path.to_string(), yaml_scalar_to_parameter_value(scalar)?);
             Ok(())
         }
+    }
+}
+
+fn parameter_set_to_yaml_value(params: &ParameterSet) -> Value {
+    let mut root = serde_yaml::Mapping::new();
+    for (path, value) in &params.values {
+        let parts = path.split('.').collect::<Vec<_>>();
+        insert_yaml_value(&mut root, &parts, parameter_value_to_yaml(value));
+    }
+    Value::Mapping(root)
+}
+
+fn insert_yaml_value(mapping: &mut serde_yaml::Mapping, path: &[&str], value: Value) {
+    if path.is_empty() {
+        return;
+    }
+    let key = Value::String(path[0].to_string());
+    if path.len() == 1 {
+        mapping.insert(key, value);
+        return;
+    }
+
+    if !matches!(mapping.get(&key), Some(Value::Mapping(_))) {
+        mapping.insert(key.clone(), Value::Mapping(serde_yaml::Mapping::new()));
+    }
+
+    if let Some(Value::Mapping(child)) = mapping.get_mut(&key) {
+        insert_yaml_value(child, &path[1..], value);
+    }
+}
+
+fn parameter_value_to_yaml(value: &ParameterValue) -> Value {
+    match value {
+        ParameterValue::Null => Value::Null,
+        ParameterValue::Bool(value) => Value::Bool(*value),
+        ParameterValue::Int(value) => serde_yaml::to_value(value).unwrap_or(Value::Null),
+        ParameterValue::Float(value) => serde_yaml::to_value(value).unwrap_or(Value::Null),
+        ParameterValue::String(value) => Value::String(value.clone()),
     }
 }
 

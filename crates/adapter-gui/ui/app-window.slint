@@ -6,9 +6,9 @@ export component AppWindow inherits Window {
     in property <bool> show-project-launcher;
     in property <bool> show-project-tracks;
     in property <bool> show-track-editor;
+    in property <bool> show-project-settings;
     in property <string> project-path-label;
     in property <string> project-title;
-    in property <bool> show-project-name-field;
     in-out property <string> project-name-draft;
     in property <string> runtime-mode-label;
     in property <string> interaction-mode-label;
@@ -39,13 +39,15 @@ export component AppWindow inherits Window {
     callback go-to-input-step();
     callback update-project-name(string);
     callback save-audio-settings();
+    callback close-project-settings();
     callback open-project-file();
     callback create-project-file();
+    callback back-to-launcher();
     callback add-track();
     callback save-project();
     callback configure-project();
+    callback configure-track(int);
     callback save-track-preset(int);
-    callback create-track-preset(int);
     callback configure-track-preset(int);
     callback update-track-name(string);
     callback select-track-input-device(int);
@@ -67,9 +69,9 @@ export component AppWindow inherits Window {
         show-project-launcher: root.show-project-launcher;
         show-project-tracks: root.show-project-tracks;
         show-track-editor: root.show-track-editor;
+        show-project-settings: root.show-project-settings;
         project-path-label: root.project-path-label;
         project-title: root.project-title;
-        show-project-name-field: root.show-project-name-field;
         project-name-draft: root.project-name-draft;
         show-audio-setup: root.show-audio-setup;
         wizard-step: root.wizard-step;
@@ -96,13 +98,15 @@ export component AppWindow inherits Window {
         go-to-input-step => { root.go-to-input-step(); }
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
+        close-project-settings => { root.close-project-settings(); }
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }
+        back-to-launcher => { root.back-to-launcher(); }
         add-track => { root.add-track(); }
         save-project => { root.save-project(); }
         configure-project => { root.configure-project(); }
+        configure-track(index) => { root.configure-track(index); }
         save-track-preset(index) => { root.save-track-preset(index); }
-        create-track-preset(index) => { root.create-track-preset(index); }
         configure-track-preset(index) => { root.configure-track-preset(index); }
         update-track-name(value) => { root.update-track-name(value); }
         select-track-input-device(index) => { root.select-track-input-device(index); }
@@ -119,9 +123,9 @@ export component AppWindow inherits Window {
         show-project-launcher: root.show-project-launcher;
         show-project-tracks: root.show-project-tracks;
         show-track-editor: root.show-track-editor;
+        show-project-settings: root.show-project-settings;
         project-path-label: root.project-path-label;
         project-title: root.project-title;
-        show-project-name-field: root.show-project-name-field;
         project-name-draft: root.project-name-draft;
         show-audio-setup: root.show-audio-setup;
         wizard-step: root.wizard-step;
@@ -148,13 +152,15 @@ export component AppWindow inherits Window {
         go-to-input-step => { root.go-to-input-step(); }
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
+        close-project-settings => { root.close-project-settings(); }
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }
+        back-to-launcher => { root.back-to-launcher(); }
         add-track => { root.add-track(); }
         save-project => { root.save-project(); }
         configure-project => { root.configure-project(); }
+        configure-track(index) => { root.configure-track(index); }
         save-track-preset(index) => { root.save-track-preset(index); }
-        create-track-preset(index) => { root.create-track-preset(index); }
         configure-track-preset(index) => { root.configure-track-preset(index); }
         update-track-name(value) => { root.update-track-name(value); }
         select-track-input-device(index) => { root.select-track-input-device(index); }

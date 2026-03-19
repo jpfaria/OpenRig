@@ -46,14 +46,10 @@ export component Card inherits Rectangle{
   in-out property <PaddingProps> card-padding : UseSurrealismFn.get-padding(padding-type);
   in-out property <BorderProps> card-border : UseSurrealismFn.get-border(border-type);
   in-out property <ShadowProps> card-shadow : UseSurrealismFn.get-shadow(shadow-type);
-  height : UseSurrealismFn.count-height(self.card-height,self.padding-top);
-  width : UseSurrealismFn.count-width(self.card-width,self.padding-left);
+  height : self.card-height;
+  width : self.card-width;
   border-width : self.card-border.border-width;
   border-radius : self.card-border.border-radius;
-  padding-top : self.card-padding.padding-top;
-  padding-bottom : self.card-padding.padding-bottom;
-  padding-left : self.card-padding.padding-left;
-  padding-right : self.card-padding.padding-right;
   drop-shadow-blur : card-shadow.blur;
   drop-shadow-offset-x : card-shadow.x;
   drop-shadow-offset-y : card-shadow.y;

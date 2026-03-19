@@ -1,15 +1,14 @@
 use anyhow::{anyhow, Result};
-use domain::ids::{DeviceId, PresetId, TrackId};
+use domain::ids::{DeviceId, TrackId};
 use infra_cpal::{list_input_device_descriptors, list_output_device_descriptors, AudioDeviceDescriptor};
 use infra_filesystem::{FilesystemStorage, GuiAudioDeviceSettings, GuiAudioSettings};
-use infra_yaml::YamlSetupRepository;
+use infra_yaml::{load_setup_preset_file, save_setup_preset_file, serialize_audio_blocks, YamlSetupRepository};
 use ports::SetupRepository;
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 use slint::{Model, ModelRc, SharedString, VecModel};
 use std::rc::Rc;
 use std::{cell::RefCell, env, fs, path::PathBuf};
-use setup::block::AudioBlock;
 use setup::device::DeviceSettings;
 use setup::preset::SetupPreset;
 use setup::setup::Setup;
@@ -44,6 +43,7 @@ struct ProjectSession {
 
 #[derive(Debug, Clone)]
 struct TrackDraft {
+    editing_index: Option<usize>,
     name: String,
     input_device_id: Option<String>,
     output_device_id: Option<String>,
@@ -82,22 +82,13 @@ struct ProjectTrackYaml {
     input_channels: Vec<usize>,
     output_device_id: String,
     output_channels: Vec<usize>,
-    stages: Vec<AudioBlock>,
+    stages: Vec<serde_yaml::Value>,
     output_mixdown: TrackOutputMixdown,
 }
 
 #[derive(Debug, Serialize)]
 struct ConfigYaml {
     presets_path: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct PresetFileYaml {
-    id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    name: Option<String>,
-    #[serde(default)]
-    stages: Vec<AudioBlock>,
 }
 
 pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: InteractionMode) -> Result<()> {
@@ -115,9 +106,9 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
     window.set_show_project_launcher(true);
     window.set_show_project_tracks(false);
     window.set_show_track_editor(false);
+    window.set_show_project_settings(false);
     window.set_project_path_label("".into());
     window.set_project_title("Projeto".into());
-    window.set_show_project_name_field(false);
     window.set_project_name_draft("".into());
     window.set_runtime_mode_label(context.runtime_mode.label().into());
     window.set_interaction_mode_label(context.interaction_mode.label().into());
@@ -341,7 +332,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                     window.set_status_message("Configuração do projeto atualizada.".into());
                     window.set_show_project_tracks(true);
                     window.set_show_track_editor(false);
-                    window.set_show_project_name_field(false);
+                    window.set_show_project_settings(false);
                 }
             }
         });
@@ -381,7 +372,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                     window.set_show_project_launcher(false);
                     window.set_show_project_tracks(true);
                     window.set_show_track_editor(false);
-                    window.set_show_project_name_field(false);
+                    window.set_show_project_settings(false);
                 }
                 Err(error) => {
                     window.set_status_message(error.to_string().into());
@@ -409,7 +400,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             window.set_show_project_launcher(false);
             window.set_show_project_tracks(true);
             window.set_show_track_editor(false);
-            window.set_show_project_name_field(false);
+            window.set_show_project_settings(false);
         });
     }
 
@@ -480,12 +471,12 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             set_device_selection_from_project(&input_devices, &session.setup.device_settings);
             set_device_selection_from_project(&output_devices, &session.setup.device_settings);
             *audio_settings_mode.borrow_mut() = AudioSettingsMode::Project;
-            window.set_wizard_step(0);
             window.set_project_name_draft(session.setup.name.clone().unwrap_or_default().into());
-            window.set_show_project_name_field(true);
             window.set_status_message("".into());
+            window.set_show_project_launcher(false);
             window.set_show_project_tracks(false);
             window.set_show_track_editor(false);
+            window.set_show_project_settings(true);
         });
     }
 
@@ -510,39 +501,20 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
 
     {
         let weak_window = window.as_weak();
-        let project_session = project_session.clone();
-        window.on_save_track_preset(move |index| {
+        window.on_close_project_settings(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let mut session_borrow = project_session.borrow_mut();
-            let Some(session) = session_borrow.as_mut() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
-                return;
-            };
-            let Some(track) = session.setup.tracks.get(index as usize) else {
-                window.set_status_message("Track inválida.".into());
-                return;
-            };
-            let Some(path) = FileDialog::new()
-                .add_filter("OpenRig Preset", &["yaml", "yml"])
-                .set_title("Salvar em preset existente")
-                .set_directory(&session.presets_path)
-                .pick_file()
-            else {
-                return;
-            };
-            match save_track_blocks_to_preset(track, &path) {
-                Ok(()) => window.set_status_message("Preset atualizado.".into()),
-                Err(error) => window.set_status_message(error.to_string().into()),
-            }
+            window.set_status_message("".into());
+            window.set_show_project_settings(false);
+            window.set_show_project_tracks(true);
         });
     }
 
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
-        window.on_create_track_preset(move |index| {
+        window.on_save_track_preset(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -563,7 +535,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 .to_lowercase();
             let Some(path) = FileDialog::new()
                 .add_filter("OpenRig Preset", &["yaml", "yml"])
-                .set_title("Criar novo preset")
+                .set_title("Salvar preset")
                 .set_directory(&session.presets_path)
                 .set_file_name(&format!("{default_name}.yaml"))
                 .save_file()
@@ -571,7 +543,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 return;
             };
             match save_track_blocks_to_preset(track, &path) {
-                Ok(()) => window.set_status_message("Preset criado.".into()),
+                Ok(()) => window.set_status_message("Preset salvo.".into()),
                 Err(error) => window.set_status_message(error.to_string().into()),
             }
         });
@@ -614,6 +586,32 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
+        let project_tracks = project_tracks.clone();
+        window.on_back_to_launcher(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            *project_session.borrow_mut() = None;
+            replace_project_tracks(&project_tracks, &Setup {
+                name: None,
+                device_settings: Vec::new(),
+                presets: Vec::new(),
+                tracks: Vec::new(),
+            });
+            window.set_status_message("".into());
+            window.set_project_title("Projeto".into());
+            window.set_project_name_draft("".into());
+            window.set_project_path_label("".into());
+            window.set_show_project_settings(false);
+            window.set_show_track_editor(false);
+            window.set_show_project_tracks(false);
+            window.set_show_project_launcher(true);
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
         let track_draft = track_draft.clone();
         let input_track_devices = input_track_devices.clone();
         let output_track_devices = output_track_devices.clone();
@@ -648,6 +646,53 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 draft.output_device_id.as_deref(),
             ));
             window.set_status_message("".into());
+            window.set_show_project_tracks(false);
+            window.set_show_track_editor(true);
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        let track_draft = track_draft.clone();
+        let input_track_devices = input_track_devices.clone();
+        let output_track_devices = output_track_devices.clone();
+        let track_input_channels = track_input_channels.clone();
+        let track_output_channels = track_output_channels.clone();
+        window.on_configure_track(move |index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let session_borrow = project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else {
+                window.set_status_message("Nenhum projeto carregado.".into());
+                return;
+            };
+            let Some(track) = session.setup.tracks.get(index as usize) else {
+                window.set_status_message("Track inválida.".into());
+                return;
+            };
+            let draft = track_draft_from_track(index as usize, track);
+            replace_channel_options(
+                &track_input_channels,
+                build_input_channel_items(&draft, &session.setup, &input_track_devices),
+            );
+            replace_channel_options(
+                &track_output_channels,
+                build_output_channel_items(&draft, &output_track_devices),
+            );
+            window.set_track_draft_name(draft.name.clone().into());
+            window.set_selected_track_input_device_index(selected_device_index(
+                &input_track_devices,
+                draft.input_device_id.as_deref(),
+            ));
+            window.set_selected_track_output_device_index(selected_device_index(
+                &output_track_devices,
+                draft.output_device_id.as_deref(),
+            ));
+            *track_draft.borrow_mut() = Some(draft);
+            window.set_status_message("".into());
+            window.set_show_project_settings(false);
             window.set_show_project_tracks(false);
             window.set_show_track_editor(true);
         });
@@ -819,18 +864,35 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 return;
             }
 
-            let next_index = session.setup.tracks.len();
-            session.setup.tracks.push(Track {
-                id: TrackId(format!("track:{}", next_index)),
+            let editing_index = draft.editing_index;
+            let existing_track = editing_index.and_then(|index| session.setup.tracks.get(index).cloned());
+            let track = Track {
+                id: existing_track
+                    .as_ref()
+                    .map(|track| track.id.clone())
+                    .unwrap_or_else(|| TrackId(format!("track:{}", session.setup.tracks.len()))),
                 description: normalized_track_description(&draft.name),
-                enabled: true,
+                enabled: existing_track.as_ref().map(|track| track.enabled).unwrap_or(true),
                 input_device_id: DeviceId(draft.input_device_id.unwrap_or_default()),
                 input_channels: draft.input_channels,
                 output_device_id: DeviceId(draft.output_device_id.unwrap_or_default()),
                 output_channels: draft.output_channels,
-                blocks: Vec::new(),
-                output_mixdown: TrackOutputMixdown::Average,
-            });
+                blocks: existing_track
+                    .as_ref()
+                    .map(|track| track.blocks.clone())
+                    .unwrap_or_default(),
+                output_mixdown: existing_track
+                    .as_ref()
+                    .map(|track| track.output_mixdown)
+                    .unwrap_or(TrackOutputMixdown::Average),
+            };
+            if let Some(index) = editing_index {
+                if let Some(current) = session.setup.tracks.get_mut(index) {
+                    *current = track;
+                }
+            } else {
+                session.setup.tracks.push(track);
+            }
             replace_project_tracks(&project_tracks, &session.setup);
             *track_draft.borrow_mut() = None;
             window.set_status_message("".into());
@@ -1033,17 +1095,19 @@ fn save_project_session(session: &ProjectSession, project_path: &PathBuf) -> Res
             .setup
             .tracks
             .iter()
-            .map(|track| ProjectTrackYaml {
+            .map(|track| -> Result<ProjectTrackYaml> {
+                Ok(ProjectTrackYaml {
                 description: track.description.clone(),
                 enabled: track.enabled,
                 input_device_id: track.input_device_id.0.clone(),
                 input_channels: track.input_channels.clone(),
                 output_device_id: track.output_device_id.0.clone(),
                 output_channels: track.output_channels.clone(),
-                stages: track.blocks.clone(),
+                stages: serialize_audio_blocks(&track.blocks)?,
                 output_mixdown: track.output_mixdown,
+                })
             })
-            .collect(),
+            .collect::<Result<Vec<_>>>()?,
     };
 
     fs::write(project_path, serde_yaml::to_string(&project)?)?;
@@ -1061,27 +1125,16 @@ fn save_project_session(session: &ProjectSession, project_path: &PathBuf) -> Res
 }
 
 fn save_track_blocks_to_preset(track: &Track, path: &PathBuf) -> Result<()> {
-    let preset_id = preset_id_from_path(path)?;
-    let preset = PresetFileYaml {
-        id: preset_id,
+    let preset = SetupPreset {
+        id: domain::ids::PresetId(preset_id_from_path(path)?),
         name: track.description.clone(),
-        stages: track.blocks.clone(),
+        blocks: track.blocks.clone(),
     };
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::write(path, serde_yaml::to_string(&preset)?)?;
-    Ok(())
+    save_setup_preset_file(path, &preset)
 }
 
 fn load_preset_file(path: &PathBuf) -> Result<SetupPreset> {
-    let raw = fs::read_to_string(path)?;
-    let preset: PresetFileYaml = serde_yaml::from_str(&raw)?;
-    Ok(SetupPreset {
-        id: PresetId(preset.id),
-        name: preset.name,
-        blocks: preset.stages,
-    })
+    load_setup_preset_file(path)
 }
 
 fn preset_id_from_path(path: &PathBuf) -> Result<String> {
@@ -1121,11 +1174,26 @@ fn create_track_draft(
     output_devices: &[AudioDeviceDescriptor],
 ) -> TrackDraft {
     TrackDraft {
+        editing_index: None,
         name: format!("Track {}", setup.tracks.len() + 1),
         input_device_id: input_devices.first().map(|device| device.id.clone()),
         output_device_id: output_devices.first().map(|device| device.id.clone()),
         input_channels: Vec::new(),
         output_channels: Vec::new(),
+    }
+}
+
+fn track_draft_from_track(index: usize, track: &Track) -> TrackDraft {
+    TrackDraft {
+        editing_index: Some(index),
+        name: track
+            .description
+            .clone()
+            .unwrap_or_else(|| format!("Track {}", index + 1)),
+        input_device_id: Some(track.input_device_id.0.clone()),
+        output_device_id: Some(track.output_device_id.0.clone()),
+        input_channels: track.input_channels.clone(),
+        output_channels: track.output_channels.clone(),
     }
 }
 
@@ -1143,8 +1211,13 @@ fn build_input_channel_items(
     let used_channels = setup
         .tracks
         .iter()
-        .filter(|track| track.enabled && track.input_device_id.0 == *device_id)
-        .flat_map(|track| track.input_channels.iter().copied())
+        .enumerate()
+        .filter(|(index, track)| {
+            track.enabled
+                && track.input_device_id.0 == *device_id
+                && draft.editing_index != Some(*index)
+        })
+        .flat_map(|(_, track)| track.input_channels.iter().copied())
         .collect::<Vec<_>>();
 
     (0..device.channels)

@@ -141,9 +141,9 @@ export component Menu inherits SCard {
           width: icon-size;
           clicked => {
             if(more-popup.is-show){
-              more-popup.close();
+              more-popup.is-show = false;
             }else{
-              more-popup.open();
+              more-popup.is-show = true;
             }
           }
         }

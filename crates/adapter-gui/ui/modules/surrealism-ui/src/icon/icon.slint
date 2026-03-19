@@ -50,8 +50,6 @@ export component Icon{
   // get icon src from for iter item
   callback clicked;
   callback moved;
-  //default icon size
-  padding: DefaultSIconProps.padding;
   height: DefaultSIconProps.height;
   width: DefaultSIconProps.width;
   states [
@@ -66,16 +64,14 @@ export component Icon{
       colorize : root.colorize;
       image-fit : root.image-fit;
       image-rendering : root.image-rendering;
-      rotation-angle: root.rotation.rotation-angle;
-      rotation-origin-x: root.rotation.rotation-origin-x;
-      rotation-origin-y: root.rotation.rotation-origin-y;
+      transform-rotation: root.rotation.rotation-angle;
       source-clip-height: root.source-clip-height;
       source-clip-width: root.source-clip-width;
       source-clip-x: root.source-clip-x;
       source-clip-y: root.source-clip-y;
       height: root.height;
       width: root.width;
-      animate rotation-angle {
+      animate transform-rotation {
         easing: ROOT-STYLES.sur-an-easing;
         duration: ROOT-STYLES.sur-an-duration;
       }
