@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+<rect x="16" y="16" width="224" height="224" rx="28" fill="#121212" stroke="#2F2F2F" stroke-width="4"/>
+
+<path d="M58 104H126" stroke="#E8E8E8" stroke-width="10" stroke-linecap="round"/>
+<path d="M104 82L126 104L104 126" stroke="#E8E8E8" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M198 152H130" stroke="#E8E8E8" stroke-width="10" stroke-linecap="round"/>
+<path d="M152 130L130 152L152 174" stroke="#E8E8E8" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="128" y="210" fill="#8E8E8E" font-size="18" font-family="Arial" text-anchor="middle">SEND/RETURN</text>
+
+</svg>

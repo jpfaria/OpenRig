@@ -6,7 +6,6 @@ import { ProjectLauncherPage, WizardConfigPage } from "pages/pages.slint";
 
 export component DesktopMain inherits Rectangle {
     in property <bool> show-project-launcher;
-    in property <bool> default-project-available;
     in property <string> project-path-label;
     in property <bool> show-audio-setup;
     in-out property <int> wizard-step;
@@ -24,7 +23,6 @@ export component DesktopMain inherits Rectangle {
     callback go-to-output-step();
     callback go-to-input-step();
     callback save-audio-settings();
-    callback open-default-project();
     callback open-project-file();
     callback create-project-file();
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
@@ -50,10 +48,8 @@ export component DesktopMain inherits Rectangle {
                 background: transparent;
 
                 if root.show-project-launcher : ProjectLauncherPage {
-                    default-project-available: root.default-project-available;
                     project-path-label: root.project-path-label;
                     status-message: root.status-message;
-                    open-default-project => { root.open-default-project(); }
                     open-project-file => { root.open-project-file(); }
                     create-project-file => { root.create-project-file(); }
                 }

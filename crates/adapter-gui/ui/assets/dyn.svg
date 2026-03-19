@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+<rect x="16" y="16" width="224" height="224" rx="28" fill="#121212" stroke="#2F2F2F" stroke-width="4"/>
+
+<path d="M64 162C88 126 104 118 128 118C152 118 168 126 192 162" stroke="#E8E8E8" stroke-width="10" stroke-linecap="round"/>
+<path d="M64 110C88 146 104 154 128 154C152 154 168 146 192 110" stroke="#E8E8E8" stroke-width="10" stroke-linecap="round"/>
+<path d="M128 74V190" stroke="#E8E8E8" stroke-width="8" stroke-linecap="round" opacity="0.9"/>
+<text x="128" y="210" fill="#8E8E8E" font-size="22" font-family="Arial" text-anchor="middle">DYN</text>
+
+</svg>

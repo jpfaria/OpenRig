@@ -4,7 +4,6 @@ import { TouchMain } from "touch_main.slint";
 
 export component AppWindow inherits Window {
     in property <bool> show-project-launcher;
-    in property <bool> default-project-available;
     in property <string> project-path-label;
     in property <string> runtime-mode-label;
     in property <string> interaction-mode-label;
@@ -26,7 +25,6 @@ export component AppWindow inherits Window {
     callback go-to-output-step();
     callback go-to-input-step();
     callback save-audio-settings();
-    callback open-default-project();
     callback open-project-file();
     callback create-project-file();
     title: "OpenRig";
@@ -40,7 +38,6 @@ export component AppWindow inherits Window {
         width: 100%;
         height: 100%;
         show-project-launcher: root.show-project-launcher;
-        default-project-available: root.default-project-available;
         project-path-label: root.project-path-label;
         show-audio-setup: root.show-audio-setup;
         wizard-step: root.wizard-step;
@@ -58,7 +55,6 @@ export component AppWindow inherits Window {
         go-to-output-step => { root.go-to-output-step(); }
         go-to-input-step => { root.go-to-input-step(); }
         save-audio-settings => { root.save-audio-settings(); }
-        open-default-project => { root.open-default-project(); }
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }
     }
@@ -67,7 +63,6 @@ export component AppWindow inherits Window {
         width: 100%;
         height: 100%;
         show-project-launcher: root.show-project-launcher;
-        default-project-available: root.default-project-available;
         project-path-label: root.project-path-label;
         show-audio-setup: root.show-audio-setup;
         wizard-step: root.wizard-step;
@@ -85,7 +80,6 @@ export component AppWindow inherits Window {
         go-to-output-step => { root.go-to-output-step(); }
         go-to-input-step => { root.go-to-input-step(); }
         save-audio-settings => { root.save-audio-settings(); }
-        open-default-project => { root.open-default-project(); }
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }
     }

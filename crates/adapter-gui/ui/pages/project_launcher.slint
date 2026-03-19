@@ -3,10 +3,8 @@ import { Theme } from "../theme.slint";
 import { PrimaryActionButton, SecondaryActionButton } from "../widgets/widgets.slint";
 
 export component ProjectLauncherPage inherits Rectangle {
-    in property <bool> default-project-available;
     in property <string> project-path-label;
     in-out property <string> status-message;
-    callback open-default-project();
     callback open-project-file();
     callback create-project-file();
 
@@ -45,12 +43,6 @@ export component ProjectLauncherPage inherits Rectangle {
 
         HorizontalBox {
             spacing: Theme.spaces.medium;
-
-            SecondaryActionButton {
-                text: "Abrir padrão";
-                enabled: root.default-project-available;
-                clicked => { root.open-default-project(); }
-            }
 
             SecondaryActionButton {
                 text: "Abrir projeto";
