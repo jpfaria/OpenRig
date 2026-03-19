@@ -59,6 +59,8 @@ enum AudioSettingsMode {
 
 #[derive(Debug, Serialize)]
 struct ProjectYaml {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     device_settings: Vec<ProjectDeviceSettingsYaml>,
     tracks: Vec<ProjectTrackYaml>,
@@ -115,6 +117,8 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
     window.set_show_track_editor(false);
     window.set_project_path_label("".into());
     window.set_project_title("Projeto".into());
+    window.set_show_project_name_field(false);
+    window.set_project_name_draft("".into());
     window.set_runtime_mode_label(context.runtime_mode.label().into());
     window.set_interaction_mode_label(context.interaction_mode.label().into());
     window.set_touch_optimized(context.capabilities.touch_optimized);
@@ -331,9 +335,13 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                         settings.output_devices,
                     );
                     replace_project_tracks(&project_tracks, &session.setup);
+                    window.set_project_title(
+                        project_title_for_path(session.project_path.as_ref(), &session.setup).into(),
+                    );
                     window.set_status_message("Configuração do projeto atualizada.".into());
                     window.set_show_project_tracks(true);
                     window.set_show_track_editor(false);
+                    window.set_show_project_name_field(false);
                 }
             }
         });
@@ -361,10 +369,19 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                     *project_session.borrow_mut() = Some(session);
                     window.set_status_message("".into());
                     window.set_project_title(title.into());
+                    window.set_project_name_draft(
+                        project_session
+                            .borrow()
+                            .as_ref()
+                            .and_then(|session| session.setup.name.clone())
+                            .unwrap_or_default()
+                            .into(),
+                    );
                     window.set_project_path_label(format!("Projeto: {}", path.display()).into());
                     window.set_show_project_launcher(false);
                     window.set_show_project_tracks(true);
                     window.set_show_track_editor(false);
+                    window.set_show_project_name_field(false);
                 }
                 Err(error) => {
                     window.set_status_message(error.to_string().into());
@@ -387,10 +404,12 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             *project_session.borrow_mut() = Some(session);
             window.set_status_message("".into());
             window.set_project_title("Novo Projeto".into());
+            window.set_project_name_draft("".into());
             window.set_project_path_label("Projeto em memória".into());
             window.set_show_project_launcher(false);
             window.set_show_project_tracks(true);
             window.set_show_track_editor(false);
+            window.set_show_project_name_field(false);
         });
     }
 
@@ -431,6 +450,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             match save_project_session(session, &project_path) {
                 Ok(()) => {
                     window.set_project_title(project_title_for_path(Some(&project_path), &session.setup).into());
+                    window.set_project_name_draft(session.setup.name.clone().unwrap_or_default().into());
                     window.set_project_path_label(format!("Projeto: {}", project_path.display()).into());
                     window.set_status_message("Projeto salvo.".into());
                 }
@@ -461,9 +481,30 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             set_device_selection_from_project(&output_devices, &session.setup.device_settings);
             *audio_settings_mode.borrow_mut() = AudioSettingsMode::Project;
             window.set_wizard_step(0);
+            window.set_project_name_draft(session.setup.name.clone().unwrap_or_default().into());
+            window.set_show_project_name_field(true);
             window.set_status_message("".into());
             window.set_show_project_tracks(false);
             window.set_show_track_editor(false);
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        window.on_update_project_name(move |value| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            window.set_project_name_draft(value.clone());
+            if let Some(session) = project_session.borrow_mut().as_mut() {
+                let trimmed = value.trim();
+                session.setup.name = if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed.to_string())
+                };
+            }
         });
     }
 
@@ -847,6 +888,7 @@ fn create_new_project_session(default_config_path: &PathBuf) -> ProjectSession {
         }
     };
     let setup = Setup {
+        name: None,
         device_settings: Vec::new(),
         presets: Vec::new(),
         tracks: Vec::new(),
@@ -971,6 +1013,12 @@ fn save_project_session(session: &ProjectSession, project_path: &PathBuf) -> Res
     fs::create_dir_all(&parent_dir)?;
 
     let project = ProjectYaml {
+        name: session
+            .setup
+            .name
+            .as_ref()
+            .map(|name| name.trim().to_string())
+            .filter(|name| !name.is_empty()),
         device_settings: session
             .setup
             .device_settings
@@ -1044,6 +1092,9 @@ fn preset_id_from_path(path: &PathBuf) -> Result<String> {
 }
 
 fn project_title_for_path(project_path: Option<&PathBuf>, setup: &Setup) -> String {
+    if let Some(name) = setup.name.as_ref().map(|name| name.trim()).filter(|name| !name.is_empty()) {
+        return name.to_string();
+    }
     project_path
         .and_then(|path| path.file_stem())
         .and_then(|name| name.to_str())

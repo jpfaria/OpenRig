@@ -94,6 +94,8 @@ impl PresetRepository for YamlPresetRepository {
 #[derive(Debug, Deserialize)]
 struct SetupYaml {
     #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
     presets_path: Option<PathBuf>,
     #[serde(default)]
     device_settings: Vec<DeviceSettingsYaml>,
@@ -114,6 +116,7 @@ impl SetupYaml {
                 .collect::<Result<Vec<_>>>()?
         };
         Ok(Setup {
+            name: self.name,
             device_settings: self.device_settings.into_iter().map(Into::into).collect(),
             presets,
             tracks: self

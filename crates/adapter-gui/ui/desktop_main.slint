@@ -10,6 +10,8 @@ export component DesktopMain inherits Rectangle {
     in property <bool> show-track-editor;
     in property <string> project-path-label;
     in property <string> project-title;
+    in property <bool> show-project-name-field;
+    in-out property <string> project-name-draft;
     in property <bool> show-audio-setup;
     in-out property <int> wizard-step;
     in property <[DeviceSelectionItem]> input-devices;
@@ -33,6 +35,7 @@ export component DesktopMain inherits Rectangle {
     callback update-output-buffer-size(int, string);
     callback go-to-output-step();
     callback go-to-input-step();
+    callback update-project-name(string);
     callback save-audio-settings();
     callback open-project-file();
     callback create-project-file();
@@ -110,6 +113,8 @@ export component DesktopMain inherits Rectangle {
 
                 if !root.show-project-launcher && !root.show-project-tracks && !root.show-track-editor : WizardConfigPage {
                     wizard-step: root.wizard-step;
+                    show-project-name-field: root.show-project-name-field;
+                    project-name: root.project-name-draft;
                     input-devices: root.input-devices;
                     output-devices: root.output-devices;
                     status-message: root.status-message;
@@ -123,6 +128,7 @@ export component DesktopMain inherits Rectangle {
                     update-output-buffer-size(index, value) => { root.update-output-buffer-size(index, value); }
                     go-to-output-step => { root.go-to-output-step(); }
                     go-to-input-step => { root.go-to-input-step(); }
+                    update-project-name(value) => { root.update-project-name(value); }
                     save-audio-settings => { root.save-audio-settings(); }
                 }
             }

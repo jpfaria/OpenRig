@@ -8,6 +8,8 @@ export component AppWindow inherits Window {
     in property <bool> show-track-editor;
     in property <string> project-path-label;
     in property <string> project-title;
+    in property <bool> show-project-name-field;
+    in-out property <string> project-name-draft;
     in property <string> runtime-mode-label;
     in property <string> interaction-mode-label;
     in property <bool> touch-optimized;
@@ -35,6 +37,7 @@ export component AppWindow inherits Window {
     callback update-output-buffer-size(int, string);
     callback go-to-output-step();
     callback go-to-input-step();
+    callback update-project-name(string);
     callback save-audio-settings();
     callback open-project-file();
     callback create-project-file();
@@ -66,6 +69,8 @@ export component AppWindow inherits Window {
         show-track-editor: root.show-track-editor;
         project-path-label: root.project-path-label;
         project-title: root.project-title;
+        show-project-name-field: root.show-project-name-field;
+        project-name-draft: root.project-name-draft;
         show-audio-setup: root.show-audio-setup;
         wizard-step: root.wizard-step;
         input-devices: root.input-devices;
@@ -89,6 +94,7 @@ export component AppWindow inherits Window {
         update-output-buffer-size(index, value) => { root.update-output-buffer-size(index, value); }
         go-to-output-step => { root.go-to-output-step(); }
         go-to-input-step => { root.go-to-input-step(); }
+        update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }
@@ -115,6 +121,8 @@ export component AppWindow inherits Window {
         show-track-editor: root.show-track-editor;
         project-path-label: root.project-path-label;
         project-title: root.project-title;
+        show-project-name-field: root.show-project-name-field;
+        project-name-draft: root.project-name-draft;
         show-audio-setup: root.show-audio-setup;
         wizard-step: root.wizard-step;
         input-devices: root.input-devices;
@@ -138,6 +146,7 @@ export component AppWindow inherits Window {
         update-output-buffer-size(index, value) => { root.update-output-buffer-size(index, value); }
         go-to-output-step => { root.go-to-output-step(); }
         go-to-input-step => { root.go-to-input-step(); }
+        update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }

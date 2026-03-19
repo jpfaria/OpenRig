@@ -9,6 +9,8 @@ use crate::track::Track;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Setup {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
     #[serde(default)]
     pub device_settings: Vec<DeviceSettings>,
     pub presets: Vec<SetupPreset>,
