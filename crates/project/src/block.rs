@@ -5,6 +5,7 @@ use domain::value_objects::ParameterValue;
 use serde::{Deserialize, Serialize};
 use stage_amp_combo::{amp_combo_model_schema, validate_amp_combo_params};
 use stage_amp_head::{amp_head_model_schema, validate_amp_head_params};
+use stage_cab::{cab_model_schema, validate_cab_params};
 use stage_core::ModelAudioMode;
 use stage_delay::delay_model_schema;
 use stage_dyn::compressor_model_schema;
@@ -217,6 +218,10 @@ impl CoreBlock {
                 normalize_block_params("full_rig", &stage.model, stage.params.clone())?;
                 Ok(())
             }
+            CoreBlockKind::Cab(stage) => {
+                normalize_block_params("cab", &stage.model, stage.params.clone())?;
+                Ok(())
+            }
             CoreBlockKind::Drive(stage) => {
                 normalize_block_params("drive", &stage.model, stage.params.clone())?;
                 Ok(())
@@ -267,6 +272,9 @@ impl CoreBlock {
             CoreBlockKind::FullRig(stage) => {
                 describe_block_params(block_id, "full_rig", &stage.model, &stage.params)
             }
+            CoreBlockKind::Cab(stage) => {
+                describe_block_params(block_id, "cab", &stage.model, &stage.params)
+            }
             CoreBlockKind::Drive(stage) => {
                 describe_block_params(block_id, "drive", &stage.model, &stage.params)
             }
@@ -305,6 +313,9 @@ impl CoreBlock {
             }
             CoreBlockKind::FullRig(stage) => {
                 Ok(vec![describe_block_audio(block_id, "full_rig", &stage.model)?])
+            }
+            CoreBlockKind::Cab(stage) => {
+                Ok(vec![describe_block_audio(block_id, "cab", &stage.model)?])
             }
             CoreBlockKind::Drive(stage) => {
                 Ok(vec![describe_block_audio(block_id, "drive", &stage.model)?])
@@ -357,6 +368,9 @@ pub fn normalize_block_params(
     if effect_type == "full_rig" {
         validate_full_rig_params(model, &normalized).map_err(|error| error.to_string())?;
     }
+    if effect_type == "cab" {
+        validate_cab_params(model, &normalized).map_err(|error| error.to_string())?;
+    }
     if effect_type == "drive" {
         validate_drive_params(model, &normalized).map_err(|error| error.to_string())?;
     }
@@ -371,6 +385,7 @@ pub fn schema_for_block_model(
         "amp" | "amp_head" => amp_head_model_schema(model).map_err(|error| error.to_string()),
         "amp_combo" => amp_combo_model_schema(model).map_err(|error| error.to_string()),
         "full_rig" => full_rig_model_schema(model).map_err(|error| error.to_string()),
+        "cab" => cab_model_schema(model).map_err(|error| error.to_string()),
         "drive" => drive_model_schema(model).map_err(|error| error.to_string()),
         "nam" => nam_model_schema(model).map_err(|error| error.to_string()),
         "delay" => delay_model_schema(model).map_err(|error| error.to_string()),
@@ -425,4 +440,32 @@ fn describe_block_audio(
         display_name: schema.display_name,
         audio_mode: schema.audio_mode,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{normalize_block_params, schema_for_block_model};
+
+    #[test]
+    fn cab_schema_is_available_through_project_contract() {
+        let schema =
+            schema_for_block_model("cab", "marshall_4x12_v30").expect("cab schema should exist");
+
+        assert_eq!(schema.effect_type, "cab");
+        assert_eq!(schema.model, "marshall_4x12_v30");
+        assert_eq!(schema.parameters.len(), 1);
+        assert_eq!(schema.parameters[0].path, "capture");
+    }
+
+    #[test]
+    fn cab_params_normalize_with_default_capture() {
+        let normalized = normalize_block_params(
+            "cab",
+            "marshall_4x12_v30",
+            crate::param::ParameterSet::default(),
+        )
+        .expect("cab params should normalize");
+
+        assert_eq!(normalized.get_string("capture"), Some("ev_mix_b"));
+    }
 }

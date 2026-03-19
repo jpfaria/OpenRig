@@ -6,6 +6,7 @@ use project::project::Project;
 use project::track::{Track, TrackOutputMixdown};
 use stage_amp_combo::{amp_combo_asset_summary, build_amp_combo_processor_for_layout};
 use stage_amp_head::{amp_head_asset_summary, build_amp_head_processor_for_layout};
+use stage_cab::{build_cab_processor_for_layout, cab_asset_summary};
 use stage_core::{
     AudioChannelLayout, ModelAudioMode, MonoProcessor, StageProcessor, StereoProcessor,
 };
@@ -282,6 +283,30 @@ fn build_runtime_processors(
                         current_layout,
                         |layout| {
                             build_full_rig_processor_for_layout(
+                                &stage.model,
+                                &stage.params,
+                                DEFAULT_SAMPLE_RATE,
+                                layout,
+                            )
+                        },
+                    )?;
+                    current_layout = outcome.output_layout;
+                    processors.push(RuntimeProcessor::Audio(outcome.processor));
+                }
+                CoreBlockKind::Cab(stage) => {
+                    println!(
+                        "[track:{}] loading cab model={} {}",
+                        track.id.0,
+                        stage.model,
+                        cab_asset_summary(&stage.model, &stage.params)?
+                    );
+                    let outcome = build_audio_processor_for_model(
+                        track,
+                        "cab",
+                        &stage.model,
+                        current_layout,
+                        |layout| {
+                            build_cab_processor_for_layout(
                                 &stage.model,
                                 &stage.params,
                                 DEFAULT_SAMPLE_RATE,
@@ -734,6 +759,51 @@ fn load_selected_nam(
             track.id.0,
             other
         )),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_runtime_graph;
+    use domain::ids::{BlockId, DeviceId, TrackId};
+    use domain::value_objects::ParameterValue;
+    use project::block::{AudioBlock, AudioBlockKind, CabBlock, CoreBlock, CoreBlockKind};
+    use project::param::ParameterSet;
+    use project::project::Project;
+    use project::track::{Track, TrackOutputMixdown};
+
+    #[test]
+    fn runtime_graph_builds_for_track_with_cab_block() {
+        let mut params = ParameterSet::default();
+        params.insert("capture", ParameterValue::String("ev_mix_b".into()));
+
+        let project = Project {
+            name: None,
+            device_settings: Vec::new(),
+            tracks: vec![Track {
+                id: TrackId("track:0".into()),
+                description: Some("Cab test".into()),
+                enabled: true,
+                input_device_id: DeviceId("input-device".into()),
+                input_channels: vec![0],
+                output_device_id: DeviceId("output-device".into()),
+                output_channels: vec![0],
+                blocks: vec![AudioBlock {
+                    id: BlockId("track:0:block:0".into()),
+                    enabled: true,
+                    kind: AudioBlockKind::Core(CoreBlock {
+                        kind: CoreBlockKind::Cab(CabBlock {
+                            model: "marshall_4x12_v30".into(),
+                            params,
+                        }),
+                    }),
+                }],
+                output_mixdown: TrackOutputMixdown::Average,
+            }],
+        };
+
+        let runtime = build_runtime_graph(&project).expect("runtime graph should build");
+        assert_eq!(runtime.tracks.len(), 1);
     }
 }
 

@@ -20,6 +20,7 @@ members = [
   "crates/stage-amp-combo",
   "crates/stage-full-rig",
   "crates/stage-cab",
+  "crates/ir",
   "crates/ui-openrig",
   "crates/infra-yaml",
   "crates/infra-filesystem",

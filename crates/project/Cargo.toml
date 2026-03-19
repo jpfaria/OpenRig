@@ -18,3 +18,4 @@ stage-nam = { path = "../stage-nam" }
 stage-amp-head = { path = "../stage-amp-head" }
 stage-amp-combo = { path = "../stage-amp-combo" }
 stage-full-rig = { path = "../stage-full-rig" }
+stage-cab = { path = "../stage-cab" }

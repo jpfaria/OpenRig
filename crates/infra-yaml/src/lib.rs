@@ -4,7 +4,7 @@ use domain::value_objects::ParameterValue;
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 use project::block::{
-    normalize_block_params, AmpComboBlock, AmpHeadBlock, AudioBlock, AudioBlockKind,
+    normalize_block_params, AmpComboBlock, AmpHeadBlock, AudioBlock, AudioBlockKind, CabBlock,
     CompressorBlock, CoreBlock, CoreBlockKind, CoreNamBlock, DelayBlock, DriveBlock, EqBlock,
     FullRigBlock, GateBlock, NamBlock, ReverbBlock, SelectBlock, TremoloBlock, TunerBlock,
 };
@@ -14,6 +14,7 @@ use project::project::Project;
 use project::track::{Track, TrackOutputMixdown};
 use stage_amp_head::marshall_jcm_800::MODEL_ID as DEFAULT_AMP_HEAD_MODEL;
 use stage_amp_combo::bogner_ecstasy::MODEL_ID as DEFAULT_AMP_COMBO_MODEL;
+use stage_cab::marshall_4x12_v30::MODEL_ID as DEFAULT_CAB_MODEL;
 use stage_delay::digital_basic::MODEL_ID as DEFAULT_DELAY_MODEL;
 use stage_dyn::compressor_studio_clean::MODEL_ID as DEFAULT_COMPRESSOR_MODEL;
 use stage_dyn::gate_basic::MODEL_ID as DEFAULT_GATE_MODEL;
@@ -221,6 +222,14 @@ enum AudioBlockYaml {
         #[serde(default)]
         params: Value,
     },
+    Cab {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
+        #[serde(default = "default_cab_model")]
+        model: String,
+        #[serde(default)]
+        params: Value,
+    },
     Drive {
         #[serde(default = "default_enabled")]
         enabled: bool,
@@ -366,6 +375,20 @@ impl AudioBlockYaml {
                     kind: CoreBlockKind::FullRig(FullRigBlock {
                         model: model.clone(),
                         params: load_model_params("full_rig", &model, params)?,
+                    }),
+                }),
+            }),
+            AudioBlockYaml::Cab {
+                enabled,
+                model,
+                params,
+            } => Ok(AudioBlock {
+                id: generated_id,
+                enabled,
+                kind: AudioBlockKind::Core(CoreBlock {
+                    kind: CoreBlockKind::Cab(CabBlock {
+                        model: model.clone(),
+                        params: load_model_params("cab", &model, params)?,
                     }),
                 }),
             }),
@@ -561,6 +584,11 @@ impl AudioBlockYaml {
                     params: parameter_set_to_yaml_value(&stage.params),
                 }),
                 CoreBlockKind::FullRig(stage) => Ok(Self::FullRig {
+                    enabled: block.enabled,
+                    model: stage.model.clone(),
+                    params: parameter_set_to_yaml_value(&stage.params),
+                }),
+                CoreBlockKind::Cab(stage) => Ok(Self::Cab {
                     enabled: block.enabled,
                     model: stage.model.clone(),
                     params: parameter_set_to_yaml_value(&stage.params),
@@ -796,6 +824,10 @@ fn default_amp_combo_model() -> String {
 
 fn default_full_rig_model() -> String {
     DEFAULT_FULL_RIG_MODEL.to_string()
+}
+
+fn default_cab_model() -> String {
+    DEFAULT_CAB_MODEL.to_string()
 }
 
 fn default_drive_model() -> String {
