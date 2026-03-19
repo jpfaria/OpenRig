@@ -10,4 +10,18 @@ tracks:
     input_channels: [0]
     output_device_id: "coreaudio:AppleUSBAudioEngine:Focusrite:Scarlett 2i2 4th Gen:S21ANUD3C1EEBE:1,2"
     output_channels: [0, 1]
-    preset_id: example
+    stages:
+      - type: amp
+        model: marshall_jcm_800_2203
+        enabled: true
+        params:
+          volume: 70.0
+          gain: 40.0
+
+      - type: delay
+        model: digital_ping_pong
+        enabled: false
+        params:
+          time_ms: 200
+          feedback: 0.6
+          mix: 0.55

@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use domain::ids::{DeviceId, PresetId, TrackId};
+use domain::ids::{DeviceId, TrackId};
 use infra_cpal::{list_input_device_descriptors, list_output_device_descriptors, AudioDeviceDescriptor};
 use infra_filesystem::{FilesystemStorage, GuiAudioDeviceSettings, GuiAudioSettings};
 use infra_yaml::YamlSetupRepository;
@@ -537,7 +537,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 input_channels: draft.input_channels,
                 output_device_id: DeviceId(draft.output_device_id.unwrap_or_default()),
                 output_channels: draft.output_channels,
-                preset_id: PresetId(String::new()),
+                blocks: Vec::new(),
                 output_mixdown: TrackOutputMixdown::Average,
             });
             replace_project_tracks(&project_tracks, &session.setup);
@@ -646,10 +646,10 @@ fn replace_project_tracks(model: &Rc<VecModel<ProjectTrackItem>>, setup: &Setup)
                 .clone()
                 .unwrap_or_else(|| format!("Track {}", index + 1))
                 .into(),
-            subtitle: if track.preset_id.0.is_empty() {
-                "sem preset".into()
+            subtitle: if track.blocks.is_empty() {
+                "sem stages".into()
             } else {
-                track.preset_id.0.clone().into()
+                format!("{} stages", track.blocks.len()).into()
             },
             enabled: track.enabled,
         })

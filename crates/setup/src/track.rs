@@ -1,5 +1,7 @@
-use domain::ids::{DeviceId, PresetId, TrackId};
+use domain::ids::{DeviceId, TrackId};
 use serde::{Deserialize, Serialize};
+
+use crate::block::AudioBlock;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
@@ -22,6 +24,7 @@ pub struct Track {
     pub input_channels: Vec<usize>,
     pub output_device_id: DeviceId,
     pub output_channels: Vec<usize>,
-    pub preset_id: PresetId,
+    #[serde(default, alias = "stages")]
+    pub blocks: Vec<AudioBlock>,
     pub output_mixdown: TrackOutputMixdown,
 }

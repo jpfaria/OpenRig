@@ -206,7 +206,8 @@ struct TrackYaml {
     input_channels: Vec<usize>,
     output_device_id: String,
     output_channels: Vec<usize>,
-    preset_id: String,
+    #[serde(default, alias = "stages")]
+    blocks: Vec<AudioBlockYaml>,
     #[serde(default)]
     output_mixdown: TrackOutputMixdown,
 }
@@ -222,7 +223,12 @@ impl TrackYaml {
             input_channels: self.input_channels,
             output_device_id: DeviceId(self.output_device_id),
             output_channels: self.output_channels,
-            preset_id: PresetId(self.preset_id),
+            blocks: self
+                .blocks
+                .into_iter()
+                .enumerate()
+                .map(|(block_index, block)| block.into_audio_block(&track_id, block_index))
+                .collect::<Result<Vec<_>>>()?,
             output_mixdown: self.output_mixdown,
         })
     }

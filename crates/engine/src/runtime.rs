@@ -2,7 +2,6 @@ use anyhow::{anyhow, Result};
 use domain::ids::TrackId;
 use setup::block::{schema_for_block_model, AudioBlockKind, CoreBlockKind, NamBlock, SelectBlock};
 use setup::param::ParameterSet;
-use setup::preset::SetupPreset;
 use setup::setup::Setup;
 use setup::track::{Track, TrackOutputMixdown};
 use stage_amp_combo::{amp_combo_asset_summary, build_amp_combo_processor_for_layout};
@@ -179,19 +178,8 @@ pub fn build_runtime_graph(setup: &Setup) -> Result<RuntimeGraph> {
         if !track.enabled {
             continue;
         }
-        let preset = setup
-            .presets
-            .iter()
-            .find(|preset| preset.id == track.preset_id)
-            .ok_or_else(|| {
-                anyhow!(
-                    "track '{}' references missing preset '{}'",
-                    track.id.0,
-                    track.preset_id.0
-                )
-            })?;
         let input_layout = layout_from_channels(track.input_channels.len())?;
-        let (processors, output_layout) = build_runtime_processors(track, preset, input_layout)?;
+        let (processors, output_layout) = build_runtime_processors(track, input_layout)?;
         println!(
             "[track:{}] runtime input_layout={} output_layout={}",
             track.id.0,
@@ -216,13 +204,12 @@ pub fn build_runtime_graph(setup: &Setup) -> Result<RuntimeGraph> {
 
 fn build_runtime_processors(
     track: &Track,
-    preset: &SetupPreset,
     input_layout: AudioChannelLayout,
 ) -> Result<(Vec<RuntimeProcessor>, AudioChannelLayout)> {
     let mut processors = Vec::new();
     let mut current_layout = input_layout;
 
-    for block in &preset.blocks {
+    for block in &track.blocks {
         if !block.enabled {
             continue;
         }

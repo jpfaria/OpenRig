@@ -18,8 +18,8 @@ pub struct Setup {
 impl Setup {
     pub fn parameter_descriptors(&self) -> Result<Vec<BlockParameterDescriptor>, String> {
         let mut descriptors = Vec::new();
-        for preset in &self.presets {
-            for block in &preset.blocks {
+        for track in &self.tracks {
+            for block in &track.blocks {
                 descriptors.extend(collect_block_parameter_descriptors(block)?);
             }
         }
@@ -38,8 +38,8 @@ impl Setup {
 
     pub fn block_audio_descriptors(&self) -> Result<Vec<BlockAudioDescriptor>, String> {
         let mut descriptors = Vec::new();
-        for preset in &self.presets {
-            for block in &preset.blocks {
+        for track in &self.tracks {
+            for block in &track.blocks {
                 descriptors.extend(block.audio_descriptors()?);
             }
         }
@@ -49,13 +49,7 @@ impl Setup {
     pub fn find_block(&self, block_id: &BlockId) -> Option<&AudioBlock> {
         self.tracks
             .iter()
-            .flat_map(|track| {
-                self.presets
-                    .iter()
-                    .find(|preset| preset.id == track.preset_id)
-                    .into_iter()
-                    .flat_map(|preset| preset.blocks.iter())
-            })
+            .flat_map(|track| track.blocks.iter())
             .find_map(|block| find_block_recursive(block, block_id))
     }
 }

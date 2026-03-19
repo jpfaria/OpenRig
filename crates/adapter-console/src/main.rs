@@ -34,11 +34,7 @@ fn main() -> Result<()> {
         println!("{line}");
     }
     println!("=== Setup ===");
-    println!(
-        "presets={} tracks={}",
-        setup.presets.len(),
-        setup.tracks.len()
-    );
+    println!("presets={} tracks={}", setup.presets.len(), setup.tracks.len());
     let mut engine = PedalboardEngine::new(setup, state)?;
     let streams = build_streams_for_setup(&engine.setup, &engine)?;
     for stream in &streams {

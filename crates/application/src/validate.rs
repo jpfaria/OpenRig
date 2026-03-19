@@ -7,9 +7,6 @@ use stage_core::AudioChannelLayout;
 use std::collections::{HashMap, HashSet};
 
 pub fn validate_setup(setup: &Setup) -> Result<()> {
-    if setup.presets.is_empty() {
-        bail!("invalid setup: no presets configured");
-    }
     if setup.tracks.is_empty() {
         bail!("invalid setup: no tracks configured");
     }
@@ -21,19 +18,13 @@ pub fn validate_setup(setup: &Setup) -> Result<()> {
         .collect();
     validate_device_settings(setup, &device_settings_by_id)?;
 
-    let mut preset_ids = HashSet::new();
-    let presets_by_id: HashMap<_, _> = setup
-        .presets
-        .iter()
-        .map(|preset| (preset.id.0.clone(), preset))
-        .collect();
-    if presets_by_id.len() != setup.presets.len() {
-        bail!("invalid setup: duplicated preset id");
-    }
     for preset in &setup.presets {
         if preset.id.0.trim().is_empty() {
             bail!("invalid setup: preset with empty id");
         }
+    }
+    let mut preset_ids = HashSet::new();
+    for preset in &setup.presets {
         if !preset_ids.insert(preset.id.clone()) {
             bail!("invalid setup: duplicated preset id '{}'", preset.id.0);
         }
@@ -53,16 +44,6 @@ pub fn validate_setup(setup: &Setup) -> Result<()> {
         if track.output_channels.is_empty() {
             bail!("invalid setup: track '{}' has no output channels", track.id.0);
         }
-        if track.preset_id.0.trim().is_empty() {
-            bail!("invalid setup: track '{}' missing preset_id", track.id.0);
-        }
-        let preset = presets_by_id.get(&track.preset_id.0).ok_or_else(|| {
-            anyhow!(
-                "invalid setup: track '{}' references missing preset '{}'",
-                track.id.0,
-                track.preset_id.0
-            )
-        })?;
         validate_unique_channels(&track.input_channels)
             .map_err(|error| anyhow!("invalid setup: track '{}': {}", track.id.0, error))?;
         validate_unique_channels(&track.output_channels)
@@ -71,7 +52,7 @@ pub fn validate_setup(setup: &Setup) -> Result<()> {
         let input_layout =
             layout_from_channel_count("track input", &track.id.0, track.input_channels.len())?;
         layout_from_channel_count("track output", &track.id.0, track.output_channels.len())?;
-        validate_track_blocks(track, preset.blocks.as_slice(), input_layout)?;
+        validate_track_blocks(track, track.blocks.as_slice(), input_layout)?;
     }
 
     validate_active_track_input_channel_conflicts(&setup.tracks)?;
