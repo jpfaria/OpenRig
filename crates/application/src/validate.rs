@@ -18,19 +18,6 @@ pub fn validate_setup(setup: &Setup) -> Result<()> {
         .collect();
     validate_device_settings(setup, &device_settings_by_id)?;
 
-    for preset in &setup.presets {
-        if preset.id.0.trim().is_empty() {
-            bail!("invalid setup: preset with empty id");
-        }
-    }
-    let mut preset_ids = HashSet::new();
-    for preset in &setup.presets {
-        if !preset_ids.insert(preset.id.clone()) {
-            bail!("invalid setup: duplicated preset id '{}'", preset.id.0);
-        }
-        validate_preset_blocks(preset)?;
-    }
-
     for track in &setup.tracks {
         if track.input_device_id.0.trim().is_empty() {
             bail!("invalid setup: track '{}' missing input_device_id", track.id.0);
@@ -75,26 +62,6 @@ fn layout_from_channel_count(
             other
         ),
     }
-}
-
-fn validate_preset_blocks(preset: &setup::preset::SetupPreset) -> Result<()> {
-    let mut block_ids = HashSet::new();
-    for block in &preset.blocks {
-        if block.id.0.trim().is_empty() {
-            bail!("preset '{}' contains block with empty id", preset.id.0);
-        }
-        if !block_ids.insert(block.id.clone()) {
-            bail!(
-                "preset '{}' contains duplicated block id '{}'",
-                preset.id.0,
-                block.id.0
-            );
-        }
-        block
-            .validate_params()
-            .map_err(|error| anyhow!("preset '{}' block '{}': {}", preset.id.0, block.id.0, error))?;
-    }
-    Ok(())
 }
 
 fn validate_track_blocks(

@@ -5,6 +5,8 @@ import { SButton, SCard, SInput, SText } from "../modules/surrealism-ui/index.sl
 import { Themes } from "../modules/surrealism-ui/use/index.slint";
 
 export component TrackEditorPage inherits SCard {
+    in property <string> title;
+    in property <string> save-label;
     in-out property <string> track-name;
     in property <[string]> input-device-options;
     in property <[string]> output-device-options;
@@ -23,8 +25,8 @@ export component TrackEditorPage inherits SCard {
 
     theme: Themes.Dark;
     card-width: 720px;
-    private property <length> channels-block-height: 24px + (input-channel-options.length > output-channel-options.length ? input-channel-options.length : output-channel-options.length) * 28px;
-    card-height: 360px + channels-block-height;
+    private property <length> channels-block-height: 48px + (input-channel-options.length > output-channel-options.length ? input-channel-options.length : output-channel-options.length) * 28px;
+    card-height: 410px + channels-block-height;
 
     VerticalBox {
         padding: Theme.spaces.xlarge;
@@ -32,7 +34,7 @@ export component TrackEditorPage inherits SCard {
 
         SText {
             theme: Themes.Dark;
-            text: "Nova track";
+            text: root.title;
             font-size: Theme.typo.section.size;
             font-weight: Theme.typo.section.weight;
         }
@@ -43,7 +45,8 @@ export component TrackEditorPage inherits SCard {
             SText {
                 theme: Themes.Dark;
                 text: "Nome";
-                font-size: Theme.typo.caption.size;
+                font-size: Theme.typo.body.size;
+                font-weight: Theme.typo.section.weight;
             }
 
             SInput {
@@ -65,7 +68,8 @@ export component TrackEditorPage inherits SCard {
                 SText {
                     theme: Themes.Dark;
                     text: "Dispositivo de entrada";
-                    font-size: Theme.typo.caption.size;
+                    font-size: Theme.typo.body.size;
+                    font-weight: Theme.typo.section.weight;
                 }
 
                 ComboBox {
@@ -84,7 +88,8 @@ export component TrackEditorPage inherits SCard {
                 SText {
                     theme: Themes.Dark;
                     text: "Dispositivo de saída";
-                    font-size: Theme.typo.caption.size;
+                    font-size: Theme.typo.body.size;
+                    font-weight: Theme.typo.section.weight;
                 }
 
                 ComboBox {
@@ -101,40 +106,56 @@ export component TrackEditorPage inherits SCard {
         HorizontalBox {
             spacing: Theme.spaces.large;
 
-            VerticalBox {
-                spacing: Theme.spaces.small;
+            SCard {
+                theme: Themes.Dark;
+                card-width: 320px;
+                card-height: channels-block-height;
 
-                SText {
-                    theme: Themes.Dark;
-                    text: "Canais de entrada";
-                    font-size: Theme.typo.caption.size;
-                }
+                VerticalBox {
+                    padding: Theme.spaces.large;
+                    spacing: Theme.spaces.small;
 
-                for channel in root.input-channel-options : CheckBox {
-                    text: channel.label;
-                    checked: channel.selected;
-                    enabled: channel.available;
-                    toggled => {
-                        root.toggle-input-channel(channel.index, self.checked);
+                    SText {
+                        theme: Themes.Dark;
+                        text: "Canais de entrada";
+                        font-size: Theme.typo.body.size;
+                        font-weight: Theme.typo.section.weight;
+                    }
+
+                    for channel in root.input-channel-options : CheckBox {
+                        text: channel.label;
+                        checked: channel.selected;
+                        enabled: channel.available;
+                        toggled => {
+                            root.toggle-input-channel(channel.index, self.checked);
+                        }
                     }
                 }
             }
 
-            VerticalBox {
-                spacing: Theme.spaces.small;
+            SCard {
+                theme: Themes.Dark;
+                card-width: 320px;
+                card-height: channels-block-height;
 
-                SText {
-                    theme: Themes.Dark;
-                    text: "Canais de saída";
-                    font-size: Theme.typo.caption.size;
-                }
+                VerticalBox {
+                    padding: Theme.spaces.large;
+                    spacing: Theme.spaces.small;
 
-                for channel in root.output-channel-options : CheckBox {
-                    text: channel.label;
-                    checked: channel.selected;
-                    enabled: channel.available;
-                    toggled => {
-                        root.toggle-output-channel(channel.index, self.checked);
+                    SText {
+                        theme: Themes.Dark;
+                        text: "Canais de saída";
+                        font-size: Theme.typo.body.size;
+                        font-weight: Theme.typo.section.weight;
+                    }
+
+                    for channel in root.output-channel-options : CheckBox {
+                        text: channel.label;
+                        checked: channel.selected;
+                        enabled: channel.available;
+                        toggled => {
+                            root.toggle-output-channel(channel.index, self.checked);
+                        }
                     }
                 }
             }
@@ -162,7 +183,7 @@ export component TrackEditorPage inherits SCard {
 
             SButton {
                 theme: Themes.Primary;
-                text: "Criar track";
+                text: root.save-label;
                 card-width: 140px;
                 card-height: 44px;
                 round: true;

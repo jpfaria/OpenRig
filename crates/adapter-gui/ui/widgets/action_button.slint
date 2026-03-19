@@ -131,3 +131,33 @@ export component IconAction inherits Rectangle {
         }
     }
 }
+
+export component ColoredIconAction inherits Rectangle {
+    in property <image> icon;
+    in property <bool> enabled: true;
+    in property <brush> fill;
+    in property <color> outline-color;
+    callback clicked();
+
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    border-width: 1px;
+    background: root.enabled ? root.fill : Theme.palette.secondary-start;
+    border-color: root.outline-color;
+
+    Image {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: 14px;
+        height: 14px;
+        source: root.icon;
+    }
+
+    TouchArea {
+        enabled: root.enabled;
+        clicked => {
+            root.clicked();
+        }
+    }
+}

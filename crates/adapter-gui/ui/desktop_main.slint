@@ -9,6 +9,7 @@ export component DesktopMain inherits Rectangle {
     in property <bool> show-project-tracks;
     in property <bool> show-track-editor;
     in property <bool> show-project-settings;
+    in property <bool> project-running;
     in property <string> project-path-label;
     in property <string> project-title;
     in-out property <string> project-name-draft;
@@ -17,6 +18,8 @@ export component DesktopMain inherits Rectangle {
     in property <[DeviceSelectionItem]> input-devices;
     in property <[DeviceSelectionItem]> output-devices;
     in property <[ProjectTrackItem]> project-tracks;
+    in property <string> track-editor-title;
+    in property <string> track-editor-save-label;
     in-out property <string> track-draft-name;
     in property <[string]> track-input-device-options;
     in property <[string]> track-output-device-options;
@@ -44,9 +47,12 @@ export component DesktopMain inherits Rectangle {
     callback add-track();
     callback save-project();
     callback configure-project();
+    callback toggle-track-enabled(int);
     callback configure-track(int);
     callback save-track-preset(int);
     callback configure-track-preset(int);
+    callback start-project();
+    callback stop-project();
     callback update-track-name(string);
     callback select-track-input-device(int);
     callback select-track-output-device(int);
@@ -73,7 +79,7 @@ export component DesktopMain inherits Rectangle {
 
             Rectangle {
                 width: 720px;
-                height: root.show-project-launcher ? 320px : root.show-track-editor ? 520px : root.show-project-settings ? 720px : root.show-project-tracks ? 520px : root.wizard-page-height;
+                height: root.show-project-launcher ? 320px : root.show-track-editor ? 620px : root.show-project-settings ? 720px : root.show-project-tracks ? 700px : root.wizard-page-height;
                 background: transparent;
 
                 if root.show-project-launcher : ProjectLauncherPage {
@@ -86,17 +92,23 @@ export component DesktopMain inherits Rectangle {
                 if root.show-project-tracks : ProjectTracksPage {
                     project-title: root.project-title;
                     tracks: root.project-tracks;
+                    project-running: root.project-running;
                     status-message: root.status-message;
                     back-to-launcher => { root.back-to-launcher(); }
                     add-track => { root.add-track(); }
                     save-project => { root.save-project(); }
                     configure-project => { root.configure-project(); }
+                    toggle-track-enabled(index) => { root.toggle-track-enabled(index); }
                     configure-track(index) => { root.configure-track(index); }
                     save-track-preset(index) => { root.save-track-preset(index); }
                     configure-track-preset(index) => { root.configure-track-preset(index); }
+                    start-project => { root.start-project(); }
+                    stop-project => { root.stop-project(); }
                 }
 
                 if root.show-track-editor : TrackEditorPage {
+                    title: root.track-editor-title;
+                    save-label: root.track-editor-save-label;
                     track-name: root.track-draft-name;
                     input-device-options: root.track-input-device-options;
                     output-device-options: root.track-output-device-options;

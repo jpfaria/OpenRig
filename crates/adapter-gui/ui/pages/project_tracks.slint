@@ -1,27 +1,75 @@
-import { VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { VerticalBox, HorizontalBox, ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
-import { ProjectTrackItem } from "../models.slint";
+import { ProjectTrackItem, TrackStageItem } from "../models.slint";
 import { SCard, SText } from "../modules/surrealism-ui/index.slint";
 import { Themes } from "../modules/surrealism-ui/use/index.slint";
-import { IconAction } from "../widgets/widgets.slint";
+import { ColoredIconAction, IconAction } from "../widgets/widgets.slint";
+
+component StageRow inherits Rectangle {
+    in property <TrackStageItem> stage;
+
+    height: 20px;
+    background: transparent;
+
+    HorizontalBox {
+        spacing: 8px;
+
+        Rectangle {
+            width: 8px;
+            height: 8px;
+            border-radius: 4px;
+            y: 6px;
+            background: stage.enabled ? #39d98a : #ff5f6d;
+        }
+
+        Image {
+            width: 14px;
+            height: 14px;
+            y: 3px;
+            source:
+                stage.kind == "amp_head" ? @image-url("../assets/amp-head.svg") :
+                stage.kind == "amp_combo" ? @image-url("../assets/amp-combo.svg") :
+                stage.kind == "full_rig" ? @image-url("../assets/full-rig.svg") :
+                stage.kind == "drive" ? @image-url("../assets/gain.svg") :
+                stage.kind == "compressor" ? @image-url("../assets/compressor.svg") :
+                stage.kind == "gate" ? @image-url("../assets/gate.svg") :
+                stage.kind == "eq" ? @image-url("../assets/eq.svg") :
+                stage.kind == "delay" ? @image-url("../assets/delay.svg") :
+                stage.kind == "reverb" ? @image-url("../assets/reverb.svg") :
+                stage.kind == "tremolo" ? @image-url("../assets/mod.svg") :
+                stage.kind == "tuner" ? @image-url("../assets/tuner.svg") :
+                stage.kind == "nam" ? @image-url("../assets/nam.svg") :
+                @image-url("../assets/patch-cable.svg");
+        }
+
+        SText {
+            theme: Themes.Dark;
+            text: stage.label;
+            font-size: Theme.typo.caption.size;
+            color: stage.enabled ? Theme.palette.text-secondary : Theme.palette.text-muted;
+        }
+    }
+}
 
 export component ProjectTracksPage inherits SCard {
     in property <string> project-title;
     in property <[ProjectTrackItem]> tracks;
+    in property <bool> project-running;
     in-out property <string> status-message;
     callback back-to-launcher();
     callback add-track();
     callback save-project();
     callback configure-project();
+    callback toggle-track-enabled(int);
     callback configure-track(int);
     callback save-track-preset(int);
     callback configure-track-preset(int);
+    callback start-project();
+    callback stop-project();
 
     theme: Themes.Dark;
-    card-width: 720px;
-    private property <length> row-height: 52px;
-    private property <length> rows-height: (tracks.length * row-height) + (tracks.length > 0 ? (tracks.length - 1) * 10px : 0px);
-    card-height: 208px + rows-height;
+    card-width: 860px;
+    card-height: 640px;
 
     VerticalBox {
         padding: Theme.spaces.xlarge;
@@ -48,6 +96,18 @@ export component ProjectTracksPage inherits SCard {
             }
 
             IconAction {
+                icon: @image-url("../assets/play.svg");
+                enabled: !root.project-running;
+                clicked => { root.start-project(); }
+            }
+
+            IconAction {
+                icon: @image-url("../assets/stop.svg");
+                enabled: root.project-running;
+                clicked => { root.stop-project(); }
+            }
+
+            IconAction {
                 icon: @image-url("../assets/save.svg");
                 clicked => { root.save-project(); }
             }
@@ -64,49 +124,82 @@ export component ProjectTracksPage inherits SCard {
             font-size: Theme.typo.caption.size;
         }
 
-        if tracks.length > 0 : VerticalBox {
-            spacing: 10px;
+        if tracks.length > 0 : ScrollView {
+            width: 812px;
+            height: 440px;
 
-            for track[index] in tracks : SCard {
-                theme: Themes.Dark;
-                card-width: 640px;
-                height: 68px;
-                card-height: 68px;
+            VerticalBox {
+                spacing: 10px;
 
-                HorizontalBox {
-                    padding-left: 16px;
-                    padding-right: 16px;
-                    padding-top: 14px;
-                    padding-bottom: 14px;
-                    spacing: 12px;
+                for track[index] in tracks : SCard {
+                    theme: Themes.Dark;
+                    card-width: 812px;
+                    card-height: 86px + (track.stages.length * 22px);
 
-                    SText {
-                        theme: Themes.Dark;
-                        text: track.title;
-                        font-size: Theme.typo.button.size;
-                    }
+                    VerticalBox {
+                        padding: 16px;
+                        spacing: 10px;
 
-                    SText {
-                        theme: Themes.Dark;
-                        text: track.subtitle;
-                        font-size: Theme.typo.caption.size;
-                    }
+                        HorizontalBox {
+                            spacing: 10px;
 
-                    Rectangle { horizontal-stretch: 1; background: transparent; }
+                            ColoredIconAction {
+                                icon: @image-url("../assets/power.svg");
+                                fill: track.enabled ? #10331f : #35121c;
+                                outline-color: track.enabled ? #39d98a : #ff5f6d;
+                                clicked => { root.toggle-track-enabled(index); }
+                            }
 
-                    IconAction {
-                        icon: @image-url("../assets/gear.svg");
-                        clicked => { root.configure-track(index); }
-                    }
+                            VerticalBox {
+                                spacing: 2px;
 
-                    IconAction {
-                        icon: @image-url("../assets/save.svg");
-                        clicked => { root.save-track-preset(index); }
-                    }
+                                SText {
+                                    theme: Themes.Dark;
+                                    text: track.title;
+                                    font-size: Theme.typo.section.size;
+                                    font-weight: Theme.typo.section.weight;
+                                }
 
-                    IconAction {
-                        icon: @image-url("../assets/preset.svg");
-                        clicked => { root.configure-track-preset(index); }
+                                SText {
+                                    theme: Themes.Dark;
+                                    text: track.subtitle;
+                                    font-size: Theme.typo.caption.size;
+                                    color: Theme.palette.text-muted;
+                                }
+                            }
+
+                            Rectangle { horizontal-stretch: 1; background: transparent; }
+
+                            IconAction {
+                                icon: @image-url("../assets/gear.svg");
+                                clicked => { root.configure-track(index); }
+                            }
+
+                            IconAction {
+                                icon: @image-url("../assets/save.svg");
+                                clicked => { root.save-track-preset(index); }
+                            }
+
+                            IconAction {
+                                icon: @image-url("../assets/scene.svg");
+                                clicked => { root.configure-track-preset(index); }
+                            }
+                        }
+
+                        if track.stages.length > 0 : VerticalBox {
+                            spacing: 6px;
+
+                            for stage in track.stages : StageRow {
+                                stage: stage;
+                            }
+                        }
+
+                        if track.stages.length == 0 : SText {
+                            theme: Themes.Dark;
+                            text: "Sem stages";
+                            font-size: Theme.typo.caption.size;
+                            color: Theme.palette.text-muted;
+                        }
                     }
                 }
             }

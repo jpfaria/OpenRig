@@ -1,16 +1,21 @@
 use anyhow::{anyhow, Result};
+use application::validate::validate_setup;
+use cpal::{traits::StreamTrait, Stream};
 use domain::ids::{DeviceId, TrackId};
-use infra_cpal::{list_input_device_descriptors, list_output_device_descriptors, AudioDeviceDescriptor};
+use engine::runtime::build_runtime_graph;
+use infra_cpal::{
+    build_streams_for_setup, list_input_device_descriptors, list_output_device_descriptors,
+    AudioDeviceDescriptor,
+};
 use infra_filesystem::{FilesystemStorage, GuiAudioDeviceSettings, GuiAudioSettings};
-use infra_yaml::{load_setup_preset_file, save_setup_preset_file, serialize_audio_blocks, YamlSetupRepository};
-use ports::SetupRepository;
+use infra_yaml::{load_setup_preset_file, save_setup_preset_file, serialize_audio_blocks, TrackStagesPreset, YamlSetupRepository};
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 use slint::{Model, ModelRc, SharedString, VecModel};
 use std::rc::Rc;
 use std::{cell::RefCell, env, fs, path::PathBuf};
 use setup::device::DeviceSettings;
-use setup::preset::SetupPreset;
+use setup::block::{AudioBlock, AudioBlockKind, CoreBlockKind};
 use setup::setup::Setup;
 use setup::track::{Track, TrackOutputMixdown};
 use ui_openrig::{AppRuntimeMode, InteractionMode, UiRuntimeContext};
@@ -49,6 +54,12 @@ struct TrackDraft {
     output_device_id: Option<String>,
     input_channels: Vec<usize>,
     output_channels: Vec<usize>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TrackEditorMode {
+    Create,
+    Edit,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -98,6 +109,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
     let project_paths = resolve_project_paths();
     let project_session = Rc::new(RefCell::new(None::<ProjectSession>));
     let track_draft = Rc::new(RefCell::new(None::<TrackDraft>));
+    let project_streams = Rc::new(RefCell::new(None::<Vec<Stream>>));
     let audio_settings_mode = Rc::new(RefCell::new(AudioSettingsMode::Gui));
     let input_track_devices = Rc::new(list_input_device_descriptors()?);
     let output_track_devices = Rc::new(list_output_device_descriptors()?);
@@ -107,9 +119,12 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
     window.set_show_project_tracks(false);
     window.set_show_track_editor(false);
     window.set_show_project_settings(false);
+    window.set_project_running(false);
     window.set_project_path_label("".into());
     window.set_project_title("Projeto".into());
     window.set_project_name_draft("".into());
+    window.set_track_editor_title("Nova track".into());
+    window.set_track_editor_save_label("Criar track".into());
     window.set_runtime_mode_label(context.runtime_mode.label().into());
     window.set_interaction_mode_label(context.interaction_mode.label().into());
     window.set_touch_optimized(context.capabilities.touch_optimized);
@@ -276,6 +291,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let audio_settings_mode = audio_settings_mode.clone();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
+        let project_streams = project_streams.clone();
         window.on_save_audio_settings(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -325,11 +341,20 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                         settings.input_devices,
                         settings.output_devices,
                     );
+                    let was_running = project_streams.borrow().is_some();
+                    if was_running {
+                        stop_project_runtime(&project_streams);
+                        window.set_project_running(false);
+                    }
                     replace_project_tracks(&project_tracks, &session.setup);
                     window.set_project_title(
                         project_title_for_path(session.project_path.as_ref(), &session.setup).into(),
                     );
-                    window.set_status_message("Configuração do projeto atualizada.".into());
+                    window.set_status_message(if was_running {
+                        restart_message("Configuração do projeto atualizada.")
+                    } else {
+                        "Configuração do projeto atualizada.".into()
+                    });
                     window.set_show_project_tracks(true);
                     window.set_show_track_editor(false);
                     window.set_show_project_settings(false);
@@ -342,6 +367,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
+        let project_streams = project_streams.clone();
         window.on_open_project_file(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -355,9 +381,11 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             };
             match load_project_session(&path, &resolve_project_config_path(&path)) {
                 Ok(session) => {
+                    stop_project_runtime(&project_streams);
                     replace_project_tracks(&project_tracks, &session.setup);
                     let title = project_title_for_path(Some(&path), &session.setup);
                     *project_session.borrow_mut() = Some(session);
+                    window.set_project_running(false);
                     window.set_status_message("".into());
                     window.set_project_title(title.into());
                     window.set_project_name_draft(
@@ -386,13 +414,16 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let project_paths = project_paths.clone();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
+        let project_streams = project_streams.clone();
         window.on_create_project_file(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            stop_project_runtime(&project_streams);
             let session = create_new_project_session(&project_paths.default_config_path);
             replace_project_tracks(&project_tracks, &session.setup);
             *project_session.borrow_mut() = Some(session);
+            window.set_project_running(false);
             window.set_status_message("".into());
             window.set_project_title("Novo Projeto".into());
             window.set_project_name_draft("".into());
@@ -553,6 +584,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
+        let project_streams = project_streams.clone();
         window.on_configure_track_preset(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -574,8 +606,17 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 Ok(preset) => {
                     if let Some(track) = session.setup.tracks.get_mut(index as usize) {
                         track.blocks = preset.blocks;
+                        let was_running = project_streams.borrow().is_some();
+                        if was_running {
+                            stop_project_runtime(&project_streams);
+                            window.set_project_running(false);
+                        }
                         replace_project_tracks(&project_tracks, &session.setup);
-                        window.set_status_message("Preset aplicado na track.".into());
+                        window.set_status_message(if was_running {
+                            restart_message("Preset aplicado na track.")
+                        } else {
+                            "Preset aplicado na track.".into()
+                        });
                     }
                 }
                 Err(error) => window.set_status_message(error.to_string().into()),
@@ -587,20 +628,22 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
+        let project_streams = project_streams.clone();
         window.on_back_to_launcher(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            stop_project_runtime(&project_streams);
             *project_session.borrow_mut() = None;
             replace_project_tracks(&project_tracks, &Setup {
                 name: None,
                 device_settings: Vec::new(),
-                presets: Vec::new(),
                 tracks: Vec::new(),
             });
             window.set_status_message("".into());
             window.set_project_title("Projeto".into());
             window.set_project_name_draft("".into());
+            window.set_project_running(false);
             window.set_project_path_label("".into());
             window.set_show_project_settings(false);
             window.set_show_track_editor(false);
@@ -628,6 +671,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             };
             let draft = create_track_draft(&session.setup, &input_track_devices, &output_track_devices);
             *track_draft.borrow_mut() = Some(draft.clone());
+            apply_track_editor_labels(&window, &draft);
             replace_channel_options(
                 &track_input_channels,
                 build_input_channel_items(&draft, &session.setup, &input_track_devices),
@@ -691,6 +735,9 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 draft.output_device_id.as_deref(),
             ));
             *track_draft.borrow_mut() = Some(draft);
+            if let Some(draft) = track_draft.borrow().as_ref() {
+                apply_track_editor_labels(&window, draft);
+            }
             window.set_status_message("".into());
             window.set_show_project_settings(false);
             window.set_show_project_tracks(false);
@@ -831,6 +878,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let track_draft = track_draft.clone();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
+        let project_streams = project_streams.clone();
         window.on_save_track(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -893,9 +941,18 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             } else {
                 session.setup.tracks.push(track);
             }
+            let was_running = project_streams.borrow().is_some();
+            if was_running {
+                stop_project_runtime(&project_streams);
+                window.set_project_running(false);
+            }
             replace_project_tracks(&project_tracks, &session.setup);
             *track_draft.borrow_mut() = None;
-            window.set_status_message("".into());
+            window.set_status_message(if was_running {
+                restart_message("Track atualizada.")
+            } else {
+                "".into()
+            });
             window.set_show_track_editor(false);
             window.set_show_project_tracks(true);
         });
@@ -912,6 +969,79 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             window.set_status_message("".into());
             window.set_show_track_editor(false);
             window.set_show_project_tracks(true);
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        let project_tracks = project_tracks.clone();
+        let project_streams = project_streams.clone();
+        window.on_toggle_track_enabled(move |index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                window.set_status_message("Nenhum projeto carregado.".into());
+                return;
+            };
+            let Some(track) = session.setup.tracks.get_mut(index as usize) else {
+                window.set_status_message("Track inválida.".into());
+                return;
+            };
+            track.enabled = !track.enabled;
+            let was_running = project_streams.borrow().is_some();
+            if was_running {
+                stop_project_runtime(&project_streams);
+                window.set_project_running(false);
+            }
+            replace_project_tracks(&project_tracks, &session.setup);
+            window.set_status_message(if was_running {
+                restart_message("Track atualizada.")
+            } else {
+                "Track atualizada.".into()
+            });
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        let project_streams = project_streams.clone();
+        window.on_start_project(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let session_borrow = project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else {
+                window.set_status_message("Nenhum projeto carregado.".into());
+                return;
+            };
+            match start_project_runtime(session) {
+                Ok(streams) => {
+                    *project_streams.borrow_mut() = Some(streams);
+                    window.set_project_running(true);
+                    window.set_status_message("Projeto em execução.".into());
+                }
+                Err(error) => {
+                    window.set_project_running(false);
+                    window.set_status_message(error.to_string().into());
+                }
+            }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let project_streams = project_streams.clone();
+        window.on_stop_project(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            stop_project_runtime(&project_streams);
+            window.set_project_running(false);
+            window.set_status_message("Projeto parado.".into());
         });
     }
 
@@ -952,7 +1082,6 @@ fn create_new_project_session(default_config_path: &PathBuf) -> ProjectSession {
     let setup = Setup {
         name: None,
         device_settings: Vec::new(),
-        presets: Vec::new(),
         tracks: Vec::new(),
     };
     ProjectSession {
@@ -986,11 +1115,7 @@ fn load_project_session(project_path: &PathBuf, config_path: &PathBuf) -> Result
         .presets_path
         .clone()
         .unwrap_or_else(|| PathBuf::from("./presets"));
-    let setup = YamlSetupRepository {
-        path: project_path.clone(),
-        presets_path_override: Some(presets_path.clone()),
-    }
-    .load_current_setup()?;
+    let setup = YamlSetupRepository { path: project_path.clone() }.load_current_setup()?;
     Ok(ProjectSession {
         setup,
         project_path: Some(project_path.clone()),
@@ -1014,12 +1139,16 @@ fn replace_project_tracks(model: &Rc<VecModel<ProjectTrackItem>>, setup: &Setup)
                 .clone()
                 .unwrap_or_else(|| format!("Track {}", index + 1))
                 .into(),
-            subtitle: if track.blocks.is_empty() {
-                "sem stages".into()
-            } else {
-                format!("{} stages", track.blocks.len()).into()
-            },
+            subtitle: format!(
+                "Entrada {} -> Saída {}",
+                channels_label(&track.input_channels),
+                channels_label(&track.output_channels),
+            )
+            .into(),
             enabled: track.enabled,
+            stages: ModelRc::from(Rc::new(VecModel::from(
+                track.blocks.iter().map(track_stage_item_from_block).collect::<Vec<_>>(),
+            ))),
         })
         .collect::<Vec<_>>();
     model.set_vec(items);
@@ -1125,15 +1254,15 @@ fn save_project_session(session: &ProjectSession, project_path: &PathBuf) -> Res
 }
 
 fn save_track_blocks_to_preset(track: &Track, path: &PathBuf) -> Result<()> {
-    let preset = SetupPreset {
-        id: domain::ids::PresetId(preset_id_from_path(path)?),
+    let preset = TrackStagesPreset {
+        id: preset_id_from_path(path)?,
         name: track.description.clone(),
         blocks: track.blocks.clone(),
     };
     save_setup_preset_file(path, &preset)
 }
 
-fn load_preset_file(path: &PathBuf) -> Result<SetupPreset> {
+fn load_preset_file(path: &PathBuf) -> Result<TrackStagesPreset> {
     load_setup_preset_file(path)
 }
 
@@ -1194,6 +1323,42 @@ fn track_draft_from_track(index: usize, track: &Track) -> TrackDraft {
         output_device_id: Some(track.output_device_id.0.clone()),
         input_channels: track.input_channels.clone(),
         output_channels: track.output_channels.clone(),
+    }
+}
+
+fn channels_label(channels: &[usize]) -> String {
+    channels
+        .iter()
+        .map(|channel| (channel + 1).to_string())
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn track_stage_item_from_block(block: &AudioBlock) -> TrackStageItem {
+    let (kind, label) = match &block.kind {
+        AudioBlockKind::Nam(stage) => ("nam".to_string(), stage.model.clone()),
+        AudioBlockKind::Core(core) => match &core.kind {
+            CoreBlockKind::AmpHead(stage) => ("amp_head".to_string(), stage.model.clone()),
+            CoreBlockKind::AmpCombo(stage) => ("amp_combo".to_string(), stage.model.clone()),
+            CoreBlockKind::FullRig(stage) => ("full_rig".to_string(), stage.model.clone()),
+            CoreBlockKind::Drive(stage) => ("drive".to_string(), stage.model.clone()),
+            CoreBlockKind::Compressor(stage) => ("compressor".to_string(), stage.model.clone()),
+            CoreBlockKind::Gate(stage) => ("gate".to_string(), stage.model.clone()),
+            CoreBlockKind::Eq(stage) => ("eq".to_string(), stage.model.clone()),
+            CoreBlockKind::Tremolo(stage) => ("tremolo".to_string(), stage.model.clone()),
+            CoreBlockKind::Delay(stage) => ("delay".to_string(), stage.model.clone()),
+            CoreBlockKind::Reverb(stage) => ("reverb".to_string(), stage.model.clone()),
+            CoreBlockKind::Tuner(stage) => ("tuner".to_string(), stage.model.clone()),
+            _ => ("core".to_string(), "stage".to_string()),
+        },
+        AudioBlockKind::Select(_) => ("core".to_string(), "select".to_string()),
+        AudioBlockKind::CoreNam(_) => ("nam".to_string(), "core nam".to_string()),
+    };
+
+    TrackStageItem {
+        kind: kind.into(),
+        label: label.into(),
+        enabled: block.enabled,
     }
 }
 
@@ -1260,6 +1425,45 @@ fn normalized_track_description(name: &str) -> Option<String> {
         None
     } else {
         Some(trimmed.to_string())
+    }
+}
+
+fn stop_project_runtime(project_streams: &Rc<RefCell<Option<Vec<Stream>>>>) {
+    *project_streams.borrow_mut() = None;
+}
+
+fn restart_message(base: &str) -> SharedString {
+    format!("{base} Projeto parado. Clique em play para reiniciar.").into()
+}
+
+fn start_project_runtime(session: &ProjectSession) -> Result<Vec<Stream>> {
+    validate_setup(&session.setup)?;
+    let runtime_graph = build_runtime_graph(&session.setup)?;
+    let streams = build_streams_for_setup(&session.setup, &runtime_graph)?;
+    for stream in &streams {
+        stream.play()?;
+    }
+    Ok(streams)
+}
+
+fn track_editor_mode(draft: &TrackDraft) -> TrackEditorMode {
+    if draft.editing_index.is_some() {
+        TrackEditorMode::Edit
+    } else {
+        TrackEditorMode::Create
+    }
+}
+
+fn apply_track_editor_labels(window: &AppWindow, draft: &TrackDraft) {
+    match track_editor_mode(draft) {
+        TrackEditorMode::Create => {
+            window.set_track_editor_title("Nova track".into());
+            window.set_track_editor_save_label("Criar track".into());
+        }
+        TrackEditorMode::Edit => {
+            window.set_track_editor_title("Configurar track".into());
+            window.set_track_editor_save_label("Salvar track".into());
+        }
     }
 }
 

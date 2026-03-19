@@ -6,10 +6,17 @@ export struct DeviceSelectionItem {
     buffer_size_text: string,
 }
 
+export struct TrackStageItem {
+    kind: string,
+    label: string,
+    enabled: bool,
+}
+
 export struct ProjectTrackItem {
     title: string,
     subtitle: string,
     enabled: bool,
+    stages: [TrackStageItem],
 }
 
 export struct ChannelOptionItem {
