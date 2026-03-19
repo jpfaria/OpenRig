@@ -9,12 +9,17 @@ export component ProjectTracksPage inherits SCard {
     in property <[ProjectTrackItem]> tracks;
     in-out property <string> status-message;
     callback add-track();
+    callback save-project();
+    callback configure-project();
+    callback save-track-preset(int);
+    callback create-track-preset(int);
+    callback configure-track-preset(int);
 
     theme: Themes.Dark;
     card-width: 720px;
     private property <length> row-height: 52px;
     private property <length> rows-height: (tracks.length * row-height) + (tracks.length > 0 ? (tracks.length - 1) * 10px : 0px);
-    card-height: 148px + rows-height;
+    card-height: 208px + rows-height;
 
     VerticalBox {
         padding: Theme.spaces.xlarge;
@@ -29,6 +34,24 @@ export component ProjectTracksPage inherits SCard {
             }
 
             Rectangle { horizontal-stretch: 1; background: transparent; }
+
+            SButton {
+                theme: Themes.Dark;
+                text: "Configurar projeto";
+                card-width: 148px;
+                card-height: 44px;
+                round: true;
+                clicked => { root.configure-project(); }
+            }
+
+            SButton {
+                theme: Themes.Primary;
+                text: "Salvar projeto";
+                card-width: 132px;
+                card-height: 44px;
+                round: true;
+                clicked => { root.save-project(); }
+            }
 
             SButton {
                 theme: Themes.Primary;
@@ -49,29 +72,66 @@ export component ProjectTracksPage inherits SCard {
         if tracks.length > 0 : VerticalBox {
             spacing: 10px;
 
-            for track in tracks : SCard {
+            for track[index] in tracks : SCard {
                 theme: Themes.Dark;
                 card-width: 640px;
-                height: root.row-height;
-                card-height: root.row-height;
+                height: 112px;
+                card-height: 112px;
 
-                HorizontalBox {
+                VerticalBox {
                     padding-left: 16px;
                     padding-right: 16px;
+                    padding-top: 14px;
+                    padding-bottom: 14px;
                     spacing: 12px;
 
-                    SText {
-                        theme: Themes.Dark;
-                        text: track.title;
-                        font-size: Theme.typo.button.size;
+                    HorizontalBox {
+                        spacing: 12px;
+
+                        SText {
+                            theme: Themes.Dark;
+                            text: track.title;
+                            font-size: Theme.typo.button.size;
+                        }
+
+                        Rectangle { horizontal-stretch: 1; background: transparent; }
+
+                        SText {
+                            theme: Themes.Dark;
+                            text: track.subtitle;
+                            font-size: Theme.typo.caption.size;
+                        }
                     }
 
-                    Rectangle { horizontal-stretch: 1; background: transparent; }
+                    HorizontalBox {
+                        spacing: 10px;
 
-                    SText {
-                        theme: Themes.Dark;
-                        text: track.subtitle;
-                        font-size: Theme.typo.caption.size;
+                        SButton {
+                            theme: Themes.Dark;
+                            text: "Salvar preset";
+                            card-width: 112px;
+                            card-height: 34px;
+                            round: true;
+                            clicked => { root.save-track-preset(index); }
+                        }
+
+                        SButton {
+                            theme: Themes.Dark;
+                            text: "Novo preset";
+                            card-width: 108px;
+                            card-height: 34px;
+                            round: true;
+                            clicked => { root.create-track-preset(index); }
+                        }
+
+                        SButton {
+                            theme: Themes.Dark;
+                            text: "Configurar preset";
+                            card-width: 134px;
+                            card-height: 34px;
+                            round: true;
+                            clicked => { root.configure-track-preset(index); }
+                        }
                     }
                 }
             }

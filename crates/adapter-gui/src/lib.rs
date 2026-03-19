@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use domain::ids::{DeviceId, TrackId};
+use domain::ids::{DeviceId, PresetId, TrackId};
 use infra_cpal::{list_input_device_descriptors, list_output_device_descriptors, AudioDeviceDescriptor};
 use infra_filesystem::{FilesystemStorage, GuiAudioDeviceSettings, GuiAudioSettings};
 use infra_yaml::YamlSetupRepository;
@@ -9,6 +9,9 @@ use serde::{Deserialize, Serialize};
 use slint::{Model, ModelRc, SharedString, VecModel};
 use std::rc::Rc;
 use std::{cell::RefCell, env, fs, path::PathBuf};
+use setup::block::AudioBlock;
+use setup::device::DeviceSettings;
+use setup::preset::SetupPreset;
 use setup::setup::Setup;
 use setup::track::{Track, TrackOutputMixdown};
 use ui_openrig::{AppRuntimeMode, InteractionMode, UiRuntimeContext};
@@ -34,6 +37,9 @@ struct AppConfigYaml {
 #[derive(Debug, Clone)]
 struct ProjectSession {
     setup: Setup,
+    project_path: Option<PathBuf>,
+    config_path: Option<PathBuf>,
+    presets_path: PathBuf,
 }
 
 #[derive(Debug, Clone)]
@@ -45,6 +51,53 @@ struct TrackDraft {
     output_channels: Vec<usize>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AudioSettingsMode {
+    Gui,
+    Project,
+}
+
+#[derive(Debug, Serialize)]
+struct ProjectYaml {
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    device_settings: Vec<ProjectDeviceSettingsYaml>,
+    tracks: Vec<ProjectTrackYaml>,
+}
+
+#[derive(Debug, Serialize)]
+struct ProjectDeviceSettingsYaml {
+    device_id: String,
+    sample_rate: u32,
+    buffer_size_frames: u32,
+}
+
+#[derive(Debug, Serialize)]
+struct ProjectTrackYaml {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    description: Option<String>,
+    enabled: bool,
+    input_device_id: String,
+    input_channels: Vec<usize>,
+    output_device_id: String,
+    output_channels: Vec<usize>,
+    stages: Vec<AudioBlock>,
+    output_mixdown: TrackOutputMixdown,
+}
+
+#[derive(Debug, Serialize)]
+struct ConfigYaml {
+    presets_path: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct PresetFileYaml {
+    id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    name: Option<String>,
+    #[serde(default)]
+    stages: Vec<AudioBlock>,
+}
+
 pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: InteractionMode) -> Result<()> {
     let context = UiRuntimeContext::new(runtime_mode, interaction_mode);
     let settings = FilesystemStorage::load_gui_audio_settings()?.unwrap_or_default();
@@ -52,6 +105,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
     let project_paths = resolve_project_paths();
     let project_session = Rc::new(RefCell::new(None::<ProjectSession>));
     let track_draft = Rc::new(RefCell::new(None::<TrackDraft>));
+    let audio_settings_mode = Rc::new(RefCell::new(AudioSettingsMode::Gui));
     let input_track_devices = Rc::new(list_input_device_descriptors()?);
     let output_track_devices = Rc::new(list_output_device_descriptors()?);
 
@@ -124,13 +178,13 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
     let track_input_device_options = Rc::new(VecModel::from(
         input_track_devices
             .iter()
-            .map(|device| SharedString::from(device_label(device)))
+            .map(|device| SharedString::from(device.name.clone()))
             .collect::<Vec<_>>(),
     ));
     let track_output_device_options = Rc::new(VecModel::from(
         output_track_devices
             .iter()
-            .map(|device| SharedString::from(device_label(device)))
+            .map(|device| SharedString::from(device.name.clone()))
             .collect::<Vec<_>>(),
     ));
     let track_input_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
@@ -224,6 +278,9 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let weak_window = window.as_weak();
         let input_devices = input_devices.clone();
         let output_devices = output_devices.clone();
+        let audio_settings_mode = audio_settings_mode.clone();
+        let project_session = project_session.clone();
+        let project_tracks = project_tracks.clone();
         window.on_save_audio_settings(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -255,12 +312,29 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 return;
             }
 
-            match FilesystemStorage::save_gui_audio_settings(&settings) {
-                Ok(()) => {
-                    window.set_status_message("".into());
-                    window.set_show_audio_setup(false);
+            match *audio_settings_mode.borrow() {
+                AudioSettingsMode::Gui => match FilesystemStorage::save_gui_audio_settings(&settings) {
+                    Ok(()) => {
+                        window.set_status_message("".into());
+                        window.set_show_audio_setup(false);
+                    }
+                    Err(error) => window.set_status_message(error.to_string().into()),
+                },
+                AudioSettingsMode::Project => {
+                    let mut session_borrow = project_session.borrow_mut();
+                    let Some(session) = session_borrow.as_mut() else {
+                        window.set_status_message("Nenhum projeto carregado.".into());
+                        return;
+                    };
+                    session.setup.device_settings = merge_device_settings(
+                        settings.input_devices,
+                        settings.output_devices,
+                    );
+                    replace_project_tracks(&project_tracks, &session.setup);
+                    window.set_status_message("Configuração do projeto atualizada.".into());
+                    window.set_show_project_tracks(true);
+                    window.set_show_track_editor(false);
                 }
-                Err(error) => window.set_status_message(error.to_string().into()),
             }
         });
     }
@@ -317,6 +391,182 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             window.set_show_project_launcher(false);
             window.set_show_project_tracks(true);
             window.set_show_track_editor(false);
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        window.on_save_project(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                window.set_status_message("Nenhum projeto carregado.".into());
+                return;
+            };
+
+            let project_path = if let Some(path) = session.project_path.clone() {
+                path
+            } else {
+                let Some(path) = FileDialog::new()
+                    .add_filter("OpenRig Project", &["yaml", "yml"])
+                    .set_title("Salvar projeto")
+                    .set_file_name("project.yaml")
+                    .save_file()
+                else {
+                    return;
+                };
+                session.project_path = Some(path.clone());
+                session.config_path = Some(resolve_project_config_path(&path));
+                session.presets_path = path
+                    .parent()
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|| PathBuf::from("."))
+                    .join("presets");
+                path
+            };
+
+            match save_project_session(session, &project_path) {
+                Ok(()) => {
+                    window.set_project_title(project_title_for_path(Some(&project_path), &session.setup).into());
+                    window.set_project_path_label(format!("Projeto: {}", project_path.display()).into());
+                    window.set_status_message("Projeto salvo.".into());
+                }
+                Err(error) => {
+                    window.set_status_message(error.to_string().into());
+                }
+            }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        let input_devices = input_devices.clone();
+        let output_devices = output_devices.clone();
+        let audio_settings_mode = audio_settings_mode.clone();
+        window.on_configure_project(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let session_borrow = project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else {
+                window.set_status_message("Nenhum projeto carregado.".into());
+                return;
+            };
+
+            set_device_selection_from_project(&input_devices, &session.setup.device_settings);
+            set_device_selection_from_project(&output_devices, &session.setup.device_settings);
+            *audio_settings_mode.borrow_mut() = AudioSettingsMode::Project;
+            window.set_wizard_step(0);
+            window.set_status_message("".into());
+            window.set_show_project_tracks(false);
+            window.set_show_track_editor(false);
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        window.on_save_track_preset(move |index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                window.set_status_message("Nenhum projeto carregado.".into());
+                return;
+            };
+            let Some(track) = session.setup.tracks.get(index as usize) else {
+                window.set_status_message("Track inválida.".into());
+                return;
+            };
+            let Some(path) = FileDialog::new()
+                .add_filter("OpenRig Preset", &["yaml", "yml"])
+                .set_title("Salvar em preset existente")
+                .set_directory(&session.presets_path)
+                .pick_file()
+            else {
+                return;
+            };
+            match save_track_blocks_to_preset(track, &path) {
+                Ok(()) => window.set_status_message("Preset atualizado.".into()),
+                Err(error) => window.set_status_message(error.to_string().into()),
+            }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        window.on_create_track_preset(move |index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                window.set_status_message("Nenhum projeto carregado.".into());
+                return;
+            };
+            let Some(track) = session.setup.tracks.get(index as usize) else {
+                window.set_status_message("Track inválida.".into());
+                return;
+            };
+            let default_name = track
+                .description
+                .clone()
+                .unwrap_or_else(|| format!("track_{}", index + 1))
+                .replace(' ', "_")
+                .to_lowercase();
+            let Some(path) = FileDialog::new()
+                .add_filter("OpenRig Preset", &["yaml", "yml"])
+                .set_title("Criar novo preset")
+                .set_directory(&session.presets_path)
+                .set_file_name(&format!("{default_name}.yaml"))
+                .save_file()
+            else {
+                return;
+            };
+            match save_track_blocks_to_preset(track, &path) {
+                Ok(()) => window.set_status_message("Preset criado.".into()),
+                Err(error) => window.set_status_message(error.to_string().into()),
+            }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        let project_tracks = project_tracks.clone();
+        window.on_configure_track_preset(move |index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                window.set_status_message("Nenhum projeto carregado.".into());
+                return;
+            };
+            let Some(path) = FileDialog::new()
+                .add_filter("OpenRig Preset", &["yaml", "yml"])
+                .set_title("Carregar preset na track")
+                .set_directory(&session.presets_path)
+                .pick_file()
+            else {
+                return;
+            };
+            match load_preset_file(&path) {
+                Ok(preset) => {
+                    if let Some(track) = session.setup.tracks.get_mut(index as usize) {
+                        track.blocks = preset.blocks;
+                        replace_project_tracks(&project_tracks, &session.setup);
+                        window.set_status_message("Preset aplicado na track.".into());
+                    }
+                }
+                Err(error) => window.set_status_message(error.to_string().into()),
+            }
         });
     }
 
@@ -382,7 +632,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let project_session = project_session.clone();
         let input_track_devices = input_track_devices.clone();
         let track_input_channels = track_input_channels.clone();
-        window.on_select_track_input_device(move |value| {
+        window.on_select_track_input_device(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -390,7 +640,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             let Some(draft) = draft_borrow.as_mut() else {
                 return;
             };
-            let Some(device) = input_track_devices.iter().find(|device| value == device_label(device)) else {
+            let Some(device) = input_track_devices.get(index as usize) else {
                 return;
             };
             draft.input_device_id = Some(device.id.clone());
@@ -413,7 +663,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let track_draft = track_draft.clone();
         let output_track_devices = output_track_devices.clone();
         let track_output_channels = track_output_channels.clone();
-        window.on_select_track_output_device(move |value| {
+        window.on_select_track_output_device(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -421,7 +671,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             let Some(draft) = draft_borrow.as_mut() else {
                 return;
             };
-            let Some(device) = output_track_devices.iter().find(|device| value == device_label(device)) else {
+            let Some(device) = output_track_devices.get(index as usize) else {
                 return;
             };
             draft.output_device_id = Some(device.id.clone());
@@ -589,7 +839,7 @@ fn parse_path_argument(flag: &str) -> Option<PathBuf> {
 }
 
 fn create_new_project_session(default_config_path: &PathBuf) -> ProjectSession {
-    let _config = if default_config_path.exists() {
+    let config = if default_config_path.exists() {
         load_app_config(default_config_path).unwrap_or_default()
     } else {
         AppConfigYaml {
@@ -603,6 +853,9 @@ fn create_new_project_session(default_config_path: &PathBuf) -> ProjectSession {
     };
     ProjectSession {
         setup,
+        project_path: None,
+        config_path: None,
+        presets_path: config.presets_path.unwrap_or_else(|| PathBuf::from("./presets")),
     }
 }
 
@@ -625,13 +878,24 @@ fn load_project_session(project_path: &PathBuf, config_path: &PathBuf) -> Result
     } else {
         AppConfigYaml::default()
     };
+    let presets_path = config
+        .presets_path
+        .clone()
+        .unwrap_or_else(|| PathBuf::from("./presets"));
     let setup = YamlSetupRepository {
         path: project_path.clone(),
-        presets_path_override: config.presets_path,
+        presets_path_override: Some(presets_path.clone()),
     }
     .load_current_setup()?;
     Ok(ProjectSession {
         setup,
+        project_path: Some(project_path.clone()),
+        config_path: Some(config_path.clone()),
+        presets_path: project_path
+            .parent()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join(presets_path),
     })
 }
 
@@ -657,6 +921,128 @@ fn replace_project_tracks(model: &Rc<VecModel<ProjectTrackItem>>, setup: &Setup)
     model.set_vec(items);
 }
 
+fn set_device_selection_from_project(
+    model: &Rc<VecModel<DeviceSelectionItem>>,
+    device_settings: &[DeviceSettings],
+) {
+    for index in 0..model.row_count() {
+        if let Some(mut row) = model.row_data(index) {
+            if let Some(setting) = device_settings
+                .iter()
+                .find(|setting| row.device_id == setting.device_id.0)
+            {
+                row.selected = true;
+                row.sample_rate_text = setting.sample_rate.to_string().into();
+                row.buffer_size_text = setting.buffer_size_frames.to_string().into();
+            } else {
+                row.selected = false;
+            }
+            model.set_row_data(index, row);
+        }
+    }
+}
+
+fn merge_device_settings(
+    input_devices: Vec<GuiAudioDeviceSettings>,
+    output_devices: Vec<GuiAudioDeviceSettings>,
+) -> Vec<DeviceSettings> {
+    let mut merged: Vec<DeviceSettings> = Vec::new();
+    for device in input_devices.into_iter().chain(output_devices) {
+        if merged
+            .iter()
+            .any(|current| current.device_id.0 == device.device_id)
+        {
+            continue;
+        }
+        merged.push(DeviceSettings {
+            device_id: DeviceId(device.device_id),
+            sample_rate: device.sample_rate,
+            buffer_size_frames: device.buffer_size_frames,
+        });
+    }
+    merged
+}
+
+fn save_project_session(session: &ProjectSession, project_path: &PathBuf) -> Result<()> {
+    let parent_dir = project_path
+        .parent()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("."));
+    fs::create_dir_all(&parent_dir)?;
+
+    let project = ProjectYaml {
+        device_settings: session
+            .setup
+            .device_settings
+            .iter()
+            .map(|setting| ProjectDeviceSettingsYaml {
+                device_id: setting.device_id.0.clone(),
+                sample_rate: setting.sample_rate,
+                buffer_size_frames: setting.buffer_size_frames,
+            })
+            .collect(),
+        tracks: session
+            .setup
+            .tracks
+            .iter()
+            .map(|track| ProjectTrackYaml {
+                description: track.description.clone(),
+                enabled: track.enabled,
+                input_device_id: track.input_device_id.0.clone(),
+                input_channels: track.input_channels.clone(),
+                output_device_id: track.output_device_id.0.clone(),
+                output_channels: track.output_channels.clone(),
+                stages: track.blocks.clone(),
+                output_mixdown: track.output_mixdown,
+            })
+            .collect(),
+    };
+
+    fs::write(project_path, serde_yaml::to_string(&project)?)?;
+
+    let config_path = session
+        .config_path
+        .clone()
+        .unwrap_or_else(|| resolve_project_config_path(project_path));
+    let config = ConfigYaml {
+        presets_path: "./presets".to_string(),
+    };
+    fs::write(config_path, serde_yaml::to_string(&config)?)?;
+    fs::create_dir_all(&parent_dir.join("presets"))?;
+    Ok(())
+}
+
+fn save_track_blocks_to_preset(track: &Track, path: &PathBuf) -> Result<()> {
+    let preset_id = preset_id_from_path(path)?;
+    let preset = PresetFileYaml {
+        id: preset_id,
+        name: track.description.clone(),
+        stages: track.blocks.clone(),
+    };
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(path, serde_yaml::to_string(&preset)?)?;
+    Ok(())
+}
+
+fn load_preset_file(path: &PathBuf) -> Result<SetupPreset> {
+    let raw = fs::read_to_string(path)?;
+    let preset: PresetFileYaml = serde_yaml::from_str(&raw)?;
+    Ok(SetupPreset {
+        id: PresetId(preset.id),
+        name: preset.name,
+        blocks: preset.stages,
+    })
+}
+
+fn preset_id_from_path(path: &PathBuf) -> Result<String> {
+    path.file_stem()
+        .and_then(|value| value.to_str())
+        .map(|value| value.to_string())
+        .ok_or_else(|| anyhow!("arquivo de preset inválido"))
+}
+
 fn project_title_for_path(project_path: Option<&PathBuf>, setup: &Setup) -> String {
     project_path
         .and_then(|path| path.file_stem())
@@ -669,10 +1055,6 @@ fn project_title_for_path(project_path: Option<&PathBuf>, setup: &Setup) -> Stri
                 "Projeto".to_string()
             }
         })
-}
-
-fn device_label(device: &AudioDeviceDescriptor) -> String {
-    format!("{} ({})", device.name, device.id)
 }
 
 fn selected_device_index(devices: &[AudioDeviceDescriptor], selected_id: Option<&str>) -> i32 {

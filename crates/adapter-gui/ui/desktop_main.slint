@@ -37,9 +37,14 @@ export component DesktopMain inherits Rectangle {
     callback open-project-file();
     callback create-project-file();
     callback add-track();
+    callback save-project();
+    callback configure-project();
+    callback save-track-preset(int);
+    callback create-track-preset(int);
+    callback configure-track-preset(int);
     callback update-track-name(string);
-    callback select-track-input-device(string);
-    callback select-track-output-device(string);
+    callback select-track-input-device(int);
+    callback select-track-output-device(int);
     callback toggle-track-input-channel(int, bool);
     callback toggle-track-output-channel(int, bool);
     callback save-track();
@@ -63,7 +68,7 @@ export component DesktopMain inherits Rectangle {
 
             Rectangle {
                 width: 720px;
-                height: root.show-project-launcher ? 320px : root.show-track-editor ? 520px : root.show-project-tracks ? 360px : root.wizard-page-height;
+                height: root.show-project-launcher ? 320px : root.show-track-editor ? 520px : root.show-project-tracks ? 520px : root.wizard-page-height;
                 background: transparent;
 
                 if root.show-project-launcher : ProjectLauncherPage {
@@ -78,6 +83,11 @@ export component DesktopMain inherits Rectangle {
                     tracks: root.project-tracks;
                     status-message: root.status-message;
                     add-track => { root.add-track(); }
+                    save-project => { root.save-project(); }
+                    configure-project => { root.configure-project(); }
+                    save-track-preset(index) => { root.save-track-preset(index); }
+                    create-track-preset(index) => { root.create-track-preset(index); }
+                    configure-track-preset(index) => { root.configure-track-preset(index); }
                 }
 
                 if root.show-track-editor : TrackEditorPage {
@@ -90,8 +100,8 @@ export component DesktopMain inherits Rectangle {
                     output-channel-options: root.track-output-channels;
                     status-message: root.status-message;
                     update-track-name(value) => { root.update-track-name(value); }
-                    select-input-device(value) => { root.select-track-input-device(value); }
-                    select-output-device(value) => { root.select-track-output-device(value); }
+                    select-input-device(index) => { root.select-track-input-device(index); }
+                    select-output-device(index) => { root.select-track-output-device(index); }
                     toggle-input-channel(index, selected) => { root.toggle-track-input-channel(index, selected); }
                     toggle-output-channel(index, selected) => { root.toggle-track-output-channel(index, selected); }
                     save-track => { root.save-track(); }

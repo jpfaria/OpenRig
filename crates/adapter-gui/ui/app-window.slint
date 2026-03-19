@@ -39,9 +39,14 @@ export component AppWindow inherits Window {
     callback open-project-file();
     callback create-project-file();
     callback add-track();
+    callback save-project();
+    callback configure-project();
+    callback save-track-preset(int);
+    callback create-track-preset(int);
+    callback configure-track-preset(int);
     callback update-track-name(string);
-    callback select-track-input-device(string);
-    callback select-track-output-device(string);
+    callback select-track-input-device(int);
+    callback select-track-output-device(int);
     callback toggle-track-input-channel(int, bool);
     callback toggle-track-output-channel(int, bool);
     callback save-track();
@@ -88,9 +93,14 @@ export component AppWindow inherits Window {
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }
         add-track => { root.add-track(); }
+        save-project => { root.save-project(); }
+        configure-project => { root.configure-project(); }
+        save-track-preset(index) => { root.save-track-preset(index); }
+        create-track-preset(index) => { root.create-track-preset(index); }
+        configure-track-preset(index) => { root.configure-track-preset(index); }
         update-track-name(value) => { root.update-track-name(value); }
-        select-track-input-device(value) => { root.select-track-input-device(value); }
-        select-track-output-device(value) => { root.select-track-output-device(value); }
+        select-track-input-device(index) => { root.select-track-input-device(index); }
+        select-track-output-device(index) => { root.select-track-output-device(index); }
         toggle-track-input-channel(index, selected) => { root.toggle-track-input-channel(index, selected); }
         toggle-track-output-channel(index, selected) => { root.toggle-track-output-channel(index, selected); }
         save-track => { root.save-track(); }
@@ -132,9 +142,14 @@ export component AppWindow inherits Window {
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }
         add-track => { root.add-track(); }
+        save-project => { root.save-project(); }
+        configure-project => { root.configure-project(); }
+        save-track-preset(index) => { root.save-track-preset(index); }
+        create-track-preset(index) => { root.create-track-preset(index); }
+        configure-track-preset(index) => { root.configure-track-preset(index); }
         update-track-name(value) => { root.update-track-name(value); }
-        select-track-input-device(value) => { root.select-track-input-device(value); }
-        select-track-output-device(value) => { root.select-track-output-device(value); }
+        select-track-input-device(index) => { root.select-track-input-device(index); }
+        select-track-output-device(index) => { root.select-track-output-device(index); }
         toggle-track-input-channel(index, selected) => { root.toggle-track-input-channel(index, selected); }
         toggle-track-output-channel(index, selected) => { root.toggle-track-output-channel(index, selected); }
         save-track => { root.save-track(); }

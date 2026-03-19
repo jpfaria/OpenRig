@@ -14,8 +14,8 @@ export component TrackEditorPage inherits SCard {
     in property <[ChannelOptionItem]> output-channel-options;
     in-out property <string> status-message;
     callback update-track-name(string);
-    callback select-input-device(string);
-    callback select-output-device(string);
+    callback select-input-device(int);
+    callback select-output-device(int);
     callback toggle-input-channel(int, bool);
     callback toggle-output-channel(int, bool);
     callback save-track();
@@ -72,8 +72,8 @@ export component TrackEditorPage inherits SCard {
                     min-width: 320px;
                     model: root.input-device-options;
                     current-index: root.selected-input-device-index;
-                    selected(value) => {
-                        root.select-input-device(value);
+                    selected(_) => {
+                        root.select-input-device(self.current-index);
                     }
                 }
             }
@@ -91,8 +91,8 @@ export component TrackEditorPage inherits SCard {
                     min-width: 320px;
                     model: root.output-device-options;
                     current-index: root.selected-output-device-index;
-                    selected(value) => {
-                        root.select-output-device(value);
+                    selected(_) => {
+                        root.select-output-device(self.current-index);
                     }
                 }
             }
