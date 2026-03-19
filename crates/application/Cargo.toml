@@ -5,8 +5,5 @@ edition.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-ports = { path = "../ports" }
-preset = { path = "../preset" }
-setup = { path = "../setup" }
+project = { path = "../project" }
 stage-core = { path = "../stage-core" }
-state = { path = "../state" }

@@ -1,9 +1,9 @@
 use anyhow::{anyhow, Result};
 use domain::ids::TrackId;
-use setup::block::{schema_for_block_model, AudioBlockKind, CoreBlockKind, NamBlock, SelectBlock};
-use setup::param::ParameterSet;
-use setup::setup::Setup;
-use setup::track::{Track, TrackOutputMixdown};
+use project::block::{schema_for_block_model, AudioBlockKind, CoreBlockKind, NamBlock, SelectBlock};
+use project::param::ParameterSet;
+use project::project::Project;
+use project::track::{Track, TrackOutputMixdown};
 use stage_amp_combo::{amp_combo_asset_summary, build_amp_combo_processor_for_layout};
 use stage_amp_head::{amp_head_asset_summary, build_amp_head_processor_for_layout};
 use stage_core::{
@@ -172,9 +172,9 @@ pub struct RuntimeGraph {
     pub tracks: HashMap<TrackId, Arc<Mutex<TrackRuntimeState>>>,
 }
 
-pub fn build_runtime_graph(setup: &Setup) -> Result<RuntimeGraph> {
+pub fn build_runtime_graph(project: &Project) -> Result<RuntimeGraph> {
     let mut tracks = HashMap::new();
-    for track in &setup.tracks {
+    for track in &project.tracks {
         if !track.enabled {
             continue;
         }

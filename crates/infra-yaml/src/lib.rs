@@ -1,20 +1,17 @@
 use anyhow::{anyhow, Context, Result};
-use domain::ids::{BlockId, DeviceId, PresetId, TrackId};
+use domain::ids::{BlockId, DeviceId, TrackId};
 use domain::value_objects::ParameterValue;
-use ports::{PresetRepository, SetupRepository, StateRepository};
-use preset::Preset;
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
-use setup::block::{
+use project::block::{
     normalize_block_params, AmpComboBlock, AmpHeadBlock, AudioBlock, AudioBlockKind,
     CompressorBlock, CoreBlock, CoreBlockKind, CoreNamBlock, DelayBlock, DriveBlock, EqBlock,
     FullRigBlock, GateBlock, NamBlock, ReverbBlock, SelectBlock, TremoloBlock, TunerBlock,
 };
-use setup::device::DeviceSettings;
-use setup::param::ParameterSet;
-use setup::preset::SetupPreset;
-use setup::setup::Setup;
-use setup::track::{Track, TrackOutputMixdown};
+use project::device::DeviceSettings;
+use project::param::ParameterSet;
+use project::project::Project;
+use project::track::{Track, TrackOutputMixdown};
 use stage_amp_head::marshall_jcm_800::MODEL_ID as DEFAULT_AMP_HEAD_MODEL;
 use stage_amp_combo::bogner_ecstasy::MODEL_ID as DEFAULT_AMP_COMBO_MODEL;
 use stage_delay::digital_basic::MODEL_ID as DEFAULT_DELAY_MODEL;
@@ -27,25 +24,22 @@ use stage_mod::tremolo_sine::MODEL_ID as DEFAULT_TREMOLO_MODEL;
 use stage_nam::GENERIC_NAM_MODEL_ID;
 use stage_reverb::plate_foundation::MODEL_ID as DEFAULT_REVERB_MODEL;
 use stage_util::tuner_chromatic::MODEL_ID as DEFAULT_TUNER_MODEL;
-use state::pedalboard_state::PedalboardState;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-pub struct YamlSetupRepository {
-    pub path: PathBuf,
-    pub presets_path_override: Option<PathBuf>,
-}
-
-pub struct YamlStateRepository {
+pub struct YamlProjectRepository {
     pub path: PathBuf,
 }
 
-pub struct YamlPresetRepository {
-    pub path: PathBuf,
+#[derive(Debug, Clone)]
+pub struct TrackBlocksPreset {
+    pub id: String,
+    pub name: Option<String>,
+    pub blocks: Vec<project::block::AudioBlock>,
 }
 
-pub fn load_setup_preset_file(path: &PathBuf) -> Result<SetupPreset> {
+pub fn load_track_preset_file(path: &PathBuf) -> Result<TrackBlocksPreset> {
     let raw = fs::read_to_string(path)
         .with_context(|| format!("failed to read preset yaml {:?}", path))?;
     let dto: PresetYaml = serde_yaml::from_str(&raw)
@@ -53,8 +47,8 @@ pub fn load_setup_preset_file(path: &PathBuf) -> Result<SetupPreset> {
     dto.into_preset()
 }
 
-pub fn save_setup_preset_file(path: &PathBuf, preset: &SetupPreset) -> Result<()> {
-    let dto = PresetYaml::from_setup_preset(preset)?;
+pub fn save_track_preset_file(path: &PathBuf, preset: &TrackBlocksPreset) -> Result<()> {
+    let dto = PresetYaml::from_track_preset(preset)?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -62,87 +56,40 @@ pub fn save_setup_preset_file(path: &PathBuf, preset: &SetupPreset) -> Result<()
     Ok(())
 }
 
-pub fn serialize_audio_blocks(blocks: &[AudioBlock]) -> Result<Vec<Value>> {
+pub fn serialize_audio_blocks(blocks: &[project::block::AudioBlock]) -> Result<Vec<Value>> {
     blocks
         .iter()
         .map(|block| Ok(serde_yaml::to_value(AudioBlockYaml::from_audio_block(block)?)?))
         .collect()
 }
 
-impl SetupRepository for YamlSetupRepository {
-    fn load_current_setup(&self) -> Result<Setup> {
+impl YamlProjectRepository {
+    pub fn load_current_project(&self) -> Result<Project> {
         let raw = fs::read_to_string(&self.path)
             .with_context(|| format!("failed to read yaml {:?}", self.path))?;
-        let dto: SetupYaml = serde_yaml::from_str(&raw)?;
-        let base_dir = self
-            .path
-            .parent()
-            .map(PathBuf::from)
-            .unwrap_or_else(|| PathBuf::from("."));
-        dto.into_setup(&base_dir, self.presets_path_override.clone())
+        let dto: ProjectYaml = serde_yaml::from_str(&raw)?;
+        dto.into_project()
     }
 
-    fn save_setup(&self, _setup: &Setup) -> Result<()> {
-        Ok(())
-    }
-}
-
-impl StateRepository for YamlStateRepository {
-    fn load_state(&self) -> Result<PedalboardState> {
-        let raw = fs::read_to_string(&self.path)
-            .with_context(|| format!("failed to read yaml {:?}", self.path))?;
-        Ok(serde_yaml::from_str(&raw)?)
-    }
-
-    fn save_state(&self, state: &PedalboardState) -> Result<()> {
-        let raw = serde_yaml::to_string(state)?;
-        fs::write(&self.path, raw)?;
-        Ok(())
-    }
-}
-
-impl PresetRepository for YamlPresetRepository {
-    fn load_preset(&self, _preset_id: &str) -> Result<Preset> {
-        let raw = fs::read_to_string(&self.path)
-            .with_context(|| format!("failed to read yaml {:?}", self.path))?;
-        Ok(serde_yaml::from_str(&raw)?)
-    }
-
-    fn save_preset(&self, preset: &Preset) -> Result<()> {
-        let raw = serde_yaml::to_string(preset)?;
-        fs::write(&self.path, raw)?;
+    pub fn save_project(&self, _project: &Project) -> Result<()> {
         Ok(())
     }
 }
 
 #[derive(Debug, Deserialize)]
-struct SetupYaml {
+struct ProjectYaml {
     #[serde(default)]
     name: Option<String>,
     #[serde(default)]
-    presets_path: Option<PathBuf>,
-    #[serde(default)]
     device_settings: Vec<DeviceSettingsYaml>,
-    #[serde(default)]
-    presets: Vec<PresetYaml>,
     tracks: Vec<TrackYaml>,
 }
 
-impl SetupYaml {
-    fn into_setup(self, base_dir: &PathBuf, presets_path_override: Option<PathBuf>) -> Result<Setup> {
-        let presets_path = presets_path_override.or(self.presets_path);
-        let presets = if let Some(presets_path) = presets_path {
-            load_presets_from_dir(&base_dir.join(presets_path))?
-        } else {
-            self.presets
-                .into_iter()
-                .map(PresetYaml::into_preset)
-                .collect::<Result<Vec<_>>>()?
-        };
-        Ok(Setup {
+impl ProjectYaml {
+    fn into_project(self) -> Result<Project> {
+        Ok(Project {
             name: self.name,
             device_settings: self.device_settings.into_iter().map(Into::into).collect(),
-            presets,
             tracks: self
                 .tracks
                 .into_iter()
@@ -151,34 +98,6 @@ impl SetupYaml {
                 .collect::<Result<Vec<_>>>()?,
         })
     }
-}
-
-fn load_presets_from_dir(dir: &PathBuf) -> Result<Vec<SetupPreset>> {
-    let mut entries = fs::read_dir(dir)
-        .with_context(|| format!("failed to read presets directory {:?}", dir))?
-        .collect::<std::result::Result<Vec<_>, _>>()
-        .with_context(|| format!("failed to iterate presets directory {:?}", dir))?;
-    entries.sort_by_key(|entry| entry.path());
-
-    let mut presets = Vec::new();
-    for entry in entries {
-        let path = entry.path();
-        if !path.is_file() {
-            continue;
-        }
-        let Some(extension) = path.extension().and_then(|ext| ext.to_str()) else {
-            continue;
-        };
-        if extension != "yaml" && extension != "yml" {
-            continue;
-        }
-        let raw = fs::read_to_string(&path)
-            .with_context(|| format!("failed to read preset yaml {:?}", path))?;
-        let dto: PresetYaml = serde_yaml::from_str(&raw)
-            .with_context(|| format!("failed to parse preset yaml {:?}", path))?;
-        presets.push(dto.into_preset()?);
-    }
-    Ok(presets)
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -191,23 +110,22 @@ struct PresetYaml {
 }
 
 impl PresetYaml {
-    fn into_preset(self) -> Result<SetupPreset> {
-        let preset_id = PresetId(self.id.clone());
-        Ok(SetupPreset {
-            id: preset_id.clone(),
+    fn into_preset(self) -> Result<TrackBlocksPreset> {
+        Ok(TrackBlocksPreset {
+            id: self.id.clone(),
             name: self.name,
             blocks: self
                 .blocks
                 .into_iter()
                 .enumerate()
-                .map(|(index, block)| block.into_audio_block(&generated_preset_track_id(&preset_id), index))
+                .map(|(index, block)| block.into_audio_block(&generated_preset_track_id(&self.id), index))
                 .collect::<Result<Vec<_>>>()?,
         })
     }
 
-    fn from_setup_preset(preset: &SetupPreset) -> Result<Self> {
+    fn from_track_preset(preset: &TrackBlocksPreset) -> Result<Self> {
         Ok(Self {
-            id: preset.id.0.clone(),
+            id: preset.id.clone(),
             name: preset.name.clone(),
             blocks: preset
                 .blocks
@@ -856,8 +774,8 @@ fn generated_track_id(index: usize) -> TrackId {
     TrackId(format!("track:{}", index))
 }
 
-fn generated_preset_track_id(preset_id: &PresetId) -> TrackId {
-    TrackId(format!("preset:{}", preset_id.0))
+fn generated_preset_track_id(preset_id: &str) -> TrackId {
+    TrackId(format!("preset:{}", preset_id))
 }
 
 fn default_delay_model() -> String {

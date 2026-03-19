@@ -1,40 +1,40 @@
 use anyhow::{anyhow, bail, Result};
-use setup::block::{schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlockKind};
-use setup::device::DeviceSettings;
-use setup::setup::Setup;
-use setup::track::Track;
+use project::block::{schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlockKind};
+use project::device::DeviceSettings;
+use project::project::Project;
+use project::track::Track;
 use stage_core::AudioChannelLayout;
 use std::collections::{HashMap, HashSet};
 
-pub fn validate_setup(setup: &Setup) -> Result<()> {
-    if setup.tracks.is_empty() {
-        bail!("invalid setup: no tracks configured");
+pub fn validate_project(project: &Project) -> Result<()> {
+    if project.tracks.is_empty() {
+        bail!("invalid project: no tracks configured");
     }
 
-    let device_settings_by_id: HashMap<_, _> = setup
+    let device_settings_by_id: HashMap<_, _> = project
         .device_settings
         .iter()
         .map(|settings| (settings.device_id.0.clone(), settings))
         .collect();
-    validate_device_settings(setup, &device_settings_by_id)?;
+    validate_device_settings(project, &device_settings_by_id)?;
 
-    for track in &setup.tracks {
+    for track in &project.tracks {
         if track.input_device_id.0.trim().is_empty() {
-            bail!("invalid setup: track '{}' missing input_device_id", track.id.0);
+            bail!("invalid project: track '{}' missing input_device_id", track.id.0);
         }
         if track.output_device_id.0.trim().is_empty() {
-            bail!("invalid setup: track '{}' missing output_device_id", track.id.0);
+            bail!("invalid project: track '{}' missing output_device_id", track.id.0);
         }
         if track.input_channels.is_empty() {
-            bail!("invalid setup: track '{}' has no input channels", track.id.0);
+            bail!("invalid project: track '{}' has no input channels", track.id.0);
         }
         if track.output_channels.is_empty() {
-            bail!("invalid setup: track '{}' has no output channels", track.id.0);
+            bail!("invalid project: track '{}' has no output channels", track.id.0);
         }
         validate_unique_channels(&track.input_channels)
-            .map_err(|error| anyhow!("invalid setup: track '{}': {}", track.id.0, error))?;
+            .map_err(|error| anyhow!("invalid project: track '{}': {}", track.id.0, error))?;
         validate_unique_channels(&track.output_channels)
-            .map_err(|error| anyhow!("invalid setup: track '{}': {}", track.id.0, error))?;
+            .map_err(|error| anyhow!("invalid project: track '{}': {}", track.id.0, error))?;
 
         let input_layout =
             layout_from_channel_count("track input", &track.id.0, track.input_channels.len())?;
@@ -42,7 +42,7 @@ pub fn validate_setup(setup: &Setup) -> Result<()> {
         validate_track_blocks(track, track.blocks.as_slice(), input_layout)?;
     }
 
-    validate_active_track_input_channel_conflicts(&setup.tracks)?;
+    validate_active_track_input_channel_conflicts(&project.tracks)?;
 
     Ok(())
 }
@@ -93,7 +93,7 @@ fn validate_active_track_input_channel_conflicts(
             let key = (track.input_device_id.0.clone(), *channel);
             if let Some(existing_track) = claimed_channels.insert(key.clone(), track.id.0.clone()) {
                 bail!(
-                    "invalid setup: active tracks '{}' and '{}' both use input device '{}' channel {}",
+                    "invalid project: active tracks '{}' and '{}' both use input device '{}' channel {}",
                     existing_track,
                     track.id.0,
                     key.0,
@@ -106,26 +106,26 @@ fn validate_active_track_input_channel_conflicts(
 }
 
 fn validate_device_settings(
-    setup: &Setup,
+    project: &Project,
     device_settings_by_id: &HashMap<String, &DeviceSettings>,
 ) -> Result<()> {
-    if device_settings_by_id.len() != setup.device_settings.len() {
-        bail!("invalid setup: duplicated device_settings device_id");
+    if device_settings_by_id.len() != project.device_settings.len() {
+        bail!("invalid project: duplicated device_settings device_id");
     }
 
-    for settings in &setup.device_settings {
+    for settings in &project.device_settings {
         if settings.device_id.0.trim().is_empty() {
-            bail!("invalid setup: device_settings entry missing device_id");
+            bail!("invalid project: device_settings entry missing device_id");
         }
         if settings.sample_rate == 0 {
             bail!(
-                "invalid setup: device_settings '{}' has invalid sample_rate",
+                "invalid project: device_settings '{}' has invalid sample_rate",
                 settings.device_id.0
             );
         }
         if settings.buffer_size_frames == 0 {
             bail!(
-                "invalid setup: device_settings '{}' has invalid buffer_size_frames",
+                "invalid project: device_settings '{}' has invalid buffer_size_frames",
                 settings.device_id.0
             );
         }

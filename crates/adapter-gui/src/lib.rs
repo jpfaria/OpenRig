@@ -1,23 +1,26 @@
 use anyhow::{anyhow, Result};
-use application::validate::validate_setup;
+use application::validate::validate_project;
 use cpal::{traits::StreamTrait, Stream};
 use domain::ids::{DeviceId, TrackId};
 use engine::runtime::build_runtime_graph;
 use infra_cpal::{
-    build_streams_for_setup, list_input_device_descriptors, list_output_device_descriptors,
+    build_streams_for_project, list_input_device_descriptors, list_output_device_descriptors,
     AudioDeviceDescriptor,
 };
 use infra_filesystem::{FilesystemStorage, GuiAudioDeviceSettings, GuiAudioSettings};
-use infra_yaml::{load_setup_preset_file, save_setup_preset_file, serialize_audio_blocks, TrackStagesPreset, YamlSetupRepository};
+use infra_yaml::{
+    load_track_preset_file, save_track_preset_file, serialize_audio_blocks, TrackBlocksPreset,
+    YamlProjectRepository,
+};
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 use slint::{Model, ModelRc, SharedString, VecModel};
 use std::rc::Rc;
 use std::{cell::RefCell, env, fs, path::PathBuf};
-use setup::device::DeviceSettings;
-use setup::block::{AudioBlock, AudioBlockKind, CoreBlockKind};
-use setup::setup::Setup;
-use setup::track::{Track, TrackOutputMixdown};
+use project::device::DeviceSettings;
+use project::block::{AudioBlock, AudioBlockKind, CoreBlockKind};
+use project::project::Project;
+use project::track::{Track, TrackOutputMixdown};
 use ui_openrig::{AppRuntimeMode, InteractionMode, UiRuntimeContext};
 
 slint::include_modules!();
@@ -40,7 +43,7 @@ struct AppConfigYaml {
 
 #[derive(Debug, Clone)]
 struct ProjectSession {
-    setup: Setup,
+    project: Project,
     project_path: Option<PathBuf>,
     config_path: Option<PathBuf>,
     presets_path: PathBuf,
@@ -105,7 +108,7 @@ struct ConfigYaml {
 pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: InteractionMode) -> Result<()> {
     let context = UiRuntimeContext::new(runtime_mode, interaction_mode);
     let settings = FilesystemStorage::load_gui_audio_settings()?.unwrap_or_default();
-    let needs_audio_setup = context.capabilities.can_select_audio_device && !settings.is_complete();
+    let needs_audio_settings = context.capabilities.can_select_audio_device && !settings.is_complete();
     let project_paths = resolve_project_paths();
     let project_session = Rc::new(RefCell::new(None::<ProjectSession>));
     let track_draft = Rc::new(RefCell::new(None::<TrackDraft>));
@@ -128,7 +131,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
     window.set_runtime_mode_label(context.runtime_mode.label().into());
     window.set_interaction_mode_label(context.interaction_mode.label().into());
     window.set_touch_optimized(context.capabilities.touch_optimized);
-    window.set_show_audio_setup(needs_audio_setup);
+    window.set_show_audio_settings(needs_audio_settings);
     window.set_wizard_step(if settings.is_complete() { 1 } else { 0 });
     window.set_status_message("".into());
 
@@ -327,7 +330,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 AudioSettingsMode::Gui => match FilesystemStorage::save_gui_audio_settings(&settings) {
                     Ok(()) => {
                         window.set_status_message("".into());
-                        window.set_show_audio_setup(false);
+                        window.set_show_audio_settings(false);
                     }
                     Err(error) => window.set_status_message(error.to_string().into()),
                 },
@@ -337,7 +340,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                         window.set_status_message("Nenhum projeto carregado.".into());
                         return;
                     };
-                    session.setup.device_settings = merge_device_settings(
+                    session.project.device_settings = merge_device_settings(
                         settings.input_devices,
                         settings.output_devices,
                     );
@@ -346,9 +349,9 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                         stop_project_runtime(&project_streams);
                         window.set_project_running(false);
                     }
-                    replace_project_tracks(&project_tracks, &session.setup);
+                    replace_project_tracks(&project_tracks, &session.project);
                     window.set_project_title(
-                        project_title_for_path(session.project_path.as_ref(), &session.setup).into(),
+                        project_title_for_path(session.project_path.as_ref(), &session.project).into(),
                     );
                     window.set_status_message(if was_running {
                         restart_message("Configuração do projeto atualizada.")
@@ -382,8 +385,8 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             match load_project_session(&path, &resolve_project_config_path(&path)) {
                 Ok(session) => {
                     stop_project_runtime(&project_streams);
-                    replace_project_tracks(&project_tracks, &session.setup);
-                    let title = project_title_for_path(Some(&path), &session.setup);
+                    replace_project_tracks(&project_tracks, &session.project);
+                    let title = project_title_for_path(Some(&path), &session.project);
                     *project_session.borrow_mut() = Some(session);
                     window.set_project_running(false);
                     window.set_status_message("".into());
@@ -392,7 +395,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                         project_session
                             .borrow()
                             .as_ref()
-                            .and_then(|session| session.setup.name.clone())
+                            .and_then(|session| session.project.name.clone())
                             .unwrap_or_default()
                             .into(),
                     );
@@ -421,7 +424,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             };
             stop_project_runtime(&project_streams);
             let session = create_new_project_session(&project_paths.default_config_path);
-            replace_project_tracks(&project_tracks, &session.setup);
+            replace_project_tracks(&project_tracks, &session.project);
             *project_session.borrow_mut() = Some(session);
             window.set_project_running(false);
             window.set_status_message("".into());
@@ -471,8 +474,8 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
 
             match save_project_session(session, &project_path) {
                 Ok(()) => {
-                    window.set_project_title(project_title_for_path(Some(&project_path), &session.setup).into());
-                    window.set_project_name_draft(session.setup.name.clone().unwrap_or_default().into());
+                    window.set_project_title(project_title_for_path(Some(&project_path), &session.project).into());
+                    window.set_project_name_draft(session.project.name.clone().unwrap_or_default().into());
                     window.set_project_path_label(format!("Projeto: {}", project_path.display()).into());
                     window.set_status_message("Projeto salvo.".into());
                 }
@@ -499,10 +502,10 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 return;
             };
 
-            set_device_selection_from_project(&input_devices, &session.setup.device_settings);
-            set_device_selection_from_project(&output_devices, &session.setup.device_settings);
+            set_device_selection_from_project(&input_devices, &session.project.device_settings);
+            set_device_selection_from_project(&output_devices, &session.project.device_settings);
             *audio_settings_mode.borrow_mut() = AudioSettingsMode::Project;
-            window.set_project_name_draft(session.setup.name.clone().unwrap_or_default().into());
+            window.set_project_name_draft(session.project.name.clone().unwrap_or_default().into());
             window.set_status_message("".into());
             window.set_show_project_launcher(false);
             window.set_show_project_tracks(false);
@@ -521,7 +524,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             window.set_project_name_draft(value.clone());
             if let Some(session) = project_session.borrow_mut().as_mut() {
                 let trimmed = value.trim();
-                session.setup.name = if trimmed.is_empty() {
+                session.project.name = if trimmed.is_empty() {
                     None
                 } else {
                     Some(trimmed.to_string())
@@ -554,7 +557,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 window.set_status_message("Nenhum projeto carregado.".into());
                 return;
             };
-            let Some(track) = session.setup.tracks.get(index as usize) else {
+            let Some(track) = session.project.tracks.get(index as usize) else {
                 window.set_status_message("Track inválida.".into());
                 return;
             };
@@ -604,14 +607,14 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             };
             match load_preset_file(&path) {
                 Ok(preset) => {
-                    if let Some(track) = session.setup.tracks.get_mut(index as usize) {
+                    if let Some(track) = session.project.tracks.get_mut(index as usize) {
                         track.blocks = preset.blocks;
                         let was_running = project_streams.borrow().is_some();
                         if was_running {
                             stop_project_runtime(&project_streams);
                             window.set_project_running(false);
                         }
-                        replace_project_tracks(&project_tracks, &session.setup);
+                        replace_project_tracks(&project_tracks, &session.project);
                         window.set_status_message(if was_running {
                             restart_message("Preset aplicado na track.")
                         } else {
@@ -635,7 +638,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             };
             stop_project_runtime(&project_streams);
             *project_session.borrow_mut() = None;
-            replace_project_tracks(&project_tracks, &Setup {
+            replace_project_tracks(&project_tracks, &Project {
                 name: None,
                 device_settings: Vec::new(),
                 tracks: Vec::new(),
@@ -669,12 +672,12 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 window.set_status_message("Nenhum projeto carregado.".into());
                 return;
             };
-            let draft = create_track_draft(&session.setup, &input_track_devices, &output_track_devices);
+            let draft = create_track_draft(&session.project, &input_track_devices, &output_track_devices);
             *track_draft.borrow_mut() = Some(draft.clone());
             apply_track_editor_labels(&window, &draft);
             replace_channel_options(
                 &track_input_channels,
-                build_input_channel_items(&draft, &session.setup, &input_track_devices),
+                build_input_channel_items(&draft, &session.project, &input_track_devices),
             );
             replace_channel_options(
                 &track_output_channels,
@@ -712,14 +715,14 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 window.set_status_message("Nenhum projeto carregado.".into());
                 return;
             };
-            let Some(track) = session.setup.tracks.get(index as usize) else {
+            let Some(track) = session.project.tracks.get(index as usize) else {
                 window.set_status_message("Track inválida.".into());
                 return;
             };
             let draft = track_draft_from_track(index as usize, track);
             replace_channel_options(
                 &track_input_channels,
-                build_input_channel_items(&draft, &session.setup, &input_track_devices),
+                build_input_channel_items(&draft, &session.project, &input_track_devices),
             );
             replace_channel_options(
                 &track_output_channels,
@@ -781,7 +784,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             if let Some(session) = project_session.borrow().as_ref() {
                 replace_channel_options(
                     &track_input_channels,
-                    build_input_channel_items(draft, &session.setup, &input_track_devices),
+                    build_input_channel_items(draft, &session.project, &input_track_devices),
                 );
             }
             window.set_selected_track_input_device_index(selected_device_index(
@@ -842,7 +845,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             if let Some(session) = project_session.borrow().as_ref() {
                 replace_channel_options(
                     &track_input_channels,
-                    build_input_channel_items(draft, &session.setup, &input_track_devices),
+                    build_input_channel_items(draft, &session.project, &input_track_devices),
                 );
             }
         });
@@ -913,12 +916,12 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             }
 
             let editing_index = draft.editing_index;
-            let existing_track = editing_index.and_then(|index| session.setup.tracks.get(index).cloned());
+            let existing_track = editing_index.and_then(|index| session.project.tracks.get(index).cloned());
             let track = Track {
                 id: existing_track
                     .as_ref()
                     .map(|track| track.id.clone())
-                    .unwrap_or_else(|| TrackId(format!("track:{}", session.setup.tracks.len()))),
+                    .unwrap_or_else(|| TrackId(format!("track:{}", session.project.tracks.len()))),
                 description: normalized_track_description(&draft.name),
                 enabled: existing_track.as_ref().map(|track| track.enabled).unwrap_or(true),
                 input_device_id: DeviceId(draft.input_device_id.unwrap_or_default()),
@@ -935,18 +938,18 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                     .unwrap_or(TrackOutputMixdown::Average),
             };
             if let Some(index) = editing_index {
-                if let Some(current) = session.setup.tracks.get_mut(index) {
+                if let Some(current) = session.project.tracks.get_mut(index) {
                     *current = track;
                 }
             } else {
-                session.setup.tracks.push(track);
+                session.project.tracks.push(track);
             }
             let was_running = project_streams.borrow().is_some();
             if was_running {
                 stop_project_runtime(&project_streams);
                 window.set_project_running(false);
             }
-            replace_project_tracks(&project_tracks, &session.setup);
+            replace_project_tracks(&project_tracks, &session.project);
             *track_draft.borrow_mut() = None;
             window.set_status_message(if was_running {
                 restart_message("Track atualizada.")
@@ -987,18 +990,18 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 return;
             };
             let index = index as usize;
-            if index >= session.setup.tracks.len() {
+            if index >= session.project.tracks.len() {
                 window.set_status_message("Track inválida.".into());
                 return;
             }
 
-            session.setup.tracks.remove(index);
+            session.project.tracks.remove(index);
             let was_running = project_streams.borrow().is_some();
             if was_running {
                 stop_project_runtime(&project_streams);
                 window.set_project_running(false);
             }
-            replace_project_tracks(&project_tracks, &session.setup);
+            replace_project_tracks(&project_tracks, &session.project);
             window.set_status_message(if was_running {
                 restart_message("Track removida.")
             } else {
@@ -1021,7 +1024,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 window.set_status_message("Nenhum projeto carregado.".into());
                 return;
             };
-            let Some(track) = session.setup.tracks.get_mut(index as usize) else {
+            let Some(track) = session.project.tracks.get_mut(index as usize) else {
                 window.set_status_message("Track inválida.".into());
                 return;
             };
@@ -1031,7 +1034,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 stop_project_runtime(&project_streams);
                 window.set_project_running(false);
             }
-            replace_project_tracks(&project_tracks, &session.setup);
+            replace_project_tracks(&project_tracks, &session.project);
             window.set_status_message(if was_running {
                 restart_message("Track atualizada.")
             } else {
@@ -1114,13 +1117,13 @@ fn create_new_project_session(default_config_path: &PathBuf) -> ProjectSession {
             presets_path: Some(PathBuf::from("./presets")),
         }
     };
-    let setup = Setup {
+    let project = Project {
         name: None,
         device_settings: Vec::new(),
         tracks: Vec::new(),
     };
     ProjectSession {
-        setup,
+        project,
         project_path: None,
         config_path: None,
         presets_path: config.presets_path.unwrap_or_else(|| PathBuf::from("./presets")),
@@ -1150,9 +1153,9 @@ fn load_project_session(project_path: &PathBuf, config_path: &PathBuf) -> Result
         .presets_path
         .clone()
         .unwrap_or_else(|| PathBuf::from("./presets"));
-    let setup = YamlSetupRepository { path: project_path.clone() }.load_current_setup()?;
+    let project = YamlProjectRepository { path: project_path.clone() }.load_current_project()?;
     Ok(ProjectSession {
-        setup,
+        project,
         project_path: Some(project_path.clone()),
         config_path: Some(config_path.clone()),
         presets_path: project_path
@@ -1163,8 +1166,8 @@ fn load_project_session(project_path: &PathBuf, config_path: &PathBuf) -> Result
     })
 }
 
-fn replace_project_tracks(model: &Rc<VecModel<ProjectTrackItem>>, setup: &Setup) {
-    let items = setup
+fn replace_project_tracks(model: &Rc<VecModel<ProjectTrackItem>>, project: &Project) {
+    let items = project
         .tracks
         .iter()
         .enumerate()
@@ -1240,13 +1243,13 @@ fn save_project_session(session: &ProjectSession, project_path: &PathBuf) -> Res
 
     let project = ProjectYaml {
         name: session
-            .setup
+            .project
             .name
             .as_ref()
             .map(|name| name.trim().to_string())
             .filter(|name| !name.is_empty()),
         device_settings: session
-            .setup
+            .project
             .device_settings
             .iter()
             .map(|setting| ProjectDeviceSettingsYaml {
@@ -1256,7 +1259,7 @@ fn save_project_session(session: &ProjectSession, project_path: &PathBuf) -> Res
             })
             .collect(),
         tracks: session
-            .setup
+            .project
             .tracks
             .iter()
             .map(|track| -> Result<ProjectTrackYaml> {
@@ -1289,16 +1292,16 @@ fn save_project_session(session: &ProjectSession, project_path: &PathBuf) -> Res
 }
 
 fn save_track_blocks_to_preset(track: &Track, path: &PathBuf) -> Result<()> {
-    let preset = TrackStagesPreset {
+    let preset = TrackBlocksPreset {
         id: preset_id_from_path(path)?,
         name: track.description.clone(),
         blocks: track.blocks.clone(),
     };
-    save_setup_preset_file(path, &preset)
+    save_track_preset_file(path, &preset)
 }
 
-fn load_preset_file(path: &PathBuf) -> Result<TrackStagesPreset> {
-    load_setup_preset_file(path)
+fn load_preset_file(path: &PathBuf) -> Result<TrackBlocksPreset> {
+    load_track_preset_file(path)
 }
 
 fn preset_id_from_path(path: &PathBuf) -> Result<String> {
@@ -1308,8 +1311,8 @@ fn preset_id_from_path(path: &PathBuf) -> Result<String> {
         .ok_or_else(|| anyhow!("arquivo de preset inválido"))
 }
 
-fn project_title_for_path(project_path: Option<&PathBuf>, setup: &Setup) -> String {
-    if let Some(name) = setup.name.as_ref().map(|name| name.trim()).filter(|name| !name.is_empty()) {
+fn project_title_for_path(project_path: Option<&PathBuf>, project: &Project) -> String {
+    if let Some(name) = project.name.as_ref().map(|name| name.trim()).filter(|name| !name.is_empty()) {
         return name.to_string();
     }
     project_path
@@ -1317,7 +1320,7 @@ fn project_title_for_path(project_path: Option<&PathBuf>, setup: &Setup) -> Stri
         .and_then(|name| name.to_str())
         .map(|name| name.to_string())
         .unwrap_or_else(|| {
-            if setup.tracks.is_empty() {
+            if project.tracks.is_empty() {
                 "Novo Projeto".to_string()
             } else {
                 "Projeto".to_string()
@@ -1333,13 +1336,13 @@ fn selected_device_index(devices: &[AudioDeviceDescriptor], selected_id: Option<
 }
 
 fn create_track_draft(
-    setup: &Setup,
+    project: &Project,
     input_devices: &[AudioDeviceDescriptor],
     output_devices: &[AudioDeviceDescriptor],
 ) -> TrackDraft {
     TrackDraft {
         editing_index: None,
-        name: format!("Track {}", setup.tracks.len() + 1),
+        name: format!("Track {}", project.tracks.len() + 1),
         input_device_id: input_devices.first().map(|device| device.id.clone()),
         output_device_id: output_devices.first().map(|device| device.id.clone()),
         input_channels: Vec::new(),
@@ -1399,7 +1402,7 @@ fn track_stage_item_from_block(block: &AudioBlock) -> TrackStageItem {
 
 fn build_input_channel_items(
     draft: &TrackDraft,
-    setup: &Setup,
+    project: &Project,
     input_devices: &[AudioDeviceDescriptor],
 ) -> Vec<ChannelOptionItem> {
     let Some(device_id) = draft.input_device_id.as_ref() else {
@@ -1408,7 +1411,7 @@ fn build_input_channel_items(
     let Some(device) = input_devices.iter().find(|device| &device.id == device_id) else {
         return Vec::new();
     };
-    let used_channels = setup
+    let used_channels = project
         .tracks
         .iter()
         .enumerate()
@@ -1472,9 +1475,9 @@ fn restart_message(base: &str) -> SharedString {
 }
 
 fn start_project_runtime(session: &ProjectSession) -> Result<Vec<Stream>> {
-    validate_setup(&session.setup)?;
-    let runtime_graph = build_runtime_graph(&session.setup)?;
-    let streams = build_streams_for_setup(&session.setup, &runtime_graph)?;
+    validate_project(&session.project)?;
+    let runtime_graph = build_runtime_graph(&session.project)?;
+    let streams = build_streams_for_project(&session.project, &runtime_graph)?;
     for stream in &streams {
         stream.play()?;
     }

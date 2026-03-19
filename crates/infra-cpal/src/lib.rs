@@ -3,11 +3,10 @@ use cpal::traits::{DeviceTrait, HostTrait};
 use cpal::{
     BufferSize, SampleFormat, Stream, StreamConfig, SupportedBufferSize, SupportedStreamConfig,
 };
-use engine::engine::PedalboardEngine;
-use engine::runtime::{process_input_f32, process_output_f32, TrackRuntimeState};
-use setup::device::DeviceSettings;
-use setup::setup::Setup;
-use setup::track::Track;
+use engine::runtime::{process_input_f32, process_output_f32, RuntimeGraph, TrackRuntimeState};
+use project::device::DeviceSettings;
+use project::project::Project;
+use project::track::Track;
 use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -87,24 +86,29 @@ pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     devices.sort_by(|a, b| a.name.cmp(&b.name).then(a.id.cmp(&b.id)));
     Ok(devices)
 }
-pub fn build_streams_for_setup(setup: &Setup, engine: &PedalboardEngine) -> Result<Vec<Stream>> {
+pub fn build_streams_for_project(
+    project: &Project,
+    runtime_graph: &RuntimeGraph,
+) -> Result<Vec<Stream>> {
     let host = cpal::default_host();
-    validate_channels_against_devices(setup, &host)?;
+    validate_channels_against_devices(project, &host)?;
     let mut streams = Vec::new();
-    for track in &setup.tracks {
+    for track in &project.tracks {
         if !track.enabled {
             continue;
         }
-        let resolved_input = resolve_input_device_for_track(&host, setup, track)?;
-        let runtime = engine
-            .runtime_for_track(&track.id)
+        let resolved_input = resolve_input_device_for_track(&host, project, track)?;
+        let runtime = runtime_graph
+            .tracks
+            .get(&track.id)
+            .cloned()
             .ok_or_else(|| anyhow!("track '{}' has no runtime state", track.id.0))?;
         streams.push(build_input_stream_for_track(
             track.clone(),
             resolved_input,
             runtime.clone(),
         )?);
-        let resolved_output = resolve_output_device_for_track(&host, setup, track)?;
+        let resolved_output = resolve_output_device_for_track(&host, project, track)?;
         streams.push(build_output_stream_for_track(
             track.clone(),
             resolved_output,
@@ -113,8 +117,12 @@ pub fn build_streams_for_setup(setup: &Setup, engine: &PedalboardEngine) -> Resu
     }
     Ok(streams)
 }
-fn resolve_input_device_for_track(host: &cpal::Host, setup: &Setup, track: &Track) -> Result<ResolvedInputDevice> {
-    let settings = setup
+fn resolve_input_device_for_track(
+    host: &cpal::Host,
+    project: &Project,
+    track: &Track,
+) -> Result<ResolvedInputDevice> {
+    let settings = project
         .device_settings
         .iter()
         .find(|settings| settings.device_id == track.input_device_id)
@@ -143,8 +151,12 @@ fn resolve_input_device_for_track(host: &cpal::Host, setup: &Setup, track: &Trac
     })
 }
 
-fn resolve_output_device_for_track(host: &cpal::Host, setup: &Setup, track: &Track) -> Result<ResolvedOutputDevice> {
-    let settings = setup
+fn resolve_output_device_for_track(
+    host: &cpal::Host,
+    project: &Project,
+    track: &Track,
+) -> Result<ResolvedOutputDevice> {
+    let settings = project
         .device_settings
         .iter()
         .find(|settings| settings.device_id == track.output_device_id)
@@ -205,10 +217,10 @@ fn validate_buffer_size(
     Ok(())
 }
 fn validate_channels_against_devices(
-    setup: &Setup,
+    project: &Project,
     host: &cpal::Host,
 ) -> Result<()> {
-    for track in &setup.tracks {
+    for track in &project.tracks {
         if !track.enabled {
             continue;
         }

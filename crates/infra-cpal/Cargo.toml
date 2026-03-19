@@ -7,4 +7,4 @@ anyhow.workspace = true
 cpal.workspace = true
 domain = { path = "../domain" }
 engine = { path = "../engine" }
-setup = { path = "../setup" }
+project = { path = "../project" }

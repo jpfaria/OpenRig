@@ -1,60 +1,56 @@
 use anyhow::Result;
-use application::validate::validate_setup;
+use application::validate::validate_project;
 use cpal::traits::StreamTrait;
-use engine::engine::PedalboardEngine;
-use infra_cpal::{build_streams_for_setup, list_devices};
-use infra_yaml::YamlSetupRepository;
-use ports::SetupRepository;
+use engine::runtime::build_runtime_graph;
+use infra_cpal::{build_streams_for_project, list_devices};
+use infra_yaml::YamlProjectRepository;
 use serde::Deserialize;
 use std::env;
 use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
-use state::pedalboard_state::PedalboardState;
 
 #[derive(Debug, Deserialize, Default)]
 struct AppConfigYaml {
-    #[serde(default)]
-    presets_path: Option<PathBuf>,
+    #[serde(default, rename = "presets_path")]
+    _presets_path: Option<PathBuf>,
 }
 
 fn main() -> Result<()> {
-    let setup_path = parse_setup_path();
+    let project_path = parse_project_path();
     let config_path = parse_config_path();
-    let config = load_app_config(&config_path)?;
-    let setup_repo = YamlSetupRepository {
-        path: setup_path,
-        presets_path_override: config.presets_path,
+    let _config = load_app_config(&config_path)?;
+    let project_repo = YamlProjectRepository {
+        path: project_path,
     };
-    let setup = setup_repo.load_current_setup()?;
-    validate_setup(&setup)?;
-    let state = PedalboardState::default();
+    let project = project_repo.load_current_project()?;
+    validate_project(&project)?;
     println!("=== Devices ===");
     for line in list_devices()? {
         println!("{line}");
     }
-    println!("=== Setup ===");
-    println!("presets={} tracks={}", setup.presets.len(), setup.tracks.len());
-    let mut engine = PedalboardEngine::new(setup, state)?;
-    let streams = build_streams_for_setup(&engine.setup, &engine)?;
+    println!("=== Project ===");
+    println!("tracks={}", project.tracks.len());
+    let runtime_graph = build_runtime_graph(&project)?;
+    let streams = build_streams_for_project(&project, &runtime_graph)?;
     for stream in &streams {
         stream.play()?;
     }
-    engine.start();
     println!("=== Engine ===");
     println!(
         "running={} active_tracks={}",
-        engine.engine_state.is_running, engine.engine_state.active_tracks
+        true,
+        project.tracks.iter().filter(|track| track.enabled).count()
     );
     loop {
         thread::sleep(Duration::from_secs(1));
     }
 }
 
-fn parse_setup_path() -> PathBuf {
+fn parse_project_path() -> PathBuf {
     let mut args = env::args().skip(1);
     while let Some(arg) = args.next() {
-        if arg == "--setup" {
+        if arg == "--project" {
             if let Some(path) = args.next() {
                 return PathBuf::from(path);
             }

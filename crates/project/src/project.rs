@@ -3,21 +3,19 @@ use serde::Serialize;
 
 use crate::block::{AudioBlock, BlockAudioDescriptor};
 use crate::device::DeviceSettings;
-use crate::preset::SetupPreset;
 use crate::param::BlockParameterDescriptor;
 use crate::track::Track;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct Setup {
+pub struct Project {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[serde(default)]
     pub device_settings: Vec<DeviceSettings>,
-    pub presets: Vec<SetupPreset>,
     pub tracks: Vec<Track>,
 }
 
-impl Setup {
+impl Project {
     pub fn parameter_descriptors(&self) -> Result<Vec<BlockParameterDescriptor>, String> {
         let mut descriptors = Vec::new();
         for track in &self.tracks {

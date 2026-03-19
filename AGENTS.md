@@ -2,34 +2,32 @@ These instructions apply to the entire repository unless a deeper `AGENTS.md` ov
 - This repo is a Rust workspace with multiple crates under `crates/`; do not describe it or treat it as a single-crate project.
 - Keep changes aligned with the current workspace layout unless the user explicitly asks for a structural migration.
 - Current crate families are:
-- `crates/domain`, `crates/application`, `crates/engine`, `crates/ports`, `crates/setup`, `crates/preset`, `crates/state`
+- `crates/domain`, `crates/project`, `crates/application`, `crates/engine`
 - `crates/infra-yaml`, `crates/infra-filesystem`, `crates/infra-cpal`
 - `crates/adapter-console`, `crates/adapter-server`, `crates/adapter-gui`, `crates/adapter-vst3`
 - `crates/stage-*` for DSP stage implementations and shared stage utilities
-- Runtime setup is currently loaded from `setup.yaml`, and logical state is loaded from `state.yaml`.
+- Runtime project data is currently loaded from `project.yaml`, and app configuration lives in `config.yaml`.
 - Native NAM integration is built in `crates/nam/build.rs` and linked through the `cpp/` CMake project.
 - Treat this project as core-first.
 - Keep `domain`, `application`, and `engine` conceptually independent from YAML, filesystem, device backends, and UI/adapter concerns.
 - Preserve clear boundaries between domain models, orchestration/use cases, runtime audio processing, infrastructure adapters, and presentation adapters.
 - Consider future adapters such as console, server, GUI, and VST3, but do not force large migrations unless requested.
 - `crates/domain`: ids and value objects only; no YAML, device I/O, filesystem, audio backend, or UI concerns.
-- `crates/setup`: static pedalboard setup models and block definitions; keep setup modeling distinct from runtime state.
-- `crates/state`: logical application state, commands, events, and engine state; keep it conceptually separate from setup and from internal real-time buffers.
+- `crates/project`: project models, tracks, device settings, and audio block definitions.
 - `crates/application`: orchestration, validation, commands, and use-case logic.
 - `crates/engine`: runtime graph construction and audio processing behavior.
-- `crates/ports`: repository and synchronization interfaces used by application logic.
 - `crates/infra-*`: YAML loading, filesystem access, CPAL integration, persistence adapters, and other external integrations.
 - `crates/adapter-*`: entrypoints and delivery adapters; do not let console or transport concerns shape domain models.
 - `crates/stage-*`: DSP implementations and stage-specific processing primitives.
-- Do not treat the system as YAML-first. YAML is one adapter for loading setup, state, and presets.
+- Do not treat the system as YAML-first. YAML is one adapter for loading project data and presets.
 - Model the pedalboard around generic audio blocks, not only NAM.
 - Treat NAM, IR, and internal effects as separate concepts even when combined in runtime flows.
 - Prefer abstractions that allow internal blocks such as delay, reverb, tremolo, EQ, dynamics, routing, selectors, amp, and cab stages.
 - File-based YAML loading belongs in infrastructure, not in domain or application crates.
-- If setup, preset, or state persistence evolves, prefer ports and adapters over hard-wiring storage into domain or application logic.
+- If project or preset persistence evolves, prefer adapters over hard-wiring storage into domain or application logic.
 - Avoid introducing direct coupling from application logic to YAML, filesystem, database, RPC, or UI clients.
-- When changing setup schema or semantics, update loader and validation together.
-- Keep `setup.yaml` and `state.yaml` compatibility in sync with the corresponding models.
+- When changing project schema or semantics, update loader and validation together.
+- Keep `project.yaml` and `config.yaml` compatibility in sync with the corresponding models.
 - Device names and model paths are machine-specific; avoid baking in new local paths unless the task explicitly requires it.
 - Start validation with `cargo check` for Rust changes.
 - Changes touching NAM integration should review `crates/nam` Rust FFI code, `crates/nam/build.rs`, and `cpp/` inputs together.

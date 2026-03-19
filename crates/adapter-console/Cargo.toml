@@ -11,6 +11,4 @@ application = { path = "../application" }
 engine = { path = "../engine" }
 infra-cpal = { path = "../infra-cpal" }
 infra-yaml = { path = "../infra-yaml" }
-ports = { path = "../ports" }
-state = { path = "../state" }
-setup = { path = "../setup" }
+project = { path = "../project" }

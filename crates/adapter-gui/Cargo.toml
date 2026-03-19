@@ -16,7 +16,7 @@ serde.workspace = true
 serde_yaml.workspace = true
 rfd = "0.15"
 slint.workspace = true
-setup = { path = "../setup" }
+project = { path = "../project" }
 ui-openrig = { path = "../ui-openrig" }
 
 [build-dependencies]

@@ -17,5 +17,4 @@ stage-amp-combo = { path = "../stage-amp-combo" }
 stage-full-rig = { path = "../stage-full-rig" }
 stage-reverb = { path = "../stage-reverb" }
 stage-util = { path = "../stage-util" }
-setup = { path = "../setup" }
-state = { path = "../state" }
+project = { path = "../project" }

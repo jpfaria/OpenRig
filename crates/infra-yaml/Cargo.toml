@@ -8,10 +8,7 @@ anyhow.workspace = true
 serde.workspace = true
 serde_yaml.workspace = true
 domain = { path = "../domain" }
-preset = { path = "../preset" }
-setup = { path = "../setup" }
-state = { path = "../state" }
-ports = { path = "../ports" }
+project = { path = "../project" }
 stage-nam = { path = "../stage-nam" }
 stage-amp-head = { path = "../stage-amp-head" }
 stage-amp-combo = { path = "../stage-amp-combo" }
