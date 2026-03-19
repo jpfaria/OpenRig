@@ -27,6 +27,7 @@ use std::time::{Duration, Instant};
 const DEBUG_MIN_PEAK_TO_LOG: f32 = 0.01;
 const DEBUG_LOG_INTERVAL_MS: u64 = 300;
 const DEFAULT_QUEUE_CAPACITY_FRAMES: usize = 48_000;
+const MAX_OUTPUT_QUEUE_LATENCY_FRAMES: u64 = 1_024;
 const DEFAULT_SAMPLE_RATE: f32 = 48_000.0;
 
 #[derive(Debug, Clone, Copy)]
@@ -823,6 +824,13 @@ pub fn process_output_f32(
     if let Some(oldest_sequence) = locked.processed_frames.front().map(|frame| frame.sequence) {
         if cursor < oldest_sequence {
             cursor = oldest_sequence;
+        }
+    }
+    if let Some(newest_sequence) = locked.processed_frames.back().map(|frame| frame.sequence) {
+        let min_recent_cursor =
+            newest_sequence.saturating_sub(MAX_OUTPUT_QUEUE_LATENCY_FRAMES.saturating_sub(1));
+        if cursor < min_recent_cursor {
+            cursor = min_recent_cursor;
         }
     }
 
