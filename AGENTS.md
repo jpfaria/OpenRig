@@ -7,6 +7,9 @@ These instructions apply to the entire repository unless a deeper `AGENTS.md` ov
 - `crates/adapter-console`, `crates/adapter-server`, `crates/adapter-gui`, `crates/adapter-vst3`
 - `crates/stage-*` for DSP stage implementations and shared stage utilities
 - Runtime project data is currently loaded from `project.yaml`, and app configuration lives in `config.yaml`.
+- `project.yaml` is the runtime source of truth for a project.
+- The sibling `config.yaml` next to a project is project-local configuration, currently used for `presets_path`.
+- Adapter-global persistence under `~/.config/OpenRig/` is adapter state, not part of the runtime project model.
 - Native NAM integration is built in `crates/nam/build.rs` and linked through the `cpp/` CMake project.
 - Treat this project as core-first.
 - Keep `domain`, `application`, and `engine` conceptually independent from YAML, filesystem, device backends, and UI/adapter concerns.
@@ -20,6 +23,10 @@ These instructions apply to the entire repository unless a deeper `AGENTS.md` ov
 - `crates/adapter-*`: entrypoints and delivery adapters; do not let console or transport concerns shape domain models.
 - `crates/stage-*`: DSP implementations and stage-specific processing primitives.
 - Do not treat the system as YAML-first. YAML is one adapter for loading project data and presets.
+- Do not reason about the current system as `setup`/`state`/`preset` driven. The runtime model is `Project -> Track -> AudioBlock`.
+- Tracks own their `blocks` directly. Preset files are import/export artifacts for replacing a track's blocks; tracks do not reference presets at runtime.
+- YAML may still use `stages` as an alias, but the internal model name is `blocks`.
+- User-authored `project.yaml` does not provide track IDs or block IDs. These are generated internally at load time.
 - Model the pedalboard around generic audio blocks, not only NAM.
 - Treat NAM, IR, and internal effects as separate concepts even when combined in runtime flows.
 - Prefer abstractions that allow internal blocks such as delay, reverb, tremolo, EQ, dynamics, routing, selectors, amp, and cab stages.
@@ -28,6 +35,12 @@ These instructions apply to the entire repository unless a deeper `AGENTS.md` ov
 - Avoid introducing direct coupling from application logic to YAML, filesystem, database, RPC, or UI clients.
 - When changing project schema or semantics, update loader and validation together.
 - Keep `project.yaml` and `config.yaml` compatibility in sync with the corresponding models.
+- Persist audio devices by backend `device_id`, not `match_name`.
+- `device_settings` is optional project-level override data keyed by `device_id`.
+- Active tracks may not share the same `input_device_id + input_channel`; disabled tracks are ignored by that conflict rule.
+- Track and block `enabled` flags must be respected consistently by validation and runtime.
+- Current routing/layout support is mono or stereo only.
+- For backend decisions, prefer `docs/backend/current-contract.md` and `docs/adr/` as the canonical reference before relying on old chat context.
 - Device names and model paths are machine-specific; avoid baking in new local paths unless the task explicitly requires it.
 - Start validation with `cargo check` for Rust changes.
 - Changes touching NAM integration should review `crates/nam` Rust FFI code, `crates/nam/build.rs`, and `cpp/` inputs together.
