@@ -60,5 +60,10 @@ fn parse_setup_path() -> PathBuf {
             }
         }
     }
-    PathBuf::from("setup.yaml")
+    let local_project = PathBuf::from("project.yaml");
+    if local_project.exists() {
+        return local_project;
+    }
+
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../project.yaml")
 }
