@@ -33,15 +33,19 @@ pub fn list_devices() -> Result<Vec<String>> {
     let host = cpal::default_host();
     let mut devices = Vec::new();
     for device in host.input_devices()? {
+        let description = device.description()?;
         devices.push(format!(
-            "input: {}",
-            device.name().unwrap_or_else(|_| "<unknown>".into())
+            "input: {} | device_id: {}",
+            description,
+            device.id()?
         ));
     }
     for device in host.output_devices()? {
+        let description = device.description()?;
         devices.push(format!(
-            "output: {}",
-            device.name().unwrap_or_else(|_| "<unknown>".into())
+            "output: {} | device_id: {}",
+            description,
+            device.id()?
         ));
     }
     Ok(devices)
@@ -51,13 +55,13 @@ pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     let host = cpal::default_host();
     let mut devices = Vec::new();
     for device in host.input_devices()? {
+        let description = device.description()?;
         devices.push(AudioDeviceDescriptor {
             id: device.id()?.to_string(),
-            name: device.name().unwrap_or_else(|_| "<unknown>".into()),
+            name: description.name().to_string(),
         });
     }
-    devices.sort_by(|a, b| a.name.cmp(&b.name));
-    devices.dedup_by(|a, b| a.name == b.name);
+    devices.sort_by(|a, b| a.name.cmp(&b.name).then(a.id.cmp(&b.id)));
     Ok(devices)
 }
 
@@ -65,13 +69,13 @@ pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     let host = cpal::default_host();
     let mut devices = Vec::new();
     for device in host.output_devices()? {
+        let description = device.description()?;
         devices.push(AudioDeviceDescriptor {
             id: device.id()?.to_string(),
-            name: device.name().unwrap_or_else(|_| "<unknown>".into()),
+            name: description.name().to_string(),
         });
     }
-    devices.sort_by(|a, b| a.name.cmp(&b.name));
-    devices.dedup_by(|a, b| a.name == b.name);
+    devices.sort_by(|a, b| a.name.cmp(&b.name).then(a.id.cmp(&b.id)));
     Ok(devices)
 }
 pub fn build_streams_for_setup(setup: &Setup, engine: &PedalboardEngine) -> Result<Vec<Stream>> {
