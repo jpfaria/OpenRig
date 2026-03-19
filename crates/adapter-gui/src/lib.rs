@@ -17,7 +17,6 @@ const SUPPORTED_BUFFER_SIZES: &[u32] = &[32, 64, 128, 256, 512, 1024];
 
 #[derive(Debug, Clone)]
 struct ProjectPaths {
-    default_project_path: PathBuf,
     default_config_path: PathBuf,
 }
 
@@ -44,10 +43,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
 
     let window = AppWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     window.set_show_project_launcher(true);
-    window.set_default_project_available(project_paths.default_project_path.exists());
-    window.set_project_path_label(
-        format!("Projeto padrão: {}", project_paths.default_project_path.display()).into(),
-    );
+    window.set_project_path_label("".into());
     window.set_runtime_mode_label(context.runtime_mode.label().into());
     window.set_interaction_mode_label(context.interaction_mode.label().into());
     window.set_touch_optimized(context.capabilities.touch_optimized);
@@ -231,25 +227,6 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
 
     {
         let weak_window = window.as_weak();
-        let project_paths = project_paths.clone();
-        window.on_open_default_project(move || {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            if !project_paths.default_project_path.exists() {
-                window.set_status_message("Projeto padrão não encontrado.".into());
-                return;
-            }
-            window.set_status_message("".into());
-            window.set_project_path_label(
-                format!("Projeto: {}", project_paths.default_project_path.display()).into(),
-            );
-            window.set_show_project_launcher(false);
-        });
-    }
-
-    {
-        let weak_window = window.as_weak();
         window.on_open_project_file(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -300,14 +277,6 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
 
 fn resolve_project_paths() -> ProjectPaths {
     ProjectPaths {
-        default_project_path: parse_path_argument("--project").unwrap_or_else(|| {
-            let local = PathBuf::from("project.yaml");
-            if local.exists() {
-                local
-            } else {
-                PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../project.yaml")
-            }
-        }),
         default_config_path: parse_path_argument("--config").unwrap_or_else(|| {
             let local = PathBuf::from("config.yaml");
             if local.exists() {
