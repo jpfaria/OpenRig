@@ -6,6 +6,22 @@ use std::path::PathBuf;
 pub struct FilesystemStorage;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct RecentProjectEntry {
+    pub project_path: String,
+    pub project_name: String,
+    #[serde(default = "default_true")]
+    pub is_valid: bool,
+    #[serde(default)]
+    pub invalid_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct AppConfig {
+    #[serde(default)]
+    pub recent_projects: Vec<RecentProjectEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub struct GuiAudioDeviceSettings {
     pub device_id: String,
     pub name: String,
@@ -35,6 +51,10 @@ fn default_sample_rate() -> u32 {
 
 fn default_buffer_size_frames() -> u32 {
     256
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -86,6 +106,13 @@ impl FilesystemStorage {
         Ok(base_dir.join("OpenRig").join("gui-settings.yaml"))
     }
 
+    pub fn app_config_path() -> Result<PathBuf> {
+        let base_dir = dirs::config_dir()
+            .or_else(|| std::env::var_os("HOME").map(PathBuf::from).map(|home| home.join(".config")))
+            .context("failed to resolve user config directory")?;
+        Ok(base_dir.join("OpenRig").join("config.yaml"))
+    }
+
     pub fn load_gui_audio_settings() -> Result<Option<GuiAudioSettings>> {
         let path = Self::gui_settings_path()?;
         if !path.exists() {
@@ -115,5 +142,79 @@ impl FilesystemStorage {
         fs::write(&path, raw)
             .with_context(|| format!("failed to write gui settings to {:?}", path))?;
         Ok(())
+    }
+
+    pub fn load_app_config() -> Result<AppConfig> {
+        let path = Self::app_config_path()?;
+        if !path.exists() {
+            return Ok(AppConfig::default());
+        }
+        let raw = fs::read_to_string(&path)
+            .with_context(|| format!("failed to read app config from {:?}", path))?;
+        Ok(serde_yaml::from_str(&raw)
+            .with_context(|| format!("failed to parse app config from {:?}", path))?)
+    }
+
+    pub fn save_app_config(config: &AppConfig) -> Result<()> {
+        let path = Self::app_config_path()?;
+        let parent = path
+            .parent()
+            .context("app config path has no parent directory")?;
+        fs::create_dir_all(parent)
+            .with_context(|| format!("failed to create app config directory {:?}", parent))?;
+        let raw = serde_yaml::to_string(config)?;
+        fs::write(&path, raw)
+            .with_context(|| format!("failed to write app config to {:?}", path))?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{AppConfig, RecentProjectEntry};
+
+    fn insert_recent_project(
+        config: &mut AppConfig,
+        entry: RecentProjectEntry,
+    ) {
+        config
+            .recent_projects
+            .retain(|current| current.project_path != entry.project_path);
+        config.recent_projects.insert(0, entry);
+    }
+
+    #[test]
+    fn recent_projects_move_existing_entry_to_top_without_duplication() {
+        let mut config = AppConfig {
+            recent_projects: vec![
+                RecentProjectEntry {
+                    project_path: "/b/project.yaml".into(),
+                    project_name: "B".into(),
+                    is_valid: true,
+                    invalid_reason: None,
+                },
+                RecentProjectEntry {
+                    project_path: "/a/project.yaml".into(),
+                    project_name: "A".into(),
+                    is_valid: true,
+                    invalid_reason: None,
+                },
+            ],
+        };
+
+        insert_recent_project(
+            &mut config,
+            RecentProjectEntry {
+                project_path: "/a/project.yaml".into(),
+                project_name: "A2".into(),
+                is_valid: true,
+                invalid_reason: None,
+            },
+        );
+
+        assert_eq!(config.recent_projects.len(), 2);
+        assert_eq!(config.recent_projects[0].project_path, "/a/project.yaml");
+        assert_eq!(config.recent_projects[0].project_name, "A2");
+        assert_eq!(config.recent_projects[1].project_path, "/b/project.yaml");
     }
 }

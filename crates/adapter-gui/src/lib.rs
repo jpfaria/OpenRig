@@ -7,7 +7,9 @@ use infra_cpal::{
     build_streams_for_project, list_input_device_descriptors, list_output_device_descriptors,
     AudioDeviceDescriptor,
 };
-use infra_filesystem::{FilesystemStorage, GuiAudioDeviceSettings, GuiAudioSettings};
+use infra_filesystem::{
+    AppConfig, FilesystemStorage, GuiAudioDeviceSettings, GuiAudioSettings, RecentProjectEntry,
+};
 use infra_yaml::{
     load_track_preset_file, save_track_preset_file, serialize_audio_blocks, TrackBlocksPreset,
     YamlProjectRepository,
@@ -105,11 +107,14 @@ struct ConfigYaml {
     presets_path: String,
 }
 
+const UNTITLED_PROJECT_NAME: &str = "UNTITLED PROJECT";
+
 pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: InteractionMode) -> Result<()> {
     let context = UiRuntimeContext::new(runtime_mode, interaction_mode);
     let settings = FilesystemStorage::load_gui_audio_settings()?.unwrap_or_default();
     let needs_audio_settings = context.capabilities.can_select_audio_device && !settings.is_complete();
     let project_paths = resolve_project_paths();
+    let app_config = Rc::new(RefCell::new(load_and_sync_app_config()?));
     let project_session = Rc::new(RefCell::new(None::<ProjectSession>));
     let track_draft = Rc::new(RefCell::new(None::<TrackDraft>));
     let project_streams = Rc::new(RefCell::new(None::<Vec<Stream>>));
@@ -188,6 +193,10 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
     window.set_output_devices(ModelRc::from(output_devices.clone()));
     let project_tracks = Rc::new(VecModel::from(Vec::<ProjectTrackItem>::new()));
     window.set_project_tracks(ModelRc::from(project_tracks.clone()));
+    let recent_projects = Rc::new(VecModel::from(recent_project_items(
+        &app_config.borrow().recent_projects,
+    )));
+    window.set_recent_projects(ModelRc::from(recent_projects.clone()));
     let track_input_device_options = Rc::new(VecModel::from(
         input_track_devices
             .iter()
@@ -368,9 +377,11 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
 
     {
         let weak_window = window.as_weak();
+        let app_config = app_config.clone();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
         let project_streams = project_streams.clone();
+        let recent_projects = recent_projects.clone();
         window.on_open_project_file(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -384,10 +395,19 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             };
             match load_project_session(&path, &resolve_project_config_path(&path)) {
                 Ok(session) => {
+                    let canonical_path = canonical_project_path(&path).unwrap_or(path.clone());
+                    let title = project_title_for_path(Some(&canonical_path), &session.project);
+                    let display_name = project_display_name(&session.project);
                     stop_project_runtime(&project_streams);
                     replace_project_tracks(&project_tracks, &session.project);
-                    let title = project_title_for_path(Some(&path), &session.project);
                     *project_session.borrow_mut() = Some(session);
+                    register_recent_project(
+                        &mut app_config.borrow_mut(),
+                        &canonical_path,
+                        &display_name,
+                    );
+                    let _ = FilesystemStorage::save_app_config(&app_config.borrow());
+                    recent_projects.set_vec(recent_project_items(&app_config.borrow().recent_projects));
                     window.set_project_running(false);
                     window.set_status_message("".into());
                     window.set_project_title(title.into());
@@ -399,7 +419,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                             .unwrap_or_default()
                             .into(),
                     );
-                    window.set_project_path_label(format!("Projeto: {}", path.display()).into());
+                    window.set_project_path_label(format!("Projeto: {}", canonical_path.display()).into());
                     window.set_show_project_launcher(false);
                     window.set_show_project_tracks(true);
                     window.set_show_track_editor(false);
@@ -440,7 +460,9 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
 
     {
         let weak_window = window.as_weak();
+        let app_config = app_config.clone();
         let project_session = project_session.clone();
+        let recent_projects = recent_projects.clone();
         window.on_save_project(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -474,7 +496,18 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
 
             match save_project_session(session, &project_path) {
                 Ok(()) => {
-                    window.set_project_title(project_title_for_path(Some(&project_path), &session.project).into());
+                    let canonical_path =
+                        canonical_project_path(&project_path).unwrap_or(project_path.clone());
+                    register_recent_project(
+                        &mut app_config.borrow_mut(),
+                        &canonical_path,
+                        &project_display_name(&session.project),
+                    );
+                    let _ = FilesystemStorage::save_app_config(&app_config.borrow());
+                    recent_projects.set_vec(recent_project_items(&app_config.borrow().recent_projects));
+                    window.set_project_title(
+                        project_title_for_path(Some(&canonical_path), &session.project).into(),
+                    );
                     window.set_project_name_draft(session.project.name.clone().unwrap_or_default().into());
                     window.set_project_path_label(format!("Projeto: {}", project_path.display()).into());
                     window.set_status_message("Projeto salvo.".into());
@@ -482,6 +515,96 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 Err(error) => {
                     window.set_status_message(error.to_string().into());
                 }
+            }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let app_config = app_config.clone();
+        let project_session = project_session.clone();
+        let project_tracks = project_tracks.clone();
+        let project_streams = project_streams.clone();
+        let recent_projects = recent_projects.clone();
+        window.on_open_recent_project(move |index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let Some(recent) = app_config
+                .borrow()
+                .recent_projects
+                .get(index as usize)
+                .cloned()
+            else {
+                window.set_status_message("Projeto recente inválido.".into());
+                return;
+            };
+            if !recent.is_valid {
+                window.set_status_message(
+                    recent
+                        .invalid_reason
+                        .unwrap_or_else(|| "Projeto inválido.".to_string())
+                        .into(),
+                );
+                return;
+            }
+
+            let path = PathBuf::from(&recent.project_path);
+            match load_project_session(&path, &resolve_project_config_path(&path)) {
+                Ok(session) => {
+                    let canonical_path = canonical_project_path(&path).unwrap_or(path.clone());
+                    let title = project_title_for_path(Some(&canonical_path), &session.project);
+                    let display_name = project_display_name(&session.project);
+                    stop_project_runtime(&project_streams);
+                    replace_project_tracks(&project_tracks, &session.project);
+                    *project_session.borrow_mut() = Some(session);
+                    register_recent_project(
+                        &mut app_config.borrow_mut(),
+                        &canonical_path,
+                        &display_name,
+                    );
+                    let _ = FilesystemStorage::save_app_config(&app_config.borrow());
+                    recent_projects.set_vec(recent_project_items(&app_config.borrow().recent_projects));
+                    window.set_project_running(false);
+                    window.set_status_message("".into());
+                    window.set_project_title(title.into());
+                    window.set_project_name_draft(
+                        project_session
+                            .borrow()
+                            .as_ref()
+                            .and_then(|session| session.project.name.clone())
+                            .unwrap_or_default()
+                            .into(),
+                    );
+                    window.set_project_path_label(format!("Projeto: {}", canonical_path.display()).into());
+                    window.set_show_project_launcher(false);
+                    window.set_show_project_tracks(true);
+                    window.set_show_track_editor(false);
+                    window.set_show_project_settings(false);
+                }
+                Err(error) => {
+                    mark_recent_project_invalid(
+                        &mut app_config.borrow_mut(),
+                        &path,
+                        &error.to_string(),
+                    );
+                    let _ = FilesystemStorage::save_app_config(&app_config.borrow());
+                    recent_projects.set_vec(recent_project_items(&app_config.borrow().recent_projects));
+                    window.set_status_message("Projeto inválido. Corrija ou remova da lista.".into());
+                }
+            }
+        });
+    }
+
+    {
+        let app_config = app_config.clone();
+        let recent_projects = recent_projects.clone();
+        window.on_remove_recent_project(move |index| {
+            let mut config = app_config.borrow_mut();
+            if (index as usize) < config.recent_projects.len() {
+                config.recent_projects.remove(index as usize);
+                let _ = FilesystemStorage::save_app_config(&config);
+                recent_projects.set_vec(recent_project_items(&config.recent_projects));
             }
         });
     }
@@ -1097,6 +1220,133 @@ fn resolve_project_paths() -> ProjectPaths {
             }
         }),
     }
+}
+
+fn load_and_sync_app_config() -> Result<AppConfig> {
+    let mut config = FilesystemStorage::load_app_config().unwrap_or_default();
+    let changed = sync_recent_projects(&mut config);
+    if changed {
+        let _ = FilesystemStorage::save_app_config(&config);
+    }
+    Ok(config)
+}
+
+fn sync_recent_projects(config: &mut AppConfig) -> bool {
+    let original = config.clone();
+    let mut synced = Vec::new();
+    for recent in &config.recent_projects {
+        let path = PathBuf::from(&recent.project_path);
+        if !path.exists() {
+            continue;
+        }
+        let canonical_path = canonical_project_path(&path).unwrap_or(path.clone());
+        let canonical_path_string = canonical_path.to_string_lossy().to_string();
+        if synced
+            .iter()
+            .any(|current: &RecentProjectEntry| current.project_path == canonical_path_string)
+        {
+            continue;
+        }
+
+        match (YamlProjectRepository {
+            path: canonical_path.clone(),
+        })
+        .load_current_project()
+        {
+            Ok(project) => synced.push(RecentProjectEntry {
+                project_path: canonical_path_string,
+                project_name: project_display_name(&project),
+                is_valid: true,
+                invalid_reason: None,
+            }),
+            Err(_) => synced.push(RecentProjectEntry {
+                project_path: canonical_path_string,
+                project_name: if recent.project_name.trim().is_empty() {
+                    UNTITLED_PROJECT_NAME.to_string()
+                } else {
+                    recent.project_name.clone()
+                },
+                is_valid: false,
+                invalid_reason: Some("Projeto inválido".to_string()),
+            }),
+        }
+    }
+    config.recent_projects = synced;
+    *config != original
+}
+
+fn canonical_project_path(path: &PathBuf) -> Result<PathBuf> {
+    if path.exists() {
+        return Ok(fs::canonicalize(path)?);
+    }
+    if path.is_absolute() {
+        return Ok(path.clone());
+    }
+    Ok(env::current_dir()?.join(path))
+}
+
+fn register_recent_project(config: &mut AppConfig, path: &PathBuf, name: &str) {
+    let canonical_path = canonical_project_path(path).unwrap_or(path.clone());
+    let path_string = canonical_path.to_string_lossy().to_string();
+    config
+        .recent_projects
+        .retain(|current| current.project_path != path_string);
+    config.recent_projects.insert(
+        0,
+        RecentProjectEntry {
+            project_path: path_string,
+            project_name: if name.trim().is_empty() {
+                UNTITLED_PROJECT_NAME.to_string()
+            } else {
+                name.trim().to_string()
+            },
+            is_valid: true,
+            invalid_reason: None,
+        },
+    );
+}
+
+fn mark_recent_project_invalid(config: &mut AppConfig, path: &PathBuf, reason: &str) {
+    let canonical_path = canonical_project_path(path).unwrap_or(path.clone());
+    let path_string = canonical_path.to_string_lossy().to_string();
+    if let Some(recent) = config
+        .recent_projects
+        .iter_mut()
+        .find(|current| current.project_path == path_string)
+    {
+        recent.is_valid = false;
+        recent.invalid_reason = Some(if reason.trim().is_empty() {
+            "Projeto inválido".to_string()
+        } else {
+            reason.trim().to_string()
+        });
+    }
+}
+
+fn recent_project_items(recent_projects: &[RecentProjectEntry]) -> Vec<RecentProjectItem> {
+    recent_projects
+        .iter()
+        .map(|recent| RecentProjectItem {
+            title: if recent.project_name.trim().is_empty() {
+                UNTITLED_PROJECT_NAME.into()
+            } else {
+                recent.project_name.clone().into()
+            },
+            subtitle: recent.project_path.clone().into(),
+            is_valid: recent.is_valid,
+            invalid_reason: recent.invalid_reason.clone().unwrap_or_default().into(),
+        })
+        .collect()
+}
+
+fn project_display_name(project: &Project) -> String {
+    project
+        .name
+        .as_ref()
+        .map(|name| name.trim())
+        .filter(|name| !name.is_empty())
+        .map(|name| name.to_string())
+        .unwrap_or_else(|| UNTITLED_PROJECT_NAME.to_string())
 }
 
 fn parse_path_argument(flag: &str) -> Option<PathBuf> {

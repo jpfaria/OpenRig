@@ -1,6 +1,6 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
-import { ChannelOptionItem, DeviceSelectionItem, ProjectTrackItem } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectTrackItem, RecentProjectItem } from "models.slint";
 import { Header } from "blocks/blocks.slint";
 import { ProjectLauncherPage, ProjectSettingsPage, ProjectTracksPage, TrackEditorPage, WizardConfigPage } from "pages/pages.slint";
 
@@ -18,6 +18,7 @@ export component DesktopMain inherits Rectangle {
     in property <[DeviceSelectionItem]> input-devices;
     in property <[DeviceSelectionItem]> output-devices;
     in property <[ProjectTrackItem]> project-tracks;
+    in property <[RecentProjectItem]> recent-projects;
     in property <string> track-editor-title;
     in property <string> track-editor-save-label;
     in-out property <string> track-draft-name;
@@ -43,6 +44,8 @@ export component DesktopMain inherits Rectangle {
     callback close-project-settings();
     callback open-project-file();
     callback create-project-file();
+    callback open-recent-project(int);
+    callback remove-recent-project(int);
     callback back-to-launcher();
     callback add-track();
     callback save-project();
@@ -85,9 +88,12 @@ export component DesktopMain inherits Rectangle {
 
                 if root.show-project-launcher : ProjectLauncherPage {
                     project-path-label: root.project-path-label;
+                    recent-projects: root.recent-projects;
                     status-message: root.status-message;
                     open-project-file => { root.open-project-file(); }
                     create-project-file => { root.create-project-file(); }
+                    open-recent-project(index) => { root.open-recent-project(index); }
+                    remove-recent-project(index) => { root.remove-recent-project(index); }
                 }
 
                 if root.show-project-tracks : ProjectTracksPage {

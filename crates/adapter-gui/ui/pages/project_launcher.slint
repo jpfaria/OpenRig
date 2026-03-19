@@ -1,17 +1,22 @@
-import { VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { VerticalBox, HorizontalBox, ScrollView } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
+import { RecentProjectItem } from "../models.slint";
 import { SButton, SCard, SText } from "../modules/surrealism-ui/index.slint";
 import { Themes } from "../modules/surrealism-ui/use/index.slint";
+import { IconAction } from "../widgets/widgets.slint";
 
 export component ProjectLauncherPage inherits SCard {
     in property <string> project-path-label;
+    in property <[RecentProjectItem]> recent-projects;
     in-out property <string> status-message;
     callback open-project-file();
     callback create-project-file();
+    callback open-recent-project(int);
+    callback remove-recent-project(int);
 
     theme: Themes.Dark;
     card-width: 720px;
-    card-height: 320px;
+    card-height: 520px;
 
     VerticalBox {
         padding: Theme.spaces.xlarge;
@@ -57,6 +62,74 @@ export component ProjectLauncherPage inherits SCard {
                 card-height: 44px;
                 round: true;
                 clicked => { root.create-project-file(); }
+            }
+        }
+
+        if recent-projects.length > 0 : VerticalBox {
+            spacing: Theme.spaces.medium;
+
+            SText {
+                theme: Themes.Dark;
+                text: "Projetos recentes";
+                font-size: Theme.typo.caption.size;
+            }
+
+            ScrollView {
+                width: 640px;
+                height: 220px;
+
+                VerticalBox {
+                    spacing: Theme.spaces.small;
+
+                    for recent[index] in recent-projects : SCard {
+                        theme: Themes.Dark;
+                        card-width: 640px;
+                        card-height: 64px;
+
+                        HorizontalBox {
+                            padding: Theme.spaces.medium;
+                            spacing: Theme.spaces.medium;
+
+                            VerticalBox {
+                                spacing: 2px;
+
+                                SText {
+                                    theme: Themes.Dark;
+                                    text: recent.title;
+                                    font-size: Theme.typo.caption.size;
+                                    color: recent.is_valid ? Theme.palette.text-primary : #ff8c8c;
+                                }
+
+                                SText {
+                                    theme: Themes.Dark;
+                                    text: recent.subtitle;
+                                    font-size: 11px;
+                                    color: Theme.palette.text-muted;
+                                }
+
+                                if !recent.is_valid && recent.invalid_reason != "" : SText {
+                                    theme: Themes.Dark;
+                                    text: recent.invalid_reason;
+                                    font-size: 11px;
+                                    color: #ff8c8c;
+                                }
+                            }
+
+                            Rectangle { horizontal-stretch: 1; background: transparent; }
+
+                            IconAction {
+                                icon: @image-url("../assets/arrow-right.svg");
+                                enabled: recent.is_valid;
+                                clicked => { root.open-recent-project(index); }
+                            }
+
+                            IconAction {
+                                icon: @image-url("../assets/remove.svg");
+                                clicked => { root.remove-recent-project(index); }
+                            }
+                        }
+                    }
+                }
             }
         }
 

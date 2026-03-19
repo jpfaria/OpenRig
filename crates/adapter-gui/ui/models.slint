@@ -19,6 +19,13 @@ export struct ProjectTrackItem {
     stages: [TrackStageItem],
 }
 
+export struct RecentProjectItem {
+    title: string,
+    subtitle: string,
+    is_valid: bool,
+    invalid_reason: string,
+}
+
 export struct ChannelOptionItem {
     index: int,
     label: string,

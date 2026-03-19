@@ -1,4 +1,4 @@
-import { ChannelOptionItem, DeviceSelectionItem, ProjectTrackItem } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectTrackItem, RecentProjectItem } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
 
@@ -19,6 +19,7 @@ export component AppWindow inherits Window {
     in-out property <[DeviceSelectionItem]> input-devices;
     in-out property <[DeviceSelectionItem]> output-devices;
     in-out property <[ProjectTrackItem]> project-tracks;
+    in-out property <[RecentProjectItem]> recent-projects;
     in property <string> track-editor-title;
     in property <string> track-editor-save-label;
     in-out property <string> track-draft-name;
@@ -45,6 +46,8 @@ export component AppWindow inherits Window {
     callback close-project-settings();
     callback open-project-file();
     callback create-project-file();
+    callback open-recent-project(int);
+    callback remove-recent-project(int);
     callback back-to-launcher();
     callback add-track();
     callback save-project();
@@ -86,6 +89,7 @@ export component AppWindow inherits Window {
         input-devices: root.input-devices;
         output-devices: root.output-devices;
         project-tracks: root.project-tracks;
+        recent-projects: root.recent-projects;
         track-editor-title: root.track-editor-title;
         track-editor-save-label: root.track-editor-save-label;
         track-draft-name: root.track-draft-name;
@@ -111,6 +115,8 @@ export component AppWindow inherits Window {
         close-project-settings => { root.close-project-settings(); }
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }
+        open-recent-project(index) => { root.open-recent-project(index); }
+        remove-recent-project(index) => { root.remove-recent-project(index); }
         back-to-launcher => { root.back-to-launcher(); }
         add-track => { root.add-track(); }
         save-project => { root.save-project(); }
@@ -147,6 +153,7 @@ export component AppWindow inherits Window {
         input-devices: root.input-devices;
         output-devices: root.output-devices;
         project-tracks: root.project-tracks;
+        recent-projects: root.recent-projects;
         track-editor-title: root.track-editor-title;
         track-editor-save-label: root.track-editor-save-label;
         track-draft-name: root.track-draft-name;
@@ -172,6 +179,8 @@ export component AppWindow inherits Window {
         close-project-settings => { root.close-project-settings(); }
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }
+        open-recent-project(index) => { root.open-recent-project(index); }
+        remove-recent-project(index) => { root.remove-recent-project(index); }
         back-to-launcher => { root.back-to-launcher(); }
         add-track => { root.add-track(); }
         save-project => { root.save-project(); }
