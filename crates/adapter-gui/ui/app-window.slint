@@ -49,6 +49,7 @@ export component AppWindow inherits Window {
     callback add-track();
     callback save-project();
     callback configure-project();
+    callback remove-track(int);
     callback toggle-track-enabled(int);
     callback configure-track(int);
     callback save-track-preset(int);
@@ -114,6 +115,7 @@ export component AppWindow inherits Window {
         add-track => { root.add-track(); }
         save-project => { root.save-project(); }
         configure-project => { root.configure-project(); }
+        remove-track(index) => { root.remove-track(index); }
         toggle-track-enabled(index) => { root.toggle-track-enabled(index); }
         configure-track(index) => { root.configure-track(index); }
         save-track-preset(index) => { root.save-track-preset(index); }
@@ -174,6 +176,7 @@ export component AppWindow inherits Window {
         add-track => { root.add-track(); }
         save-project => { root.save-project(); }
         configure-project => { root.configure-project(); }
+        remove-track(index) => { root.remove-track(index); }
         toggle-track-enabled(index) => { root.toggle-track-enabled(index); }
         configure-track(index) => { root.configure-track(index); }
         save-track-preset(index) => { root.save-track-preset(index); }

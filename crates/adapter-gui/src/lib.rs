@@ -977,6 +977,41 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
         let project_streams = project_streams.clone();
+        window.on_remove_track(move |index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                window.set_status_message("Nenhum projeto carregado.".into());
+                return;
+            };
+            let index = index as usize;
+            if index >= session.setup.tracks.len() {
+                window.set_status_message("Track inválida.".into());
+                return;
+            }
+
+            session.setup.tracks.remove(index);
+            let was_running = project_streams.borrow().is_some();
+            if was_running {
+                stop_project_runtime(&project_streams);
+                window.set_project_running(false);
+            }
+            replace_project_tracks(&project_tracks, &session.setup);
+            window.set_status_message(if was_running {
+                restart_message("Track removida.")
+            } else {
+                "Track removida.".into()
+            });
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        let project_tracks = project_tracks.clone();
+        let project_streams = project_streams.clone();
         window.on_toggle_track_enabled(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;

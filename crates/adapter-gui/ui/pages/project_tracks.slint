@@ -60,6 +60,7 @@ export component ProjectTracksPage inherits SCard {
     callback add-track();
     callback save-project();
     callback configure-project();
+    callback remove-track(int);
     callback toggle-track-enabled(int);
     callback configure-track(int);
     callback save-track-preset(int);
@@ -173,6 +174,11 @@ export component ProjectTracksPage inherits SCard {
                             IconAction {
                                 icon: @image-url("../assets/gear.svg");
                                 clicked => { root.configure-track(index); }
+                            }
+
+                            IconAction {
+                                icon: @image-url("../assets/remove.svg");
+                                clicked => { root.remove-track(index); }
                             }
 
                             IconAction {
