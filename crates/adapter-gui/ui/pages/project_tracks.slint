@@ -1,89 +1,86 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { ProjectTrackItem } from "../models.slint";
-import { PrimaryActionButton } from "../widgets/widgets.slint";
+import { SButton, SCard, SText } from "../modules/surrealism-ui/index.slint";
+import { Themes } from "../modules/surrealism-ui/use/index.slint";
 
-export component ProjectTracksPage inherits Rectangle {
+export component ProjectTracksPage inherits SCard {
     in property <string> project-title;
     in property <[ProjectTrackItem]> tracks;
     in-out property <string> status-message;
     callback add-track();
 
-    width: 720px;
-    background: Theme.palette.card;
-    border-radius: 10px;
-    border-width: 1px;
-    border-color: Theme.palette.border-strong;
+    theme: Themes.Dark;
+    card-width: 720px;
     private property <length> row-height: 52px;
     private property <length> rows-height: (tracks.length * row-height) + (tracks.length > 0 ? (tracks.length - 1) * 10px : 0px);
-    height: 148px + rows-height;
+    card-height: 148px + rows-height;
 
     VerticalBox {
         padding: Theme.spaces.xlarge;
         spacing: Theme.spaces.large;
 
         HorizontalBox {
-            Text {
+            SText {
+                theme: Themes.Dark;
                 text: project-title;
-                color: Theme.palette.text-primary;
                 font-size: Theme.typo.section.size;
                 font-weight: Theme.typo.section.weight;
-                vertical-alignment: center;
             }
 
             Rectangle { horizontal-stretch: 1; background: transparent; }
 
-            PrimaryActionButton {
+            SButton {
+                theme: Themes.Primary;
                 text: "Add Track";
+                card-width: 136px;
+                card-height: 44px;
+                round: true;
                 clicked => { root.add-track(); }
             }
         }
 
-        if tracks.length == 0 : Text {
+        if tracks.length == 0 : SText {
+            theme: Themes.Dark;
             text: "Nenhuma track criada.";
-            color: Theme.palette.text-secondary;
             font-size: Theme.typo.caption.size;
         }
 
         if tracks.length > 0 : VerticalBox {
             spacing: 10px;
 
-            for track in tracks : Rectangle {
+            for track in tracks : SCard {
+                theme: Themes.Dark;
+                card-width: 640px;
                 height: root.row-height;
-                border-radius: 8px;
-                border-width: 1px;
-                border-color: Theme.palette.border-strong;
-                background: Theme.palette.card-secondary;
+                card-height: root.row-height;
 
                 HorizontalBox {
                     padding-left: 16px;
                     padding-right: 16px;
                     spacing: 12px;
 
-                    Text {
+                    SText {
+                        theme: Themes.Dark;
                         text: track.title;
-                        color: Theme.palette.text-primary;
                         font-size: Theme.typo.button.size;
-                        vertical-alignment: center;
                     }
 
                     Rectangle { horizontal-stretch: 1; background: transparent; }
 
-                    Text {
+                    SText {
+                        theme: Themes.Dark;
                         text: track.subtitle;
-                        color: Theme.palette.text-secondary;
                         font-size: Theme.typo.caption.size;
-                        vertical-alignment: center;
                     }
                 }
             }
         }
 
-        if status-message != "" : Text {
+        if status-message != "" : SText {
+            theme: Themes.Dark;
             text: status-message;
-            color: Theme.palette.text-secondary;
             font-size: Theme.typo.caption.size;
-            wrap: word-wrap;
         }
     }
 }

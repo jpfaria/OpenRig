@@ -1,42 +1,39 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
-import { PrimaryActionButton, SecondaryActionButton } from "../widgets/widgets.slint";
+import { SButton, SCard, SText } from "../modules/surrealism-ui/index.slint";
+import { Themes } from "../modules/surrealism-ui/use/index.slint";
 
-export component ProjectLauncherPage inherits Rectangle {
+export component ProjectLauncherPage inherits SCard {
     in property <string> project-path-label;
     in-out property <string> status-message;
     callback open-project-file();
     callback create-project-file();
 
-    width: 720px;
-    height: 320px;
-    background: Theme.palette.card;
-    border-radius: 10px;
-    border-width: 1px;
-    border-color: Theme.palette.border-strong;
+    theme: Themes.Dark;
+    card-width: 720px;
+    card-height: 320px;
 
     VerticalBox {
         padding: Theme.spaces.xlarge;
         spacing: Theme.spaces.large;
 
-        Text {
+        SText {
+            theme: Themes.Dark;
             text: "Projeto";
-            color: Theme.palette.text-primary;
             font-size: Theme.typo.section.size;
             font-weight: Theme.typo.section.weight;
         }
 
-        Text {
+        SText {
+            theme: Themes.Dark;
             text: "Escolha um projeto existente ou crie um novo.";
-            color: Theme.palette.text-secondary;
             font-size: Theme.typo.caption.size;
         }
 
-        Text {
+        SText {
+            theme: Themes.Dark;
             text: project-path-label;
-            color: Theme.palette.text-secondary;
             font-size: Theme.typo.caption.size;
-            wrap: word-wrap;
         }
 
         Rectangle { height: 8px; background: transparent; }
@@ -44,22 +41,29 @@ export component ProjectLauncherPage inherits Rectangle {
         HorizontalBox {
             spacing: Theme.spaces.medium;
 
-            SecondaryActionButton {
+            SButton {
+                theme: Themes.Dark;
                 text: "Abrir projeto";
+                card-width: 140px;
+                card-height: 44px;
+                round: true;
                 clicked => { root.open-project-file(); }
             }
 
-            PrimaryActionButton {
+            SButton {
+                theme: Themes.Primary;
                 text: "Criar novo projeto";
+                card-width: 170px;
+                card-height: 44px;
+                round: true;
                 clicked => { root.create-project-file(); }
             }
         }
 
-        if status-message != "" : Text {
+        if status-message != "" : SText {
+            theme: Themes.Dark;
             text: status-message;
-            color: Theme.palette.text-secondary;
             font-size: Theme.typo.caption.size;
-            wrap: word-wrap;
         }
     }
 }

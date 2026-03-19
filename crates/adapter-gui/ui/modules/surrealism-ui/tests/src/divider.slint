@@ -1,0 +1,27 @@
+import {SDivider} from "../../index.slint";
+import {Themes} from "../../use/index.slint";
+component TestDivider inherits Window {
+  height: 400px;
+  width: 400px;
+  background: #535353;
+  
+  SDivider {
+    y: 60px;
+    width: 380px;
+  }
+  SDivider {
+    y: 120px;
+    width: 380px;
+    theme:Themes.Error;
+  }
+  SDivider {
+    y: 180px;
+    width: 380px;
+    theme:Themes.Primary;
+  }
+  SDivider {
+    y: 240px;
+    width: 380px;
+    theme:Themes.Light;
+  }
+}

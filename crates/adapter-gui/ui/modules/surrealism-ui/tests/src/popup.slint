@@ -1,0 +1,26 @@
+import {SPopup,SButton} from "../../index.slint";
+import {Themes} from "../../use/index.slint";
+
+component TestPopup inherits Window {
+  height: 500px;
+  width: 500px;
+  background: #535353;
+ 
+  SButton {
+    
+    text: "show";
+    clicked => {
+      p.open();
+      
+      debug("sds1")
+    }
+  }
+ 
+
+  p:=SPopup {
+    SButton {
+      text: "you can add anything in Popup";
+      y: 160px;
+    }
+  }
+}

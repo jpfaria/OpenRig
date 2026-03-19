@@ -1,0 +1,77 @@
+import {SStar,SButton} from "../../index.slint";
+import {Themes,UseIcons} from "../../use/index.slint";
+
+component TestWindow inherits Window {
+  height: 400px;
+  width: 400px;
+  SStar {
+    y: 20px;
+  }
+  hs:=SStar {
+    score: 2.2;
+    y: 60px;
+    theme: Error;
+    
+  }
+  SButton {
+    y: 320px;
+    x:10px;
+    text: "add half";
+    clicked => {
+      hs.add-half();
+    }
+  }
+  SStar {
+    score : 3.8;
+    disabled: true;
+    y: 100px;
+    theme: Success;
+  }
+  os:=SStar {
+    max-score : 7;
+    score : 2.8;
+    y: 140px;
+    theme: Info;
+  }
+  SButton {
+    y: 320px;
+    x: 115px;
+    text: "add one";
+    clicked => {
+      os.add-one();
+    }
+  }
+  fs:=SStar {
+    max-score : 10;
+    score : 7.2;
+    y: 180px;
+    no-theme:true;
+    clicked(whole,half) => {
+      t.n = whole;
+      t.m = half;
+    }
+  }
+  SButton {
+    y: 320px;
+    x: 220px;
+    text: "get A";
+    clicked => {
+      fs.full();
+    }
+  }
+  SButton {
+    y: 320px;
+    x: 305px;
+    text: "clear";
+    clicked => {
+      fs.clear();
+    }
+  }
+  t:=Text{
+    y: 250px;
+    font-size: 18px;
+    in-out property <int> n;
+    in-out property <int> m;
+    text: "whole stars:"+ n + " half stars:" + m;
+  }
+}

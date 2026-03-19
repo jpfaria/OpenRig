@@ -1,0 +1,27 @@
+import {SText} from "../../index.slint";
+import {Themes} from "../../use/index.slint";
+
+
+component TestText inherits Window {
+  height: 400px;
+  width: 400px;
+  VerticalLayout {
+    padding: 20px;
+    SText {
+      color: #f60;
+      text: "use special color";
+    }
+    SText {
+      theme: Primary;
+      text: "use theme-primary";
+    }
+    SText {
+      theme: Dark;
+      text: "use theme-dark";
+    }
+    SText {
+      text: "中文文字";
+    
+    }
+  }
+}

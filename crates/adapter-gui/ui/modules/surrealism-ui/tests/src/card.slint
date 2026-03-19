@@ -1,0 +1,27 @@
+import {SButton,SCard,SText} from "../../index.slint";
+import {Themes} from "../../use/index.slint";
+
+
+export component TestCard inherits Window {
+  height: 400px;
+  width: 600px;
+  VerticalLayout {
+    padding: 20px;
+    spacing: 20px;
+    SCard {
+      SText {
+        text: "card";
+      }
+    }
+    SCard {
+      card-height: 36px;
+      card-width: 168px;
+      theme: Light;
+    }
+    SCard {
+      card-height: 124px;
+      width: 400px;
+      theme: Primary;
+    }
+  }
+}

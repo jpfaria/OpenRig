@@ -1,0 +1,42 @@
+import {SLink} from "../../index.slint";
+import {Themes,UseIcons} from "../../use/index.slint";
+
+component TestWindow inherits Window {
+  height: 420px;
+  width: 400px;
+  
+  SLink {
+    y: 100px;
+    theme: Dark;
+    text: "no underline";
+    underline: false;
+  }
+  SLink {
+    y: 160px;
+    funny:true;
+    theme: Warning;
+    text: "funny for link!";
+    font-italic : true;
+    font-weight: 200;
+    font-family : "Verdana";
+  }
+  SLink {
+    y: 220px;
+    theme: Primary;
+   
+    icon: @image-url("../../icons/share-one.svg");
+    text: "share one";
+  }
+  SLink {
+    y: 280px;
+    funny:true;
+    theme: Error;
+    icon : @image-url("../../icons/share-sys.svg");
+    font-size: 24px;
+    text: "share sys";
+    clicked(link-text)=>{
+      debug("share sys!")
+    }
+  }
+  
+}

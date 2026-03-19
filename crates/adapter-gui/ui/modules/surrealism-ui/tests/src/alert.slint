@@ -1,0 +1,24 @@
+import {SButton, SAlert} from "../../index.slint";
+import {ResultType,Themes,UseIcons} from "../../use/index.slint";
+
+component TestAlert inherits Window {
+  height: 400px;
+  width: 600px;
+  background: #535353;
+
+  SButton {
+    text: "show";
+    clicked => {
+      p.error("success->error!!!");
+      // p.help("help");
+      // p.info("success->info!!!");
+      debug("sds1")
+    }
+  }
+ 
+
+  p:=SAlert { 
+    result-type:ResultType.Success ;
+    text:"this is a success message!";
+  }
+}

@@ -1,0 +1,31 @@
+import {SHeader} from "../../index.slint";
+import {Themes} from "../../use/index.slint";
+
+component TestHeader inherits Window {
+  width: 600px;
+  height: 400px;
+  VerticalLayout {
+    padding: 30px;
+    spacing: 30px;
+    SHeader {
+      theme: Dark;
+    }
+    SHeader {
+      theme: Error;
+    }
+    SHeader {
+      theme: Primary;
+      font-size: 16px;
+      clicked(index,node)=>{
+        txt.index = index;
+        txt.name = node.label;
+      }
+    }
+    txt:=Text{
+      font-size: 18px;
+      in-out property <int> index;
+      in-out property <string> name;
+      text: "route-index:" + index + " route-name:" + name;
+    }
+  }
+}

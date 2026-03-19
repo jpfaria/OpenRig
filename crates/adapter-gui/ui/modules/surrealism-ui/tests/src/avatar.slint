@@ -1,0 +1,34 @@
+import {SAvatar} from "../../index.slint";
+import {ROOT-STYLES} from "../../themes/index.slint";
+
+component TestWindow inherits Window {
+  height: 400px;
+  width: 400px;
+  background: #F5F5F5;
+  VerticalLayout {
+    padding: 20px;
+    spacing: 20px;
+    SAvatar {
+    }
+    SAvatar {
+      avatar-size : ROOT-STYLES.sur-size.small * 2;
+      padding-type : Small;
+      theme: Primary;
+    }
+    SAvatar {
+      theme: Warning;
+    }
+    SAvatar {
+      avatar-size : ROOT-STYLES.sur-size.small * 2;
+      padding-type : Small;
+      theme: Error;
+    }
+    SAvatar {
+      avatar-size : ROOT-STYLES.sur-size.large * 2;
+      padding-type : Large;
+      theme: Dark;
+      avatar:@image-url("../../README/imgs/logo.png");
+    }
+  }
+  
+}

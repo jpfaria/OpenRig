@@ -1,0 +1,29 @@
+import {SDrawer,SButton, SInput} from "../../index.slint";
+import {Themes} from "../../use/index.slint";
+
+component TestDrawer inherits Window {
+  height: 800px;
+  width: 800px;
+  background: #535353;
+ 
+  SButton {
+    text: "show";
+    clicked => {
+      p.open();
+      
+      debug("sds1")
+    }
+  }
+ 
+
+  p:=SDrawer {
+    proportion:40%;
+    drawer-theme: Dark;
+    SButton {
+      theme: Dark;
+    }
+    SInput { 
+      y: 30px;
+     }
+  }
+}

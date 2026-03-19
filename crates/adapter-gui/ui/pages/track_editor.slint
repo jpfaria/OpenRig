@@ -1,9 +1,10 @@
-import { CheckBox, ComboBox, LineEdit, VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { CheckBox, ComboBox, VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "../theme.slint";
 import { ChannelOptionItem } from "../models.slint";
-import { PrimaryActionButton, SecondaryActionButton } from "../widgets/widgets.slint";
+import { SButton, SCard, SInput, SText } from "../modules/surrealism-ui/index.slint";
+import { Themes } from "../modules/surrealism-ui/use/index.slint";
 
-export component TrackEditorPage inherits Rectangle {
+export component TrackEditorPage inherits SCard {
     in-out property <string> track-name;
     in property <[string]> input-device-options;
     in property <[string]> output-device-options;
@@ -20,21 +21,18 @@ export component TrackEditorPage inherits Rectangle {
     callback save-track();
     callback cancel-track();
 
-    width: 720px;
-    background: Theme.palette.card;
-    border-radius: 10px;
-    border-width: 1px;
-    border-color: Theme.palette.border-strong;
+    theme: Themes.Dark;
+    card-width: 720px;
     private property <length> channels-block-height: 24px + (input-channel-options.length > output-channel-options.length ? input-channel-options.length : output-channel-options.length) * 28px;
-    height: 360px + channels-block-height;
+    card-height: 360px + channels-block-height;
 
     VerticalBox {
         padding: Theme.spaces.xlarge;
         spacing: Theme.spaces.large;
 
-        Text {
+        SText {
+            theme: Themes.Dark;
             text: "Nova track";
-            color: Theme.palette.text-primary;
             font-size: Theme.typo.section.size;
             font-weight: Theme.typo.section.weight;
         }
@@ -42,16 +40,18 @@ export component TrackEditorPage inherits Rectangle {
         VerticalBox {
             spacing: Theme.spaces.medium;
 
-            Text {
+            SText {
+                theme: Themes.Dark;
                 text: "Nome";
-                color: Theme.palette.text-secondary;
                 font-size: Theme.typo.caption.size;
             }
 
-            LineEdit {
+            SInput {
+                theme: Themes.Dark;
                 text: root.track-name;
-                edited => {
-                    root.update-track-name(self.text);
+                card-width: 320px;
+                changed(value) => {
+                    root.update-track-name(value);
                 }
             }
         }
@@ -62,9 +62,9 @@ export component TrackEditorPage inherits Rectangle {
             VerticalBox {
                 spacing: Theme.spaces.medium;
 
-                Text {
+                SText {
+                    theme: Themes.Dark;
                     text: "Dispositivo de entrada";
-                    color: Theme.palette.text-secondary;
                     font-size: Theme.typo.caption.size;
                 }
 
@@ -81,9 +81,9 @@ export component TrackEditorPage inherits Rectangle {
             VerticalBox {
                 spacing: Theme.spaces.medium;
 
-                Text {
+                SText {
+                    theme: Themes.Dark;
                     text: "Dispositivo de saída";
-                    color: Theme.palette.text-secondary;
                     font-size: Theme.typo.caption.size;
                 }
 
@@ -104,9 +104,9 @@ export component TrackEditorPage inherits Rectangle {
             VerticalBox {
                 spacing: Theme.spaces.small;
 
-                Text {
+                SText {
+                    theme: Themes.Dark;
                     text: "Canais de entrada";
-                    color: Theme.palette.text-secondary;
                     font-size: Theme.typo.caption.size;
                 }
 
@@ -123,9 +123,9 @@ export component TrackEditorPage inherits Rectangle {
             VerticalBox {
                 spacing: Theme.spaces.small;
 
-                Text {
+                SText {
+                    theme: Themes.Dark;
                     text: "Canais de saída";
-                    color: Theme.palette.text-secondary;
                     font-size: Theme.typo.caption.size;
                 }
 
@@ -140,11 +140,10 @@ export component TrackEditorPage inherits Rectangle {
             }
         }
 
-        if status-message != "" : Text {
+        if status-message != "" : SText {
+            theme: Themes.Dark;
             text: status-message;
-            color: Theme.palette.text-secondary;
             font-size: Theme.typo.caption.size;
-            wrap: word-wrap;
         }
 
         HorizontalBox {
@@ -152,13 +151,21 @@ export component TrackEditorPage inherits Rectangle {
 
             Rectangle { horizontal-stretch: 1; background: transparent; }
 
-            SecondaryActionButton {
+            SButton {
+                theme: Themes.Dark;
                 text: "Cancelar";
+                card-width: 120px;
+                card-height: 44px;
+                round: true;
                 clicked => { root.cancel-track(); }
             }
 
-            PrimaryActionButton {
+            SButton {
+                theme: Themes.Primary;
                 text: "Criar track";
+                card-width: 140px;
+                card-height: 44px;
+                round: true;
                 clicked => { root.save-track(); }
             }
         }
