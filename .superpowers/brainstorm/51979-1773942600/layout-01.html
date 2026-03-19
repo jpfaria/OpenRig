@@ -1,0 +1,193 @@
+<h2>Seção 1: Navegação e estrutura das telas</h2>
+<p class="subtitle">Proposta para o modo desktop: shell pensado para mouse, com conteúdo interno desenhado para ser reaproveitado no touch depois.</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">Tela de projeto: visão geral orientada a tracks</div>
+    <div class="mockup-body" style="background:
+      radial-gradient(circle at 70% 0%, rgba(56,189,248,.12), transparent 30%),
+      linear-gradient(180deg, #10131b 0%, #090b12 100%);
+      border-radius: 16px; min-height: 560px; color: #e5e7eb; padding: 18px; display: flex; flex-direction: column; gap: 14px;">
+
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;">Projeto</div>
+          <div style="font-size:24px;font-weight:700;">Main Set</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <div style="padding:8px 12px;border-radius:999px;background:#172033;color:#cbd5e1;font-size:12px;">I/O</div>
+          <div style="padding:8px 12px;border-radius:999px;background:#172033;color:#cbd5e1;font-size:12px;">Salvar</div>
+          <div style="padding:8px 12px;border-radius:999px;background:#0ea5e9;color:#eff6ff;font-size:12px;font-weight:700;">Nova track</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1.5fr .9fr;gap:14px;flex:1;">
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+            <div style="border-radius:16px;background:#111827;border:1px solid rgba(255,255,255,.05);padding:14px;">
+              <div style="display:flex;justify-content:space-between;align-items:start;">
+                <div>
+                  <div style="font-size:16px;font-weight:700;">Guitarra 1</div>
+                  <div style="font-size:12px;color:#94a3b8;">Scarlett In 1 → Out 1,2</div>
+                </div>
+                <div style="padding:6px 10px;border-radius:999px;background:#14532d;color:#bbf7d0;font-size:11px;">Ativa</div>
+              </div>
+              <div style="margin-top:12px;display:flex;gap:8px;align-items:end;">
+                <div style="flex:1;height:72px;border-radius:12px;background:linear-gradient(180deg,#374151,#1f2937);padding:8px;font-size:11px;">Gate</div>
+                <div style="flex:1.1;height:88px;border-radius:14px;background:linear-gradient(180deg,#2563eb,#1d4ed8);padding:8px;font-size:11px;color:#eff6ff;">Amp</div>
+                <div style="flex:1;height:72px;border-radius:12px;background:linear-gradient(180deg,#374151,#1f2937);padding:8px;font-size:11px;">Cab</div>
+                <div style="flex:1;height:72px;border-radius:12px;background:linear-gradient(180deg,#374151,#1f2937);padding:8px;font-size:11px;">Verb</div>
+              </div>
+            </div>
+            <div style="border-radius:16px;background:#111827;border:1px solid rgba(255,255,255,.05);padding:14px;">
+              <div style="display:flex;justify-content:space-between;align-items:start;">
+                <div>
+                  <div style="font-size:16px;font-weight:700;">Synth Pad</div>
+                  <div style="font-size:12px;color:#94a3b8;">USB In 3 → Out 1,2</div>
+                </div>
+                <div style="padding:6px 10px;border-radius:999px;background:#3f3f46;color:#e4e4e7;font-size:11px;">Bypass</div>
+              </div>
+              <div style="margin-top:12px;display:flex;gap:8px;align-items:end;">
+                <div style="flex:1;height:72px;border-radius:12px;background:linear-gradient(180deg,#374151,#1f2937);padding:8px;font-size:11px;">Comp</div>
+                <div style="flex:1.1;height:88px;border-radius:14px;background:linear-gradient(180deg,#7c3aed,#6d28d9);padding:8px;font-size:11px;color:#eff6ff;">Mod</div>
+                <div style="flex:1;height:72px;border-radius:12px;background:linear-gradient(180deg,#374151,#1f2937);padding:8px;font-size:11px;">Delay</div>
+                <div style="flex:1;height:72px;border-radius:12px;background:linear-gradient(180deg,#374151,#1f2937);padding:8px;font-size:11px;">Verb</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="border-radius:16px;background:#0f172a;border:1px solid rgba(255,255,255,.05);padding:14px;">
+            <div style="font-size:12px;color:#93a4b8;margin-bottom:10px;">Resumo do set</div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+              <div style="padding:10px;border-radius:12px;background:#111827;"><div style="font-size:11px;color:#94a3b8;">Tracks</div><div style="font-size:20px;font-weight:700;">4</div></div>
+              <div style="padding:10px;border-radius:12px;background:#111827;"><div style="font-size:11px;color:#94a3b8;">Ativas</div><div style="font-size:20px;font-weight:700;">3</div></div>
+              <div style="padding:10px;border-radius:12px;background:#111827;"><div style="font-size:11px;color:#94a3b8;">CPU</div><div style="font-size:20px;font-weight:700;">18%</div></div>
+              <div style="padding:10px;border-radius:12px;background:#111827;"><div style="font-size:11px;color:#94a3b8;">Latency</div><div style="font-size:20px;font-weight:700;">5.3ms</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="border-radius:16px;background:#111827;border:1px solid rgba(255,255,255,.05);padding:14px;display:flex;flex-direction:column;gap:12px;">
+          <div style="font-size:12px;color:#93a4b8;">Ações rápidas</div>
+          <div style="padding:12px;border-radius:14px;background:#0f172a;">Configurar projeto</div>
+          <div style="padding:12px;border-radius:14px;background:#0f172a;">Dispositivos de áudio</div>
+          <div style="padding:12px;border-radius:14px;background:#0f172a;">Mapeamento MIDI</div>
+          <div style="padding:12px;border-radius:14px;background:#0f172a;">Snapshots / presets</div>
+          <div style="margin-top:auto;padding:12px;border-radius:14px;background:#082f49;color:#bae6fd;">Abrir track em modo pedaleira</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">Tela de track: pedaleira em foco + drawer recolhível</div>
+    <div class="mockup-body" style="background:
+      radial-gradient(circle at 20% 0%, rgba(251,191,36,.10), transparent 22%),
+      linear-gradient(180deg, #10131b 0%, #090b12 100%);
+      border-radius: 16px; min-height: 560px; color: #e5e7eb; padding: 18px; display: flex; flex-direction: column; gap: 14px; position:relative; overflow:hidden;">
+
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;gap:10px;align-items:center;">
+          <div style="width:34px;height:34px;border-radius:10px;background:#172033;display:flex;align-items:center;justify-content:center;color:#cbd5e1;">←</div>
+          <div>
+            <div style="font-size:11px;color:#94a3b8;">Track aberta</div>
+            <div style="font-size:24px;font-weight:700;">Guitarra 1</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <div style="padding:8px 12px;border-radius:999px;background:#172033;color:#cbd5e1;font-size:12px;">Scene A</div>
+          <div style="padding:8px 12px;border-radius:999px;background:#0ea5e9;color:#eff6ff;font-size:12px;font-weight:700;">Salvar track</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1.2fr .85fr;gap:14px;flex:1;">
+        <div style="border-radius:16px;background:#111827;border:1px solid rgba(255,255,255,.05);padding:16px;display:flex;flex-direction:column;gap:14px;">
+          <div style="display:flex;justify-content:space-between;">
+            <div>
+              <div style="font-size:11px;color:#94a3b8;">Pedalboard</div>
+              <div style="font-size:16px;font-weight:700;">Modern Crunch</div>
+            </div>
+            <div style="padding:6px 10px;border-radius:999px;background:#14532d;color:#bbf7d0;font-size:11px;">Live</div>
+          </div>
+
+          <div style="display:flex;gap:12px;align-items:end;justify-content:space-between;min-height:240px;">
+            <div style="flex:1;border-radius:16px;background:linear-gradient(180deg,#374151,#1f2937);height:132px;padding:10px;display:flex;flex-direction:column;justify-content:space-between;">
+              <div style="font-size:11px;color:#cbd5e1;">Input</div>
+              <div style="display:flex;justify-content:center;gap:8px;"><div style="width:20px;height:20px;border-radius:50%;border:2px solid #9ca3af;"></div><div style="width:20px;height:20px;border-radius:50%;border:2px solid #9ca3af;"></div></div>
+              <div style="font-size:11px;color:#f8fafc;font-weight:700;">Gate</div>
+            </div>
+            <div style="flex:1.15;border-radius:18px;background:linear-gradient(180deg,#2563eb,#1d4ed8);height:168px;padding:12px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 14px 30px rgba(37,99,235,.24);">
+              <div style="font-size:11px;color:#dbeafe;">Drive / Amp</div>
+              <div style="display:flex;justify-content:space-between;"><div style="width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.72);"></div><div style="width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.72);"></div><div style="width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.72);"></div></div>
+              <div style="font-size:12px;color:#eff6ff;font-weight:700;">Brit 800</div>
+            </div>
+            <div style="flex:1;border-radius:16px;background:linear-gradient(180deg,#374151,#1f2937);height:132px;padding:10px;display:flex;flex-direction:column;justify-content:space-between;">
+              <div style="font-size:11px;color:#cbd5e1;">Cab</div>
+              <div style="display:flex;justify-content:center;gap:8px;"><div style="width:20px;height:20px;border-radius:50%;border:2px solid #9ca3af;"></div><div style="width:20px;height:20px;border-radius:50%;border:2px solid #9ca3af;"></div></div>
+              <div style="font-size:11px;color:#f8fafc;font-weight:700;">IR Loader</div>
+            </div>
+            <div style="flex:1;border-radius:16px;background:linear-gradient(180deg,#374151,#1f2937);height:132px;padding:10px;display:flex;flex-direction:column;justify-content:space-between;">
+              <div style="font-size:11px;color:#cbd5e1;">FX</div>
+              <div style="display:flex;justify-content:center;gap:8px;"><div style="width:20px;height:20px;border-radius:50%;border:2px solid #9ca3af;"></div><div style="width:20px;height:20px;border-radius:50%;border:2px solid #9ca3af;"></div></div>
+              <div style="font-size:11px;color:#f8fafc;font-weight:700;">Delay</div>
+            </div>
+          </div>
+
+          <div style="height:10px;border-radius:999px;background:#1f2937;overflow:hidden;">
+            <div style="width:62%;height:100%;background:linear-gradient(90deg,#f59e0b,#38bdf8);"></div>
+          </div>
+        </div>
+
+        <div style="border-radius:16px;background:#111827;border:1px solid rgba(255,255,255,.05);padding:14px;display:flex;flex-direction:column;gap:12px;">
+          <div style="font-size:12px;color:#93a4b8;">Edição rápida</div>
+          <div style="padding:12px;border-radius:14px;background:#0f172a;">
+            <div style="font-size:11px;color:#94a3b8;">Bloco selecionado</div>
+            <div style="font-size:18px;font-weight:700;">Brit 800</div>
+          </div>
+          <div style="display:flex;justify-content:space-between;color:#cbd5e1;font-size:11px;"><span>Gain</span><span>6.8</span></div>
+          <div style="height:8px;background:#1f2937;border-radius:999px;overflow:hidden;"><div style="width:68%;height:100%;background:#38bdf8;"></div></div>
+          <div style="display:flex;justify-content:space-between;color:#cbd5e1;font-size:11px;"><span>Tone</span><span>5.4</span></div>
+          <div style="height:8px;background:#1f2937;border-radius:999px;overflow:hidden;"><div style="width:54%;height:100%;background:#f59e0b;"></div></div>
+          <div style="display:flex;justify-content:space-between;color:#cbd5e1;font-size:11px;"><span>Level</span><span>6.1</span></div>
+          <div style="height:8px;background:#1f2937;border-radius:999px;overflow:hidden;"><div style="width:61%;height:100%;background:#22c55e;"></div></div>
+          <div style="margin-top:auto;padding:12px;border-radius:14px;background:#172033;color:#cbd5e1;">Abrir editor completo</div>
+        </div>
+      </div>
+
+      <div style="position:absolute;left:18px;top:86px;width:210px;height:430px;border-radius:18px;background:rgba(11,17,32,.96);border:1px solid rgba(255,255,255,.07);box-shadow:0 20px 50px rgba(0,0,0,.35);padding:14px;display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:13px;font-weight:700;">Tracks</div>
+          <div style="font-size:11px;color:#94a3b8;">Drawer</div>
+        </div>
+        <div style="padding:12px;border-radius:14px;background:#1d4ed8;color:#eff6ff;">
+          <div style="font-size:13px;font-weight:700;">Guitarra 1</div>
+          <div style="font-size:11px;color:#dbeafe;">Track aberta</div>
+        </div>
+        <div style="padding:12px;border-radius:14px;background:#111827;color:#e5e7eb;">Guitarra 2</div>
+        <div style="padding:12px;border-radius:14px;background:#111827;color:#e5e7eb;">Synth Pad</div>
+        <div style="padding:12px;border-radius:14px;background:#111827;color:#e5e7eb;">Ambient FX</div>
+        <div style="margin-top:auto;padding:12px;border-radius:14px;background:#0ea5e9;color:#eff6ff;font-weight:700;">Nova track</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="label">Resumo da proposta</div>
+  <div class="options">
+    <div class="option" data-choice="section-ok" onclick="toggleSelect(this)">
+      <div class="letter">OK</div>
+      <div class="content">
+        <h3>Essa estrutura faz sentido</h3>
+        <p>Projeto orientado a tracks; ao entrar na track, ela vira a pedaleira principal da tela e as demais ficam acessíveis via drawer recolhível.</p>
+      </div>
+    </div>
+    <div class="option" data-choice="section-adjust" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>Precisa ajustar a relação projeto x track</h3>
+        <p>O conceito está perto, mas a hierarquia entre visão geral e modo pedaleira ainda não está do jeito que você imagina.</p>
+      </div>
+    </div>
+  </div>
+</div>

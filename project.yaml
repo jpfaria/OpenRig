@@ -20,7 +20,7 @@ tracks:
 
       - type: delay
         model: digital_ping_pong
-        enabled: false
+        enabled: true
         params:
           time_ms: 200
           feedback: 0.6
