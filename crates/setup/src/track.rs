@@ -15,6 +15,8 @@ pub enum TrackOutputMixdown {
 pub struct Track {
     #[serde(skip)]
     pub id: TrackId,
+    #[serde(default)]
+    pub description: Option<String>,
     pub enabled: bool,
     pub input_device_id: DeviceId,
     pub input_channels: Vec<usize>,

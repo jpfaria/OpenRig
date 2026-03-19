@@ -14,6 +14,7 @@ use std::sync::{Arc, Mutex};
 pub struct AudioDeviceDescriptor {
     pub id: String,
     pub name: String,
+    pub channels: usize,
 }
 #[derive(Clone)]
 struct ResolvedInputDevice {
@@ -54,9 +55,14 @@ pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     let mut devices = Vec::new();
     for device in host.input_devices()? {
         let description = device.description()?;
+        let channels = device
+            .default_input_config()
+            .map(|config| config.channels() as usize)
+            .unwrap_or(0);
         devices.push(AudioDeviceDescriptor {
             id: device.id()?.to_string(),
             name: description.name().to_string(),
+            channels,
         });
     }
     devices.sort_by(|a, b| a.name.cmp(&b.name).then(a.id.cmp(&b.id)));
@@ -68,9 +74,14 @@ pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     let mut devices = Vec::new();
     for device in host.output_devices()? {
         let description = device.description()?;
+        let channels = device
+            .default_output_config()
+            .map(|config| config.channels() as usize)
+            .unwrap_or(0);
         devices.push(AudioDeviceDescriptor {
             id: device.id()?.to_string(),
             name: description.name().to_string(),
+            channels,
         });
     }
     devices.sort_by(|a, b| a.name.cmp(&b.name).then(a.id.cmp(&b.id)));

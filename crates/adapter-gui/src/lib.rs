@@ -1,11 +1,12 @@
 use anyhow::{anyhow, Result};
-use infra_cpal::{list_input_device_descriptors, list_output_device_descriptors};
+use domain::ids::{DeviceId, PresetId, TrackId};
+use infra_cpal::{list_input_device_descriptors, list_output_device_descriptors, AudioDeviceDescriptor};
 use infra_filesystem::{FilesystemStorage, GuiAudioDeviceSettings, GuiAudioSettings};
 use infra_yaml::YamlSetupRepository;
 use ports::SetupRepository;
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
-use slint::{Model, ModelRc, VecModel};
+use slint::{Model, ModelRc, SharedString, VecModel};
 use std::rc::Rc;
 use std::{cell::RefCell, env, fs, path::PathBuf};
 use setup::setup::Setup;
@@ -35,16 +36,29 @@ struct ProjectSession {
     setup: Setup,
 }
 
+#[derive(Debug, Clone)]
+struct TrackDraft {
+    name: String,
+    input_device_id: Option<String>,
+    output_device_id: Option<String>,
+    input_channels: Vec<usize>,
+    output_channels: Vec<usize>,
+}
+
 pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: InteractionMode) -> Result<()> {
     let context = UiRuntimeContext::new(runtime_mode, interaction_mode);
     let settings = FilesystemStorage::load_gui_audio_settings()?.unwrap_or_default();
     let needs_audio_setup = context.capabilities.can_select_audio_device && !settings.is_complete();
     let project_paths = resolve_project_paths();
     let project_session = Rc::new(RefCell::new(None::<ProjectSession>));
+    let track_draft = Rc::new(RefCell::new(None::<TrackDraft>));
+    let input_track_devices = Rc::new(list_input_device_descriptors()?);
+    let output_track_devices = Rc::new(list_output_device_descriptors()?);
 
     let window = AppWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     window.set_show_project_launcher(true);
     window.set_show_project_tracks(false);
+    window.set_show_track_editor(false);
     window.set_project_path_label("".into());
     window.set_project_title("Projeto".into());
     window.set_runtime_mode_label(context.runtime_mode.label().into());
@@ -107,6 +121,27 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
     window.set_output_devices(ModelRc::from(output_devices.clone()));
     let project_tracks = Rc::new(VecModel::from(Vec::<ProjectTrackItem>::new()));
     window.set_project_tracks(ModelRc::from(project_tracks.clone()));
+    let track_input_device_options = Rc::new(VecModel::from(
+        input_track_devices
+            .iter()
+            .map(|device| SharedString::from(device_label(device)))
+            .collect::<Vec<_>>(),
+    ));
+    let track_output_device_options = Rc::new(VecModel::from(
+        output_track_devices
+            .iter()
+            .map(|device| SharedString::from(device_label(device)))
+            .collect::<Vec<_>>(),
+    ));
+    let track_input_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
+    let track_output_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
+    window.set_track_input_device_options(ModelRc::from(track_input_device_options.clone()));
+    window.set_track_output_device_options(ModelRc::from(track_output_device_options.clone()));
+    window.set_track_input_channels(ModelRc::from(track_input_channels.clone()));
+    window.set_track_output_channels(ModelRc::from(track_output_channels.clone()));
+    window.set_selected_track_input_device_index(-1);
+    window.set_selected_track_output_device_index(-1);
+    window.set_track_draft_name("".into());
 
     {
         let input_devices = input_devices.clone();
@@ -255,6 +290,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                     window.set_project_path_label(format!("Projeto: {}", path.display()).into());
                     window.set_show_project_launcher(false);
                     window.set_show_project_tracks(true);
+                    window.set_show_track_editor(false);
                 }
                 Err(error) => {
                     window.set_status_message(error.to_string().into());
@@ -280,35 +316,249 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             window.set_project_path_label("Projeto em memória".into());
             window.set_show_project_launcher(false);
             window.set_show_project_tracks(true);
+            window.set_show_track_editor(false);
         });
     }
 
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
-        let project_tracks = project_tracks.clone();
+        let track_draft = track_draft.clone();
+        let input_track_devices = input_track_devices.clone();
+        let output_track_devices = output_track_devices.clone();
+        let track_input_channels = track_input_channels.clone();
+        let track_output_channels = track_output_channels.clone();
         window.on_add_track(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let mut borrow = project_session.borrow_mut();
-            let Some(session) = borrow.as_mut() else {
+            let borrow = project_session.borrow();
+            let Some(session) = borrow.as_ref() else {
                 window.set_status_message("Nenhum projeto carregado.".into());
                 return;
             };
-            let next_index = session.setup.tracks.len() + 1;
+            let draft = create_track_draft(&session.setup, &input_track_devices, &output_track_devices);
+            *track_draft.borrow_mut() = Some(draft.clone());
+            replace_channel_options(
+                &track_input_channels,
+                build_input_channel_items(&draft, &session.setup, &input_track_devices),
+            );
+            replace_channel_options(
+                &track_output_channels,
+                build_output_channel_items(&draft, &output_track_devices),
+            );
+            window.set_track_draft_name(draft.name.clone().into());
+            window.set_selected_track_input_device_index(selected_device_index(
+                &input_track_devices,
+                draft.input_device_id.as_deref(),
+            ));
+            window.set_selected_track_output_device_index(selected_device_index(
+                &output_track_devices,
+                draft.output_device_id.as_deref(),
+            ));
+            window.set_status_message("".into());
+            window.set_show_project_tracks(false);
+            window.set_show_track_editor(true);
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let track_draft = track_draft.clone();
+        window.on_update_track_name(move |value| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            if let Some(draft) = track_draft.borrow_mut().as_mut() {
+                draft.name = value.to_string();
+                window.set_track_draft_name(value);
+            }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let track_draft = track_draft.clone();
+        let project_session = project_session.clone();
+        let input_track_devices = input_track_devices.clone();
+        let track_input_channels = track_input_channels.clone();
+        window.on_select_track_input_device(move |value| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let mut draft_borrow = track_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else {
+                return;
+            };
+            let Some(device) = input_track_devices.iter().find(|device| value == device_label(device)) else {
+                return;
+            };
+            draft.input_device_id = Some(device.id.clone());
+            draft.input_channels.clear();
+            if let Some(session) = project_session.borrow().as_ref() {
+                replace_channel_options(
+                    &track_input_channels,
+                    build_input_channel_items(draft, &session.setup, &input_track_devices),
+                );
+            }
+            window.set_selected_track_input_device_index(selected_device_index(
+                &input_track_devices,
+                draft.input_device_id.as_deref(),
+            ));
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let track_draft = track_draft.clone();
+        let output_track_devices = output_track_devices.clone();
+        let track_output_channels = track_output_channels.clone();
+        window.on_select_track_output_device(move |value| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let mut draft_borrow = track_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else {
+                return;
+            };
+            let Some(device) = output_track_devices.iter().find(|device| value == device_label(device)) else {
+                return;
+            };
+            draft.output_device_id = Some(device.id.clone());
+            draft.output_channels.clear();
+            replace_channel_options(
+                &track_output_channels,
+                build_output_channel_items(draft, &output_track_devices),
+            );
+            window.set_selected_track_output_device_index(selected_device_index(
+                &output_track_devices,
+                draft.output_device_id.as_deref(),
+            ));
+        });
+    }
+
+    {
+        let track_draft = track_draft.clone();
+        let project_session = project_session.clone();
+        let input_track_devices = input_track_devices.clone();
+        let track_input_channels = track_input_channels.clone();
+        window.on_toggle_track_input_channel(move |index, selected| {
+            let mut draft_borrow = track_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else {
+                return;
+            };
+            let channel = index as usize;
+            if selected {
+                if !draft.input_channels.contains(&channel) {
+                    draft.input_channels.push(channel);
+                    draft.input_channels.sort_unstable();
+                }
+            } else {
+                draft.input_channels.retain(|current| *current != channel);
+            }
+            if let Some(session) = project_session.borrow().as_ref() {
+                replace_channel_options(
+                    &track_input_channels,
+                    build_input_channel_items(draft, &session.setup, &input_track_devices),
+                );
+            }
+        });
+    }
+
+    {
+        let track_draft = track_draft.clone();
+        let output_track_devices = output_track_devices.clone();
+        let track_output_channels = track_output_channels.clone();
+        window.on_toggle_track_output_channel(move |index, selected| {
+            let mut draft_borrow = track_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else {
+                return;
+            };
+            let channel = index as usize;
+            if selected {
+                if !draft.output_channels.contains(&channel) {
+                    draft.output_channels.push(channel);
+                    draft.output_channels.sort_unstable();
+                }
+            } else {
+                draft.output_channels.retain(|current| *current != channel);
+            }
+            replace_channel_options(
+                &track_output_channels,
+                build_output_channel_items(draft, &output_track_devices),
+            );
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let track_draft = track_draft.clone();
+        let project_session = project_session.clone();
+        let project_tracks = project_tracks.clone();
+        window.on_save_track(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                window.set_status_message("Nenhum projeto carregado.".into());
+                return;
+            };
+            let draft = match track_draft.borrow().clone() {
+                Some(draft) => draft,
+                None => {
+                    window.set_status_message("Nenhuma track em edição.".into());
+                    return;
+                }
+            };
+            if draft.input_device_id.is_none() {
+                window.set_status_message("Selecione o dispositivo de entrada.".into());
+                return;
+            }
+            if draft.output_device_id.is_none() {
+                window.set_status_message("Selecione o dispositivo de saída.".into());
+                return;
+            }
+            if draft.input_channels.is_empty() {
+                window.set_status_message("Selecione pelo menos um canal de entrada.".into());
+                return;
+            }
+            if draft.output_channels.is_empty() {
+                window.set_status_message("Selecione pelo menos um canal de saída.".into());
+                return;
+            }
+
+            let next_index = session.setup.tracks.len();
             session.setup.tracks.push(Track {
-                id: domain::ids::TrackId(format!("track:{}", next_index - 1)),
+                id: TrackId(format!("track:{}", next_index)),
+                description: normalized_track_description(&draft.name),
                 enabled: true,
-                input_device_id: domain::ids::DeviceId(String::new()),
-                input_channels: Vec::new(),
-                output_device_id: domain::ids::DeviceId(String::new()),
-                output_channels: Vec::new(),
-                preset_id: domain::ids::PresetId(String::new()),
+                input_device_id: DeviceId(draft.input_device_id.unwrap_or_default()),
+                input_channels: draft.input_channels,
+                output_device_id: DeviceId(draft.output_device_id.unwrap_or_default()),
+                output_channels: draft.output_channels,
+                preset_id: PresetId(String::new()),
                 output_mixdown: TrackOutputMixdown::Average,
             });
             replace_project_tracks(&project_tracks, &session.setup);
+            *track_draft.borrow_mut() = None;
             window.set_status_message("".into());
+            window.set_show_track_editor(false);
+            window.set_show_project_tracks(true);
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let track_draft = track_draft.clone();
+        window.on_cancel_track(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            *track_draft.borrow_mut() = None;
+            window.set_status_message("".into());
+            window.set_show_track_editor(false);
+            window.set_show_project_tracks(true);
         });
     }
 
@@ -391,7 +641,11 @@ fn replace_project_tracks(model: &Rc<VecModel<ProjectTrackItem>>, setup: &Setup)
         .iter()
         .enumerate()
         .map(|(index, track)| ProjectTrackItem {
-            title: format!("Track {}", index + 1).into(),
+            title: track
+                .description
+                .clone()
+                .unwrap_or_else(|| format!("Track {}", index + 1))
+                .into(),
             subtitle: if track.preset_id.0.is_empty() {
                 "sem preset".into()
             } else {
@@ -415,6 +669,92 @@ fn project_title_for_path(project_path: Option<&PathBuf>, setup: &Setup) -> Stri
                 "Projeto".to_string()
             }
         })
+}
+
+fn device_label(device: &AudioDeviceDescriptor) -> String {
+    format!("{} ({})", device.name, device.id)
+}
+
+fn selected_device_index(devices: &[AudioDeviceDescriptor], selected_id: Option<&str>) -> i32 {
+    selected_id
+        .and_then(|selected_id| devices.iter().position(|device| device.id == selected_id))
+        .map(|index| index as i32)
+        .unwrap_or(-1)
+}
+
+fn create_track_draft(
+    setup: &Setup,
+    input_devices: &[AudioDeviceDescriptor],
+    output_devices: &[AudioDeviceDescriptor],
+) -> TrackDraft {
+    TrackDraft {
+        name: format!("Track {}", setup.tracks.len() + 1),
+        input_device_id: input_devices.first().map(|device| device.id.clone()),
+        output_device_id: output_devices.first().map(|device| device.id.clone()),
+        input_channels: Vec::new(),
+        output_channels: Vec::new(),
+    }
+}
+
+fn build_input_channel_items(
+    draft: &TrackDraft,
+    setup: &Setup,
+    input_devices: &[AudioDeviceDescriptor],
+) -> Vec<ChannelOptionItem> {
+    let Some(device_id) = draft.input_device_id.as_ref() else {
+        return Vec::new();
+    };
+    let Some(device) = input_devices.iter().find(|device| &device.id == device_id) else {
+        return Vec::new();
+    };
+    let used_channels = setup
+        .tracks
+        .iter()
+        .filter(|track| track.enabled && track.input_device_id.0 == *device_id)
+        .flat_map(|track| track.input_channels.iter().copied())
+        .collect::<Vec<_>>();
+
+    (0..device.channels)
+        .map(|channel| ChannelOptionItem {
+            index: channel as i32,
+            label: format!("Canal {}", channel + 1).into(),
+            selected: draft.input_channels.contains(&channel),
+            available: !used_channels.contains(&channel),
+        })
+        .collect()
+}
+
+fn build_output_channel_items(
+    draft: &TrackDraft,
+    output_devices: &[AudioDeviceDescriptor],
+) -> Vec<ChannelOptionItem> {
+    let Some(device_id) = draft.output_device_id.as_ref() else {
+        return Vec::new();
+    };
+    let Some(device) = output_devices.iter().find(|device| &device.id == device_id) else {
+        return Vec::new();
+    };
+    (0..device.channels)
+        .map(|channel| ChannelOptionItem {
+            index: channel as i32,
+            label: format!("Canal {}", channel + 1).into(),
+            selected: draft.output_channels.contains(&channel),
+            available: true,
+        })
+        .collect()
+}
+
+fn replace_channel_options(model: &Rc<VecModel<ChannelOptionItem>>, items: Vec<ChannelOptionItem>) {
+    model.set_vec(items);
+}
+
+fn normalized_track_description(name: &str) -> Option<String> {
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
 }
 
 fn toggle_device_row(model: &Rc<VecModel<DeviceSelectionItem>>, index: usize, selected: bool) {

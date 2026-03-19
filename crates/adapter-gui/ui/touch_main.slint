@@ -1,12 +1,13 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
-import { DeviceSelectionItem, ProjectTrackItem } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectTrackItem } from "models.slint";
 import { Header } from "blocks/blocks.slint";
-import { ProjectLauncherPage, ProjectTracksPage, WizardConfigPage } from "pages/pages.slint";
+import { ProjectLauncherPage, ProjectTracksPage, TrackEditorPage, WizardConfigPage } from "pages/pages.slint";
 
 export component TouchMain inherits Rectangle {
     in property <bool> show-project-launcher;
     in property <bool> show-project-tracks;
+    in property <bool> show-track-editor;
     in property <string> project-path-label;
     in property <string> project-title;
     in property <bool> show-audio-setup;
@@ -14,6 +15,13 @@ export component TouchMain inherits Rectangle {
     in property <[DeviceSelectionItem]> input-devices;
     in property <[DeviceSelectionItem]> output-devices;
     in property <[ProjectTrackItem]> project-tracks;
+    in-out property <string> track-draft-name;
+    in property <[string]> track-input-device-options;
+    in property <[string]> track-output-device-options;
+    in property <int> selected-track-input-device-index;
+    in property <int> selected-track-output-device-index;
+    in property <[ChannelOptionItem]> track-input-channels;
+    in property <[ChannelOptionItem]> track-output-channels;
     in-out property <string> status-message;
     in property <[string]> sample-rate-options;
     in property <[string]> buffer-size-options;
@@ -29,6 +37,13 @@ export component TouchMain inherits Rectangle {
     callback open-project-file();
     callback create-project-file();
     callback add-track();
+    callback update-track-name(string);
+    callback select-track-input-device(string);
+    callback select-track-output-device(string);
+    callback toggle-track-input-channel(int, bool);
+    callback toggle-track-output-channel(int, bool);
+    callback save-track();
+    callback cancel-track();
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
     private property <length> wizard-page-height: 24px + 20px + 24px + ((visible-device-count * 44px) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px)) + 24px + 44px + 24px;
 
@@ -48,7 +63,7 @@ export component TouchMain inherits Rectangle {
 
             Rectangle {
                 width: 720px;
-                height: root.show-project-launcher ? 320px : root.show-project-tracks ? 360px : root.wizard-page-height;
+                height: root.show-project-launcher ? 320px : root.show-track-editor ? 520px : root.show-project-tracks ? 360px : root.wizard-page-height;
                 background: transparent;
 
                 if root.show-project-launcher : ProjectLauncherPage {
@@ -65,7 +80,25 @@ export component TouchMain inherits Rectangle {
                     add-track => { root.add-track(); }
                 }
 
-                if !root.show-project-launcher && !root.show-project-tracks : WizardConfigPage {
+                if root.show-track-editor : TrackEditorPage {
+                    track-name: root.track-draft-name;
+                    input-device-options: root.track-input-device-options;
+                    output-device-options: root.track-output-device-options;
+                    selected-input-device-index: root.selected-track-input-device-index;
+                    selected-output-device-index: root.selected-track-output-device-index;
+                    input-channel-options: root.track-input-channels;
+                    output-channel-options: root.track-output-channels;
+                    status-message: root.status-message;
+                    update-track-name(value) => { root.update-track-name(value); }
+                    select-input-device(value) => { root.select-track-input-device(value); }
+                    select-output-device(value) => { root.select-track-output-device(value); }
+                    toggle-input-channel(index, selected) => { root.toggle-track-input-channel(index, selected); }
+                    toggle-output-channel(index, selected) => { root.toggle-track-output-channel(index, selected); }
+                    save-track => { root.save-track(); }
+                    cancel-track => { root.cancel-track(); }
+                }
+
+                if !root.show-project-launcher && !root.show-project-tracks && !root.show-track-editor : WizardConfigPage {
                     wizard-step: root.wizard-step;
                     input-devices: root.input-devices;
                     output-devices: root.output-devices;

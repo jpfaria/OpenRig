@@ -198,6 +198,8 @@ impl From<DeviceSettingsYaml> for DeviceSettings {
 
 #[derive(Debug, Deserialize)]
 struct TrackYaml {
+    #[serde(default)]
+    description: Option<String>,
     #[serde(default = "default_enabled")]
     enabled: bool,
     input_device_id: String,
@@ -214,6 +216,7 @@ impl TrackYaml {
         let track_id = generated_track_id(index);
         Ok(Track {
             id: track_id.clone(),
+            description: self.description,
             enabled: self.enabled,
             input_device_id: DeviceId(self.input_device_id),
             input_channels: self.input_channels,

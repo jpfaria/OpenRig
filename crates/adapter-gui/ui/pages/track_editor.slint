@@ -1,0 +1,166 @@
+import { CheckBox, ComboBox, LineEdit, VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { ChannelOptionItem } from "../models.slint";
+import { PrimaryActionButton, SecondaryActionButton } from "../widgets/widgets.slint";
+
+export component TrackEditorPage inherits Rectangle {
+    in-out property <string> track-name;
+    in property <[string]> input-device-options;
+    in property <[string]> output-device-options;
+    in property <int> selected-input-device-index;
+    in property <int> selected-output-device-index;
+    in property <[ChannelOptionItem]> input-channel-options;
+    in property <[ChannelOptionItem]> output-channel-options;
+    in-out property <string> status-message;
+    callback update-track-name(string);
+    callback select-input-device(string);
+    callback select-output-device(string);
+    callback toggle-input-channel(int, bool);
+    callback toggle-output-channel(int, bool);
+    callback save-track();
+    callback cancel-track();
+
+    width: 720px;
+    background: Theme.palette.card;
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: Theme.palette.border-strong;
+    private property <length> channels-block-height: 24px + (input-channel-options.length > output-channel-options.length ? input-channel-options.length : output-channel-options.length) * 28px;
+    height: 360px + channels-block-height;
+
+    VerticalBox {
+        padding: Theme.spaces.xlarge;
+        spacing: Theme.spaces.large;
+
+        Text {
+            text: "Nova track";
+            color: Theme.palette.text-primary;
+            font-size: Theme.typo.section.size;
+            font-weight: Theme.typo.section.weight;
+        }
+
+        VerticalBox {
+            spacing: Theme.spaces.medium;
+
+            Text {
+                text: "Nome";
+                color: Theme.palette.text-secondary;
+                font-size: Theme.typo.caption.size;
+            }
+
+            LineEdit {
+                text: root.track-name;
+                edited => {
+                    root.update-track-name(self.text);
+                }
+            }
+        }
+
+        HorizontalBox {
+            spacing: Theme.spaces.large;
+
+            VerticalBox {
+                spacing: Theme.spaces.medium;
+
+                Text {
+                    text: "Dispositivo de entrada";
+                    color: Theme.palette.text-secondary;
+                    font-size: Theme.typo.caption.size;
+                }
+
+                ComboBox {
+                    min-width: 320px;
+                    model: root.input-device-options;
+                    current-index: root.selected-input-device-index;
+                    selected(value) => {
+                        root.select-input-device(value);
+                    }
+                }
+            }
+
+            VerticalBox {
+                spacing: Theme.spaces.medium;
+
+                Text {
+                    text: "Dispositivo de saída";
+                    color: Theme.palette.text-secondary;
+                    font-size: Theme.typo.caption.size;
+                }
+
+                ComboBox {
+                    min-width: 320px;
+                    model: root.output-device-options;
+                    current-index: root.selected-output-device-index;
+                    selected(value) => {
+                        root.select-output-device(value);
+                    }
+                }
+            }
+        }
+
+        HorizontalBox {
+            spacing: Theme.spaces.large;
+
+            VerticalBox {
+                spacing: Theme.spaces.small;
+
+                Text {
+                    text: "Canais de entrada";
+                    color: Theme.palette.text-secondary;
+                    font-size: Theme.typo.caption.size;
+                }
+
+                for channel in root.input-channel-options : CheckBox {
+                    text: channel.label;
+                    checked: channel.selected;
+                    enabled: channel.available;
+                    toggled => {
+                        root.toggle-input-channel(channel.index, self.checked);
+                    }
+                }
+            }
+
+            VerticalBox {
+                spacing: Theme.spaces.small;
+
+                Text {
+                    text: "Canais de saída";
+                    color: Theme.palette.text-secondary;
+                    font-size: Theme.typo.caption.size;
+                }
+
+                for channel in root.output-channel-options : CheckBox {
+                    text: channel.label;
+                    checked: channel.selected;
+                    enabled: channel.available;
+                    toggled => {
+                        root.toggle-output-channel(channel.index, self.checked);
+                    }
+                }
+            }
+        }
+
+        if status-message != "" : Text {
+            text: status-message;
+            color: Theme.palette.text-secondary;
+            font-size: Theme.typo.caption.size;
+            wrap: word-wrap;
+        }
+
+        HorizontalBox {
+            spacing: Theme.spaces.medium;
+
+            Rectangle { horizontal-stretch: 1; background: transparent; }
+
+            SecondaryActionButton {
+                text: "Cancelar";
+                clicked => { root.cancel-track(); }
+            }
+
+            PrimaryActionButton {
+                text: "Criar track";
+                clicked => { root.save-track(); }
+            }
+        }
+    }
+}

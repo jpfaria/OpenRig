@@ -1,10 +1,11 @@
-import { DeviceSelectionItem, ProjectTrackItem } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectTrackItem } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
 
 export component AppWindow inherits Window {
     in property <bool> show-project-launcher;
     in property <bool> show-project-tracks;
+    in property <bool> show-track-editor;
     in property <string> project-path-label;
     in property <string> project-title;
     in property <string> runtime-mode-label;
@@ -15,6 +16,13 @@ export component AppWindow inherits Window {
     in-out property <[DeviceSelectionItem]> input-devices;
     in-out property <[DeviceSelectionItem]> output-devices;
     in-out property <[ProjectTrackItem]> project-tracks;
+    in-out property <string> track-draft-name;
+    in property <[string]> track-input-device-options;
+    in property <[string]> track-output-device-options;
+    in property <int> selected-track-input-device-index;
+    in property <int> selected-track-output-device-index;
+    in property <[ChannelOptionItem]> track-input-channels;
+    in property <[ChannelOptionItem]> track-output-channels;
     in-out property <string> status-message;
     in property <[string]> sample-rate-options: ["44100", "48000", "88200", "96000"];
     in property <[string]> buffer-size-options: ["32", "64", "128", "256", "512", "1024"];
@@ -31,6 +39,13 @@ export component AppWindow inherits Window {
     callback open-project-file();
     callback create-project-file();
     callback add-track();
+    callback update-track-name(string);
+    callback select-track-input-device(string);
+    callback select-track-output-device(string);
+    callback toggle-track-input-channel(int, bool);
+    callback toggle-track-output-channel(int, bool);
+    callback save-track();
+    callback cancel-track();
     title: "OpenRig";
     min-width: 960px;
     min-height: 720px;
@@ -43,6 +58,7 @@ export component AppWindow inherits Window {
         height: 100%;
         show-project-launcher: root.show-project-launcher;
         show-project-tracks: root.show-project-tracks;
+        show-track-editor: root.show-track-editor;
         project-path-label: root.project-path-label;
         project-title: root.project-title;
         show-audio-setup: root.show-audio-setup;
@@ -50,6 +66,13 @@ export component AppWindow inherits Window {
         input-devices: root.input-devices;
         output-devices: root.output-devices;
         project-tracks: root.project-tracks;
+        track-draft-name: root.track-draft-name;
+        track-input-device-options: root.track-input-device-options;
+        track-output-device-options: root.track-output-device-options;
+        selected-track-input-device-index: root.selected-track-input-device-index;
+        selected-track-output-device-index: root.selected-track-output-device-index;
+        track-input-channels: root.track-input-channels;
+        track-output-channels: root.track-output-channels;
         status-message: root.status-message;
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
@@ -65,6 +88,13 @@ export component AppWindow inherits Window {
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }
         add-track => { root.add-track(); }
+        update-track-name(value) => { root.update-track-name(value); }
+        select-track-input-device(value) => { root.select-track-input-device(value); }
+        select-track-output-device(value) => { root.select-track-output-device(value); }
+        toggle-track-input-channel(index, selected) => { root.toggle-track-input-channel(index, selected); }
+        toggle-track-output-channel(index, selected) => { root.toggle-track-output-channel(index, selected); }
+        save-track => { root.save-track(); }
+        cancel-track => { root.cancel-track(); }
     }
 
     if touch-optimized : TouchMain {
@@ -72,6 +102,7 @@ export component AppWindow inherits Window {
         height: 100%;
         show-project-launcher: root.show-project-launcher;
         show-project-tracks: root.show-project-tracks;
+        show-track-editor: root.show-track-editor;
         project-path-label: root.project-path-label;
         project-title: root.project-title;
         show-audio-setup: root.show-audio-setup;
@@ -79,6 +110,13 @@ export component AppWindow inherits Window {
         input-devices: root.input-devices;
         output-devices: root.output-devices;
         project-tracks: root.project-tracks;
+        track-draft-name: root.track-draft-name;
+        track-input-device-options: root.track-input-device-options;
+        track-output-device-options: root.track-output-device-options;
+        selected-track-input-device-index: root.selected-track-input-device-index;
+        selected-track-output-device-index: root.selected-track-output-device-index;
+        track-input-channels: root.track-input-channels;
+        track-output-channels: root.track-output-channels;
         status-message: root.status-message;
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
@@ -94,5 +132,12 @@ export component AppWindow inherits Window {
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }
         add-track => { root.add-track(); }
+        update-track-name(value) => { root.update-track-name(value); }
+        select-track-input-device(value) => { root.select-track-input-device(value); }
+        select-track-output-device(value) => { root.select-track-output-device(value); }
+        toggle-track-input-channel(index, selected) => { root.toggle-track-input-channel(index, selected); }
+        toggle-track-output-channel(index, selected) => { root.toggle-track-output-channel(index, selected); }
+        save-track => { root.save-track(); }
+        cancel-track => { root.cancel-track(); }
     }
 }
