@@ -1,10 +1,13 @@
-import { VerticalBox } from "std-widgets.slint";
+import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { DeviceSelectionItem } from "models.slint";
 import { Header } from "blocks/blocks.slint";
-import { WizardConfigPage } from "pages/pages.slint";
+import { ProjectLauncherPage, WizardConfigPage } from "pages/pages.slint";
 
 export component DesktopMain inherits Rectangle {
+    in property <bool> show-project-launcher;
+    in property <bool> default-project-available;
+    in property <string> project-path-label;
     in property <bool> show-audio-setup;
     in-out property <int> wizard-step;
     in property <[DeviceSelectionItem]> input-devices;
@@ -21,6 +24,9 @@ export component DesktopMain inherits Rectangle {
     callback go-to-output-step();
     callback go-to-input-step();
     callback save-audio-settings();
+    callback open-default-project();
+    callback open-project-file();
+    callback create-project-file();
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
     private property <length> wizard-page-height: 24px + 20px + 24px + ((visible-device-count * 44px) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px)) + 24px + 44px + 24px;
 
@@ -32,28 +38,48 @@ export component DesktopMain inherits Rectangle {
 
         Header {}
 
-        Rectangle {
-            x: parent.width / 2 - self.width / 2;
-            width: 720px;
-            height: root.wizard-page-height;
-            background: transparent;
+        HorizontalBox {
+            Rectangle {
+                horizontal-stretch: 1;
+                background: transparent;
+            }
 
-            WizardConfigPage {
-                wizard-step: root.wizard-step;
-                input-devices: root.input-devices;
-                output-devices: root.output-devices;
-                status-message: root.status-message;
-                sample-rate-options: root.sample-rate-options;
-                buffer-size-options: root.buffer-size-options;
-                toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
-                toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
-                update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
-                update-input-buffer-size(index, value) => { root.update-input-buffer-size(index, value); }
-                update-output-sample-rate(index, value) => { root.update-output-sample-rate(index, value); }
-                update-output-buffer-size(index, value) => { root.update-output-buffer-size(index, value); }
-                go-to-output-step => { root.go-to-output-step(); }
-                go-to-input-step => { root.go-to-input-step(); }
-                save-audio-settings => { root.save-audio-settings(); }
+            Rectangle {
+                width: 720px;
+                height: root.show-project-launcher ? 320px : root.wizard-page-height;
+                background: transparent;
+
+                if root.show-project-launcher : ProjectLauncherPage {
+                    default-project-available: root.default-project-available;
+                    project-path-label: root.project-path-label;
+                    status-message: root.status-message;
+                    open-default-project => { root.open-default-project(); }
+                    open-project-file => { root.open-project-file(); }
+                    create-project-file => { root.create-project-file(); }
+                }
+
+                if !root.show-project-launcher : WizardConfigPage {
+                    wizard-step: root.wizard-step;
+                    input-devices: root.input-devices;
+                    output-devices: root.output-devices;
+                    status-message: root.status-message;
+                    sample-rate-options: root.sample-rate-options;
+                    buffer-size-options: root.buffer-size-options;
+                    toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
+                    toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
+                    update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
+                    update-input-buffer-size(index, value) => { root.update-input-buffer-size(index, value); }
+                    update-output-sample-rate(index, value) => { root.update-output-sample-rate(index, value); }
+                    update-output-buffer-size(index, value) => { root.update-output-buffer-size(index, value); }
+                    go-to-output-step => { root.go-to-output-step(); }
+                    go-to-input-step => { root.go-to-input-step(); }
+                    save-audio-settings => { root.save-audio-settings(); }
+                }
+            }
+
+            Rectangle {
+                horizontal-stretch: 1;
+                background: transparent;
             }
         }
     }

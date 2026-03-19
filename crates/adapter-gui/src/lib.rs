@@ -1,8 +1,11 @@
 use anyhow::{anyhow, Result};
 use infra_cpal::{list_input_device_descriptors, list_output_device_descriptors};
 use infra_filesystem::{FilesystemStorage, GuiAudioDeviceSettings, GuiAudioSettings};
+use rfd::FileDialog;
+use serde::{Deserialize, Serialize};
 use slint::{Model, ModelRc, VecModel};
 use std::rc::Rc;
+use std::{env, fs, path::PathBuf};
 use ui_openrig::{AppRuntimeMode, InteractionMode, UiRuntimeContext};
 
 slint::include_modules!();
@@ -12,12 +15,39 @@ const DEFAULT_BUFFER_SIZE_FRAMES: u32 = 256;
 const SUPPORTED_SAMPLE_RATES: &[u32] = &[44_100, 48_000, 88_200, 96_000];
 const SUPPORTED_BUFFER_SIZES: &[u32] = &[32, 64, 128, 256, 512, 1024];
 
+#[derive(Debug, Clone)]
+struct ProjectPaths {
+    default_project_path: PathBuf,
+    default_config_path: PathBuf,
+}
+
+#[derive(Debug, Deserialize, Serialize, Default)]
+struct AppConfigYaml {
+    #[serde(default)]
+    presets_path: Option<PathBuf>,
+}
+
+#[derive(Debug, Serialize)]
+struct ProjectTemplate {
+    device_settings: Vec<EmptyYamlItem>,
+    tracks: Vec<EmptyYamlItem>,
+}
+
+#[derive(Debug, Serialize)]
+struct EmptyYamlItem;
+
 pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: InteractionMode) -> Result<()> {
     let context = UiRuntimeContext::new(runtime_mode, interaction_mode);
     let settings = FilesystemStorage::load_gui_audio_settings()?.unwrap_or_default();
     let needs_audio_setup = context.capabilities.can_select_audio_device && !settings.is_complete();
+    let project_paths = resolve_project_paths();
 
     let window = AppWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    window.set_show_project_launcher(true);
+    window.set_default_project_available(project_paths.default_project_path.exists());
+    window.set_project_path_label(
+        format!("Projeto padrão: {}", project_paths.default_project_path.display()).into(),
+    );
     window.set_runtime_mode_label(context.runtime_mode.label().into());
     window.set_interaction_mode_label(context.interaction_mode.label().into());
     window.set_touch_optimized(context.capabilities.touch_optimized);
@@ -199,7 +229,138 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         });
     }
 
+    {
+        let weak_window = window.as_weak();
+        let project_paths = project_paths.clone();
+        window.on_open_default_project(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            if !project_paths.default_project_path.exists() {
+                window.set_status_message("Projeto padrão não encontrado.".into());
+                return;
+            }
+            window.set_status_message("".into());
+            window.set_project_path_label(
+                format!("Projeto: {}", project_paths.default_project_path.display()).into(),
+            );
+            window.set_show_project_launcher(false);
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        window.on_open_project_file(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let Some(path) = FileDialog::new()
+                .add_filter("OpenRig Project", &["yaml", "yml"])
+                .set_title("Abrir projeto")
+                .pick_file()
+            else {
+                return;
+            };
+            window.set_status_message("".into());
+            window.set_project_path_label(format!("Projeto: {}", path.display()).into());
+            window.set_show_project_launcher(false);
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let project_paths = project_paths.clone();
+        window.on_create_project_file(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let Some(path) = FileDialog::new()
+                .add_filter("OpenRig Project", &["yaml"])
+                .set_title("Criar projeto")
+                .set_file_name("project.yaml")
+                .save_file()
+            else {
+                return;
+            };
+            match create_new_project(&path, &project_paths.default_config_path) {
+                Ok(()) => {
+                    window.set_status_message("".into());
+                    window.set_project_path_label(format!("Projeto: {}", path.display()).into());
+                    window.set_show_project_launcher(false);
+                }
+                Err(error) => {
+                    window.set_status_message(error.to_string().into());
+                }
+            }
+        });
+    }
+
     window.run().map_err(|error| anyhow!(error.to_string()))
+}
+
+fn resolve_project_paths() -> ProjectPaths {
+    ProjectPaths {
+        default_project_path: parse_path_argument("--project").unwrap_or_else(|| {
+            let local = PathBuf::from("project.yaml");
+            if local.exists() {
+                local
+            } else {
+                PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../project.yaml")
+            }
+        }),
+        default_config_path: parse_path_argument("--config").unwrap_or_else(|| {
+            let local = PathBuf::from("config.yaml");
+            if local.exists() {
+                local
+            } else {
+                PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../config.yaml")
+            }
+        }),
+    }
+}
+
+fn parse_path_argument(flag: &str) -> Option<PathBuf> {
+    let mut args = env::args().skip(1);
+    while let Some(arg) = args.next() {
+        if arg == flag {
+            return args.next().map(PathBuf::from);
+        }
+    }
+    None
+}
+
+fn create_new_project(project_path: &PathBuf, default_config_path: &PathBuf) -> Result<()> {
+    let project_dir = project_path
+        .parent()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("."));
+    fs::create_dir_all(&project_dir)?;
+    let project = ProjectTemplate {
+        device_settings: Vec::new(),
+        tracks: Vec::new(),
+    };
+    fs::write(project_path, serde_yaml::to_string(&project)?)?;
+
+    let config_path = project_dir.join("config.yaml");
+    if !config_path.exists() {
+        let config = if default_config_path.exists() {
+            load_app_config(default_config_path)?
+        } else {
+            AppConfigYaml {
+                presets_path: Some(PathBuf::from("./presets")),
+            }
+        };
+        fs::write(&config_path, serde_yaml::to_string(&config)?)?;
+    }
+
+    let presets_dir = project_dir.join("presets");
+    fs::create_dir_all(presets_dir)?;
+    Ok(())
+}
+
+fn load_app_config(path: &PathBuf) -> Result<AppConfigYaml> {
+    let raw = fs::read_to_string(path)?;
+    Ok(serde_yaml::from_str(&raw)?)
 }
 
 fn toggle_device_row(model: &Rc<VecModel<DeviceSelectionItem>>, index: usize, selected: bool) {

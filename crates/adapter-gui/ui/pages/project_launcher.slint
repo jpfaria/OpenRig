@@ -1,0 +1,73 @@
+import { VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { Theme } from "../theme.slint";
+import { PrimaryActionButton, SecondaryActionButton } from "../widgets/widgets.slint";
+
+export component ProjectLauncherPage inherits Rectangle {
+    in property <bool> default-project-available;
+    in property <string> project-path-label;
+    in-out property <string> status-message;
+    callback open-default-project();
+    callback open-project-file();
+    callback create-project-file();
+
+    width: 720px;
+    height: 320px;
+    background: Theme.palette.card;
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: Theme.palette.border-strong;
+
+    VerticalBox {
+        padding: Theme.spaces.xlarge;
+        spacing: Theme.spaces.large;
+
+        Text {
+            text: "Projeto";
+            color: Theme.palette.text-primary;
+            font-size: Theme.typo.section.size;
+            font-weight: Theme.typo.section.weight;
+        }
+
+        Text {
+            text: "Escolha um projeto existente ou crie um novo.";
+            color: Theme.palette.text-secondary;
+            font-size: Theme.typo.caption.size;
+        }
+
+        Text {
+            text: project-path-label;
+            color: Theme.palette.text-secondary;
+            font-size: Theme.typo.caption.size;
+            wrap: word-wrap;
+        }
+
+        Rectangle { height: 8px; background: transparent; }
+
+        HorizontalBox {
+            spacing: Theme.spaces.medium;
+
+            SecondaryActionButton {
+                text: "Abrir padrão";
+                enabled: root.default-project-available;
+                clicked => { root.open-default-project(); }
+            }
+
+            SecondaryActionButton {
+                text: "Abrir projeto";
+                clicked => { root.open-project-file(); }
+            }
+
+            PrimaryActionButton {
+                text: "Criar novo projeto";
+                clicked => { root.create-project-file(); }
+            }
+        }
+
+        if status-message != "" : Text {
+            text: status-message;
+            color: Theme.palette.text-secondary;
+            font-size: Theme.typo.caption.size;
+            wrap: word-wrap;
+        }
+    }
+}

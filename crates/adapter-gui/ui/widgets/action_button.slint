@@ -3,6 +3,7 @@ import { Theme } from "../theme.slint";
 
 component BaseActionButton inherits Rectangle {
     in property <string> text;
+    in property <bool> enabled: true;
     in property <brush> fill;
     in property <color> text-color;
     in property <color> outline-color;
@@ -15,7 +16,7 @@ component BaseActionButton inherits Rectangle {
     height: 44px;
     border-radius: 18px;
     border-width: 1px;
-    background: root.fill;
+    background: root.enabled ? root.fill : Theme.palette.secondary-start;
     border-color: root.outline-color;
 
     HorizontalBox {
@@ -31,7 +32,7 @@ component BaseActionButton inherits Rectangle {
 
         Text {
             text: root.text;
-            color: root.text-color;
+            color: root.enabled ? root.text-color : Theme.palette.text-secondary;
             vertical-alignment: center;
             horizontal-alignment: center;
             font-size: Theme.typo.button.size;
@@ -46,6 +47,7 @@ component BaseActionButton inherits Rectangle {
     }
 
     TouchArea {
+        enabled: root.enabled;
         clicked => {
             root.clicked();
         }

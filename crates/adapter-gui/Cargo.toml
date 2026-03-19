@@ -7,6 +7,9 @@ edition.workspace = true
 anyhow.workspace = true
 infra-cpal = { path = "../infra-cpal" }
 infra-filesystem = { path = "../infra-filesystem" }
+serde.workspace = true
+serde_yaml.workspace = true
+rfd = "0.15"
 slint.workspace = true
 ui-openrig = { path = "../ui-openrig" }
 
