@@ -12,21 +12,24 @@ use infra_yaml::{
     load_track_preset_file, save_track_preset_file, serialize_audio_blocks, TrackBlocksPreset,
     YamlProjectRepository,
 };
+use project::block::{
+    schema_for_block_model, AmpComboBlock, AmpHeadBlock, AudioBlock, AudioBlockKind, CabBlock,
+    CompressorBlock, CoreBlock, CoreBlockKind, DelayBlock, DriveBlock, EqBlock, FullRigBlock,
+    GateBlock, NamBlock, ReverbBlock, TremoloBlock, TunerBlock,
+};
+use project::device::DeviceSettings;
+use project::param::{ParameterDomain, ParameterSet, ParameterUnit};
+use project::project::Project;
+use project::track::{Track, TrackOutputMixdown};
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 use slint::{Model, ModelRc, SharedString, VecModel};
 use std::rc::Rc;
-use std::{cell::RefCell, env, fs, path::{Path, PathBuf}};
-use project::device::DeviceSettings;
-use project::block::{
-    schema_for_block_model, AmpComboBlock, AmpHeadBlock, AudioBlock, AudioBlockKind,
-    CabBlock,
-    CompressorBlock, CoreBlock, CoreBlockKind, DelayBlock, DriveBlock, EqBlock, FullRigBlock,
-    GateBlock, NamBlock, ReverbBlock, TremoloBlock, TunerBlock,
+use std::{
+    cell::RefCell,
+    env, fs,
+    path::{Path, PathBuf},
 };
-use project::param::{ParameterDomain, ParameterSet, ParameterUnit};
-use project::project::Project;
-use project::track::{Track, TrackOutputMixdown};
 use ui_openrig::{AppRuntimeMode, InteractionMode, UiRuntimeContext};
 use ui_state::{
     stage_drawer_state, stage_family_for_kind, stage_models_for_type, stage_types,
@@ -135,10 +138,14 @@ struct ConfigYaml {
 
 const UNTITLED_PROJECT_NAME: &str = "UNTITLED PROJECT";
 
-pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: InteractionMode) -> Result<()> {
+pub fn run_desktop_app(
+    runtime_mode: AppRuntimeMode,
+    interaction_mode: InteractionMode,
+) -> Result<()> {
     let context = UiRuntimeContext::new(runtime_mode, interaction_mode);
     let settings = FilesystemStorage::load_gui_audio_settings()?.unwrap_or_default();
-    let needs_audio_settings = context.capabilities.can_select_audio_device && !settings.is_complete();
+    let needs_audio_settings =
+        context.capabilities.can_select_audio_device && !settings.is_complete();
     let project_paths = resolve_project_paths();
     let app_config = Rc::new(RefCell::new(load_and_sync_app_config()?));
     let project_session = Rc::new(RefCell::new(None::<ProjectSession>));
@@ -292,7 +299,8 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
     project_settings_window.set_buffer_size_options(window.get_buffer_size_options());
 
     track_editor_window.set_input_device_options(ModelRc::from(track_input_device_options.clone()));
-    track_editor_window.set_output_device_options(ModelRc::from(track_output_device_options.clone()));
+    track_editor_window
+        .set_output_device_options(ModelRc::from(track_output_device_options.clone()));
     track_editor_window.set_input_channels(ModelRc::from(track_input_channels.clone()));
     track_editor_window.set_output_channels(ModelRc::from(track_output_channels.clone()));
     track_editor_window.set_selected_input_device_index(-1);
@@ -438,13 +446,15 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             }
 
             match *audio_settings_mode.borrow() {
-                AudioSettingsMode::Gui => match FilesystemStorage::save_gui_audio_settings(&settings) {
-                    Ok(()) => {
-                        window.set_status_message("".into());
-                        window.set_show_audio_settings(false);
+                AudioSettingsMode::Gui => {
+                    match FilesystemStorage::save_gui_audio_settings(&settings) {
+                        Ok(()) => {
+                            window.set_status_message("".into());
+                            window.set_show_audio_settings(false);
+                        }
+                        Err(error) => window.set_status_message(error.to_string().into()),
                     }
-                    Err(error) => window.set_status_message(error.to_string().into()),
-                },
+                }
                 AudioSettingsMode::Project => {
                     let mut session_borrow = project_session.borrow_mut();
                     let Some(session) = session_borrow.as_mut() else {
@@ -467,7 +477,8 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                     }
                     replace_project_tracks(&project_tracks, &session.project);
                     window.set_project_title(
-                        project_title_for_path(session.project_path.as_ref(), &session.project).into(),
+                        project_title_for_path(session.project_path.as_ref(), &session.project)
+                            .into(),
                     );
                     sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
                     window.set_status_message("".into());
@@ -499,7 +510,8 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             let Some(settings_window) = weak_settings.upgrade() else {
                 return;
             };
-            let project_device_settings = match selected_device_settings(&project_devices, "device") {
+            let project_device_settings = match selected_device_settings(&project_devices, "device")
+            {
                 Ok(devices) => devices,
                 Err(error) => {
                     settings_window.set_status_message(error.to_string().into());
@@ -566,7 +578,8 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                     }
                     replace_project_tracks(&project_tracks, &session.project);
                     window.set_project_title(
-                        project_title_for_path(session.project_path.as_ref(), &session.project).into(),
+                        project_title_for_path(session.project_path.as_ref(), &session.project)
+                            .into(),
                     );
                     sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
                     settings_window.set_status_message("".into());
@@ -631,7 +644,9 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                             .unwrap_or_default()
                             .into(),
                     );
-                    window.set_project_path_label(format!("Projeto: {}", canonical_path.display()).into());
+                    window.set_project_path_label(
+                        format!("Projeto: {}", canonical_path.display()).into(),
+                    );
                     window.set_show_project_launcher(false);
                     window.set_show_project_tracks(true);
                     window.set_show_track_editor(false);
@@ -729,8 +744,12 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                     window.set_project_title(
                         project_title_for_path(Some(&canonical_path), &session.project).into(),
                     );
-                    window.set_project_name_draft(session.project.name.clone().unwrap_or_default().into());
-                    window.set_project_path_label(format!("Projeto: {}", project_path.display()).into());
+                    window.set_project_name_draft(
+                        session.project.name.clone().unwrap_or_default().into(),
+                    );
+                    window.set_project_path_label(
+                        format!("Projeto: {}", project_path.display()).into(),
+                    );
                     *saved_project_snapshot.borrow_mut() = project_session_snapshot(session).ok();
                     set_project_dirty(&window, &project_dirty, false);
                     window.set_status_message("".into());
@@ -823,7 +842,9 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                             .unwrap_or_default()
                             .into(),
                     );
-                    window.set_project_path_label(format!("Projeto: {}", canonical_path.display()).into());
+                    window.set_project_path_label(
+                        format!("Projeto: {}", canonical_path.display()).into(),
+                    );
                     window.set_show_project_launcher(false);
                     window.set_show_project_tracks(true);
                     window.set_show_track_editor(false);
@@ -840,7 +861,8 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                         &app_config.borrow().recent_projects,
                         window.get_recent_project_search().as_str(),
                     ));
-                    window.set_status_message("Projeto inválido. Corrija ou remova da lista.".into());
+                    window
+                        .set_status_message("Projeto inválido. Corrija ou remova da lista.".into());
                 }
             }
         });
@@ -894,7 +916,8 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             ));
             *audio_settings_mode.borrow_mut() = AudioSettingsMode::Project;
             window.set_project_name_draft(session.project.name.clone().unwrap_or_default().into());
-            settings_window.set_project_name_draft(session.project.name.clone().unwrap_or_default().into());
+            settings_window
+                .set_project_name_draft(session.project.name.clone().unwrap_or_default().into());
             settings_window.set_status_message("".into());
             window.set_status_message("".into());
             window.set_show_project_settings(true);
@@ -1054,7 +1077,12 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                             return;
                         }
                         replace_project_tracks(&project_tracks, &session.project);
-                        sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                        sync_project_dirty(
+                            &window,
+                            session,
+                            &saved_project_snapshot,
+                            &project_dirty,
+                        );
                         window.set_project_running(project_runtime_is_running(&project_runtime));
                         window.set_status_message("".into());
                     }
@@ -1086,11 +1114,14 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             stop_project_runtime(&project_runtime);
             *project_session.borrow_mut() = None;
             *saved_project_snapshot.borrow_mut() = None;
-            replace_project_tracks(&project_tracks, &Project {
-                name: None,
-                device_settings: Vec::new(),
-                tracks: Vec::new(),
-            });
+            replace_project_tracks(
+                &project_tracks,
+                &Project {
+                    name: None,
+                    device_settings: Vec::new(),
+                    tracks: Vec::new(),
+                },
+            );
             window.set_status_message("".into());
             set_project_dirty(&window, &project_dirty, false);
             window.set_project_title("Projeto".into());
@@ -1125,7 +1156,11 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 window.set_status_message("Nenhum projeto carregado.".into());
                 return;
             };
-            let draft = create_track_draft(&session.project, &input_track_devices, &output_track_devices);
+            let draft = create_track_draft(
+                &session.project,
+                &input_track_devices,
+                &output_track_devices,
+            );
             *track_draft.borrow_mut() = Some(draft.clone());
             apply_track_editor_labels(&window, &draft);
             replace_channel_options(
@@ -1148,8 +1183,10 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 &output_track_devices,
                 draft.output_device_id.as_deref(),
             ));
-            editor_window.set_selected_input_device_index(window.get_selected_track_input_device_index());
-            editor_window.set_selected_output_device_index(window.get_selected_track_output_device_index());
+            editor_window
+                .set_selected_input_device_index(window.get_selected_track_input_device_index());
+            editor_window
+                .set_selected_output_device_index(window.get_selected_track_output_device_index());
             editor_window.set_status_message("".into());
             window.set_status_message("".into());
             window.set_show_track_editor(true);
@@ -1201,8 +1238,10 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 &output_track_devices,
                 draft.output_device_id.as_deref(),
             ));
-            editor_window.set_selected_input_device_index(window.get_selected_track_input_device_index());
-            editor_window.set_selected_output_device_index(window.get_selected_track_output_device_index());
+            editor_window
+                .set_selected_input_device_index(window.get_selected_track_input_device_index());
+            editor_window
+                .set_selected_output_device_index(window.get_selected_track_output_device_index());
             *track_draft.borrow_mut() = Some(draft);
             if let Some(draft) = track_draft.borrow().as_ref() {
                 apply_track_editor_labels(&window, draft);
@@ -1310,7 +1349,8 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                     build_input_channel_items(draft, &session.project, &input_track_devices),
                 );
             }
-            let selected_index = selected_device_index(&input_track_devices, draft.input_device_id.as_deref());
+            let selected_index =
+                selected_device_index(&input_track_devices, draft.input_device_id.as_deref());
             window.set_selected_track_input_device_index(selected_index);
             track_window.set_selected_input_device_index(selected_index);
         });
@@ -1377,7 +1417,8 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                     build_output_channel_items(draft, &output_track_devices),
                 );
             }
-            let selected_index = selected_device_index(&output_track_devices, draft.output_device_id.as_deref());
+            let selected_index =
+                selected_device_index(&output_track_devices, draft.output_device_id.as_deref());
             window.set_selected_track_output_device_index(selected_index);
             track_window.set_selected_output_device_index(selected_index);
         });
@@ -1402,7 +1443,8 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 return;
             };
             if selected && !option.available && !option.selected {
-                window.set_status_message("Canal de entrada já está em uso por outra track.".into());
+                window
+                    .set_status_message("Canal de entrada já está em uso por outra track.".into());
                 return;
             }
             if selected {
@@ -1441,7 +1483,8 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 return;
             };
             if selected && !option.available && !option.selected {
-                track_window.set_status_message("Canal de entrada já está em uso por outra track.".into());
+                track_window
+                    .set_status_message("Canal de entrada já está em uso por outra track.".into());
                 return;
             }
             if selected {
@@ -1568,14 +1611,20 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             let items = stage_model_picker_items(&effect_type);
             stage_model_option_labels.set_vec(stage_model_picker_labels(&items));
             stage_model_options.set_vec(items);
-            stage_parameter_items.set_vec(stage_parameter_items_for_model(&effect_type, &model_id, &params));
+            stage_parameter_items.set_vec(stage_parameter_items_for_model(
+                &effect_type,
+                &model_id,
+                &params,
+            ));
             set_selected_stage(&window, selected_stage.borrow().as_ref());
-            let drawer_state = stage_drawer_state(Some(stage_index as usize), &effect_type, Some(&model_id));
+            let drawer_state =
+                stage_drawer_state(Some(stage_index as usize), &effect_type, Some(&model_id));
             window.set_stage_drawer_title(drawer_state.title.into());
             window.set_stage_drawer_confirm_label(drawer_state.confirm_label.into());
             window.set_stage_drawer_edit_mode(true);
             window.set_stage_drawer_selected_type_index(stage_type_index(&effect_type));
-            window.set_stage_drawer_selected_model_index(stage_model_index(&effect_type, &model_id));
+            window
+                .set_stage_drawer_selected_model_index(stage_model_index(&effect_type, &model_id));
             window.set_stage_drawer_enabled(enabled);
             window.set_stage_drawer_status_message("".into());
             window.set_show_stage_type_picker(false);
@@ -1771,7 +1820,8 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 model.model_id,
                 &ParameterSet::default(),
             ));
-            let drawer_state = stage_drawer_state(None, stage_type.effect_type, Some(model.model_id));
+            let drawer_state =
+                stage_drawer_state(None, stage_type.effect_type, Some(model.model_id));
             window.set_stage_drawer_title(drawer_state.title.into());
             window.set_stage_drawer_confirm_label(drawer_state.confirm_label.into());
             window.set_stage_drawer_edit_mode(false);
@@ -2070,7 +2120,10 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             let extensions = stage_parameter_extensions(&stage_parameter_items, path.as_str());
             let mut dialog = FileDialog::new();
             if !extensions.is_empty() {
-                let refs = extensions.iter().map(|value| value.as_str()).collect::<Vec<_>>();
+                let refs = extensions
+                    .iter()
+                    .map(|value| value.as_str())
+                    .collect::<Vec<_>>();
                 dialog = dialog.add_filter("Arquivos suportados", &refs);
             }
             let Some(file) = dialog.pick_file() else {
@@ -2244,14 +2297,18 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             }
 
             let editing_index = draft.editing_index;
-            let existing_track = editing_index.and_then(|index| session.project.tracks.get(index).cloned());
+            let existing_track =
+                editing_index.and_then(|index| session.project.tracks.get(index).cloned());
             let track = Track {
                 id: existing_track
                     .as_ref()
                     .map(|track| track.id.clone())
                     .unwrap_or_else(TrackId::generate),
                 description: normalized_track_description(&draft.name),
-                enabled: existing_track.as_ref().map(|track| track.enabled).unwrap_or(true),
+                enabled: existing_track
+                    .as_ref()
+                    .map(|track| track.enabled)
+                    .unwrap_or(true),
                 input_device_id: DeviceId(draft.input_device_id.unwrap_or_default()),
                 input_channels: draft.input_channels,
                 output_device_id: DeviceId(draft.output_device_id.unwrap_or_default()),
@@ -2332,14 +2389,18 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             }
 
             let editing_index = draft.editing_index;
-            let existing_track = editing_index.and_then(|index| session.project.tracks.get(index).cloned());
+            let existing_track =
+                editing_index.and_then(|index| session.project.tracks.get(index).cloned());
             let track = Track {
                 id: existing_track
                     .as_ref()
                     .map(|track| track.id.clone())
                     .unwrap_or_else(TrackId::generate),
                 description: normalized_track_description(&draft.name),
-                enabled: existing_track.as_ref().map(|track| track.enabled).unwrap_or(true),
+                enabled: existing_track
+                    .as_ref()
+                    .map(|track| track.enabled)
+                    .unwrap_or(true),
                 input_device_id: DeviceId(draft.input_device_id.unwrap_or_default()),
                 input_channels: draft.input_channels,
                 output_device_id: DeviceId(draft.output_device_id.unwrap_or_default()),
@@ -2630,7 +2691,10 @@ fn mark_recent_project_invalid(config: &mut AppConfig, path: &PathBuf, reason: &
     }
 }
 
-fn recent_project_items(recent_projects: &[RecentProjectEntry], query: &str) -> Vec<RecentProjectItem> {
+fn recent_project_items(
+    recent_projects: &[RecentProjectEntry],
+    query: &str,
+) -> Vec<RecentProjectItem> {
     let query = query.trim().to_lowercase();
 
     recent_projects
@@ -2695,7 +2759,9 @@ fn create_new_project_session(default_config_path: &Path) -> ProjectSession {
         project,
         project_path: None,
         config_path: None,
-        presets_path: config.presets_path.unwrap_or_else(|| PathBuf::from("./presets")),
+        presets_path: config
+            .presets_path
+            .unwrap_or_else(|| PathBuf::from("./presets")),
     }
 }
 
@@ -2757,7 +2823,11 @@ fn replace_project_tracks(model: &Rc<VecModel<ProjectTrackItem>>, project: &Proj
                 format!("{} stages", track.blocks.len()).into()
             },
             stages: ModelRc::from(Rc::new(VecModel::from(
-                track.blocks.iter().map(track_stage_item_from_block).collect::<Vec<_>>(),
+                track
+                    .blocks
+                    .iter()
+                    .map(track_stage_item_from_block)
+                    .collect::<Vec<_>>(),
             ))),
         })
         .collect::<Vec<_>>();
@@ -2840,18 +2910,78 @@ fn block_editor_data(block: &AudioBlock) -> Option<(String, String, ParameterSet
             block.enabled,
         )),
         AudioBlockKind::Core(core) => match &core.kind {
-            CoreBlockKind::AmpHead(stage) => Some(("amp_head".to_string(), stage.model.clone(), stage.params.clone(), block.enabled)),
-            CoreBlockKind::AmpCombo(stage) => Some(("amp_combo".to_string(), stage.model.clone(), stage.params.clone(), block.enabled)),
-            CoreBlockKind::Cab(stage) => Some(("cab".to_string(), stage.model.clone(), stage.params.clone(), block.enabled)),
-            CoreBlockKind::FullRig(stage) => Some(("full_rig".to_string(), stage.model.clone(), stage.params.clone(), block.enabled)),
-            CoreBlockKind::Drive(stage) => Some(("drive".to_string(), stage.model.clone(), stage.params.clone(), block.enabled)),
-            CoreBlockKind::Compressor(stage) => Some(("compressor".to_string(), stage.model.clone(), stage.params.clone(), block.enabled)),
-            CoreBlockKind::Gate(stage) => Some(("gate".to_string(), stage.model.clone(), stage.params.clone(), block.enabled)),
-            CoreBlockKind::Eq(stage) => Some(("eq".to_string(), stage.model.clone(), stage.params.clone(), block.enabled)),
-            CoreBlockKind::Tremolo(stage) => Some(("tremolo".to_string(), stage.model.clone(), stage.params.clone(), block.enabled)),
-            CoreBlockKind::Delay(stage) => Some(("delay".to_string(), stage.model.clone(), stage.params.clone(), block.enabled)),
-            CoreBlockKind::Reverb(stage) => Some(("reverb".to_string(), stage.model.clone(), stage.params.clone(), block.enabled)),
-            CoreBlockKind::Tuner(stage) => Some(("tuner".to_string(), stage.model.clone(), stage.params.clone(), block.enabled)),
+            CoreBlockKind::AmpHead(stage) => Some((
+                "amp_head".to_string(),
+                stage.model.clone(),
+                stage.params.clone(),
+                block.enabled,
+            )),
+            CoreBlockKind::AmpCombo(stage) => Some((
+                "amp_combo".to_string(),
+                stage.model.clone(),
+                stage.params.clone(),
+                block.enabled,
+            )),
+            CoreBlockKind::Cab(stage) => Some((
+                "cab".to_string(),
+                stage.model.clone(),
+                stage.params.clone(),
+                block.enabled,
+            )),
+            CoreBlockKind::FullRig(stage) => Some((
+                "full_rig".to_string(),
+                stage.model.clone(),
+                stage.params.clone(),
+                block.enabled,
+            )),
+            CoreBlockKind::Drive(stage) => Some((
+                "drive".to_string(),
+                stage.model.clone(),
+                stage.params.clone(),
+                block.enabled,
+            )),
+            CoreBlockKind::Compressor(stage) => Some((
+                "compressor".to_string(),
+                stage.model.clone(),
+                stage.params.clone(),
+                block.enabled,
+            )),
+            CoreBlockKind::Gate(stage) => Some((
+                "gate".to_string(),
+                stage.model.clone(),
+                stage.params.clone(),
+                block.enabled,
+            )),
+            CoreBlockKind::Eq(stage) => Some((
+                "eq".to_string(),
+                stage.model.clone(),
+                stage.params.clone(),
+                block.enabled,
+            )),
+            CoreBlockKind::Tremolo(stage) => Some((
+                "tremolo".to_string(),
+                stage.model.clone(),
+                stage.params.clone(),
+                block.enabled,
+            )),
+            CoreBlockKind::Delay(stage) => Some((
+                "delay".to_string(),
+                stage.model.clone(),
+                stage.params.clone(),
+                block.enabled,
+            )),
+            CoreBlockKind::Reverb(stage) => Some((
+                "reverb".to_string(),
+                stage.model.clone(),
+                stage.params.clone(),
+                block.enabled,
+            )),
+            CoreBlockKind::Tuner(stage) => Some((
+                "tuner".to_string(),
+                stage.model.clone(),
+                stage.params.clone(),
+                block.enabled,
+            )),
         },
         _ => None,
     }
@@ -2896,56 +3026,61 @@ fn stage_parameter_items_for_model(
                 ),
                 _ => (0.0, 0.0, 1.0, 0.0),
             };
-            let (option_labels, option_values, selected_option_index, file_extensions) =
-                match &spec.domain {
-                    ParameterDomain::Enum { options } => {
-                        let labels = options
-                            .iter()
-                            .map(|option| SharedString::from(option.label.as_str()))
-                            .collect::<Vec<_>>();
-                        let values = options
-                            .iter()
-                            .map(|option| SharedString::from(option.value.as_str()))
-                            .collect::<Vec<_>>();
-                        let selected = current
-                            .as_str()
-                            .and_then(|value| options.iter().position(|option| option.value == value))
-                            .map(|index| index as i32)
-                            .unwrap_or(0);
-                        (
-                            ModelRc::from(Rc::new(VecModel::from(labels))),
-                            ModelRc::from(Rc::new(VecModel::from(values))),
-                            selected,
-                            ModelRc::from(Rc::new(VecModel::from(Vec::<SharedString>::new()))),
-                        )
-                    }
-                    ParameterDomain::FilePath { extensions } => {
-                        let values = extensions
-                            .iter()
-                            .map(|value| SharedString::from(value.as_str()))
-                            .collect::<Vec<_>>();
-                        (
-                            ModelRc::from(Rc::new(VecModel::from(Vec::<SharedString>::new()))),
-                            ModelRc::from(Rc::new(VecModel::from(Vec::<SharedString>::new()))),
-                            -1,
-                            ModelRc::from(Rc::new(VecModel::from(values))),
-                        )
-                    }
-                    _ => (
+            let (option_labels, option_values, selected_option_index, file_extensions) = match &spec
+                .domain
+            {
+                ParameterDomain::Enum { options } => {
+                    let labels = options
+                        .iter()
+                        .map(|option| SharedString::from(option.label.as_str()))
+                        .collect::<Vec<_>>();
+                    let values = options
+                        .iter()
+                        .map(|option| SharedString::from(option.value.as_str()))
+                        .collect::<Vec<_>>();
+                    let selected = current
+                        .as_str()
+                        .and_then(|value| options.iter().position(|option| option.value == value))
+                        .map(|index| index as i32)
+                        .unwrap_or(0);
+                    (
+                        ModelRc::from(Rc::new(VecModel::from(labels))),
+                        ModelRc::from(Rc::new(VecModel::from(values))),
+                        selected,
+                        ModelRc::from(Rc::new(VecModel::from(Vec::<SharedString>::new()))),
+                    )
+                }
+                ParameterDomain::FilePath { extensions } => {
+                    let values = extensions
+                        .iter()
+                        .map(|value| SharedString::from(value.as_str()))
+                        .collect::<Vec<_>>();
+                    (
                         ModelRc::from(Rc::new(VecModel::from(Vec::<SharedString>::new()))),
                         ModelRc::from(Rc::new(VecModel::from(Vec::<SharedString>::new()))),
                         -1,
-                        ModelRc::from(Rc::new(VecModel::from(Vec::<SharedString>::new()))),
-                    ),
-                };
+                        ModelRc::from(Rc::new(VecModel::from(values))),
+                    )
+                }
+                _ => (
+                    ModelRc::from(Rc::new(VecModel::from(Vec::<SharedString>::new()))),
+                    ModelRc::from(Rc::new(VecModel::from(Vec::<SharedString>::new()))),
+                    -1,
+                    ModelRc::from(Rc::new(VecModel::from(Vec::<SharedString>::new()))),
+                ),
+            };
             StageParameterItem {
                 path: spec.path.clone().into(),
                 label: spec.label.clone().into(),
                 group: spec.group.clone().unwrap_or_default().into(),
                 widget_kind: match &spec.domain {
                     ParameterDomain::Bool => "bool",
-                    ParameterDomain::IntRange { .. } => "int",
-                    ParameterDomain::FloatRange { .. } => "float",
+                    ParameterDomain::IntRange { min, max, step } => {
+                        numeric_widget_kind(*min as f32, *max as f32, *step as f32, true)
+                    }
+                    ParameterDomain::FloatRange { min, max, step } => {
+                        numeric_widget_kind(*min, *max, *step, false)
+                    }
                     ParameterDomain::Enum { .. } => "enum",
                     ParameterDomain::Text => "text",
                     ParameterDomain::FilePath { .. } => "path",
@@ -2953,11 +3088,19 @@ fn stage_parameter_items_for_model(
                 .into(),
                 unit_text: unit_label(&spec.unit).into(),
                 value_text: match current {
-                    domain::value_objects::ParameterValue::String(ref value) => value.clone().into(),
+                    domain::value_objects::ParameterValue::String(ref value) => {
+                        value.clone().into()
+                    }
                     domain::value_objects::ParameterValue::Int(value) => value.to_string().into(),
-                    domain::value_objects::ParameterValue::Float(value) => format!("{value:.2}").into(),
+                    domain::value_objects::ParameterValue::Float(value) => {
+                        format!("{value:.2}").into()
+                    }
                     domain::value_objects::ParameterValue::Bool(value) => {
-                        if value { "true".into() } else { "false".into() }
+                        if value {
+                            "true".into()
+                        } else {
+                            "false".into()
+                        }
                     }
                     domain::value_objects::ParameterValue::Null => "".into(),
                 },
@@ -2965,6 +3108,7 @@ fn stage_parameter_items_for_model(
                 numeric_min,
                 numeric_max,
                 numeric_step,
+                numeric_integer: matches!(&spec.domain, ParameterDomain::IntRange { .. }),
                 bool_value: current.as_bool().unwrap_or(false),
                 selected_option_index,
                 option_labels,
@@ -2984,16 +3128,15 @@ fn stage_parameter_visible_in_gui(effect_type: &str, path: &str) -> bool {
 
     match effect_type {
         "amp_head" => matches!(path, "volume" | "gain"),
-        "full_rig" => matches!(path, "bright_enabled" | "royer_101_enabled" | "sm57_enabled"),
+        "full_rig" => matches!(
+            path,
+            "bright_enabled" | "royer_101_enabled" | "sm57_enabled"
+        ),
         _ => true,
     }
 }
 
-fn set_stage_parameter_text(
-    model: &Rc<VecModel<StageParameterItem>>,
-    path: &str,
-    value: &str,
-) {
+fn set_stage_parameter_text(model: &Rc<VecModel<StageParameterItem>>, path: &str, value: &str) {
     for index in 0..model.row_count() {
         if let Some(mut row) = model.row_data(index) {
             if row.path.as_str() == path {
@@ -3005,11 +3148,7 @@ fn set_stage_parameter_text(
     }
 }
 
-fn set_stage_parameter_bool(
-    model: &Rc<VecModel<StageParameterItem>>,
-    path: &str,
-    value: bool,
-) {
+fn set_stage_parameter_bool(model: &Rc<VecModel<StageParameterItem>>, path: &str, value: bool) {
     for index in 0..model.row_count() {
         if let Some(mut row) = model.row_data(index) {
             if row.path.as_str() == path {
@@ -3021,11 +3160,7 @@ fn set_stage_parameter_bool(
     }
 }
 
-fn set_stage_parameter_number(
-    model: &Rc<VecModel<StageParameterItem>>,
-    path: &str,
-    value: f32,
-) {
+fn set_stage_parameter_number(model: &Rc<VecModel<StageParameterItem>>, path: &str, value: f32) {
     for index in 0..model.row_count() {
         if let Some(mut row) = model.row_data(index) {
             if row.path.as_str() == path {
@@ -3034,10 +3169,10 @@ fn set_stage_parameter_number(
                     row.numeric_min,
                     row.numeric_max,
                     row.numeric_step,
-                    row.widget_kind.as_str() == "int",
+                    row.numeric_integer,
                 );
                 row.numeric_value = quantized;
-                row.value_text = if row.widget_kind.as_str() == "int" {
+                row.value_text = if row.numeric_integer {
                     format!("{:.0}", quantized.round()).into()
                 } else {
                     format!("{quantized:.2}").into()
@@ -3061,11 +3196,8 @@ fn persist_stage_editor_draft(
     project_dirty: &Rc<RefCell<bool>>,
     close_after_save: bool,
 ) -> Result<()> {
-    let params = stage_parameter_values(
-        stage_parameter_items,
-        &draft.effect_type,
-        &draft.model_id,
-    )?;
+    let params =
+        stage_parameter_values(stage_parameter_items, &draft.effect_type, &draft.model_id)?;
 
     let mut session_borrow = project_session.borrow_mut();
     let session = session_borrow
@@ -3138,6 +3270,17 @@ fn quantize_numeric_value(value: f32, min: f32, max: f32, step: f32, integer: bo
     }
 }
 
+fn numeric_widget_kind(min: f32, max: f32, step: f32, integer: bool) -> &'static str {
+    if step > 0.0 && max > min {
+        let steps = ((max - min) / step).round();
+        if steps <= 16.0 {
+            return "stepper";
+        }
+    }
+
+    if integer { "int" } else { "float" }
+}
+
 fn set_stage_parameter_option(
     model: &Rc<VecModel<StageParameterItem>>,
     path: &str,
@@ -3159,10 +3302,7 @@ fn set_stage_parameter_option(
     }
 }
 
-fn stage_parameter_extensions(
-    model: &Rc<VecModel<StageParameterItem>>,
-    path: &str,
-) -> Vec<String> {
+fn stage_parameter_extensions(model: &Rc<VecModel<StageParameterItem>>, path: &str) -> Vec<String> {
     for index in 0..model.row_count() {
         if let Some(row) = model.row_data(index) {
             if row.path.as_str() == path {
@@ -3192,11 +3332,14 @@ fn stage_parameter_values(
         };
         let value = match row.widget_kind.as_str() {
             "bool" => domain::value_objects::ParameterValue::Bool(row.bool_value),
-            "int" => {
-                domain::value_objects::ParameterValue::Int(row.numeric_value.round() as i64)
-            }
-            "float" => {
-                domain::value_objects::ParameterValue::Float(row.numeric_value)
+            "int" => domain::value_objects::ParameterValue::Int(row.numeric_value.round() as i64),
+            "float" => domain::value_objects::ParameterValue::Float(row.numeric_value),
+            "stepper" => {
+                if row.numeric_integer {
+                    domain::value_objects::ParameterValue::Int(row.numeric_value.round() as i64)
+                } else {
+                    domain::value_objects::ParameterValue::Float(row.numeric_value)
+                }
             }
             "enum" => {
                 if row.selected_option_index < 0 {
@@ -3225,7 +3368,11 @@ fn stage_parameter_values(
         .map_err(|error| anyhow!(error))
 }
 
-fn build_block_kind(effect_type: &str, model_id: &str, params: ParameterSet) -> Result<AudioBlockKind> {
+fn build_block_kind(
+    effect_type: &str,
+    model_id: &str,
+    params: ParameterSet,
+) -> Result<AudioBlockKind> {
     let model = model_id.to_string();
     let kind = match effect_type {
         "amp_head" => AudioBlockKind::Core(CoreBlock {
@@ -3413,7 +3560,12 @@ fn preset_id_from_path(path: &Path) -> Result<String> {
 }
 
 fn project_title_for_path(project_path: Option<&PathBuf>, project: &Project) -> String {
-    if let Some(name) = project.name.as_ref().map(|name| name.trim()).filter(|name| !name.is_empty()) {
+    if let Some(name) = project
+        .name
+        .as_ref()
+        .map(|name| name.trim())
+        .filter(|name| !name.is_empty())
+    {
         return name.to_string();
     }
     project_path
@@ -3605,7 +3757,12 @@ fn sync_live_track_runtime(
     };
 
     validate_project(&session.project)?;
-    if let Some(track) = session.project.tracks.iter().find(|track| &track.id == track_id) {
+    if let Some(track) = session
+        .project
+        .tracks
+        .iter()
+        .find(|track| &track.id == track_id)
+    {
         runtime.upsert_track(&session.project, track)?;
     } else {
         runtime.remove_track(track_id);
@@ -3754,7 +3911,7 @@ fn parse_positive_u32(value: &str, field: &str) -> Result<u32> {
 
 #[cfg(test)]
 mod tests {
-    use super::quantize_numeric_value;
+    use super::{numeric_widget_kind, quantize_numeric_value};
 
     #[test]
     fn quantize_numeric_value_respects_float_step_and_bounds() {
@@ -3765,7 +3922,25 @@ mod tests {
 
     #[test]
     fn quantize_numeric_value_respects_integer_step() {
-        assert_eq!(quantize_numeric_value(243.0, 64.0, 1024.0, 64.0, true), 256.0);
-        assert_eq!(quantize_numeric_value(96.0, 64.0, 1024.0, 64.0, true), 128.0);
+        assert_eq!(
+            quantize_numeric_value(243.0, 64.0, 1024.0, 64.0, true),
+            256.0
+        );
+        assert_eq!(
+            quantize_numeric_value(96.0, 64.0, 1024.0, 64.0, true),
+            128.0
+        );
+    }
+
+    #[test]
+    fn numeric_widget_kind_prefers_stepper_for_sparse_ranges() {
+        assert_eq!(numeric_widget_kind(50.0, 70.0, 10.0, false), "stepper");
+        assert_eq!(numeric_widget_kind(10.0, 100.0, 10.0, false), "stepper");
+    }
+
+    #[test]
+    fn numeric_widget_kind_keeps_knob_for_dense_ranges() {
+        assert_eq!(numeric_widget_kind(0.0, 100.0, 0.5, false), "float");
+        assert_eq!(numeric_widget_kind(20.0, 20000.0, 1.0, false), "float");
     }
 }

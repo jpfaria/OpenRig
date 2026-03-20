@@ -77,8 +77,8 @@ component StageValueKnob inherits Rectangle {
         ? Math.max(36, root.step-count * 18)
         : 180;
 
-    width: 124px;
-    height: 128px;
+    width: 136px;
+    height: 146px;
     background: transparent;
 
     Text {
@@ -89,28 +89,39 @@ component StageValueKnob inherits Rectangle {
         text: root.label;
         color: #eef2f8;
         font-size: 13px;
-        font-weight: 700;
+        font-weight: 800;
         horizontal-alignment: center;
     }
 
     Rectangle {
-        x: 14px;
-        y: 28px;
-        width: 96px;
-        height: 96px;
-        background: #2b2f35;
-        border-width: 2px;
-        border-color: #454c58;
-        border-radius: 48px;
+        x: 12px;
+        y: 30px;
+        width: 112px;
+        height: 112px;
+        background: #262b33;
+        border-width: 1px;
+        border-color: #4e5663;
+        border-radius: 56px;
 
         Rectangle {
-            x: 6px;
-            y: 6px;
-            width: parent.width - 12px;
-            height: parent.height - 12px;
-            background: #1b1f26;
+            x: 7px;
+            y: 7px;
+            width: parent.width - 14px;
+            height: parent.height - 14px;
+            background: #191d24;
             border-width: 1px;
-            border-color: #0f1217;
+            border-color: #0d1015;
+            border-radius: self.width / 2;
+        }
+
+        Rectangle {
+            x: 3px;
+            y: 3px;
+            width: parent.width - 6px;
+            height: parent.height - 6px;
+            background: transparent;
+            border-width: 2px;
+            border-color: #5a6472;
             border-radius: self.width / 2;
         }
 
@@ -123,30 +134,30 @@ component StageValueKnob inherits Rectangle {
             transform-rotation: (-135deg + (root.progress * 270deg));
 
             Rectangle {
-                x: (parent.width - 4px) / 2;
-                y: 8px;
-                width: 4px;
-                height: 24px;
-                background: #d7dde7;
-                border-radius: 2px;
+                x: (parent.width - 5px) / 2;
+                y: 10px;
+                width: 5px;
+                height: 28px;
+                background: #e7edf7;
+                border-radius: 3px;
             }
         }
 
         Text {
             x: 0px;
-            y: 28px;
+            y: 32px;
             width: parent.width;
-            height: 22px;
+            height: 24px;
             text: root.value-text;
             color: #f5f7fb;
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 800;
             horizontal-alignment: center;
         }
 
         if root.unit-text != "" : Text {
             x: 0px;
-            y: 52px;
+            y: 58px;
             width: parent.width;
             height: 14px;
             text: root.unit-text;
@@ -183,6 +194,148 @@ component StageValueKnob inherits Rectangle {
             }
             clicked => {
                 root.dragging = false;
+            }
+        }
+    }
+}
+
+component StageValueStepper inherits Rectangle {
+    in property <string> label;
+    in property <string> value-text;
+    in property <string> unit-text;
+    in property <float> numeric-value: 0;
+    in property <float> numeric-min: 0;
+    in property <float> numeric-max: 1;
+    in property <float> numeric-step: 1;
+    callback changed(float);
+
+    pure function previous-value() -> float {
+        let next = root.numeric-value - root.numeric-step;
+        return next < root.numeric-min ? root.numeric-min : next;
+    }
+
+    pure function next-value() -> float {
+        let next = root.numeric-value + root.numeric-step;
+        return next > root.numeric-max ? root.numeric-max : next;
+    }
+
+    width: 168px;
+    height: 88px;
+    background: transparent;
+
+    Text {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: 18px;
+        text: root.label;
+        color: #eef2f8;
+        font-size: 13px;
+        font-weight: 800;
+        horizontal-alignment: center;
+    }
+
+    Rectangle {
+        x: 0px;
+        y: 28px;
+        width: parent.width;
+        height: 50px;
+        background: #1b2028;
+        border-width: 1px;
+        border-color: #414956;
+        border-radius: 6px;
+
+        Rectangle {
+            x: 0px;
+            y: 0px;
+            width: 42px;
+            height: parent.height;
+            background: dec-hover.has-hover ? #ffffff10 : transparent;
+            border-width: 0px;
+
+            Text {
+                x: 0px;
+                y: -1px;
+                width: parent.width;
+                height: parent.height;
+                text: "−";
+                color: #f4f7fb;
+                font-size: 22px;
+                font-weight: 700;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            dec-hover := TouchArea {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+                mouse-cursor: pointer;
+                clicked => { root.changed(root.previous-value()); }
+            }
+        }
+
+        Rectangle {
+            x: 42px;
+            y: 0px;
+            width: parent.width - 84px;
+            height: parent.height;
+            background: transparent;
+
+            Text {
+                x: 0px;
+                y: 4px;
+                width: parent.width;
+                height: 22px;
+                text: root.value-text;
+                color: #f5f7fb;
+                font-size: 20px;
+                font-weight: 800;
+                horizontal-alignment: center;
+            }
+
+            if root.unit-text != "" : Text {
+                x: 0px;
+                y: 24px;
+                width: parent.width;
+                height: 14px;
+                text: root.unit-text;
+                color: #aab4c3;
+                font-size: 10px;
+                font-weight: 700;
+                horizontal-alignment: center;
+            }
+        }
+
+        Rectangle {
+            x: parent.width - 42px;
+            y: 0px;
+            width: 42px;
+            height: parent.height;
+            background: inc-hover.has-hover ? #ffffff10 : transparent;
+            border-width: 0px;
+
+            Text {
+                x: 0px;
+                y: -1px;
+                width: parent.width;
+                height: parent.height;
+                text: "+";
+                color: #f4f7fb;
+                font-size: 22px;
+                font-weight: 700;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            inc-hover := TouchArea {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+                mouse-cursor: pointer;
+                clicked => { root.changed(root.next-value()); }
             }
         }
     }
@@ -413,6 +566,21 @@ component StageParameterRow inherits Rectangle {
                 root.item.path,
                 root.item.numeric_min + ((root.item.numeric_max - root.item.numeric_min) * progress)
             );
+        }
+    }
+
+    if root.item.widget_kind == "stepper" : StageValueStepper {
+        x: 0px;
+        y: 22px;
+        label: root.item.label;
+        value-text: root.item.value_text;
+        unit-text: root.item.unit_text;
+        numeric-value: root.item.numeric_value;
+        numeric-min: root.item.numeric_min;
+        numeric-max: root.item.numeric_max;
+        numeric-step: root.item.numeric_step;
+        changed(value) => {
+            root.number-changed(root.item.path, value);
         }
     }
 
