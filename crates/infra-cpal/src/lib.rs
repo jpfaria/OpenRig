@@ -4,11 +4,11 @@ use cpal::{
     BufferSize, SampleFormat, Stream, StreamConfig, SupportedBufferSize, SupportedStreamConfig,
     SupportedStreamConfigRange,
 };
-use engine::runtime::{process_input_f32, process_output_f32, RuntimeGraph, TrackRuntimeState};
-use domain::ids::TrackId;
+use domain::ids::ChainId;
+use engine::runtime::{process_input_f32, process_output_f32, RuntimeGraph, ChainRuntimeState};
 use project::device::DeviceSettings;
 use project::project::Project;
-use project::track::Track;
+use project::chain::Chain;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -32,7 +32,7 @@ struct ResolvedOutputDevice {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct TrackStreamSignature {
+struct ChainStreamSignature {
     input_device_id: String,
     input_channels: Vec<usize>,
     input_stream_channels: u16,
@@ -45,22 +45,22 @@ struct TrackStreamSignature {
     output_buffer_size_frames: u32,
 }
 
-struct ResolvedTrackAudioConfig {
+struct ResolvedChainAudioConfig {
     input: ResolvedInputDevice,
     output: ResolvedOutputDevice,
     sample_rate: f32,
-    stream_signature: TrackStreamSignature,
+    stream_signature: ChainStreamSignature,
 }
 
-struct ActiveTrackRuntime {
-    stream_signature: TrackStreamSignature,
+struct ActiveChainRuntime {
+    stream_signature: ChainStreamSignature,
     _input_stream: Stream,
     _output_stream: Stream,
 }
 
 pub struct ProjectRuntimeController {
     runtime_graph: RuntimeGraph,
-    active_tracks: HashMap<TrackId, ActiveTrackRuntime>,
+    active_chains: HashMap<ChainId, ActiveChainRuntime>,
 }
 pub fn list_devices() -> Result<Vec<String>> {
     let host = cpal::default_host();
@@ -119,21 +119,21 @@ pub fn build_streams_for_project(
 ) -> Result<Vec<Stream>> {
     let host = cpal::default_host();
     validate_channels_against_devices(project, &host)?;
-    let mut resolved_tracks = resolve_enabled_track_audio_configs(&host, project)?;
+    let mut resolved_tracks = resolve_enabled_chain_audio_configs(&host, project)?;
     let mut streams = Vec::new();
-    for track in &project.tracks {
-        if !track.enabled {
+    for chain in &project.chains {
+        if !chain.enabled {
             continue;
         }
         let runtime = runtime_graph
-            .tracks
-            .get(&track.id)
+            .chains
+            .get(&chain.id)
             .cloned()
-            .ok_or_else(|| anyhow!("track '{}' has no runtime state", track.id.0))?;
+            .ok_or_else(|| anyhow!("chain '{}' has no runtime state", chain.id.0))?;
         let resolved = resolved_tracks
-            .remove(&track.id)
-            .ok_or_else(|| anyhow!("track '{}' missing resolved audio config", track.id.0))?;
-        let (input_stream, output_stream) = build_track_streams(&track.id, resolved, runtime)?;
+            .remove(&chain.id)
+            .ok_or_else(|| anyhow!("chain '{}' missing resolved audio config", chain.id.0))?;
+        let (input_stream, output_stream) = build_chain_streams(&chain.id, resolved, runtime)?;
         streams.push(input_stream);
         streams.push(output_stream);
     }
@@ -144,9 +144,9 @@ impl ProjectRuntimeController {
     pub fn start(project: &Project) -> Result<Self> {
         let mut controller = Self {
             runtime_graph: RuntimeGraph {
-                tracks: HashMap::new(),
+                chains: HashMap::new(),
             },
-            active_tracks: HashMap::new(),
+            active_chains: HashMap::new(),
         };
         controller.sync_project(project)?;
         Ok(controller)
@@ -155,134 +155,142 @@ impl ProjectRuntimeController {
     pub fn sync_project(&mut self, project: &Project) -> Result<()> {
         let host = cpal::default_host();
         validate_channels_against_devices(project, &host)?;
-        let mut resolved_tracks = resolve_enabled_track_audio_configs(&host, project)?;
+        let mut resolved_tracks = resolve_enabled_chain_audio_configs(&host, project)?;
 
-        let removed_track_ids = self
-            .active_tracks
+        let removed_chain_ids = self
+            .active_chains
             .keys()
-            .filter(|track_id| !resolved_tracks.contains_key(*track_id))
+            .filter(|chain_id| !resolved_tracks.contains_key(*chain_id))
             .cloned()
             .collect::<Vec<_>>();
-        for track_id in removed_track_ids {
-            self.active_tracks.remove(&track_id);
-            self.runtime_graph.remove_track(&track_id);
+        for chain_id in removed_chain_ids {
+            self.active_chains.remove(&chain_id);
+            self.runtime_graph.remove_chain(&chain_id);
         }
 
-        for track in &project.tracks {
-            if !track.enabled {
+        for chain in &project.chains {
+            if !chain.enabled {
                 continue;
             }
 
             let resolved = resolved_tracks
-                .remove(&track.id)
-                .ok_or_else(|| anyhow!("track '{}' missing resolved audio config", track.id.0))?;
-            self.upsert_track_with_resolved(track, resolved)?;
+                .remove(&chain.id)
+                .ok_or_else(|| anyhow!("chain '{}' missing resolved audio config", chain.id.0))?;
+            self.upsert_chain_with_resolved(chain, resolved)?;
         }
 
         Ok(())
     }
 
-    pub fn upsert_track(&mut self, project: &Project, track: &Track) -> Result<()> {
-        if !track.enabled {
-            self.remove_track(&track.id);
+    pub fn upsert_chain(&mut self, project: &Project, chain: &Chain) -> Result<()> {
+        if !chain.enabled {
+            self.remove_chain(&chain.id);
             return Ok(());
         }
 
         let host = cpal::default_host();
-        validate_track_channels_against_devices(&host, track)?;
-        let resolved = resolve_track_audio_config(&host, project, track)?;
-        self.upsert_track_with_resolved(track, resolved)
+        validate_chain_channels_against_devices(&host, chain)?;
+        let resolved = resolve_chain_audio_config(&host, project, chain)?;
+        self.upsert_chain_with_resolved(chain, resolved)
     }
 
-    pub fn remove_track(&mut self, track_id: &TrackId) {
-        self.active_tracks.remove(track_id);
-        self.runtime_graph.remove_track(track_id);
+    pub fn remove_chain(&mut self, chain_id: &ChainId) {
+        self.active_chains.remove(chain_id);
+        self.runtime_graph.remove_chain(chain_id);
     }
 
     pub fn stop(&mut self) {
-        self.active_tracks.clear();
-        self.runtime_graph.tracks.clear();
+        self.active_chains.clear();
+        self.runtime_graph.chains.clear();
     }
 
     pub fn is_running(&self) -> bool {
-        !self.active_tracks.is_empty()
+        !self.active_chains.is_empty()
     }
 
-    fn upsert_track_with_resolved(
+    fn upsert_chain_with_resolved(
         &mut self,
-        track: &Track,
-        resolved: ResolvedTrackAudioConfig,
+        chain: &Chain,
+        resolved: ResolvedChainAudioConfig,
     ) -> Result<()> {
         let needs_stream_rebuild = self
-            .active_tracks
-            .get(&track.id)
+            .active_chains
+            .get(&chain.id)
             .map(|active| active.stream_signature != resolved.stream_signature)
             .unwrap_or(true);
 
-        let runtime = self
-            .runtime_graph
-            .upsert_track(track, resolved.sample_rate, needs_stream_rebuild)?;
+        let runtime =
+            self.runtime_graph
+                .upsert_chain(chain, resolved.sample_rate, needs_stream_rebuild)?;
 
         if needs_stream_rebuild {
-            let active = build_active_track_runtime(&track.id, resolved, runtime)?;
-            self.active_tracks.insert(track.id.clone(), active);
+            let active = build_active_chain_runtime(&chain.id, resolved, runtime)?;
+            self.active_chains.insert(chain.id.clone(), active);
         }
 
         Ok(())
     }
 }
 
-pub fn resolve_project_track_sample_rates(project: &Project) -> Result<HashMap<TrackId, f32>> {
+pub fn resolve_project_chain_sample_rates(project: &Project) -> Result<HashMap<ChainId, f32>> {
     let host = cpal::default_host();
     let mut sample_rates = HashMap::new();
 
-    for track in &project.tracks {
-        if !track.enabled {
+    for chain in &project.chains {
+        if !chain.enabled {
             continue;
         }
-        let resolved_input = resolve_input_device_for_track(&host, project, track)?;
-        let resolved_output = resolve_output_device_for_track(&host, project, track)?;
-        let sample_rate = resolve_track_runtime_sample_rate(
-            &track.id.0,
+        let resolved_input = resolve_input_device_for_chain(&host, project, chain)?;
+        let resolved_output = resolve_output_device_for_chain(&host, project, chain)?;
+        let sample_rate = resolve_chain_runtime_sample_rate(
+            &chain.id.0,
             &resolved_input.supported,
             &resolved_output.supported,
         )?;
-        sample_rates.insert(track.id.clone(), sample_rate);
+        sample_rates.insert(chain.id.clone(), sample_rate);
     }
 
     Ok(sample_rates)
 }
 
-fn resolve_input_device_for_track(
+fn resolve_input_device_for_chain(
     host: &cpal::Host,
     project: &Project,
-    track: &Track,
+    chain: &Chain,
 ) -> Result<ResolvedInputDevice> {
     let settings = project
         .device_settings
         .iter()
-        .find(|settings| settings.device_id == track.input_device_id)
+        .find(|settings| settings.device_id == chain.input_device_id)
         .cloned();
-    let device = find_input_device_by_id(host, &track.input_device_id.0)?.ok_or_else(|| {
-        anyhow!("input device '{}' not found by device_id", track.input_device_id.0)
+    let device = find_input_device_by_id(host, &chain.input_device_id.0)?.ok_or_else(|| {
+        anyhow!(
+            "input device '{}' not found by device_id",
+            chain.input_device_id.0
+        )
     })?;
     let default_config = device.default_input_config().with_context(|| {
         format!(
             "failed to get default input config for '{}'",
-            track.input_device_id.0
+            chain.input_device_id.0
         )
     })?;
     let supported_ranges = device
         .supported_input_configs()
-        .with_context(|| format!("failed to enumerate input configs for '{}'", track.input_device_id.0))?
+        .with_context(|| {
+            format!(
+                "failed to enumerate input configs for '{}'",
+                chain.input_device_id.0
+            )
+        })?
         .collect::<Vec<_>>();
-    let required_channels = required_channel_count(&track.input_channels);
+    let required_channels = required_channel_count(&chain.input_channels);
     let supported = select_supported_stream_config(
         &default_config,
         &supported_ranges,
         settings.as_ref().map(|settings| settings.sample_rate),
         required_channels,
-        &track.input_device_id.0,
+        &chain.input_device_id.0,
     )?;
     if let Some(settings) = &settings {
         validate_buffer_size(
@@ -298,36 +306,44 @@ fn resolve_input_device_for_track(
     })
 }
 
-fn resolve_output_device_for_track(
+fn resolve_output_device_for_chain(
     host: &cpal::Host,
     project: &Project,
-    track: &Track,
+    chain: &Chain,
 ) -> Result<ResolvedOutputDevice> {
     let settings = project
         .device_settings
         .iter()
-        .find(|settings| settings.device_id == track.output_device_id)
+        .find(|settings| settings.device_id == chain.output_device_id)
         .cloned();
-    let device = find_output_device_by_id(host, &track.output_device_id.0)?.ok_or_else(|| {
-        anyhow!("output device '{}' not found by device_id", track.output_device_id.0)
+    let device = find_output_device_by_id(host, &chain.output_device_id.0)?.ok_or_else(|| {
+        anyhow!(
+            "output device '{}' not found by device_id",
+            chain.output_device_id.0
+        )
     })?;
     let default_config = device.default_output_config().with_context(|| {
         format!(
             "failed to get default output config for '{}'",
-            track.output_device_id.0
+            chain.output_device_id.0
         )
     })?;
     let supported_ranges = device
         .supported_output_configs()
-        .with_context(|| format!("failed to enumerate output configs for '{}'", track.output_device_id.0))?
+        .with_context(|| {
+            format!(
+                "failed to enumerate output configs for '{}'",
+                chain.output_device_id.0
+            )
+        })?
         .collect::<Vec<_>>();
-    let required_channels = required_channel_count(&track.output_channels);
+    let required_channels = required_channel_count(&chain.output_channels);
     let supported = select_supported_stream_config(
         &default_config,
         &supported_ranges,
         settings.as_ref().map(|settings| settings.sample_rate),
         required_channels,
-        &track.output_device_id.0,
+        &chain.output_device_id.0,
     )?;
     if let Some(settings) = &settings {
         validate_buffer_size(
@@ -343,26 +359,26 @@ fn resolve_output_device_for_track(
     })
 }
 
-fn resolve_enabled_track_audio_configs(
+fn resolve_enabled_chain_audio_configs(
     host: &cpal::Host,
     project: &Project,
-) -> Result<HashMap<TrackId, ResolvedTrackAudioConfig>> {
+) -> Result<HashMap<ChainId, ResolvedChainAudioConfig>> {
     let mut resolved = HashMap::new();
 
-    for track in &project.tracks {
-        if !track.enabled {
+    for chain in &project.chains {
+        if !chain.enabled {
             continue;
         }
 
-        let input = resolve_input_device_for_track(host, project, track)?;
-        let output = resolve_output_device_for_track(host, project, track)?;
+        let input = resolve_input_device_for_chain(host, project, chain)?;
+        let output = resolve_output_device_for_chain(host, project, chain)?;
         let sample_rate =
-            resolve_track_runtime_sample_rate(&track.id.0, &input.supported, &output.supported)?;
+            resolve_chain_runtime_sample_rate(&chain.id.0, &input.supported, &output.supported)?;
 
         resolved.insert(
-            track.id.clone(),
-            ResolvedTrackAudioConfig {
-                stream_signature: build_track_stream_signature(track, &input, &output),
+            chain.id.clone(),
+            ResolvedChainAudioConfig {
+                stream_signature: build_chain_stream_signature(chain, &input, &output),
                 input,
                 output,
                 sample_rate,
@@ -373,18 +389,18 @@ fn resolve_enabled_track_audio_configs(
     Ok(resolved)
 }
 
-fn resolve_track_audio_config(
+fn resolve_chain_audio_config(
     host: &cpal::Host,
     project: &Project,
-    track: &Track,
-) -> Result<ResolvedTrackAudioConfig> {
-    let input = resolve_input_device_for_track(host, project, track)?;
-    let output = resolve_output_device_for_track(host, project, track)?;
+    chain: &Chain,
+) -> Result<ResolvedChainAudioConfig> {
+    let input = resolve_input_device_for_chain(host, project, chain)?;
+    let output = resolve_output_device_for_chain(host, project, chain)?;
     let sample_rate =
-        resolve_track_runtime_sample_rate(&track.id.0, &input.supported, &output.supported)?;
+        resolve_chain_runtime_sample_rate(&chain.id.0, &input.supported, &output.supported)?;
 
-    Ok(ResolvedTrackAudioConfig {
-        stream_signature: build_track_stream_signature(track, &input, &output),
+    Ok(ResolvedChainAudioConfig {
+        stream_signature: build_chain_stream_signature(chain, &input, &output),
         input,
         output,
         sample_rate,
@@ -412,62 +428,61 @@ fn validate_buffer_size(
     }
     Ok(())
 }
-fn validate_channels_against_devices(
-    project: &Project,
-    host: &cpal::Host,
-) -> Result<()> {
-    for track in &project.tracks {
-        if !track.enabled {
+fn validate_channels_against_devices(project: &Project, host: &cpal::Host) -> Result<()> {
+    for chain in &project.chains {
+        if !chain.enabled {
             continue;
         }
-        validate_track_channels_against_devices(host, track)?;
+        validate_chain_channels_against_devices(host, chain)?;
     }
     Ok(())
 }
 
-fn validate_track_channels_against_devices(host: &cpal::Host, track: &Track) -> Result<()> {
-    let input_device = find_input_device_by_id(host, &track.input_device_id.0)?.ok_or_else(|| {
-        anyhow!(
-            "track '{}' missing input device '{}'",
-            track.id.0,
-            track.input_device_id.0
-        )
-    })?;
+fn validate_chain_channels_against_devices(host: &cpal::Host, chain: &Chain) -> Result<()> {
+    let input_device =
+        find_input_device_by_id(host, &chain.input_device_id.0)?.ok_or_else(|| {
+            anyhow!(
+                "chain '{}' missing input device '{}'",
+                chain.id.0,
+                chain.input_device_id.0
+            )
+        })?;
     let total_channels = max_supported_input_channels(&input_device).with_context(|| {
         format!(
             "failed to resolve input channel capacity for '{}'",
-            track.input_device_id.0
+            chain.input_device_id.0
         )
     })?;
-    for channel in &track.input_channels {
+    for channel in &chain.input_channels {
         if *channel >= total_channels {
             bail!(
-                "track '{}' invalid: input channel '{}' outside device range (channels={})",
-                track.id.0,
+                "chain '{}' invalid: input channel '{}' outside device range (channels={})",
+                chain.id.0,
                 channel,
                 total_channels
             );
         }
     }
 
-    let output_device = find_output_device_by_id(host, &track.output_device_id.0)?.ok_or_else(|| {
-        anyhow!(
-            "track '{}' missing output device '{}'",
-            track.id.0,
-            track.output_device_id.0
-        )
-    })?;
+    let output_device =
+        find_output_device_by_id(host, &chain.output_device_id.0)?.ok_or_else(|| {
+            anyhow!(
+                "chain '{}' missing output device '{}'",
+                chain.id.0,
+                chain.output_device_id.0
+            )
+        })?;
     let total_channels = max_supported_output_channels(&output_device).with_context(|| {
         format!(
             "failed to resolve output channel capacity for '{}'",
-            track.output_device_id.0
+            chain.output_device_id.0
         )
     })?;
-    for channel in &track.output_channels {
+    for channel in &chain.output_channels {
         if *channel >= total_channels {
             bail!(
-                "track '{}' invalid: output channel '{}' outside device range (channels={})",
-                track.id.0,
+                "chain '{}' invalid: output channel '{}' outside device range (channels={})",
+                chain.id.0,
                 channel,
                 total_channels
             );
@@ -492,10 +507,10 @@ fn find_output_device_by_id(host: &cpal::Host, device_id: &str) -> Result<Option
     }
     Ok(None)
 }
-fn build_input_stream_for_track(
-    track_id: &TrackId,
+fn build_input_stream_for_chain(
+    chain_id: &ChainId,
     resolved_input_device: ResolvedInputDevice,
-    runtime: Arc<Mutex<TrackRuntimeState>>,
+    runtime: Arc<Mutex<ChainRuntimeState>>,
 ) -> Result<Stream> {
     let sample_format = resolved_input_device.supported.sample_format();
     let sample_rate = resolved_input_sample_rate(&resolved_input_device);
@@ -510,20 +525,20 @@ fn build_input_stream_for_track(
         SampleFormat::F32 => {
             let runtime_for_data = runtime.clone();
             let channels = stream_config.channels as usize;
-            let error_track_id = track_id.0.clone();
+            let error_chain_id = chain_id.0.clone();
             device.build_input_stream(
                 &stream_config,
                 move |data: &[f32], _| {
                     process_input_f32(&runtime_for_data, data, channels);
                 },
-                move |err| eprintln!("[{}] input error: {}", error_track_id, err),
+                move |err| eprintln!("[{}] input error: {}", error_chain_id, err),
                 None,
             )?
         }
         SampleFormat::I16 => {
             let runtime_for_data = runtime.clone();
             let channels = stream_config.channels as usize;
-            let error_track_id = track_id.0.clone();
+            let error_chain_id = chain_id.0.clone();
             device.build_input_stream(
                 &stream_config,
                 move |data: &[i16], _| {
@@ -533,14 +548,14 @@ fn build_input_stream_for_track(
                         .collect();
                     process_input_f32(&runtime_for_data, &converted, channels);
                 },
-                move |err| eprintln!("[{}] input error: {}", error_track_id, err),
+                move |err| eprintln!("[{}] input error: {}", error_chain_id, err),
                 None,
             )?
         }
         SampleFormat::U16 => {
             let runtime_for_data = runtime.clone();
             let channels = stream_config.channels as usize;
-            let error_track_id = track_id.0.clone();
+            let error_chain_id = chain_id.0.clone();
             device.build_input_stream(
                 &stream_config,
                 move |data: &[u16], _| {
@@ -550,24 +565,24 @@ fn build_input_stream_for_track(
                         .collect();
                     process_input_f32(&runtime_for_data, &converted, channels);
                 },
-                move |err| eprintln!("[{}] input error: {}", error_track_id, err),
+                move |err| eprintln!("[{}] input error: {}", error_chain_id, err),
                 None,
             )?
         }
         other => {
             bail!(
-                "unsupported input sample format for track '{}': {:?}",
-                track_id.0,
+                "unsupported input sample format for chain '{}': {:?}",
+                chain_id.0,
                 other
             );
         }
     };
     Ok(stream)
 }
-fn build_output_stream_for_track(
-    track_id: &TrackId,
+fn build_output_stream_for_chain(
+    chain_id: &ChainId,
     resolved_output_device: ResolvedOutputDevice,
-    runtime: Arc<Mutex<TrackRuntimeState>>,
+    runtime: Arc<Mutex<ChainRuntimeState>>,
 ) -> Result<Stream> {
     let sample_format = resolved_output_device.supported.sample_format();
     let sample_rate = resolved_output_sample_rate(&resolved_output_device);
@@ -582,20 +597,20 @@ fn build_output_stream_for_track(
         SampleFormat::F32 => {
             let runtime_for_data = runtime.clone();
             let channels = stream_config.channels as usize;
-            let error_track_id = track_id.0.clone();
+            let error_chain_id = chain_id.0.clone();
             device.build_output_stream(
                 &stream_config,
                 move |out: &mut [f32], _| {
                     process_output_f32(&runtime_for_data, out, channels);
                 },
-                move |err| eprintln!("[{}] output error: {}", error_track_id, err),
+                move |err| eprintln!("[{}] output error: {}", error_chain_id, err),
                 None,
             )?
         }
         SampleFormat::I16 => {
             let runtime_for_data = runtime.clone();
             let channels = stream_config.channels as usize;
-            let error_track_id = track_id.0.clone();
+            let error_chain_id = chain_id.0.clone();
             device.build_output_stream(
                 &stream_config,
                 move |out: &mut [i16], _| {
@@ -606,14 +621,14 @@ fn build_output_stream_for_track(
                             (*src * i16::MAX as f32).clamp(i16::MIN as f32, i16::MAX as f32) as i16;
                     }
                 },
-                move |err| eprintln!("[{}] output error: {}", error_track_id, err),
+                move |err| eprintln!("[{}] output error: {}", error_chain_id, err),
                 None,
             )?
         }
         SampleFormat::U16 => {
             let runtime_for_data = runtime.clone();
             let channels = stream_config.channels as usize;
-            let error_track_id = track_id.0.clone();
+            let error_chain_id = chain_id.0.clone();
             device.build_output_stream(
                 &stream_config,
                 move |out: &mut [u16], _| {
@@ -625,14 +640,14 @@ fn build_output_stream_for_track(
                         *dst = normalized as u16;
                     }
                 },
-                move |err| eprintln!("[{}] output error: {}", error_track_id, err),
+                move |err| eprintln!("[{}] output error: {}", error_chain_id, err),
                 None,
             )?
         }
         other => {
             bail!(
-                "unsupported output sample format for track '{}': {:?}",
-                track_id.0,
+                "unsupported output sample format for chain '{}': {:?}",
+                chain_id.0,
                 other
             );
         }
@@ -647,45 +662,45 @@ fn build_stream_config(channels: u16, sample_rate: u32, buffer_size_frames: u32)
     }
 }
 
-fn build_track_streams(
-    track_id: &TrackId,
-    resolved: ResolvedTrackAudioConfig,
-    runtime: Arc<Mutex<TrackRuntimeState>>,
+fn build_chain_streams(
+    chain_id: &ChainId,
+    resolved: ResolvedChainAudioConfig,
+    runtime: Arc<Mutex<ChainRuntimeState>>,
 ) -> Result<(Stream, Stream)> {
-    let input_stream = build_input_stream_for_track(track_id, resolved.input, runtime.clone())?;
-    let output_stream = build_output_stream_for_track(track_id, resolved.output, runtime)?;
+    let input_stream = build_input_stream_for_chain(chain_id, resolved.input, runtime.clone())?;
+    let output_stream = build_output_stream_for_chain(chain_id, resolved.output, runtime)?;
     Ok((input_stream, output_stream))
 }
 
-fn build_active_track_runtime(
-    track_id: &TrackId,
-    resolved: ResolvedTrackAudioConfig,
-    runtime: Arc<Mutex<TrackRuntimeState>>,
-) -> Result<ActiveTrackRuntime> {
+fn build_active_chain_runtime(
+    chain_id: &ChainId,
+    resolved: ResolvedChainAudioConfig,
+    runtime: Arc<Mutex<ChainRuntimeState>>,
+) -> Result<ActiveChainRuntime> {
     let stream_signature = resolved.stream_signature.clone();
-    let (input_stream, output_stream) = build_track_streams(track_id, resolved, runtime)?;
+    let (input_stream, output_stream) = build_chain_streams(chain_id, resolved, runtime)?;
     input_stream.play()?;
     output_stream.play()?;
-    Ok(ActiveTrackRuntime {
+    Ok(ActiveChainRuntime {
         stream_signature,
         _input_stream: input_stream,
         _output_stream: output_stream,
     })
 }
 
-fn build_track_stream_signature(
-    track: &Track,
+fn build_chain_stream_signature(
+    chain: &Chain,
     input: &ResolvedInputDevice,
     output: &ResolvedOutputDevice,
-) -> TrackStreamSignature {
-    TrackStreamSignature {
-        input_device_id: track.input_device_id.0.clone(),
-        input_channels: track.input_channels.clone(),
+) -> ChainStreamSignature {
+    ChainStreamSignature {
+        input_device_id: chain.input_device_id.0.clone(),
+        input_channels: chain.input_channels.clone(),
         input_stream_channels: input.supported.channels(),
         input_sample_rate: resolved_input_sample_rate(input),
         input_buffer_size_frames: resolved_input_buffer_size_frames(input),
-        output_device_id: track.output_device_id.0.clone(),
-        output_channels: track.output_channels.clone(),
+        output_device_id: chain.output_device_id.0.clone(),
+        output_channels: chain.output_channels.clone(),
         output_stream_channels: output.supported.channels(),
         output_sample_rate: resolved_output_sample_rate(output),
         output_buffer_size_frames: resolved_output_buffer_size_frames(output),
@@ -725,7 +740,12 @@ fn resolved_output_buffer_size_frames(resolved: &ResolvedOutputDevice) -> u32 {
 }
 
 fn required_channel_count(channels: &[usize]) -> usize {
-    channels.iter().copied().max().map(|channel| channel + 1).unwrap_or(0)
+    channels
+        .iter()
+        .copied()
+        .max()
+        .map(|channel| channel + 1)
+        .unwrap_or(0)
 }
 
 fn select_supported_stream_config(
@@ -760,15 +780,15 @@ fn select_supported_stream_config(
     })
 }
 
-fn resolve_track_runtime_sample_rate(
-    track_id: &str,
+fn resolve_chain_runtime_sample_rate(
+    chain_id: &str,
     input: &SupportedStreamConfig,
     output: &SupportedStreamConfig,
 ) -> Result<f32> {
     if input.sample_rate() != output.sample_rate() {
         bail!(
-            "track '{}' invalid: input sample_rate={} differs from output sample_rate={}",
-            track_id,
+            "chain '{}' invalid: input sample_rate={} differs from output sample_rate={}",
+            chain_id,
             input.sample_rate(),
             output.sample_rate()
         );
@@ -782,7 +802,10 @@ fn max_supported_input_channels(device: &cpal::Device) -> Result<usize> {
         .supported_input_configs()?
         .map(|config| config.channels() as usize)
         .max();
-    let default_channels = device.default_input_config().ok().map(|config| config.channels() as usize);
+    let default_channels = device
+        .default_input_config()
+        .ok()
+        .map(|config| config.channels() as usize);
     max_supported_channels(default_channels, max_supported)
 }
 
@@ -791,7 +814,10 @@ fn max_supported_output_channels(device: &cpal::Device) -> Result<usize> {
         .supported_output_configs()?
         .map(|config| config.channels() as usize)
         .max();
-    let default_channels = device.default_output_config().ok().map(|config| config.channels() as usize);
+    let default_channels = device
+        .default_output_config()
+        .ok()
+        .map(|config| config.channels() as usize);
     max_supported_channels(default_channels, max_supported)
 }
 
@@ -807,11 +833,15 @@ fn max_supported_channels(
 #[cfg(test)]
 mod tests {
     use super::{
-        max_supported_channels, resolve_track_runtime_sample_rate, select_supported_stream_config,
+        max_supported_channels, resolve_chain_runtime_sample_rate, select_supported_stream_config,
     };
     use cpal::{SampleFormat, SupportedBufferSize, SupportedStreamConfigRange};
 
-    fn supported_range(channels: u16, min_sample_rate: u32, max_sample_rate: u32) -> SupportedStreamConfigRange {
+    fn supported_range(
+        channels: u16,
+        min_sample_rate: u32,
+        max_sample_rate: u32,
+    ) -> SupportedStreamConfigRange {
         SupportedStreamConfigRange::new(
             channels,
             min_sample_rate,
@@ -847,7 +877,7 @@ mod tests {
         let input = supported_range(2, 48_000, 48_000).with_max_sample_rate();
         let output = supported_range(2, 44_100, 44_100).with_max_sample_rate();
 
-        let error = resolve_track_runtime_sample_rate("track:0", &input, &output)
+        let error = resolve_chain_runtime_sample_rate("chain:0", &input, &output)
             .expect_err("mismatched rates should fail");
 
         assert!(error.to_string().contains("sample_rate"));

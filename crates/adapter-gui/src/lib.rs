@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use application::validate::validate_project;
-use domain::ids::{BlockId, DeviceId, TrackId};
+use domain::ids::{BlockId, DeviceId, ChainId};
 use infra_cpal::{
     list_input_device_descriptors, list_output_device_descriptors, AudioDeviceDescriptor,
     ProjectRuntimeController,
@@ -9,17 +9,17 @@ use infra_filesystem::{
     AppConfig, FilesystemStorage, GuiAudioDeviceSettings, GuiAudioSettings, RecentProjectEntry,
 };
 use infra_yaml::{
-    load_track_preset_file, save_track_preset_file, serialize_audio_blocks, TrackBlocksPreset,
+    load_chain_preset_file, save_chain_preset_file, serialize_audio_blocks, ChainBlocksPreset,
     YamlProjectRepository,
 };
 use project::block::{
     build_audio_block_kind, schema_for_block_model, AudioBlock, AudioBlockKind,
 };
-use project::catalog::{supported_stage_models, supported_stage_types};
+use project::catalog::{supported_block_models, supported_block_types};
 use project::device::DeviceSettings;
 use project::param::{ParameterDomain, ParameterSet, ParameterUnit};
 use project::project::Project;
-use project::track::{Track, TrackOutputMixdown};
+use project::chain::{Chain, ChainOutputMixdown};
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 use slint::{Model, ModelRc, SharedString, VecModel};
@@ -30,7 +30,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use ui_openrig::{AppRuntimeMode, InteractionMode, UiRuntimeContext};
-use ui_state::{stage_drawer_state, stage_family_for_kind, track_routing_summary};
+use ui_state::{block_drawer_state, block_family_for_kind, chain_routing_summary};
 
 mod ui_state;
 
@@ -61,7 +61,7 @@ struct ProjectSession {
 }
 
 #[derive(Debug, Clone)]
-struct TrackDraft {
+struct ChainDraft {
     editing_index: Option<usize>,
     name: String,
     input_device_id: Option<String>,
@@ -71,15 +71,15 @@ struct TrackDraft {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct SelectedStage {
-    track_index: usize,
-    stage_index: usize,
+struct SelectedBlock {
+    chain_index: usize,
+    block_index: usize,
 }
 
 #[derive(Debug, Clone)]
-struct StageEditorDraft {
-    track_index: usize,
-    stage_index: Option<usize>,
+struct BlockEditorDraft {
+    chain_index: usize,
+    block_index: Option<usize>,
     before_index: usize,
     effect_type: String,
     model_id: String,
@@ -87,7 +87,7 @@ struct StageEditorDraft {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum TrackEditorMode {
+enum ChainEditorMode {
     Create,
     Edit,
 }
@@ -104,7 +104,7 @@ struct ProjectYaml {
     name: Option<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     device_settings: Vec<ProjectDeviceSettingsYaml>,
-    tracks: Vec<ProjectTrackYaml>,
+    chains: Vec<ProjectChainYaml>,
 }
 
 #[derive(Debug, Serialize)]
@@ -115,7 +115,7 @@ struct ProjectDeviceSettingsYaml {
 }
 
 #[derive(Debug, Serialize)]
-struct ProjectTrackYaml {
+struct ProjectChainYaml {
     #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
     enabled: bool,
@@ -123,8 +123,8 @@ struct ProjectTrackYaml {
     input_channels: Vec<usize>,
     output_device_id: String,
     output_channels: Vec<usize>,
-    stages: Vec<serde_yaml::Value>,
-    output_mixdown: TrackOutputMixdown,
+    blocks: Vec<serde_yaml::Value>,
+    output_mixdown: ChainOutputMixdown,
 }
 
 #[derive(Debug, Serialize)]
@@ -145,24 +145,24 @@ pub fn run_desktop_app(
     let project_paths = resolve_project_paths();
     let app_config = Rc::new(RefCell::new(load_and_sync_app_config()?));
     let project_session = Rc::new(RefCell::new(None::<ProjectSession>));
-    let track_draft = Rc::new(RefCell::new(None::<TrackDraft>));
-    let selected_stage = Rc::new(RefCell::new(None::<SelectedStage>));
-    let stage_editor_draft = Rc::new(RefCell::new(None::<StageEditorDraft>));
+    let chain_draft = Rc::new(RefCell::new(None::<ChainDraft>));
+    let selected_block = Rc::new(RefCell::new(None::<SelectedBlock>));
+    let block_editor_draft = Rc::new(RefCell::new(None::<BlockEditorDraft>));
     let project_runtime = Rc::new(RefCell::new(None::<ProjectRuntimeController>));
     let saved_project_snapshot = Rc::new(RefCell::new(None::<String>));
     let project_dirty = Rc::new(RefCell::new(false));
     let audio_settings_mode = Rc::new(RefCell::new(AudioSettingsMode::Gui));
-    let input_track_devices = Rc::new(list_input_device_descriptors()?);
-    let output_track_devices = Rc::new(list_output_device_descriptors()?);
+    let input_chain_devices = Rc::new(list_input_device_descriptors()?);
+    let output_chain_devices = Rc::new(list_output_device_descriptors()?);
 
     let window = AppWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     let project_settings_window =
         ProjectSettingsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
-    let track_editor_window =
-        TrackEditorWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    let chain_editor_window =
+        ChainEditorWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     window.set_show_project_launcher(true);
-    window.set_show_project_tracks(false);
-    window.set_show_track_editor(false);
+    window.set_show_project_chains(false);
+    window.set_show_chain_editor(false);
     window.set_show_project_settings(false);
     window.set_project_running(false);
     window.set_project_dirty(false);
@@ -170,8 +170,8 @@ pub fn run_desktop_app(
     window.set_project_title("Projeto".into());
     window.set_project_name_draft("".into());
     window.set_recent_project_search("".into());
-    window.set_track_editor_title("Nova track".into());
-    window.set_track_editor_save_label("Criar track".into());
+    window.set_chain_editor_title("Nova chain".into());
+    window.set_chain_editor_save_label("Criar chain".into());
     window.set_runtime_mode_label(context.runtime_mode.label().into());
     window.set_interaction_mode_label(context.interaction_mode.label().into());
     window.set_touch_optimized(context.capabilities.touch_optimized);
@@ -228,79 +228,79 @@ pub fn run_desktop_app(
     ));
     mark_unselected_devices(&output_devices, &settings.output_devices);
     let project_devices = Rc::new(VecModel::from(build_project_device_rows(
-        input_track_devices.as_ref(),
-        output_track_devices.as_ref(),
+        input_chain_devices.as_ref(),
+        output_chain_devices.as_ref(),
         &[],
     )));
 
     window.set_input_devices(ModelRc::from(input_devices.clone()));
     window.set_output_devices(ModelRc::from(output_devices.clone()));
-    let project_tracks = Rc::new(VecModel::from(Vec::<ProjectTrackItem>::new()));
-    window.set_project_tracks(ModelRc::from(project_tracks.clone()));
+    let project_chains = Rc::new(VecModel::from(Vec::<ProjectChainItem>::new()));
+    window.set_project_chains(ModelRc::from(project_chains.clone()));
     let recent_projects = Rc::new(VecModel::from(recent_project_items(
         &app_config.borrow().recent_projects,
         "",
     )));
     window.set_recent_projects(ModelRc::from(recent_projects.clone()));
-    let track_input_device_options = Rc::new(VecModel::from(
-        input_track_devices
+    let chain_input_device_options = Rc::new(VecModel::from(
+        input_chain_devices
             .iter()
             .map(|device| SharedString::from(device.name.clone()))
             .collect::<Vec<_>>(),
     ));
-    let track_output_device_options = Rc::new(VecModel::from(
-        output_track_devices
+    let chain_output_device_options = Rc::new(VecModel::from(
+        output_chain_devices
             .iter()
             .map(|device| SharedString::from(device.name.clone()))
             .collect::<Vec<_>>(),
     ));
-    let track_input_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
-    let track_output_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
-    window.set_track_input_device_options(ModelRc::from(track_input_device_options.clone()));
-    window.set_track_output_device_options(ModelRc::from(track_output_device_options.clone()));
-    window.set_track_input_channels(ModelRc::from(track_input_channels.clone()));
-    window.set_track_output_channels(ModelRc::from(track_output_channels.clone()));
-    window.set_selected_track_input_device_index(-1);
-    window.set_selected_track_output_device_index(-1);
-    window.set_selected_track_stage_track_index(-1);
-    window.set_selected_track_stage_index(-1);
-    window.set_show_stage_type_picker(false);
-    window.set_show_stage_model_picker(false);
-    window.set_stage_picker_title("Adicionar stage".into());
-    window.set_show_stage_drawer(false);
-    window.set_stage_drawer_title("Adicionar stage".into());
-    window.set_stage_drawer_confirm_label("Adicionar".into());
-    window.set_stage_drawer_status_message("".into());
-    window.set_stage_drawer_edit_mode(false);
-    window.set_stage_drawer_selected_type_index(-1);
-    window.set_stage_drawer_selected_model_index(-1);
-    window.set_stage_drawer_enabled(true);
-    window.set_track_draft_name("".into());
+    let chain_input_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
+    let chain_output_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
+    window.set_chain_input_device_options(ModelRc::from(chain_input_device_options.clone()));
+    window.set_chain_output_device_options(ModelRc::from(chain_output_device_options.clone()));
+    window.set_chain_input_channels(ModelRc::from(chain_input_channels.clone()));
+    window.set_chain_output_channels(ModelRc::from(chain_output_channels.clone()));
+    window.set_selected_chain_input_device_index(-1);
+    window.set_selected_chain_output_device_index(-1);
+    window.set_selected_chain_block_chain_index(-1);
+    window.set_selected_chain_block_index(-1);
+    window.set_show_block_type_picker(false);
+    window.set_show_block_model_picker(false);
+    window.set_block_picker_title("Adicionar block".into());
+    window.set_show_block_drawer(false);
+    window.set_block_drawer_title("Adicionar block".into());
+    window.set_block_drawer_confirm_label("Adicionar".into());
+    window.set_block_drawer_status_message("".into());
+    window.set_block_drawer_edit_mode(false);
+    window.set_block_drawer_selected_type_index(-1);
+    window.set_block_drawer_selected_model_index(-1);
+    window.set_block_drawer_enabled(true);
+    window.set_chain_draft_name("".into());
     project_settings_window.set_status_message("".into());
-    track_editor_window.set_status_message("".into());
+    chain_editor_window.set_status_message("".into());
     project_settings_window.set_project_name_draft("".into());
-    track_editor_window.set_track_name("".into());
+    chain_editor_window.set_chain_name("".into());
 
-    let stage_type_options = Rc::new(VecModel::from(stage_type_picker_items()));
-    let stage_model_options = Rc::new(VecModel::from(Vec::<StageModelPickerItem>::new()));
-    let stage_model_option_labels = Rc::new(VecModel::from(Vec::<SharedString>::new()));
-    let stage_parameter_items = Rc::new(VecModel::from(Vec::<StageParameterItem>::new()));
-    window.set_stage_type_options(ModelRc::from(stage_type_options.clone()));
-    window.set_stage_model_options(ModelRc::from(stage_model_options.clone()));
-    window.set_stage_model_option_labels(ModelRc::from(stage_model_option_labels.clone()));
-    window.set_stage_parameter_items(ModelRc::from(stage_parameter_items.clone()));
+    let block_type_options = Rc::new(VecModel::from(block_type_picker_items()));
+    let block_model_options = Rc::new(VecModel::from(Vec::<BlockModelPickerItem>::new()));
+    let block_model_option_labels = Rc::new(VecModel::from(Vec::<SharedString>::new()));
+    let block_parameter_items = Rc::new(VecModel::from(Vec::<BlockParameterItem>::new()));
+    window.set_block_type_options(ModelRc::from(block_type_options.clone()));
+    window.set_block_model_options(ModelRc::from(block_model_options.clone()));
+    window.set_block_model_option_labels(ModelRc::from(block_model_option_labels.clone()));
+    window.set_block_parameter_items(ModelRc::from(block_parameter_items.clone()));
 
     project_settings_window.set_project_devices(ModelRc::from(project_devices.clone()));
     project_settings_window.set_sample_rate_options(window.get_sample_rate_options());
     project_settings_window.set_buffer_size_options(window.get_buffer_size_options());
 
-    track_editor_window.set_input_device_options(ModelRc::from(track_input_device_options.clone()));
-    track_editor_window
-        .set_output_device_options(ModelRc::from(track_output_device_options.clone()));
-    track_editor_window.set_input_channels(ModelRc::from(track_input_channels.clone()));
-    track_editor_window.set_output_channels(ModelRc::from(track_output_channels.clone()));
-    track_editor_window.set_selected_input_device_index(-1);
-    track_editor_window.set_selected_output_device_index(-1);
+    chain_editor_window.set_input_device_options(ModelRc::from(chain_input_device_options.clone()));
+    chain_editor_window
+        .set_output_device_options(ModelRc::from(chain_output_device_options.clone()));
+    chain_editor_window.set_input_channels(ModelRc::from(chain_input_channels.clone()));
+    chain_editor_window.set_output_channels(ModelRc::from(chain_output_channels.clone()));
+    chain_editor_window.set_selected_input_device_index(-1);
+    chain_editor_window.set_selected_output_device_index(-1);
 
     {
         let input_devices = input_devices.clone();
@@ -406,7 +406,7 @@ pub fn run_desktop_app(
         let output_devices = output_devices.clone();
         let audio_settings_mode = audio_settings_mode.clone();
         let project_session = project_session.clone();
-        let project_tracks = project_tracks.clone();
+        let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
@@ -471,7 +471,7 @@ pub fn run_desktop_app(
                         window.set_status_message(error.to_string().into());
                         return;
                     }
-                    replace_project_tracks(&project_tracks, &session.project);
+                    replace_project_chains(&project_chains, &session.project);
                     window.set_project_title(
                         project_title_for_path(session.project_path.as_ref(), &session.project)
                             .into(),
@@ -479,8 +479,8 @@ pub fn run_desktop_app(
                     sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
                     window.set_status_message("".into());
                     window.set_project_running(project_runtime_is_running(&project_runtime));
-                    window.set_show_project_tracks(true);
-                    window.set_show_track_editor(false);
+                    window.set_show_project_chains(true);
+                    window.set_show_chain_editor(false);
                     window.set_show_project_settings(false);
                 }
             }
@@ -495,7 +495,7 @@ pub fn run_desktop_app(
         let project_devices = project_devices.clone();
         let audio_settings_mode = audio_settings_mode.clone();
         let project_session = project_session.clone();
-        let project_tracks = project_tracks.clone();
+        let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
@@ -572,7 +572,7 @@ pub fn run_desktop_app(
                         settings_window.set_status_message(error.to_string().into());
                         return;
                     }
-                    replace_project_tracks(&project_tracks, &session.project);
+                    replace_project_chains(&project_chains, &session.project);
                     window.set_project_title(
                         project_title_for_path(session.project_path.as_ref(), &session.project)
                             .into(),
@@ -592,7 +592,7 @@ pub fn run_desktop_app(
         let weak_window = window.as_weak();
         let app_config = app_config.clone();
         let project_session = project_session.clone();
-        let project_tracks = project_tracks.clone();
+        let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let recent_projects = recent_projects.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
@@ -614,7 +614,7 @@ pub fn run_desktop_app(
                     let title = project_title_for_path(Some(&canonical_path), &session.project);
                     let display_name = project_display_name(&session.project);
                     stop_project_runtime(&project_runtime);
-                    replace_project_tracks(&project_tracks, &session.project);
+                    replace_project_chains(&project_chains, &session.project);
                     let snapshot = project_session_snapshot(&session).ok();
                     *project_session.borrow_mut() = Some(session);
                     *saved_project_snapshot.borrow_mut() = snapshot;
@@ -644,8 +644,8 @@ pub fn run_desktop_app(
                         format!("Projeto: {}", canonical_path.display()).into(),
                     );
                     window.set_show_project_launcher(false);
-                    window.set_show_project_tracks(true);
-                    window.set_show_track_editor(false);
+                    window.set_show_project_chains(true);
+                    window.set_show_chain_editor(false);
                     window.set_show_project_settings(false);
                 }
                 Err(error) => {
@@ -659,7 +659,7 @@ pub fn run_desktop_app(
         let weak_window = window.as_weak();
         let project_paths = project_paths.clone();
         let project_session = project_session.clone();
-        let project_tracks = project_tracks.clone();
+        let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
@@ -669,7 +669,7 @@ pub fn run_desktop_app(
             };
             stop_project_runtime(&project_runtime);
             let session = create_new_project_session(&project_paths.default_config_path);
-            replace_project_tracks(&project_tracks, &session.project);
+            replace_project_chains(&project_chains, &session.project);
             *project_session.borrow_mut() = Some(session);
             *saved_project_snapshot.borrow_mut() = None;
             window.set_project_running(false);
@@ -679,8 +679,8 @@ pub fn run_desktop_app(
             window.set_project_name_draft("".into());
             window.set_project_path_label("Projeto em memória".into());
             window.set_show_project_launcher(false);
-            window.set_show_project_tracks(true);
-            window.set_show_track_editor(false);
+            window.set_show_project_chains(true);
+            window.set_show_chain_editor(false);
             window.set_show_project_settings(false);
         });
     }
@@ -777,7 +777,7 @@ pub fn run_desktop_app(
         let weak_window = window.as_weak();
         let app_config = app_config.clone();
         let project_session = project_session.clone();
-        let project_tracks = project_tracks.clone();
+        let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let recent_projects = recent_projects.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
@@ -812,7 +812,7 @@ pub fn run_desktop_app(
                     let title = project_title_for_path(Some(&canonical_path), &session.project);
                     let display_name = project_display_name(&session.project);
                     stop_project_runtime(&project_runtime);
-                    replace_project_tracks(&project_tracks, &session.project);
+                    replace_project_chains(&project_chains, &session.project);
                     let snapshot = project_session_snapshot(&session).ok();
                     *project_session.borrow_mut() = Some(session);
                     *saved_project_snapshot.borrow_mut() = snapshot;
@@ -842,8 +842,8 @@ pub fn run_desktop_app(
                         format!("Projeto: {}", canonical_path.display()).into(),
                     );
                     window.set_show_project_launcher(false);
-                    window.set_show_project_tracks(true);
-                    window.set_show_track_editor(false);
+                    window.set_show_project_chains(true);
+                    window.set_show_chain_editor(false);
                     window.set_show_project_settings(false);
                 }
                 Err(error) => {
@@ -888,8 +888,8 @@ pub fn run_desktop_app(
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
         let project_devices = project_devices.clone();
-        let input_track_devices = input_track_devices.clone();
-        let output_track_devices = output_track_devices.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         let audio_settings_mode = audio_settings_mode.clone();
         let project_settings_window = project_settings_window.as_weak();
         window.on_configure_project(move || {
@@ -906,8 +906,8 @@ pub fn run_desktop_app(
             };
 
             project_devices.set_vec(build_project_device_rows(
-                input_track_devices.as_ref(),
-                output_track_devices.as_ref(),
+                input_chain_devices.as_ref(),
+                output_chain_devices.as_ref(),
                 &session.project.device_settings,
             ));
             *audio_settings_mode.borrow_mut() = AudioSettingsMode::Project;
@@ -1001,7 +1001,7 @@ pub fn run_desktop_app(
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
-        window.on_save_track_preset(move |index| {
+        window.on_save_chain_preset(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -1010,14 +1010,14 @@ pub fn run_desktop_app(
                 window.set_status_message("Nenhum projeto carregado.".into());
                 return;
             };
-            let Some(track) = session.project.tracks.get(index as usize) else {
-                window.set_status_message("Track inválida.".into());
+            let Some(chain) = session.project.chains.get(index as usize) else {
+                window.set_status_message("Chain inválida.".into());
                 return;
             };
-            let default_name = track
+            let default_name = chain
                 .description
                 .clone()
-                .unwrap_or_else(|| format!("track_{}", index + 1))
+                .unwrap_or_else(|| format!("chain_{}", index + 1))
                 .replace(' ', "_")
                 .to_lowercase();
             let Some(path) = FileDialog::new()
@@ -1029,7 +1029,7 @@ pub fn run_desktop_app(
             else {
                 return;
             };
-            match save_track_blocks_to_preset(track, &path) {
+            match save_chain_blocks_to_preset(chain, &path) {
                 Ok(()) => window.set_status_message("Preset salvo.".into()),
                 Err(error) => window.set_status_message(error.to_string().into()),
             }
@@ -1039,11 +1039,11 @@ pub fn run_desktop_app(
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
-        let project_tracks = project_tracks.clone();
+        let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        window.on_configure_track_preset(move |index| {
+        window.on_configure_chain_preset(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -1054,7 +1054,7 @@ pub fn run_desktop_app(
             };
             let Some(path) = FileDialog::new()
                 .add_filter("OpenRig Preset", &["yaml", "yml"])
-                .set_title("Carregar preset na track")
+                .set_title("Carregar preset na chain")
                 .set_directory(&session.presets_path)
                 .pick_file()
             else {
@@ -1062,17 +1062,17 @@ pub fn run_desktop_app(
             };
             match load_preset_file(&path) {
                 Ok(preset) => {
-                    if let Some(track) = session.project.tracks.get_mut(index as usize) {
-                        track.blocks = preset.blocks;
-                        assign_new_block_ids(track);
-                        let track_id = track.id.clone();
+                    if let Some(chain) = session.project.chains.get_mut(index as usize) {
+                        chain.blocks = preset.blocks;
+                        assign_new_block_ids(chain);
+                        let chain_id = chain.id.clone();
                         if let Err(error) =
-                            sync_live_track_runtime(&project_runtime, session, &track_id)
+                            sync_live_chain_runtime(&project_runtime, session, &chain_id)
                         {
                             window.set_status_message(error.to_string().into());
                             return;
                         }
-                        replace_project_tracks(&project_tracks, &session.project);
+                        replace_project_chains(&project_chains, &session.project);
                         sync_project_dirty(
                             &window,
                             session,
@@ -1091,12 +1091,12 @@ pub fn run_desktop_app(
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
-        let project_tracks = project_tracks.clone();
+        let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let project_settings_window = project_settings_window.as_weak();
-        let track_editor_window = track_editor_window.as_weak();
+        let chain_editor_window = chain_editor_window.as_weak();
         window.on_back_to_launcher(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1104,18 +1104,18 @@ pub fn run_desktop_app(
             if let Some(settings_window) = project_settings_window.upgrade() {
                 let _ = settings_window.hide();
             }
-            if let Some(editor_window) = track_editor_window.upgrade() {
+            if let Some(editor_window) = chain_editor_window.upgrade() {
                 let _ = editor_window.hide();
             }
             stop_project_runtime(&project_runtime);
             *project_session.borrow_mut() = None;
             *saved_project_snapshot.borrow_mut() = None;
-            replace_project_tracks(
-                &project_tracks,
+            replace_project_chains(
+                &project_chains,
                 &Project {
                     name: None,
                     device_settings: Vec::new(),
-                    tracks: Vec::new(),
+                    chains: Vec::new(),
                 },
             );
             window.set_status_message("".into());
@@ -1125,8 +1125,8 @@ pub fn run_desktop_app(
             window.set_project_running(false);
             window.set_project_path_label("".into());
             window.set_show_project_settings(false);
-            window.set_show_track_editor(false);
-            window.set_show_project_tracks(false);
+            window.set_show_chain_editor(false);
+            window.set_show_project_chains(false);
             window.set_show_project_launcher(true);
         });
     }
@@ -1134,17 +1134,17 @@ pub fn run_desktop_app(
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
-        let track_draft = track_draft.clone();
-        let input_track_devices = input_track_devices.clone();
-        let output_track_devices = output_track_devices.clone();
-        let track_input_channels = track_input_channels.clone();
-        let track_output_channels = track_output_channels.clone();
-        let track_editor_window = track_editor_window.as_weak();
-        window.on_add_track(move || {
+        let chain_draft = chain_draft.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let chain_input_channels = chain_input_channels.clone();
+        let chain_output_channels = chain_output_channels.clone();
+        let chain_editor_window = chain_editor_window.as_weak();
+        window.on_add_chain(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let Some(editor_window) = track_editor_window.upgrade() else {
+            let Some(editor_window) = chain_editor_window.upgrade() else {
                 return;
             };
             let borrow = project_session.borrow();
@@ -1152,40 +1152,40 @@ pub fn run_desktop_app(
                 window.set_status_message("Nenhum projeto carregado.".into());
                 return;
             };
-            let draft = create_track_draft(
+            let draft = create_chain_draft(
                 &session.project,
-                &input_track_devices,
-                &output_track_devices,
+                &input_chain_devices,
+                &output_chain_devices,
             );
-            *track_draft.borrow_mut() = Some(draft.clone());
-            apply_track_editor_labels(&window, &draft);
+            *chain_draft.borrow_mut() = Some(draft.clone());
+            apply_chain_editor_labels(&window, &draft);
             replace_channel_options(
-                &track_input_channels,
-                build_input_channel_items(&draft, &session.project, &input_track_devices),
+                &chain_input_channels,
+                build_input_channel_items(&draft, &session.project, &input_chain_devices),
             );
             replace_channel_options(
-                &track_output_channels,
-                build_output_channel_items(&draft, &output_track_devices),
+                &chain_output_channels,
+                build_output_channel_items(&draft, &output_chain_devices),
             );
-            window.set_track_draft_name(draft.name.clone().into());
-            editor_window.set_track_name(draft.name.clone().into());
-            editor_window.set_editor_title(window.get_track_editor_title());
-            editor_window.set_editor_save_label(window.get_track_editor_save_label());
-            window.set_selected_track_input_device_index(selected_device_index(
-                &input_track_devices,
+            window.set_chain_draft_name(draft.name.clone().into());
+            editor_window.set_chain_name(draft.name.clone().into());
+            editor_window.set_editor_title(window.get_chain_editor_title());
+            editor_window.set_editor_save_label(window.get_chain_editor_save_label());
+            window.set_selected_chain_input_device_index(selected_device_index(
+                &input_chain_devices,
                 draft.input_device_id.as_deref(),
             ));
-            window.set_selected_track_output_device_index(selected_device_index(
-                &output_track_devices,
+            window.set_selected_chain_output_device_index(selected_device_index(
+                &output_chain_devices,
                 draft.output_device_id.as_deref(),
             ));
             editor_window
-                .set_selected_input_device_index(window.get_selected_track_input_device_index());
+                .set_selected_input_device_index(window.get_selected_chain_input_device_index());
             editor_window
-                .set_selected_output_device_index(window.get_selected_track_output_device_index());
+                .set_selected_output_device_index(window.get_selected_chain_output_device_index());
             editor_window.set_status_message("".into());
             window.set_status_message("".into());
-            window.set_show_track_editor(true);
+            window.set_show_chain_editor(true);
             let _ = editor_window.show();
         });
     }
@@ -1193,17 +1193,17 @@ pub fn run_desktop_app(
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
-        let track_draft = track_draft.clone();
-        let input_track_devices = input_track_devices.clone();
-        let output_track_devices = output_track_devices.clone();
-        let track_input_channels = track_input_channels.clone();
-        let track_output_channels = track_output_channels.clone();
-        let track_editor_window = track_editor_window.as_weak();
-        window.on_configure_track(move |index| {
+        let chain_draft = chain_draft.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let chain_input_channels = chain_input_channels.clone();
+        let chain_output_channels = chain_output_channels.clone();
+        let chain_editor_window = chain_editor_window.as_weak();
+        window.on_configure_chain(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let Some(editor_window) = track_editor_window.upgrade() else {
+            let Some(editor_window) = chain_editor_window.upgrade() else {
                 return;
             };
             let session_borrow = project_session.borrow();
@@ -1211,106 +1211,106 @@ pub fn run_desktop_app(
                 window.set_status_message("Nenhum projeto carregado.".into());
                 return;
             };
-            let Some(track) = session.project.tracks.get(index as usize) else {
-                window.set_status_message("Track inválida.".into());
+            let Some(chain) = session.project.chains.get(index as usize) else {
+                window.set_status_message("Chain inválida.".into());
                 return;
             };
-            let draft = track_draft_from_track(index as usize, track);
+            let draft = chain_draft_from_chain(index as usize, chain);
             replace_channel_options(
-                &track_input_channels,
-                build_input_channel_items(&draft, &session.project, &input_track_devices),
+                &chain_input_channels,
+                build_input_channel_items(&draft, &session.project, &input_chain_devices),
             );
             replace_channel_options(
-                &track_output_channels,
-                build_output_channel_items(&draft, &output_track_devices),
+                &chain_output_channels,
+                build_output_channel_items(&draft, &output_chain_devices),
             );
-            window.set_track_draft_name(draft.name.clone().into());
-            editor_window.set_track_name(draft.name.clone().into());
-            window.set_selected_track_input_device_index(selected_device_index(
-                &input_track_devices,
+            window.set_chain_draft_name(draft.name.clone().into());
+            editor_window.set_chain_name(draft.name.clone().into());
+            window.set_selected_chain_input_device_index(selected_device_index(
+                &input_chain_devices,
                 draft.input_device_id.as_deref(),
             ));
-            window.set_selected_track_output_device_index(selected_device_index(
-                &output_track_devices,
+            window.set_selected_chain_output_device_index(selected_device_index(
+                &output_chain_devices,
                 draft.output_device_id.as_deref(),
             ));
             editor_window
-                .set_selected_input_device_index(window.get_selected_track_input_device_index());
+                .set_selected_input_device_index(window.get_selected_chain_input_device_index());
             editor_window
-                .set_selected_output_device_index(window.get_selected_track_output_device_index());
-            *track_draft.borrow_mut() = Some(draft);
-            if let Some(draft) = track_draft.borrow().as_ref() {
-                apply_track_editor_labels(&window, draft);
-                editor_window.set_editor_title(window.get_track_editor_title());
-                editor_window.set_editor_save_label(window.get_track_editor_save_label());
+                .set_selected_output_device_index(window.get_selected_chain_output_device_index());
+            *chain_draft.borrow_mut() = Some(draft);
+            if let Some(draft) = chain_draft.borrow().as_ref() {
+                apply_chain_editor_labels(&window, draft);
+                editor_window.set_editor_title(window.get_chain_editor_title());
+                editor_window.set_editor_save_label(window.get_chain_editor_save_label());
             }
             editor_window.set_status_message("".into());
             window.set_status_message("".into());
-            window.set_show_track_editor(true);
+            window.set_show_chain_editor(true);
             let _ = editor_window.show();
         });
     }
 
     {
         let weak_window = window.as_weak();
-        let track_draft = track_draft.clone();
-        window.on_update_track_name(move |value| {
+        let chain_draft = chain_draft.clone();
+        window.on_update_chain_name(move |value| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            if let Some(draft) = track_draft.borrow_mut().as_mut() {
+            if let Some(draft) = chain_draft.borrow_mut().as_mut() {
                 draft.name = value.to_string();
-                window.set_track_draft_name(value);
+                window.set_chain_draft_name(value);
             }
         });
     }
 
     {
         let weak_window = window.as_weak();
-        let weak_track_window = track_editor_window.as_weak();
-        let track_draft = track_draft.clone();
-        track_editor_window.on_update_track_name(move |value| {
+        let weak_chain_window = chain_editor_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        chain_editor_window.on_update_chain_name(move |value| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let Some(track_window) = weak_track_window.upgrade() else {
+            let Some(chain_window) = weak_chain_window.upgrade() else {
                 return;
             };
-            if let Some(draft) = track_draft.borrow_mut().as_mut() {
+            if let Some(draft) = chain_draft.borrow_mut().as_mut() {
                 draft.name = value.to_string();
-                window.set_track_draft_name(value.clone());
-                track_window.set_track_name(value);
+                window.set_chain_draft_name(value.clone());
+                chain_window.set_chain_name(value);
             }
         });
     }
 
     {
         let weak_window = window.as_weak();
-        let track_draft = track_draft.clone();
+        let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
-        let input_track_devices = input_track_devices.clone();
-        let track_input_channels = track_input_channels.clone();
-        window.on_select_track_input_device(move |index| {
+        let input_chain_devices = input_chain_devices.clone();
+        let chain_input_channels = chain_input_channels.clone();
+        window.on_select_chain_input_device(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let mut draft_borrow = track_draft.borrow_mut();
+            let mut draft_borrow = chain_draft.borrow_mut();
             let Some(draft) = draft_borrow.as_mut() else {
                 return;
             };
-            let Some(device) = input_track_devices.get(index as usize) else {
+            let Some(device) = input_chain_devices.get(index as usize) else {
                 return;
             };
             draft.input_device_id = Some(device.id.clone());
             draft.input_channels.clear();
             if let Some(session) = project_session.borrow().as_ref() {
                 replace_channel_options(
-                    &track_input_channels,
-                    build_input_channel_items(draft, &session.project, &input_track_devices),
+                    &chain_input_channels,
+                    build_input_channel_items(draft, &session.project, &input_chain_devices),
                 );
             }
-            window.set_selected_track_input_device_index(selected_device_index(
-                &input_track_devices,
+            window.set_selected_chain_input_device_index(selected_device_index(
+                &input_chain_devices,
                 draft.input_device_id.as_deref(),
             ));
         });
@@ -1318,67 +1318,67 @@ pub fn run_desktop_app(
 
     {
         let weak_window = window.as_weak();
-        let weak_track_window = track_editor_window.as_weak();
-        let track_draft = track_draft.clone();
+        let weak_chain_window = chain_editor_window.as_weak();
+        let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
-        let input_track_devices = input_track_devices.clone();
-        let track_input_channels = track_input_channels.clone();
-        track_editor_window.on_select_track_input_device(move |index| {
+        let input_chain_devices = input_chain_devices.clone();
+        let chain_input_channels = chain_input_channels.clone();
+        chain_editor_window.on_select_chain_input_device(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let Some(track_window) = weak_track_window.upgrade() else {
+            let Some(chain_window) = weak_chain_window.upgrade() else {
                 return;
             };
-            let mut draft_borrow = track_draft.borrow_mut();
+            let mut draft_borrow = chain_draft.borrow_mut();
             let Some(draft) = draft_borrow.as_mut() else {
                 return;
             };
-            let Some(device) = input_track_devices.get(index as usize) else {
+            let Some(device) = input_chain_devices.get(index as usize) else {
                 return;
             };
             draft.input_device_id = Some(device.id.clone());
             draft.input_channels.clear();
             if let Some(session) = project_session.borrow().as_ref() {
                 replace_channel_options(
-                    &track_input_channels,
-                    build_input_channel_items(draft, &session.project, &input_track_devices),
+                    &chain_input_channels,
+                    build_input_channel_items(draft, &session.project, &input_chain_devices),
                 );
             }
             let selected_index =
-                selected_device_index(&input_track_devices, draft.input_device_id.as_deref());
-            window.set_selected_track_input_device_index(selected_index);
-            track_window.set_selected_input_device_index(selected_index);
+                selected_device_index(&input_chain_devices, draft.input_device_id.as_deref());
+            window.set_selected_chain_input_device_index(selected_index);
+            chain_window.set_selected_input_device_index(selected_index);
         });
     }
 
     {
         let weak_window = window.as_weak();
-        let track_draft = track_draft.clone();
+        let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
-        let output_track_devices = output_track_devices.clone();
-        let track_output_channels = track_output_channels.clone();
-        window.on_select_track_output_device(move |index| {
+        let output_chain_devices = output_chain_devices.clone();
+        let chain_output_channels = chain_output_channels.clone();
+        window.on_select_chain_output_device(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let mut draft_borrow = track_draft.borrow_mut();
+            let mut draft_borrow = chain_draft.borrow_mut();
             let Some(draft) = draft_borrow.as_mut() else {
                 return;
             };
-            let Some(device) = output_track_devices.get(index as usize) else {
+            let Some(device) = output_chain_devices.get(index as usize) else {
                 return;
             };
             draft.output_device_id = Some(device.id.clone());
             draft.output_channels.clear();
             if project_session.borrow().as_ref().is_some() {
                 replace_channel_options(
-                    &track_output_channels,
-                    build_output_channel_items(draft, &output_track_devices),
+                    &chain_output_channels,
+                    build_output_channel_items(draft, &output_chain_devices),
                 );
             }
-            window.set_selected_track_output_device_index(selected_device_index(
-                &output_track_devices,
+            window.set_selected_chain_output_device_index(selected_device_index(
+                &output_chain_devices,
                 draft.output_device_id.as_deref(),
             ));
         });
@@ -1386,61 +1386,61 @@ pub fn run_desktop_app(
 
     {
         let weak_window = window.as_weak();
-        let weak_track_window = track_editor_window.as_weak();
-        let track_draft = track_draft.clone();
+        let weak_chain_window = chain_editor_window.as_weak();
+        let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
-        let output_track_devices = output_track_devices.clone();
-        let track_output_channels = track_output_channels.clone();
-        track_editor_window.on_select_track_output_device(move |index| {
+        let output_chain_devices = output_chain_devices.clone();
+        let chain_output_channels = chain_output_channels.clone();
+        chain_editor_window.on_select_chain_output_device(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let Some(track_window) = weak_track_window.upgrade() else {
+            let Some(chain_window) = weak_chain_window.upgrade() else {
                 return;
             };
-            let mut draft_borrow = track_draft.borrow_mut();
+            let mut draft_borrow = chain_draft.borrow_mut();
             let Some(draft) = draft_borrow.as_mut() else {
                 return;
             };
-            let Some(device) = output_track_devices.get(index as usize) else {
+            let Some(device) = output_chain_devices.get(index as usize) else {
                 return;
             };
             draft.output_device_id = Some(device.id.clone());
             draft.output_channels.clear();
             if project_session.borrow().as_ref().is_some() {
                 replace_channel_options(
-                    &track_output_channels,
-                    build_output_channel_items(draft, &output_track_devices),
+                    &chain_output_channels,
+                    build_output_channel_items(draft, &output_chain_devices),
                 );
             }
             let selected_index =
-                selected_device_index(&output_track_devices, draft.output_device_id.as_deref());
-            window.set_selected_track_output_device_index(selected_index);
-            track_window.set_selected_output_device_index(selected_index);
+                selected_device_index(&output_chain_devices, draft.output_device_id.as_deref());
+            window.set_selected_chain_output_device_index(selected_index);
+            chain_window.set_selected_output_device_index(selected_index);
         });
     }
 
     {
-        let track_draft = track_draft.clone();
+        let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
-        let input_track_devices = input_track_devices.clone();
-        let track_input_channels = track_input_channels.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let chain_input_channels = chain_input_channels.clone();
         let weak_window = window.as_weak();
-        window.on_toggle_track_input_channel(move |index, selected| {
+        window.on_toggle_chain_input_channel(move |index, selected| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let mut draft_borrow = track_draft.borrow_mut();
+            let mut draft_borrow = chain_draft.borrow_mut();
             let Some(draft) = draft_borrow.as_mut() else {
                 return;
             };
             let channel = index as usize;
-            let Some(option) = track_input_channels.row_data(index as usize) else {
+            let Some(option) = chain_input_channels.row_data(index as usize) else {
                 return;
             };
             if selected && !option.available && !option.selected {
                 window
-                    .set_status_message("Canal de entrada já está em uso por outra track.".into());
+                    .set_status_message("Canal de entrada já está em uso por outra chain.".into());
                 return;
             }
             if selected {
@@ -1453,34 +1453,34 @@ pub fn run_desktop_app(
             }
             if let Some(session) = project_session.borrow().as_ref() {
                 replace_channel_options(
-                    &track_input_channels,
-                    build_input_channel_items(draft, &session.project, &input_track_devices),
+                    &chain_input_channels,
+                    build_input_channel_items(draft, &session.project, &input_chain_devices),
                 );
             }
         });
     }
 
     {
-        let weak_track_window = track_editor_window.as_weak();
-        let track_draft = track_draft.clone();
+        let weak_chain_window = chain_editor_window.as_weak();
+        let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
-        let input_track_devices = input_track_devices.clone();
-        let track_input_channels = track_input_channels.clone();
-        track_editor_window.on_toggle_track_input_channel(move |index, selected| {
-            let Some(track_window) = weak_track_window.upgrade() else {
+        let input_chain_devices = input_chain_devices.clone();
+        let chain_input_channels = chain_input_channels.clone();
+        chain_editor_window.on_toggle_chain_input_channel(move |index, selected| {
+            let Some(chain_window) = weak_chain_window.upgrade() else {
                 return;
             };
-            let mut draft_borrow = track_draft.borrow_mut();
+            let mut draft_borrow = chain_draft.borrow_mut();
             let Some(draft) = draft_borrow.as_mut() else {
                 return;
             };
             let channel = index as usize;
-            let Some(option) = track_input_channels.row_data(index as usize) else {
+            let Some(option) = chain_input_channels.row_data(index as usize) else {
                 return;
             };
             if selected && !option.available && !option.selected {
-                track_window
-                    .set_status_message("Canal de entrada já está em uso por outra track.".into());
+                chain_window
+                    .set_status_message("Canal de entrada já está em uso por outra chain.".into());
                 return;
             }
             if selected {
@@ -1493,21 +1493,21 @@ pub fn run_desktop_app(
             }
             if let Some(session) = project_session.borrow().as_ref() {
                 replace_channel_options(
-                    &track_input_channels,
-                    build_input_channel_items(draft, &session.project, &input_track_devices),
+                    &chain_input_channels,
+                    build_input_channel_items(draft, &session.project, &input_chain_devices),
                 );
             }
-            track_window.set_status_message("".into());
+            chain_window.set_status_message("".into());
         });
     }
 
     {
-        let track_draft = track_draft.clone();
+        let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
-        let output_track_devices = output_track_devices.clone();
-        let track_output_channels = track_output_channels.clone();
-        window.on_toggle_track_output_channel(move |index, selected| {
-            let mut draft_borrow = track_draft.borrow_mut();
+        let output_chain_devices = output_chain_devices.clone();
+        let chain_output_channels = chain_output_channels.clone();
+        window.on_toggle_chain_output_channel(move |index, selected| {
+            let mut draft_borrow = chain_draft.borrow_mut();
             let Some(draft) = draft_borrow.as_mut() else {
                 return;
             };
@@ -1522,24 +1522,24 @@ pub fn run_desktop_app(
             }
             if project_session.borrow().as_ref().is_some() {
                 replace_channel_options(
-                    &track_output_channels,
-                    build_output_channel_items(draft, &output_track_devices),
+                    &chain_output_channels,
+                    build_output_channel_items(draft, &output_chain_devices),
                 );
             }
         });
     }
 
     {
-        let weak_track_window = track_editor_window.as_weak();
-        let track_draft = track_draft.clone();
+        let weak_chain_window = chain_editor_window.as_weak();
+        let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
-        let output_track_devices = output_track_devices.clone();
-        let track_output_channels = track_output_channels.clone();
-        track_editor_window.on_toggle_track_output_channel(move |index, selected| {
-            let Some(track_window) = weak_track_window.upgrade() else {
+        let output_chain_devices = output_chain_devices.clone();
+        let chain_output_channels = chain_output_channels.clone();
+        chain_editor_window.on_toggle_chain_output_channel(move |index, selected| {
+            let Some(chain_window) = weak_chain_window.upgrade() else {
                 return;
             };
-            let mut draft_borrow = track_draft.borrow_mut();
+            let mut draft_borrow = chain_draft.borrow_mut();
             let Some(draft) = draft_borrow.as_mut() else {
                 return;
             };
@@ -1554,23 +1554,23 @@ pub fn run_desktop_app(
             }
             if project_session.borrow().as_ref().is_some() {
                 replace_channel_options(
-                    &track_output_channels,
-                    build_output_channel_items(draft, &output_track_devices),
+                    &chain_output_channels,
+                    build_output_channel_items(draft, &output_chain_devices),
                 );
             }
-            track_window.set_status_message("".into());
+            chain_window.set_status_message("".into());
         });
     }
 
     {
         let weak_window = window.as_weak();
-        let selected_stage = selected_stage.clone();
-        let stage_editor_draft = stage_editor_draft.clone();
-        let stage_model_options = stage_model_options.clone();
-        let stage_model_option_labels = stage_model_option_labels.clone();
-        let stage_parameter_items = stage_parameter_items.clone();
+        let selected_block = selected_block.clone();
+        let block_editor_draft = block_editor_draft.clone();
+        let block_model_options = block_model_options.clone();
+        let block_model_option_labels = block_model_option_labels.clone();
+        let block_parameter_items = block_parameter_items.clone();
         let project_session = project_session.clone();
-        window.on_select_track_stage(move |track_index, stage_index| {
+        window.on_select_chain_block(move |chain_index, block_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -1579,87 +1579,87 @@ pub fn run_desktop_app(
                 window.set_status_message("Nenhum projeto carregado.".into());
                 return;
             };
-            let Some(track) = session.project.tracks.get(track_index as usize) else {
-                window.set_status_message("Track inválida.".into());
+            let Some(chain) = session.project.chains.get(chain_index as usize) else {
+                window.set_status_message("Chain inválida.".into());
                 return;
             };
-            let Some(block) = track.blocks.get(stage_index as usize) else {
-                window.set_status_message("Stage inválido.".into());
+            let Some(block) = chain.blocks.get(block_index as usize) else {
+                window.set_status_message("Block inválido.".into());
                 return;
             };
             let Some((effect_type, model_id, params, enabled)) = block_editor_data(block) else {
-                window.set_status_message("Esse stage ainda não pode ser editado pela GUI.".into());
+                window.set_status_message("Esse block ainda não pode ser editado pela GUI.".into());
                 return;
             };
 
-            *selected_stage.borrow_mut() = Some(SelectedStage {
-                track_index: track_index as usize,
-                stage_index: stage_index as usize,
+            *selected_block.borrow_mut() = Some(SelectedBlock {
+                chain_index: chain_index as usize,
+                block_index: block_index as usize,
             });
-            *stage_editor_draft.borrow_mut() = Some(StageEditorDraft {
-                track_index: track_index as usize,
-                stage_index: Some(stage_index as usize),
-                before_index: stage_index as usize,
+            *block_editor_draft.borrow_mut() = Some(BlockEditorDraft {
+                chain_index: chain_index as usize,
+                block_index: Some(block_index as usize),
+                before_index: block_index as usize,
                 effect_type: effect_type.clone(),
                 model_id: model_id.clone(),
                 enabled,
             });
-            let items = stage_model_picker_items(&effect_type);
-            stage_model_option_labels.set_vec(stage_model_picker_labels(&items));
-            stage_model_options.set_vec(items);
-            stage_parameter_items.set_vec(stage_parameter_items_for_model(
+            let items = block_model_picker_items(&effect_type);
+            block_model_option_labels.set_vec(block_model_picker_labels(&items));
+            block_model_options.set_vec(items);
+            block_parameter_items.set_vec(block_parameter_items_for_model(
                 &effect_type,
                 &model_id,
                 &params,
             ));
-            set_selected_stage(&window, selected_stage.borrow().as_ref());
+            set_selected_block(&window, selected_block.borrow().as_ref());
             let drawer_state =
-                stage_drawer_state(Some(stage_index as usize), &effect_type, Some(&model_id));
-            window.set_stage_drawer_title(drawer_state.title.into());
-            window.set_stage_drawer_confirm_label(drawer_state.confirm_label.into());
-            window.set_stage_drawer_edit_mode(true);
-            window.set_stage_drawer_selected_type_index(stage_type_index(&effect_type));
+                block_drawer_state(Some(block_index as usize), &effect_type, Some(&model_id));
+            window.set_block_drawer_title(drawer_state.title.into());
+            window.set_block_drawer_confirm_label(drawer_state.confirm_label.into());
+            window.set_block_drawer_edit_mode(true);
+            window.set_block_drawer_selected_type_index(block_type_index(&effect_type));
             window
-                .set_stage_drawer_selected_model_index(stage_model_index(&effect_type, &model_id));
-            window.set_stage_drawer_enabled(enabled);
-            window.set_stage_drawer_status_message("".into());
-            window.set_show_stage_type_picker(false);
-            window.set_show_stage_drawer(true);
+                .set_block_drawer_selected_model_index(block_model_index(&effect_type, &model_id));
+            window.set_block_drawer_enabled(enabled);
+            window.set_block_drawer_status_message("".into());
+            window.set_show_block_type_picker(false);
+            window.set_show_block_drawer(true);
         });
     }
 
     {
         let weak_window = window.as_weak();
-        let selected_stage = selected_stage.clone();
-        let stage_editor_draft = stage_editor_draft.clone();
-        let stage_model_options = stage_model_options.clone();
-        let stage_model_option_labels = stage_model_option_labels.clone();
-        let stage_parameter_items = stage_parameter_items.clone();
-        window.on_clear_track_stage(move || {
+        let selected_block = selected_block.clone();
+        let block_editor_draft = block_editor_draft.clone();
+        let block_model_options = block_model_options.clone();
+        let block_model_option_labels = block_model_option_labels.clone();
+        let block_parameter_items = block_parameter_items.clone();
+        window.on_clear_chain_block(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            *selected_stage.borrow_mut() = None;
-            *stage_editor_draft.borrow_mut() = None;
-            stage_model_options.set_vec(Vec::new());
-            stage_model_option_labels.set_vec(Vec::new());
-            stage_parameter_items.set_vec(Vec::new());
-            set_selected_stage(&window, None);
-            window.set_show_stage_drawer(false);
-            window.set_show_stage_type_picker(false);
-            window.set_stage_drawer_status_message("".into());
+            *selected_block.borrow_mut() = None;
+            *block_editor_draft.borrow_mut() = None;
+            block_model_options.set_vec(Vec::new());
+            block_model_option_labels.set_vec(Vec::new());
+            block_parameter_items.set_vec(Vec::new());
+            set_selected_block(&window, None);
+            window.set_show_block_drawer(false);
+            window.set_show_block_type_picker(false);
+            window.set_block_drawer_status_message("".into());
         });
     }
 
     {
         let weak_window = window.as_weak();
-        let selected_stage = selected_stage.clone();
+        let selected_block = selected_block.clone();
         let project_session = project_session.clone();
-        let project_tracks = project_tracks.clone();
+        let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        window.on_toggle_track_stage_enabled(move |track_index, stage_index| {
+        window.on_toggle_chain_block_enabled(move |chain_index, block_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -1668,26 +1668,26 @@ pub fn run_desktop_app(
                 window.set_status_message("Nenhum projeto carregado.".into());
                 return;
             };
-            let Some(track) = session.project.tracks.get_mut(track_index as usize) else {
-                window.set_status_message("Track inválida.".into());
+            let Some(chain) = session.project.chains.get_mut(chain_index as usize) else {
+                window.set_status_message("Chain inválida.".into());
                 return;
             };
-            let Some(block) = track.blocks.get_mut(stage_index as usize) else {
-                window.set_status_message("Stage inválido.".into());
+            let Some(block) = chain.blocks.get_mut(block_index as usize) else {
+                window.set_status_message("Block inválido.".into());
                 return;
             };
             block.enabled = !block.enabled;
-            let track_id = track.id.clone();
-            if let Err(error) = sync_live_track_runtime(&project_runtime, session, &track_id) {
+            let chain_id = chain.id.clone();
+            if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 window.set_status_message(error.to_string().into());
                 return;
             }
-            replace_project_tracks(&project_tracks, &session.project);
-            *selected_stage.borrow_mut() = Some(SelectedStage {
-                track_index: track_index as usize,
-                stage_index: stage_index as usize,
+            replace_project_chains(&project_chains, &session.project);
+            *selected_block.borrow_mut() = Some(SelectedBlock {
+                chain_index: chain_index as usize,
+                block_index: block_index as usize,
             });
-            set_selected_stage(&window, selected_stage.borrow().as_ref());
+            set_selected_block(&window, selected_block.borrow().as_ref());
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             window.set_project_running(project_runtime_is_running(&project_runtime));
             window.set_status_message("".into());
@@ -1696,14 +1696,14 @@ pub fn run_desktop_app(
 
     {
         let weak_window = window.as_weak();
-        let selected_stage = selected_stage.clone();
-        let stage_editor_draft = stage_editor_draft.clone();
+        let selected_block = selected_block.clone();
+        let block_editor_draft = block_editor_draft.clone();
         let project_session = project_session.clone();
-        let project_tracks = project_tracks.clone();
+        let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        window.on_reorder_track_stage(move |track_index, from_index, before_index| {
+        window.on_reorder_chain_block(move |chain_index, from_index, before_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -1712,42 +1712,42 @@ pub fn run_desktop_app(
                 window.set_status_message("Nenhum projeto carregado.".into());
                 return;
             };
-            let (track_id, insert_at) = {
-                let Some(track) = session.project.tracks.get_mut(track_index as usize) else {
-                    window.set_status_message("Track inválida.".into());
+            let (chain_id, insert_at) = {
+                let Some(chain) = session.project.chains.get_mut(chain_index as usize) else {
+                    window.set_status_message("Chain inválida.".into());
                     return;
                 };
-                let stage_count = track.blocks.len() as i32;
-                if from_index < 0 || from_index >= stage_count {
+                let block_count = chain.blocks.len() as i32;
+                if from_index < 0 || from_index >= block_count {
                     return;
                 }
-                let mut normalized_before = before_index.clamp(0, stage_count);
+                let mut normalized_before = before_index.clamp(0, block_count);
                 if normalized_before == from_index || normalized_before == from_index + 1 {
                     return;
                 }
-                let block = track.blocks.remove(from_index as usize);
+                let block = chain.blocks.remove(from_index as usize);
                 if normalized_before > from_index {
                     normalized_before -= 1;
                 }
-                let insert_at = normalized_before.clamp(0, track.blocks.len() as i32) as usize;
-                track.blocks.insert(insert_at, block);
-                (track.id.clone(), insert_at)
+                let insert_at = normalized_before.clamp(0, chain.blocks.len() as i32) as usize;
+                chain.blocks.insert(insert_at, block);
+                (chain.id.clone(), insert_at)
             };
 
-            if let Err(error) = sync_live_track_runtime(&project_runtime, session, &track_id) {
+            if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 window.set_status_message(error.to_string().into());
                 return;
             }
 
-            replace_project_tracks(&project_tracks, &session.project);
-            *selected_stage.borrow_mut() = None;
-            if let Some(draft) = stage_editor_draft.borrow_mut().as_mut() {
-                if draft.track_index == track_index as usize && draft.stage_index.is_some() {
-                    draft.stage_index = Some(insert_at);
+            replace_project_chains(&project_chains, &session.project);
+            *selected_block.borrow_mut() = None;
+            if let Some(draft) = block_editor_draft.borrow_mut().as_mut() {
+                if draft.chain_index == chain_index as usize && draft.block_index.is_some() {
+                    draft.block_index = Some(insert_at);
                     draft.before_index = insert_at;
                 }
             }
-            set_selected_stage(&window, selected_stage.borrow().as_ref());
+            set_selected_block(&window, selected_block.borrow().as_ref());
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             window.set_project_running(project_runtime_is_running(&project_runtime));
             window.set_status_message("".into());
@@ -1756,122 +1756,122 @@ pub fn run_desktop_app(
 
     {
         let weak_window = window.as_weak();
-        let selected_stage = selected_stage.clone();
-        let stage_editor_draft = stage_editor_draft.clone();
-        let stage_model_options = stage_model_options.clone();
-        let stage_model_option_labels = stage_model_option_labels.clone();
-        let stage_parameter_items = stage_parameter_items.clone();
-        window.on_start_stage_insert(move |track_index, before_index| {
+        let selected_block = selected_block.clone();
+        let block_editor_draft = block_editor_draft.clone();
+        let block_model_options = block_model_options.clone();
+        let block_model_option_labels = block_model_option_labels.clone();
+        let block_parameter_items = block_parameter_items.clone();
+        window.on_start_block_insert(move |chain_index, before_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            *selected_stage.borrow_mut() = None;
-            *stage_editor_draft.borrow_mut() = Some(StageEditorDraft {
-                track_index: track_index as usize,
-                stage_index: None,
+            *selected_block.borrow_mut() = None;
+            *block_editor_draft.borrow_mut() = Some(BlockEditorDraft {
+                chain_index: chain_index as usize,
+                block_index: None,
                 before_index: before_index as usize,
                 effect_type: String::new(),
                 model_id: String::new(),
                 enabled: true,
             });
-            stage_model_options.set_vec(Vec::new());
-            stage_model_option_labels.set_vec(Vec::new());
-            stage_parameter_items.set_vec(Vec::new());
-            set_selected_stage(&window, None);
-            window.set_stage_drawer_edit_mode(false);
-            window.set_stage_drawer_selected_type_index(-1);
-            window.set_stage_drawer_selected_model_index(-1);
-            window.set_stage_drawer_status_message("".into());
-            window.set_show_stage_drawer(false);
-            window.set_show_stage_type_picker(true);
+            block_model_options.set_vec(Vec::new());
+            block_model_option_labels.set_vec(Vec::new());
+            block_parameter_items.set_vec(Vec::new());
+            set_selected_block(&window, None);
+            window.set_block_drawer_edit_mode(false);
+            window.set_block_drawer_selected_type_index(-1);
+            window.set_block_drawer_selected_model_index(-1);
+            window.set_block_drawer_status_message("".into());
+            window.set_show_block_drawer(false);
+            window.set_show_block_type_picker(true);
         });
     }
 
     {
         let weak_window = window.as_weak();
-        let stage_editor_draft = stage_editor_draft.clone();
-        let stage_model_options = stage_model_options.clone();
-        let stage_model_option_labels = stage_model_option_labels.clone();
-        let stage_parameter_items = stage_parameter_items.clone();
-        window.on_choose_stage_type(move |index| {
+        let block_editor_draft = block_editor_draft.clone();
+        let block_model_options = block_model_options.clone();
+        let block_model_option_labels = block_model_option_labels.clone();
+        let block_parameter_items = block_parameter_items.clone();
+        window.on_choose_block_type(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let stage_types = supported_stage_types();
-            let Some(stage_type) = stage_types.get(index as usize) else {
+            let block_types = supported_block_types();
+            let Some(block_type) = block_types.get(index as usize) else {
                 return;
             };
-            let models = supported_stage_models(stage_type.effect_type).unwrap_or_default();
+            let models = supported_block_models(block_type.effect_type).unwrap_or_default();
             let Some(model) = models.first() else {
                 return;
             };
-            if let Some(draft) = stage_editor_draft.borrow_mut().as_mut() {
-                draft.effect_type = stage_type.effect_type.to_string();
+            if let Some(draft) = block_editor_draft.borrow_mut().as_mut() {
+                draft.effect_type = block_type.effect_type.to_string();
                 draft.model_id = model.model_id.to_string();
             }
-            let items = stage_model_picker_items(stage_type.effect_type);
-            stage_model_option_labels.set_vec(stage_model_picker_labels(&items));
-            stage_model_options.set_vec(items);
-            stage_parameter_items.set_vec(stage_parameter_items_for_model(
-                stage_type.effect_type,
+            let items = block_model_picker_items(block_type.effect_type);
+            block_model_option_labels.set_vec(block_model_picker_labels(&items));
+            block_model_options.set_vec(items);
+            block_parameter_items.set_vec(block_parameter_items_for_model(
+                block_type.effect_type,
                 &model.model_id,
                 &ParameterSet::default(),
             ));
             let drawer_state =
-                stage_drawer_state(None, stage_type.effect_type, Some(&model.model_id));
-            window.set_stage_drawer_title(drawer_state.title.into());
-            window.set_stage_drawer_confirm_label(drawer_state.confirm_label.into());
-            window.set_stage_drawer_edit_mode(false);
-            window.set_stage_drawer_selected_type_index(index);
-            window.set_stage_drawer_selected_model_index(0);
-            window.set_stage_drawer_status_message("".into());
-            window.set_show_stage_type_picker(false);
-            window.set_show_stage_drawer(true);
+                block_drawer_state(None, block_type.effect_type, Some(&model.model_id));
+            window.set_block_drawer_title(drawer_state.title.into());
+            window.set_block_drawer_confirm_label(drawer_state.confirm_label.into());
+            window.set_block_drawer_edit_mode(false);
+            window.set_block_drawer_selected_type_index(index);
+            window.set_block_drawer_selected_model_index(0);
+            window.set_block_drawer_status_message("".into());
+            window.set_show_block_type_picker(false);
+            window.set_show_block_drawer(true);
         });
     }
 
     {
         let weak_window = window.as_weak();
-        let stage_editor_draft = stage_editor_draft.clone();
-        let stage_parameter_items = stage_parameter_items.clone();
+        let block_editor_draft = block_editor_draft.clone();
+        let block_parameter_items = block_parameter_items.clone();
         let project_session = project_session.clone();
-        let project_tracks = project_tracks.clone();
+        let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        window.on_choose_stage_model(move |index| {
+        window.on_choose_block_model(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let mut draft_borrow = stage_editor_draft.borrow_mut();
+            let mut draft_borrow = block_editor_draft.borrow_mut();
             let Some(draft) = draft_borrow.as_mut() else {
                 return;
             };
-            let models = supported_stage_models(&draft.effect_type).unwrap_or_default();
+            let models = supported_block_models(&draft.effect_type).unwrap_or_default();
             let Some(model) = models.get(index as usize) else {
                 return;
             };
             draft.model_id = model.model_id.to_string();
-            stage_parameter_items.set_vec(stage_parameter_items_for_model(
+            block_parameter_items.set_vec(block_parameter_items_for_model(
                 &draft.effect_type,
                 &model.model_id,
                 &ParameterSet::default(),
             ));
-            window.set_stage_drawer_selected_model_index(index);
-            window.set_stage_drawer_status_message("".into());
-            if draft.stage_index.is_some() {
-                if let Err(error) = persist_stage_editor_draft(
+            window.set_block_drawer_selected_model_index(index);
+            window.set_block_drawer_status_message("".into());
+            if draft.block_index.is_some() {
+                if let Err(error) = persist_block_editor_draft(
                     &window,
                     draft,
-                    &stage_parameter_items,
+                    &block_parameter_items,
                     &project_session,
-                    &project_tracks,
+                    &project_chains,
                     &project_runtime,
                     &saved_project_snapshot,
                     &project_dirty,
                     false,
                 ) {
-                    window.set_stage_drawer_status_message(error.to_string().into());
+                    window.set_block_drawer_status_message(error.to_string().into());
                 }
             }
         });
@@ -1879,85 +1879,85 @@ pub fn run_desktop_app(
 
     {
         let weak_window = window.as_weak();
-        let stage_editor_draft = stage_editor_draft.clone();
-        let stage_model_options = stage_model_options.clone();
-        let stage_model_option_labels = stage_model_option_labels.clone();
-        let stage_parameter_items = stage_parameter_items.clone();
-        window.on_cancel_stage_picker(move || {
+        let block_editor_draft = block_editor_draft.clone();
+        let block_model_options = block_model_options.clone();
+        let block_model_option_labels = block_model_option_labels.clone();
+        let block_parameter_items = block_parameter_items.clone();
+        window.on_cancel_block_picker(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            *stage_editor_draft.borrow_mut() = None;
-            stage_model_options.set_vec(Vec::new());
-            stage_model_option_labels.set_vec(Vec::new());
-            stage_parameter_items.set_vec(Vec::new());
-            window.set_stage_drawer_selected_model_index(-1);
-            window.set_stage_drawer_selected_type_index(-1);
-            window.set_show_stage_type_picker(false);
-            window.set_show_stage_drawer(false);
-            window.set_stage_drawer_status_message("".into());
+            *block_editor_draft.borrow_mut() = None;
+            block_model_options.set_vec(Vec::new());
+            block_model_option_labels.set_vec(Vec::new());
+            block_parameter_items.set_vec(Vec::new());
+            window.set_block_drawer_selected_model_index(-1);
+            window.set_block_drawer_selected_type_index(-1);
+            window.set_show_block_type_picker(false);
+            window.set_show_block_drawer(false);
+            window.set_block_drawer_status_message("".into());
         });
     }
 
     {
         let weak_window = window.as_weak();
-        let selected_stage = selected_stage.clone();
-        let stage_editor_draft = stage_editor_draft.clone();
-        let stage_model_options = stage_model_options.clone();
-        let stage_model_option_labels = stage_model_option_labels.clone();
-        let stage_parameter_items = stage_parameter_items.clone();
-        window.on_close_stage_drawer(move || {
+        let selected_block = selected_block.clone();
+        let block_editor_draft = block_editor_draft.clone();
+        let block_model_options = block_model_options.clone();
+        let block_model_option_labels = block_model_option_labels.clone();
+        let block_parameter_items = block_parameter_items.clone();
+        window.on_close_block_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            *selected_stage.borrow_mut() = None;
-            *stage_editor_draft.borrow_mut() = None;
-            stage_model_options.set_vec(Vec::new());
-            stage_model_option_labels.set_vec(Vec::new());
-            stage_parameter_items.set_vec(Vec::new());
-            window.set_stage_drawer_selected_model_index(-1);
-            window.set_stage_drawer_selected_type_index(-1);
-            set_selected_stage(&window, None);
-            window.set_show_stage_type_picker(false);
-            window.set_show_stage_drawer(false);
-            window.set_stage_drawer_status_message("".into());
+            *selected_block.borrow_mut() = None;
+            *block_editor_draft.borrow_mut() = None;
+            block_model_options.set_vec(Vec::new());
+            block_model_option_labels.set_vec(Vec::new());
+            block_parameter_items.set_vec(Vec::new());
+            window.set_block_drawer_selected_model_index(-1);
+            window.set_block_drawer_selected_type_index(-1);
+            set_selected_block(&window, None);
+            window.set_show_block_type_picker(false);
+            window.set_show_block_drawer(false);
+            window.set_block_drawer_status_message("".into());
         });
     }
 
     {
         let weak_window = window.as_weak();
-        let stage_editor_draft = stage_editor_draft.clone();
-        let stage_parameter_items = stage_parameter_items.clone();
+        let block_editor_draft = block_editor_draft.clone();
+        let block_parameter_items = block_parameter_items.clone();
         let project_session = project_session.clone();
-        let project_tracks = project_tracks.clone();
+        let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        window.on_update_stage_parameter_number_text(move |path, value_text| {
+        window.on_update_block_parameter_number_text(move |path, value_text| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             let normalized = value_text.replace(',', ".");
             let Ok(value) = normalized.parse::<f32>() else {
-                window.set_stage_drawer_status_message("Valor numérico inválido.".into());
+                window.set_block_drawer_status_message("Valor numérico inválido.".into());
                 return;
             };
-            set_stage_parameter_number(&stage_parameter_items, path.as_str(), value);
-            window.set_stage_drawer_status_message("".into());
-            if let Some(draft) = stage_editor_draft.borrow().as_ref() {
-                if draft.stage_index.is_some() {
-                    if let Err(error) = persist_stage_editor_draft(
+            set_block_parameter_number(&block_parameter_items, path.as_str(), value);
+            window.set_block_drawer_status_message("".into());
+            if let Some(draft) = block_editor_draft.borrow().as_ref() {
+                if draft.block_index.is_some() {
+                    if let Err(error) = persist_block_editor_draft(
                         &window,
                         draft,
-                        &stage_parameter_items,
+                        &block_parameter_items,
                         &project_session,
-                        &project_tracks,
+                        &project_chains,
                         &project_runtime,
                         &saved_project_snapshot,
                         &project_dirty,
                         false,
                     ) {
-                        window.set_stage_drawer_status_message(error.to_string().into());
+                        window.set_block_drawer_status_message(error.to_string().into());
                     }
                 }
             }
@@ -1966,36 +1966,36 @@ pub fn run_desktop_app(
 
     {
         let weak_window = window.as_weak();
-        let stage_editor_draft = stage_editor_draft.clone();
-        let stage_parameter_items = stage_parameter_items.clone();
+        let block_editor_draft = block_editor_draft.clone();
+        let block_parameter_items = block_parameter_items.clone();
         let project_session = project_session.clone();
-        let project_tracks = project_tracks.clone();
+        let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        window.on_toggle_stage_drawer_enabled(move || {
+        window.on_toggle_block_drawer_enabled(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let mut draft_borrow = stage_editor_draft.borrow_mut();
+            let mut draft_borrow = block_editor_draft.borrow_mut();
             let Some(draft) = draft_borrow.as_mut() else {
                 return;
             };
             draft.enabled = !draft.enabled;
-            window.set_stage_drawer_enabled(draft.enabled);
-            if draft.stage_index.is_some() {
-                if let Err(error) = persist_stage_editor_draft(
+            window.set_block_drawer_enabled(draft.enabled);
+            if draft.block_index.is_some() {
+                if let Err(error) = persist_block_editor_draft(
                     &window,
                     draft,
-                    &stage_parameter_items,
+                    &block_parameter_items,
                     &project_session,
-                    &project_tracks,
+                    &project_chains,
                     &project_runtime,
                     &saved_project_snapshot,
                     &project_dirty,
                     false,
                 ) {
-                    window.set_stage_drawer_status_message(error.to_string().into());
+                    window.set_block_drawer_status_message(error.to_string().into());
                 }
             }
         });
@@ -2003,33 +2003,33 @@ pub fn run_desktop_app(
 
     {
         let weak_window = window.as_weak();
-        let stage_editor_draft = stage_editor_draft.clone();
-        let stage_parameter_items = stage_parameter_items.clone();
+        let block_editor_draft = block_editor_draft.clone();
+        let block_parameter_items = block_parameter_items.clone();
         let project_session = project_session.clone();
-        let project_tracks = project_tracks.clone();
+        let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        window.on_update_stage_parameter_text(move |path, value| {
+        window.on_update_block_parameter_text(move |path, value| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            set_stage_parameter_text(&stage_parameter_items, path.as_str(), value.as_str());
-            window.set_stage_drawer_status_message("".into());
-            if let Some(draft) = stage_editor_draft.borrow().as_ref() {
-                if draft.stage_index.is_some() {
-                    if let Err(error) = persist_stage_editor_draft(
+            set_block_parameter_text(&block_parameter_items, path.as_str(), value.as_str());
+            window.set_block_drawer_status_message("".into());
+            if let Some(draft) = block_editor_draft.borrow().as_ref() {
+                if draft.block_index.is_some() {
+                    if let Err(error) = persist_block_editor_draft(
                         &window,
                         draft,
-                        &stage_parameter_items,
+                        &block_parameter_items,
                         &project_session,
-                        &project_tracks,
+                        &project_chains,
                         &project_runtime,
                         &saved_project_snapshot,
                         &project_dirty,
                         false,
                     ) {
-                        window.set_stage_drawer_status_message(error.to_string().into());
+                        window.set_block_drawer_status_message(error.to_string().into());
                     }
                 }
             }
@@ -2038,33 +2038,33 @@ pub fn run_desktop_app(
 
     {
         let weak_window = window.as_weak();
-        let stage_editor_draft = stage_editor_draft.clone();
-        let stage_parameter_items = stage_parameter_items.clone();
+        let block_editor_draft = block_editor_draft.clone();
+        let block_parameter_items = block_parameter_items.clone();
         let project_session = project_session.clone();
-        let project_tracks = project_tracks.clone();
+        let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        window.on_update_stage_parameter_number(move |path, value| {
+        window.on_update_block_parameter_number(move |path, value| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            set_stage_parameter_number(&stage_parameter_items, path.as_str(), value);
-            window.set_stage_drawer_status_message("".into());
-            if let Some(draft) = stage_editor_draft.borrow().as_ref() {
-                if draft.stage_index.is_some() {
-                    if let Err(error) = persist_stage_editor_draft(
+            set_block_parameter_number(&block_parameter_items, path.as_str(), value);
+            window.set_block_drawer_status_message("".into());
+            if let Some(draft) = block_editor_draft.borrow().as_ref() {
+                if draft.block_index.is_some() {
+                    if let Err(error) = persist_block_editor_draft(
                         &window,
                         draft,
-                        &stage_parameter_items,
+                        &block_parameter_items,
                         &project_session,
-                        &project_tracks,
+                        &project_chains,
                         &project_runtime,
                         &saved_project_snapshot,
                         &project_dirty,
                         false,
                     ) {
-                        window.set_stage_drawer_status_message(error.to_string().into());
+                        window.set_block_drawer_status_message(error.to_string().into());
                     }
                 }
             }
@@ -2073,33 +2073,33 @@ pub fn run_desktop_app(
 
     {
         let weak_window = window.as_weak();
-        let stage_editor_draft = stage_editor_draft.clone();
-        let stage_parameter_items = stage_parameter_items.clone();
+        let block_editor_draft = block_editor_draft.clone();
+        let block_parameter_items = block_parameter_items.clone();
         let project_session = project_session.clone();
-        let project_tracks = project_tracks.clone();
+        let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        window.on_update_stage_parameter_bool(move |path, value| {
+        window.on_update_block_parameter_bool(move |path, value| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            set_stage_parameter_bool(&stage_parameter_items, path.as_str(), value);
-            window.set_stage_drawer_status_message("".into());
-            if let Some(draft) = stage_editor_draft.borrow().as_ref() {
-                if draft.stage_index.is_some() {
-                    if let Err(error) = persist_stage_editor_draft(
+            set_block_parameter_bool(&block_parameter_items, path.as_str(), value);
+            window.set_block_drawer_status_message("".into());
+            if let Some(draft) = block_editor_draft.borrow().as_ref() {
+                if draft.block_index.is_some() {
+                    if let Err(error) = persist_block_editor_draft(
                         &window,
                         draft,
-                        &stage_parameter_items,
+                        &block_parameter_items,
                         &project_session,
-                        &project_tracks,
+                        &project_chains,
                         &project_runtime,
                         &saved_project_snapshot,
                         &project_dirty,
                         false,
                     ) {
-                        window.set_stage_drawer_status_message(error.to_string().into());
+                        window.set_block_drawer_status_message(error.to_string().into());
                     }
                 }
             }
@@ -2108,33 +2108,33 @@ pub fn run_desktop_app(
 
     {
         let weak_window = window.as_weak();
-        let stage_editor_draft = stage_editor_draft.clone();
-        let stage_parameter_items = stage_parameter_items.clone();
+        let block_editor_draft = block_editor_draft.clone();
+        let block_parameter_items = block_parameter_items.clone();
         let project_session = project_session.clone();
-        let project_tracks = project_tracks.clone();
+        let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        window.on_select_stage_parameter_option(move |path, index| {
+        window.on_select_block_parameter_option(move |path, index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            set_stage_parameter_option(&stage_parameter_items, path.as_str(), index);
-            window.set_stage_drawer_status_message("".into());
-            if let Some(draft) = stage_editor_draft.borrow().as_ref() {
-                if draft.stage_index.is_some() {
-                    if let Err(error) = persist_stage_editor_draft(
+            set_block_parameter_option(&block_parameter_items, path.as_str(), index);
+            window.set_block_drawer_status_message("".into());
+            if let Some(draft) = block_editor_draft.borrow().as_ref() {
+                if draft.block_index.is_some() {
+                    if let Err(error) = persist_block_editor_draft(
                         &window,
                         draft,
-                        &stage_parameter_items,
+                        &block_parameter_items,
                         &project_session,
-                        &project_tracks,
+                        &project_chains,
                         &project_runtime,
                         &saved_project_snapshot,
                         &project_dirty,
                         false,
                     ) {
-                        window.set_stage_drawer_status_message(error.to_string().into());
+                        window.set_block_drawer_status_message(error.to_string().into());
                     }
                 }
             }
@@ -2143,18 +2143,18 @@ pub fn run_desktop_app(
 
     {
         let weak_window = window.as_weak();
-        let stage_editor_draft = stage_editor_draft.clone();
-        let stage_parameter_items = stage_parameter_items.clone();
+        let block_editor_draft = block_editor_draft.clone();
+        let block_parameter_items = block_parameter_items.clone();
         let project_session = project_session.clone();
-        let project_tracks = project_tracks.clone();
+        let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        window.on_pick_stage_parameter_file(move |path| {
+        window.on_pick_block_parameter_file(move |path| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let extensions = stage_parameter_extensions(&stage_parameter_items, path.as_str());
+            let extensions = block_parameter_extensions(&block_parameter_items, path.as_str());
             let mut dialog = FileDialog::new();
             if !extensions.is_empty() {
                 let refs = extensions
@@ -2166,26 +2166,26 @@ pub fn run_desktop_app(
             let Some(file) = dialog.pick_file() else {
                 return;
             };
-            set_stage_parameter_text(
-                &stage_parameter_items,
+            set_block_parameter_text(
+                &block_parameter_items,
                 path.as_str(),
                 file.to_string_lossy().as_ref(),
             );
-            window.set_stage_drawer_status_message("".into());
-            if let Some(draft) = stage_editor_draft.borrow().as_ref() {
-                if draft.stage_index.is_some() {
-                    if let Err(error) = persist_stage_editor_draft(
+            window.set_block_drawer_status_message("".into());
+            if let Some(draft) = block_editor_draft.borrow().as_ref() {
+                if draft.block_index.is_some() {
+                    if let Err(error) = persist_block_editor_draft(
                         &window,
                         draft,
-                        &stage_parameter_items,
+                        &block_parameter_items,
                         &project_session,
-                        &project_tracks,
+                        &project_chains,
                         &project_runtime,
                         &saved_project_snapshot,
                         &project_dirty,
                         false,
                     ) {
-                        window.set_stage_drawer_status_message(error.to_string().into());
+                        window.set_block_drawer_status_message(error.to_string().into());
                     }
                 }
             }
@@ -2194,113 +2194,113 @@ pub fn run_desktop_app(
 
     {
         let weak_window = window.as_weak();
-        let selected_stage = selected_stage.clone();
-        let stage_editor_draft = stage_editor_draft.clone();
-        let stage_model_options = stage_model_options.clone();
-        let stage_model_option_labels = stage_model_option_labels.clone();
-        let stage_parameter_items = stage_parameter_items.clone();
+        let selected_block = selected_block.clone();
+        let block_editor_draft = block_editor_draft.clone();
+        let block_model_options = block_model_options.clone();
+        let block_model_option_labels = block_model_option_labels.clone();
+        let block_parameter_items = block_parameter_items.clone();
         let project_session = project_session.clone();
-        let project_tracks = project_tracks.clone();
+        let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        window.on_save_stage_drawer(move || {
+        window.on_save_block_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let Some(draft) = stage_editor_draft.borrow().clone() else {
+            let Some(draft) = block_editor_draft.borrow().clone() else {
                 return;
             };
 
-            if let Err(error) = persist_stage_editor_draft(
+            if let Err(error) = persist_block_editor_draft(
                 &window,
                 &draft,
-                &stage_parameter_items,
+                &block_parameter_items,
                 &project_session,
-                &project_tracks,
+                &project_chains,
                 &project_runtime,
                 &saved_project_snapshot,
                 &project_dirty,
                 true,
             ) {
-                window.set_stage_drawer_status_message(error.to_string().into());
+                window.set_block_drawer_status_message(error.to_string().into());
                 return;
             }
 
-            *selected_stage.borrow_mut() = None;
-            set_selected_stage(&window, None);
-            *stage_editor_draft.borrow_mut() = None;
-            stage_model_options.set_vec(Vec::new());
-            stage_model_option_labels.set_vec(Vec::new());
-            stage_parameter_items.set_vec(Vec::new());
+            *selected_block.borrow_mut() = None;
+            set_selected_block(&window, None);
+            *block_editor_draft.borrow_mut() = None;
+            block_model_options.set_vec(Vec::new());
+            block_model_option_labels.set_vec(Vec::new());
+            block_parameter_items.set_vec(Vec::new());
         });
     }
 
     {
         let weak_window = window.as_weak();
-        let selected_stage = selected_stage.clone();
-        let stage_editor_draft = stage_editor_draft.clone();
-        let stage_model_options = stage_model_options.clone();
-        let stage_model_option_labels = stage_model_option_labels.clone();
-        let stage_parameter_items = stage_parameter_items.clone();
+        let selected_block = selected_block.clone();
+        let block_editor_draft = block_editor_draft.clone();
+        let block_model_options = block_model_options.clone();
+        let block_model_option_labels = block_model_option_labels.clone();
+        let block_parameter_items = block_parameter_items.clone();
         let project_session = project_session.clone();
-        let project_tracks = project_tracks.clone();
+        let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        window.on_delete_stage_drawer(move || {
+        window.on_delete_block_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let Some(draft) = stage_editor_draft.borrow().clone() else {
+            let Some(draft) = block_editor_draft.borrow().clone() else {
                 return;
             };
-            let Some(stage_index) = draft.stage_index else {
+            let Some(block_index) = draft.block_index else {
                 return;
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                window.set_stage_drawer_status_message("Nenhum projeto carregado.".into());
+                window.set_block_drawer_status_message("Nenhum projeto carregado.".into());
                 return;
             };
-            let Some(track) = session.project.tracks.get_mut(draft.track_index) else {
-                window.set_stage_drawer_status_message("Track inválida.".into());
+            let Some(chain) = session.project.chains.get_mut(draft.chain_index) else {
+                window.set_block_drawer_status_message("Chain inválida.".into());
                 return;
             };
-            if stage_index >= track.blocks.len() {
-                window.set_stage_drawer_status_message("Stage inválido.".into());
+            if block_index >= chain.blocks.len() {
+                window.set_block_drawer_status_message("Block inválido.".into());
                 return;
             }
-            let track_id = track.id.clone();
-            track.blocks.remove(stage_index);
-            if let Err(error) = sync_live_track_runtime(&project_runtime, session, &track_id) {
-                window.set_stage_drawer_status_message(error.to_string().into());
+            let chain_id = chain.id.clone();
+            chain.blocks.remove(block_index);
+            if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                window.set_block_drawer_status_message(error.to_string().into());
                 return;
             }
-            replace_project_tracks(&project_tracks, &session.project);
+            replace_project_chains(&project_chains, &session.project);
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             window.set_project_running(project_runtime_is_running(&project_runtime));
-            *selected_stage.borrow_mut() = None;
-            *stage_editor_draft.borrow_mut() = None;
-            stage_model_options.set_vec(Vec::new());
-            stage_model_option_labels.set_vec(Vec::new());
-            stage_parameter_items.set_vec(Vec::new());
-            set_selected_stage(&window, None);
-            window.set_show_stage_drawer(false);
-            window.set_stage_drawer_status_message("".into());
+            *selected_block.borrow_mut() = None;
+            *block_editor_draft.borrow_mut() = None;
+            block_model_options.set_vec(Vec::new());
+            block_model_option_labels.set_vec(Vec::new());
+            block_parameter_items.set_vec(Vec::new());
+            set_selected_block(&window, None);
+            window.set_show_block_drawer(false);
+            window.set_block_drawer_status_message("".into());
             window.set_status_message("".into());
         });
     }
 
     {
         let weak_window = window.as_weak();
-        let track_draft = track_draft.clone();
+        let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
-        let project_tracks = project_tracks.clone();
+        let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        window.on_save_track(move || {
+        window.on_save_chain(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -2309,10 +2309,10 @@ pub fn run_desktop_app(
                 window.set_status_message("Nenhum projeto carregado.".into());
                 return;
             };
-            let draft = match track_draft.borrow().clone() {
+            let draft = match chain_draft.borrow().clone() {
                 Some(draft) => draft,
                 None => {
-                    window.set_status_message("Nenhuma track em edição.".into());
+                    window.set_status_message("Nenhuma chain em edição.".into());
                     return;
                 }
             };
@@ -2334,186 +2334,186 @@ pub fn run_desktop_app(
             }
 
             let editing_index = draft.editing_index;
-            let existing_track =
-                editing_index.and_then(|index| session.project.tracks.get(index).cloned());
-            let track = Track {
-                id: existing_track
+            let existing_chain =
+                editing_index.and_then(|index| session.project.chains.get(index).cloned());
+            let chain = Chain {
+                id: existing_chain
                     .as_ref()
-                    .map(|track| track.id.clone())
-                    .unwrap_or_else(TrackId::generate),
-                description: normalized_track_description(&draft.name),
-                enabled: existing_track
+                    .map(|chain| chain.id.clone())
+                    .unwrap_or_else(ChainId::generate),
+                description: normalized_chain_description(&draft.name),
+                enabled: existing_chain
                     .as_ref()
-                    .map(|track| track.enabled)
+                    .map(|chain| chain.enabled)
                     .unwrap_or(true),
                 input_device_id: DeviceId(draft.input_device_id.unwrap_or_default()),
                 input_channels: draft.input_channels,
                 output_device_id: DeviceId(draft.output_device_id.unwrap_or_default()),
                 output_channels: draft.output_channels,
-                blocks: existing_track
+                blocks: existing_chain
                     .as_ref()
-                    .map(|track| track.blocks.clone())
+                    .map(|chain| chain.blocks.clone())
                     .unwrap_or_default(),
-                output_mixdown: existing_track
+                output_mixdown: existing_chain
                     .as_ref()
-                    .map(|track| track.output_mixdown)
-                    .unwrap_or(TrackOutputMixdown::Average),
+                    .map(|chain| chain.output_mixdown)
+                    .unwrap_or(ChainOutputMixdown::Average),
             };
-            let track_id = track.id.clone();
+            let chain_id = chain.id.clone();
             if let Some(index) = editing_index {
-                if let Some(current) = session.project.tracks.get_mut(index) {
-                    *current = track;
+                if let Some(current) = session.project.chains.get_mut(index) {
+                    *current = chain;
                 }
             } else {
-                session.project.tracks.push(track);
+                session.project.chains.push(chain);
             }
-            if let Err(error) = sync_live_track_runtime(&project_runtime, session, &track_id) {
+            if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 window.set_status_message(error.to_string().into());
                 return;
             }
-            replace_project_tracks(&project_tracks, &session.project);
-            *track_draft.borrow_mut() = None;
+            replace_project_chains(&project_chains, &session.project);
+            *chain_draft.borrow_mut() = None;
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             window.set_project_running(project_runtime_is_running(&project_runtime));
             window.set_status_message("".into());
-            window.set_show_track_editor(false);
+            window.set_show_chain_editor(false);
         });
     }
 
     {
         let weak_window = window.as_weak();
-        let weak_track_window = track_editor_window.as_weak();
-        let track_draft = track_draft.clone();
+        let weak_chain_window = chain_editor_window.as_weak();
+        let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
-        let project_tracks = project_tracks.clone();
+        let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        track_editor_window.on_save_track(move || {
+        chain_editor_window.on_save_chain(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let Some(track_window) = weak_track_window.upgrade() else {
+            let Some(chain_window) = weak_chain_window.upgrade() else {
                 return;
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                track_window.set_status_message("Nenhum projeto carregado.".into());
+                chain_window.set_status_message("Nenhum projeto carregado.".into());
                 return;
             };
-            let draft = match track_draft.borrow().clone() {
+            let draft = match chain_draft.borrow().clone() {
                 Some(draft) => draft,
                 None => {
-                    track_window.set_status_message("Nenhuma track em edição.".into());
+                    chain_window.set_status_message("Nenhuma chain em edição.".into());
                     return;
                 }
             };
             if draft.input_device_id.is_none() {
-                track_window.set_status_message("Selecione o dispositivo de entrada.".into());
+                chain_window.set_status_message("Selecione o dispositivo de entrada.".into());
                 return;
             }
             if draft.output_device_id.is_none() {
-                track_window.set_status_message("Selecione o dispositivo de saída.".into());
+                chain_window.set_status_message("Selecione o dispositivo de saída.".into());
                 return;
             }
             if draft.input_channels.is_empty() {
-                track_window.set_status_message("Selecione pelo menos um canal de entrada.".into());
+                chain_window.set_status_message("Selecione pelo menos um canal de entrada.".into());
                 return;
             }
             if draft.output_channels.is_empty() {
-                track_window.set_status_message("Selecione pelo menos um canal de saída.".into());
+                chain_window.set_status_message("Selecione pelo menos um canal de saída.".into());
                 return;
             }
 
             let editing_index = draft.editing_index;
-            let existing_track =
-                editing_index.and_then(|index| session.project.tracks.get(index).cloned());
-            let track = Track {
-                id: existing_track
+            let existing_chain =
+                editing_index.and_then(|index| session.project.chains.get(index).cloned());
+            let chain = Chain {
+                id: existing_chain
                     .as_ref()
-                    .map(|track| track.id.clone())
-                    .unwrap_or_else(TrackId::generate),
-                description: normalized_track_description(&draft.name),
-                enabled: existing_track
+                    .map(|chain| chain.id.clone())
+                    .unwrap_or_else(ChainId::generate),
+                description: normalized_chain_description(&draft.name),
+                enabled: existing_chain
                     .as_ref()
-                    .map(|track| track.enabled)
+                    .map(|chain| chain.enabled)
                     .unwrap_or(true),
                 input_device_id: DeviceId(draft.input_device_id.unwrap_or_default()),
                 input_channels: draft.input_channels,
                 output_device_id: DeviceId(draft.output_device_id.unwrap_or_default()),
                 output_channels: draft.output_channels,
-                blocks: existing_track
+                blocks: existing_chain
                     .as_ref()
-                    .map(|track| track.blocks.clone())
+                    .map(|chain| chain.blocks.clone())
                     .unwrap_or_default(),
-                output_mixdown: existing_track
+                output_mixdown: existing_chain
                     .as_ref()
-                    .map(|track| track.output_mixdown)
-                    .unwrap_or(TrackOutputMixdown::Average),
+                    .map(|chain| chain.output_mixdown)
+                    .unwrap_or(ChainOutputMixdown::Average),
             };
-            let track_id = track.id.clone();
+            let chain_id = chain.id.clone();
             if let Some(index) = editing_index {
-                if let Some(current) = session.project.tracks.get_mut(index) {
-                    *current = track;
+                if let Some(current) = session.project.chains.get_mut(index) {
+                    *current = chain;
                 }
             } else {
-                session.project.tracks.push(track);
+                session.project.chains.push(chain);
             }
-            if let Err(error) = sync_live_track_runtime(&project_runtime, session, &track_id) {
-                track_window.set_status_message(error.to_string().into());
+            if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                chain_window.set_status_message(error.to_string().into());
                 return;
             }
-            replace_project_tracks(&project_tracks, &session.project);
-            *track_draft.borrow_mut() = None;
+            replace_project_chains(&project_chains, &session.project);
+            *chain_draft.borrow_mut() = None;
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-            track_window.set_status_message("".into());
+            chain_window.set_status_message("".into());
             window.set_status_message("".into());
             window.set_project_running(project_runtime_is_running(&project_runtime));
-            window.set_show_track_editor(false);
-            let _ = track_window.hide();
+            window.set_show_chain_editor(false);
+            let _ = chain_window.hide();
         });
     }
 
     {
         let weak_window = window.as_weak();
-        let track_draft = track_draft.clone();
-        window.on_cancel_track(move || {
+        let chain_draft = chain_draft.clone();
+        window.on_cancel_chain(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            *track_draft.borrow_mut() = None;
+            *chain_draft.borrow_mut() = None;
             window.set_status_message("".into());
-            window.set_show_track_editor(false);
+            window.set_show_chain_editor(false);
         });
     }
 
     {
         let weak_window = window.as_weak();
-        let weak_track_window = track_editor_window.as_weak();
-        let track_draft = track_draft.clone();
-        track_editor_window.on_cancel_track(move || {
+        let weak_chain_window = chain_editor_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        chain_editor_window.on_cancel_chain(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let Some(track_window) = weak_track_window.upgrade() else {
+            let Some(chain_window) = weak_chain_window.upgrade() else {
                 return;
             };
-            *track_draft.borrow_mut() = None;
-            track_window.set_status_message("".into());
+            *chain_draft.borrow_mut() = None;
+            chain_window.set_status_message("".into());
             window.set_status_message("".into());
-            window.set_show_track_editor(false);
-            let _ = track_window.hide();
+            window.set_show_chain_editor(false);
+            let _ = chain_window.hide();
         });
     }
 
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
-        let project_tracks = project_tracks.clone();
+        let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        window.on_remove_track(move |index| {
+        window.on_remove_chain(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -2523,15 +2523,15 @@ pub fn run_desktop_app(
                 return;
             };
             let index = index as usize;
-            if index >= session.project.tracks.len() {
-                window.set_status_message("Track inválida.".into());
+            if index >= session.project.chains.len() {
+                window.set_status_message("Chain inválida.".into());
                 return;
             }
 
-            let removed_track_id = session.project.tracks[index].id.clone();
-            session.project.tracks.remove(index);
-            remove_live_track_runtime(&project_runtime, &removed_track_id);
-            replace_project_tracks(&project_tracks, &session.project);
+            let removed_chain_id = session.project.chains[index].id.clone();
+            session.project.chains.remove(index);
+            remove_live_chain_runtime(&project_runtime, &removed_chain_id);
+            replace_project_chains(&project_chains, &session.project);
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             window.set_project_running(project_runtime_is_running(&project_runtime));
             window.set_status_message("".into());
@@ -2541,11 +2541,11 @@ pub fn run_desktop_app(
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
-        let project_tracks = project_tracks.clone();
+        let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        window.on_toggle_track_enabled(move |index| {
+        window.on_toggle_chain_enabled(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -2554,17 +2554,17 @@ pub fn run_desktop_app(
                 window.set_status_message("Nenhum projeto carregado.".into());
                 return;
             };
-            let Some(track) = session.project.tracks.get_mut(index as usize) else {
-                window.set_status_message("Track inválida.".into());
+            let Some(chain) = session.project.chains.get_mut(index as usize) else {
+                window.set_status_message("Chain inválida.".into());
                 return;
             };
-            track.enabled = !track.enabled;
-            let track_id = track.id.clone();
-            if let Err(error) = sync_live_track_runtime(&project_runtime, session, &track_id) {
+            chain.enabled = !chain.enabled;
+            let chain_id = chain.id.clone();
+            if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 window.set_status_message(error.to_string().into());
                 return;
             }
-            replace_project_tracks(&project_tracks, &session.project);
+            replace_project_chains(&project_chains, &session.project);
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             window.set_project_running(project_runtime_is_running(&project_runtime));
             window.set_status_message("".into());
@@ -2790,7 +2790,7 @@ fn create_new_project_session(default_config_path: &Path) -> ProjectSession {
     let project = Project {
         name: None,
         device_settings: Vec::new(),
-        tracks: Vec::new(),
+        chains: Vec::new(),
     };
     ProjectSession {
         project,
@@ -2841,29 +2841,29 @@ fn load_project_session(project_path: &Path, config_path: &Path) -> Result<Proje
     })
 }
 
-fn replace_project_tracks(model: &Rc<VecModel<ProjectTrackItem>>, project: &Project) {
+fn replace_project_chains(model: &Rc<VecModel<ProjectChainItem>>, project: &Project) {
     let items = project
-        .tracks
+        .chains
         .iter()
         .enumerate()
-        .map(|(index, track)| ProjectTrackItem {
-            title: track
+        .map(|(index, chain)| ProjectChainItem {
+            title: chain
                 .description
                 .clone()
-                .unwrap_or_else(|| format!("Track {}", index + 1))
+                .unwrap_or_else(|| format!("Chain {}", index + 1))
                 .into(),
-            subtitle: track_routing_summary(track).into(),
-            enabled: track.enabled,
-            stage_count_label: if track.blocks.len() == 1 {
-                "1 stage".into()
+            subtitle: chain_routing_summary(chain).into(),
+            enabled: chain.enabled,
+            block_count_label: if chain.blocks.len() == 1 {
+                "1 block".into()
             } else {
-                format!("{} stages", track.blocks.len()).into()
+                format!("{} blocks", chain.blocks.len()).into()
             },
-            stages: ModelRc::from(Rc::new(VecModel::from(
-                track
+            blocks: ModelRc::from(Rc::new(VecModel::from(
+                chain
                     .blocks
                     .iter()
-                    .map(track_stage_item_from_block)
+                    .map(chain_block_item_from_block)
                     .collect::<Vec<_>>(),
             ))),
         })
@@ -2871,10 +2871,10 @@ fn replace_project_tracks(model: &Rc<VecModel<ProjectTrackItem>>, project: &Proj
     model.set_vec(items);
 }
 
-fn stage_type_picker_items() -> Vec<StageTypePickerItem> {
-    supported_stage_types()
+fn block_type_picker_items() -> Vec<BlockTypePickerItem> {
+    supported_block_types()
         .into_iter()
-        .map(|item| StageTypePickerItem {
+        .map(|item| BlockTypePickerItem {
             effect_type: item.effect_type.into(),
             label: humanize_effect_type(item.effect_type).into(),
             subtitle: "".into(),
@@ -2883,11 +2883,11 @@ fn stage_type_picker_items() -> Vec<StageTypePickerItem> {
         .collect()
 }
 
-fn stage_model_picker_items(effect_type: &str) -> Vec<StageModelPickerItem> {
-    supported_stage_models(effect_type)
+fn block_model_picker_items(effect_type: &str) -> Vec<BlockModelPickerItem> {
+    supported_block_models(effect_type)
         .unwrap_or_default()
         .into_iter()
-        .map(|item| StageModelPickerItem {
+        .map(|item| BlockModelPickerItem {
             effect_type: item.effect_type.into(),
             model_id: item.model_id.into(),
             label: item.display_name.into(),
@@ -2897,30 +2897,30 @@ fn stage_model_picker_items(effect_type: &str) -> Vec<StageModelPickerItem> {
         .collect()
 }
 
-fn stage_model_picker_labels(items: &[StageModelPickerItem]) -> Vec<SharedString> {
+fn block_model_picker_labels(items: &[BlockModelPickerItem]) -> Vec<SharedString> {
     items.iter().map(|item| item.label.clone()).collect()
 }
 
-fn set_selected_stage(window: &AppWindow, selected_stage: Option<&SelectedStage>) {
-    if let Some(selected_stage) = selected_stage {
-        window.set_selected_track_stage_track_index(selected_stage.track_index as i32);
-        window.set_selected_track_stage_index(selected_stage.stage_index as i32);
+fn set_selected_block(window: &AppWindow, selected_block: Option<&SelectedBlock>) {
+    if let Some(selected_block) = selected_block {
+        window.set_selected_chain_block_chain_index(selected_block.chain_index as i32);
+        window.set_selected_chain_block_index(selected_block.block_index as i32);
     } else {
-        window.set_selected_track_stage_track_index(-1);
-        window.set_selected_track_stage_index(-1);
+        window.set_selected_chain_block_chain_index(-1);
+        window.set_selected_chain_block_index(-1);
     }
 }
 
-fn stage_type_index(effect_type: &str) -> i32 {
-    supported_stage_types()
+fn block_type_index(effect_type: &str) -> i32 {
+    supported_block_types()
         .iter()
         .position(|item| item.effect_type == effect_type)
         .map(|index| index as i32)
         .unwrap_or(-1)
 }
 
-fn stage_model_index(effect_type: &str, model_id: &str) -> i32 {
-    supported_stage_models(effect_type)
+fn block_model_index(effect_type: &str, model_id: &str) -> i32 {
+    supported_block_models(effect_type)
         .unwrap_or_default()
         .iter()
         .position(|item| item.model_id == model_id)
@@ -2959,21 +2959,21 @@ fn unit_label(unit: &ParameterUnit) -> &'static str {
 }
 
 fn block_editor_data(block: &AudioBlock) -> Option<(String, String, ParameterSet, bool)> {
-    block.model_ref().map(|stage| {
+    block.model_ref().map(|model| {
         (
-            stage.effect_type.to_string(),
-            stage.model.to_string(),
-            stage.params.clone(),
+            model.effect_type.to_string(),
+            model.model.to_string(),
+            model.params.clone(),
             block.enabled,
         )
     })
 }
 
-fn stage_parameter_items_for_model(
+fn block_parameter_items_for_model(
     effect_type: &str,
     model_id: &str,
     params: &ParameterSet,
-) -> Vec<StageParameterItem> {
+) -> Vec<BlockParameterItem> {
     let Ok(schema) = schema_for_block_model(effect_type, model_id) else {
         return Vec::new();
     };
@@ -3051,7 +3051,7 @@ fn stage_parameter_items_for_model(
                     ModelRc::from(Rc::new(VecModel::from(Vec::<SharedString>::new()))),
                 ),
             };
-            StageParameterItem {
+            BlockParameterItem {
                 path: spec.path.clone().into(),
                 label: spec.label.clone().into(),
                 group: spec.group.clone().unwrap_or_default().into(),
@@ -3103,7 +3103,7 @@ fn stage_parameter_items_for_model(
         .collect()
 }
 
-fn set_stage_parameter_text(model: &Rc<VecModel<StageParameterItem>>, path: &str, value: &str) {
+fn set_block_parameter_text(model: &Rc<VecModel<BlockParameterItem>>, path: &str, value: &str) {
     for index in 0..model.row_count() {
         if let Some(mut row) = model.row_data(index) {
             if row.path.as_str() == path {
@@ -3115,7 +3115,7 @@ fn set_stage_parameter_text(model: &Rc<VecModel<StageParameterItem>>, path: &str
     }
 }
 
-fn set_stage_parameter_bool(model: &Rc<VecModel<StageParameterItem>>, path: &str, value: bool) {
+fn set_block_parameter_bool(model: &Rc<VecModel<BlockParameterItem>>, path: &str, value: bool) {
     for index in 0..model.row_count() {
         if let Some(mut row) = model.row_data(index) {
             if row.path.as_str() == path {
@@ -3127,7 +3127,7 @@ fn set_stage_parameter_bool(model: &Rc<VecModel<StageParameterItem>>, path: &str
     }
 }
 
-fn set_stage_parameter_number(model: &Rc<VecModel<StageParameterItem>>, path: &str, value: f32) {
+fn set_block_parameter_number(model: &Rc<VecModel<BlockParameterItem>>, path: &str, value: f32) {
     for index in 0..model.row_count() {
         if let Some(mut row) = model.row_data(index) {
             if row.path.as_str() == path {
@@ -3152,19 +3152,19 @@ fn set_stage_parameter_number(model: &Rc<VecModel<StageParameterItem>>, path: &s
 }
 
 #[allow(clippy::too_many_arguments)]
-fn persist_stage_editor_draft(
+fn persist_block_editor_draft(
     window: &AppWindow,
-    draft: &StageEditorDraft,
-    stage_parameter_items: &Rc<VecModel<StageParameterItem>>,
+    draft: &BlockEditorDraft,
+    block_parameter_items: &Rc<VecModel<BlockParameterItem>>,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_tracks: &Rc<VecModel<ProjectTrackItem>>,
+    project_chains: &Rc<VecModel<ProjectChainItem>>,
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
     saved_project_snapshot: &Rc<RefCell<Option<String>>>,
     project_dirty: &Rc<RefCell<bool>>,
     close_after_save: bool,
 ) -> Result<()> {
     let params =
-        stage_parameter_values(stage_parameter_items, &draft.effect_type, &draft.model_id)?;
+        block_parameter_values(block_parameter_items, &draft.effect_type, &draft.model_id)?;
 
     let mut session_borrow = project_session.borrow_mut();
     let session = session_borrow
@@ -3172,54 +3172,54 @@ fn persist_stage_editor_draft(
         .ok_or_else(|| anyhow!("Nenhum projeto carregado."))?;
     let kind = build_audio_block_kind(&draft.effect_type, &draft.model_id, params)
         .map_err(|error| anyhow!(error))?;
-    let track_id = {
-        let track = session
+    let chain_id = {
+        let chain = session
             .project
-            .tracks
-            .get_mut(draft.track_index)
-            .ok_or_else(|| anyhow!("Track inválida."))?;
+            .chains
+            .get_mut(draft.chain_index)
+            .ok_or_else(|| anyhow!("Chain inválida."))?;
 
-        if let Some(stage_index) = draft.stage_index {
-            let block = track
+        if let Some(block_index) = draft.block_index {
+            let block = chain
                 .blocks
-                .get_mut(stage_index)
-                .ok_or_else(|| anyhow!("Stage inválido."))?;
+                .get_mut(block_index)
+                .ok_or_else(|| anyhow!("Block inválido."))?;
             let block_id = block.id.clone();
             block.enabled = draft.enabled;
             block.kind = kind;
             block.id = block_id;
         } else {
-            let insert_index = draft.before_index.min(track.blocks.len());
-            track.blocks.insert(
+            let insert_index = draft.before_index.min(chain.blocks.len());
+            chain.blocks.insert(
                 insert_index,
                 AudioBlock {
-                    id: BlockId::generate_for_track(&track.id),
+                    id: BlockId::generate_for_chain(&chain.id),
                     enabled: draft.enabled,
                     kind,
                 },
             );
         }
 
-        track.id.clone()
+        chain.id.clone()
     };
 
-    if let Err(error) = sync_live_track_runtime(project_runtime, session, &track_id) {
-        window.set_stage_drawer_status_message(error.to_string().into());
+    if let Err(error) = sync_live_chain_runtime(project_runtime, session, &chain_id) {
+        window.set_block_drawer_status_message(error.to_string().into());
         return Err(error);
     }
 
-    replace_project_tracks(project_tracks, &session.project);
+    replace_project_chains(project_chains, &session.project);
     sync_project_dirty(window, session, saved_project_snapshot, project_dirty);
     window.set_project_running(project_runtime_is_running(project_runtime));
 
     if close_after_save {
-        window.set_show_stage_drawer(false);
-        window.set_show_stage_type_picker(false);
-        window.set_stage_drawer_selected_model_index(-1);
-        window.set_stage_drawer_selected_type_index(-1);
+        window.set_show_block_drawer(false);
+        window.set_show_block_type_picker(false);
+        window.set_block_drawer_selected_model_index(-1);
+        window.set_block_drawer_selected_type_index(-1);
     }
 
-    window.set_stage_drawer_status_message("".into());
+    window.set_block_drawer_status_message("".into());
     window.set_status_message("".into());
     Ok(())
 }
@@ -3249,8 +3249,8 @@ fn numeric_widget_kind(min: f32, max: f32, step: f32, integer: bool) -> &'static
     "slider"
 }
 
-fn set_stage_parameter_option(
-    model: &Rc<VecModel<StageParameterItem>>,
+fn set_block_parameter_option(
+    model: &Rc<VecModel<BlockParameterItem>>,
     path: &str,
     selected_index: i32,
 ) {
@@ -3270,7 +3270,7 @@ fn set_stage_parameter_option(
     }
 }
 
-fn stage_parameter_extensions(model: &Rc<VecModel<StageParameterItem>>, path: &str) -> Vec<String> {
+fn block_parameter_extensions(model: &Rc<VecModel<BlockParameterItem>>, path: &str) -> Vec<String> {
     for index in 0..model.row_count() {
         if let Some(row) = model.row_data(index) {
             if row.path.as_str() == path {
@@ -3287,8 +3287,8 @@ fn stage_parameter_extensions(model: &Rc<VecModel<StageParameterItem>>, path: &s
     Vec::new()
 }
 
-fn stage_parameter_values(
-    model: &Rc<VecModel<StageParameterItem>>,
+fn block_parameter_values(
+    model: &Rc<VecModel<BlockParameterItem>>,
     effect_type: &str,
     model_id: &str,
 ) -> Result<ParameterSet> {
@@ -3401,20 +3401,20 @@ fn build_project_yaml(session: &ProjectSession) -> Result<ProjectYaml> {
                 buffer_size_frames: setting.buffer_size_frames,
             })
             .collect(),
-        tracks: session
+        chains: session
             .project
-            .tracks
+            .chains
             .iter()
-            .map(|track| -> Result<ProjectTrackYaml> {
-                Ok(ProjectTrackYaml {
-                    description: track.description.clone(),
-                    enabled: track.enabled,
-                    input_device_id: track.input_device_id.0.clone(),
-                    input_channels: track.input_channels.clone(),
-                    output_device_id: track.output_device_id.0.clone(),
-                    output_channels: track.output_channels.clone(),
-                    stages: serialize_audio_blocks(&track.blocks)?,
-                    output_mixdown: track.output_mixdown,
+            .map(|chain| -> Result<ProjectChainYaml> {
+                Ok(ProjectChainYaml {
+                    description: chain.description.clone(),
+                    enabled: chain.enabled,
+                    input_device_id: chain.input_device_id.0.clone(),
+                    input_channels: chain.input_channels.clone(),
+                    output_device_id: chain.output_device_id.0.clone(),
+                    output_channels: chain.output_channels.clone(),
+                    blocks: serialize_audio_blocks(&chain.blocks)?,
+                    output_mixdown: chain.output_mixdown,
                 })
             })
             .collect::<Result<Vec<_>>>()?,
@@ -3465,17 +3465,17 @@ fn save_project_session(session: &ProjectSession, project_path: &PathBuf) -> Res
     Ok(())
 }
 
-fn save_track_blocks_to_preset(track: &Track, path: &Path) -> Result<()> {
-    let preset = TrackBlocksPreset {
+fn save_chain_blocks_to_preset(chain: &Chain, path: &Path) -> Result<()> {
+    let preset = ChainBlocksPreset {
         id: preset_id_from_path(path)?,
-        name: track.description.clone(),
-        blocks: track.blocks.clone(),
+        name: chain.description.clone(),
+        blocks: chain.blocks.clone(),
     };
-    save_track_preset_file(path, &preset)
+    save_chain_preset_file(path, &preset)
 }
 
-fn load_preset_file(path: &Path) -> Result<TrackBlocksPreset> {
-    load_track_preset_file(path)
+fn load_preset_file(path: &Path) -> Result<ChainBlocksPreset> {
+    load_chain_preset_file(path)
 }
 
 fn preset_id_from_path(path: &Path) -> Result<String> {
@@ -3499,7 +3499,7 @@ fn project_title_for_path(project_path: Option<&PathBuf>, project: &Project) -> 
         .and_then(|name| name.to_str())
         .map(|name| name.to_string())
         .unwrap_or_else(|| {
-            if project.tracks.is_empty() {
+            if project.chains.is_empty() {
                 "Novo Projeto".to_string()
             } else {
                 "Projeto".to_string()
@@ -3514,14 +3514,14 @@ fn selected_device_index(devices: &[AudioDeviceDescriptor], selected_id: Option<
         .unwrap_or(-1)
 }
 
-fn create_track_draft(
+fn create_chain_draft(
     project: &Project,
     input_devices: &[AudioDeviceDescriptor],
     output_devices: &[AudioDeviceDescriptor],
-) -> TrackDraft {
-    TrackDraft {
+) -> ChainDraft {
+    ChainDraft {
         editing_index: None,
-        name: format!("Track {}", project.tracks.len() + 1),
+        name: format!("Chain {}", project.chains.len() + 1),
         input_device_id: input_devices.first().map(|device| device.id.clone()),
         output_device_id: output_devices.first().map(|device| device.id.clone()),
         input_channels: Vec::new(),
@@ -3529,29 +3529,29 @@ fn create_track_draft(
     }
 }
 
-fn track_draft_from_track(index: usize, track: &Track) -> TrackDraft {
-    TrackDraft {
+fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
+    ChainDraft {
         editing_index: Some(index),
-        name: track
+        name: chain
             .description
             .clone()
-            .unwrap_or_else(|| format!("Track {}", index + 1)),
-        input_device_id: Some(track.input_device_id.0.clone()),
-        output_device_id: Some(track.output_device_id.0.clone()),
-        input_channels: track.input_channels.clone(),
-        output_channels: track.output_channels.clone(),
+            .unwrap_or_else(|| format!("Chain {}", index + 1)),
+        input_device_id: Some(chain.input_device_id.0.clone()),
+        output_device_id: Some(chain.output_device_id.0.clone()),
+        input_channels: chain.input_channels.clone(),
+        output_channels: chain.output_channels.clone(),
     }
 }
 
-fn track_stage_item_from_block(block: &AudioBlock) -> TrackStageItem {
+fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
     let (kind, label) = block
         .model_ref()
-        .map(|stage| (stage.effect_type.to_string(), stage.model.to_string()))
+        .map(|block| (block.effect_type.to_string(), block.model.to_string()))
         .unwrap_or_else(|| ("core".to_string(), "select".to_string()));
 
-    let family = stage_family_for_kind(&kind).to_string();
+    let family = block_family_for_kind(&kind).to_string();
 
-    TrackStageItem {
+    ChainBlockItem {
         kind: kind.into(),
         label: label.into(),
         family: family.into(),
@@ -3560,7 +3560,7 @@ fn track_stage_item_from_block(block: &AudioBlock) -> TrackStageItem {
 }
 
 fn build_input_channel_items(
-    draft: &TrackDraft,
+    draft: &ChainDraft,
     project: &Project,
     input_devices: &[AudioDeviceDescriptor],
 ) -> Vec<ChannelOptionItem> {
@@ -3571,15 +3571,15 @@ fn build_input_channel_items(
         return Vec::new();
     };
     let used_channels = project
-        .tracks
+        .chains
         .iter()
         .enumerate()
-        .filter(|(index, track)| {
-            track.enabled
-                && track.input_device_id.0 == *device_id
+        .filter(|(index, chain)| {
+            chain.enabled
+                && chain.input_device_id.0 == *device_id
                 && draft.editing_index != Some(*index)
         })
-        .flat_map(|(_, track)| track.input_channels.iter().copied())
+        .flat_map(|(_, chain)| chain.input_channels.iter().copied())
         .collect::<Vec<_>>();
 
     (0..device.channels)
@@ -3593,7 +3593,7 @@ fn build_input_channel_items(
 }
 
 fn build_output_channel_items(
-    draft: &TrackDraft,
+    draft: &ChainDraft,
     output_devices: &[AudioDeviceDescriptor],
 ) -> Vec<ChannelOptionItem> {
     let Some(device_id) = draft.output_device_id.as_ref() else {
@@ -3616,7 +3616,7 @@ fn replace_channel_options(model: &Rc<VecModel<ChannelOptionItem>>, items: Vec<C
     model.set_vec(items);
 }
 
-fn normalized_track_description(name: &str) -> Option<String> {
+fn normalized_chain_description(name: &str) -> Option<String> {
     let trimmed = name.trim();
     if trimmed.is_empty() {
         None
@@ -3658,10 +3658,10 @@ fn sync_project_runtime(
     Ok(())
 }
 
-fn sync_live_track_runtime(
+fn sync_live_chain_runtime(
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
     session: &ProjectSession,
-    track_id: &TrackId,
+    chain_id: &ChainId,
 ) -> Result<()> {
     let mut borrow = project_runtime.borrow_mut();
     let Some(runtime) = borrow.as_mut() else {
@@ -3669,60 +3669,60 @@ fn sync_live_track_runtime(
     };
 
     validate_project(&session.project)?;
-    if let Some(track) = session
+    if let Some(chain) = session
         .project
-        .tracks
+        .chains
         .iter()
-        .find(|track| &track.id == track_id)
+        .find(|chain| &chain.id == chain_id)
     {
-        runtime.upsert_track(&session.project, track)?;
+        runtime.upsert_chain(&session.project, chain)?;
     } else {
-        runtime.remove_track(track_id);
+        runtime.remove_chain(chain_id);
     }
     Ok(())
 }
 
-fn remove_live_track_runtime(
+fn remove_live_chain_runtime(
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-    track_id: &TrackId,
+    chain_id: &ChainId,
 ) {
     if let Some(runtime) = project_runtime.borrow_mut().as_mut() {
-        runtime.remove_track(track_id);
+        runtime.remove_chain(chain_id);
     }
 }
 
-fn assign_new_block_ids(track: &mut Track) {
-    for block in &mut track.blocks {
-        assign_new_block_ids_recursive(block, &track.id);
+fn assign_new_block_ids(chain: &mut Chain) {
+    for block in &mut chain.blocks {
+        assign_new_block_ids_recursive(block, &chain.id);
     }
 }
 
-fn assign_new_block_ids_recursive(block: &mut AudioBlock, track_id: &TrackId) {
-    block.id = BlockId::generate_for_track(track_id);
+fn assign_new_block_ids_recursive(block: &mut AudioBlock, chain_id: &ChainId) {
+    block.id = BlockId::generate_for_chain(chain_id);
     if let AudioBlockKind::Select(select) = &mut block.kind {
         for option in &mut select.options {
-            assign_new_block_ids_recursive(option, track_id);
+            assign_new_block_ids_recursive(option, chain_id);
         }
     }
 }
 
-fn track_editor_mode(draft: &TrackDraft) -> TrackEditorMode {
+fn chain_editor_mode(draft: &ChainDraft) -> ChainEditorMode {
     if draft.editing_index.is_some() {
-        TrackEditorMode::Edit
+        ChainEditorMode::Edit
     } else {
-        TrackEditorMode::Create
+        ChainEditorMode::Create
     }
 }
 
-fn apply_track_editor_labels(window: &AppWindow, draft: &TrackDraft) {
-    match track_editor_mode(draft) {
-        TrackEditorMode::Create => {
-            window.set_track_editor_title("Nova track".into());
-            window.set_track_editor_save_label("Criar track".into());
+fn apply_chain_editor_labels(window: &AppWindow, draft: &ChainDraft) {
+    match chain_editor_mode(draft) {
+        ChainEditorMode::Create => {
+            window.set_chain_editor_title("Nova chain".into());
+            window.set_chain_editor_save_label("Criar chain".into());
         }
-        TrackEditorMode::Edit => {
-            window.set_track_editor_title("Configurar track".into());
-            window.set_track_editor_save_label("Salvar track".into());
+        ChainEditorMode::Edit => {
+            window.set_chain_editor_title("Configurar chain".into());
+            window.set_chain_editor_save_label("Salvar chain".into());
         }
     }
 }

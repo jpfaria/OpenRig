@@ -1,11 +1,11 @@
-use domain::ids::{DeviceId, TrackId};
+use domain::ids::{ChainId, DeviceId};
 use serde::{Deserialize, Serialize};
 
 use crate::block::AudioBlock;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
-pub enum TrackOutputMixdown {
+pub enum ChainOutputMixdown {
     Sum,
     #[default]
     Average,
@@ -14,9 +14,9 @@ pub enum TrackOutputMixdown {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct Track {
+pub struct Chain {
     #[serde(skip)]
-    pub id: TrackId,
+    pub id: ChainId,
     #[serde(default)]
     pub description: Option<String>,
     pub enabled: bool,
@@ -24,7 +24,7 @@ pub struct Track {
     pub input_channels: Vec<usize>,
     pub output_device_id: DeviceId,
     pub output_channels: Vec<usize>,
-    #[serde(default, alias = "stages")]
+    #[serde(default)]
     pub blocks: Vec<AudioBlock>,
-    pub output_mixdown: TrackOutputMixdown,
+    pub output_mixdown: ChainOutputMixdown,
 }

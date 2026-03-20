@@ -2,13 +2,13 @@ use anyhow::{anyhow, bail, Result};
 use project::block::{schema_for_block_model, AudioBlock, AudioBlockKind};
 use project::device::DeviceSettings;
 use project::project::Project;
-use project::track::Track;
+use project::chain::Chain;
 use stage_core::AudioChannelLayout;
 use std::collections::{HashMap, HashSet};
 
 pub fn validate_project(project: &Project) -> Result<()> {
-    if project.tracks.is_empty() {
-        bail!("invalid project: no tracks configured");
+    if project.chains.is_empty() {
+        bail!("invalid project: no chains configured");
     }
 
     let device_settings_by_id: HashMap<_, _> = project
@@ -18,31 +18,43 @@ pub fn validate_project(project: &Project) -> Result<()> {
         .collect();
     validate_device_settings(project, &device_settings_by_id)?;
 
-    for track in &project.tracks {
-        if track.input_device_id.0.trim().is_empty() {
-            bail!("invalid project: track '{}' missing input_device_id", track.id.0);
+    for chain in &project.chains {
+        if chain.input_device_id.0.trim().is_empty() {
+            bail!(
+                "invalid project: chain '{}' missing input_device_id",
+                chain.id.0
+            );
         }
-        if track.output_device_id.0.trim().is_empty() {
-            bail!("invalid project: track '{}' missing output_device_id", track.id.0);
+        if chain.output_device_id.0.trim().is_empty() {
+            bail!(
+                "invalid project: chain '{}' missing output_device_id",
+                chain.id.0
+            );
         }
-        if track.input_channels.is_empty() {
-            bail!("invalid project: track '{}' has no input channels", track.id.0);
+        if chain.input_channels.is_empty() {
+            bail!(
+                "invalid project: chain '{}' has no input channels",
+                chain.id.0
+            );
         }
-        if track.output_channels.is_empty() {
-            bail!("invalid project: track '{}' has no output channels", track.id.0);
+        if chain.output_channels.is_empty() {
+            bail!(
+                "invalid project: chain '{}' has no output channels",
+                chain.id.0
+            );
         }
-        validate_unique_channels(&track.input_channels)
-            .map_err(|error| anyhow!("invalid project: track '{}': {}", track.id.0, error))?;
-        validate_unique_channels(&track.output_channels)
-            .map_err(|error| anyhow!("invalid project: track '{}': {}", track.id.0, error))?;
+        validate_unique_channels(&chain.input_channels)
+            .map_err(|error| anyhow!("invalid project: chain '{}': {}", chain.id.0, error))?;
+        validate_unique_channels(&chain.output_channels)
+            .map_err(|error| anyhow!("invalid project: chain '{}': {}", chain.id.0, error))?;
 
         let input_layout =
-            layout_from_channel_count("track input", &track.id.0, track.input_channels.len())?;
-        layout_from_channel_count("track output", &track.id.0, track.output_channels.len())?;
-        validate_track_blocks(track, track.blocks.as_slice(), input_layout)?;
+            layout_from_channel_count("chain input", &chain.id.0, chain.input_channels.len())?;
+        layout_from_channel_count("chain output", &chain.id.0, chain.output_channels.len())?;
+        validate_chain_blocks(chain, chain.blocks.as_slice(), input_layout)?;
     }
 
-    validate_active_track_input_channel_conflicts(&project.tracks)?;
+    validate_active_chain_input_channel_conflicts(&project.chains)?;
 
     Ok(())
 }
@@ -64,12 +76,12 @@ fn layout_from_channel_count(
     }
 }
 
-fn validate_track_blocks(
-    track: &Track,
+fn validate_chain_blocks(
+    chain: &Chain,
     blocks: &[AudioBlock],
     input_layout: AudioChannelLayout,
 ) -> Result<()> {
-    if !track.enabled {
+    if !chain.enabled {
         return Ok(());
     }
     let mut current_layout = input_layout;
@@ -78,24 +90,22 @@ fn validate_track_blocks(
         if !block.enabled {
             continue;
         }
-        current_layout = resolve_block_output_layout(track, block, current_layout)?;
+        current_layout = resolve_block_output_layout(chain, block, current_layout)?;
     }
 
     Ok(())
 }
 
-fn validate_active_track_input_channel_conflicts(
-    tracks: &[Track],
-) -> Result<()> {
+fn validate_active_chain_input_channel_conflicts(chains: &[Chain]) -> Result<()> {
     let mut claimed_channels: HashMap<(String, usize), String> = HashMap::new();
-    for track in tracks.iter().filter(|track| track.enabled) {
-        for channel in &track.input_channels {
-            let key = (track.input_device_id.0.clone(), *channel);
-            if let Some(existing_track) = claimed_channels.insert(key.clone(), track.id.0.clone()) {
+    for chain in chains.iter().filter(|chain| chain.enabled) {
+        for channel in &chain.input_channels {
+            let key = (chain.input_device_id.0.clone(), *channel);
+            if let Some(existing_chain) = claimed_channels.insert(key.clone(), chain.id.0.clone()) {
                 bail!(
-                    "invalid project: active tracks '{}' and '{}' both use input device '{}' channel {}",
-                    existing_track,
-                    track.id.0,
+                    "invalid project: active chains '{}' and '{}' both use input device '{}' channel {}",
+                    existing_chain,
+                    chain.id.0,
                     key.0,
                     key.1
                 );
@@ -135,7 +145,7 @@ fn validate_device_settings(
 }
 
 fn resolve_block_output_layout(
-    track: &Track,
+    chain: &Chain,
     block: &AudioBlock,
     input_layout: AudioChannelLayout,
 ) -> Result<AudioChannelLayout> {
@@ -153,13 +163,13 @@ fn resolve_block_output_layout(
 
             let mut resolved_layout = None;
             for option in &select.options {
-                let option_layout = resolve_block_output_layout(track, option, input_layout)
+                let option_layout = resolve_block_output_layout(chain, option, input_layout)
                     .map_err(|error| anyhow!("block '{}': {}", block.id.0, error))?;
                 if let Some(existing) = resolved_layout {
                     if existing != option_layout {
                         bail!(
-                            "track '{}' select block '{}' mixes incompatible output layouts across options",
-                            track.id.0,
+                            "chain '{}' select block '{}' mixes incompatible output layouts across options",
+                            chain.id.0,
                             block.id.0
                         );
                     }
@@ -168,7 +178,7 @@ fn resolve_block_output_layout(
                 }
             }
 
-            resolve_block_output_layout(track, selected, input_layout)
+            resolve_block_output_layout(chain, selected, input_layout)
                 .map_err(|error| anyhow!("block '{}': {}", block.id.0, error))
         }
         AudioBlockKind::Nam(_) | AudioBlockKind::Core(_) => {
@@ -181,8 +191,8 @@ fn resolve_block_output_layout(
 
             schema.audio_mode.output_layout(input_layout).ok_or_else(|| {
                 anyhow!(
-                    "track '{}' block '{}' uses {} model '{}' with audio mode '{}' that does not accept a {} input bus",
-                    track.id.0,
+                    "chain '{}' block '{}' uses {} model '{}' with audio mode '{}' that does not accept a {} input bus",
+                    chain.id.0,
                     block.id.0,
                     stage.effect_type,
                     stage.model,

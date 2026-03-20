@@ -2,9 +2,9 @@ use domain::ids::{BlockId, ParameterId};
 use serde::Serialize;
 
 use crate::block::{AudioBlock, BlockAudioDescriptor};
+use crate::chain::Chain;
 use crate::device::DeviceSettings;
 use crate::param::BlockParameterDescriptor;
-use crate::track::Track;
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Project {
@@ -12,14 +12,14 @@ pub struct Project {
     pub name: Option<String>,
     #[serde(default)]
     pub device_settings: Vec<DeviceSettings>,
-    pub tracks: Vec<Track>,
+    pub chains: Vec<Chain>,
 }
 
 impl Project {
     pub fn parameter_descriptors(&self) -> Result<Vec<BlockParameterDescriptor>, String> {
         let mut descriptors = Vec::new();
-        for track in &self.tracks {
-            for block in &track.blocks {
+        for chain in &self.chains {
+            for block in &chain.blocks {
                 descriptors.extend(collect_block_parameter_descriptors(block)?);
             }
         }
@@ -38,8 +38,8 @@ impl Project {
 
     pub fn block_audio_descriptors(&self) -> Result<Vec<BlockAudioDescriptor>, String> {
         let mut descriptors = Vec::new();
-        for track in &self.tracks {
-            for block in &track.blocks {
+        for chain in &self.chains {
+            for block in &chain.blocks {
                 descriptors.extend(block.audio_descriptors()?);
             }
         }
@@ -47,9 +47,9 @@ impl Project {
     }
 
     pub fn find_block(&self, block_id: &BlockId) -> Option<&AudioBlock> {
-        self.tracks
+        self.chains
             .iter()
-            .flat_map(|track| track.blocks.iter())
+            .flat_map(|chain| chain.blocks.iter())
             .find_map(|block| find_block_recursive(block, block_id))
     }
 }

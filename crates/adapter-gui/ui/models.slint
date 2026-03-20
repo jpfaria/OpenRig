@@ -6,29 +6,29 @@ export struct DeviceSelectionItem {
     buffer_size_text: string,
 }
 
-export struct TrackStageItem {
+export struct ChainBlockItem {
     kind: string,
     label: string,
     family: string,
     enabled: bool,
 }
 
-export struct ProjectTrackItem {
+export struct ProjectChainItem {
     title: string,
     subtitle: string,
     enabled: bool,
-    stage_count_label: string,
-    stages: [TrackStageItem],
+    block_count_label: string,
+    blocks: [ChainBlockItem],
 }
 
-export struct StageTypePickerItem {
+export struct BlockTypePickerItem {
     effect_type: string,
     label: string,
     subtitle: string,
     icon_kind: string,
 }
 
-export struct StageModelPickerItem {
+export struct BlockModelPickerItem {
     effect_type: string,
     model_id: string,
     label: string,
@@ -36,7 +36,7 @@ export struct StageModelPickerItem {
     icon_kind: string,
 }
 
-export struct StageParameterItem {
+export struct BlockParameterItem {
     path: string,
     label: string,
     group: string,

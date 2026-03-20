@@ -3,14 +3,14 @@ device_settings:
     sample_rate: 48000
     buffer_size_frames: 256
 
-tracks:
+chains:
   - description: guitar 1
     enabled: true
     input_device_id: "coreaudio:AppleUSBAudioEngine:Focusrite:Scarlett 2i2 4th Gen:S21ANUD3C1EEBE:1,2"
     input_channels: [0]
     output_device_id: "coreaudio:AppleUSBAudioEngine:Focusrite:Scarlett 2i2 4th Gen:S21ANUD3C1EEBE:1,2"
     output_channels: [0, 1]
-    stages:
+    blocks:
       - type: amp
         model: marshall_jcm_800_2203
         enabled: true

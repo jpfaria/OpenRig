@@ -4,12 +4,12 @@ use crate::block::{
 use crate::param::ParameterSet;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StageTypeCatalogEntry {
+pub struct BlockTypeCatalogEntry {
     pub effect_type: &'static str,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StageModelCatalogEntry {
+pub struct BlockModelCatalogEntry {
     pub effect_type: String,
     pub model_id: String,
     pub display_name: String,
@@ -18,80 +18,80 @@ pub struct StageModelCatalogEntry {
 type SupportedModelsFn = fn() -> &'static [&'static str];
 
 #[derive(Clone, Copy)]
-struct StageRegistryEntry {
+struct BlockRegistryEntry {
     effect_type: &'static str,
     supported_models: SupportedModelsFn,
 }
 
-fn stage_registry() -> [StageRegistryEntry; 13] {
+fn block_registry() -> [BlockRegistryEntry; 13] {
     [
-        StageRegistryEntry {
+        BlockRegistryEntry {
             effect_type: "amp_head",
             supported_models: stage_amp_head::supported_models,
         },
-        StageRegistryEntry {
+        BlockRegistryEntry {
             effect_type: "amp_combo",
             supported_models: stage_amp_combo::supported_models,
         },
-        StageRegistryEntry {
+        BlockRegistryEntry {
             effect_type: "cab",
             supported_models: stage_cab::supported_models,
         },
-        StageRegistryEntry {
+        BlockRegistryEntry {
             effect_type: "full_rig",
             supported_models: stage_full_rig::supported_models,
         },
-        StageRegistryEntry {
+        BlockRegistryEntry {
             effect_type: "drive",
             supported_models: stage_gain::supported_models,
         },
-        StageRegistryEntry {
+        BlockRegistryEntry {
             effect_type: "compressor",
             supported_models: stage_dyn::compressor_supported_models,
         },
-        StageRegistryEntry {
+        BlockRegistryEntry {
             effect_type: "gate",
             supported_models: stage_dyn::gate_supported_models,
         },
-        StageRegistryEntry {
+        BlockRegistryEntry {
             effect_type: "eq",
             supported_models: stage_filter::supported_models,
         },
-        StageRegistryEntry {
+        BlockRegistryEntry {
             effect_type: "tremolo",
             supported_models: stage_mod::supported_models,
         },
-        StageRegistryEntry {
+        BlockRegistryEntry {
             effect_type: "delay",
             supported_models: stage_delay::supported_models,
         },
-        StageRegistryEntry {
+        BlockRegistryEntry {
             effect_type: "reverb",
             supported_models: stage_reverb::supported_models,
         },
-        StageRegistryEntry {
+        BlockRegistryEntry {
             effect_type: "tuner",
             supported_models: stage_util::supported_models,
         },
-        StageRegistryEntry {
+        BlockRegistryEntry {
             effect_type: "nam",
             supported_models: stage_nam::supported_models,
         },
     ]
 }
 
-pub fn supported_stage_types() -> Vec<StageTypeCatalogEntry> {
-    stage_registry()
+pub fn supported_block_types() -> Vec<BlockTypeCatalogEntry> {
+    block_registry()
         .into_iter()
         .filter(|entry| !(entry.supported_models)().is_empty())
-        .map(|entry| StageTypeCatalogEntry {
+        .map(|entry| BlockTypeCatalogEntry {
             effect_type: entry.effect_type,
         })
         .collect()
 }
 
-pub fn supported_stage_models(effect_type: &str) -> Result<Vec<StageModelCatalogEntry>, String> {
-    let entry = stage_registry()
+pub fn supported_block_models(effect_type: &str) -> Result<Vec<BlockModelCatalogEntry>, String> {
+    let entry = block_registry()
         .into_iter()
         .find(|entry| entry.effect_type == effect_type)
         .ok_or_else(|| format!("unsupported effect type '{}'", effect_type))?;
@@ -100,7 +100,7 @@ pub fn supported_stage_models(effect_type: &str) -> Result<Vec<StageModelCatalog
         .iter()
         .map(|model_id| {
             let schema = schema_for_block_model(effect_type, model_id)?;
-            Ok(StageModelCatalogEntry {
+            Ok(BlockModelCatalogEntry {
                 effect_type: effect_type.to_string(),
                 model_id: (*model_id).to_string(),
                 display_name: schema.display_name,
@@ -109,7 +109,7 @@ pub fn supported_stage_models(effect_type: &str) -> Result<Vec<StageModelCatalog
         .collect()
 }
 
-pub fn build_stage_kind(
+pub fn build_block_kind(
     effect_type: &str,
     model_id: &str,
     params: ParameterSet,
@@ -119,11 +119,11 @@ pub fn build_stage_kind(
 
 #[cfg(test)]
 mod tests {
-    use super::{supported_stage_models, supported_stage_types};
+    use super::{supported_block_models, supported_block_types};
 
     #[test]
     fn catalog_exposes_supported_types() {
-        let effect_types = supported_stage_types()
+        let effect_types = supported_block_types()
             .into_iter()
             .map(|entry| entry.effect_type)
             .collect::<Vec<_>>();
@@ -135,7 +135,7 @@ mod tests {
 
     #[test]
     fn catalog_exposes_native_models_from_core() {
-        let amp_models = supported_stage_models("amp_head").expect("amp head catalog");
+        let amp_models = supported_block_models("amp_head").expect("amp head catalog");
         let ids = amp_models
             .into_iter()
             .map(|entry| entry.model_id)

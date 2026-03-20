@@ -1,8 +1,6 @@
 use anyhow::{anyhow, Context, Result};
-use domain::ids::{BlockId, DeviceId, TrackId};
+use domain::ids::{BlockId, DeviceId, ChainId};
 use domain::value_objects::ParameterValue;
-use serde::{Deserialize, Serialize};
-use serde_yaml::Value;
 use project::block::{
     normalize_block_params, AmpComboBlock, AmpHeadBlock, AudioBlock, AudioBlockKind, CabBlock,
     CompressorBlock, CoreBlock, CoreBlockKind, DelayBlock, DriveBlock, EqBlock, FullRigBlock,
@@ -11,9 +9,11 @@ use project::block::{
 use project::device::DeviceSettings;
 use project::param::ParameterSet;
 use project::project::Project;
-use project::track::{Track, TrackOutputMixdown};
-use stage_amp_head::marshall_jcm_800::MODEL_ID as DEFAULT_AMP_HEAD_MODEL;
+use project::chain::{Chain, ChainOutputMixdown};
+use serde::{Deserialize, Serialize};
+use serde_yaml::Value;
 use stage_amp_combo::bogner_ecstasy::MODEL_ID as DEFAULT_AMP_COMBO_MODEL;
+use stage_amp_head::marshall_jcm_800::MODEL_ID as DEFAULT_AMP_HEAD_MODEL;
 use stage_cab::marshall_4x12_v30::MODEL_ID as DEFAULT_CAB_MODEL;
 use stage_delay::digital_clean::MODEL_ID as DEFAULT_DELAY_MODEL;
 use stage_dyn::compressor_studio_clean::MODEL_ID as DEFAULT_COMPRESSOR_MODEL;
@@ -34,13 +34,13 @@ pub struct YamlProjectRepository {
 }
 
 #[derive(Debug, Clone)]
-pub struct TrackBlocksPreset {
+pub struct ChainBlocksPreset {
     pub id: String,
     pub name: Option<String>,
     pub blocks: Vec<project::block::AudioBlock>,
 }
 
-pub fn load_track_preset_file(path: &Path) -> Result<TrackBlocksPreset> {
+pub fn load_chain_preset_file(path: &Path) -> Result<ChainBlocksPreset> {
     let raw = fs::read_to_string(path)
         .with_context(|| format!("failed to read preset yaml {:?}", path))?;
     let dto: PresetYaml = serde_yaml::from_str(&raw)
@@ -48,8 +48,8 @@ pub fn load_track_preset_file(path: &Path) -> Result<TrackBlocksPreset> {
     dto.into_preset()
 }
 
-pub fn save_track_preset_file(path: &Path, preset: &TrackBlocksPreset) -> Result<()> {
-    let dto = PresetYaml::from_track_preset(preset)?;
+pub fn save_chain_preset_file(path: &Path, preset: &ChainBlocksPreset) -> Result<()> {
+    let dto = PresetYaml::from_chain_preset(preset)?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -60,7 +60,11 @@ pub fn save_track_preset_file(path: &Path, preset: &TrackBlocksPreset) -> Result
 pub fn serialize_audio_blocks(blocks: &[project::block::AudioBlock]) -> Result<Vec<Value>> {
     blocks
         .iter()
-        .map(|block| Ok(serde_yaml::to_value(AudioBlockYaml::from_audio_block(block)?)?))
+        .map(|block| {
+            Ok(serde_yaml::to_value(AudioBlockYaml::from_audio_block(
+                block,
+            )?)?)
+        })
         .collect()
 }
 
@@ -88,7 +92,7 @@ struct ProjectYaml {
     name: Option<String>,
     #[serde(default)]
     device_settings: Vec<DeviceSettingsYaml>,
-    tracks: Vec<TrackYaml>,
+    chains: Vec<ChainYaml>,
 }
 
 impl ProjectYaml {
@@ -96,11 +100,11 @@ impl ProjectYaml {
         Ok(Project {
             name: self.name,
             device_settings: self.device_settings.into_iter().map(Into::into).collect(),
-            tracks: self
-                .tracks
+            chains: self
+                .chains
                 .into_iter()
                 .enumerate()
-                .map(|(index, track)| track.into_track(index))
+                .map(|(index, chain)| chain.into_chain(index))
                 .collect::<Result<Vec<_>>>()?,
         })
     }
@@ -113,10 +117,10 @@ impl ProjectYaml {
                 .iter()
                 .map(DeviceSettingsYaml::from_settings)
                 .collect(),
-            tracks: project
-                .tracks
+            chains: project
+                .chains
                 .iter()
-                .map(TrackYaml::from_track)
+                .map(ChainYaml::from_chain)
                 .collect::<Result<Vec<_>>>()?,
         })
     }
@@ -127,33 +131,37 @@ struct PresetYaml {
     id: String,
     #[serde(default)]
     name: Option<String>,
-    #[serde(default, alias = "stages")]
+    #[serde(default)]
     blocks: Vec<Value>,
 }
 
 impl PresetYaml {
-    fn into_preset(self) -> Result<TrackBlocksPreset> {
-        let preset_track_id = generated_preset_track_id(&self.id);
-        Ok(TrackBlocksPreset {
+    fn into_preset(self) -> Result<ChainBlocksPreset> {
+        let preset_chain_id = generated_preset_chain_id(&self.id);
+        Ok(ChainBlocksPreset {
             id: self.id.clone(),
             name: self.name,
             blocks: self
                 .blocks
                 .into_iter()
                 .enumerate()
-                .filter_map(|(index, block)| load_audio_block_value(block, &preset_track_id, index))
+                .filter_map(|(index, block)| load_audio_block_value(block, &preset_chain_id, index))
                 .collect(),
         })
     }
 
-    fn from_track_preset(preset: &TrackBlocksPreset) -> Result<Self> {
+    fn from_chain_preset(preset: &ChainBlocksPreset) -> Result<Self> {
         Ok(Self {
             id: preset.id.clone(),
             name: preset.name.clone(),
             blocks: preset
                 .blocks
                 .iter()
-                .map(|block| Ok(serde_yaml::to_value(AudioBlockYaml::from_audio_block(block)?)?))
+                .map(|block| {
+                    Ok(serde_yaml::to_value(AudioBlockYaml::from_audio_block(
+                        block,
+                    )?)?)
+                })
                 .collect::<Result<Vec<_>>>()?,
         })
     }
@@ -187,7 +195,7 @@ impl DeviceSettingsYaml {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct TrackYaml {
+struct ChainYaml {
     #[serde(default)]
     description: Option<String>,
     #[serde(default = "default_enabled")]
@@ -196,17 +204,17 @@ struct TrackYaml {
     input_channels: Vec<usize>,
     output_device_id: String,
     output_channels: Vec<usize>,
-    #[serde(default, alias = "stages")]
+    #[serde(default)]
     blocks: Vec<Value>,
     #[serde(default)]
-    output_mixdown: TrackOutputMixdown,
+    output_mixdown: ChainOutputMixdown,
 }
 
-impl TrackYaml {
-    fn into_track(self, index: usize) -> Result<Track> {
-        let track_id = generated_track_id(index);
-        Ok(Track {
-            id: track_id.clone(),
+impl ChainYaml {
+    fn into_chain(self, index: usize) -> Result<Chain> {
+        let chain_id = generated_chain_id(index);
+        Ok(Chain {
+            id: chain_id.clone(),
             description: self.description,
             enabled: self.enabled,
             input_device_id: DeviceId(self.input_device_id),
@@ -217,26 +225,32 @@ impl TrackYaml {
                 .blocks
                 .into_iter()
                 .enumerate()
-                .filter_map(|(block_index, block)| load_audio_block_value(block, &track_id, block_index))
+                .filter_map(|(block_index, block)| {
+                    load_audio_block_value(block, &chain_id, block_index)
+                })
                 .collect(),
             output_mixdown: self.output_mixdown,
         })
     }
 
-    fn from_track(track: &Track) -> Result<Self> {
+    fn from_chain(chain: &Chain) -> Result<Self> {
         Ok(Self {
-            description: track.description.clone(),
-            enabled: track.enabled,
-            input_device_id: track.input_device_id.0.clone(),
-            input_channels: track.input_channels.clone(),
-            output_device_id: track.output_device_id.0.clone(),
-            output_channels: track.output_channels.clone(),
-            blocks: track
+            description: chain.description.clone(),
+            enabled: chain.enabled,
+            input_device_id: chain.input_device_id.0.clone(),
+            input_channels: chain.input_channels.clone(),
+            output_device_id: chain.output_device_id.0.clone(),
+            output_channels: chain.output_channels.clone(),
+            blocks: chain
                 .blocks
                 .iter()
-                .map(|block| Ok(serde_yaml::to_value(AudioBlockYaml::from_audio_block(block)?)?))
+                .map(|block| {
+                    Ok(serde_yaml::to_value(AudioBlockYaml::from_audio_block(
+                        block,
+                    )?)?)
+                })
                 .collect::<Result<Vec<_>>>()?,
-            output_mixdown: track.output_mixdown,
+            output_mixdown: chain.output_mixdown,
         })
     }
 }
@@ -374,8 +388,8 @@ enum SelectOptionYaml {
 }
 
 impl AudioBlockYaml {
-    fn into_audio_block(self, track_id: &TrackId, index: usize) -> Result<AudioBlock> {
-        let generated_id = generated_block_id(track_id, index);
+    fn into_audio_block(self, chain_id: &ChainId, index: usize) -> Result<AudioBlock> {
+        let generated_id = generated_block_id(chain_id, index);
 
         match self {
             AudioBlockYaml::AmpHead {
@@ -716,28 +730,24 @@ impl AudioBlockYaml {
     }
 }
 
-fn load_audio_block_value(
-    value: Value,
-    track_id: &TrackId,
-    index: usize,
-) -> Option<AudioBlock> {
+fn load_audio_block_value(value: Value, chain_id: &ChainId, index: usize) -> Option<AudioBlock> {
     let yaml = match serde_yaml::from_value::<AudioBlockYaml>(value) {
         Ok(yaml) => yaml,
         Err(error) => {
             eprintln!(
                 "ignoring unsupported or invalid block at {}:{}: {}",
-                track_id.0, index, error
+                chain_id.0, index, error
             );
             return None;
         }
     };
 
-    match yaml.into_audio_block(track_id, index) {
+    match yaml.into_audio_block(chain_id, index) {
         Ok(block) => Some(block),
         Err(error) => {
             eprintln!(
                 "ignoring unsupported or invalid block at {}:{}: {}",
-                track_id.0, index, error
+                chain_id.0, index, error
             );
             None
         }
@@ -846,16 +856,16 @@ fn yaml_scalar_to_parameter_value(value: Value) -> Result<ParameterValue> {
     }
 }
 
-fn generated_block_id(track_id: &TrackId, index: usize) -> BlockId {
-    BlockId(format!("{}:block:{}", track_id.0, index))
+fn generated_block_id(chain_id: &ChainId, index: usize) -> BlockId {
+    BlockId(format!("{}:block:{}", chain_id.0, index))
 }
 
-fn generated_track_id(index: usize) -> TrackId {
-    TrackId(format!("track:{}", index))
+fn generated_chain_id(index: usize) -> ChainId {
+    ChainId(format!("chain:{}", index))
 }
 
-fn generated_preset_track_id(preset_id: &str) -> TrackId {
-    TrackId(format!("preset:{}", preset_id))
+fn generated_preset_chain_id(preset_id: &str) -> ChainId {
+    ChainId(format!("preset:{}", preset_id))
 }
 
 fn default_delay_model() -> String {
@@ -916,10 +926,10 @@ const fn default_enabled() -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{load_track_preset_file, YamlProjectRepository};
-    use domain::ids::{DeviceId, TrackId};
+    use super::{load_chain_preset_file, YamlProjectRepository};
+    use domain::ids::{DeviceId, ChainId};
     use project::project::Project;
-    use project::track::{Track, TrackOutputMixdown};
+    use project::chain::{Chain, ChainOutputMixdown};
     use std::fs;
     use std::path::PathBuf;
     use tempfile::tempdir;
@@ -934,8 +944,8 @@ mod tests {
         let original = Project {
             name: Some("Test Project".into()),
             device_settings: Vec::new(),
-            tracks: vec![Track {
-                id: TrackId("track:0".into()),
+            chains: vec![Chain {
+                id: ChainId("chain:0".into()),
                 description: Some("Guitar 1".into()),
                 enabled: true,
                 input_device_id: DeviceId("input-device".into()),
@@ -943,7 +953,7 @@ mod tests {
                 output_device_id: DeviceId("output-device".into()),
                 output_channels: vec![0, 1],
                 blocks: Vec::new(),
-                output_mixdown: TrackOutputMixdown::Average,
+                output_mixdown: ChainOutputMixdown::Average,
             }],
         };
 
@@ -958,13 +968,28 @@ mod tests {
             .expect("saved project should load");
 
         assert_eq!(loaded.name, original.name);
-        assert_eq!(loaded.tracks.len(), 1);
-        assert_eq!(loaded.tracks[0].description, original.tracks[0].description);
-        assert_eq!(loaded.tracks[0].input_device_id, original.tracks[0].input_device_id);
-        assert_eq!(loaded.tracks[0].input_channels, original.tracks[0].input_channels);
-        assert_eq!(loaded.tracks[0].output_device_id, original.tracks[0].output_device_id);
-        assert_eq!(loaded.tracks[0].output_channels, original.tracks[0].output_channels);
-        assert_eq!(loaded.tracks[0].output_mixdown, original.tracks[0].output_mixdown);
+        assert_eq!(loaded.chains.len(), 1);
+        assert_eq!(loaded.chains[0].description, original.chains[0].description);
+        assert_eq!(
+            loaded.chains[0].input_device_id,
+            original.chains[0].input_device_id
+        );
+        assert_eq!(
+            loaded.chains[0].input_channels,
+            original.chains[0].input_channels
+        );
+        assert_eq!(
+            loaded.chains[0].output_device_id,
+            original.chains[0].output_device_id
+        );
+        assert_eq!(
+            loaded.chains[0].output_channels,
+            original.chains[0].output_channels
+        );
+        assert_eq!(
+            loaded.chains[0].output_mixdown,
+            original.chains[0].output_mixdown
+        );
     }
 
     #[test]
@@ -974,7 +999,7 @@ mod tests {
         fs::write(
             &project_path,
             r#"
-tracks:
+chains:
   - enabled: true
     input_device_id: input-device
     input_channels: [0]
@@ -1000,11 +1025,10 @@ tracks:
             .load_current_project()
             .expect("project should load while skipping invalid blocks");
 
-        assert_eq!(project.tracks.len(), 1);
-        assert_eq!(project.tracks[0].blocks.len(), 1);
+        assert_eq!(project.chains.len(), 1);
+        assert_eq!(project.chains[0].blocks.len(), 1);
         assert_eq!(
-            project.tracks[0]
-                .blocks[0]
+            project.chains[0].blocks[0]
                 .model_ref()
                 .expect("remaining block should expose model")
                 .model,
@@ -1020,7 +1044,7 @@ tracks:
             &preset_path,
             r#"
 id: example
-stages:
+blocks:
   - type: delay
     model: digital_ping_pong
     params:
@@ -1037,13 +1061,12 @@ stages:
         )
         .expect("preset yaml should be written");
 
-        let preset = load_track_preset_file(&preset_path)
-            .expect("preset should load while skipping invalid stages");
+        let preset = load_chain_preset_file(&preset_path)
+            .expect("preset should load while skipping invalid blocks");
 
         assert_eq!(preset.blocks.len(), 1);
         assert_eq!(
-            preset
-                .blocks[0]
+            preset.blocks[0]
                 .model_ref()
                 .expect("remaining block should expose model")
                 .model,

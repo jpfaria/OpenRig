@@ -86,10 +86,10 @@ component ChannelRow inherits Rectangle {
     }
 }
 
-export component TrackEditorPage inherits Rectangle {
+export component ChainEditorPage inherits Rectangle {
     in property <string> title;
     in property <string> save-label;
-    in-out property <string> track-name;
+    in-out property <string> chain-name;
     in property <[string]> input-device-options;
     in property <[string]> output-device-options;
     in property <int> selected-input-device-index;
@@ -97,13 +97,13 @@ export component TrackEditorPage inherits Rectangle {
     in property <[ChannelOptionItem]> input-channels;
     in property <[ChannelOptionItem]> output-channels;
     in-out property <string> status-message;
-    callback update-track-name(string);
-    callback select-track-input-device(int);
-    callback select-track-output-device(int);
-    callback toggle-track-input-channel(int, bool);
-    callback toggle-track-output-channel(int, bool);
-    callback save-track();
-    callback cancel-track();
+    callback update-chain-name(string);
+    callback select-chain-input-device(int);
+    callback select-chain-output-device(int);
+    callback toggle-chain-input-channel(int, bool);
+    callback toggle-chain-output-channel(int, bool);
+    callback save-chain();
+    callback cancel-chain();
 
     background: #1f2023;
 
@@ -119,7 +119,7 @@ export component TrackEditorPage inherits Rectangle {
             y: 0px;
             width: parent.width;
             height: parent.height;
-            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/launcher-stage-bg.jpg");
+            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/launcher-block-bg.jpg");
             image-fit: cover;
             opacity: 1;
         }
@@ -159,7 +159,7 @@ export component TrackEditorPage inherits Rectangle {
             y: 42px;
             width: 160px;
             height: 18px;
-            text: "Nome da track";
+            text: "Nome da chain";
             color: #cad2de;
             font-size: 13px;
             font-weight: 600;
@@ -170,8 +170,8 @@ export component TrackEditorPage inherits Rectangle {
             y: 66px;
             width: parent.width - 36px;
             height: 36px;
-            text: root.track-name;
-            changed(value) => { root.update-track-name(value); }
+            text: root.chain-name;
+            changed(value) => { root.update-chain-name(value); }
         }
 
         Rectangle {
@@ -203,7 +203,7 @@ export component TrackEditorPage inherits Rectangle {
                 model: root.input-device-options;
                 current-index: root.selected-input-device-index;
                 selected(value) => {
-                    root.select-track-input-device(self.current-index);
+                    root.select-chain-input-device(self.current-index);
                 }
             }
         }
@@ -237,7 +237,7 @@ export component TrackEditorPage inherits Rectangle {
                 model: root.output-device-options;
                 current-index: root.selected-output-device-index;
                 selected(value) => {
-                    root.select-track-output-device(self.current-index);
+                    root.select-chain-output-device(self.current-index);
                 }
             }
         }
@@ -275,7 +275,7 @@ export component TrackEditorPage inherits Rectangle {
                     y: index * 46px;
                     width: parent.width - 12px;
                     channel: channel;
-                    toggled(selected) => { root.toggle-track-input-channel(index, selected); }
+                    toggled(selected) => { root.toggle-chain-input-channel(index, selected); }
                 }
             }
         }
@@ -313,7 +313,7 @@ export component TrackEditorPage inherits Rectangle {
                     y: index * 46px;
                     width: parent.width - 12px;
                     channel: channel;
-                    toggled(selected) => { root.toggle-track-output-channel(index, selected); }
+                    toggled(selected) => { root.toggle-chain-output-channel(index, selected); }
                 }
             }
         }
@@ -322,7 +322,7 @@ export component TrackEditorPage inherits Rectangle {
             x: parent.width - 234px;
             y: parent.height - 56px;
             label: "Cancelar";
-            clicked => { root.cancel-track(); }
+            clicked => { root.cancel-chain(); }
         }
 
         FooterButton {
@@ -330,7 +330,7 @@ export component TrackEditorPage inherits Rectangle {
             y: parent.height - 56px;
             label: "OK";
             primary: true;
-            clicked => { root.save-track(); }
+            clicked => { root.save-chain(); }
         }
     }
 }

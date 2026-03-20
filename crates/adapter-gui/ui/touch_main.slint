@@ -1,12 +1,12 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
-import { ChannelOptionItem, DeviceSelectionItem, ProjectTrackItem, RecentProjectItem, StageModelPickerItem, StageParameterItem, StageTypePickerItem } from "models.slint";
-import { ProjectLauncherPage, ProjectSettingsPage, ProjectTracksPage, TrackEditorPage } from "pages/pages.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem } from "models.slint";
+import { ProjectLauncherPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage } from "pages/pages.slint";
 
 export component TouchMain inherits Rectangle {
     in property <bool> show-project-launcher;
-    in property <bool> show-project-tracks;
-    in property <bool> show-track-editor;
+    in property <bool> show-project-chains;
+    in property <bool> show-chain-editor;
     in property <bool> show-project-settings;
     in property <bool> project-running;
     in property <bool> project-dirty;
@@ -17,35 +17,35 @@ export component TouchMain inherits Rectangle {
     in-out property <int> wizard-step;
     in property <[DeviceSelectionItem]> input-devices;
     in property <[DeviceSelectionItem]> output-devices;
-    in property <[ProjectTrackItem]> project-tracks;
+    in property <[ProjectChainItem]> project-chains;
     in property <[RecentProjectItem]> recent-projects;
     in-out property <string> recent-project-search;
-    in property <string> track-editor-title;
-    in property <string> track-editor-save-label;
-    in-out property <string> track-draft-name;
-    in property <[string]> track-input-device-options;
-    in property <[string]> track-output-device-options;
-    in property <int> selected-track-input-device-index;
-    in property <int> selected-track-output-device-index;
-    in property <int> selected-track-stage-track-index;
-    in property <int> selected-track-stage-index;
-    in property <[StageTypePickerItem]> stage-type-options;
-    in property <[StageModelPickerItem]> stage-model-options;
-    in property <[string]> stage-model-option-labels;
-    in property <string> stage-picker-title;
-    in property <bool> show-stage-type-picker;
-    in property <bool> show-stage-model-picker;
-    in property <bool> show-stage-drawer;
-    in property <string> stage-drawer-title;
-    in property <string> stage-drawer-confirm-label;
-    in property <string> stage-drawer-status-message;
-    in property <bool> stage-drawer-edit-mode;
-    in property <int> stage-drawer-selected-type-index;
-    in property <int> stage-drawer-selected-model-index;
-    in property <bool> stage-drawer-enabled;
-    in property <[StageParameterItem]> stage-parameter-items;
-    in property <[ChannelOptionItem]> track-input-channels;
-    in property <[ChannelOptionItem]> track-output-channels;
+    in property <string> chain-editor-title;
+    in property <string> chain-editor-save-label;
+    in-out property <string> chain-draft-name;
+    in property <[string]> chain-input-device-options;
+    in property <[string]> chain-output-device-options;
+    in property <int> selected-chain-input-device-index;
+    in property <int> selected-chain-output-device-index;
+    in property <int> selected-chain-block-chain-index;
+    in property <int> selected-chain-block-index;
+    in property <[BlockTypePickerItem]> block-type-options;
+    in property <[BlockModelPickerItem]> block-model-options;
+    in property <[string]> block-model-option-labels;
+    in property <string> block-picker-title;
+    in property <bool> show-block-type-picker;
+    in property <bool> show-block-model-picker;
+    in property <bool> show-block-drawer;
+    in property <string> block-drawer-title;
+    in property <string> block-drawer-confirm-label;
+    in property <string> block-drawer-status-message;
+    in property <bool> block-drawer-edit-mode;
+    in property <int> block-drawer-selected-type-index;
+    in property <int> block-drawer-selected-model-index;
+    in property <bool> block-drawer-enabled;
+    in property <[BlockParameterItem]> block-parameter-items;
+    in property <[ChannelOptionItem]> chain-input-channels;
+    in property <[ChannelOptionItem]> chain-output-channels;
     in-out property <string> status-message;
     in property <[string]> sample-rate-options;
     in property <[string]> buffer-size-options;
@@ -66,41 +66,41 @@ export component TouchMain inherits Rectangle {
     callback remove-recent-project(int);
     callback filter-recent-projects(string);
     callback back-to-launcher();
-    callback add-track();
+    callback add-chain();
     callback save-project();
     callback configure-project();
-    callback remove-track(int);
-    callback toggle-track-enabled(int);
-    callback configure-track(int);
-    callback save-track-preset(int);
-    callback configure-track-preset(int);
+    callback remove-chain(int);
+    callback toggle-chain-enabled(int);
+    callback configure-chain(int);
+    callback save-chain-preset(int);
+    callback configure-chain-preset(int);
     callback start-project();
     callback stop-project();
-    callback update-track-name(string);
-    callback select-track-input-device(int);
-    callback select-track-output-device(int);
-    callback toggle-track-input-channel(int, bool);
-    callback toggle-track-output-channel(int, bool);
-    callback select-track-stage(int, int);
-    callback clear-track-stage();
-    callback toggle-track-stage-enabled(int, int);
-    callback start-stage-insert(int, int);
-    callback reorder-track-stage(int, int, int);
-    callback choose-stage-type(int);
-    callback choose-stage-model(int);
-    callback cancel-stage-picker();
-    callback close-stage-drawer();
-    callback save-stage-drawer();
-    callback delete-stage-drawer();
-    callback toggle-stage-drawer-enabled();
-    callback update-stage-parameter-text(string, string);
-    callback update-stage-parameter-number(string, float);
-    callback update-stage-parameter-number-text(string, string);
-    callback update-stage-parameter-bool(string, bool);
-    callback select-stage-parameter-option(string, int);
-    callback pick-stage-parameter-file(string);
-    callback save-track();
-    callback cancel-track();
+    callback update-chain-name(string);
+    callback select-chain-input-device(int);
+    callback select-chain-output-device(int);
+    callback toggle-chain-input-channel(int, bool);
+    callback toggle-chain-output-channel(int, bool);
+    callback select-chain-block(int, int);
+    callback clear-chain-block();
+    callback toggle-chain-block-enabled(int, int);
+    callback start-block-insert(int, int);
+    callback reorder-chain-block(int, int, int);
+    callback choose-block-type(int);
+    callback choose-block-model(int);
+    callback cancel-block-picker();
+    callback close-block-drawer();
+    callback save-block-drawer();
+    callback delete-block-drawer();
+    callback toggle-block-drawer-enabled();
+    callback update-block-parameter-text(string, string);
+    callback update-block-parameter-number(string, float);
+    callback update-block-parameter-number-text(string, string);
+    callback update-block-parameter-bool(string, bool);
+    callback select-block-parameter-option(string, int);
+    callback pick-block-parameter-file(string);
+    callback save-chain();
+    callback cancel-chain();
 
     background: root.show-project-launcher ? #1e1f22 : Theme.palette.background-gradient;
 
@@ -122,62 +122,62 @@ export component TouchMain inherits Rectangle {
         height: parent.height;
         background: transparent;
 
-        if root.show-project-tracks : ProjectTracksPage {
+        if root.show-project-chains : ProjectChainsPage {
             width: parent.width;
             height: parent.height;
             project-title: root.project-title;
             project-path-label: root.project-path-label;
             project-running: root.project-running;
             project-dirty: root.project-dirty;
-            project-tracks: root.project-tracks;
-            selected-track-stage-track-index: root.selected-track-stage-track-index;
-            selected-track-stage-index: root.selected-track-stage-index;
-            stage-type-options: root.stage-type-options;
-            stage-model-options: root.stage-model-options;
-            stage-model-option-labels: root.stage-model-option-labels;
-            show-stage-type-picker: root.show-stage-type-picker;
-            show-stage-drawer: root.show-stage-drawer;
-            stage-drawer-title: root.stage-drawer-title;
-            stage-drawer-confirm-label: root.stage-drawer-confirm-label;
-            stage-drawer-status-message: root.stage-drawer-status-message;
-            stage-drawer-edit-mode: root.stage-drawer-edit-mode;
-            stage-drawer-selected-type-index: root.stage-drawer-selected-type-index;
-            stage-drawer-selected-model-index: root.stage-drawer-selected-model-index;
-            stage-drawer-enabled: root.stage-drawer-enabled;
-            stage-parameter-items: root.stage-parameter-items;
+            project-chains: root.project-chains;
+            selected-chain-block-chain-index: root.selected-chain-block-chain-index;
+            selected-chain-block-index: root.selected-chain-block-index;
+            block-type-options: root.block-type-options;
+            block-model-options: root.block-model-options;
+            block-model-option-labels: root.block-model-option-labels;
+            show-block-type-picker: root.show-block-type-picker;
+            show-block-drawer: root.show-block-drawer;
+            block-drawer-title: root.block-drawer-title;
+            block-drawer-confirm-label: root.block-drawer-confirm-label;
+            block-drawer-status-message: root.block-drawer-status-message;
+            block-drawer-edit-mode: root.block-drawer-edit-mode;
+            block-drawer-selected-type-index: root.block-drawer-selected-type-index;
+            block-drawer-selected-model-index: root.block-drawer-selected-model-index;
+            block-drawer-enabled: root.block-drawer-enabled;
+            block-parameter-items: root.block-parameter-items;
             status-message: root.status-message;
             back-to-launcher => { root.back-to-launcher(); }
-            add-track => { root.add-track(); }
+            add-chain => { root.add-chain(); }
             save-project => { root.save-project(); }
             configure-project => { root.configure-project(); }
-            remove-track(index) => { root.remove-track(index); }
-            toggle-track-enabled(index) => { root.toggle-track-enabled(index); }
-            configure-track(index) => { root.configure-track(index); }
-            configure-track-preset(index) => { root.configure-track-preset(index); }
-            save-track-preset(index) => { root.save-track-preset(index); }
+            remove-chain(index) => { root.remove-chain(index); }
+            toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
+            configure-chain(index) => { root.configure-chain(index); }
+            configure-chain-preset(index) => { root.configure-chain-preset(index); }
+            save-chain-preset(index) => { root.save-chain-preset(index); }
             start-project => { root.start-project(); }
             stop-project => { root.stop-project(); }
-            select-track-stage(track-index, stage-index) => { root.select-track-stage(track-index, stage-index); }
-            clear-track-stage => { root.clear-track-stage(); }
-            toggle-track-stage-enabled(track-index, stage-index) => { root.toggle-track-stage-enabled(track-index, stage-index); }
-            start-stage-insert(track-index, before-index) => { root.start-stage-insert(track-index, before-index); }
-            reorder-track-stage(track-index, from-index, before-index) => { root.reorder-track-stage(track-index, from-index, before-index); }
-            choose-stage-type(index) => { root.choose-stage-type(index); }
-            choose-stage-model(index) => { root.choose-stage-model(index); }
-            cancel-stage-picker => { root.cancel-stage-picker(); }
-            close-stage-drawer => { root.close-stage-drawer(); }
-            save-stage-drawer => { root.save-stage-drawer(); }
-            delete-stage-drawer => { root.delete-stage-drawer(); }
-            toggle-stage-drawer-enabled => { root.toggle-stage-drawer-enabled(); }
-            update-stage-parameter-text(path, value) => { root.update-stage-parameter-text(path, value); }
-            update-stage-parameter-number(path, value) => { root.update-stage-parameter-number(path, value); }
-            update-stage-parameter-number-text(path, value) => { root.update-stage-parameter-number-text(path, value); }
-            update-stage-parameter-bool(path, value) => { root.update-stage-parameter-bool(path, value); }
-            select-stage-parameter-option(path, index) => { root.select-stage-parameter-option(path, index); }
-            pick-stage-parameter-file(path) => { root.pick-stage-parameter-file(path); }
+            select-chain-block(chain-index, block-index) => { root.select-chain-block(chain-index, block-index); }
+            clear-chain-block => { root.clear-chain-block(); }
+            toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }
+            start-block-insert(chain-index, before-index) => { root.start-block-insert(chain-index, before-index); }
+            reorder-chain-block(chain-index, from-index, before-index) => { root.reorder-chain-block(chain-index, from-index, before-index); }
+            choose-block-type(index) => { root.choose-block-type(index); }
+            choose-block-model(index) => { root.choose-block-model(index); }
+            cancel-block-picker => { root.cancel-block-picker(); }
+            close-block-drawer => { root.close-block-drawer(); }
+            save-block-drawer => { root.save-block-drawer(); }
+            delete-block-drawer => { root.delete-block-drawer(); }
+            toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
+            update-block-parameter-text(path, value) => { root.update-block-parameter-text(path, value); }
+            update-block-parameter-number(path, value) => { root.update-block-parameter-number(path, value); }
+            update-block-parameter-number-text(path, value) => { root.update-block-parameter-number-text(path, value); }
+            update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
+            select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
+            pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
         }
 
-        if !root.show-project-tracks : Rectangle {
+        if !root.show-project-chains : Rectangle {
             width: parent.width;
             height: parent.height;
             background: transparent;

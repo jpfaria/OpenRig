@@ -1,6 +1,6 @@
 id: example
 description: example preset
-stages:
+blocks:
   - type: amp
     model: marshall_jcm_800_2203
     enabled: true
