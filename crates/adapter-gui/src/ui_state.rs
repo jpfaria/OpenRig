@@ -16,11 +16,11 @@ pub struct BlockDrawerState {
 }
 
 pub fn block_drawer_state(
-    stage_index: Option<usize>,
+    block_index: Option<usize>,
     effect_type: &str,
     model_id: Option<&str>,
 ) -> BlockDrawerState {
-    let mode = if stage_index.is_some() {
+    let mode = if block_index.is_some() {
         BlockDrawerMode::Edit
     } else {
         BlockDrawerMode::Add
@@ -90,7 +90,7 @@ mod tests {
     }
 
     #[test]
-    fn stage_drawer_labels_match_add_mode() {
+    fn block_drawer_labels_match_add_mode() {
         let state = block_drawer_state(None, "delay", Some("digital_clean"));
 
         assert_eq!(state.mode, BlockDrawerMode::Add);
@@ -99,7 +99,7 @@ mod tests {
     }
 
     #[test]
-    fn stage_drawer_labels_match_edit_mode() {
+    fn block_drawer_labels_match_edit_mode() {
         let state = block_drawer_state(Some(2), "delay", Some("digital_clean"));
 
         assert_eq!(state.mode, BlockDrawerMode::Edit);

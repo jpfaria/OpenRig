@@ -9,7 +9,7 @@ Instead of every musician carrying a separate isolated unit, OpenRig hardware is
 ## In Practice
 
 - guitar, bass, vocals, keys, or other inputs can connect to the same unit
-- each musician gets one or more dedicated tracks
+- each musician gets one or more dedicated chains
 - each track has its own sound chain and state
 - each musician controls only their own track from a phone or tablet
 - the audio stays in the hardware, not in the mobile device

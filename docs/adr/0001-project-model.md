@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-OpenRig originally evolved around a `setup`-style model and, at different times, tracks referenced presets directly. That made the runtime model less clear than it needed to be.
+OpenRig originally evolved around a `setup`-style model and, at different times, chains referenced presets directly. That made the runtime model less clear than it needed to be.
 
 The current system needs a single runtime source of truth that:
 
@@ -20,7 +20,7 @@ The current system needs a single runtime source of truth that:
 The runtime model is:
 
 - `Project`
-- `Track`
+- `Chain`
 - `AudioBlock`
 
 Rules:
@@ -29,23 +29,23 @@ Rules:
 2. A `Project` contains:
    - optional `name`
    - optional `device_settings`
-   - required `tracks`
-3. A `Track` contains:
+   - required `chains`
+3. A `Chain` contains:
    - optional `description`
    - `enabled`
    - `input_device_id`
    - `input_channels`
    - `output_device_id`
    - `output_channels`
-   - `blocks` (YAML alias: `stages`)
+   - `blocks`
    - `output_mixdown`
-4. Tracks own their blocks directly.
+4. Chains own their blocks directly.
 5. Presets are not part of the runtime dependency graph.
 6. Preset files are only used to:
-   - save a track's blocks
-   - load blocks into a track
-   - replace a track's blocks
-7. User-authored YAML does not provide runtime `TrackId` or `BlockId`. Those are generated when loading the project.
+   - save a chain's blocks
+   - load blocks into a chain
+   - replace a chain's blocks
+7. User-authored YAML does not provide runtime `ChainId` or `BlockId`. Those are generated when loading the project.
 
 ## Example
 
@@ -57,14 +57,14 @@ device_settings:
     sample_rate: 48000
     buffer_size_frames: 256
 
-tracks:
+chains:
   - description: guitar 1
     enabled: true
     input_device_id: "coreaudio:..."
     input_channels: [0]
     output_device_id: "coreaudio:..."
     output_channels: [0, 1]
-    stages:
+    blocks:
       - type: amp
         model: marshall_jcm_800_2203
         enabled: true
@@ -83,6 +83,6 @@ presets_path: ./presets
 
 - The engine can build runtime state directly from the project.
 - The project file stays focused on routing and active processing state.
-- Multiple tracks can use the same preset content only by copying/loading blocks into each track.
+- Multiple chains can use the same preset content only by copying/loading blocks into each chain.
 - Saving a preset does not change the runtime model.
-- Loading a preset is an editing operation on a track, not a runtime reference.
+- Loading a preset is an editing operation on a chain, not a runtime reference.

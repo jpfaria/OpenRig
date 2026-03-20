@@ -1,0 +1,10 @@
+[package]
+name = "audio-ir"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+hound = "3.5"
+realfft = "3"
+block-core = { path = "../block-core" }

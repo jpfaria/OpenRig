@@ -292,8 +292,8 @@ name = "application"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "block-core",
  "project",
- "stage-core",
 ]
 
 [[package]]
@@ -369,6 +369,14 @@ dependencies = [
  "wayland-client",
  "wayland-protocols",
  "zbus",
+]
+
+[[package]]
+name = "asset-runtime"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "dirs",
 ]
 
 [[package]]
@@ -568,6 +576,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "audio-ir"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "block-core",
+ "hound",
+ "realfft",
+]
+
+[[package]]
 name = "auto_enums"
 version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -692,6 +710,130 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "60d4bd9d1db2c6bdf285e223a7fa369d5ce98ec767dec949c6ca62863ce61757"
 dependencies = [
  "core2",
+]
+
+[[package]]
+name = "block-amp-combo"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "block-amp-head",
+ "block-cab",
+ "block-core",
+ "nam",
+]
+
+[[package]]
+name = "block-amp-head"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "asset-runtime",
+ "block-core",
+ "nam",
+]
+
+[[package]]
+name = "block-cab"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "asset-runtime",
+ "audio-ir",
+ "block-core",
+ "domain",
+]
+
+[[package]]
+name = "block-core"
+version = "0.1.0"
+dependencies = [
+ "domain",
+ "serde",
+]
+
+[[package]]
+name = "block-delay"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "block-core",
+]
+
+[[package]]
+name = "block-dyn"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "block-core",
+]
+
+[[package]]
+name = "block-filter"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "block-core",
+]
+
+[[package]]
+name = "block-full-rig"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "block-core",
+ "nam",
+]
+
+[[package]]
+name = "block-gain"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "block-core",
+ "nam",
+]
+
+[[package]]
+name = "block-mod"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "block-core",
+]
+
+[[package]]
+name = "block-nam"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "block-core",
+ "nam",
+]
+
+[[package]]
+name = "block-pitch"
+version = "0.1.0"
+
+[[package]]
+name = "block-reverb"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "block-core",
+]
+
+[[package]]
+name = "block-routing"
+version = "0.1.0"
+
+[[package]]
+name = "block-util"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "arc-swap",
+ "block-core",
 ]
 
 [[package]]
@@ -1408,14 +1550,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
 
 [[package]]
-name = "embedded-assets"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "dirs",
-]
-
-[[package]]
 name = "endi"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1426,21 +1560,21 @@ name = "engine"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "block-amp-combo",
+ "block-amp-head",
+ "block-cab",
+ "block-core",
+ "block-delay",
+ "block-dyn",
+ "block-filter",
+ "block-full-rig",
+ "block-gain",
+ "block-mod",
+ "block-nam",
+ "block-reverb",
+ "block-util",
  "domain",
  "project",
- "stage-amp-combo",
- "stage-amp-head",
- "stage-cab",
- "stage-core",
- "stage-delay",
- "stage-dyn",
- "stage-filter",
- "stage-full-rig",
- "stage-gain",
- "stage-mod",
- "stage-nam",
- "stage-reverb",
- "stage-util",
 ]
 
 [[package]]
@@ -2628,22 +2762,22 @@ name = "infra-yaml"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "block-amp-combo",
+ "block-amp-head",
+ "block-cab",
+ "block-delay",
+ "block-dyn",
+ "block-filter",
+ "block-full-rig",
+ "block-gain",
+ "block-mod",
+ "block-nam",
+ "block-reverb",
+ "block-util",
  "domain",
  "project",
  "serde",
  "serde_yaml",
- "stage-amp-combo",
- "stage-amp-head",
- "stage-cab",
- "stage-delay",
- "stage-dyn",
- "stage-filter",
- "stage-full-rig",
- "stage-gain",
- "stage-mod",
- "stage-nam",
- "stage-reverb",
- "stage-util",
  "tempfile",
 ]
 
@@ -2695,16 +2829,6 @@ dependencies = [
  "hermit-abi 0.3.9",
  "libc",
  "windows-sys 0.48.0",
-]
-
-[[package]]
-name = "ir"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "hound",
- "realfft",
- "stage-core",
 ]
 
 [[package]]
@@ -3078,9 +3202,9 @@ name = "nam"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "block-core",
  "cmake",
  "domain",
- "stage-core",
 ]
 
 [[package]]
@@ -3953,21 +4077,21 @@ dependencies = [
 name = "project"
 version = "0.1.0"
 dependencies = [
+ "block-amp-combo",
+ "block-amp-head",
+ "block-cab",
+ "block-core",
+ "block-delay",
+ "block-dyn",
+ "block-filter",
+ "block-full-rig",
+ "block-gain",
+ "block-mod",
+ "block-nam",
+ "block-reverb",
+ "block-util",
  "domain",
  "serde",
- "stage-amp-combo",
- "stage-amp-head",
- "stage-cab",
- "stage-core",
- "stage-delay",
- "stage-dyn",
- "stage-filter",
- "stage-full-rig",
- "stage-gain",
- "stage-mod",
- "stage-nam",
- "stage-reverb",
- "stage-util",
 ]
 
 [[package]]
@@ -4862,130 +4986,6 @@ name = "stable_deref_trait"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
-
-[[package]]
-name = "stage-amp-combo"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "nam",
- "stage-amp-head",
- "stage-cab",
- "stage-core",
-]
-
-[[package]]
-name = "stage-amp-head"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "embedded-assets",
- "nam",
- "stage-core",
-]
-
-[[package]]
-name = "stage-cab"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "domain",
- "embedded-assets",
- "ir",
- "stage-core",
-]
-
-[[package]]
-name = "stage-core"
-version = "0.1.0"
-dependencies = [
- "domain",
- "serde",
-]
-
-[[package]]
-name = "stage-delay"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "stage-core",
-]
-
-[[package]]
-name = "stage-dyn"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "stage-core",
-]
-
-[[package]]
-name = "stage-filter"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "stage-core",
-]
-
-[[package]]
-name = "stage-full-rig"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "nam",
- "stage-core",
-]
-
-[[package]]
-name = "stage-gain"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "nam",
- "stage-core",
-]
-
-[[package]]
-name = "stage-mod"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "stage-core",
-]
-
-[[package]]
-name = "stage-nam"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "nam",
- "stage-core",
-]
-
-[[package]]
-name = "stage-pitch"
-version = "0.1.0"
-
-[[package]]
-name = "stage-reverb"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "stage-core",
-]
-
-[[package]]
-name = "stage-routing"
-version = "0.1.0"
-
-[[package]]
-name = "stage-util"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "arc-swap",
- "stage-core",
-]
 
 [[package]]
 name = "static_assertions"

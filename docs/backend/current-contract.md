@@ -12,12 +12,12 @@ Contains:
 
 - optional project name
 - optional `device_settings`
-- `tracks`
+- `chains`
 
 Does not contain:
 
 - external preset references for runtime
-- user-authored track IDs
+- user-authored chain IDs
 - user-authored block IDs
 
 ### `config.yaml`
@@ -40,8 +40,8 @@ Preset files live under `presets_path`.
 
 They are used only for editing workflows:
 
-- save a track's blocks to a preset
-- load a preset into a track
+- save a chain's blocks to a preset
+- load a preset into a chain
 
 They do not participate in runtime project resolution.
 
@@ -55,7 +55,7 @@ device_settings:
     sample_rate: 48000
     buffer_size_frames: 256
 
-tracks:
+chains:
   - description: guitar 1
     enabled: true
     input_device_id: "coreaudio:..."
@@ -63,7 +63,7 @@ tracks:
     output_device_id: "coreaudio:..."
     output_channels: [0, 1]
     output_mixdown: average
-    stages:
+    blocks:
       - type: amp
         model: marshall_jcm_800_2203
         enabled: true
@@ -74,7 +74,6 @@ tracks:
 
 Notes:
 
-- `stages` is accepted in YAML, but the internal model uses `blocks`.
 - `output_mixdown` defaults to `average`.
 - `device_settings` is optional.
 
@@ -82,9 +81,9 @@ Notes:
 
 ### Project
 
-- a project must have at least one track
+- a project must have at least one chain
 
-### Track
+### Chain
 
 - `input_device_id` is required
 - `output_device_id` is required
@@ -95,12 +94,12 @@ Notes:
 
 ### Active input conflicts
 
-Two enabled tracks may not use the same:
+Two enabled chains may not use the same:
 
 - `input_device_id`
 - input channel
 
-Disabled tracks do not participate in this conflict check.
+Disabled chains do not participate in this conflict check.
 
 ### Blocks
 

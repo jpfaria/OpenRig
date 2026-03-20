@@ -1,0 +1,5 @@
+[package]
+name = "block-routing"
+version.workspace = true
+edition.workspace = true
+[dependencies]

@@ -6,22 +6,22 @@ use project::block::{
 use project::param::ParameterSet;
 use project::project::Project;
 use project::chain::{Chain, ChainOutputMixdown};
-use stage_amp_combo::{amp_combo_asset_summary, build_amp_combo_processor_for_layout};
-use stage_amp_head::{amp_head_asset_summary, build_amp_head_processor_for_layout};
-use stage_cab::{build_cab_processor_for_layout, cab_asset_summary};
-use stage_core::{
-    AudioChannelLayout, ModelAudioMode, MonoProcessor, StageProcessor, StereoProcessor,
+use block_amp_combo::{amp_combo_asset_summary, build_amp_combo_processor_for_layout};
+use block_amp_head::{amp_head_asset_summary, build_amp_head_processor_for_layout};
+use block_cab::{build_cab_processor_for_layout, cab_asset_summary};
+use block_core::{
+    AudioChannelLayout, ModelAudioMode, MonoProcessor, BlockProcessor, StereoProcessor,
 };
-use stage_delay::build_delay_processor_for_layout;
-use stage_dyn::build_compressor_processor_for_layout;
-use stage_dyn::build_gate_processor_for_layout;
-use stage_filter::build_eq_processor_for_layout;
-use stage_full_rig::{build_full_rig_processor_for_layout, full_rig_asset_summary};
-use stage_gain::{build_drive_processor_for_layout, drive_asset_summary};
-use stage_mod::build_tremolo_processor_for_layout;
-use stage_nam::{build_nam_processor_for_layout, GENERIC_NAM_MODEL_ID};
-use stage_reverb::build_reverb_processor_for_layout;
-use stage_util::{build_tuner_processor, tuner_chromatic::ChromaticTuner};
+use block_delay::build_delay_processor_for_layout;
+use block_dyn::build_compressor_processor_for_layout;
+use block_dyn::build_gate_processor_for_layout;
+use block_filter::build_eq_processor_for_layout;
+use block_full_rig::{build_full_rig_processor_for_layout, full_rig_asset_summary};
+use block_gain::{build_drive_processor_for_layout, drive_asset_summary};
+use block_mod::build_tremolo_processor_for_layout;
+use block_nam::{build_nam_processor_for_layout, GENERIC_NAM_MODEL_ID};
+use block_reverb::build_reverb_processor_for_layout;
+use block_util::{build_tuner_processor, tuner_chromatic::ChromaticTuner};
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -31,7 +31,7 @@ const DEBUG_MIN_PEAK_TO_LOG: f32 = 0.01;
 const DEBUG_LOG_INTERVAL_MS: u64 = 300;
 const DEFAULT_QUEUE_CAPACITY_FRAMES: usize = 48_000;
 const MAX_OUTPUT_QUEUE_LATENCY_FRAMES: u64 = 1_024;
-static NEXT_STAGE_INSTANCE_SERIAL: AtomicU64 = AtomicU64::new(1);
+static NEXT_BLOCK_INSTANCE_SERIAL: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Debug, Clone, Copy)]
 struct QueuedFrame {
@@ -741,7 +741,7 @@ fn build_audio_processor_for_model<F>(
     mut builder: F,
 ) -> Result<ProcessorBuildOutcome>
 where
-    F: FnMut(AudioChannelLayout) -> Result<StageProcessor>,
+    F: FnMut(AudioChannelLayout) -> Result<BlockProcessor>,
 {
     let schema = schema_for_block_model(effect_type, model).map_err(|error| {
         anyhow!(
@@ -879,14 +879,14 @@ fn build_nam_audio_processor(
 }
 
 fn expect_mono_processor(
-    processor: StageProcessor,
+    processor: BlockProcessor,
     chain: &Chain,
     effect_type: &str,
     model: &str,
 ) -> Result<Box<dyn MonoProcessor>> {
     match processor {
-        StageProcessor::Mono(processor) => Ok(processor),
-        StageProcessor::Stereo(_) => Err(anyhow!(
+        BlockProcessor::Mono(processor) => Ok(processor),
+        BlockProcessor::Stereo(_) => Err(anyhow!(
             "chain '{}' {} model '{}' returned stereo processing where mono was required",
             chain.id.0,
             effect_type,
@@ -896,14 +896,14 @@ fn expect_mono_processor(
 }
 
 fn expect_stereo_processor(
-    processor: StageProcessor,
+    processor: BlockProcessor,
     chain: &Chain,
     effect_type: &str,
     model: &str,
 ) -> Result<Box<dyn StereoProcessor>> {
     match processor {
-        StageProcessor::Stereo(processor) => Ok(processor),
-        StageProcessor::Mono(_) => Err(anyhow!(
+        BlockProcessor::Stereo(processor) => Ok(processor),
+        BlockProcessor::Mono(_) => Err(anyhow!(
             "chain '{}' {} model '{}' returned mono processing where stereo was required",
             chain.id.0,
             effect_type,
@@ -976,7 +976,7 @@ pub fn process_input_f32(
 ) {
     let mut peak = 0.0f32;
     let mut locked = runtime.lock().expect("chain runtime poisoned");
-    let mut track_frames = Vec::with_capacity(data.len() / input_total_channels);
+    let mut chain_frames = Vec::with_capacity(data.len() / input_total_channels);
     let mut tuner_samples = Vec::new();
     let tuner_enabled = locked
         .blocks
@@ -984,12 +984,12 @@ pub fn process_input_f32(
         .any(|stage| matches!(stage.processor, RuntimeProcessor::Tuner(_)));
 
     for frame in data.chunks(input_total_channels) {
-        let track_frame = read_input_frame(locked.input_layout, &locked.input_channels, frame);
-        peak = peak.max(track_frame.peak());
+        let chain_frame = read_input_frame(locked.input_layout, &locked.input_channels, frame);
+        peak = peak.max(chain_frame.peak());
         if tuner_enabled {
-            tuner_samples.push(track_frame.mono_mix());
+            tuner_samples.push(chain_frame.mono_mix());
         }
-        track_frames.push(track_frame);
+        chain_frames.push(chain_frame);
     }
 
     if tuner_enabled && !tuner_samples.is_empty() {
@@ -1002,11 +1002,11 @@ pub fn process_input_f32(
 
     for stage in &mut locked.blocks {
         if let RuntimeProcessor::Audio(processor) = &mut stage.processor {
-            processor.process_buffer(&mut track_frames);
+            processor.process_buffer(&mut chain_frames);
         }
     }
 
-    for frame in track_frames {
+    for frame in chain_frames {
         let sequence = locked.next_sequence;
         locked.next_sequence += 1;
         locked
@@ -1125,12 +1125,12 @@ fn silent_frame(layout: AudioChannelLayout) -> AudioFrame {
 }
 
 fn write_output_frame(
-    track_frame: AudioFrame,
+    chain_frame: AudioFrame,
     output_channels: &[usize],
     frame: &mut [f32],
     mixdown: ChainOutputMixdown,
 ) {
-    match track_frame {
+    match chain_frame {
         AudioFrame::Mono(sample) => {
             for &channel_index in output_channels {
                 if let Some(dst) = frame.get_mut(channel_index) {
@@ -1185,7 +1185,7 @@ fn layout_label(layout: AudioChannelLayout) -> &'static str {
 }
 
 fn next_block_instance_serial() -> u64 {
-    NEXT_STAGE_INSTANCE_SERIAL.fetch_add(1, Ordering::Relaxed)
+    NEXT_BLOCK_INSTANCE_SERIAL.fetch_add(1, Ordering::Relaxed)
 }
 
 #[cfg(test)]
@@ -1203,7 +1203,7 @@ mod tests {
     use std::sync::{Arc, Mutex};
 
     #[test]
-    fn runtime_graph_builds_for_track_with_cab_block() {
+    fn runtime_graph_builds_for_chain_with_cab_block() {
         let mut params = ParameterSet::default();
         params.insert("capture", ParameterValue::String("ev_mix_b".into()));
 
@@ -1241,7 +1241,7 @@ mod tests {
     }
 
     #[test]
-    fn runtime_graph_rejects_track_when_runtime_sample_rate_does_not_match_ir() {
+    fn runtime_graph_rejects_chain_when_runtime_sample_rate_does_not_match_ir() {
         let mut params = ParameterSet::default();
         params.insert("capture", ParameterValue::String("ev_mix_b".into()));
 
@@ -1282,7 +1282,7 @@ mod tests {
     }
 
     #[test]
-    fn update_track_runtime_state_preserves_unchanged_stage_instances() {
+    fn update_chain_runtime_state_preserves_unchanged_block_instances() {
         let mut chain = tuner_track(
             "chain:0",
             vec![
@@ -1329,7 +1329,7 @@ mod tests {
     }
 
     #[test]
-    fn update_track_runtime_state_preserves_stage_identity_when_reordered() {
+    fn update_chain_runtime_state_preserves_block_identity_when_reordered() {
         let mut chain = tuner_track(
             "chain:0",
             vec![

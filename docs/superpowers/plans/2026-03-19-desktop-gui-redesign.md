@@ -4,7 +4,7 @@
 
 **Goal:** Rebuild the OpenRig desktop GUI into a professional multi-track guitar rig interface while preserving the current project workflow and preparing shared primitives for the future touch UI.
 
-**Architecture:** Keep the existing screen-routing model in `adapter-gui`, but replace the current neutral card layouts with a track-centric desktop shell, denser project cards, interactive stage-chain widgets, and a stronger visual token system. Extract UI metadata and stage presentation rules into focused helpers so the Slint layer stays mostly declarative and so non-visual behavior can be covered by unit tests before visual changes land.
+**Architecture:** Keep the existing screen-routing model in `adapter-gui`, but replace the current neutral card layouts with a track-centric desktop shell, denser project cards, interactive block-chain widgets, and a stronger visual token system. Extract UI metadata and block presentation rules into focused helpers so the Slint layer stays mostly declarative and so non-visual behavior can be covered by unit tests before visual changes land.
 
 **Tech Stack:** Rust, Slint, existing `surrealism-ui` primitives, Cargo unit tests, manual runtime verification with `cargo run -p adapter-gui`
 
@@ -19,7 +19,7 @@
 - `crates/adapter-gui/ui/theme.slint`
   Purpose: global color, spacing, typography, and elevation tokens for the new desktop look.
 - `crates/adapter-gui/ui/models.slint`
-  Purpose: UI-facing data models that feed track cards and stage chains.
+  Purpose: UI-facing data models that feed track cards and block chains.
 - `crates/adapter-gui/ui/widgets/widgets.slint`
   Purpose: export surface for shared GUI primitives.
 - `crates/adapter-gui/ui/widgets/action_button.slint`
@@ -28,27 +28,27 @@
   Purpose: denser routing/device rows aligned with the new visual system.
 - `crates/adapter-gui/ui/pages/project_launcher.slint`
   Purpose: launcher redesign.
-- `crates/adapter-gui/ui/pages/project_tracks.slint`
-  Purpose: core project overview and track/stage interaction redesign.
+- `crates/adapter-gui/ui/pages/project_chains.slint`
+  Purpose: core project overview and track/block interaction redesign.
 - `crates/adapter-gui/ui/pages/project_settings.slint`
   Purpose: redesigned project setup screen.
-- `crates/adapter-gui/ui/pages/track_editor.slint`
+- `crates/adapter-gui/ui/pages/chain_editor.slint`
   Purpose: redesigned track editor screen.
 - `crates/adapter-gui/ui/desktop_main.slint`
   Purpose: desktop layout shell if new framing or composition is needed.
 - `crates/adapter-gui/ui/app-window.slint`
   Purpose: page wiring and shared properties if new interaction state is introduced.
 - `crates/adapter-gui/src/lib.rs`
-  Purpose: UI state, model mapping, callbacks, and new desktop-only interaction state for stage editing.
+  Purpose: UI state, model mapping, callbacks, and new desktop-only interaction state for block editing.
 
 ### New files likely needed
 
 - `crates/adapter-gui/src/ui_state.rs`
-  Purpose: focused Rust helpers for transforming domain tracks/blocks into richer GUI models and for stage editor state.
-- `crates/adapter-gui/ui/widgets/stage_chain.slint`
-  Purpose: reusable stage chip, insertion affordance, quick editor shell, and chain layout primitives.
-- `crates/adapter-gui/ui/widgets/track_card.slint`
-  Purpose: reusable desktop track card with stage chain and track actions.
+  Purpose: focused Rust helpers for transforming domain chains/blocks into richer GUI models and for block editor state.
+- `crates/adapter-gui/ui/widgets/block_chain.slint`
+  Purpose: reusable block chip, insertion affordance, quick editor shell, and chain layout primitives.
+- `crates/adapter-gui/ui/widgets/chain_card.slint`
+  Purpose: reusable desktop track card with block chain and track actions.
 - `crates/adapter-gui/ui/widgets/surface_primitives.slint`
   Purpose: shared panels, pills, status chips, and section headers if the redesign outgrows current widgets.
 
@@ -69,12 +69,12 @@ There is no existing `adapter-gui` test coverage today, so phase 1 must establis
 - Modify: `crates/adapter-gui/ui/models.slint`
 - Test: `crates/adapter-gui/src/ui_state.rs`
 
-- [ ] **Step 1: Write the failing tests for stage presentation metadata**
+- [ ] **Step 1: Write the failing tests for block presentation metadata**
 
 Add unit tests covering:
-- block kind to icon/stage-family mapping
+- block kind to icon/block-family mapping
 - enabled/disabled presentation state
-- insertion slot bookkeeping for between-stage actions
+- insertion slot bookkeeping for between-block actions
 - project track summary strings or labels that the redesigned cards depend on
 
 Run: `cargo test -p adapter-gui ui_state -- --nocapture`
@@ -83,9 +83,9 @@ Expected: FAIL because the helper module and tests do not exist yet.
 - [ ] **Step 2: Create minimal `ui_state.rs` with test-only helper surface**
 
 Define focused structs and helpers for:
-- stage presentation metadata
+- block presentation metadata
 - track card metadata
-- lightweight stage quick-editor selection state
+- lightweight block quick-editor selection state
 
 Keep the first implementation minimal and only enough to satisfy the tests.
 
@@ -146,37 +146,37 @@ Expected: app launches and the launcher renders without Slint compile errors.
 
 **Files:**
 - Modify: `crates/adapter-gui/ui/models.slint`
-- Create: `crates/adapter-gui/ui/widgets/stage_chain.slint`
-- Create: `crates/adapter-gui/ui/widgets/track_card.slint`
+- Create: `crates/adapter-gui/ui/widgets/block_chain.slint`
+- Create: `crates/adapter-gui/ui/widgets/chain_card.slint`
 - Modify: `crates/adapter-gui/ui/widgets/widgets.slint`
-- Modify: `crates/adapter-gui/ui/pages/project_tracks.slint`
+- Modify: `crates/adapter-gui/ui/pages/project_chains.slint`
 - Modify: `crates/adapter-gui/src/lib.rs`
 - Test: `crates/adapter-gui/src/ui_state.rs`
 
-- [ ] **Step 1: Write the failing tests for stage-chain state**
+- [ ] **Step 1: Write the failing tests for block-chain state**
 
 Cover:
-- selected stage quick-editor state
-- stage insertion slot identity
-- per-track stage list mapping with enabled state
+- selected block quick-editor state
+- block insertion slot identity
+- per-chain block list mapping with enabled state
 
-Run: `cargo test -p adapter-gui stage_chain -- --nocapture`
+Run: `cargo test -p adapter-gui block_chain -- --nocapture`
 Expected: FAIL because the new state is not implemented yet.
 
 - [ ] **Step 2: Implement minimal Rust state to support the redesigned track view**
 
 Add only the state required for:
-- active stage selection in a track card
+- active block selection in a track card
 - inline quick editor visibility
 - insertion target selection
 
-- [ ] **Step 3: Implement shared stage-chain widgets**
+- [ ] **Step 3: Implement shared block-chain widgets**
 
 Build reusable Slint components for:
-- stage chips with real SVG icons
+- block chips with real SVG icons
 - enabled/disabled state styling
-- hover/focus insertion affordance between stages
-- quick inline editor shell for a clicked stage
+- hover/focus insertion affordance between blocks
+- quick inline editor shell for a clicked block
 
 - [ ] **Step 4: Implement the track card redesign**
 
@@ -184,12 +184,12 @@ Build denser cards that show:
 - track identity
 - routing summary
 - track power/state
-- stage chain
+- block chain
 - track-level actions
 
 - [ ] **Step 5: Integrate the redesigned project screen**
 
-Replace the old list rendering in `project_tracks.slint` with the new workspace layout.
+Replace the old list rendering in `project_chains.slint` with the new workspace layout.
 
 - [ ] **Step 6: Run tests and compile verification**
 
@@ -207,7 +207,7 @@ Expected:
 - Modify: `crates/adapter-gui/ui/widgets/device_row.slint`
 - Modify: `crates/adapter-gui/ui/widgets/action_button.slint`
 - Modify: `crates/adapter-gui/ui/pages/project_settings.slint`
-- Modify: `crates/adapter-gui/ui/pages/track_editor.slint`
+- Modify: `crates/adapter-gui/ui/pages/chain_editor.slint`
 - Modify: `crates/adapter-gui/ui/theme.slint`
 
 - [ ] **Step 1: Write the failing tests for any new helper formatting introduced by these screens**

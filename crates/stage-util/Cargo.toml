@@ -1,8 +1,0 @@
-[package]
-name = "stage-util"
-version.workspace = true
-edition.workspace = true
-[dependencies]
-anyhow.workspace = true
-arc-swap.workspace = true
-stage-core = { path = "../stage-core" }

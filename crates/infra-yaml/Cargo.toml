@@ -9,18 +9,18 @@ serde.workspace = true
 serde_yaml.workspace = true
 domain = { path = "../domain" }
 project = { path = "../project" }
-stage-nam = { path = "../stage-nam" }
-stage-amp-head = { path = "../stage-amp-head" }
-stage-amp-combo = { path = "../stage-amp-combo" }
-stage-full-rig = { path = "../stage-full-rig" }
-stage-cab = { path = "../stage-cab" }
-stage-gain = { path = "../stage-gain" }
-stage-delay = { path = "../stage-delay" }
-stage-dyn = { path = "../stage-dyn" }
-stage-filter = { path = "../stage-filter" }
-stage-mod = { path = "../stage-mod" }
-stage-reverb = { path = "../stage-reverb" }
-stage-util = { path = "../stage-util" }
+block-nam = { path = "../block-nam" }
+block-amp-head = { path = "../block-amp-head" }
+block-amp-combo = { path = "../block-amp-combo" }
+block-full-rig = { path = "../block-full-rig" }
+block-cab = { path = "../block-cab" }
+block-gain = { path = "../block-gain" }
+block-delay = { path = "../block-delay" }
+block-dyn = { path = "../block-dyn" }
+block-filter = { path = "../block-filter" }
+block-mod = { path = "../block-mod" }
+block-reverb = { path = "../block-reverb" }
+block-util = { path = "../block-util" }
 
 [dev-dependencies]
 tempfile = "3"

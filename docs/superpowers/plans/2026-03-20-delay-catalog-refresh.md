@@ -4,19 +4,19 @@
 
 **Goal:** Replace the old public delay models with a new six-model product catalog and break compatibility with the old names.
 
-**Architecture:** Keep `stage-delay` as the single crate for delay models, reuse the current DSP where it makes sense, and move the public contract to the new names only. Projects using old delay names should fail validation explicitly.
+**Architecture:** Keep `block-delay` as the single crate for delay models, reuse the current DSP where it makes sense, and move the public contract to the new names only. Projects using old delay names should fail validation explicitly.
 
-**Tech Stack:** Rust, existing `stage-delay` crate, `project`/`infra-yaml` contract, cargo test/check.
+**Tech Stack:** Rust, existing `block-delay` crate, `project`/`infra-yaml` contract, cargo test/check.
 
 ---
 
 ### Task 1: Replace delay model catalog
 
 **Files:**
-- Modify: `crates/stage-delay/src/lib.rs`
-- Modify: `crates/stage-delay/src/digital_basic.rs`
-- Create/Modify: `crates/stage-delay/src/*`
-- Test: `crates/stage-delay/src/*`
+- Modify: `crates/block-delay/src/lib.rs`
+- Modify: `crates/block-delay/src/digital_basic.rs`
+- Create/Modify: `crates/block-delay/src/*`
+- Test: `crates/block-delay/src/*`
 
 - [ ] Add failing tests for the new public model names.
 - [ ] Make old names stop resolving publicly.

@@ -1,0 +1,8 @@
+[package]
+name = "block-gain"
+version.workspace = true
+edition.workspace = true
+[dependencies]
+anyhow.workspace = true
+nam = { path = "../nam" }
+block-core = { path = "../block-core" }

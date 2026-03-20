@@ -8,7 +8,7 @@ Accepted
 
 Audio device names are not reliable identifiers. Two identical interfaces can appear with the same name, and `match_name` is not enough to distinguish them.
 
-The project also needs a clear conflict rule for multi-track use. The important constraint is physical input ownership, not preset reuse.
+The project also needs a clear conflict rule for multi-chain use. The important constraint is physical input ownership, not preset reuse.
 
 ## Decision
 
@@ -20,7 +20,7 @@ Do not use `match_name` as the primary identifier in project data.
 
 ### Routing
 
-A track defines its own routing directly:
+A chain defines its own routing directly:
 
 - `input_device_id`
 - `input_channels`
@@ -42,12 +42,12 @@ If `device_settings` is omitted for a device, the backend defaults are used.
 
 ### Conflict rule
 
-Two enabled tracks may not claim the same:
+Two enabled chains may not claim the same:
 
 - `input_device_id`
 - input channel
 
-Disabled tracks are ignored by this conflict rule.
+Disabled chains are ignored by this conflict rule.
 
 ### Layout support
 
@@ -61,6 +61,6 @@ Anything else is invalid for now.
 ## Consequences
 
 - Two identical interfaces can coexist when their `device_id` values differ.
-- The same preset content can be used by multiple tracks as long as they do not claim the same active physical input channel.
+- The same preset content can be used by multiple chains as long as they do not claim the same active physical input channel.
 - The validation rule is objective and tied to hardware ownership, not musical intent.
 - Device override configuration stays optional and does not bloat minimal projects.

@@ -119,7 +119,7 @@ pub fn build_streams_for_project(
 ) -> Result<Vec<Stream>> {
     let host = cpal::default_host();
     validate_channels_against_devices(project, &host)?;
-    let mut resolved_tracks = resolve_enabled_chain_audio_configs(&host, project)?;
+    let mut resolved_chains = resolve_enabled_chain_audio_configs(&host, project)?;
     let mut streams = Vec::new();
     for chain in &project.chains {
         if !chain.enabled {
@@ -130,7 +130,7 @@ pub fn build_streams_for_project(
             .get(&chain.id)
             .cloned()
             .ok_or_else(|| anyhow!("chain '{}' has no runtime state", chain.id.0))?;
-        let resolved = resolved_tracks
+        let resolved = resolved_chains
             .remove(&chain.id)
             .ok_or_else(|| anyhow!("chain '{}' missing resolved audio config", chain.id.0))?;
         let (input_stream, output_stream) = build_chain_streams(&chain.id, resolved, runtime)?;
@@ -155,12 +155,12 @@ impl ProjectRuntimeController {
     pub fn sync_project(&mut self, project: &Project) -> Result<()> {
         let host = cpal::default_host();
         validate_channels_against_devices(project, &host)?;
-        let mut resolved_tracks = resolve_enabled_chain_audio_configs(&host, project)?;
+        let mut resolved_chains = resolve_enabled_chain_audio_configs(&host, project)?;
 
         let removed_chain_ids = self
             .active_chains
             .keys()
-            .filter(|chain_id| !resolved_tracks.contains_key(*chain_id))
+            .filter(|chain_id| !resolved_chains.contains_key(*chain_id))
             .cloned()
             .collect::<Vec<_>>();
         for chain_id in removed_chain_ids {
@@ -173,7 +173,7 @@ impl ProjectRuntimeController {
                 continue;
             }
 
-            let resolved = resolved_tracks
+            let resolved = resolved_chains
                 .remove(&chain.id)
                 .ok_or_else(|| anyhow!("chain '{}' missing resolved audio config", chain.id.0))?;
             self.upsert_chain_with_resolved(chain, resolved)?;
@@ -873,7 +873,7 @@ mod tests {
     }
 
     #[test]
-    fn resolve_track_runtime_sample_rate_rejects_mismatched_input_and_output_sample_rates() {
+    fn resolve_chain_runtime_sample_rate_rejects_mismatched_input_and_output_sample_rates() {
         let input = supported_range(2, 48_000, 48_000).with_max_sample_rate();
         let output = supported_range(2, 44_100, 44_100).with_max_sample_rate();
 

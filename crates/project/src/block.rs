@@ -1,20 +1,20 @@
 use domain::ids::BlockId;
 use domain::value_objects::ParameterValue;
 use serde::{Deserialize, Serialize};
-use stage_amp_combo::{amp_combo_model_schema, validate_amp_combo_params};
-use stage_amp_head::{amp_head_model_schema, validate_amp_head_params};
-use stage_cab::{cab_model_schema, validate_cab_params};
-use stage_core::ModelAudioMode;
-use stage_delay::delay_model_schema;
-use stage_dyn::compressor_model_schema;
-use stage_dyn::gate_model_schema;
-use stage_filter::eq_model_schema;
-use stage_full_rig::{full_rig_model_schema, validate_full_rig_params};
-use stage_gain::{drive_model_schema, validate_drive_params};
-use stage_mod::tremolo_model_schema;
-use stage_nam::nam_model_schema;
-use stage_reverb::reverb_model_schema;
-use stage_util::tuner_model_schema;
+use block_amp_combo::{amp_combo_model_schema, validate_amp_combo_params};
+use block_amp_head::{amp_head_model_schema, validate_amp_head_params};
+use block_cab::{cab_model_schema, validate_cab_params};
+use block_core::ModelAudioMode;
+use block_delay::delay_model_schema;
+use block_dyn::compressor_model_schema;
+use block_dyn::gate_model_schema;
+use block_filter::eq_model_schema;
+use block_full_rig::{full_rig_model_schema, validate_full_rig_params};
+use block_gain::{drive_model_schema, validate_drive_params};
+use block_mod::tremolo_model_schema;
+use block_nam::nam_model_schema;
+use block_reverb::reverb_model_schema;
+use block_util::tuner_model_schema;
 
 use crate::param::{BlockParameterDescriptor, ModelParameterSchema, ParameterSet};
 

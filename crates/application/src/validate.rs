@@ -3,7 +3,7 @@ use project::block::{schema_for_block_model, AudioBlock, AudioBlockKind};
 use project::device::DeviceSettings;
 use project::project::Project;
 use project::chain::Chain;
-use stage_core::AudioChannelLayout;
+use block_core::AudioChannelLayout;
 use std::collections::{HashMap, HashSet};
 
 pub fn validate_project(project: &Project) -> Result<()> {

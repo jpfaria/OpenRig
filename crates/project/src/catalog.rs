@@ -27,55 +27,55 @@ fn block_registry() -> [BlockRegistryEntry; 13] {
     [
         BlockRegistryEntry {
             effect_type: "amp_head",
-            supported_models: stage_amp_head::supported_models,
+            supported_models: block_amp_head::supported_models,
         },
         BlockRegistryEntry {
             effect_type: "amp_combo",
-            supported_models: stage_amp_combo::supported_models,
+            supported_models: block_amp_combo::supported_models,
         },
         BlockRegistryEntry {
             effect_type: "cab",
-            supported_models: stage_cab::supported_models,
+            supported_models: block_cab::supported_models,
         },
         BlockRegistryEntry {
             effect_type: "full_rig",
-            supported_models: stage_full_rig::supported_models,
+            supported_models: block_full_rig::supported_models,
         },
         BlockRegistryEntry {
             effect_type: "drive",
-            supported_models: stage_gain::supported_models,
+            supported_models: block_gain::supported_models,
         },
         BlockRegistryEntry {
             effect_type: "compressor",
-            supported_models: stage_dyn::compressor_supported_models,
+            supported_models: block_dyn::compressor_supported_models,
         },
         BlockRegistryEntry {
             effect_type: "gate",
-            supported_models: stage_dyn::gate_supported_models,
+            supported_models: block_dyn::gate_supported_models,
         },
         BlockRegistryEntry {
             effect_type: "eq",
-            supported_models: stage_filter::supported_models,
+            supported_models: block_filter::supported_models,
         },
         BlockRegistryEntry {
             effect_type: "tremolo",
-            supported_models: stage_mod::supported_models,
+            supported_models: block_mod::supported_models,
         },
         BlockRegistryEntry {
             effect_type: "delay",
-            supported_models: stage_delay::supported_models,
+            supported_models: block_delay::supported_models,
         },
         BlockRegistryEntry {
             effect_type: "reverb",
-            supported_models: stage_reverb::supported_models,
+            supported_models: block_reverb::supported_models,
         },
         BlockRegistryEntry {
             effect_type: "tuner",
-            supported_models: stage_util::supported_models,
+            supported_models: block_util::supported_models,
         },
         BlockRegistryEntry {
             effect_type: "nam",
-            supported_models: stage_nam::supported_models,
+            supported_models: block_nam::supported_models,
         },
     ]
 }

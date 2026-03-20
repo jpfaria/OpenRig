@@ -6,4 +6,4 @@ edition.workspace = true
 [dependencies]
 anyhow.workspace = true
 project = { path = "../project" }
-stage-core = { path = "../stage-core" }
+block-core = { path = "../block-core" }

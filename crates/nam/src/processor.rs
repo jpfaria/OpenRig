@@ -1,11 +1,11 @@
 use crate::GENERIC_NAM_MODEL_ID;
 use anyhow::{bail, Result};
 use domain::value_objects::ParameterValue;
-use stage_core::param::{
+use block_core::param::{
     bool_parameter, file_path_parameter, float_parameter, optional_string, required_string,
     ModelParameterSchema, ParameterSet, ParameterSpec, ParameterUnit,
 };
-use stage_core::{ModelAudioMode, MonoProcessor};
+use block_core::{ModelAudioMode, MonoProcessor};
 use std::ffi::CString;
 use std::os::raw::{c_char, c_void};
 

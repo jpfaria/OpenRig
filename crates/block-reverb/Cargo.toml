@@ -1,0 +1,7 @@
+[package]
+name = "block-reverb"
+version.workspace = true
+edition.workspace = true
+[dependencies]
+anyhow.workspace = true
+block-core = { path = "../block-core" }

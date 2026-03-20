@@ -5,7 +5,7 @@ These instructions apply to the entire repository unless a deeper `AGENTS.md` ov
 - `crates/domain`, `crates/project`, `crates/application`, `crates/engine`
 - `crates/infra-yaml`, `crates/infra-filesystem`, `crates/infra-cpal`
 - `crates/adapter-console`, `crates/adapter-server`, `crates/adapter-gui`, `crates/adapter-vst3`
-- `crates/stage-*` for DSP stage implementations and shared stage utilities
+- `crates/block-*` for DSP stage implementations and shared stage utilities
 - Runtime project data is currently loaded from `project.yaml`, and app configuration lives in `config.yaml`.
 - `project.yaml` is the runtime source of truth for a project.
 - The sibling `config.yaml` next to a project is project-local configuration, currently used for `presets_path`.
@@ -16,17 +16,16 @@ These instructions apply to the entire repository unless a deeper `AGENTS.md` ov
 - Preserve clear boundaries between domain models, orchestration/use cases, runtime audio processing, infrastructure adapters, and presentation adapters.
 - Consider future adapters such as console, server, GUI, and VST3, but do not force large migrations unless requested.
 - `crates/domain`: ids and value objects only; no YAML, device I/O, filesystem, audio backend, or UI concerns.
-- `crates/project`: project models, tracks, device settings, and audio block definitions.
+- `crates/project`: project models, chains, device settings, and audio block definitions.
 - `crates/application`: orchestration, validation, commands, and use-case logic.
 - `crates/engine`: runtime graph construction and audio processing behavior.
 - `crates/infra-*`: YAML loading, filesystem access, CPAL integration, persistence adapters, and other external integrations.
 - `crates/adapter-*`: entrypoints and delivery adapters; do not let console or transport concerns shape domain models.
-- `crates/stage-*`: DSP implementations and stage-specific processing primitives.
+- `crates/block-*`: DSP implementations and block-specific processing primitives.
 - Do not treat the system as YAML-first. YAML is one adapter for loading project data and presets.
-- Do not reason about the current system as `setup`/`state`/`preset` driven. The runtime model is `Project -> Track -> AudioBlock`.
-- Tracks own their `blocks` directly. Preset files are import/export artifacts for replacing a track's blocks; tracks do not reference presets at runtime.
-- YAML may still use `stages` as an alias, but the internal model name is `blocks`.
-- User-authored `project.yaml` does not provide track IDs or block IDs. These are generated internally at load time.
+- Do not reason about the current system as `setup`/`state`/`preset` driven. The runtime model is `Project -> Chain -> AudioBlock`.
+- Chains own their `blocks` directly. Preset files are import/export artifacts for replacing a chain's blocks; chains do not reference presets at runtime.
+- User-authored `project.yaml` does not provide chain IDs or block IDs. These are generated internally at load time.
 - Model the pedalboard around generic audio blocks, not only NAM.
 - Treat NAM, IR, and internal effects as separate concepts even when combined in runtime flows.
 - Prefer abstractions that allow internal blocks such as delay, reverb, tremolo, EQ, dynamics, routing, selectors, amp, and cab stages.
@@ -37,8 +36,8 @@ These instructions apply to the entire repository unless a deeper `AGENTS.md` ov
 - Keep `project.yaml` and `config.yaml` compatibility in sync with the corresponding models.
 - Persist audio devices by backend `device_id`, not `match_name`.
 - `device_settings` is optional project-level override data keyed by `device_id`.
-- Active tracks may not share the same `input_device_id + input_channel`; disabled tracks are ignored by that conflict rule.
-- Track and block `enabled` flags must be respected consistently by validation and runtime.
+- Active chains may not share the same `input_device_id + input_channel`; disabled chains are ignored by that conflict rule.
+- Chain and block `enabled` flags must be respected consistently by validation and runtime.
 - Current routing/layout support is mono or stereo only.
 - For backend decisions, prefer `docs/backend/current-contract.md` and `docs/adr/` as the canonical reference before relying on old chat context.
 - Device names and model paths are machine-specific; avoid baking in new local paths unless the task explicitly requires it.

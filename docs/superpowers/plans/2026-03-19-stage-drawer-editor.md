@@ -1,16 +1,16 @@
-# Stage Drawer Editor Implementation Plan
+# Block Drawer Editor Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replaced the inline stage editor with a floating right-side drawer that supports adding and editing stages, including type/model selection and parameter editing.
+**Goal:** Replaced the inline block editor with a floating right-side drawer that supports adding and editing blocks, including type/model selection and parameter editing.
 
-**Architecture:** Keep the main tracks screen visible and mount a single overlaid drawer on the right. Reuse the existing stage insertion state, extend it into a unified stage-editor state for add/edit, and drive parameter controls from the stage schema so file/path parameters can use native file picking.
+**Architecture:** Keep the main chains screen visible and mount a single overlaid drawer on the right. Reuse the existing block insertion state, extend it into a unified block-editor state for add/edit, and drive parameter controls from the block schema so file/path parameters can use native file picking.
 
 **Tech Stack:** Slint, Rust, existing OpenRig project/block schema system
 
 ---
 
-### Task 1: Add stage-editor state and pure helpers
+### Task 1: Add block-editor state and pure helpers
 
 **Files:**
 - Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/src/ui_state.rs`
@@ -27,15 +27,15 @@
 - Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/models.slint`
 - Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/app-window.slint`
 
-- [ ] Add UI structs/properties for stage editor mode, selected type/model, and parameter rows.
+- [ ] Add UI structs/properties for block editor mode, selected type/model, and parameter rows.
 - [ ] Thread these properties through the existing app window.
 
-### Task 3: Replace inline stage editor with floating drawer
+### Task 3: Replace inline block editor with floating drawer
 
 **Files:**
-- Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/pages/project_tracks.slint`
+- Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/pages/project_chains.slint`
 
-- [ ] Remove the inline “Stage selecionado” box.
+- [ ] Remove the inline “Block selecionado” box.
 - [ ] Add right-side floating drawer with add/edit variants.
 - [ ] Keep type, model, parameters, bypass, delete, cancel, and OK in the same panel.
 
@@ -45,7 +45,7 @@
 - Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/src/lib.rs`
 - Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/project/src/block.rs`
 
-- [ ] Populate the drawer when clicking `+` or an existing stage.
+- [ ] Populate the drawer when clicking `+` or an existing block.
 - [ ] Update models when type/model changes.
 - [ ] Save parameters back into the block.
 - [ ] Support native file picking for file/path parameters.
@@ -55,5 +55,5 @@
 **Files:**
 - Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/docs/gui/README.md`
 
-- [ ] Record the new drawer-based stage editing behavior.
+- [ ] Record the new drawer-based block editing behavior.
 - [ ] Run `cargo test -p adapter-gui`.

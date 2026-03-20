@@ -4,18 +4,18 @@
 
 **Goal:** Add 9 native guitar models to the core runtime: 3 amp-heads, 3 cabs, and 3 amp-combos.
 
-**Architecture:** Keep one shared DSP core per family instead of 9 isolated implementations. The public contract lives in `stage-amp-head`, `stage-cab`, and `stage-amp-combo`; each family exposes 3 native voicings with a consistent parameter set and routes builds through shared native processors. Project/runtime integration should work without UI changes.
+**Architecture:** Keep one shared DSP core per family instead of 9 isolated implementations. The public contract lives in `block-amp-head`, `block-cab`, and `block-amp-combo`; each family exposes 3 native voicings with a consistent parameter set and routes builds through shared native processors. Project/runtime integration should work without UI changes.
 
-**Tech Stack:** Rust, existing `stage-core` DSP helpers, crate-level model registries, `cargo test`, `cargo check`, `cargo clippy`.
+**Tech Stack:** Rust, existing `block-core` DSP helpers, crate-level model registries, `cargo test`, `cargo check`, `cargo clippy`.
 
 ---
 
 ### Task 1: Lock The Public Contract With Tests
 
 **Files:**
-- Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/stage-amp-head/src/lib.rs`
-- Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/stage-cab/src/lib.rs`
-- Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/stage-amp-combo/src/lib.rs`
+- Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/block-amp-head/src/lib.rs`
+- Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/block-cab/src/lib.rs`
+- Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/block-amp-combo/src/lib.rs`
 - Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/project/src/block.rs`
 
 - [ ] **Step 1: Write failing contract tests for the 9 new models**
@@ -31,7 +31,7 @@ Cover:
 
 Run:
 ```bash
-cargo test -p stage-amp-head -p stage-cab -p stage-amp-combo -p project
+cargo test -p block-amp-head -p block-cab -p block-amp-combo -p project
 ```
 
 Expected:
@@ -40,12 +40,12 @@ Expected:
 ### Task 2: Implement Shared Native DSP Cores
 
 **Files:**
-- Create: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/stage-amp-head/src/native.rs`
-- Create: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/stage-cab/src/native.rs`
-- Create: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/stage-amp-combo/src/native.rs`
-- Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/stage-amp-head/src/lib.rs`
-- Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/stage-cab/src/lib.rs`
-- Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/stage-amp-combo/src/lib.rs`
+- Create: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/block-amp-head/src/native.rs`
+- Create: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/block-cab/src/native.rs`
+- Create: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/block-amp-combo/src/native.rs`
+- Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/block-amp-head/src/lib.rs`
+- Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/block-cab/src/lib.rs`
+- Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/block-amp-combo/src/lib.rs`
 
 - [ ] **Step 1: Implement native amp-head core**
 
@@ -73,9 +73,9 @@ Requirements:
 ### Task 3: Wire Registries And Runtime Builders
 
 **Files:**
-- Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/stage-amp-head/src/lib.rs`
-- Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/stage-cab/src/lib.rs`
-- Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/stage-amp-combo/src/lib.rs`
+- Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/block-amp-head/src/lib.rs`
+- Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/block-cab/src/lib.rs`
+- Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/block-amp-combo/src/lib.rs`
 - Modify: `/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/project/src/block.rs`
 
 - [ ] **Step 1: Register the new models in each family**
@@ -102,30 +102,30 @@ Requirements:
 
 Run:
 ```bash
-cargo check -p stage-amp-head -p stage-cab -p stage-amp-combo -p project -p engine -p application
+cargo check -p block-amp-head -p block-cab -p block-amp-combo -p project -p engine -p application
 ```
 
 - [ ] **Step 2: Run tests**
 
 Run:
 ```bash
-cargo test -p stage-amp-head -p stage-cab -p stage-amp-combo -p project -p engine -p application
+cargo test -p block-amp-head -p block-cab -p block-amp-combo -p project -p engine -p application
 ```
 
 - [ ] **Step 3: Run clippy**
 
 Run:
 ```bash
-cargo clippy -p stage-amp-head -p stage-cab -p stage-amp-combo -p project -p engine -p application --all-targets -- -D warnings
+cargo clippy -p block-amp-head -p block-cab -p block-amp-combo -p project -p engine -p application --all-targets -- -D warnings
 ```
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add docs/superpowers/plans/2026-03-20-native-amp-cab-combo-models.md \
-  crates/stage-amp-head \
-  crates/stage-cab \
-  crates/stage-amp-combo \
+  crates/block-amp-head \
+  crates/block-cab \
+  crates/block-amp-combo \
   crates/project
 git commit -m "feat: add native amp cab and combo models"
 ```

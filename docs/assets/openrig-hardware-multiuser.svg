@@ -27,7 +27,7 @@
     <rect x="426" y="198" width="588" height="450" rx="42" fill="url(#rig)"/>
     <rect x="442" y="214" width="556" height="418" rx="34" stroke="#FFFFFF" stroke-opacity="0.08" stroke-width="2"/>
 
-    <text x="720" y="274" text-anchor="middle" fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="44" font-weight="700">OpenRig Stage Unit</text>
+    <text x="720" y="274" text-anchor="middle" fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="44" font-weight="700">OpenRig Chain Unit</text>
     <text x="720" y="314" text-anchor="middle" fill="#CBD5E1" font-family="Arial, Helvetica, sans-serif" font-size="22">Multi-input hardware host with track routing, DSP, scenes, and remote control</text>
 
     <rect x="504" y="356" width="432" height="108" rx="28" fill="#0B1220" stroke="#38BDF8" stroke-opacity="0.24"/>
@@ -48,19 +48,19 @@
   <g filter="url(#shadow)">
     <rect x="114" y="240" width="236" height="120" rx="28" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
     <text x="232" y="286" text-anchor="middle" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700">Guitar</text>
-    <text x="232" y="320" text-anchor="middle" fill="#475569" font-family="Arial, Helvetica, sans-serif" font-size="18">Input 1 • Track A</text>
+    <text x="232" y="320" text-anchor="middle" fill="#475569" font-family="Arial, Helvetica, sans-serif" font-size="18">Input 1 • Chain A</text>
   </g>
 
   <g filter="url(#shadow)">
     <rect x="114" y="408" width="236" height="120" rx="28" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
     <text x="232" y="454" text-anchor="middle" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700">Bass</text>
-    <text x="232" y="488" text-anchor="middle" fill="#475569" font-family="Arial, Helvetica, sans-serif" font-size="18">Input 2 • Track B</text>
+    <text x="232" y="488" text-anchor="middle" fill="#475569" font-family="Arial, Helvetica, sans-serif" font-size="18">Input 2 • Chain B</text>
   </g>
 
   <g filter="url(#shadow)">
     <rect x="114" y="576" width="236" height="120" rx="28" fill="#FFFFFF" stroke="#CBD5E1" stroke-width="2"/>
     <text x="232" y="622" text-anchor="middle" fill="#0F172A" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700">Vocal / Keys</text>
-    <text x="232" y="656" text-anchor="middle" fill="#475569" font-family="Arial, Helvetica, sans-serif" font-size="18">Input 3+ • Track C</text>
+    <text x="232" y="656" text-anchor="middle" fill="#475569" font-family="Arial, Helvetica, sans-serif" font-size="18">Input 3+ • Chain C</text>
   </g>
 
   <g filter="url(#shadow)">

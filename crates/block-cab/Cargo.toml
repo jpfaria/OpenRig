@@ -1,0 +1,11 @@
+[package]
+name = "block-cab"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+domain = { path = "../domain" }
+asset-runtime = { path = "../asset-runtime" }
+audio-ir = { path = "../audio-ir" }
+block-core = { path = "../block-core" }

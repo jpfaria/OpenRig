@@ -31,7 +31,7 @@ Desktop implementation started.
 
 OpenRig is not a single physical pedalboard clone.
 
-The GUI should communicate that a project can contain multiple tracks, and that each track can behave like its own pedalboard/rig chain.
+The GUI should communicate that a project can contain multiple chains, and that each chain can behave like its own pedalboard/rig chain.
 
 The target feeling is:
 
@@ -47,16 +47,16 @@ The target feeling is:
 - chosen direction is a focused hybrid
 - the app is track-centric
 - when a track is opened, it can become the main pedalboard view
-- the user must still be able to switch to other tracks without losing the sense of a multi-track project
+- the user must still be able to switch to other chains without losing the sense of a multi-chain project
 
 ### Desktop information architecture
 
-- there is a project-level view centered on the list of tracks
+- there is a project-level view centered on the list of chains
 - each track shows its stage chain in the project view
 - entering a track opens a pedalboard-oriented editor for that track
 - track switching inside the open-track experience uses a collapsible drawer, not fixed tabs or a permanent side rail
 
-### Track list behavior
+### Chain list behavior
 
 - each track card should show the real SVG icons for its stages
 - stages are interactive, not decorative
@@ -64,7 +64,7 @@ The target feeling is:
 - stages have explicit enabled/disabled state
 - enabled/disabled must be visible in the chain itself, not hidden in a secondary panel
 
-### Stage insertion flow
+### Block insertion flow
 
 - the chain must allow insertion of a new stage between existing stages
 - insertion affordance appears only on hover/focus in the space between stages
@@ -164,11 +164,11 @@ Approved visual direction for the launcher:
 
 ### Project view
 
-The project view should behave like the overview and editing hub for multiple tracks.
+The project view should behave like the overview and editing hub for multiple chains.
 
 It should prioritize:
 
-- clear scan of all tracks
+- clear scan of all chains
 - visible stage chains on each track
 - quick stage editing through a floating drawer without leaving the project view
 - fast insertion and reordering intent in the chain
@@ -182,7 +182,7 @@ It should prioritize:
 
 - the currently selected track as the main canvas
 - deeper stage editing than the project view
-- easy access to other tracks through a collapsible drawer
+- easy access to other chains through a collapsible drawer
 - preserving the mental model that the user is still inside a larger multi-track project
 
 ### Project setup and routing views
@@ -220,7 +220,7 @@ These items are not fully locked yet and should be resolved before final impleme
 - in the open track view, whether primary editing lives entirely on the pedalboard blocks or uses a pedalboard plus complementary side panel
 - the exact visual treatment for enabled vs bypassed vs selected stages
 - whether stage reordering is drag-and-drop, command-driven, or both in desktop mode
-- whether the stage drawer should remain a right-side inspector or evolve into a wider floating editor for more complex stage families
+- whether the block drawer should remain a right-side inspector or evolve into a wider floating editor for more complex block families
 
 ## Working rule for future agents
 

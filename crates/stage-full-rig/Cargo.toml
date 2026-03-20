@@ -1,9 +1,0 @@
-[package]
-name = "stage-full-rig"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]
-anyhow.workspace = true
-nam = { path = "../nam" }
-stage-core = { path = "../stage-core" }

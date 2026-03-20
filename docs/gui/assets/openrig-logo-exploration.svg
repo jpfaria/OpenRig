@@ -94,7 +94,7 @@
 
     <g transform="translate(1020 340)">
       <rect width="460" height="290" rx="28" fill="url(#bgCard)" stroke="#243347"/>
-      <text x="30" y="44" class="label">6. Stack de tracks</text>
+      <text x="30" y="44" class="label">6. Stack de chains</text>
       <g transform="translate(44 74)">
         <rect x="24" y="20" width="172" height="42" rx="18" fill="#0C1621" stroke="#30465F"/>
         <rect x="44" y="58" width="172" height="42" rx="18" fill="#0F1C29" stroke="#3D5877"/>
@@ -102,7 +102,7 @@
         <circle cx="88" cy="117" r="8" fill="#22DA84"/>
       </g>
       <text x="252" y="138" class="name">OpenRig</text>
-      <text x="252" y="170" class="desc">reforça tracks paralelas e múltiplos rigs</text>
+      <text x="252" y="170" class="desc">reforça chains paralelas e múltiplos rigs</text>
     </g>
 
     <g transform="translate(0 680)">
