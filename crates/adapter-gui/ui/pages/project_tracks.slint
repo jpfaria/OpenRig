@@ -688,7 +688,11 @@ component StageChip inherits Rectangle {
             }
         }
         clicked => {
-            if !root.did-drag {
+            let pointer-x = (self.mouse-x + root.x) / 1px;
+            let pointer-y = (self.mouse-y + root.y) / 1px;
+            if root.did-drag {
+                root.drag-finished(pointer-x, pointer-y);
+            } else {
                 root.clicked();
             }
             root.did-drag = false;
@@ -727,38 +731,13 @@ component StageInsertSlot inherits Rectangle {
         border-color: root.active-drop-target ? #a9b2bf : root.empty-slot ? #5a6577 : #7c8798;
         border-radius: 12px;
 
-        if root.active-drop-target : Rectangle {
-            x: 0px;
-            y: 0px;
-            width: parent.width;
-            height: parent.height;
-            background: transparent;
-
-            Text {
-                x: 0px;
-                y: -4px;
-                width: parent.width;
-                height: 12px;
-                text: "^";
-                color: #eef2f8;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-                font-size: 12px;
-                font-weight: 800;
-            }
-
-            Text {
-                x: 0px;
-                y: 9px;
-                width: parent.width;
-                height: 12px;
-                text: "v";
-                color: #eef2f8;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-                font-size: 12px;
-                font-weight: 800;
-            }
+        if root.active-drop-target : Image {
+            x: 2px;
+            y: 2px;
+            width: 20px;
+            height: 20px;
+            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/stage-drop-target.svg");
+            image-fit: contain;
         }
 
         if !root.active-drop-target : Text {
@@ -958,7 +937,13 @@ component TrackRow inherits Rectangle {
             }
             drag-finished(pointer-x, pointer-y) => {
                 if root.dragging-track-index == root.track-index && root.dragging-stage-index == stage-index {
-                    root.drag-hover-before-index = root.slot-index-for-position(pointer-x, pointer-y);
+                    let before-index = root.slot-index-for-position(pointer-x, pointer-y);
+                    root.drag-hover-before-index = before-index;
+                    root.reorder-track-stage(root.track-index, stage-index, before-index);
+                    root.dragging-track-index = -1;
+                    root.dragging-stage-index = -1;
+                    root.drag-hover-before-index = -1;
+                    root.suppress-insert-hover = true;
                 }
             }
         }
