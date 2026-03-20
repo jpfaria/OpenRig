@@ -14,6 +14,7 @@ members = [
   "crates/stage-pitch",
   "crates/stage-util",
   "crates/stage-routing",
+  "crates/embedded-assets",
   "crates/nam",
   "crates/stage-nam",
   "crates/stage-amp-head",

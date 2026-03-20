@@ -1408,6 +1408,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
 
 [[package]]
+name = "embedded-assets"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "dirs",
+]
+
+[[package]]
 name = "endi"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4861,6 +4869,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "nam",
+ "stage-amp-head",
+ "stage-cab",
  "stage-core",
 ]
 
@@ -4869,6 +4879,7 @@ name = "stage-amp-head"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "embedded-assets",
  "nam",
  "stage-core",
 ]
@@ -4879,6 +4890,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "domain",
+ "embedded-assets",
  "ir",
  "stage-core",
 ]

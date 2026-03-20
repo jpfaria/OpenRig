@@ -1,26 +1,45 @@
 use anyhow::{anyhow, bail, Result};
+use embedded_assets::{materialize, EmbeddedAsset};
 use ir::{build_mono_ir_processor_from_wav, IrAsset};
 use stage_core::param::{enum_parameter, required_string, ModelParameterSchema, ParameterSet};
 use stage_core::{AudioChannelLayout, ModelAudioMode, StageProcessor};
-use std::path::{Path, PathBuf};
 
 pub const MODEL_ID: &str = "marshall_4x12_v30";
+
+macro_rules! capture {
+    ($capture:literal, $asset_id:literal, $relative_path:literal) => {
+        Marshall4x12V30Capture {
+            capture: $capture,
+            asset: EmbeddedAsset::new(
+                $asset_id,
+                $relative_path,
+                include_bytes!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/../../",
+                    $relative_path
+                )),
+            ),
+        }
+    };
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Marshall4x12V30Capture {
     pub capture: &'static str,
-    pub ir_path: &'static str,
+    pub asset: EmbeddedAsset,
 }
 
 pub const CAPTURES: &[Marshall4x12V30Capture] = &[
-    Marshall4x12V30Capture {
-        capture: "ev_mix_b",
-        ir_path: "captures/ir/cabs/marshall_4x12_v30/ev_mix_b.wav",
-    },
-    Marshall4x12V30Capture {
-        capture: "ev_mix_d",
-        ir_path: "captures/ir/cabs/marshall_4x12_v30/ev_mix_d.wav",
-    },
+    capture!(
+        "ev_mix_b",
+        "cab.marshall_4x12_v30.ev_mix_b",
+        "captures/ir/cabs/marshall_4x12_v30/ev_mix_b.wav"
+    ),
+    capture!(
+        "ev_mix_d",
+        "cab.marshall_4x12_v30.ev_mix_d",
+        "captures/ir/cabs/marshall_4x12_v30/ev_mix_d.wav"
+    ),
 ];
 
 pub fn supports_model(model: &str) -> bool {
@@ -51,8 +70,9 @@ pub fn build_processor_for_model(
     match layout {
         AudioChannelLayout::Mono => {
             let capture = resolve_capture(params)?;
-            let resolved_ir_path = resolve_ir_path(capture.ir_path);
-            let ir = IrAsset::load_from_wav(&resolved_ir_path.to_string_lossy())?;
+            let materialized_path = materialize(&capture.asset)?;
+            let materialized_path_str = materialized_path.to_string_lossy();
+            let ir = IrAsset::load_from_wav(&materialized_path_str)?;
             if ir.channel_count() != 1 {
                 bail!(
                     "cab model '{}' capture '{}' must be mono, got {} channels",
@@ -61,10 +81,7 @@ pub fn build_processor_for_model(
                     ir.channel_count()
                 );
             }
-            let processor = build_mono_ir_processor_from_wav(
-                &resolved_ir_path.to_string_lossy(),
-                sample_rate,
-            )?;
+            let processor = build_mono_ir_processor_from_wav(&materialized_path_str, sample_rate)?;
             Ok(StageProcessor::Mono(processor))
         }
         AudioChannelLayout::Stereo => bail!(
@@ -80,7 +97,7 @@ pub fn validate_params(params: &ParameterSet) -> Result<()> {
 
 pub fn asset_summary(params: &ParameterSet) -> Result<String> {
     let capture = resolve_capture(params)?;
-    Ok(format!("ir='{}'", capture.ir_path))
+    Ok(format!("asset_id='{}'", capture.asset.id))
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static Marshall4x12V30Capture> {
@@ -95,22 +112,4 @@ fn resolve_capture(params: &ParameterSet) -> Result<&'static Marshall4x12V30Capt
                 requested
             )
         })
-}
-
-fn resolve_ir_path(asset_path: &str) -> PathBuf {
-    let raw = PathBuf::from(asset_path);
-    if raw.is_absolute() || raw.exists() {
-        return raw;
-    }
-
-    if let Ok(asset_root) = std::env::var("OPENRIG_ASSET_ROOT") {
-        let candidate = Path::new(&asset_root).join(asset_path);
-        if candidate.exists() {
-            return candidate;
-        }
-    }
-
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .join(asset_path)
 }

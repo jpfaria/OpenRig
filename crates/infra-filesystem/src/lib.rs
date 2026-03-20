@@ -101,14 +101,22 @@ impl From<LegacyGuiAudioSettings> for GuiAudioSettings {
 impl FilesystemStorage {
     pub fn gui_settings_path() -> Result<PathBuf> {
         let base_dir = dirs::config_dir()
-            .or_else(|| std::env::var_os("HOME").map(PathBuf::from).map(|home| home.join(".config")))
+            .or_else(|| {
+                std::env::var_os("HOME")
+                    .map(PathBuf::from)
+                    .map(|home| home.join(".config"))
+            })
             .context("failed to resolve user config directory")?;
         Ok(base_dir.join("OpenRig").join("gui-settings.yaml"))
     }
 
     pub fn app_config_path() -> Result<PathBuf> {
         let base_dir = dirs::config_dir()
-            .or_else(|| std::env::var_os("HOME").map(PathBuf::from).map(|home| home.join(".config")))
+            .or_else(|| {
+                std::env::var_os("HOME")
+                    .map(PathBuf::from)
+                    .map(|home| home.join(".config"))
+            })
             .context("failed to resolve user config directory")?;
         Ok(base_dir.join("OpenRig").join("config.yaml"))
     }
@@ -173,10 +181,7 @@ impl FilesystemStorage {
 mod tests {
     use super::{AppConfig, RecentProjectEntry};
 
-    fn insert_recent_project(
-        config: &mut AppConfig,
-        entry: RecentProjectEntry,
-    ) {
+    fn insert_recent_project(config: &mut AppConfig, entry: RecentProjectEntry) {
         config
             .recent_projects
             .retain(|current| current.project_path != entry.project_path);

@@ -1,3 +1,4 @@
+use crate::GENERIC_NAM_MODEL_ID;
 use anyhow::{bail, Result};
 use domain::value_objects::ParameterValue;
 use stage_core::param::{
@@ -7,7 +8,6 @@ use stage_core::param::{
 use stage_core::{ModelAudioMode, MonoProcessor};
 use std::ffi::CString;
 use std::os::raw::{c_char, c_void};
-use crate::GENERIC_NAM_MODEL_ID;
 
 pub fn supports_model(model: &str) -> bool {
     model == GENERIC_NAM_MODEL_ID
@@ -88,12 +88,7 @@ pub fn plugin_parameter_specs_with_defaults(defaults: NamPluginParams) -> Vec<Pa
             0.1,
             ParameterUnit::Decibels,
         ),
-        bool_parameter(
-            "eq.enabled",
-            "EQ",
-            Some("EQ"),
-            Some(defaults.eq_enabled),
-        ),
+        bool_parameter("eq.enabled", "EQ", Some("EQ"), Some(defaults.eq_enabled)),
         float_parameter(
             "eq.bass",
             "Bass",

@@ -5,8 +5,8 @@ use stage_core::param::{
 use stage_core::{ModelAudioMode, MonoProcessor};
 
 use crate::shared::{
-    clamp_feedback, clamp_mix, clamp_time_ms, lowpass_step, mix_dry_wet, DelayLine,
-    MAX_DELAY_MS, MAX_FEEDBACK, MIN_DELAY_MS,
+    clamp_feedback, clamp_mix, clamp_time_ms, lowpass_step, mix_dry_wet, DelayLine, MAX_DELAY_MS,
+    MAX_FEEDBACK, MIN_DELAY_MS,
 };
 
 pub const MODEL_ID: &str = "analog_warm";
@@ -128,14 +128,8 @@ impl MonoProcessor for AnalogWarmDelay {
         let delayed = self.line.read();
         let cutoff_hz = self.cutoff_hz();
         let sample_rate = self.line.sample_rate();
-        let filtered = lowpass_step(
-            &mut self.tone_state,
-            delayed,
-            cutoff_hz,
-            sample_rate,
-        );
-        self.line
-            .write(input + filtered * self.params.feedback);
+        let filtered = lowpass_step(&mut self.tone_state, delayed, cutoff_hz, sample_rate);
+        self.line.write(input + filtered * self.params.feedback);
         mix_dry_wet(input, filtered, self.params.mix)
     }
 }

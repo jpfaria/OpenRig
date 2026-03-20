@@ -23,15 +23,51 @@ pub struct BognerEcstasyCapture {
 }
 
 pub const CAPTURES: &[BognerEcstasyCapture] = &[
-    capture("clean", "4x12_v30", "captures/nam/amps/combo/bogner_ecstasy/ecstacy_clean_4x12_v30.nam"),
-    capture("clean", "4x12_greenback", "captures/nam/amps/combo/bogner_ecstasy/ecstacy_clean_4x12_greenback.nam"),
-    capture("clean", "4x12_g12t", "captures/nam/amps/combo/bogner_ecstasy/ecstacy_clean_4x12_g12t.nam"),
-    capture("crunch", "4x12_v30", "captures/nam/amps/combo/bogner_ecstasy/ecstacy_crunch_blue_4x12_v30.nam"),
-    capture("crunch", "4x12_greenback", "captures/nam/amps/combo/bogner_ecstasy/ecstacy_crunch_blue_4x12_greenback.nam"),
-    capture("crunch", "4x12_g12t", "captures/nam/amps/combo/bogner_ecstasy/ecstacy_crunch_blue_4x12_g12t.nam"),
-    capture("drive", "4x12_v30", "captures/nam/amps/combo/bogner_ecstasy/ecstacy_drive_red_4x12_v30.nam"),
-    capture("drive", "4x12_greenback", "captures/nam/amps/combo/bogner_ecstasy/ecstacy_drive_red_4x12_greenback.nam"),
-    capture("drive", "4x12_g12t", "captures/nam/amps/combo/bogner_ecstasy/ecstacy_drive_red_4x12_g12t.nam"),
+    capture(
+        "clean",
+        "4x12_v30",
+        "captures/nam/amps/combo/bogner_ecstasy/ecstacy_clean_4x12_v30.nam",
+    ),
+    capture(
+        "clean",
+        "4x12_greenback",
+        "captures/nam/amps/combo/bogner_ecstasy/ecstacy_clean_4x12_greenback.nam",
+    ),
+    capture(
+        "clean",
+        "4x12_g12t",
+        "captures/nam/amps/combo/bogner_ecstasy/ecstacy_clean_4x12_g12t.nam",
+    ),
+    capture(
+        "crunch",
+        "4x12_v30",
+        "captures/nam/amps/combo/bogner_ecstasy/ecstacy_crunch_blue_4x12_v30.nam",
+    ),
+    capture(
+        "crunch",
+        "4x12_greenback",
+        "captures/nam/amps/combo/bogner_ecstasy/ecstacy_crunch_blue_4x12_greenback.nam",
+    ),
+    capture(
+        "crunch",
+        "4x12_g12t",
+        "captures/nam/amps/combo/bogner_ecstasy/ecstacy_crunch_blue_4x12_g12t.nam",
+    ),
+    capture(
+        "drive",
+        "4x12_v30",
+        "captures/nam/amps/combo/bogner_ecstasy/ecstacy_drive_red_4x12_v30.nam",
+    ),
+    capture(
+        "drive",
+        "4x12_greenback",
+        "captures/nam/amps/combo/bogner_ecstasy/ecstacy_drive_red_4x12_greenback.nam",
+    ),
+    capture(
+        "drive",
+        "4x12_g12t",
+        "captures/nam/amps/combo/bogner_ecstasy/ecstacy_drive_red_4x12_g12t.nam",
+    ),
 ];
 
 pub fn supports_model(model: &str) -> bool {
@@ -46,11 +82,7 @@ pub fn model_schema() -> ModelParameterSchema {
             "Gain",
             Some("Amp Combo"),
             Some("clean"),
-            &[
-                ("clean", "Clean"),
-                ("crunch", "Crunch"),
-                ("drive", "Drive"),
-            ],
+            &[("clean", "Clean"), ("crunch", "Crunch"), ("drive", "Drive")],
         ),
         enum_parameter(
             "cabinet",

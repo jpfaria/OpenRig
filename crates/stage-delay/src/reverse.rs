@@ -5,8 +5,8 @@ use stage_core::param::{
 use stage_core::{ModelAudioMode, MonoProcessor};
 
 use crate::shared::{
-    clamp_feedback, clamp_mix, clamp_time_ms, mix_dry_wet, sanitize, MAX_DELAY_MS,
-    MAX_FEEDBACK, MIN_DELAY_MS,
+    clamp_feedback, clamp_mix, clamp_time_ms, mix_dry_wet, sanitize, MAX_DELAY_MS, MAX_FEEDBACK,
+    MIN_DELAY_MS,
 };
 
 pub const MODEL_ID: &str = "reverse";
@@ -114,7 +114,8 @@ impl ReverseDelay {
     }
 
     fn refresh_segment_len(&mut self) {
-        self.segment_len = segment_len_for(self.params.time_ms, self.sample_rate, self.capture.len());
+        self.segment_len =
+            segment_len_for(self.params.time_ms, self.sample_rate, self.capture.len());
     }
 }
 

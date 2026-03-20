@@ -5,8 +5,8 @@ use stage_core::param::{
 use stage_core::{ModelAudioMode, MonoProcessor};
 
 use crate::shared::{
-    clamp_feedback, clamp_mix, clamp_time_ms, mix_dry_wet, DelayLine, MAX_DELAY_MS,
-    MAX_FEEDBACK, MIN_DELAY_MS,
+    clamp_feedback, clamp_mix, clamp_time_ms, mix_dry_wet, DelayLine, MAX_DELAY_MS, MAX_FEEDBACK,
+    MIN_DELAY_MS,
 };
 use std::f32::consts::TAU;
 
@@ -139,12 +139,10 @@ impl MonoProcessor for ModulatedDelay {
     fn process_sample(&mut self, input: f32) -> f32 {
         let sample_rate = self.line.sample_rate();
         self.phase = wrap_phase(self.phase + TAU * self.params.rate_hz / sample_rate);
-        let modulated_time =
-            self.params.time_ms + self.phase.sin() * self.modulation_amount_ms();
+        let modulated_time = self.params.time_ms + self.phase.sin() * self.modulation_amount_ms();
         self.line.set_delay_ms(modulated_time);
         let delayed = self.line.read();
-        self.line
-            .write(input + delayed * self.params.feedback);
+        self.line.write(input + delayed * self.params.feedback);
         mix_dry_wet(input, delayed, self.params.mix)
     }
 }

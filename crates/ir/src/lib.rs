@@ -35,8 +35,8 @@ impl IrAsset {
                 .collect::<Result<Vec<_>, _>>()
                 .with_context(|| format!("failed to read float samples from '{}'", path))?,
             hound::SampleFormat::Int => {
-                let max_amplitude = ((1i64 << (spec.bits_per_sample.saturating_sub(1) as u32)) - 1)
-                    .max(1) as f32;
+                let max_amplitude =
+                    ((1i64 << (spec.bits_per_sample.saturating_sub(1) as u32)) - 1).max(1) as f32;
                 reader
                     .samples::<i32>()
                     .map(|sample| sample.map(|value| value as f32 / max_amplitude))
@@ -49,7 +49,10 @@ impl IrAsset {
             bail!("IR '{}' contains no samples", path);
         }
         if interleaved.len() % channels != 0 {
-            bail!("IR '{}' sample data is not aligned to its channel count", path);
+            bail!(
+                "IR '{}' sample data is not aligned to its channel count",
+                path
+            );
         }
 
         let channel_data = match channels {
@@ -360,7 +363,8 @@ mod tests {
     #[test]
     fn loads_stereo_ir_from_float_wav() {
         let path = std::env::temp_dir().join("openrig_ir_loader_stereo_test.wav");
-        crate::test_support::write_test_stereo_ir(&path).expect("test stereo wav should be created");
+        crate::test_support::write_test_stereo_ir(&path)
+            .expect("test stereo wav should be created");
 
         let ir = IrAsset::load_from_wav(path.to_str().unwrap()).expect("stereo IR should load");
 
