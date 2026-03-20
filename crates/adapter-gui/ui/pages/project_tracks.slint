@@ -93,8 +93,8 @@ component StageTypeCard inherits Rectangle {
         : "CORE";
     callback clicked();
 
-    width: 82px;
-    height: 82px;
+    width: 88px;
+    height: 88px;
     background: #151920;
     border-width: 1px;
     border-color: root.accent-color;
@@ -113,10 +113,10 @@ component StageTypeCard inherits Rectangle {
     }
 
     Image {
-        x: 13px;
-        y: 17px;
-        width: 56px;
-        height: 56px;
+        x: 14px;
+        y: 20px;
+        width: 60px;
+        height: 60px;
         source: root.icon-source;
         image-fit: contain;
         colorize: root.accent-color;
@@ -586,11 +586,15 @@ component TrackRow inherits Rectangle {
     callback select-track-stage(int, int);
     callback toggle-track-stage-enabled(int, int);
     callback start-stage-insert(int, int);
+    property <int> stages-per-row: Math.max(1, Math.floor((root.width - 120px) / 124px));
+    property <int> stage-row-count: root.track.stages.length == 0 ? 1 : Math.floor((root.track.stages.length - 1) / root.stages-per-row) + 1;
+    property <int> insert-row-count: Math.floor(root.track.stages.length / root.stages-per-row) + 1;
 
     background: transparent;
     border-width: 1px;
     border-color: #31353d;
     border-radius: 6px;
+    height: 108px + (root.insert-row-count * 112px);
 
     Rectangle {
         x: 0px;
@@ -644,7 +648,7 @@ component TrackRow inherits Rectangle {
         x: 18px;
         y: 58px;
         width: parent.width - 36px;
-        height: 84px;
+        height: root.insert-row-count * 112px;
         background: transparent;
 
         StageInsertSlot {
@@ -655,8 +659,8 @@ component TrackRow inherits Rectangle {
         }
 
         for stage[stage-index] in root.track.stages : StageChip {
-            x: 56px + stage-index * 124px;
-            y: 0px;
+            x: 56px + Math.mod(stage-index, root.stages-per-row) * 124px;
+            y: Math.floor(stage-index / root.stages-per-row) * 112px;
             stage: stage;
             icon-source: stage.kind == "amp_head"
                 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-head.svg")
@@ -690,8 +694,8 @@ component TrackRow inherits Rectangle {
         }
 
         for stage[stage-index] in root.track.stages : StageInsertSlot {
-            x: 140px + stage-index * 124px;
-            y: 30px;
+            x: 140px + Math.mod(stage-index, root.stages-per-row) * 124px;
+            y: 30px + Math.floor(stage-index / root.stages-per-row) * 112px;
             clicked => { root.start-stage-insert(root.track-index, stage-index + 1); }
         }
     }
@@ -893,13 +897,12 @@ export component ProjectTracksPage inherits Rectangle {
             y: 88px;
             width: parent.width - 36px;
             height: parent.height - 106px;
-            viewport-height: root.project-tracks.length * 180px;
+            viewport-height: root.project-tracks.length * 372px;
 
             for track[index] in root.project-tracks : TrackRow {
                 x: 6px;
-                y: index * 180px;
+                y: index * 352px;
                 width: parent.width - 12px;
-                height: 160px;
                 track: track;
                 track-index: index;
                 selected-stage-track-index: root.selected-track-stage-track-index;
@@ -968,7 +971,7 @@ export component ProjectTracksPage inherits Rectangle {
             ScrollView {
                 x: 20px;
                 y: 78px;
-                width: parent.width - 54px;
+                width: parent.width - 92px;
                 height: parent.height - 168px;
                 viewport-height: 420px + (root.stage-model-options.length * 62px) + (root.stage-parameter-items.length * 82px);
 
@@ -986,7 +989,7 @@ export component ProjectTracksPage inherits Rectangle {
                 for model-item[index] in root.stage-model-options : StageModelRow {
                     x: 0px;
                     y: 24px + index * 62px;
-                    width: parent.width - 10px;
+                    width: parent.width - 36px;
                     item: model-item;
                     selected: root.stage-drawer-selected-model-index == index;
                     clicked => { root.choose-stage-model(index); }
@@ -1006,7 +1009,7 @@ export component ProjectTracksPage inherits Rectangle {
                 for param-item[index] in root.stage-parameter-items : StageParameterRow {
                     x: 0px;
                     y: 24px + (root.stage-model-options.length * 62px) + 44px + index * 82px;
-                    width: parent.width - 10px;
+                    width: parent.width - 36px;
                     item: param-item;
                     text-changed(path, value) => { root.update-stage-parameter-text(path, value); }
                     number-changed(path, value) => { root.update-stage-parameter-number(path, value); }
@@ -1067,48 +1070,56 @@ export component ProjectTracksPage inherits Rectangle {
         }
 
         Rectangle {
-            x: (parent.width - 440px) / 2;
-            y: (parent.height - 304px) / 2;
-            width: 440px;
-            height: 304px;
+            x: (parent.width - 472px) / 2;
+            y: (parent.height - 438px) / 2;
+            width: 472px;
+            height: 438px;
             background: #171a20f8;
             border-width: 1px;
             border-color: #2d3340;
             border-radius: 6px;
 
-            for type-item[index] in root.stage-type-options : StageTypeCard {
-                x: 24px + Math.mod(index, 4) * 100px;
-                y: 24px + Math.floor(index / 4) * 94px;
-                item: type-item;
-                selected: false;
-                icon-source: type-item.icon_kind == "amp_head"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-head.svg")
-                    : type-item.icon_kind == "amp_combo"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-combo.svg")
-                    : type-item.icon_kind == "cab"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/cab.svg")
-                    : type-item.icon_kind == "full_rig"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/full-rig.svg")
-                    : type-item.icon_kind == "drive"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gain.svg")
-                    : type-item.icon_kind == "compressor"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/compressor.svg")
-                    : type-item.icon_kind == "gate"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gate.svg")
-                    : type-item.icon_kind == "eq"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/eq.svg")
-                    : type-item.icon_kind == "tremolo"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/mod.svg")
-                    : type-item.icon_kind == "delay"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/delay.svg")
-                    : type-item.icon_kind == "reverb"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/reverb.svg")
-                    : type-item.icon_kind == "tuner"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/tuner.svg")
-                    : type-item.icon_kind == "nam"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/nam.svg")
-                    : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
-                clicked => { root.choose-stage-type(index); }
+            ScrollView {
+                x: 20px;
+                y: 20px;
+                width: parent.width - 40px;
+                height: parent.height - 40px;
+                viewport-height: (Math.floor((root.stage-type-options.length - 1) / 4) + 1) * 100px;
+
+                for type-item[index] in root.stage-type-options : StageTypeCard {
+                    x: Math.mod(index, 4) * 106px;
+                    y: Math.floor(index / 4) * 100px;
+                    item: type-item;
+                    selected: false;
+                    icon-source: type-item.icon_kind == "amp_head"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-head.svg")
+                        : type-item.icon_kind == "amp_combo"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-combo.svg")
+                        : type-item.icon_kind == "cab"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/cab.svg")
+                        : type-item.icon_kind == "full_rig"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/full-rig.svg")
+                        : type-item.icon_kind == "drive"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gain.svg")
+                        : type-item.icon_kind == "compressor"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/compressor.svg")
+                        : type-item.icon_kind == "gate"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gate.svg")
+                        : type-item.icon_kind == "eq"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/eq.svg")
+                        : type-item.icon_kind == "tremolo"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/mod.svg")
+                        : type-item.icon_kind == "delay"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/delay.svg")
+                        : type-item.icon_kind == "reverb"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/reverb.svg")
+                        : type-item.icon_kind == "tuner"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/tuner.svg")
+                        : type-item.icon_kind == "nam"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/nam.svg")
+                        : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
+                    clicked => { root.choose-stage-type(index); }
+                }
             }
         }
     }

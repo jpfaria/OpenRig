@@ -2763,14 +2763,7 @@ fn stage_parameter_visible_in_gui(effect_type: &str, path: &str) -> bool {
     }
 
     match effect_type {
-        "amp_head" => !matches!(
-            path,
-            "input_level_db"
-                | "output_level_db"
-                | "noise_gate_threshold_db"
-                | "noise_gate_enabled"
-                | "eq_enabled"
-        ),
+        "amp_head" => matches!(path, "volume" | "gain"),
         _ => true,
     }
 }

@@ -264,7 +264,7 @@ fn stage_model_catalog() -> Vec<StageModelDefinition> {
         },
         StageModelDefinition {
             effect_type: "nam",
-            model_id: "generic_nam",
+            model_id: "neural_amp_modeler",
             title: "Generic NAM",
             subtitle: "Neural amp model generico",
             icon_kind: "nam",
