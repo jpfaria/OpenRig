@@ -884,12 +884,16 @@ mod tests {
         build_chain_runtime_state, build_runtime_graph, process_input_f32, process_output_f32,
         update_chain_runtime_state, MAX_BUFFERED_OUTPUT_FRAMES,
     };
+    use block_amp_head::supported_models as supported_amp_head_models;
     use block_cab::{cab_backend_kind, supported_models as supported_cab_models, CabBackendKind};
+    use block_dyn::compressor_supported_models;
+    use block_reverb::supported_models as supported_reverb_models;
     use block_util::supported_models as supported_tuner_models;
     use domain::ids::{BlockId, DeviceId, ChainId};
     use domain::value_objects::ParameterValue;
     use project::block::{
-        AudioBlock, AudioBlockKind, CabBlock, CoreBlock, CoreBlockKind, TunerBlock,
+        AmpHeadBlock, AudioBlock, AudioBlockKind, CabBlock, CompressorBlock, CoreBlock,
+        CoreBlockKind, ReverbBlock, TunerBlock, schema_for_block_model,
     };
     use project::param::ParameterSet;
     use project::project::Project;
@@ -1086,6 +1090,87 @@ mod tests {
         assert!(output.processed_frames.is_empty());
     }
 
+    #[test]
+    fn dual_mono_chain_does_not_leak_left_into_right() {
+        let chain = Chain {
+            id: ChainId("chain:stereo".into()),
+            description: Some("Stereo isolation".into()),
+            enabled: true,
+            input_device_id: DeviceId("input-device".into()),
+            input_channels: vec![0, 1],
+            output_device_id: DeviceId("output-device".into()),
+            output_channels: vec![0, 1],
+            blocks: vec![
+                compressor_block("chain:stereo:block:0"),
+                amp_head_block("chain:stereo:block:1"),
+                native_cab_block("chain:stereo:block:2"),
+                reverb_block("chain:stereo:block:3"),
+            ],
+            output_mixdown: ChainOutputMixdown::Average,
+        };
+        let runtime =
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"));
+
+        let mut input = vec![0.0f32; 256 * 2];
+        for frame in input.chunks_mut(2) {
+            frame[0] = 0.25;
+            frame[1] = 0.0;
+        }
+        process_input_f32(&runtime, &input, 2);
+
+        let mut output = vec![0.0f32; input.len()];
+        process_output_f32(&runtime, &mut output, 2);
+
+        let right_peak = output
+            .chunks_exact(2)
+            .map(|frame| frame[1].abs())
+            .fold(0.0f32, f32::max);
+        assert!(
+            right_peak <= 1.0e-6,
+            "dual-mono chain leaked signal into right channel: peak={right_peak}"
+        );
+    }
+
+    #[test]
+    fn asset_backed_dual_mono_chain_does_not_leak_left_into_right() {
+        let chain = Chain {
+            id: ChainId("chain:asset-backed".into()),
+            description: Some("Stereo isolation asset-backed".into()),
+            enabled: true,
+            input_device_id: DeviceId("input-device".into()),
+            input_channels: vec![0, 1],
+            output_device_id: DeviceId("output-device".into()),
+            output_channels: vec![0, 1],
+            blocks: vec![
+                marshall_amp_head_block("chain:asset-backed:block:0"),
+                ir_cab_block("chain:asset-backed:block:1"),
+                reverb_block("chain:asset-backed:block:2"),
+            ],
+            output_mixdown: ChainOutputMixdown::Average,
+        };
+        let runtime =
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"));
+
+        let mut input = vec![0.0f32; 256 * 2];
+        for frame in input.chunks_mut(2) {
+            frame[0] = 0.25;
+            frame[1] = 0.0;
+        }
+        process_input_f32(&runtime, &input, 2);
+
+        let mut output = vec![0.0f32; input.len()];
+        process_output_f32(&runtime, &mut output, 2);
+
+        let right_peak = output
+            .chunks_exact(2)
+            .map(|frame| frame[1].abs())
+            .fold(0.0f32, f32::max);
+        assert!(
+            right_peak <= 1.0e-6,
+            "asset-backed dual-mono chain leaked signal into right channel: peak={right_peak}"
+        );
+    }
+
     fn tuner_track(chain_id: &str, blocks: Vec<AudioBlock>) -> Chain {
         Chain {
             id: ChainId(chain_id.into()),
@@ -1135,5 +1220,116 @@ mod tests {
             .normalized_against(&schema)
             .expect("cab defaults should normalize");
         (model, params)
+    }
+
+    fn normalized_defaults(effect_type: &str, model: &str) -> ParameterSet {
+        let schema =
+            schema_for_block_model(effect_type, model).expect("schema should exist for test model");
+        ParameterSet::default()
+            .normalized_against(&schema)
+            .expect("defaults should normalize")
+    }
+
+    fn compressor_block(block_id: &str) -> AudioBlock {
+        let model = compressor_supported_models()
+            .first()
+            .expect("block-dyn must expose at least one compressor")
+            .to_string();
+        AudioBlock {
+            id: BlockId(block_id.into()),
+            enabled: true,
+            kind: AudioBlockKind::Core(CoreBlock {
+                kind: CoreBlockKind::Compressor(CompressorBlock {
+                    params: normalized_defaults("compressor", &model),
+                    model,
+                }),
+            }),
+        }
+    }
+
+    fn native_cab_block(block_id: &str) -> AudioBlock {
+        let model = supported_cab_models()
+            .iter()
+            .find(|model| matches!(cab_backend_kind(model).expect("cab backend"), CabBackendKind::Native))
+            .expect("block-cab must expose at least one native model")
+            .to_string();
+        AudioBlock {
+            id: BlockId(block_id.into()),
+            enabled: true,
+            kind: AudioBlockKind::Core(CoreBlock {
+                kind: CoreBlockKind::Cab(CabBlock {
+                    params: normalized_defaults("cab", &model),
+                    model,
+                }),
+            }),
+        }
+    }
+
+    fn amp_head_block(block_id: &str) -> AudioBlock {
+        let model = supported_amp_head_models()
+            .iter()
+            .find(|model| !model.contains("marshall_jcm_800"))
+            .or_else(|| supported_amp_head_models().first())
+            .expect("block-amp-head must expose at least one model")
+            .to_string();
+        AudioBlock {
+            id: BlockId(block_id.into()),
+            enabled: true,
+            kind: AudioBlockKind::Core(CoreBlock {
+                kind: CoreBlockKind::AmpHead(AmpHeadBlock {
+                    params: normalized_defaults("amp_head", &model),
+                    model,
+                }),
+            }),
+        }
+    }
+
+    fn marshall_amp_head_block(block_id: &str) -> AudioBlock {
+        let model = "marshall_jcm_800_2203".to_string();
+        AudioBlock {
+            id: BlockId(block_id.into()),
+            enabled: true,
+            kind: AudioBlockKind::Core(CoreBlock {
+                kind: CoreBlockKind::AmpHead(AmpHeadBlock {
+                    params: normalized_defaults("amp_head", &model),
+                    model,
+                }),
+            }),
+        }
+    }
+
+    fn ir_cab_block(block_id: &str) -> AudioBlock {
+        let model = supported_cab_models()
+            .iter()
+            .find(|model| matches!(cab_backend_kind(model).expect("cab backend"), CabBackendKind::Ir))
+            .expect("block-cab must expose at least one IR model")
+            .to_string();
+        AudioBlock {
+            id: BlockId(block_id.into()),
+            enabled: true,
+            kind: AudioBlockKind::Core(CoreBlock {
+                kind: CoreBlockKind::Cab(CabBlock {
+                    params: normalized_defaults("cab", &model),
+                    model,
+                }),
+            }),
+        }
+    }
+
+    fn reverb_block(block_id: &str) -> AudioBlock {
+        let model = supported_reverb_models()
+            .first()
+            .expect("block-reverb must expose at least one model")
+            .to_string();
+        AudioBlock {
+            id: BlockId(block_id.into()),
+            enabled: true,
+            kind: AudioBlockKind::Core(CoreBlock {
+                kind: CoreBlockKind::Reverb(ReverbBlock {
+                    params: normalized_defaults("reverb", &model),
+                    model,
+                }),
+            }),
+        }
     }
 }
