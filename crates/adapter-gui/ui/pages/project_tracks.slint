@@ -1385,7 +1385,7 @@ export component ProjectTracksPage inherits Rectangle {
                 y: 78px;
                 width: parent.width - 40px;
                 height: parent.height - 168px;
-                viewport-height: 300px + (((root.stage-parameter-items.length + 1) / 2) * 156px);
+                viewport-height: 180px + (root.stage-parameter-items.length * 96px);
 
                 Text {
                     x: 0px;
@@ -1430,9 +1430,9 @@ export component ProjectTracksPage inherits Rectangle {
                 }
 
                 for param-item[index] in root.stage-parameter-items : StageParameterRow {
-                    x: (Math.mod(index, 2) * (((parent.width - 16px) / 2) + 16px));
-                    y: 122px + (((index - Math.mod(index, 2)) / 2) * 156px);
-                    width: (parent.width - 16px) / 2;
+                    x: 0px;
+                    y: 122px + (index * 96px);
+                    width: parent.width - 28px;
                     item: param-item;
                     text-changed(path, value) => { root.update-stage-parameter-text(path, value); }
                     number-changed(path, value) => { root.update-stage-parameter-number(path, value); }
