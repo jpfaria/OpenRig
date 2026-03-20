@@ -671,7 +671,7 @@ component StageInsertSlot inherits Rectangle {
     in property <bool> suppress-hover-affordance: false;
     callback clicked();
 
-    width: 40px;
+    width: 32px;
     height: 24px;
     background: transparent;
 
@@ -828,7 +828,7 @@ component TrackRow inherits Rectangle {
         }
 
         StageInsertSlot {
-            x: 16px;
+            x: 24px;
             y: 26px;
             empty-slot: root.track.stages.length == 0;
             move-target: root.dragging-track-index == root.track-index && root.dragging-stage-index >= 0;
@@ -897,7 +897,7 @@ component TrackRow inherits Rectangle {
         }
 
         for stage[stage-index] in root.track.stages : StageInsertSlot {
-            x: 132px + Math.mod(stage-index, root.stages-per-row) * 116px;
+            x: 140px + Math.mod(stage-index, root.stages-per-row) * 116px;
             y: 26px + Math.floor(stage-index / root.stages-per-row) * 100px;
             move-target: root.dragging-track-index == root.track-index && root.dragging-stage-index >= 0;
             suppress-hover-affordance: root.suppress-insert-hover;
