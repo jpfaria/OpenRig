@@ -1,0 +1,44 @@
+<svg width="220" height="220" viewBox="0 0 220 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="knobRing" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#F5F7FA"/>
+      <stop offset="0.5" stop-color="#BAC4D0"/>
+      <stop offset="1" stop-color="#667282"/>
+    </linearGradient>
+    <linearGradient id="switchRing" x1="80" y1="124" x2="141" y2="185" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EEF2F8"/>
+      <stop offset="0.55" stop-color="#AEB9C8"/>
+      <stop offset="1" stop-color="#667180"/>
+    </linearGradient>
+  </defs>
+
+  <g>
+    <circle cx="70" cy="60" r="17" fill="#121820"/>
+    <circle cx="70" cy="60" r="16" stroke="url(#knobRing)" stroke-width="2"/>
+    <circle cx="70" cy="60" r="8.5" fill="#273140"/>
+    <rect x="68.8" y="47" width="2.4" height="8" rx="1.2" fill="#F6F9FF"/>
+  </g>
+
+  <g>
+    <circle cx="110" cy="50" r="21" fill="#11161D"/>
+    <circle cx="110" cy="50" r="20" stroke="url(#knobRing)" stroke-width="2"/>
+    <circle cx="110" cy="50" r="10.5" fill="#273241"/>
+    <rect x="108.8" y="34" width="2.4" height="9" rx="1.2" fill="#F6F9FF"/>
+  </g>
+
+  <g>
+    <circle cx="150" cy="60" r="17" fill="#121820"/>
+    <circle cx="150" cy="60" r="16" stroke="url(#knobRing)" stroke-width="2"/>
+    <circle cx="150" cy="60" r="8.5" fill="#273140"/>
+    <rect x="148.8" y="47" width="2.4" height="8" rx="1.2" fill="#F6F9FF"/>
+  </g>
+
+  <circle cx="148" cy="101" r="6" fill="#29E085"/>
+  <circle cx="148" cy="101" r="3.5" fill="#D8FFE9"/>
+
+  <g>
+    <circle cx="110" cy="134" r="28" fill="#11161D"/>
+    <circle cx="110" cy="134" r="27" stroke="url(#switchRing)" stroke-width="2"/>
+    <circle cx="110" cy="134" r="15" fill="#D9E1EC" fill-opacity="0.14"/>
+  </g>
+</svg>

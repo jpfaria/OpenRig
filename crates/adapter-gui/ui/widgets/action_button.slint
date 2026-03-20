@@ -13,8 +13,8 @@ component BaseActionButton inherits Rectangle {
     in property <int> text-weight: 600;
     callback clicked();
 
-    height: 44px;
-    border-radius: 18px;
+    height: 46px;
+    border-radius: 16px;
     border-width: 1px;
     background: root.enabled ? root.fill : Theme.palette.secondary-start;
     border-color: root.outline-color;
@@ -55,7 +55,7 @@ component BaseActionButton inherits Rectangle {
 }
 
 export component PrimaryActionButton inherits BaseActionButton {
-    width: 136px;
+    width: 144px;
     fill: @linear-gradient(180deg, Theme.palette.accent-start 0%, Theme.palette.accent-end 100%);
     outline-color: Theme.palette.accent-border;
     text-color: #f6f8ff;
@@ -63,7 +63,7 @@ export component PrimaryActionButton inherits BaseActionButton {
 }
 
 export component SecondaryActionButton inherits BaseActionButton {
-    width: 120px;
+    width: 126px;
     fill: @linear-gradient(180deg, Theme.palette.secondary-start 0%, Theme.palette.secondary-end 100%);
     outline-color: Theme.palette.secondary-border;
     text-color: Theme.palette.text-secondary;
@@ -76,8 +76,8 @@ component BaseIconActionButton inherits Rectangle {
     in property <image> icon;
     callback clicked();
 
-    width: 40px;
-    height: 40px;
+    width: 42px;
+    height: 42px;
     border-radius: 14px;
     border-width: 1px;
     background: root.enabled ? root.fill : Theme.palette.secondary-start;
@@ -114,8 +114,8 @@ export component IconAction inherits Rectangle {
     in property <bool> enabled: true;
     callback clicked();
 
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     background: transparent;
 
     Image {
@@ -139,9 +139,9 @@ export component ColoredIconAction inherits Rectangle {
     in property <color> outline-color;
     callback clicked();
 
-    width: 26px;
-    height: 26px;
-    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
     border-width: 1px;
     background: root.enabled ? root.fill : Theme.palette.secondary-start;
     border-color: root.outline-color;
@@ -149,8 +149,8 @@ export component ColoredIconAction inherits Rectangle {
     Image {
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
-        width: 14px;
-        height: 14px;
+        width: 16px;
+        height: 16px;
         source: root.icon;
     }
 

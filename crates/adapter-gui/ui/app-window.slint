@@ -1,4 +1,4 @@
-import { ChannelOptionItem, DeviceSelectionItem, ProjectTrackItem, RecentProjectItem } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectTrackItem, RecentProjectItem, StageModelPickerItem, StageTypePickerItem } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
 
@@ -20,6 +20,7 @@ export component AppWindow inherits Window {
     in-out property <[DeviceSelectionItem]> output-devices;
     in-out property <[ProjectTrackItem]> project-tracks;
     in-out property <[RecentProjectItem]> recent-projects;
+    in-out property <string> recent-project-search;
     in property <string> track-editor-title;
     in property <string> track-editor-save-label;
     in-out property <string> track-draft-name;
@@ -27,6 +28,13 @@ export component AppWindow inherits Window {
     in property <[string]> track-output-device-options;
     in property <int> selected-track-input-device-index;
     in property <int> selected-track-output-device-index;
+    in property <int> selected-track-stage-track-index;
+    in property <int> selected-track-stage-index;
+    in property <[StageTypePickerItem]> stage-type-options;
+    in property <[StageModelPickerItem]> stage-model-options;
+    in property <string> stage-picker-title;
+    in property <bool> show-stage-type-picker;
+    in property <bool> show-stage-model-picker;
     in property <[ChannelOptionItem]> track-input-channels;
     in property <[ChannelOptionItem]> track-output-channels;
     in-out property <string> status-message;
@@ -48,6 +56,7 @@ export component AppWindow inherits Window {
     callback create-project-file();
     callback open-recent-project(int);
     callback remove-recent-project(int);
+    callback filter-recent-projects(string);
     callback back-to-launcher();
     callback add-track();
     callback save-project();
@@ -64,13 +73,20 @@ export component AppWindow inherits Window {
     callback select-track-output-device(int);
     callback toggle-track-input-channel(int, bool);
     callback toggle-track-output-channel(int, bool);
+    callback select-track-stage(int, int);
+    callback clear-track-stage();
+    callback toggle-track-stage-enabled(int, int);
+    callback start-stage-insert(int, int);
+    callback choose-stage-type(int);
+    callback choose-stage-model(int);
+    callback cancel-stage-picker();
     callback save-track();
     callback cancel-track();
     title: "OpenRig";
-    min-width: 960px;
-    min-height: 720px;
-    preferred-width: 1280px;
-    preferred-height: 900px;
+    min-width: 980px;
+    min-height: 680px;
+    preferred-width: 1160px;
+    preferred-height: 760px;
     background: #040708;
     default-font-family: "Helvetica Neue";
     if !touch-optimized : DesktopMain {
@@ -90,6 +106,7 @@ export component AppWindow inherits Window {
         output-devices: root.output-devices;
         project-tracks: root.project-tracks;
         recent-projects: root.recent-projects;
+        recent-project-search: root.recent-project-search;
         track-editor-title: root.track-editor-title;
         track-editor-save-label: root.track-editor-save-label;
         track-draft-name: root.track-draft-name;
@@ -97,6 +114,13 @@ export component AppWindow inherits Window {
         track-output-device-options: root.track-output-device-options;
         selected-track-input-device-index: root.selected-track-input-device-index;
         selected-track-output-device-index: root.selected-track-output-device-index;
+        selected-track-stage-track-index: root.selected-track-stage-track-index;
+        selected-track-stage-index: root.selected-track-stage-index;
+        stage-type-options: root.stage-type-options;
+        stage-model-options: root.stage-model-options;
+        stage-picker-title: root.stage-picker-title;
+        show-stage-type-picker: root.show-stage-type-picker;
+        show-stage-model-picker: root.show-stage-model-picker;
         track-input-channels: root.track-input-channels;
         track-output-channels: root.track-output-channels;
         status-message: root.status-message;
@@ -117,6 +141,7 @@ export component AppWindow inherits Window {
         create-project-file => { root.create-project-file(); }
         open-recent-project(index) => { root.open-recent-project(index); }
         remove-recent-project(index) => { root.remove-recent-project(index); }
+        filter-recent-projects(value) => { root.filter-recent-projects(value); }
         back-to-launcher => { root.back-to-launcher(); }
         add-track => { root.add-track(); }
         save-project => { root.save-project(); }
@@ -133,6 +158,13 @@ export component AppWindow inherits Window {
         select-track-output-device(index) => { root.select-track-output-device(index); }
         toggle-track-input-channel(index, selected) => { root.toggle-track-input-channel(index, selected); }
         toggle-track-output-channel(index, selected) => { root.toggle-track-output-channel(index, selected); }
+        select-track-stage(track-index, stage-index) => { root.select-track-stage(track-index, stage-index); }
+        clear-track-stage => { root.clear-track-stage(); }
+        toggle-track-stage-enabled(track-index, stage-index) => { root.toggle-track-stage-enabled(track-index, stage-index); }
+        start-stage-insert(track-index, before-index) => { root.start-stage-insert(track-index, before-index); }
+        choose-stage-type(index) => { root.choose-stage-type(index); }
+        choose-stage-model(index) => { root.choose-stage-model(index); }
+        cancel-stage-picker => { root.cancel-stage-picker(); }
         save-track => { root.save-track(); }
         cancel-track => { root.cancel-track(); }
     }
@@ -154,6 +186,7 @@ export component AppWindow inherits Window {
         output-devices: root.output-devices;
         project-tracks: root.project-tracks;
         recent-projects: root.recent-projects;
+        recent-project-search: root.recent-project-search;
         track-editor-title: root.track-editor-title;
         track-editor-save-label: root.track-editor-save-label;
         track-draft-name: root.track-draft-name;
@@ -161,6 +194,13 @@ export component AppWindow inherits Window {
         track-output-device-options: root.track-output-device-options;
         selected-track-input-device-index: root.selected-track-input-device-index;
         selected-track-output-device-index: root.selected-track-output-device-index;
+        selected-track-stage-track-index: root.selected-track-stage-track-index;
+        selected-track-stage-index: root.selected-track-stage-index;
+        stage-type-options: root.stage-type-options;
+        stage-model-options: root.stage-model-options;
+        stage-picker-title: root.stage-picker-title;
+        show-stage-type-picker: root.show-stage-type-picker;
+        show-stage-model-picker: root.show-stage-model-picker;
         track-input-channels: root.track-input-channels;
         track-output-channels: root.track-output-channels;
         status-message: root.status-message;
@@ -181,6 +221,7 @@ export component AppWindow inherits Window {
         create-project-file => { root.create-project-file(); }
         open-recent-project(index) => { root.open-recent-project(index); }
         remove-recent-project(index) => { root.remove-recent-project(index); }
+        filter-recent-projects(value) => { root.filter-recent-projects(value); }
         back-to-launcher => { root.back-to-launcher(); }
         add-track => { root.add-track(); }
         save-project => { root.save-project(); }
@@ -197,6 +238,13 @@ export component AppWindow inherits Window {
         select-track-output-device(index) => { root.select-track-output-device(index); }
         toggle-track-input-channel(index, selected) => { root.toggle-track-input-channel(index, selected); }
         toggle-track-output-channel(index, selected) => { root.toggle-track-output-channel(index, selected); }
+        select-track-stage(track-index, stage-index) => { root.select-track-stage(track-index, stage-index); }
+        clear-track-stage => { root.clear-track-stage(); }
+        toggle-track-stage-enabled(track-index, stage-index) => { root.toggle-track-stage-enabled(track-index, stage-index); }
+        start-stage-insert(track-index, before-index) => { root.start-stage-insert(track-index, before-index); }
+        choose-stage-type(index) => { root.choose-stage-type(index); }
+        choose-stage-model(index) => { root.choose-stage-model(index); }
+        cancel-stage-picker => { root.cancel-stage-picker(); }
         save-track => { root.save-track(); }
         cancel-track => { root.cancel-track(); }
     }

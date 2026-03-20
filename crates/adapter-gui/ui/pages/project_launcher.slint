@@ -1,142 +1,322 @@
-import { VerticalBox, HorizontalBox, ScrollView } from "std-widgets.slint";
-import { Theme } from "../theme.slint";
+import { ScrollView } from "std-widgets.slint";
 import { RecentProjectItem } from "../models.slint";
-import { SButton, SCard, SText } from "../modules/surrealism-ui/index.slint";
-import { Themes } from "../modules/surrealism-ui/use/index.slint";
-import { IconAction } from "../widgets/widgets.slint";
 
-export component ProjectLauncherPage inherits SCard {
-    in property <string> project-path-label;
+component LauncherButton inherits Rectangle {
+    in property <string> label;
+    in property <bool> primary: false;
+    callback clicked();
+
+    width: primary ? 156px : 150px;
+    height: 40px;
+    background: primary ? #188cff : #2f3339;
+    border-width: 1px;
+    border-color: primary ? #45a7ff : #4c515b;
+    border-radius: 4px;
+
+    Text {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        text: root.label;
+        color: #f4f7fb;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
+
+component IconLauncherButton inherits Rectangle {
+    in property <image> icon;
+    callback clicked();
+
+    width: 40px;
+    height: 40px;
+    background: #2f3339;
+    border-width: 1px;
+    border-color: #4c515b;
+    border-radius: 4px;
+
+    Image {
+        x: 10px;
+        y: 10px;
+        width: 20px;
+        height: 20px;
+        source: root.icon;
+        image-fit: contain;
+    }
+
+    TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
+
+component RecentProjectRow inherits Rectangle {
+    in property <int> original-index;
+    in property <string> title;
+    in property <string> subtitle;
+    callback open(int);
+    callback remove(int);
+
+    height: 74px;
+    background: main-area.has-hover ? #ffffff10 : transparent;
+
+    Rectangle {
+        x: 0px;
+        y: parent.height - 1px;
+        width: parent.width;
+        height: 1px;
+        background: #33373e;
+    }
+
+    Rectangle {
+        x: 16px;
+        y: 19px;
+        width: 18px;
+        height: 18px;
+        background: #171b22cc;
+        border-width: 1px;
+        border-color: #626c79;
+        border-radius: 3px;
+
+        Rectangle { x: 4px; y: 4px; width: 3px; height: 3px; background: #8e99a7; border-radius: 1.5px; }
+        Rectangle { x: 10px; y: 10px; width: 3px; height: 3px; background: #cfd5de; border-radius: 1.5px; }
+    }
+
+    Text {
+        x: 46px;
+        y: 12px;
+        width: parent.width - 148px;
+        height: 24px;
+        text: root.title;
+        color: #f1f4f8;
+        font-size: 14px;
+        font-weight: 600;
+        vertical-alignment: center;
+    }
+
+    Text {
+        x: 46px;
+        y: 38px;
+        width: parent.width - 148px;
+        height: 18px;
+        text: root.subtitle;
+        color: #8d95a2;
+        font-size: 12px;
+        vertical-alignment: center;
+    }
+
+    Image {
+        x: parent.width - 30px;
+        y: 21px;
+        width: 18px;
+        height: 18px;
+        source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/trash.svg");
+    }
+
+    main-area := TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width - 44px;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => { root.open(root.original-index); }
+    }
+
+    delete-area := TouchArea {
+        x: parent.width - 38px;
+        y: 17px;
+        width: 28px;
+        height: 28px;
+        mouse-cursor: pointer;
+        clicked => { root.remove(root.original-index); }
+    }
+}
+
+component SearchField inherits Rectangle {
+    in-out property <string> text;
+    callback changed(string);
+
+    height: 34px;
+    background: #1d2025;
+    border-width: 1px;
+    border-color: #41454e;
+    border-radius: 4px;
+    clip: true;
+
+    if root.text == "" : Text {
+        x: 12px;
+        y: 0px;
+        width: parent.width - 24px;
+        height: parent.height;
+        text: "Buscar projetos";
+        color: #858d99;
+        vertical-alignment: center;
+        font-size: 13px;
+    }
+
+    TextInput {
+        x: 12px;
+        y: 0px;
+        width: parent.width - 24px;
+        height: parent.height;
+        text: root.text;
+        color: #f3f6fb;
+        single-line: true;
+        vertical-alignment: center;
+        font-size: 13px;
+        edited => {
+            root.text = self.text;
+            root.changed(self.text);
+        }
+    }
+}
+
+export component ProjectLauncherPage inherits Rectangle {
     in property <[RecentProjectItem]> recent-projects;
     in-out property <string> status-message;
+    in-out property <string> recent-project-search;
     callback open-project-file();
     callback create-project-file();
     callback open-recent-project(int);
     callback remove-recent-project(int);
+    callback filter-recent-projects(string);
 
-    theme: Themes.Dark;
-    card-width: 720px;
-    card-height: 520px;
+    background: #1f2023;
 
-    VerticalBox {
-        padding: Theme.spaces.xlarge;
-        spacing: Theme.spaces.large;
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        background: #1b1d22;
 
-        SText {
-            theme: Themes.Dark;
-            text: "Projeto";
-            font-size: Theme.typo.section.size;
-            font-weight: Theme.typo.section.weight;
+        Image {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/launcher-stage-bg.jpg");
+            image-fit: cover;
+            opacity: 1;
         }
 
-        SText {
-            theme: Themes.Dark;
-            text: "Escolha um projeto existente ou crie um novo.";
-            font-size: Theme.typo.caption.size;
+        Rectangle {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            background: @linear-gradient(180deg, #17191dcc 0%, #17191de6 38%, #17191dd9 100%);
         }
 
-        SText {
-            theme: Themes.Dark;
-            text: project-path-label;
-            font-size: Theme.typo.caption.size;
+        Rectangle {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            background: @radial-gradient(circle, #3f87ff10 0%, transparent 40%, transparent 100%);
+        }
+    }
+
+    Rectangle {
+        x: 24px;
+        y: 18px;
+        width: parent.width - 48px;
+        height: 52px;
+        background: transparent;
+
+        Image {
+            x: 0px;
+            y: -4px;
+            width: 68px;
+            height: 68px;
+            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logomark.svg");
+            image-fit: contain;
         }
 
-        Rectangle { height: 8px; background: transparent; }
-
-        HorizontalBox {
-            spacing: Theme.spaces.medium;
-
-            SButton {
-                theme: Themes.Dark;
-                text: "Abrir projeto";
-                card-width: 140px;
-                card-height: 44px;
-                round: true;
-                clicked => { root.open-project-file(); }
-            }
-
-            SButton {
-                theme: Themes.Primary;
-                text: "Criar novo projeto";
-                card-width: 170px;
-                card-height: 44px;
-                round: true;
-                clicked => { root.create-project-file(); }
-            }
+        Image {
+            x: 46px;
+            y: 4px;
+            width: 172px;
+            height: 46px;
+            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logotype.png");
+            image-fit: contain;
         }
 
-        if recent-projects.length > 0 : VerticalBox {
-            spacing: Theme.spaces.medium;
+        IconLauncherButton {
+            x: parent.width - 212px;
+            y: 6px;
+            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/open-file.svg");
+            clicked => { root.open-project-file(); }
+        }
 
-            SText {
-                theme: Themes.Dark;
-                text: "Projetos recentes";
-                font-size: Theme.typo.caption.size;
-            }
+        LauncherButton {
+            x: parent.width - 156px;
+            y: 6px;
+            label: "Novo projeto";
+            primary: true;
+            clicked => { root.create-project-file(); }
+        }
+    }
 
-            ScrollView {
-                width: 640px;
-                height: 220px;
+    Rectangle {
+        x: 24px;
+        y: 78px;
+        width: parent.width - 48px;
+        height: 1px;
+        background: #34383f;
+    }
 
-                VerticalBox {
-                    spacing: Theme.spaces.small;
+    Rectangle {
+        x: 24px;
+        y: 96px;
+        width: parent.width - 48px;
+        height: parent.height - 120px;
+        background: #22242988;
+        border-width: 1px;
+        border-color: #32363daa;
+        border-radius: 6px;
 
-                    for recent[index] in recent-projects : SCard {
-                        theme: Themes.Dark;
-                        card-width: 640px;
-                        card-height: 64px;
-
-                        HorizontalBox {
-                            padding: Theme.spaces.medium;
-                            spacing: Theme.spaces.medium;
-
-                            VerticalBox {
-                                spacing: 2px;
-
-                                SText {
-                                    theme: Themes.Dark;
-                                    text: recent.title;
-                                    font-size: Theme.typo.caption.size;
-                                    color: recent.is_valid ? Theme.palette.text-primary : #ff8c8c;
-                                }
-
-                                SText {
-                                    theme: Themes.Dark;
-                                    text: recent.subtitle;
-                                    font-size: 11px;
-                                    color: Theme.palette.text-muted;
-                                }
-
-                                if !recent.is_valid && recent.invalid_reason != "" : SText {
-                                    theme: Themes.Dark;
-                                    text: recent.invalid_reason;
-                                    font-size: 11px;
-                                    color: #ff8c8c;
-                                }
-                            }
-
-                            Rectangle { horizontal-stretch: 1; background: transparent; }
-
-                            IconAction {
-                                icon: @image-url("../assets/arrow-right.svg");
-                                enabled: recent.is_valid;
-                                clicked => { root.open-recent-project(index); }
-                            }
-
-                            IconAction {
-                                icon: @image-url("../assets/remove.svg");
-                                clicked => { root.remove-recent-project(index); }
-                            }
-                        }
-                    }
-                }
+        SearchField {
+            x: 18px;
+            y: 16px;
+            width: 260px;
+            text: root.recent-project-search;
+            changed(text) => {
+                root.recent-project-search = text;
+                root.filter-recent-projects(text);
             }
         }
 
-        if status-message != "" : SText {
-            theme: Themes.Dark;
-            text: status-message;
-            font-size: Theme.typo.caption.size;
+        Rectangle {
+            x: 18px;
+            y: 62px;
+            width: parent.width - 36px;
+            height: 1px;
+            background: #32363d;
+        }
+
+        ScrollView {
+            x: 18px;
+            y: 64px;
+            width: parent.width - 36px;
+            height: parent.height - 82px;
+            viewport-height: recent-projects.length * 74px;
+
+            for recent[index] in root.recent-projects : RecentProjectRow {
+                y: index * 74px;
+                width: parent.width - 2px;
+                original-index: recent.original_index;
+                title: recent.title;
+                subtitle: recent.subtitle;
+                open(index) => { root.open-recent-project(index); }
+                remove(index) => { root.remove-recent-project(index); }
+            }
         }
     }
 }

@@ -1,10 +1,93 @@
-import { CheckBox, ComboBox, VerticalBox, HorizontalBox } from "std-widgets.slint";
-import { Theme } from "../theme.slint";
+import { CheckBox, ComboBox, ScrollView } from "std-widgets.slint";
 import { ChannelOptionItem } from "../models.slint";
-import { SButton, SCard, SInput, SText } from "../modules/surrealism-ui/index.slint";
-import { Themes } from "../modules/surrealism-ui/use/index.slint";
 
-export component TrackEditorPage inherits SCard {
+component HeaderIconAction inherits Rectangle {
+    in property <image> icon;
+    callback clicked();
+
+    width: 24px;
+    height: 24px;
+    background: action-area.has-hover ? #ffffff10 : transparent;
+
+    Image {
+        x: 2px;
+        y: 2px;
+        width: 20px;
+        height: 20px;
+        source: root.icon;
+        image-fit: contain;
+        colorize: #eef2f8;
+    }
+
+    action-area := TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+component FieldBox inherits Rectangle {
+    in-out property <string> text;
+    callback changed(string);
+
+    background: #1d2025;
+    border-width: 1px;
+    border-color: #41454e;
+    border-radius: 4px;
+
+    TextInput {
+        x: 12px;
+        y: 0px;
+        width: parent.width - 24px;
+        height: parent.height;
+        text: root.text;
+        color: #f3f6fb;
+        single-line: true;
+        vertical-alignment: center;
+        font-size: 13px;
+        edited => {
+            root.text = self.text;
+            root.changed(self.text);
+        }
+    }
+}
+
+component ChannelRow inherits Rectangle {
+    in property <ChannelOptionItem> channel;
+    callback toggled(bool);
+
+    height: 38px;
+    background: channel-area.has-hover ? #ffffff08 : transparent;
+    border-width: 1px;
+    border-color: #2b313b;
+    border-radius: 4px;
+
+    CheckBox {
+        x: 12px;
+        y: 7px;
+        width: parent.width - 24px;
+        height: 24px;
+        text: root.channel.label;
+        checked: root.channel.selected;
+        enabled: root.channel.available;
+        toggled => {
+            root.toggled(self.checked);
+        }
+    }
+
+    channel-area := TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+    }
+}
+
+export component TrackEditorPage inherits Rectangle {
     in property <string> title;
     in property <string> save-label;
     in-out property <string> track-name;
@@ -12,182 +95,287 @@ export component TrackEditorPage inherits SCard {
     in property <[string]> output-device-options;
     in property <int> selected-input-device-index;
     in property <int> selected-output-device-index;
-    in property <[ChannelOptionItem]> input-channel-options;
-    in property <[ChannelOptionItem]> output-channel-options;
+    in property <[ChannelOptionItem]> input-channels;
+    in property <[ChannelOptionItem]> output-channels;
     in-out property <string> status-message;
     callback update-track-name(string);
-    callback select-input-device(int);
-    callback select-output-device(int);
-    callback toggle-input-channel(int, bool);
-    callback toggle-output-channel(int, bool);
+    callback select-track-input-device(int);
+    callback select-track-output-device(int);
+    callback toggle-track-input-channel(int, bool);
+    callback toggle-track-output-channel(int, bool);
     callback save-track();
     callback cancel-track();
 
-    theme: Themes.Dark;
-    card-width: 720px;
-    private property <length> channels-block-height: 48px + (input-channel-options.length > output-channel-options.length ? input-channel-options.length : output-channel-options.length) * 28px;
-    card-height: 410px + channels-block-height;
+    background: #1f2023;
 
-    VerticalBox {
-        padding: Theme.spaces.xlarge;
-        spacing: Theme.spaces.large;
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        background: #1b1d22;
 
-        SText {
-            theme: Themes.Dark;
+        Image {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/launcher-stage-bg.jpg");
+            image-fit: cover;
+            opacity: 1;
+        }
+
+        Rectangle {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            background: @linear-gradient(180deg, #17191dcc 0%, #17191de6 38%, #17191dd9 100%);
+        }
+    }
+
+    Rectangle {
+        x: 24px;
+        y: 18px;
+        width: parent.width - 48px;
+        height: 52px;
+        background: transparent;
+
+        Image {
+            x: 0px;
+            y: -4px;
+            width: 68px;
+            height: 68px;
+            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logomark.svg");
+            image-fit: contain;
+        }
+
+        Image {
+            x: 40px;
+            y: 2px;
+            width: 210px;
+            height: 52px;
+            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logotype.png");
+            image-fit: contain;
+        }
+
+        HeaderIconAction {
+            x: parent.width - 80px;
+            y: 14px;
+            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/arrow-left.svg");
+            clicked => { root.cancel-track(); }
+        }
+
+        HeaderIconAction {
+            x: parent.width - 40px;
+            y: 14px;
+            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/save.svg");
+            clicked => { root.save-track(); }
+        }
+    }
+
+    Rectangle {
+        x: 24px;
+        y: 78px;
+        width: parent.width - 48px;
+        height: 1px;
+        background: #34383f;
+    }
+
+    Rectangle {
+        x: 24px;
+        y: 96px;
+        width: parent.width - 48px;
+        height: parent.height - 120px;
+        background: #1e22264f;
+        border-width: 1px;
+        border-color: #32363d7a;
+        border-radius: 6px;
+
+        Text {
+            x: 18px;
+            y: 18px;
+            width: 280px;
+            height: 28px;
             text: root.title;
-            font-size: Theme.typo.section.size;
-            font-weight: Theme.typo.section.weight;
+            color: #f1f4f8;
+            font-size: 24px;
+            font-weight: 680;
+            vertical-alignment: center;
         }
 
-        VerticalBox {
-            spacing: Theme.spaces.medium;
-
-            SText {
-                theme: Themes.Dark;
-                text: "Nome";
-                font-size: Theme.typo.body.size;
-                font-weight: Theme.typo.section.weight;
-            }
-
-            SInput {
-                theme: Themes.Dark;
-                text: root.track-name;
-                card-width: 320px;
-                changed(value) => {
-                    root.update-track-name(value);
-                }
-            }
+        Text {
+            x: 18px;
+            y: 56px;
+            width: parent.width - 36px;
+            height: 16px;
+            text: root.status-message;
+            color: #8db9ff;
+            font-size: 12px;
+            vertical-alignment: center;
         }
 
-        HorizontalBox {
-            spacing: Theme.spaces.large;
-
-            VerticalBox {
-                spacing: Theme.spaces.medium;
-
-                SText {
-                    theme: Themes.Dark;
-                    text: "Dispositivo de entrada";
-                    font-size: Theme.typo.body.size;
-                    font-weight: Theme.typo.section.weight;
-                }
-
-                ComboBox {
-                    min-width: 320px;
-                    model: root.input-device-options;
-                    current-index: root.selected-input-device-index;
-                    selected(_) => {
-                        root.select-input-device(self.current-index);
-                    }
-                }
-            }
-
-            VerticalBox {
-                spacing: Theme.spaces.medium;
-
-                SText {
-                    theme: Themes.Dark;
-                    text: "Dispositivo de saída";
-                    font-size: Theme.typo.body.size;
-                    font-weight: Theme.typo.section.weight;
-                }
-
-                ComboBox {
-                    min-width: 320px;
-                    model: root.output-device-options;
-                    current-index: root.selected-output-device-index;
-                    selected(_) => {
-                        root.select-output-device(self.current-index);
-                    }
-                }
-            }
+        Text {
+            x: 18px;
+            y: 90px;
+            width: 160px;
+            height: 18px;
+            text: "Nome da track";
+            color: #cad2de;
+            font-size: 13px;
+            font-weight: 600;
         }
 
-        HorizontalBox {
-            spacing: Theme.spaces.large;
+        FieldBox {
+            x: 18px;
+            y: 114px;
+            width: parent.width - 36px;
+            height: 36px;
+            text: root.track-name;
+            changed(value) => { root.update-track-name(value); }
+        }
 
-            SCard {
-                theme: Themes.Dark;
-                card-width: 320px;
-                card-height: channels-block-height;
+        Rectangle {
+            x: 18px;
+            y: 176px;
+            width: (parent.width - 54px) / 2;
+            height: 64px;
+            background: #12161b7a;
+            border-width: 1px;
+            border-color: #2f344080;
+            border-radius: 4px;
 
-                VerticalBox {
-                    padding: Theme.spaces.large;
-                    spacing: Theme.spaces.small;
-
-                    SText {
-                        theme: Themes.Dark;
-                        text: "Canais de entrada";
-                        font-size: Theme.typo.body.size;
-                        font-weight: Theme.typo.section.weight;
-                    }
-
-                    for channel in root.input-channel-options : CheckBox {
-                        text: channel.label;
-                        checked: channel.selected;
-                        enabled: channel.available;
-                        toggled => {
-                            root.toggle-input-channel(channel.index, self.checked);
-                        }
-                    }
-                }
+            Text {
+                x: 16px;
+                y: 10px;
+                width: parent.width - 32px;
+                height: 16px;
+                text: "Dispositivo de entrada";
+                color: #edf2f9;
+                font-size: 13px;
+                font-weight: 650;
             }
 
-            SCard {
-                theme: Themes.Dark;
-                card-width: 320px;
-                card-height: channels-block-height;
-
-                VerticalBox {
-                    padding: Theme.spaces.large;
-                    spacing: Theme.spaces.small;
-
-                    SText {
-                        theme: Themes.Dark;
-                        text: "Canais de saída";
-                        font-size: Theme.typo.body.size;
-                        font-weight: Theme.typo.section.weight;
-                    }
-
-                    for channel in root.output-channel-options : CheckBox {
-                        text: channel.label;
-                        checked: channel.selected;
-                        enabled: channel.available;
-                        toggled => {
-                            root.toggle-output-channel(channel.index, self.checked);
-                        }
-                    }
+            ComboBox {
+                x: 16px;
+                y: 28px;
+                width: parent.width - 32px;
+                height: 28px;
+                model: root.input-device-options;
+                current-index: root.selected-input-device-index;
+                selected(value) => {
+                    root.select-track-input-device(self.current-index);
                 }
             }
         }
 
-        if status-message != "" : SText {
-            theme: Themes.Dark;
-            text: status-message;
-            font-size: Theme.typo.caption.size;
-        }
+        Rectangle {
+            x: 36px + (parent.width - 54px) / 2;
+            y: 176px;
+            width: (parent.width - 54px) / 2;
+            height: 64px;
+            background: #12161b7a;
+            border-width: 1px;
+            border-color: #2f344080;
+            border-radius: 4px;
 
-        HorizontalBox {
-            spacing: Theme.spaces.medium;
-
-            Rectangle { horizontal-stretch: 1; background: transparent; }
-
-            SButton {
-                theme: Themes.Dark;
-                text: "Cancelar";
-                card-width: 120px;
-                card-height: 44px;
-                round: true;
-                clicked => { root.cancel-track(); }
+            Text {
+                x: 16px;
+                y: 10px;
+                width: parent.width - 32px;
+                height: 16px;
+                text: "Dispositivo de saída";
+                color: #edf2f9;
+                font-size: 13px;
+                font-weight: 650;
             }
 
-            SButton {
-                theme: Themes.Primary;
-                text: root.save-label;
-                card-width: 140px;
-                card-height: 44px;
-                round: true;
-                clicked => { root.save-track(); }
+            ComboBox {
+                x: 16px;
+                y: 28px;
+                width: parent.width - 32px;
+                height: 28px;
+                model: root.output-device-options;
+                current-index: root.selected-output-device-index;
+                selected(value) => {
+                    root.select-track-output-device(self.current-index);
+                }
+            }
+        }
+
+        Rectangle {
+            x: 18px;
+            y: 266px;
+            width: (parent.width - 54px) / 2;
+            height: parent.height - 284px;
+            background: #12161b7a;
+            border-width: 1px;
+            border-color: #2f344080;
+            border-radius: 4px;
+
+            Text {
+                x: 16px;
+                y: 14px;
+                width: parent.width - 32px;
+                height: 22px;
+                text: "Canais de entrada";
+                color: #edf2f9;
+                font-size: 16px;
+                font-weight: 650;
+            }
+
+            ScrollView {
+                x: 12px;
+                y: 46px;
+                width: parent.width - 24px;
+                height: parent.height - 58px;
+                viewport-height: root.input-channels.length * 46px;
+
+                for channel[index] in root.input-channels : ChannelRow {
+                    x: 0px;
+                    y: index * 46px;
+                    width: parent.width - 12px;
+                    channel: channel;
+                    toggled(selected) => { root.toggle-track-input-channel(index, selected); }
+                }
+            }
+        }
+
+        Rectangle {
+            x: 36px + (parent.width - 54px) / 2;
+            y: 266px;
+            width: (parent.width - 54px) / 2;
+            height: parent.height - 284px;
+            background: #12161b7a;
+            border-width: 1px;
+            border-color: #2f344080;
+            border-radius: 4px;
+
+            Text {
+                x: 16px;
+                y: 14px;
+                width: parent.width - 32px;
+                height: 22px;
+                text: "Canais de saída";
+                color: #edf2f9;
+                font-size: 16px;
+                font-weight: 650;
+            }
+
+            ScrollView {
+                x: 12px;
+                y: 46px;
+                width: parent.width - 24px;
+                height: parent.height - 58px;
+                viewport-height: root.output-channels.length * 46px;
+
+                for channel[index] in root.output-channels : ChannelRow {
+                    x: 0px;
+                    y: index * 46px;
+                    width: parent.width - 12px;
+                    channel: channel;
+                    toggled(selected) => { root.toggle-track-output-channel(index, selected); }
+                }
             }
         }
     }

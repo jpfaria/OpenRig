@@ -9,6 +9,7 @@ export struct DeviceSelectionItem {
 export struct TrackStageItem {
     kind: string,
     label: string,
+    family: string,
     enabled: bool,
 }
 
@@ -16,10 +17,27 @@ export struct ProjectTrackItem {
     title: string,
     subtitle: string,
     enabled: bool,
+    stage_count_label: string,
     stages: [TrackStageItem],
 }
 
+export struct StageTypePickerItem {
+    effect_type: string,
+    label: string,
+    subtitle: string,
+    icon_kind: string,
+}
+
+export struct StageModelPickerItem {
+    effect_type: string,
+    model_id: string,
+    label: string,
+    subtitle: string,
+    icon_kind: string,
+}
+
 export struct RecentProjectItem {
+    original_index: int,
     title: string,
     subtitle: string,
     is_valid: bool,

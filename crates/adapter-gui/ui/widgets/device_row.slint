@@ -12,11 +12,11 @@ export component DeviceRow inherits Rectangle {
     callback sample-rate-selected(string);
     callback buffer-size-selected(string);
 
-    height: 44px;
-    background: Theme.palette.deep-space;
-    border-radius: 6px;
+    height: root.selected ? 64px : 52px;
+    background: root.selected ? Theme.palette.card-secondary : #0b0d13;
+    border-radius: 14px;
     border-width: 1px;
-    border-color: Theme.palette.border;
+    border-color: root.selected ? Theme.palette.accent-border : Theme.palette.border;
 
     pure function sample-rate-index(value: string) -> int {
         return value == "44100" ? 0
@@ -56,7 +56,7 @@ export component DeviceRow inherits Rectangle {
         Rectangle { horizontal-stretch: 1; background: transparent; }
 
         if root.selected : ComboBox {
-            min-width: 128px;
+            min-width: 120px;
             model: root.sample-rate-options;
             current-index: root.sample-rate-index(root.sample-rate-text);
             selected(value) => {
@@ -65,7 +65,7 @@ export component DeviceRow inherits Rectangle {
         }
 
         if root.selected : ComboBox {
-            min-width: 128px;
+            min-width: 120px;
             model: root.buffer-size-options;
             current-index: root.buffer-size-index(root.buffer_size_text);
             selected(value) => {

@@ -1,8 +1,7 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
-import { ChannelOptionItem, DeviceSelectionItem, ProjectTrackItem, RecentProjectItem } from "models.slint";
-import { Header } from "blocks/blocks.slint";
-import { ProjectLauncherPage, ProjectSettingsPage, ProjectTracksPage, TrackEditorPage, WizardConfigPage } from "pages/pages.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectTrackItem, RecentProjectItem, StageModelPickerItem, StageTypePickerItem } from "models.slint";
+import { ProjectLauncherPage, ProjectSettingsPage, ProjectTracksPage, TrackEditorPage } from "pages/pages.slint";
 
 export component DesktopMain inherits Rectangle {
     in property <bool> show-project-launcher;
@@ -19,6 +18,7 @@ export component DesktopMain inherits Rectangle {
     in property <[DeviceSelectionItem]> output-devices;
     in property <[ProjectTrackItem]> project-tracks;
     in property <[RecentProjectItem]> recent-projects;
+    in-out property <string> recent-project-search;
     in property <string> track-editor-title;
     in property <string> track-editor-save-label;
     in-out property <string> track-draft-name;
@@ -26,6 +26,13 @@ export component DesktopMain inherits Rectangle {
     in property <[string]> track-output-device-options;
     in property <int> selected-track-input-device-index;
     in property <int> selected-track-output-device-index;
+    in property <int> selected-track-stage-track-index;
+    in property <int> selected-track-stage-index;
+    in property <[StageTypePickerItem]> stage-type-options;
+    in property <[StageModelPickerItem]> stage-model-options;
+    in property <string> stage-picker-title;
+    in property <bool> show-stage-type-picker;
+    in property <bool> show-stage-model-picker;
     in property <[ChannelOptionItem]> track-input-channels;
     in property <[ChannelOptionItem]> track-output-channels;
     in-out property <string> status-message;
@@ -46,6 +53,7 @@ export component DesktopMain inherits Rectangle {
     callback create-project-file();
     callback open-recent-project(int);
     callback remove-recent-project(int);
+    callback filter-recent-projects(string);
     callback back-to-launcher();
     callback add-track();
     callback save-project();
@@ -62,122 +70,110 @@ export component DesktopMain inherits Rectangle {
     callback select-track-output-device(int);
     callback toggle-track-input-channel(int, bool);
     callback toggle-track-output-channel(int, bool);
+    callback select-track-stage(int, int);
+    callback clear-track-stage();
+    callback toggle-track-stage-enabled(int, int);
+    callback start-stage-insert(int, int);
+    callback choose-stage-type(int);
+    callback choose-stage-model(int);
+    callback cancel-stage-picker();
     callback save-track();
     callback cancel-track();
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
     private property <length> wizard-page-height: 24px + 20px + 24px + ((visible-device-count * 44px) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px)) + 24px + 44px + 24px;
 
-    background: Theme.palette.background-gradient;
+    background: root.show-project-launcher ? #1e1f22 : Theme.palette.background-gradient;
 
-    VerticalBox {
-        padding-top: 24px;
-        spacing: 24px;
+    if root.show-project-launcher : ProjectLauncherPage {
+        width: parent.width;
+        height: parent.height;
+        recent-projects: root.recent-projects;
+        recent-project-search: root.recent-project-search;
+        status-message: root.status-message;
+        open-project-file => { root.open-project-file(); }
+        create-project-file => { root.create-project-file(); }
+        open-recent-project(index) => { root.open-recent-project(index); }
+        remove-recent-project(index) => { root.remove-recent-project(index); }
+        filter-recent-projects(value) => { root.filter-recent-projects(value); }
+    }
 
-        Header {}
+    if !root.show-project-launcher : Rectangle {
+        width: parent.width;
+        height: parent.height;
+        background: transparent;
 
-        HorizontalBox {
-            Rectangle {
-                horizontal-stretch: 1;
-                background: transparent;
-            }
+        if root.show-project-tracks : ProjectTracksPage {
+            width: parent.width;
+            height: parent.height;
+            project-title: root.project-title;
+            project-path-label: root.project-path-label;
+            project-running: root.project-running;
+            project-tracks: root.project-tracks;
+            selected-track-stage-track-index: root.selected-track-stage-track-index;
+            selected-track-stage-index: root.selected-track-stage-index;
+            status-message: root.status-message;
+            back-to-launcher => { root.back-to-launcher(); }
+            add-track => { root.add-track(); }
+            save-project => { root.save-project(); }
+            configure-project => { root.configure-project(); }
+            remove-track(index) => { root.remove-track(index); }
+            toggle-track-enabled(index) => { root.toggle-track-enabled(index); }
+            configure-track(index) => { root.configure-track(index); }
+            save-track-preset(index) => { root.save-track-preset(index); }
+            start-project => { root.start-project(); }
+            stop-project => { root.stop-project(); }
+            select-track-stage(track-index, stage-index) => { root.select-track-stage(track-index, stage-index); }
+            clear-track-stage => { root.clear-track-stage(); }
+            toggle-track-stage-enabled(track-index, stage-index) => { root.toggle-track-stage-enabled(track-index, stage-index); }
+            start-stage-insert(track-index, before-index) => { root.start-stage-insert(track-index, before-index); }
+        }
 
-            Rectangle {
-                width: 720px;
-                height: root.show-project-launcher ? 320px : root.show-track-editor ? 620px : root.show-project-settings ? 720px : root.show-project-tracks ? 700px : root.wizard-page-height;
-                background: transparent;
+        if root.show-project-settings : ProjectSettingsPage {
+            width: parent.width;
+            height: parent.height;
+            project-name-draft: root.project-name-draft;
+            input-devices: root.input-devices;
+            output-devices: root.output-devices;
+            sample-rate-options: root.sample-rate-options;
+            buffer-size-options: root.buffer-size-options;
+            status-message: root.status-message;
+            update-project-name(value) => { root.update-project-name(value); }
+            save-audio-settings => { root.save-audio-settings(); }
+            close-project-settings => { root.close-project-settings(); }
+            toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
+            toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
+            update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
+            update-input-buffer-size(index, value) => { root.update-input-buffer-size(index, value); }
+            update-output-sample-rate(index, value) => { root.update-output-sample-rate(index, value); }
+            update-output-buffer-size(index, value) => { root.update-output-buffer-size(index, value); }
+        }
 
-                if root.show-project-launcher : ProjectLauncherPage {
-                    project-path-label: root.project-path-label;
-                    recent-projects: root.recent-projects;
-                    status-message: root.status-message;
-                    open-project-file => { root.open-project-file(); }
-                    create-project-file => { root.create-project-file(); }
-                    open-recent-project(index) => { root.open-recent-project(index); }
-                    remove-recent-project(index) => { root.remove-recent-project(index); }
-                }
+        if root.show-track-editor : TrackEditorPage {
+            width: parent.width;
+            height: parent.height;
+            title: root.track-editor-title;
+            save-label: root.track-editor-save-label;
+            track-name: root.track-draft-name;
+            input-device-options: root.track-input-device-options;
+            output-device-options: root.track-output-device-options;
+            selected-input-device-index: root.selected-track-input-device-index;
+            selected-output-device-index: root.selected-track-output-device-index;
+            input-channels: root.track-input-channels;
+            output-channels: root.track-output-channels;
+            status-message: root.status-message;
+            update-track-name(value) => { root.update-track-name(value); }
+            select-track-input-device(index) => { root.select-track-input-device(index); }
+            select-track-output-device(index) => { root.select-track-output-device(index); }
+            toggle-track-input-channel(index, selected) => { root.toggle-track-input-channel(index, selected); }
+            toggle-track-output-channel(index, selected) => { root.toggle-track-output-channel(index, selected); }
+            save-track => { root.save-track(); }
+            cancel-track => { root.cancel-track(); }
+        }
 
-                if root.show-project-tracks : ProjectTracksPage {
-                    project-title: root.project-title;
-                    tracks: root.project-tracks;
-                    project-running: root.project-running;
-                    status-message: root.status-message;
-                    back-to-launcher => { root.back-to-launcher(); }
-                    add-track => { root.add-track(); }
-                    save-project => { root.save-project(); }
-                    configure-project => { root.configure-project(); }
-                    remove-track(index) => { root.remove-track(index); }
-                    toggle-track-enabled(index) => { root.toggle-track-enabled(index); }
-                    configure-track(index) => { root.configure-track(index); }
-                    save-track-preset(index) => { root.save-track-preset(index); }
-                    configure-track-preset(index) => { root.configure-track-preset(index); }
-                    start-project => { root.start-project(); }
-                    stop-project => { root.stop-project(); }
-                }
-
-                if root.show-track-editor : TrackEditorPage {
-                    title: root.track-editor-title;
-                    save-label: root.track-editor-save-label;
-                    track-name: root.track-draft-name;
-                    input-device-options: root.track-input-device-options;
-                    output-device-options: root.track-output-device-options;
-                    selected-input-device-index: root.selected-track-input-device-index;
-                    selected-output-device-index: root.selected-track-output-device-index;
-                    input-channel-options: root.track-input-channels;
-                    output-channel-options: root.track-output-channels;
-                    status-message: root.status-message;
-                    update-track-name(value) => { root.update-track-name(value); }
-                    select-input-device(index) => { root.select-track-input-device(index); }
-                    select-output-device(index) => { root.select-track-output-device(index); }
-                    toggle-input-channel(index, selected) => { root.toggle-track-input-channel(index, selected); }
-                    toggle-output-channel(index, selected) => { root.toggle-track-output-channel(index, selected); }
-                    save-track => { root.save-track(); }
-                    cancel-track => { root.cancel-track(); }
-                }
-
-                if root.show-project-settings : ProjectSettingsPage {
-                    project-name: root.project-name-draft;
-                    input-devices: root.input-devices;
-                    output-devices: root.output-devices;
-                    status-message: root.status-message;
-                    sample-rate-options: root.sample-rate-options;
-                    buffer-size-options: root.buffer-size-options;
-                    toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
-                    toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
-                    update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
-                    update-input-buffer-size(index, value) => { root.update-input-buffer-size(index, value); }
-                    update-output-sample-rate(index, value) => { root.update-output-sample-rate(index, value); }
-                    update-output-buffer-size(index, value) => { root.update-output-buffer-size(index, value); }
-                    update-project-name(value) => { root.update-project-name(value); }
-                    save-project-settings => { root.save-audio-settings(); }
-                    close-project-settings => { root.close-project-settings(); }
-                }
-
-                if !root.show-project-launcher && !root.show-project-tracks && !root.show-track-editor && !root.show-project-settings : WizardConfigPage {
-                    wizard-step: root.wizard-step;
-                    show-project-name-field: false;
-                    project-name: root.project-name-draft;
-                    input-devices: root.input-devices;
-                    output-devices: root.output-devices;
-                    status-message: root.status-message;
-                    sample-rate-options: root.sample-rate-options;
-                    buffer-size-options: root.buffer-size-options;
-                    toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
-                    toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
-                    update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
-                    update-input-buffer-size(index, value) => { root.update-input-buffer-size(index, value); }
-                    update-output-sample-rate(index, value) => { root.update-output-sample-rate(index, value); }
-                    update-output-buffer-size(index, value) => { root.update-output-buffer-size(index, value); }
-                    go-to-output-step => { root.go-to-output-step(); }
-                    go-to-input-step => { root.go-to-input-step(); }
-                    update-project-name(value) => { root.update-project-name(value); }
-                    save-audio-settings => { root.save-audio-settings(); }
-                }
-            }
-
-            Rectangle {
-                horizontal-stretch: 1;
-                background: transparent;
-            }
+        if !root.show-project-tracks && !root.show-project-settings && !root.show-track-editor : Rectangle {
+            width: parent.width;
+            height: parent.height;
+            background: transparent;
         }
     }
 }

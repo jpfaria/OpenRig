@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use application::validate::validate_project;
 use cpal::{traits::StreamTrait, Stream};
-use domain::ids::{DeviceId, TrackId};
+use domain::ids::{BlockId, DeviceId, TrackId};
 use engine::runtime::build_runtime_graph;
 use infra_cpal::{
     build_streams_for_project, list_input_device_descriptors, list_output_device_descriptors,
@@ -20,10 +20,18 @@ use slint::{Model, ModelRc, SharedString, VecModel};
 use std::rc::Rc;
 use std::{cell::RefCell, env, fs, path::PathBuf};
 use project::device::DeviceSettings;
-use project::block::{AudioBlock, AudioBlockKind, CoreBlockKind};
+use project::block::{
+    schema_for_block_model, AmpComboBlock, AmpHeadBlock, AudioBlock, AudioBlockKind,
+    CompressorBlock, CoreBlock, CoreBlockKind, DelayBlock, DriveBlock, EqBlock, FullRigBlock,
+    GateBlock, NamBlock, ReverbBlock, TremoloBlock, TunerBlock,
+};
+use project::param::ParameterSet;
 use project::project::Project;
 use project::track::{Track, TrackOutputMixdown};
 use ui_openrig::{AppRuntimeMode, InteractionMode, UiRuntimeContext};
+use ui_state::{stage_family_for_kind, stage_models_for_type, stage_types, track_routing_summary};
+
+mod ui_state;
 
 slint::include_modules!();
 
@@ -59,6 +67,19 @@ struct TrackDraft {
     output_device_id: Option<String>,
     input_channels: Vec<usize>,
     output_channels: Vec<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct SelectedStage {
+    track_index: usize,
+    stage_index: usize,
+}
+
+#[derive(Debug, Clone)]
+struct StageInsertDraft {
+    track_index: usize,
+    before_index: usize,
+    effect_type: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -117,6 +138,8 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
     let app_config = Rc::new(RefCell::new(load_and_sync_app_config()?));
     let project_session = Rc::new(RefCell::new(None::<ProjectSession>));
     let track_draft = Rc::new(RefCell::new(None::<TrackDraft>));
+    let selected_stage = Rc::new(RefCell::new(None::<SelectedStage>));
+    let stage_insert_draft = Rc::new(RefCell::new(None::<StageInsertDraft>));
     let project_streams = Rc::new(RefCell::new(None::<Vec<Stream>>));
     let audio_settings_mode = Rc::new(RefCell::new(AudioSettingsMode::Gui));
     let input_track_devices = Rc::new(list_input_device_descriptors()?);
@@ -131,6 +154,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
     window.set_project_path_label("".into());
     window.set_project_title("Projeto".into());
     window.set_project_name_draft("".into());
+    window.set_recent_project_search("".into());
     window.set_track_editor_title("Nova track".into());
     window.set_track_editor_save_label("Criar track".into());
     window.set_runtime_mode_label(context.runtime_mode.label().into());
@@ -195,6 +219,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
     window.set_project_tracks(ModelRc::from(project_tracks.clone()));
     let recent_projects = Rc::new(VecModel::from(recent_project_items(
         &app_config.borrow().recent_projects,
+        "",
     )));
     window.set_recent_projects(ModelRc::from(recent_projects.clone()));
     let track_input_device_options = Rc::new(VecModel::from(
@@ -217,7 +242,17 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
     window.set_track_output_channels(ModelRc::from(track_output_channels.clone()));
     window.set_selected_track_input_device_index(-1);
     window.set_selected_track_output_device_index(-1);
+    window.set_selected_track_stage_track_index(-1);
+    window.set_selected_track_stage_index(-1);
+    window.set_show_stage_type_picker(false);
+    window.set_show_stage_model_picker(false);
+    window.set_stage_picker_title("Adicionar stage".into());
     window.set_track_draft_name("".into());
+
+    let stage_type_options = Rc::new(VecModel::from(stage_type_picker_items()));
+    let stage_model_options = Rc::new(VecModel::from(Vec::<StageModelPickerItem>::new()));
+    window.set_stage_type_options(ModelRc::from(stage_type_options.clone()));
+    window.set_stage_model_options(ModelRc::from(stage_model_options.clone()));
 
     {
         let input_devices = input_devices.clone();
@@ -407,7 +442,10 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                         &display_name,
                     );
                     let _ = FilesystemStorage::save_app_config(&app_config.borrow());
-                    recent_projects.set_vec(recent_project_items(&app_config.borrow().recent_projects));
+                    recent_projects.set_vec(recent_project_items(
+                        &app_config.borrow().recent_projects,
+                        window.get_recent_project_search().as_str(),
+                    ));
                     window.set_project_running(false);
                     window.set_status_message("".into());
                     window.set_project_title(title.into());
@@ -504,7 +542,10 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                         &project_display_name(&session.project),
                     );
                     let _ = FilesystemStorage::save_app_config(&app_config.borrow());
-                    recent_projects.set_vec(recent_project_items(&app_config.borrow().recent_projects));
+                    recent_projects.set_vec(recent_project_items(
+                        &app_config.borrow().recent_projects,
+                        window.get_recent_project_search().as_str(),
+                    ));
                     window.set_project_title(
                         project_title_for_path(Some(&canonical_path), &session.project).into(),
                     );
@@ -516,6 +557,22 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                     window.set_status_message(error.to_string().into());
                 }
             }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let app_config = app_config.clone();
+        let recent_projects = recent_projects.clone();
+        window.on_filter_recent_projects(move |query| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            recent_projects.set_vec(recent_project_items(
+                &app_config.borrow().recent_projects,
+                query.as_str(),
+            ));
+            window.set_recent_project_search(query);
         });
     }
 
@@ -564,7 +621,10 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                         &display_name,
                     );
                     let _ = FilesystemStorage::save_app_config(&app_config.borrow());
-                    recent_projects.set_vec(recent_project_items(&app_config.borrow().recent_projects));
+                    recent_projects.set_vec(recent_project_items(
+                        &app_config.borrow().recent_projects,
+                        window.get_recent_project_search().as_str(),
+                    ));
                     window.set_project_running(false);
                     window.set_status_message("".into());
                     window.set_project_title(title.into());
@@ -589,7 +649,10 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                         &error.to_string(),
                     );
                     let _ = FilesystemStorage::save_app_config(&app_config.borrow());
-                    recent_projects.set_vec(recent_project_items(&app_config.borrow().recent_projects));
+                    recent_projects.set_vec(recent_project_items(
+                        &app_config.borrow().recent_projects,
+                        window.get_recent_project_search().as_str(),
+                    ));
                     window.set_status_message("Projeto inválido. Corrija ou remova da lista.".into());
                 }
             }
@@ -597,14 +660,21 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
     }
 
     {
+        let weak_window = window.as_weak();
         let app_config = app_config.clone();
         let recent_projects = recent_projects.clone();
         window.on_remove_recent_project(move |index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
             let mut config = app_config.borrow_mut();
             if (index as usize) < config.recent_projects.len() {
                 config.recent_projects.remove(index as usize);
                 let _ = FilesystemStorage::save_app_config(&config);
-                recent_projects.set_vec(recent_project_items(&config.recent_projects));
+                recent_projects.set_vec(recent_project_items(
+                    &config.recent_projects,
+                    window.get_recent_project_search().as_str(),
+                ));
             }
         });
     }
@@ -1001,6 +1071,187 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
 
     {
         let weak_window = window.as_weak();
+        let selected_stage = selected_stage.clone();
+        window.on_select_track_stage(move |track_index, stage_index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            *selected_stage.borrow_mut() = Some(SelectedStage {
+                track_index: track_index as usize,
+                stage_index: stage_index as usize,
+            });
+            set_selected_stage(&window, selected_stage.borrow().as_ref());
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let selected_stage = selected_stage.clone();
+        window.on_clear_track_stage(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            *selected_stage.borrow_mut() = None;
+            set_selected_stage(&window, None);
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let selected_stage = selected_stage.clone();
+        let project_session = project_session.clone();
+        let project_tracks = project_tracks.clone();
+        let project_streams = project_streams.clone();
+        window.on_toggle_track_stage_enabled(move |track_index, stage_index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                window.set_status_message("Nenhum projeto carregado.".into());
+                return;
+            };
+            let Some(track) = session.project.tracks.get_mut(track_index as usize) else {
+                window.set_status_message("Track inválida.".into());
+                return;
+            };
+            let Some(block) = track.blocks.get_mut(stage_index as usize) else {
+                window.set_status_message("Stage inválido.".into());
+                return;
+            };
+            block.enabled = !block.enabled;
+            let was_running = project_streams.borrow().is_some();
+            if was_running {
+                stop_project_runtime(&project_streams);
+                window.set_project_running(false);
+            }
+            replace_project_tracks(&project_tracks, &session.project);
+            *selected_stage.borrow_mut() = Some(SelectedStage {
+                track_index: track_index as usize,
+                stage_index: stage_index as usize,
+            });
+            set_selected_stage(&window, selected_stage.borrow().as_ref());
+            window.set_status_message(if was_running {
+                restart_message("Stage atualizado.")
+            } else {
+                "Stage atualizado.".into()
+            });
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let stage_insert_draft = stage_insert_draft.clone();
+        let stage_model_options = stage_model_options.clone();
+        window.on_start_stage_insert(move |track_index, before_index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            *stage_insert_draft.borrow_mut() = Some(StageInsertDraft {
+                track_index: track_index as usize,
+                before_index: before_index as usize,
+                effect_type: None,
+            });
+            stage_model_options.set_vec(Vec::new());
+            window.set_stage_picker_title("Adicionar stage".into());
+            window.set_show_stage_model_picker(false);
+            window.set_show_stage_type_picker(true);
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let stage_insert_draft = stage_insert_draft.clone();
+        let stage_model_options = stage_model_options.clone();
+        window.on_choose_stage_type(move |index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let Some(stage_type) = stage_types().get(index as usize).cloned() else {
+                return;
+            };
+            if let Some(draft) = stage_insert_draft.borrow_mut().as_mut() {
+                draft.effect_type = Some(stage_type.effect_type.to_string());
+            }
+            stage_model_options.set_vec(stage_model_picker_items(stage_type.effect_type));
+            window.set_stage_picker_title(format!("Adicionar {}", stage_type.label).into());
+            window.set_show_stage_type_picker(false);
+            window.set_show_stage_model_picker(true);
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let selected_stage = selected_stage.clone();
+        let stage_insert_draft = stage_insert_draft.clone();
+        let stage_model_options = stage_model_options.clone();
+        let project_session = project_session.clone();
+        let project_tracks = project_tracks.clone();
+        let project_streams = project_streams.clone();
+        window.on_choose_stage_model(move |index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let Some(draft) = stage_insert_draft.borrow().clone() else {
+                return;
+            };
+            let Some(effect_type) = draft.effect_type.as_deref() else {
+                return;
+            };
+            let models = stage_models_for_type(effect_type);
+            let Some(model) = models.get(index as usize) else {
+                return;
+            };
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                window.set_status_message("Nenhum projeto carregado.".into());
+                return;
+            };
+            let Some(track) = session.project.tracks.get_mut(draft.track_index) else {
+                window.set_status_message("Track inválida.".into());
+                return;
+            };
+            match insert_stage_into_track(track, draft.before_index, effect_type, model.model_id) {
+                Ok(inserted_index) => {
+                    let was_running = project_streams.borrow().is_some();
+                    if was_running {
+                        stop_project_runtime(&project_streams);
+                        window.set_project_running(false);
+                    }
+                    replace_project_tracks(&project_tracks, &session.project);
+                    *selected_stage.borrow_mut() = Some(SelectedStage {
+                        track_index: draft.track_index,
+                        stage_index: inserted_index,
+                    });
+                    set_selected_stage(&window, selected_stage.borrow().as_ref());
+                    reset_stage_picker(&window, &stage_model_options, &stage_insert_draft);
+                    window.set_status_message(if was_running {
+                        restart_message("Stage adicionado.")
+                    } else {
+                        "Stage adicionado.".into()
+                    });
+                }
+                Err(error) => {
+                    window.set_status_message(error.to_string().into());
+                }
+            }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let stage_insert_draft = stage_insert_draft.clone();
+        let stage_model_options = stage_model_options.clone();
+        window.on_cancel_stage_picker(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            reset_stage_picker(&window, &stage_model_options, &stage_insert_draft);
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
         let track_draft = track_draft.clone();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
@@ -1323,10 +1574,22 @@ fn mark_recent_project_invalid(config: &mut AppConfig, path: &PathBuf, reason: &
     }
 }
 
-fn recent_project_items(recent_projects: &[RecentProjectEntry]) -> Vec<RecentProjectItem> {
+fn recent_project_items(recent_projects: &[RecentProjectEntry], query: &str) -> Vec<RecentProjectItem> {
+    let query = query.trim().to_lowercase();
+
     recent_projects
         .iter()
-        .map(|recent| RecentProjectItem {
+        .enumerate()
+        .filter(|(_, recent)| {
+            if query.is_empty() {
+                return true;
+            }
+
+            recent.project_name.to_lowercase().contains(&query)
+                || recent.project_path.to_lowercase().contains(&query)
+        })
+        .map(|(original_index, recent)| RecentProjectItem {
+            original_index: original_index as i32,
             title: if recent.project_name.trim().is_empty() {
                 UNTITLED_PROJECT_NAME.into()
             } else {
@@ -1427,19 +1690,139 @@ fn replace_project_tracks(model: &Rc<VecModel<ProjectTrackItem>>, project: &Proj
                 .clone()
                 .unwrap_or_else(|| format!("Track {}", index + 1))
                 .into(),
-            subtitle: format!(
-                "Entrada {} -> Saída {}",
-                channels_label(&track.input_channels),
-                channels_label(&track.output_channels),
-            )
-            .into(),
+            subtitle: track_routing_summary(track).into(),
             enabled: track.enabled,
+            stage_count_label: if track.blocks.len() == 1 {
+                "1 stage".into()
+            } else {
+                format!("{} stages", track.blocks.len()).into()
+            },
             stages: ModelRc::from(Rc::new(VecModel::from(
                 track.blocks.iter().map(track_stage_item_from_block).collect::<Vec<_>>(),
             ))),
         })
         .collect::<Vec<_>>();
     model.set_vec(items);
+}
+
+fn stage_type_picker_items() -> Vec<StageTypePickerItem> {
+    stage_types()
+        .into_iter()
+        .map(|item| StageTypePickerItem {
+            effect_type: item.effect_type.into(),
+            label: item.label.into(),
+            subtitle: format!("Escolher um {} para a cadeia", item.label).into(),
+            icon_kind: item.icon_kind.into(),
+        })
+        .collect()
+}
+
+fn stage_model_picker_items(effect_type: &str) -> Vec<StageModelPickerItem> {
+    stage_models_for_type(effect_type)
+        .into_iter()
+        .map(|item| StageModelPickerItem {
+            effect_type: item.effect_type.into(),
+            model_id: item.model_id.into(),
+            label: item.title.into(),
+            subtitle: item.subtitle.into(),
+            icon_kind: item.icon_kind.into(),
+        })
+        .collect()
+}
+
+fn set_selected_stage(window: &AppWindow, selected_stage: Option<&SelectedStage>) {
+    if let Some(selected_stage) = selected_stage {
+        window.set_selected_track_stage_track_index(selected_stage.track_index as i32);
+        window.set_selected_track_stage_index(selected_stage.stage_index as i32);
+    } else {
+        window.set_selected_track_stage_track_index(-1);
+        window.set_selected_track_stage_index(-1);
+    }
+}
+
+fn reset_stage_picker(
+    window: &AppWindow,
+    stage_model_options: &Rc<VecModel<StageModelPickerItem>>,
+    stage_insert_draft: &Rc<RefCell<Option<StageInsertDraft>>>,
+) {
+    *stage_insert_draft.borrow_mut() = None;
+    stage_model_options.set_vec(Vec::new());
+    window.set_stage_picker_title("Adicionar stage".into());
+    window.set_show_stage_type_picker(false);
+    window.set_show_stage_model_picker(false);
+}
+
+fn insert_stage_into_track(
+    track: &mut Track,
+    before_index: usize,
+    effect_type: &str,
+    model_id: &str,
+) -> Result<usize> {
+    let schema = schema_for_block_model(effect_type, model_id)
+        .map_err(|error| anyhow!(error))?;
+    let params = ParameterSet::default()
+        .normalized_against(&schema)
+        .map_err(|error| anyhow!(error))?;
+    let kind = build_block_kind(effect_type, model_id, params)?;
+    let insert_index = before_index.min(track.blocks.len());
+    track.blocks.insert(
+        insert_index,
+        AudioBlock {
+            id: BlockId(format!("{}:block:new", track.id.0)),
+            enabled: true,
+            kind,
+        },
+    );
+    reassign_track_block_ids(track);
+    Ok(insert_index)
+}
+
+fn build_block_kind(effect_type: &str, model_id: &str, params: ParameterSet) -> Result<AudioBlockKind> {
+    let model = model_id.to_string();
+    let kind = match effect_type {
+        "amp_head" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::AmpHead(AmpHeadBlock { model, params }),
+        }),
+        "amp_combo" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::AmpCombo(AmpComboBlock { model, params }),
+        }),
+        "full_rig" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::FullRig(FullRigBlock { model, params }),
+        }),
+        "drive" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::Drive(DriveBlock { model, params }),
+        }),
+        "compressor" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::Compressor(CompressorBlock { model, params }),
+        }),
+        "gate" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::Gate(GateBlock { model, params }),
+        }),
+        "eq" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::Eq(EqBlock { model, params }),
+        }),
+        "tremolo" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::Tremolo(TremoloBlock { model, params }),
+        }),
+        "delay" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::Delay(DelayBlock { model, params }),
+        }),
+        "reverb" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::Reverb(ReverbBlock { model, params }),
+        }),
+        "tuner" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::Tuner(TunerBlock { model, params }),
+        }),
+        "nam" => AudioBlockKind::Nam(NamBlock { model, params }),
+        other => return Err(anyhow!("tipo de stage '{}' não suportado na GUI", other)),
+    };
+    Ok(kind)
+}
+
+fn reassign_track_block_ids(track: &mut Track) {
+    for (index, block) in track.blocks.iter_mut().enumerate() {
+        block.id = BlockId(format!("{}:block:{}", track.id.0, index));
+    }
 }
 
 fn set_device_selection_from_project(
@@ -1614,14 +1997,6 @@ fn track_draft_from_track(index: usize, track: &Track) -> TrackDraft {
     }
 }
 
-fn channels_label(channels: &[usize]) -> String {
-    channels
-        .iter()
-        .map(|channel| (channel + 1).to_string())
-        .collect::<Vec<_>>()
-        .join(", ")
-}
-
 fn track_stage_item_from_block(block: &AudioBlock) -> TrackStageItem {
     let (kind, label) = match &block.kind {
         AudioBlockKind::Nam(stage) => ("nam".to_string(), stage.model.clone()),
@@ -1643,9 +2018,12 @@ fn track_stage_item_from_block(block: &AudioBlock) -> TrackStageItem {
         AudioBlockKind::CoreNam(_) => ("nam".to_string(), "core nam".to_string()),
     };
 
+    let family = stage_family_for_kind(&kind).to_string();
+
     TrackStageItem {
         kind: kind.into(),
         label: label.into(),
+        family: family.into(),
         enabled: block.enabled,
     }
 }

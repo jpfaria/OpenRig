@@ -1,155 +1,425 @@
-import { VerticalBox, HorizontalBox } from "std-widgets.slint";
-import { Theme } from "../theme.slint";
+import { CheckBox, ComboBox, ScrollView } from "std-widgets.slint";
 import { DeviceSelectionItem } from "../models.slint";
-import { DeviceRow, PrimaryActionButton, SecondaryActionButton } from "../widgets/widgets.slint";
-import { SCard, SInput, SText } from "../modules/surrealism-ui/index.slint";
-import { Themes } from "../modules/surrealism-ui/use/index.slint";
 
-export component ProjectSettingsPage inherits SCard {
-    in-out property <string> project-name;
-    in property <[DeviceSelectionItem]> input-devices;
-    in property <[DeviceSelectionItem]> output-devices;
-    in-out property <string> status-message;
+component HeaderIconAction inherits Rectangle {
+    in property <image> icon;
+    callback clicked();
+
+    width: 24px;
+    height: 24px;
+    background: action-area.has-hover ? #ffffff10 : transparent;
+
+    Image {
+        x: 2px;
+        y: 2px;
+        width: 20px;
+        height: 20px;
+        source: root.icon;
+        image-fit: contain;
+        colorize: #eef2f8;
+    }
+
+    action-area := TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+component FieldBox inherits Rectangle {
+    in-out property <string> text;
+    callback changed(string);
+
+    background: #1d2025;
+    border-width: 1px;
+    border-color: #41454e;
+    border-radius: 4px;
+
+    TextInput {
+        x: 12px;
+        y: 0px;
+        width: parent.width - 24px;
+        height: parent.height;
+        text: root.text;
+        color: #f3f6fb;
+        single-line: true;
+        vertical-alignment: center;
+        font-size: 13px;
+        edited => {
+            root.text = self.text;
+            root.changed(self.text);
+        }
+    }
+}
+
+component DeviceConfigRow inherits Rectangle {
+    in property <DeviceSelectionItem> device;
     in property <[string]> sample-rate-options;
     in property <[string]> buffer-size-options;
+    callback toggled(bool);
+    callback sample-rate-selected(string);
+    callback buffer-size-selected(string);
+
+    height: 52px;
+    background: root.device.selected ? #16212a88 : transparent;
+    border-width: 1px;
+    border-color: root.device.selected ? #2d5274 : #2b313b;
+    border-radius: 4px;
+
+    pure function sample-rate-index(value: string) -> int {
+        return value == "44100" ? 0
+            : value == "48000" ? 1
+            : value == "88200" ? 2
+            : value == "96000" ? 3
+            : 1;
+    }
+
+    pure function buffer-size-index(value: string) -> int {
+        return value == "32" ? 0
+            : value == "64" ? 1
+            : value == "128" ? 2
+            : value == "256" ? 3
+            : value == "512" ? 4
+            : value == "1024" ? 5
+            : 3;
+    }
+
+    CheckBox {
+        x: 14px;
+        y: 14px;
+        width: parent.width - (root.device.selected ? 310px : 28px);
+        height: 24px;
+        text: root.device.name;
+        checked: root.device.selected;
+        toggled => {
+            root.toggled(self.checked);
+        }
+    }
+
+    if root.device.selected : ComboBox {
+        x: parent.width - 240px;
+        y: 10px;
+        width: 88px;
+        height: 32px;
+        model: root.sample-rate-options;
+        current-index: root.sample-rate-index(root.device.sample_rate_text);
+        selected(value) => {
+            root.sample-rate-selected(value);
+        }
+    }
+
+    if root.device.selected : ComboBox {
+        x: parent.width - 104px;
+        y: 10px;
+        width: 88px;
+        height: 32px;
+        model: root.buffer-size-options;
+        current-index: root.buffer-size-index(root.device.buffer_size_text);
+        selected(value) => {
+            root.buffer-size-selected(value);
+        }
+    }
+
+    if root.device.selected : Rectangle {
+        x: parent.width - 272px;
+        y: 16px;
+        width: 24px;
+        height: 20px;
+        background: transparent;
+        border-width: 1px;
+        border-color: #46617d;
+        border-radius: 3px;
+
+        Text {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            text: "Hz";
+            color: #9eb9d7;
+            font-size: 10px;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+
+    if root.device.selected : Rectangle {
+        x: parent.width - 136px;
+        y: 16px;
+        width: 24px;
+        height: 20px;
+        background: transparent;
+        border-width: 1px;
+        border-color: #46617d;
+        border-radius: 3px;
+
+        Text {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            text: "Buf";
+            color: #9eb9d7;
+            font-size: 10px;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+
+}
+
+export component ProjectSettingsPage inherits Rectangle {
+    in-out property <string> project-name-draft;
+    in-out property <string> status-message;
+    in property <[DeviceSelectionItem]> input-devices;
+    in property <[DeviceSelectionItem]> output-devices;
+    in property <[string]> sample-rate-options;
+    in property <[string]> buffer-size-options;
+    callback update-project-name(string);
+    callback save-audio-settings();
+    callback close-project-settings();
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
     callback update-input-sample-rate(int, string);
     callback update-input-buffer-size(int, string);
     callback update-output-sample-rate(int, string);
     callback update-output-buffer-size(int, string);
-    callback update-project-name(string);
-    callback save-project-settings();
-    callback close-project-settings();
 
-    theme: Themes.Dark;
-    card-width: 760px;
-    private property <length> rows-height:
-        ((input-devices.length + output-devices.length) * 44px)
-        + ((input-devices.length > 0 ? input-devices.length - 1 : 0) * 8px)
-        + ((output-devices.length > 0 ? output-devices.length - 1 : 0) * 8px);
-    card-height: 260px + rows-height;
+    background: #1f2023;
 
-    VerticalBox {
-        padding: Theme.spaces.xlarge;
-        spacing: Theme.spaces.large;
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        background: #1b1d22;
 
-        HorizontalBox {
-            SText {
-                theme: Themes.Dark;
-                text: "Configurar projeto";
-                font-size: Theme.typo.section.size;
-                font-weight: Theme.typo.section.weight;
+        Image {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/launcher-stage-bg.jpg");
+            image-fit: cover;
+            opacity: 1;
+        }
+
+        Rectangle {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            background: @linear-gradient(180deg, #17191dcc 0%, #17191de6 38%, #17191dd9 100%);
+        }
+    }
+
+    Rectangle {
+        x: 24px;
+        y: 18px;
+        width: parent.width - 48px;
+        height: 52px;
+        background: transparent;
+
+        Image {
+            x: 0px;
+            y: -4px;
+            width: 68px;
+            height: 68px;
+            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logomark.svg");
+            image-fit: contain;
+        }
+
+        Image {
+            x: 40px;
+            y: 2px;
+            width: 210px;
+            height: 52px;
+            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logotype.png");
+            image-fit: contain;
+        }
+
+        HeaderIconAction {
+            x: parent.width - 80px;
+            y: 14px;
+            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/arrow-left.svg");
+            clicked => { root.close-project-settings(); }
+        }
+
+        HeaderIconAction {
+            x: parent.width - 40px;
+            y: 14px;
+            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/save.svg");
+            clicked => { root.save-audio-settings(); }
+        }
+    }
+
+    Rectangle {
+        x: 24px;
+        y: 78px;
+        width: parent.width - 48px;
+        height: 1px;
+        background: #34383f;
+    }
+
+    Rectangle {
+        x: 24px;
+        y: 96px;
+        width: parent.width - 48px;
+        height: parent.height - 120px;
+        background: #1e22264f;
+        border-width: 1px;
+        border-color: #32363d7a;
+        border-radius: 6px;
+
+        Text {
+            x: 18px;
+            y: 18px;
+            width: 280px;
+            height: 28px;
+            text: "Configurar projeto";
+            color: #f1f4f8;
+            font-size: 24px;
+            font-weight: 680;
+            vertical-alignment: center;
+        }
+
+        Text {
+            x: 18px;
+            y: 56px;
+            width: parent.width - 36px;
+            height: 16px;
+            text: root.status-message;
+            color: #8db9ff;
+            font-size: 12px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            x: 18px;
+            y: 90px;
+            width: 160px;
+            height: 18px;
+            text: "Nome do projeto";
+            color: #cad2de;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        FieldBox {
+            x: 18px;
+            y: 114px;
+            width: parent.width - 36px;
+            height: 36px;
+            text: root.project-name-draft;
+            changed(value) => { root.update-project-name(value); }
+        }
+
+        Rectangle {
+            x: 18px;
+            y: 176px;
+            width: parent.width - 36px;
+            height: (parent.height - 212px) / 2;
+            background: #12161b7a;
+            border-width: 1px;
+            border-color: #2f344080;
+            border-radius: 4px;
+
+            Image {
+                x: 16px;
+                y: 18px;
+                width: 16px;
+                height: 16px;
+                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/arrow-left.svg");
+                image-fit: contain;
+                colorize: #9eb9d7;
             }
 
-            Rectangle { horizontal-stretch: 1; background: transparent; }
+            Text {
+                x: 40px;
+                y: 14px;
+                width: parent.width - 56px;
+                height: 22px;
+                text: "Entradas";
+                color: #edf2f9;
+                font-size: 16px;
+                font-weight: 650;
+            }
 
-            SecondaryActionButton {
-                text: "Fechar";
-                width: 108px;
-                height: 40px;
-                clicked => { root.close-project-settings(); }
+            ScrollView {
+                x: 12px;
+                y: 46px;
+                width: parent.width - 24px;
+                height: parent.height - 58px;
+                viewport-height: root.input-devices.length * 60px;
+
+                for device[index] in root.input-devices : DeviceConfigRow {
+                    x: 0px;
+                    y: index * 60px;
+                    width: parent.width - 12px;
+                    device: device;
+                    sample-rate-options: root.sample-rate-options;
+                    buffer-size-options: root.buffer-size-options;
+                    toggled(selected) => { root.toggle-input-device(index, selected); }
+                    sample-rate-selected(value) => { root.update-input-sample-rate(index, value); }
+                    buffer-size-selected(value) => { root.update-input-buffer-size(index, value); }
+                }
             }
         }
 
-        VerticalBox {
-            spacing: Theme.spaces.small;
+        Rectangle {
+            x: 18px;
+            y: 194px + (parent.height - 212px) / 2;
+            width: parent.width - 36px;
+            height: (parent.height - 212px) / 2;
+            background: #12161b7a;
+            border-width: 1px;
+            border-color: #2f344080;
+            border-radius: 4px;
 
-            SText {
-                theme: Themes.Dark;
-                text: "Nome do projeto";
-                font-size: Theme.typo.caption.size;
+            Image {
+                x: 16px;
+                y: 18px;
+                width: 16px;
+                height: 16px;
+                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/arrow-right.svg");
+                image-fit: contain;
+                colorize: #9eb9d7;
             }
 
-            SInput {
-                theme: Themes.Dark;
-                card-width: 680px;
-                text: root.project-name;
-                changed(value) => {
-                    root.update-project-name(value);
+            Text {
+                x: 40px;
+                y: 14px;
+                width: parent.width - 56px;
+                height: 22px;
+                text: "Saídas";
+                color: #edf2f9;
+                font-size: 16px;
+                font-weight: 650;
+            }
+
+            ScrollView {
+                x: 12px;
+                y: 46px;
+                width: parent.width - 24px;
+                height: parent.height - 58px;
+                viewport-height: root.output-devices.length * 60px;
+
+                for device[index] in root.output-devices : DeviceConfigRow {
+                    x: 0px;
+                    y: index * 60px;
+                    width: parent.width - 12px;
+                    device: device;
+                    sample-rate-options: root.sample-rate-options;
+                    buffer-size-options: root.buffer-size-options;
+                    toggled(selected) => { root.toggle-output-device(index, selected); }
+                    sample-rate-selected(value) => { root.update-output-sample-rate(index, value); }
+                    buffer-size-selected(value) => { root.update-output-buffer-size(index, value); }
                 }
-            }
-        }
-
-        VerticalBox {
-            spacing: Theme.spaces.small;
-
-            SText {
-                theme: Themes.Dark;
-                text: "Dispositivos de entrada";
-                font-size: Theme.typo.caption.size;
-            }
-
-            for device[i] in input-devices : DeviceRow {
-                name: device.name;
-                selected: device.selected;
-                sample-rate-text: device.sample_rate_text;
-                buffer-size-text: device.buffer_size_text;
-                sample-rate-options: root.sample-rate-options;
-                buffer-size-options: root.buffer-size-options;
-                toggled(checked) => {
-                    root.toggle-input-device(i, checked);
-                }
-                sample-rate-selected(value) => {
-                    root.update-input-sample-rate(i, value);
-                }
-                buffer-size-selected(value) => {
-                    root.update-input-buffer-size(i, value);
-                }
-            }
-        }
-
-        VerticalBox {
-            spacing: Theme.spaces.small;
-
-            SText {
-                theme: Themes.Dark;
-                text: "Dispositivos de saída";
-                font-size: Theme.typo.caption.size;
-            }
-
-            for device[i] in output-devices : DeviceRow {
-                name: device.name;
-                selected: device.selected;
-                sample-rate-text: device.sample_rate_text;
-                buffer-size-text: device.buffer_size_text;
-                sample-rate-options: root.sample-rate-options;
-                buffer-size-options: root.buffer-size-options;
-                toggled(checked) => {
-                    root.toggle-output-device(i, checked);
-                }
-                sample-rate-selected(value) => {
-                    root.update-output-sample-rate(i, value);
-                }
-                buffer-size-selected(value) => {
-                    root.update-output-buffer-size(i, value);
-                }
-            }
-        }
-
-        HorizontalBox {
-            spacing: Theme.spaces.medium;
-
-            if status-message != "" : SText {
-                theme: Themes.Dark;
-                text: status-message;
-                font-size: Theme.typo.caption.size;
-            }
-
-            Rectangle { horizontal-stretch: 1; background: transparent; }
-
-            SecondaryActionButton {
-                text: "Cancelar";
-                width: 116px;
-                height: 40px;
-                clicked => { root.close-project-settings(); }
-            }
-
-            PrimaryActionButton {
-                text: "Salvar";
-                width: 120px;
-                height: 40px;
-                clicked => { root.save-project-settings(); }
             }
         }
     }

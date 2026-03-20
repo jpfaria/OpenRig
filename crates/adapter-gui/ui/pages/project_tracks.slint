@@ -1,60 +1,415 @@
-import { VerticalBox, HorizontalBox, ScrollView } from "std-widgets.slint";
-import { Theme } from "../theme.slint";
+import { ScrollView } from "std-widgets.slint";
 import { ProjectTrackItem, TrackStageItem } from "../models.slint";
-import { SCard, SText } from "../modules/surrealism-ui/index.slint";
-import { Themes } from "../modules/surrealism-ui/use/index.slint";
-import { ColoredIconAction, IconAction } from "../widgets/widgets.slint";
 
-component StageRow inherits Rectangle {
-    in property <TrackStageItem> stage;
+component ToolbarButton inherits Rectangle {
+    in property <string> label;
+    in property <bool> primary: false;
+    callback clicked();
 
-    height: 20px;
-    background: transparent;
+    width: primary ? 140px : 116px;
+    height: 40px;
+    background: primary ? #188cff : #2f3339;
+    border-width: 1px;
+    border-color: primary ? #45a7ff : #4c515b;
+    border-radius: 4px;
 
-    HorizontalBox {
-        spacing: 8px;
+    Text {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        text: root.label;
+        color: #f4f7fb;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        font-size: 13px;
+        font-weight: 600;
+    }
 
-        Rectangle {
-            width: 8px;
-            height: 8px;
-            border-radius: 4px;
-            y: 6px;
-            background: stage.enabled ? #39d98a : #ff5f6d;
-        }
-
-        Image {
-            width: 14px;
-            height: 14px;
-            y: 3px;
-            source:
-                stage.kind == "amp_head" ? @image-url("../assets/amp-head.svg") :
-                stage.kind == "amp_combo" ? @image-url("../assets/amp-combo.svg") :
-                stage.kind == "full_rig" ? @image-url("../assets/full-rig.svg") :
-                stage.kind == "drive" ? @image-url("../assets/gain.svg") :
-                stage.kind == "compressor" ? @image-url("../assets/compressor.svg") :
-                stage.kind == "gate" ? @image-url("../assets/gate.svg") :
-                stage.kind == "eq" ? @image-url("../assets/eq.svg") :
-                stage.kind == "delay" ? @image-url("../assets/delay.svg") :
-                stage.kind == "reverb" ? @image-url("../assets/reverb.svg") :
-                stage.kind == "tremolo" ? @image-url("../assets/mod.svg") :
-                stage.kind == "tuner" ? @image-url("../assets/tuner.svg") :
-                stage.kind == "nam" ? @image-url("../assets/nam.svg") :
-                @image-url("../assets/patch-cable.svg");
-        }
-
-        SText {
-            theme: Themes.Dark;
-            text: stage.label;
-            font-size: Theme.typo.caption.size;
-            color: stage.enabled ? Theme.palette.text-secondary : Theme.palette.text-muted;
-        }
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
     }
 }
 
-export component ProjectTracksPage inherits SCard {
+component TrackActionIcon inherits Rectangle {
+    in property <image> icon;
+    callback clicked();
+
+    width: 24px;
+    height: 24px;
+    background: hover-area.has-hover ? #ffffff10 : transparent;
+
+    Image {
+        x: 2px;
+        y: 2px;
+        width: 20px;
+        height: 20px;
+        source: root.icon;
+        image-fit: contain;
+    }
+
+    hover-area := TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+component TrackPowerToggle inherits Rectangle {
+    in property <bool> enabled: false;
+    callback clicked();
+
+    width: 28px;
+    height: 28px;
+    background: hover-area.has-hover ? #ffffff08 : transparent;
+
+    Rectangle {
+        x: 4px;
+        y: 4px;
+        width: 20px;
+        height: 20px;
+        background: transparent;
+        border-width: 2px;
+        border-color: root.enabled ? #29df85 : #6a7483;
+        border-radius: 10px;
+    }
+
+    Rectangle {
+        x: 13px;
+        y: 3px;
+        width: 2px;
+        height: 10px;
+        background: root.enabled ? #29df85 : #6a7483;
+        border-radius: 1px;
+    }
+
+    hover-area := TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+component HeaderIconAction inherits Rectangle {
+    in property <image> icon;
+    in property <bool> active: false;
+    callback clicked();
+
+    width: 24px;
+    height: 24px;
+    background: action-area.has-hover ? #ffffff10 : transparent;
+
+    Image {
+        x: 2px;
+        y: 2px;
+        width: 20px;
+        height: 20px;
+        source: root.icon;
+        image-fit: contain;
+        colorize: root.active ? #188cff : #eef2f8;
+    }
+
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    action-area := TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+component StageChip inherits Rectangle {
+    in property <TrackStageItem> stage;
+    in property <bool> selected: false;
+    in property <image> icon-source;
+    callback clicked();
+
+    width: 44px;
+    height: 44px;
+    background: root.selected ? #ffffff08 : transparent;
+    border-width: root.selected ? 1px : 0px;
+    border-color: root.stage.family == "amp" ? #f2aa42
+        : root.stage.family == "drive" ? #ff7a59
+        : root.stage.family == "utility" ? #7fb0ff
+        : root.stage.family == "modulation" ? #4fd5c7
+        : root.stage.family == "space" ? #ba8cff
+        : root.stage.family == "tone" ? #ffd166
+        : root.stage.family == "dynamics" ? #74d680
+        : #7fb0ff;
+    border-radius: 6px;
+
+    Image {
+        x: 8px;
+        y: 8px;
+        width: 28px;
+        height: 28px;
+        source: root.icon-source;
+        image-fit: contain;
+        colorize: root.stage.family == "amp" ? #f2aa42
+            : root.stage.family == "drive" ? #ff7a59
+            : root.stage.family == "utility" ? #7fb0ff
+            : root.stage.family == "modulation" ? #4fd5c7
+            : root.stage.family == "space" ? #ba8cff
+            : root.stage.family == "tone" ? #ffd166
+            : root.stage.family == "dynamics" ? #74d680
+            : #7fb0ff;
+        opacity: root.stage.enabled ? 1 : 0.38;
+    }
+
+    Rectangle {
+        x: parent.width - 9px;
+        y: parent.height - 9px;
+        width: 6px;
+        height: 6px;
+        background: root.stage.enabled ? #29df85 : #59606b80;
+        border-radius: 3px;
+    }
+
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+component StageInsertButton inherits Rectangle {
+    callback clicked();
+
+    width: 24px;
+    height: 24px;
+    background: #252a33;
+    border-width: 1px;
+    border-color: #3b4250;
+    border-radius: 12px;
+
+    Text {
+        x: 0px;
+        y: -1px;
+        width: parent.width;
+        height: parent.height;
+        text: "+";
+        color: #ccd3df;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        font-size: 15px;
+        font-weight: 700;
+    }
+
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+component TrackRow inherits Rectangle {
+    in property <ProjectTrackItem> track;
+    in property <int> track-index;
+    in property <int> selected-stage-track-index;
+    in property <int> selected-stage-index;
+    callback toggle-track-enabled(int);
+    callback remove-track(int);
+    callback configure-track(int);
+    callback save-track-preset(int);
+    callback select-track-stage(int, int);
+    callback clear-track-stage();
+    callback toggle-track-stage-enabled(int, int);
+    callback start-stage-insert(int, int);
+
+    background: transparent;
+    border-width: 1px;
+    border-color: #31353d;
+    border-radius: 6px;
+
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: 80px;
+        background: transparent;
+
+        Text {
+            x: 18px;
+            y: 28px;
+            width: 320px;
+            height: 24px;
+            text: root.track.title;
+            color: #f1f4f8;
+            font-size: 18px;
+            font-weight: 650;
+            vertical-alignment: center;
+        }
+
+        Text {
+            x: parent.width - 256px;
+            y: 30px;
+            width: 88px;
+            height: 22px;
+            text: root.track.stage-count-label;
+            color: #98a1af;
+            font-size: 12px;
+            vertical-alignment: center;
+            horizontal-alignment: right;
+        }
+
+        TrackPowerToggle {
+            x: parent.width - 156px;
+            y: 26px;
+            enabled: root.track.enabled;
+            clicked => { root.toggle-track-enabled(root.track-index); }
+        }
+
+        TrackActionIcon {
+            x: parent.width - 116px;
+            y: 28px;
+            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
+            clicked => { root.configure-track(root.track-index); }
+        }
+
+        TrackActionIcon {
+            x: parent.width - 76px;
+            y: 28px;
+            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/save.svg");
+            clicked => { root.save-track-preset(root.track-index); }
+        }
+
+        TrackActionIcon {
+            x: parent.width - 36px;
+            y: 28px;
+            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/trash.svg");
+            clicked => { root.remove-track(root.track-index); }
+        }
+    }
+
+    Rectangle {
+        x: 18px;
+        y: 82px;
+        width: parent.width - 36px;
+        height: 52px;
+        background: transparent;
+
+        StageInsertButton {
+            x: 0px;
+            y: 14px;
+            clicked => { root.start-stage-insert(root.track-index, 0); }
+        }
+
+        for stage[stage-index] in root.track.stages : StageChip {
+            x: 34px + stage-index * 72px;
+            y: 4px;
+            stage: stage;
+            icon-source: stage.kind == "amp_head"
+                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-head.svg")
+                : stage.kind == "amp_combo"
+                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-combo.svg")
+                : stage.kind == "full_rig"
+                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/full-rig.svg")
+                : stage.kind == "drive"
+                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gain.svg")
+                : stage.kind == "compressor"
+                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/compressor.svg")
+                : stage.kind == "gate"
+                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gate.svg")
+                : stage.kind == "eq"
+                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/eq.svg")
+                : stage.kind == "tremolo"
+                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/mod.svg")
+                : stage.kind == "delay"
+                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/delay.svg")
+                : stage.kind == "reverb"
+                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/reverb.svg")
+                : stage.kind == "tuner"
+                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/tuner.svg")
+                : stage.kind == "nam"
+                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/nam.svg")
+                : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
+            selected: root.selected-stage-track-index == root.track-index && root.selected-stage-index == stage-index;
+            clicked => { root.select-track-stage(root.track-index, stage-index); }
+        }
+
+        for stage[stage-index] in root.track.stages : StageInsertButton {
+            x: 78px + stage-index * 72px;
+            y: 14px;
+            clicked => { root.start-stage-insert(root.track-index, stage-index + 1); }
+        }
+    }
+
+    if root.selected-stage-track-index == root.track-index : Rectangle {
+        x: 18px;
+        y: 146px;
+        width: parent.width - 36px;
+        height: 70px;
+        background: #151a21d8;
+        border-width: 1px;
+        border-color: #3b4250;
+        border-radius: 6px;
+
+        Text {
+            x: 16px;
+            y: 12px;
+            width: 220px;
+            height: 20px;
+            text: "Stage selecionado";
+            color: #f1f4f8;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        Text {
+            x: 16px;
+            y: 34px;
+            width: 320px;
+            height: 18px;
+            text: "Edicao rapida sem sair da lista.";
+            color: #95a0af;
+            font-size: 12px;
+        }
+
+        ToolbarButton {
+            x: parent.width - 344px;
+            y: 15px;
+            width: 96px;
+            label: "Fechar";
+            clicked => { root.clear-track-stage(); }
+        }
+
+        ToolbarButton {
+            x: parent.width - 236px;
+            y: 15px;
+            width: 100px;
+            label: "Bypass";
+            clicked => { root.toggle-track-stage-enabled(root.track-index, root.selected-stage-index); }
+        }
+
+        ToolbarButton {
+            x: parent.width - 124px;
+            y: 15px;
+            width: 108px;
+            label: "Track";
+            clicked => { root.configure-track(root.track-index); }
+        }
+    }
+
+}
+
+export component ProjectTracksPage inherits Rectangle {
     in property <string> project-title;
-    in property <[ProjectTrackItem]> tracks;
+    in property <string> project-path-label;
     in property <bool> project-running;
+    in property <[ProjectTrackItem]> project-tracks;
+    in property <int> selected-track-stage-track-index;
+    in property <int> selected-track-stage-index;
     in-out property <string> status-message;
     callback back-to-launcher();
     callback add-track();
@@ -64,157 +419,190 @@ export component ProjectTracksPage inherits SCard {
     callback toggle-track-enabled(int);
     callback configure-track(int);
     callback save-track-preset(int);
-    callback configure-track-preset(int);
     callback start-project();
     callback stop-project();
+    callback select-track-stage(int, int);
+    callback clear-track-stage();
+    callback toggle-track-stage-enabled(int, int);
+    callback start-stage-insert(int, int);
 
-    theme: Themes.Dark;
-    card-width: 860px;
-    card-height: 640px;
+    background: #1f2023;
 
-    VerticalBox {
-        padding: Theme.spaces.xlarge;
-        spacing: Theme.spaces.large;
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        background: #1b1d22;
 
-        HorizontalBox {
-            IconAction {
-                icon: @image-url("../assets/arrow-left.svg");
-                clicked => { root.back-to-launcher(); }
-            }
-
-            SText {
-                theme: Themes.Dark;
-                text: project-title;
-                font-size: Theme.typo.section.size;
-                font-weight: Theme.typo.section.weight;
-            }
-
-            Rectangle { horizontal-stretch: 1; background: transparent; }
-
-            IconAction {
-                icon: @image-url("../assets/gear.svg");
-                clicked => { root.configure-project(); }
-            }
-
-            IconAction {
-                icon: @image-url("../assets/play.svg");
-                enabled: !root.project-running;
-                clicked => { root.start-project(); }
-            }
-
-            IconAction {
-                icon: @image-url("../assets/stop.svg");
-                enabled: root.project-running;
-                clicked => { root.stop-project(); }
-            }
-
-            IconAction {
-                icon: @image-url("../assets/save.svg");
-                clicked => { root.save-project(); }
-            }
-
-            IconAction {
-                icon: @image-url("../assets/plus.svg");
-                clicked => { root.add-track(); }
-            }
+        Image {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/launcher-stage-bg.jpg");
+            image-fit: cover;
+            opacity: 1;
         }
 
-        if tracks.length == 0 : SText {
-            theme: Themes.Dark;
-            text: "Nenhuma track criada.";
-            font-size: Theme.typo.caption.size;
+        Rectangle {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            background: @linear-gradient(180deg, #17191dcc 0%, #17191de6 38%, #17191dd9 100%);
+        }
+    }
+
+    Rectangle {
+        x: 24px;
+        y: 18px;
+        width: parent.width - 48px;
+        height: 52px;
+        background: transparent;
+
+        Image {
+            x: 0px;
+            y: -4px;
+            width: 68px;
+            height: 68px;
+            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logomark.svg");
+            image-fit: contain;
         }
 
-        if tracks.length > 0 : ScrollView {
-            width: 812px;
-            height: 440px;
+        Image {
+            x: 46px;
+            y: 4px;
+            width: 172px;
+            height: 46px;
+            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logotype.png");
+            image-fit: contain;
+        }
 
-            VerticalBox {
-                spacing: 10px;
+        HeaderIconAction {
+            x: parent.width - 160px;
+            y: 14px;
+            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/arrow-left.svg");
+            clicked => { root.back-to-launcher(); }
+        }
 
-                for track[index] in tracks : SCard {
-                    theme: Themes.Dark;
-                    card-width: 812px;
-                    card-height: 86px + (track.stages.length * 22px);
+        HeaderIconAction {
+            x: parent.width - 120px;
+            y: 14px;
+            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
+            clicked => { root.configure-project(); }
+        }
 
-                    VerticalBox {
-                        padding: 16px;
-                        spacing: 10px;
+        HeaderIconAction {
+            x: parent.width - 80px;
+            y: 14px;
+            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/save.svg");
+            clicked => { root.save-project(); }
+        }
 
-                        HorizontalBox {
-                            spacing: 10px;
+        if root.project-running : HeaderIconAction {
+            x: parent.width - 40px;
+            y: 14px;
+            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/stop.svg");
+            active: true;
+            clicked => { root.stop-project(); }
+        }
 
-                            ColoredIconAction {
-                                icon: @image-url("../assets/power.svg");
-                                fill: track.enabled ? #10331f : #35121c;
-                                outline-color: track.enabled ? #39d98a : #ff5f6d;
-                                clicked => { root.toggle-track-enabled(index); }
-                            }
+        if !root.project-running : HeaderIconAction {
+            x: parent.width - 40px;
+            y: 14px;
+            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/play.svg");
+            active: true;
+            clicked => { root.start-project(); }
+        }
+    }
 
-                            VerticalBox {
-                                spacing: 2px;
+    Rectangle {
+        x: 24px;
+        y: 78px;
+        width: parent.width - 48px;
+        height: 1px;
+        background: #34383f;
+    }
 
-                                SText {
-                                    theme: Themes.Dark;
-                                    text: track.title;
-                                    font-size: Theme.typo.section.size;
-                                    font-weight: Theme.typo.section.weight;
-                                }
+    Rectangle {
+        x: 24px;
+        y: 96px;
+        width: parent.width - 48px;
+        height: parent.height - 120px;
+        background: #22242988;
+        border-width: 1px;
+        border-color: #32363daa;
+        border-radius: 6px;
 
-                                SText {
-                                    theme: Themes.Dark;
-                                    text: track.subtitle;
-                                    font-size: Theme.typo.caption.size;
-                                    color: Theme.palette.text-muted;
-                                }
-                            }
+        Text {
+            x: 18px;
+            y: 18px;
+            width: 340px;
+            height: 28px;
+            text: root.project-title;
+            color: #f1f4f8;
+            font-size: 24px;
+            font-weight: 680;
+            vertical-alignment: center;
+        }
 
-                            Rectangle { horizontal-stretch: 1; background: transparent; }
+        Text {
+            x: 18px;
+            y: 48px;
+            width: 480px;
+            height: 18px;
+            text: root.project-path-label;
+            color: #99a2b0;
+            font-size: 12px;
+            vertical-alignment: center;
+        }
 
-                            IconAction {
-                                icon: @image-url("../assets/gear.svg");
-                                clicked => { root.configure-track(index); }
-                            }
+        Text {
+            x: 18px;
+            y: 82px;
+            width: 280px;
+            height: 18px;
+            text: root.status-message;
+            color: #8db9ff;
+            font-size: 12px;
+            vertical-alignment: center;
+        }
 
-                            IconAction {
-                                icon: @image-url("../assets/remove.svg");
-                                clicked => { root.remove-track(index); }
-                            }
+        ToolbarButton {
+            x: parent.width - 154px;
+            y: 28px;
+            width: 136px;
+            label: "Nova track";
+            primary: true;
+            clicked => { root.add-track(); }
+        }
 
-                            IconAction {
-                                icon: @image-url("../assets/save.svg");
-                                clicked => { root.save-track-preset(index); }
-                            }
+        ScrollView {
+            x: 18px;
+            y: 118px;
+            width: parent.width - 36px;
+            height: parent.height - 136px;
+            viewport-height: root.project-tracks.length * 236px;
 
-                            IconAction {
-                                icon: @image-url("../assets/scene.svg");
-                                clicked => { root.configure-track-preset(index); }
-                            }
-                        }
-
-                        if track.stages.length > 0 : VerticalBox {
-                            spacing: 6px;
-
-                            for stage in track.stages : StageRow {
-                                stage: stage;
-                            }
-                        }
-
-                        if track.stages.length == 0 : SText {
-                            theme: Themes.Dark;
-                            text: "Sem stages";
-                            font-size: Theme.typo.caption.size;
-                            color: Theme.palette.text-muted;
-                        }
-                    }
-                }
+            for track[index] in root.project-tracks : TrackRow {
+                x: 0px;
+                y: index * 236px;
+                width: parent.width - 2px;
+                height: root.selected-track-stage-track-index == index ? 228px : 146px;
+                track: track;
+                track-index: index;
+                selected-stage-track-index: root.selected-track-stage-track-index;
+                selected-stage-index: root.selected-track-stage-index;
+                toggle-track-enabled(index) => { root.toggle-track-enabled(index); }
+                remove-track(index) => { root.remove-track(index); }
+                configure-track(index) => { root.configure-track(index); }
+                save-track-preset(index) => { root.save-track-preset(index); }
+                select-track-stage(track-index, stage-index) => { root.select-track-stage(track-index, stage-index); }
+                clear-track-stage() => { root.clear-track-stage(); }
+                toggle-track-stage-enabled(track-index, stage-index) => { root.toggle-track-stage-enabled(track-index, stage-index); }
+                start-stage-insert(track-index, before-index) => { root.start-stage-insert(track-index, before-index); }
             }
-        }
-
-        if status-message != "" : SText {
-            theme: Themes.Dark;
-            text: status-message;
-            font-size: Theme.typo.caption.size;
         }
     }
 }
