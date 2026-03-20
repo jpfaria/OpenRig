@@ -596,7 +596,7 @@ component StageChip inherits Rectangle {
     border-width: hover-area.has-hover || root.selected ? 3px : 2px;
     border-color: root.accent-color;
     border-radius: 6px;
-    opacity: root.dragging ? 0.32 : root.stage.enabled ? 1 : 0.42;
+    opacity: root.stage.enabled ? 1 : 0.42;
 
     Image {
         x: 0px;
@@ -655,9 +655,7 @@ component StageChip inherits Rectangle {
             }
         }
         clicked => {
-            if root.did-drag {
-                root.drag-finished((self.mouse-x + root.x) / 1px, (self.mouse-y + root.y) / 1px);
-            } else {
+            if !root.did-drag {
                 root.clicked();
             }
             root.did-drag = false;
@@ -669,6 +667,7 @@ component StageChip inherits Rectangle {
 component StageInsertSlot inherits Rectangle {
     in property <bool> empty-slot: false;
     in property <bool> active-drop-target: false;
+    in property <bool> move-target: false;
     callback clicked();
 
     width: 40px;
@@ -689,12 +688,22 @@ component StageInsertSlot inherits Rectangle {
         y: 0px;
         width: 24px;
         height: 24px;
-        background: root.active-drop-target ? #eef2f820 : root.empty-slot ? #20252d : #252a33;
+        background: root.active-drop-target ? #eef2f820 : root.move-target ? #1f3344 : root.empty-slot ? #20252d : #252a33;
         border-width: 1px;
-        border-color: root.active-drop-target ? #eef2f8 : root.empty-slot ? #5a6577 : #7c8798;
+        border-color: root.active-drop-target ? #eef2f8 : root.move-target ? #6bb7ff : root.empty-slot ? #5a6577 : #7c8798;
         border-radius: 12px;
 
-        Text {
+        if root.move-target : Image {
+            x: 4px;
+            y: 4px;
+            width: 16px;
+            height: 16px;
+            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/patch-cable.svg");
+            image-fit: contain;
+            colorize: #eef2f8;
+        }
+
+        if !root.move-target : Text {
             x: 0px;
             y: -1px;
             width: parent.width;
@@ -734,6 +743,7 @@ component TrackRow inherits Rectangle {
     property <int> stages-per-row: Math.max(1, Math.floor((root.width - 120px) / 124px));
     property <int> stage-row-count: root.track.stages.length == 0 ? 1 : Math.floor((root.track.stages.length - 1) / root.stages-per-row) + 1;
     property <int> insert-row-count: Math.floor(root.track.stages.length / root.stages-per-row) + 1;
+    in-out property <int> dragging-track-index: -1;
     in-out property <int> dragging-stage-index: -1;
     in-out property <int> drag-hover-before-index: -1;
 
@@ -809,8 +819,18 @@ component TrackRow inherits Rectangle {
             x: 16px;
             y: 30px;
             empty-slot: root.track.stages.length == 0;
-            active-drop-target: root.dragging-stage-index >= 0 && root.drag-hover-before-index == 0;
-            clicked => { root.start-stage-insert(root.track-index, 0); }
+            move-target: root.dragging-track-index == root.track-index && root.dragging-stage-index >= 0;
+            active-drop-target: root.dragging-track-index == root.track-index && root.dragging-stage-index >= 0 && root.drag-hover-before-index == 0;
+            clicked => {
+                if root.dragging-track-index == root.track-index && root.dragging-stage-index >= 0 {
+                    root.reorder-track-stage(root.track-index, root.dragging-stage-index, 0);
+                    root.dragging-track-index = -1;
+                    root.dragging-stage-index = -1;
+                    root.drag-hover-before-index = -1;
+                } else {
+                    root.start-stage-insert(root.track-index, 0);
+                }
+            }
         }
 
         for stage[stage-index] in root.track.stages : StageChip {
@@ -845,25 +865,35 @@ component TrackRow inherits Rectangle {
                 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/nam.svg")
                 : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
             selected: root.selected-stage-track-index == root.track-index && root.selected-stage-index == stage-index;
-            dragging: root.dragging-stage-index == stage-index;
+            dragging: root.dragging-track-index == root.track-index && root.dragging-stage-index == stage-index;
             clicked => { root.select-track-stage(root.track-index, stage-index); }
             drag-moved(pointer-x, pointer-y) => {
+                root.dragging-track-index = root.track-index;
                 root.dragging-stage-index = stage-index;
                 root.drag-hover-before-index = root.slot-index-for-position(pointer-x, pointer-y);
             }
             drag-finished(pointer-x, pointer-y) => {
-                let before-index = root.slot-index-for-position(pointer-x, pointer-y);
-                root.reorder-track-stage(root.track-index, stage-index, before-index);
-                root.dragging-stage-index = -1;
-                root.drag-hover-before-index = -1;
+                if root.dragging-track-index == root.track-index && root.dragging-stage-index == stage-index {
+                    root.drag-hover-before-index = root.slot-index-for-position(pointer-x, pointer-y);
+                }
             }
         }
 
         for stage[stage-index] in root.track.stages : StageInsertSlot {
             x: 140px + Math.mod(stage-index, root.stages-per-row) * 124px;
             y: 30px + Math.floor(stage-index / root.stages-per-row) * 112px;
-            active-drop-target: root.dragging-stage-index >= 0 && root.drag-hover-before-index == stage-index + 1;
-            clicked => { root.start-stage-insert(root.track-index, stage-index + 1); }
+            move-target: root.dragging-track-index == root.track-index && root.dragging-stage-index >= 0;
+            active-drop-target: root.dragging-track-index == root.track-index && root.dragging-stage-index >= 0 && root.drag-hover-before-index == stage-index + 1;
+            clicked => {
+                if root.dragging-track-index == root.track-index && root.dragging-stage-index >= 0 {
+                    root.reorder-track-stage(root.track-index, root.dragging-stage-index, stage-index + 1);
+                    root.dragging-track-index = -1;
+                    root.dragging-stage-index = -1;
+                    root.drag-hover-before-index = -1;
+                } else {
+                    root.start-stage-insert(root.track-index, stage-index + 1);
+                }
+            }
         }
     }
 
@@ -891,6 +921,9 @@ export component ProjectTracksPage inherits Rectangle {
     in property <bool> stage-drawer-enabled;
     in property <[StageParameterItem]> stage-parameter-items;
     in-out property <string> status-message;
+    property <int> dragging-track-index: -1;
+    property <int> dragging-stage-index: -1;
+    property <int> drag-hover-before-index: -1;
     callback back-to-launcher();
     callback add-track();
     callback save-project();
@@ -944,6 +977,20 @@ export component ProjectTracksPage inherits Rectangle {
             width: parent.width;
             height: parent.height;
             background: @linear-gradient(180deg, #17191dcc 0%, #17191de6 38%, #17191dd9 100%);
+        }
+
+        TouchArea {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            clicked => {
+                if root.dragging-stage-index >= 0 {
+                    root.dragging-track-index = -1;
+                    root.dragging-stage-index = -1;
+                    root.drag-hover-before-index = -1;
+                }
+            }
         }
     }
 
@@ -1029,6 +1076,20 @@ export component ProjectTracksPage inherits Rectangle {
         border-color: #32363daa;
         border-radius: 6px;
 
+        TouchArea {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            clicked => {
+                if root.dragging-stage-index >= 0 {
+                    root.dragging-track-index = -1;
+                    root.dragging-stage-index = -1;
+                    root.drag-hover-before-index = -1;
+                }
+            }
+        }
+
         Text {
             x: 18px;
             y: 18px;
@@ -1084,6 +1145,9 @@ export component ProjectTracksPage inherits Rectangle {
                 toggle-track-stage-enabled(track-index, stage-index) => { root.toggle-track-stage-enabled(track-index, stage-index); }
                 start-stage-insert(track-index, before-index) => { root.start-stage-insert(track-index, before-index); }
                 reorder-track-stage(track-index, from-index, before-index) => { root.reorder-track-stage(track-index, from-index, before-index); }
+                dragging-track-index <=> root.dragging-track-index;
+                dragging-stage-index <=> root.dragging-stage-index;
+                drag-hover-before-index <=> root.drag-hover-before-index;
             }
         }
     }
