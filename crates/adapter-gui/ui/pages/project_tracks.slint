@@ -684,14 +684,14 @@ component StageInsertSlot inherits Rectangle {
         border-radius: 1px;
     }
 
-    if !root.move-target && (root.empty-slot || (hover-area.has-hover && !root.suppress-hover-affordance)) : Rectangle {
+    if root.empty-slot || root.active-drop-target || (!root.move-target && hover-area.has-hover && !root.suppress-hover-affordance) : Rectangle {
         x: (parent.width - 24px) / 2;
         y: 0px;
         width: 24px;
         height: 24px;
-        background: root.empty-slot ? #20252d : #252a33;
+        background: root.empty-slot || root.active-drop-target ? #20252d : #252a33;
         border-width: 1px;
-        border-color: root.empty-slot ? #5a6577 : #7c8798;
+        border-color: root.active-drop-target ? #a9b2bf : root.empty-slot ? #5a6577 : #7c8798;
         border-radius: 12px;
 
         Text {
@@ -829,7 +829,7 @@ component TrackRow inherits Rectangle {
 
         StageInsertSlot {
             x: 24px;
-            y: 22px;
+            y: 30px;
             empty-slot: root.track.stages.length == 0;
             move-target: root.dragging-track-index == root.track-index && root.dragging-stage-index >= 0;
             suppress-hover-affordance: root.suppress-insert-hover;
@@ -898,7 +898,7 @@ component TrackRow inherits Rectangle {
 
         for stage[stage-index] in root.track.stages : StageInsertSlot {
             x: 140px + Math.mod(stage-index, root.stages-per-row) * 116px;
-            y: 22px + Math.floor(stage-index / root.stages-per-row) * 92px;
+            y: 30px + Math.floor(stage-index / root.stages-per-row) * 92px;
             move-target: root.dragging-track-index == root.track-index && root.dragging-stage-index >= 0;
             suppress-hover-affordance: root.suppress-insert-hover;
             active-drop-target: root.dragging-track-index == root.track-index && root.dragging-stage-index >= 0 && root.drag-hover-before-index == stage-index + 1;
@@ -1170,7 +1170,12 @@ export component ProjectTracksPage inherits Rectangle {
                     select-track-stage(track-index, stage-index) => { root.select-track-stage(track-index, stage-index); }
                     toggle-track-stage-enabled(track-index, stage-index) => { root.toggle-track-stage-enabled(track-index, stage-index); }
                     start-stage-insert(track-index, before-index) => { root.start-stage-insert(track-index, before-index); }
-                    reorder-track-stage(track-index, from-index, before-index) => { root.reorder-track-stage(track-index, from-index, before-index); }
+                    reorder-track-stage(track-index, from-index, before-index) => {
+                        root.reorder-track-stage(track-index, from-index, before-index);
+                        root.dragging-track-index = -1;
+                        root.dragging-stage-index = -1;
+                        root.drag-hover-before-index = -1;
+                    }
                     dragging-track-index <=> root.dragging-track-index;
                     dragging-stage-index <=> root.dragging-stage-index;
                     drag-hover-before-index <=> root.drag-hover-before-index;
