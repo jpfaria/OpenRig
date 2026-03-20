@@ -732,7 +732,7 @@ component TrackRow inherits Rectangle {
     callback toggle-track-stage-enabled(int, int);
     callback start-stage-insert(int, int);
     callback reorder-track-stage(int, int, int);
-    property <int> stages-per-row: Math.max(1, Math.floor((root.width - 190px) / 116px));
+    property <int> stages-per-row: Math.max(1, Math.floor((root.width - 220px) / 116px));
     property <int> stage-row-count: root.track.stages.length == 0 ? 1 : Math.floor((root.track.stages.length - 1) / root.stages-per-row) + 1;
     property <int> insert-row-count: Math.floor(root.track.stages.length / root.stages-per-row) + 1;
     in-out property <int> dragging-track-index: -1;
@@ -741,7 +741,7 @@ component TrackRow inherits Rectangle {
     property <bool> suppress-insert-hover: false;
 
     pure function slot-index-for-position(pointer-x: float, pointer-y: float) -> int {
-        let row = Math.max(0, Math.min(root.insert-row-count - 1, Math.floor((pointer-y + 22) / 100)));
+        let row = Math.max(0, Math.min(root.insert-row-count - 1, Math.floor((pointer-y + 18) / 92)));
         let col = Math.max(0, Math.min(root.stages-per-row, Math.round((pointer-x - 16) / 116)));
         let candidate = row * root.stages-per-row + col;
         return Math.max(0, Math.min(root.track.stages.length, candidate));
@@ -751,25 +751,25 @@ component TrackRow inherits Rectangle {
     border-width: 1px;
     border-color: #31353d;
     border-radius: 6px;
-    height: 92px + (root.insert-row-count * 100px);
+    height: 74px + (root.insert-row-count * 92px);
 
     Rectangle {
         x: 0px;
         y: 0px;
         width: parent.width;
-        height: 72px;
+        height: 58px;
         background: transparent;
 
         TrackPowerToggle {
             x: 18px;
-            y: 18px;
+            y: 14px;
             enabled: root.track.enabled;
             clicked => { root.toggle-track-enabled(root.track-index); }
         }
 
         Text {
             x: 56px;
-            y: 18px;
+            y: 14px;
             width: 320px;
             height: 24px;
             text: root.track.title;
@@ -781,28 +781,28 @@ component TrackRow inherits Rectangle {
 
         TrackActionIcon {
             x: parent.width - 156px;
-            y: 18px;
+            y: 14px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
             clicked => { root.configure-track(root.track-index); }
         }
 
         TrackActionIcon {
             x: parent.width - 116px;
-            y: 18px;
+            y: 14px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/open-file.svg");
             clicked => { root.configure-track-preset(root.track-index); }
         }
 
         TrackActionIcon {
             x: parent.width - 76px;
-            y: 18px;
+            y: 14px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/save.svg");
             clicked => { root.save-track-preset(root.track-index); }
         }
 
         TrackActionIcon {
             x: parent.width - 36px;
-            y: 18px;
+            y: 14px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/trash.svg");
             clicked => { root.remove-track(root.track-index); }
         }
@@ -810,9 +810,9 @@ component TrackRow inherits Rectangle {
 
     Rectangle {
         x: 18px;
-        y: 46px;
+        y: 62px;
         width: parent.width - 36px;
-        height: root.insert-row-count * 100px;
+        height: root.insert-row-count * 92px;
         background: transparent;
 
         TouchArea {
@@ -829,7 +829,7 @@ component TrackRow inherits Rectangle {
 
         StageInsertSlot {
             x: 24px;
-            y: 26px;
+            y: 22px;
             empty-slot: root.track.stages.length == 0;
             move-target: root.dragging-track-index == root.track-index && root.dragging-stage-index >= 0;
             suppress-hover-affordance: root.suppress-insert-hover;
@@ -849,7 +849,7 @@ component TrackRow inherits Rectangle {
 
         for stage[stage-index] in root.track.stages : StageChip {
             x: 56px + Math.mod(stage-index, root.stages-per-row) * 116px;
-            y: Math.floor(stage-index / root.stages-per-row) * 100px;
+            y: Math.floor(stage-index / root.stages-per-row) * 92px;
             stage: stage;
             icon-source: stage.kind == "amp_head"
                 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-head.svg")
@@ -898,7 +898,7 @@ component TrackRow inherits Rectangle {
 
         for stage[stage-index] in root.track.stages : StageInsertSlot {
             x: 140px + Math.mod(stage-index, root.stages-per-row) * 116px;
-            y: 26px + Math.floor(stage-index / root.stages-per-row) * 100px;
+            y: 22px + Math.floor(stage-index / root.stages-per-row) * 92px;
             move-target: root.dragging-track-index == root.track-index && root.dragging-stage-index >= 0;
             suppress-hover-affordance: root.suppress-insert-hover;
             active-drop-target: root.dragging-track-index == root.track-index && root.dragging-stage-index >= 0 && root.drag-hover-before-index == stage-index + 1;
@@ -1148,16 +1148,15 @@ export component ProjectTracksPage inherits Rectangle {
             width: parent.width - 36px;
             height: parent.height - 106px;
             viewport-height: tracks-column.preferred-height;
-            viewport-width: self.width;
 
             tracks-column := VerticalBox {
                 x: 0px;
                 y: 0px;
-                width: parent.width;
+                width: parent.width - 8px;
                 spacing: 12px;
 
                 for track[index] in root.project-tracks : TrackRow {
-                    width: parent.width;
+                    width: parent.width - 8px;
                     track: track;
                     track-index: index;
                     selected-stage-track-index: root.selected-track-stage-track-index;
