@@ -2651,15 +2651,12 @@ fn stage_parameter_items_for_model(
     let Ok(schema) = schema_for_block_model(effect_type, model_id) else {
         return Vec::new();
     };
-    let Ok(normalized) = params.normalized_against(&schema) else {
-        return Vec::new();
-    };
     schema
         .parameters
         .iter()
         .filter(|spec| stage_parameter_visible_in_gui(effect_type, &spec.path))
         .map(|spec| {
-            let current = normalized
+            let current = params
                 .get(&spec.path)
                 .cloned()
                 .or_else(|| spec.default_value.clone())
@@ -2764,6 +2761,7 @@ fn stage_parameter_visible_in_gui(effect_type: &str, path: &str) -> bool {
 
     match effect_type {
         "amp_head" => matches!(path, "volume" | "gain"),
+        "full_rig" => matches!(path, "bright_enabled" | "royer_101_enabled" | "sm57_enabled"),
         _ => true,
     }
 }

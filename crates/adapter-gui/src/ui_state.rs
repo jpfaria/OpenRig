@@ -229,23 +229,44 @@ fn stage_model_catalog() -> Vec<StageModelDefinition> {
         },
         StageModelDefinition {
             effect_type: "delay",
-            model_id: "digital_basic",
-            title: "Digital Basic",
-            subtitle: "Delay limpo e direto",
+            model_id: "digital_clean",
+            title: "Digital Clean",
+            subtitle: "Delay digital limpo e direto",
             icon_kind: "delay",
         },
         StageModelDefinition {
             effect_type: "delay",
-            model_id: "digital_wide",
-            title: "Digital Wide",
-            subtitle: "Delay stereo mais amplo",
+            model_id: "analog_warm",
+            title: "Analog Warm",
+            subtitle: "Delay analogico mais quente",
             icon_kind: "delay",
         },
         StageModelDefinition {
             effect_type: "delay",
-            model_id: "digital_ping_pong",
-            title: "Digital Ping Pong",
-            subtitle: "Delay alternando lados",
+            model_id: "tape_vintage",
+            title: "Tape Vintage",
+            subtitle: "Eco com caracter de fita",
+            icon_kind: "delay",
+        },
+        StageModelDefinition {
+            effect_type: "delay",
+            model_id: "reverse",
+            title: "Reverse",
+            subtitle: "Delay reverso atmosferico",
+            icon_kind: "delay",
+        },
+        StageModelDefinition {
+            effect_type: "delay",
+            model_id: "slapback",
+            title: "Slapback",
+            subtitle: "Reflexo curto e percussivo",
+            icon_kind: "delay",
+        },
+        StageModelDefinition {
+            effect_type: "delay",
+            model_id: "modulated_delay",
+            title: "Modulated Delay",
+            subtitle: "Delay com modulacao sutil",
             icon_kind: "delay",
         },
         StageModelDefinition {
@@ -302,8 +323,8 @@ mod tests {
     fn stage_models_are_filtered_by_type() {
         let delay_models = stage_models_for_type("delay");
 
-        assert!(delay_models.iter().any(|item| item.model_id == "digital_basic"));
-        assert!(delay_models.iter().any(|item| item.model_id == "digital_ping_pong"));
+        assert!(delay_models.iter().any(|item| item.model_id == "digital_clean"));
+        assert!(delay_models.iter().any(|item| item.model_id == "modulated_delay"));
         assert!(delay_models.iter().all(|item| item.effect_type == "delay"));
     }
 
@@ -315,7 +336,7 @@ mod tests {
 
     #[test]
     fn stage_drawer_labels_match_add_mode() {
-        let state = stage_drawer_state(None, "delay", Some("digital_ping_pong"));
+        let state = stage_drawer_state(None, "delay", Some("digital_clean"));
 
         assert_eq!(state.mode, StageDrawerMode::Add);
         assert_eq!(state.title, "Adicionar stage");
@@ -324,7 +345,7 @@ mod tests {
 
     #[test]
     fn stage_drawer_labels_match_edit_mode() {
-        let state = stage_drawer_state(Some(2), "delay", Some("digital_ping_pong"));
+        let state = stage_drawer_state(Some(2), "delay", Some("digital_clean"));
 
         assert_eq!(state.mode, StageDrawerMode::Edit);
         assert_eq!(state.title, "Editar stage");
