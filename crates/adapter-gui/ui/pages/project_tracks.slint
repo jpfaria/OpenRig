@@ -1,5 +1,4 @@
-import { CheckBox, ComboBox, ScrollView } from "std-widgets.slint";
-import { SSlider } from "../modules/surrealism-ui/index.slint";
+import { ComboBox, ScrollView } from "std-widgets.slint";
 import { ProjectTrackItem, StageModelPickerItem, StageParameterItem, StageTypePickerItem, TrackStageItem } from "../models.slint";
 
 component ToolbarButton inherits Rectangle {
@@ -55,6 +54,184 @@ component ParamFieldBox inherits Rectangle {
         edited => {
             root.text = self.text;
             root.changed(self.text);
+        }
+    }
+}
+
+component StageValueKnob inherits Rectangle {
+    in property <string> label;
+    in property <string> value-text;
+    in property <string> unit-text;
+    in property <float> progress: 0;
+    callback moved(float);
+
+    width: 124px;
+    height: 128px;
+    background: transparent;
+
+    Text {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: 18px;
+        text: root.label;
+        color: #eef2f8;
+        font-size: 13px;
+        font-weight: 700;
+        horizontal-alignment: center;
+    }
+
+    Rectangle {
+        x: 14px;
+        y: 28px;
+        width: 96px;
+        height: 96px;
+        background: #2b2f35;
+        border-width: 2px;
+        border-color: #454c58;
+        border-radius: 48px;
+
+        Rectangle {
+            x: 6px;
+            y: 6px;
+            width: parent.width - 12px;
+            height: parent.height - 12px;
+            background: #1b1f26;
+            border-width: 1px;
+            border-color: #0f1217;
+            border-radius: self.width / 2;
+        }
+
+        Rectangle {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            background: transparent;
+            transform-rotation: (-135deg + (root.progress * 270deg));
+
+            Rectangle {
+                x: (parent.width - 4px) / 2;
+                y: 8px;
+                width: 4px;
+                height: 24px;
+                background: #d7dde7;
+                border-radius: 2px;
+            }
+        }
+
+        Text {
+            x: 0px;
+            y: 28px;
+            width: parent.width;
+            height: 22px;
+            text: root.value-text;
+            color: #f5f7fb;
+            font-size: 18px;
+            font-weight: 800;
+            horizontal-alignment: center;
+        }
+
+        if root.unit-text != "" : Text {
+            x: 0px;
+            y: 52px;
+            width: parent.width;
+            height: 14px;
+            text: root.unit-text;
+            color: #aab4c3;
+            font-size: 10px;
+            font-weight: 700;
+            horizontal-alignment: center;
+        }
+
+        TouchArea {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            mouse-cursor: pointer;
+            moved => {
+                let next = 1 - (self.mouse-y / parent.height);
+                root.moved(next < 0 ? 0 : next > 1 ? 1 : next);
+            }
+        }
+    }
+}
+
+component StageFootswitch inherits Rectangle {
+    in property <string> label;
+    in property <bool> active: false;
+    callback toggled(bool);
+
+    width: 160px;
+    height: 78px;
+    background: transparent;
+
+    Text {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: 18px;
+        text: root.label;
+        color: #eef2f8;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    Rectangle {
+        x: 0px;
+        y: 28px;
+        width: 160px;
+        height: 42px;
+        background: transparent;
+
+        Rectangle {
+            x: 0px;
+            y: 14px;
+            width: 10px;
+            height: 10px;
+            background: root.active ? #29df85 : #5f6776;
+            border-radius: 5px;
+        }
+
+        Rectangle {
+            x: 28px;
+            y: 0px;
+            width: 42px;
+            height: 42px;
+            background: #c7ccd4;
+            border-width: 2px;
+            border-color: root.active ? #ecf7ef : #a3a9b2;
+            border-radius: 21px;
+
+            Rectangle {
+                x: 7px;
+                y: 7px;
+                width: 24px;
+                height: 24px;
+                background: #8f97a4;
+                border-radius: 12px;
+            }
+
+            TouchArea {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+                mouse-cursor: pointer;
+                clicked => { root.toggled(!root.active); }
+            }
+        }
+
+        Text {
+            x: 84px;
+            y: 10px;
+            width: 70px;
+            height: 20px;
+            text: root.active ? "ON" : "OFF";
+            color: root.active ? #ecf7ef : #8d98a9;
+            font-size: 12px;
+            font-weight: 800;
         }
     }
 }
@@ -182,12 +359,12 @@ component StageParameterRow inherits Rectangle {
     callback option-changed(string, int);
     callback file-picked(string);
 
-    height: root.item.widget_kind == "bool" ? 52px
-        : (root.item.widget_kind == "float" || root.item.widget_kind == "int") ? 86px
+    height: root.item.widget_kind == "bool" ? 84px
+        : (root.item.widget_kind == "float" || root.item.widget_kind == "int") ? 136px
         : 76px;
     background: transparent;
 
-    Text {
+    if root.item.widget_kind != "bool" && root.item.widget_kind != "float" && root.item.widget_kind != "int" : Text {
         x: 0px;
         y: 0px;
         width: parent.width;
@@ -198,15 +375,13 @@ component StageParameterRow inherits Rectangle {
         font-weight: 650;
     }
 
-    if root.item.widget_kind == "bool" : CheckBox {
+    if root.item.widget_kind == "bool" : StageFootswitch {
         x: 0px;
-        y: 24px;
-        width: parent.width;
-        height: 24px;
-        text: "Ativado";
-        checked: root.item.bool_value;
-        toggled => {
-            root.bool-changed(root.item.path, self.checked);
+        y: 0px;
+        label: root.item.label;
+        active: root.item.bool_value;
+        toggled(value) => {
+            root.bool-changed(root.item.path, value);
         }
     }
 
@@ -233,44 +408,20 @@ component StageParameterRow inherits Rectangle {
         }
     }
 
-    if root.item.widget_kind == "float" || root.item.widget_kind == "int" : SSlider {
+    if root.item.widget_kind == "float" || root.item.widget_kind == "int" : StageValueKnob {
         x: 0px;
-        y: 30px;
-        width: parent.width - 92px;
-        height: 18px;
+        y: 0px;
+        label: root.item.label;
+        value-text: root.item.value_text;
+        unit-text: root.item.unit_text;
         progress: root.item.numeric_max > root.item.numeric_min
             ? (root.item.numeric_value - root.item.numeric_min) / (root.item.numeric_max - root.item.numeric_min)
             : 0;
-        stroke-width: 8px;
         moved(progress) => {
             root.number-changed(
                 root.item.path,
                 root.item.numeric_min + ((root.item.numeric_max - root.item.numeric_min) * progress)
             );
-        }
-    }
-
-    if root.item.widget_kind == "float" || root.item.widget_kind == "int" : Rectangle {
-        x: parent.width - 80px;
-        y: 22px;
-        width: 80px;
-        height: 28px;
-        background: #1a1e25;
-        border-width: 1px;
-        border-color: #3c4350;
-        border-radius: 4px;
-
-        Text {
-            x: 0px;
-            y: 0px;
-            width: parent.width;
-            height: parent.height;
-            text: root.item.value_text;
-            color: #eef2f8;
-            font-size: 12px;
-            font-weight: 650;
-            horizontal-alignment: center;
-            vertical-alignment: center;
         }
     }
 
@@ -311,9 +462,9 @@ component StageParameterRow inherits Rectangle {
         }
     }
 
-    if (root.item.widget_kind == "text" || root.item.widget_kind == "float" || root.item.widget_kind == "int") && root.item.unit_text != "" : Rectangle {
+    if root.item.widget_kind == "text" && root.item.unit_text != "" : Rectangle {
         x: parent.width - 42px;
-        y: root.item.widget_kind == "text" ? 35px : 58px;
+        y: 35px;
         width: 42px;
         height: 20px;
         background: transparent;
@@ -973,7 +1124,7 @@ export component ProjectTracksPage inherits Rectangle {
                 y: 78px;
                 width: parent.width - 40px;
                 height: parent.height - 168px;
-                viewport-height: 420px + (root.stage-model-options.length * 62px) + (root.stage-parameter-items.length * 82px);
+                viewport-height: 420px + (root.stage-model-options.length * 62px) + (root.stage-parameter-items.length * 132px);
 
                 Text {
                     x: 0px;
@@ -1043,7 +1194,7 @@ export component ProjectTracksPage inherits Rectangle {
                 clicked => { root.delete-stage-drawer(); }
             }
 
-            ToolbarButton {
+            if !root.stage-drawer-edit-mode : ToolbarButton {
                 x: parent.width - 116px;
                 y: parent.height - 54px;
                 width: 96px;
