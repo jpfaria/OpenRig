@@ -373,9 +373,9 @@ component BlockTypeCard inherits Rectangle {
         : root.item.effect_type == "cab" ? "CAB"
         : root.item.effect_type == "full_rig" ? "RIG"
         : root.item.effect_type == "drive" ? "GAIN"
-        : root.item.effect_type == "compressor" ? "DYN"
-        : root.item.effect_type == "gate" ? "DYN"
-        : root.item.effect_type == "eq" ? "FILTER"
+        : root.item.effect_type == "compressor" ? "COMP"
+        : root.item.effect_type == "gate" ? "GATE"
+        : root.item.effect_type == "eq" ? "EQ"
         : root.item.effect_type == "tremolo" ? "MOD"
         : root.item.effect_type == "delay" ? "DLY"
         : root.item.effect_type == "reverb" ? "RVB"
@@ -794,9 +794,9 @@ component BlockChip inherits Rectangle {
         : root.block.kind == "cab" ? "CAB"
         : root.block.kind == "full_rig" ? "RIG"
         : root.block.kind == "drive" ? "GAIN"
-        : root.block.kind == "compressor" ? "DYN"
-        : root.block.kind == "gate" ? "DYN"
-        : root.block.kind == "eq" ? "FILTER"
+        : root.block.kind == "compressor" ? "COMP"
+        : root.block.kind == "gate" ? "GATE"
+        : root.block.kind == "eq" ? "EQ"
         : root.block.kind == "tremolo" ? "MOD"
         : root.block.kind == "delay" ? "DLY"
         : root.block.kind == "reverb" ? "RVB"
@@ -1447,15 +1447,73 @@ export component ProjectChainsPage inherits Rectangle {
             border-width: 1px;
             border-color: #2d3340;
 
-            Text {
+            Image {
                 x: 20px;
-                y: 22px;
-                width: parent.width - 72px;
-                height: 22px;
-                text: root.block-drawer-title;
+                y: 18px;
+                width: 28px;
+                height: 28px;
+                source: root.block-drawer-selected-type-index >= 0 && root.block-drawer-selected-type-index < root.block-type-options.length
+                    ? (
+                        root.block-type-options[root.block-drawer-selected-type-index].effect_type == "amp_head"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-head.svg")
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "amp_combo"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-combo.svg")
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "cab"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/cab.svg")
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "full_rig"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/full-rig.svg")
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "drive"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gain.svg")
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "compressor"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/compressor.svg")
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "gate"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gate.svg")
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "eq"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/eq.svg")
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "tremolo"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/mod.svg")
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "delay"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/delay.svg")
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "reverb"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/reverb.svg")
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "tuner"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/tuner.svg")
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "nam"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/nam.svg")
+                        : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg")
+                    )
+                    : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
+                image-fit: contain;
+                colorize: #f3f6fb;
+            }
+
+            Text {
+                x: 56px;
+                y: 20px;
+                width: parent.width - 108px;
+                height: 24px;
+                text: root.block-drawer-selected-type-index >= 0 && root.block-drawer-selected-type-index < root.block-type-options.length
+                    ? (
+                        root.block-type-options[root.block-drawer-selected-type-index].effect_type == "amp_head" ? "AMP"
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "amp_combo" ? "COMBO"
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "cab" ? "CAB"
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "full_rig" ? "RIG"
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "drive" ? "GAIN"
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "compressor" ? "COMP"
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "gate" ? "GATE"
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "eq" ? "EQ"
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "tremolo" ? "MOD"
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "delay" ? "DLY"
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "reverb" ? "RVB"
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "tuner" ? "UTIL"
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "nam" ? "NAM"
+                        : "BLOCK"
+                    )
+                    : "";
                 color: #f3f6fb;
                 font-size: 18px;
-                font-weight: 700;
+                font-weight: 800;
+                vertical-alignment: center;
             }
 
             ChainActionIcon {

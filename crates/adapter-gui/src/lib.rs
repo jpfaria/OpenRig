@@ -22,13 +22,14 @@ use project::project::Project;
 use project::chain::{Chain, ChainOutputMixdown};
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
-use slint::{Model, ModelRc, SharedString, VecModel};
+use slint::{Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 use std::fmt::Display;
 use std::rc::Rc;
 use std::{
     cell::RefCell,
     env, fs,
     path::{Path, PathBuf},
+    time::Duration,
 };
 use ui_openrig::{AppRuntimeMode, InteractionMode, UiRuntimeContext};
 use ui_state::{block_drawer_state, block_family_for_kind, chain_routing_summary};
@@ -48,6 +49,46 @@ fn log_gui_message(context: &str, message: &str) {
 
 fn log_gui_error(context: &str, error: impl Display) {
     eprintln!("[adapter-gui] {context}: {error}");
+}
+
+#[allow(clippy::too_many_arguments)]
+fn schedule_block_editor_persist(
+    timer: &Rc<Timer>,
+    window_weak: slint::Weak<AppWindow>,
+    block_editor_draft: Rc<RefCell<Option<BlockEditorDraft>>>,
+    block_parameter_items: Rc<VecModel<BlockParameterItem>>,
+    project_session: Rc<RefCell<Option<ProjectSession>>>,
+    project_chains: Rc<VecModel<ProjectChainItem>>,
+    project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+    saved_project_snapshot: Rc<RefCell<Option<String>>>,
+    project_dirty: Rc<RefCell<bool>>,
+    context: &'static str,
+) {
+    timer.stop();
+    timer.start(TimerMode::SingleShot, Duration::from_millis(140), move || {
+        let Some(window) = window_weak.upgrade() else {
+            return;
+        };
+        let Some(draft) = block_editor_draft.borrow().clone() else {
+            return;
+        };
+        if draft.block_index.is_none() {
+            return;
+        }
+        if let Err(error) = persist_block_editor_draft(
+            &window,
+            &draft,
+            &block_parameter_items,
+            &project_session,
+            &project_chains,
+            &project_runtime,
+            &saved_project_snapshot,
+            &project_dirty,
+            false,
+        ) {
+            log_gui_error(context, error);
+        }
+    });
 }
 
 #[derive(Debug, Clone)]
@@ -294,6 +335,7 @@ pub fn run_desktop_app(
     let block_model_options = Rc::new(VecModel::from(Vec::<BlockModelPickerItem>::new()));
     let block_model_option_labels = Rc::new(VecModel::from(Vec::<SharedString>::new()));
     let block_parameter_items = Rc::new(VecModel::from(Vec::<BlockParameterItem>::new()));
+    let block_editor_persist_timer = Rc::new(Timer::default());
     window.set_block_type_options(ModelRc::from(block_type_options.clone()));
     window.set_block_model_options(ModelRc::from(block_model_options.clone()));
     window.set_block_model_option_labels(ModelRc::from(block_model_option_labels.clone()));
@@ -1848,6 +1890,7 @@ pub fn run_desktop_app(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        let block_editor_persist_timer = block_editor_persist_timer.clone();
         window.on_choose_block_model(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1869,19 +1912,18 @@ pub fn run_desktop_app(
             window.set_block_drawer_selected_model_index(index);
             window.set_block_drawer_status_message("".into());
             if draft.block_index.is_some() {
-                if let Err(error) = persist_block_editor_draft(
-                    &window,
-                    draft,
-                    &block_parameter_items,
-                    &project_session,
-                    &project_chains,
-                    &project_runtime,
-                    &saved_project_snapshot,
-                    &project_dirty,
-                    false,
-                ) {
-                    log_gui_error("block-drawer.choose-model", error);
-                }
+                schedule_block_editor_persist(
+                    &block_editor_persist_timer,
+                    weak_window.clone(),
+                    block_editor_draft.clone(),
+                    block_parameter_items.clone(),
+                    project_session.clone(),
+                    project_chains.clone(),
+                    project_runtime.clone(),
+                    saved_project_snapshot.clone(),
+                    project_dirty.clone(),
+                    "block-drawer.choose-model",
+                );
             }
         });
     }
@@ -1892,10 +1934,12 @@ pub fn run_desktop_app(
         let block_model_options = block_model_options.clone();
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
+        let block_editor_persist_timer = block_editor_persist_timer.clone();
         window.on_cancel_block_picker(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            block_editor_persist_timer.stop();
             *block_editor_draft.borrow_mut() = None;
             block_model_options.set_vec(Vec::new());
             block_model_option_labels.set_vec(Vec::new());
@@ -1915,10 +1959,12 @@ pub fn run_desktop_app(
         let block_model_options = block_model_options.clone();
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
+        let block_editor_persist_timer = block_editor_persist_timer.clone();
         window.on_close_block_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            block_editor_persist_timer.stop();
             *selected_block.borrow_mut() = None;
             *block_editor_draft.borrow_mut() = None;
             block_model_options.set_vec(Vec::new());
@@ -1942,6 +1988,7 @@ pub fn run_desktop_app(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        let block_editor_persist_timer = block_editor_persist_timer.clone();
         window.on_update_block_parameter_number_text(move |path, value_text| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1955,19 +2002,18 @@ pub fn run_desktop_app(
             window.set_block_drawer_status_message("".into());
             if let Some(draft) = block_editor_draft.borrow().as_ref() {
                 if draft.block_index.is_some() {
-                    if let Err(error) = persist_block_editor_draft(
-                        &window,
-                        draft,
-                        &block_parameter_items,
-                        &project_session,
-                        &project_chains,
-                        &project_runtime,
-                        &saved_project_snapshot,
-                        &project_dirty,
-                        false,
-                    ) {
-                        log_gui_error("block-drawer.number-text", error);
-                    }
+                    schedule_block_editor_persist(
+                        &block_editor_persist_timer,
+                        weak_window.clone(),
+                        block_editor_draft.clone(),
+                        block_parameter_items.clone(),
+                        project_session.clone(),
+                        project_chains.clone(),
+                        project_runtime.clone(),
+                        saved_project_snapshot.clone(),
+                        project_dirty.clone(),
+                        "block-drawer.number-text",
+                    );
                 }
             }
         });
@@ -1982,6 +2028,7 @@ pub fn run_desktop_app(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        let block_editor_persist_timer = block_editor_persist_timer.clone();
         window.on_toggle_block_drawer_enabled(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1993,19 +2040,18 @@ pub fn run_desktop_app(
             draft.enabled = !draft.enabled;
             window.set_block_drawer_enabled(draft.enabled);
             if draft.block_index.is_some() {
-                if let Err(error) = persist_block_editor_draft(
-                    &window,
-                    draft,
-                    &block_parameter_items,
-                    &project_session,
-                    &project_chains,
-                    &project_runtime,
-                    &saved_project_snapshot,
-                    &project_dirty,
-                    false,
-                ) {
-                    log_gui_error("block-drawer.toggle-enabled", error);
-                }
+                schedule_block_editor_persist(
+                    &block_editor_persist_timer,
+                    weak_window.clone(),
+                    block_editor_draft.clone(),
+                    block_parameter_items.clone(),
+                    project_session.clone(),
+                    project_chains.clone(),
+                    project_runtime.clone(),
+                    saved_project_snapshot.clone(),
+                    project_dirty.clone(),
+                    "block-drawer.toggle-enabled",
+                );
             }
         });
     }
@@ -2019,6 +2065,7 @@ pub fn run_desktop_app(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        let block_editor_persist_timer = block_editor_persist_timer.clone();
         window.on_update_block_parameter_text(move |path, value| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2027,19 +2074,18 @@ pub fn run_desktop_app(
             window.set_block_drawer_status_message("".into());
             if let Some(draft) = block_editor_draft.borrow().as_ref() {
                 if draft.block_index.is_some() {
-                    if let Err(error) = persist_block_editor_draft(
-                        &window,
-                        draft,
-                        &block_parameter_items,
-                        &project_session,
-                        &project_chains,
-                        &project_runtime,
-                        &saved_project_snapshot,
-                        &project_dirty,
-                        false,
-                    ) {
-                        log_gui_error("block-drawer.text", error);
-                    }
+                    schedule_block_editor_persist(
+                        &block_editor_persist_timer,
+                        weak_window.clone(),
+                        block_editor_draft.clone(),
+                        block_parameter_items.clone(),
+                        project_session.clone(),
+                        project_chains.clone(),
+                        project_runtime.clone(),
+                        saved_project_snapshot.clone(),
+                        project_dirty.clone(),
+                        "block-drawer.text",
+                    );
                 }
             }
         });
@@ -2054,6 +2100,7 @@ pub fn run_desktop_app(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        let block_editor_persist_timer = block_editor_persist_timer.clone();
         window.on_update_block_parameter_number(move |path, value| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2062,19 +2109,18 @@ pub fn run_desktop_app(
             window.set_block_drawer_status_message("".into());
             if let Some(draft) = block_editor_draft.borrow().as_ref() {
                 if draft.block_index.is_some() {
-                    if let Err(error) = persist_block_editor_draft(
-                        &window,
-                        draft,
-                        &block_parameter_items,
-                        &project_session,
-                        &project_chains,
-                        &project_runtime,
-                        &saved_project_snapshot,
-                        &project_dirty,
-                        false,
-                    ) {
-                        log_gui_error("block-drawer.number", error);
-                    }
+                    schedule_block_editor_persist(
+                        &block_editor_persist_timer,
+                        weak_window.clone(),
+                        block_editor_draft.clone(),
+                        block_parameter_items.clone(),
+                        project_session.clone(),
+                        project_chains.clone(),
+                        project_runtime.clone(),
+                        saved_project_snapshot.clone(),
+                        project_dirty.clone(),
+                        "block-drawer.number",
+                    );
                 }
             }
         });
@@ -2089,6 +2135,7 @@ pub fn run_desktop_app(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        let block_editor_persist_timer = block_editor_persist_timer.clone();
         window.on_update_block_parameter_bool(move |path, value| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2097,19 +2144,18 @@ pub fn run_desktop_app(
             window.set_block_drawer_status_message("".into());
             if let Some(draft) = block_editor_draft.borrow().as_ref() {
                 if draft.block_index.is_some() {
-                    if let Err(error) = persist_block_editor_draft(
-                        &window,
-                        draft,
-                        &block_parameter_items,
-                        &project_session,
-                        &project_chains,
-                        &project_runtime,
-                        &saved_project_snapshot,
-                        &project_dirty,
-                        false,
-                    ) {
-                        log_gui_error("block-drawer.bool", error);
-                    }
+                    schedule_block_editor_persist(
+                        &block_editor_persist_timer,
+                        weak_window.clone(),
+                        block_editor_draft.clone(),
+                        block_parameter_items.clone(),
+                        project_session.clone(),
+                        project_chains.clone(),
+                        project_runtime.clone(),
+                        saved_project_snapshot.clone(),
+                        project_dirty.clone(),
+                        "block-drawer.bool",
+                    );
                 }
             }
         });
@@ -2124,6 +2170,7 @@ pub fn run_desktop_app(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        let block_editor_persist_timer = block_editor_persist_timer.clone();
         window.on_select_block_parameter_option(move |path, index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2132,19 +2179,18 @@ pub fn run_desktop_app(
             window.set_block_drawer_status_message("".into());
             if let Some(draft) = block_editor_draft.borrow().as_ref() {
                 if draft.block_index.is_some() {
-                    if let Err(error) = persist_block_editor_draft(
-                        &window,
-                        draft,
-                        &block_parameter_items,
-                        &project_session,
-                        &project_chains,
-                        &project_runtime,
-                        &saved_project_snapshot,
-                        &project_dirty,
-                        false,
-                    ) {
-                        log_gui_error("block-drawer.option", error);
-                    }
+                    schedule_block_editor_persist(
+                        &block_editor_persist_timer,
+                        weak_window.clone(),
+                        block_editor_draft.clone(),
+                        block_parameter_items.clone(),
+                        project_session.clone(),
+                        project_chains.clone(),
+                        project_runtime.clone(),
+                        saved_project_snapshot.clone(),
+                        project_dirty.clone(),
+                        "block-drawer.option",
+                    );
                 }
             }
         });
@@ -2159,6 +2205,7 @@ pub fn run_desktop_app(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        let block_editor_persist_timer = block_editor_persist_timer.clone();
         window.on_pick_block_parameter_file(move |path| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2183,19 +2230,18 @@ pub fn run_desktop_app(
             window.set_block_drawer_status_message("".into());
             if let Some(draft) = block_editor_draft.borrow().as_ref() {
                 if draft.block_index.is_some() {
-                    if let Err(error) = persist_block_editor_draft(
-                        &window,
-                        draft,
-                        &block_parameter_items,
-                        &project_session,
-                        &project_chains,
-                        &project_runtime,
-                        &saved_project_snapshot,
-                        &project_dirty,
-                        false,
-                    ) {
-                        log_gui_error("block-drawer.file", error);
-                    }
+                    schedule_block_editor_persist(
+                        &block_editor_persist_timer,
+                        weak_window.clone(),
+                        block_editor_draft.clone(),
+                        block_parameter_items.clone(),
+                        project_session.clone(),
+                        project_chains.clone(),
+                        project_runtime.clone(),
+                        saved_project_snapshot.clone(),
+                        project_dirty.clone(),
+                        "block-drawer.file",
+                    );
                 }
             }
         });
@@ -2213,10 +2259,12 @@ pub fn run_desktop_app(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        let block_editor_persist_timer = block_editor_persist_timer.clone();
         window.on_save_block_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            block_editor_persist_timer.stop();
             let Some(draft) = block_editor_draft.borrow().clone() else {
                 return;
             };
@@ -2257,10 +2305,12 @@ pub fn run_desktop_app(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        let block_editor_persist_timer = block_editor_persist_timer.clone();
         window.on_delete_block_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            block_editor_persist_timer.stop();
             let Some(draft) = block_editor_draft.borrow().clone() else {
                 return;
             };

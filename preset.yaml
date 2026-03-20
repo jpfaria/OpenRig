@@ -1,0 +1,65 @@
+id: default
+name: guitar 1
+blocks:
+- type: drive
+  enabled: true
+  model: blues_overdrive_bd_2
+  params:
+    gain_percent: 75.0
+- type: compressor
+  enabled: true
+  model: compressor_studio_clean
+  params:
+    attack_ms: 10.0
+    makeup_gain_db: 0.0
+    mix: 1.0
+    ratio: 4.0
+    release_ms: 80.0
+    threshold: -18.0
+- type: amp-head
+  enabled: true
+  model: brit_crunch
+  params:
+    bass: 50.0
+    bright: false
+    depth: 48.0
+    gain: 56.0
+    input_db: 0.0
+    master: 62.0
+    middle: 50.0
+    output_db: 0.0
+    presence: 58.0
+    sag: 24.0
+    treble: 50.0
+- type: cab
+  enabled: true
+  model: brit_4x12
+  params:
+    air: 26.0
+    high_cut_hz: 7200.0
+    low_cut_hz: 100.0
+    mic_distance: 24.0
+    mic_position: 50.0
+    output_db: 0.0
+    resonance: 55.0
+    room_mix: 12.0
+- type: delay
+  enabled: false
+  model: digital_clean
+  params:
+    feedback: 0.3499999940395355
+    mix: 0.30000001192092896
+    time_ms: 380.0
+- type: reverb
+  enabled: true
+  model: plate_foundation
+  params:
+    damping: 0.3499999940395355
+    mix: 0.25
+    room_size: 0.44999998807907104
+- type: tremolo
+  enabled: false
+  model: tremolo_sine
+  params:
+    depth: 0.5
+    rate_hz: 4.0
