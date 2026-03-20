@@ -3201,16 +3201,12 @@ fn quantize_numeric_value(value: f32, min: f32, max: f32, step: f32, integer: bo
 fn numeric_widget_kind(min: f32, max: f32, step: f32, integer: bool) -> &'static str {
     if step > 0.0 && max > min {
         let steps = ((max - min) / step).round();
-        if steps <= 16.0 {
+        if steps <= 24.0 {
             return "stepper";
         }
     }
-
-    if (max - min) > 10.0 {
-        return "slider";
-    }
-
-    if integer { "int" } else { "float" }
+    let _ = integer;
+    "slider"
 }
 
 fn set_stage_parameter_option(
@@ -3266,6 +3262,13 @@ fn stage_parameter_values(
             "bool" => domain::value_objects::ParameterValue::Bool(row.bool_value),
             "int" => domain::value_objects::ParameterValue::Int(row.numeric_value.round() as i64),
             "float" => domain::value_objects::ParameterValue::Float(row.numeric_value),
+            "slider" => {
+                if row.numeric_integer {
+                    domain::value_objects::ParameterValue::Int(row.numeric_value.round() as i64)
+                } else {
+                    domain::value_objects::ParameterValue::Float(row.numeric_value)
+                }
+            }
             "stepper" => {
                 if row.numeric_integer {
                     domain::value_objects::ParameterValue::Int(row.numeric_value.round() as i64)
@@ -3808,9 +3811,9 @@ mod tests {
     }
 
     #[test]
-    fn numeric_widget_kind_keeps_knob_for_dense_ranges() {
-        assert_eq!(numeric_widget_kind(0.0, 5.0, 0.01, false), "float");
-        assert_eq!(numeric_widget_kind(1.0, 10.0, 0.1, false), "float");
+    fn numeric_widget_kind_uses_slider_for_dense_ranges() {
+        assert_eq!(numeric_widget_kind(0.0, 5.0, 0.01, false), "slider");
+        assert_eq!(numeric_widget_kind(1.0, 10.0, 0.1, false), "slider");
     }
 
     #[test]

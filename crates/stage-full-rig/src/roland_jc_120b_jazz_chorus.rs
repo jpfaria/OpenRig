@@ -1,13 +1,9 @@
 use anyhow::{anyhow, Result};
 use nam::{
     build_processor_with_assets_for_layout, model_schema_for,
-    processor::{
-        plugin_parameter_specs_with_defaults, plugin_params_from_set_with_defaults, NamPluginParams,
-    },
+    processor::{plugin_params_from_set_with_defaults, NamPluginParams},
 };
-use stage_core::param::{
-    bool_parameter, required_bool, ModelParameterSchema, ParameterSet,
-};
+use stage_core::param::{bool_parameter, required_bool, ModelParameterSchema, ParameterSet};
 use stage_core::{AudioChannelLayout, StageProcessor};
 
 pub const MODEL_ID: &str = "roland_jc_120b_jazz_chorus";
@@ -81,28 +77,11 @@ pub fn supports_model(model: &str) -> bool {
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("full_rig", MODEL_ID, "Roland JC-120B Jazz Chorus", false);
-    let mut parameters = vec![
-        bool_parameter(
-            "bright_enabled",
-            "Bright",
-            Some("Rig"),
-            Some(false),
-        ),
-        bool_parameter(
-            "royer_101_enabled",
-            "Royer 101",
-            Some("Rig"),
-            Some(true),
-        ),
-        bool_parameter(
-            "sm57_enabled",
-            "SM57",
-            Some("Rig"),
-            Some(false),
-        ),
+    schema.parameters = vec![
+        bool_parameter("bright_enabled", "Bright", Some("Rig"), Some(false)),
+        bool_parameter("royer_101_enabled", "Royer 101", Some("Rig"), Some(true)),
+        bool_parameter("sm57_enabled", "SM57", Some("Rig"), Some(false)),
     ];
-    parameters.extend(plugin_parameter_specs_with_defaults(NAM_PLUGIN_DEFAULTS));
-    schema.parameters = parameters;
     schema
 }
 
