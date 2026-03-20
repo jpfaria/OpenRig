@@ -971,7 +971,7 @@ export component ProjectTracksPage inherits Rectangle {
             ScrollView {
                 x: 20px;
                 y: 78px;
-                width: parent.width - 92px;
+                width: parent.width - 40px;
                 height: parent.height - 168px;
                 viewport-height: 420px + (root.stage-model-options.length * 62px) + (root.stage-parameter-items.length * 82px);
 
@@ -989,7 +989,7 @@ export component ProjectTracksPage inherits Rectangle {
                 for model-item[index] in root.stage-model-options : StageModelRow {
                     x: 0px;
                     y: 24px + index * 62px;
-                    width: parent.width - 36px;
+                    width: parent.width - 64px;
                     item: model-item;
                     selected: root.stage-drawer-selected-model-index == index;
                     clicked => { root.choose-stage-model(index); }
@@ -1009,7 +1009,7 @@ export component ProjectTracksPage inherits Rectangle {
                 for param-item[index] in root.stage-parameter-items : StageParameterRow {
                     x: 0px;
                     y: 24px + (root.stage-model-options.length * 62px) + 44px + index * 82px;
-                    width: parent.width - 36px;
+                    width: parent.width - 64px;
                     item: param-item;
                     text-changed(path, value) => { root.update-stage-parameter-text(path, value); }
                     number-changed(path, value) => { root.update-stage-parameter-number(path, value); }
