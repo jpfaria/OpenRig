@@ -181,6 +181,7 @@ export component AppWindow inherits Window {
     callback clear-track-stage();
     callback toggle-track-stage-enabled(int, int);
     callback start-stage-insert(int, int);
+    callback reorder-track-stage(int, int, int);
     callback choose-stage-type(int);
     callback choose-stage-model(int);
     callback cancel-stage-picker();
@@ -298,6 +299,7 @@ export component AppWindow inherits Window {
         update-stage-parameter-bool(path, value) => { root.update-stage-parameter-bool(path, value); }
         select-stage-parameter-option(path, index) => { root.select-stage-parameter-option(path, index); }
         pick-stage-parameter-file(path) => { root.pick-stage-parameter-file(path); }
+        reorder-track-stage(track-index, from-index, before-index) => { root.reorder-track-stage(track-index, from-index, before-index); }
         save-track => { root.save-track(); }
         cancel-track => { root.cancel-track(); }
     }
@@ -398,6 +400,7 @@ export component AppWindow inherits Window {
         update-stage-parameter-bool(path, value) => { root.update-stage-parameter-bool(path, value); }
         select-stage-parameter-option(path, index) => { root.select-stage-parameter-option(path, index); }
         pick-stage-parameter-file(path) => { root.pick-stage-parameter-file(path); }
+        reorder-track-stage(track-index, from-index, before-index) => { root.reorder-track-stage(track-index, from-index, before-index); }
         save-track => { root.save-track(); }
         cancel-track => { root.cancel-track(); }
     }

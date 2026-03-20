@@ -1645,6 +1645,69 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let weak_window = window.as_weak();
         let selected_stage = selected_stage.clone();
         let stage_editor_draft = stage_editor_draft.clone();
+        let project_session = project_session.clone();
+        let project_tracks = project_tracks.clone();
+        let project_runtime = project_runtime.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        window.on_reorder_track_stage(move |track_index, from_index, before_index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                window.set_status_message("Nenhum projeto carregado.".into());
+                return;
+            };
+            let (track_id, insert_at) = {
+                let Some(track) = session.project.tracks.get_mut(track_index as usize) else {
+                    window.set_status_message("Track inválida.".into());
+                    return;
+                };
+                let stage_count = track.blocks.len() as i32;
+                if from_index < 0 || from_index >= stage_count {
+                    return;
+                }
+                let mut normalized_before = before_index.clamp(0, stage_count);
+                if normalized_before == from_index || normalized_before == from_index + 1 {
+                    return;
+                }
+                let block = track.blocks.remove(from_index as usize);
+                if normalized_before > from_index {
+                    normalized_before -= 1;
+                }
+                let insert_at = normalized_before.clamp(0, track.blocks.len() as i32) as usize;
+                track.blocks.insert(insert_at, block);
+                (track.id.clone(), insert_at)
+            };
+
+            if let Err(error) = sync_live_track_runtime(&project_runtime, session, &track_id) {
+                window.set_status_message(error.to_string().into());
+                return;
+            }
+
+            replace_project_tracks(&project_tracks, &session.project);
+            *selected_stage.borrow_mut() = Some(SelectedStage {
+                track_index: track_index as usize,
+                stage_index: insert_at,
+            });
+            if let Some(draft) = stage_editor_draft.borrow_mut().as_mut() {
+                if draft.track_index == track_index as usize && draft.stage_index.is_some() {
+                    draft.stage_index = Some(insert_at);
+                    draft.before_index = insert_at;
+                }
+            }
+            set_selected_stage(&window, selected_stage.borrow().as_ref());
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            window.set_project_running(project_runtime_is_running(&project_runtime));
+            window.set_status_message("".into());
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let selected_stage = selected_stage.clone();
+        let stage_editor_draft = stage_editor_draft.clone();
         let stage_model_options = stage_model_options.clone();
         let stage_model_option_labels = stage_model_option_labels.clone();
         let stage_parameter_items = stage_parameter_items.clone();

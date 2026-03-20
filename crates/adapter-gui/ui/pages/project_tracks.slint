@@ -553,6 +553,7 @@ component StageChip inherits Rectangle {
     in property <TrackStageItem> stage;
     in property <bool> selected: false;
     in property <image> icon-source;
+    in property <bool> dragging: false;
     property <color> accent-color: root.stage.kind == "amp_head" ? #f29f38
         : root.stage.kind == "amp_combo" ? #f06292
         : root.stage.kind == "cab" ? #f2cb54
@@ -582,6 +583,9 @@ component StageChip inherits Rectangle {
         : root.stage.kind == "nam" ? "NAM"
         : "CORE";
     callback clicked();
+    callback drag-moved(float, float);
+    callback drag-finished(float, float);
+    property <bool> did-drag: false;
 
     width: 84px;
     height: 84px;
@@ -589,7 +593,7 @@ component StageChip inherits Rectangle {
     border-width: hover-area.has-hover || root.selected ? 3px : 2px;
     border-color: root.accent-color;
     border-radius: 6px;
-    opacity: root.stage.enabled ? 1 : 0.42;
+    opacity: root.dragging ? 0.32 : root.stage.enabled ? 1 : 0.42;
 
     Image {
         x: 0px;
@@ -628,12 +632,26 @@ component StageChip inherits Rectangle {
         width: parent.width;
         height: parent.height;
         mouse-cursor: pointer;
-        clicked => { root.clicked(); }
+        moved => {
+            if self.pressed {
+                root.did-drag = true;
+                root.drag-moved((self.mouse-x + root.x) / 1px, (self.mouse-y + root.y) / 1px);
+            }
+        }
+        clicked => {
+            if root.did-drag {
+                root.drag-finished((self.mouse-x + root.x) / 1px, (self.mouse-y + root.y) / 1px);
+                root.did-drag = false;
+            } else {
+                root.clicked();
+            }
+        }
     }
 }
 
 component StageInsertSlot inherits Rectangle {
     in property <bool> empty-slot: false;
+    in property <bool> active-drop-target: false;
     callback clicked();
 
     width: 40px;
@@ -645,18 +663,18 @@ component StageInsertSlot inherits Rectangle {
         y: 11px;
         width: parent.width;
         height: 2px;
-        background: hover-area.has-hover ? #8b95a5 : #3b4250;
+        background: root.active-drop-target ? #eef2f8 : hover-area.has-hover ? #8b95a5 : #3b4250;
         border-radius: 1px;
     }
 
-    if root.empty-slot || hover-area.has-hover : Rectangle {
+    if root.empty-slot || hover-area.has-hover || root.active-drop-target : Rectangle {
         x: (parent.width - 24px) / 2;
         y: 0px;
         width: 24px;
         height: 24px;
-        background: root.empty-slot ? #20252d : #252a33;
+        background: root.active-drop-target ? #eef2f820 : root.empty-slot ? #20252d : #252a33;
         border-width: 1px;
-        border-color: root.empty-slot ? #5a6577 : #7c8798;
+        border-color: root.active-drop-target ? #eef2f8 : root.empty-slot ? #5a6577 : #7c8798;
         border-radius: 12px;
 
         Text {
@@ -695,9 +713,19 @@ component TrackRow inherits Rectangle {
     callback select-track-stage(int, int);
     callback toggle-track-stage-enabled(int, int);
     callback start-stage-insert(int, int);
+    callback reorder-track-stage(int, int, int);
     property <int> stages-per-row: Math.max(1, Math.floor((root.width - 120px) / 124px));
     property <int> stage-row-count: root.track.stages.length == 0 ? 1 : Math.floor((root.track.stages.length - 1) / root.stages-per-row) + 1;
     property <int> insert-row-count: Math.floor(root.track.stages.length / root.stages-per-row) + 1;
+    in-out property <int> dragging-stage-index: -1;
+    in-out property <int> drag-hover-before-index: -1;
+
+    pure function slot-index-for-position(pointer-x: float, pointer-y: float) -> int {
+        let row = Math.max(0, Math.min(root.insert-row-count - 1, Math.floor((pointer-y + 26) / 112)));
+        let col = Math.max(0, Math.min(root.stages-per-row, Math.round((pointer-x - 16) / 124)));
+        let candidate = row * root.stages-per-row + col;
+        return Math.max(0, Math.min(root.track.stages.length, candidate));
+    }
 
     background: transparent;
     border-width: 1px;
@@ -764,6 +792,7 @@ component TrackRow inherits Rectangle {
             x: 16px;
             y: 30px;
             empty-slot: root.track.stages.length == 0;
+            active-drop-target: root.dragging-stage-index >= 0 && root.drag-hover-before-index == 0;
             clicked => { root.start-stage-insert(root.track-index, 0); }
         }
 
@@ -799,12 +828,24 @@ component TrackRow inherits Rectangle {
                 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/nam.svg")
                 : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
             selected: root.selected-stage-track-index == root.track-index && root.selected-stage-index == stage-index;
+            dragging: root.dragging-stage-index == stage-index;
             clicked => { root.select-track-stage(root.track-index, stage-index); }
+            drag-moved(pointer-x, pointer-y) => {
+                root.dragging-stage-index = stage-index;
+                root.drag-hover-before-index = root.slot-index-for-position(pointer-x, pointer-y);
+            }
+            drag-finished(pointer-x, pointer-y) => {
+                let before-index = root.slot-index-for-position(pointer-x, pointer-y);
+                root.reorder-track-stage(root.track-index, stage-index, before-index);
+                root.dragging-stage-index = -1;
+                root.drag-hover-before-index = -1;
+            }
         }
 
         for stage[stage-index] in root.track.stages : StageInsertSlot {
             x: 140px + Math.mod(stage-index, root.stages-per-row) * 124px;
             y: 30px + Math.floor(stage-index / root.stages-per-row) * 112px;
+            active-drop-target: root.dragging-stage-index >= 0 && root.drag-hover-before-index == stage-index + 1;
             clicked => { root.start-stage-insert(root.track-index, stage-index + 1); }
         }
     }
@@ -847,6 +888,7 @@ export component ProjectTracksPage inherits Rectangle {
     callback clear-track-stage();
     callback toggle-track-stage-enabled(int, int);
     callback start-stage-insert(int, int);
+    callback reorder-track-stage(int, int, int);
     callback choose-stage-type(int);
     callback choose-stage-model(int);
     callback cancel-stage-picker();
@@ -1024,6 +1066,7 @@ export component ProjectTracksPage inherits Rectangle {
                 select-track-stage(track-index, stage-index) => { root.select-track-stage(track-index, stage-index); }
                 toggle-track-stage-enabled(track-index, stage-index) => { root.toggle-track-stage-enabled(track-index, stage-index); }
                 start-stage-insert(track-index, before-index) => { root.start-stage-insert(track-index, before-index); }
+                reorder-track-stage(track-index, from-index, before-index) => { root.reorder-track-stage(track-index, from-index, before-index); }
             }
         }
     }

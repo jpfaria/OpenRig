@@ -85,6 +85,7 @@ export component DesktopMain inherits Rectangle {
     callback clear-track-stage();
     callback toggle-track-stage-enabled(int, int);
     callback start-stage-insert(int, int);
+    callback reorder-track-stage(int, int, int);
     callback choose-stage-type(int);
     callback choose-stage-model(int);
     callback cancel-stage-picker();
@@ -160,6 +161,7 @@ export component DesktopMain inherits Rectangle {
             clear-track-stage => { root.clear-track-stage(); }
             toggle-track-stage-enabled(track-index, stage-index) => { root.toggle-track-stage-enabled(track-index, stage-index); }
             start-stage-insert(track-index, before-index) => { root.start-stage-insert(track-index, before-index); }
+            reorder-track-stage(track-index, from-index, before-index) => { root.reorder-track-stage(track-index, from-index, before-index); }
             choose-stage-type(index) => { root.choose-stage-type(index); }
             choose-stage-model(index) => { root.choose-stage-model(index); }
             cancel-stage-picker => { root.cancel-stage-picker(); }
