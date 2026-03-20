@@ -6,19 +6,15 @@ import { ProjectSettingsPage, TrackEditorPage } from "pages/pages.slint";
 export component ProjectSettingsWindow inherits Window {
     in-out property <string> project-name-draft;
     in-out property <string> status-message;
-    in property <[DeviceSelectionItem]> input-devices;
-    in property <[DeviceSelectionItem]> output-devices;
+    in property <[DeviceSelectionItem]> project-devices;
     in property <[string]> sample-rate-options;
     in property <[string]> buffer-size-options;
     callback update-project-name(string);
     callback save-audio-settings();
     callback close-project-settings();
-    callback toggle-input-device(int, bool);
-    callback toggle-output-device(int, bool);
-    callback update-input-sample-rate(int, string);
-    callback update-input-buffer-size(int, string);
-    callback update-output-sample-rate(int, string);
-    callback update-output-buffer-size(int, string);
+    callback toggle-project-device(int, bool);
+    callback update-project-sample-rate(int, string);
+    callback update-project-buffer-size(int, string);
     title: "OpenRig · Configurar projeto";
     min-width: 980px;
     min-height: 680px;
@@ -30,20 +26,16 @@ export component ProjectSettingsWindow inherits Window {
         width: parent.width;
         height: parent.height;
         project-name-draft: root.project-name-draft;
-        input-devices: root.input-devices;
-        output-devices: root.output-devices;
+        project-devices: root.project-devices;
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
         status-message: root.status-message;
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
         close-project-settings => { root.close-project-settings(); }
-        toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
-        toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
-        update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
-        update-input-buffer-size(index, value) => { root.update-input-buffer-size(index, value); }
-        update-output-sample-rate(index, value) => { root.update-output-sample-rate(index, value); }
-        update-output-buffer-size(index, value) => { root.update-output-buffer-size(index, value); }
+        toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
+        update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
+        update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
     }
 }
 

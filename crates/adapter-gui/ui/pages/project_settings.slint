@@ -182,19 +182,15 @@ component DeviceConfigRow inherits Rectangle {
 export component ProjectSettingsPage inherits Rectangle {
     in-out property <string> project-name-draft;
     in-out property <string> status-message;
-    in property <[DeviceSelectionItem]> input-devices;
-    in property <[DeviceSelectionItem]> output-devices;
+    in property <[DeviceSelectionItem]> project-devices;
     in property <[string]> sample-rate-options;
     in property <[string]> buffer-size-options;
     callback update-project-name(string);
     callback save-audio-settings();
     callback close-project-settings();
-    callback toggle-input-device(int, bool);
-    callback toggle-output-device(int, bool);
-    callback update-input-sample-rate(int, string);
-    callback update-input-buffer-size(int, string);
-    callback update-output-sample-rate(int, string);
-    callback update-output-buffer-size(int, string);
+    callback toggle-project-device(int, bool);
+    callback update-project-sample-rate(int, string);
+    callback update-project-buffer-size(int, string);
 
     background: #1f2023;
 
@@ -269,7 +265,7 @@ export component ProjectSettingsPage inherits Rectangle {
             x: 18px;
             y: 128px;
             width: parent.width - 36px;
-            height: (parent.height - 222px) / 2;
+            height: parent.height - 204px;
             background: #12161b7a;
             border-width: 1px;
             border-color: #2f344080;
@@ -280,7 +276,7 @@ export component ProjectSettingsPage inherits Rectangle {
                 y: 18px;
                 width: 16px;
                 height: 16px;
-                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/arrow-left.svg");
+                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/usb.svg");
                 image-fit: contain;
                 colorize: #9eb9d7;
             }
@@ -290,7 +286,7 @@ export component ProjectSettingsPage inherits Rectangle {
                 y: 14px;
                 width: parent.width - 56px;
                 height: 22px;
-                text: "Entradas";
+                text: "Dispositivos";
                 color: #edf2f9;
                 font-size: 16px;
                 font-weight: 650;
@@ -301,70 +297,18 @@ export component ProjectSettingsPage inherits Rectangle {
                 y: 46px;
                 width: parent.width - 24px;
                 height: parent.height - 58px;
-                viewport-height: root.input-devices.length * 60px;
+                viewport-height: root.project-devices.length * 60px;
 
-                for device[index] in root.input-devices : DeviceConfigRow {
+                for device[index] in root.project-devices : DeviceConfigRow {
                     x: 0px;
                     y: index * 60px;
                     width: parent.width - 12px;
                     device: device;
                     sample-rate-options: root.sample-rate-options;
                     buffer-size-options: root.buffer-size-options;
-                    toggled(selected) => { root.toggle-input-device(index, selected); }
-                    sample-rate-selected(value) => { root.update-input-sample-rate(index, value); }
-                    buffer-size-selected(value) => { root.update-input-buffer-size(index, value); }
-                }
-            }
-        }
-
-        Rectangle {
-            x: 18px;
-            y: 146px + (parent.height - 222px) / 2;
-            width: parent.width - 36px;
-            height: (parent.height - 222px) / 2;
-            background: #12161b7a;
-            border-width: 1px;
-            border-color: #2f344080;
-            border-radius: 4px;
-
-            Image {
-                x: 16px;
-                y: 18px;
-                width: 16px;
-                height: 16px;
-                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/arrow-right.svg");
-                image-fit: contain;
-                colorize: #9eb9d7;
-            }
-
-            Text {
-                x: 40px;
-                y: 14px;
-                width: parent.width - 56px;
-                height: 22px;
-                text: "Saídas";
-                color: #edf2f9;
-                font-size: 16px;
-                font-weight: 650;
-            }
-
-            ScrollView {
-                x: 12px;
-                y: 46px;
-                width: parent.width - 24px;
-                height: parent.height - 58px;
-                viewport-height: root.output-devices.length * 60px;
-
-                for device[index] in root.output-devices : DeviceConfigRow {
-                    x: 0px;
-                    y: index * 60px;
-                    width: parent.width - 12px;
-                    device: device;
-                    sample-rate-options: root.sample-rate-options;
-                    buffer-size-options: root.buffer-size-options;
-                    toggled(selected) => { root.toggle-output-device(index, selected); }
-                    sample-rate-selected(value) => { root.update-output-sample-rate(index, value); }
-                    buffer-size-selected(value) => { root.update-output-buffer-size(index, value); }
+                    toggled(selected) => { root.toggle-project-device(index, selected); }
+                    sample-rate-selected(value) => { root.update-project-sample-rate(index, value); }
+                    buffer-size-selected(value) => { root.update-project-buffer-size(index, value); }
                 }
             }
         }

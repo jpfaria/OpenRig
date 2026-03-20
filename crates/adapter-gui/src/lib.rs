@@ -224,6 +224,11 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             .collect::<Vec<_>>(),
     ));
     mark_unselected_devices(&output_devices, &settings.output_devices);
+    let project_devices = Rc::new(VecModel::from(build_project_device_rows(
+        input_track_devices.as_ref(),
+        output_track_devices.as_ref(),
+        &[],
+    )));
 
     window.set_input_devices(ModelRc::from(input_devices.clone()));
     window.set_output_devices(ModelRc::from(output_devices.clone()));
@@ -282,8 +287,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
     window.set_stage_model_option_labels(ModelRc::from(stage_model_option_labels.clone()));
     window.set_stage_parameter_items(ModelRc::from(stage_parameter_items.clone()));
 
-    project_settings_window.set_input_devices(ModelRc::from(input_devices.clone()));
-    project_settings_window.set_output_devices(ModelRc::from(output_devices.clone()));
+    project_settings_window.set_project_devices(ModelRc::from(project_devices.clone()));
     project_settings_window.set_sample_rate_options(window.get_sample_rate_options());
     project_settings_window.set_buffer_size_options(window.get_buffer_size_options());
 
@@ -302,22 +306,15 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
     }
 
     {
-        let input_devices = input_devices.clone();
-        project_settings_window.on_toggle_input_device(move |index, selected| {
-            toggle_device_row(&input_devices, index as usize, selected);
+        let project_devices = project_devices.clone();
+        project_settings_window.on_toggle_project_device(move |index, selected| {
+            toggle_device_row(&project_devices, index as usize, selected);
         });
     }
 
     {
         let output_devices = output_devices.clone();
         window.on_toggle_output_device(move |index, selected| {
-            toggle_device_row(&output_devices, index as usize, selected);
-        });
-    }
-
-    {
-        let output_devices = output_devices.clone();
-        project_settings_window.on_toggle_output_device(move |index, selected| {
             toggle_device_row(&output_devices, index as usize, selected);
         });
     }
@@ -331,22 +328,15 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
 
     {
         let input_devices = input_devices.clone();
-        project_settings_window.on_update_input_sample_rate(move |index, value| {
-            update_device_sample_rate(&input_devices, index as usize, value);
-        });
-    }
-
-    {
-        let input_devices = input_devices.clone();
         window.on_update_input_buffer_size(move |index, value| {
             update_device_buffer_size(&input_devices, index as usize, value);
         });
     }
 
     {
-        let input_devices = input_devices.clone();
-        project_settings_window.on_update_input_buffer_size(move |index, value| {
-            update_device_buffer_size(&input_devices, index as usize, value);
+        let project_devices = project_devices.clone();
+        project_settings_window.on_update_project_sample_rate(move |index, value| {
+            update_device_sample_rate(&project_devices, index as usize, value);
         });
     }
 
@@ -359,22 +349,15 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
 
     {
         let output_devices = output_devices.clone();
-        project_settings_window.on_update_output_sample_rate(move |index, value| {
-            update_device_sample_rate(&output_devices, index as usize, value);
-        });
-    }
-
-    {
-        let output_devices = output_devices.clone();
         window.on_update_output_buffer_size(move |index, value| {
             update_device_buffer_size(&output_devices, index as usize, value);
         });
     }
 
     {
-        let output_devices = output_devices.clone();
-        project_settings_window.on_update_output_buffer_size(move |index, value| {
-            update_device_buffer_size(&output_devices, index as usize, value);
+        let project_devices = project_devices.clone();
+        project_settings_window.on_update_project_buffer_size(move |index, value| {
+            update_device_buffer_size(&project_devices, index as usize, value);
         });
     }
 
@@ -468,10 +451,16 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                         window.set_status_message("Nenhum projeto carregado.".into());
                         return;
                     };
-                    session.project.device_settings = merge_device_settings(
-                        settings.input_devices,
-                        settings.output_devices,
-                    );
+                    session.project.device_settings = settings
+                        .input_devices
+                        .into_iter()
+                        .chain(settings.output_devices)
+                        .map(|device| DeviceSettings {
+                            device_id: DeviceId(device.device_id),
+                            sample_rate: device.sample_rate,
+                            buffer_size_frames: device.buffer_size_frames,
+                        })
+                        .collect();
                     if let Err(error) = sync_project_runtime(&project_runtime, session) {
                         window.set_status_message(error.to_string().into());
                         return;
@@ -496,6 +485,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let weak_settings = project_settings_window.as_weak();
         let input_devices = input_devices.clone();
         let output_devices = output_devices.clone();
+        let project_devices = project_devices.clone();
         let audio_settings_mode = audio_settings_mode.clone();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
@@ -509,53 +499,67 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             let Some(settings_window) = weak_settings.upgrade() else {
                 return;
             };
-            let input_devices = match selected_device_settings(&input_devices, "input") {
+            let project_device_settings = match selected_device_settings(&project_devices, "device") {
                 Ok(devices) => devices,
                 Err(error) => {
                     settings_window.set_status_message(error.to_string().into());
                     return;
                 }
             };
-            let output_devices = match selected_device_settings(&output_devices, "output") {
-                Ok(devices) => devices,
-                Err(error) => {
-                    settings_window.set_status_message(error.to_string().into());
-                    return;
-                }
-            };
-
-            let settings = GuiAudioSettings {
-                input_devices,
-                output_devices,
-            };
-
-            if !settings.is_complete() {
-                settings_window.set_status_message(
-                    "Selecione pelo menos um input e um output antes de continuar.".into(),
-                );
-                return;
-            }
 
             match *audio_settings_mode.borrow() {
-                AudioSettingsMode::Gui => match FilesystemStorage::save_gui_audio_settings(&settings) {
-                    Ok(()) => {
-                        settings_window.set_status_message("".into());
-                        window.set_status_message("".into());
-                        window.set_show_audio_settings(false);
-                        let _ = settings_window.hide();
+                AudioSettingsMode::Gui => {
+                    let input_devices = match selected_device_settings(&input_devices, "input") {
+                        Ok(devices) => devices,
+                        Err(error) => {
+                            settings_window.set_status_message(error.to_string().into());
+                            return;
+                        }
+                    };
+                    let output_devices = match selected_device_settings(&output_devices, "output") {
+                        Ok(devices) => devices,
+                        Err(error) => {
+                            settings_window.set_status_message(error.to_string().into());
+                            return;
+                        }
+                    };
+
+                    let settings = GuiAudioSettings {
+                        input_devices,
+                        output_devices,
+                    };
+
+                    if !settings.is_complete() {
+                        settings_window.set_status_message(
+                            "Selecione pelo menos um input e um output antes de continuar.".into(),
+                        );
+                        return;
                     }
-                    Err(error) => settings_window.set_status_message(error.to_string().into()),
-                },
+
+                    match FilesystemStorage::save_gui_audio_settings(&settings) {
+                        Ok(()) => {
+                            settings_window.set_status_message("".into());
+                            window.set_status_message("".into());
+                            window.set_show_audio_settings(false);
+                            let _ = settings_window.hide();
+                        }
+                        Err(error) => settings_window.set_status_message(error.to_string().into()),
+                    }
+                }
                 AudioSettingsMode::Project => {
                     let mut session_borrow = project_session.borrow_mut();
                     let Some(session) = session_borrow.as_mut() else {
                         settings_window.set_status_message("Nenhum projeto carregado.".into());
                         return;
                     };
-                    session.project.device_settings = merge_device_settings(
-                        settings.input_devices,
-                        settings.output_devices,
-                    );
+                    session.project.device_settings = project_device_settings
+                        .into_iter()
+                        .map(|device| DeviceSettings {
+                            device_id: DeviceId(device.device_id),
+                            sample_rate: device.sample_rate,
+                            buffer_size_frames: device.buffer_size_frames,
+                        })
+                        .collect();
                     if let Err(error) = sync_project_runtime(&project_runtime, session) {
                         settings_window.set_status_message(error.to_string().into());
                         return;
@@ -865,8 +869,9 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
-        let input_devices = input_devices.clone();
-        let output_devices = output_devices.clone();
+        let project_devices = project_devices.clone();
+        let input_track_devices = input_track_devices.clone();
+        let output_track_devices = output_track_devices.clone();
         let audio_settings_mode = audio_settings_mode.clone();
         let project_settings_window = project_settings_window.as_weak();
         window.on_configure_project(move || {
@@ -882,8 +887,11 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 return;
             };
 
-            set_device_selection_from_project(&input_devices, &session.project.device_settings);
-            set_device_selection_from_project(&output_devices, &session.project.device_settings);
+            project_devices.set_vec(build_project_device_rows(
+                input_track_devices.as_ref(),
+                output_track_devices.as_ref(),
+                &session.project.device_settings,
+            ));
             *audio_settings_mode.borrow_mut() = AudioSettingsMode::Project;
             window.set_project_name_draft(session.project.name.clone().unwrap_or_default().into());
             settings_window.set_project_name_draft(session.project.name.clone().unwrap_or_default().into());
@@ -3262,46 +3270,44 @@ fn build_block_kind(effect_type: &str, model_id: &str, params: ParameterSet) -> 
     Ok(kind)
 }
 
-fn set_device_selection_from_project(
-    model: &Rc<VecModel<DeviceSelectionItem>>,
+fn build_project_device_rows(
+    input_devices: &[AudioDeviceDescriptor],
+    output_devices: &[AudioDeviceDescriptor],
     device_settings: &[DeviceSettings],
-) {
-    for index in 0..model.row_count() {
-        if let Some(mut row) = model.row_data(index) {
-            if let Some(setting) = device_settings
-                .iter()
-                .find(|setting| row.device_id == setting.device_id.0)
-            {
-                row.selected = true;
-                row.sample_rate_text = setting.sample_rate.to_string().into();
-                row.buffer_size_text = setting.buffer_size_frames.to_string().into();
-            } else {
-                row.selected = false;
-            }
-            model.set_row_data(index, row);
-        }
-    }
-}
+) -> Vec<DeviceSelectionItem> {
+    let mut rows: Vec<DeviceSelectionItem> = Vec::new();
 
-fn merge_device_settings(
-    input_devices: Vec<GuiAudioDeviceSettings>,
-    output_devices: Vec<GuiAudioDeviceSettings>,
-) -> Vec<DeviceSettings> {
-    let mut merged: Vec<DeviceSettings> = Vec::new();
-    for device in input_devices.into_iter().chain(output_devices) {
-        if merged
+    for device in input_devices.iter().chain(output_devices.iter()) {
+        if rows
             .iter()
-            .any(|current| current.device_id.0 == device.device_id)
+            .any(|row| row.device_id.as_str() == device.id.as_str())
         {
             continue;
         }
-        merged.push(DeviceSettings {
-            device_id: DeviceId(device.device_id),
-            sample_rate: device.sample_rate,
-            buffer_size_frames: device.buffer_size_frames,
+
+        let config = device_settings
+            .iter()
+            .find(|setting| setting.device_id.0 == device.id)
+            .map(|setting| GuiAudioDeviceSettings {
+                device_id: setting.device_id.0.clone(),
+                name: device.name.clone(),
+                sample_rate: setting.sample_rate,
+                buffer_size_frames: setting.buffer_size_frames,
+            })
+            .unwrap_or_else(|| default_device_settings(device.id.clone(), device.name.clone()));
+
+        rows.push(DeviceSelectionItem {
+            device_id: config.device_id.into(),
+            name: config.name.into(),
+            selected: device_settings
+                .iter()
+                .any(|setting| setting.device_id.0 == device.id),
+            sample_rate_text: config.sample_rate.to_string().into(),
+            buffer_size_text: config.buffer_size_frames.to_string().into(),
         });
     }
-    merged
+
+    rows
 }
 
 fn build_project_yaml(session: &ProjectSession) -> Result<ProjectYaml> {
