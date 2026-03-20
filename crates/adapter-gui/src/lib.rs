@@ -1933,6 +1933,46 @@ pub fn run_desktop_app(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        window.on_update_stage_parameter_number_text(move |path, value_text| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let normalized = value_text.replace(',', ".");
+            let Ok(value) = normalized.parse::<f32>() else {
+                window.set_stage_drawer_status_message("Valor numérico inválido.".into());
+                return;
+            };
+            set_stage_parameter_number(&stage_parameter_items, path.as_str(), value);
+            window.set_stage_drawer_status_message("".into());
+            if let Some(draft) = stage_editor_draft.borrow().as_ref() {
+                if draft.stage_index.is_some() {
+                    if let Err(error) = persist_stage_editor_draft(
+                        &window,
+                        draft,
+                        &stage_parameter_items,
+                        &project_session,
+                        &project_tracks,
+                        &project_runtime,
+                        &saved_project_snapshot,
+                        &project_dirty,
+                        false,
+                    ) {
+                        window.set_stage_drawer_status_message(error.to_string().into());
+                    }
+                }
+            }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let stage_editor_draft = stage_editor_draft.clone();
+        let stage_parameter_items = stage_parameter_items.clone();
+        let project_session = project_session.clone();
+        let project_tracks = project_tracks.clone();
+        let project_runtime = project_runtime.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
         window.on_toggle_stage_drawer_enabled(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;

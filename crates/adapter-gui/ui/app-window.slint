@@ -183,6 +183,7 @@ export component AppWindow inherits Window {
     callback toggle-stage-drawer-enabled();
     callback update-stage-parameter-text(string, string);
     callback update-stage-parameter-number(string, float);
+    callback update-stage-parameter-number-text(string, string);
     callback update-stage-parameter-bool(string, bool);
     callback select-stage-parameter-option(string, int);
     callback pick-stage-parameter-file(string);
@@ -288,6 +289,7 @@ export component AppWindow inherits Window {
         toggle-stage-drawer-enabled => { root.toggle-stage-drawer-enabled(); }
         update-stage-parameter-text(path, value) => { root.update-stage-parameter-text(path, value); }
         update-stage-parameter-number(path, value) => { root.update-stage-parameter-number(path, value); }
+        update-stage-parameter-number-text(path, value) => { root.update-stage-parameter-number-text(path, value); }
         update-stage-parameter-bool(path, value) => { root.update-stage-parameter-bool(path, value); }
         select-stage-parameter-option(path, index) => { root.select-stage-parameter-option(path, index); }
         pick-stage-parameter-file(path) => { root.pick-stage-parameter-file(path); }
@@ -389,6 +391,7 @@ export component AppWindow inherits Window {
         toggle-stage-drawer-enabled => { root.toggle-stage-drawer-enabled(); }
         update-stage-parameter-text(path, value) => { root.update-stage-parameter-text(path, value); }
         update-stage-parameter-number(path, value) => { root.update-stage-parameter-number(path, value); }
+        update-stage-parameter-number-text(path, value) => { root.update-stage-parameter-number-text(path, value); }
         update-stage-parameter-bool(path, value) => { root.update-stage-parameter-bool(path, value); }
         select-stage-parameter-option(path, index) => { root.select-stage-parameter-option(path, index); }
         pick-stage-parameter-file(path) => { root.pick-stage-parameter-file(path); }

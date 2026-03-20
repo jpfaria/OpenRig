@@ -67,6 +67,7 @@ component StageValueStepper inherits Rectangle {
     in property <float> numeric-max: 1;
     in property <float> numeric-step: 1;
     callback changed(float);
+    callback text-changed(string);
 
     pure function previous-value() -> float {
         let next = root.numeric-value - root.numeric-step;
@@ -78,7 +79,7 @@ component StageValueStepper inherits Rectangle {
         return next > root.numeric-max ? root.numeric-max : next;
     }
 
-    width: 168px;
+    width: 320px;
     height: 58px;
     background: transparent;
 
@@ -141,17 +142,19 @@ component StageValueStepper inherits Rectangle {
             height: parent.height;
             background: transparent;
 
-            Text {
-                x: 0px;
-                y: 2px;
-                width: parent.width;
+            TextInput {
+                x: 8px;
+                y: 1px;
+                width: parent.width - 16px;
                 height: 18px;
                 text: root.value-text;
                 color: #f5f7fb;
                 font-size: 16px;
                 font-weight: 800;
+                single-line: true;
                 horizontal-alignment: center;
                 vertical-alignment: center;
+                edited => { root.text-changed(self.text); }
             }
 
             if root.unit-text != "" : Text {
@@ -206,8 +209,9 @@ component StageValueSlider inherits Rectangle {
     in property <string> unit-text;
     in property <float> progress: 0;
     callback moved(float);
+    callback text-changed(string);
 
-    width: 220px;
+    width: 320px;
     height: 78px;
     background: transparent;
 
@@ -225,7 +229,7 @@ component StageValueSlider inherits Rectangle {
     Rectangle {
         x: 0px;
         y: 34px;
-        width: 150px;
+        width: parent.width - 112px;
         height: 8px;
         background: #3a404b;
         border-radius: 4px;
@@ -266,25 +270,27 @@ component StageValueSlider inherits Rectangle {
     }
 
     Rectangle {
-        x: 162px;
+        x: parent.width - 92px;
         y: 18px;
-        width: 58px;
+        width: 92px;
         height: 40px;
         background: #1b2028;
         border-width: 1px;
         border-color: #414956;
         border-radius: 6px;
 
-        Text {
-            x: 0px;
+        TextInput {
+            x: 8px;
             y: 4px;
-            width: parent.width;
+            width: parent.width - 16px;
             height: 18px;
             text: root.value-text;
             color: #f5f7fb;
             font-size: 15px;
             font-weight: 800;
+            single-line: true;
             horizontal-alignment: center;
+            edited => { root.text-changed(self.text); }
         }
 
         if root.unit-text != "" : Text {
@@ -421,6 +427,7 @@ component StageParameterRow inherits Rectangle {
     in property <StageParameterItem> item;
     callback text-changed(string, string);
     callback number-changed(string, float);
+    callback number-text-changed(string, string);
     callback bool-changed(string, bool);
     callback option-changed(string, int);
     callback file-picked(string);
@@ -448,6 +455,7 @@ component StageParameterRow inherits Rectangle {
     if root.item.widget_kind == "bool" : StageFootswitch {
         x: 0px;
         y: 0px;
+        width: parent.width;
         label: root.item.label;
         active: root.item.bool_value;
         toggled(value) => {
@@ -481,6 +489,7 @@ component StageParameterRow inherits Rectangle {
     if root.item.widget_kind == "stepper" : StageValueStepper {
         x: 0px;
         y: 0px;
+        width: parent.width;
         label: root.item.label;
         value-text: root.item.value_text;
         unit-text: root.item.unit_text;
@@ -491,11 +500,15 @@ component StageParameterRow inherits Rectangle {
         changed(value) => {
             root.number-changed(root.item.path, value);
         }
+        text-changed(value) => {
+            root.number-text-changed(root.item.path, value);
+        }
     }
 
     if root.item.widget_kind == "slider" || root.item.widget_kind == "float" || root.item.widget_kind == "int" : StageValueSlider {
         x: 0px;
         y: 0px;
+        width: parent.width;
         label: root.item.label;
         value-text: root.item.value_text;
         unit-text: root.item.unit_text;
@@ -507,6 +520,9 @@ component StageParameterRow inherits Rectangle {
                 root.item.path,
                 root.item.numeric_min + ((root.item.numeric_max - root.item.numeric_min) * progress)
             );
+        }
+        text-changed(value) => {
+            root.number-text-changed(root.item.path, value);
         }
     }
 
@@ -1114,6 +1130,7 @@ export component ProjectTracksPage inherits Rectangle {
     callback toggle-stage-drawer-enabled();
     callback update-stage-parameter-text(string, string);
     callback update-stage-parameter-number(string, float);
+    callback update-stage-parameter-number-text(string, string);
     callback update-stage-parameter-bool(string, bool);
     callback select-stage-parameter-option(string, int);
     callback pick-stage-parameter-file(string);
@@ -1385,23 +1402,12 @@ export component ProjectTracksPage inherits Rectangle {
                 y: 78px;
                 width: parent.width - 40px;
                 height: parent.height - 168px;
-                viewport-height: 180px + (root.stage-parameter-items.length * 96px);
-
-                Text {
-                    x: 0px;
-                    y: 0px;
-                    width: parent.width;
-                    height: 16px;
-                    text: "Modelo";
-                    color: #aab4c3;
-                    font-size: 12px;
-                    font-weight: 700;
-                }
+                viewport-height: 92px + (root.stage-parameter-items.length * 96px);
 
                 ComboBox {
                     x: 0px;
-                    y: 24px;
-                    width: parent.width - 64px;
+                    y: 0px;
+                    width: parent.width - 24px;
                     height: 34px;
                     model: root.stage-model-option-labels;
                     current-index: root.stage-drawer-selected-model-index;
@@ -1410,32 +1416,22 @@ export component ProjectTracksPage inherits Rectangle {
 
                 if root.stage-drawer-selected-model-index >= 0 && root.stage-drawer-selected-model-index < root.stage-model-options.length : Text {
                     x: 0px;
-                    y: 64px;
-                    width: parent.width - 64px;
+                    y: 40px;
+                    width: parent.width - 24px;
                     height: 16px;
                     text: root.stage-model-options[root.stage-drawer-selected-model-index].subtitle;
                     color: #94a0b0;
                     font-size: 11px;
                 }
 
-                Text {
-                    x: 0px;
-                    y: 98px;
-                    width: parent.width;
-                    height: 16px;
-                    text: "Parâmetros";
-                    color: #aab4c3;
-                    font-size: 12px;
-                    font-weight: 700;
-                }
-
                 for param-item[index] in root.stage-parameter-items : StageParameterRow {
                     x: 0px;
-                    y: 122px + (index * 96px);
-                    width: parent.width - 28px;
+                    y: 72px + (index * 96px);
+                    width: parent.width - 24px;
                     item: param-item;
                     text-changed(path, value) => { root.update-stage-parameter-text(path, value); }
                     number-changed(path, value) => { root.update-stage-parameter-number(path, value); }
+                    number-text-changed(path, value) => { root.update-stage-parameter-number-text(path, value); }
                     bool-changed(path, value) => { root.update-stage-parameter-bool(path, value); }
                     option-changed(path, value) => { root.select-stage-parameter-option(path, value); }
                     file-picked(path) => { root.pick-stage-parameter-file(path); }
