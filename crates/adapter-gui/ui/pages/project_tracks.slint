@@ -63,7 +63,19 @@ component StageValueKnob inherits Rectangle {
     in property <string> value-text;
     in property <string> unit-text;
     in property <float> progress: 0;
+    in property <float> numeric-min: 0;
+    in property <float> numeric-max: 1;
+    in property <float> numeric-step: 0;
     callback moved(float);
+    property <bool> dragging: false;
+    property <float> drag-origin-y: 0;
+    property <float> drag-origin-progress: 0;
+    property <float> step-count: root.numeric-step > 0 && root.numeric-max > root.numeric-min
+        ? (root.numeric-max - root.numeric-min) / root.numeric-step
+        : 0;
+    property <float> drag-travel: root.step-count > 0
+        ? Math.max(36, root.step-count * 18)
+        : 180;
 
     width: 124px;
     height: 128px;
@@ -151,8 +163,26 @@ component StageValueKnob inherits Rectangle {
             height: parent.height;
             mouse-cursor: pointer;
             moved => {
-                let next = 1 - (self.mouse-y / parent.height);
-                root.moved(next < 0 ? 0 : next > 1 ? 1 : next);
+                if self.pressed {
+                    if !root.dragging {
+                        root.dragging = true;
+                        root.drag-origin-y = self.mouse-y / 1px;
+                        root.drag-origin-progress = root.progress;
+                    }
+
+                    let delta = root.drag-origin-y - (self.mouse-y / 1px);
+                    let raw = root.drag-origin-progress + (delta / root.drag-travel);
+                    let clamped = raw < 0 ? 0 : raw > 1 ? 1 : raw;
+                    let snapped = root.step-count > 0
+                        ? Math.round(clamped * root.step-count) / root.step-count
+                        : clamped;
+                    root.moved(snapped < 0 ? 0 : snapped > 1 ? 1 : snapped);
+                } else {
+                    root.dragging = false;
+                }
+            }
+            clicked => {
+                root.dragging = false;
             }
         }
     }
@@ -372,6 +402,9 @@ component StageParameterRow inherits Rectangle {
         label: root.item.label;
         value-text: root.item.value_text;
         unit-text: root.item.unit_text;
+        numeric-min: root.item.numeric_min;
+        numeric-max: root.item.numeric_max;
+        numeric-step: root.item.numeric_step;
         progress: root.item.numeric_max > root.item.numeric_min
             ? (root.item.numeric_value - root.item.numeric_min) / (root.item.numeric_max - root.item.numeric_min)
             : 0;
