@@ -45,18 +45,15 @@ impl ParameterSet {
     }
 
     pub fn normalized_against(&self, schema: &ModelParameterSchema) -> Result<Self, String> {
-        let mut values = self.values.clone();
+        let mut values = BTreeMap::new();
         let mut known_specs = BTreeMap::new();
         for spec in &schema.parameters {
             known_specs.insert(spec.path.as_str(), spec);
         }
 
-        for (path, value) in &values {
+        for (path, value) in &self.values {
             let Some(spec) = known_specs.get(path.as_str()) else {
-                return Err(format!(
-                    "unsupported parameter '{}' for {} model '{}'",
-                    path, schema.effect_type, schema.model
-                ));
+                continue;
             };
             spec.validate_value(value).map_err(|error| {
                 format!(
@@ -64,6 +61,7 @@ impl ParameterSet {
                     path, schema.effect_type, schema.model, error
                 )
             })?;
+            values.insert(path.clone(), value.clone());
         }
 
         for spec in &schema.parameters {
