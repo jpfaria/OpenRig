@@ -74,7 +74,7 @@ pub fn plugin_parameter_specs_with_defaults(defaults: NamPluginParams) -> Vec<Pa
         ),
         bool_parameter(
             "noise_gate.enabled",
-            "Enabled",
+            "Noise Gate",
             Some("Noise Gate"),
             Some(defaults.noise_gate_enabled),
         ),
@@ -90,7 +90,7 @@ pub fn plugin_parameter_specs_with_defaults(defaults: NamPluginParams) -> Vec<Pa
         ),
         bool_parameter(
             "eq.enabled",
-            "Enabled",
+            "EQ",
             Some("EQ"),
             Some(defaults.eq_enabled),
         ),
