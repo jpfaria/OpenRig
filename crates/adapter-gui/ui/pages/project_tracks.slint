@@ -1,4 +1,4 @@
-import { ComboBox, ScrollView } from "std-widgets.slint";
+import { ComboBox, ScrollView, VerticalBox } from "std-widgets.slint";
 import { ProjectTrackItem, StageModelPickerItem, StageParameterItem, StageTypePickerItem, TrackStageItem } from "../models.slint";
 
 component ToolbarButton inherits Rectangle {
@@ -1181,28 +1181,33 @@ export component ProjectTracksPage inherits Rectangle {
             y: 88px;
             width: parent.width - 36px;
             height: parent.height - 106px;
-            viewport-height: root.project-tracks.length * 372px;
+            viewport-height: tracks-column.preferred-height;
 
-            for track[index] in root.project-tracks : TrackRow {
+            tracks-column := VerticalBox {
                 x: 6px;
-                y: index * 352px;
+                y: 0px;
                 width: parent.width - 12px;
-                track: track;
-                track-index: index;
-                selected-stage-track-index: root.selected-track-stage-track-index;
-                selected-stage-index: root.selected-track-stage-index;
-                toggle-track-enabled(index) => { root.toggle-track-enabled(index); }
-                remove-track(index) => { root.remove-track(index); }
-                configure-track(index) => { root.configure-track(index); }
-                configure-track-preset(index) => { root.configure-track-preset(index); }
-                save-track-preset(index) => { root.save-track-preset(index); }
-                select-track-stage(track-index, stage-index) => { root.select-track-stage(track-index, stage-index); }
-                toggle-track-stage-enabled(track-index, stage-index) => { root.toggle-track-stage-enabled(track-index, stage-index); }
-                start-stage-insert(track-index, before-index) => { root.start-stage-insert(track-index, before-index); }
-                reorder-track-stage(track-index, from-index, before-index) => { root.reorder-track-stage(track-index, from-index, before-index); }
-                dragging-track-index <=> root.dragging-track-index;
-                dragging-stage-index <=> root.dragging-stage-index;
-                drag-hover-before-index <=> root.drag-hover-before-index;
+                spacing: 20px;
+
+                for track[index] in root.project-tracks : TrackRow {
+                    width: parent.width;
+                    track: track;
+                    track-index: index;
+                    selected-stage-track-index: root.selected-track-stage-track-index;
+                    selected-stage-index: root.selected-track-stage-index;
+                    toggle-track-enabled(index) => { root.toggle-track-enabled(index); }
+                    remove-track(index) => { root.remove-track(index); }
+                    configure-track(index) => { root.configure-track(index); }
+                    configure-track-preset(index) => { root.configure-track-preset(index); }
+                    save-track-preset(index) => { root.save-track-preset(index); }
+                    select-track-stage(track-index, stage-index) => { root.select-track-stage(track-index, stage-index); }
+                    toggle-track-stage-enabled(track-index, stage-index) => { root.toggle-track-stage-enabled(track-index, stage-index); }
+                    start-stage-insert(track-index, before-index) => { root.start-stage-insert(track-index, before-index); }
+                    reorder-track-stage(track-index, from-index, before-index) => { root.reorder-track-stage(track-index, from-index, before-index); }
+                    dragging-track-index <=> root.dragging-track-index;
+                    dragging-stage-index <=> root.dragging-stage-index;
+                    drag-hover-before-index <=> root.drag-hover-before-index;
+                }
             }
         }
     }
