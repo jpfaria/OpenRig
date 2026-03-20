@@ -594,7 +594,7 @@ component StageChip inherits Rectangle {
     height: 84px;
     background: transparent;
     border-width: hover-area.has-hover || (root.selected && !root.dragging) ? 3px : 2px;
-    border-color: root.dragging ? #69b7ff : root.accent-color;
+    border-color: root.dragging ? #8b95a5 : root.accent-color;
     border-radius: 6px;
     opacity: root.stage.enabled ? 1 : 0.42;
 
@@ -605,7 +605,7 @@ component StageChip inherits Rectangle {
         height: parent.height - 4px;
         source: root.icon-source;
         image-fit: contain;
-        colorize: root.dragging ? #69b7ff : root.selected ? root.accent-color : #f3f6fb;
+        colorize: root.dragging ? #8b95a5 : root.selected ? root.accent-color : #f3f6fb;
     }
 
     Text {
@@ -614,7 +614,7 @@ component StageChip inherits Rectangle {
         width: parent.width - 16px;
         height: 14px;
         text: root.stage-type-label;
-        color: root.dragging ? #69b7ff : root.selected ? root.accent-color : #f3f6fb;
+        color: root.dragging ? #8b95a5 : root.selected ? root.accent-color : #f3f6fb;
         font-size: 10px;
         font-weight: 900;
         vertical-alignment: center;
@@ -679,7 +679,7 @@ component StageInsertSlot inherits Rectangle {
         y: 11px;
         width: parent.width;
         height: 2px;
-        background: root.active-drop-target ? #eef2f8 : hover-area.has-hover ? #8b95a5 : #3b4250;
+        background: root.active-drop-target ? #a9b2bf : hover-area.has-hover ? #8b95a5 : #3b4250;
         border-radius: 1px;
     }
 
@@ -688,9 +688,9 @@ component StageInsertSlot inherits Rectangle {
         y: 0px;
         width: 24px;
         height: 24px;
-        background: root.active-drop-target ? #eef2f820 : root.move-target ? #1f3344 : root.empty-slot ? #20252d : #252a33;
+        background: root.active-drop-target ? #545d69 : root.move-target ? #3a414c : root.empty-slot ? #20252d : #252a33;
         border-width: 1px;
-        border-color: root.active-drop-target ? #eef2f8 : root.move-target ? #6bb7ff : root.empty-slot ? #5a6577 : #7c8798;
+        border-color: root.active-drop-target ? #a9b2bf : root.move-target ? #8b95a5 : root.empty-slot ? #5a6577 : #7c8798;
         border-radius: 12px;
 
         if root.move-target : Image {
@@ -700,7 +700,7 @@ component StageInsertSlot inherits Rectangle {
             height: 16px;
             source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/arrow-down.svg");
             image-fit: contain;
-            colorize: root.active-drop-target ? #7fe3ff : #69b7ff;
+            colorize: root.active-drop-target ? #c5ccd6 : #8b95a5;
         }
 
         if !root.move-target : Text {
@@ -735,6 +735,7 @@ component TrackRow inherits Rectangle {
     callback toggle-track-enabled(int);
     callback remove-track(int);
     callback configure-track(int);
+    callback configure-track-preset(int);
     callback save-track-preset(int);
     callback select-track-stage(int, int);
     callback toggle-track-stage-enabled(int, int);
@@ -787,10 +788,17 @@ component TrackRow inherits Rectangle {
         }
 
         TrackActionIcon {
-            x: parent.width - 116px;
+            x: parent.width - 156px;
             y: 18px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
             clicked => { root.configure-track(root.track-index); }
+        }
+
+        TrackActionIcon {
+            x: parent.width - 116px;
+            y: 18px;
+            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/open-file.svg");
+            clicked => { root.configure-track-preset(root.track-index); }
         }
 
         TrackActionIcon {
@@ -933,6 +941,7 @@ export component ProjectTracksPage inherits Rectangle {
     callback remove-track(int);
     callback toggle-track-enabled(int);
     callback configure-track(int);
+    callback configure-track-preset(int);
     callback save-track-preset(int);
     callback start-project();
     callback stop-project();
@@ -1142,6 +1151,7 @@ export component ProjectTracksPage inherits Rectangle {
                 toggle-track-enabled(index) => { root.toggle-track-enabled(index); }
                 remove-track(index) => { root.remove-track(index); }
                 configure-track(index) => { root.configure-track(index); }
+                configure-track-preset(index) => { root.configure-track-preset(index); }
                 save-track-preset(index) => { root.save-track-preset(index); }
                 select-track-stage(track-index, stage-index) => { root.select-track-stage(track-index, stage-index); }
                 toggle-track-stage-enabled(track-index, stage-index) => { root.toggle-track-stage-enabled(track-index, stage-index); }
