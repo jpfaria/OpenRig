@@ -1,25 +1,32 @@
 import { CheckBox, ComboBox, ScrollView } from "std-widgets.slint";
 import { ChannelOptionItem } from "../models.slint";
 
-component HeaderIconAction inherits Rectangle {
-    in property <image> icon;
+component FooterButton inherits Rectangle {
+    in property <string> label;
+    in property <bool> primary: false;
     callback clicked();
 
-    width: 24px;
-    height: 24px;
-    background: action-area.has-hover ? #ffffff10 : transparent;
+    width: primary ? 112px : 104px;
+    height: 38px;
+    background: primary ? #188cff : #2f3339;
+    border-width: 1px;
+    border-color: primary ? #45a7ff : #4c515b;
+    border-radius: 4px;
 
-    Image {
-        x: 2px;
-        y: 2px;
-        width: 20px;
-        height: 20px;
-        source: root.icon;
-        image-fit: contain;
-        colorize: #eef2f8;
+    Text {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        text: root.label;
+        color: #f4f7fb;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        font-size: 13px;
+        font-weight: 700;
     }
 
-    action-area := TouchArea {
+    TouchArea {
         x: 0px;
         y: 0px;
         width: parent.width;
@@ -60,7 +67,7 @@ component ChannelRow inherits Rectangle {
     callback toggled(bool);
 
     height: 38px;
-    background: channel-area.has-hover ? #ffffff08 : transparent;
+    background: transparent;
     border-width: 1px;
     border-color: #2b313b;
     border-radius: 4px;
@@ -76,14 +83,6 @@ component ChannelRow inherits Rectangle {
         toggled => {
             root.toggled(self.checked);
         }
-    }
-
-    channel-area := TouchArea {
-        x: 0px;
-        y: 0px;
-        width: parent.width;
-        height: parent.height;
-        mouse-cursor: pointer;
     }
 }
 
@@ -136,57 +135,9 @@ export component TrackEditorPage inherits Rectangle {
 
     Rectangle {
         x: 24px;
-        y: 18px;
+        y: 24px;
         width: parent.width - 48px;
-        height: 52px;
-        background: transparent;
-
-        Image {
-            x: 0px;
-            y: -4px;
-            width: 68px;
-            height: 68px;
-            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logomark.svg");
-            image-fit: contain;
-        }
-
-        Image {
-            x: 40px;
-            y: 2px;
-            width: 210px;
-            height: 52px;
-            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logotype.png");
-            image-fit: contain;
-        }
-
-        HeaderIconAction {
-            x: parent.width - 80px;
-            y: 14px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/arrow-left.svg");
-            clicked => { root.cancel-track(); }
-        }
-
-        HeaderIconAction {
-            x: parent.width - 40px;
-            y: 14px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/save.svg");
-            clicked => { root.save-track(); }
-        }
-    }
-
-    Rectangle {
-        x: 24px;
-        y: 78px;
-        width: parent.width - 48px;
-        height: 1px;
-        background: #34383f;
-    }
-
-    Rectangle {
-        x: 24px;
-        y: 96px;
-        width: parent.width - 48px;
-        height: parent.height - 120px;
+        height: parent.height - 48px;
         background: #1e22264f;
         border-width: 1px;
         border-color: #32363d7a;
@@ -194,19 +145,7 @@ export component TrackEditorPage inherits Rectangle {
 
         Text {
             x: 18px;
-            y: 18px;
-            width: 280px;
-            height: 28px;
-            text: root.title;
-            color: #f1f4f8;
-            font-size: 24px;
-            font-weight: 680;
-            vertical-alignment: center;
-        }
-
-        Text {
-            x: 18px;
-            y: 56px;
+            y: 16px;
             width: parent.width - 36px;
             height: 16px;
             text: root.status-message;
@@ -217,7 +156,7 @@ export component TrackEditorPage inherits Rectangle {
 
         Text {
             x: 18px;
-            y: 90px;
+            y: 42px;
             width: 160px;
             height: 18px;
             text: "Nome da track";
@@ -228,7 +167,7 @@ export component TrackEditorPage inherits Rectangle {
 
         FieldBox {
             x: 18px;
-            y: 114px;
+            y: 66px;
             width: parent.width - 36px;
             height: 36px;
             text: root.track-name;
@@ -237,7 +176,7 @@ export component TrackEditorPage inherits Rectangle {
 
         Rectangle {
             x: 18px;
-            y: 176px;
+            y: 128px;
             width: (parent.width - 54px) / 2;
             height: 64px;
             background: #12161b7a;
@@ -271,7 +210,7 @@ export component TrackEditorPage inherits Rectangle {
 
         Rectangle {
             x: 36px + (parent.width - 54px) / 2;
-            y: 176px;
+            y: 128px;
             width: (parent.width - 54px) / 2;
             height: 64px;
             background: #12161b7a;
@@ -305,9 +244,9 @@ export component TrackEditorPage inherits Rectangle {
 
         Rectangle {
             x: 18px;
-            y: 266px;
+            y: 218px;
             width: (parent.width - 54px) / 2;
-            height: parent.height - 284px;
+            height: parent.height - 292px;
             background: #12161b7a;
             border-width: 1px;
             border-color: #2f344080;
@@ -343,9 +282,9 @@ export component TrackEditorPage inherits Rectangle {
 
         Rectangle {
             x: 36px + (parent.width - 54px) / 2;
-            y: 266px;
+            y: 218px;
             width: (parent.width - 54px) / 2;
-            height: parent.height - 284px;
+            height: parent.height - 292px;
             background: #12161b7a;
             border-width: 1px;
             border-color: #2f344080;
@@ -377,6 +316,21 @@ export component TrackEditorPage inherits Rectangle {
                     toggled(selected) => { root.toggle-track-output-channel(index, selected); }
                 }
             }
+        }
+
+        FooterButton {
+            x: parent.width - 234px;
+            y: parent.height - 56px;
+            label: "Cancelar";
+            clicked => { root.cancel-track(); }
+        }
+
+        FooterButton {
+            x: parent.width - 122px;
+            y: parent.height - 56px;
+            label: "OK";
+            primary: true;
+            clicked => { root.save-track(); }
         }
     }
 }

@@ -36,6 +36,25 @@ export struct StageModelPickerItem {
     icon_kind: string,
 }
 
+export struct StageParameterItem {
+    path: string,
+    label: string,
+    group: string,
+    widget_kind: string,
+    unit_text: string,
+    value_text: string,
+    numeric_value: float,
+    numeric_min: float,
+    numeric_max: float,
+    bool_value: bool,
+    selected_option_index: int,
+    option_labels: [string],
+    option_values: [string],
+    file_extensions: [string],
+    optional: bool,
+    allow_empty: bool,
+}
+
 export struct RecentProjectItem {
     original_index: int,
     title: string,

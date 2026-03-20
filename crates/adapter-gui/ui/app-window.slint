@@ -1,6 +1,99 @@
-import { ChannelOptionItem, DeviceSelectionItem, ProjectTrackItem, RecentProjectItem, StageModelPickerItem, StageTypePickerItem } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectTrackItem, RecentProjectItem, StageModelPickerItem, StageParameterItem, StageTypePickerItem } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
+import { ProjectSettingsPage, TrackEditorPage } from "pages/pages.slint";
+
+export component ProjectSettingsWindow inherits Window {
+    in-out property <string> project-name-draft;
+    in-out property <string> status-message;
+    in property <[DeviceSelectionItem]> input-devices;
+    in property <[DeviceSelectionItem]> output-devices;
+    in property <[string]> sample-rate-options;
+    in property <[string]> buffer-size-options;
+    callback update-project-name(string);
+    callback save-audio-settings();
+    callback close-project-settings();
+    callback toggle-input-device(int, bool);
+    callback toggle-output-device(int, bool);
+    callback update-input-sample-rate(int, string);
+    callback update-input-buffer-size(int, string);
+    callback update-output-sample-rate(int, string);
+    callback update-output-buffer-size(int, string);
+    title: "OpenRig · Configurar projeto";
+    min-width: 980px;
+    min-height: 680px;
+    preferred-width: 1160px;
+    preferred-height: 760px;
+    background: #040708;
+
+    ProjectSettingsPage {
+        width: parent.width;
+        height: parent.height;
+        project-name-draft: root.project-name-draft;
+        input-devices: root.input-devices;
+        output-devices: root.output-devices;
+        sample-rate-options: root.sample-rate-options;
+        buffer-size-options: root.buffer-size-options;
+        status-message: root.status-message;
+        update-project-name(value) => { root.update-project-name(value); }
+        save-audio-settings => { root.save-audio-settings(); }
+        close-project-settings => { root.close-project-settings(); }
+        toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
+        toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
+        update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
+        update-input-buffer-size(index, value) => { root.update-input-buffer-size(index, value); }
+        update-output-sample-rate(index, value) => { root.update-output-sample-rate(index, value); }
+        update-output-buffer-size(index, value) => { root.update-output-buffer-size(index, value); }
+    }
+}
+
+export component TrackEditorWindow inherits Window {
+    in property <string> editor-title;
+    in property <string> editor-save-label;
+    in-out property <string> track-name;
+    in property <[string]> input-device-options;
+    in property <[string]> output-device-options;
+    in property <int> selected-input-device-index;
+    in property <int> selected-output-device-index;
+    in property <[ChannelOptionItem]> input-channels;
+    in property <[ChannelOptionItem]> output-channels;
+    in-out property <string> status-message;
+    callback update-track-name(string);
+    callback select-track-input-device(int);
+    callback select-track-output-device(int);
+    callback toggle-track-input-channel(int, bool);
+    callback toggle-track-output-channel(int, bool);
+    callback save-track();
+    callback cancel-track();
+    title: "OpenRig · Configurar track";
+    min-width: 980px;
+    min-height: 680px;
+    preferred-width: 1160px;
+    preferred-height: 760px;
+    background: #040708;
+
+    TrackEditorPage {
+        width: parent.width;
+        height: parent.height;
+        title: root.editor-title;
+        save-label: root.editor-save-label;
+        track-name: root.track-name;
+        input-device-options: root.input-device-options;
+        output-device-options: root.output-device-options;
+        selected-input-device-index: root.selected-input-device-index;
+        selected-output-device-index: root.selected-output-device-index;
+        input-channels: root.input-channels;
+        output-channels: root.output-channels;
+        status-message: root.status-message;
+        update-track-name(value) => { root.update-track-name(value); }
+        select-track-input-device(index) => { root.select-track-input-device(index); }
+        select-track-output-device(index) => { root.select-track-output-device(index); }
+        toggle-track-input-channel(index, selected) => { root.toggle-track-input-channel(index, selected); }
+        toggle-track-output-channel(index, selected) => { root.toggle-track-output-channel(index, selected); }
+        save-track => { root.save-track(); }
+        cancel-track => { root.cancel-track(); }
+    }
+}
 
 export component AppWindow inherits Window {
     in property <bool> show-project-launcher;
@@ -8,6 +101,7 @@ export component AppWindow inherits Window {
     in property <bool> show-track-editor;
     in property <bool> show-project-settings;
     in property <bool> project-running;
+    in property <bool> project-dirty;
     in property <string> project-path-label;
     in property <string> project-title;
     in-out property <string> project-name-draft;
@@ -35,6 +129,15 @@ export component AppWindow inherits Window {
     in property <string> stage-picker-title;
     in property <bool> show-stage-type-picker;
     in property <bool> show-stage-model-picker;
+    in property <bool> show-stage-drawer;
+    in property <string> stage-drawer-title;
+    in property <string> stage-drawer-confirm-label;
+    in property <string> stage-drawer-status-message;
+    in property <bool> stage-drawer-edit-mode;
+    in property <int> stage-drawer-selected-type-index;
+    in property <int> stage-drawer-selected-model-index;
+    in property <bool> stage-drawer-enabled;
+    in property <[StageParameterItem]> stage-parameter-items;
     in property <[ChannelOptionItem]> track-input-channels;
     in property <[ChannelOptionItem]> track-output-channels;
     in-out property <string> status-message;
@@ -80,6 +183,15 @@ export component AppWindow inherits Window {
     callback choose-stage-type(int);
     callback choose-stage-model(int);
     callback cancel-stage-picker();
+    callback close-stage-drawer();
+    callback save-stage-drawer();
+    callback delete-stage-drawer();
+    callback toggle-stage-drawer-enabled();
+    callback update-stage-parameter-text(string, string);
+    callback update-stage-parameter-number(string, float);
+    callback update-stage-parameter-bool(string, bool);
+    callback select-stage-parameter-option(string, int);
+    callback pick-stage-parameter-file(string);
     callback save-track();
     callback cancel-track();
     title: "OpenRig";
@@ -97,6 +209,7 @@ export component AppWindow inherits Window {
         show-track-editor: root.show-track-editor;
         show-project-settings: root.show-project-settings;
         project-running: root.project-running;
+        project-dirty: root.project-dirty;
         project-path-label: root.project-path-label;
         project-title: root.project-title;
         project-name-draft: root.project-name-draft;
@@ -121,6 +234,15 @@ export component AppWindow inherits Window {
         stage-picker-title: root.stage-picker-title;
         show-stage-type-picker: root.show-stage-type-picker;
         show-stage-model-picker: root.show-stage-model-picker;
+        show-stage-drawer: root.show-stage-drawer;
+        stage-drawer-title: root.stage-drawer-title;
+        stage-drawer-confirm-label: root.stage-drawer-confirm-label;
+        stage-drawer-status-message: root.stage-drawer-status-message;
+        stage-drawer-edit-mode: root.stage-drawer-edit-mode;
+        stage-drawer-selected-type-index: root.stage-drawer-selected-type-index;
+        stage-drawer-selected-model-index: root.stage-drawer-selected-model-index;
+        stage-drawer-enabled: root.stage-drawer-enabled;
+        stage-parameter-items: root.stage-parameter-items;
         track-input-channels: root.track-input-channels;
         track-output-channels: root.track-output-channels;
         status-message: root.status-message;
@@ -165,6 +287,15 @@ export component AppWindow inherits Window {
         choose-stage-type(index) => { root.choose-stage-type(index); }
         choose-stage-model(index) => { root.choose-stage-model(index); }
         cancel-stage-picker => { root.cancel-stage-picker(); }
+        close-stage-drawer => { root.close-stage-drawer(); }
+        save-stage-drawer => { root.save-stage-drawer(); }
+        delete-stage-drawer => { root.delete-stage-drawer(); }
+        toggle-stage-drawer-enabled => { root.toggle-stage-drawer-enabled(); }
+        update-stage-parameter-text(path, value) => { root.update-stage-parameter-text(path, value); }
+        update-stage-parameter-number(path, value) => { root.update-stage-parameter-number(path, value); }
+        update-stage-parameter-bool(path, value) => { root.update-stage-parameter-bool(path, value); }
+        select-stage-parameter-option(path, index) => { root.select-stage-parameter-option(path, index); }
+        pick-stage-parameter-file(path) => { root.pick-stage-parameter-file(path); }
         save-track => { root.save-track(); }
         cancel-track => { root.cancel-track(); }
     }
@@ -177,6 +308,7 @@ export component AppWindow inherits Window {
         show-track-editor: root.show-track-editor;
         show-project-settings: root.show-project-settings;
         project-running: root.project-running;
+        project-dirty: root.project-dirty;
         project-path-label: root.project-path-label;
         project-title: root.project-title;
         project-name-draft: root.project-name-draft;
@@ -201,6 +333,15 @@ export component AppWindow inherits Window {
         stage-picker-title: root.stage-picker-title;
         show-stage-type-picker: root.show-stage-type-picker;
         show-stage-model-picker: root.show-stage-model-picker;
+        show-stage-drawer: root.show-stage-drawer;
+        stage-drawer-title: root.stage-drawer-title;
+        stage-drawer-confirm-label: root.stage-drawer-confirm-label;
+        stage-drawer-status-message: root.stage-drawer-status-message;
+        stage-drawer-edit-mode: root.stage-drawer-edit-mode;
+        stage-drawer-selected-type-index: root.stage-drawer-selected-type-index;
+        stage-drawer-selected-model-index: root.stage-drawer-selected-model-index;
+        stage-drawer-enabled: root.stage-drawer-enabled;
+        stage-parameter-items: root.stage-parameter-items;
         track-input-channels: root.track-input-channels;
         track-output-channels: root.track-output-channels;
         status-message: root.status-message;
@@ -245,7 +386,17 @@ export component AppWindow inherits Window {
         choose-stage-type(index) => { root.choose-stage-type(index); }
         choose-stage-model(index) => { root.choose-stage-model(index); }
         cancel-stage-picker => { root.cancel-stage-picker(); }
+        close-stage-drawer => { root.close-stage-drawer(); }
+        save-stage-drawer => { root.save-stage-drawer(); }
+        delete-stage-drawer => { root.delete-stage-drawer(); }
+        toggle-stage-drawer-enabled => { root.toggle-stage-drawer-enabled(); }
+        update-stage-parameter-text(path, value) => { root.update-stage-parameter-text(path, value); }
+        update-stage-parameter-number(path, value) => { root.update-stage-parameter-number(path, value); }
+        update-stage-parameter-bool(path, value) => { root.update-stage-parameter-bool(path, value); }
+        select-stage-parameter-option(path, index) => { root.select-stage-parameter-option(path, index); }
+        pick-stage-parameter-file(path) => { root.pick-stage-parameter-file(path); }
         save-track => { root.save-track(); }
         cancel-track => { root.cancel-track(); }
     }
+
 }

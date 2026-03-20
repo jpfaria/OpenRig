@@ -60,7 +60,7 @@ The target feeling is:
 
 - each track card should show the real SVG icons for its stages
 - stages are interactive, not decorative
-- clicking a stage in the project/track list opens a quick inline editor without leaving the project view
+- clicking a stage in the project/track list opens a floating editor panel over the project view
 - stages have explicit enabled/disabled state
 - enabled/disabled must be visible in the chain itself, not hidden in a secondary panel
 
@@ -69,8 +69,8 @@ The target feeling is:
 - the chain must allow insertion of a new stage between existing stages
 - insertion affordance appears only on hover/focus in the space between stages
 - adding a stage is a two-step flow:
-  1. choose the stage type
-  2. choose the specific item from that type
+  1. choose the stage type from a floating icon-only chooser
+  2. configure the stage in the right-side drawer by selecting the model and adjusting parameters
 - after selection, the new stage is inserted into the chain position the user targeted
 
 ## Implemented now
@@ -81,13 +81,16 @@ The current desktop implementation already includes:
 - redesigned launcher with a stronger brand panel and recent-project focus
 - redesigned project overview with denser track cards
 - stage chips with SVG icons and visible enabled/bypass state
-- quick inline stage editor in the project view
+- floating right-side stage editor drawer in the project view
+- add-stage starts with a separate floating type chooser, then enters the drawer
+- edit-stage opens the drawer directly and does not allow changing the type
 - stage insertion flow in two steps:
   1. choose type
   2. choose model
 - inserting the new stage directly into the selected chain position
-- stage enable/bypass toggle from the quick editor
+- stage enable/bypass and delete actions inside the stage drawer
 - redesigned project settings and track routing editor screens
+- project settings and track routing editor as separate desktop windows
 
 ## Correction note
 
@@ -114,7 +117,6 @@ The approved target is still:
 The following parts are still pending relative to the full redesign direction:
 
 - dedicated pedalboard view for the opened track
-- deeper per-parameter stage editor inside the project view
 - desktop drag-and-drop stage reordering
 - touch-specific layout adaptation
 
@@ -168,7 +170,7 @@ It should prioritize:
 
 - clear scan of all tracks
 - visible stage chains on each track
-- quick stage editing inline
+- quick stage editing through a floating drawer without leaving the project view
 - fast insertion and reordering intent in the chain
 - obvious entry into the deeper pedalboard view for a track
 
@@ -218,7 +220,7 @@ These items are not fully locked yet and should be resolved before final impleme
 - in the open track view, whether primary editing lives entirely on the pedalboard blocks or uses a pedalboard plus complementary side panel
 - the exact visual treatment for enabled vs bypassed vs selected stages
 - whether stage reordering is drag-and-drop, command-driven, or both in desktop mode
-- how much of the stage quick editor is editable inline before the user should transition into the deeper track view
+- whether the stage drawer should remain a right-side inspector or evolve into a wider floating editor for more complex stage families
 
 ## Working rule for future agents
 

@@ -1,5 +1,6 @@
-import { ScrollView } from "std-widgets.slint";
-import { ProjectTrackItem, TrackStageItem } from "../models.slint";
+import { CheckBox, ComboBox, ScrollView } from "std-widgets.slint";
+import { SSlider } from "../modules/surrealism-ui/index.slint";
+import { ProjectTrackItem, StageModelPickerItem, StageParameterItem, StageTypePickerItem, TrackStageItem } from "../models.slint";
 
 component ToolbarButton inherits Rectangle {
     in property <string> label;
@@ -29,6 +30,309 @@ component ToolbarButton inherits Rectangle {
     TouchArea {
         mouse-cursor: pointer;
         clicked => { root.clicked(); }
+    }
+}
+
+component ParamFieldBox inherits Rectangle {
+    in-out property <string> text;
+    callback changed(string);
+
+    background: #1a1e25;
+    border-width: 1px;
+    border-color: #3c4350;
+    border-radius: 4px;
+
+    TextInput {
+        x: 12px;
+        y: 0px;
+        width: parent.width - 24px;
+        height: parent.height;
+        text: root.text;
+        color: #f3f6fb;
+        single-line: true;
+        vertical-alignment: center;
+        font-size: 13px;
+        edited => {
+            root.text = self.text;
+            root.changed(self.text);
+        }
+    }
+}
+
+component StageTypeCard inherits Rectangle {
+    in property <StageTypePickerItem> item;
+    in property <bool> selected: false;
+    in property <image> icon-source;
+    property <color> accent-color: root.item.effect_type == "amp_head" ? #f29f38
+        : root.item.effect_type == "amp_combo" ? #f06292
+        : root.item.effect_type == "cab" ? #f2cb54
+        : root.item.effect_type == "full_rig" ? #63d2ff
+        : root.item.effect_type == "drive" ? #ff6a57
+        : root.item.effect_type == "compressor" ? #41b8ff
+        : root.item.effect_type == "gate" ? #74d680
+        : root.item.effect_type == "eq" ? #d6c85a
+        : root.item.effect_type == "tremolo" ? #58d39b
+        : root.item.effect_type == "delay" ? #ba8cff
+        : root.item.effect_type == "reverb" ? #6de1d2
+        : root.item.effect_type == "tuner" ? #95a0b2
+        : root.item.effect_type == "nam" ? #ff7cd7
+        : #7fb0ff;
+    property <string> type-label: root.item.effect_type == "amp_head" ? "AMP"
+        : root.item.effect_type == "amp_combo" ? "COMBO"
+        : root.item.effect_type == "cab" ? "CAB"
+        : root.item.effect_type == "full_rig" ? "RIG"
+        : root.item.effect_type == "drive" ? "GAIN"
+        : root.item.effect_type == "compressor" ? "DYN"
+        : root.item.effect_type == "gate" ? "DYN"
+        : root.item.effect_type == "eq" ? "FILTER"
+        : root.item.effect_type == "tremolo" ? "MOD"
+        : root.item.effect_type == "delay" ? "DLY"
+        : root.item.effect_type == "reverb" ? "RVB"
+        : root.item.effect_type == "tuner" ? "UTIL"
+        : root.item.effect_type == "nam" ? "NAM"
+        : "CORE";
+    callback clicked();
+
+    width: 82px;
+    height: 82px;
+    background: #151920;
+    border-width: 1px;
+    border-color: root.accent-color;
+    border-radius: 4px;
+
+    Text {
+        x: 8px;
+        y: 5px;
+        width: parent.width - 16px;
+        height: 14px;
+        text: root.type-label;
+        color: #f3f6fb;
+        font-size: 10px;
+        font-weight: 900;
+        vertical-alignment: center;
+    }
+
+    Image {
+        x: 13px;
+        y: 17px;
+        width: 56px;
+        height: 56px;
+        source: root.icon-source;
+        image-fit: contain;
+        colorize: root.accent-color;
+    }
+
+    TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+component StageModelRow inherits Rectangle {
+    in property <StageModelPickerItem> item;
+    in property <bool> selected: false;
+    callback clicked();
+
+    height: 54px;
+    background: root.selected ? #18202b : transparent;
+    border-width: 1px;
+    border-color: root.selected ? #4da6ff : #2e3440;
+    border-radius: 4px;
+
+    Text {
+        x: 12px;
+        y: 8px;
+        width: parent.width - 24px;
+        height: 18px;
+        text: root.item.label;
+        color: #f1f4f8;
+        font-size: 13px;
+        font-weight: 650;
+    }
+
+    Text {
+        x: 12px;
+        y: 28px;
+        width: parent.width - 24px;
+        height: 16px;
+        text: root.item.subtitle;
+        color: #94a0b0;
+        font-size: 11px;
+    }
+
+    TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+component StageParameterRow inherits Rectangle {
+    in property <StageParameterItem> item;
+    callback text-changed(string, string);
+    callback number-changed(string, float);
+    callback bool-changed(string, bool);
+    callback option-changed(string, int);
+    callback file-picked(string);
+
+    height: root.item.widget_kind == "bool" ? 52px
+        : (root.item.widget_kind == "float" || root.item.widget_kind == "int") ? 86px
+        : 76px;
+    background: transparent;
+
+    Text {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: 18px;
+        text: root.item.label;
+        color: #eef2f8;
+        font-size: 13px;
+        font-weight: 650;
+    }
+
+    if root.item.widget_kind == "bool" : CheckBox {
+        x: 0px;
+        y: 24px;
+        width: parent.width;
+        height: 24px;
+        text: "Ativado";
+        checked: root.item.bool_value;
+        toggled => {
+            root.bool-changed(root.item.path, self.checked);
+        }
+    }
+
+    if root.item.widget_kind == "enum" : ComboBox {
+        x: 0px;
+        y: 28px;
+        width: parent.width;
+        height: 32px;
+        model: root.item.option_labels;
+        current-index: root.item.selected_option_index;
+        selected(_) => {
+            root.option-changed(root.item.path, self.current-index);
+        }
+    }
+
+    if root.item.widget_kind == "text" : ParamFieldBox {
+        x: 0px;
+        y: 28px;
+        width: root.item.unit_text == "" ? parent.width : parent.width - 54px;
+        height: 34px;
+        text: root.item.value_text;
+        changed(value) => {
+            root.text-changed(root.item.path, value);
+        }
+    }
+
+    if root.item.widget_kind == "float" || root.item.widget_kind == "int" : SSlider {
+        x: 0px;
+        y: 30px;
+        width: parent.width - 92px;
+        height: 18px;
+        progress: root.item.numeric_max > root.item.numeric_min
+            ? (root.item.numeric_value - root.item.numeric_min) / (root.item.numeric_max - root.item.numeric_min)
+            : 0;
+        stroke-width: 8px;
+        moved(progress) => {
+            root.number-changed(
+                root.item.path,
+                root.item.numeric_min + ((root.item.numeric_max - root.item.numeric_min) * progress)
+            );
+        }
+    }
+
+    if root.item.widget_kind == "float" || root.item.widget_kind == "int" : Rectangle {
+        x: parent.width - 80px;
+        y: 22px;
+        width: 80px;
+        height: 28px;
+        background: #1a1e25;
+        border-width: 1px;
+        border-color: #3c4350;
+        border-radius: 4px;
+
+        Text {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            text: root.item.value_text;
+            color: #eef2f8;
+            font-size: 12px;
+            font-weight: 650;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+
+    if root.item.widget_kind == "path" : ParamFieldBox {
+        x: 0px;
+        y: 28px;
+        width: parent.width - 46px;
+        height: 34px;
+        text: root.item.value_text;
+        changed(value) => {
+            root.text-changed(root.item.path, value);
+        }
+    }
+
+    if root.item.widget_kind == "path" : Rectangle {
+        x: parent.width - 30px;
+        y: 33px;
+        width: 24px;
+        height: 24px;
+        background: file-hover.has-hover ? #ffffff10 : transparent;
+
+        Image {
+            x: 2px;
+            y: 2px;
+            width: 20px;
+            height: 20px;
+            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/open-file.svg");
+            image-fit: contain;
+        }
+
+        file-hover := TouchArea {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            mouse-cursor: pointer;
+            clicked => { root.file-picked(root.item.path); }
+        }
+    }
+
+    if (root.item.widget_kind == "text" || root.item.widget_kind == "float" || root.item.widget_kind == "int") && root.item.unit_text != "" : Rectangle {
+        x: parent.width - 42px;
+        y: root.item.widget_kind == "text" ? 35px : 58px;
+        width: 42px;
+        height: 20px;
+        background: transparent;
+        border-width: 1px;
+        border-color: #465063;
+        border-radius: 3px;
+
+        Text {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            text: root.item.unit_text;
+            color: #a6b7ce;
+            font-size: 10px;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
     }
 }
 
@@ -100,6 +404,7 @@ component TrackPowerToggle inherits Rectangle {
 component HeaderIconAction inherits Rectangle {
     in property <image> icon;
     in property <bool> active: false;
+    in property <color> tint: root.active ? #188cff : #eef2f8;
     callback clicked();
 
     width: 24px;
@@ -113,10 +418,14 @@ component HeaderIconAction inherits Rectangle {
         height: 20px;
         source: root.icon;
         image-fit: contain;
-        colorize: root.active ? #188cff : #eef2f8;
+        colorize: root.tint;
     }
 
     TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
         mouse-cursor: pointer;
         clicked => { root.clicked(); }
     }
@@ -135,79 +444,131 @@ component StageChip inherits Rectangle {
     in property <TrackStageItem> stage;
     in property <bool> selected: false;
     in property <image> icon-source;
+    property <color> accent-color: root.stage.kind == "amp_head" ? #f29f38
+        : root.stage.kind == "amp_combo" ? #f06292
+        : root.stage.kind == "cab" ? #f2cb54
+        : root.stage.kind == "full_rig" ? #63d2ff
+        : root.stage.kind == "drive" ? #ff6a57
+        : root.stage.kind == "compressor" ? #41b8ff
+        : root.stage.kind == "gate" ? #74d680
+        : root.stage.kind == "eq" ? #d6c85a
+        : root.stage.kind == "tremolo" ? #58d39b
+        : root.stage.kind == "delay" ? #ba8cff
+        : root.stage.kind == "reverb" ? #6de1d2
+        : root.stage.kind == "tuner" ? #95a0b2
+        : root.stage.kind == "nam" ? #ff7cd7
+        : #7fb0ff;
+    property <string> stage-type-label: root.stage.kind == "amp_head" ? "AMP"
+        : root.stage.kind == "amp_combo" ? "COMBO"
+        : root.stage.kind == "cab" ? "CAB"
+        : root.stage.kind == "full_rig" ? "RIG"
+        : root.stage.kind == "drive" ? "GAIN"
+        : root.stage.kind == "compressor" ? "DYN"
+        : root.stage.kind == "gate" ? "DYN"
+        : root.stage.kind == "eq" ? "FILTER"
+        : root.stage.kind == "tremolo" ? "MOD"
+        : root.stage.kind == "delay" ? "DLY"
+        : root.stage.kind == "reverb" ? "RVB"
+        : root.stage.kind == "tuner" ? "UTIL"
+        : root.stage.kind == "nam" ? "NAM"
+        : "CORE";
     callback clicked();
 
-    width: 44px;
-    height: 44px;
-    background: root.selected ? #ffffff08 : transparent;
-    border-width: root.selected ? 1px : 0px;
-    border-color: root.stage.family == "amp" ? #f2aa42
-        : root.stage.family == "drive" ? #ff7a59
-        : root.stage.family == "utility" ? #7fb0ff
-        : root.stage.family == "modulation" ? #4fd5c7
-        : root.stage.family == "space" ? #ba8cff
-        : root.stage.family == "tone" ? #ffd166
-        : root.stage.family == "dynamics" ? #74d680
-        : #7fb0ff;
+    width: 84px;
+    height: 84px;
+    background: transparent;
+    border-width: hover-area.has-hover || root.selected ? 3px : 2px;
+    border-color: root.accent-color;
     border-radius: 6px;
+    opacity: root.stage.enabled ? 1 : 0.42;
 
     Image {
-        x: 8px;
+        x: 0px;
         y: 8px;
-        width: 28px;
-        height: 28px;
+        width: parent.width;
+        height: parent.height - 4px;
         source: root.icon-source;
         image-fit: contain;
-        colorize: root.stage.family == "amp" ? #f2aa42
-            : root.stage.family == "drive" ? #ff7a59
-            : root.stage.family == "utility" ? #7fb0ff
-            : root.stage.family == "modulation" ? #4fd5c7
-            : root.stage.family == "space" ? #ba8cff
-            : root.stage.family == "tone" ? #ffd166
-            : root.stage.family == "dynamics" ? #74d680
-            : #7fb0ff;
-        opacity: root.stage.enabled ? 1 : 0.38;
+        colorize: root.selected ? root.accent-color : #f3f6fb;
+    }
+
+    Text {
+        x: 8px;
+        y: 4px;
+        width: parent.width - 16px;
+        height: 14px;
+        text: root.stage-type-label;
+        color: root.selected ? root.accent-color : #f3f6fb;
+        font-size: 10px;
+        font-weight: 900;
+        vertical-alignment: center;
     }
 
     Rectangle {
-        x: parent.width - 9px;
-        y: parent.height - 9px;
-        width: 6px;
-        height: 6px;
-        background: root.stage.enabled ? #29df85 : #59606b80;
+        x: parent.width - 10px;
+        y: parent.height - 10px;
+        width: 5px;
+        height: 5px;
+        background: root.stage.enabled ? #29df85 : #697382;
         border-radius: 3px;
     }
 
-    TouchArea {
+    hover-area := TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
         mouse-cursor: pointer;
         clicked => { root.clicked(); }
     }
 }
 
-component StageInsertButton inherits Rectangle {
+component StageInsertSlot inherits Rectangle {
+    in property <bool> empty-slot: false;
     callback clicked();
 
-    width: 24px;
+    width: 40px;
     height: 24px;
-    background: #252a33;
-    border-width: 1px;
-    border-color: #3b4250;
-    border-radius: 12px;
+    background: transparent;
 
-    Text {
+    if !root.empty-slot : Rectangle {
         x: 0px;
-        y: -1px;
+        y: 11px;
         width: parent.width;
-        height: parent.height;
-        text: "+";
-        color: #ccd3df;
-        horizontal-alignment: center;
-        vertical-alignment: center;
-        font-size: 15px;
-        font-weight: 700;
+        height: 2px;
+        background: hover-area.has-hover ? #8b95a5 : #3b4250;
+        border-radius: 1px;
     }
 
-    TouchArea {
+    if root.empty-slot || hover-area.has-hover : Rectangle {
+        x: (parent.width - 24px) / 2;
+        y: 0px;
+        width: 24px;
+        height: 24px;
+        background: root.empty-slot ? #20252d : #252a33;
+        border-width: 1px;
+        border-color: root.empty-slot ? #5a6577 : #7c8798;
+        border-radius: 12px;
+
+        Text {
+            x: 0px;
+            y: -1px;
+            width: parent.width;
+            height: parent.height;
+            text: "+";
+            color: #eef2f8;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            font-size: 15px;
+            font-weight: 700;
+        }
+    }
+
+    hover-area := TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
         mouse-cursor: pointer;
         clicked => { root.clicked(); }
     }
@@ -223,7 +584,6 @@ component TrackRow inherits Rectangle {
     callback configure-track(int);
     callback save-track-preset(int);
     callback select-track-stage(int, int);
-    callback clear-track-stage();
     callback toggle-track-stage-enabled(int, int);
     callback start-stage-insert(int, int);
 
@@ -239,9 +599,16 @@ component TrackRow inherits Rectangle {
         height: 80px;
         background: transparent;
 
-        Text {
+        TrackPowerToggle {
             x: 18px;
-            y: 28px;
+            y: 18px;
+            enabled: root.track.enabled;
+            clicked => { root.toggle-track-enabled(root.track-index); }
+        }
+
+        Text {
+            x: 56px;
+            y: 18px;
             width: 320px;
             height: 24px;
             text: root.track.title;
@@ -251,42 +618,23 @@ component TrackRow inherits Rectangle {
             vertical-alignment: center;
         }
 
-        Text {
-            x: parent.width - 256px;
-            y: 30px;
-            width: 88px;
-            height: 22px;
-            text: root.track.stage-count-label;
-            color: #98a1af;
-            font-size: 12px;
-            vertical-alignment: center;
-            horizontal-alignment: right;
-        }
-
-        TrackPowerToggle {
-            x: parent.width - 156px;
-            y: 26px;
-            enabled: root.track.enabled;
-            clicked => { root.toggle-track-enabled(root.track-index); }
-        }
-
         TrackActionIcon {
             x: parent.width - 116px;
-            y: 28px;
+            y: 18px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
             clicked => { root.configure-track(root.track-index); }
         }
 
         TrackActionIcon {
             x: parent.width - 76px;
-            y: 28px;
+            y: 18px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/save.svg");
             clicked => { root.save-track-preset(root.track-index); }
         }
 
         TrackActionIcon {
             x: parent.width - 36px;
-            y: 28px;
+            y: 18px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/trash.svg");
             clicked => { root.remove-track(root.track-index); }
         }
@@ -294,25 +642,28 @@ component TrackRow inherits Rectangle {
 
     Rectangle {
         x: 18px;
-        y: 82px;
+        y: 58px;
         width: parent.width - 36px;
-        height: 52px;
+        height: 84px;
         background: transparent;
 
-        StageInsertButton {
-            x: 0px;
-            y: 14px;
+        StageInsertSlot {
+            x: 16px;
+            y: 30px;
+            empty-slot: root.track.stages.length == 0;
             clicked => { root.start-stage-insert(root.track-index, 0); }
         }
 
         for stage[stage-index] in root.track.stages : StageChip {
-            x: 34px + stage-index * 72px;
-            y: 4px;
+            x: 56px + stage-index * 124px;
+            y: 0px;
             stage: stage;
             icon-source: stage.kind == "amp_head"
                 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-head.svg")
                 : stage.kind == "amp_combo"
                 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-combo.svg")
+                : stage.kind == "cab"
+                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/cab.svg")
                 : stage.kind == "full_rig"
                 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/full-rig.svg")
                 : stage.kind == "drive"
@@ -338,66 +689,10 @@ component TrackRow inherits Rectangle {
             clicked => { root.select-track-stage(root.track-index, stage-index); }
         }
 
-        for stage[stage-index] in root.track.stages : StageInsertButton {
-            x: 78px + stage-index * 72px;
-            y: 14px;
+        for stage[stage-index] in root.track.stages : StageInsertSlot {
+            x: 140px + stage-index * 124px;
+            y: 30px;
             clicked => { root.start-stage-insert(root.track-index, stage-index + 1); }
-        }
-    }
-
-    if root.selected-stage-track-index == root.track-index : Rectangle {
-        x: 18px;
-        y: 146px;
-        width: parent.width - 36px;
-        height: 70px;
-        background: #151a21d8;
-        border-width: 1px;
-        border-color: #3b4250;
-        border-radius: 6px;
-
-        Text {
-            x: 16px;
-            y: 12px;
-            width: 220px;
-            height: 20px;
-            text: "Stage selecionado";
-            color: #f1f4f8;
-            font-size: 14px;
-            font-weight: 600;
-        }
-
-        Text {
-            x: 16px;
-            y: 34px;
-            width: 320px;
-            height: 18px;
-            text: "Edicao rapida sem sair da lista.";
-            color: #95a0af;
-            font-size: 12px;
-        }
-
-        ToolbarButton {
-            x: parent.width - 344px;
-            y: 15px;
-            width: 96px;
-            label: "Fechar";
-            clicked => { root.clear-track-stage(); }
-        }
-
-        ToolbarButton {
-            x: parent.width - 236px;
-            y: 15px;
-            width: 100px;
-            label: "Bypass";
-            clicked => { root.toggle-track-stage-enabled(root.track-index, root.selected-stage-index); }
-        }
-
-        ToolbarButton {
-            x: parent.width - 124px;
-            y: 15px;
-            width: 108px;
-            label: "Track";
-            clicked => { root.configure-track(root.track-index); }
         }
     }
 
@@ -407,9 +702,22 @@ export component ProjectTracksPage inherits Rectangle {
     in property <string> project-title;
     in property <string> project-path-label;
     in property <bool> project-running;
+    in property <bool> project-dirty;
     in property <[ProjectTrackItem]> project-tracks;
     in property <int> selected-track-stage-track-index;
     in property <int> selected-track-stage-index;
+    in property <[StageTypePickerItem]> stage-type-options;
+    in property <[StageModelPickerItem]> stage-model-options;
+    in property <bool> show-stage-type-picker;
+    in property <bool> show-stage-drawer;
+    in property <string> stage-drawer-title;
+    in property <string> stage-drawer-confirm-label;
+    in property <string> stage-drawer-status-message;
+    in property <bool> stage-drawer-edit-mode;
+    in property <int> stage-drawer-selected-type-index;
+    in property <int> stage-drawer-selected-model-index;
+    in property <bool> stage-drawer-enabled;
+    in property <[StageParameterItem]> stage-parameter-items;
     in-out property <string> status-message;
     callback back-to-launcher();
     callback add-track();
@@ -425,6 +733,18 @@ export component ProjectTracksPage inherits Rectangle {
     callback clear-track-stage();
     callback toggle-track-stage-enabled(int, int);
     callback start-stage-insert(int, int);
+    callback choose-stage-type(int);
+    callback choose-stage-model(int);
+    callback cancel-stage-picker();
+    callback close-stage-drawer();
+    callback save-stage-drawer();
+    callback delete-stage-drawer();
+    callback toggle-stage-drawer-enabled();
+    callback update-stage-parameter-text(string, string);
+    callback update-stage-parameter-number(string, float);
+    callback update-stage-parameter-bool(string, bool);
+    callback select-stage-parameter-option(string, int);
+    callback pick-stage-parameter-file(string);
 
     background: #1f2023;
 
@@ -471,10 +791,10 @@ export component ProjectTracksPage inherits Rectangle {
         }
 
         Image {
-            x: 46px;
-            y: 4px;
-            width: 172px;
-            height: 46px;
+            x: 40px;
+            y: 2px;
+            width: 210px;
+            height: 52px;
             source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logotype.png");
             image-fit: contain;
         }
@@ -497,6 +817,7 @@ export component ProjectTracksPage inherits Rectangle {
             x: parent.width - 80px;
             y: 14px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/save.svg");
+            tint: root.project-dirty ? #f3c64f : #eef2f8;
             clicked => { root.save-project(); }
         }
 
@@ -549,18 +870,7 @@ export component ProjectTracksPage inherits Rectangle {
 
         Text {
             x: 18px;
-            y: 48px;
-            width: 480px;
-            height: 18px;
-            text: root.project-path-label;
-            color: #99a2b0;
-            font-size: 12px;
-            vertical-alignment: center;
-        }
-
-        Text {
-            x: 18px;
-            y: 82px;
+            y: 52px;
             width: 280px;
             height: 18px;
             text: root.status-message;
@@ -580,16 +890,16 @@ export component ProjectTracksPage inherits Rectangle {
 
         ScrollView {
             x: 18px;
-            y: 118px;
+            y: 88px;
             width: parent.width - 36px;
-            height: parent.height - 136px;
-            viewport-height: root.project-tracks.length * 236px;
+            height: parent.height - 106px;
+            viewport-height: root.project-tracks.length * 180px;
 
             for track[index] in root.project-tracks : TrackRow {
-                x: 0px;
-                y: index * 236px;
-                width: parent.width - 2px;
-                height: root.selected-track-stage-track-index == index ? 228px : 146px;
+                x: 6px;
+                y: index * 180px;
+                width: parent.width - 12px;
+                height: 160px;
                 track: track;
                 track-index: index;
                 selected-stage-track-index: root.selected-track-stage-track-index;
@@ -599,9 +909,206 @@ export component ProjectTracksPage inherits Rectangle {
                 configure-track(index) => { root.configure-track(index); }
                 save-track-preset(index) => { root.save-track-preset(index); }
                 select-track-stage(track-index, stage-index) => { root.select-track-stage(track-index, stage-index); }
-                clear-track-stage() => { root.clear-track-stage(); }
                 toggle-track-stage-enabled(track-index, stage-index) => { root.toggle-track-stage-enabled(track-index, stage-index); }
                 start-stage-insert(track-index, before-index) => { root.start-stage-insert(track-index, before-index); }
+            }
+        }
+    }
+
+    if root.show-stage-drawer : Rectangle {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        background: #0405068a;
+
+        TouchArea {
+            x: 0px;
+            y: 0px;
+            width: parent.width - 420px;
+            height: parent.height;
+            clicked => { root.close-stage-drawer(); }
+        }
+
+        Rectangle {
+            x: parent.width - 420px;
+            y: 0px;
+            width: 420px;
+            height: parent.height;
+            background: #171a20f8;
+            border-width: 1px;
+            border-color: #2d3340;
+
+            Text {
+                x: 20px;
+                y: 22px;
+                width: parent.width - 72px;
+                height: 22px;
+                text: root.stage-drawer-title;
+                color: #f3f6fb;
+                font-size: 18px;
+                font-weight: 700;
+            }
+
+            TrackActionIcon {
+                x: parent.width - 40px;
+                y: 20px;
+                icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/close.svg");
+                clicked => { root.close-stage-drawer(); }
+            }
+
+            Rectangle {
+                x: 20px;
+                y: 62px;
+                width: parent.width - 40px;
+                height: 1px;
+                background: #313743;
+            }
+
+            ScrollView {
+                x: 20px;
+                y: 78px;
+                width: parent.width - 54px;
+                height: parent.height - 168px;
+                viewport-height: 420px + (root.stage-model-options.length * 62px) + (root.stage-parameter-items.length * 82px);
+
+                Text {
+                    x: 0px;
+                    y: 0px;
+                    width: parent.width;
+                    height: 16px;
+                    text: "Modelo";
+                    color: #aab4c3;
+                    font-size: 12px;
+                    font-weight: 700;
+                }
+
+                for model-item[index] in root.stage-model-options : StageModelRow {
+                    x: 0px;
+                    y: 24px + index * 62px;
+                    width: parent.width - 10px;
+                    item: model-item;
+                    selected: root.stage-drawer-selected-model-index == index;
+                    clicked => { root.choose-stage-model(index); }
+                }
+
+                Text {
+                    x: 0px;
+                    y: 24px + (root.stage-model-options.length * 62px) + 20px;
+                    width: parent.width;
+                    height: 16px;
+                    text: "Parâmetros";
+                    color: #aab4c3;
+                    font-size: 12px;
+                    font-weight: 700;
+                }
+
+                for param-item[index] in root.stage-parameter-items : StageParameterRow {
+                    x: 0px;
+                    y: 24px + (root.stage-model-options.length * 62px) + 44px + index * 82px;
+                    width: parent.width - 10px;
+                    item: param-item;
+                    text-changed(path, value) => { root.update-stage-parameter-text(path, value); }
+                    number-changed(path, value) => { root.update-stage-parameter-number(path, value); }
+                    bool-changed(path, value) => { root.update-stage-parameter-bool(path, value); }
+                    option-changed(path, value) => { root.select-stage-parameter-option(path, value); }
+                    file-picked(path) => { root.pick-stage-parameter-file(path); }
+                }
+            }
+
+            Text {
+                x: 20px;
+                y: parent.height - 84px;
+                width: parent.width - 40px;
+                height: 16px;
+                text: root.stage-drawer-status-message;
+                color: #f3c64f;
+                font-size: 12px;
+            }
+
+            if root.stage-drawer-edit-mode : TrackPowerToggle {
+                x: 20px;
+                y: parent.height - 48px;
+                enabled: root.stage-drawer-enabled;
+                clicked => { root.toggle-stage-drawer-enabled(); }
+            }
+
+            if root.stage-drawer-edit-mode : TrackActionIcon {
+                x: 60px;
+                y: parent.height - 46px;
+                icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/trash.svg");
+                clicked => { root.delete-stage-drawer(); }
+            }
+
+            ToolbarButton {
+                x: parent.width - 116px;
+                y: parent.height - 54px;
+                width: 96px;
+                label: root.stage-drawer-confirm-label;
+                primary: true;
+                clicked => { root.save-stage-drawer(); }
+            }
+        }
+    }
+
+    if root.show-stage-type-picker : Rectangle {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        background: #0405069a;
+
+        TouchArea {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            clicked => { root.cancel-stage-picker(); }
+        }
+
+        Rectangle {
+            x: (parent.width - 440px) / 2;
+            y: (parent.height - 304px) / 2;
+            width: 440px;
+            height: 304px;
+            background: #171a20f8;
+            border-width: 1px;
+            border-color: #2d3340;
+            border-radius: 6px;
+
+            for type-item[index] in root.stage-type-options : StageTypeCard {
+                x: 24px + Math.mod(index, 4) * 100px;
+                y: 24px + Math.floor(index / 4) * 94px;
+                item: type-item;
+                selected: false;
+                icon-source: type-item.icon_kind == "amp_head"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-head.svg")
+                    : type-item.icon_kind == "amp_combo"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-combo.svg")
+                    : type-item.icon_kind == "cab"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/cab.svg")
+                    : type-item.icon_kind == "full_rig"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/full-rig.svg")
+                    : type-item.icon_kind == "drive"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gain.svg")
+                    : type-item.icon_kind == "compressor"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/compressor.svg")
+                    : type-item.icon_kind == "gate"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gate.svg")
+                    : type-item.icon_kind == "eq"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/eq.svg")
+                    : type-item.icon_kind == "tremolo"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/mod.svg")
+                    : type-item.icon_kind == "delay"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/delay.svg")
+                    : type-item.icon_kind == "reverb"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/reverb.svg")
+                    : type-item.icon_kind == "tuner"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/tuner.svg")
+                    : type-item.icon_kind == "nam"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/nam.svg")
+                    : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
+                clicked => { root.choose-stage-type(index); }
             }
         }
     }

@@ -16,6 +16,49 @@ pub struct StageModelDefinition {
     pub icon_kind: &'static str,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StageDrawerMode {
+    Add,
+    Edit,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StageDrawerState {
+    pub mode: StageDrawerMode,
+    pub title: &'static str,
+    pub confirm_label: &'static str,
+    pub effect_type: String,
+    pub model_id: Option<String>,
+}
+
+pub fn stage_drawer_state(
+    stage_index: Option<usize>,
+    effect_type: &str,
+    model_id: Option<&str>,
+) -> StageDrawerState {
+    let mode = if stage_index.is_some() {
+        StageDrawerMode::Edit
+    } else {
+        StageDrawerMode::Add
+    };
+
+    StageDrawerState {
+        mode,
+        title: if matches!(mode, StageDrawerMode::Edit) {
+            "Editar stage"
+        } else {
+            "Adicionar stage"
+        },
+        confirm_label: if matches!(mode, StageDrawerMode::Edit) {
+            "Salvar"
+        } else {
+            "Adicionar"
+        },
+        effect_type: effect_type.to_string(),
+        model_id: model_id.map(ToString::to_string),
+    }
+}
+
 pub fn stage_types() -> Vec<StageTypeDefinition> {
     vec![
         StageTypeDefinition {
@@ -27,6 +70,11 @@ pub fn stage_types() -> Vec<StageTypeDefinition> {
             effect_type: "amp_combo",
             label: "Amp Combo",
             icon_kind: "amp_combo",
+        },
+        StageTypeDefinition {
+            effect_type: "cab",
+            label: "Cab",
+            icon_kind: "cab",
         },
         StageTypeDefinition {
             effect_type: "full_rig",
@@ -131,6 +179,13 @@ fn stage_model_catalog() -> Vec<StageModelDefinition> {
             icon_kind: "amp_combo",
         },
         StageModelDefinition {
+            effect_type: "cab",
+            model_id: "marshall_4x12_v30",
+            title: "Marshall 4x12 V30",
+            subtitle: "Caixa com IR selecionavel",
+            icon_kind: "cab",
+        },
+        StageModelDefinition {
             effect_type: "full_rig",
             model_id: "roland_jc_120b_jazz_chorus",
             title: "Roland JC-120B Jazz Chorus",
@@ -228,7 +283,8 @@ fn channels_label(channels: &[usize]) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        insertion_slot_indices, stage_models_for_type, stage_types, track_routing_summary,
+        insertion_slot_indices, stage_drawer_state, stage_models_for_type, stage_types,
+        track_routing_summary, StageDrawerMode,
     };
     use domain::ids::{DeviceId, TrackId};
     use project::track::{Track, TrackOutputMixdown};
@@ -255,6 +311,24 @@ mod tests {
     fn insertion_slots_cover_edges_and_between_positions() {
         assert_eq!(insertion_slot_indices(0), vec![0]);
         assert_eq!(insertion_slot_indices(3), vec![0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn stage_drawer_labels_match_add_mode() {
+        let state = stage_drawer_state(None, "delay", Some("digital_ping_pong"));
+
+        assert_eq!(state.mode, StageDrawerMode::Add);
+        assert_eq!(state.title, "Adicionar stage");
+        assert_eq!(state.confirm_label, "Adicionar");
+    }
+
+    #[test]
+    fn stage_drawer_labels_match_edit_mode() {
+        let state = stage_drawer_state(Some(2), "delay", Some("digital_ping_pong"));
+
+        assert_eq!(state.mode, StageDrawerMode::Edit);
+        assert_eq!(state.title, "Editar stage");
+        assert_eq!(state.confirm_label, "Salvar");
     }
 
     #[test]

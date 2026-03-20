@@ -1,9 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
-<rect x="16" y="16" width="224" height="224" rx="28" fill="#121212" stroke="#2F2F2F" stroke-width="4"/>
-
 <path d="M66 112C88 112 88 144 110 144C132 144 132 112 154 112C176 112 176 144 198 144" stroke="#E8E8E8" stroke-width="10" stroke-linecap="round"/>
 <path d="M66 84C88 84 88 116 110 116C132 116 132 84 154 84C176 84 176 116 198 116" stroke="#E8E8E8" stroke-width="10" stroke-linecap="round" opacity="0.75"/>
 <path d="M66 140C88 140 88 172 110 172C132 172 132 140 154 140C176 140 176 172 198 172" stroke="#E8E8E8" stroke-width="10" stroke-linecap="round" opacity="0.45"/>
-<text x="128" y="210" fill="#8E8E8E" font-size="22" font-family="Arial" text-anchor="middle">REVERB</text>
-
 </svg>
