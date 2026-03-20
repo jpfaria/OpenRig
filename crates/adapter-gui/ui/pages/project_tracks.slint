@@ -359,9 +359,9 @@ component StageParameterRow inherits Rectangle {
     callback option-changed(string, int);
     callback file-picked(string);
 
-    height: root.item.widget_kind == "bool" ? 84px
-        : (root.item.widget_kind == "float" || root.item.widget_kind == "int") ? 136px
-        : 76px;
+    height: root.item.widget_kind == "bool" ? 96px
+        : (root.item.widget_kind == "float" || root.item.widget_kind == "int") ? 148px
+        : 84px;
     background: transparent;
 
     if root.item.widget_kind != "bool" && root.item.widget_kind != "float" && root.item.widget_kind != "int" : Text {
@@ -863,6 +863,7 @@ export component ProjectTracksPage inherits Rectangle {
     in property <int> selected-track-stage-index;
     in property <[StageTypePickerItem]> stage-type-options;
     in property <[StageModelPickerItem]> stage-model-options;
+    in property <[string]> stage-model-option-labels;
     in property <bool> show-stage-type-picker;
     in property <bool> show-stage-drawer;
     in property <string> stage-drawer-title;
@@ -1124,7 +1125,7 @@ export component ProjectTracksPage inherits Rectangle {
                 y: 78px;
                 width: parent.width - 40px;
                 height: parent.height - 168px;
-                viewport-height: 420px + (root.stage-model-options.length * 62px) + (root.stage-parameter-items.length * 132px);
+                viewport-height: 300px + (((root.stage-parameter-items.length + 1) / 2) * 156px);
 
                 Text {
                     x: 0px;
@@ -1137,18 +1138,29 @@ export component ProjectTracksPage inherits Rectangle {
                     font-weight: 700;
                 }
 
-                for model-item[index] in root.stage-model-options : StageModelRow {
+                ComboBox {
                     x: 0px;
-                    y: 24px + index * 62px;
+                    y: 24px;
                     width: parent.width - 64px;
-                    item: model-item;
-                    selected: root.stage-drawer-selected-model-index == index;
-                    clicked => { root.choose-stage-model(index); }
+                    height: 34px;
+                    model: root.stage-model-option-labels;
+                    current-index: root.stage-drawer-selected-model-index;
+                    selected(_) => { root.choose-stage-model(self.current-index); }
+                }
+
+                if root.stage-drawer-selected-model-index >= 0 && root.stage-drawer-selected-model-index < root.stage-model-options.length : Text {
+                    x: 0px;
+                    y: 64px;
+                    width: parent.width - 64px;
+                    height: 16px;
+                    text: root.stage-model-options[root.stage-drawer-selected-model-index].subtitle;
+                    color: #94a0b0;
+                    font-size: 11px;
                 }
 
                 Text {
                     x: 0px;
-                    y: 24px + (root.stage-model-options.length * 62px) + 20px;
+                    y: 98px;
                     width: parent.width;
                     height: 16px;
                     text: "Parâmetros";
@@ -1158,9 +1170,9 @@ export component ProjectTracksPage inherits Rectangle {
                 }
 
                 for param-item[index] in root.stage-parameter-items : StageParameterRow {
-                    x: 0px;
-                    y: 24px + (root.stage-model-options.length * 62px) + 44px + index * 82px;
-                    width: parent.width - 64px;
+                    x: (Math.mod(index, 2) * (((parent.width - 16px) / 2) + 16px));
+                    y: 122px + (((index - Math.mod(index, 2)) / 2) * 156px);
+                    width: (parent.width - 16px) / 2;
                     item: param-item;
                     text-changed(path, value) => { root.update-stage-parameter-text(path, value); }
                     number-changed(path, value) => { root.update-stage-parameter-number(path, value); }

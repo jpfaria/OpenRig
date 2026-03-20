@@ -1,11 +1,9 @@
 use anyhow::{anyhow, Result};
 use application::validate::validate_project;
-use cpal::{traits::StreamTrait, Stream};
 use domain::ids::{BlockId, DeviceId, TrackId};
-use engine::runtime::build_runtime_graph;
 use infra_cpal::{
-    build_streams_for_project, list_input_device_descriptors, list_output_device_descriptors,
-    resolve_project_track_sample_rates, AudioDeviceDescriptor,
+    list_input_device_descriptors, list_output_device_descriptors, AudioDeviceDescriptor,
+    ProjectRuntimeController,
 };
 use infra_filesystem::{
     AppConfig, FilesystemStorage, GuiAudioDeviceSettings, GuiAudioSettings, RecentProjectEntry,
@@ -147,7 +145,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
     let track_draft = Rc::new(RefCell::new(None::<TrackDraft>));
     let selected_stage = Rc::new(RefCell::new(None::<SelectedStage>));
     let stage_editor_draft = Rc::new(RefCell::new(None::<StageEditorDraft>));
-    let project_streams = Rc::new(RefCell::new(None::<Vec<Stream>>));
+    let project_runtime = Rc::new(RefCell::new(None::<ProjectRuntimeController>));
     let saved_project_snapshot = Rc::new(RefCell::new(None::<String>));
     let project_dirty = Rc::new(RefCell::new(false));
     let audio_settings_mode = Rc::new(RefCell::new(AudioSettingsMode::Gui));
@@ -277,9 +275,11 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
 
     let stage_type_options = Rc::new(VecModel::from(stage_type_picker_items()));
     let stage_model_options = Rc::new(VecModel::from(Vec::<StageModelPickerItem>::new()));
+    let stage_model_option_labels = Rc::new(VecModel::from(Vec::<SharedString>::new()));
     let stage_parameter_items = Rc::new(VecModel::from(Vec::<StageParameterItem>::new()));
     window.set_stage_type_options(ModelRc::from(stage_type_options.clone()));
     window.set_stage_model_options(ModelRc::from(stage_model_options.clone()));
+    window.set_stage_model_option_labels(ModelRc::from(stage_model_option_labels.clone()));
     window.set_stage_parameter_items(ModelRc::from(stage_parameter_items.clone()));
 
     project_settings_window.set_input_devices(ModelRc::from(input_devices.clone()));
@@ -420,7 +420,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let audio_settings_mode = audio_settings_mode.clone();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
-        let project_streams = project_streams.clone();
+        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         window.on_save_audio_settings(move || {
@@ -472,10 +472,9 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                         settings.input_devices,
                         settings.output_devices,
                     );
-                    let was_running = project_streams.borrow().is_some();
-                    if was_running {
-                        stop_project_runtime(&project_streams);
-                        window.set_project_running(false);
+                    if let Err(error) = sync_project_runtime(&project_runtime, session) {
+                        window.set_status_message(error.to_string().into());
+                        return;
                     }
                     replace_project_tracks(&project_tracks, &session.project);
                     window.set_project_title(
@@ -483,6 +482,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                     );
                     sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
                     window.set_status_message("".into());
+                    window.set_project_running(project_runtime_is_running(&project_runtime));
                     window.set_show_project_tracks(true);
                     window.set_show_track_editor(false);
                     window.set_show_project_settings(false);
@@ -499,7 +499,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let audio_settings_mode = audio_settings_mode.clone();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
-        let project_streams = project_streams.clone();
+        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         project_settings_window.on_save_audio_settings(move || {
@@ -556,10 +556,9 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                         settings.input_devices,
                         settings.output_devices,
                     );
-                    let was_running = project_streams.borrow().is_some();
-                    if was_running {
-                        stop_project_runtime(&project_streams);
-                        window.set_project_running(false);
+                    if let Err(error) = sync_project_runtime(&project_runtime, session) {
+                        settings_window.set_status_message(error.to_string().into());
+                        return;
                     }
                     replace_project_tracks(&project_tracks, &session.project);
                     window.set_project_title(
@@ -568,6 +567,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                     sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
                     settings_window.set_status_message("".into());
                     window.set_status_message("".into());
+                    window.set_project_running(project_runtime_is_running(&project_runtime));
                     window.set_show_project_settings(false);
                     let _ = settings_window.hide();
                 }
@@ -580,7 +580,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let app_config = app_config.clone();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
-        let project_streams = project_streams.clone();
+        let project_runtime = project_runtime.clone();
         let recent_projects = recent_projects.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
@@ -600,7 +600,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                     let canonical_path = canonical_project_path(&path).unwrap_or(path.clone());
                     let title = project_title_for_path(Some(&canonical_path), &session.project);
                     let display_name = project_display_name(&session.project);
-                    stop_project_runtime(&project_streams);
+                    stop_project_runtime(&project_runtime);
                     replace_project_tracks(&project_tracks, &session.project);
                     let snapshot = project_session_snapshot(&session).ok();
                     *project_session.borrow_mut() = Some(session);
@@ -645,14 +645,14 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let project_paths = project_paths.clone();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
-        let project_streams = project_streams.clone();
+        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         window.on_create_project_file(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            stop_project_runtime(&project_streams);
+            stop_project_runtime(&project_runtime);
             let session = create_new_project_session(&project_paths.default_config_path);
             replace_project_tracks(&project_tracks, &session.project);
             *project_session.borrow_mut() = Some(session);
@@ -759,7 +759,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let app_config = app_config.clone();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
-        let project_streams = project_streams.clone();
+        let project_runtime = project_runtime.clone();
         let recent_projects = recent_projects.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
@@ -792,7 +792,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                     let canonical_path = canonical_project_path(&path).unwrap_or(path.clone());
                     let title = project_title_for_path(Some(&canonical_path), &session.project);
                     let display_name = project_display_name(&session.project);
-                    stop_project_runtime(&project_streams);
+                    stop_project_runtime(&project_runtime);
                     replace_project_tracks(&project_tracks, &session.project);
                     let snapshot = project_session_snapshot(&session).ok();
                     *project_session.borrow_mut() = Some(session);
@@ -1013,7 +1013,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
-        let project_streams = project_streams.clone();
+        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         window.on_configure_track_preset(move |index| {
@@ -1037,13 +1037,17 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 Ok(preset) => {
                     if let Some(track) = session.project.tracks.get_mut(index as usize) {
                         track.blocks = preset.blocks;
-                        let was_running = project_streams.borrow().is_some();
-                        if was_running {
-                            stop_project_runtime(&project_streams);
-                            window.set_project_running(false);
+                        assign_new_block_ids(track);
+                        let track_id = track.id.clone();
+                        if let Err(error) =
+                            sync_live_track_runtime(&project_runtime, session, &track_id)
+                        {
+                            window.set_status_message(error.to_string().into());
+                            return;
                         }
                         replace_project_tracks(&project_tracks, &session.project);
                         sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                        window.set_project_running(project_runtime_is_running(&project_runtime));
                         window.set_status_message("".into());
                     }
                 }
@@ -1056,7 +1060,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
-        let project_streams = project_streams.clone();
+        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let project_settings_window = project_settings_window.as_weak();
@@ -1071,7 +1075,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             if let Some(editor_window) = track_editor_window.upgrade() {
                 let _ = editor_window.hide();
             }
-            stop_project_runtime(&project_streams);
+            stop_project_runtime(&project_runtime);
             *project_session.borrow_mut() = None;
             *saved_project_snapshot.borrow_mut() = None;
             replace_project_tracks(&project_tracks, &Project {
@@ -1516,6 +1520,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let selected_stage = selected_stage.clone();
         let stage_editor_draft = stage_editor_draft.clone();
         let stage_model_options = stage_model_options.clone();
+        let stage_model_option_labels = stage_model_option_labels.clone();
         let stage_parameter_items = stage_parameter_items.clone();
         let project_session = project_session.clone();
         window.on_select_track_stage(move |track_index, stage_index| {
@@ -1552,7 +1557,9 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 model_id: model_id.clone(),
                 enabled,
             });
-            stage_model_options.set_vec(stage_model_picker_items(&effect_type));
+            let items = stage_model_picker_items(&effect_type);
+            stage_model_option_labels.set_vec(stage_model_picker_labels(&items));
+            stage_model_options.set_vec(items);
             stage_parameter_items.set_vec(stage_parameter_items_for_model(&effect_type, &model_id, &params));
             set_selected_stage(&window, selected_stage.borrow().as_ref());
             let drawer_state = stage_drawer_state(Some(stage_index as usize), &effect_type, Some(&model_id));
@@ -1573,6 +1580,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let selected_stage = selected_stage.clone();
         let stage_editor_draft = stage_editor_draft.clone();
         let stage_model_options = stage_model_options.clone();
+        let stage_model_option_labels = stage_model_option_labels.clone();
         let stage_parameter_items = stage_parameter_items.clone();
         window.on_clear_track_stage(move || {
             let Some(window) = weak_window.upgrade() else {
@@ -1581,6 +1589,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             *selected_stage.borrow_mut() = None;
             *stage_editor_draft.borrow_mut() = None;
             stage_model_options.set_vec(Vec::new());
+            stage_model_option_labels.set_vec(Vec::new());
             stage_parameter_items.set_vec(Vec::new());
             set_selected_stage(&window, None);
             window.set_show_stage_drawer(false);
@@ -1594,7 +1603,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let selected_stage = selected_stage.clone();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
-        let project_streams = project_streams.clone();
+        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         window.on_toggle_track_stage_enabled(move |track_index, stage_index| {
@@ -1615,10 +1624,10 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 return;
             };
             block.enabled = !block.enabled;
-            let was_running = project_streams.borrow().is_some();
-            if was_running {
-                stop_project_runtime(&project_streams);
-                window.set_project_running(false);
+            let track_id = track.id.clone();
+            if let Err(error) = sync_live_track_runtime(&project_runtime, session, &track_id) {
+                window.set_status_message(error.to_string().into());
+                return;
             }
             replace_project_tracks(&project_tracks, &session.project);
             *selected_stage.borrow_mut() = Some(SelectedStage {
@@ -1627,6 +1636,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             });
             set_selected_stage(&window, selected_stage.borrow().as_ref());
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            window.set_project_running(project_runtime_is_running(&project_runtime));
             window.set_status_message("".into());
         });
     }
@@ -1636,6 +1646,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let selected_stage = selected_stage.clone();
         let stage_editor_draft = stage_editor_draft.clone();
         let stage_model_options = stage_model_options.clone();
+        let stage_model_option_labels = stage_model_option_labels.clone();
         let stage_parameter_items = stage_parameter_items.clone();
         window.on_start_stage_insert(move |track_index, before_index| {
             let Some(window) = weak_window.upgrade() else {
@@ -1651,6 +1662,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 enabled: true,
             });
             stage_model_options.set_vec(Vec::new());
+            stage_model_option_labels.set_vec(Vec::new());
             stage_parameter_items.set_vec(Vec::new());
             set_selected_stage(&window, None);
             window.set_stage_drawer_edit_mode(false);
@@ -1666,6 +1678,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let weak_window = window.as_weak();
         let stage_editor_draft = stage_editor_draft.clone();
         let stage_model_options = stage_model_options.clone();
+        let stage_model_option_labels = stage_model_option_labels.clone();
         let stage_parameter_items = stage_parameter_items.clone();
         window.on_choose_stage_type(move |index| {
             let Some(window) = weak_window.upgrade() else {
@@ -1682,7 +1695,9 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 draft.effect_type = stage_type.effect_type.to_string();
                 draft.model_id = model.model_id.to_string();
             }
-            stage_model_options.set_vec(stage_model_picker_items(stage_type.effect_type));
+            let items = stage_model_picker_items(stage_type.effect_type);
+            stage_model_option_labels.set_vec(stage_model_picker_labels(&items));
+            stage_model_options.set_vec(items);
             stage_parameter_items.set_vec(stage_parameter_items_for_model(
                 stage_type.effect_type,
                 model.model_id,
@@ -1706,7 +1721,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let stage_parameter_items = stage_parameter_items.clone();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
-        let project_streams = project_streams.clone();
+        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         window.on_choose_stage_model(move |index| {
@@ -1736,7 +1751,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                     &stage_parameter_items,
                     &project_session,
                     &project_tracks,
-                    &project_streams,
+                    &project_runtime,
                     &saved_project_snapshot,
                     &project_dirty,
                     false,
@@ -1751,6 +1766,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let weak_window = window.as_weak();
         let stage_editor_draft = stage_editor_draft.clone();
         let stage_model_options = stage_model_options.clone();
+        let stage_model_option_labels = stage_model_option_labels.clone();
         let stage_parameter_items = stage_parameter_items.clone();
         window.on_cancel_stage_picker(move || {
             let Some(window) = weak_window.upgrade() else {
@@ -1758,6 +1774,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             };
             *stage_editor_draft.borrow_mut() = None;
             stage_model_options.set_vec(Vec::new());
+            stage_model_option_labels.set_vec(Vec::new());
             stage_parameter_items.set_vec(Vec::new());
             window.set_stage_drawer_selected_model_index(-1);
             window.set_stage_drawer_selected_type_index(-1);
@@ -1772,6 +1789,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let selected_stage = selected_stage.clone();
         let stage_editor_draft = stage_editor_draft.clone();
         let stage_model_options = stage_model_options.clone();
+        let stage_model_option_labels = stage_model_option_labels.clone();
         let stage_parameter_items = stage_parameter_items.clone();
         window.on_close_stage_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
@@ -1780,6 +1798,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             *selected_stage.borrow_mut() = None;
             *stage_editor_draft.borrow_mut() = None;
             stage_model_options.set_vec(Vec::new());
+            stage_model_option_labels.set_vec(Vec::new());
             stage_parameter_items.set_vec(Vec::new());
             window.set_stage_drawer_selected_model_index(-1);
             window.set_stage_drawer_selected_type_index(-1);
@@ -1796,7 +1815,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let stage_parameter_items = stage_parameter_items.clone();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
-        let project_streams = project_streams.clone();
+        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         window.on_toggle_stage_drawer_enabled(move || {
@@ -1816,7 +1835,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                     &stage_parameter_items,
                     &project_session,
                     &project_tracks,
-                    &project_streams,
+                    &project_runtime,
                     &saved_project_snapshot,
                     &project_dirty,
                     false,
@@ -1833,7 +1852,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let stage_parameter_items = stage_parameter_items.clone();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
-        let project_streams = project_streams.clone();
+        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         window.on_update_stage_parameter_text(move |path, value| {
@@ -1850,7 +1869,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                         &stage_parameter_items,
                         &project_session,
                         &project_tracks,
-                        &project_streams,
+                        &project_runtime,
                         &saved_project_snapshot,
                         &project_dirty,
                         false,
@@ -1868,7 +1887,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let stage_parameter_items = stage_parameter_items.clone();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
-        let project_streams = project_streams.clone();
+        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         window.on_update_stage_parameter_number(move |path, value| {
@@ -1885,7 +1904,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                         &stage_parameter_items,
                         &project_session,
                         &project_tracks,
-                        &project_streams,
+                        &project_runtime,
                         &saved_project_snapshot,
                         &project_dirty,
                         false,
@@ -1903,7 +1922,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let stage_parameter_items = stage_parameter_items.clone();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
-        let project_streams = project_streams.clone();
+        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         window.on_update_stage_parameter_bool(move |path, value| {
@@ -1920,7 +1939,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                         &stage_parameter_items,
                         &project_session,
                         &project_tracks,
-                        &project_streams,
+                        &project_runtime,
                         &saved_project_snapshot,
                         &project_dirty,
                         false,
@@ -1938,7 +1957,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let stage_parameter_items = stage_parameter_items.clone();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
-        let project_streams = project_streams.clone();
+        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         window.on_select_stage_parameter_option(move |path, index| {
@@ -1955,7 +1974,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                         &stage_parameter_items,
                         &project_session,
                         &project_tracks,
-                        &project_streams,
+                        &project_runtime,
                         &saved_project_snapshot,
                         &project_dirty,
                         false,
@@ -1973,7 +1992,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let stage_parameter_items = stage_parameter_items.clone();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
-        let project_streams = project_streams.clone();
+        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         window.on_pick_stage_parameter_file(move |path| {
@@ -2003,7 +2022,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                         &stage_parameter_items,
                         &project_session,
                         &project_tracks,
-                        &project_streams,
+                        &project_runtime,
                         &saved_project_snapshot,
                         &project_dirty,
                         false,
@@ -2020,10 +2039,11 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let selected_stage = selected_stage.clone();
         let stage_editor_draft = stage_editor_draft.clone();
         let stage_model_options = stage_model_options.clone();
+        let stage_model_option_labels = stage_model_option_labels.clone();
         let stage_parameter_items = stage_parameter_items.clone();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
-        let project_streams = project_streams.clone();
+        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         window.on_save_stage_drawer(move || {
@@ -2040,7 +2060,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 &stage_parameter_items,
                 &project_session,
                 &project_tracks,
-                &project_streams,
+                &project_runtime,
                 &saved_project_snapshot,
                 &project_dirty,
                 true,
@@ -2053,6 +2073,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             set_selected_stage(&window, None);
             *stage_editor_draft.borrow_mut() = None;
             stage_model_options.set_vec(Vec::new());
+            stage_model_option_labels.set_vec(Vec::new());
             stage_parameter_items.set_vec(Vec::new());
         });
     }
@@ -2062,10 +2083,11 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let selected_stage = selected_stage.clone();
         let stage_editor_draft = stage_editor_draft.clone();
         let stage_model_options = stage_model_options.clone();
+        let stage_model_option_labels = stage_model_option_labels.clone();
         let stage_parameter_items = stage_parameter_items.clone();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
-        let project_streams = project_streams.clone();
+        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         window.on_delete_stage_drawer(move || {
@@ -2091,17 +2113,19 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 window.set_stage_drawer_status_message("Stage inválido.".into());
                 return;
             }
+            let track_id = track.id.clone();
             track.blocks.remove(stage_index);
-            reassign_track_block_ids(track);
-            if project_streams.borrow().is_some() {
-                stop_project_runtime(&project_streams);
-                window.set_project_running(false);
+            if let Err(error) = sync_live_track_runtime(&project_runtime, session, &track_id) {
+                window.set_stage_drawer_status_message(error.to_string().into());
+                return;
             }
             replace_project_tracks(&project_tracks, &session.project);
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            window.set_project_running(project_runtime_is_running(&project_runtime));
             *selected_stage.borrow_mut() = None;
             *stage_editor_draft.borrow_mut() = None;
             stage_model_options.set_vec(Vec::new());
+            stage_model_option_labels.set_vec(Vec::new());
             stage_parameter_items.set_vec(Vec::new());
             set_selected_stage(&window, None);
             window.set_show_stage_drawer(false);
@@ -2115,7 +2139,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let track_draft = track_draft.clone();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
-        let project_streams = project_streams.clone();
+        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         window.on_save_track(move || {
@@ -2157,7 +2181,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 id: existing_track
                     .as_ref()
                     .map(|track| track.id.clone())
-                    .unwrap_or_else(|| TrackId(format!("track:{}", session.project.tracks.len()))),
+                    .unwrap_or_else(TrackId::generate),
                 description: normalized_track_description(&draft.name),
                 enabled: existing_track.as_ref().map(|track| track.enabled).unwrap_or(true),
                 input_device_id: DeviceId(draft.input_device_id.unwrap_or_default()),
@@ -2173,6 +2197,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                     .map(|track| track.output_mixdown)
                     .unwrap_or(TrackOutputMixdown::Average),
             };
+            let track_id = track.id.clone();
             if let Some(index) = editing_index {
                 if let Some(current) = session.project.tracks.get_mut(index) {
                     *current = track;
@@ -2180,14 +2205,14 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             } else {
                 session.project.tracks.push(track);
             }
-            let was_running = project_streams.borrow().is_some();
-            if was_running {
-                stop_project_runtime(&project_streams);
-                window.set_project_running(false);
+            if let Err(error) = sync_live_track_runtime(&project_runtime, session, &track_id) {
+                window.set_status_message(error.to_string().into());
+                return;
             }
             replace_project_tracks(&project_tracks, &session.project);
             *track_draft.borrow_mut() = None;
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            window.set_project_running(project_runtime_is_running(&project_runtime));
             window.set_status_message("".into());
             window.set_show_track_editor(false);
         });
@@ -2199,7 +2224,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let track_draft = track_draft.clone();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
-        let project_streams = project_streams.clone();
+        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         track_editor_window.on_save_track(move || {
@@ -2244,7 +2269,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 id: existing_track
                     .as_ref()
                     .map(|track| track.id.clone())
-                    .unwrap_or_else(|| TrackId(format!("track:{}", session.project.tracks.len()))),
+                    .unwrap_or_else(TrackId::generate),
                 description: normalized_track_description(&draft.name),
                 enabled: existing_track.as_ref().map(|track| track.enabled).unwrap_or(true),
                 input_device_id: DeviceId(draft.input_device_id.unwrap_or_default()),
@@ -2260,6 +2285,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                     .map(|track| track.output_mixdown)
                     .unwrap_or(TrackOutputMixdown::Average),
             };
+            let track_id = track.id.clone();
             if let Some(index) = editing_index {
                 if let Some(current) = session.project.tracks.get_mut(index) {
                     *current = track;
@@ -2267,16 +2293,16 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             } else {
                 session.project.tracks.push(track);
             }
-            let was_running = project_streams.borrow().is_some();
-            if was_running {
-                stop_project_runtime(&project_streams);
-                window.set_project_running(false);
+            if let Err(error) = sync_live_track_runtime(&project_runtime, session, &track_id) {
+                track_window.set_status_message(error.to_string().into());
+                return;
             }
             replace_project_tracks(&project_tracks, &session.project);
             *track_draft.borrow_mut() = None;
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             track_window.set_status_message("".into());
             window.set_status_message("".into());
+            window.set_project_running(project_runtime_is_running(&project_runtime));
             window.set_show_track_editor(false);
             let _ = track_window.hide();
         });
@@ -2318,7 +2344,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
-        let project_streams = project_streams.clone();
+        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         window.on_remove_track(move |index| {
@@ -2336,14 +2362,12 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 return;
             }
 
+            let removed_track_id = session.project.tracks[index].id.clone();
             session.project.tracks.remove(index);
-            let was_running = project_streams.borrow().is_some();
-            if was_running {
-                stop_project_runtime(&project_streams);
-                window.set_project_running(false);
-            }
+            remove_live_track_runtime(&project_runtime, &removed_track_id);
             replace_project_tracks(&project_tracks, &session.project);
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            window.set_project_running(project_runtime_is_running(&project_runtime));
             window.set_status_message("".into());
         });
     }
@@ -2352,6 +2376,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
         let project_tracks = project_tracks.clone();
+        let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         window.on_toggle_track_enabled(move |index| {
@@ -2368,8 +2393,14 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 return;
             };
             track.enabled = !track.enabled;
+            let track_id = track.id.clone();
+            if let Err(error) = sync_live_track_runtime(&project_runtime, session, &track_id) {
+                window.set_status_message(error.to_string().into());
+                return;
+            }
             replace_project_tracks(&project_tracks, &session.project);
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            window.set_project_running(project_runtime_is_running(&project_runtime));
             window.set_status_message("".into());
         });
     }
@@ -2377,7 +2408,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
-        let project_streams = project_streams.clone();
+        let project_runtime = project_runtime.clone();
         window.on_start_project(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2388,9 +2419,9 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 return;
             };
             match start_project_runtime(session) {
-                Ok(streams) => {
-                    *project_streams.borrow_mut() = Some(streams);
-                    window.set_project_running(true);
+                Ok(runtime) => {
+                    *project_runtime.borrow_mut() = Some(runtime);
+                    window.set_project_running(project_runtime_is_running(&project_runtime));
                     window.set_status_message("".into());
                 }
                 Err(error) => {
@@ -2403,12 +2434,12 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
 
     {
         let weak_window = window.as_weak();
-        let project_streams = project_streams.clone();
+        let project_runtime = project_runtime.clone();
         window.on_stop_project(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            stop_project_runtime(&project_streams);
+            stop_project_runtime(&project_runtime);
             window.set_project_running(false);
             window.set_status_message("".into());
         });
@@ -2687,6 +2718,10 @@ fn stage_model_picker_items(effect_type: &str) -> Vec<StageModelPickerItem> {
         .collect()
 }
 
+fn stage_model_picker_labels(items: &[StageModelPickerItem]) -> Vec<SharedString> {
+    items.iter().map(|item| item.label.clone()).collect()
+}
+
 fn set_selected_stage(window: &AppWindow, selected_stage: Option<&SelectedStage>) {
     if let Some(selected_stage) = selected_stage {
         window.set_selected_track_stage_track_index(selected_stage.track_index as i32);
@@ -2949,7 +2984,7 @@ fn persist_stage_editor_draft(
     stage_parameter_items: &Rc<VecModel<StageParameterItem>>,
     project_session: &Rc<RefCell<Option<ProjectSession>>>,
     project_tracks: &Rc<VecModel<ProjectTrackItem>>,
-    project_streams: &Rc<RefCell<Option<Vec<Stream>>>>,
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
     saved_project_snapshot: &Rc<RefCell<Option<String>>>,
     project_dirty: &Rc<RefCell<bool>>,
     close_after_save: bool,
@@ -2964,42 +2999,46 @@ fn persist_stage_editor_draft(
     let session = session_borrow
         .as_mut()
         .ok_or_else(|| anyhow!("Nenhum projeto carregado."))?;
-    let track = session
-        .project
-        .tracks
-        .get_mut(draft.track_index)
-        .ok_or_else(|| anyhow!("Track inválida."))?;
     let kind = build_block_kind(&draft.effect_type, &draft.model_id, params)?;
+    let track_id = {
+        let track = session
+            .project
+            .tracks
+            .get_mut(draft.track_index)
+            .ok_or_else(|| anyhow!("Track inválida."))?;
 
-    if let Some(stage_index) = draft.stage_index {
-        let block = track
-            .blocks
-            .get_mut(stage_index)
-            .ok_or_else(|| anyhow!("Stage inválido."))?;
-        let block_id = block.id.clone();
-        block.enabled = draft.enabled;
-        block.kind = kind;
-        block.id = block_id;
-    } else {
-        let insert_index = draft.before_index.min(track.blocks.len());
-        track.blocks.insert(
-            insert_index,
-            AudioBlock {
-                id: BlockId(format!("{}:block:new", track.id.0)),
-                enabled: draft.enabled,
-                kind,
-            },
-        );
-        reassign_track_block_ids(track);
-    }
+        if let Some(stage_index) = draft.stage_index {
+            let block = track
+                .blocks
+                .get_mut(stage_index)
+                .ok_or_else(|| anyhow!("Stage inválido."))?;
+            let block_id = block.id.clone();
+            block.enabled = draft.enabled;
+            block.kind = kind;
+            block.id = block_id;
+        } else {
+            let insert_index = draft.before_index.min(track.blocks.len());
+            track.blocks.insert(
+                insert_index,
+                AudioBlock {
+                    id: BlockId::generate_for_track(&track.id),
+                    enabled: draft.enabled,
+                    kind,
+                },
+            );
+        }
 
-    if project_streams.borrow().is_some() {
-        stop_project_runtime(project_streams);
-        window.set_project_running(false);
+        track.id.clone()
+    };
+
+    if let Err(error) = sync_live_track_runtime(project_runtime, session, &track_id) {
+        window.set_stage_drawer_status_message(error.to_string().into());
+        return Err(error);
     }
 
     replace_project_tracks(project_tracks, &session.project);
     sync_project_dirty(window, session, saved_project_snapshot, project_dirty);
+    window.set_project_running(project_runtime_is_running(project_runtime));
 
     if close_after_save {
         window.set_show_stage_drawer(false);
@@ -3157,12 +3196,6 @@ fn build_block_kind(effect_type: &str, model_id: &str, params: ParameterSet) -> 
         other => return Err(anyhow!("tipo de stage '{}' não suportado na GUI", other)),
     };
     Ok(kind)
-}
-
-fn reassign_track_block_ids(track: &mut Track) {
-    for (index, block) in track.blocks.iter_mut().enumerate() {
-        block.id = BlockId(format!("{}:block:{}", track.id.0, index));
-    }
 }
 
 fn set_device_selection_from_project(
@@ -3458,19 +3491,80 @@ fn normalized_track_description(name: &str) -> Option<String> {
     }
 }
 
-fn stop_project_runtime(project_streams: &Rc<RefCell<Option<Vec<Stream>>>>) {
-    *project_streams.borrow_mut() = None;
+fn project_runtime_is_running(
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+) -> bool {
+    project_runtime
+        .borrow()
+        .as_ref()
+        .map(ProjectRuntimeController::is_running)
+        .unwrap_or(false)
 }
 
-fn start_project_runtime(session: &ProjectSession) -> Result<Vec<Stream>> {
-    validate_project(&session.project)?;
-    let track_sample_rates = resolve_project_track_sample_rates(&session.project)?;
-    let runtime_graph = build_runtime_graph(&session.project, &track_sample_rates)?;
-    let streams = build_streams_for_project(&session.project, &runtime_graph)?;
-    for stream in &streams {
-        stream.play()?;
+fn stop_project_runtime(project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>) {
+    if let Some(mut runtime) = project_runtime.borrow_mut().take() {
+        runtime.stop();
     }
-    Ok(streams)
+}
+
+fn start_project_runtime(session: &ProjectSession) -> Result<ProjectRuntimeController> {
+    validate_project(&session.project)?;
+    ProjectRuntimeController::start(&session.project)
+}
+
+fn sync_project_runtime(
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    session: &ProjectSession,
+) -> Result<()> {
+    let mut borrow = project_runtime.borrow_mut();
+    if let Some(runtime) = borrow.as_mut() {
+        validate_project(&session.project)?;
+        runtime.sync_project(&session.project)?;
+    }
+    Ok(())
+}
+
+fn sync_live_track_runtime(
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    session: &ProjectSession,
+    track_id: &TrackId,
+) -> Result<()> {
+    let mut borrow = project_runtime.borrow_mut();
+    let Some(runtime) = borrow.as_mut() else {
+        return Ok(());
+    };
+
+    validate_project(&session.project)?;
+    if let Some(track) = session.project.tracks.iter().find(|track| &track.id == track_id) {
+        runtime.upsert_track(&session.project, track)?;
+    } else {
+        runtime.remove_track(track_id);
+    }
+    Ok(())
+}
+
+fn remove_live_track_runtime(
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    track_id: &TrackId,
+) {
+    if let Some(runtime) = project_runtime.borrow_mut().as_mut() {
+        runtime.remove_track(track_id);
+    }
+}
+
+fn assign_new_block_ids(track: &mut Track) {
+    for block in &mut track.blocks {
+        assign_new_block_ids_recursive(block, &track.id);
+    }
+}
+
+fn assign_new_block_ids_recursive(block: &mut AudioBlock, track_id: &TrackId) {
+    block.id = BlockId::generate_for_track(track_id);
+    if let AudioBlockKind::Select(select) = &mut block.kind {
+        for option in &mut select.options {
+            assign_new_block_ids_recursive(option, track_id);
+        }
+    }
 }
 
 fn track_editor_mode(draft: &TrackDraft) -> TrackEditorMode {

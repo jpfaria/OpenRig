@@ -126,6 +126,7 @@ export component AppWindow inherits Window {
     in property <int> selected-track-stage-index;
     in property <[StageTypePickerItem]> stage-type-options;
     in property <[StageModelPickerItem]> stage-model-options;
+    in property <[string]> stage-model-option-labels;
     in property <string> stage-picker-title;
     in property <bool> show-stage-type-picker;
     in property <bool> show-stage-model-picker;
@@ -231,6 +232,7 @@ export component AppWindow inherits Window {
         selected-track-stage-index: root.selected-track-stage-index;
         stage-type-options: root.stage-type-options;
         stage-model-options: root.stage-model-options;
+        stage-model-option-labels: root.stage-model-option-labels;
         stage-picker-title: root.stage-picker-title;
         show-stage-type-picker: root.show-stage-type-picker;
         show-stage-model-picker: root.show-stage-model-picker;
@@ -330,6 +332,7 @@ export component AppWindow inherits Window {
         selected-track-stage-index: root.selected-track-stage-index;
         stage-type-options: root.stage-type-options;
         stage-model-options: root.stage-model-options;
+        stage-model-option-labels: root.stage-model-option-labels;
         stage-picker-title: root.stage-picker-title;
         show-stage-type-picker: root.show-stage-type-picker;
         show-stage-model-picker: root.show-stage-model-picker;
