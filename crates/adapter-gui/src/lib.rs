@@ -1687,10 +1687,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
             }
 
             replace_project_tracks(&project_tracks, &session.project);
-            *selected_stage.borrow_mut() = Some(SelectedStage {
-                track_index: track_index as usize,
-                stage_index: insert_at,
-            });
+            *selected_stage.borrow_mut() = None;
             if let Some(draft) = stage_editor_draft.borrow_mut().as_mut() {
                 if draft.track_index == track_index as usize && draft.stage_index.is_some() {
                     draft.stage_index = Some(insert_at);
