@@ -26,7 +26,7 @@ impl Default for GateParams {
 
 pub fn model_schema() -> ModelParameterSchema {
     ModelParameterSchema {
-        effect_type: "gate".to_string(),
+        effect_type: "dynamics".to_string(),
         model: MODEL_ID.to_string(),
         display_name: "Noise Gate".to_string(),
         audio_mode: ModelAudioMode::DualMono,

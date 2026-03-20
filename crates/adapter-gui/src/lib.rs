@@ -2932,56 +2932,28 @@ fn replace_project_chains(model: &Rc<VecModel<ProjectChainItem>>, project: &Proj
     model.set_vec(items);
 }
 
-fn picker_effect_type(effect_type: &str) -> &str {
-    match effect_type {
-        "compressor" | "gate" => "dyn",
-        _ => effect_type,
-    }
-}
-
-fn picker_icon_kind(effect_type: &str) -> &str {
-    match picker_effect_type(effect_type) {
-        "dyn" => "compressor",
-        other => other,
-    }
-}
-
 fn block_type_picker_items() -> Vec<BlockTypePickerItem> {
-    let mut seen = HashSet::new();
     supported_block_types()
         .into_iter()
-        .filter_map(|item| {
-            let grouped = picker_effect_type(item.effect_type);
-            if !seen.insert(grouped.to_string()) {
-                return None;
-            }
-            Some(BlockTypePickerItem {
-                effect_type: grouped.into(),
-                label: short_effect_type_label(grouped).into(),
-                subtitle: "".into(),
-                icon_kind: picker_icon_kind(grouped).into(),
-            })
+        .map(|item| BlockTypePickerItem {
+            effect_type: item.effect_type.into(),
+            label: short_effect_type_label(item.effect_type).into(),
+            subtitle: "".into(),
+            icon_kind: item.effect_type.into(),
         })
         .collect()
 }
 
 fn block_model_picker_items(effect_type: &str) -> Vec<BlockModelPickerItem> {
-    let models = if effect_type == "dyn" {
-        let mut models = supported_block_models("compressor").unwrap_or_default();
-        models.extend(supported_block_models("gate").unwrap_or_default());
-        models
-    } else {
-        supported_block_models(effect_type).unwrap_or_default()
-    };
-
-    models
+    supported_block_models(effect_type)
+        .unwrap_or_default()
         .into_iter()
         .map(|item| BlockModelPickerItem {
-            effect_type: item.effect_type.clone().into(),
+            effect_type: item.effect_type.into(),
             model_id: item.model_id.into(),
             label: item.display_name.into(),
             subtitle: "".into(),
-            icon_kind: picker_icon_kind(&item.effect_type).into(),
+            icon_kind: effect_type.into(),
         })
         .collect()
 }
@@ -3001,19 +2973,16 @@ fn set_selected_block(window: &AppWindow, selected_block: Option<&SelectedBlock>
 }
 
 fn block_type_index(effect_type: &str) -> i32 {
-    let grouped = picker_effect_type(effect_type);
     supported_block_types()
         .into_iter()
-        .map(|item| picker_effect_type(item.effect_type).to_string())
-        .collect::<Vec<_>>()
-        .iter()
-        .position(|item| item == grouped)
+        .position(|item| item.effect_type == effect_type)
         .map(|index| index as i32)
         .unwrap_or(-1)
 }
 
 fn block_model_index(effect_type: &str, model_id: &str) -> i32 {
-    block_model_picker_items(picker_effect_type(effect_type))
+    supported_block_models(effect_type)
+        .unwrap_or_default()
         .iter()
         .position(|item| item.model_id == model_id)
         .map(|index| index as i32)
@@ -3025,14 +2994,16 @@ fn short_effect_type_label(effect_type: &str) -> &'static str {
         "amp_head" => "AMP",
         "amp_combo" => "COMBO",
         "cab" => "CAB",
+        "ir" => "IR",
         "full_rig" => "RIG",
-        "drive" => "GAIN",
-        "compressor" | "gate" | "dyn" => "DYN",
-        "eq" => "EQ",
-        "tremolo" => "MOD",
+        "drive" => "DRIVE",
+        "dynamics" => "DYN",
+        "filter" => "FILTER",
+        "wah" => "WAH",
+        "modulation" => "MOD",
         "delay" => "DLY",
         "reverb" => "RVB",
-        "tuner" => "UTIL",
+        "utility" => "UTIL",
         "nam" => "NAM",
         _ => "BLOCK",
     }

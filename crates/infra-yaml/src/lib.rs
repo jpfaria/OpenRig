@@ -4,7 +4,7 @@ use domain::value_objects::ParameterValue;
 use project::block::{
     normalize_block_params, AmpComboBlock, AmpHeadBlock, AudioBlock, AudioBlockKind, CabBlock,
     CompressorBlock, CoreBlock, CoreBlockKind, DelayBlock, DriveBlock, EqBlock, FullRigBlock,
-    GateBlock, NamBlock, ReverbBlock, SelectBlock, TremoloBlock, TunerBlock,
+    GateBlock, IrBlock, NamBlock, ReverbBlock, SelectBlock, TremoloBlock, TunerBlock, WahBlock,
 };
 use project::device::DeviceSettings;
 use project::param::ParameterSet;
@@ -245,7 +245,7 @@ impl ChainYaml {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum AudioBlockYaml {
-    #[serde(rename = "amp-head", alias = "amp_head", alias = "amp")]
+    #[serde(rename = "amp_head")]
     AmpHead {
         #[serde(default = "default_enabled")]
         enabled: bool,
@@ -254,7 +254,7 @@ enum AudioBlockYaml {
         #[serde(default)]
         params: Value,
     },
-    #[serde(rename = "amp-combo", alias = "amp_combo")]
+    #[serde(rename = "amp_combo")]
     AmpCombo {
         #[serde(default = "default_enabled")]
         enabled: bool,
@@ -263,7 +263,7 @@ enum AudioBlockYaml {
         #[serde(default)]
         params: Value,
     },
-    #[serde(rename = "full-rig", alias = "full_rig")]
+    #[serde(rename = "full_rig")]
     FullRig {
         #[serde(default = "default_enabled")]
         enabled: bool,
@@ -276,6 +276,14 @@ enum AudioBlockYaml {
         #[serde(default = "default_enabled")]
         enabled: bool,
         #[serde(default = "default_cab_model")]
+        model: String,
+        #[serde(default)]
+        params: Value,
+    },
+    Ir {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
+        #[serde(default = "default_ir_model")]
         model: String,
         #[serde(default)]
         params: Value,
@@ -312,42 +320,42 @@ enum AudioBlockYaml {
         #[serde(default)]
         params: Value,
     },
-    Tuner {
+    Utility {
         #[serde(default = "default_enabled")]
         enabled: bool,
-        #[serde(default = "default_tuner_model")]
+        #[serde(default = "default_utility_model")]
         model: String,
         #[serde(default)]
         params: Value,
     },
-    Compressor {
+    Dynamics {
         #[serde(default = "default_enabled")]
         enabled: bool,
-        #[serde(default = "default_compressor_model")]
+        #[serde(default = "default_dynamics_model")]
         model: String,
         #[serde(default)]
         params: Value,
     },
-    Gate {
+    Filter {
         #[serde(default = "default_enabled")]
         enabled: bool,
-        #[serde(default = "default_gate_model")]
+        #[serde(default = "default_filter_model")]
         model: String,
         #[serde(default)]
         params: Value,
     },
-    Eq {
+    Wah {
         #[serde(default = "default_enabled")]
         enabled: bool,
-        #[serde(default = "default_eq_model")]
+        #[serde(default = "default_wah_model")]
         model: String,
         #[serde(default)]
         params: Value,
     },
-    Tremolo {
+    Modulation {
         #[serde(default = "default_enabled")]
         enabled: bool,
-        #[serde(default = "default_tremolo_model")]
+        #[serde(default = "default_modulation_model")]
         model: String,
         #[serde(default)]
         params: Value,
@@ -435,6 +443,20 @@ impl AudioBlockYaml {
                     }),
                 }),
             }),
+            AudioBlockYaml::Ir {
+                enabled,
+                model,
+                params,
+            } => Ok(AudioBlock {
+                id: generated_id,
+                enabled,
+                kind: AudioBlockKind::Core(CoreBlock {
+                    kind: CoreBlockKind::Ir(IrBlock {
+                        model: model.clone(),
+                        params: load_model_params("ir", &model, params)?,
+                    }),
+                }),
+            }),
             AudioBlockYaml::Drive {
                 enabled,
                 model,
@@ -489,7 +511,7 @@ impl AudioBlockYaml {
                     }),
                 }),
             }),
-            AudioBlockYaml::Tuner {
+            AudioBlockYaml::Utility {
                 enabled,
                 model,
                 params,
@@ -499,11 +521,11 @@ impl AudioBlockYaml {
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::Tuner(TunerBlock {
                         model: model.clone(),
-                        params: load_model_params("tuner", &model, params)?,
+                        params: load_model_params("utility", &model, params)?,
                     }),
                 }),
             }),
-            AudioBlockYaml::Compressor {
+            AudioBlockYaml::Dynamics {
                 enabled,
                 model,
                 params,
@@ -511,27 +533,10 @@ impl AudioBlockYaml {
                 id: generated_id,
                 enabled,
                 kind: AudioBlockKind::Core(CoreBlock {
-                    kind: CoreBlockKind::Compressor(CompressorBlock {
-                        model: model.clone(),
-                        params: load_model_params("compressor", &model, params)?,
-                    }),
+                    kind: build_dynamics_kind(model.clone(), load_model_params("dynamics", &model, params)?)?,
                 }),
             }),
-            AudioBlockYaml::Gate {
-                enabled,
-                model,
-                params,
-            } => Ok(AudioBlock {
-                id: generated_id,
-                enabled,
-                kind: AudioBlockKind::Core(CoreBlock {
-                    kind: CoreBlockKind::Gate(GateBlock {
-                        model: model.clone(),
-                        params: load_model_params("gate", &model, params)?,
-                    }),
-                }),
-            }),
-            AudioBlockYaml::Eq {
+            AudioBlockYaml::Filter {
                 enabled,
                 model,
                 params,
@@ -541,11 +546,25 @@ impl AudioBlockYaml {
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::Eq(EqBlock {
                         model: model.clone(),
-                        params: load_model_params("eq", &model, params)?,
+                        params: load_model_params("filter", &model, params)?,
                     }),
                 }),
             }),
-            AudioBlockYaml::Tremolo {
+            AudioBlockYaml::Wah {
+                enabled,
+                model,
+                params,
+            } => Ok(AudioBlock {
+                id: generated_id,
+                enabled,
+                kind: AudioBlockKind::Core(CoreBlock {
+                    kind: CoreBlockKind::Wah(WahBlock {
+                        model: model.clone(),
+                        params: load_model_params("wah", &model, params)?,
+                    }),
+                }),
+            }),
+            AudioBlockYaml::Modulation {
                 enabled,
                 model,
                 params,
@@ -555,7 +574,7 @@ impl AudioBlockYaml {
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::Tremolo(TremoloBlock {
                         model: model.clone(),
-                        params: load_model_params("tremolo", &model, params)?,
+                        params: load_model_params("modulation", &model, params)?,
                     }),
                 }),
             }),
@@ -627,6 +646,11 @@ impl AudioBlockYaml {
                     model: stage.model.clone(),
                     params: parameter_set_to_yaml_value(&stage.params),
                 }),
+                CoreBlockKind::Ir(stage) => Ok(Self::Ir {
+                    enabled: block.enabled,
+                    model: stage.model.clone(),
+                    params: parameter_set_to_yaml_value(&stage.params),
+                }),
                 CoreBlockKind::Drive(stage) => Ok(Self::Drive {
                     enabled: block.enabled,
                     model: stage.model.clone(),
@@ -642,27 +666,32 @@ impl AudioBlockYaml {
                     model: stage.model.clone(),
                     params: parameter_set_to_yaml_value(&stage.params),
                 }),
-                CoreBlockKind::Tuner(stage) => Ok(Self::Tuner {
+                CoreBlockKind::Tuner(stage) => Ok(Self::Utility {
                     enabled: block.enabled,
                     model: stage.model.clone(),
                     params: parameter_set_to_yaml_value(&stage.params),
                 }),
-                CoreBlockKind::Compressor(stage) => Ok(Self::Compressor {
+                CoreBlockKind::Compressor(stage) => Ok(Self::Dynamics {
                     enabled: block.enabled,
                     model: stage.model.clone(),
                     params: parameter_set_to_yaml_value(&stage.params),
                 }),
-                CoreBlockKind::Gate(stage) => Ok(Self::Gate {
+                CoreBlockKind::Gate(stage) => Ok(Self::Dynamics {
                     enabled: block.enabled,
                     model: stage.model.clone(),
                     params: parameter_set_to_yaml_value(&stage.params),
                 }),
-                CoreBlockKind::Eq(stage) => Ok(Self::Eq {
+                CoreBlockKind::Eq(stage) => Ok(Self::Filter {
                     enabled: block.enabled,
                     model: stage.model.clone(),
                     params: parameter_set_to_yaml_value(&stage.params),
                 }),
-                CoreBlockKind::Tremolo(stage) => Ok(Self::Tremolo {
+                CoreBlockKind::Wah(stage) => Ok(Self::Wah {
+                    enabled: block.enabled,
+                    model: stage.model.clone(),
+                    params: parameter_set_to_yaml_value(&stage.params),
+                }),
+                CoreBlockKind::Tremolo(stage) => Ok(Self::Modulation {
                     enabled: block.enabled,
                     model: stage.model.clone(),
                     params: parameter_set_to_yaml_value(&stage.params),
@@ -744,6 +773,16 @@ fn load_audio_block_value(value: Value, chain_id: &ChainId, index: usize) -> Opt
 fn load_model_params(effect_type: &str, model: &str, raw_params: Value) -> Result<ParameterSet> {
     let flattened = flatten_parameter_set(raw_params)?;
     normalize_block_params(effect_type, model, flattened).map_err(anyhow::Error::msg)
+}
+
+fn build_dynamics_kind(model: String, params: ParameterSet) -> Result<CoreBlockKind> {
+    if block_dyn::compressor_supported_models().contains(&model.as_str()) {
+        Ok(CoreBlockKind::Compressor(CompressorBlock { model, params }))
+    } else if block_dyn::gate_supported_models().contains(&model.as_str()) {
+        Ok(CoreBlockKind::Gate(GateBlock { model, params }))
+    } else {
+        Err(anyhow!("unsupported dynamics model '{}'", model))
+    }
 }
 
 fn flatten_parameter_set(value: Value) -> Result<ParameterSet> {
@@ -911,35 +950,42 @@ fn default_reverb_model() -> String {
         .to_string()
 }
 
-fn default_tuner_model() -> String {
+fn default_utility_model() -> String {
     block_util::supported_models()
         .first()
         .expect("block-util must expose at least one model")
         .to_string()
 }
 
-fn default_compressor_model() -> String {
-    block_dyn::compressor_supported_models()
+fn default_dynamics_model() -> String {
+    block_dyn::supported_models()
         .first()
-        .expect("block-dyn must expose at least one compressor model")
+        .expect("block-dyn must expose at least one model")
         .to_string()
 }
 
-fn default_gate_model() -> String {
-    block_dyn::gate_supported_models()
-        .first()
-        .expect("block-dyn must expose at least one gate model")
-        .to_string()
-}
-
-fn default_eq_model() -> String {
+fn default_filter_model() -> String {
     block_filter::supported_models()
         .first()
         .expect("block-filter must expose at least one model")
         .to_string()
 }
 
-fn default_tremolo_model() -> String {
+fn default_ir_model() -> String {
+    block_ir::supported_models()
+        .first()
+        .expect("block-ir must expose at least one model")
+        .to_string()
+}
+
+fn default_wah_model() -> String {
+    block_wah::supported_models()
+        .first()
+        .expect("block-wah must expose at least one model")
+        .to_string()
+}
+
+fn default_modulation_model() -> String {
     block_mod::supported_models()
         .first()
         .expect("block-mod must expose at least one model")

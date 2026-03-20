@@ -46,12 +46,15 @@ pub fn block_drawer_state(
 pub fn block_family_for_kind(kind: &str) -> &'static str {
     match kind {
         "amp_head" | "amp_combo" | "full_rig" | "nam" => "amp",
-        "drive" => "gain",
-        "compressor" | "gate" => "dynamics",
-        "eq" => "filter",
-        "tremolo" => "modulation",
+        "cab" => "cab",
+        "ir" => "ir",
+        "drive" => "drive",
+        "dynamics" => "dynamics",
+        "filter" => "filter",
+        "wah" => "wah",
+        "modulation" => "modulation",
         "delay" | "reverb" => "space",
-        "tuner" => "utility",
+        "utility" => "utility",
         _ => "utility",
     }
 }

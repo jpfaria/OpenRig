@@ -14,7 +14,7 @@ const E6_HZ: f32 = 1245.0;
 
 pub fn model_schema() -> ModelParameterSchema {
     ModelParameterSchema {
-        effect_type: "tuner".to_string(),
+        effect_type: "utility".to_string(),
         model: MODEL_ID.to_string(),
         display_name: "Chromatic Tuner".to_string(),
         audio_mode: ModelAudioMode::DualMono,

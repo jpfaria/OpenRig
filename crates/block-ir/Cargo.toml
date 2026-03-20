@@ -1,11 +1,14 @@
 [package]
-name = "block-cab"
+name = "block-ir"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
 anyhow.workspace = true
 domain = { path = "../domain" }
-asset-runtime = { path = "../asset-runtime" }
 ir = { path = "../ir" }
 block-core = { path = "../block-core" }
+
+[build-dependencies]
+anyhow.workspace = true
+

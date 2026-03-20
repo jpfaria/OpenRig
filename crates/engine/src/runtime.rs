@@ -13,15 +13,16 @@ use block_core::{
     AudioChannelLayout, ModelAudioMode, MonoProcessor, BlockProcessor, StereoProcessor,
 };
 use block_delay::build_delay_processor_for_layout;
-use block_dyn::build_compressor_processor_for_layout;
-use block_dyn::build_gate_processor_for_layout;
-use block_filter::build_eq_processor_for_layout;
+use block_dyn::build_dynamics_processor_for_layout;
+use block_filter::build_filter_processor_for_layout;
 use block_full_rig::build_full_rig_processor_for_layout;
 use block_gain::build_drive_processor_for_layout;
-use block_mod::build_tremolo_processor_for_layout;
+use block_ir::build_ir_processor_for_layout;
+use block_mod::build_modulation_processor_for_layout;
 use block_nam::build_nam_processor_for_layout;
 use block_reverb::build_reverb_processor_for_layout;
-use block_util::{build_tuner_processor, TunerProcessor};
+use block_util::{build_utility_processor, TunerProcessor};
+use block_wah::build_wah_processor_for_layout;
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -383,6 +384,13 @@ fn build_block_runtime_node(
                     build_cab_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
                 })?,
             ),
+            CoreBlockKind::Ir(stage) => audio_block_runtime_node(
+                block,
+                input_layout,
+                build_audio_processor_for_model(chain, "ir", &stage.model, input_layout, |layout| {
+                    build_ir_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
+                })?,
+            ),
             CoreBlockKind::Drive(stage) => audio_block_runtime_node(
                 block,
                 input_layout,
@@ -411,7 +419,7 @@ fn build_block_runtime_node(
                 input_layout,
                 output_layout: input_layout,
                 scratch: ProcessorScratch::Mono(Vec::new()),
-                processor: RuntimeProcessor::Tuner(build_tuner_processor(
+                processor: RuntimeProcessor::Tuner(build_utility_processor(
                     &stage.model,
                     &stage.params,
                     sample_rate.round() as usize,
@@ -420,29 +428,36 @@ fn build_block_runtime_node(
             CoreBlockKind::Compressor(stage) => audio_block_runtime_node(
                 block,
                 input_layout,
-                build_audio_processor_for_model(chain, "compressor", &stage.model, input_layout, |layout| {
-                    build_compressor_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
+                build_audio_processor_for_model(chain, "dynamics", &stage.model, input_layout, |layout| {
+                    build_dynamics_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
                 })?,
             ),
             CoreBlockKind::Gate(stage) => audio_block_runtime_node(
                 block,
                 input_layout,
-                build_audio_processor_for_model(chain, "gate", &stage.model, input_layout, |layout| {
-                    build_gate_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
+                build_audio_processor_for_model(chain, "dynamics", &stage.model, input_layout, |layout| {
+                    build_dynamics_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
                 })?,
             ),
             CoreBlockKind::Eq(stage) => audio_block_runtime_node(
                 block,
                 input_layout,
-                build_audio_processor_for_model(chain, "eq", &stage.model, input_layout, |layout| {
-                    build_eq_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
+                build_audio_processor_for_model(chain, "filter", &stage.model, input_layout, |layout| {
+                    build_filter_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
+                })?,
+            ),
+            CoreBlockKind::Wah(stage) => audio_block_runtime_node(
+                block,
+                input_layout,
+                build_audio_processor_for_model(chain, "wah", &stage.model, input_layout, |layout| {
+                    build_wah_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
                 })?,
             ),
             CoreBlockKind::Tremolo(stage) => audio_block_runtime_node(
                 block,
                 input_layout,
-                build_audio_processor_for_model(chain, "tremolo", &stage.model, input_layout, |layout| {
-                    build_tremolo_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
+                build_audio_processor_for_model(chain, "modulation", &stage.model, input_layout, |layout| {
+                    build_modulation_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
                 })?,
             ),
         },
@@ -583,17 +598,6 @@ where
         }
     };
 
-    println!(
-        "[chain:{}] {} model={} audio_mode={} input_layout={} output_layout={} runtime_mode={}",
-        chain.id.0,
-        effect_type,
-        model,
-        schema.audio_mode.as_str(),
-        layout_label(input_layout),
-        layout_label(output_layout),
-        audio_processor_runtime_mode(&processor)
-    );
-
     Ok(ProcessorBuildOutcome {
         processor,
         output_layout,
@@ -606,15 +610,7 @@ fn build_nam_audio_processor(
     input_layout: AudioChannelLayout,
     label: &str,
 ) -> Result<ProcessorBuildOutcome> {
-    let ir_path = optional_string(&stage.params, "ir_path");
-    let model_path = required_string(&stage.params, "model_path")?;
-    println!(
-        "[chain:{}] loading {} model={} file='{}'",
-        chain.id.0, label, stage.model, model_path
-    );
-    if let Some(ir_path) = ir_path.as_deref() {
-        println!("[chain:{}] loading {} IR '{}'", chain.id.0, label, ir_path);
-    }
+    let _ = (label, optional_string(&stage.params, "ir_path"), required_string(&stage.params, "model_path")?);
     build_audio_processor_for_model(chain, "nam", &stage.model, input_layout, |layout| {
         build_nam_processor_for_layout(&stage.model, &stage.params, layout)
     })
@@ -651,15 +647,6 @@ fn expect_stereo_processor(
             effect_type,
             model
         )),
-    }
-}
-
-fn audio_processor_runtime_mode(processor: &AudioProcessor) -> &'static str {
-    match processor {
-        AudioProcessor::Mono(_) => "mono",
-        AudioProcessor::DualMono { .. } => "dual_mono",
-        AudioProcessor::Stereo(_) => "stereo",
-        AudioProcessor::StereoFromMono(_) => "mono_to_stereo",
     }
 }
 
@@ -1240,7 +1227,7 @@ mod tests {
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
                 kind: CoreBlockKind::Compressor(CompressorBlock {
-                    params: normalized_defaults("compressor", &model),
+                    params: normalized_defaults("dynamics", &model),
                     model,
                 }),
             }),

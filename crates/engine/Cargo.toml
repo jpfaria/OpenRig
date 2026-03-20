@@ -16,6 +16,8 @@ block-amp-head = { path = "../block-amp-head" }
 block-amp-combo = { path = "../block-amp-combo" }
 block-full-rig = { path = "../block-full-rig" }
 block-cab = { path = "../block-cab" }
+block-ir = { path = "../block-ir" }
+block-wah = { path = "../block-wah" }
 block-reverb = { path = "../block-reverb" }
 block-util = { path = "../block-util" }
 project = { path = "../project" }

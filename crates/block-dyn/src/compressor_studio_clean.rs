@@ -32,7 +32,7 @@ impl Default for CompressorParams {
 
 pub fn model_schema() -> ModelParameterSchema {
     ModelParameterSchema {
-        effect_type: "compressor".to_string(),
+        effect_type: "dynamics".to_string(),
         model: MODEL_ID.to_string(),
         display_name: "Studio Clean Compressor".to_string(),
         audio_mode: ModelAudioMode::DualMono,

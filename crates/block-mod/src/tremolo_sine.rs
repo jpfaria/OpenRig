@@ -25,7 +25,7 @@ impl Default for TremoloParams {
 
 pub fn model_schema() -> ModelParameterSchema {
     ModelParameterSchema {
-        effect_type: "tremolo".to_string(),
+        effect_type: "modulation".to_string(),
         model: MODEL_ID.to_string(),
         display_name: "Sine Tremolo".to_string(),
         audio_mode: ModelAudioMode::DualMono,
@@ -110,10 +110,26 @@ fn build(
         block_core::AudioChannelLayout::Mono => {
             Ok(block_core::BlockProcessor::Mono(build_processor(params, sample_rate)?))
         }
-        block_core::AudioChannelLayout::Stereo => anyhow::bail!(
-            "tremolo model '{}' is mono-only and cannot build native stereo processing",
-            MODEL_ID
-        ),
+        block_core::AudioChannelLayout::Stereo => {
+            struct DualMonoProcessor {
+                left: Box<dyn block_core::MonoProcessor>,
+                right: Box<dyn block_core::MonoProcessor>,
+            }
+
+            impl block_core::StereoProcessor for DualMonoProcessor {
+                fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
+                    [
+                        self.left.process_sample(input[0]),
+                        self.right.process_sample(input[1]),
+                    ]
+                }
+            }
+
+            Ok(block_core::BlockProcessor::Stereo(Box::new(DualMonoProcessor {
+                left: build_processor(params, sample_rate)?,
+                right: build_processor(params, sample_rate)?,
+            })))
+        }
     }
 }
 

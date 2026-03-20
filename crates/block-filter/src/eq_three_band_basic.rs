@@ -26,7 +26,7 @@ impl Default for EqParams {
 
 pub fn model_schema() -> ModelParameterSchema {
     ModelParameterSchema {
-        effect_type: "eq".to_string(),
+        effect_type: "filter".to_string(),
         model: MODEL_ID.to_string(),
         display_name: "Three Band EQ".to_string(),
         audio_mode: ModelAudioMode::DualMono,

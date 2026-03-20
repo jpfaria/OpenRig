@@ -10,6 +10,13 @@ pub struct DynModelDefinition {
 }
 include!(concat!(env!("OUT_DIR"), "/generated_registry.rs"));
 
+pub fn find_model_definition(model: &str) -> Result<&'static DynModelDefinition> {
+    MODEL_DEFINITIONS
+        .iter()
+        .find(|definition| definition.id == model)
+        .ok_or_else(|| anyhow!("unsupported dynamics model '{}'", model))
+}
+
 pub fn find_compressor_model_definition(model: &str) -> Result<&'static DynModelDefinition> {
     COMPRESSOR_MODEL_DEFINITIONS
         .iter()

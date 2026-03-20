@@ -11,11 +11,11 @@ pub fn supported_models() -> &'static [&'static str] {
     registry::SUPPORTED_MODELS
 }
 
-pub fn tuner_model_schema(model: &str) -> Result<ModelParameterSchema> {
+pub fn utility_model_schema(model: &str) -> Result<ModelParameterSchema> {
     (registry::find_model_definition(model)?.schema)()
 }
 
-pub fn build_tuner_processor(
+pub fn build_utility_processor(
     model: &str,
     params: &ParameterSet,
     sample_rate: usize,

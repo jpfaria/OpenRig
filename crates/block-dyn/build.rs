@@ -44,12 +44,20 @@ fn main() {
     for (module_name, _) in &gate_modules {
         generated.push_str(&format!("    {}::MODEL_DEFINITION.id,\n", module_name));
     }
+    generated.push_str("];\n\npub const SUPPORTED_MODELS: &[&str] = &[\n");
+    for (module_name, _) in compressor_modules.iter().chain(gate_modules.iter()) {
+        generated.push_str(&format!("    {}::MODEL_DEFINITION.id,\n", module_name));
+    }
     generated.push_str("];\n\nconst COMPRESSOR_MODEL_DEFINITIONS: &[DynModelDefinition] = &[\n");
     for (module_name, _) in &compressor_modules {
         generated.push_str(&format!("    {}::MODEL_DEFINITION,\n", module_name));
     }
     generated.push_str("];\n\nconst GATE_MODEL_DEFINITIONS: &[DynModelDefinition] = &[\n");
     for (module_name, _) in &gate_modules {
+        generated.push_str(&format!("    {}::MODEL_DEFINITION,\n", module_name));
+    }
+    generated.push_str("];\n\nconst MODEL_DEFINITIONS: &[DynModelDefinition] = &[\n");
+    for (module_name, _) in compressor_modules.iter().chain(gate_modules.iter()) {
         generated.push_str(&format!("    {}::MODEL_DEFINITION,\n", module_name));
     }
     generated.push_str("];\n");

@@ -1,6 +1,6 @@
 use anyhow::{anyhow, bail, Result};
 use asset_runtime::{materialize, EmbeddedAsset};
-use audio_ir::{build_mono_ir_processor_from_wav, IrAsset};
+use ir::{build_mono_ir_processor_from_wav, IrAsset};
 use crate::registry::CabModelDefinition;
 use crate::CabBackendKind;
 use block_core::param::{enum_parameter, required_string, ModelParameterSchema, ParameterSet};

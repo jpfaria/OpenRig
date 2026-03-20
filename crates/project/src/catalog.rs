@@ -23,7 +23,7 @@ struct BlockRegistryEntry {
     supported_models: SupportedModelsFn,
 }
 
-fn block_registry() -> [BlockRegistryEntry; 13] {
+fn block_registry() -> [BlockRegistryEntry; 14] {
     [
         BlockRegistryEntry {
             effect_type: "amp_head",
@@ -38,6 +38,10 @@ fn block_registry() -> [BlockRegistryEntry; 13] {
             supported_models: block_cab::supported_models,
         },
         BlockRegistryEntry {
+            effect_type: "ir",
+            supported_models: block_ir::supported_models,
+        },
+        BlockRegistryEntry {
             effect_type: "full_rig",
             supported_models: block_full_rig::supported_models,
         },
@@ -46,19 +50,19 @@ fn block_registry() -> [BlockRegistryEntry; 13] {
             supported_models: block_gain::supported_models,
         },
         BlockRegistryEntry {
-            effect_type: "compressor",
-            supported_models: block_dyn::compressor_supported_models,
+            effect_type: "dynamics",
+            supported_models: block_dyn::supported_models,
         },
         BlockRegistryEntry {
-            effect_type: "gate",
-            supported_models: block_dyn::gate_supported_models,
-        },
-        BlockRegistryEntry {
-            effect_type: "eq",
+            effect_type: "filter",
             supported_models: block_filter::supported_models,
         },
         BlockRegistryEntry {
-            effect_type: "tremolo",
+            effect_type: "wah",
+            supported_models: block_wah::supported_models,
+        },
+        BlockRegistryEntry {
+            effect_type: "modulation",
             supported_models: block_mod::supported_models,
         },
         BlockRegistryEntry {
@@ -70,7 +74,7 @@ fn block_registry() -> [BlockRegistryEntry; 13] {
             supported_models: block_reverb::supported_models,
         },
         BlockRegistryEntry {
-            effect_type: "tuner",
+            effect_type: "utility",
             supported_models: block_util::supported_models,
         },
         BlockRegistryEntry {
@@ -131,6 +135,8 @@ mod tests {
         assert!(effect_types.contains(&"amp_head"));
         assert!(effect_types.contains(&"delay"));
         assert!(effect_types.contains(&"nam"));
+        assert!(effect_types.contains(&"ir"));
+        assert!(effect_types.contains(&"wah"));
     }
 
     #[test]
