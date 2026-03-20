@@ -1253,22 +1253,16 @@ export component ProjectChainsPage inherits Rectangle {
         height: 52px;
         background: transparent;
 
-        Image {
+        Text {
             x: 0px;
-            y: -4px;
-            width: 68px;
-            height: 68px;
-            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logomark.svg");
-            image-fit: contain;
-        }
-
-        Image {
-            x: 40px;
-            y: 2px;
-            width: 210px;
-            height: 52px;
-            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logotype.png");
-            image-fit: contain;
+            y: 6px;
+            width: 360px;
+            height: 36px;
+            text: root.project-title;
+            color: #f1f4f8;
+            font-size: 28px;
+            font-weight: 700;
+            vertical-alignment: center;
         }
 
         HeaderIconAction {
@@ -1347,21 +1341,9 @@ export component ProjectChainsPage inherits Rectangle {
             }
         }
 
-        Text {
-            x: 18px;
-            y: 18px;
-            width: 340px;
-            height: 28px;
-            text: root.project-title;
-            color: #f1f4f8;
-            font-size: 24px;
-            font-weight: 680;
-            vertical-alignment: center;
-        }
-
         ToolbarButton {
             x: parent.width - 154px;
-            y: 28px;
+            y: 16px;
             width: 136px;
             label: "Nova chain";
             primary: true;
@@ -1370,9 +1352,9 @@ export component ProjectChainsPage inherits Rectangle {
 
         ScrollView {
             x: 18px;
-            y: 52px;
+            y: 66px;
             width: parent.width - 36px;
-            height: parent.height - 70px;
+            height: parent.height - 84px;
             viewport-height: chains-column.preferred-height;
             viewport-width: chains-column.width;
 
