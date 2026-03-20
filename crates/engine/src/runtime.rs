@@ -19,9 +19,9 @@ use block_filter::build_eq_processor_for_layout;
 use block_full_rig::{build_full_rig_processor_for_layout, full_rig_asset_summary};
 use block_gain::{build_drive_processor_for_layout, drive_asset_summary};
 use block_mod::build_tremolo_processor_for_layout;
-use block_nam::{build_nam_processor_for_layout, GENERIC_NAM_MODEL_ID};
+use block_nam::build_nam_processor_for_layout;
 use block_reverb::build_reverb_processor_for_layout;
-use block_util::{build_tuner_processor, tuner_chromatic::ChromaticTuner};
+use block_util::{build_tuner_processor, TunerProcessor};
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -167,7 +167,7 @@ pub struct ChainRuntimeState {
 
 enum RuntimeProcessor {
     Audio(AudioProcessor),
-    Tuner(ChromaticTuner),
+    Tuner(Box<dyn TunerProcessor>),
 }
 
 struct BlockRuntimeNode {
@@ -857,13 +857,6 @@ fn build_nam_audio_processor(
     input_layout: AudioChannelLayout,
     label: &str,
 ) -> Result<ProcessorBuildOutcome> {
-    if stage.model != GENERIC_NAM_MODEL_ID {
-        return Err(anyhow!(
-            "chain '{}' uses unsupported nam model '{}'",
-            chain.id.0,
-            stage.model
-        ));
-    }
     let ir_path = optional_string(&stage.params, "ir_path");
     let model_path = required_string(&stage.params, "model_path")?;
     println!(
@@ -1191,6 +1184,8 @@ fn next_block_instance_serial() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::{build_runtime_graph, build_chain_runtime_state, update_chain_runtime_state};
+    use block_cab::{cab_backend_kind, supported_models as supported_cab_models, CabBackendKind};
+    use block_util::supported_models as supported_tuner_models;
     use domain::ids::{BlockId, DeviceId, ChainId};
     use domain::value_objects::ParameterValue;
     use project::block::{
@@ -1204,8 +1199,7 @@ mod tests {
 
     #[test]
     fn runtime_graph_builds_for_chain_with_cab_block() {
-        let mut params = ParameterSet::default();
-        params.insert("capture", ParameterValue::String("ev_mix_b".into()));
+        let (model, params) = any_ir_cab_defaults();
 
         let project = Project {
             name: None,
@@ -1223,7 +1217,7 @@ mod tests {
                     enabled: true,
                     kind: AudioBlockKind::Core(CoreBlock {
                         kind: CoreBlockKind::Cab(CabBlock {
-                            model: "marshall_4x12_v30".into(),
+                            model,
                             params,
                         }),
                     }),
@@ -1242,8 +1236,7 @@ mod tests {
 
     #[test]
     fn runtime_graph_rejects_chain_when_runtime_sample_rate_does_not_match_ir() {
-        let mut params = ParameterSet::default();
-        params.insert("capture", ParameterValue::String("ev_mix_b".into()));
+        let (model, params) = any_ir_cab_defaults();
 
         let project = Project {
             name: None,
@@ -1261,7 +1254,7 @@ mod tests {
                     enabled: true,
                     kind: AudioBlockKind::Core(CoreBlock {
                         kind: CoreBlockKind::Cab(CabBlock {
-                            model: "marshall_4x12_v30".into(),
+                            model,
                             params,
                         }),
                     }),
@@ -1380,6 +1373,10 @@ mod tests {
     }
 
     fn tuner_block(block_id: &str, reference_hz: f32) -> AudioBlock {
+        let tuner_model = supported_tuner_models()
+            .first()
+            .expect("block-util must expose at least one tuner model")
+            .to_string();
         let mut params = ParameterSet::default();
         params.insert("reference_hz", ParameterValue::Float(reference_hz));
         AudioBlock {
@@ -1387,10 +1384,28 @@ mod tests {
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
                 kind: CoreBlockKind::Tuner(TunerBlock {
-                    model: "tuner_chromatic".into(),
+                    model: tuner_model,
                     params,
                 }),
             }),
         }
+    }
+
+    fn any_ir_cab_defaults() -> (String, ParameterSet) {
+        let model = supported_cab_models()
+            .iter()
+            .find(|model| {
+                matches!(
+                    cab_backend_kind(model).expect("cab backend should resolve"),
+                    CabBackendKind::Ir
+                )
+            })
+            .expect("block-cab must expose at least one IR-backed model")
+            .to_string();
+        let schema = block_cab::cab_model_schema(&model).expect("cab schema should exist");
+        let params = ParameterSet::default()
+            .normalized_against(&schema)
+            .expect("cab defaults should normalize");
+        (model, params)
     }
 }

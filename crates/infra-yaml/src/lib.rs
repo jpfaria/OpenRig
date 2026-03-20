@@ -12,19 +12,6 @@ use project::project::Project;
 use project::chain::{Chain, ChainOutputMixdown};
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
-use block_amp_combo::bogner_ecstasy::MODEL_ID as DEFAULT_AMP_COMBO_MODEL;
-use block_amp_head::marshall_jcm_800::MODEL_ID as DEFAULT_AMP_HEAD_MODEL;
-use block_cab::marshall_4x12_v30::MODEL_ID as DEFAULT_CAB_MODEL;
-use block_delay::digital_clean::MODEL_ID as DEFAULT_DELAY_MODEL;
-use block_dyn::compressor_studio_clean::MODEL_ID as DEFAULT_COMPRESSOR_MODEL;
-use block_dyn::gate_basic::MODEL_ID as DEFAULT_GATE_MODEL;
-use block_filter::eq_three_band_basic::MODEL_ID as DEFAULT_EQ_MODEL;
-use block_full_rig::roland_jc_120b_jazz_chorus::MODEL_ID as DEFAULT_FULL_RIG_MODEL;
-use block_gain::blues_overdrive_bd_2::MODEL_ID as DEFAULT_DRIVE_MODEL;
-use block_mod::tremolo_sine::MODEL_ID as DEFAULT_TREMOLO_MODEL;
-use block_nam::GENERIC_NAM_MODEL_ID;
-use block_reverb::plate_foundation::MODEL_ID as DEFAULT_REVERB_MODEL;
-use block_util::tuner_chromatic::MODEL_ID as DEFAULT_TUNER_MODEL;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -869,55 +856,94 @@ fn generated_preset_chain_id(preset_id: &str) -> ChainId {
 }
 
 fn default_delay_model() -> String {
-    DEFAULT_DELAY_MODEL.to_string()
+    block_delay::supported_models()
+        .first()
+        .expect("block-delay must expose at least one model")
+        .to_string()
 }
 
 fn default_nam_model() -> String {
-    GENERIC_NAM_MODEL_ID.to_string()
+    block_nam::supported_models()
+        .first()
+        .expect("block-nam must expose at least one model")
+        .to_string()
 }
 
 fn default_amp_head_model() -> String {
-    DEFAULT_AMP_HEAD_MODEL.to_string()
+    block_amp_head::supported_models()
+        .first()
+        .expect("block-amp-head must expose at least one model")
+        .to_string()
 }
 
 fn default_amp_combo_model() -> String {
-    DEFAULT_AMP_COMBO_MODEL.to_string()
+    block_amp_combo::supported_models()
+        .first()
+        .expect("block-amp-combo must expose at least one model")
+        .to_string()
 }
 
 fn default_full_rig_model() -> String {
-    DEFAULT_FULL_RIG_MODEL.to_string()
+    block_full_rig::supported_models()
+        .first()
+        .expect("block-full-rig must expose at least one model")
+        .to_string()
 }
 
 fn default_cab_model() -> String {
-    DEFAULT_CAB_MODEL.to_string()
+    block_cab::supported_models()
+        .first()
+        .expect("block-cab must expose at least one model")
+        .to_string()
 }
 
 fn default_drive_model() -> String {
-    DEFAULT_DRIVE_MODEL.to_string()
+    block_gain::supported_models()
+        .first()
+        .expect("block-gain must expose at least one model")
+        .to_string()
 }
 
 fn default_reverb_model() -> String {
-    DEFAULT_REVERB_MODEL.to_string()
+    block_reverb::supported_models()
+        .first()
+        .expect("block-reverb must expose at least one model")
+        .to_string()
 }
 
 fn default_tuner_model() -> String {
-    DEFAULT_TUNER_MODEL.to_string()
+    block_util::supported_models()
+        .first()
+        .expect("block-util must expose at least one model")
+        .to_string()
 }
 
 fn default_compressor_model() -> String {
-    DEFAULT_COMPRESSOR_MODEL.to_string()
+    block_dyn::compressor_supported_models()
+        .first()
+        .expect("block-dyn must expose at least one compressor model")
+        .to_string()
 }
 
 fn default_gate_model() -> String {
-    DEFAULT_GATE_MODEL.to_string()
+    block_dyn::gate_supported_models()
+        .first()
+        .expect("block-dyn must expose at least one gate model")
+        .to_string()
 }
 
 fn default_eq_model() -> String {
-    DEFAULT_EQ_MODEL.to_string()
+    block_filter::supported_models()
+        .first()
+        .expect("block-filter must expose at least one model")
+        .to_string()
 }
 
 fn default_tremolo_model() -> String {
-    DEFAULT_TREMOLO_MODEL.to_string()
+    block_mod::supported_models()
+        .first()
+        .expect("block-mod must expose at least one model")
+        .to_string()
 }
 
 const fn default_enabled() -> bool {
@@ -996,9 +1022,13 @@ mod tests {
     fn load_project_ignores_removed_or_invalid_blocks() {
         let temp_dir = tempdir().expect("temp dir should be created");
         let project_path = temp_dir.path().join("project.yaml");
+        let valid_delay_model = block_delay::supported_models()
+            .first()
+            .expect("block-delay must expose at least one model");
         fs::write(
             &project_path,
-            r#"
+            format!(
+                r#"
 chains:
   - enabled: true
     input_device_id: input-device
@@ -1011,12 +1041,13 @@ chains:
         model_id: legacy
       - type: delay
         enabled: true
-        model: digital_clean
+        model: {valid_delay_model}
         params:
           time_ms: 200
           feedback: 0.5
           mix: 0.3
 "#,
+            ),
         )
         .expect("project yaml should be written");
 
@@ -1032,7 +1063,7 @@ chains:
                 .model_ref()
                 .expect("remaining block should expose model")
                 .model,
-            "digital_clean"
+            *valid_delay_model
         );
     }
 
@@ -1040,24 +1071,29 @@ chains:
     fn load_preset_ignores_unknown_models() {
         let temp_dir = tempdir().expect("temp dir should be created");
         let preset_path: PathBuf = temp_dir.path().join("example.yaml");
+        let valid_delay_model = block_delay::supported_models()
+            .first()
+            .expect("block-delay must expose at least one model");
         fs::write(
             &preset_path,
-            r#"
+            format!(
+                r#"
 id: example
 blocks:
   - type: delay
-    model: digital_ping_pong
+    model: deleted_model
     params:
       time_ms: 200
       feedback: 0.5
       mix: 0.3
   - type: delay
-    model: digital_clean
+    model: {valid_delay_model}
     params:
       time_ms: 210
       feedback: 0.4
       mix: 0.25
 "#,
+            ),
         )
         .expect("preset yaml should be written");
 
@@ -1070,7 +1106,7 @@ blocks:
                 .model_ref()
                 .expect("remaining block should expose model")
                 .model,
-            "digital_clean"
+            *valid_delay_model
         );
     }
 }

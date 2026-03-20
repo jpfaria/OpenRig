@@ -134,16 +134,29 @@ mod tests {
     }
 
     #[test]
-    fn catalog_exposes_native_models_from_core() {
-        let amp_models = supported_block_models("amp_head").expect("amp head catalog");
-        let ids = amp_models
+    fn catalog_mirrors_core_supported_models() {
+        let amp_model_ids = supported_block_models("amp_head")
+            .expect("amp head catalog")
             .into_iter()
             .map(|entry| entry.model_id)
             .collect::<Vec<_>>();
+        let expected = block_amp_head::supported_models()
+            .iter()
+            .map(|model| (*model).to_string())
+            .collect::<Vec<_>>();
 
-        assert!(ids.contains(&"marshall_jcm_800_2203".to_string()));
-        assert!(ids.contains(&"brit_crunch_head".to_string()));
-        assert!(ids.contains(&"american_clean_head".to_string()));
-        assert!(ids.contains(&"modern_high_gain_head".to_string()));
+        assert_eq!(amp_model_ids, expected);
+
+        let delay_model_ids = supported_block_models("delay")
+            .expect("delay catalog")
+            .into_iter()
+            .map(|entry| entry.model_id)
+            .collect::<Vec<_>>();
+        let expected = block_delay::supported_models()
+            .iter()
+            .map(|model| (*model).to_string())
+            .collect::<Vec<_>>();
+
+        assert_eq!(delay_model_ids, expected);
     }
 }

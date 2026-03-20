@@ -1,5 +1,7 @@
 use anyhow::{anyhow, Result};
 use asset_runtime::{materialize, EmbeddedAsset};
+use crate::registry::AmpHeadModelDefinition;
+use crate::AmpHeadBackendKind;
 use nam::{
     build_processor_with_assets_for_layout, model_schema_for,
     processor::{plugin_params_from_set_with_defaults, NamPluginParams},
@@ -237,10 +239,6 @@ pub const CAPTURES: &[MarshallJcm800Capture] = &[
     ),
 ];
 
-pub fn supports_model(model: &str) -> bool {
-    model == MODEL_ID
-}
-
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp", MODEL_ID, "Marshall JCM 800 2203", false);
     schema.parameters = vec![
@@ -282,6 +280,27 @@ pub fn build_processor_for_model(
         layout,
     )
 }
+
+fn schema() -> Result<ModelParameterSchema> {
+    Ok(model_schema())
+}
+
+fn build(
+    params: &ParameterSet,
+    _sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<BlockProcessor> {
+    build_processor_for_model(params, layout)
+}
+
+pub const MODEL_DEFINITION: AmpHeadModelDefinition = AmpHeadModelDefinition {
+    id: MODEL_ID,
+    backend_kind: AmpHeadBackendKind::Nam,
+    schema,
+    validate: validate_params,
+    asset_summary,
+    build,
+};
 
 pub fn validate_params(params: &ParameterSet) -> Result<()> {
     resolve_capture(params).map(|_| ())

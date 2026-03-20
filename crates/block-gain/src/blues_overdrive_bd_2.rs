@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use crate::registry::GainModelDefinition;
 use nam::{
     build_processor_with_assets_for_layout, model_schema_for,
     processor::{NamPluginParams, DEFAULT_PLUGIN_PARAMS},
@@ -37,10 +38,6 @@ pub const CAPTURES: &[BluesOverdriveCapture] = &[
         "captures/nam/pedals/boss_blues_driver_bd_2/Boss Blues Driver BD-2 Gain 75percent.nam",
     ),
 ];
-
-pub fn supports_model(model: &str) -> bool {
-    matches!(model, MODEL_ID | "boss_blues_driver_bd_2")
-}
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("drive", MODEL_ID, "Blues Overdrive BD-2", false);
@@ -116,3 +113,19 @@ const fn capture(gain_percent: i32, model_path: &'static str) -> BluesOverdriveC
         model_path,
     }
 }
+
+fn schema() -> Result<ModelParameterSchema> {
+    Ok(model_schema())
+}
+
+fn build(params: &ParameterSet, layout: AudioChannelLayout) -> Result<BlockProcessor> {
+    build_processor_for_model(params, layout)
+}
+
+pub const MODEL_DEFINITION: GainModelDefinition = GainModelDefinition {
+    id: MODEL_ID,
+    schema,
+    validate: validate_params,
+    asset_summary,
+    build,
+};

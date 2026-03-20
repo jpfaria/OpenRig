@@ -1,20 +1,16 @@
 use anyhow::{Error, Result};
-use arc_swap::ArcSwap;
+use crate::processor::{TunerProcessor, TunerReading};
+use crate::registry::UtilModelDefinition;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
 use block_core::ModelAudioMode;
-use std::sync::Arc;
 
 pub const MODEL_ID: &str = "tuner_chromatic";
 const DEFAULT_REFERENCE_HZ: f32 = 440.0;
 const BUFFER_SIZE: usize = 4096;
 const A1_HZ: f32 = 50.1;
 const E6_HZ: f32 = 1245.0;
-
-pub fn supports_model(model: &str) -> bool {
-    matches!(model, MODEL_ID | "chromatic_basic" | "chromatic")
-}
 
 pub fn model_schema() -> ModelParameterSchema {
     ModelParameterSchema {
@@ -42,53 +38,28 @@ pub fn reference_hz_from_set(params: &ParameterSet) -> Result<f32> {
 pub struct ChromaticTuner {
     buffer: Vec<f32>,
     sample_rate: usize,
-    info: Arc<ArcSwap<TunerInfo>>,
+    reading: TunerReading,
     enabled: bool,
 }
-pub struct TunerHandle {
-    info: Arc<ArcSwap<TunerInfo>>,
-}
-#[derive(Debug, Clone, Default)]
-pub struct TunerInfo {
-    pub frequency: Option<f32>,
-    pub note: Option<String>,
-    pub cents_off: Option<f32>,
-    pub in_tune: bool,
-}
+
 impl ChromaticTuner {
-    pub fn new(sample_rate: usize) -> (Self, TunerHandle) {
-        let info = Arc::new(ArcSwap::from_pointee(TunerInfo::default()));
-        (
-            Self {
-                buffer: Vec::with_capacity(BUFFER_SIZE),
-                sample_rate,
-                info: Arc::clone(&info),
-                enabled: false,
-            },
-            TunerHandle { info },
-        )
-    }
-    pub fn process(&mut self, samples: &[f32]) {
-        if !self.enabled {
-            return;
-        }
-        self.buffer.extend_from_slice(samples);
-        if self.buffer.len() >= BUFFER_SIZE {
-            let detected_frequency = self.simple_amdf();
-            self.info.store(Arc::new(detected_frequency.into()));
-            self.buffer.clear();
+    pub fn new(sample_rate: usize) -> Self {
+        Self {
+            buffer: Vec::with_capacity(BUFFER_SIZE),
+            sample_rate,
+            reading: TunerReading::default(),
+            enabled: false,
         }
     }
-    pub const fn is_enabled(&self) -> bool {
-        self.enabled
-    }
+
     pub fn set_enabled(&mut self, enabled: bool) {
         self.enabled = enabled;
         if !enabled {
             self.buffer.clear();
-            self.info.store(Arc::new(TunerInfo::default()));
+            self.reading = TunerReading::default();
         }
     }
+
     fn simple_amdf(&self) -> Option<f32> {
         if self.buffer.is_empty() {
             return None;
@@ -124,12 +95,26 @@ impl ChromaticTuner {
         }
     }
 }
-impl TunerHandle {
-    pub fn info(&self) -> TunerInfo {
-        self.info.load().as_ref().clone()
+
+impl TunerProcessor for ChromaticTuner {
+    fn process(&mut self, samples: &[f32]) {
+        if !self.enabled {
+            return;
+        }
+        self.buffer.extend_from_slice(samples);
+        if self.buffer.len() >= BUFFER_SIZE {
+            let detected_frequency = self.simple_amdf();
+            self.reading = detected_frequency.into();
+            self.buffer.clear();
+        }
+    }
+
+    fn latest_reading(&self) -> &TunerReading {
+        &self.reading
     }
 }
-impl From<Option<f32>> for TunerInfo {
+
+impl From<Option<f32>> for TunerReading {
     fn from(frequency: Option<f32>) -> Self {
         match frequency {
             None => Self::default(),
@@ -156,12 +141,30 @@ fn freq_to_note(frequency: f32) -> (&'static str, i32, f32) {
     let octave = 4 + (note_number + 9) / 12;
     (NOTES[note_index], octave, cents)
 }
+fn schema() -> Result<ModelParameterSchema> {
+    Ok(model_schema())
+}
+
+fn build(params: &ParameterSet, sample_rate: usize) -> Result<Box<dyn TunerProcessor>> {
+    let _reference_hz = reference_hz_from_set(params)?;
+    let mut tuner = ChromaticTuner::new(sample_rate);
+    tuner.set_enabled(true);
+    Ok(Box::new(tuner))
+}
+
+pub const MODEL_DEFINITION: UtilModelDefinition = UtilModelDefinition {
+    id: MODEL_ID,
+    schema,
+    build,
+};
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn detect_reference_pitch_name() {
-        let info = TunerInfo::from(Some(440.0));
+        let info = TunerReading::from(Some(440.0));
         assert_eq!(info.note.as_deref(), Some("A4"));
         assert!(info.in_tune);
     }

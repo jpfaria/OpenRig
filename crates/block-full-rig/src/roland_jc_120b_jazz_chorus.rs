@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use crate::registry::FullRigModelDefinition;
 use nam::{
     build_processor_with_assets_for_layout, model_schema_for,
     processor::{plugin_params_from_set_with_defaults, NamPluginParams},
@@ -71,10 +72,6 @@ pub const CAPTURES: &[RolandCapture] = &[
     ),
 ];
 
-pub fn supports_model(model: &str) -> bool {
-    model == MODEL_ID
-}
-
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("full_rig", MODEL_ID, "Roland JC-120B Jazz Chorus", false);
     schema.parameters = vec![
@@ -140,3 +137,19 @@ const fn capture(
         model_path,
     }
 }
+
+fn schema() -> Result<ModelParameterSchema> {
+    Ok(model_schema())
+}
+
+fn build(params: &ParameterSet, layout: AudioChannelLayout) -> Result<BlockProcessor> {
+    build_processor_for_model(params, layout)
+}
+
+pub const MODEL_DEFINITION: FullRigModelDefinition = FullRigModelDefinition {
+    id: MODEL_ID,
+    schema,
+    validate: validate_params,
+    asset_summary,
+    build,
+};

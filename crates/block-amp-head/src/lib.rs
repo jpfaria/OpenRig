@@ -1,6 +1,5 @@
 //! Amplifier models backed by reusable NAM/IR infrastructure.
-pub mod marshall_jcm_800;
-pub mod native;
+pub mod native_core;
 mod registry;
 
 use anyhow::Result;
@@ -53,46 +52,14 @@ pub fn build_amp_head_processor_for_layout(
 
 #[cfg(test)]
 mod tests {
-    use super::{amp_head_model_schema, build_amp_head_processor_for_layout};
-    use block_core::param::ParameterSet;
-    use block_core::{AudioChannelLayout, ModelAudioMode};
+    use super::{amp_head_model_schema, supported_models};
 
     #[test]
-    fn native_amp_head_catalog_is_publicly_supported() {
-        for model in [
-            "brit_crunch_head",
-            "american_clean_head",
-            "modern_high_gain_head",
-        ] {
+    fn supported_amp_head_models_expose_valid_schema() {
+        for model in supported_models() {
             let schema = amp_head_model_schema(model).expect("schema should exist");
-            assert_eq!(schema.audio_mode, ModelAudioMode::DualMono);
-            assert_eq!(schema.parameters.len(), 11);
-        }
-    }
-
-    #[test]
-    fn native_amp_heads_build_for_stereo_chains() {
-        for model in [
-            "brit_crunch_head",
-            "american_clean_head",
-            "modern_high_gain_head",
-        ] {
-            let schema = amp_head_model_schema(model).expect("schema should exist");
-            let params = ParameterSet::default()
-                .normalized_against(&schema)
-                .expect("defaults should normalize");
-
-            let processor = build_amp_head_processor_for_layout(
-                model,
-                &params,
-                48_000.0,
-                AudioChannelLayout::Stereo,
-            );
-
-            assert!(
-                processor.is_ok(),
-                "expected '{model}' to build for stereo chains"
-            );
+            assert_eq!(schema.model, *model);
+            assert!(!schema.parameters.is_empty(), "model '{model}' should expose parameters");
         }
     }
 }

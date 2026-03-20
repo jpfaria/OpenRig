@@ -1,4 +1,3 @@
-pub mod roland_jc_120b_jazz_chorus;
 mod registry;
 
 use anyhow::Result;

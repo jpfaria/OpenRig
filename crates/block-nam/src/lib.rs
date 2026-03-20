@@ -4,8 +4,6 @@ use anyhow::Result;
 use block_core::param::{ModelParameterSchema, ParameterSet};
 use block_core::{AudioChannelLayout, BlockProcessor};
 
-pub use nam::GENERIC_NAM_MODEL_ID;
-
 pub fn supported_models() -> &'static [&'static str] {
     registry::SUPPORTED_MODELS
 }

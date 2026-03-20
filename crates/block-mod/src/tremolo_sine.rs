@@ -1,4 +1,5 @@
 use anyhow::{Error, Result};
+use crate::registry::ModModelDefinition;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
@@ -20,10 +21,6 @@ impl Default for TremoloParams {
             depth: 0.5,
         }
     }
-}
-
-pub fn supports_model(model: &str) -> bool {
-    matches!(model, MODEL_ID | "sine_tremolo" | "tremolo" | "basic")
 }
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -99,3 +96,29 @@ pub fn build_processor(params: &ParameterSet, sample_rate: f32) -> Result<Box<dy
         sample_rate,
     )))
 }
+
+fn schema() -> Result<ModelParameterSchema> {
+    Ok(model_schema())
+}
+
+fn build(
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: block_core::AudioChannelLayout,
+) -> Result<block_core::BlockProcessor> {
+    match layout {
+        block_core::AudioChannelLayout::Mono => {
+            Ok(block_core::BlockProcessor::Mono(build_processor(params, sample_rate)?))
+        }
+        block_core::AudioChannelLayout::Stereo => anyhow::bail!(
+            "tremolo model '{}' is mono-only and cannot build native stereo processing",
+            MODEL_ID
+        ),
+    }
+}
+
+pub const MODEL_DEFINITION: ModModelDefinition = ModModelDefinition {
+    id: MODEL_ID,
+    schema,
+    build,
+};

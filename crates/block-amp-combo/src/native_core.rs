@@ -1,8 +1,8 @@
-use anyhow::{bail, Result};
-use block_amp_head::native::{
-    build_native_head_mono_processor, NativeAmpHeadSettings, NativeAmpHeadVoice,
+use anyhow::Result;
+use block_amp_head::native_core::{
+    build_native_head_mono_processor, NativeAmpHeadProfile, NativeAmpHeadSettings,
 };
-use block_cab::native::{build_native_cab_mono_processor, NativeCabSettings, NativeCabVoice};
+use block_cab::native_core::{build_native_cab_mono_processor, NativeCabProfile, NativeCabSettings};
 use block_core::param::{
     bool_parameter, float_parameter, required_bool, required_f32, ModelParameterSchema,
     ParameterSet, ParameterUnit,
@@ -10,17 +10,6 @@ use block_core::param::{
 use block_core::{
     AudioChannelLayout, ModelAudioMode, MonoProcessor, BlockProcessor, StereoProcessor,
 };
-
-pub const BLACKFACE_CLEAN_COMBO_ID: &str = "blackface_clean_combo";
-pub const TWEED_BREAKUP_COMBO_ID: &str = "tweed_breakup_combo";
-pub const CHIME_COMBO_ID: &str = "chime_combo";
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NativeAmpComboVoice {
-    BlackfaceClean,
-    TweedBreakup,
-    Chime,
-}
 
 #[derive(Debug, Clone, Copy)]
 pub struct NativeAmpComboSettings {
@@ -37,20 +26,27 @@ pub struct NativeAmpComboSettings {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct ComboProfile {
-    model_id: &'static str,
-    display_name: &'static str,
-    head_voice: NativeAmpHeadVoice,
-    cab_voice: NativeCabVoice,
-    fixed_presence: f32,
-    fixed_depth: f32,
-    cab_low_cut_hz: f32,
-    cab_high_cut_hz: f32,
-    cab_resonance: f32,
-    cab_air: f32,
-    cab_mic_position: f32,
-    cab_mic_distance: f32,
-    gain_bias: f32,
+pub struct NativeAmpComboProfile {
+    pub head_profile: NativeAmpHeadProfile,
+    pub cab_profile: NativeCabProfile,
+    pub fixed_presence: f32,
+    pub fixed_depth: f32,
+    pub cab_low_cut_hz: f32,
+    pub cab_high_cut_hz: f32,
+    pub cab_resonance: f32,
+    pub cab_air: f32,
+    pub cab_mic_position: f32,
+    pub cab_mic_distance: f32,
+    pub gain_bias: f32,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct NativeAmpComboSchemaDefaults {
+    pub gain: f32,
+    pub treble: f32,
+    pub bright: bool,
+    pub sag: f32,
+    pub room_mix: f32,
 }
 
 struct DualMonoProcessor {
@@ -61,58 +57,6 @@ struct DualMonoProcessor {
 struct NativeAmpComboProcessor {
     head: Box<dyn MonoProcessor>,
     cab: Box<dyn MonoProcessor>,
-}
-
-impl NativeAmpComboVoice {
-    fn profile(self) -> ComboProfile {
-        match self {
-            Self::BlackfaceClean => ComboProfile {
-                model_id: BLACKFACE_CLEAN_COMBO_ID,
-                display_name: "Blackface Clean Combo",
-                head_voice: NativeAmpHeadVoice::AmericanClean,
-                cab_voice: NativeCabVoice::American2x12,
-                fixed_presence: 58.0,
-                fixed_depth: 34.0,
-                cab_low_cut_hz: 66.0,
-                cab_high_cut_hz: 8_200.0,
-                cab_resonance: 48.0,
-                cab_air: 30.0,
-                cab_mic_position: 58.0,
-                cab_mic_distance: 22.0,
-                gain_bias: -8.0,
-            },
-            Self::TweedBreakup => ComboProfile {
-                model_id: TWEED_BREAKUP_COMBO_ID,
-                display_name: "Tweed Breakup Combo",
-                head_voice: NativeAmpHeadVoice::BritCrunch,
-                cab_voice: NativeCabVoice::Vintage1x12,
-                fixed_presence: 42.0,
-                fixed_depth: 30.0,
-                cab_low_cut_hz: 92.0,
-                cab_high_cut_hz: 5_900.0,
-                cab_resonance: 57.0,
-                cab_air: 18.0,
-                cab_mic_position: 42.0,
-                cab_mic_distance: 18.0,
-                gain_bias: -15.0,
-            },
-            Self::Chime => ComboProfile {
-                model_id: CHIME_COMBO_ID,
-                display_name: "Chime Combo",
-                head_voice: NativeAmpHeadVoice::AmericanClean,
-                cab_voice: NativeCabVoice::Brit4x12,
-                fixed_presence: 64.0,
-                fixed_depth: 28.0,
-                cab_low_cut_hz: 78.0,
-                cab_high_cut_hz: 8_800.0,
-                cab_resonance: 44.0,
-                cab_air: 36.0,
-                cab_mic_position: 68.0,
-                cab_mic_distance: 20.0,
-                gain_bias: -10.0,
-            },
-        }
-    }
 }
 
 impl MonoProcessor for NativeAmpComboProcessor {
@@ -131,21 +75,15 @@ impl StereoProcessor for DualMonoProcessor {
     }
 }
 
-pub fn supports_model(model: &str) -> bool {
-    matches!(
-        model,
-        BLACKFACE_CLEAN_COMBO_ID | TWEED_BREAKUP_COMBO_ID | CHIME_COMBO_ID
-    )
-}
-
-pub fn model_schema(model: &str) -> Result<ModelParameterSchema> {
-    let voice = resolve_voice(model)?;
-    let profile = voice.profile();
-
-    Ok(ModelParameterSchema {
+pub fn model_schema(
+    model_id: &'static str,
+    display_name: &'static str,
+    defaults: NativeAmpComboSchemaDefaults,
+) -> ModelParameterSchema {
+    ModelParameterSchema {
         effect_type: "amp_combo".into(),
-        model: profile.model_id.into(),
-        display_name: profile.display_name.into(),
+        model: model_id.into(),
+        display_name: display_name.into(),
         audio_mode: ModelAudioMode::DualMono,
         parameters: vec![
             float_parameter(
@@ -162,11 +100,7 @@ pub fn model_schema(model: &str) -> Result<ModelParameterSchema> {
                 "gain",
                 "Gain",
                 Some("Amp"),
-                Some(match voice {
-                    NativeAmpComboVoice::BlackfaceClean => 32.0,
-                    NativeAmpComboVoice::TweedBreakup => 54.0,
-                    NativeAmpComboVoice::Chime => 38.0,
-                }),
+                Some(defaults.gain),
                 0.0,
                 100.0,
                 1.0,
@@ -196,10 +130,7 @@ pub fn model_schema(model: &str) -> Result<ModelParameterSchema> {
                 "treble",
                 "Treble",
                 Some("EQ"),
-                Some(match voice {
-                    NativeAmpComboVoice::Chime => 58.0,
-                    _ => 50.0,
-                }),
+                Some(defaults.treble),
                 0.0,
                 100.0,
                 1.0,
@@ -219,20 +150,13 @@ pub fn model_schema(model: &str) -> Result<ModelParameterSchema> {
                 "bright",
                 "Bright",
                 Some("Switches"),
-                Some(matches!(
-                    voice,
-                    NativeAmpComboVoice::BlackfaceClean | NativeAmpComboVoice::Chime
-                )),
+                Some(defaults.bright),
             ),
             float_parameter(
                 "sag",
                 "Sag",
                 Some("Power"),
-                Some(match voice {
-                    NativeAmpComboVoice::BlackfaceClean => 14.0,
-                    NativeAmpComboVoice::TweedBreakup => 34.0,
-                    NativeAmpComboVoice::Chime => 18.0,
-                }),
+                Some(defaults.sag),
                 0.0,
                 100.0,
                 1.0,
@@ -242,7 +166,7 @@ pub fn model_schema(model: &str) -> Result<ModelParameterSchema> {
                 "room_mix",
                 "Room Mix",
                 Some("Cab"),
-                Some(14.0),
+                Some(defaults.room_mix),
                 0.0,
                 100.0,
                 1.0,
@@ -259,7 +183,7 @@ pub fn model_schema(model: &str) -> Result<ModelParameterSchema> {
                 ParameterUnit::Decibels,
             ),
         ],
-    })
+    }
 }
 
 pub fn settings_from_params(params: &ParameterSet) -> Result<NativeAmpComboSettings> {
@@ -277,47 +201,43 @@ pub fn settings_from_params(params: &ParameterSet) -> Result<NativeAmpComboSetti
     })
 }
 
-pub fn validate_params(model: &str, params: &ParameterSet) -> Result<()> {
-    let _ = resolve_voice(model)?;
+pub fn validate_params(params: &ParameterSet) -> Result<()> {
     let _ = settings_from_params(params)?;
     Ok(())
 }
 
-pub fn asset_summary(model: &str, _params: &ParameterSet) -> Result<String> {
-    let profile = resolve_voice(model)?.profile();
-    Ok(format!("native voice='{}'", profile.model_id))
+pub fn asset_summary(model_id: &'static str, _params: &ParameterSet) -> Result<String> {
+    Ok(format!("native voice='{model_id}'"))
 }
 
-pub fn build_processor_for_model(
-    model: &str,
+pub fn build_processor_for_profile(
+    profile: NativeAmpComboProfile,
     params: &ParameterSet,
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    let voice = resolve_voice(model)?;
     let settings = settings_from_params(params)?;
 
     match layout {
         AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(build_native_combo_mono_processor(
-            voice,
+            profile,
             settings,
             sample_rate,
         ))),
         AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(DualMonoProcessor {
-            left: build_native_combo_mono_processor(voice, settings, sample_rate),
-            right: build_native_combo_mono_processor(voice, settings, sample_rate),
+            left: build_native_combo_mono_processor(profile, settings, sample_rate),
+            right: build_native_combo_mono_processor(profile, settings, sample_rate),
         }))),
     }
 }
 
 fn build_native_combo_mono_processor(
-    voice: NativeAmpComboVoice,
+    profile: NativeAmpComboProfile,
     settings: NativeAmpComboSettings,
     sample_rate: f32,
 ) -> Box<dyn MonoProcessor> {
-    let profile = voice.profile();
     let head = build_native_head_mono_processor(
-        profile.head_voice,
+        profile.head_profile,
         NativeAmpHeadSettings {
             input_db: settings.input_db,
             gain: (settings.gain + profile.gain_bias).clamp(0.0, 100.0),
@@ -335,7 +255,7 @@ fn build_native_combo_mono_processor(
     );
 
     let cab = build_native_cab_mono_processor(
-        profile.cab_voice,
+        profile.cab_profile,
         NativeCabSettings {
             low_cut_hz: profile.cab_low_cut_hz,
             high_cut_hz: profile.cab_high_cut_hz,
@@ -350,13 +270,4 @@ fn build_native_combo_mono_processor(
     );
 
     Box::new(NativeAmpComboProcessor { head, cab })
-}
-
-fn resolve_voice(model: &str) -> Result<NativeAmpComboVoice> {
-    match model {
-        BLACKFACE_CLEAN_COMBO_ID => Ok(NativeAmpComboVoice::BlackfaceClean),
-        TWEED_BREAKUP_COMBO_ID => Ok(NativeAmpComboVoice::TweedBreakup),
-        CHIME_COMBO_ID => Ok(NativeAmpComboVoice::Chime),
-        _ => bail!("unsupported native amp-combo model '{}'", model),
-    }
 }

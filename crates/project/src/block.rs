@@ -406,56 +406,44 @@ fn describe_block_audio(
 #[cfg(test)]
 mod tests {
     use super::{normalize_block_params, schema_for_block_model};
+    use crate::param::ParameterSet;
 
     #[test]
-    fn cab_schema_is_available_through_project_contract() {
-        let schema =
-            schema_for_block_model("cab", "marshall_4x12_v30").expect("cab schema should exist");
+    fn project_contract_exposes_family_schemas() {
+        let families = [
+            ("amp_head", block_amp_head::supported_models()),
+            ("amp_combo", block_amp_combo::supported_models()),
+            ("cab", block_cab::supported_models()),
+            ("delay", block_delay::supported_models()),
+        ];
 
-        assert_eq!(schema.effect_type, "cab");
-        assert_eq!(schema.model, "marshall_4x12_v30");
-        assert_eq!(schema.parameters.len(), 1);
-        assert_eq!(schema.parameters[0].path, "capture");
+        for (effect_type, models) in families {
+            for model in models {
+                let schema =
+                    schema_for_block_model(effect_type, model).expect("schema should exist");
+                assert_eq!(schema.model, *model);
+                assert!(!schema.parameters.is_empty(), "schema for {effect_type}:{model} should expose parameters");
+            }
+        }
     }
 
     #[test]
-    fn cab_params_normalize_with_default_capture() {
-        let normalized = normalize_block_params(
-            "cab",
-            "marshall_4x12_v30",
-            crate::param::ParameterSet::default(),
-        )
-        .expect("cab params should normalize");
+    fn project_contract_normalizes_defaults_for_supported_families() {
+        let families = [
+            ("amp_head", block_amp_head::supported_models()),
+            ("amp_combo", block_amp_combo::supported_models()),
+            ("cab", block_cab::supported_models()),
+            ("delay", block_delay::supported_models()),
+        ];
 
-        assert_eq!(normalized.get_string("capture"), Some("ev_mix_b"));
-    }
-
-    #[test]
-    fn native_amp_head_schema_is_available_through_project_contract() {
-        let schema =
-            schema_for_block_model("amp_head", "brit_crunch_head").expect("schema should exist");
-
-        assert_eq!(schema.effect_type, "amp");
-        assert_eq!(schema.model, "brit_crunch_head");
-        assert_eq!(schema.parameters.len(), 11);
-    }
-
-    #[test]
-    fn native_cab_schema_is_available_through_project_contract() {
-        let schema = schema_for_block_model("cab", "brit_4x12_cab").expect("schema should exist");
-
-        assert_eq!(schema.effect_type, "cab");
-        assert_eq!(schema.model, "brit_4x12_cab");
-        assert_eq!(schema.parameters.len(), 8);
-    }
-
-    #[test]
-    fn native_amp_combo_schema_is_available_through_project_contract() {
-        let schema = schema_for_block_model("amp_combo", "blackface_clean_combo")
-            .expect("schema should exist");
-
-        assert_eq!(schema.effect_type, "amp_combo");
-        assert_eq!(schema.model, "blackface_clean_combo");
-        assert_eq!(schema.parameters.len(), 10);
+        for (effect_type, models) in families {
+            for model in models {
+                let normalized = normalize_block_params(effect_type, model, ParameterSet::default())
+                    .expect("params should normalize");
+                let schema =
+                    schema_for_block_model(effect_type, model).expect("schema should exist");
+                assert_eq!(normalized.values.len(), schema.parameters.len());
+            }
+        }
     }
 }

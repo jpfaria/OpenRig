@@ -1,6 +1,8 @@
 use anyhow::{anyhow, bail, Result};
 use asset_runtime::{materialize, EmbeddedAsset};
 use audio_ir::{build_mono_ir_processor_from_wav, IrAsset};
+use crate::registry::CabModelDefinition;
+use crate::CabBackendKind;
 use block_core::param::{enum_parameter, required_string, ModelParameterSchema, ParameterSet};
 use block_core::{AudioChannelLayout, ModelAudioMode, BlockProcessor};
 
@@ -41,10 +43,6 @@ pub const CAPTURES: &[Marshall4x12V30Capture] = &[
         "captures/ir/cabs/marshall_4x12_v30/ev_mix_d.wav"
     ),
 ];
-
-pub fn supports_model(model: &str) -> bool {
-    model == MODEL_ID
-}
 
 pub fn model_schema() -> ModelParameterSchema {
     ModelParameterSchema {
@@ -91,6 +89,27 @@ pub fn build_processor_for_model(
     }
 }
 
+fn schema() -> Result<ModelParameterSchema> {
+    Ok(model_schema())
+}
+
+fn build(
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<BlockProcessor> {
+    build_processor_for_model(params, sample_rate, layout)
+}
+
+pub const MODEL_DEFINITION: CabModelDefinition = CabModelDefinition {
+    id: MODEL_ID,
+    backend_kind: CabBackendKind::Ir,
+    schema,
+    validate: validate_params,
+    asset_summary,
+    build,
+};
+
 pub fn validate_params(params: &ParameterSet) -> Result<()> {
     resolve_capture(params).map(|_| ())
 }
@@ -112,4 +131,46 @@ fn resolve_capture(params: &ParameterSet) -> Result<&'static Marshall4x12V30Capt
                 requested
             )
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{asset_summary, build_processor_for_model, model_schema, validate_params};
+    use block_core::param::ParameterSet;
+    use block_core::{AudioChannelLayout, BlockProcessor};
+    use domain::value_objects::ParameterValue;
+
+    #[test]
+    fn schema_exposes_capture_select() {
+        let schema = model_schema();
+
+        assert_eq!(schema.parameters.len(), 1);
+        assert_eq!(schema.parameters[0].path, "capture");
+    }
+
+    #[test]
+    fn rejects_unknown_capture() {
+        let mut params = ParameterSet::default();
+        params.insert("capture", ParameterValue::String("unknown".into()));
+
+        let error = validate_params(&params).expect_err("unknown capture should fail");
+        assert!(error.to_string().contains("capture"));
+    }
+
+    #[test]
+    fn builds_mono_processor_for_curated_capture() {
+        let mut params = ParameterSet::default();
+        params.insert("capture", ParameterValue::String("ev_mix_b".into()));
+
+        let processor = build_processor_for_model(&params, 48_000.0, AudioChannelLayout::Mono)
+            .expect("cab processor should build");
+
+        match processor {
+            BlockProcessor::Mono(_) => {}
+            BlockProcessor::Stereo(_) => panic!("expected mono processor"),
+        }
+
+        let summary = asset_summary(&params).expect("asset summary should resolve");
+        assert!(summary.contains("cab.marshall_4x12_v30.ev_mix_b"));
+    }
 }

@@ -1,5 +1,4 @@
 //! Modulation implementations.
-pub mod tremolo_sine;
 mod registry;
 
 use anyhow::Result;

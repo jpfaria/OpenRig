@@ -1,10 +1,9 @@
 use anyhow::{Error, Result};
+use crate::registry::DynModelDefinition;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use block_core::{
-    calculate_coefficient, db_to_lin, EnvelopeFollower, ModelAudioMode, MonoProcessor,
-};
+use block_core::{db_to_lin, EnvelopeFollower, ModelAudioMode, MonoProcessor};
 
 pub const MODEL_ID: &str = "compressor_studio_clean";
 
@@ -29,10 +28,6 @@ impl Default for CompressorParams {
             mix: 1.0,
         }
     }
-}
-
-pub fn supports_model(model: &str) -> bool {
-    matches!(model, MODEL_ID | "studio_clean" | "compressor" | "basic")
 }
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -118,14 +113,11 @@ pub fn params_from_set(params: &ParameterSet) -> Result<CompressorParams> {
 }
 
 pub struct StudioCleanCompressor {
-    attack_ms: f32,
-    release_ms: f32,
     threshold: f32,
     ratio: f32,
     makeup: f32,
     mix: f32,
     envelope: EnvelopeFollower,
-    sample_rate: f32,
 }
 
 impl StudioCleanCompressor {
@@ -139,27 +131,12 @@ impl StudioCleanCompressor {
         sample_rate: f32,
     ) -> Self {
         Self {
-            attack_ms,
-            release_ms,
             threshold: db_to_lin(threshold_db),
             ratio,
             makeup: db_to_lin(makeup_gain_db),
             mix: mix.clamp(0.0, 1.0),
             envelope: EnvelopeFollower::from_ms(attack_ms, release_ms, sample_rate),
-            sample_rate,
         }
-    }
-
-    pub fn set_attack_ms(&mut self, attack_ms: f32) {
-        self.attack_ms = attack_ms;
-        self.envelope
-            .set_attack_coeff(calculate_coefficient(attack_ms, self.sample_rate));
-    }
-
-    pub fn set_release_ms(&mut self, release_ms: f32) {
-        self.release_ms = release_ms;
-        self.envelope
-            .set_release_coeff(calculate_coefficient(release_ms, self.sample_rate));
     }
 }
 
@@ -191,3 +168,29 @@ pub fn build_processor(params: &ParameterSet, sample_rate: f32) -> Result<Box<dy
         sample_rate,
     )))
 }
+
+fn schema() -> Result<ModelParameterSchema> {
+    Ok(model_schema())
+}
+
+fn build(
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: block_core::AudioChannelLayout,
+) -> Result<block_core::BlockProcessor> {
+    match layout {
+        block_core::AudioChannelLayout::Mono => {
+            Ok(block_core::BlockProcessor::Mono(build_processor(params, sample_rate)?))
+        }
+        block_core::AudioChannelLayout::Stereo => anyhow::bail!(
+            "compressor model '{}' is mono-only and cannot build native stereo processing",
+            MODEL_ID
+        ),
+    }
+}
+
+pub const MODEL_DEFINITION: DynModelDefinition = DynModelDefinition {
+    id: MODEL_ID,
+    schema,
+    build,
+};

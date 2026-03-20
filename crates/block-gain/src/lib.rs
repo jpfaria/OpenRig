@@ -1,5 +1,4 @@
 //! Gain blocks such as boost, overdrive, distortion, and fuzz.
-pub mod blues_overdrive_bd_2;
 mod registry;
 
 use anyhow::Result;

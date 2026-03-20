@@ -4,6 +4,7 @@ use block_core::param::{
 };
 use block_core::{ModelAudioMode, MonoProcessor};
 
+use crate::registry::{build_dual_mono_delay_processor, DelayModelDefinition};
 use crate::shared::{
     clamp_feedback, clamp_mix, clamp_time_ms, mix_dry_wet, sanitize, MAX_DELAY_MS, MAX_FEEDBACK,
     MIN_DELAY_MS,
@@ -26,10 +27,6 @@ impl Default for ReverseDelayParams {
             mix: 0.35,
         }
     }
-}
-
-pub fn supports_model(model: &str) -> bool {
-    model == MODEL_ID
 }
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -159,6 +156,24 @@ pub fn build_mono_processor(
         sample_rate,
     )))
 }
+
+fn schema() -> Result<ModelParameterSchema> {
+    Ok(model_schema())
+}
+
+fn build(
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: block_core::AudioChannelLayout,
+) -> Result<block_core::BlockProcessor> {
+    build_dual_mono_delay_processor(layout, || build_mono_processor(params, sample_rate))
+}
+
+pub const MODEL_DEFINITION: DelayModelDefinition = DelayModelDefinition {
+    id: MODEL_ID,
+    schema,
+    build,
+};
 
 fn segment_len_for(time_ms: f32, sample_rate: f32, max_len: usize) -> usize {
     let raw = (clamp_time_ms(time_ms) * 0.001 * sample_rate).round() as usize;

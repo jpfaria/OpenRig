@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use block_core::param::{
     bool_parameter, float_parameter, required_bool, required_f32, ModelParameterSchema,
     ParameterSet, ParameterUnit,
@@ -7,17 +7,6 @@ use block_core::{
     db_to_lin, AudioChannelLayout, EnvelopeFollower, ModelAudioMode, MonoProcessor,
     OnePoleHighPass, OnePoleLowPass, BlockProcessor, StereoProcessor,
 };
-
-pub const BRIT_CRUNCH_HEAD_ID: &str = "brit_crunch_head";
-pub const AMERICAN_CLEAN_HEAD_ID: &str = "american_clean_head";
-pub const MODERN_HIGH_GAIN_HEAD_ID: &str = "modern_high_gain_head";
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NativeAmpHeadVoice {
-    BritCrunch,
-    AmericanClean,
-    ModernHighGain,
-}
 
 #[derive(Debug, Clone, Copy)]
 pub struct NativeAmpHeadSettings {
@@ -35,21 +24,28 @@ pub struct NativeAmpHeadSettings {
 }
 
 #[derive(Debug, Clone, Copy)]
-struct VoiceProfile {
-    model_id: &'static str,
-    display_name: &'static str,
-    input_trim_db: f32,
-    drive_scale: f32,
-    asymmetry: f32,
-    bright_mix: f32,
-    low_voice: f32,
-    mid_voice: f32,
-    high_voice: f32,
-    presence_voice: f32,
-    depth_voice: f32,
-    power_drive: f32,
-    low_cut_hz: f32,
-    top_end_hz: f32,
+pub struct NativeAmpHeadProfile {
+    pub input_trim_db: f32,
+    pub drive_scale: f32,
+    pub asymmetry: f32,
+    pub bright_mix: f32,
+    pub low_voice: f32,
+    pub mid_voice: f32,
+    pub high_voice: f32,
+    pub presence_voice: f32,
+    pub depth_voice: f32,
+    pub power_drive: f32,
+    pub low_cut_hz: f32,
+    pub top_end_hz: f32,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct NativeAmpHeadSchemaDefaults {
+    pub gain: f32,
+    pub presence: f32,
+    pub depth: f32,
+    pub bright: bool,
+    pub sag: f32,
 }
 
 struct DualMonoProcessor {
@@ -58,7 +54,7 @@ struct DualMonoProcessor {
 }
 
 struct NativeAmpHeadProcessor {
-    profile: VoiceProfile,
+    profile: NativeAmpHeadProfile,
     settings: NativeAmpHeadSettings,
     input_gain: f32,
     output_gain: f32,
@@ -72,61 +68,6 @@ struct NativeAmpHeadProcessor {
     sag_envelope: EnvelopeFollower,
 }
 
-impl NativeAmpHeadVoice {
-    fn profile(self) -> VoiceProfile {
-        match self {
-            Self::BritCrunch => VoiceProfile {
-                model_id: BRIT_CRUNCH_HEAD_ID,
-                display_name: "Brit Crunch Head",
-                input_trim_db: 1.5,
-                drive_scale: 2.8,
-                asymmetry: 0.12,
-                bright_mix: 0.12,
-                low_voice: 0.92,
-                mid_voice: 1.15,
-                high_voice: 0.95,
-                presence_voice: 0.55,
-                depth_voice: 0.38,
-                power_drive: 1.35,
-                low_cut_hz: 48.0,
-                top_end_hz: 8_400.0,
-            },
-            Self::AmericanClean => VoiceProfile {
-                model_id: AMERICAN_CLEAN_HEAD_ID,
-                display_name: "American Clean Head",
-                input_trim_db: 3.0,
-                drive_scale: 1.75,
-                asymmetry: 0.04,
-                bright_mix: 0.22,
-                low_voice: 1.05,
-                mid_voice: 0.88,
-                high_voice: 1.12,
-                presence_voice: 0.44,
-                depth_voice: 0.33,
-                power_drive: 0.95,
-                low_cut_hz: 36.0,
-                top_end_hz: 10_500.0,
-            },
-            Self::ModernHighGain => VoiceProfile {
-                model_id: MODERN_HIGH_GAIN_HEAD_ID,
-                display_name: "Modern High Gain Head",
-                input_trim_db: -1.0,
-                drive_scale: 4.1,
-                asymmetry: 0.18,
-                bright_mix: 0.08,
-                low_voice: 0.82,
-                mid_voice: 0.92,
-                high_voice: 1.02,
-                presence_voice: 0.62,
-                depth_voice: 0.58,
-                power_drive: 1.55,
-                low_cut_hz: 72.0,
-                top_end_hz: 7_600.0,
-            },
-        }
-    }
-}
-
 impl StereoProcessor for DualMonoProcessor {
     fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
         [
@@ -138,7 +79,7 @@ impl StereoProcessor for DualMonoProcessor {
 
 impl NativeAmpHeadProcessor {
     fn new(
-        profile: VoiceProfile,
+        profile: NativeAmpHeadProfile,
         settings: NativeAmpHeadSettings,
         sample_rate: f32,
     ) -> NativeAmpHeadProcessor {
@@ -215,21 +156,15 @@ impl MonoProcessor for NativeAmpHeadProcessor {
     }
 }
 
-pub fn supports_model(model: &str) -> bool {
-    matches!(
-        model,
-        BRIT_CRUNCH_HEAD_ID | AMERICAN_CLEAN_HEAD_ID | MODERN_HIGH_GAIN_HEAD_ID
-    )
-}
-
-pub fn model_schema(model: &str) -> Result<ModelParameterSchema> {
-    let voice = resolve_voice(model)?;
-    let profile = voice.profile();
-
-    Ok(ModelParameterSchema {
+pub fn model_schema(
+    model_id: &'static str,
+    display_name: &'static str,
+    defaults: NativeAmpHeadSchemaDefaults,
+) -> ModelParameterSchema {
+    ModelParameterSchema {
         effect_type: "amp".into(),
-        model: profile.model_id.into(),
-        display_name: profile.display_name.into(),
+        model: model_id.into(),
+        display_name: display_name.into(),
         audio_mode: ModelAudioMode::DualMono,
         parameters: vec![
             float_parameter(
@@ -246,11 +181,7 @@ pub fn model_schema(model: &str) -> Result<ModelParameterSchema> {
                 "gain",
                 "Gain",
                 Some("Amp"),
-                Some(match voice {
-                    NativeAmpHeadVoice::AmericanClean => 34.0,
-                    NativeAmpHeadVoice::BritCrunch => 56.0,
-                    NativeAmpHeadVoice::ModernHighGain => 72.0,
-                }),
+                Some(defaults.gain),
                 0.0,
                 100.0,
                 1.0,
@@ -290,11 +221,7 @@ pub fn model_schema(model: &str) -> Result<ModelParameterSchema> {
                 "presence",
                 "Presence",
                 Some("Power"),
-                Some(match voice {
-                    NativeAmpHeadVoice::AmericanClean => 54.0,
-                    NativeAmpHeadVoice::BritCrunch => 58.0,
-                    NativeAmpHeadVoice::ModernHighGain => 62.0,
-                }),
+                Some(defaults.presence),
                 0.0,
                 100.0,
                 1.0,
@@ -304,11 +231,7 @@ pub fn model_schema(model: &str) -> Result<ModelParameterSchema> {
                 "depth",
                 "Depth",
                 Some("Power"),
-                Some(match voice {
-                    NativeAmpHeadVoice::AmericanClean => 42.0,
-                    NativeAmpHeadVoice::BritCrunch => 48.0,
-                    NativeAmpHeadVoice::ModernHighGain => 60.0,
-                }),
+                Some(defaults.depth),
                 0.0,
                 100.0,
                 1.0,
@@ -338,24 +261,20 @@ pub fn model_schema(model: &str) -> Result<ModelParameterSchema> {
                 "bright",
                 "Bright",
                 Some("Switches"),
-                Some(matches!(voice, NativeAmpHeadVoice::AmericanClean)),
+                Some(defaults.bright),
             ),
             float_parameter(
                 "sag",
                 "Sag",
                 Some("Power"),
-                Some(match voice {
-                    NativeAmpHeadVoice::AmericanClean => 16.0,
-                    NativeAmpHeadVoice::BritCrunch => 24.0,
-                    NativeAmpHeadVoice::ModernHighGain => 30.0,
-                }),
+                Some(defaults.sag),
                 0.0,
                 100.0,
                 1.0,
                 ParameterUnit::Percent,
             ),
         ],
-    })
+    }
 }
 
 pub fn settings_from_params(params: &ParameterSet) -> Result<NativeAmpHeadSettings> {
@@ -374,56 +293,40 @@ pub fn settings_from_params(params: &ParameterSet) -> Result<NativeAmpHeadSettin
     })
 }
 
-pub fn validate_params(model: &str, params: &ParameterSet) -> Result<()> {
-    let _ = resolve_voice(model)?;
+pub fn validate_params(params: &ParameterSet) -> Result<()> {
     let _ = settings_from_params(params)?;
     Ok(())
 }
 
-pub fn asset_summary(model: &str, _params: &ParameterSet) -> Result<String> {
-    let profile = resolve_voice(model)?.profile();
-    Ok(format!("native voice='{}'", profile.model_id))
+pub fn asset_summary(model_id: &'static str, _params: &ParameterSet) -> Result<String> {
+    Ok(format!("native voice='{model_id}'"))
 }
 
-pub fn build_processor_for_model(
-    model: &str,
+pub fn build_processor_for_profile(
+    profile: NativeAmpHeadProfile,
     params: &ParameterSet,
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    let voice = resolve_voice(model)?;
     let settings = settings_from_params(params)?;
 
     match layout {
         AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(build_native_head_mono_processor(
-            voice,
+            profile,
             settings,
             sample_rate,
         ))),
         AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(DualMonoProcessor {
-            left: build_native_head_mono_processor(voice, settings, sample_rate),
-            right: build_native_head_mono_processor(voice, settings, sample_rate),
+            left: build_native_head_mono_processor(profile, settings, sample_rate),
+            right: build_native_head_mono_processor(profile, settings, sample_rate),
         }))),
     }
 }
 
 pub fn build_native_head_mono_processor(
-    voice: NativeAmpHeadVoice,
+    profile: NativeAmpHeadProfile,
     settings: NativeAmpHeadSettings,
     sample_rate: f32,
 ) -> Box<dyn MonoProcessor> {
-    Box::new(NativeAmpHeadProcessor::new(
-        voice.profile(),
-        settings,
-        sample_rate,
-    ))
-}
-
-fn resolve_voice(model: &str) -> Result<NativeAmpHeadVoice> {
-    match model {
-        BRIT_CRUNCH_HEAD_ID => Ok(NativeAmpHeadVoice::BritCrunch),
-        AMERICAN_CLEAN_HEAD_ID => Ok(NativeAmpHeadVoice::AmericanClean),
-        MODERN_HIGH_GAIN_HEAD_ID => Ok(NativeAmpHeadVoice::ModernHighGain),
-        _ => bail!("unsupported native amp-head model '{}'", model),
-    }
+    Box::new(NativeAmpHeadProcessor::new(profile, settings, sample_rate))
 }

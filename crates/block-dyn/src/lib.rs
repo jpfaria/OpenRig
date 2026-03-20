@@ -1,6 +1,4 @@
 //! Dynamics implementations.
-pub mod compressor_studio_clean;
-pub mod gate_basic;
 mod registry;
 
 use anyhow::Result;

@@ -1,10 +1,11 @@
 //! Utility implementations.
-pub mod tuner_chromatic;
+mod processor;
 mod registry;
 
 use anyhow::Result;
 use block_core::param::{ModelParameterSchema, ParameterSet};
-use tuner_chromatic::ChromaticTuner;
+
+pub use processor::TunerProcessor;
 
 pub fn supported_models() -> &'static [&'static str] {
     registry::SUPPORTED_MODELS
@@ -18,6 +19,6 @@ pub fn build_tuner_processor(
     model: &str,
     params: &ParameterSet,
     sample_rate: usize,
-) -> Result<ChromaticTuner> {
+) -> Result<Box<dyn TunerProcessor>> {
     (registry::find_model_definition(model)?.build)(params, sample_rate)
 }

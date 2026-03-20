@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use crate::registry::AmpComboModelDefinition;
 use nam::{
     build_processor_with_assets_for_layout, model_schema_for,
     processor::{NamPluginParams, DEFAULT_PLUGIN_PARAMS},
@@ -70,10 +71,6 @@ pub const CAPTURES: &[BognerEcstasyCapture] = &[
     ),
 ];
 
-pub fn supports_model(model: &str) -> bool {
-    model == MODEL_ID
-}
-
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for("amp_combo", MODEL_ID, "Bogner Ecstasy", false);
     schema.parameters = vec![
@@ -111,6 +108,26 @@ pub fn build_processor_for_model(
         layout,
     )
 }
+
+fn schema() -> Result<ModelParameterSchema> {
+    Ok(model_schema())
+}
+
+fn build(
+    params: &ParameterSet,
+    _sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<BlockProcessor> {
+    build_processor_for_model(params, layout)
+}
+
+pub const MODEL_DEFINITION: AmpComboModelDefinition = AmpComboModelDefinition {
+    id: MODEL_ID,
+    schema,
+    validate: validate_params,
+    asset_summary,
+    build,
+};
 
 pub fn validate_params(params: &ParameterSet) -> Result<()> {
     resolve_capture(params).map(|_| ())

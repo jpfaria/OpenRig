@@ -1,4 +1,5 @@
 use anyhow::{Error, Result};
+use crate::registry::ReverbModelDefinition;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
@@ -20,10 +21,6 @@ impl Default for ReverbParams {
             mix: 0.25,
         }
     }
-}
-
-pub fn supports_model(model: &str) -> bool {
-    matches!(model, MODEL_ID | "plate" | "spring" | "hall" | "room")
 }
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -104,22 +101,6 @@ impl FoundationPlateReverb {
             allpasses,
         }
     }
-    pub fn set_room_size(&mut self, room_size: f32) {
-        self.params.room_size = room_size.clamp(0.0, 1.0);
-        let feedback = room_feedback(self.params.room_size);
-        for comb in &mut self.combs {
-            comb.set_feedback(feedback);
-        }
-    }
-    pub fn set_damping(&mut self, damping: f32) {
-        self.params.damping = damping.clamp(0.0, 1.0);
-        for comb in &mut self.combs {
-            comb.set_damping(self.params.damping);
-        }
-    }
-    pub fn set_mix(&mut self, mix: f32) {
-        self.params.mix = mix.clamp(0.0, 1.0);
-    }
 }
 
 impl MonoProcessor for FoundationPlateReverb {
@@ -142,6 +123,32 @@ pub fn build_processor(params: &ParameterSet, sample_rate: f32) -> Result<Box<dy
         sample_rate,
     )))
 }
+
+fn schema() -> Result<ModelParameterSchema> {
+    Ok(model_schema())
+}
+
+fn build(
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: block_core::AudioChannelLayout,
+) -> Result<block_core::BlockProcessor> {
+    match layout {
+        block_core::AudioChannelLayout::Mono => {
+            Ok(block_core::BlockProcessor::Mono(build_processor(params, sample_rate)?))
+        }
+        block_core::AudioChannelLayout::Stereo => anyhow::bail!(
+            "reverb model '{}' is mono-only and cannot build native stereo processing",
+            MODEL_ID
+        ),
+    }
+}
+
+pub const MODEL_DEFINITION: ReverbModelDefinition = ReverbModelDefinition {
+    id: MODEL_ID,
+    schema,
+    build,
+};
 fn room_feedback(room_size: f32) -> f32 {
     (0.2 + room_size.clamp(0.0, 1.0) * 0.77).clamp(0.0, 0.97)
 }

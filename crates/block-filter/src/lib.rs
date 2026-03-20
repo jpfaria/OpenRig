@@ -1,5 +1,4 @@
 //! Filter implementations.
-pub mod eq_three_band_basic;
 mod registry;
 
 use anyhow::Result;
