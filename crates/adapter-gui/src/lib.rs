@@ -3278,6 +3278,10 @@ fn numeric_widget_kind(min: f32, max: f32, step: f32, integer: bool) -> &'static
         }
     }
 
+    if (max - min) > 10.0 {
+        return "slider";
+    }
+
     if integer { "int" } else { "float" }
 }
 
@@ -3940,7 +3944,13 @@ mod tests {
 
     #[test]
     fn numeric_widget_kind_keeps_knob_for_dense_ranges() {
-        assert_eq!(numeric_widget_kind(0.0, 100.0, 0.5, false), "float");
-        assert_eq!(numeric_widget_kind(20.0, 20000.0, 1.0, false), "float");
+        assert_eq!(numeric_widget_kind(0.0, 5.0, 0.01, false), "float");
+        assert_eq!(numeric_widget_kind(1.0, 10.0, 0.1, false), "float");
+    }
+
+    #[test]
+    fn numeric_widget_kind_prefers_slider_for_large_ranges() {
+        assert_eq!(numeric_widget_kind(0.0, 100.0, 0.5, false), "slider");
+        assert_eq!(numeric_widget_kind(20.0, 20000.0, 1.0, false), "slider");
     }
 }

@@ -77,8 +77,8 @@ component StageValueKnob inherits Rectangle {
         ? Math.max(36, root.step-count * 18)
         : 180;
 
-    width: 136px;
-    height: 146px;
+    width: 112px;
+    height: 124px;
     background: transparent;
 
     Text {
@@ -94,20 +94,20 @@ component StageValueKnob inherits Rectangle {
     }
 
     Rectangle {
-        x: 12px;
-        y: 30px;
-        width: 112px;
-        height: 112px;
+        x: 14px;
+        y: 24px;
+        width: 84px;
+        height: 84px;
         background: #262b33;
         border-width: 1px;
         border-color: #4e5663;
         border-radius: 56px;
 
         Rectangle {
-            x: 7px;
-            y: 7px;
-            width: parent.width - 14px;
-            height: parent.height - 14px;
+            x: 6px;
+            y: 6px;
+            width: parent.width - 12px;
+            height: parent.height - 12px;
             background: #191d24;
             border-width: 1px;
             border-color: #0d1015;
@@ -134,37 +134,13 @@ component StageValueKnob inherits Rectangle {
             transform-rotation: (-135deg + (root.progress * 270deg));
 
             Rectangle {
-                x: (parent.width - 5px) / 2;
-                y: 10px;
-                width: 5px;
-                height: 28px;
+                x: (parent.width - 4px) / 2;
+                y: 8px;
+                width: 4px;
+                height: 22px;
                 background: #e7edf7;
-                border-radius: 3px;
+                border-radius: 2px;
             }
-        }
-
-        Text {
-            x: 0px;
-            y: 32px;
-            width: parent.width;
-            height: 24px;
-            text: root.value-text;
-            color: #f5f7fb;
-            font-size: 20px;
-            font-weight: 800;
-            horizontal-alignment: center;
-        }
-
-        if root.unit-text != "" : Text {
-            x: 0px;
-            y: 58px;
-            width: parent.width;
-            height: 14px;
-            text: root.unit-text;
-            color: #aab4c3;
-            font-size: 10px;
-            font-weight: 700;
-            horizontal-alignment: center;
         }
 
         TouchArea {
@@ -197,6 +173,18 @@ component StageValueKnob inherits Rectangle {
             }
         }
     }
+
+    Text {
+        x: 0px;
+        y: 110px;
+        width: parent.width;
+        height: 24px;
+        text: root.unit-text == "" ? root.value-text : root.value-text + " " + root.unit-text;
+        color: #f5f7fb;
+        font-size: 16px;
+        font-weight: 800;
+        horizontal-alignment: center;
+    }
 }
 
 component StageValueStepper inherits Rectangle {
@@ -220,26 +208,14 @@ component StageValueStepper inherits Rectangle {
     }
 
     width: 168px;
-    height: 88px;
+    height: 66px;
     background: transparent;
-
-    Text {
-        x: 0px;
-        y: 0px;
-        width: parent.width;
-        height: 18px;
-        text: root.label;
-        color: #eef2f8;
-        font-size: 13px;
-        font-weight: 800;
-        horizontal-alignment: center;
-    }
 
     Rectangle {
         x: 0px;
-        y: 28px;
+        y: 0px;
         width: parent.width;
-        height: 50px;
+        height: 52px;
         background: #1b2028;
         border-width: 1px;
         border-color: #414956;
@@ -255,12 +231,12 @@ component StageValueStepper inherits Rectangle {
 
             Text {
                 x: 0px;
-                y: -1px;
+                y: 0px;
                 width: parent.width;
                 height: parent.height;
                 text: "−";
                 color: #f4f7fb;
-                font-size: 22px;
+                font-size: 20px;
                 font-weight: 700;
                 horizontal-alignment: center;
                 vertical-alignment: center;
@@ -285,7 +261,7 @@ component StageValueStepper inherits Rectangle {
 
             Text {
                 x: 0px;
-                y: 4px;
+                y: 6px;
                 width: parent.width;
                 height: 22px;
                 text: root.value-text;
@@ -293,11 +269,12 @@ component StageValueStepper inherits Rectangle {
                 font-size: 20px;
                 font-weight: 800;
                 horizontal-alignment: center;
+                vertical-alignment: center;
             }
 
             if root.unit-text != "" : Text {
                 x: 0px;
-                y: 24px;
+                y: 27px;
                 width: parent.width;
                 height: 14px;
                 text: root.unit-text;
@@ -318,12 +295,12 @@ component StageValueStepper inherits Rectangle {
 
             Text {
                 x: 0px;
-                y: -1px;
+                y: 0px;
                 width: parent.width;
                 height: parent.height;
                 text: "+";
                 color: #f4f7fb;
-                font-size: 22px;
+                font-size: 20px;
                 font-weight: 700;
                 horizontal-alignment: center;
                 vertical-alignment: center;
@@ -337,6 +314,107 @@ component StageValueStepper inherits Rectangle {
                 mouse-cursor: pointer;
                 clicked => { root.changed(root.next-value()); }
             }
+        }
+    }
+}
+
+component StageValueSlider inherits Rectangle {
+    in property <string> label;
+    in property <string> value-text;
+    in property <string> unit-text;
+    in property <float> progress: 0;
+    callback moved(float);
+
+    width: 220px;
+    height: 78px;
+    background: transparent;
+
+    Text {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: 18px;
+        text: root.label;
+        color: #eef2f8;
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    Rectangle {
+        x: 0px;
+        y: 34px;
+        width: 150px;
+        height: 8px;
+        background: #3a404b;
+        border-radius: 4px;
+
+        Rectangle {
+            x: 0px;
+            y: 0px;
+            width: Math.max(10px, parent.width * root.progress);
+            height: parent.height;
+            background: #dce3ee;
+            border-radius: 4px;
+        }
+
+        Rectangle {
+            x: (parent.width * root.progress) - 8px;
+            y: -4px;
+            width: 16px;
+            height: 16px;
+            background: #eef2f8;
+            border-width: 1px;
+            border-color: #7b8595;
+            border-radius: 8px;
+        }
+
+        TouchArea {
+            x: 0px;
+            y: -8px;
+            width: parent.width;
+            height: 24px;
+            mouse-cursor: pointer;
+            moved => {
+                if self.pressed {
+                    let next = self.mouse-x / parent.width;
+                    root.moved(next < 0 ? 0 : next > 1 ? 1 : next);
+                }
+            }
+        }
+    }
+
+    Rectangle {
+        x: 162px;
+        y: 18px;
+        width: 58px;
+        height: 40px;
+        background: #1b2028;
+        border-width: 1px;
+        border-color: #414956;
+        border-radius: 6px;
+
+        Text {
+            x: 0px;
+            y: 4px;
+            width: parent.width;
+            height: 18px;
+            text: root.value-text;
+            color: #f5f7fb;
+            font-size: 15px;
+            font-weight: 800;
+            horizontal-alignment: center;
+        }
+
+        if root.unit-text != "" : Text {
+            x: 0px;
+            y: 21px;
+            width: parent.width;
+            height: 12px;
+            text: root.unit-text;
+            color: #aab4c3;
+            font-size: 9px;
+            font-weight: 700;
+            horizontal-alignment: center;
         }
     }
 }
@@ -501,11 +579,17 @@ component StageParameterRow inherits Rectangle {
     callback file-picked(string);
 
     height: root.item.widget_kind == "bool" ? 96px
-        : (root.item.widget_kind == "float" || root.item.widget_kind == "int") ? 148px
+        : (root.item.widget_kind == "float" || root.item.widget_kind == "int") ? 124px
+        : root.item.widget_kind == "slider" ? 86px
+        : root.item.widget_kind == "stepper" ? 78px
         : 84px;
     background: transparent;
 
-    if root.item.widget_kind != "bool" && root.item.widget_kind != "float" && root.item.widget_kind != "int" : Text {
+    if root.item.widget_kind != "bool"
+        && root.item.widget_kind != "float"
+        && root.item.widget_kind != "int"
+        && root.item.widget_kind != "stepper"
+        && root.item.widget_kind != "slider" : Text {
         x: 0px;
         y: 0px;
         width: parent.width;
@@ -571,7 +655,7 @@ component StageParameterRow inherits Rectangle {
 
     if root.item.widget_kind == "stepper" : StageValueStepper {
         x: 0px;
-        y: 22px;
+        y: 24px;
         label: root.item.label;
         value-text: root.item.value_text;
         unit-text: root.item.unit_text;
@@ -581,6 +665,23 @@ component StageParameterRow inherits Rectangle {
         numeric-step: root.item.numeric_step;
         changed(value) => {
             root.number-changed(root.item.path, value);
+        }
+    }
+
+    if root.item.widget_kind == "slider" : StageValueSlider {
+        x: 0px;
+        y: 0px;
+        label: root.item.label;
+        value-text: root.item.value_text;
+        unit-text: root.item.unit_text;
+        progress: root.item.numeric_max > root.item.numeric_min
+            ? (root.item.numeric_value - root.item.numeric_min) / (root.item.numeric_max - root.item.numeric_min)
+            : 0;
+        moved(progress) => {
+            root.number-changed(
+                root.item.path,
+                root.item.numeric_min + ((root.item.numeric_max - root.item.numeric_min) * progress)
+            );
         }
     }
 
