@@ -1372,17 +1372,6 @@ export component ProjectChainsPage inherits Rectangle {
             vertical-alignment: center;
         }
 
-        Text {
-            x: 18px;
-            y: 52px;
-            width: 280px;
-            height: 18px;
-            text: root.status-message;
-            color: #8db9ff;
-            font-size: 12px;
-            vertical-alignment: center;
-        }
-
         ToolbarButton {
             x: parent.width - 154px;
             y: 28px;
@@ -1394,9 +1383,9 @@ export component ProjectChainsPage inherits Rectangle {
 
         ScrollView {
             x: 18px;
-            y: 88px;
+            y: 52px;
             width: parent.width - 36px;
-            height: parent.height - 106px;
+            height: parent.height - 70px;
             viewport-height: chains-column.preferred-height;
             viewport-width: chains-column.width;
 
@@ -1524,16 +1513,6 @@ export component ProjectChainsPage inherits Rectangle {
                     option-changed(path, value) => { root.select-block-parameter-option(path, value); }
                     file-picked(path) => { root.pick-block-parameter-file(path); }
                 }
-            }
-
-            Text {
-                x: 20px;
-                y: parent.height - 84px;
-                width: parent.width - 40px;
-                height: 16px;
-                text: root.block-drawer-status-message;
-                color: #f3c64f;
-                font-size: 12px;
             }
 
             if root.block-drawer-edit-mode : ChainPowerToggle {

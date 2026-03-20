@@ -23,6 +23,7 @@ use project::chain::{Chain, ChainOutputMixdown};
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 use slint::{Model, ModelRc, SharedString, VecModel};
+use std::fmt::Display;
 use std::rc::Rc;
 use std::{
     cell::RefCell,
@@ -40,6 +41,14 @@ const DEFAULT_SAMPLE_RATE: u32 = 48_000;
 const DEFAULT_BUFFER_SIZE_FRAMES: u32 = 256;
 const SUPPORTED_SAMPLE_RATES: &[u32] = &[44_100, 48_000, 88_200, 96_000];
 const SUPPORTED_BUFFER_SIZES: &[u32] = &[32, 64, 128, 256, 512, 1024];
+
+fn log_gui_message(context: &str, message: &str) {
+    eprintln!("[adapter-gui] {context}: {message}");
+}
+
+fn log_gui_error(context: &str, error: impl Display) {
+    eprintln!("[adapter-gui] {context}: {error}");
+}
 
 #[derive(Debug, Clone)]
 struct ProjectPaths {
@@ -1871,7 +1880,7 @@ pub fn run_desktop_app(
                     &project_dirty,
                     false,
                 ) {
-                    window.set_block_drawer_status_message(error.to_string().into());
+                    log_gui_error("block-drawer.choose-model", error);
                 }
             }
         });
@@ -1939,7 +1948,7 @@ pub fn run_desktop_app(
             };
             let normalized = value_text.replace(',', ".");
             let Ok(value) = normalized.parse::<f32>() else {
-                window.set_block_drawer_status_message("Valor numérico inválido.".into());
+                log_gui_message("block-drawer.number-text", "Valor numérico inválido.");
                 return;
             };
             set_block_parameter_number(&block_parameter_items, path.as_str(), value);
@@ -1957,7 +1966,7 @@ pub fn run_desktop_app(
                         &project_dirty,
                         false,
                     ) {
-                        window.set_block_drawer_status_message(error.to_string().into());
+                        log_gui_error("block-drawer.number-text", error);
                     }
                 }
             }
@@ -1995,7 +2004,7 @@ pub fn run_desktop_app(
                     &project_dirty,
                     false,
                 ) {
-                    window.set_block_drawer_status_message(error.to_string().into());
+                    log_gui_error("block-drawer.toggle-enabled", error);
                 }
             }
         });
@@ -2029,7 +2038,7 @@ pub fn run_desktop_app(
                         &project_dirty,
                         false,
                     ) {
-                        window.set_block_drawer_status_message(error.to_string().into());
+                        log_gui_error("block-drawer.text", error);
                     }
                 }
             }
@@ -2064,7 +2073,7 @@ pub fn run_desktop_app(
                         &project_dirty,
                         false,
                     ) {
-                        window.set_block_drawer_status_message(error.to_string().into());
+                        log_gui_error("block-drawer.number", error);
                     }
                 }
             }
@@ -2099,7 +2108,7 @@ pub fn run_desktop_app(
                         &project_dirty,
                         false,
                     ) {
-                        window.set_block_drawer_status_message(error.to_string().into());
+                        log_gui_error("block-drawer.bool", error);
                     }
                 }
             }
@@ -2134,7 +2143,7 @@ pub fn run_desktop_app(
                         &project_dirty,
                         false,
                     ) {
-                        window.set_block_drawer_status_message(error.to_string().into());
+                        log_gui_error("block-drawer.option", error);
                     }
                 }
             }
@@ -2185,7 +2194,7 @@ pub fn run_desktop_app(
                         &project_dirty,
                         false,
                     ) {
-                        window.set_block_drawer_status_message(error.to_string().into());
+                        log_gui_error("block-drawer.file", error);
                     }
                 }
             }
@@ -2223,7 +2232,7 @@ pub fn run_desktop_app(
                 &project_dirty,
                 true,
             ) {
-                window.set_block_drawer_status_message(error.to_string().into());
+                log_gui_error("block-drawer.save", error);
                 return;
             }
 
@@ -2260,21 +2269,21 @@ pub fn run_desktop_app(
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                window.set_block_drawer_status_message("Nenhum projeto carregado.".into());
+                log_gui_message("block-drawer.delete", "Nenhum projeto carregado.");
                 return;
             };
             let Some(chain) = session.project.chains.get_mut(draft.chain_index) else {
-                window.set_block_drawer_status_message("Chain inválida.".into());
+                log_gui_message("block-drawer.delete", "Chain inválida.");
                 return;
             };
             if block_index >= chain.blocks.len() {
-                window.set_block_drawer_status_message("Block inválido.".into());
+                log_gui_message("block-drawer.delete", "Block inválido.");
                 return;
             }
             let chain_id = chain.id.clone();
             chain.blocks.remove(block_index);
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                window.set_block_drawer_status_message(error.to_string().into());
+                log_gui_error("block-drawer.delete", error);
                 return;
             }
             replace_project_chains(&project_chains, &session.project);
@@ -3204,7 +3213,7 @@ fn persist_block_editor_draft(
     };
 
     if let Err(error) = sync_live_chain_runtime(project_runtime, session, &chain_id) {
-        window.set_block_drawer_status_message(error.to_string().into());
+        log_gui_error("block-drawer.persist", &error);
         return Err(error);
     }
 
