@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenRig · Logos Round 1</title>
+  <style>
+    :root {
+      --bg: #07101a;
+      --panel: #0d1723;
+      --panel-2: #111f2e;
+      --line: #203346;
+      --text: #eef5ff;
+      --muted: #8ea3ba;
+      --accent: #27b4ff;
+      --accent-2: #0d83ff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top, rgba(36, 120, 193, 0.18), transparent 35%),
+        linear-gradient(180deg, #09111a 0%, #060b11 100%);
+      color: var(--text);
+    }
+
+    .wrap {
+      width: min(1240px, calc(100vw - 48px));
+      margin: 0 auto;
+      padding: 36px 0 64px;
+    }
+
+    .intro {
+      margin-bottom: 28px;
+      padding: 24px 28px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: rgba(13, 23, 35, 0.84);
+      backdrop-filter: blur(10px);
+    }
+
+    .intro h1 {
+      margin: 0 0 10px;
+      font-size: 32px;
+      letter-spacing: -0.03em;
+    }
+
+    .intro p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.5;
+    }
+
+    .grid {
+      display: grid;
+      gap: 24px;
+    }
+
+    .card {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      min-height: 340px;
+      border-radius: 28px;
+      border: 1px solid var(--line);
+      overflow: hidden;
+      background: linear-gradient(180deg, rgba(15, 24, 36, 0.95), rgba(11, 18, 27, 0.95));
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+    }
+
+    .preview {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: 340px;
+      background:
+        radial-gradient(circle at center, rgba(41, 104, 175, 0.14), transparent 40%),
+        linear-gradient(180deg, #0b131d 0%, #0a1119 100%);
+      border-right: 1px solid var(--line);
+    }
+
+    .meta {
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 14px;
+    }
+
+    .meta .tag {
+      display: inline-flex;
+      align-items: center;
+      width: fit-content;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid #30506d;
+      color: #cde6ff;
+      background: rgba(16, 33, 49, 0.9);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .meta h2 {
+      margin: 0;
+      font-size: 34px;
+      letter-spacing: -0.03em;
+    }
+
+    .meta p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.55;
+    }
+
+    .bullet {
+      color: #d8e9ff;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    .bullet span {
+      color: var(--muted);
+    }
+
+    .logo-lockup {
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      transform: scale(1.15);
+      transform-origin: center;
+    }
+
+    .logotype {
+      font-size: 58px;
+      font-weight: 800;
+      letter-spacing: -0.06em;
+      color: #f6fbff;
+    }
+
+    .mono {
+      width: 112px;
+      height: 112px;
+      position: relative;
+      border-radius: 32px;
+      border: 2px solid #5cc8ff;
+      background: linear-gradient(180deg, #122234 0%, #0c1520 100%);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+
+    .mono::before,
+    .mono::after {
+      content: "";
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 1px solid #5cc8ff;
+      background: #13212f;
+      top: 10px;
+    }
+
+    .mono::before { left: 10px; }
+    .mono::after { right: 10px; }
+
+    .mono svg {
+      position: absolute;
+      inset: 18px;
+    }
+
+    .cable {
+      width: 162px;
+      height: 108px;
+    }
+
+    .cable svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    .type-only {
+      display: grid;
+      gap: 16px;
+      justify-items: start;
+      transform: scale(1.05);
+    }
+
+    .type-word {
+      font-size: 84px;
+      font-weight: 800;
+      letter-spacing: -0.07em;
+      color: #f7fbff;
+    }
+
+    .type-bar {
+      width: 312px;
+      height: 8px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    }
+
+    .rack {
+      display: grid;
+      gap: 14px;
+      width: 250px;
+    }
+
+    .rack-row {
+      height: 50px;
+      border-radius: 18px;
+      border: 1px solid #37526d;
+      background: linear-gradient(180deg, #122233 0%, #0c1722 100%);
+      position: relative;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+    }
+
+    .rack-row::before {
+      content: "";
+      position: absolute;
+      left: 18px;
+      top: 18px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: linear-gradient(180deg, #2bc8ff, #0d84ff);
+      box-shadow: 0 0 18px rgba(39, 180, 255, 0.32);
+    }
+
+    .rack-row:nth-child(2) { transform: translateX(18px); }
+    .rack-row:nth-child(3) { transform: translateX(36px); }
+
+    @media (max-width: 980px) {
+      .card {
+        grid-template-columns: 1fr;
+      }
+
+      .preview {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="intro">
+      <h1>OpenRig · exploração de logo</h1>
+      <p>Agora em formato de navegador, com poucas opções grandes e limpas. O foco aqui é forma, leitura e aderência ao produto. Nada de miniaturas espremidas.</p>
+    </section>
+
+    <section class="grid">
+      <article class="card">
+        <div class="preview">
+          <div class="logo-lockup">
+            <div class="mono" aria-hidden="true">
+              <svg viewBox="0 0 100 100" fill="none">
+                <circle cx="34" cy="38" r="20" stroke="#5CC8FF" stroke-width="8"/>
+                <path d="M52 70V18H73C84 18 90 24 90 34C90 42 86 47 78 50L91 70H80L69 54H60V70H52Z" fill="#F7FBFF"/>
+              </svg>
+            </div>
+            <div class="logotype">OpenRig</div>
+          </div>
+        </div>
+        <div class="meta">
+          <div class="tag">Conceito A</div>
+          <h2>Monograma técnico</h2>
+          <p>Um símbolo sólido de app e marca. Parece peça de hardware, não logo de startup. O bloco pode viver sozinho no ícone da aplicação.</p>
+          <div class="bullet">Leitura: <span>forte em tamanho pequeno</span></div>
+          <div class="bullet">Tom: <span>premium, técnico, profissional</span></div>
+          <div class="bullet">Risco: <span>menos explícito sobre multi-track</span></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="preview">
+          <div class="logo-lockup">
+            <div class="cable" aria-hidden="true">
+              <svg viewBox="0 0 162 108" fill="none">
+                <path d="M18 54C18 28 34 14 58 14H68C92 14 108 30 108 54C108 78 92 94 68 94H58C34 94 18 80 18 54Z" stroke="url(#cableAccent)" stroke-width="10" stroke-linecap="round"/>
+                <path d="M108 54H128C140 54 148 62 148 74C148 86 140 94 126 94H118V40H128C141 40 150 31 150 18C150 7 141 0 128 0H118" stroke="url(#cableAccent)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="10" cy="54" r="7" fill="#F7FBFF"/>
+                <circle cx="154" cy="74" r="7" fill="#F7FBFF"/>
+                <defs>
+                  <linearGradient id="cableAccent" x1="0" y1="0" x2="162" y2="108" gradientUnits="userSpaceOnUse">
+                    <stop stop-color="#2CC4FF"/>
+                    <stop offset="1" stop-color="#0D83FF"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+            <div class="logotype">OpenRig</div>
+          </div>
+        </div>
+        <div class="meta">
+          <div class="tag">Conceito B</div>
+          <h2>Patch cable / signal chain</h2>
+          <p>Mais específico para o domínio. Traz cadeia de sinal, conexão entre stages e sensação de rig vivo. Tem mais narrativa do que o monograma puro.</p>
+          <div class="bullet">Leitura: <span>boa em lockup horizontal</span></div>
+          <div class="bullet">Tom: <span>musical, técnico, com personalidade</span></div>
+          <div class="bullet">Risco: <span>mais difícil de simplificar do que o A</span></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="preview">
+          <div class="logo-lockup">
+            <div class="rack" aria-hidden="true">
+              <div class="rack-row"></div>
+              <div class="rack-row"></div>
+              <div class="rack-row"></div>
+            </div>
+            <div class="type-only">
+              <div class="type-word">OpenRig</div>
+              <div class="type-bar"></div>
+            </div>
+          </div>
+        </div>
+        <div class="meta">
+          <div class="tag">Conceito C</div>
+          <h2>Stack multi-track</h2>
+          <p>Mais alinhado ao produto como ambiente com várias tracks e vários rigs. O símbolo não é uma pedaleira única; é um sistema de cadeias em paralelo.</p>
+          <div class="bullet">Leitura: <span>mais conceitual, mais produto</span></div>
+          <div class="bullet">Tom: <span>moderno, organizado, multi-track</span></div>
+          <div class="bullet">Risco: <span>menos icônico que o monograma técnico</span></div>
+        </div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

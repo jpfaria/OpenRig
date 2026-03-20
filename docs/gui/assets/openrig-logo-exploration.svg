@@ -1,0 +1,153 @@
+<svg width="1600" height="1700" viewBox="0 0 1600 1700" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="1700" fill="#09111A"/>
+  <defs>
+    <linearGradient id="bgCard" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#111B28"/>
+      <stop offset="100%" stop-color="#0C131D"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#31C0FF"/>
+      <stop offset="100%" stop-color="#0D7FFF"/>
+    </linearGradient>
+    <linearGradient id="warm" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFB15D"/>
+      <stop offset="100%" stop-color="#FF6B2C"/>
+    </linearGradient>
+    <style>
+      .title { font: 700 20px ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #F2F7FF; }
+      .label { font: 700 18px ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #F2F7FF; }
+      .desc { font: 400 15px ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #93A6BF; }
+      .name { font: 700 42px ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #F6FAFF; letter-spacing: 0.5px; }
+      .nameSmall { font: 700 34px ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; fill: #F6FAFF; letter-spacing: 0.5px; }
+    </style>
+  </defs>
+
+  <text x="72" y="84" class="title">OpenRig · exploração inicial de logo</text>
+
+  <g transform="translate(60 120)">
+    <g transform="translate(0 0)">
+      <rect width="460" height="290" rx="28" fill="url(#bgCard)" stroke="#243347"/>
+      <text x="30" y="44" class="label">1. Monograma OR em metal</text>
+      <g transform="translate(62 78)">
+        <circle cx="68" cy="66" r="52" stroke="url(#accent)" stroke-width="18"/>
+        <path d="M114 116V20H158C188 20 204 38 204 64C204 82 196 96 178 104L208 144H179L154 110H136V144H114V116Z" fill="#F6FAFF"/>
+        <rect x="52" y="4" width="14" height="14" rx="7" fill="#1C2735" stroke="#60C3FF"/>
+        <rect x="160" y="128" width="14" height="14" rx="7" fill="#1C2735" stroke="#60C3FF"/>
+      </g>
+      <text x="238" y="138" class="name">OpenRig</text>
+      <text x="238" y="170" class="desc">premium, técnico, forte em tamanhos pequenos</text>
+    </g>
+
+    <g transform="translate(510 0)">
+      <rect width="460" height="290" rx="28" fill="url(#bgCard)" stroke="#243347"/>
+      <text x="30" y="44" class="label">2. Patch cable formando OR</text>
+      <g transform="translate(56 74)">
+        <path d="M36 108C36 54 68 24 118 24H138C190 24 220 56 220 108C220 160 188 192 140 192H118C70 192 36 162 36 108Z" stroke="url(#accent)" stroke-width="16" stroke-linecap="round"/>
+        <path d="M220 108H282C306 108 322 124 322 148C322 172 306 188 280 188H242V84H286C309 84 324 69 324 47C324 25 309 10 286 10H242" stroke="url(#accent)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="24" cy="108" r="10" fill="#F6FAFF"/>
+        <circle cx="340" cy="148" r="10" fill="#F6FAFF"/>
+      </g>
+      <text x="246" y="138" class="name">OpenRig</text>
+      <text x="246" y="170" class="desc">cadeia de sinal e patching, com personalidade</text>
+    </g>
+
+    <g transform="translate(1020 0)">
+      <rect width="460" height="290" rx="28" fill="url(#bgCard)" stroke="#243347"/>
+      <text x="30" y="44" class="label">3. Módulo de pedal abstrato</text>
+      <g transform="translate(58 76)">
+        <rect x="8" y="6" width="220" height="148" rx="28" fill="#121E2B" stroke="#58BEFF" stroke-width="3"/>
+        <circle cx="30" cy="24" r="7" fill="#182433" stroke="#58BEFF"/>
+        <circle cx="206" cy="24" r="7" fill="#182433" stroke="#58BEFF"/>
+        <rect x="30" y="36" width="56" height="56" rx="16" fill="url(#accent)"/>
+        <text x="46" y="72" class="label">OR</text>
+        <rect x="30" y="108" width="176" height="26" rx="13" fill="#0D141E" stroke="#2A425B"/>
+      </g>
+      <text x="254" y="138" class="nameSmall">OpenRig</text>
+      <text x="254" y="170" class="desc">cara de equipamento, menos software genérico</text>
+    </g>
+
+    <g transform="translate(0 340)">
+      <rect width="460" height="290" rx="28" fill="url(#bgCard)" stroke="#243347"/>
+      <text x="30" y="44" class="label">4. Signal path</text>
+      <g transform="translate(44 82)">
+        <path d="M20 44H96L122 72H196L228 44H334" stroke="#40566F" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M20 112H84L114 82H192L230 118H334" stroke="url(#accent)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="114" cy="82" r="18" fill="#0D1520" stroke="#67C7FF" stroke-width="4"/>
+        <circle cx="230" cy="118" r="18" fill="#0D1520" stroke="#67C7FF" stroke-width="4"/>
+      </g>
+      <text x="234" y="138" class="nameSmall">OpenRig</text>
+      <text x="234" y="170" class="desc">roteamento e múltiplos nós, mais técnico</text>
+    </g>
+
+    <g transform="translate(510 340)">
+      <rect width="460" height="290" rx="28" fill="url(#bgCard)" stroke="#243347"/>
+      <text x="30" y="44" class="label">5. Knob + notch</text>
+      <g transform="translate(56 72)">
+        <circle cx="104" cy="78" r="62" fill="#162231" stroke="#4FBFFF" stroke-width="6"/>
+        <circle cx="104" cy="78" r="44" fill="#0D141D" stroke="#2B425B" stroke-width="3"/>
+        <path d="M104 22L118 44" stroke="#F5FAFF" stroke-width="8" stroke-linecap="round"/>
+        <path d="M168 30V148H194C226 148 244 132 244 108C244 88 232 75 214 68C230 62 240 48 240 30C240 12 224 0 196 0H168V30Z" fill="#F5FAFF"/>
+      </g>
+      <text x="252" y="138" class="name">OpenRig</text>
+      <text x="252" y="170" class="desc">ícone limpo, premium, muito forte para app icon</text>
+    </g>
+
+    <g transform="translate(1020 340)">
+      <rect width="460" height="290" rx="28" fill="url(#bgCard)" stroke="#243347"/>
+      <text x="30" y="44" class="label">6. Stack de tracks</text>
+      <g transform="translate(44 74)">
+        <rect x="24" y="20" width="172" height="42" rx="18" fill="#0C1621" stroke="#30465F"/>
+        <rect x="44" y="58" width="172" height="42" rx="18" fill="#0F1C29" stroke="#3D5877"/>
+        <rect x="64" y="96" width="172" height="42" rx="18" fill="#132434" stroke="#58BEFF"/>
+        <circle cx="88" cy="117" r="8" fill="#22DA84"/>
+      </g>
+      <text x="252" y="138" class="name">OpenRig</text>
+      <text x="252" y="170" class="desc">reforça tracks paralelas e múltiplos rigs</text>
+    </g>
+
+    <g transform="translate(0 680)">
+      <rect width="460" height="290" rx="28" fill="url(#bgCard)" stroke="#243347"/>
+      <text x="30" y="44" class="label">7. Badge industrial</text>
+      <g transform="translate(46 74)">
+        <path d="M104 10L176 34L196 102L176 170L104 194L32 170L12 102L32 34L104 10Z" fill="#111B27" stroke="url(#warm)" stroke-width="6"/>
+        <text x="72" y="116" class="label" fill="#FFF1E5">OR</text>
+      </g>
+      <text x="236" y="138" class="nameSmall">OpenRig</text>
+      <text x="236" y="170" class="desc">mais “marca de equipamento” do que software</text>
+    </g>
+
+    <g transform="translate(510 680)">
+      <rect width="460" height="290" rx="28" fill="url(#bgCard)" stroke="#243347"/>
+      <text x="30" y="44" class="label">8. Wave + chassis</text>
+      <g transform="translate(40 82)">
+        <rect x="8" y="18" width="216" height="120" rx="26" fill="#101927" stroke="#4EBCFF" stroke-width="4"/>
+        <path d="M36 104C64 104 64 50 92 50C120 50 120 104 148 104C176 104 176 50 204 50" stroke="#F5FAFF" stroke-width="10" stroke-linecap="round"/>
+      </g>
+      <text x="250" y="138" class="nameSmall">OpenRig</text>
+      <text x="250" y="170" class="desc">áudio/processamento sem cair no clichê musical</text>
+    </g>
+
+    <g transform="translate(1020 680)">
+      <rect width="460" height="290" rx="28" fill="url(#bgCard)" stroke="#243347"/>
+      <text x="30" y="44" class="label">9. Split rig</text>
+      <g transform="translate(42 82)">
+        <path d="M24 48H92C118 48 134 72 154 72H196C220 72 236 48 264 48H334" stroke="#53657B" stroke-width="10" stroke-linecap="round"/>
+        <path d="M24 116H92C118 116 134 92 154 92H196C220 92 236 116 264 116H334" stroke="url(#accent)" stroke-width="14" stroke-linecap="round"/>
+        <circle cx="152" cy="82" r="22" fill="#0D1520" stroke="#67C7FF" stroke-width="4"/>
+      </g>
+      <text x="238" y="138" class="nameSmall">OpenRig</text>
+      <text x="238" y="170" class="desc">paralelo, merge e cadeia híbrida de sinal</text>
+    </g>
+
+    <g transform="translate(0 1020)">
+      <rect width="460" height="290" rx="28" fill="url(#bgCard)" stroke="#243347"/>
+      <text x="30" y="44" class="label">10. Tipográfica proprietária</text>
+      <g transform="translate(34 92)">
+        <text x="0" y="76" class="name" style="font-size:64px; letter-spacing:1px;">OpenRig</text>
+        <path d="M21 18H80" stroke="#33C0FF" stroke-width="6" stroke-linecap="round"/>
+        <path d="M286 16L322 16" stroke="#33C0FF" stroke-width="6" stroke-linecap="round"/>
+      </g>
+      <text x="34" y="214" class="desc">o símbolo pode ser o próprio nome, com lettering custom</text>
+    </g>
+  </g>
+</svg>
