@@ -694,7 +694,41 @@ component StageInsertSlot inherits Rectangle {
         border-color: root.active-drop-target ? #a9b2bf : root.empty-slot ? #5a6577 : #7c8798;
         border-radius: 12px;
 
-        Text {
+        if root.active-drop-target : Rectangle {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            background: transparent;
+
+            Text {
+                x: 0px;
+                y: -4px;
+                width: parent.width;
+                height: 12px;
+                text: "^";
+                color: #eef2f8;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                font-size: 12px;
+                font-weight: 800;
+            }
+
+            Text {
+                x: 0px;
+                y: 9px;
+                width: parent.width;
+                height: 12px;
+                text: "v";
+                color: #eef2f8;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                font-size: 12px;
+                font-weight: 800;
+            }
+        }
+
+        if !root.active-drop-target : Text {
             x: 0px;
             y: -1px;
             width: parent.width;
