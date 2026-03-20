@@ -668,6 +668,7 @@ component StageInsertSlot inherits Rectangle {
     in property <bool> empty-slot: false;
     in property <bool> active-drop-target: false;
     in property <bool> move-target: false;
+    in property <bool> suppress-hover-affordance: false;
     callback clicked();
 
     width: 40px;
@@ -679,11 +680,11 @@ component StageInsertSlot inherits Rectangle {
         y: 11px;
         width: parent.width;
         height: 2px;
-        background: root.active-drop-target ? #a9b2bf : hover-area.has-hover ? #8b95a5 : #3b4250;
+        background: root.active-drop-target ? #a9b2bf : hover-area.has-hover && !root.suppress-hover-affordance ? #8b95a5 : #3b4250;
         border-radius: 1px;
     }
 
-    if root.empty-slot || hover-area.has-hover || root.active-drop-target : Rectangle {
+    if root.empty-slot || root.move-target || root.active-drop-target || (hover-area.has-hover && !root.suppress-hover-affordance) : Rectangle {
         x: (parent.width - 24px) / 2;
         y: 0px;
         width: 24px;
@@ -747,6 +748,7 @@ component TrackRow inherits Rectangle {
     in-out property <int> dragging-track-index: -1;
     in-out property <int> dragging-stage-index: -1;
     in-out property <int> drag-hover-before-index: -1;
+    property <bool> suppress-insert-hover: false;
 
     pure function slot-index-for-position(pointer-x: float, pointer-y: float) -> int {
         let row = Math.max(0, Math.min(root.insert-row-count - 1, Math.floor((pointer-y + 26) / 112)));
@@ -823,11 +825,24 @@ component TrackRow inherits Rectangle {
         height: root.insert-row-count * 112px;
         background: transparent;
 
+        TouchArea {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            moved => {
+                if !self.pressed {
+                    root.suppress-insert-hover = false;
+                }
+            }
+        }
+
         StageInsertSlot {
             x: 16px;
             y: 30px;
             empty-slot: root.track.stages.length == 0;
             move-target: root.dragging-track-index == root.track-index && root.dragging-stage-index >= 0;
+            suppress-hover-affordance: root.suppress-insert-hover;
             active-drop-target: root.dragging-track-index == root.track-index && root.dragging-stage-index >= 0 && root.drag-hover-before-index == 0;
             clicked => {
                 if root.dragging-track-index == root.track-index && root.dragging-stage-index >= 0 {
@@ -835,6 +850,7 @@ component TrackRow inherits Rectangle {
                     root.dragging-track-index = -1;
                     root.dragging-stage-index = -1;
                     root.drag-hover-before-index = -1;
+                    root.suppress-insert-hover = true;
                 } else {
                     root.start-stage-insert(root.track-index, 0);
                 }
@@ -878,6 +894,7 @@ component TrackRow inherits Rectangle {
             dragging: root.dragging-track-index == root.track-index && root.dragging-stage-index == stage-index;
             clicked => { root.select-track-stage(root.track-index, stage-index); }
             drag-moved(pointer-x, pointer-y) => {
+                root.suppress-insert-hover = false;
                 root.dragging-track-index = root.track-index;
                 root.dragging-stage-index = stage-index;
                 root.drag-hover-before-index = root.slot-index-for-position(pointer-x, pointer-y);
@@ -893,6 +910,7 @@ component TrackRow inherits Rectangle {
             x: 140px + Math.mod(stage-index, root.stages-per-row) * 124px;
             y: 30px + Math.floor(stage-index / root.stages-per-row) * 112px;
             move-target: root.dragging-track-index == root.track-index && root.dragging-stage-index >= 0;
+            suppress-hover-affordance: root.suppress-insert-hover;
             active-drop-target: root.dragging-track-index == root.track-index && root.dragging-stage-index >= 0 && root.drag-hover-before-index == stage-index + 1;
             clicked => {
                 if root.dragging-track-index == root.track-index && root.dragging-stage-index >= 0 {
@@ -900,6 +918,7 @@ component TrackRow inherits Rectangle {
                     root.dragging-track-index = -1;
                     root.dragging-stage-index = -1;
                     root.drag-hover-before-index = -1;
+                    root.suppress-insert-hover = true;
                 } else {
                     root.start-stage-insert(root.track-index, stage-index + 1);
                 }
