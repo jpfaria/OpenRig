@@ -17,6 +17,15 @@ use native::{
 use stage_core::param::{ModelParameterSchema, ParameterSet};
 use stage_core::{AudioChannelLayout, StageProcessor};
 
+pub fn supported_models() -> &'static [&'static str] {
+    &[
+        bogner_ecstasy::MODEL_ID,
+        native::BLACKFACE_CLEAN_COMBO_ID,
+        native::TWEED_BREAKUP_COMBO_ID,
+        native::CHIME_COMBO_ID,
+    ]
+}
+
 pub fn amp_combo_model_schema(model: &str) -> Result<ModelParameterSchema> {
     if supports_bogner_ecstasy_model(model) {
         Ok(bogner_ecstasy_model_schema())

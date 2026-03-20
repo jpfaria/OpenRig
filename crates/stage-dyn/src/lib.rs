@@ -14,6 +14,14 @@ use gate_basic::{
 use stage_core::param::{ModelParameterSchema, ParameterSet};
 use stage_core::{AudioChannelLayout, StageProcessor};
 
+pub fn compressor_supported_models() -> &'static [&'static str] {
+    &[compressor_studio_clean::MODEL_ID]
+}
+
+pub fn gate_supported_models() -> &'static [&'static str] {
+    &[gate_basic::MODEL_ID]
+}
+
 pub fn compressor_model_schema(model: &str) -> Result<ModelParameterSchema> {
     if supports_compressor_model(model) {
         Ok(compressor_schema())

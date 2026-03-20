@@ -13,10 +13,9 @@ use infra_yaml::{
     YamlProjectRepository,
 };
 use project::block::{
-    schema_for_block_model, AmpComboBlock, AmpHeadBlock, AudioBlock, AudioBlockKind, CabBlock,
-    CompressorBlock, CoreBlock, CoreBlockKind, DelayBlock, DriveBlock, EqBlock, FullRigBlock,
-    GateBlock, NamBlock, ReverbBlock, TremoloBlock, TunerBlock,
+    build_audio_block_kind, schema_for_block_model, AudioBlock, AudioBlockKind,
 };
+use project::catalog::{supported_stage_models, supported_stage_types};
 use project::device::DeviceSettings;
 use project::param::{ParameterDomain, ParameterSet, ParameterUnit};
 use project::project::Project;
@@ -31,10 +30,7 @@ use std::{
     path::{Path, PathBuf},
 };
 use ui_openrig::{AppRuntimeMode, InteractionMode, UiRuntimeContext};
-use ui_state::{
-    stage_drawer_state, stage_family_for_kind, stage_models_for_type, stage_types,
-    track_routing_summary,
-};
+use ui_state::{stage_drawer_state, stage_family_for_kind, track_routing_summary};
 
 mod ui_state;
 
@@ -1801,10 +1797,11 @@ pub fn run_desktop_app(
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let Some(stage_type) = stage_types().get(index as usize).cloned() else {
+            let stage_types = supported_stage_types();
+            let Some(stage_type) = stage_types.get(index as usize) else {
                 return;
             };
-            let models = stage_models_for_type(stage_type.effect_type);
+            let models = supported_stage_models(stage_type.effect_type).unwrap_or_default();
             let Some(model) = models.first() else {
                 return;
             };
@@ -1817,11 +1814,11 @@ pub fn run_desktop_app(
             stage_model_options.set_vec(items);
             stage_parameter_items.set_vec(stage_parameter_items_for_model(
                 stage_type.effect_type,
-                model.model_id,
+                &model.model_id,
                 &ParameterSet::default(),
             ));
             let drawer_state =
-                stage_drawer_state(None, stage_type.effect_type, Some(model.model_id));
+                stage_drawer_state(None, stage_type.effect_type, Some(&model.model_id));
             window.set_stage_drawer_title(drawer_state.title.into());
             window.set_stage_drawer_confirm_label(drawer_state.confirm_label.into());
             window.set_stage_drawer_edit_mode(false);
@@ -1850,14 +1847,14 @@ pub fn run_desktop_app(
             let Some(draft) = draft_borrow.as_mut() else {
                 return;
             };
-            let models = stage_models_for_type(&draft.effect_type);
+            let models = supported_stage_models(&draft.effect_type).unwrap_or_default();
             let Some(model) = models.get(index as usize) else {
                 return;
             };
             draft.model_id = model.model_id.to_string();
             stage_parameter_items.set_vec(stage_parameter_items_for_model(
                 &draft.effect_type,
-                model.model_id,
+                &model.model_id,
                 &ParameterSet::default(),
             ));
             window.set_stage_drawer_selected_model_index(index);
@@ -2835,26 +2832,27 @@ fn replace_project_tracks(model: &Rc<VecModel<ProjectTrackItem>>, project: &Proj
 }
 
 fn stage_type_picker_items() -> Vec<StageTypePickerItem> {
-    stage_types()
+    supported_stage_types()
         .into_iter()
         .map(|item| StageTypePickerItem {
             effect_type: item.effect_type.into(),
-            label: item.label.into(),
-            subtitle: format!("Escolher um {} para a cadeia", item.label).into(),
-            icon_kind: item.icon_kind.into(),
+            label: humanize_effect_type(item.effect_type).into(),
+            subtitle: "".into(),
+            icon_kind: item.effect_type.into(),
         })
         .collect()
 }
 
 fn stage_model_picker_items(effect_type: &str) -> Vec<StageModelPickerItem> {
-    stage_models_for_type(effect_type)
+    supported_stage_models(effect_type)
+        .unwrap_or_default()
         .into_iter()
         .map(|item| StageModelPickerItem {
             effect_type: item.effect_type.into(),
             model_id: item.model_id.into(),
-            label: item.title.into(),
-            subtitle: item.subtitle.into(),
-            icon_kind: item.icon_kind.into(),
+            label: item.display_name.into(),
+            subtitle: "".into(),
+            icon_kind: effect_type.into(),
         })
         .collect()
 }
@@ -2874,7 +2872,7 @@ fn set_selected_stage(window: &AppWindow, selected_stage: Option<&SelectedStage>
 }
 
 fn stage_type_index(effect_type: &str) -> i32 {
-    stage_types()
+    supported_stage_types()
         .iter()
         .position(|item| item.effect_type == effect_type)
         .map(|index| index as i32)
@@ -2882,11 +2880,30 @@ fn stage_type_index(effect_type: &str) -> i32 {
 }
 
 fn stage_model_index(effect_type: &str, model_id: &str) -> i32 {
-    stage_models_for_type(effect_type)
+    supported_stage_models(effect_type)
+        .unwrap_or_default()
         .iter()
         .position(|item| item.model_id == model_id)
         .map(|index| index as i32)
         .unwrap_or(-1)
+}
+
+fn humanize_effect_type(effect_type: &str) -> String {
+    effect_type
+        .split('_')
+        .map(|part| {
+            let mut chars = part.chars();
+            match chars.next() {
+                Some(first) => {
+                    let mut text = first.to_uppercase().collect::<String>();
+                    text.push_str(chars.as_str());
+                    text
+                }
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn unit_label(unit: &ParameterUnit) -> &'static str {
@@ -2902,89 +2919,14 @@ fn unit_label(unit: &ParameterUnit) -> &'static str {
 }
 
 fn block_editor_data(block: &AudioBlock) -> Option<(String, String, ParameterSet, bool)> {
-    match &block.kind {
-        AudioBlockKind::Nam(stage) => Some((
-            "nam".to_string(),
-            stage.model.clone(),
+    block.model_ref().map(|stage| {
+        (
+            stage.effect_type.to_string(),
+            stage.model.to_string(),
             stage.params.clone(),
             block.enabled,
-        )),
-        AudioBlockKind::Core(core) => match &core.kind {
-            CoreBlockKind::AmpHead(stage) => Some((
-                "amp_head".to_string(),
-                stage.model.clone(),
-                stage.params.clone(),
-                block.enabled,
-            )),
-            CoreBlockKind::AmpCombo(stage) => Some((
-                "amp_combo".to_string(),
-                stage.model.clone(),
-                stage.params.clone(),
-                block.enabled,
-            )),
-            CoreBlockKind::Cab(stage) => Some((
-                "cab".to_string(),
-                stage.model.clone(),
-                stage.params.clone(),
-                block.enabled,
-            )),
-            CoreBlockKind::FullRig(stage) => Some((
-                "full_rig".to_string(),
-                stage.model.clone(),
-                stage.params.clone(),
-                block.enabled,
-            )),
-            CoreBlockKind::Drive(stage) => Some((
-                "drive".to_string(),
-                stage.model.clone(),
-                stage.params.clone(),
-                block.enabled,
-            )),
-            CoreBlockKind::Compressor(stage) => Some((
-                "compressor".to_string(),
-                stage.model.clone(),
-                stage.params.clone(),
-                block.enabled,
-            )),
-            CoreBlockKind::Gate(stage) => Some((
-                "gate".to_string(),
-                stage.model.clone(),
-                stage.params.clone(),
-                block.enabled,
-            )),
-            CoreBlockKind::Eq(stage) => Some((
-                "eq".to_string(),
-                stage.model.clone(),
-                stage.params.clone(),
-                block.enabled,
-            )),
-            CoreBlockKind::Tremolo(stage) => Some((
-                "tremolo".to_string(),
-                stage.model.clone(),
-                stage.params.clone(),
-                block.enabled,
-            )),
-            CoreBlockKind::Delay(stage) => Some((
-                "delay".to_string(),
-                stage.model.clone(),
-                stage.params.clone(),
-                block.enabled,
-            )),
-            CoreBlockKind::Reverb(stage) => Some((
-                "reverb".to_string(),
-                stage.model.clone(),
-                stage.params.clone(),
-                block.enabled,
-            )),
-            CoreBlockKind::Tuner(stage) => Some((
-                "tuner".to_string(),
-                stage.model.clone(),
-                stage.params.clone(),
-                block.enabled,
-            )),
-        },
-        _ => None,
-    }
+        )
+    })
 }
 
 fn stage_parameter_items_for_model(
@@ -2998,7 +2940,7 @@ fn stage_parameter_items_for_model(
     schema
         .parameters
         .iter()
-        .filter(|spec| stage_parameter_visible_in_gui(effect_type, &spec.path))
+        .filter(|spec| spec.path != "enabled")
         .map(|spec| {
             let current = params
                 .get(&spec.path)
@@ -3121,21 +3063,6 @@ fn stage_parameter_items_for_model(
         .collect()
 }
 
-fn stage_parameter_visible_in_gui(effect_type: &str, path: &str) -> bool {
-    if path == "enabled" {
-        return false;
-    }
-
-    match effect_type {
-        "amp_head" => matches!(path, "volume" | "gain"),
-        "full_rig" => matches!(
-            path,
-            "bright_enabled" | "royer_101_enabled" | "sm57_enabled"
-        ),
-        _ => true,
-    }
-}
-
 fn set_stage_parameter_text(model: &Rc<VecModel<StageParameterItem>>, path: &str, value: &str) {
     for index in 0..model.row_count() {
         if let Some(mut row) = model.row_data(index) {
@@ -3203,7 +3130,8 @@ fn persist_stage_editor_draft(
     let session = session_borrow
         .as_mut()
         .ok_or_else(|| anyhow!("Nenhum projeto carregado."))?;
-    let kind = build_block_kind(&draft.effect_type, &draft.model_id, params)?;
+    let kind = build_audio_block_kind(&draft.effect_type, &draft.model_id, params)
+        .map_err(|error| anyhow!(error))?;
     let track_id = {
         let track = session
             .project
@@ -3370,55 +3298,6 @@ fn stage_parameter_values(
     params
         .normalized_against(&schema)
         .map_err(|error| anyhow!(error))
-}
-
-fn build_block_kind(
-    effect_type: &str,
-    model_id: &str,
-    params: ParameterSet,
-) -> Result<AudioBlockKind> {
-    let model = model_id.to_string();
-    let kind = match effect_type {
-        "amp_head" => AudioBlockKind::Core(CoreBlock {
-            kind: CoreBlockKind::AmpHead(AmpHeadBlock { model, params }),
-        }),
-        "amp_combo" => AudioBlockKind::Core(CoreBlock {
-            kind: CoreBlockKind::AmpCombo(AmpComboBlock { model, params }),
-        }),
-        "cab" => AudioBlockKind::Core(CoreBlock {
-            kind: CoreBlockKind::Cab(CabBlock { model, params }),
-        }),
-        "full_rig" => AudioBlockKind::Core(CoreBlock {
-            kind: CoreBlockKind::FullRig(FullRigBlock { model, params }),
-        }),
-        "drive" => AudioBlockKind::Core(CoreBlock {
-            kind: CoreBlockKind::Drive(DriveBlock { model, params }),
-        }),
-        "compressor" => AudioBlockKind::Core(CoreBlock {
-            kind: CoreBlockKind::Compressor(CompressorBlock { model, params }),
-        }),
-        "gate" => AudioBlockKind::Core(CoreBlock {
-            kind: CoreBlockKind::Gate(GateBlock { model, params }),
-        }),
-        "eq" => AudioBlockKind::Core(CoreBlock {
-            kind: CoreBlockKind::Eq(EqBlock { model, params }),
-        }),
-        "tremolo" => AudioBlockKind::Core(CoreBlock {
-            kind: CoreBlockKind::Tremolo(TremoloBlock { model, params }),
-        }),
-        "delay" => AudioBlockKind::Core(CoreBlock {
-            kind: CoreBlockKind::Delay(DelayBlock { model, params }),
-        }),
-        "reverb" => AudioBlockKind::Core(CoreBlock {
-            kind: CoreBlockKind::Reverb(ReverbBlock { model, params }),
-        }),
-        "tuner" => AudioBlockKind::Core(CoreBlock {
-            kind: CoreBlockKind::Tuner(TunerBlock { model, params }),
-        }),
-        "nam" => AudioBlockKind::Nam(NamBlock { model, params }),
-        other => return Err(anyhow!("tipo de stage '{}' não suportado na GUI", other)),
-    };
-    Ok(kind)
 }
 
 fn build_project_device_rows(
@@ -3622,24 +3501,10 @@ fn track_draft_from_track(index: usize, track: &Track) -> TrackDraft {
 }
 
 fn track_stage_item_from_block(block: &AudioBlock) -> TrackStageItem {
-    let (kind, label) = match &block.kind {
-        AudioBlockKind::Nam(stage) => ("nam".to_string(), stage.model.clone()),
-        AudioBlockKind::Core(core) => match &core.kind {
-            CoreBlockKind::AmpHead(stage) => ("amp_head".to_string(), stage.model.clone()),
-            CoreBlockKind::AmpCombo(stage) => ("amp_combo".to_string(), stage.model.clone()),
-            CoreBlockKind::Cab(stage) => ("cab".to_string(), stage.model.clone()),
-            CoreBlockKind::FullRig(stage) => ("full_rig".to_string(), stage.model.clone()),
-            CoreBlockKind::Drive(stage) => ("drive".to_string(), stage.model.clone()),
-            CoreBlockKind::Compressor(stage) => ("compressor".to_string(), stage.model.clone()),
-            CoreBlockKind::Gate(stage) => ("gate".to_string(), stage.model.clone()),
-            CoreBlockKind::Eq(stage) => ("eq".to_string(), stage.model.clone()),
-            CoreBlockKind::Tremolo(stage) => ("tremolo".to_string(), stage.model.clone()),
-            CoreBlockKind::Delay(stage) => ("delay".to_string(), stage.model.clone()),
-            CoreBlockKind::Reverb(stage) => ("reverb".to_string(), stage.model.clone()),
-            CoreBlockKind::Tuner(stage) => ("tuner".to_string(), stage.model.clone()),
-        },
-        AudioBlockKind::Select(_) => ("core".to_string(), "select".to_string()),
-    };
+    let (kind, label) = block
+        .model_ref()
+        .map(|stage| (stage.effect_type.to_string(), stage.model.to_string()))
+        .unwrap_or_else(|| ("core".to_string(), "select".to_string()));
 
     let family = stage_family_for_kind(&kind).to_string();
 

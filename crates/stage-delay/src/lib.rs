@@ -8,8 +8,8 @@ pub mod slapback;
 pub mod tape_vintage;
 
 use analog_warm::{
-    build_mono_processor as build_analog_warm_processor,
-    model_schema as analog_warm_model_schema, supports_model as supports_analog_warm_model,
+    build_mono_processor as build_analog_warm_processor, model_schema as analog_warm_model_schema,
+    supports_model as supports_analog_warm_model,
 };
 use anyhow::{bail, Result};
 use digital_clean::{
@@ -18,8 +18,7 @@ use digital_clean::{
 };
 use modulated_delay::{
     build_mono_processor as build_modulated_delay_processor,
-    model_schema as modulated_delay_model_schema,
-    supports_model as supports_modulated_delay_model,
+    model_schema as modulated_delay_model_schema, supports_model as supports_modulated_delay_model,
 };
 use reverse::{
     build_mono_processor as build_reverse_processor, model_schema as reverse_model_schema,
@@ -71,6 +70,17 @@ impl NamedModel for DelayModel {
     }
 }
 
+pub fn supported_models() -> &'static [&'static str] {
+    &[
+        digital_clean::MODEL_ID,
+        analog_warm::MODEL_ID,
+        tape_vintage::MODEL_ID,
+        reverse::MODEL_ID,
+        slapback::MODEL_ID,
+        modulated_delay::MODEL_ID,
+    ]
+}
+
 pub fn delay_model_schema(model: &str) -> Result<ModelParameterSchema> {
     if supports_digital_clean_model(model) {
         Ok(digital_clean_model_schema())
@@ -104,17 +114,23 @@ pub fn build_delay_processor_for_layout(
     layout: AudioChannelLayout,
 ) -> Result<StageProcessor> {
     if supports_digital_clean_model(model) {
-        build_dual_mono_delay_processor(layout, || build_digital_clean_processor(params, sample_rate))
+        build_dual_mono_delay_processor(layout, || {
+            build_digital_clean_processor(params, sample_rate)
+        })
     } else if supports_analog_warm_model(model) {
         build_dual_mono_delay_processor(layout, || build_analog_warm_processor(params, sample_rate))
     } else if supports_tape_vintage_model(model) {
-        build_dual_mono_delay_processor(layout, || build_tape_vintage_processor(params, sample_rate))
+        build_dual_mono_delay_processor(layout, || {
+            build_tape_vintage_processor(params, sample_rate)
+        })
     } else if supports_reverse_model(model) {
         build_dual_mono_delay_processor(layout, || build_reverse_processor(params, sample_rate))
     } else if supports_slapback_model(model) {
         build_dual_mono_delay_processor(layout, || build_slapback_processor(params, sample_rate))
     } else if supports_modulated_delay_model(model) {
-        build_dual_mono_delay_processor(layout, || build_modulated_delay_processor(params, sample_rate))
+        build_dual_mono_delay_processor(layout, || {
+            build_modulated_delay_processor(params, sample_rate)
+        })
     } else {
         bail!("unsupported delay model '{}'", model)
     }
@@ -129,9 +145,9 @@ where
 {
     match layout {
         AudioChannelLayout::Mono => Ok(StageProcessor::Mono(builder()?)),
-        AudioChannelLayout::Stereo => {
-            Ok(StageProcessor::Stereo(build_dual_mono_from_builder(builder)?))
-        }
+        AudioChannelLayout::Stereo => Ok(StageProcessor::Stereo(build_dual_mono_from_builder(
+            builder,
+        )?)),
     }
 }
 
@@ -181,6 +197,9 @@ mod tests {
             AudioChannelLayout::Stereo,
         );
 
-        assert!(processor.is_ok(), "digital_clean should accept stereo tracks");
+        assert!(
+            processor.is_ok(),
+            "digital_clean should accept stereo tracks"
+        );
     }
 }

@@ -2,9 +2,13 @@
 pub mod tremolo_sine;
 
 use anyhow::{bail, Result};
-use tremolo_sine::{build_processor, model_schema, supports_model};
 use stage_core::param::{ModelParameterSchema, ParameterSet};
 use stage_core::{AudioChannelLayout, StageProcessor};
+use tremolo_sine::{build_processor, model_schema, supports_model};
+
+pub fn supported_models() -> &'static [&'static str] {
+    &[tremolo_sine::MODEL_ID]
+}
 
 pub fn tremolo_model_schema(model: &str) -> Result<ModelParameterSchema> {
     if supports_model(model) {

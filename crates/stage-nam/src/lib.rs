@@ -5,6 +5,10 @@ use stage_core::{AudioChannelLayout, StageProcessor};
 
 pub use nam::GENERIC_NAM_MODEL_ID;
 
+pub fn supported_models() -> &'static [&'static str] {
+    &[GENERIC_NAM_MODEL_ID]
+}
+
 pub fn supports_model(model: &str) -> bool {
     model == GENERIC_NAM_MODEL_ID
 }

@@ -24,6 +24,10 @@ impl NamedModel for ReverbModel {
     }
 }
 
+pub fn supported_models() -> &'static [&'static str] {
+    &[plate_foundation::MODEL_ID]
+}
+
 pub fn reverb_model_schema(model: &str) -> Result<ModelParameterSchema> {
     if supports_model(model) {
         Ok(model_schema())

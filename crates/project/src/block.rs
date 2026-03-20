@@ -311,6 +311,55 @@ pub fn schema_for_block_model(
     }
 }
 
+pub fn build_audio_block_kind(
+    effect_type: &str,
+    model: &str,
+    params: ParameterSet,
+) -> Result<AudioBlockKind, String> {
+    let model = model.to_string();
+    let kind = match effect_type {
+        "amp_head" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::AmpHead(AmpHeadBlock { model, params }),
+        }),
+        "amp_combo" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::AmpCombo(AmpComboBlock { model, params }),
+        }),
+        "full_rig" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::FullRig(FullRigBlock { model, params }),
+        }),
+        "cab" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::Cab(CabBlock { model, params }),
+        }),
+        "drive" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::Drive(DriveBlock { model, params }),
+        }),
+        "compressor" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::Compressor(CompressorBlock { model, params }),
+        }),
+        "gate" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::Gate(GateBlock { model, params }),
+        }),
+        "eq" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::Eq(EqBlock { model, params }),
+        }),
+        "tremolo" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::Tremolo(TremoloBlock { model, params }),
+        }),
+        "delay" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::Delay(DelayBlock { model, params }),
+        }),
+        "reverb" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::Reverb(ReverbBlock { model, params }),
+        }),
+        "tuner" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::Tuner(TunerBlock { model, params }),
+        }),
+        "nam" => AudioBlockKind::Nam(NamBlock { model, params }),
+        other => return Err(format!("unsupported block type '{}'", other)),
+    };
+    Ok(kind)
+}
+
 fn describe_block_params(
     block_id: &BlockId,
     effect_type: &str,

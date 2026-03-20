@@ -23,6 +23,15 @@ pub enum CabBackendKind {
     Native,
 }
 
+pub fn supported_models() -> &'static [&'static str] {
+    &[
+        marshall_4x12_v30::MODEL_ID,
+        native::BRIT_4X12_CAB_ID,
+        native::AMERICAN_2X12_CAB_ID,
+        native::VINTAGE_1X12_CAB_ID,
+    ]
+}
+
 pub fn cab_backend_kind(model: &str) -> Result<CabBackendKind> {
     if supports_marshall_4x12_v30_model(model) {
         Ok(CabBackendKind::Ir)

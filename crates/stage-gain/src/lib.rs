@@ -5,12 +5,15 @@ use anyhow::{bail, Result};
 use blues_overdrive_bd_2::{
     asset_summary as blues_driver_asset_summary,
     build_processor_for_model as build_blues_driver_processor,
-    model_schema as blues_driver_model_schema,
-    supports_model as supports_blues_driver_model,
+    model_schema as blues_driver_model_schema, supports_model as supports_blues_driver_model,
     validate_params as validate_blues_driver_params,
 };
 use stage_core::param::{ModelParameterSchema, ParameterSet};
 use stage_core::{AudioChannelLayout, StageProcessor};
+
+pub fn supported_models() -> &'static [&'static str] {
+    &[blues_overdrive_bd_2::MODEL_ID]
+}
 
 pub fn drive_model_schema(model: &str) -> Result<ModelParameterSchema> {
     if supports_blues_driver_model(model) {

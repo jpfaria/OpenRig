@@ -2,14 +2,16 @@ pub mod roland_jc_120b_jazz_chorus;
 
 use anyhow::{bail, Result};
 use roland_jc_120b_jazz_chorus::{
-    asset_summary as roland_asset_summary,
-    build_processor_for_model as build_roland_processor,
-    model_schema as roland_model_schema,
-    supports_model as supports_roland_model,
+    asset_summary as roland_asset_summary, build_processor_for_model as build_roland_processor,
+    model_schema as roland_model_schema, supports_model as supports_roland_model,
     validate_params as validate_roland_params,
 };
 use stage_core::param::{ModelParameterSchema, ParameterSet};
 use stage_core::{AudioChannelLayout, StageProcessor};
+
+pub fn supported_models() -> &'static [&'static str] {
+    &[roland_jc_120b_jazz_chorus::MODEL_ID]
+}
 
 pub fn full_rig_model_schema(model: &str) -> Result<ModelParameterSchema> {
     if supports_roland_model(model) {

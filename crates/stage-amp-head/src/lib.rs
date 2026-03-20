@@ -24,6 +24,15 @@ pub enum AmpHeadBackendKind {
     Native,
 }
 
+pub fn supported_models() -> &'static [&'static str] {
+    &[
+        marshall_jcm_800::MODEL_ID,
+        native::BRIT_CRUNCH_HEAD_ID,
+        native::AMERICAN_CLEAN_HEAD_ID,
+        native::MODERN_HIGH_GAIN_HEAD_ID,
+    ]
+}
+
 pub fn amp_head_backend_kind(model: &str) -> Result<AmpHeadBackendKind> {
     if supports_j800_model(model) {
         Ok(AmpHeadBackendKind::Nam)

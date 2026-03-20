@@ -2,9 +2,13 @@
 pub mod eq_three_band_basic;
 
 use anyhow::{bail, Result};
+use eq_three_band_basic::{build_processor, model_schema, supports_model};
 use stage_core::param::{ModelParameterSchema, ParameterSet};
 use stage_core::{AudioChannelLayout, StageProcessor};
-use eq_three_band_basic::{build_processor, model_schema, supports_model};
+
+pub fn supported_models() -> &'static [&'static str] {
+    &[eq_three_band_basic::MODEL_ID]
+}
 
 pub fn eq_model_schema(model: &str) -> Result<ModelParameterSchema> {
     if supports_model(model) {
