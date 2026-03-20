@@ -684,27 +684,51 @@ component StageInsertSlot inherits Rectangle {
         border-radius: 1px;
     }
 
-    if root.empty-slot || root.move-target || root.active-drop-target || (hover-area.has-hover && !root.suppress-hover-affordance) : Rectangle {
+    if root.active-drop-target : Rectangle {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        background: transparent;
+
+        Text {
+            x: 0px;
+            y: -8px;
+            width: parent.width;
+            height: 10px;
+            text: "v";
+            color: #ffffff;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        Text {
+            x: 0px;
+            y: 16px;
+            width: parent.width;
+            height: 10px;
+            text: "^";
+            color: #ffffff;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            font-size: 12px;
+            font-weight: 900;
+        }
+    }
+
+    if !root.move-target && (root.empty-slot || (hover-area.has-hover && !root.suppress-hover-affordance)) : Rectangle {
         x: (parent.width - 24px) / 2;
         y: 0px;
         width: 24px;
         height: 24px;
-        background: root.active-drop-target ? #545d69 : root.move-target ? #3a414c : root.empty-slot ? #20252d : #252a33;
+        background: root.empty-slot ? #20252d : #252a33;
         border-width: 1px;
-        border-color: root.active-drop-target ? #a9b2bf : root.move-target ? #8b95a5 : root.empty-slot ? #5a6577 : #7c8798;
+        border-color: root.empty-slot ? #5a6577 : #7c8798;
         border-radius: 12px;
 
-        if root.move-target : Image {
-            x: 4px;
-            y: 4px;
-            width: 16px;
-            height: 16px;
-            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/arrow-down.svg");
-            image-fit: contain;
-            colorize: root.active-drop-target ? #c5ccd6 : #8b95a5;
-        }
-
-        if !root.move-target : Text {
+        Text {
             x: 0px;
             y: -1px;
             width: parent.width;
