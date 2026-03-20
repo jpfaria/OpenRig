@@ -23,7 +23,6 @@ use project::chain::{Chain, ChainOutputMixdown};
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 use slint::{Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
-use std::collections::HashSet;
 use std::fmt::Display;
 use std::rc::Rc;
 use std::{
@@ -1900,7 +1899,7 @@ pub fn run_desktop_app(
             let Some(draft) = draft_borrow.as_mut() else {
                 return;
             };
-            let models = block_model_picker_items(picker_effect_type(&draft.effect_type));
+            let models = block_model_picker_items(&draft.effect_type);
             let Some(model) = models.get(index as usize) else {
                 return;
             };
