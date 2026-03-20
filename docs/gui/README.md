@@ -20,6 +20,68 @@ Desktop-first redesign approved at the direction level.
 
 Desktop implementation started.
 
+## New approved architecture
+
+The next implementation phase is now approved and should override older assumptions where they conflict.
+
+### Window strategy
+
+- the logo appears only on the launcher
+- outside the launcher, the top bar should contain only actions
+- in desktop mode, the app should feel like a native multi-window desktop tool, not a routed web app
+- in touch mode, the same forms and components should stay inside the main window
+
+### Desktop vs touch behavior
+
+- desktop mode opens independent normal windows for:
+  - project configuration
+  - chain configuration
+  - chain input configuration
+  - chain output configuration
+  - add/edit stage
+- desktop mode allows multiple stage windows open at the same time
+- touch mode keeps these flows inside the main window
+- the implementation must reuse the same form components in both modes and only swap the container strategy
+
+### Chain screen shell
+
+- the project name replaces the old logo position on the chains screen
+- `Nova chain` lives in the top-right corner of the chains panel
+- the launcher keeps the branding; the chains screen does not
+- the app window/icon should use the logomark only
+
+### Chain endpoints
+
+- each chain should show `In` and `Out` as chips at the start and end of the signal line
+- hover on `In` and `Out` must show:
+  - device name
+  - sample rate
+  - buffer size
+  - channels
+- click on `In` opens a dedicated input window
+- click on `Out` opens a dedicated output window
+- input/output changes apply immediately to the runtime
+
+### Chain configuration scope
+
+- the chain configuration window should contain only chain metadata
+- input and output are not edited directly inside the chain config form
+- the chain config form should surface the current input/output summary and open the dedicated input/output windows
+
+### Stage flow
+
+- desktop mode keeps the stage type picker inline inside the chains screen
+- after choosing the type, desktop opens a dedicated stage window
+- each stage can open in its own separate desktop window
+- touch mode keeps the same stage flow inside the main window
+- add and edit should use the same stage form component
+
+### Reuse rule
+
+- no behavior or schema for stage types, models, or parameters may be hardcoded in the GUI
+- if the core adds a new stage type, model, or parameter, the GUI must reflect it automatically
+- visual mapping may still provide presentation metadata, but catalog membership and parameter schema come from the core
+
 ## Scope
 
 - current focus is desktop mode
@@ -219,7 +281,6 @@ These items are not fully locked yet and should be resolved before final impleme
 
 - in the open track view, whether primary editing lives entirely on the pedalboard blocks or uses a pedalboard plus complementary side panel
 - the exact visual treatment for enabled vs bypassed vs selected stages
-- whether stage reordering is drag-and-drop, command-driven, or both in desktop mode
 - whether the block drawer should remain a right-side inspector or evolve into a wider floating editor for more complex block families
 
 ## Working rule for future agents
