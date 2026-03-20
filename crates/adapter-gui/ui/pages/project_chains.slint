@@ -590,6 +590,7 @@ component BlockParameterRow inherits Rectangle {
 
 component ChainActionIcon inherits Rectangle {
     in property <image> icon;
+    in property <string> tooltip;
     callback clicked();
 
     width: 24px;
@@ -613,10 +614,36 @@ component ChainActionIcon inherits Rectangle {
         mouse-cursor: pointer;
         clicked => { root.clicked(); }
     }
+
+    if hover-area.has-hover && root.tooltip != "" : Rectangle {
+        x: -26px;
+        y: parent.height + 8px;
+        width: 76px;
+        height: 24px;
+        background: #11141ad9;
+        border-width: 1px;
+        border-color: #3b4250;
+        border-radius: 4px;
+        z: 50;
+
+        Text {
+            x: 6px;
+            y: 0px;
+            width: parent.width - 12px;
+            height: parent.height;
+            text: root.tooltip;
+            color: #eef2f8;
+            font-size: 10px;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
 }
 
 component ChainPowerToggle inherits Rectangle {
     in property <bool> enabled: false;
+    in property <string> tooltip;
     callback clicked();
 
     width: 28px;
@@ -651,12 +678,38 @@ component ChainPowerToggle inherits Rectangle {
         mouse-cursor: pointer;
         clicked => { root.clicked(); }
     }
+
+    if hover-area.has-hover && root.tooltip != "" : Rectangle {
+        x: -24px;
+        y: parent.height + 8px;
+        width: 76px;
+        height: 24px;
+        background: #11141ad9;
+        border-width: 1px;
+        border-color: #3b4250;
+        border-radius: 4px;
+        z: 50;
+
+        Text {
+            x: 6px;
+            y: 0px;
+            width: parent.width - 12px;
+            height: parent.height;
+            text: root.tooltip;
+            color: #eef2f8;
+            font-size: 10px;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
 }
 
 component HeaderIconAction inherits Rectangle {
     in property <image> icon;
     in property <bool> active: false;
     in property <color> tint: root.active ? #188cff : #eef2f8;
+    in property <string> tooltip;
     callback clicked();
 
     width: 24px;
@@ -689,6 +742,31 @@ component HeaderIconAction inherits Rectangle {
         height: parent.height;
         mouse-cursor: pointer;
         clicked => { root.clicked(); }
+    }
+
+    if action-area.has-hover && root.tooltip != "" : Rectangle {
+        x: -30px;
+        y: parent.height + 8px;
+        width: 84px;
+        height: 24px;
+        background: #11141ad9;
+        border-width: 1px;
+        border-color: #3b4250;
+        border-radius: 4px;
+        z: 50;
+
+        Text {
+            x: 6px;
+            y: 0px;
+            width: parent.width - 12px;
+            height: parent.height;
+            text: root.tooltip;
+            color: #eef2f8;
+            font-size: 10px;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
     }
 }
 
@@ -939,6 +1017,7 @@ component ChainRow inherits Rectangle {
             x: parent.width - 156px;
             y: 14px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
+            tooltip: "Configurar";
             clicked => { root.configure-chain(root.chain-index); }
         }
 
@@ -946,6 +1025,7 @@ component ChainRow inherits Rectangle {
             x: parent.width - 116px;
             y: 14px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/open-file.svg");
+            tooltip: "Abrir preset";
             clicked => { root.configure-chain-preset(root.chain-index); }
         }
 
@@ -953,6 +1033,7 @@ component ChainRow inherits Rectangle {
             x: parent.width - 76px;
             y: 14px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/save.svg");
+            tooltip: "Salvar preset";
             clicked => { root.save-chain-preset(root.chain-index); }
         }
 
@@ -960,6 +1041,7 @@ component ChainRow inherits Rectangle {
             x: parent.width - 36px;
             y: 14px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/trash.svg");
+            tooltip: "Excluir";
             clicked => { root.remove-chain(root.chain-index); }
         }
     }
@@ -1206,6 +1288,7 @@ export component ProjectChainsPage inherits Rectangle {
             x: parent.width - 160px;
             y: 14px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/arrow-left.svg");
+            tooltip: "Voltar";
             clicked => { root.back-to-launcher(); }
         }
 
@@ -1213,6 +1296,7 @@ export component ProjectChainsPage inherits Rectangle {
             x: parent.width - 120px;
             y: 14px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
+            tooltip: "Projeto";
             clicked => { root.configure-project(); }
         }
 
@@ -1221,6 +1305,7 @@ export component ProjectChainsPage inherits Rectangle {
             y: 14px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/save.svg");
             tint: root.project-dirty ? #f3c64f : #eef2f8;
+            tooltip: "Salvar";
             clicked => { root.save-project(); }
         }
 
@@ -1229,6 +1314,7 @@ export component ProjectChainsPage inherits Rectangle {
             y: 14px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/stop.svg");
             active: true;
+            tooltip: "Parar";
             clicked => { root.stop-project(); }
         }
 
@@ -1237,6 +1323,7 @@ export component ProjectChainsPage inherits Rectangle {
             y: 14px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/play.svg");
             active: true;
+            tooltip: "Iniciar";
             clicked => { root.start-project(); }
         }
     }
@@ -1386,6 +1473,7 @@ export component ProjectChainsPage inherits Rectangle {
                 x: parent.width - 40px;
                 y: 20px;
                 icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/close.svg");
+                tooltip: "Fechar";
                 clicked => { root.close-block-drawer(); }
             }
 
@@ -1452,6 +1540,7 @@ export component ProjectChainsPage inherits Rectangle {
                 x: 20px;
                 y: parent.height - 48px;
                 enabled: root.block-drawer-enabled;
+                tooltip: root.block-drawer-enabled ? "Desativar" : "Ativar";
                 clicked => { root.toggle-block-drawer-enabled(); }
             }
 
@@ -1459,6 +1548,7 @@ export component ProjectChainsPage inherits Rectangle {
                 x: 60px;
                 y: parent.height - 46px;
                 icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/trash.svg");
+                tooltip: "Excluir";
                 clicked => { root.delete-block-drawer(); }
             }
 

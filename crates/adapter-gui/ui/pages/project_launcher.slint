@@ -33,6 +33,7 @@ component LauncherButton inherits Rectangle {
 
 component IconLauncherButton inherits Rectangle {
     in property <image> icon;
+    in property <string> tooltip;
     callback clicked();
 
     width: 40px;
@@ -51,8 +52,33 @@ component IconLauncherButton inherits Rectangle {
         image-fit: contain;
     }
 
-    TouchArea {
+    hover-area := TouchArea {
         clicked => { root.clicked(); }
+    }
+
+    if hover-area.has-hover && root.tooltip != "" : Rectangle {
+        x: -18px;
+        y: parent.height + 8px;
+        width: 76px;
+        height: 24px;
+        background: #11141ad9;
+        border-width: 1px;
+        border-color: #3b4250;
+        border-radius: 4px;
+        z: 50;
+
+        Text {
+            x: 6px;
+            y: 0px;
+            width: parent.width - 12px;
+            height: parent.height;
+            text: root.tooltip;
+            color: #eef2f8;
+            font-size: 10px;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
     }
 }
 
@@ -252,6 +278,7 @@ export component ProjectLauncherPage inherits Rectangle {
             x: parent.width - 212px;
             y: 6px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/open-file.svg");
+            tooltip: "Abrir projeto";
             clicked => { root.open-project-file(); }
         }
 
