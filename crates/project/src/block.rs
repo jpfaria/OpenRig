@@ -190,7 +190,11 @@ impl CoreBlock {
 
     fn audio_descriptors(&self, block_id: &BlockId) -> Result<Vec<BlockAudioDescriptor>, String> {
         let stage = self.kind.model_ref();
-        Ok(vec![describe_block_audio(block_id, stage.effect_type, stage.model)?])
+        Ok(vec![describe_block_audio(
+            block_id,
+            stage.effect_type,
+            stage.model,
+        )?])
     }
 }
 
@@ -269,9 +273,15 @@ pub fn normalize_block_params(
     let schema = schema_for_block_model(effect_type, model)?;
     let normalized = params.normalized_against(&schema)?;
     match effect_type {
-        "amp_head" => validate_amp_head_params(model, &normalized).map_err(|error| error.to_string())?,
-        "amp_combo" => validate_amp_combo_params(model, &normalized).map_err(|error| error.to_string())?,
-        "full_rig" => validate_full_rig_params(model, &normalized).map_err(|error| error.to_string())?,
+        "amp_head" => {
+            validate_amp_head_params(model, &normalized).map_err(|error| error.to_string())?
+        }
+        "amp_combo" => {
+            validate_amp_combo_params(model, &normalized).map_err(|error| error.to_string())?
+        }
+        "full_rig" => {
+            validate_full_rig_params(model, &normalized).map_err(|error| error.to_string())?
+        }
         "cab" => validate_cab_params(model, &normalized).map_err(|error| error.to_string())?,
         "drive" => validate_drive_params(model, &normalized).map_err(|error| error.to_string())?,
         _ => {}
@@ -369,5 +379,34 @@ mod tests {
         .expect("cab params should normalize");
 
         assert_eq!(normalized.get_string("capture"), Some("ev_mix_b"));
+    }
+
+    #[test]
+    fn native_amp_head_schema_is_available_through_project_contract() {
+        let schema =
+            schema_for_block_model("amp_head", "brit_crunch_head").expect("schema should exist");
+
+        assert_eq!(schema.effect_type, "amp");
+        assert_eq!(schema.model, "brit_crunch_head");
+        assert_eq!(schema.parameters.len(), 11);
+    }
+
+    #[test]
+    fn native_cab_schema_is_available_through_project_contract() {
+        let schema = schema_for_block_model("cab", "brit_4x12_cab").expect("schema should exist");
+
+        assert_eq!(schema.effect_type, "cab");
+        assert_eq!(schema.model, "brit_4x12_cab");
+        assert_eq!(schema.parameters.len(), 8);
+    }
+
+    #[test]
+    fn native_amp_combo_schema_is_available_through_project_contract() {
+        let schema = schema_for_block_model("amp_combo", "blackface_clean_combo")
+            .expect("schema should exist");
+
+        assert_eq!(schema.effect_type, "amp_combo");
+        assert_eq!(schema.model, "blackface_clean_combo");
+        assert_eq!(schema.parameters.len(), 10);
     }
 }
