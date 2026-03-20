@@ -10,7 +10,7 @@ use project::device::DeviceSettings;
 use project::project::Project;
 use project::chain::Chain;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AudioDeviceDescriptor {
@@ -510,7 +510,7 @@ fn find_output_device_by_id(host: &cpal::Host, device_id: &str) -> Result<Option
 fn build_input_stream_for_chain(
     chain_id: &ChainId,
     resolved_input_device: ResolvedInputDevice,
-    runtime: Arc<Mutex<ChainRuntimeState>>,
+    runtime: Arc<ChainRuntimeState>,
 ) -> Result<Stream> {
     let sample_format = resolved_input_device.supported.sample_format();
     let sample_rate = resolved_input_sample_rate(&resolved_input_device);
@@ -539,13 +539,14 @@ fn build_input_stream_for_chain(
             let runtime_for_data = runtime.clone();
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
+            let mut converted = Vec::new();
             device.build_input_stream(
                 &stream_config,
                 move |data: &[i16], _| {
-                    let converted: Vec<f32> = data
-                        .iter()
-                        .map(|sample| *sample as f32 / i16::MAX as f32)
-                        .collect();
+                    converted.resize(data.len(), 0.0);
+                    for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
+                        *dst = src as f32 / i16::MAX as f32;
+                    }
                     process_input_f32(&runtime_for_data, &converted, channels);
                 },
                 move |err| eprintln!("[{}] input error: {}", error_chain_id, err),
@@ -556,13 +557,14 @@ fn build_input_stream_for_chain(
             let runtime_for_data = runtime.clone();
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
+            let mut converted = Vec::new();
             device.build_input_stream(
                 &stream_config,
                 move |data: &[u16], _| {
-                    let converted: Vec<f32> = data
-                        .iter()
-                        .map(|sample| (*sample as f32 / u16::MAX as f32) * 2.0 - 1.0)
-                        .collect();
+                    converted.resize(data.len(), 0.0);
+                    for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
+                        *dst = (src as f32 / u16::MAX as f32) * 2.0 - 1.0;
+                    }
                     process_input_f32(&runtime_for_data, &converted, channels);
                 },
                 move |err| eprintln!("[{}] input error: {}", error_chain_id, err),
@@ -582,7 +584,7 @@ fn build_input_stream_for_chain(
 fn build_output_stream_for_chain(
     chain_id: &ChainId,
     resolved_output_device: ResolvedOutputDevice,
-    runtime: Arc<Mutex<ChainRuntimeState>>,
+    runtime: Arc<ChainRuntimeState>,
 ) -> Result<Stream> {
     let sample_format = resolved_output_device.supported.sample_format();
     let sample_rate = resolved_output_sample_rate(&resolved_output_device);
@@ -611,10 +613,11 @@ fn build_output_stream_for_chain(
             let runtime_for_data = runtime.clone();
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
+            let mut temp = Vec::new();
             device.build_output_stream(
                 &stream_config,
                 move |out: &mut [i16], _| {
-                    let mut temp = vec![0.0f32; out.len()];
+                    temp.resize(out.len(), 0.0);
                     process_output_f32(&runtime_for_data, &mut temp, channels);
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         *dst =
@@ -629,10 +632,11 @@ fn build_output_stream_for_chain(
             let runtime_for_data = runtime.clone();
             let channels = stream_config.channels as usize;
             let error_chain_id = chain_id.0.clone();
+            let mut temp = Vec::new();
             device.build_output_stream(
                 &stream_config,
                 move |out: &mut [u16], _| {
-                    let mut temp = vec![0.0f32; out.len()];
+                    temp.resize(out.len(), 0.0);
                     process_output_f32(&runtime_for_data, &mut temp, channels);
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         let normalized =
@@ -665,7 +669,7 @@ fn build_stream_config(channels: u16, sample_rate: u32, buffer_size_frames: u32)
 fn build_chain_streams(
     chain_id: &ChainId,
     resolved: ResolvedChainAudioConfig,
-    runtime: Arc<Mutex<ChainRuntimeState>>,
+    runtime: Arc<ChainRuntimeState>,
 ) -> Result<(Stream, Stream)> {
     let input_stream = build_input_stream_for_chain(chain_id, resolved.input, runtime.clone())?;
     let output_stream = build_output_stream_for_chain(chain_id, resolved.output, runtime)?;
@@ -675,7 +679,7 @@ fn build_chain_streams(
 fn build_active_chain_runtime(
     chain_id: &ChainId,
     resolved: ResolvedChainAudioConfig,
-    runtime: Arc<Mutex<ChainRuntimeState>>,
+    runtime: Arc<ChainRuntimeState>,
 ) -> Result<ActiveChainRuntime> {
     let stream_signature = resolved.stream_signature.clone();
     let (input_stream, output_stream) = build_chain_streams(chain_id, resolved, runtime)?;

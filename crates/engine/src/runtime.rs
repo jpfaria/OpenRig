@@ -6,9 +6,9 @@ use project::block::{
 use project::param::ParameterSet;
 use project::project::Project;
 use project::chain::{Chain, ChainOutputMixdown};
-use block_amp_combo::{amp_combo_asset_summary, build_amp_combo_processor_for_layout};
-use block_amp_head::{amp_head_asset_summary, build_amp_head_processor_for_layout};
-use block_cab::{build_cab_processor_for_layout, cab_asset_summary};
+use block_amp_combo::build_amp_combo_processor_for_layout;
+use block_amp_head::build_amp_head_processor_for_layout;
+use block_cab::build_cab_processor_for_layout;
 use block_core::{
     AudioChannelLayout, ModelAudioMode, MonoProcessor, BlockProcessor, StereoProcessor,
 };
@@ -16,8 +16,8 @@ use block_delay::build_delay_processor_for_layout;
 use block_dyn::build_compressor_processor_for_layout;
 use block_dyn::build_gate_processor_for_layout;
 use block_filter::build_eq_processor_for_layout;
-use block_full_rig::{build_full_rig_processor_for_layout, full_rig_asset_summary};
-use block_gain::{build_drive_processor_for_layout, drive_asset_summary};
+use block_full_rig::build_full_rig_processor_for_layout;
+use block_gain::build_drive_processor_for_layout;
 use block_mod::build_tremolo_processor_for_layout;
 use block_nam::build_nam_processor_for_layout;
 use block_reverb::build_reverb_processor_for_layout;
@@ -25,19 +25,9 @@ use block_util::{build_tuner_processor, TunerProcessor};
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
 
-const DEBUG_MIN_PEAK_TO_LOG: f32 = 0.01;
-const DEBUG_LOG_INTERVAL_MS: u64 = 300;
-const DEFAULT_QUEUE_CAPACITY_FRAMES: usize = 48_000;
-const MAX_OUTPUT_QUEUE_LATENCY_FRAMES: u64 = 1_024;
+const MAX_BUFFERED_OUTPUT_FRAMES: usize = 1_024;
 static NEXT_BLOCK_INSTANCE_SERIAL: AtomicU64 = AtomicU64::new(1);
-
-#[derive(Debug, Clone, Copy)]
-struct QueuedFrame {
-    sequence: u64,
-    frame: AudioFrame,
-}
 
 #[derive(Debug, Clone, Copy)]
 enum AudioFrame {
@@ -52,13 +42,6 @@ impl AudioFrame {
             AudioFrame::Stereo([left, right]) => (left + right) * 0.5,
         }
     }
-
-    fn peak(self) -> f32 {
-        match self {
-            AudioFrame::Mono(sample) => sample.abs(),
-            AudioFrame::Stereo([left, right]) => left.abs().max(right.abs()),
-        }
-    }
 }
 
 enum AudioProcessor {
@@ -71,12 +54,19 @@ enum AudioProcessor {
     StereoFromMono(Box<dyn StereoProcessor>),
 }
 
+enum ProcessorScratch {
+    Mono(Vec<f32>),
+    DualMono { left: Vec<f32>, right: Vec<f32> },
+    Stereo(Vec<[f32; 2]>),
+}
+
 impl AudioProcessor {
-    fn process_buffer(&mut self, frames: &mut [AudioFrame]) {
-        match self {
-            AudioProcessor::Mono(processor) => {
-                let mut mono = Vec::with_capacity(frames.len());
-                for frame in &*frames {
+    fn process_buffer(&mut self, frames: &mut [AudioFrame], scratch: &mut ProcessorScratch) {
+        match (self, scratch) {
+            (AudioProcessor::Mono(processor), ProcessorScratch::Mono(mono)) => {
+                mono.clear();
+                mono.reserve(frames.len().saturating_sub(mono.capacity()));
+                for frame in frames.iter() {
                     match frame {
                         AudioFrame::Mono(sample) => mono.push(*sample),
                         AudioFrame::Stereo(_) => {
@@ -85,15 +75,23 @@ impl AudioProcessor {
                         }
                     }
                 }
-                processor.process_block(&mut mono);
-                for (frame, sample) in frames.iter_mut().zip(mono.into_iter()) {
+                processor.process_block(mono);
+                for (frame, sample) in frames.iter_mut().zip(mono.iter().copied()) {
                     *frame = AudioFrame::Mono(sample);
                 }
             }
-            AudioProcessor::DualMono { left, right } => {
-                let mut left_buffer = Vec::with_capacity(frames.len());
-                let mut right_buffer = Vec::with_capacity(frames.len());
-                for frame in &*frames {
+            (
+                AudioProcessor::DualMono { left, right },
+                ProcessorScratch::DualMono {
+                    left: left_buffer,
+                    right: right_buffer,
+                },
+            ) => {
+                left_buffer.clear();
+                right_buffer.clear();
+                left_buffer.reserve(frames.len().saturating_sub(left_buffer.capacity()));
+                right_buffer.reserve(frames.len().saturating_sub(right_buffer.capacity()));
+                for frame in frames.iter() {
                     match frame {
                         AudioFrame::Stereo([left_sample, right_sample]) => {
                             left_buffer.push(*left_sample);
@@ -105,19 +103,20 @@ impl AudioProcessor {
                         }
                     }
                 }
-                left.process_block(&mut left_buffer);
-                right.process_block(&mut right_buffer);
+                left.process_block(left_buffer);
+                right.process_block(right_buffer);
                 for ((frame, left_sample), right_sample) in frames
                     .iter_mut()
-                    .zip(left_buffer.into_iter())
-                    .zip(right_buffer.into_iter())
+                    .zip(left_buffer.iter().copied())
+                    .zip(right_buffer.iter().copied())
                 {
                     *frame = AudioFrame::Stereo([left_sample, right_sample]);
                 }
             }
-            AudioProcessor::Stereo(processor) => {
-                let mut stereo = Vec::with_capacity(frames.len());
-                for frame in &*frames {
+            (AudioProcessor::Stereo(processor), ProcessorScratch::Stereo(stereo)) => {
+                stereo.clear();
+                stereo.reserve(frames.len().saturating_sub(stereo.capacity()));
+                for frame in frames.iter() {
                     match frame {
                         AudioFrame::Stereo(stereo_frame) => stereo.push(*stereo_frame),
                         AudioFrame::Mono(_) => {
@@ -126,14 +125,15 @@ impl AudioProcessor {
                         }
                     }
                 }
-                processor.process_block(&mut stereo);
-                for (frame, stereo_frame) in frames.iter_mut().zip(stereo.into_iter()) {
+                processor.process_block(stereo);
+                for (frame, stereo_frame) in frames.iter_mut().zip(stereo.iter().copied()) {
                     *frame = AudioFrame::Stereo(stereo_frame);
                 }
             }
-            AudioProcessor::StereoFromMono(processor) => {
-                let mut stereo = Vec::with_capacity(frames.len());
-                for frame in &*frames {
+            (AudioProcessor::StereoFromMono(processor), ProcessorScratch::Stereo(stereo)) => {
+                stereo.clear();
+                stereo.reserve(frames.len().saturating_sub(stereo.capacity()));
+                for frame in frames.iter() {
                     match frame {
                         AudioFrame::Mono(sample) => stereo.push([*sample, *sample]),
                         AudioFrame::Stereo(_) => {
@@ -142,27 +142,36 @@ impl AudioProcessor {
                         }
                     }
                 }
-                processor.process_block(&mut stereo);
-                for (frame, stereo_frame) in frames.iter_mut().zip(stereo.into_iter()) {
+                processor.process_block(stereo);
+                for (frame, stereo_frame) in frames.iter_mut().zip(stereo.iter().copied()) {
                     *frame = AudioFrame::Stereo(stereo_frame);
                 }
+            }
+            _ => {
+                debug_assert!(false, "processor scratch layout mismatch");
             }
         }
     }
 }
 
 pub struct ChainRuntimeState {
-    chain_id: ChainId,
+    processing: Mutex<ChainProcessingState>,
+    output: Mutex<ChainOutputState>,
+}
+
+struct ChainProcessingState {
     input_layout: AudioChannelLayout,
-    output_layout: AudioChannelLayout,
     input_channels: Vec<usize>,
+    blocks: Vec<BlockRuntimeNode>,
+    frame_buffer: Vec<AudioFrame>,
+    tuner_samples: Vec<f32>,
+}
+
+struct ChainOutputState {
+    output_layout: AudioChannelLayout,
     output_channels: Vec<usize>,
     output_mixdown: ChainOutputMixdown,
-    processed_frames: VecDeque<QueuedFrame>,
-    next_sequence: u64,
-    output_position: u64,
-    last_print: Instant,
-    blocks: Vec<BlockRuntimeNode>,
+    processed_frames: VecDeque<AudioFrame>,
 }
 
 enum RuntimeProcessor {
@@ -177,6 +186,7 @@ struct BlockRuntimeNode {
     block_snapshot: project::block::AudioBlock,
     input_layout: AudioChannelLayout,
     output_layout: AudioChannelLayout,
+    scratch: ProcessorScratch,
     processor: RuntimeProcessor,
 }
 
@@ -186,7 +196,7 @@ struct ProcessorBuildOutcome {
 }
 
 pub struct RuntimeGraph {
-    pub chains: HashMap<ChainId, Arc<Mutex<ChainRuntimeState>>>,
+    pub chains: HashMap<ChainId, Arc<ChainRuntimeState>>,
 }
 
 pub fn build_runtime_graph(
@@ -202,13 +212,7 @@ pub fn build_runtime_graph(
             .get(&chain.id)
             .ok_or_else(|| anyhow!("chain '{}' has no resolved runtime sample rate", chain.id.0))?;
         let state = build_chain_runtime_state(chain, sample_rate)?;
-        println!(
-            "[chain:{}] runtime input_layout={} output_layout={}",
-            chain.id.0,
-            layout_label(state.input_layout),
-            layout_label(state.output_layout)
-        );
-        chains.insert(chain.id.clone(), Arc::new(Mutex::new(state)));
+        chains.insert(chain.id.clone(), Arc::new(state));
     }
     Ok(RuntimeGraph { chains })
 }
@@ -219,43 +223,48 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
         build_runtime_block_nodes(chain, input_layout, sample_rate, None)?;
 
     Ok(ChainRuntimeState {
-        chain_id: chain.id.clone(),
-        input_layout,
-        output_layout,
-        input_channels: chain.input_channels.clone(),
-        output_channels: chain.output_channels.clone(),
-        output_mixdown: chain.output_mixdown,
-        processed_frames: VecDeque::with_capacity(DEFAULT_QUEUE_CAPACITY_FRAMES),
-        next_sequence: 0,
-        output_position: 0,
-        last_print: Instant::now(),
-        blocks,
+        processing: Mutex::new(ChainProcessingState {
+            input_layout,
+            input_channels: chain.input_channels.clone(),
+            blocks,
+            frame_buffer: Vec::new(),
+            tuner_samples: Vec::new(),
+        }),
+        output: Mutex::new(ChainOutputState {
+            output_layout,
+            output_channels: chain.output_channels.clone(),
+            output_mixdown: chain.output_mixdown,
+            processed_frames: VecDeque::with_capacity(MAX_BUFFERED_OUTPUT_FRAMES),
+        }),
     })
 }
 
 pub fn update_chain_runtime_state(
-    runtime: &Arc<Mutex<ChainRuntimeState>>,
+    runtime: &Arc<ChainRuntimeState>,
     chain: &Chain,
     sample_rate: f32,
     reset_output_queue: bool,
 ) -> Result<()> {
     let input_layout = layout_from_channels(chain.input_channels.len())?;
-    let mut locked = runtime.lock().expect("chain runtime poisoned");
-    let existing = std::mem::take(&mut locked.blocks);
+    let mut processing = runtime.processing.lock().expect("chain runtime poisoned");
+    let existing = std::mem::take(&mut processing.blocks);
     let (blocks, output_layout) =
         build_runtime_block_nodes(chain, input_layout, sample_rate, Some(existing))?;
+    processing.input_layout = input_layout;
+    processing.input_channels = chain.input_channels.clone();
+    processing.blocks = blocks;
+    processing.frame_buffer.clear();
+    processing.tuner_samples.clear();
+    drop(processing);
 
-    locked.input_layout = input_layout;
-    locked.output_layout = output_layout;
-    locked.chain_id = chain.id.clone();
-    locked.input_channels = chain.input_channels.clone();
-    locked.output_channels = chain.output_channels.clone();
-    locked.output_mixdown = chain.output_mixdown;
-    locked.blocks = blocks;
-
+    let mut output = runtime.output.lock().expect("chain runtime poisoned");
+    output.output_layout = output_layout;
+    output.output_channels = chain.output_channels.clone();
+    output.output_mixdown = chain.output_mixdown;
     if reset_output_queue {
-        locked.processed_frames.clear();
-        locked.output_position = locked.next_sequence;
+        output.processed_frames.clear();
+    } else {
+        trim_output_queue(&mut output.processed_frames);
     }
 
     Ok(())
@@ -267,14 +276,14 @@ impl RuntimeGraph {
         chain: &Chain,
         sample_rate: f32,
         reset_output_queue: bool,
-    ) -> Result<Arc<Mutex<ChainRuntimeState>>> {
+    ) -> Result<Arc<ChainRuntimeState>> {
         if let Some(runtime) = self.chains.get(&chain.id) {
             update_chain_runtime_state(runtime, chain, sample_rate, reset_output_queue)?;
             return Ok(runtime.clone());
         }
 
         let state = build_chain_runtime_state(chain, sample_rate)?;
-        let runtime = Arc::new(Mutex::new(state));
+        let runtime = Arc::new(state);
         self.chains.insert(chain.id.clone(), runtime.clone());
         Ok(runtime)
     }
@@ -283,7 +292,7 @@ impl RuntimeGraph {
         self.chains.remove(chain_id);
     }
 
-    pub fn runtime_for_chain(&self, chain_id: &ChainId) -> Option<Arc<Mutex<ChainRuntimeState>>> {
+    pub fn runtime_for_chain(&self, chain_id: &ChainId) -> Option<Arc<ChainRuntimeState>> {
         self.chains.get(chain_id).cloned()
     }
 }
@@ -339,398 +348,138 @@ fn build_block_runtime_node(
     input_layout: AudioChannelLayout,
     sample_rate: f32,
 ) -> Result<BlockRuntimeNode> {
-    let processor = match &block.kind {
-        AudioBlockKind::Nam(stage) => {
-            let outcome = build_nam_audio_processor(chain, stage, input_layout, "nam")?;
-            BlockRuntimeNode {
+    Ok(match &block.kind {
+        AudioBlockKind::Nam(stage) => audio_block_runtime_node(
+            block,
+            input_layout,
+            build_nam_audio_processor(chain, stage, input_layout, "nam")?,
+        ),
+        AudioBlockKind::Core(core) => match &core.kind {
+            CoreBlockKind::AmpHead(stage) => audio_block_runtime_node(
+                block,
+                input_layout,
+                build_audio_processor_for_model(chain, "amp_head", &stage.model, input_layout, |layout| {
+                    build_amp_head_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
+                })?,
+            ),
+            CoreBlockKind::AmpCombo(stage) => audio_block_runtime_node(
+                block,
+                input_layout,
+                build_audio_processor_for_model(chain, "amp_combo", &stage.model, input_layout, |layout| {
+                    build_amp_combo_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
+                })?,
+            ),
+            CoreBlockKind::FullRig(stage) => audio_block_runtime_node(
+                block,
+                input_layout,
+                build_audio_processor_for_model(chain, "full_rig", &stage.model, input_layout, |layout| {
+                    build_full_rig_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
+                })?,
+            ),
+            CoreBlockKind::Cab(stage) => audio_block_runtime_node(
+                block,
+                input_layout,
+                build_audio_processor_for_model(chain, "cab", &stage.model, input_layout, |layout| {
+                    build_cab_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
+                })?,
+            ),
+            CoreBlockKind::Drive(stage) => audio_block_runtime_node(
+                block,
+                input_layout,
+                build_audio_processor_for_model(chain, "drive", &stage.model, input_layout, |layout| {
+                    build_drive_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
+                })?,
+            ),
+            CoreBlockKind::Delay(stage) => audio_block_runtime_node(
+                block,
+                input_layout,
+                build_audio_processor_for_model(chain, "delay", &stage.model, input_layout, |layout| {
+                    build_delay_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
+                })?,
+            ),
+            CoreBlockKind::Reverb(stage) => audio_block_runtime_node(
+                block,
+                input_layout,
+                build_audio_processor_for_model(chain, "reverb", &stage.model, input_layout, |layout| {
+                    build_reverb_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
+                })?,
+            ),
+            CoreBlockKind::Tuner(stage) => BlockRuntimeNode {
                 instance_serial: next_block_instance_serial(),
                 block_id: block.id.clone(),
                 block_snapshot: block.clone(),
                 input_layout,
-                output_layout: outcome.output_layout,
-                processor: RuntimeProcessor::Audio(outcome.processor),
-            }
-        }
-        AudioBlockKind::Core(core) => match &core.kind {
-            CoreBlockKind::AmpHead(stage) => {
-                println!(
-                    "[chain:{}] loading amp-head model={} {}",
-                    chain.id.0,
-                    stage.model,
-                    amp_head_asset_summary(&stage.model, &stage.params)?
-                );
-                let outcome = build_audio_processor_for_model(
-                    chain,
-                    "amp_head",
+                output_layout: input_layout,
+                scratch: ProcessorScratch::Mono(Vec::new()),
+                processor: RuntimeProcessor::Tuner(build_tuner_processor(
                     &stage.model,
-                    input_layout,
-                    |layout| {
-                        build_amp_head_processor_for_layout(
-                            &stage.model,
-                            &stage.params,
-                            sample_rate,
-                            layout,
-                        )
-                    },
-                )?;
-                BlockRuntimeNode {
-                    instance_serial: next_block_instance_serial(),
-                    block_id: block.id.clone(),
-                    block_snapshot: block.clone(),
-                    input_layout,
-                    output_layout: outcome.output_layout,
-                    processor: RuntimeProcessor::Audio(outcome.processor),
-                }
-            }
-            CoreBlockKind::AmpCombo(stage) => {
-                println!(
-                    "[chain:{}] loading amp-combo model={} {}",
-                    chain.id.0,
-                    stage.model,
-                    amp_combo_asset_summary(&stage.model, &stage.params)?
-                );
-                let outcome = build_audio_processor_for_model(
-                    chain,
-                    "amp_combo",
-                    &stage.model,
-                    input_layout,
-                    |layout| {
-                        build_amp_combo_processor_for_layout(
-                            &stage.model,
-                            &stage.params,
-                            sample_rate,
-                            layout,
-                        )
-                    },
-                )?;
-                BlockRuntimeNode {
-                    instance_serial: next_block_instance_serial(),
-                    block_id: block.id.clone(),
-                    block_snapshot: block.clone(),
-                    input_layout,
-                    output_layout: outcome.output_layout,
-                    processor: RuntimeProcessor::Audio(outcome.processor),
-                }
-            }
-            CoreBlockKind::FullRig(stage) => {
-                println!(
-                    "[chain:{}] loading full-rig model={} {}",
-                    chain.id.0,
-                    stage.model,
-                    full_rig_asset_summary(&stage.model, &stage.params)?
-                );
-                let outcome = build_audio_processor_for_model(
-                    chain,
-                    "full_rig",
-                    &stage.model,
-                    input_layout,
-                    |layout| {
-                        build_full_rig_processor_for_layout(
-                            &stage.model,
-                            &stage.params,
-                            sample_rate,
-                            layout,
-                        )
-                    },
-                )?;
-                BlockRuntimeNode {
-                    instance_serial: next_block_instance_serial(),
-                    block_id: block.id.clone(),
-                    block_snapshot: block.clone(),
-                    input_layout,
-                    output_layout: outcome.output_layout,
-                    processor: RuntimeProcessor::Audio(outcome.processor),
-                }
-            }
-            CoreBlockKind::Cab(stage) => {
-                println!(
-                    "[chain:{}] loading cab model={} {}",
-                    chain.id.0,
-                    stage.model,
-                    cab_asset_summary(&stage.model, &stage.params)?
-                );
-                let outcome = build_audio_processor_for_model(
-                    chain,
-                    "cab",
-                    &stage.model,
-                    input_layout,
-                    |layout| {
-                        build_cab_processor_for_layout(
-                            &stage.model,
-                            &stage.params,
-                            sample_rate,
-                            layout,
-                        )
-                    },
-                )?;
-                BlockRuntimeNode {
-                    instance_serial: next_block_instance_serial(),
-                    block_id: block.id.clone(),
-                    block_snapshot: block.clone(),
-                    input_layout,
-                    output_layout: outcome.output_layout,
-                    processor: RuntimeProcessor::Audio(outcome.processor),
-                }
-            }
-            CoreBlockKind::Drive(stage) => {
-                println!(
-                    "[chain:{}] loading drive model={} {}",
-                    chain.id.0,
-                    stage.model,
-                    drive_asset_summary(&stage.model, &stage.params)?
-                );
-                let outcome = build_audio_processor_for_model(
-                    chain,
-                    "drive",
-                    &stage.model,
-                    input_layout,
-                    |layout| {
-                        build_drive_processor_for_layout(
-                            &stage.model,
-                            &stage.params,
-                            sample_rate,
-                            layout,
-                        )
-                    },
-                )?;
-                BlockRuntimeNode {
-                    instance_serial: next_block_instance_serial(),
-                    block_id: block.id.clone(),
-                    block_snapshot: block.clone(),
-                    input_layout,
-                    output_layout: outcome.output_layout,
-                    processor: RuntimeProcessor::Audio(outcome.processor),
-                }
-            }
-            CoreBlockKind::Delay(stage) => {
-                let time_ms = required_f32(&stage.params, "time_ms").unwrap_or_default();
-                let feedback = required_f32(&stage.params, "feedback").unwrap_or_default();
-                let mix = required_f32(&stage.params, "mix").unwrap_or_default();
-                println!(
-                    "[chain:{}] loading delay model={} time_ms={} feedback={} mix={}",
-                    chain.id.0, stage.model, time_ms, feedback, mix
-                );
-                let outcome = build_audio_processor_for_model(
-                    chain,
-                    "delay",
-                    &stage.model,
-                    input_layout,
-                    |layout| {
-                        build_delay_processor_for_layout(
-                            &stage.model,
-                            &stage.params,
-                            sample_rate,
-                            layout,
-                        )
-                    },
-                )?;
-                BlockRuntimeNode {
-                    instance_serial: next_block_instance_serial(),
-                    block_id: block.id.clone(),
-                    block_snapshot: block.clone(),
-                    input_layout,
-                    output_layout: outcome.output_layout,
-                    processor: RuntimeProcessor::Audio(outcome.processor),
-                }
-            }
-            CoreBlockKind::Reverb(stage) => {
-                let room_size = required_f32(&stage.params, "room_size").unwrap_or_default();
-                let damping = required_f32(&stage.params, "damping").unwrap_or_default();
-                let mix = required_f32(&stage.params, "mix").unwrap_or_default();
-                println!(
-                    "[chain:{}] loading reverb model={} room_size={} damping={} mix={}",
-                    chain.id.0, stage.model, room_size, damping, mix
-                );
-                let outcome = build_audio_processor_for_model(
-                    chain,
-                    "reverb",
-                    &stage.model,
-                    input_layout,
-                    |layout| {
-                        build_reverb_processor_for_layout(
-                            &stage.model,
-                            &stage.params,
-                            sample_rate,
-                            layout,
-                        )
-                    },
-                )?;
-                BlockRuntimeNode {
-                    instance_serial: next_block_instance_serial(),
-                    block_id: block.id.clone(),
-                    block_snapshot: block.clone(),
-                    input_layout,
-                    output_layout: outcome.output_layout,
-                    processor: RuntimeProcessor::Audio(outcome.processor),
-                }
-            }
-            CoreBlockKind::Tuner(stage) => {
-                let reference_hz = required_f32(&stage.params, "reference_hz")?;
-                println!(
-                    "[chain:{}] loading tuner model={} reference_hz={}",
-                    chain.id.0, stage.model, reference_hz
-                );
-                BlockRuntimeNode {
-                    instance_serial: next_block_instance_serial(),
-                    block_id: block.id.clone(),
-                    block_snapshot: block.clone(),
-                    input_layout,
-                    output_layout: input_layout,
-                    processor: RuntimeProcessor::Tuner(build_tuner_processor(
-                        &stage.model,
-                        &stage.params,
-                        sample_rate.round() as usize,
-                    )?),
-                }
-            }
-            CoreBlockKind::Compressor(stage) => {
-                let threshold = required_f32(&stage.params, "threshold")?;
-                let ratio = required_f32(&stage.params, "ratio")?;
-                let attack_ms = required_f32(&stage.params, "attack_ms")?;
-                let release_ms = required_f32(&stage.params, "release_ms")?;
-                let makeup_gain_db = required_f32(&stage.params, "makeup_gain_db")?;
-                let mix = required_f32(&stage.params, "mix")?;
-                println!(
-                        "[chain:{}] loading compressor model={} threshold={} ratio={} attack_ms={} release_ms={} makeup_gain_db={} mix={}",
-                        chain.id.0,
-                        stage.model,
-                        threshold,
-                        ratio,
-                        attack_ms,
-                        release_ms,
-                        makeup_gain_db,
-                        mix
-                    );
-                let outcome = build_audio_processor_for_model(
-                    chain,
-                    "compressor",
-                    &stage.model,
-                    input_layout,
-                    |layout| {
-                        build_compressor_processor_for_layout(
-                            &stage.model,
-                            &stage.params,
-                            sample_rate,
-                            layout,
-                        )
-                    },
-                )?;
-                BlockRuntimeNode {
-                    instance_serial: next_block_instance_serial(),
-                    block_id: block.id.clone(),
-                    block_snapshot: block.clone(),
-                    input_layout,
-                    output_layout: outcome.output_layout,
-                    processor: RuntimeProcessor::Audio(outcome.processor),
-                }
-            }
-            CoreBlockKind::Gate(stage) => {
-                let threshold = required_f32(&stage.params, "threshold")?;
-                let attack_ms = required_f32(&stage.params, "attack_ms")?;
-                let release_ms = required_f32(&stage.params, "release_ms")?;
-                println!(
-                    "[chain:{}] loading gate model={} threshold={} attack_ms={} release_ms={}",
-                    chain.id.0, stage.model, threshold, attack_ms, release_ms
-                );
-                let outcome = build_audio_processor_for_model(
-                    chain,
-                    "gate",
-                    &stage.model,
-                    input_layout,
-                    |layout| {
-                        build_gate_processor_for_layout(
-                            &stage.model,
-                            &stage.params,
-                            sample_rate,
-                            layout,
-                        )
-                    },
-                )?;
-                BlockRuntimeNode {
-                    instance_serial: next_block_instance_serial(),
-                    block_id: block.id.clone(),
-                    block_snapshot: block.clone(),
-                    input_layout,
-                    output_layout: outcome.output_layout,
-                    processor: RuntimeProcessor::Audio(outcome.processor),
-                }
-            }
-            CoreBlockKind::Eq(stage) => {
-                let low_gain_db = required_f32(&stage.params, "low_gain_db")?;
-                let mid_gain_db = required_f32(&stage.params, "mid_gain_db")?;
-                let high_gain_db = required_f32(&stage.params, "high_gain_db")?;
-                println!(
-                    "[chain:{}] loading eq model={} low_gain_db={} mid_gain_db={} high_gain_db={}",
-                    chain.id.0, stage.model, low_gain_db, mid_gain_db, high_gain_db
-                );
-                let outcome = build_audio_processor_for_model(
-                    chain,
-                    "eq",
-                    &stage.model,
-                    input_layout,
-                    |layout| {
-                        build_eq_processor_for_layout(
-                            &stage.model,
-                            &stage.params,
-                            sample_rate,
-                            layout,
-                        )
-                    },
-                )?;
-                BlockRuntimeNode {
-                    instance_serial: next_block_instance_serial(),
-                    block_id: block.id.clone(),
-                    block_snapshot: block.clone(),
-                    input_layout,
-                    output_layout: outcome.output_layout,
-                    processor: RuntimeProcessor::Audio(outcome.processor),
-                }
-            }
-            CoreBlockKind::Tremolo(stage) => {
-                let rate_hz = required_f32(&stage.params, "rate_hz")?;
-                let depth = required_f32(&stage.params, "depth")?;
-                println!(
-                    "[chain:{}] loading tremolo model={} rate_hz={} depth={}",
-                    chain.id.0, stage.model, rate_hz, depth
-                );
-                let outcome = build_audio_processor_for_model(
-                    chain,
-                    "tremolo",
-                    &stage.model,
-                    input_layout,
-                    |layout| {
-                        build_tremolo_processor_for_layout(
-                            &stage.model,
-                            &stage.params,
-                            sample_rate,
-                            layout,
-                        )
-                    },
-                )?;
-                BlockRuntimeNode {
-                    instance_serial: next_block_instance_serial(),
-                    block_id: block.id.clone(),
-                    block_snapshot: block.clone(),
-                    input_layout,
-                    output_layout: outcome.output_layout,
-                    processor: RuntimeProcessor::Audio(outcome.processor),
-                }
-            }
+                    &stage.params,
+                    sample_rate.round() as usize,
+                )?),
+            },
+            CoreBlockKind::Compressor(stage) => audio_block_runtime_node(
+                block,
+                input_layout,
+                build_audio_processor_for_model(chain, "compressor", &stage.model, input_layout, |layout| {
+                    build_compressor_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
+                })?,
+            ),
+            CoreBlockKind::Gate(stage) => audio_block_runtime_node(
+                block,
+                input_layout,
+                build_audio_processor_for_model(chain, "gate", &stage.model, input_layout, |layout| {
+                    build_gate_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
+                })?,
+            ),
+            CoreBlockKind::Eq(stage) => audio_block_runtime_node(
+                block,
+                input_layout,
+                build_audio_processor_for_model(chain, "eq", &stage.model, input_layout, |layout| {
+                    build_eq_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
+                })?,
+            ),
+            CoreBlockKind::Tremolo(stage) => audio_block_runtime_node(
+                block,
+                input_layout,
+                build_audio_processor_for_model(chain, "tremolo", &stage.model, input_layout, |layout| {
+                    build_tremolo_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
+                })?,
+            ),
         },
         AudioBlockKind::Select(select) => {
-            let outcome = load_selected_nam(chain, select, input_layout)?;
-            BlockRuntimeNode {
-                instance_serial: next_block_instance_serial(),
-                block_id: block.id.clone(),
-                block_snapshot: block.clone(),
-                input_layout,
-                output_layout: outcome.output_layout,
-                processor: RuntimeProcessor::Audio(outcome.processor),
-            }
+            audio_block_runtime_node(block, input_layout, load_selected_nam(chain, select, input_layout)?)
         }
-    };
+    })
+}
 
-    Ok(processor)
+fn audio_block_runtime_node(
+    block: &project::block::AudioBlock,
+    input_layout: AudioChannelLayout,
+    outcome: ProcessorBuildOutcome,
+) -> BlockRuntimeNode {
+    let scratch = processor_scratch(&outcome.processor);
+    BlockRuntimeNode {
+        instance_serial: next_block_instance_serial(),
+        block_id: block.id.clone(),
+        block_snapshot: block.clone(),
+        input_layout,
+        output_layout: outcome.output_layout,
+        scratch,
+        processor: RuntimeProcessor::Audio(outcome.processor),
+    }
+}
+
+fn processor_scratch(processor: &AudioProcessor) -> ProcessorScratch {
+    match processor {
+        AudioProcessor::Mono(_) => ProcessorScratch::Mono(Vec::new()),
+        AudioProcessor::DualMono { .. } => ProcessorScratch::DualMono {
+            left: Vec::new(),
+            right: Vec::new(),
+        },
+        AudioProcessor::Stereo(_) | AudioProcessor::StereoFromMono(_) => {
+            ProcessorScratch::Stereo(Vec::new())
+        }
+    }
 }
 
 fn build_audio_processor_for_model<F>(
@@ -914,12 +663,6 @@ fn audio_processor_runtime_mode(processor: &AudioProcessor) -> &'static str {
     }
 }
 
-fn required_f32(params: &ParameterSet, path: &str) -> Result<f32> {
-    params
-        .get_f32(path)
-        .ok_or_else(|| anyhow!("missing or invalid float parameter '{}'", path))
-}
-
 fn required_string(params: &ParameterSet, path: &str) -> Result<String> {
     params
         .get_string(path)
@@ -962,133 +705,87 @@ fn load_selected_nam(
     }
 }
 
-pub fn process_input_f32(
-    runtime: &Arc<Mutex<ChainRuntimeState>>,
-    data: &[f32],
-    input_total_channels: usize,
-) {
-    let mut peak = 0.0f32;
-    let mut locked = runtime.lock().expect("chain runtime poisoned");
-    let mut chain_frames = Vec::with_capacity(data.len() / input_total_channels);
-    let mut tuner_samples = Vec::new();
-    let tuner_enabled = locked
-        .blocks
+pub fn process_input_f32(runtime: &Arc<ChainRuntimeState>, data: &[f32], input_total_channels: usize) {
+    let num_frames = data.len() / input_total_channels;
+    let mut processing = runtime.processing.lock().expect("chain runtime poisoned");
+    let ChainProcessingState {
+        input_layout,
+        input_channels,
+        blocks,
+        frame_buffer,
+        tuner_samples,
+    } = &mut *processing;
+    let tuner_enabled = blocks
         .iter()
-        .any(|stage| matches!(stage.processor, RuntimeProcessor::Tuner(_)));
+        .any(|block| matches!(block.processor, RuntimeProcessor::Tuner(_)));
 
-    for frame in data.chunks(input_total_channels) {
-        let chain_frame = read_input_frame(locked.input_layout, &locked.input_channels, frame);
-        peak = peak.max(chain_frame.peak());
+    frame_buffer.clear();
+    let frame_buffer_additional = num_frames.saturating_sub(frame_buffer.capacity());
+    if frame_buffer_additional > 0 {
+        frame_buffer.reserve(frame_buffer_additional);
+    }
+
+    tuner_samples.clear();
+    if tuner_enabled {
+        let tuner_samples_additional = num_frames.saturating_sub(tuner_samples.capacity());
+        if tuner_samples_additional > 0 {
+            tuner_samples.reserve(tuner_samples_additional);
+        }
+    }
+
+    for frame in data.chunks(input_total_channels).take(num_frames) {
+        let chain_frame = read_input_frame(*input_layout, input_channels, frame);
         if tuner_enabled {
             tuner_samples.push(chain_frame.mono_mix());
         }
-        chain_frames.push(chain_frame);
+        frame_buffer.push(chain_frame);
     }
 
     if tuner_enabled && !tuner_samples.is_empty() {
-        for stage in &mut locked.blocks {
-            if let RuntimeProcessor::Tuner(tuner) = &mut stage.processor {
-                tuner.process(&tuner_samples);
+        for block in blocks.iter_mut() {
+            if let RuntimeProcessor::Tuner(tuner) = &mut block.processor {
+                tuner.process(tuner_samples);
             }
         }
     }
 
-    for stage in &mut locked.blocks {
-        if let RuntimeProcessor::Audio(processor) = &mut stage.processor {
-            processor.process_buffer(&mut chain_frames);
+    for block in blocks.iter_mut() {
+        if let RuntimeProcessor::Audio(processor) = &mut block.processor {
+            processor.process_buffer(frame_buffer.as_mut_slice(), &mut block.scratch);
         }
     }
 
-    for frame in chain_frames {
-        let sequence = locked.next_sequence;
-        locked.next_sequence += 1;
-        locked
-            .processed_frames
-            .push_back(QueuedFrame { sequence, frame });
-    }
-    trim_processed_frames(&mut locked);
-
-    if peak >= DEBUG_MIN_PEAK_TO_LOG
-        && locked.last_print.elapsed() >= Duration::from_millis(DEBUG_LOG_INTERVAL_MS)
-    {
-        println!(
-            "[chain:{}] audio detected | input_channels={:?} | peak={:.4} | buffered={}",
-            locked.chain_id.0,
-            locked.input_channels,
-            peak,
-            locked.processed_frames.len()
-        );
-        locked.last_print = Instant::now();
-    }
+    let mut output = runtime.output.lock().expect("chain runtime poisoned");
+    output.processed_frames.extend(frame_buffer.drain(..));
+    trim_output_queue(&mut output.processed_frames);
 }
 
 pub fn process_output_f32(
-    runtime: &Arc<Mutex<ChainRuntimeState>>,
+    runtime: &Arc<ChainRuntimeState>,
     out: &mut [f32],
     output_total_channels: usize,
 ) {
-    let mut locked = runtime.lock().expect("chain runtime poisoned");
+    let mut output_state = runtime.output.lock().expect("chain runtime poisoned");
     let num_frames = out.len() / output_total_channels;
-    let mut cursor = locked.output_position;
-
-    if let Some(oldest_sequence) = locked.processed_frames.front().map(|frame| frame.sequence) {
-        if cursor < oldest_sequence {
-            cursor = oldest_sequence;
-        }
-    }
-    if let Some(newest_sequence) = locked.processed_frames.back().map(|frame| frame.sequence) {
-        let min_recent_cursor =
-            newest_sequence.saturating_sub(MAX_OUTPUT_QUEUE_LATENCY_FRAMES.saturating_sub(1));
-        if cursor < min_recent_cursor {
-            cursor = min_recent_cursor;
-        }
-    }
 
     for frame in out.chunks_mut(output_total_channels).take(num_frames) {
         frame.fill(0.0);
-        let processed = queued_frame_at(&locked.processed_frames, cursor)
-            .map(|frame| frame.frame)
-            .unwrap_or_else(|| silent_frame(locked.output_layout));
+        let processed = output_state
+            .processed_frames
+            .pop_front()
+            .unwrap_or_else(|| silent_frame(output_state.output_layout));
         write_output_frame(
             processed,
-            &locked.output_channels,
+            &output_state.output_channels,
             frame,
-            locked.output_mixdown,
+            output_state.output_mixdown,
         );
-        cursor += 1;
     }
-
-    locked.output_position = cursor;
-    trim_processed_frames(&mut locked);
 }
 
-fn queued_frame_at(queue: &VecDeque<QueuedFrame>, sequence: u64) -> Option<QueuedFrame> {
-    let oldest_sequence = queue.front()?.sequence;
-    let index = sequence.checked_sub(oldest_sequence)? as usize;
-    queue.get(index).copied()
-}
-
-fn trim_processed_frames(state: &mut ChainRuntimeState) {
-    let min_cursor = state.output_position;
-
-    while let Some(front) = state.processed_frames.front() {
-        if front.sequence < min_cursor {
-            state.processed_frames.pop_front();
-        } else {
-            break;
-        }
-    }
-
-    while state.processed_frames.len() > DEFAULT_QUEUE_CAPACITY_FRAMES {
-        state.processed_frames.pop_front();
-    }
-
-    if let Some(oldest_sequence) = state.processed_frames.front().map(|frame| frame.sequence) {
-        if state.output_position < oldest_sequence {
-            state.output_position = oldest_sequence;
-        }
-    } else {
-        state.output_position = state.next_sequence;
+fn trim_output_queue(queue: &mut VecDeque<AudioFrame>) {
+    while queue.len() > MAX_BUFFERED_OUTPUT_FRAMES {
+        queue.pop_front();
     }
 }
 
@@ -1183,7 +880,10 @@ fn next_block_instance_serial() -> u64 {
 
 #[cfg(test)]
 mod tests {
-    use super::{build_runtime_graph, build_chain_runtime_state, update_chain_runtime_state};
+    use super::{
+        build_chain_runtime_state, build_runtime_graph, process_input_f32, process_output_f32,
+        update_chain_runtime_state, MAX_BUFFERED_OUTPUT_FRAMES,
+    };
     use block_cab::{cab_backend_kind, supported_models as supported_cab_models, CabBackendKind};
     use block_util::supported_models as supported_tuner_models;
     use domain::ids::{BlockId, DeviceId, ChainId};
@@ -1195,7 +895,7 @@ mod tests {
     use project::project::Project;
     use project::chain::{Chain, ChainOutputMixdown};
     use std::collections::HashMap;
-    use std::sync::{Arc, Mutex};
+    use std::sync::Arc;
 
     #[test]
     fn runtime_graph_builds_for_chain_with_cab_block() {
@@ -1284,15 +984,14 @@ mod tests {
             ],
         );
 
-        let runtime = Arc::new(Mutex::new(
-            build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"),
-        ));
+        let runtime =
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"));
         let original_serials = {
-            let locked = runtime.lock().expect("runtime poisoned");
+            let locked = runtime.processing.lock().expect("runtime poisoned");
             locked
                 .blocks
                 .iter()
-                .map(|stage| stage.instance_serial)
+                .map(|block| block.instance_serial)
                 .collect::<Vec<_>>()
         };
 
@@ -1309,11 +1008,11 @@ mod tests {
             .expect("runtime update should succeed");
 
         let updated_serials = {
-            let locked = runtime.lock().expect("runtime poisoned");
+            let locked = runtime.processing.lock().expect("runtime poisoned");
             locked
                 .blocks
                 .iter()
-                .map(|stage| stage.instance_serial)
+                .map(|block| block.instance_serial)
                 .collect::<Vec<_>>()
         };
 
@@ -1331,15 +1030,14 @@ mod tests {
             ],
         );
 
-        let runtime = Arc::new(Mutex::new(
-            build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"),
-        ));
+        let runtime =
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"));
         let original_by_block_id = {
-            let locked = runtime.lock().expect("runtime poisoned");
+            let locked = runtime.processing.lock().expect("runtime poisoned");
             locked
                 .blocks
                 .iter()
-                .map(|stage| (stage.block_id.clone(), stage.instance_serial))
+                .map(|block| (block.block_id.clone(), block.instance_serial))
                 .collect::<HashMap<_, _>>()
         };
 
@@ -1348,14 +1046,44 @@ mod tests {
         update_chain_runtime_state(&runtime, &chain, 48_000.0, false)
             .expect("runtime update should succeed");
 
-        let reordered = runtime.lock().expect("runtime poisoned");
+        let reordered = runtime.processing.lock().expect("runtime poisoned");
         assert_eq!(reordered.blocks.len(), 2);
-        for stage in &reordered.blocks {
+        for block in &reordered.blocks {
             assert_eq!(
-                Some(&stage.instance_serial),
-                original_by_block_id.get(&stage.block_id)
+                Some(&block.instance_serial),
+                original_by_block_id.get(&block.block_id)
             );
         }
+    }
+
+    #[test]
+    fn process_input_limits_buffered_output_frames() {
+        let chain = tuner_track("chain:0", Vec::new());
+        let runtime =
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"));
+        let total_frames = MAX_BUFFERED_OUTPUT_FRAMES + 64;
+        let input = vec![0.25f32; total_frames];
+
+        process_input_f32(&runtime, &input, 1);
+
+        let output = runtime.output.lock().expect("runtime poisoned");
+        assert_eq!(output.processed_frames.len(), MAX_BUFFERED_OUTPUT_FRAMES);
+    }
+
+    #[test]
+    fn process_output_drains_buffered_frames() {
+        let chain = tuner_track("chain:0", Vec::new());
+        let runtime =
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"));
+
+        process_input_f32(&runtime, &[0.25, 0.5, 0.75, 1.0], 1);
+
+        let mut out = vec![0.0f32; 4];
+        process_output_f32(&runtime, &mut out, 1);
+
+        assert_eq!(out, vec![0.25, 0.5, 0.75, 1.0]);
+        let output = runtime.output.lock().expect("runtime poisoned");
+        assert!(output.processed_frames.is_empty());
     }
 
     fn tuner_track(chain_id: &str, blocks: Vec<AudioBlock>) -> Chain {
