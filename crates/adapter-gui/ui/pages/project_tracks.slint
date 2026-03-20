@@ -734,7 +734,7 @@ component TrackRow inherits Rectangle {
     callback reorder-track-stage(int, int, int);
     property <int> stages-per-row: Math.max(1, Math.floor((root.width - 220px) / 116px));
     property <int> stage-row-count: root.track.stages.length == 0 ? 1 : Math.floor((root.track.stages.length - 1) / root.stages-per-row) + 1;
-    property <int> insert-row-count: Math.floor(root.track.stages.length / root.stages-per-row) + 1;
+    property <int> insert-row-count: root.stage-row-count;
     in-out property <int> dragging-track-index: -1;
     in-out property <int> dragging-stage-index: -1;
     in-out property <int> drag-hover-before-index: -1;
@@ -751,7 +751,7 @@ component TrackRow inherits Rectangle {
     border-width: 1px;
     border-color: #31353d;
     border-radius: 6px;
-    height: 74px + (root.insert-row-count * 92px);
+    height: 74px + (root.stage-row-count * 92px);
 
     Rectangle {
         x: 0px;
@@ -812,7 +812,7 @@ component TrackRow inherits Rectangle {
         x: 18px;
         y: 62px;
         width: parent.width - 36px;
-        height: root.insert-row-count * 92px;
+        height: root.stage-row-count * 92px;
         background: transparent;
 
         TouchArea {
@@ -1148,15 +1148,16 @@ export component ProjectTracksPage inherits Rectangle {
             width: parent.width - 36px;
             height: parent.height - 106px;
             viewport-height: tracks-column.preferred-height;
+            viewport-width: tracks-column.width;
 
             tracks-column := VerticalBox {
                 x: 0px;
                 y: 0px;
-                width: parent.width - 8px;
+                width: parent.width - 18px;
                 spacing: 12px;
 
                 for track[index] in root.project-tracks : TrackRow {
-                    width: parent.width - 8px;
+                    width: parent.width;
                     track: track;
                     track-index: index;
                     selected-stage-track-index: root.selected-track-stage-track-index;
