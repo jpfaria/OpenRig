@@ -19,7 +19,7 @@ tracks:
           gain: 40.0
 
       - type: delay
-        model: digital_ping_pong
+        model: digital_clean
         enabled: true
         params:
           time_ms: 200

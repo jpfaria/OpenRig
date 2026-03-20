@@ -15,7 +15,7 @@ use project::track::{Track, TrackOutputMixdown};
 use stage_amp_head::marshall_jcm_800::MODEL_ID as DEFAULT_AMP_HEAD_MODEL;
 use stage_amp_combo::bogner_ecstasy::MODEL_ID as DEFAULT_AMP_COMBO_MODEL;
 use stage_cab::marshall_4x12_v30::MODEL_ID as DEFAULT_CAB_MODEL;
-use stage_delay::digital_basic::MODEL_ID as DEFAULT_DELAY_MODEL;
+use stage_delay::digital_clean::MODEL_ID as DEFAULT_DELAY_MODEL;
 use stage_dyn::compressor_studio_clean::MODEL_ID as DEFAULT_COMPRESSOR_MODEL;
 use stage_dyn::gate_basic::MODEL_ID as DEFAULT_GATE_MODEL;
 use stage_filter::eq_three_band_basic::MODEL_ID as DEFAULT_EQ_MODEL;
