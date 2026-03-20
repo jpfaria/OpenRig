@@ -8,30 +8,30 @@ use crate::native_core::{
 use crate::registry::AmpHeadModelDefinition;
 use crate::AmpHeadBackendKind;
 
-pub const MODEL_ID: &str = "american_clean_head";
-pub const DISPLAY_NAME: &str = "American Clean Head";
+pub const MODEL_ID: &str = "modern_high_gain";
+pub const DISPLAY_NAME: &str = "Modern High Gain";
 
 const PROFILE: NativeAmpHeadProfile = NativeAmpHeadProfile {
-    input_trim_db: 3.0,
-    drive_scale: 1.75,
-    asymmetry: 0.04,
-    bright_mix: 0.22,
-    low_voice: 1.05,
-    mid_voice: 0.88,
-    high_voice: 1.12,
-    presence_voice: 0.44,
-    depth_voice: 0.33,
-    power_drive: 0.95,
-    low_cut_hz: 36.0,
-    top_end_hz: 10_500.0,
+    input_trim_db: -1.0,
+    drive_scale: 4.1,
+    asymmetry: 0.18,
+    bright_mix: 0.08,
+    low_voice: 0.82,
+    mid_voice: 0.92,
+    high_voice: 1.02,
+    presence_voice: 0.62,
+    depth_voice: 0.58,
+    power_drive: 1.55,
+    low_cut_hz: 72.0,
+    top_end_hz: 7_600.0,
 };
 
 const DEFAULTS: NativeAmpHeadSchemaDefaults = NativeAmpHeadSchemaDefaults {
-    gain: 34.0,
-    presence: 54.0,
-    depth: 42.0,
-    bright: true,
-    sag: 16.0,
+    gain: 72.0,
+    presence: 62.0,
+    depth: 60.0,
+    bright: false,
+    sag: 30.0,
 };
 
 fn schema() -> Result<ModelParameterSchema> {

@@ -6,8 +6,8 @@ use crate::native_core::{self, NativeCabProfile, NativeCabSchemaDefaults};
 use crate::registry::CabModelDefinition;
 use crate::CabBackendKind;
 
-pub const MODEL_ID: &str = "vintage_1x12_cab";
-pub const DISPLAY_NAME: &str = "Vintage 1x12 Cab";
+pub const MODEL_ID: &str = "vintage_1x12";
+pub const DISPLAY_NAME: &str = "Vintage 1x12";
 
 const PROFILE: NativeCabProfile = NativeCabProfile {
     resonance_hz: 92.0,

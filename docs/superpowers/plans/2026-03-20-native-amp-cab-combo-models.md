@@ -21,9 +21,9 @@
 - [ ] **Step 1: Write failing contract tests for the 9 new models**
 
 Cover:
-- amp-head models: `brit_crunch_head`, `american_clean_head`, `modern_high_gain_head`
-- cab models: `brit_4x12_cab`, `american_2x12_cab`, `vintage_1x12_cab`
-- amp-combo models: `blackface_clean_combo`, `tweed_breakup_combo`, `chime_combo`
+- amp-head models: `brit_crunch`, `american_clean`, `modern_high_gain`
+- cab models: `brit_4x12`, `american_2x12`, `vintage_1x12`
+- amp-combo models: `blackface_clean`, `tweed_breakup`, `chime`
 - parameter schema expectations for each family
 - project contract acceptance for at least one model per family
 

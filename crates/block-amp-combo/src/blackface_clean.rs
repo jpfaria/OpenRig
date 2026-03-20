@@ -7,8 +7,8 @@ use block_core::{AudioChannelLayout, BlockProcessor};
 use crate::native_core::{self, NativeAmpComboProfile, NativeAmpComboSchemaDefaults};
 use crate::registry::AmpComboModelDefinition;
 
-pub const MODEL_ID: &str = "blackface_clean_combo";
-pub const DISPLAY_NAME: &str = "Blackface Clean Combo";
+pub const MODEL_ID: &str = "blackface_clean";
+pub const DISPLAY_NAME: &str = "Blackface Clean";
 
 const HEAD_PROFILE: NativeAmpHeadProfile = NativeAmpHeadProfile {
     input_trim_db: 3.0,

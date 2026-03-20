@@ -8,8 +8,8 @@ use crate::native_core::{
 use crate::registry::AmpHeadModelDefinition;
 use crate::AmpHeadBackendKind;
 
-pub const MODEL_ID: &str = "brit_crunch_head";
-pub const DISPLAY_NAME: &str = "Brit Crunch Head";
+pub const MODEL_ID: &str = "brit_crunch";
+pub const DISPLAY_NAME: &str = "Brit Crunch";
 
 const PROFILE: NativeAmpHeadProfile = NativeAmpHeadProfile {
     input_trim_db: 1.5,
