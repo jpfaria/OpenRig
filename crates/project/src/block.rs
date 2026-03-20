@@ -205,149 +205,101 @@ const fn default_enabled() -> bool {
 
 impl CoreBlock {
     fn validate_params(&self) -> Result<(), String> {
-        match &self.kind {
-            CoreBlockKind::AmpHead(stage) => {
-                normalize_block_params("amp_head", &stage.model, stage.params.clone())?;
-                Ok(())
-            }
-            CoreBlockKind::AmpCombo(stage) => {
-                normalize_block_params("amp_combo", &stage.model, stage.params.clone())?;
-                Ok(())
-            }
-            CoreBlockKind::FullRig(stage) => {
-                normalize_block_params("full_rig", &stage.model, stage.params.clone())?;
-                Ok(())
-            }
-            CoreBlockKind::Cab(stage) => {
-                normalize_block_params("cab", &stage.model, stage.params.clone())?;
-                Ok(())
-            }
-            CoreBlockKind::Drive(stage) => {
-                normalize_block_params("drive", &stage.model, stage.params.clone())?;
-                Ok(())
-            }
-            CoreBlockKind::Delay(stage) => {
-                normalize_block_params("delay", &stage.model, stage.params.clone())?;
-                Ok(())
-            }
-            CoreBlockKind::Reverb(stage) => {
-                normalize_block_params("reverb", &stage.model, stage.params.clone())?;
-                Ok(())
-            }
-            CoreBlockKind::Tuner(stage) => {
-                normalize_block_params("tuner", &stage.model, stage.params.clone())?;
-                Ok(())
-            }
-            CoreBlockKind::Compressor(stage) => {
-                normalize_block_params("compressor", &stage.model, stage.params.clone())?;
-                Ok(())
-            }
-            CoreBlockKind::Gate(stage) => {
-                normalize_block_params("gate", &stage.model, stage.params.clone())?;
-                Ok(())
-            }
-            CoreBlockKind::Eq(stage) => {
-                normalize_block_params("eq", &stage.model, stage.params.clone())?;
-                Ok(())
-            }
-            CoreBlockKind::Tremolo(stage) => {
-                normalize_block_params("tremolo", &stage.model, stage.params.clone())?;
-                Ok(())
-            }
-            _ => Ok(()),
-        }
+        let Some(stage) = self.kind.supported_model_stage() else {
+            return Ok(());
+        };
+        normalize_block_params(stage.effect_type, stage.model, stage.params.clone())?;
+        Ok(())
     }
 
     fn parameter_descriptors(
         &self,
         block_id: &BlockId,
     ) -> Result<Vec<BlockParameterDescriptor>, String> {
-        match &self.kind {
-            CoreBlockKind::AmpHead(stage) => {
-                describe_block_params(block_id, "amp_head", &stage.model, &stage.params)
-            }
-            CoreBlockKind::AmpCombo(stage) => {
-                describe_block_params(block_id, "amp_combo", &stage.model, &stage.params)
-            }
-            CoreBlockKind::FullRig(stage) => {
-                describe_block_params(block_id, "full_rig", &stage.model, &stage.params)
-            }
-            CoreBlockKind::Cab(stage) => {
-                describe_block_params(block_id, "cab", &stage.model, &stage.params)
-            }
-            CoreBlockKind::Drive(stage) => {
-                describe_block_params(block_id, "drive", &stage.model, &stage.params)
-            }
-            CoreBlockKind::Delay(stage) => {
-                describe_block_params(block_id, "delay", &stage.model, &stage.params)
-            }
-            CoreBlockKind::Reverb(stage) => {
-                describe_block_params(block_id, "reverb", &stage.model, &stage.params)
-            }
-            CoreBlockKind::Tuner(stage) => {
-                describe_block_params(block_id, "tuner", &stage.model, &stage.params)
-            }
-            CoreBlockKind::Compressor(stage) => {
-                describe_block_params(block_id, "compressor", &stage.model, &stage.params)
-            }
-            CoreBlockKind::Gate(stage) => {
-                describe_block_params(block_id, "gate", &stage.model, &stage.params)
-            }
-            CoreBlockKind::Eq(stage) => {
-                describe_block_params(block_id, "eq", &stage.model, &stage.params)
-            }
-            CoreBlockKind::Tremolo(stage) => {
-                describe_block_params(block_id, "tremolo", &stage.model, &stage.params)
-            }
-            _ => Ok(Vec::new()),
-        }
+        let Some(stage) = self.kind.supported_model_stage() else {
+            return Ok(Vec::new());
+        };
+        describe_block_params(block_id, stage.effect_type, stage.model, stage.params)
     }
 
     fn audio_descriptors(&self, block_id: &BlockId) -> Result<Vec<BlockAudioDescriptor>, String> {
-        match &self.kind {
-            CoreBlockKind::AmpHead(stage) => {
-                Ok(vec![describe_block_audio(block_id, "amp_head", &stage.model)?])
-            }
-            CoreBlockKind::AmpCombo(stage) => {
-                Ok(vec![describe_block_audio(block_id, "amp_combo", &stage.model)?])
-            }
-            CoreBlockKind::FullRig(stage) => {
-                Ok(vec![describe_block_audio(block_id, "full_rig", &stage.model)?])
-            }
-            CoreBlockKind::Cab(stage) => {
-                Ok(vec![describe_block_audio(block_id, "cab", &stage.model)?])
-            }
-            CoreBlockKind::Drive(stage) => {
-                Ok(vec![describe_block_audio(block_id, "drive", &stage.model)?])
-            }
-            CoreBlockKind::Delay(stage) => {
-                Ok(vec![describe_block_audio(block_id, "delay", &stage.model)?])
-            }
-            CoreBlockKind::Reverb(stage) => Ok(vec![describe_block_audio(
-                block_id,
-                "reverb",
-                &stage.model,
-            )?]),
-            CoreBlockKind::Tuner(stage) => {
-                Ok(vec![describe_block_audio(block_id, "tuner", &stage.model)?])
-            }
-            CoreBlockKind::Compressor(stage) => Ok(vec![describe_block_audio(
-                block_id,
-                "compressor",
-                &stage.model,
-            )?]),
-            CoreBlockKind::Gate(stage) => {
-                Ok(vec![describe_block_audio(block_id, "gate", &stage.model)?])
-            }
-            CoreBlockKind::Eq(stage) => {
-                Ok(vec![describe_block_audio(block_id, "eq", &stage.model)?])
-            }
-            CoreBlockKind::Tremolo(stage) => Ok(vec![describe_block_audio(
-                block_id,
-                "tremolo",
-                &stage.model,
-            )?]),
-            _ => Ok(Vec::new()),
+        let Some(stage) = self.kind.supported_model_stage() else {
+            return Ok(Vec::new());
+        };
+        Ok(vec![describe_block_audio(block_id, stage.effect_type, stage.model)?])
+    }
+}
+
+struct SupportedModelStageRef<'a> {
+    effect_type: &'static str,
+    model: &'a str,
+    params: &'a ParameterSet,
+}
+
+impl CoreBlockKind {
+    fn supported_model_stage(&self) -> Option<SupportedModelStageRef<'_>> {
+        match self {
+            CoreBlockKind::AmpHead(stage) => Some(SupportedModelStageRef {
+                effect_type: "amp_head",
+                model: &stage.model,
+                params: &stage.params,
+            }),
+            CoreBlockKind::AmpCombo(stage) => Some(SupportedModelStageRef {
+                effect_type: "amp_combo",
+                model: &stage.model,
+                params: &stage.params,
+            }),
+            CoreBlockKind::FullRig(stage) => Some(SupportedModelStageRef {
+                effect_type: "full_rig",
+                model: &stage.model,
+                params: &stage.params,
+            }),
+            CoreBlockKind::Cab(stage) => Some(SupportedModelStageRef {
+                effect_type: "cab",
+                model: &stage.model,
+                params: &stage.params,
+            }),
+            CoreBlockKind::Drive(stage) => Some(SupportedModelStageRef {
+                effect_type: "drive",
+                model: &stage.model,
+                params: &stage.params,
+            }),
+            CoreBlockKind::Delay(stage) => Some(SupportedModelStageRef {
+                effect_type: "delay",
+                model: &stage.model,
+                params: &stage.params,
+            }),
+            CoreBlockKind::Reverb(stage) => Some(SupportedModelStageRef {
+                effect_type: "reverb",
+                model: &stage.model,
+                params: &stage.params,
+            }),
+            CoreBlockKind::Tuner(stage) => Some(SupportedModelStageRef {
+                effect_type: "tuner",
+                model: &stage.model,
+                params: &stage.params,
+            }),
+            CoreBlockKind::Compressor(stage) => Some(SupportedModelStageRef {
+                effect_type: "compressor",
+                model: &stage.model,
+                params: &stage.params,
+            }),
+            CoreBlockKind::Gate(stage) => Some(SupportedModelStageRef {
+                effect_type: "gate",
+                model: &stage.model,
+                params: &stage.params,
+            }),
+            CoreBlockKind::Eq(stage) => Some(SupportedModelStageRef {
+                effect_type: "eq",
+                model: &stage.model,
+                params: &stage.params,
+            }),
+            CoreBlockKind::Tremolo(stage) => Some(SupportedModelStageRef {
+                effect_type: "tremolo",
+                model: &stage.model,
+                params: &stage.params,
+            }),
+            _ => None,
         }
     }
 }
@@ -359,20 +311,13 @@ pub fn normalize_block_params(
 ) -> Result<ParameterSet, String> {
     let schema = schema_for_block_model(effect_type, model)?;
     let normalized = params.normalized_against(&schema)?;
-    if effect_type == "amp_head" {
-        validate_amp_head_params(model, &normalized).map_err(|error| error.to_string())?;
-    }
-    if effect_type == "amp_combo" {
-        validate_amp_combo_params(model, &normalized).map_err(|error| error.to_string())?;
-    }
-    if effect_type == "full_rig" {
-        validate_full_rig_params(model, &normalized).map_err(|error| error.to_string())?;
-    }
-    if effect_type == "cab" {
-        validate_cab_params(model, &normalized).map_err(|error| error.to_string())?;
-    }
-    if effect_type == "drive" {
-        validate_drive_params(model, &normalized).map_err(|error| error.to_string())?;
+    match effect_type {
+        "amp_head" => validate_amp_head_params(model, &normalized).map_err(|error| error.to_string())?,
+        "amp_combo" => validate_amp_combo_params(model, &normalized).map_err(|error| error.to_string())?,
+        "full_rig" => validate_full_rig_params(model, &normalized).map_err(|error| error.to_string())?,
+        "cab" => validate_cab_params(model, &normalized).map_err(|error| error.to_string())?,
+        "drive" => validate_drive_params(model, &normalized).map_err(|error| error.to_string())?,
+        _ => {}
     }
     Ok(normalized)
 }

@@ -2,7 +2,7 @@ use anyhow::Result;
 use application::validate::validate_project;
 use cpal::traits::StreamTrait;
 use engine::runtime::build_runtime_graph;
-use infra_cpal::{build_streams_for_project, list_devices};
+use infra_cpal::{build_streams_for_project, list_devices, resolve_project_track_sample_rates};
 use infra_yaml::YamlProjectRepository;
 use serde::Deserialize;
 use std::env;
@@ -31,7 +31,8 @@ fn main() -> Result<()> {
     }
     println!("=== Project ===");
     println!("tracks={}", project.tracks.len());
-    let runtime_graph = build_runtime_graph(&project)?;
+    let track_sample_rates = resolve_project_track_sample_rates(&project)?;
+    let runtime_graph = build_runtime_graph(&project, &track_sample_rates)?;
     let streams = build_streams_for_project(&project, &runtime_graph)?;
     for stream in &streams {
         stream.play()?;

@@ -21,3 +21,6 @@ stage-filter = { path = "../stage-filter" }
 stage-mod = { path = "../stage-mod" }
 stage-reverb = { path = "../stage-reverb" }
 stage-util = { path = "../stage-util" }
+
+[dev-dependencies]
+tempfile = "3"

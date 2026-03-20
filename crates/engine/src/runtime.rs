@@ -28,7 +28,6 @@ const DEBUG_MIN_PEAK_TO_LOG: f32 = 0.01;
 const DEBUG_LOG_INTERVAL_MS: u64 = 300;
 const DEFAULT_QUEUE_CAPACITY_FRAMES: usize = 48_000;
 const MAX_OUTPUT_QUEUE_LATENCY_FRAMES: u64 = 1_024;
-const DEFAULT_SAMPLE_RATE: f32 = 48_000.0;
 
 #[derive(Debug, Clone, Copy)]
 struct QueuedFrame {
@@ -173,14 +172,24 @@ pub struct RuntimeGraph {
     pub tracks: HashMap<TrackId, Arc<Mutex<TrackRuntimeState>>>,
 }
 
-pub fn build_runtime_graph(project: &Project) -> Result<RuntimeGraph> {
+pub fn build_runtime_graph(
+    project: &Project,
+    track_sample_rates: &HashMap<TrackId, f32>,
+) -> Result<RuntimeGraph> {
     let mut tracks = HashMap::new();
     for track in &project.tracks {
         if !track.enabled {
             continue;
         }
         let input_layout = layout_from_channels(track.input_channels.len())?;
-        let (processors, output_layout) = build_runtime_processors(track, input_layout)?;
+        let sample_rate = *track_sample_rates.get(&track.id).ok_or_else(|| {
+            anyhow!(
+                "track '{}' has no resolved runtime sample rate",
+                track.id.0
+            )
+        })?;
+        let (processors, output_layout) =
+            build_runtime_processors(track, input_layout, sample_rate)?;
         println!(
             "[track:{}] runtime input_layout={} output_layout={}",
             track.id.0,
@@ -206,6 +215,7 @@ pub fn build_runtime_graph(project: &Project) -> Result<RuntimeGraph> {
 fn build_runtime_processors(
     track: &Track,
     input_layout: AudioChannelLayout,
+    sample_rate: f32,
 ) -> Result<(Vec<RuntimeProcessor>, AudioChannelLayout)> {
     let mut processors = Vec::new();
     let mut current_layout = input_layout;
@@ -237,7 +247,7 @@ fn build_runtime_processors(
                             build_amp_head_processor_for_layout(
                                 &stage.model,
                                 &stage.params,
-                                DEFAULT_SAMPLE_RATE,
+                                sample_rate,
                                 layout,
                             )
                         },
@@ -261,7 +271,7 @@ fn build_runtime_processors(
                             build_amp_combo_processor_for_layout(
                                 &stage.model,
                                 &stage.params,
-                                DEFAULT_SAMPLE_RATE,
+                                sample_rate,
                                 layout,
                             )
                         },
@@ -285,7 +295,7 @@ fn build_runtime_processors(
                             build_full_rig_processor_for_layout(
                                 &stage.model,
                                 &stage.params,
-                                DEFAULT_SAMPLE_RATE,
+                                sample_rate,
                                 layout,
                             )
                         },
@@ -309,7 +319,7 @@ fn build_runtime_processors(
                             build_cab_processor_for_layout(
                                 &stage.model,
                                 &stage.params,
-                                DEFAULT_SAMPLE_RATE,
+                                sample_rate,
                                 layout,
                             )
                         },
@@ -333,7 +343,7 @@ fn build_runtime_processors(
                             build_drive_processor_for_layout(
                                 &stage.model,
                                 &stage.params,
-                                DEFAULT_SAMPLE_RATE,
+                                sample_rate,
                                 layout,
                             )
                         },
@@ -358,7 +368,7 @@ fn build_runtime_processors(
                             build_delay_processor_for_layout(
                                 &stage.model,
                                 &stage.params,
-                                DEFAULT_SAMPLE_RATE,
+                                sample_rate,
                                 layout,
                             )
                         },
@@ -383,7 +393,7 @@ fn build_runtime_processors(
                             build_reverb_processor_for_layout(
                                 &stage.model,
                                 &stage.params,
-                                DEFAULT_SAMPLE_RATE,
+                                sample_rate,
                                 layout,
                             )
                         },
@@ -400,7 +410,7 @@ fn build_runtime_processors(
                     processors.push(RuntimeProcessor::Tuner(build_tuner_processor(
                         &stage.model,
                         &stage.params,
-                        DEFAULT_SAMPLE_RATE as usize,
+                        sample_rate.round() as usize,
                     )?));
                 }
                 CoreBlockKind::Compressor(stage) => {
@@ -430,7 +440,7 @@ fn build_runtime_processors(
                             build_compressor_processor_for_layout(
                                 &stage.model,
                                 &stage.params,
-                                DEFAULT_SAMPLE_RATE,
+                                sample_rate,
                                 layout,
                             )
                         },
@@ -455,7 +465,7 @@ fn build_runtime_processors(
                             build_gate_processor_for_layout(
                                 &stage.model,
                                 &stage.params,
-                                DEFAULT_SAMPLE_RATE,
+                                sample_rate,
                                 layout,
                             )
                         },
@@ -480,7 +490,7 @@ fn build_runtime_processors(
                             build_eq_processor_for_layout(
                                 &stage.model,
                                 &stage.params,
-                                DEFAULT_SAMPLE_RATE,
+                                sample_rate,
                                 layout,
                             )
                         },
@@ -504,7 +514,7 @@ fn build_runtime_processors(
                             build_tremolo_processor_for_layout(
                                 &stage.model,
                                 &stage.params,
-                                DEFAULT_SAMPLE_RATE,
+                                sample_rate,
                                 layout,
                             )
                         },
@@ -771,6 +781,7 @@ mod tests {
     use project::param::ParameterSet;
     use project::project::Project;
     use project::track::{Track, TrackOutputMixdown};
+    use std::collections::HashMap;
 
     #[test]
     fn runtime_graph_builds_for_track_with_cab_block() {
@@ -802,8 +813,53 @@ mod tests {
             }],
         };
 
-        let runtime = build_runtime_graph(&project).expect("runtime graph should build");
+        let runtime = build_runtime_graph(
+            &project,
+            &HashMap::from([(TrackId("track:0".into()), 48_000.0)]),
+        )
+        .expect("runtime graph should build");
         assert_eq!(runtime.tracks.len(), 1);
+    }
+
+    #[test]
+    fn runtime_graph_rejects_track_when_runtime_sample_rate_does_not_match_ir() {
+        let mut params = ParameterSet::default();
+        params.insert("capture", ParameterValue::String("ev_mix_b".into()));
+
+        let project = Project {
+            name: None,
+            device_settings: Vec::new(),
+            tracks: vec![Track {
+                id: TrackId("track:0".into()),
+                description: Some("Cab test".into()),
+                enabled: true,
+                input_device_id: DeviceId("input-device".into()),
+                input_channels: vec![0],
+                output_device_id: DeviceId("output-device".into()),
+                output_channels: vec![0],
+                blocks: vec![AudioBlock {
+                    id: BlockId("track:0:block:0".into()),
+                    enabled: true,
+                    kind: AudioBlockKind::Core(CoreBlock {
+                        kind: CoreBlockKind::Cab(CabBlock {
+                            model: "marshall_4x12_v30".into(),
+                            params,
+                        }),
+                    }),
+                }],
+                output_mixdown: TrackOutputMixdown::Average,
+            }],
+        };
+
+        let error = match build_runtime_graph(
+            &project,
+            &HashMap::from([(TrackId("track:0".into()), 44_100.0)]),
+        ) {
+            Ok(_) => panic!("runtime graph should reject mismatched IR sample rate"),
+            Err(error) => error,
+        };
+
+        assert!(error.to_string().contains("sample_rate"));
     }
 }
 

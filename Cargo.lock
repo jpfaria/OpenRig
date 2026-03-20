@@ -2636,6 +2636,7 @@ dependencies = [
  "stage-nam",
  "stage-reverb",
  "stage-util",
+ "tempfile",
 ]
 
 [[package]]

@@ -72,12 +72,17 @@ impl YamlProjectRepository {
         dto.into_project()
     }
 
-    pub fn save_project(&self, _project: &Project) -> Result<()> {
+    pub fn save_project(&self, project: &Project) -> Result<()> {
+        let dto = ProjectYaml::from_project(project)?;
+        if let Some(parent) = self.path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&self.path, serde_yaml::to_string(&dto)?)?;
         Ok(())
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct ProjectYaml {
     #[serde(default)]
     name: Option<String>,
@@ -96,6 +101,22 @@ impl ProjectYaml {
                 .into_iter()
                 .enumerate()
                 .map(|(index, track)| track.into_track(index))
+                .collect::<Result<Vec<_>>>()?,
+        })
+    }
+
+    fn from_project(project: &Project) -> Result<Self> {
+        Ok(Self {
+            name: project.name.clone(),
+            device_settings: project
+                .device_settings
+                .iter()
+                .map(DeviceSettingsYaml::from_settings)
+                .collect(),
+            tracks: project
+                .tracks
+                .iter()
+                .map(TrackYaml::from_track)
                 .collect::<Result<Vec<_>>>()?,
         })
     }
@@ -137,7 +158,7 @@ impl PresetYaml {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct DeviceSettingsYaml {
     device_id: String,
     sample_rate: u32,
@@ -154,7 +175,17 @@ impl From<DeviceSettingsYaml> for DeviceSettings {
     }
 }
 
-#[derive(Debug, Deserialize)]
+impl DeviceSettingsYaml {
+    fn from_settings(settings: &DeviceSettings) -> Self {
+        Self {
+            device_id: settings.device_id.0.clone(),
+            sample_rate: settings.sample_rate,
+            buffer_size_frames: settings.buffer_size_frames,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 struct TrackYaml {
     #[serde(default)]
     description: Option<String>,
@@ -188,6 +219,23 @@ impl TrackYaml {
                 .map(|(block_index, block)| block.into_audio_block(&track_id, block_index))
                 .collect::<Result<Vec<_>>>()?,
             output_mixdown: self.output_mixdown,
+        })
+    }
+
+    fn from_track(track: &Track) -> Result<Self> {
+        Ok(Self {
+            description: track.description.clone(),
+            enabled: track.enabled,
+            input_device_id: track.input_device_id.0.clone(),
+            input_channels: track.input_channels.clone(),
+            output_device_id: track.output_device_id.0.clone(),
+            output_channels: track.output_channels.clone(),
+            blocks: track
+                .blocks
+                .iter()
+                .map(AudioBlockYaml::from_audio_block)
+                .collect::<Result<Vec<_>>>()?,
+            output_mixdown: track.output_mixdown,
         })
     }
 }
@@ -860,4 +908,56 @@ fn default_tremolo_model() -> String {
 
 const fn default_enabled() -> bool {
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::YamlProjectRepository;
+    use domain::ids::{DeviceId, TrackId};
+    use project::project::Project;
+    use project::track::{Track, TrackOutputMixdown};
+    use tempfile::tempdir;
+
+    #[test]
+    fn save_project_creates_yaml_that_roundtrips_basic_project() {
+        let temp_dir = tempdir().expect("temp dir should be created");
+        let project_path = temp_dir.path().join("project.yaml");
+        let repository = YamlProjectRepository {
+            path: project_path.clone(),
+        };
+        let original = Project {
+            name: Some("Test Project".into()),
+            device_settings: Vec::new(),
+            tracks: vec![Track {
+                id: TrackId("track:0".into()),
+                description: Some("Guitar 1".into()),
+                enabled: true,
+                input_device_id: DeviceId("input-device".into()),
+                input_channels: vec![0],
+                output_device_id: DeviceId("output-device".into()),
+                output_channels: vec![0, 1],
+                blocks: Vec::new(),
+                output_mixdown: TrackOutputMixdown::Average,
+            }],
+        };
+
+        repository
+            .save_project(&original)
+            .expect("project save should succeed");
+
+        assert!(project_path.exists(), "project yaml should be written");
+
+        let loaded = repository
+            .load_current_project()
+            .expect("saved project should load");
+
+        assert_eq!(loaded.name, original.name);
+        assert_eq!(loaded.tracks.len(), 1);
+        assert_eq!(loaded.tracks[0].description, original.tracks[0].description);
+        assert_eq!(loaded.tracks[0].input_device_id, original.tracks[0].input_device_id);
+        assert_eq!(loaded.tracks[0].input_channels, original.tracks[0].input_channels);
+        assert_eq!(loaded.tracks[0].output_device_id, original.tracks[0].output_device_id);
+        assert_eq!(loaded.tracks[0].output_channels, original.tracks[0].output_channels);
+        assert_eq!(loaded.tracks[0].output_mixdown, original.tracks[0].output_mixdown);
+    }
 }

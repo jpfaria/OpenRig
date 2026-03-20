@@ -2,11 +2,14 @@ use anyhow::{anyhow, bail, Context, Result};
 use cpal::traits::{DeviceTrait, HostTrait};
 use cpal::{
     BufferSize, SampleFormat, Stream, StreamConfig, SupportedBufferSize, SupportedStreamConfig,
+    SupportedStreamConfigRange,
 };
 use engine::runtime::{process_input_f32, process_output_f32, RuntimeGraph, TrackRuntimeState};
+use domain::ids::TrackId;
 use project::device::DeviceSettings;
 use project::project::Project;
 use project::track::Track;
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -117,6 +120,28 @@ pub fn build_streams_for_project(
     }
     Ok(streams)
 }
+
+pub fn resolve_project_track_sample_rates(project: &Project) -> Result<HashMap<TrackId, f32>> {
+    let host = cpal::default_host();
+    let mut sample_rates = HashMap::new();
+
+    for track in &project.tracks {
+        if !track.enabled {
+            continue;
+        }
+        let resolved_input = resolve_input_device_for_track(&host, project, track)?;
+        let resolved_output = resolve_output_device_for_track(&host, project, track)?;
+        let sample_rate = resolve_track_runtime_sample_rate(
+            &track.id.0,
+            &resolved_input.supported,
+            &resolved_output.supported,
+        )?;
+        sample_rates.insert(track.id.clone(), sample_rate);
+    }
+
+    Ok(sample_rates)
+}
+
 fn resolve_input_device_for_track(
     host: &cpal::Host,
     project: &Project,
@@ -130,14 +155,25 @@ fn resolve_input_device_for_track(
     let device = find_input_device_by_id(host, &track.input_device_id.0)?.ok_or_else(|| {
         anyhow!("input device '{}' not found by device_id", track.input_device_id.0)
     })?;
-    let supported = device.default_input_config().with_context(|| {
+    let default_config = device.default_input_config().with_context(|| {
         format!(
             "failed to get default input config for '{}'",
             track.input_device_id.0
         )
     })?;
+    let supported_ranges = device
+        .supported_input_configs()
+        .with_context(|| format!("failed to enumerate input configs for '{}'", track.input_device_id.0))?
+        .collect::<Vec<_>>();
+    let required_channels = required_channel_count(&track.input_channels);
+    let supported = select_supported_stream_config(
+        &default_config,
+        &supported_ranges,
+        settings.as_ref().map(|settings| settings.sample_rate),
+        required_channels,
+        &track.input_device_id.0,
+    )?;
     if let Some(settings) = &settings {
-        validate_sample_rate(settings.sample_rate, supported.sample_rate(), &settings.device_id.0)?;
         validate_buffer_size(
             settings.buffer_size_frames,
             supported.buffer_size(),
@@ -164,14 +200,25 @@ fn resolve_output_device_for_track(
     let device = find_output_device_by_id(host, &track.output_device_id.0)?.ok_or_else(|| {
         anyhow!("output device '{}' not found by device_id", track.output_device_id.0)
     })?;
-    let supported = device.default_output_config().with_context(|| {
+    let default_config = device.default_output_config().with_context(|| {
         format!(
             "failed to get default output config for '{}'",
             track.output_device_id.0
         )
     })?;
+    let supported_ranges = device
+        .supported_output_configs()
+        .with_context(|| format!("failed to enumerate output configs for '{}'", track.output_device_id.0))?
+        .collect::<Vec<_>>();
+    let required_channels = required_channel_count(&track.output_channels);
+    let supported = select_supported_stream_config(
+        &default_config,
+        &supported_ranges,
+        settings.as_ref().map(|settings| settings.sample_rate),
+        required_channels,
+        &track.output_device_id.0,
+    )?;
     if let Some(settings) = &settings {
-        validate_sample_rate(settings.sample_rate, supported.sample_rate(), &settings.device_id.0)?;
         validate_buffer_size(
             settings.buffer_size_frames,
             supported.buffer_size(),
@@ -184,17 +231,7 @@ fn resolve_output_device_for_track(
         supported,
     })
 }
-fn validate_sample_rate(requested: u32, supported_default: u32, context: &str) -> Result<()> {
-    if requested != supported_default {
-        bail!(
-            "{} invalid: configured sample_rate={} but device default sample_rate={}",
-            context,
-            requested,
-            supported_default
-        );
-    }
-    Ok(())
-}
+
 fn validate_buffer_size(
     requested: u32,
     supported: &SupportedBufferSize,
@@ -226,13 +263,12 @@ fn validate_channels_against_devices(
         }
         let input_device = find_input_device_by_id(host, &track.input_device_id.0)?
             .ok_or_else(|| anyhow!("track '{}' missing input device '{}'", track.id.0, track.input_device_id.0))?;
-        let resolved = input_device.default_input_config().with_context(|| {
+        let total_channels = max_supported_input_channels(&input_device).with_context(|| {
             format!(
-                "failed to get default input config for '{}'",
+                "failed to resolve input channel capacity for '{}'",
                 track.input_device_id.0
             )
         })?;
-        let total_channels = resolved.channels() as usize;
         for channel in &track.input_channels {
             if *channel >= total_channels {
                 bail!(
@@ -245,13 +281,12 @@ fn validate_channels_against_devices(
         }
         let output_device = find_output_device_by_id(host, &track.output_device_id.0)?
             .ok_or_else(|| anyhow!("track '{}' missing output device '{}'", track.id.0, track.output_device_id.0))?;
-        let resolved = output_device.default_output_config().with_context(|| {
+        let total_channels = max_supported_output_channels(&output_device).with_context(|| {
             format!(
-                "failed to get default output config for '{}'",
+                "failed to resolve output channel capacity for '{}'",
                 track.output_device_id.0
             )
         })?;
-        let total_channels = resolved.channels() as usize;
         for channel in &track.output_channels {
             if *channel >= total_channels {
                 bail!(
@@ -455,5 +490,126 @@ fn build_stream_config(channels: u16, sample_rate: u32, buffer_size_frames: u32)
         channels,
         sample_rate,
         buffer_size: BufferSize::Fixed(buffer_size_frames),
+    }
+}
+
+fn required_channel_count(channels: &[usize]) -> usize {
+    channels.iter().copied().max().map(|channel| channel + 1).unwrap_or(0)
+}
+
+fn select_supported_stream_config(
+    default_config: &SupportedStreamConfig,
+    supported_ranges: &[SupportedStreamConfigRange],
+    requested_sample_rate: Option<u32>,
+    required_channels: usize,
+    context: &str,
+) -> Result<SupportedStreamConfig> {
+    let target_sample_rate = requested_sample_rate.unwrap_or_else(|| default_config.sample_rate());
+    let default_format = default_config.sample_format();
+
+    let best = supported_ranges
+        .iter()
+        .filter(|range| range.channels() as usize >= required_channels)
+        .filter_map(|range| range.try_with_sample_rate(target_sample_rate))
+        .min_by_key(|config| {
+            (
+                (config.channels() as usize != required_channels) as u8,
+                (config.sample_format() != default_format) as u8,
+                (config.channels() as usize).saturating_sub(required_channels),
+            )
+        });
+
+    best.ok_or_else(|| {
+        anyhow!(
+            "{} invalid: no supported config for sample_rate={} with at least {} channels",
+            context,
+            target_sample_rate,
+            required_channels
+        )
+    })
+}
+
+fn resolve_track_runtime_sample_rate(
+    track_id: &str,
+    input: &SupportedStreamConfig,
+    output: &SupportedStreamConfig,
+) -> Result<f32> {
+    if input.sample_rate() != output.sample_rate() {
+        bail!(
+            "track '{}' invalid: input sample_rate={} differs from output sample_rate={}",
+            track_id,
+            input.sample_rate(),
+            output.sample_rate()
+        );
+    }
+
+    Ok(input.sample_rate() as f32)
+}
+
+fn max_supported_input_channels(device: &cpal::Device) -> Result<usize> {
+    let default_channels = device.default_input_config()?.channels() as usize;
+    let max_supported = device
+        .supported_input_configs()?
+        .map(|config| config.channels() as usize)
+        .max()
+        .unwrap_or(default_channels);
+    Ok(max_supported.max(default_channels))
+}
+
+fn max_supported_output_channels(device: &cpal::Device) -> Result<usize> {
+    let default_channels = device.default_output_config()?.channels() as usize;
+    let max_supported = device
+        .supported_output_configs()?
+        .map(|config| config.channels() as usize)
+        .max()
+        .unwrap_or(default_channels);
+    Ok(max_supported.max(default_channels))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{resolve_track_runtime_sample_rate, select_supported_stream_config};
+    use cpal::{SampleFormat, SupportedBufferSize, SupportedStreamConfigRange};
+
+    fn supported_range(channels: u16, min_sample_rate: u32, max_sample_rate: u32) -> SupportedStreamConfigRange {
+        SupportedStreamConfigRange::new(
+            channels,
+            min_sample_rate,
+            max_sample_rate,
+            SupportedBufferSize::Range { min: 64, max: 1024 },
+            SampleFormat::F32,
+        )
+    }
+
+    #[test]
+    fn select_supported_stream_config_accepts_non_default_sample_rate_when_device_supports_it() {
+        let default_config = supported_range(2, 48_000, 48_000).with_max_sample_rate();
+        let supported = vec![
+            supported_range(2, 44_100, 96_000),
+            supported_range(1, 44_100, 96_000),
+        ];
+
+        let resolved = select_supported_stream_config(
+            &default_config,
+            &supported,
+            Some(44_100),
+            2,
+            "test-device",
+        )
+        .expect("supported non-default sample rate should resolve");
+
+        assert_eq!(resolved.sample_rate(), 44_100);
+        assert_eq!(resolved.channels(), 2);
+    }
+
+    #[test]
+    fn resolve_track_runtime_sample_rate_rejects_mismatched_input_and_output_sample_rates() {
+        let input = supported_range(2, 48_000, 48_000).with_max_sample_rate();
+        let output = supported_range(2, 44_100, 44_100).with_max_sample_rate();
+
+        let error = resolve_track_runtime_sample_rate("track:0", &input, &output)
+            .expect_err("mismatched rates should fail");
+
+        assert!(error.to_string().contains("sample_rate"));
     }
 }

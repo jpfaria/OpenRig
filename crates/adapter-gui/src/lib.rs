@@ -5,7 +5,7 @@ use domain::ids::{BlockId, DeviceId, TrackId};
 use engine::runtime::build_runtime_graph;
 use infra_cpal::{
     build_streams_for_project, list_input_device_descriptors, list_output_device_descriptors,
-    AudioDeviceDescriptor,
+    resolve_project_track_sample_rates, AudioDeviceDescriptor,
 };
 use infra_filesystem::{
     AppConfig, FilesystemStorage, GuiAudioDeviceSettings, GuiAudioSettings, RecentProjectEntry,
@@ -2104,7 +2104,8 @@ fn restart_message(base: &str) -> SharedString {
 
 fn start_project_runtime(session: &ProjectSession) -> Result<Vec<Stream>> {
     validate_project(&session.project)?;
-    let runtime_graph = build_runtime_graph(&session.project)?;
+    let track_sample_rates = resolve_project_track_sample_rates(&session.project)?;
+    let runtime_graph = build_runtime_graph(&session.project, &track_sample_rates)?;
     let streams = build_streams_for_project(&session.project, &runtime_graph)?;
     for stream in &streams {
         stream.play()?;

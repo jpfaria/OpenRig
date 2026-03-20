@@ -2,7 +2,7 @@ use anyhow::{anyhow, bail, Result};
 use ir::{build_mono_ir_processor_from_wav, IrAsset};
 use stage_core::param::{enum_parameter, required_string, ModelParameterSchema, ParameterSet};
 use stage_core::{AudioChannelLayout, ModelAudioMode, StageProcessor};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub const MODEL_ID: &str = "marshall_4x12_v30";
 
@@ -52,8 +52,7 @@ pub fn build_processor_for_model(
         AudioChannelLayout::Mono => {
             let capture = resolve_capture(params)?;
             let resolved_ir_path = resolve_ir_path(capture.ir_path);
-            let resolved_ir_path = resolved_ir_path.to_string_lossy().to_string();
-            let ir = IrAsset::load_from_wav(&resolved_ir_path)?;
+            let ir = IrAsset::load_from_wav(&resolved_ir_path.to_string_lossy())?;
             if ir.channel_count() != 1 {
                 bail!(
                     "cab model '{}' capture '{}' must be mono, got {} channels",
@@ -62,7 +61,10 @@ pub fn build_processor_for_model(
                     ir.channel_count()
                 );
             }
-            let processor = build_mono_ir_processor_from_wav(&resolved_ir_path, sample_rate)?;
+            let processor = build_mono_ir_processor_from_wav(
+                &resolved_ir_path.to_string_lossy(),
+                sample_rate,
+            )?;
             Ok(StageProcessor::Mono(processor))
         }
         AudioChannelLayout::Stereo => bail!(
@@ -70,12 +72,6 @@ pub fn build_processor_for_model(
             MODEL_ID
         ),
     }
-}
-
-fn resolve_ir_path(relative_path: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .join(relative_path)
 }
 
 pub fn validate_params(params: &ParameterSet) -> Result<()> {
@@ -99,4 +95,22 @@ fn resolve_capture(params: &ParameterSet) -> Result<&'static Marshall4x12V30Capt
                 requested
             )
         })
+}
+
+fn resolve_ir_path(asset_path: &str) -> PathBuf {
+    let raw = PathBuf::from(asset_path);
+    if raw.is_absolute() || raw.exists() {
+        return raw;
+    }
+
+    if let Ok(asset_root) = std::env::var("OPENRIG_ASSET_ROOT") {
+        let candidate = Path::new(&asset_root).join(asset_path);
+        if candidate.exists() {
+            return candidate;
+        }
+    }
+
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join(asset_path)
 }
