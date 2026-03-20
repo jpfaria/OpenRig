@@ -2935,7 +2935,7 @@ fn block_type_picker_items() -> Vec<BlockTypePickerItem> {
         .into_iter()
         .map(|item| BlockTypePickerItem {
             effect_type: item.effect_type.into(),
-            label: humanize_effect_type(item.effect_type).into(),
+            label: short_effect_type_label(item.effect_type).into(),
             subtitle: "".into(),
             icon_kind: item.effect_type.into(),
         })
@@ -2987,22 +2987,23 @@ fn block_model_index(effect_type: &str, model_id: &str) -> i32 {
         .unwrap_or(-1)
 }
 
-fn humanize_effect_type(effect_type: &str) -> String {
-    effect_type
-        .split('_')
-        .map(|part| {
-            let mut chars = part.chars();
-            match chars.next() {
-                Some(first) => {
-                    let mut text = first.to_uppercase().collect::<String>();
-                    text.push_str(chars.as_str());
-                    text
-                }
-                None => String::new(),
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
+fn short_effect_type_label(effect_type: &str) -> &'static str {
+    match effect_type {
+        "amp_head" => "AMP",
+        "amp_combo" => "COMBO",
+        "cab" => "CAB",
+        "full_rig" => "RIG",
+        "drive" => "GAIN",
+        "compressor" => "COMP",
+        "gate" => "GATE",
+        "eq" => "EQ",
+        "tremolo" => "MOD",
+        "delay" => "DLY",
+        "reverb" => "RVB",
+        "tuner" => "UTIL",
+        "nam" => "NAM",
+        _ => "BLOCK",
+    }
 }
 
 fn unit_label(unit: &ParameterUnit) -> &'static str {

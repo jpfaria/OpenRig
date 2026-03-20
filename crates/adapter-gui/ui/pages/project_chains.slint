@@ -368,20 +368,7 @@ component BlockTypeCard inherits Rectangle {
         : root.item.effect_type == "tuner" ? #95a0b2
         : root.item.effect_type == "nam" ? #ff7cd7
         : #7fb0ff;
-    property <string> type-label: root.item.effect_type == "amp_head" ? "AMP"
-        : root.item.effect_type == "amp_combo" ? "COMBO"
-        : root.item.effect_type == "cab" ? "CAB"
-        : root.item.effect_type == "full_rig" ? "RIG"
-        : root.item.effect_type == "drive" ? "GAIN"
-        : root.item.effect_type == "compressor" ? "COMP"
-        : root.item.effect_type == "gate" ? "GATE"
-        : root.item.effect_type == "eq" ? "EQ"
-        : root.item.effect_type == "tremolo" ? "MOD"
-        : root.item.effect_type == "delay" ? "DLY"
-        : root.item.effect_type == "reverb" ? "RVB"
-        : root.item.effect_type == "tuner" ? "UTIL"
-        : root.item.effect_type == "nam" ? "NAM"
-        : "CORE";
+    property <string> type-label: root.item.label;
     callback clicked();
 
     width: 88px;
