@@ -151,8 +151,8 @@ impl FilesystemStorage {
         }
         let raw = fs::read_to_string(&path)
             .with_context(|| format!("failed to read app config from {:?}", path))?;
-        Ok(serde_yaml::from_str(&raw)
-            .with_context(|| format!("failed to parse app config from {:?}", path))?)
+        serde_yaml::from_str(&raw)
+            .with_context(|| format!("failed to parse app config from {:?}", path))
     }
 
     pub fn save_app_config(config: &AppConfig) -> Result<()> {

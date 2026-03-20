@@ -39,8 +39,7 @@ fn main() -> Result<()> {
     }
     println!("=== Engine ===");
     println!(
-        "running={} active_tracks={}",
-        true,
+        "running=true active_tracks={}",
         project.tracks.iter().filter(|track| track.enabled).count()
     );
     loop {
