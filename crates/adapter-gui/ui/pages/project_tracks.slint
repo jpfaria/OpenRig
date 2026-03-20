@@ -586,6 +586,9 @@ component StageChip inherits Rectangle {
     callback drag-moved(float, float);
     callback drag-finished(float, float);
     property <bool> did-drag: false;
+    property <bool> drag-origin-set: false;
+    property <float> drag-origin-x: 0;
+    property <float> drag-origin-y: 0;
 
     width: 84px;
     height: 84px;
@@ -634,17 +637,31 @@ component StageChip inherits Rectangle {
         mouse-cursor: pointer;
         moved => {
             if self.pressed {
-                root.did-drag = true;
-                root.drag-moved((self.mouse-x + root.x) / 1px, (self.mouse-y + root.y) / 1px);
+                let pointer-x = (self.mouse-x + root.x) / 1px;
+                let pointer-y = (self.mouse-y + root.y) / 1px;
+                if !root.drag-origin-set {
+                    root.drag-origin-set = true;
+                    root.drag-origin-x = pointer-x;
+                    root.drag-origin-y = pointer-y;
+                } else {
+                    let delta-x = pointer-x - root.drag-origin-x;
+                    let delta-y = pointer-y - root.drag-origin-y;
+                    let distance = (delta-x < 0 ? -delta-x : delta-x) + (delta-y < 0 ? -delta-y : delta-y);
+                    if distance > 8 {
+                        root.did-drag = true;
+                        root.drag-moved(pointer-x, pointer-y);
+                    }
+                }
             }
         }
         clicked => {
             if root.did-drag {
                 root.drag-finished((self.mouse-x + root.x) / 1px, (self.mouse-y + root.y) / 1px);
-                root.did-drag = false;
             } else {
                 root.clicked();
             }
+            root.did-drag = false;
+            root.drag-origin-set = false;
         }
     }
 }
