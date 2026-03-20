@@ -309,48 +309,6 @@ component StageTypeCard inherits Rectangle {
     }
 }
 
-component StageModelRow inherits Rectangle {
-    in property <StageModelPickerItem> item;
-    in property <bool> selected: false;
-    callback clicked();
-
-    height: 54px;
-    background: root.selected ? #18202b : transparent;
-    border-width: 1px;
-    border-color: root.selected ? #4da6ff : #2e3440;
-    border-radius: 4px;
-
-    Text {
-        x: 12px;
-        y: 8px;
-        width: parent.width - 24px;
-        height: 18px;
-        text: root.item.label;
-        color: #f1f4f8;
-        font-size: 13px;
-        font-weight: 650;
-    }
-
-    Text {
-        x: 12px;
-        y: 28px;
-        width: parent.width - 24px;
-        height: 16px;
-        text: root.item.subtitle;
-        color: #94a0b0;
-        font-size: 11px;
-    }
-
-    TouchArea {
-        x: 0px;
-        y: 0px;
-        width: parent.width;
-        height: parent.height;
-        mouse-cursor: pointer;
-        clicked => { root.clicked(); }
-    }
-}
-
 component StageParameterRow inherits Rectangle {
     in property <StageParameterItem> item;
     callback text-changed(string, string);

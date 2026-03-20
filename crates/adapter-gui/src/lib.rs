@@ -16,7 +16,7 @@ use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 use slint::{Model, ModelRc, SharedString, VecModel};
 use std::rc::Rc;
-use std::{cell::RefCell, env, fs, path::PathBuf};
+use std::{cell::RefCell, env, fs, path::{Path, PathBuf}};
 use project::device::DeviceSettings;
 use project::block::{
     schema_for_block_model, AmpComboBlock, AmpHeadBlock, AudioBlock, AudioBlockKind,
@@ -997,7 +997,7 @@ pub fn run_desktop_app(runtime_mode: AppRuntimeMode, interaction_mode: Interacti
                 .add_filter("OpenRig Preset", &["yaml", "yml"])
                 .set_title("Salvar preset")
                 .set_directory(&session.presets_path)
-                .set_file_name(&format!("{default_name}.yaml"))
+                .set_file_name(format!("{default_name}.yaml"))
                 .save_file()
             else {
                 return;
@@ -2610,7 +2610,7 @@ fn parse_path_argument(flag: &str) -> Option<PathBuf> {
     None
 }
 
-fn create_new_project_session(default_config_path: &PathBuf) -> ProjectSession {
+fn create_new_project_session(default_config_path: &Path) -> ProjectSession {
     let config = if default_config_path.exists() {
         load_app_config(default_config_path).unwrap_or_default()
     } else {
@@ -2631,12 +2631,12 @@ fn create_new_project_session(default_config_path: &PathBuf) -> ProjectSession {
     }
 }
 
-fn load_app_config(path: &PathBuf) -> Result<AppConfigYaml> {
+fn load_app_config(path: &Path) -> Result<AppConfigYaml> {
     let raw = fs::read_to_string(path)?;
     Ok(serde_yaml::from_str(&raw)?)
 }
 
-fn resolve_project_config_path(project_path: &PathBuf) -> PathBuf {
+fn resolve_project_config_path(project_path: &Path) -> PathBuf {
     project_path
         .parent()
         .map(PathBuf::from)
@@ -2644,7 +2644,7 @@ fn resolve_project_config_path(project_path: &PathBuf) -> PathBuf {
         .join("config.yaml")
 }
 
-fn load_project_session(project_path: &PathBuf, config_path: &PathBuf) -> Result<ProjectSession> {
+fn load_project_session(project_path: &Path, config_path: &Path) -> Result<ProjectSession> {
     let config = if config_path.exists() {
         load_app_config(config_path)?
     } else {
@@ -2654,11 +2654,14 @@ fn load_project_session(project_path: &PathBuf, config_path: &PathBuf) -> Result
         .presets_path
         .clone()
         .unwrap_or_else(|| PathBuf::from("./presets"));
-    let project = YamlProjectRepository { path: project_path.clone() }.load_current_project()?;
+    let project = YamlProjectRepository {
+        path: project_path.to_path_buf(),
+    }
+    .load_current_project()?;
     Ok(ProjectSession {
         project,
-        project_path: Some(project_path.clone()),
-        config_path: Some(config_path.clone()),
+        project_path: Some(project_path.to_path_buf()),
+        config_path: Some(config_path.to_path_buf()),
         presets_path: project_path
             .parent()
             .map(PathBuf::from)
@@ -2978,6 +2981,7 @@ fn set_stage_parameter_number(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn persist_stage_editor_draft(
     window: &AppWindow,
     draft: &StageEditorDraft,
@@ -3318,11 +3322,11 @@ fn save_project_session(session: &ProjectSession, project_path: &PathBuf) -> Res
         presets_path: "./presets".to_string(),
     };
     fs::write(config_path, serde_yaml::to_string(&config)?)?;
-    fs::create_dir_all(&parent_dir.join("presets"))?;
+    fs::create_dir_all(parent_dir.join("presets"))?;
     Ok(())
 }
 
-fn save_track_blocks_to_preset(track: &Track, path: &PathBuf) -> Result<()> {
+fn save_track_blocks_to_preset(track: &Track, path: &Path) -> Result<()> {
     let preset = TrackBlocksPreset {
         id: preset_id_from_path(path)?,
         name: track.description.clone(),
@@ -3331,11 +3335,11 @@ fn save_track_blocks_to_preset(track: &Track, path: &PathBuf) -> Result<()> {
     save_track_preset_file(path, &preset)
 }
 
-fn load_preset_file(path: &PathBuf) -> Result<TrackBlocksPreset> {
+fn load_preset_file(path: &Path) -> Result<TrackBlocksPreset> {
     load_track_preset_file(path)
 }
 
-fn preset_id_from_path(path: &PathBuf) -> Result<String> {
+fn preset_id_from_path(path: &Path) -> Result<String> {
     path.file_stem()
         .and_then(|value| value.to_str())
         .map(|value| value.to_string())
