@@ -272,6 +272,7 @@ pub struct ParameterOption {
     pub label: String,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn float_parameter(
     path: &str,
     label: &str,

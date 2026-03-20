@@ -22,15 +22,15 @@ pub enum ModelAudioMode {
 
 impl ModelAudioMode {
     pub const fn accepts_input(self, layout: AudioChannelLayout) -> bool {
-        match (self, layout) {
+        matches!(
+            (self, layout),
             (Self::MonoOnly, AudioChannelLayout::Mono)
-            | (Self::DualMono, AudioChannelLayout::Mono)
-            | (Self::DualMono, AudioChannelLayout::Stereo)
-            | (Self::TrueStereo, AudioChannelLayout::Stereo)
-            | (Self::MonoToStereo, AudioChannelLayout::Mono)
-            | (Self::MonoToStereo, AudioChannelLayout::Stereo) => true,
-            _ => false,
-        }
+                | (Self::DualMono, AudioChannelLayout::Mono)
+                | (Self::DualMono, AudioChannelLayout::Stereo)
+                | (Self::TrueStereo, AudioChannelLayout::Stereo)
+                | (Self::MonoToStereo, AudioChannelLayout::Mono)
+                | (Self::MonoToStereo, AudioChannelLayout::Stereo)
+        )
     }
 
     pub const fn output_layout(self, input: AudioChannelLayout) -> Option<AudioChannelLayout> {

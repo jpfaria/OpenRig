@@ -522,14 +522,12 @@ fn build_runtime_processors(
                     current_layout = outcome.output_layout;
                     processors.push(RuntimeProcessor::Audio(outcome.processor));
                 }
-                _ => {}
             },
             AudioBlockKind::Select(select) => {
                 let outcome = load_selected_nam(track, select, current_layout)?;
                 current_layout = outcome.output_layout;
                 processors.push(RuntimeProcessor::Audio(outcome.processor));
             }
-            _ => {}
         }
     }
 
@@ -772,97 +770,6 @@ fn load_selected_nam(
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::build_runtime_graph;
-    use domain::ids::{BlockId, DeviceId, TrackId};
-    use domain::value_objects::ParameterValue;
-    use project::block::{AudioBlock, AudioBlockKind, CabBlock, CoreBlock, CoreBlockKind};
-    use project::param::ParameterSet;
-    use project::project::Project;
-    use project::track::{Track, TrackOutputMixdown};
-    use std::collections::HashMap;
-
-    #[test]
-    fn runtime_graph_builds_for_track_with_cab_block() {
-        let mut params = ParameterSet::default();
-        params.insert("capture", ParameterValue::String("ev_mix_b".into()));
-
-        let project = Project {
-            name: None,
-            device_settings: Vec::new(),
-            tracks: vec![Track {
-                id: TrackId("track:0".into()),
-                description: Some("Cab test".into()),
-                enabled: true,
-                input_device_id: DeviceId("input-device".into()),
-                input_channels: vec![0],
-                output_device_id: DeviceId("output-device".into()),
-                output_channels: vec![0],
-                blocks: vec![AudioBlock {
-                    id: BlockId("track:0:block:0".into()),
-                    enabled: true,
-                    kind: AudioBlockKind::Core(CoreBlock {
-                        kind: CoreBlockKind::Cab(CabBlock {
-                            model: "marshall_4x12_v30".into(),
-                            params,
-                        }),
-                    }),
-                }],
-                output_mixdown: TrackOutputMixdown::Average,
-            }],
-        };
-
-        let runtime = build_runtime_graph(
-            &project,
-            &HashMap::from([(TrackId("track:0".into()), 48_000.0)]),
-        )
-        .expect("runtime graph should build");
-        assert_eq!(runtime.tracks.len(), 1);
-    }
-
-    #[test]
-    fn runtime_graph_rejects_track_when_runtime_sample_rate_does_not_match_ir() {
-        let mut params = ParameterSet::default();
-        params.insert("capture", ParameterValue::String("ev_mix_b".into()));
-
-        let project = Project {
-            name: None,
-            device_settings: Vec::new(),
-            tracks: vec![Track {
-                id: TrackId("track:0".into()),
-                description: Some("Cab test".into()),
-                enabled: true,
-                input_device_id: DeviceId("input-device".into()),
-                input_channels: vec![0],
-                output_device_id: DeviceId("output-device".into()),
-                output_channels: vec![0],
-                blocks: vec![AudioBlock {
-                    id: BlockId("track:0:block:0".into()),
-                    enabled: true,
-                    kind: AudioBlockKind::Core(CoreBlock {
-                        kind: CoreBlockKind::Cab(CabBlock {
-                            model: "marshall_4x12_v30".into(),
-                            params,
-                        }),
-                    }),
-                }],
-                output_mixdown: TrackOutputMixdown::Average,
-            }],
-        };
-
-        let error = match build_runtime_graph(
-            &project,
-            &HashMap::from([(TrackId("track:0".into()), 44_100.0)]),
-        ) {
-            Ok(_) => panic!("runtime graph should reject mismatched IR sample rate"),
-            Err(error) => error,
-        };
-
-        assert!(error.to_string().contains("sample_rate"));
-    }
-}
-
 pub fn process_input_f32(
     track: &Track,
     runtime: &Arc<Mutex<TrackRuntimeState>>,
@@ -1077,5 +984,96 @@ fn layout_label(layout: AudioChannelLayout) -> &'static str {
     match layout {
         AudioChannelLayout::Mono => "mono",
         AudioChannelLayout::Stereo => "stereo",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::build_runtime_graph;
+    use domain::ids::{BlockId, DeviceId, TrackId};
+    use domain::value_objects::ParameterValue;
+    use project::block::{AudioBlock, AudioBlockKind, CabBlock, CoreBlock, CoreBlockKind};
+    use project::param::ParameterSet;
+    use project::project::Project;
+    use project::track::{Track, TrackOutputMixdown};
+    use std::collections::HashMap;
+
+    #[test]
+    fn runtime_graph_builds_for_track_with_cab_block() {
+        let mut params = ParameterSet::default();
+        params.insert("capture", ParameterValue::String("ev_mix_b".into()));
+
+        let project = Project {
+            name: None,
+            device_settings: Vec::new(),
+            tracks: vec![Track {
+                id: TrackId("track:0".into()),
+                description: Some("Cab test".into()),
+                enabled: true,
+                input_device_id: DeviceId("input-device".into()),
+                input_channels: vec![0],
+                output_device_id: DeviceId("output-device".into()),
+                output_channels: vec![0],
+                blocks: vec![AudioBlock {
+                    id: BlockId("track:0:block:0".into()),
+                    enabled: true,
+                    kind: AudioBlockKind::Core(CoreBlock {
+                        kind: CoreBlockKind::Cab(CabBlock {
+                            model: "marshall_4x12_v30".into(),
+                            params,
+                        }),
+                    }),
+                }],
+                output_mixdown: TrackOutputMixdown::Average,
+            }],
+        };
+
+        let runtime = build_runtime_graph(
+            &project,
+            &HashMap::from([(TrackId("track:0".into()), 48_000.0)]),
+        )
+        .expect("runtime graph should build");
+        assert_eq!(runtime.tracks.len(), 1);
+    }
+
+    #[test]
+    fn runtime_graph_rejects_track_when_runtime_sample_rate_does_not_match_ir() {
+        let mut params = ParameterSet::default();
+        params.insert("capture", ParameterValue::String("ev_mix_b".into()));
+
+        let project = Project {
+            name: None,
+            device_settings: Vec::new(),
+            tracks: vec![Track {
+                id: TrackId("track:0".into()),
+                description: Some("Cab test".into()),
+                enabled: true,
+                input_device_id: DeviceId("input-device".into()),
+                input_channels: vec![0],
+                output_device_id: DeviceId("output-device".into()),
+                output_channels: vec![0],
+                blocks: vec![AudioBlock {
+                    id: BlockId("track:0:block:0".into()),
+                    enabled: true,
+                    kind: AudioBlockKind::Core(CoreBlock {
+                        kind: CoreBlockKind::Cab(CabBlock {
+                            model: "marshall_4x12_v30".into(),
+                            params,
+                        }),
+                    }),
+                }],
+                output_mixdown: TrackOutputMixdown::Average,
+            }],
+        };
+
+        let error = match build_runtime_graph(
+            &project,
+            &HashMap::from([(TrackId("track:0".into()), 44_100.0)]),
+        ) {
+            Ok(_) => panic!("runtime graph should reject mismatched IR sample rate"),
+            Err(error) => error,
+        };
+
+        assert!(error.to_string().contains("sample_rate"));
     }
 }

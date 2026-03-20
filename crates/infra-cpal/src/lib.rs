@@ -57,14 +57,10 @@ pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     let mut devices = Vec::new();
     for device in host.input_devices()? {
         let description = device.description()?;
-        let channels = device
-            .default_input_config()
-            .map(|config| config.channels() as usize)
-            .unwrap_or(0);
         devices.push(AudioDeviceDescriptor {
             id: device.id()?.to_string(),
             name: description.name().to_string(),
-            channels,
+            channels: max_supported_input_channels(&device).unwrap_or(0),
         });
     }
     devices.sort_by(|a, b| a.name.cmp(&b.name).then(a.id.cmp(&b.id)));
@@ -76,14 +72,10 @@ pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     let mut devices = Vec::new();
     for device in host.output_devices()? {
         let description = device.description()?;
-        let channels = device
-            .default_output_config()
-            .map(|config| config.channels() as usize)
-            .unwrap_or(0);
         devices.push(AudioDeviceDescriptor {
             id: device.id()?.to_string(),
             name: description.name().to_string(),
-            channels,
+            channels: max_supported_output_channels(&device).unwrap_or(0),
         });
     }
     devices.sort_by(|a, b| a.name.cmp(&b.name).then(a.id.cmp(&b.id)));
@@ -547,28 +539,37 @@ fn resolve_track_runtime_sample_rate(
 }
 
 fn max_supported_input_channels(device: &cpal::Device) -> Result<usize> {
-    let default_channels = device.default_input_config()?.channels() as usize;
     let max_supported = device
         .supported_input_configs()?
         .map(|config| config.channels() as usize)
-        .max()
-        .unwrap_or(default_channels);
-    Ok(max_supported.max(default_channels))
+        .max();
+    let default_channels = device.default_input_config().ok().map(|config| config.channels() as usize);
+    max_supported_channels(default_channels, max_supported)
 }
 
 fn max_supported_output_channels(device: &cpal::Device) -> Result<usize> {
-    let default_channels = device.default_output_config()?.channels() as usize;
     let max_supported = device
         .supported_output_configs()?
         .map(|config| config.channels() as usize)
-        .max()
-        .unwrap_or(default_channels);
-    Ok(max_supported.max(default_channels))
+        .max();
+    let default_channels = device.default_output_config().ok().map(|config| config.channels() as usize);
+    max_supported_channels(default_channels, max_supported)
+}
+
+fn max_supported_channels(
+    default_channels: Option<usize>,
+    max_supported_channels: Option<usize>,
+) -> Result<usize> {
+    max_supported_channels
+        .or(default_channels)
+        .ok_or_else(|| anyhow!("device exposes no supported channels"))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{resolve_track_runtime_sample_rate, select_supported_stream_config};
+    use super::{
+        max_supported_channels, resolve_track_runtime_sample_rate, select_supported_stream_config,
+    };
     use cpal::{SampleFormat, SupportedBufferSize, SupportedStreamConfigRange};
 
     fn supported_range(channels: u16, min_sample_rate: u32, max_sample_rate: u32) -> SupportedStreamConfigRange {
@@ -611,5 +612,21 @@ mod tests {
             .expect_err("mismatched rates should fail");
 
         assert!(error.to_string().contains("sample_rate"));
+    }
+
+    #[test]
+    fn max_supported_channels_prefers_supported_capacity_over_default() {
+        let resolved =
+            max_supported_channels(Some(2), Some(8)).expect("supported channels should resolve");
+
+        assert_eq!(resolved, 8);
+    }
+
+    #[test]
+    fn max_supported_channels_uses_default_when_supported_list_is_empty() {
+        let resolved =
+            max_supported_channels(Some(2), None).expect("default channels should resolve");
+
+        assert_eq!(resolved, 2);
     }
 }

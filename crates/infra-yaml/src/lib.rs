@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 use project::block::{
     normalize_block_params, AmpComboBlock, AmpHeadBlock, AudioBlock, AudioBlockKind, CabBlock,
-    CompressorBlock, CoreBlock, CoreBlockKind, CoreNamBlock, DelayBlock, DriveBlock, EqBlock,
-    FullRigBlock, GateBlock, NamBlock, ReverbBlock, SelectBlock, TremoloBlock, TunerBlock,
+    CompressorBlock, CoreBlock, CoreBlockKind, DelayBlock, DriveBlock, EqBlock, FullRigBlock,
+    GateBlock, NamBlock, ReverbBlock, SelectBlock, TremoloBlock, TunerBlock,
 };
 use project::device::DeviceSettings;
 use project::param::ParameterSet;
@@ -350,13 +350,6 @@ enum AudioBlockYaml {
         #[serde(default)]
         params: Value,
     },
-    CoreNam {
-        #[serde(default = "default_enabled")]
-        enabled: bool,
-        model_id: String,
-        #[serde(default)]
-        ir_id: Option<String>,
-    },
     Select {
         #[serde(default = "default_enabled")]
         enabled: bool,
@@ -564,15 +557,6 @@ impl AudioBlockYaml {
                     }),
                 }),
             }),
-            AudioBlockYaml::CoreNam {
-                enabled,
-                model_id,
-                ir_id,
-            } => Ok(AudioBlock {
-                id: generated_id,
-                enabled,
-                kind: AudioBlockKind::CoreNam(CoreNamBlock { model_id, ir_id }),
-            }),
             AudioBlockYaml::Select {
                 enabled,
                 id,
@@ -681,16 +665,7 @@ impl AudioBlockYaml {
                     model: stage.model.clone(),
                     params: parameter_set_to_yaml_value(&stage.params),
                 }),
-                unsupported => Err(anyhow!(
-                    "unsupported block kind for yaml export: {:?}",
-                    unsupported
-                )),
             },
-            AudioBlockKind::CoreNam(stage) => Ok(Self::CoreNam {
-                enabled: block.enabled,
-                model_id: stage.model_id.clone(),
-                ir_id: stage.ir_id.clone(),
-            }),
             AudioBlockKind::Select(select) => {
                 let id = block.id.0.clone();
                 let selected = select
@@ -916,6 +891,7 @@ mod tests {
     use domain::ids::{DeviceId, TrackId};
     use project::project::Project;
     use project::track::{Track, TrackOutputMixdown};
+    use std::fs;
     use tempfile::tempdir;
 
     #[test]
@@ -959,5 +935,34 @@ mod tests {
         assert_eq!(loaded.tracks[0].output_device_id, original.tracks[0].output_device_id);
         assert_eq!(loaded.tracks[0].output_channels, original.tracks[0].output_channels);
         assert_eq!(loaded.tracks[0].output_mixdown, original.tracks[0].output_mixdown);
+    }
+
+    #[test]
+    fn load_project_rejects_removed_core_nam_block_type() {
+        let temp_dir = tempdir().expect("temp dir should be created");
+        let project_path = temp_dir.path().join("project.yaml");
+        fs::write(
+            &project_path,
+            r#"
+tracks:
+  - enabled: true
+    input_device_id: input-device
+    input_channels: [0]
+    output_device_id: output-device
+    output_channels: [0]
+    blocks:
+      - type: core_nam
+        enabled: true
+        model_id: legacy
+"#,
+        )
+        .expect("project yaml should be written");
+
+        let repository = YamlProjectRepository { path: project_path };
+        let error = repository
+            .load_current_project()
+            .expect_err("legacy core_nam block should be rejected");
+
+        assert!(error.to_string().contains("unknown variant"));
     }
 }

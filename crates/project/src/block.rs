@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use domain::ids::BlockId;
 use domain::value_objects::ParameterValue;
 use serde::{Deserialize, Serialize};
@@ -50,18 +48,11 @@ pub struct BlockAudioDescriptor {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AudioBlockKind {
     Nam(NamBlock),
-    CoreNam(CoreNamBlock),
     Core(CoreBlock),
     Select(SelectBlock),
 }
 
 define_model_block!(NamBlock);
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct CoreNamBlock {
-    pub model_id: String,
-    pub ir_id: Option<String>,
-}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct CoreBlock {
@@ -74,35 +65,14 @@ pub enum CoreBlockKind {
     AmpCombo(AmpComboBlock),
     FullRig(FullRigBlock),
     Cab(CabBlock),
-    IrLoader(IrLoaderBlock),
-
     Drive(DriveBlock),
     Compressor(CompressorBlock),
     Gate(GateBlock),
     Eq(EqBlock),
-    Filter(FilterBlock),
-    Wah(WahBlock),
-    Pitch(PitchBlock),
-
-    Chorus(ChorusBlock),
-    Flanger(FlangerBlock),
-    Phaser(PhaserBlock),
     Tremolo(TremoloBlock),
-    Rotary(RotaryBlock),
-
     Delay(DelayBlock),
     Reverb(ReverbBlock),
-
-    Mixer(MixerBlock),
-    Split(SplitBlock),
-    Merge(MergeBlock),
-    Send(SendBlock),
-    Return(ReturnBlock),
-    VolumePan(VolumePanBlock),
-
-    Looper(LooperBlock),
     Tuner(TunerBlock),
-    Synth(SynthBlock),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -115,30 +85,21 @@ define_model_block!(AmpHeadBlock);
 define_model_block!(AmpComboBlock);
 define_model_block!(FullRigBlock);
 define_model_block!(CabBlock);
-define_model_block!(IrLoaderBlock);
 define_model_block!(DriveBlock);
 define_model_block!(CompressorBlock);
 define_model_block!(GateBlock);
 define_model_block!(EqBlock);
-define_model_block!(FilterBlock);
-define_model_block!(WahBlock);
-define_model_block!(PitchBlock);
-define_model_block!(ChorusBlock);
-define_model_block!(FlangerBlock);
-define_model_block!(PhaserBlock);
 define_model_block!(TremoloBlock);
-define_model_block!(RotaryBlock);
 define_model_block!(DelayBlock);
 define_model_block!(ReverbBlock);
-define_model_block!(MixerBlock);
-define_model_block!(SplitBlock);
-define_model_block!(MergeBlock);
-define_model_block!(SendBlock);
-define_model_block!(ReturnBlock);
-define_model_block!(VolumePanBlock);
-define_model_block!(LooperBlock);
 define_model_block!(TunerBlock);
-define_model_block!(SynthBlock);
+
+#[derive(Clone, Copy)]
+pub struct BlockModelRef<'a> {
+    pub effect_type: &'static str,
+    pub model: &'a str,
+    pub params: &'a ParameterSet,
+}
 
 impl AudioBlock {
     pub fn validate_params(&self) -> Result<(), String> {
@@ -157,7 +118,6 @@ impl AudioBlock {
                 }
                 Ok(())
             }
-            AudioBlockKind::CoreNam(_) => Ok(()),
         }
     }
 
@@ -174,7 +134,6 @@ impl AudioBlock {
                 }
                 Ok(descriptors)
             }
-            AudioBlockKind::CoreNam(_) => Ok(Vec::new()),
         }
     }
 
@@ -194,7 +153,18 @@ impl AudioBlock {
                 }
                 Ok(descriptors)
             }
-            AudioBlockKind::CoreNam(_) => Ok(Vec::new()),
+        }
+    }
+
+    pub fn model_ref(&self) -> Option<BlockModelRef<'_>> {
+        match &self.kind {
+            AudioBlockKind::Nam(stage) => Some(BlockModelRef {
+                effect_type: "nam",
+                model: &stage.model,
+                params: &stage.params,
+            }),
+            AudioBlockKind::Core(core) => Some(core.kind.model_ref()),
+            AudioBlockKind::Select(_) => None,
         }
     }
 }
@@ -205,9 +175,7 @@ const fn default_enabled() -> bool {
 
 impl CoreBlock {
     fn validate_params(&self) -> Result<(), String> {
-        let Some(stage) = self.kind.supported_model_stage() else {
-            return Ok(());
-        };
+        let stage = self.kind.model_ref();
         normalize_block_params(stage.effect_type, stage.model, stage.params.clone())?;
         Ok(())
     }
@@ -216,90 +184,79 @@ impl CoreBlock {
         &self,
         block_id: &BlockId,
     ) -> Result<Vec<BlockParameterDescriptor>, String> {
-        let Some(stage) = self.kind.supported_model_stage() else {
-            return Ok(Vec::new());
-        };
+        let stage = self.kind.model_ref();
         describe_block_params(block_id, stage.effect_type, stage.model, stage.params)
     }
 
     fn audio_descriptors(&self, block_id: &BlockId) -> Result<Vec<BlockAudioDescriptor>, String> {
-        let Some(stage) = self.kind.supported_model_stage() else {
-            return Ok(Vec::new());
-        };
+        let stage = self.kind.model_ref();
         Ok(vec![describe_block_audio(block_id, stage.effect_type, stage.model)?])
     }
 }
 
-struct SupportedModelStageRef<'a> {
-    effect_type: &'static str,
-    model: &'a str,
-    params: &'a ParameterSet,
-}
-
 impl CoreBlockKind {
-    fn supported_model_stage(&self) -> Option<SupportedModelStageRef<'_>> {
+    pub fn model_ref(&self) -> BlockModelRef<'_> {
         match self {
-            CoreBlockKind::AmpHead(stage) => Some(SupportedModelStageRef {
+            CoreBlockKind::AmpHead(stage) => BlockModelRef {
                 effect_type: "amp_head",
                 model: &stage.model,
                 params: &stage.params,
-            }),
-            CoreBlockKind::AmpCombo(stage) => Some(SupportedModelStageRef {
+            },
+            CoreBlockKind::AmpCombo(stage) => BlockModelRef {
                 effect_type: "amp_combo",
                 model: &stage.model,
                 params: &stage.params,
-            }),
-            CoreBlockKind::FullRig(stage) => Some(SupportedModelStageRef {
+            },
+            CoreBlockKind::FullRig(stage) => BlockModelRef {
                 effect_type: "full_rig",
                 model: &stage.model,
                 params: &stage.params,
-            }),
-            CoreBlockKind::Cab(stage) => Some(SupportedModelStageRef {
+            },
+            CoreBlockKind::Cab(stage) => BlockModelRef {
                 effect_type: "cab",
                 model: &stage.model,
                 params: &stage.params,
-            }),
-            CoreBlockKind::Drive(stage) => Some(SupportedModelStageRef {
+            },
+            CoreBlockKind::Drive(stage) => BlockModelRef {
                 effect_type: "drive",
                 model: &stage.model,
                 params: &stage.params,
-            }),
-            CoreBlockKind::Delay(stage) => Some(SupportedModelStageRef {
+            },
+            CoreBlockKind::Delay(stage) => BlockModelRef {
                 effect_type: "delay",
                 model: &stage.model,
                 params: &stage.params,
-            }),
-            CoreBlockKind::Reverb(stage) => Some(SupportedModelStageRef {
+            },
+            CoreBlockKind::Reverb(stage) => BlockModelRef {
                 effect_type: "reverb",
                 model: &stage.model,
                 params: &stage.params,
-            }),
-            CoreBlockKind::Tuner(stage) => Some(SupportedModelStageRef {
+            },
+            CoreBlockKind::Tuner(stage) => BlockModelRef {
                 effect_type: "tuner",
                 model: &stage.model,
                 params: &stage.params,
-            }),
-            CoreBlockKind::Compressor(stage) => Some(SupportedModelStageRef {
+            },
+            CoreBlockKind::Compressor(stage) => BlockModelRef {
                 effect_type: "compressor",
                 model: &stage.model,
                 params: &stage.params,
-            }),
-            CoreBlockKind::Gate(stage) => Some(SupportedModelStageRef {
+            },
+            CoreBlockKind::Gate(stage) => BlockModelRef {
                 effect_type: "gate",
                 model: &stage.model,
                 params: &stage.params,
-            }),
-            CoreBlockKind::Eq(stage) => Some(SupportedModelStageRef {
+            },
+            CoreBlockKind::Eq(stage) => BlockModelRef {
                 effect_type: "eq",
                 model: &stage.model,
                 params: &stage.params,
-            }),
-            CoreBlockKind::Tremolo(stage) => Some(SupportedModelStageRef {
+            },
+            CoreBlockKind::Tremolo(stage) => BlockModelRef {
                 effect_type: "tremolo",
                 model: &stage.model,
                 params: &stage.params,
-            }),
-            _ => None,
+            },
         }
     }
 }

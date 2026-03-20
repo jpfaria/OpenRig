@@ -1,5 +1,5 @@
 use anyhow::{anyhow, bail, Result};
-use project::block::{schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlockKind};
+use project::block::{schema_for_block_model, AudioBlock, AudioBlockKind};
 use project::device::DeviceSettings;
 use project::project::Project;
 use project::track::Track;
@@ -171,12 +171,12 @@ fn resolve_block_output_layout(
             resolve_block_output_layout(track, selected, input_layout)
                 .map_err(|error| anyhow!("block '{}': {}", block.id.0, error))
         }
-        _ => {
-            let Some((effect_type, model)) = model_ref_for_block(block) else {
+        AudioBlockKind::Nam(_) | AudioBlockKind::Core(_) => {
+            let Some(stage) = block.model_ref() else {
                 return Ok(input_layout);
             };
 
-            let schema = schema_for_block_model(effect_type, model)
+            let schema = schema_for_block_model(stage.effect_type, stage.model)
                 .map_err(|error| anyhow!("block '{}': {}", block.id.0, error))?;
 
             schema.audio_mode.output_layout(input_layout).ok_or_else(|| {
@@ -184,34 +184,13 @@ fn resolve_block_output_layout(
                     "track '{}' block '{}' uses {} model '{}' with audio mode '{}' that does not accept a {} input bus",
                     track.id.0,
                     block.id.0,
-                    effect_type,
-                    model,
+                    stage.effect_type,
+                    stage.model,
                     schema.audio_mode.as_str(),
                     layout_label(input_layout)
                 )
             })
         }
-    }
-}
-
-fn model_ref_for_block(block: &AudioBlock) -> Option<(&str, &str)> {
-    match &block.kind {
-        AudioBlockKind::Nam(stage) => Some(("nam", stage.model.as_str())),
-        AudioBlockKind::Core(core) => match &core.kind {
-            CoreBlockKind::AmpHead(stage) => Some(("amp_head", stage.model.as_str())),
-            CoreBlockKind::AmpCombo(stage) => Some(("amp_combo", stage.model.as_str())),
-            CoreBlockKind::Cab(stage) => Some(("cab", stage.model.as_str())),
-            CoreBlockKind::Drive(stage) => Some(("drive", stage.model.as_str())),
-            CoreBlockKind::Delay(stage) => Some(("delay", stage.model.as_str())),
-            CoreBlockKind::Reverb(stage) => Some(("reverb", stage.model.as_str())),
-            CoreBlockKind::Tuner(stage) => Some(("tuner", stage.model.as_str())),
-            CoreBlockKind::Compressor(stage) => Some(("compressor", stage.model.as_str())),
-            CoreBlockKind::Gate(stage) => Some(("gate", stage.model.as_str())),
-            CoreBlockKind::Eq(stage) => Some(("eq", stage.model.as_str())),
-            CoreBlockKind::Tremolo(stage) => Some(("tremolo", stage.model.as_str())),
-            _ => None,
-        },
-        _ => None,
     }
 }
 
