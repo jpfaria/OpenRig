@@ -6,7 +6,7 @@ blocks:
   model: blues_overdrive_bd_2
   params:
     gain_percent: 75.0
-- type: compressor
+- type: dynamics
   enabled: true
   model: compressor_studio_clean
   params:
@@ -16,7 +16,7 @@ blocks:
     ratio: 4.0
     release_ms: 80.0
     threshold: -18.0
-- type: amp-head
+- type: amp_head
   enabled: true
   model: brit_crunch
   params:
@@ -57,7 +57,7 @@ blocks:
     damping: 0.3499999940395355
     mix: 0.25
     room_size: 0.44999998807907104
-- type: tremolo
+- type: modulation
   enabled: false
   model: tremolo_sine
   params:
