@@ -128,11 +128,12 @@ struct PresetYaml {
     #[serde(default)]
     name: Option<String>,
     #[serde(default, alias = "stages")]
-    blocks: Vec<AudioBlockYaml>,
+    blocks: Vec<Value>,
 }
 
 impl PresetYaml {
     fn into_preset(self) -> Result<TrackBlocksPreset> {
+        let preset_track_id = generated_preset_track_id(&self.id);
         Ok(TrackBlocksPreset {
             id: self.id.clone(),
             name: self.name,
@@ -140,8 +141,8 @@ impl PresetYaml {
                 .blocks
                 .into_iter()
                 .enumerate()
-                .map(|(index, block)| block.into_audio_block(&generated_preset_track_id(&self.id), index))
-                .collect::<Result<Vec<_>>>()?,
+                .filter_map(|(index, block)| load_audio_block_value(block, &preset_track_id, index))
+                .collect(),
         })
     }
 
@@ -152,7 +153,7 @@ impl PresetYaml {
             blocks: preset
                 .blocks
                 .iter()
-                .map(AudioBlockYaml::from_audio_block)
+                .map(|block| Ok(serde_yaml::to_value(AudioBlockYaml::from_audio_block(block)?)?))
                 .collect::<Result<Vec<_>>>()?,
         })
     }
@@ -196,7 +197,7 @@ struct TrackYaml {
     output_device_id: String,
     output_channels: Vec<usize>,
     #[serde(default, alias = "stages")]
-    blocks: Vec<AudioBlockYaml>,
+    blocks: Vec<Value>,
     #[serde(default)]
     output_mixdown: TrackOutputMixdown,
 }
@@ -216,8 +217,8 @@ impl TrackYaml {
                 .blocks
                 .into_iter()
                 .enumerate()
-                .map(|(block_index, block)| block.into_audio_block(&track_id, block_index))
-                .collect::<Result<Vec<_>>>()?,
+                .filter_map(|(block_index, block)| load_audio_block_value(block, &track_id, block_index))
+                .collect(),
             output_mixdown: self.output_mixdown,
         })
     }
@@ -233,7 +234,7 @@ impl TrackYaml {
             blocks: track
                 .blocks
                 .iter()
-                .map(AudioBlockYaml::from_audio_block)
+                .map(|block| Ok(serde_yaml::to_value(AudioBlockYaml::from_audio_block(block)?)?))
                 .collect::<Result<Vec<_>>>()?,
             output_mixdown: track.output_mixdown,
         })
@@ -715,6 +716,34 @@ impl AudioBlockYaml {
     }
 }
 
+fn load_audio_block_value(
+    value: Value,
+    track_id: &TrackId,
+    index: usize,
+) -> Option<AudioBlock> {
+    let yaml = match serde_yaml::from_value::<AudioBlockYaml>(value) {
+        Ok(yaml) => yaml,
+        Err(error) => {
+            eprintln!(
+                "ignoring unsupported or invalid block at {}:{}: {}",
+                track_id.0, index, error
+            );
+            return None;
+        }
+    };
+
+    match yaml.into_audio_block(track_id, index) {
+        Ok(block) => Some(block),
+        Err(error) => {
+            eprintln!(
+                "ignoring unsupported or invalid block at {}:{}: {}",
+                track_id.0, index, error
+            );
+            None
+        }
+    }
+}
+
 fn load_model_params(effect_type: &str, model: &str, raw_params: Value) -> Result<ParameterSet> {
     let flattened = flatten_parameter_set(raw_params)?;
     normalize_block_params(effect_type, model, flattened).map_err(anyhow::Error::msg)
@@ -887,11 +916,12 @@ const fn default_enabled() -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::YamlProjectRepository;
+    use super::{load_track_preset_file, YamlProjectRepository};
     use domain::ids::{DeviceId, TrackId};
     use project::project::Project;
     use project::track::{Track, TrackOutputMixdown};
     use std::fs;
+    use std::path::PathBuf;
     use tempfile::tempdir;
 
     #[test]
@@ -938,7 +968,7 @@ mod tests {
     }
 
     #[test]
-    fn load_project_rejects_removed_core_nam_block_type() {
+    fn load_project_ignores_removed_or_invalid_blocks() {
         let temp_dir = tempdir().expect("temp dir should be created");
         let project_path = temp_dir.path().join("project.yaml");
         fs::write(
@@ -954,15 +984,70 @@ tracks:
       - type: core_nam
         enabled: true
         model_id: legacy
+      - type: delay
+        enabled: true
+        model: digital_clean
+        params:
+          time_ms: 200
+          feedback: 0.5
+          mix: 0.3
 "#,
         )
         .expect("project yaml should be written");
 
         let repository = YamlProjectRepository { path: project_path };
-        let error = repository
+        let project = repository
             .load_current_project()
-            .expect_err("legacy core_nam block should be rejected");
+            .expect("project should load while skipping invalid blocks");
 
-        assert!(error.to_string().contains("unknown variant"));
+        assert_eq!(project.tracks.len(), 1);
+        assert_eq!(project.tracks[0].blocks.len(), 1);
+        assert_eq!(
+            project.tracks[0]
+                .blocks[0]
+                .model_ref()
+                .expect("remaining block should expose model")
+                .model,
+            "digital_clean"
+        );
+    }
+
+    #[test]
+    fn load_preset_ignores_unknown_models() {
+        let temp_dir = tempdir().expect("temp dir should be created");
+        let preset_path: PathBuf = temp_dir.path().join("example.yaml");
+        fs::write(
+            &preset_path,
+            r#"
+id: example
+stages:
+  - type: delay
+    model: digital_ping_pong
+    params:
+      time_ms: 200
+      feedback: 0.5
+      mix: 0.3
+  - type: delay
+    model: digital_clean
+    params:
+      time_ms: 210
+      feedback: 0.4
+      mix: 0.25
+"#,
+        )
+        .expect("preset yaml should be written");
+
+        let preset = load_track_preset_file(&preset_path)
+            .expect("preset should load while skipping invalid stages");
+
+        assert_eq!(preset.blocks.len(), 1);
+        assert_eq!(
+            preset
+                .blocks[0]
+                .model_ref()
+                .expect("remaining block should expose model")
+                .model,
+            "digital_clean"
+        );
     }
 }
