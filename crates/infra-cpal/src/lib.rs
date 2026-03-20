@@ -54,8 +54,8 @@ struct ResolvedTrackAudioConfig {
 
 struct ActiveTrackRuntime {
     stream_signature: TrackStreamSignature,
-    input_stream: Stream,
-    output_stream: Stream,
+    _input_stream: Stream,
+    _output_stream: Stream,
 }
 
 pub struct ProjectRuntimeController {
@@ -176,23 +176,27 @@ impl ProjectRuntimeController {
             let resolved = resolved_tracks
                 .remove(&track.id)
                 .ok_or_else(|| anyhow!("track '{}' missing resolved audio config", track.id.0))?;
-            let needs_stream_rebuild = self
-                .active_tracks
-                .get(&track.id)
-                .map(|active| active.stream_signature != resolved.stream_signature)
-                .unwrap_or(true);
-
-            let runtime = self
-                .runtime_graph
-                .upsert_track(track, resolved.sample_rate, needs_stream_rebuild)?;
-
-            if needs_stream_rebuild {
-                let active = build_active_track_runtime(&track.id, resolved, runtime)?;
-                self.active_tracks.insert(track.id.clone(), active);
-            }
+            self.upsert_track_with_resolved(track, resolved)?;
         }
 
         Ok(())
+    }
+
+    pub fn upsert_track(&mut self, project: &Project, track: &Track) -> Result<()> {
+        if !track.enabled {
+            self.remove_track(&track.id);
+            return Ok(());
+        }
+
+        let host = cpal::default_host();
+        validate_track_channels_against_devices(&host, track)?;
+        let resolved = resolve_track_audio_config(&host, project, track)?;
+        self.upsert_track_with_resolved(track, resolved)
+    }
+
+    pub fn remove_track(&mut self, track_id: &TrackId) {
+        self.active_tracks.remove(track_id);
+        self.runtime_graph.remove_track(track_id);
     }
 
     pub fn stop(&mut self) {
@@ -202,6 +206,29 @@ impl ProjectRuntimeController {
 
     pub fn is_running(&self) -> bool {
         !self.active_tracks.is_empty()
+    }
+
+    fn upsert_track_with_resolved(
+        &mut self,
+        track: &Track,
+        resolved: ResolvedTrackAudioConfig,
+    ) -> Result<()> {
+        let needs_stream_rebuild = self
+            .active_tracks
+            .get(&track.id)
+            .map(|active| active.stream_signature != resolved.stream_signature)
+            .unwrap_or(true);
+
+        let runtime = self
+            .runtime_graph
+            .upsert_track(track, resolved.sample_rate, needs_stream_rebuild)?;
+
+        if needs_stream_rebuild {
+            let active = build_active_track_runtime(&track.id, resolved, runtime)?;
+            self.active_tracks.insert(track.id.clone(), active);
+        }
+
+        Ok(())
     }
 }
 
@@ -346,6 +373,24 @@ fn resolve_enabled_track_audio_configs(
     Ok(resolved)
 }
 
+fn resolve_track_audio_config(
+    host: &cpal::Host,
+    project: &Project,
+    track: &Track,
+) -> Result<ResolvedTrackAudioConfig> {
+    let input = resolve_input_device_for_track(host, project, track)?;
+    let output = resolve_output_device_for_track(host, project, track)?;
+    let sample_rate =
+        resolve_track_runtime_sample_rate(&track.id.0, &input.supported, &output.supported)?;
+
+    Ok(ResolvedTrackAudioConfig {
+        stream_signature: build_track_stream_signature(track, &input, &output),
+        input,
+        output,
+        sample_rate,
+    })
+}
+
 fn validate_buffer_size(
     requested: u32,
     supported: &SupportedBufferSize,
@@ -375,43 +420,60 @@ fn validate_channels_against_devices(
         if !track.enabled {
             continue;
         }
-        let input_device = find_input_device_by_id(host, &track.input_device_id.0)?
-            .ok_or_else(|| anyhow!("track '{}' missing input device '{}'", track.id.0, track.input_device_id.0))?;
-        let total_channels = max_supported_input_channels(&input_device).with_context(|| {
-            format!(
-                "failed to resolve input channel capacity for '{}'",
-                track.input_device_id.0
-            )
-        })?;
-        for channel in &track.input_channels {
-            if *channel >= total_channels {
-                bail!(
-                    "track '{}' invalid: input channel '{}' outside device range (channels={})",
-                    track.id.0,
-                    channel,
-                    total_channels
-                );
-            }
-        }
-        let output_device = find_output_device_by_id(host, &track.output_device_id.0)?
-            .ok_or_else(|| anyhow!("track '{}' missing output device '{}'", track.id.0, track.output_device_id.0))?;
-        let total_channels = max_supported_output_channels(&output_device).with_context(|| {
-            format!(
-                "failed to resolve output channel capacity for '{}'",
-                track.output_device_id.0
-            )
-        })?;
-        for channel in &track.output_channels {
-            if *channel >= total_channels {
-                bail!(
-                    "track '{}' invalid: output channel '{}' outside device range (channels={})",
-                    track.id.0,
-                    channel,
-                    total_channels
-                );
-            }
+        validate_track_channels_against_devices(host, track)?;
+    }
+    Ok(())
+}
+
+fn validate_track_channels_against_devices(host: &cpal::Host, track: &Track) -> Result<()> {
+    let input_device = find_input_device_by_id(host, &track.input_device_id.0)?.ok_or_else(|| {
+        anyhow!(
+            "track '{}' missing input device '{}'",
+            track.id.0,
+            track.input_device_id.0
+        )
+    })?;
+    let total_channels = max_supported_input_channels(&input_device).with_context(|| {
+        format!(
+            "failed to resolve input channel capacity for '{}'",
+            track.input_device_id.0
+        )
+    })?;
+    for channel in &track.input_channels {
+        if *channel >= total_channels {
+            bail!(
+                "track '{}' invalid: input channel '{}' outside device range (channels={})",
+                track.id.0,
+                channel,
+                total_channels
+            );
         }
     }
+
+    let output_device = find_output_device_by_id(host, &track.output_device_id.0)?.ok_or_else(|| {
+        anyhow!(
+            "track '{}' missing output device '{}'",
+            track.id.0,
+            track.output_device_id.0
+        )
+    })?;
+    let total_channels = max_supported_output_channels(&output_device).with_context(|| {
+        format!(
+            "failed to resolve output channel capacity for '{}'",
+            track.output_device_id.0
+        )
+    })?;
+    for channel in &track.output_channels {
+        if *channel >= total_channels {
+            bail!(
+                "track '{}' invalid: output channel '{}' outside device range (channels={})",
+                track.id.0,
+                channel,
+                total_channels
+            );
+        }
+    }
+
     Ok(())
 }
 fn find_input_device_by_id(host: &cpal::Host, device_id: &str) -> Result<Option<cpal::Device>> {
@@ -606,8 +668,8 @@ fn build_active_track_runtime(
     output_stream.play()?;
     Ok(ActiveTrackRuntime {
         stream_signature,
-        input_stream,
-        output_stream,
+        _input_stream: input_stream,
+        _output_stream: output_stream,
     })
 }
 

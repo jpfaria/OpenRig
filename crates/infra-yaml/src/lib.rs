@@ -27,7 +27,7 @@ use stage_reverb::plate_foundation::MODEL_ID as DEFAULT_REVERB_MODEL;
 use stage_util::tuner_chromatic::MODEL_ID as DEFAULT_TUNER_MODEL;
 use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub struct YamlProjectRepository {
     pub path: PathBuf,
@@ -40,7 +40,7 @@ pub struct TrackBlocksPreset {
     pub blocks: Vec<project::block::AudioBlock>,
 }
 
-pub fn load_track_preset_file(path: &PathBuf) -> Result<TrackBlocksPreset> {
+pub fn load_track_preset_file(path: &Path) -> Result<TrackBlocksPreset> {
     let raw = fs::read_to_string(path)
         .with_context(|| format!("failed to read preset yaml {:?}", path))?;
     let dto: PresetYaml = serde_yaml::from_str(&raw)
@@ -48,7 +48,7 @@ pub fn load_track_preset_file(path: &PathBuf) -> Result<TrackBlocksPreset> {
     dto.into_preset()
 }
 
-pub fn save_track_preset_file(path: &PathBuf, preset: &TrackBlocksPreset) -> Result<()> {
+pub fn save_track_preset_file(path: &Path, preset: &TrackBlocksPreset) -> Result<()> {
     let dto = PresetYaml::from_track_preset(preset)?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;

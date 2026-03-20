@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use domain::ids::TrackId;
+use domain::ids::{BlockId, TrackId};
 use project::block::{schema_for_block_model, AudioBlockKind, CoreBlockKind, NamBlock, SelectBlock};
 use project::param::ParameterSet;
 use project::project::Project;
@@ -22,12 +22,14 @@ use stage_reverb::build_reverb_processor_for_layout;
 use stage_util::{build_tuner_processor, tuner_chromatic::ChromaticTuner};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 const DEBUG_MIN_PEAK_TO_LOG: f32 = 0.01;
 const DEBUG_LOG_INTERVAL_MS: u64 = 300;
 const DEFAULT_QUEUE_CAPACITY_FRAMES: usize = 48_000;
 const MAX_OUTPUT_QUEUE_LATENCY_FRAMES: u64 = 1_024;
+static NEXT_STAGE_INSTANCE_SERIAL: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Debug, Clone, Copy)]
 struct QueuedFrame {
@@ -149,18 +151,32 @@ impl AudioProcessor {
 }
 
 pub struct TrackRuntimeState {
+    track_id: TrackId,
     input_layout: AudioChannelLayout,
     output_layout: AudioChannelLayout,
+    input_channels: Vec<usize>,
+    output_channels: Vec<usize>,
+    output_mixdown: TrackOutputMixdown,
     processed_frames: VecDeque<QueuedFrame>,
     next_sequence: u64,
     output_position: u64,
     last_print: Instant,
-    processors: Vec<RuntimeProcessor>,
+    stages: Vec<StageRuntimeNode>,
 }
 
 enum RuntimeProcessor {
     Audio(AudioProcessor),
     Tuner(ChromaticTuner),
+}
+
+struct StageRuntimeNode {
+    #[cfg_attr(not(test), allow(dead_code))]
+    instance_serial: u64,
+    block_id: BlockId,
+    block_snapshot: project::block::AudioBlock,
+    input_layout: AudioChannelLayout,
+    output_layout: AudioChannelLayout,
+    processor: RuntimeProcessor,
 }
 
 struct ProcessorBuildOutcome {
@@ -181,54 +197,163 @@ pub fn build_runtime_graph(
         if !track.enabled {
             continue;
         }
-        let input_layout = layout_from_channels(track.input_channels.len())?;
         let sample_rate = *track_sample_rates.get(&track.id).ok_or_else(|| {
             anyhow!(
                 "track '{}' has no resolved runtime sample rate",
                 track.id.0
             )
         })?;
-        let (processors, output_layout) =
-            build_runtime_processors(track, input_layout, sample_rate)?;
+        let state = build_track_runtime_state(track, sample_rate)?;
         println!(
             "[track:{}] runtime input_layout={} output_layout={}",
             track.id.0,
-            layout_label(input_layout),
-            layout_label(output_layout)
+            layout_label(state.input_layout),
+            layout_label(state.output_layout)
         );
         tracks.insert(
             track.id.clone(),
-            Arc::new(Mutex::new(TrackRuntimeState {
-                input_layout,
-                output_layout,
-                processed_frames: VecDeque::with_capacity(DEFAULT_QUEUE_CAPACITY_FRAMES),
-                next_sequence: 0,
-                output_position: 0,
-                last_print: Instant::now(),
-                processors,
-            })),
+            Arc::new(Mutex::new(state)),
         );
     }
     Ok(RuntimeGraph { tracks })
 }
 
-fn build_runtime_processors(
+pub fn build_track_runtime_state(track: &Track, sample_rate: f32) -> Result<TrackRuntimeState> {
+    let input_layout = layout_from_channels(track.input_channels.len())?;
+    let (stages, output_layout) = build_runtime_stage_nodes(track, input_layout, sample_rate, None)?;
+
+    Ok(TrackRuntimeState {
+        track_id: track.id.clone(),
+        input_layout,
+        output_layout,
+        input_channels: track.input_channels.clone(),
+        output_channels: track.output_channels.clone(),
+        output_mixdown: track.output_mixdown,
+        processed_frames: VecDeque::with_capacity(DEFAULT_QUEUE_CAPACITY_FRAMES),
+        next_sequence: 0,
+        output_position: 0,
+        last_print: Instant::now(),
+        stages,
+    })
+}
+
+pub fn update_track_runtime_state(
+    runtime: &Arc<Mutex<TrackRuntimeState>>,
+    track: &Track,
+    sample_rate: f32,
+    reset_output_queue: bool,
+) -> Result<()> {
+    let input_layout = layout_from_channels(track.input_channels.len())?;
+    let mut locked = runtime.lock().expect("track runtime poisoned");
+    let existing = std::mem::take(&mut locked.stages);
+    let (stages, output_layout) =
+        build_runtime_stage_nodes(track, input_layout, sample_rate, Some(existing))?;
+
+    locked.input_layout = input_layout;
+    locked.output_layout = output_layout;
+    locked.track_id = track.id.clone();
+    locked.input_channels = track.input_channels.clone();
+    locked.output_channels = track.output_channels.clone();
+    locked.output_mixdown = track.output_mixdown;
+    locked.stages = stages;
+
+    if reset_output_queue {
+        locked.processed_frames.clear();
+        locked.output_position = locked.next_sequence;
+    }
+
+    Ok(())
+}
+
+impl RuntimeGraph {
+    pub fn upsert_track(
+        &mut self,
+        track: &Track,
+        sample_rate: f32,
+        reset_output_queue: bool,
+    ) -> Result<Arc<Mutex<TrackRuntimeState>>> {
+        if let Some(runtime) = self.tracks.get(&track.id) {
+            update_track_runtime_state(runtime, track, sample_rate, reset_output_queue)?;
+            return Ok(runtime.clone());
+        }
+
+        let state = build_track_runtime_state(track, sample_rate)?;
+        let runtime = Arc::new(Mutex::new(state));
+        self.tracks.insert(track.id.clone(), runtime.clone());
+        Ok(runtime)
+    }
+
+    pub fn remove_track(&mut self, track_id: &TrackId) {
+        self.tracks.remove(track_id);
+    }
+
+    pub fn runtime_for_track(&self, track_id: &TrackId) -> Option<Arc<Mutex<TrackRuntimeState>>> {
+        self.tracks.get(track_id).cloned()
+    }
+}
+
+fn build_runtime_stage_nodes(
     track: &Track,
     input_layout: AudioChannelLayout,
     sample_rate: f32,
-) -> Result<(Vec<RuntimeProcessor>, AudioChannelLayout)> {
-    let mut processors = Vec::new();
+    existing: Option<Vec<StageRuntimeNode>>,
+) -> Result<(Vec<StageRuntimeNode>, AudioChannelLayout)> {
+    let mut stages = Vec::new();
     let mut current_layout = input_layout;
+    let mut reusable_nodes = existing
+        .unwrap_or_default()
+        .into_iter()
+        .map(|node| (node.block_id.clone(), node))
+        .collect::<HashMap<_, _>>();
 
     for block in &track.blocks {
         if !block.enabled {
             continue;
         }
-        match &block.kind {
+        if let Some(node) = try_reuse_stage_node(&mut reusable_nodes, block, current_layout) {
+            current_layout = node.output_layout;
+            stages.push(node);
+            continue;
+        }
+
+        let node = build_stage_runtime_node(track, block, current_layout, sample_rate)?;
+        current_layout = node.output_layout;
+        stages.push(node);
+    }
+
+    Ok((stages, current_layout))
+}
+
+fn try_reuse_stage_node(
+    reusable_nodes: &mut HashMap<BlockId, StageRuntimeNode>,
+    block: &project::block::AudioBlock,
+    current_layout: AudioChannelLayout,
+) -> Option<StageRuntimeNode> {
+    let node = reusable_nodes.remove(&block.id)?;
+    if node.block_snapshot == *block && node.input_layout == current_layout {
+        Some(node)
+    } else {
+        None
+    }
+}
+
+fn build_stage_runtime_node(
+    track: &Track,
+    block: &project::block::AudioBlock,
+    input_layout: AudioChannelLayout,
+    sample_rate: f32,
+) -> Result<StageRuntimeNode> {
+    let processor = match &block.kind {
             AudioBlockKind::Nam(stage) => {
-                let outcome = build_nam_audio_processor(track, stage, current_layout, "nam")?;
-                current_layout = outcome.output_layout;
-                processors.push(RuntimeProcessor::Audio(outcome.processor));
+                let outcome = build_nam_audio_processor(track, stage, input_layout, "nam")?;
+                StageRuntimeNode {
+                    instance_serial: next_stage_instance_serial(),
+                    block_id: block.id.clone(),
+                    block_snapshot: block.clone(),
+                    input_layout,
+                    output_layout: outcome.output_layout,
+                    processor: RuntimeProcessor::Audio(outcome.processor),
+                }
             }
             AudioBlockKind::Core(core) => match &core.kind {
                 CoreBlockKind::AmpHead(stage) => {
@@ -242,7 +367,7 @@ fn build_runtime_processors(
                         track,
                         "amp_head",
                         &stage.model,
-                        current_layout,
+                        input_layout,
                         |layout| {
                             build_amp_head_processor_for_layout(
                                 &stage.model,
@@ -252,8 +377,14 @@ fn build_runtime_processors(
                             )
                         },
                     )?;
-                    current_layout = outcome.output_layout;
-                    processors.push(RuntimeProcessor::Audio(outcome.processor));
+                    StageRuntimeNode {
+                        instance_serial: next_stage_instance_serial(),
+                        block_id: block.id.clone(),
+                        block_snapshot: block.clone(),
+                        input_layout,
+                        output_layout: outcome.output_layout,
+                        processor: RuntimeProcessor::Audio(outcome.processor),
+                    }
                 }
                 CoreBlockKind::AmpCombo(stage) => {
                     println!(
@@ -266,7 +397,7 @@ fn build_runtime_processors(
                         track,
                         "amp_combo",
                         &stage.model,
-                        current_layout,
+                        input_layout,
                         |layout| {
                             build_amp_combo_processor_for_layout(
                                 &stage.model,
@@ -276,8 +407,14 @@ fn build_runtime_processors(
                             )
                         },
                     )?;
-                    current_layout = outcome.output_layout;
-                    processors.push(RuntimeProcessor::Audio(outcome.processor));
+                    StageRuntimeNode {
+                        instance_serial: next_stage_instance_serial(),
+                        block_id: block.id.clone(),
+                        block_snapshot: block.clone(),
+                        input_layout,
+                        output_layout: outcome.output_layout,
+                        processor: RuntimeProcessor::Audio(outcome.processor),
+                    }
                 }
                 CoreBlockKind::FullRig(stage) => {
                     println!(
@@ -290,7 +427,7 @@ fn build_runtime_processors(
                         track,
                         "full_rig",
                         &stage.model,
-                        current_layout,
+                        input_layout,
                         |layout| {
                             build_full_rig_processor_for_layout(
                                 &stage.model,
@@ -300,8 +437,14 @@ fn build_runtime_processors(
                             )
                         },
                     )?;
-                    current_layout = outcome.output_layout;
-                    processors.push(RuntimeProcessor::Audio(outcome.processor));
+                    StageRuntimeNode {
+                        instance_serial: next_stage_instance_serial(),
+                        block_id: block.id.clone(),
+                        block_snapshot: block.clone(),
+                        input_layout,
+                        output_layout: outcome.output_layout,
+                        processor: RuntimeProcessor::Audio(outcome.processor),
+                    }
                 }
                 CoreBlockKind::Cab(stage) => {
                     println!(
@@ -314,7 +457,7 @@ fn build_runtime_processors(
                         track,
                         "cab",
                         &stage.model,
-                        current_layout,
+                        input_layout,
                         |layout| {
                             build_cab_processor_for_layout(
                                 &stage.model,
@@ -324,8 +467,14 @@ fn build_runtime_processors(
                             )
                         },
                     )?;
-                    current_layout = outcome.output_layout;
-                    processors.push(RuntimeProcessor::Audio(outcome.processor));
+                    StageRuntimeNode {
+                        instance_serial: next_stage_instance_serial(),
+                        block_id: block.id.clone(),
+                        block_snapshot: block.clone(),
+                        input_layout,
+                        output_layout: outcome.output_layout,
+                        processor: RuntimeProcessor::Audio(outcome.processor),
+                    }
                 }
                 CoreBlockKind::Drive(stage) => {
                     println!(
@@ -338,7 +487,7 @@ fn build_runtime_processors(
                         track,
                         "drive",
                         &stage.model,
-                        current_layout,
+                        input_layout,
                         |layout| {
                             build_drive_processor_for_layout(
                                 &stage.model,
@@ -348,8 +497,14 @@ fn build_runtime_processors(
                             )
                         },
                     )?;
-                    current_layout = outcome.output_layout;
-                    processors.push(RuntimeProcessor::Audio(outcome.processor));
+                    StageRuntimeNode {
+                        instance_serial: next_stage_instance_serial(),
+                        block_id: block.id.clone(),
+                        block_snapshot: block.clone(),
+                        input_layout,
+                        output_layout: outcome.output_layout,
+                        processor: RuntimeProcessor::Audio(outcome.processor),
+                    }
                 }
                 CoreBlockKind::Delay(stage) => {
                     let time_ms = required_f32(&stage.params, "time_ms").unwrap_or_default();
@@ -363,7 +518,7 @@ fn build_runtime_processors(
                         track,
                         "delay",
                         &stage.model,
-                        current_layout,
+                        input_layout,
                         |layout| {
                             build_delay_processor_for_layout(
                                 &stage.model,
@@ -373,8 +528,14 @@ fn build_runtime_processors(
                             )
                         },
                     )?;
-                    current_layout = outcome.output_layout;
-                    processors.push(RuntimeProcessor::Audio(outcome.processor));
+                    StageRuntimeNode {
+                        instance_serial: next_stage_instance_serial(),
+                        block_id: block.id.clone(),
+                        block_snapshot: block.clone(),
+                        input_layout,
+                        output_layout: outcome.output_layout,
+                        processor: RuntimeProcessor::Audio(outcome.processor),
+                    }
                 }
                 CoreBlockKind::Reverb(stage) => {
                     let room_size = required_f32(&stage.params, "room_size").unwrap_or_default();
@@ -388,7 +549,7 @@ fn build_runtime_processors(
                         track,
                         "reverb",
                         &stage.model,
-                        current_layout,
+                        input_layout,
                         |layout| {
                             build_reverb_processor_for_layout(
                                 &stage.model,
@@ -398,8 +559,14 @@ fn build_runtime_processors(
                             )
                         },
                     )?;
-                    current_layout = outcome.output_layout;
-                    processors.push(RuntimeProcessor::Audio(outcome.processor));
+                    StageRuntimeNode {
+                        instance_serial: next_stage_instance_serial(),
+                        block_id: block.id.clone(),
+                        block_snapshot: block.clone(),
+                        input_layout,
+                        output_layout: outcome.output_layout,
+                        processor: RuntimeProcessor::Audio(outcome.processor),
+                    }
                 }
                 CoreBlockKind::Tuner(stage) => {
                     let reference_hz = required_f32(&stage.params, "reference_hz")?;
@@ -407,11 +574,18 @@ fn build_runtime_processors(
                         "[track:{}] loading tuner model={} reference_hz={}",
                         track.id.0, stage.model, reference_hz
                     );
-                    processors.push(RuntimeProcessor::Tuner(build_tuner_processor(
-                        &stage.model,
-                        &stage.params,
-                        sample_rate.round() as usize,
-                    )?));
+                    StageRuntimeNode {
+                        instance_serial: next_stage_instance_serial(),
+                        block_id: block.id.clone(),
+                        block_snapshot: block.clone(),
+                        input_layout,
+                        output_layout: input_layout,
+                        processor: RuntimeProcessor::Tuner(build_tuner_processor(
+                            &stage.model,
+                            &stage.params,
+                            sample_rate.round() as usize,
+                        )?),
+                    }
                 }
                 CoreBlockKind::Compressor(stage) => {
                     let threshold = required_f32(&stage.params, "threshold")?;
@@ -435,7 +609,7 @@ fn build_runtime_processors(
                         track,
                         "compressor",
                         &stage.model,
-                        current_layout,
+                        input_layout,
                         |layout| {
                             build_compressor_processor_for_layout(
                                 &stage.model,
@@ -445,8 +619,14 @@ fn build_runtime_processors(
                             )
                         },
                     )?;
-                    current_layout = outcome.output_layout;
-                    processors.push(RuntimeProcessor::Audio(outcome.processor));
+                    StageRuntimeNode {
+                        instance_serial: next_stage_instance_serial(),
+                        block_id: block.id.clone(),
+                        block_snapshot: block.clone(),
+                        input_layout,
+                        output_layout: outcome.output_layout,
+                        processor: RuntimeProcessor::Audio(outcome.processor),
+                    }
                 }
                 CoreBlockKind::Gate(stage) => {
                     let threshold = required_f32(&stage.params, "threshold")?;
@@ -460,7 +640,7 @@ fn build_runtime_processors(
                         track,
                         "gate",
                         &stage.model,
-                        current_layout,
+                        input_layout,
                         |layout| {
                             build_gate_processor_for_layout(
                                 &stage.model,
@@ -470,8 +650,14 @@ fn build_runtime_processors(
                             )
                         },
                     )?;
-                    current_layout = outcome.output_layout;
-                    processors.push(RuntimeProcessor::Audio(outcome.processor));
+                    StageRuntimeNode {
+                        instance_serial: next_stage_instance_serial(),
+                        block_id: block.id.clone(),
+                        block_snapshot: block.clone(),
+                        input_layout,
+                        output_layout: outcome.output_layout,
+                        processor: RuntimeProcessor::Audio(outcome.processor),
+                    }
                 }
                 CoreBlockKind::Eq(stage) => {
                     let low_gain_db = required_f32(&stage.params, "low_gain_db")?;
@@ -485,7 +671,7 @@ fn build_runtime_processors(
                         track,
                         "eq",
                         &stage.model,
-                        current_layout,
+                        input_layout,
                         |layout| {
                             build_eq_processor_for_layout(
                                 &stage.model,
@@ -495,8 +681,14 @@ fn build_runtime_processors(
                             )
                         },
                     )?;
-                    current_layout = outcome.output_layout;
-                    processors.push(RuntimeProcessor::Audio(outcome.processor));
+                    StageRuntimeNode {
+                        instance_serial: next_stage_instance_serial(),
+                        block_id: block.id.clone(),
+                        block_snapshot: block.clone(),
+                        input_layout,
+                        output_layout: outcome.output_layout,
+                        processor: RuntimeProcessor::Audio(outcome.processor),
+                    }
                 }
                 CoreBlockKind::Tremolo(stage) => {
                     let rate_hz = required_f32(&stage.params, "rate_hz")?;
@@ -509,7 +701,7 @@ fn build_runtime_processors(
                         track,
                         "tremolo",
                         &stage.model,
-                        current_layout,
+                        input_layout,
                         |layout| {
                             build_tremolo_processor_for_layout(
                                 &stage.model,
@@ -519,19 +711,30 @@ fn build_runtime_processors(
                             )
                         },
                     )?;
-                    current_layout = outcome.output_layout;
-                    processors.push(RuntimeProcessor::Audio(outcome.processor));
+                    StageRuntimeNode {
+                        instance_serial: next_stage_instance_serial(),
+                        block_id: block.id.clone(),
+                        block_snapshot: block.clone(),
+                        input_layout,
+                        output_layout: outcome.output_layout,
+                        processor: RuntimeProcessor::Audio(outcome.processor),
+                    }
                 }
             },
             AudioBlockKind::Select(select) => {
-                let outcome = load_selected_nam(track, select, current_layout)?;
-                current_layout = outcome.output_layout;
-                processors.push(RuntimeProcessor::Audio(outcome.processor));
+                let outcome = load_selected_nam(track, select, input_layout)?;
+                StageRuntimeNode {
+                    instance_serial: next_stage_instance_serial(),
+                    block_id: block.id.clone(),
+                    block_snapshot: block.clone(),
+                    input_layout,
+                    output_layout: outcome.output_layout,
+                    processor: RuntimeProcessor::Audio(outcome.processor),
+                }
             }
-        }
-    }
+        };
 
-    Ok((processors, current_layout))
+    Ok(processor)
 }
 
 fn build_audio_processor_for_model<F>(
@@ -771,7 +974,6 @@ fn load_selected_nam(
 }
 
 pub fn process_input_f32(
-    track: &Track,
     runtime: &Arc<Mutex<TrackRuntimeState>>,
     data: &[f32],
     input_total_channels: usize,
@@ -781,12 +983,12 @@ pub fn process_input_f32(
     let mut track_frames = Vec::with_capacity(data.len() / input_total_channels);
     let mut tuner_samples = Vec::new();
     let tuner_enabled = locked
-        .processors
+        .stages
         .iter()
-        .any(|processor| matches!(processor, RuntimeProcessor::Tuner(_)));
+        .any(|stage| matches!(stage.processor, RuntimeProcessor::Tuner(_)));
 
     for frame in data.chunks(input_total_channels) {
-        let track_frame = read_input_frame(locked.input_layout, &track.input_channels, frame);
+        let track_frame = read_input_frame(locked.input_layout, &locked.input_channels, frame);
         peak = peak.max(track_frame.peak());
         if tuner_enabled {
             tuner_samples.push(track_frame.mono_mix());
@@ -795,15 +997,15 @@ pub fn process_input_f32(
     }
 
     if tuner_enabled && !tuner_samples.is_empty() {
-        for processor in &mut locked.processors {
-            if let RuntimeProcessor::Tuner(tuner) = processor {
+        for stage in &mut locked.stages {
+            if let RuntimeProcessor::Tuner(tuner) = &mut stage.processor {
                 tuner.process(&tuner_samples);
             }
         }
     }
 
-    for processor in &mut locked.processors {
-        if let RuntimeProcessor::Audio(processor) = processor {
+    for stage in &mut locked.stages {
+        if let RuntimeProcessor::Audio(processor) = &mut stage.processor {
             processor.process_buffer(&mut track_frames);
         }
     }
@@ -821,9 +1023,9 @@ pub fn process_input_f32(
         && locked.last_print.elapsed() >= Duration::from_millis(DEBUG_LOG_INTERVAL_MS)
     {
         println!(
-            "[{}] audio detected | input_channels={:?} | peak={:.4} | buffered={}",
-            track.id.0,
-            track.input_channels,
+            "[track:{}] audio detected | input_channels={:?} | peak={:.4} | buffered={}",
+            locked.track_id.0,
+            locked.input_channels,
             peak,
             locked.processed_frames.len()
         );
@@ -832,7 +1034,6 @@ pub fn process_input_f32(
 }
 
 pub fn process_output_f32(
-    track: &Track,
     runtime: &Arc<Mutex<TrackRuntimeState>>,
     out: &mut [f32],
     output_total_channels: usize,
@@ -861,9 +1062,9 @@ pub fn process_output_f32(
             .unwrap_or_else(|| silent_frame(locked.output_layout));
         write_output_frame(
             processed,
-            &track.output_channels,
+            &locked.output_channels,
             frame,
-            track.output_mixdown,
+            locked.output_mixdown,
         );
         cursor += 1;
     }
@@ -987,16 +1188,23 @@ fn layout_label(layout: AudioChannelLayout) -> &'static str {
     }
 }
 
+fn next_stage_instance_serial() -> u64 {
+    NEXT_STAGE_INSTANCE_SERIAL.fetch_add(1, Ordering::Relaxed)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::build_runtime_graph;
+    use super::{build_runtime_graph, build_track_runtime_state, update_track_runtime_state};
     use domain::ids::{BlockId, DeviceId, TrackId};
     use domain::value_objects::ParameterValue;
-    use project::block::{AudioBlock, AudioBlockKind, CabBlock, CoreBlock, CoreBlockKind};
+    use project::block::{
+        AudioBlock, AudioBlockKind, CabBlock, CoreBlock, CoreBlockKind, TunerBlock,
+    };
     use project::param::ParameterSet;
     use project::project::Project;
     use project::track::{Track, TrackOutputMixdown};
     use std::collections::HashMap;
+    use std::sync::{Arc, Mutex};
 
     #[test]
     fn runtime_graph_builds_for_track_with_cab_block() {
@@ -1075,5 +1283,118 @@ mod tests {
         };
 
         assert!(error.to_string().contains("sample_rate"));
+    }
+
+    #[test]
+    fn update_track_runtime_state_preserves_unchanged_stage_instances() {
+        let mut track = tuner_track(
+            "track:0",
+            vec![
+                tuner_block("track:0:block:a", 440.0),
+                tuner_block("track:0:block:b", 445.0),
+            ],
+        );
+
+        let runtime = Arc::new(Mutex::new(
+            build_track_runtime_state(&track, 48_000.0).expect("runtime state should build"),
+        ));
+        let original_serials = {
+            let locked = runtime.lock().expect("runtime poisoned");
+            locked
+                .stages
+                .iter()
+                .map(|stage| stage.instance_serial)
+                .collect::<Vec<_>>()
+        };
+
+        if let AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::Tuner(stage),
+        }) = &mut track.blocks[1].kind
+        {
+            stage
+                .params
+                .insert("reference_hz", ParameterValue::Float(432.0));
+        }
+
+        update_track_runtime_state(&runtime, &track, 48_000.0, false)
+            .expect("runtime update should succeed");
+
+        let updated_serials = {
+            let locked = runtime.lock().expect("runtime poisoned");
+            locked
+                .stages
+                .iter()
+                .map(|stage| stage.instance_serial)
+                .collect::<Vec<_>>()
+        };
+
+        assert_eq!(updated_serials[0], original_serials[0]);
+        assert_ne!(updated_serials[1], original_serials[1]);
+    }
+
+    #[test]
+    fn update_track_runtime_state_preserves_stage_identity_when_reordered() {
+        let mut track = tuner_track(
+            "track:0",
+            vec![
+                tuner_block("track:0:block:a", 440.0),
+                tuner_block("track:0:block:b", 445.0),
+            ],
+        );
+
+        let runtime = Arc::new(Mutex::new(
+            build_track_runtime_state(&track, 48_000.0).expect("runtime state should build"),
+        ));
+        let original_by_block_id = {
+            let locked = runtime.lock().expect("runtime poisoned");
+            locked
+                .stages
+                .iter()
+                .map(|stage| (stage.block_id.clone(), stage.instance_serial))
+                .collect::<HashMap<_, _>>()
+        };
+
+        track.blocks.swap(0, 1);
+
+        update_track_runtime_state(&runtime, &track, 48_000.0, false)
+            .expect("runtime update should succeed");
+
+        let reordered = runtime.lock().expect("runtime poisoned");
+        assert_eq!(reordered.stages.len(), 2);
+        for stage in &reordered.stages {
+            assert_eq!(
+                Some(&stage.instance_serial),
+                original_by_block_id.get(&stage.block_id)
+            );
+        }
+    }
+
+    fn tuner_track(track_id: &str, blocks: Vec<AudioBlock>) -> Track {
+        Track {
+            id: TrackId(track_id.into()),
+            description: Some("Tuner track".into()),
+            enabled: true,
+            input_device_id: DeviceId("input-device".into()),
+            input_channels: vec![0],
+            output_device_id: DeviceId("output-device".into()),
+            output_channels: vec![0],
+            blocks,
+            output_mixdown: TrackOutputMixdown::Average,
+        }
+    }
+
+    fn tuner_block(block_id: &str, reference_hz: f32) -> AudioBlock {
+        let mut params = ParameterSet::default();
+        params.insert("reference_hz", ParameterValue::Float(reference_hz));
+        AudioBlock {
+            id: BlockId(block_id.into()),
+            enabled: true,
+            kind: AudioBlockKind::Core(CoreBlock {
+                kind: CoreBlockKind::Tuner(TunerBlock {
+                    model: "tuner_chromatic".into(),
+                    params,
+                }),
+            }),
+        }
     }
 }
