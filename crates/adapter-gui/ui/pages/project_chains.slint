@@ -768,7 +768,7 @@ component BlockChip inherits Rectangle {
         : root.block.kind == "full_rig" ? #63d2ff
         : root.block.kind == "drive" ? #ff6a57
         : root.block.kind == "compressor" ? #41b8ff
-        : root.block.kind == "gate" ? #74d680
+        : root.block.kind == "gate" ? #41b8ff
         : root.block.kind == "eq" ? #d6c85a
         : root.block.kind == "tremolo" ? #58d39b
         : root.block.kind == "delay" ? #ba8cff
@@ -781,8 +781,8 @@ component BlockChip inherits Rectangle {
         : root.block.kind == "cab" ? "CAB"
         : root.block.kind == "full_rig" ? "RIG"
         : root.block.kind == "drive" ? "GAIN"
-        : root.block.kind == "compressor" ? "COMP"
-        : root.block.kind == "gate" ? "GATE"
+        : root.block.kind == "compressor" ? "DYN"
+        : root.block.kind == "gate" ? "DYN"
         : root.block.kind == "eq" ? "EQ"
         : root.block.kind == "tremolo" ? "MOD"
         : root.block.kind == "delay" ? "DLY"
@@ -1468,8 +1468,9 @@ export component ProjectChainsPage inherits Rectangle {
                         : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "cab" ? "CAB"
                         : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "full_rig" ? "RIG"
                         : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "drive" ? "GAIN"
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "compressor" ? "COMP"
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "gate" ? "GATE"
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "compressor" ? "DYN"
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "gate" ? "DYN"
+                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "dyn" ? "DYN"
                         : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "eq" ? "EQ"
                         : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "tremolo" ? "MOD"
                         : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "delay" ? "DLY"

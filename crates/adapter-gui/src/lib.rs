@@ -23,6 +23,7 @@ use project::chain::{Chain, ChainOutputMixdown};
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 use slint::{Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
+use std::collections::HashSet;
 use std::fmt::Display;
 use std::rc::Rc;
 use std::{
@@ -1848,28 +1849,28 @@ pub fn run_desktop_app(
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let block_types = supported_block_types();
+            let block_types = block_type_picker_items();
             let Some(block_type) = block_types.get(index as usize) else {
                 return;
             };
-            let models = supported_block_models(block_type.effect_type).unwrap_or_default();
+            let models = block_model_picker_items(block_type.effect_type.as_str());
             let Some(model) = models.first() else {
                 return;
             };
             if let Some(draft) = block_editor_draft.borrow_mut().as_mut() {
-                draft.effect_type = block_type.effect_type.to_string();
+                draft.effect_type = model.effect_type.to_string();
                 draft.model_id = model.model_id.to_string();
             }
-            let items = block_model_picker_items(block_type.effect_type);
+            let items = block_model_picker_items(block_type.effect_type.as_str());
             block_model_option_labels.set_vec(block_model_picker_labels(&items));
             block_model_options.set_vec(items);
             block_parameter_items.set_vec(block_parameter_items_for_model(
-                block_type.effect_type,
+                &model.effect_type,
                 &model.model_id,
                 &ParameterSet::default(),
             ));
             let drawer_state =
-                block_drawer_state(None, block_type.effect_type, Some(&model.model_id));
+                block_drawer_state(None, &model.effect_type, Some(&model.model_id));
             window.set_block_drawer_title(drawer_state.title.into());
             window.set_block_drawer_confirm_label(drawer_state.confirm_label.into());
             window.set_block_drawer_edit_mode(false);
@@ -1899,13 +1900,14 @@ pub fn run_desktop_app(
             let Some(draft) = draft_borrow.as_mut() else {
                 return;
             };
-            let models = supported_block_models(&draft.effect_type).unwrap_or_default();
+            let models = block_model_picker_items(picker_effect_type(&draft.effect_type));
             let Some(model) = models.get(index as usize) else {
                 return;
             };
             draft.model_id = model.model_id.to_string();
+            draft.effect_type = model.effect_type.to_string();
             block_parameter_items.set_vec(block_parameter_items_for_model(
-                &draft.effect_type,
+                &model.effect_type,
                 &model.model_id,
                 &ParameterSet::default(),
             ));
@@ -2930,28 +2932,56 @@ fn replace_project_chains(model: &Rc<VecModel<ProjectChainItem>>, project: &Proj
     model.set_vec(items);
 }
 
+fn picker_effect_type(effect_type: &str) -> &str {
+    match effect_type {
+        "compressor" | "gate" => "dyn",
+        _ => effect_type,
+    }
+}
+
+fn picker_icon_kind(effect_type: &str) -> &str {
+    match picker_effect_type(effect_type) {
+        "dyn" => "compressor",
+        other => other,
+    }
+}
+
 fn block_type_picker_items() -> Vec<BlockTypePickerItem> {
+    let mut seen = HashSet::new();
     supported_block_types()
         .into_iter()
-        .map(|item| BlockTypePickerItem {
-            effect_type: item.effect_type.into(),
-            label: short_effect_type_label(item.effect_type).into(),
-            subtitle: "".into(),
-            icon_kind: item.effect_type.into(),
+        .filter_map(|item| {
+            let grouped = picker_effect_type(item.effect_type);
+            if !seen.insert(grouped.to_string()) {
+                return None;
+            }
+            Some(BlockTypePickerItem {
+                effect_type: grouped.into(),
+                label: short_effect_type_label(grouped).into(),
+                subtitle: "".into(),
+                icon_kind: picker_icon_kind(grouped).into(),
+            })
         })
         .collect()
 }
 
 fn block_model_picker_items(effect_type: &str) -> Vec<BlockModelPickerItem> {
-    supported_block_models(effect_type)
-        .unwrap_or_default()
+    let models = if effect_type == "dyn" {
+        let mut models = supported_block_models("compressor").unwrap_or_default();
+        models.extend(supported_block_models("gate").unwrap_or_default());
+        models
+    } else {
+        supported_block_models(effect_type).unwrap_or_default()
+    };
+
+    models
         .into_iter()
         .map(|item| BlockModelPickerItem {
-            effect_type: item.effect_type.into(),
+            effect_type: item.effect_type.clone().into(),
             model_id: item.model_id.into(),
             label: item.display_name.into(),
             subtitle: "".into(),
-            icon_kind: effect_type.into(),
+            icon_kind: picker_icon_kind(&item.effect_type).into(),
         })
         .collect()
 }
@@ -2971,16 +3001,19 @@ fn set_selected_block(window: &AppWindow, selected_block: Option<&SelectedBlock>
 }
 
 fn block_type_index(effect_type: &str) -> i32 {
+    let grouped = picker_effect_type(effect_type);
     supported_block_types()
+        .into_iter()
+        .map(|item| picker_effect_type(item.effect_type).to_string())
+        .collect::<Vec<_>>()
         .iter()
-        .position(|item| item.effect_type == effect_type)
+        .position(|item| item == grouped)
         .map(|index| index as i32)
         .unwrap_or(-1)
 }
 
 fn block_model_index(effect_type: &str, model_id: &str) -> i32 {
-    supported_block_models(effect_type)
-        .unwrap_or_default()
+    block_model_picker_items(picker_effect_type(effect_type))
         .iter()
         .position(|item| item.model_id == model_id)
         .map(|index| index as i32)
@@ -2994,8 +3027,7 @@ fn short_effect_type_label(effect_type: &str) -> &'static str {
         "cab" => "CAB",
         "full_rig" => "RIG",
         "drive" => "GAIN",
-        "compressor" => "COMP",
-        "gate" => "GATE",
+        "compressor" | "gate" | "dyn" => "DYN",
         "eq" => "EQ",
         "tremolo" => "MOD",
         "delay" => "DLY",
