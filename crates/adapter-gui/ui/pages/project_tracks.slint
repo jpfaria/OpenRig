@@ -1314,11 +1314,13 @@ export component ProjectTracksPage inherits Rectangle {
             clicked => { root.cancel-stage-picker(); }
         }
 
-        Rectangle {
+        picker-modal := Rectangle {
+            property <int> row-count: Math.max(1, Math.floor((root.stage-type-options.length - 1) / 4) + 1);
+            property <length> content-height: self.row-count * 100px;
             x: (parent.width - 472px) / 2;
-            y: (parent.height - 438px) / 2;
+            y: (parent.height - self.height) / 2;
             width: 472px;
-            height: 438px;
+            height: Math.min(parent.height - 80px, self.content-height + 40px);
             background: #171a20f8;
             border-width: 1px;
             border-color: #2d3340;
@@ -1329,7 +1331,7 @@ export component ProjectTracksPage inherits Rectangle {
                 y: 20px;
                 width: parent.width - 40px;
                 height: parent.height - 40px;
-                viewport-height: (Math.floor((root.stage-type-options.length - 1) / 4) + 1) * 100px;
+                viewport-height: picker-modal.content-height;
 
                 for type-item[index] in root.stage-type-options : StageTypeCard {
                     x: Math.mod(index, 4) * 106px;
