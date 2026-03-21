@@ -1848,7 +1848,7 @@ export component ProjectChainsPage inherits Rectangle {
         }
 
         HeaderIconAction {
-            x: parent.width - 160px;
+            x: parent.width - 200px;
             y: 14px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/arrow-left.svg");
             tooltip: "Voltar";
@@ -1856,7 +1856,7 @@ export component ProjectChainsPage inherits Rectangle {
         }
 
         HeaderIconAction {
-            x: parent.width - 120px;
+            x: parent.width - 160px;
             y: 14px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
             tooltip: "Projeto";
@@ -1864,7 +1864,7 @@ export component ProjectChainsPage inherits Rectangle {
         }
 
         HeaderIconAction {
-            x: parent.width - 80px;
+            x: parent.width - 120px;
             y: 14px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/save.svg");
             tint: root.project-dirty ? #f3c64f : #eef2f8;
@@ -1872,9 +1872,19 @@ export component ProjectChainsPage inherits Rectangle {
             clicked => { root.save-project(); }
         }
 
+        HeaderIconAction {
+            x: parent.width - 80px;
+            y: 14px;
+            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/plus.svg");
+            tooltip: "Nova chain";
+            clicked => { root.add-chain(); }
+        }
+
         if root.project-running : HeaderIconAction {
             x: parent.width - 40px;
-            y: 14px;
+            y: 10px;
+            width: 32px;
+            height: 32px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/stop.svg");
             active: true;
             tooltip: "Parar";
@@ -1883,7 +1893,9 @@ export component ProjectChainsPage inherits Rectangle {
 
         if !root.project-running : HeaderIconAction {
             x: parent.width - 40px;
-            y: 14px;
+            y: 10px;
+            width: 32px;
+            height: 32px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/play.svg");
             active: true;
             tooltip: "Iniciar";
@@ -1899,79 +1911,59 @@ export component ProjectChainsPage inherits Rectangle {
         background: #34383f;
     }
 
-    Rectangle {
+    TouchArea {
         x: 24px;
         y: 96px;
         width: parent.width - 48px;
-        height: parent.height - 120px;
-        background: #22242988;
-        border-width: 1px;
-        border-color: #32363daa;
-        border-radius: 6px;
-
-        TouchArea {
-            x: 0px;
-            y: 0px;
-            width: parent.width;
-            height: parent.height;
-            clicked => {
-                if root.dragging-block-index >= 0 {
-                    root.dragging-chain-index = -1;
-                    root.dragging-block-index = -1;
-                    root.drag-hover-before-index = -1;
-                }
+        height: parent.height - 96px;
+        clicked => {
+            if root.dragging-block-index >= 0 {
+                root.dragging-chain-index = -1;
+                root.dragging-block-index = -1;
+                root.drag-hover-before-index = -1;
             }
         }
+    }
 
-        ToolbarButton {
-            x: parent.width - 154px;
-            y: 16px;
-            width: 136px;
-            label: "Nova chain";
-            primary: true;
-            clicked => { root.add-chain(); }
-        }
+    ScrollView {
+        x: 24px;
+        y: 96px;
+        width: parent.width - 48px;
+        height: parent.height - 96px;
+        viewport-height: chains-column.preferred-height;
+        viewport-width: chains-column.width;
 
-        ScrollView {
-            x: 18px;
-            y: 66px;
-            width: parent.width - 36px;
-            height: parent.height - 84px;
-            viewport-height: chains-column.preferred-height;
-            viewport-width: chains-column.width;
+        chains-column := VerticalBox {
+            x: 0px;
+            y: 0px;
+            width: parent.width - 18px;
+            spacing: 12px;
 
-            chains-column := VerticalBox {
-                x: 0px;
-                y: 0px;
-                width: parent.width - 18px;
-                spacing: 12px;
-
-                for chain[index] in root.project-chains : ChainRow {
-                    width: parent.width;
-                    chain: chain;
-                    chain-index: index;
-                    selected-block-chain-index: root.selected-chain-block-chain-index;
-                    selected-block-index: root.selected-chain-block-index;
-                    toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
-                    remove-chain(index) => { root.remove-chain(index); }
+            for chain[index] in root.project-chains : ChainRow {
+                width: parent.width;
+                chain: chain;
+                chain-index: index;
+                selected-block-chain-index: root.selected-chain-block-chain-index;
+                selected-block-index: root.selected-chain-block-index;
+                toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
+                remove-chain(index) => { root.remove-chain(index); }
                 configure-chain(index) => { root.configure-chain(index); }
                 configure-chain-input(index) => { root.configure-chain-input(index); }
                 configure-chain-output(index) => { root.configure-chain-output(index); }
                 configure-chain-preset(index) => { root.configure-chain-preset(index); }
-                    save-chain-preset(index) => { root.save-chain-preset(index); }
-                    select-chain-block(chain-index, block-index) => { root.select-chain-block(chain-index, block-index); }
-                    toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }
-                    start-block-insert(chain-index, before-index) => { root.start-block-insert(chain-index, before-index); }
-                    reorder-chain-block(chain-index, from-index, before-index) => {
-                        root.reorder-chain-block(chain-index, from-index, before-index);
-                        root.dragging-chain-index = -1;
-                        root.dragging-block-index = -1;
-                        root.drag-hover-before-index = -1;
-                    }
-                    dragging-chain-index <=> root.dragging-chain-index;
-                    dragging-block-index <=> root.dragging-block-index;
-                    drag-hover-before-index <=> root.drag-hover-before-index;
+                save-chain-preset(index) => { root.save-chain-preset(index); }
+                select-chain-block(chain-index, block-index) => { root.select-chain-block(chain-index, block-index); }
+                toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }
+                start-block-insert(chain-index, before-index) => { root.start-block-insert(chain-index, before-index); }
+                reorder-chain-block(chain-index, from-index, before-index) => {
+                    root.reorder-chain-block(chain-index, from-index, before-index);
+                    root.dragging-chain-index = -1;
+                    root.dragging-block-index = -1;
+                    root.drag-hover-before-index = -1;
                 }
+                dragging-chain-index <=> root.dragging-chain-index;
+                dragging-block-index <=> root.dragging-block-index;
+                drag-hover-before-index <=> root.drag-hover-before-index;
             }
         }
     }
