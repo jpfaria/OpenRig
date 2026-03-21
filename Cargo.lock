@@ -781,6 +781,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "block-core",
+ "domain",
  "nam",
 ]
 
@@ -814,6 +815,10 @@ dependencies = [
 [[package]]
 name = "block-pitch"
 version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "block-core",
+]
 
 [[package]]
 name = "block-reverb"
@@ -4111,6 +4116,7 @@ dependencies = [
  "block-ir",
  "block-mod",
  "block-nam",
+ "block-pitch",
  "block-reverb",
  "block-util",
  "block-wah",
