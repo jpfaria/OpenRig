@@ -1047,17 +1047,49 @@ component ChainRow inherits Rectangle {
             vertical-alignment: center;
         }
 
-        Text {
-            x: 384px;
-            y: 18px;
-            text: "~" + Math.round(root.chain.latency_ms) + " ms";
-            color: root.chain.latency_ms < 10.0 ? #4ade80
-                 : root.chain.latency_ms < 20.0 ? #facc15
-                 : #f87171;
-            font-size: 11px;
-            font-weight: 500;
-            opacity: 0.75;
-            vertical-alignment: center;
+        if root.chain.latency_ms > 0 : Rectangle {
+            x: parent.width / 2 - 32px;
+            y: 17px;
+            width: 64px;
+            height: 22px;
+            border-radius: 4px;
+            background: root.chain.latency_ms < 10.0 ? #4ade8018
+                      : root.chain.latency_ms < 20.0 ? #facc1518
+                      : #f8717118;
+            border-width: 1px;
+            border-color: root.chain.latency_ms < 10.0 ? #4ade8055
+                        : root.chain.latency_ms < 20.0 ? #facc1555
+                        : #f8717155;
+
+            Text {
+                x: 0px;
+                y: 0px;
+                width: 26px;
+                height: parent.height;
+                text: "LAT";
+                color: root.chain.latency_ms < 10.0 ? #4ade8099
+                     : root.chain.latency_ms < 20.0 ? #facc1599
+                     : #f8717199;
+                font-size: 8px;
+                font-weight: 700;
+                horizontal-alignment: right;
+                vertical-alignment: center;
+            }
+
+            Text {
+                x: 29px;
+                y: 0px;
+                width: parent.width - 30px;
+                height: parent.height;
+                text: Math.round(root.chain.latency_ms) + "ms";
+                color: root.chain.latency_ms < 10.0 ? #4ade80
+                     : root.chain.latency_ms < 20.0 ? #facc15
+                     : #f87171;
+                font-size: 10px;
+                font-weight: 600;
+                horizontal-alignment: left;
+                vertical-alignment: center;
+            }
         }
 
         ChainActionIcon {
