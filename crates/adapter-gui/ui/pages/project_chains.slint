@@ -1144,7 +1144,7 @@ component ChainRow inherits Rectangle {
             }
         }
 
-        // Connecting line - row 0: termina no Out se for o único row, senão vai até a borda
+        // Row 0: termina no Out se for o único row, senão vai até a borda direita
         Rectangle {
             x: 72px;
             y: 41px;
@@ -1154,7 +1154,33 @@ component ChainRow inherits Rectangle {
             border-radius: 1px;
         }
 
-        // Connecting line - row 1 (quando há wrap)
+        // U-turn row 0 → row 1: vertical direita + horizontal bridge + vertical esquerda
+        if root.block-row-count > 1 : Rectangle {
+            x: parent.width - 2px;
+            y: 41px;
+            width: 2px;
+            height: 48px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+        if root.block-row-count > 1 : Rectangle {
+            x: 0px;
+            y: 87px;
+            width: parent.width;
+            height: 2px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+        if root.block-row-count > 1 : Rectangle {
+            x: 0px;
+            y: 87px;
+            width: 2px;
+            height: 48px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+
+        // Row 1: começa da esquerda, termina no Out se for o último, senão vai até a borda
         if root.block-row-count > 1 : Rectangle {
             x: 0px;
             y: 133px;
@@ -1164,17 +1190,33 @@ component ChainRow inherits Rectangle {
             border-radius: 1px;
         }
 
-        // Conector vertical direita: row 0 → row 1
-        if root.block-row-count > 1 : Rectangle {
+        // U-turn row 1 → row 2
+        if root.block-row-count > 2 : Rectangle {
             x: parent.width - 2px;
-            y: 41px;
+            y: 133px;
             width: 2px;
-            height: 94px;
+            height: 48px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+        if root.block-row-count > 2 : Rectangle {
+            x: 0px;
+            y: 179px;
+            width: parent.width;
+            height: 2px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+        if root.block-row-count > 2 : Rectangle {
+            x: 0px;
+            y: 179px;
+            width: 2px;
+            height: 48px;
             background: #3b4250;
             border-radius: 1px;
         }
 
-        // Connecting line - row 2
+        // Row 2
         if root.block-row-count > 2 : Rectangle {
             x: 0px;
             y: 225px;
@@ -1184,32 +1226,38 @@ component ChainRow inherits Rectangle {
             border-radius: 1px;
         }
 
-        // Conector vertical direita: row 1 → row 2
-        if root.block-row-count > 2 : Rectangle {
+        // U-turn row 2 → row 3
+        if root.block-row-count > 3 : Rectangle {
             x: parent.width - 2px;
-            y: 133px;
+            y: 225px;
             width: 2px;
-            height: 94px;
+            height: 48px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+        if root.block-row-count > 3 : Rectangle {
+            x: 0px;
+            y: 271px;
+            width: parent.width;
+            height: 2px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+        if root.block-row-count > 3 : Rectangle {
+            x: 0px;
+            y: 271px;
+            width: 2px;
+            height: 48px;
             background: #3b4250;
             border-radius: 1px;
         }
 
-        // Connecting line - row 3 (sempre o último se existir)
+        // Row 3 (sempre o último se existir)
         if root.block-row-count > 3 : Rectangle {
             x: 0px;
             y: 317px;
             width: root.out-chip-x;
             height: 2px;
-            background: #3b4250;
-            border-radius: 1px;
-        }
-
-        // Conector vertical direita: row 2 → row 3
-        if root.block-row-count > 3 : Rectangle {
-            x: parent.width - 2px;
-            y: 225px;
-            width: 2px;
-            height: 94px;
             background: #3b4250;
             border-radius: 1px;
         }
