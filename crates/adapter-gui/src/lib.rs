@@ -2195,6 +2195,15 @@ pub fn run_desktop_app(
                 win.set_block_parameter_items(ModelRc::from(win_param_items.clone()));
                 win.set_block_knob_overlays(ModelRc::from(win_knob_overlays.clone()));
 
+                // Set window title from selected model label
+                if effect_type == "amp_head" {
+                    let title_label = win_model_options
+                        .row_data(win.get_block_drawer_selected_model_index() as usize)
+                        .map(|m| m.label.to_string())
+                        .unwrap_or_default();
+                    win.set_block_window_title(format!("OpenRig · {}", title_label).into());
+                }
+
                 // on_choose_block_model
                 {
                     let win_draft = win_draft.clone();
@@ -4296,6 +4305,12 @@ fn block_type_picker_items() -> Vec<BlockTypePickerItem> {
         .collect()
 }
 
+fn model_type_label(effect_type: &str, model_id: &str) -> &'static str {
+    if effect_type != "amp_head" { return ""; }
+    if model_id.starts_with("marshall") { return "NAM"; }
+    "NATIVE"
+}
+
 fn model_brand(effect_type: &str, model_id: &str) -> &'static str {
     if effect_type != "amp_head" {
         return "";
@@ -4320,6 +4335,7 @@ fn block_model_picker_items(effect_type: &str) -> Vec<BlockModelPickerItem> {
                 .unwrap_or(effect_type)
                 .into(),
             brand: model_brand(&item.effect_type, &item.model_id).into(),
+            type_label: model_type_label(&item.effect_type, &item.model_id).into(),
         })
         .collect()
 }

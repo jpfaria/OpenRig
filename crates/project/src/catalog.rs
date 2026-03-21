@@ -31,7 +31,7 @@ fn block_registry() -> [BlockRegistryEntry; 15] {
     [
         BlockRegistryEntry {
             effect_type: "amp_head",
-            display_label: "AMP",
+            display_label: "PREAMP",
             icon_kind: "amp_head",
             supported_models: block_amp_head::supported_models,
         },

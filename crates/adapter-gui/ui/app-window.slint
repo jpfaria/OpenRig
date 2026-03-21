@@ -155,6 +155,7 @@ export component BlockEditorWindow inherits Window {
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
     in property <[BlockKnobOverlay]> block-knob-overlays;
+    in property <string> block-window-title: "OpenRig · Block";
     callback choose-block-model(int);
     callback close-block-drawer();
     callback save-block-drawer();
@@ -173,11 +174,11 @@ export component BlockEditorWindow inherits Window {
         && root.block-drawer-selected-type-index < root.block-type-options.length
         && root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "amp_head";
 
-    title: "OpenRig · Block";
+    title: root.block-window-title;
     min-width: root.is-amp-head ? 700px : 520px;
-    min-height: root.is-amp-head ? 250px : 400px;
+    min-height: root.is-amp-head ? 340px : 400px;
     preferred-width: root.is-amp-head ? 900px : 520px;
-    preferred-height: root.is-amp-head ? 340px : 760px;
+    preferred-height: root.is-amp-head ? 420px : 760px;
     background: #040708;
 
     // Amp head: visual panel editor
