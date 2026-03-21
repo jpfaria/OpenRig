@@ -28,11 +28,7 @@ pub fn block_drawer_state(
 
     BlockDrawerState {
         mode,
-        title: if matches!(mode, BlockDrawerMode::Edit) {
-            "Editar block"
-        } else {
-            "Adicionar block"
-        },
+        title: "",
         confirm_label: if matches!(mode, BlockDrawerMode::Edit) {
             "Salvar"
         } else {
@@ -48,10 +44,11 @@ pub fn block_family_for_kind(kind: &str) -> &'static str {
         "amp_head" | "amp_combo" | "full_rig" | "nam" => "amp",
         "cab" => "cab",
         "ir" => "ir",
-        "drive" => "drive",
+        "gain" => "gain",
         "dynamics" => "dynamics",
         "filter" => "filter",
         "wah" => "wah",
+        "pitch" => "pitch",
         "modulation" => "modulation",
         "delay" | "reverb" => "space",
         "utility" => "utility",
@@ -97,7 +94,7 @@ mod tests {
         let state = block_drawer_state(None, "delay", Some("digital_clean"));
 
         assert_eq!(state.mode, BlockDrawerMode::Add);
-        assert_eq!(state.title, "Adicionar block");
+        assert_eq!(state.title, "");
         assert_eq!(state.confirm_label, "Adicionar");
     }
 
@@ -106,7 +103,7 @@ mod tests {
         let state = block_drawer_state(Some(2), "delay", Some("digital_clean"));
 
         assert_eq!(state.mode, BlockDrawerMode::Edit);
-        assert_eq!(state.title, "Editar block");
+        assert_eq!(state.title, "");
         assert_eq!(state.confirm_label, "Salvar");
     }
 

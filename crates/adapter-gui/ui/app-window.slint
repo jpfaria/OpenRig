@@ -1,9 +1,10 @@
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
-import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage } from "pages/pages.slint";
+import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, BlockEditorPanel } from "pages/pages.slint";
 
 export component ProjectSettingsWindow inherits Window {
+    icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logomark.svg");
     in-out property <string> project-name-draft;
     in-out property <string> status-message;
     in property <[DeviceSelectionItem]> project-devices;
@@ -40,6 +41,7 @@ export component ProjectSettingsWindow inherits Window {
 }
 
 export component ChainEditorWindow inherits Window {
+    icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logomark.svg");
     in property <string> editor-title;
     in property <string> editor-save-label;
     in-out property <string> chain-name;
@@ -76,18 +78,13 @@ export component ChainEditorWindow inherits Window {
 }
 
 export component ChainInputWindow inherits Window {
+    icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logomark.svg");
     in property <[string]> device-options;
     in property <int> selected-device-index;
     in property <[ChannelOptionItem]> channels;
-    in property <[string]> sample-rate-options;
-    in property <[string]> buffer-size-options;
-    in property <int> selected-sample-rate-index;
-    in property <int> selected-buffer-size-index;
     in-out property <string> status-message;
     callback select-device(int);
     callback toggle-channel(int, bool);
-    callback select-sample-rate(string);
-    callback select-buffer-size(string);
     callback save();
     callback cancel();
     title: "OpenRig · Entrada da chain";
@@ -104,33 +101,22 @@ export component ChainInputWindow inherits Window {
         device-options: root.device-options;
         selected-device-index: root.selected-device-index;
         channels: root.channels;
-        sample-rate-options: root.sample-rate-options;
-        buffer-size-options: root.buffer-size-options;
-        selected-sample-rate-index: root.selected-sample-rate-index;
-        selected-buffer-size-index: root.selected-buffer-size-index;
         status-message: root.status-message;
         select-device(index) => { root.select-device(index); }
         toggle-channel(index, selected) => { root.toggle-channel(index, selected); }
-        select-sample-rate(value) => { root.select-sample-rate(value); }
-        select-buffer-size(value) => { root.select-buffer-size(value); }
         save => { root.save(); }
         cancel => { root.cancel(); }
     }
 }
 
 export component ChainOutputWindow inherits Window {
+    icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logomark.svg");
     in property <[string]> device-options;
     in property <int> selected-device-index;
     in property <[ChannelOptionItem]> channels;
-    in property <[string]> sample-rate-options;
-    in property <[string]> buffer-size-options;
-    in property <int> selected-sample-rate-index;
-    in property <int> selected-buffer-size-index;
     in-out property <string> status-message;
     callback select-device(int);
     callback toggle-channel(int, bool);
-    callback select-sample-rate(string);
-    callback select-buffer-size(string);
     callback save();
     callback cancel();
     title: "OpenRig · Saída da chain";
@@ -147,21 +133,75 @@ export component ChainOutputWindow inherits Window {
         device-options: root.device-options;
         selected-device-index: root.selected-device-index;
         channels: root.channels;
-        sample-rate-options: root.sample-rate-options;
-        buffer-size-options: root.buffer-size-options;
-        selected-sample-rate-index: root.selected-sample-rate-index;
-        selected-buffer-size-index: root.selected-buffer-size-index;
         status-message: root.status-message;
         select-device(index) => { root.select-device(index); }
         toggle-channel(index, selected) => { root.toggle-channel(index, selected); }
-        select-sample-rate(value) => { root.select-sample-rate(value); }
-        select-buffer-size(value) => { root.select-buffer-size(value); }
         save => { root.save(); }
         cancel => { root.cancel(); }
     }
 }
 
+export component BlockEditorWindow inherits Window {
+    icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logomark.svg");
+    in property <[BlockTypePickerItem]> block-type-options;
+    in property <[BlockModelPickerItem]> block-model-options;
+    in property <[string]> block-model-option-labels;
+    in property <string> block-drawer-title;
+    in property <string> block-drawer-confirm-label;
+    in property <string> block-drawer-status-message;
+    in property <bool> block-drawer-edit-mode;
+    in property <int> block-drawer-selected-type-index;
+    in property <int> block-drawer-selected-model-index;
+    in property <bool> block-drawer-enabled;
+    in property <[BlockParameterItem]> block-parameter-items;
+    callback choose-block-model(int);
+    callback close-block-drawer();
+    callback save-block-drawer();
+    callback delete-block-drawer();
+    callback toggle-block-drawer-enabled();
+    callback update-block-parameter-text(string, string);
+    callback update-block-parameter-number(string, float);
+    callback update-block-parameter-number-text(string, string);
+    callback update-block-parameter-bool(string, bool);
+    callback select-block-parameter-option(string, int);
+    callback pick-block-parameter-file(string);
+    title: "OpenRig · Block";
+    min-width: 420px;
+    min-height: 620px;
+    preferred-width: 420px;
+    preferred-height: 760px;
+    background: #040708;
+
+    BlockEditorPanel {
+        width: parent.width;
+        height: parent.height;
+        block-type-options: root.block-type-options;
+        block-model-options: root.block-model-options;
+        block-model-option-labels: root.block-model-option-labels;
+        block-drawer-title: root.block-drawer-title;
+        block-drawer-confirm-label: root.block-drawer-confirm-label;
+        block-drawer-status-message: root.block-drawer-status-message;
+        block-drawer-edit-mode: root.block-drawer-edit-mode;
+        block-drawer-selected-type-index: root.block-drawer-selected-type-index;
+        block-drawer-selected-model-index: root.block-drawer-selected-model-index;
+        block-drawer-enabled: root.block-drawer-enabled;
+        block-parameter-items: root.block-parameter-items;
+        choose-block-model(index) => { root.choose-block-model(index); }
+        close-block-drawer => { root.close-block-drawer(); }
+        save-block-drawer => { root.save-block-drawer(); }
+        delete-block-drawer => { root.delete-block-drawer(); }
+        toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
+        update-block-parameter-text(path, value) => { root.update-block-parameter-text(path, value); }
+        update-block-parameter-number(path, value) => { root.update-block-parameter-number(path, value); }
+        update-block-parameter-number-text(path, value) => { root.update-block-parameter-number-text(path, value); }
+        update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
+        select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
+        pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
+    }
+}
+
 export component AppWindow inherits Window {
+    icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logomark.svg");
     in property <bool> show-project-launcher;
     in property <bool> show-project-chains;
     in property <bool> show-chain-editor;
@@ -209,10 +249,6 @@ export component AppWindow inherits Window {
     in property <[BlockParameterItem]> block-parameter-items;
     in property <[ChannelOptionItem]> chain-input-channels;
     in property <[ChannelOptionItem]> chain-output-channels;
-    in property <int> selected-chain-input-sample-rate-index;
-    in property <int> selected-chain-output-sample-rate-index;
-    in property <int> selected-chain-input-buffer-size-index;
-    in property <int> selected-chain-output-buffer-size-index;
     in-out property <string> status-message;
     in property <[string]> sample-rate-options: ["44100", "48000", "88200", "96000"];
     in property <[string]> buffer-size-options: ["32", "64", "128", "256", "512", "1024"];
@@ -253,10 +289,6 @@ export component AppWindow inherits Window {
     callback select-chain-output-device(int);
     callback toggle-chain-input-channel(int, bool);
     callback toggle-chain-output-channel(int, bool);
-    callback update-chain-input-sample-rate(string);
-    callback update-chain-input-buffer-size(string);
-    callback update-chain-output-sample-rate(string);
-    callback update-chain-output-buffer-size(string);
     callback select-chain-block(int, int);
     callback clear-chain-block();
     callback toggle-chain-block-enabled(int, int);

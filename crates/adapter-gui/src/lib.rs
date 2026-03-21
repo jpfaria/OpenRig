@@ -15,7 +15,7 @@ use infra_yaml::{
 use project::block::{
     build_audio_block_kind, schema_for_block_model, AudioBlock, AudioBlockKind,
 };
-use project::catalog::{supported_block_models, supported_block_types};
+use project::catalog::{supported_block_models, supported_block_type, supported_block_types};
 use project::device::DeviceSettings;
 use project::param::{ParameterDomain, ParameterSet, ParameterUnit};
 use project::project::Project;
@@ -49,6 +49,33 @@ fn log_gui_message(context: &str, message: &str) {
 
 fn log_gui_error(context: &str, error: impl Display) {
     eprintln!("[adapter-gui] {context}: {error}");
+}
+
+fn use_inline_block_editor(window: &AppWindow) -> bool {
+    window.get_touch_optimized()
+        && window
+            .get_interaction_mode_label()
+            .to_string()
+            .to_lowercase()
+            .contains("touch")
+}
+
+fn sync_block_editor_window(window: &AppWindow, block_editor_window: &BlockEditorWindow) {
+    block_editor_window.set_block_type_options(window.get_block_type_options());
+    block_editor_window.set_block_model_options(window.get_block_model_options());
+    block_editor_window.set_block_model_option_labels(window.get_block_model_option_labels());
+    block_editor_window.set_block_drawer_title(window.get_block_drawer_title());
+    block_editor_window.set_block_drawer_confirm_label(window.get_block_drawer_confirm_label());
+    block_editor_window.set_block_drawer_status_message(window.get_block_drawer_status_message());
+    block_editor_window.set_block_drawer_edit_mode(window.get_block_drawer_edit_mode());
+    block_editor_window.set_block_drawer_selected_type_index(
+        window.get_block_drawer_selected_type_index(),
+    );
+    block_editor_window.set_block_drawer_selected_model_index(
+        window.get_block_drawer_selected_model_index(),
+    );
+    block_editor_window.set_block_drawer_enabled(window.get_block_drawer_enabled());
+    block_editor_window.set_block_parameter_items(window.get_block_parameter_items());
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -226,6 +253,12 @@ pub fn run_desktop_app(
         ProjectSettingsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     let chain_editor_window =
         ChainEditorWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    let chain_input_window =
+        ChainInputWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    let chain_output_window =
+        ChainOutputWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    let block_editor_window =
+        BlockEditorWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     window.set_show_project_launcher(true);
     window.set_show_project_chains(false);
     window.set_show_chain_editor(false);
@@ -332,9 +365,9 @@ pub fn run_desktop_app(
     window.set_selected_chain_block_index(-1);
     window.set_show_block_type_picker(false);
     window.set_show_block_model_picker(false);
-    window.set_block_picker_title("Adicionar block".into());
+    window.set_block_picker_title("".into());
     window.set_show_block_drawer(false);
-    window.set_block_drawer_title("Adicionar block".into());
+    window.set_block_drawer_title("".into());
     window.set_block_drawer_confirm_label("Adicionar".into());
     window.set_block_drawer_status_message("".into());
     window.set_block_drawer_edit_mode(false);
@@ -356,18 +389,166 @@ pub fn run_desktop_app(
     window.set_block_model_options(ModelRc::from(block_model_options.clone()));
     window.set_block_model_option_labels(ModelRc::from(block_model_option_labels.clone()));
     window.set_block_parameter_items(ModelRc::from(block_parameter_items.clone()));
+    block_editor_window.set_block_type_options(ModelRc::from(block_type_options.clone()));
+    block_editor_window.set_block_model_options(ModelRc::from(block_model_options.clone()));
+    block_editor_window
+        .set_block_model_option_labels(ModelRc::from(block_model_option_labels.clone()));
+    block_editor_window.set_block_parameter_items(ModelRc::from(block_parameter_items.clone()));
+    block_editor_window.set_block_drawer_title("".into());
+    block_editor_window.set_block_drawer_confirm_label("Adicionar".into());
+    block_editor_window.set_block_drawer_status_message("".into());
+    block_editor_window.set_block_drawer_edit_mode(false);
+    block_editor_window.set_block_drawer_selected_type_index(-1);
+    block_editor_window.set_block_drawer_selected_model_index(-1);
+    block_editor_window.set_block_drawer_enabled(true);
+
+    {
+        let weak_window = window.as_weak();
+        block_editor_window.on_choose_block_model(move |index| {
+            if let Some(window) = weak_window.upgrade() {
+                window.invoke_choose_block_model(index);
+            }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        block_editor_window.on_close_block_drawer(move || {
+            if let Some(window) = weak_window.upgrade() {
+                window.invoke_close_block_drawer();
+            }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        block_editor_window.on_save_block_drawer(move || {
+            if let Some(window) = weak_window.upgrade() {
+                window.invoke_save_block_drawer();
+            }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        block_editor_window.on_delete_block_drawer(move || {
+            if let Some(window) = weak_window.upgrade() {
+                window.invoke_delete_block_drawer();
+            }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        block_editor_window.on_toggle_block_drawer_enabled(move || {
+            if let Some(window) = weak_window.upgrade() {
+                window.invoke_toggle_block_drawer_enabled();
+            }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        block_editor_window.on_update_block_parameter_text(move |path, value| {
+            if let Some(window) = weak_window.upgrade() {
+                window.invoke_update_block_parameter_text(path, value);
+            }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        block_editor_window.on_update_block_parameter_number(move |path, value| {
+            if let Some(window) = weak_window.upgrade() {
+                window.invoke_update_block_parameter_number(path, value);
+            }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        block_editor_window.on_update_block_parameter_number_text(move |path, value| {
+            if let Some(window) = weak_window.upgrade() {
+                window.invoke_update_block_parameter_number_text(path, value);
+            }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        block_editor_window.on_update_block_parameter_bool(move |path, value| {
+            if let Some(window) = weak_window.upgrade() {
+                window.invoke_update_block_parameter_bool(path, value);
+            }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        block_editor_window.on_select_block_parameter_option(move |path, index| {
+            if let Some(window) = weak_window.upgrade() {
+                window.invoke_select_block_parameter_option(path, index);
+            }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        block_editor_window.on_pick_block_parameter_file(move |path| {
+            if let Some(window) = weak_window.upgrade() {
+                window.invoke_pick_block_parameter_file(path);
+            }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        chain_input_window.on_select_device(move |index| {
+            if let Some(window) = weak_window.upgrade() {
+                window.invoke_select_chain_input_device(index);
+            }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        chain_input_window.on_toggle_channel(move |index, selected| {
+            if let Some(window) = weak_window.upgrade() {
+                window.invoke_toggle_chain_input_channel(index, selected);
+            }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        chain_output_window.on_select_device(move |index| {
+            if let Some(window) = weak_window.upgrade() {
+                window.invoke_select_chain_output_device(index);
+            }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        chain_output_window.on_toggle_channel(move |index, selected| {
+            if let Some(window) = weak_window.upgrade() {
+                window.invoke_toggle_chain_output_channel(index, selected);
+            }
+        });
+    }
 
     project_settings_window.set_project_devices(ModelRc::from(project_devices.clone()));
     project_settings_window.set_sample_rate_options(window.get_sample_rate_options());
     project_settings_window.set_buffer_size_options(window.get_buffer_size_options());
 
-    chain_editor_window.set_input_device_options(ModelRc::from(chain_input_device_options.clone()));
-    chain_editor_window
-        .set_output_device_options(ModelRc::from(chain_output_device_options.clone()));
-    chain_editor_window.set_input_channels(ModelRc::from(chain_input_channels.clone()));
-    chain_editor_window.set_output_channels(ModelRc::from(chain_output_channels.clone()));
-    chain_editor_window.set_selected_input_device_index(-1);
-    chain_editor_window.set_selected_output_device_index(-1);
+    chain_input_window.set_device_options(ModelRc::from(chain_input_device_options.clone()));
+    chain_input_window.set_channels(ModelRc::from(chain_input_channels.clone()));
+    chain_input_window.set_selected_device_index(-1);
+    chain_input_window.set_status_message("".into());
+    chain_output_window.set_device_options(ModelRc::from(chain_output_device_options.clone()));
+    chain_output_window.set_channels(ModelRc::from(chain_output_channels.clone()));
+    chain_output_window.set_selected_device_index(-1);
+    chain_output_window.set_status_message("".into());
 
     {
         let input_devices = input_devices.clone();
@@ -538,7 +719,12 @@ pub fn run_desktop_app(
                         window.set_status_message(error.to_string().into());
                         return;
                     }
-                    replace_project_chains(&project_chains, &session.project);
+                    replace_project_chains(
+                        &project_chains,
+                        &session.project,
+                        &input_chain_devices,
+                        &output_chain_devices,
+                    );
                     window.set_project_title(
                         project_title_for_path(session.project_path.as_ref(), &session.project)
                             .into(),
@@ -639,7 +825,12 @@ pub fn run_desktop_app(
                         settings_window.set_status_message(error.to_string().into());
                         return;
                     }
-                    replace_project_chains(&project_chains, &session.project);
+                    replace_project_chains(
+                        &project_chains,
+                        &session.project,
+                        &input_chain_devices,
+                        &output_chain_devices,
+                    );
                     window.set_project_title(
                         project_title_for_path(session.project_path.as_ref(), &session.project)
                             .into(),
@@ -681,7 +872,12 @@ pub fn run_desktop_app(
                     let title = project_title_for_path(Some(&canonical_path), &session.project);
                     let display_name = project_display_name(&session.project);
                     stop_project_runtime(&project_runtime);
-                    replace_project_chains(&project_chains, &session.project);
+                    replace_project_chains(
+                        &project_chains,
+                        &session.project,
+                        &input_chain_devices,
+                        &output_chain_devices,
+                    );
                     let snapshot = project_session_snapshot(&session).ok();
                     *project_session.borrow_mut() = Some(session);
                     *saved_project_snapshot.borrow_mut() = snapshot;
@@ -736,7 +932,12 @@ pub fn run_desktop_app(
             };
             stop_project_runtime(&project_runtime);
             let session = create_new_project_session(&project_paths.default_config_path);
-            replace_project_chains(&project_chains, &session.project);
+            replace_project_chains(
+                &project_chains,
+                &session.project,
+                &input_chain_devices,
+                &output_chain_devices,
+            );
             *project_session.borrow_mut() = Some(session);
             *saved_project_snapshot.borrow_mut() = None;
             window.set_project_running(false);
@@ -879,7 +1080,12 @@ pub fn run_desktop_app(
                     let title = project_title_for_path(Some(&canonical_path), &session.project);
                     let display_name = project_display_name(&session.project);
                     stop_project_runtime(&project_runtime);
-                    replace_project_chains(&project_chains, &session.project);
+                    replace_project_chains(
+                        &project_chains,
+                        &session.project,
+                        &input_chain_devices,
+                        &output_chain_devices,
+                    );
                     let snapshot = project_session_snapshot(&session).ok();
                     *project_session.borrow_mut() = Some(session);
                     *saved_project_snapshot.borrow_mut() = snapshot;
@@ -1139,7 +1345,12 @@ pub fn run_desktop_app(
                             window.set_status_message(error.to_string().into());
                             return;
                         }
-                        replace_project_chains(&project_chains, &session.project);
+                        replace_project_chains(
+                            &project_chains,
+                            &session.project,
+                            &input_chain_devices,
+                            &output_chain_devices,
+                        );
                         sync_project_dirty(
                             &window,
                             session,
@@ -1164,6 +1375,7 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let project_settings_window = project_settings_window.as_weak();
         let chain_editor_window = chain_editor_window.as_weak();
+        let block_editor_window = block_editor_window.as_weak();
         window.on_back_to_launcher(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1172,6 +1384,9 @@ pub fn run_desktop_app(
                 let _ = settings_window.hide();
             }
             if let Some(editor_window) = chain_editor_window.upgrade() {
+                let _ = editor_window.hide();
+            }
+            if let Some(editor_window) = block_editor_window.upgrade() {
                 let _ = editor_window.hide();
             }
             stop_project_runtime(&project_runtime);
@@ -1184,6 +1399,8 @@ pub fn run_desktop_app(
                     device_settings: Vec::new(),
                     chains: Vec::new(),
                 },
+                &input_chain_devices,
+                &output_chain_devices,
             );
             window.set_status_message("".into());
             set_project_dirty(&window, &project_dirty, false);
@@ -1226,6 +1443,13 @@ pub fn run_desktop_app(
             );
             *chain_draft.borrow_mut() = Some(draft.clone());
             apply_chain_editor_labels(&window, &draft);
+            apply_chain_endpoint_summaries(
+                &window,
+                &editor_window,
+                &draft,
+                &input_chain_devices,
+                &output_chain_devices,
+            );
             replace_channel_options(
                 &chain_input_channels,
                 build_input_channel_items(&draft, &session.project, &input_chain_devices),
@@ -1246,10 +1470,6 @@ pub fn run_desktop_app(
                 &output_chain_devices,
                 draft.output_device_id.as_deref(),
             ));
-            editor_window
-                .set_selected_input_device_index(window.get_selected_chain_input_device_index());
-            editor_window
-                .set_selected_output_device_index(window.get_selected_chain_output_device_index());
             editor_window.set_status_message("".into());
             window.set_status_message("".into());
             window.set_show_chain_editor(true);
@@ -1301,13 +1521,16 @@ pub fn run_desktop_app(
                 &output_chain_devices,
                 draft.output_device_id.as_deref(),
             ));
-            editor_window
-                .set_selected_input_device_index(window.get_selected_chain_input_device_index());
-            editor_window
-                .set_selected_output_device_index(window.get_selected_chain_output_device_index());
             *chain_draft.borrow_mut() = Some(draft);
             if let Some(draft) = chain_draft.borrow().as_ref() {
                 apply_chain_editor_labels(&window, draft);
+                apply_chain_endpoint_summaries(
+                    &window,
+                    &editor_window,
+                    draft,
+                    &input_chain_devices,
+                    &output_chain_devices,
+                );
                 editor_window.set_editor_title(window.get_chain_editor_title());
                 editor_window.set_editor_save_label(window.get_chain_editor_save_label());
             }
@@ -1353,9 +1576,12 @@ pub fn run_desktop_app(
 
     {
         let weak_window = window.as_weak();
+        let weak_input_window = chain_input_window.as_weak();
+        let weak_chain_window = chain_editor_window.as_weak();
         let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
         let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         let chain_input_channels = chain_input_channels.clone();
         window.on_select_chain_input_device(move |index| {
             let Some(window) = weak_window.upgrade() else {
@@ -1375,54 +1601,31 @@ pub fn run_desktop_app(
                     &chain_input_channels,
                     build_input_channel_items(draft, &session.project, &input_chain_devices),
                 );
+                if let Some(chain_window) = weak_chain_window.upgrade() {
+                    apply_chain_endpoint_summaries(
+                        &window,
+                        &chain_window,
+                        draft,
+                        &input_chain_devices,
+                        &output_chain_devices,
+                    );
+                }
             }
-            window.set_selected_chain_input_device_index(selected_device_index(
-                &input_chain_devices,
-                draft.input_device_id.as_deref(),
-            ));
+            let selected_index = selected_device_index(&input_chain_devices, draft.input_device_id.as_deref());
+            window.set_selected_chain_input_device_index(selected_index);
+            if let Some(input_window) = weak_input_window.upgrade() {
+                input_window.set_selected_device_index(selected_index);
+            }
         });
     }
 
     {
         let weak_window = window.as_weak();
+        let weak_output_window = chain_output_window.as_weak();
         let weak_chain_window = chain_editor_window.as_weak();
         let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
         let input_chain_devices = input_chain_devices.clone();
-        let chain_input_channels = chain_input_channels.clone();
-        chain_editor_window.on_select_chain_input_device(move |index| {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let Some(chain_window) = weak_chain_window.upgrade() else {
-                return;
-            };
-            let mut draft_borrow = chain_draft.borrow_mut();
-            let Some(draft) = draft_borrow.as_mut() else {
-                return;
-            };
-            let Some(device) = input_chain_devices.get(index as usize) else {
-                return;
-            };
-            draft.input_device_id = Some(device.id.clone());
-            draft.input_channels.clear();
-            if let Some(session) = project_session.borrow().as_ref() {
-                replace_channel_options(
-                    &chain_input_channels,
-                    build_input_channel_items(draft, &session.project, &input_chain_devices),
-                );
-            }
-            let selected_index =
-                selected_device_index(&input_chain_devices, draft.input_device_id.as_deref());
-            window.set_selected_chain_input_device_index(selected_index);
-            chain_window.set_selected_input_device_index(selected_index);
-        });
-    }
-
-    {
-        let weak_window = window.as_weak();
-        let chain_draft = chain_draft.clone();
-        let project_session = project_session.clone();
         let output_chain_devices = output_chain_devices.clone();
         let chain_output_channels = chain_output_channels.clone();
         window.on_select_chain_output_device(move |index| {
@@ -1443,47 +1646,21 @@ pub fn run_desktop_app(
                     &chain_output_channels,
                     build_output_channel_items(draft, &output_chain_devices),
                 );
+                if let Some(chain_window) = weak_chain_window.upgrade() {
+                    apply_chain_endpoint_summaries(
+                        &window,
+                        &chain_window,
+                        draft,
+                        &input_chain_devices,
+                        &output_chain_devices,
+                    );
+                }
             }
-            window.set_selected_chain_output_device_index(selected_device_index(
-                &output_chain_devices,
-                draft.output_device_id.as_deref(),
-            ));
-        });
-    }
-
-    {
-        let weak_window = window.as_weak();
-        let weak_chain_window = chain_editor_window.as_weak();
-        let chain_draft = chain_draft.clone();
-        let project_session = project_session.clone();
-        let output_chain_devices = output_chain_devices.clone();
-        let chain_output_channels = chain_output_channels.clone();
-        chain_editor_window.on_select_chain_output_device(move |index| {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let Some(chain_window) = weak_chain_window.upgrade() else {
-                return;
-            };
-            let mut draft_borrow = chain_draft.borrow_mut();
-            let Some(draft) = draft_borrow.as_mut() else {
-                return;
-            };
-            let Some(device) = output_chain_devices.get(index as usize) else {
-                return;
-            };
-            draft.output_device_id = Some(device.id.clone());
-            draft.output_channels.clear();
-            if project_session.borrow().as_ref().is_some() {
-                replace_channel_options(
-                    &chain_output_channels,
-                    build_output_channel_items(draft, &output_chain_devices),
-                );
-            }
-            let selected_index =
-                selected_device_index(&output_chain_devices, draft.output_device_id.as_deref());
+            let selected_index = selected_device_index(&output_chain_devices, draft.output_device_id.as_deref());
             window.set_selected_chain_output_device_index(selected_index);
-            chain_window.set_selected_output_device_index(selected_index);
+            if let Some(output_window) = weak_output_window.upgrade() {
+                output_window.set_selected_device_index(selected_index);
+            }
         });
     }
 
@@ -1491,8 +1668,10 @@ pub fn run_desktop_app(
         let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
         let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         let chain_input_channels = chain_input_channels.clone();
         let weak_window = window.as_weak();
+        let weak_chain_window = chain_editor_window.as_weak();
         window.on_toggle_chain_input_channel(move |index, selected| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1523,56 +1702,27 @@ pub fn run_desktop_app(
                     &chain_input_channels,
                     build_input_channel_items(draft, &session.project, &input_chain_devices),
                 );
+                if let Some(chain_window) = weak_chain_window.upgrade() {
+                    apply_chain_endpoint_summaries(
+                        &window,
+                        &chain_window,
+                        draft,
+                        &input_chain_devices,
+                        &output_chain_devices,
+                    );
+                }
             }
         });
     }
 
     {
-        let weak_chain_window = chain_editor_window.as_weak();
         let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
         let input_chain_devices = input_chain_devices.clone();
-        let chain_input_channels = chain_input_channels.clone();
-        chain_editor_window.on_toggle_chain_input_channel(move |index, selected| {
-            let Some(chain_window) = weak_chain_window.upgrade() else {
-                return;
-            };
-            let mut draft_borrow = chain_draft.borrow_mut();
-            let Some(draft) = draft_borrow.as_mut() else {
-                return;
-            };
-            let channel = index as usize;
-            let Some(option) = chain_input_channels.row_data(index as usize) else {
-                return;
-            };
-            if selected && !option.available && !option.selected {
-                chain_window
-                    .set_status_message("Canal de entrada já está em uso por outra chain.".into());
-                return;
-            }
-            if selected {
-                if !draft.input_channels.contains(&channel) {
-                    draft.input_channels.push(channel);
-                    draft.input_channels.sort_unstable();
-                }
-            } else {
-                draft.input_channels.retain(|current| *current != channel);
-            }
-            if let Some(session) = project_session.borrow().as_ref() {
-                replace_channel_options(
-                    &chain_input_channels,
-                    build_input_channel_items(draft, &session.project, &input_chain_devices),
-                );
-            }
-            chain_window.set_status_message("".into());
-        });
-    }
-
-    {
-        let chain_draft = chain_draft.clone();
-        let project_session = project_session.clone();
         let output_chain_devices = output_chain_devices.clone();
         let chain_output_channels = chain_output_channels.clone();
+        let weak_window = window.as_weak();
+        let weak_chain_window = chain_editor_window.as_weak();
         window.on_toggle_chain_output_channel(move |index, selected| {
             let mut draft_borrow = chain_draft.borrow_mut();
             let Some(draft) = draft_borrow.as_mut() else {
@@ -1592,40 +1742,200 @@ pub fn run_desktop_app(
                     &chain_output_channels,
                     build_output_channel_items(draft, &output_chain_devices),
                 );
+                if let (Some(window), Some(chain_window)) = (weak_window.upgrade(), weak_chain_window.upgrade()) {
+                    apply_chain_endpoint_summaries(
+                        &window,
+                        &chain_window,
+                        draft,
+                        &input_chain_devices,
+                        &output_chain_devices,
+                    );
+                }
             }
         });
     }
 
     {
+        let weak_window = window.as_weak();
+        let weak_input_window = chain_input_window.as_weak();
         let weak_chain_window = chain_editor_window.as_weak();
         let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
+        let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
-        let chain_output_channels = chain_output_channels.clone();
-        chain_editor_window.on_toggle_chain_output_channel(move |index, selected| {
-            let Some(chain_window) = weak_chain_window.upgrade() else {
+        let chain_input_channels = chain_input_channels.clone();
+        window.on_configure_chain_input(move |index| {
+            let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let mut draft_borrow = chain_draft.borrow_mut();
-            let Some(draft) = draft_borrow.as_mut() else {
+            let Some(input_window) = weak_input_window.upgrade() else {
                 return;
             };
-            let channel = index as usize;
-            if selected {
-                if !draft.output_channels.contains(&channel) {
-                    draft.output_channels.push(channel);
-                    draft.output_channels.sort_unstable();
-                }
-            } else {
-                draft.output_channels.retain(|current| *current != channel);
-            }
-            if project_session.borrow().as_ref().is_some() {
-                replace_channel_options(
-                    &chain_output_channels,
-                    build_output_channel_items(draft, &output_chain_devices),
+            let session_borrow = project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else {
+                return;
+            };
+            let Some(chain) = session.project.chains.get(index as usize) else {
+                return;
+            };
+
+            let draft = chain_draft_from_chain(index as usize, chain);
+            *chain_draft.borrow_mut() = Some(draft.clone());
+
+            if let Some(chain_window) = weak_chain_window.upgrade() {
+                apply_chain_endpoint_summaries(
+                    &window,
+                    &chain_window,
+                    &draft,
+                    &input_chain_devices,
+                    &output_chain_devices,
                 );
             }
-            chain_window.set_status_message("".into());
+
+            apply_chain_input_window_state(
+                &input_window,
+                &draft,
+                &session.project,
+                &input_chain_devices,
+                &chain_input_channels,
+            );
+            let _ = input_window.show();
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let weak_output_window = chain_output_window.as_weak();
+        let weak_chain_window = chain_editor_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let chain_output_channels = chain_output_channels.clone();
+        window.on_configure_chain_output(move |index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let Some(output_window) = weak_output_window.upgrade() else {
+                return;
+            };
+            let session_borrow = project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else {
+                return;
+            };
+            let Some(chain) = session.project.chains.get(index as usize) else {
+                return;
+            };
+
+            let draft = chain_draft_from_chain(index as usize, chain);
+            *chain_draft.borrow_mut() = Some(draft.clone());
+
+            if let Some(chain_window) = weak_chain_window.upgrade() {
+                apply_chain_endpoint_summaries(
+                    &window,
+                    &chain_window,
+                    &draft,
+                    &input_chain_devices,
+                    &output_chain_devices,
+                );
+            }
+
+            apply_chain_output_window_state(
+                &output_window,
+                &draft,
+                &output_chain_devices,
+                &chain_output_channels,
+            );
+            let _ = output_window.show();
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let weak_input_window = chain_input_window.as_weak();
+        let weak_chain_window = chain_editor_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let chain_input_channels = chain_input_channels.clone();
+        chain_editor_window.on_open_input(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let Some(input_window) = weak_input_window.upgrade() else {
+                return;
+            };
+            let Some(draft) = chain_draft.borrow().clone() else {
+                return;
+            };
+            let session_borrow = project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else {
+                return;
+            };
+
+            if let Some(chain_window) = weak_chain_window.upgrade() {
+                apply_chain_endpoint_summaries(
+                    &window,
+                    &chain_window,
+                    &draft,
+                    &input_chain_devices,
+                    &output_chain_devices,
+                );
+            }
+
+            apply_chain_input_window_state(
+                &input_window,
+                &draft,
+                &session.project,
+                &input_chain_devices,
+                &chain_input_channels,
+            );
+            let _ = input_window.show();
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let weak_output_window = chain_output_window.as_weak();
+        let weak_chain_window = chain_editor_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let chain_output_channels = chain_output_channels.clone();
+        chain_editor_window.on_open_output(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let Some(output_window) = weak_output_window.upgrade() else {
+                return;
+            };
+            let Some(draft) = chain_draft.borrow().clone() else {
+                return;
+            };
+            let session_borrow = project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else {
+                return;
+            };
+
+            if let Some(chain_window) = weak_chain_window.upgrade() {
+                apply_chain_endpoint_summaries(
+                    &window,
+                    &chain_window,
+                    &draft,
+                    &input_chain_devices,
+                    &output_chain_devices,
+                );
+            }
+
+            apply_chain_output_window_state(
+                &output_window,
+                &draft,
+                &output_chain_devices,
+                &chain_output_channels,
+            );
+            let _ = output_window.show();
         });
     }
 
@@ -1637,6 +1947,7 @@ pub fn run_desktop_app(
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
         let project_session = project_session.clone();
+        let weak_block_editor_window = block_editor_window.as_weak();
         window.on_select_chain_block(move |chain_index, block_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1691,7 +2002,15 @@ pub fn run_desktop_app(
             window.set_block_drawer_enabled(enabled);
             window.set_block_drawer_status_message("".into());
             window.set_show_block_type_picker(false);
-            window.set_show_block_drawer(true);
+            if use_inline_block_editor(&window) {
+                window.set_show_block_drawer(true);
+            } else {
+                window.set_show_block_drawer(false);
+                if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
+                    sync_block_editor_window(&window, &block_editor_window);
+                    let _ = block_editor_window.show();
+                }
+            }
         });
     }
 
@@ -1702,6 +2021,7 @@ pub fn run_desktop_app(
         let block_model_options = block_model_options.clone();
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
+        let weak_block_editor_window = block_editor_window.as_weak();
         window.on_clear_chain_block(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1715,6 +2035,9 @@ pub fn run_desktop_app(
             window.set_show_block_drawer(false);
             window.set_show_block_type_picker(false);
             window.set_block_drawer_status_message("".into());
+            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
+                let _ = block_editor_window.hide();
+            }
         });
     }
 
@@ -1749,7 +2072,12 @@ pub fn run_desktop_app(
                 window.set_status_message(error.to_string().into());
                 return;
             }
-            replace_project_chains(&project_chains, &session.project);
+            replace_project_chains(
+                &project_chains,
+                &session.project,
+                &input_chain_devices,
+                &output_chain_devices,
+            );
             *selected_block.borrow_mut() = Some(SelectedBlock {
                 chain_index: chain_index as usize,
                 block_index: block_index as usize,
@@ -1806,7 +2134,12 @@ pub fn run_desktop_app(
                 return;
             }
 
-            replace_project_chains(&project_chains, &session.project);
+            replace_project_chains(
+                &project_chains,
+                &session.project,
+                &input_chain_devices,
+                &output_chain_devices,
+            );
             *selected_block.borrow_mut() = None;
             if let Some(draft) = block_editor_draft.borrow_mut().as_mut() {
                 if draft.chain_index == chain_index as usize && draft.block_index.is_some() {
@@ -1825,6 +2158,7 @@ pub fn run_desktop_app(
         let weak_window = window.as_weak();
         let selected_block = selected_block.clone();
         let block_editor_draft = block_editor_draft.clone();
+        let block_type_options = block_type_options.clone();
         let block_model_options = block_model_options.clone();
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
@@ -1842,6 +2176,7 @@ pub fn run_desktop_app(
                 enabled: true,
                 is_select: false,
             });
+            block_type_options.set_vec(block_type_picker_items());
             block_model_options.set_vec(Vec::new());
             block_model_option_labels.set_vec(Vec::new());
             block_parameter_items.set_vec(Vec::new());
@@ -1861,6 +2196,7 @@ pub fn run_desktop_app(
         let block_model_options = block_model_options.clone();
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
+        let weak_block_editor_window = block_editor_window.as_weak();
         window.on_choose_block_type(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1894,7 +2230,15 @@ pub fn run_desktop_app(
             window.set_block_drawer_selected_model_index(0);
             window.set_block_drawer_status_message("".into());
             window.set_show_block_type_picker(false);
-            window.set_show_block_drawer(true);
+            if use_inline_block_editor(&window) {
+                window.set_show_block_drawer(true);
+            } else {
+                window.set_show_block_drawer(false);
+                if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
+                    sync_block_editor_window(&window, &block_editor_window);
+                    let _ = block_editor_window.show();
+                }
+            }
         });
     }
 
@@ -1908,6 +2252,7 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
+        let weak_block_editor_window = block_editor_window.as_weak();
         window.on_choose_block_model(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1929,6 +2274,9 @@ pub fn run_desktop_app(
             ));
             window.set_block_drawer_selected_model_index(index);
             window.set_block_drawer_status_message("".into());
+            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
+                sync_block_editor_window(&window, &block_editor_window);
+            }
             if draft.block_index.is_some() {
                 schedule_block_editor_persist(
                     &block_editor_persist_timer,
@@ -1953,6 +2301,7 @@ pub fn run_desktop_app(
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
+        let weak_block_editor_window = block_editor_window.as_weak();
         window.on_cancel_block_picker(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1967,6 +2316,9 @@ pub fn run_desktop_app(
             window.set_show_block_type_picker(false);
             window.set_show_block_drawer(false);
             window.set_block_drawer_status_message("".into());
+            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
+                let _ = block_editor_window.hide();
+            }
         });
     }
 
@@ -1978,6 +2330,7 @@ pub fn run_desktop_app(
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
+        let weak_block_editor_window = block_editor_window.as_weak();
         window.on_close_block_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1994,6 +2347,9 @@ pub fn run_desktop_app(
             window.set_show_block_type_picker(false);
             window.set_show_block_drawer(false);
             window.set_block_drawer_status_message("".into());
+            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
+                let _ = block_editor_window.hide();
+            }
         });
     }
 
@@ -2047,6 +2403,7 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
+        let weak_block_editor_window = block_editor_window.as_weak();
         window.on_toggle_block_drawer_enabled(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2057,6 +2414,9 @@ pub fn run_desktop_app(
             };
             draft.enabled = !draft.enabled;
             window.set_block_drawer_enabled(draft.enabled);
+            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
+                block_editor_window.set_block_drawer_enabled(draft.enabled);
+            }
             if draft.block_index.is_some() {
                 schedule_block_editor_persist(
                     &block_editor_persist_timer,
@@ -2084,12 +2444,16 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
+        let weak_block_editor_window = block_editor_window.as_weak();
         window.on_update_block_parameter_text(move |path, value| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             set_block_parameter_text(&block_parameter_items, path.as_str(), value.as_str());
             window.set_block_drawer_status_message("".into());
+            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
+                block_editor_window.set_block_drawer_status_message("".into());
+            }
             if let Some(draft) = block_editor_draft.borrow().as_ref() {
                 if draft.block_index.is_some() {
                     schedule_block_editor_persist(
@@ -2119,12 +2483,16 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
+        let weak_block_editor_window = block_editor_window.as_weak();
         window.on_update_block_parameter_number(move |path, value| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             set_block_parameter_number(&block_parameter_items, path.as_str(), value);
             window.set_block_drawer_status_message("".into());
+            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
+                block_editor_window.set_block_drawer_status_message("".into());
+            }
             if let Some(draft) = block_editor_draft.borrow().as_ref() {
                 if draft.block_index.is_some() {
                     schedule_block_editor_persist(
@@ -2154,12 +2522,16 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
+        let weak_block_editor_window = block_editor_window.as_weak();
         window.on_update_block_parameter_bool(move |path, value| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             set_block_parameter_bool(&block_parameter_items, path.as_str(), value);
             window.set_block_drawer_status_message("".into());
+            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
+                block_editor_window.set_block_drawer_status_message("".into());
+            }
             if let Some(draft) = block_editor_draft.borrow().as_ref() {
                 if draft.block_index.is_some() {
                     schedule_block_editor_persist(
@@ -2324,6 +2696,7 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
+        let weak_block_editor_window = block_editor_window.as_weak();
         window.on_save_block_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2354,6 +2727,9 @@ pub fn run_desktop_app(
             block_model_options.set_vec(Vec::new());
             block_model_option_labels.set_vec(Vec::new());
             block_parameter_items.set_vec(Vec::new());
+            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
+                let _ = block_editor_window.hide();
+            }
         });
     }
 
@@ -2370,6 +2746,7 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
+        let weak_block_editor_window = block_editor_window.as_weak();
         window.on_delete_block_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2400,7 +2777,12 @@ pub fn run_desktop_app(
                 log_gui_error("block-drawer.delete", error);
                 return;
             }
-            replace_project_chains(&project_chains, &session.project);
+            replace_project_chains(
+                &project_chains,
+                &session.project,
+                &input_chain_devices,
+                &output_chain_devices,
+            );
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             window.set_project_running(project_runtime_is_running(&project_runtime));
             *selected_block.borrow_mut() = None;
@@ -2412,6 +2794,9 @@ pub fn run_desktop_app(
             window.set_show_block_drawer(false);
             window.set_block_drawer_status_message("".into());
             window.set_status_message("".into());
+            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
+                let _ = block_editor_window.hide();
+            }
         });
     }
 
@@ -2494,7 +2879,12 @@ pub fn run_desktop_app(
                 window.set_status_message(error.to_string().into());
                 return;
             }
-            replace_project_chains(&project_chains, &session.project);
+            replace_project_chains(
+                &project_chains,
+                &session.project,
+                &input_chain_devices,
+                &output_chain_devices,
+            );
             *chain_draft.borrow_mut() = None;
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             window.set_project_running(project_runtime_is_running(&project_runtime));
@@ -2586,7 +2976,12 @@ pub fn run_desktop_app(
                 chain_window.set_status_message(error.to_string().into());
                 return;
             }
-            replace_project_chains(&project_chains, &session.project);
+            replace_project_chains(
+                &project_chains,
+                &session.project,
+                &input_chain_devices,
+                &output_chain_devices,
+            );
             *chain_draft.borrow_mut() = None;
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             chain_window.set_status_message("".into());
@@ -2631,6 +3026,164 @@ pub fn run_desktop_app(
 
     {
         let weak_window = window.as_weak();
+        let weak_input_window = chain_input_window.as_weak();
+        let weak_chain_window = chain_editor_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        let project_chains = project_chains.clone();
+        let project_runtime = project_runtime.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        chain_input_window.on_save(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let Some(input_window) = weak_input_window.upgrade() else {
+                return;
+            };
+            let mut draft_borrow = chain_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else {
+                let _ = input_window.hide();
+                return;
+            };
+            if draft.input_device_id.is_none() || draft.input_channels.is_empty() {
+                input_window.set_status_message("Selecione dispositivo e canais.".into());
+                return;
+            }
+
+            if let Some(index) = draft.editing_index {
+                let mut session_borrow = project_session.borrow_mut();
+                let Some(session) = session_borrow.as_mut() else {
+                    return;
+                };
+                let Some(chain) = session.project.chains.get_mut(index) else {
+                    return;
+                };
+                chain.input_device_id = DeviceId(draft.input_device_id.clone().unwrap_or_default());
+                chain.input_channels = draft.input_channels.clone();
+                let chain_id = chain.id.clone();
+                if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                    eprintln!("input editor save error: {error}");
+                    return;
+                }
+                replace_project_chains(
+                    &project_chains,
+                    &session.project,
+                    &input_chain_devices,
+                    &output_chain_devices,
+                );
+                sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                window.set_project_running(project_runtime_is_running(&project_runtime));
+            }
+
+            if let Some(chain_window) = weak_chain_window.upgrade() {
+                apply_chain_endpoint_summaries(
+                    &window,
+                    &chain_window,
+                    draft,
+                    &input_chain_devices,
+                    &output_chain_devices,
+                );
+            }
+
+            input_window.set_status_message("".into());
+            let _ = input_window.hide();
+        });
+    }
+
+    {
+        let weak_output_window = chain_output_window.as_weak();
+        chain_output_window.on_cancel(move || {
+            if let Some(output_window) = weak_output_window.upgrade() {
+                output_window.set_status_message("".into());
+                let _ = output_window.hide();
+            }
+        });
+    }
+
+    {
+        let weak_input_window = chain_input_window.as_weak();
+        chain_input_window.on_cancel(move || {
+            if let Some(input_window) = weak_input_window.upgrade() {
+                input_window.set_status_message("".into());
+                let _ = input_window.hide();
+            }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let weak_output_window = chain_output_window.as_weak();
+        let weak_chain_window = chain_editor_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        let project_chains = project_chains.clone();
+        let project_runtime = project_runtime.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        chain_output_window.on_save(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let Some(output_window) = weak_output_window.upgrade() else {
+                return;
+            };
+            let mut draft_borrow = chain_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else {
+                let _ = output_window.hide();
+                return;
+            };
+            if draft.output_device_id.is_none() || draft.output_channels.is_empty() {
+                output_window.set_status_message("Selecione dispositivo e canais.".into());
+                return;
+            }
+
+            if let Some(index) = draft.editing_index {
+                let mut session_borrow = project_session.borrow_mut();
+                let Some(session) = session_borrow.as_mut() else {
+                    return;
+                };
+                let Some(chain) = session.project.chains.get_mut(index) else {
+                    return;
+                };
+                chain.output_device_id = DeviceId(draft.output_device_id.clone().unwrap_or_default());
+                chain.output_channels = draft.output_channels.clone();
+                let chain_id = chain.id.clone();
+                if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                    eprintln!("output editor save error: {error}");
+                    return;
+                }
+                replace_project_chains(
+                    &project_chains,
+                    &session.project,
+                    &input_chain_devices,
+                    &output_chain_devices,
+                );
+                sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                window.set_project_running(project_runtime_is_running(&project_runtime));
+            }
+
+            if let Some(chain_window) = weak_chain_window.upgrade() {
+                apply_chain_endpoint_summaries(
+                    &window,
+                    &chain_window,
+                    draft,
+                    &input_chain_devices,
+                    &output_chain_devices,
+                );
+            }
+
+            output_window.set_status_message("".into());
+            let _ = output_window.hide();
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
@@ -2654,7 +3207,12 @@ pub fn run_desktop_app(
             let removed_chain_id = session.project.chains[index].id.clone();
             session.project.chains.remove(index);
             remove_live_chain_runtime(&project_runtime, &removed_chain_id);
-            replace_project_chains(&project_chains, &session.project);
+            replace_project_chains(
+                &project_chains,
+                &session.project,
+                &input_chain_devices,
+                &output_chain_devices,
+            );
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             window.set_project_running(project_runtime_is_running(&project_runtime));
             window.set_status_message("".into());
@@ -2687,7 +3245,12 @@ pub fn run_desktop_app(
                 window.set_status_message(error.to_string().into());
                 return;
             }
-            replace_project_chains(&project_chains, &session.project);
+            replace_project_chains(
+                &project_chains,
+                &session.project,
+                &input_chain_devices,
+                &output_chain_devices,
+            );
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             window.set_project_running(project_runtime_is_running(&project_runtime));
             window.set_status_message("".into());
@@ -2964,7 +3527,12 @@ fn load_project_session(project_path: &Path, config_path: &Path) -> Result<Proje
     })
 }
 
-fn replace_project_chains(model: &Rc<VecModel<ProjectChainItem>>, project: &Project) {
+fn replace_project_chains(
+    model: &Rc<VecModel<ProjectChainItem>>,
+    project: &Project,
+    input_devices: &[AudioDeviceDescriptor],
+    output_devices: &[AudioDeviceDescriptor],
+) {
     let items = project
         .chains
         .iter()
@@ -2982,6 +3550,24 @@ fn replace_project_chains(model: &Rc<VecModel<ProjectChainItem>>, project: &Proj
             } else {
                 format!("{} blocks", chain.blocks.len()).into()
             },
+            input_label: chain_endpoint_label("In", &chain.input_channels).into(),
+            input_tooltip: chain_endpoint_tooltip(
+                "Entrada",
+                &chain.input_device_id.0,
+                &chain.input_channels,
+                project,
+                input_devices,
+            )
+            .into(),
+            output_label: chain_endpoint_label("Out", &chain.output_channels).into(),
+            output_tooltip: chain_endpoint_tooltip(
+                "Saída",
+                &chain.output_device_id.0,
+                &chain.output_channels,
+                project,
+                output_devices,
+            )
+            .into(),
             blocks: ModelRc::from(Rc::new(VecModel::from(
                 chain
                     .blocks
@@ -2994,14 +3580,65 @@ fn replace_project_chains(model: &Rc<VecModel<ProjectChainItem>>, project: &Proj
     model.set_vec(items);
 }
 
+fn chain_endpoint_label(prefix: &str, channels: &[usize]) -> String {
+    if channels.is_empty() {
+        prefix.to_string()
+    } else {
+        format!("{prefix} {}", format_channel_list(channels))
+    }
+}
+
+fn chain_endpoint_tooltip(
+    title: &str,
+    device_id: &str,
+    channels: &[usize],
+    project: &Project,
+    devices: &[AudioDeviceDescriptor],
+) -> String {
+    let device_name = devices
+        .iter()
+        .find(|device| device.id == device_id)
+        .map(|device| device.name.as_str())
+        .unwrap_or(device_id);
+    let settings = project
+        .device_settings
+        .iter()
+        .find(|setting| setting.device_id.0 == device_id);
+    let sample_rate = settings
+        .map(|setting| setting.sample_rate.to_string())
+        .unwrap_or_else(|| "n/d".to_string());
+    let buffer = settings
+        .map(|setting| setting.buffer_size_frames.to_string())
+        .unwrap_or_else(|| "n/d".to_string());
+    format!(
+        "{device_name}\nConfiguração: {sample_rate} Hz · {buffer} frames\nCanais: {}",
+        format_channel_list(channels)
+    )
+}
+
+fn format_channel_list(channels: &[usize]) -> String {
+    if channels.is_empty() {
+        "-".to_string()
+    } else {
+        channels
+            .iter()
+            .map(|channel| (channel + 1).to_string())
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+}
+
 fn block_type_picker_items() -> Vec<BlockTypePickerItem> {
+    let mut seen = std::collections::BTreeSet::new();
+
     supported_block_types()
         .into_iter()
+        .filter(|item| seen.insert(item.effect_type))
         .map(|item| BlockTypePickerItem {
             effect_type: item.effect_type.into(),
-            label: short_effect_type_label(item.effect_type).into(),
+            label: item.display_label.into(),
             subtitle: "".into(),
-            icon_kind: item.effect_type.into(),
+            icon_kind: item.icon_kind.into(),
         })
         .collect()
 }
@@ -3015,7 +3652,10 @@ fn block_model_picker_items(effect_type: &str) -> Vec<BlockModelPickerItem> {
             model_id: item.model_id.into(),
             label: item.display_name.into(),
             subtitle: "".into(),
-            icon_kind: effect_type.into(),
+            icon_kind: supported_block_type(effect_type)
+                .map(|entry| entry.icon_kind)
+                .unwrap_or(effect_type)
+                .into(),
         })
         .collect()
 }
@@ -3049,26 +3689,6 @@ fn block_model_index(effect_type: &str, model_id: &str) -> i32 {
         .position(|item| item.model_id == model_id)
         .map(|index| index as i32)
         .unwrap_or(-1)
-}
-
-fn short_effect_type_label(effect_type: &str) -> &'static str {
-    match effect_type {
-        "amp_head" => "AMP",
-        "amp_combo" => "COMBO",
-        "cab" => "CAB",
-        "ir" => "IR",
-        "full_rig" => "RIG",
-        "drive" => "GAIN",
-        "dynamics" => "DYN",
-        "filter" => "FILTER",
-        "wah" => "WAH",
-        "modulation" => "MOD",
-        "delay" => "DLY",
-        "reverb" => "RVB",
-        "utility" => "UTIL",
-        "nam" => "NAM",
-        _ => "BLOCK",
-    }
 }
 
 fn unit_label(unit: &ParameterUnit) -> &'static str {
@@ -3473,7 +4093,12 @@ fn persist_block_editor_draft(
         return Err(error);
     }
 
-    replace_project_chains(project_chains, &session.project);
+    replace_project_chains(
+        project_chains,
+        &session.project,
+        input_chain_devices,
+        output_chain_devices,
+    );
     sync_project_dirty(window, session, saved_project_snapshot, project_dirty);
     window.set_project_running(project_runtime_is_running(project_runtime));
 
@@ -3846,9 +4471,20 @@ fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
     };
 
     let family = block_family_for_kind(&kind).to_string();
+    let block_type = supported_block_type(&kind);
 
     ChainBlockItem {
         kind: kind.into(),
+        icon_kind: block_type
+            .as_ref()
+            .map(|entry| entry.icon_kind)
+            .unwrap_or("core")
+            .into(),
+        type_label: block_type
+            .as_ref()
+            .map(|entry| entry.display_label)
+            .unwrap_or("BLOCK")
+            .into(),
         label: label.into(),
         family: family.into(),
         enabled: block.enabled,
@@ -4021,6 +4657,85 @@ fn apply_chain_editor_labels(window: &AppWindow, draft: &ChainDraft) {
             window.set_chain_editor_save_label("Salvar chain".into());
         }
     }
+}
+
+fn endpoint_summary(
+    device_id: Option<&str>,
+    channels: &[usize],
+    devices: &[AudioDeviceDescriptor],
+) -> String {
+    let device_name = device_id
+        .and_then(|id| devices.iter().find(|device| device.id == id).map(|device| device.name.clone()))
+        .or_else(|| device_id.map(|id| id.to_string()))
+        .unwrap_or_else(|| "Nenhum dispositivo".to_string());
+    let channels = if channels.is_empty() {
+        "-".to_string()
+    } else {
+        channels
+            .iter()
+            .map(|channel| format!("{}", channel + 1))
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    format!("{device_name}\nCanais: {channels}")
+}
+
+fn apply_chain_endpoint_summaries(
+    window: &AppWindow,
+    chain_editor_window: &ChainEditorWindow,
+    draft: &ChainDraft,
+    input_devices: &[AudioDeviceDescriptor],
+    output_devices: &[AudioDeviceDescriptor],
+) {
+    let input_summary = endpoint_summary(
+        draft.input_device_id.as_deref(),
+        &draft.input_channels,
+        input_devices,
+    );
+    let output_summary = endpoint_summary(
+        draft.output_device_id.as_deref(),
+        &draft.output_channels,
+        output_devices,
+    );
+    window.set_chain_input_summary(input_summary.clone().into());
+    window.set_chain_output_summary(output_summary.clone().into());
+    chain_editor_window.set_input_summary(input_summary.into());
+    chain_editor_window.set_output_summary(output_summary.into());
+}
+
+fn apply_chain_input_window_state(
+    input_window: &ChainInputWindow,
+    draft: &ChainDraft,
+    project: &Project,
+    input_devices: &[AudioDeviceDescriptor],
+    channel_model: &Rc<VecModel<ChannelOptionItem>>,
+) {
+    replace_channel_options(
+        channel_model,
+        build_input_channel_items(draft, project, input_devices),
+    );
+    input_window.set_selected_device_index(selected_device_index(
+        input_devices,
+        draft.input_device_id.as_deref(),
+    ));
+    input_window.set_status_message("".into());
+}
+
+fn apply_chain_output_window_state(
+    output_window: &ChainOutputWindow,
+    draft: &ChainDraft,
+    output_devices: &[AudioDeviceDescriptor],
+    channel_model: &Rc<VecModel<ChannelOptionItem>>,
+) {
+    replace_channel_options(
+        channel_model,
+        build_output_channel_items(draft, output_devices),
+    );
+    output_window.set_selected_device_index(selected_device_index(
+        output_devices,
+        draft.output_device_id.as_deref(),
+    ));
+    output_window.set_status_message("".into());
 }
 
 fn toggle_device_row(model: &Rc<VecModel<DeviceSelectionItem>>, index: usize, selected: bool) {
