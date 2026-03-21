@@ -660,7 +660,7 @@ component ChainEndpointChip inherits Rectangle {
     }
 
     if hover-area.has-hover && root.tooltip != "" : Rectangle {
-        x: root.label == "In" ? 0px : parent.width - 312px;
+        x: root.label == "In" ? parent.width : parent.width - 312px;
         y: 36px;
         width: 312px;
         height: 92px;
@@ -870,9 +870,8 @@ component BlockChip inherits Rectangle {
     height: 84px;
     background: #17191d;
     border-width: hover-area.has-hover ? 3px : 2px;
-    border-color: root.dragging ? #8b95a5 : root.accent-color;
+    border-color: root.dragging ? #8b95a5 : root.block.enabled ? root.accent-color : #2c3040;
     border-radius: 6px;
-    opacity: root.block.enabled ? 1 : 0.42;
 
     Image {
         x: 0px;
@@ -881,7 +880,7 @@ component BlockChip inherits Rectangle {
         height: parent.height - 4px;
         source: root.icon-source;
         image-fit: contain;
-        colorize: root.dragging ? #8b95a5 : #f3f6fb;
+        colorize: root.dragging ? #8b95a5 : root.block.enabled ? #f3f6fb : #3a4050;
     }
 
     Text {
@@ -890,7 +889,7 @@ component BlockChip inherits Rectangle {
         width: parent.width - 16px;
         height: 14px;
         text: root.block-type-label;
-        color: root.dragging ? #8b95a5 : #f3f6fb;
+        color: root.dragging ? #8b95a5 : root.block.enabled ? #f3f6fb : #3a4050;
         font-size: 10px;
         font-weight: 900;
         vertical-alignment: center;

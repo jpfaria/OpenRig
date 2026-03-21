@@ -54,42 +54,69 @@ component FieldBox inherits Rectangle {
     }
 }
 
-component SummaryCard inherits Rectangle {
-    in property <string> title;
+component EditRow inherits Rectangle {
+    in property <string> label;
     in property <string> summary;
     callback clicked();
 
-    background: #12161bcc;
-    border-width: 1px;
-    border-color: #2f344080;
+    height: 52px;
+    background: transparent;
+
+    property <bool> hovered: false;
+
+    states [
+        hovered when hovered: {
+            background: #1e2229;
+        }
+    ]
+
     border-radius: 6px;
 
     Text {
-        x: 16px;
-        y: 14px;
-        width: parent.width - 32px;
+        x: 0px;
+        y: 6px;
+        width: parent.width - 24px;
         height: 18px;
-        text: root.title;
+        text: root.label;
         color: #edf2f9;
-        font-size: 15px;
+        font-size: 13px;
         font-weight: 700;
+        vertical-alignment: center;
     }
 
     Text {
-        x: 16px;
-        y: 40px;
-        width: parent.width - 32px;
-        height: 36px;
+        x: 0px;
+        y: 28px;
+        width: parent.width - 24px;
+        height: 18px;
         text: root.summary;
-        color: #aeb9c8;
+        color: #6b7786;
         font-size: 12px;
-        wrap: word-wrap;
+        overflow: elide;
+        vertical-alignment: center;
+    }
+
+    Text {
+        x: parent.width - 20px;
+        y: 0px;
+        width: 20px;
+        height: parent.height;
+        text: "›";
+        color: #4c5566;
+        font-size: 18px;
+        horizontal-alignment: right;
+        vertical-alignment: center;
     }
 
     TouchArea {
         width: parent.width;
         height: parent.height;
         mouse-cursor: pointer;
+        pointer-event(e) => {
+            if (e.kind == PointerEventKind.move) {
+                root.hovered = true;
+            }
+        }
         clicked => { root.clicked(); }
     }
 }
@@ -109,91 +136,110 @@ export component ChainEditorPage inherits Rectangle {
 
     background: #171a1f;
 
+    Text {
+        x: 32px;
+        y: 28px;
+        width: parent.width - 64px;
+        height: 28px;
+        text: root.title;
+        color: #edf2f9;
+        font-size: 20px;
+        font-weight: 800;
+    }
+
     Rectangle {
-        x: 24px;
-        y: 24px;
-        width: parent.width - 48px;
-        height: parent.height - 48px;
-        background: transparent;
-        border-width: 1px;
-        border-color: #32363d55;
-        border-radius: 6px;
+        x: 32px;
+        y: 68px;
+        width: parent.width - 64px;
+        height: 1px;
+        background: #2a2f38;
+    }
 
-        Text {
-            x: 18px;
-            y: 18px;
-            width: parent.width - 36px;
-            height: 26px;
-            text: root.title;
-            color: #edf2f9;
-            font-size: 22px;
-            font-weight: 800;
-        }
+    Text {
+        x: 32px;
+        y: 84px;
+        width: 120px;
+        height: 16px;
+        text: "Nome";
+        color: #7a8694;
+        font-size: 11px;
+        font-weight: 600;
+    }
 
-        Text {
-            x: 18px;
-            y: 64px;
-            width: 160px;
-            height: 18px;
-            text: "Nome da chain";
-            color: #cad2de;
-            font-size: 13px;
-            font-weight: 600;
-        }
+    FieldBox {
+        x: 32px;
+        y: 104px;
+        width: parent.width - 64px;
+        height: 36px;
+        text: root.chain-name;
+        changed(value) => { root.update-chain-name(value); }
+    }
 
-        FieldBox {
-            x: 18px;
-            y: 88px;
-            width: parent.width - 36px;
-            height: 36px;
-            text: root.chain-name;
-            changed(value) => { root.update-chain-name(value); }
-        }
+    Rectangle {
+        x: 32px;
+        y: 160px;
+        width: parent.width - 64px;
+        height: 1px;
+        background: #2a2f38;
+    }
 
-        SummaryCard {
-            x: 18px;
-            y: 152px;
-            width: parent.width - 36px;
-            height: 92px;
-            title: "Entrada";
-            summary: root.input-summary;
-            clicked => { root.open-input(); }
-        }
+    EditRow {
+        x: 32px;
+        y: 168px;
+        width: parent.width - 64px;
+        label: "Entrada";
+        summary: root.input-summary;
+        clicked => { root.open-input(); }
+    }
 
-        SummaryCard {
-            x: 18px;
-            y: 262px;
-            width: parent.width - 36px;
-            height: 92px;
-            title: "Saída";
-            summary: root.output-summary;
-            clicked => { root.open-output(); }
-        }
+    Rectangle {
+        x: 32px;
+        y: 220px;
+        width: parent.width - 64px;
+        height: 1px;
+        background: #2a2f38;
+    }
 
-        Text {
-            x: 18px;
-            y: parent.height - 84px;
-            width: parent.width - 36px - 240px;
-            height: 18px;
-            text: root.status-message;
-            color: #8db9ff;
-            font-size: 12px;
-            vertical-alignment: center;
-        }
+    EditRow {
+        x: 32px;
+        y: 228px;
+        width: parent.width - 64px;
+        label: "Saída";
+        summary: root.output-summary;
+        clicked => { root.open-output(); }
+    }
 
-        FooterButton {
-            x: parent.width - 224px;
-            y: parent.height - 58px;
-            label: "Cancelar";
-            clicked => { root.cancel-chain(); }
-        }
+    Rectangle {
+        x: 32px;
+        y: 280px;
+        width: parent.width - 64px;
+        height: 1px;
+        background: #2a2f38;
+    }
 
-        FooterButton {
-            x: parent.width - 112px;
-            y: parent.height - 58px;
-            label: root.save-label;
-            primary: true;
-            clicked => { root.save-chain(); }
-        }
+    Text {
+        x: 32px;
+        y: parent.height - 58px;
+        width: parent.width - 64px - 240px;
+        height: 38px;
+        text: root.status-message;
+        color: #8db9ff;
+        font-size: 12px;
+        vertical-alignment: center;
+    }
+
+    FooterButton {
+        x: parent.width - 232px;
+        y: parent.height - 58px;
+        label: "Cancelar";
+        clicked => { root.cancel-chain(); }
+    }
+
+    FooterButton {
+        x: parent.width - 120px;
+        y: parent.height - 58px;
+        label: root.save-label;
+        primary: true;
+        clicked => { root.save-chain(); }
     }
 }

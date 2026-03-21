@@ -3648,12 +3648,8 @@ fn replace_project_chains(
     model.set_vec(items);
 }
 
-fn chain_endpoint_label(prefix: &str, channels: &[usize]) -> String {
-    if channels.is_empty() {
-        prefix.to_string()
-    } else {
-        format!("{prefix} {}", format_channel_list(channels))
-    }
+fn chain_endpoint_label(prefix: &str, _channels: &[usize]) -> String {
+    prefix.to_string()
 }
 
 fn chain_endpoint_tooltip(
