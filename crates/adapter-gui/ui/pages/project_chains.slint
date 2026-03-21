@@ -629,6 +629,62 @@ component ChainActionIcon inherits Rectangle {
     }
 }
 
+component ChainEndpointChip inherits Rectangle {
+    in property <string> label;
+    in property <string> tooltip;
+    callback clicked();
+
+    width: 64px;
+    height: 32px;
+    background: hover-area.has-hover ? #20262fdc : #161a20dc;
+    border-width: 1px;
+    border-color: #4b5563;
+    border-radius: 8px;
+
+    Text {
+        width: parent.width;
+        height: parent.height;
+        text: root.label;
+        color: #f1f4f8;
+        font-size: 12px;
+        font-weight: 800;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    hover-area := TouchArea {
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    if hover-area.has-hover && root.tooltip != "" : Rectangle {
+        x: -42px;
+        y: -42px;
+        width: 148px;
+        height: 34px;
+        background: #11141ad9;
+        border-width: 1px;
+        border-color: #3b4250;
+        border-radius: 4px;
+        z: 60;
+
+        Text {
+            x: 6px;
+            width: parent.width - 12px;
+            height: parent.height;
+            text: root.tooltip;
+            color: #eef2f8;
+            font-size: 10px;
+            font-weight: 700;
+            wrap: word-wrap;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}
+
 component ChainPowerToggle inherits Rectangle {
     in property <bool> enabled: false;
     in property <string> tooltip;
@@ -950,13 +1006,15 @@ component ChainRow inherits Rectangle {
     callback toggle-chain-enabled(int);
     callback remove-chain(int);
     callback configure-chain(int);
+    callback configure-chain-input(int);
+    callback configure-chain-output(int);
     callback configure-chain-preset(int);
     callback save-chain-preset(int);
     callback select-chain-block(int, int);
     callback toggle-chain-block-enabled(int, int);
     callback start-block-insert(int, int);
     callback reorder-chain-block(int, int, int);
-    property <int> blocks-per-row: Math.max(1, Math.floor((root.width - 220px) / 116px));
+    property <int> blocks-per-row: Math.max(1, Math.floor((root.width - 360px) / 116px));
     property <int> block-row-count: root.chain.blocks.length == 0 ? 1 : Math.floor((root.chain.blocks.length - 1) / root.blocks-per-row) + 1;
     property <int> insert-row-count: root.block-row-count;
     in-out property <int> dragging-chain-index: -1;
@@ -1055,8 +1113,16 @@ component ChainRow inherits Rectangle {
             }
         }
 
+        ChainEndpointChip {
+            x: 0px;
+            y: 26px;
+            label: root.chain.input_label;
+            tooltip: root.chain.input_tooltip;
+            clicked => { root.configure-chain-input(root.chain-index); }
+        }
+
         BlockInsertSlot {
-            x: 24px;
+            x: 88px;
             y: 30px;
             empty-slot: root.chain.blocks.length == 0;
             move-target: root.dragging-chain-index == root.chain-index && root.dragging-block-index >= 0;
@@ -1076,7 +1142,7 @@ component ChainRow inherits Rectangle {
         }
 
         for block[block-index] in root.chain.blocks : BlockChip {
-            x: 56px + Math.mod(block-index, root.blocks-per-row) * 116px;
+            x: 120px + Math.mod(block-index, root.blocks-per-row) * 116px;
             y: Math.floor(block-index / root.blocks-per-row) * 92px;
             block: block;
             icon-source: block.kind == "amp_head"
@@ -1133,7 +1199,7 @@ component ChainRow inherits Rectangle {
         }
 
         for block[block-index] in root.chain.blocks : BlockInsertSlot {
-            x: 140px + Math.mod(block-index, root.blocks-per-row) * 116px;
+            x: 204px + Math.mod(block-index, root.blocks-per-row) * 116px;
             y: 30px + Math.floor(block-index / root.blocks-per-row) * 92px;
             move-target: root.dragging-chain-index == root.chain-index && root.dragging-block-index >= 0;
             suppress-hover-affordance: root.suppress-insert-hover;
@@ -1149,6 +1215,14 @@ component ChainRow inherits Rectangle {
                     root.start-block-insert(root.chain-index, block-index + 1);
                 }
             }
+        }
+
+        ChainEndpointChip {
+            x: parent.width - 64px;
+            y: 26px;
+            label: root.chain.output_label;
+            tooltip: root.chain.output_tooltip;
+            clicked => { root.configure-chain-output(root.chain-index); }
         }
     }
 
@@ -1186,6 +1260,8 @@ export component ProjectChainsPage inherits Rectangle {
     callback remove-chain(int);
     callback toggle-chain-enabled(int);
     callback configure-chain(int);
+    callback configure-chain-input(int);
+    callback configure-chain-output(int);
     callback configure-chain-preset(int);
     callback save-chain-preset(int);
     callback start-project();
@@ -1377,8 +1453,10 @@ export component ProjectChainsPage inherits Rectangle {
                     selected-block-index: root.selected-chain-block-index;
                     toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
                     remove-chain(index) => { root.remove-chain(index); }
-                    configure-chain(index) => { root.configure-chain(index); }
-                    configure-chain-preset(index) => { root.configure-chain-preset(index); }
+                configure-chain(index) => { root.configure-chain(index); }
+                configure-chain-input(index) => { root.configure-chain-input(index); }
+                configure-chain-output(index) => { root.configure-chain-output(index); }
+                configure-chain-preset(index) => { root.configure-chain-preset(index); }
                     save-chain-preset(index) => { root.save-chain-preset(index); }
                     select-chain-block(chain-index, block-index) => { root.select-chain-block(chain-index, block-index); }
                     toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }

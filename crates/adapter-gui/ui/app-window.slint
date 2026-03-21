@@ -1,7 +1,7 @@
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
-import { ProjectSettingsPage, ChainEditorPage } from "pages/pages.slint";
+import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage } from "pages/pages.slint";
 
 export component ProjectSettingsWindow inherits Window {
     in-out property <string> project-name-draft;
@@ -43,18 +43,12 @@ export component ChainEditorWindow inherits Window {
     in property <string> editor-title;
     in property <string> editor-save-label;
     in-out property <string> chain-name;
-    in property <[string]> input-device-options;
-    in property <[string]> output-device-options;
-    in property <int> selected-input-device-index;
-    in property <int> selected-output-device-index;
-    in property <[ChannelOptionItem]> input-channels;
-    in property <[ChannelOptionItem]> output-channels;
+    in property <string> input-summary;
+    in property <string> output-summary;
     in-out property <string> status-message;
     callback update-chain-name(string);
-    callback select-chain-input-device(int);
-    callback select-chain-output-device(int);
-    callback toggle-chain-input-channel(int, bool);
-    callback toggle-chain-output-channel(int, bool);
+    callback open-input();
+    callback open-output();
     callback save-chain();
     callback cancel-chain();
     title: "OpenRig · Configurar chain";
@@ -70,20 +64,100 @@ export component ChainEditorWindow inherits Window {
         title: root.editor-title;
         save-label: root.editor-save-label;
         chain-name: root.chain-name;
-        input-device-options: root.input-device-options;
-        output-device-options: root.output-device-options;
-        selected-input-device-index: root.selected-input-device-index;
-        selected-output-device-index: root.selected-output-device-index;
-        input-channels: root.input-channels;
-        output-channels: root.output-channels;
+        input-summary: root.input-summary;
+        output-summary: root.output-summary;
         status-message: root.status-message;
         update-chain-name(value) => { root.update-chain-name(value); }
-        select-chain-input-device(index) => { root.select-chain-input-device(index); }
-        select-chain-output-device(index) => { root.select-chain-output-device(index); }
-        toggle-chain-input-channel(index, selected) => { root.toggle-chain-input-channel(index, selected); }
-        toggle-chain-output-channel(index, selected) => { root.toggle-chain-output-channel(index, selected); }
+        open-input => { root.open-input(); }
+        open-output => { root.open-output(); }
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }
+    }
+}
+
+export component ChainInputWindow inherits Window {
+    in property <[string]> device-options;
+    in property <int> selected-device-index;
+    in property <[ChannelOptionItem]> channels;
+    in property <[string]> sample-rate-options;
+    in property <[string]> buffer-size-options;
+    in property <int> selected-sample-rate-index;
+    in property <int> selected-buffer-size-index;
+    in-out property <string> status-message;
+    callback select-device(int);
+    callback toggle-channel(int, bool);
+    callback select-sample-rate(string);
+    callback select-buffer-size(string);
+    callback save();
+    callback cancel();
+    title: "OpenRig · Entrada da chain";
+    min-width: 720px;
+    min-height: 620px;
+    preferred-width: 860px;
+    preferred-height: 720px;
+    background: #040708;
+
+    ChainEndpointEditorPage {
+        width: parent.width;
+        height: parent.height;
+        title: "Entrada";
+        device-options: root.device-options;
+        selected-device-index: root.selected-device-index;
+        channels: root.channels;
+        sample-rate-options: root.sample-rate-options;
+        buffer-size-options: root.buffer-size-options;
+        selected-sample-rate-index: root.selected-sample-rate-index;
+        selected-buffer-size-index: root.selected-buffer-size-index;
+        status-message: root.status-message;
+        select-device(index) => { root.select-device(index); }
+        toggle-channel(index, selected) => { root.toggle-channel(index, selected); }
+        select-sample-rate(value) => { root.select-sample-rate(value); }
+        select-buffer-size(value) => { root.select-buffer-size(value); }
+        save => { root.save(); }
+        cancel => { root.cancel(); }
+    }
+}
+
+export component ChainOutputWindow inherits Window {
+    in property <[string]> device-options;
+    in property <int> selected-device-index;
+    in property <[ChannelOptionItem]> channels;
+    in property <[string]> sample-rate-options;
+    in property <[string]> buffer-size-options;
+    in property <int> selected-sample-rate-index;
+    in property <int> selected-buffer-size-index;
+    in-out property <string> status-message;
+    callback select-device(int);
+    callback toggle-channel(int, bool);
+    callback select-sample-rate(string);
+    callback select-buffer-size(string);
+    callback save();
+    callback cancel();
+    title: "OpenRig · Saída da chain";
+    min-width: 720px;
+    min-height: 620px;
+    preferred-width: 860px;
+    preferred-height: 720px;
+    background: #040708;
+
+    ChainEndpointEditorPage {
+        width: parent.width;
+        height: parent.height;
+        title: "Saída";
+        device-options: root.device-options;
+        selected-device-index: root.selected-device-index;
+        channels: root.channels;
+        sample-rate-options: root.sample-rate-options;
+        buffer-size-options: root.buffer-size-options;
+        selected-sample-rate-index: root.selected-sample-rate-index;
+        selected-buffer-size-index: root.selected-buffer-size-index;
+        status-message: root.status-message;
+        select-device(index) => { root.select-device(index); }
+        toggle-channel(index, selected) => { root.toggle-channel(index, selected); }
+        select-sample-rate(value) => { root.select-sample-rate(value); }
+        select-buffer-size(value) => { root.select-buffer-size(value); }
+        save => { root.save(); }
+        cancel => { root.cancel(); }
     }
 }
 
@@ -110,6 +184,8 @@ export component AppWindow inherits Window {
     in property <string> chain-editor-title;
     in property <string> chain-editor-save-label;
     in-out property <string> chain-draft-name;
+    in property <string> chain-input-summary;
+    in property <string> chain-output-summary;
     in property <[string]> chain-input-device-options;
     in property <[string]> chain-output-device-options;
     in property <int> selected-chain-input-device-index;
@@ -133,6 +209,10 @@ export component AppWindow inherits Window {
     in property <[BlockParameterItem]> block-parameter-items;
     in property <[ChannelOptionItem]> chain-input-channels;
     in property <[ChannelOptionItem]> chain-output-channels;
+    in property <int> selected-chain-input-sample-rate-index;
+    in property <int> selected-chain-output-sample-rate-index;
+    in property <int> selected-chain-input-buffer-size-index;
+    in property <int> selected-chain-output-buffer-size-index;
     in-out property <string> status-message;
     in property <[string]> sample-rate-options: ["44100", "48000", "88200", "96000"];
     in property <[string]> buffer-size-options: ["32", "64", "128", "256", "512", "1024"];
@@ -160,15 +240,23 @@ export component AppWindow inherits Window {
     callback remove-chain(int);
     callback toggle-chain-enabled(int);
     callback configure-chain(int);
+    callback configure-chain-input(int);
+    callback configure-chain-output(int);
     callback save-chain-preset(int);
     callback configure-chain-preset(int);
     callback start-project();
     callback stop-project();
     callback update-chain-name(string);
+    callback open-chain-input-editor();
+    callback open-chain-output-editor();
     callback select-chain-input-device(int);
     callback select-chain-output-device(int);
     callback toggle-chain-input-channel(int, bool);
     callback toggle-chain-output-channel(int, bool);
+    callback update-chain-input-sample-rate(string);
+    callback update-chain-input-buffer-size(string);
+    callback update-chain-output-sample-rate(string);
+    callback update-chain-output-buffer-size(string);
     callback select-chain-block(int, int);
     callback clear-chain-block();
     callback toggle-chain-block-enabled(int, int);
@@ -218,6 +306,8 @@ export component AppWindow inherits Window {
         chain-editor-title: root.chain-editor-title;
         chain-editor-save-label: root.chain-editor-save-label;
         chain-draft-name: root.chain-draft-name;
+        chain-input-summary: root.chain-input-summary;
+        chain-output-summary: root.chain-output-summary;
         chain-input-device-options: root.chain-input-device-options;
         chain-output-device-options: root.chain-output-device-options;
         selected-chain-input-device-index: root.selected-chain-input-device-index;
@@ -267,11 +357,15 @@ export component AppWindow inherits Window {
         remove-chain(index) => { root.remove-chain(index); }
         toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
         configure-chain(index) => { root.configure-chain(index); }
+        configure-chain-input(index) => { root.configure-chain-input(index); }
+        configure-chain-output(index) => { root.configure-chain-output(index); }
         save-chain-preset(index) => { root.save-chain-preset(index); }
         configure-chain-preset(index) => { root.configure-chain-preset(index); }
         start-project => { root.start-project(); }
         stop-project => { root.stop-project(); }
         update-chain-name(value) => { root.update-chain-name(value); }
+        open-chain-input-editor => { root.open-chain-input-editor(); }
+        open-chain-output-editor => { root.open-chain-output-editor(); }
         select-chain-input-device(index) => { root.select-chain-input-device(index); }
         select-chain-output-device(index) => { root.select-chain-output-device(index); }
         toggle-chain-input-channel(index, selected) => { root.toggle-chain-input-channel(index, selected); }
@@ -320,6 +414,8 @@ export component AppWindow inherits Window {
         chain-editor-title: root.chain-editor-title;
         chain-editor-save-label: root.chain-editor-save-label;
         chain-draft-name: root.chain-draft-name;
+        chain-input-summary: root.chain-input-summary;
+        chain-output-summary: root.chain-output-summary;
         chain-input-device-options: root.chain-input-device-options;
         chain-output-device-options: root.chain-output-device-options;
         selected-chain-input-device-index: root.selected-chain-input-device-index;
@@ -369,11 +465,15 @@ export component AppWindow inherits Window {
         remove-chain(index) => { root.remove-chain(index); }
         toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
         configure-chain(index) => { root.configure-chain(index); }
+        configure-chain-input(index) => { root.configure-chain-input(index); }
+        configure-chain-output(index) => { root.configure-chain-output(index); }
         save-chain-preset(index) => { root.save-chain-preset(index); }
         configure-chain-preset(index) => { root.configure-chain-preset(index); }
         start-project => { root.start-project(); }
         stop-project => { root.stop-project(); }
         update-chain-name(value) => { root.update-chain-name(value); }
+        open-chain-input-editor => { root.open-chain-input-editor(); }
+        open-chain-output-editor => { root.open-chain-output-editor(); }
         select-chain-input-device(index) => { root.select-chain-input-device(index); }
         select-chain-output-device(index) => { root.select-chain-output-device(index); }
         toggle-chain-input-channel(index, selected) => { root.toggle-chain-input-channel(index, selected); }

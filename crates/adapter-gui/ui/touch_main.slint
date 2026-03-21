@@ -23,6 +23,8 @@ export component TouchMain inherits Rectangle {
     in property <string> chain-editor-title;
     in property <string> chain-editor-save-label;
     in-out property <string> chain-draft-name;
+    in property <string> chain-input-summary;
+    in property <string> chain-output-summary;
     in property <[string]> chain-input-device-options;
     in property <[string]> chain-output-device-options;
     in property <int> selected-chain-input-device-index;
@@ -72,11 +74,15 @@ export component TouchMain inherits Rectangle {
     callback remove-chain(int);
     callback toggle-chain-enabled(int);
     callback configure-chain(int);
+    callback configure-chain-input(int);
+    callback configure-chain-output(int);
     callback save-chain-preset(int);
     callback configure-chain-preset(int);
     callback start-project();
     callback stop-project();
     callback update-chain-name(string);
+    callback open-chain-input-editor();
+    callback open-chain-output-editor();
     callback select-chain-input-device(int);
     callback select-chain-output-device(int);
     callback toggle-chain-input-channel(int, bool);
@@ -153,6 +159,8 @@ export component TouchMain inherits Rectangle {
             remove-chain(index) => { root.remove-chain(index); }
             toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
             configure-chain(index) => { root.configure-chain(index); }
+            configure-chain-input(index) => { root.configure-chain-input(index); }
+            configure-chain-output(index) => { root.configure-chain-output(index); }
             configure-chain-preset(index) => { root.configure-chain-preset(index); }
             save-chain-preset(index) => { root.save-chain-preset(index); }
             start-project => { root.start-project(); }

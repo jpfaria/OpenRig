@@ -210,6 +210,10 @@ pub fn run_desktop_app(
         ProjectSettingsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     let chain_editor_window =
         ChainEditorWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    let chain_input_window =
+        ChainInputWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    let chain_output_window =
+        ChainOutputWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     window.set_show_project_launcher(true);
     window.set_show_project_chains(false);
     window.set_show_chain_editor(false);
@@ -326,10 +330,16 @@ pub fn run_desktop_app(
     window.set_block_drawer_selected_model_index(-1);
     window.set_block_drawer_enabled(true);
     window.set_chain_draft_name("".into());
+    window.set_chain_input_summary("".into());
+    window.set_chain_output_summary("".into());
     project_settings_window.set_status_message("".into());
     chain_editor_window.set_status_message("".into());
+    chain_input_window.set_status_message("".into());
+    chain_output_window.set_status_message("".into());
     project_settings_window.set_project_name_draft("".into());
     chain_editor_window.set_chain_name("".into());
+    chain_editor_window.set_input_summary("".into());
+    chain_editor_window.set_output_summary("".into());
 
     let block_type_options = Rc::new(VecModel::from(block_type_picker_items()));
     let block_model_options = Rc::new(VecModel::from(Vec::<BlockModelPickerItem>::new()));
@@ -345,13 +355,21 @@ pub fn run_desktop_app(
     project_settings_window.set_sample_rate_options(window.get_sample_rate_options());
     project_settings_window.set_buffer_size_options(window.get_buffer_size_options());
 
-    chain_editor_window.set_input_device_options(ModelRc::from(chain_input_device_options.clone()));
-    chain_editor_window
-        .set_output_device_options(ModelRc::from(chain_output_device_options.clone()));
-    chain_editor_window.set_input_channels(ModelRc::from(chain_input_channels.clone()));
-    chain_editor_window.set_output_channels(ModelRc::from(chain_output_channels.clone()));
-    chain_editor_window.set_selected_input_device_index(-1);
-    chain_editor_window.set_selected_output_device_index(-1);
+    chain_input_window.set_device_options(ModelRc::from(chain_input_device_options.clone()));
+    chain_input_window.set_channels(ModelRc::from(chain_input_channels.clone()));
+    chain_input_window.set_sample_rate_options(window.get_sample_rate_options());
+    chain_input_window.set_buffer_size_options(window.get_buffer_size_options());
+    chain_input_window.set_selected_device_index(-1);
+    chain_input_window.set_selected_sample_rate_index(1);
+    chain_input_window.set_selected_buffer_size_index(3);
+
+    chain_output_window.set_device_options(ModelRc::from(chain_output_device_options.clone()));
+    chain_output_window.set_channels(ModelRc::from(chain_output_channels.clone()));
+    chain_output_window.set_sample_rate_options(window.get_sample_rate_options());
+    chain_output_window.set_buffer_size_options(window.get_buffer_size_options());
+    chain_output_window.set_selected_device_index(-1);
+    chain_output_window.set_selected_sample_rate_index(1);
+    chain_output_window.set_selected_buffer_size_index(3);
 
     {
         let input_devices = input_devices.clone();
@@ -1050,6 +1068,66 @@ pub fn run_desktop_app(
     }
 
     {
+        let project_session = project_session.clone();
+        let chain_draft = chain_draft.clone();
+        let weak_input_window = chain_input_window.as_weak();
+        chain_input_window.on_select_sample_rate(move |value| {
+            let Some(input_window) = weak_input_window.upgrade() else { return; };
+            let Ok(rate) = value.parse::<u32>() else { return; };
+            let Some(device_id) = chain_draft.borrow().as_ref().and_then(|draft| draft.input_device_id.clone()) else { return; };
+            if let Some(session) = project_session.borrow_mut().as_mut() {
+                ensure_project_device_settings(&mut session.project, &device_id).sample_rate = rate;
+                input_window.set_selected_sample_rate_index(sample_rate_index(rate));
+            }
+        });
+    }
+
+    {
+        let project_session = project_session.clone();
+        let chain_draft = chain_draft.clone();
+        let weak_input_window = chain_input_window.as_weak();
+        chain_input_window.on_select_buffer_size(move |value| {
+            let Some(input_window) = weak_input_window.upgrade() else { return; };
+            let Ok(size) = value.parse::<u32>() else { return; };
+            let Some(device_id) = chain_draft.borrow().as_ref().and_then(|draft| draft.input_device_id.clone()) else { return; };
+            if let Some(session) = project_session.borrow_mut().as_mut() {
+                ensure_project_device_settings(&mut session.project, &device_id).buffer_size_frames = size;
+                input_window.set_selected_buffer_size_index(buffer_size_index(size));
+            }
+        });
+    }
+
+    {
+        let project_session = project_session.clone();
+        let chain_draft = chain_draft.clone();
+        let weak_output_window = chain_output_window.as_weak();
+        chain_output_window.on_select_sample_rate(move |value| {
+            let Some(output_window) = weak_output_window.upgrade() else { return; };
+            let Ok(rate) = value.parse::<u32>() else { return; };
+            let Some(device_id) = chain_draft.borrow().as_ref().and_then(|draft| draft.output_device_id.clone()) else { return; };
+            if let Some(session) = project_session.borrow_mut().as_mut() {
+                ensure_project_device_settings(&mut session.project, &device_id).sample_rate = rate;
+                output_window.set_selected_sample_rate_index(sample_rate_index(rate));
+            }
+        });
+    }
+
+    {
+        let project_session = project_session.clone();
+        let chain_draft = chain_draft.clone();
+        let weak_output_window = chain_output_window.as_weak();
+        chain_output_window.on_select_buffer_size(move |value| {
+            let Some(output_window) = weak_output_window.upgrade() else { return; };
+            let Ok(size) = value.parse::<u32>() else { return; };
+            let Some(device_id) = chain_draft.borrow().as_ref().and_then(|draft| draft.output_device_id.clone()) else { return; };
+            if let Some(session) = project_session.borrow_mut().as_mut() {
+                ensure_project_device_settings(&mut session.project, &device_id).buffer_size_frames = size;
+                output_window.set_selected_buffer_size_index(buffer_size_index(size));
+            }
+        });
+    }
+
+    {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
         window.on_save_chain_preset(move |index| {
@@ -1148,6 +1226,8 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let project_settings_window = project_settings_window.as_weak();
         let chain_editor_window = chain_editor_window.as_weak();
+        let chain_input_window = chain_input_window.as_weak();
+        let chain_output_window = chain_output_window.as_weak();
         window.on_back_to_launcher(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1157,6 +1237,12 @@ pub fn run_desktop_app(
             }
             if let Some(editor_window) = chain_editor_window.upgrade() {
                 let _ = editor_window.hide();
+            }
+            if let Some(input_window) = chain_input_window.upgrade() {
+                let _ = input_window.hide();
+            }
+            if let Some(output_window) = chain_output_window.upgrade() {
+                let _ = output_window.hide();
             }
             stop_project_runtime(&project_runtime);
             *project_session.borrow_mut() = None;
@@ -1220,24 +1306,82 @@ pub fn run_desktop_app(
             );
             window.set_chain_draft_name(draft.name.clone().into());
             editor_window.set_chain_name(draft.name.clone().into());
+            window.set_chain_input_summary(chain_draft_input_summary(&session.project, &draft).into());
+            window.set_chain_output_summary(chain_draft_output_summary(&session.project, &draft).into());
+            editor_window.set_input_summary(window.get_chain_input_summary());
+            editor_window.set_output_summary(window.get_chain_output_summary());
             editor_window.set_editor_title(window.get_chain_editor_title());
             editor_window.set_editor_save_label(window.get_chain_editor_save_label());
-            window.set_selected_chain_input_device_index(selected_device_index(
-                &input_chain_devices,
-                draft.input_device_id.as_deref(),
-            ));
-            window.set_selected_chain_output_device_index(selected_device_index(
-                &output_chain_devices,
-                draft.output_device_id.as_deref(),
-            ));
-            editor_window
-                .set_selected_input_device_index(window.get_selected_chain_input_device_index());
-            editor_window
-                .set_selected_output_device_index(window.get_selected_chain_output_device_index());
             editor_window.set_status_message("".into());
             window.set_status_message("".into());
             window.set_show_chain_editor(true);
             let _ = editor_window.show();
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        let chain_draft = chain_draft.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let chain_input_channels = chain_input_channels.clone();
+        let chain_input_window = chain_input_window.as_weak();
+        window.on_configure_chain_input(move |index| {
+            let Some(window) = weak_window.upgrade() else { return; };
+            let Some(input_window) = chain_input_window.upgrade() else { return; };
+            let session_borrow = project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else { return; };
+            let Some(chain) = session.project.chains.get(index as usize) else { return; };
+            let draft = chain_draft_from_chain(index as usize, chain);
+            replace_channel_options(
+                &chain_input_channels,
+                build_input_channel_items(&draft, &session.project, &input_chain_devices),
+            );
+            let selected = selected_device_index(&input_chain_devices, draft.input_device_id.as_deref());
+            input_window.set_selected_device_index(selected);
+            if let Some(device_id) = draft.input_device_id.as_ref() {
+                let settings = session.project.device_settings.iter().find(|item| item.device_id.0 == *device_id);
+                input_window.set_selected_sample_rate_index(sample_rate_index(settings.map(|s| s.sample_rate).unwrap_or(DEFAULT_SAMPLE_RATE)));
+                input_window.set_selected_buffer_size_index(buffer_size_index(settings.map(|s| s.buffer_size_frames).unwrap_or(DEFAULT_BUFFER_SIZE_FRAMES)));
+            }
+            window.set_selected_chain_input_device_index(selected);
+            window.set_chain_input_summary(chain_draft_input_summary(&session.project, &draft).into());
+            *chain_draft.borrow_mut() = Some(draft);
+            let _ = input_window.show();
+            let _ = output_chain_devices; // keep capture symmetric for future summaries
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        let chain_draft = chain_draft.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let chain_output_channels = chain_output_channels.clone();
+        let chain_output_window = chain_output_window.as_weak();
+        window.on_configure_chain_output(move |index| {
+            let Some(window) = weak_window.upgrade() else { return; };
+            let Some(output_window) = chain_output_window.upgrade() else { return; };
+            let session_borrow = project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else { return; };
+            let Some(chain) = session.project.chains.get(index as usize) else { return; };
+            let draft = chain_draft_from_chain(index as usize, chain);
+            replace_channel_options(
+                &chain_output_channels,
+                build_output_channel_items(&draft, &output_chain_devices),
+            );
+            let selected = selected_device_index(&output_chain_devices, draft.output_device_id.as_deref());
+            output_window.set_selected_device_index(selected);
+            if let Some(device_id) = draft.output_device_id.as_ref() {
+                let settings = session.project.device_settings.iter().find(|item| item.device_id.0 == *device_id);
+                output_window.set_selected_sample_rate_index(sample_rate_index(settings.map(|s| s.sample_rate).unwrap_or(DEFAULT_SAMPLE_RATE)));
+                output_window.set_selected_buffer_size_index(buffer_size_index(settings.map(|s| s.buffer_size_frames).unwrap_or(DEFAULT_BUFFER_SIZE_FRAMES)));
+            }
+            window.set_selected_chain_output_device_index(selected);
+            window.set_chain_output_summary(chain_draft_output_summary(&session.project, &draft).into());
+            *chain_draft.borrow_mut() = Some(draft);
+            let _ = output_window.show();
         });
     }
 
@@ -1277,18 +1421,10 @@ pub fn run_desktop_app(
             );
             window.set_chain_draft_name(draft.name.clone().into());
             editor_window.set_chain_name(draft.name.clone().into());
-            window.set_selected_chain_input_device_index(selected_device_index(
-                &input_chain_devices,
-                draft.input_device_id.as_deref(),
-            ));
-            window.set_selected_chain_output_device_index(selected_device_index(
-                &output_chain_devices,
-                draft.output_device_id.as_deref(),
-            ));
-            editor_window
-                .set_selected_input_device_index(window.get_selected_chain_input_device_index());
-            editor_window
-                .set_selected_output_device_index(window.get_selected_chain_output_device_index());
+            window.set_chain_input_summary(chain_draft_input_summary(&session.project, &draft).into());
+            window.set_chain_output_summary(chain_draft_output_summary(&session.project, &draft).into());
+            editor_window.set_input_summary(window.get_chain_input_summary());
+            editor_window.set_output_summary(window.get_chain_output_summary());
             *chain_draft.borrow_mut() = Some(draft);
             if let Some(draft) = chain_draft.borrow().as_ref() {
                 apply_chain_editor_labels(&window, draft);
@@ -1318,6 +1454,62 @@ pub fn run_desktop_app(
 
     {
         let weak_window = window.as_weak();
+        let weak_editor_window = chain_editor_window.as_weak();
+        let weak_input_window = chain_input_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        window.on_open_chain_input_editor(move || {
+            let Some(window) = weak_window.upgrade() else { return; };
+            let Some(editor_window) = weak_editor_window.upgrade() else { return; };
+            let Some(input_window) = weak_input_window.upgrade() else { return; };
+            let Some(draft) = chain_draft.borrow().clone() else { return; };
+            let session_borrow = project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else { return; };
+            let selected = selected_device_index(&input_chain_devices, draft.input_device_id.as_deref());
+            input_window.set_selected_device_index(selected);
+            if let Some(device_id) = draft.input_device_id.as_ref() {
+                let settings = session.project.device_settings.iter().find(|item| item.device_id.0 == *device_id);
+                input_window.set_selected_sample_rate_index(sample_rate_index(settings.map(|s| s.sample_rate).unwrap_or(DEFAULT_SAMPLE_RATE)));
+                input_window.set_selected_buffer_size_index(buffer_size_index(settings.map(|s| s.buffer_size_frames).unwrap_or(DEFAULT_BUFFER_SIZE_FRAMES)));
+            }
+            input_window.set_status_message("".into());
+            let _ = editor_window.show();
+            let _ = input_window.show();
+            window.set_status_message("".into());
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let weak_editor_window = chain_editor_window.as_weak();
+        let weak_output_window = chain_output_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        window.on_open_chain_output_editor(move || {
+            let Some(window) = weak_window.upgrade() else { return; };
+            let Some(editor_window) = weak_editor_window.upgrade() else { return; };
+            let Some(output_window) = weak_output_window.upgrade() else { return; };
+            let Some(draft) = chain_draft.borrow().clone() else { return; };
+            let session_borrow = project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else { return; };
+            let selected = selected_device_index(&output_chain_devices, draft.output_device_id.as_deref());
+            output_window.set_selected_device_index(selected);
+            if let Some(device_id) = draft.output_device_id.as_ref() {
+                let settings = session.project.device_settings.iter().find(|item| item.device_id.0 == *device_id);
+                output_window.set_selected_sample_rate_index(sample_rate_index(settings.map(|s| s.sample_rate).unwrap_or(DEFAULT_SAMPLE_RATE)));
+                output_window.set_selected_buffer_size_index(buffer_size_index(settings.map(|s| s.buffer_size_frames).unwrap_or(DEFAULT_BUFFER_SIZE_FRAMES)));
+            }
+            output_window.set_status_message("".into());
+            let _ = editor_window.show();
+            let _ = output_window.show();
+            window.set_status_message("".into());
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
         let weak_chain_window = chain_editor_window.as_weak();
         let chain_draft = chain_draft.clone();
         chain_editor_window.on_update_chain_name(move |value| {
@@ -1332,6 +1524,205 @@ pub fn run_desktop_app(
                 window.set_chain_draft_name(value.clone());
                 chain_window.set_chain_name(value);
             }
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let weak_chain_window = chain_editor_window.as_weak();
+        let weak_input_window = chain_input_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        let project_chains = project_chains.clone();
+        let project_runtime = project_runtime.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        chain_input_window.on_save(move || {
+            let Some(window) = weak_window.upgrade() else { return; };
+            let Some(input_window) = weak_input_window.upgrade() else { return; };
+            let draft = match chain_draft.borrow().clone() { Some(d) => d, None => return };
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else { return; };
+            if draft.editing_index.is_some() {
+                if let Err(error) = persist_chain_draft(&window, draft.clone(), session, &project_chains, &project_runtime, &saved_project_snapshot, &project_dirty) {
+                    input_window.set_status_message(error.to_string().into());
+                    return;
+                }
+            }
+            window.set_chain_input_summary(chain_draft_input_summary(&session.project, &draft).into());
+            if let Some(editor_window) = weak_chain_window.upgrade() {
+                editor_window.set_input_summary(window.get_chain_input_summary());
+            }
+            input_window.set_status_message("".into());
+            let _ = input_window.hide();
+        });
+    }
+
+    {
+        let weak_input_window = chain_input_window.as_weak();
+        chain_input_window.on_cancel(move || {
+            let Some(input_window) = weak_input_window.upgrade() else { return; };
+            input_window.set_status_message("".into());
+            let _ = input_window.hide();
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        let weak_chain_window = chain_editor_window.as_weak();
+        let weak_output_window = chain_output_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        let project_chains = project_chains.clone();
+        let project_runtime = project_runtime.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        chain_output_window.on_save(move || {
+            let Some(window) = weak_window.upgrade() else { return; };
+            let Some(output_window) = weak_output_window.upgrade() else { return; };
+            let draft = match chain_draft.borrow().clone() { Some(d) => d, None => return };
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else { return; };
+            if draft.editing_index.is_some() {
+                if let Err(error) = persist_chain_draft(&window, draft.clone(), session, &project_chains, &project_runtime, &saved_project_snapshot, &project_dirty) {
+                    output_window.set_status_message(error.to_string().into());
+                    return;
+                }
+            }
+            window.set_chain_output_summary(chain_draft_output_summary(&session.project, &draft).into());
+            if let Some(editor_window) = weak_chain_window.upgrade() {
+                editor_window.set_output_summary(window.get_chain_output_summary());
+            }
+            output_window.set_status_message("".into());
+            let _ = output_window.hide();
+        });
+    }
+
+    {
+        let weak_output_window = chain_output_window.as_weak();
+        chain_output_window.on_cancel(move || {
+            let Some(output_window) = weak_output_window.upgrade() else { return; };
+            output_window.set_status_message("".into());
+            let _ = output_window.hide();
+        });
+    }
+
+    {
+        let weak_input_window = chain_input_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let chain_input_channels = chain_input_channels.clone();
+        chain_input_window.on_select_device(move |index| {
+            let Some(input_window) = weak_input_window.upgrade() else { return; };
+            let mut draft_borrow = chain_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else { return; };
+            let Some(device) = input_chain_devices.get(index as usize) else { return; };
+            draft.input_device_id = Some(device.id.clone());
+            draft.input_channels.clear();
+            if let Some(session) = project_session.borrow().as_ref() {
+                replace_channel_options(&chain_input_channels, build_input_channel_items(draft, &session.project, &input_chain_devices));
+                let settings = session.project.device_settings.iter().find(|item| item.device_id.0 == device.id);
+                input_window.set_selected_sample_rate_index(sample_rate_index(settings.map(|s| s.sample_rate).unwrap_or(DEFAULT_SAMPLE_RATE)));
+                input_window.set_selected_buffer_size_index(buffer_size_index(settings.map(|s| s.buffer_size_frames).unwrap_or(DEFAULT_BUFFER_SIZE_FRAMES)));
+            }
+            input_window.set_selected_device_index(index);
+        });
+    }
+
+    {
+        let weak_output_window = chain_output_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let chain_output_channels = chain_output_channels.clone();
+        chain_output_window.on_select_device(move |index| {
+            let Some(output_window) = weak_output_window.upgrade() else { return; };
+            let mut draft_borrow = chain_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else { return; };
+            let Some(device) = output_chain_devices.get(index as usize) else { return; };
+            draft.output_device_id = Some(device.id.clone());
+            draft.output_channels.clear();
+            if let Some(session) = project_session.borrow().as_ref() {
+                replace_channel_options(&chain_output_channels, build_output_channel_items(draft, &output_chain_devices));
+                let settings = session.project.device_settings.iter().find(|item| item.device_id.0 == device.id);
+                output_window.set_selected_sample_rate_index(sample_rate_index(settings.map(|s| s.sample_rate).unwrap_or(DEFAULT_SAMPLE_RATE)));
+                output_window.set_selected_buffer_size_index(buffer_size_index(settings.map(|s| s.buffer_size_frames).unwrap_or(DEFAULT_BUFFER_SIZE_FRAMES)));
+            }
+            output_window.set_selected_device_index(index);
+        });
+    }
+
+    {
+        let weak_input_window = chain_input_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let chain_input_channels = chain_input_channels.clone();
+        chain_input_window.on_toggle_channel(move |index, selected| {
+            let Some(input_window) = weak_input_window.upgrade() else { return; };
+            let mut draft_borrow = chain_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else { return; };
+            let channel = index as usize;
+            let Some(option) = chain_input_channels.row_data(index as usize) else { return; };
+            if selected && !option.available && !option.selected {
+                input_window.set_status_message("Canal de entrada já está em uso por outra chain.".into());
+                return;
+            }
+            if selected {
+                if !draft.input_channels.contains(&channel) {
+                    draft.input_channels.push(channel);
+                    draft.input_channels.sort_unstable();
+                }
+            } else {
+                draft.input_channels.retain(|current| *current != channel);
+            }
+            if let Some(session) = project_session.borrow().as_ref() {
+                replace_channel_options(&chain_input_channels, build_input_channel_items(draft, &session.project, &input_chain_devices));
+            }
+            input_window.set_status_message("".into());
+        });
+    }
+
+    {
+        let weak_output_window = chain_output_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let chain_output_channels = chain_output_channels.clone();
+        chain_output_window.on_toggle_channel(move |index, selected| {
+            let Some(output_window) = weak_output_window.upgrade() else { return; };
+            let mut draft_borrow = chain_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else { return; };
+            let channel = index as usize;
+            if selected {
+                if !draft.output_channels.contains(&channel) {
+                    draft.output_channels.push(channel);
+                    draft.output_channels.sort_unstable();
+                }
+            } else {
+                draft.output_channels.retain(|current| *current != channel);
+            }
+            if project_session.borrow().as_ref().is_some() {
+                replace_channel_options(&chain_output_channels, build_output_channel_items(draft, &output_chain_devices));
+            }
+            output_window.set_status_message("".into());
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        chain_editor_window.on_open_input(move || {
+            let Some(window) = weak_window.upgrade() else { return; };
+            window.invoke_open_chain_input_editor();
+        });
+    }
+
+    {
+        let weak_window = window.as_weak();
+        chain_editor_window.on_open_output(move || {
+            let Some(window) = weak_window.upgrade() else { return; };
+            window.invoke_open_chain_output_editor();
         });
     }
 
@@ -1367,41 +1758,6 @@ pub fn run_desktop_app(
         });
     }
 
-    {
-        let weak_window = window.as_weak();
-        let weak_chain_window = chain_editor_window.as_weak();
-        let chain_draft = chain_draft.clone();
-        let project_session = project_session.clone();
-        let input_chain_devices = input_chain_devices.clone();
-        let chain_input_channels = chain_input_channels.clone();
-        chain_editor_window.on_select_chain_input_device(move |index| {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let Some(chain_window) = weak_chain_window.upgrade() else {
-                return;
-            };
-            let mut draft_borrow = chain_draft.borrow_mut();
-            let Some(draft) = draft_borrow.as_mut() else {
-                return;
-            };
-            let Some(device) = input_chain_devices.get(index as usize) else {
-                return;
-            };
-            draft.input_device_id = Some(device.id.clone());
-            draft.input_channels.clear();
-            if let Some(session) = project_session.borrow().as_ref() {
-                replace_channel_options(
-                    &chain_input_channels,
-                    build_input_channel_items(draft, &session.project, &input_chain_devices),
-                );
-            }
-            let selected_index =
-                selected_device_index(&input_chain_devices, draft.input_device_id.as_deref());
-            window.set_selected_chain_input_device_index(selected_index);
-            chain_window.set_selected_input_device_index(selected_index);
-        });
-    }
 
     {
         let weak_window = window.as_weak();
@@ -1435,41 +1791,6 @@ pub fn run_desktop_app(
         });
     }
 
-    {
-        let weak_window = window.as_weak();
-        let weak_chain_window = chain_editor_window.as_weak();
-        let chain_draft = chain_draft.clone();
-        let project_session = project_session.clone();
-        let output_chain_devices = output_chain_devices.clone();
-        let chain_output_channels = chain_output_channels.clone();
-        chain_editor_window.on_select_chain_output_device(move |index| {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let Some(chain_window) = weak_chain_window.upgrade() else {
-                return;
-            };
-            let mut draft_borrow = chain_draft.borrow_mut();
-            let Some(draft) = draft_borrow.as_mut() else {
-                return;
-            };
-            let Some(device) = output_chain_devices.get(index as usize) else {
-                return;
-            };
-            draft.output_device_id = Some(device.id.clone());
-            draft.output_channels.clear();
-            if project_session.borrow().as_ref().is_some() {
-                replace_channel_options(
-                    &chain_output_channels,
-                    build_output_channel_items(draft, &output_chain_devices),
-                );
-            }
-            let selected_index =
-                selected_device_index(&output_chain_devices, draft.output_device_id.as_deref());
-            window.set_selected_chain_output_device_index(selected_index);
-            chain_window.set_selected_output_device_index(selected_index);
-        });
-    }
 
     {
         let chain_draft = chain_draft.clone();
@@ -1511,46 +1832,6 @@ pub fn run_desktop_app(
         });
     }
 
-    {
-        let weak_chain_window = chain_editor_window.as_weak();
-        let chain_draft = chain_draft.clone();
-        let project_session = project_session.clone();
-        let input_chain_devices = input_chain_devices.clone();
-        let chain_input_channels = chain_input_channels.clone();
-        chain_editor_window.on_toggle_chain_input_channel(move |index, selected| {
-            let Some(chain_window) = weak_chain_window.upgrade() else {
-                return;
-            };
-            let mut draft_borrow = chain_draft.borrow_mut();
-            let Some(draft) = draft_borrow.as_mut() else {
-                return;
-            };
-            let channel = index as usize;
-            let Some(option) = chain_input_channels.row_data(index as usize) else {
-                return;
-            };
-            if selected && !option.available && !option.selected {
-                chain_window
-                    .set_status_message("Canal de entrada já está em uso por outra chain.".into());
-                return;
-            }
-            if selected {
-                if !draft.input_channels.contains(&channel) {
-                    draft.input_channels.push(channel);
-                    draft.input_channels.sort_unstable();
-                }
-            } else {
-                draft.input_channels.retain(|current| *current != channel);
-            }
-            if let Some(session) = project_session.borrow().as_ref() {
-                replace_channel_options(
-                    &chain_input_channels,
-                    build_input_channel_items(draft, &session.project, &input_chain_devices),
-                );
-            }
-            chain_window.set_status_message("".into());
-        });
-    }
 
     {
         let chain_draft = chain_draft.clone();
@@ -1580,38 +1861,6 @@ pub fn run_desktop_app(
         });
     }
 
-    {
-        let weak_chain_window = chain_editor_window.as_weak();
-        let chain_draft = chain_draft.clone();
-        let project_session = project_session.clone();
-        let output_chain_devices = output_chain_devices.clone();
-        let chain_output_channels = chain_output_channels.clone();
-        chain_editor_window.on_toggle_chain_output_channel(move |index, selected| {
-            let Some(chain_window) = weak_chain_window.upgrade() else {
-                return;
-            };
-            let mut draft_borrow = chain_draft.borrow_mut();
-            let Some(draft) = draft_borrow.as_mut() else {
-                return;
-            };
-            let channel = index as usize;
-            if selected {
-                if !draft.output_channels.contains(&channel) {
-                    draft.output_channels.push(channel);
-                    draft.output_channels.sort_unstable();
-                }
-            } else {
-                draft.output_channels.retain(|current| *current != channel);
-            }
-            if project_session.borrow().as_ref().is_some() {
-                replace_channel_options(
-                    &chain_output_channels,
-                    build_output_channel_items(draft, &output_chain_devices),
-                );
-            }
-            chain_window.set_status_message("".into());
-        });
-    }
 
     {
         let weak_window = window.as_weak();
@@ -2919,6 +3168,10 @@ fn replace_project_chains(model: &Rc<VecModel<ProjectChainItem>>, project: &Proj
             } else {
                 format!("{} blocks", chain.blocks.len()).into()
             },
+            input_label: format!("In {}", human_channel_summary(&chain.input_channels)).into(),
+            input_tooltip: chain_io_tooltip(project, true, chain).into(),
+            output_label: format!("Out {}", human_channel_summary(&chain.output_channels)).into(),
+            output_tooltip: chain_io_tooltip(project, false, chain).into(),
             blocks: ModelRc::from(Rc::new(VecModel::from(
                 chain
                     .blocks
@@ -2929,6 +3182,41 @@ fn replace_project_chains(model: &Rc<VecModel<ProjectChainItem>>, project: &Proj
         })
         .collect::<Vec<_>>();
     model.set_vec(items);
+}
+
+fn human_channel_summary(channels: &[usize]) -> String {
+    if channels.is_empty() {
+        return "—".to_string();
+    }
+    channels
+        .iter()
+        .map(|channel| (channel + 1).to_string())
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+fn chain_io_tooltip(project: &Project, input: bool, chain: &Chain) -> String {
+    let device_id = if input {
+        &chain.input_device_id.0
+    } else {
+        &chain.output_device_id.0
+    };
+    let channels = if input {
+        &chain.input_channels
+    } else {
+        &chain.output_channels
+    };
+    let settings = project.device_settings.iter().find(|item| item.device_id.0 == *device_id);
+    match settings {
+        Some(settings) => format!(
+            "{} · {} Hz · {} frames · canais {}",
+            device_id,
+            settings.sample_rate,
+            settings.buffer_size_frames,
+            human_channel_summary(channels)
+        ),
+        None => format!("{} · canais {}", device_id, human_channel_summary(channels)),
+    }
 }
 
 fn block_type_picker_items() -> Vec<BlockTypePickerItem> {
@@ -3685,6 +3973,135 @@ fn normalized_chain_description(name: &str) -> Option<String> {
     } else {
         Some(trimmed.to_string())
     }
+}
+
+fn chain_draft_input_summary(project: &Project, draft: &ChainDraft) -> String {
+    let device = draft
+        .input_device_id
+        .as_deref()
+        .unwrap_or("Nenhum dispositivo");
+    let channels = human_channel_summary(&draft.input_channels);
+    let settings = draft
+        .input_device_id
+        .as_ref()
+        .and_then(|device_id| project.device_settings.iter().find(|item| item.device_id.0 == *device_id));
+    match settings {
+        Some(settings) => format!(
+            "{} · {} Hz · {} frames · canais {}",
+            device, settings.sample_rate, settings.buffer_size_frames, channels
+        ),
+        None => format!("{} · canais {}", device, channels),
+    }
+}
+
+fn chain_draft_output_summary(project: &Project, draft: &ChainDraft) -> String {
+    let device = draft
+        .output_device_id
+        .as_deref()
+        .unwrap_or("Nenhum dispositivo");
+    let channels = human_channel_summary(&draft.output_channels);
+    let settings = draft
+        .output_device_id
+        .as_ref()
+        .and_then(|device_id| project.device_settings.iter().find(|item| item.device_id.0 == *device_id));
+    match settings {
+        Some(settings) => format!(
+            "{} · {} Hz · {} frames · canais {}",
+            device, settings.sample_rate, settings.buffer_size_frames, channels
+        ),
+        None => format!("{} · canais {}", device, channels),
+    }
+}
+
+fn sample_rate_index(value: u32) -> i32 {
+    SUPPORTED_SAMPLE_RATES
+        .iter()
+        .position(|current| *current == value)
+        .map(|index| index as i32)
+        .unwrap_or(1)
+}
+
+fn buffer_size_index(value: u32) -> i32 {
+    SUPPORTED_BUFFER_SIZES
+        .iter()
+        .position(|current| *current == value)
+        .map(|index| index as i32)
+        .unwrap_or(3)
+}
+
+fn ensure_project_device_settings<'a>(project: &'a mut Project, device_id: &str) -> &'a mut DeviceSettings {
+    if let Some(index) = project
+        .device_settings
+        .iter()
+        .position(|item| item.device_id.0 == device_id)
+    {
+        return &mut project.device_settings[index];
+    }
+    project.device_settings.push(DeviceSettings {
+        device_id: DeviceId(device_id.to_string()),
+        sample_rate: DEFAULT_SAMPLE_RATE,
+        buffer_size_frames: DEFAULT_BUFFER_SIZE_FRAMES,
+    });
+    project.device_settings.last_mut().expect("device settings inserted")
+}
+
+fn persist_chain_draft(
+    window: &AppWindow,
+    draft: ChainDraft,
+    session: &mut ProjectSession,
+    project_chains: &Rc<VecModel<ProjectChainItem>>,
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    saved_project_snapshot: &Rc<RefCell<Option<String>>>,
+    project_dirty: &Rc<RefCell<bool>>,
+) -> Result<()> {
+    if draft.input_device_id.is_none() {
+        return Err(anyhow!("Selecione o dispositivo de entrada."));
+    }
+    if draft.output_device_id.is_none() {
+        return Err(anyhow!("Selecione o dispositivo de saída."));
+    }
+    if draft.input_channels.is_empty() {
+        return Err(anyhow!("Selecione pelo menos um canal de entrada."));
+    }
+    if draft.output_channels.is_empty() {
+        return Err(anyhow!("Selecione pelo menos um canal de saída."));
+    }
+
+    let editing_index = draft.editing_index;
+    let existing_chain = editing_index.and_then(|index| session.project.chains.get(index).cloned());
+    let chain = Chain {
+        id: existing_chain
+            .as_ref()
+            .map(|chain| chain.id.clone())
+            .unwrap_or_else(ChainId::generate),
+        description: normalized_chain_description(&draft.name),
+        enabled: existing_chain.as_ref().map(|chain| chain.enabled).unwrap_or(true),
+        input_device_id: DeviceId(draft.input_device_id.unwrap_or_default()),
+        input_channels: draft.input_channels,
+        output_device_id: DeviceId(draft.output_device_id.unwrap_or_default()),
+        output_channels: draft.output_channels,
+        blocks: existing_chain
+            .as_ref()
+            .map(|chain| chain.blocks.clone())
+            .unwrap_or_default(),
+        output_mixdown: existing_chain
+            .as_ref()
+            .map(|chain| chain.output_mixdown)
+            .unwrap_or(ChainOutputMixdown::Average),
+    };
+    let chain_id = chain.id.clone();
+    if let Some(index) = editing_index {
+        if let Some(current) = session.project.chains.get_mut(index) {
+            *current = chain;
+        }
+    } else {
+        session.project.chains.push(chain);
+    }
+    sync_live_chain_runtime(project_runtime, session, &chain_id)?;
+    replace_project_chains(project_chains, &session.project);
+    sync_project_dirty(window, session, saved_project_snapshot, project_dirty);
+    window.set_project_running(project_runtime_is_running(project_runtime));
+    Ok(())
 }
 
 fn project_runtime_is_running(
