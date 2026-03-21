@@ -218,6 +218,24 @@ This is an implementation catalog, not a user-facing product list.
   - representative files:
     - `/Users/joao.faria/Library/Mobile Documents/com~apple~CloudDocs/Musica/Capturas/TONE3000/pedals/Ibanez TS9 Tube Screamer/Ibanez TS9 Tube Screamer Drive 0 Tone 7 Level 7.nam`
     - `/Users/joao.faria/Library/Mobile Documents/com~apple~CloudDocs/Musica/Capturas/TONE3000/pedals/Ibanez TS9 Tube Screamer/Ibanez TS9 Tube Screamer Drive 8 Tone 8 Level 8.nam`
+- Native oracle set:
+  - primary NAM oracle files:
+    - `/Users/joao.faria/Library/Mobile Documents/com~apple~CloudDocs/Musica/Capturas/TONE3000/pedals/Ibanez TS9 Tube Screamer/Ibanez TS9 Tube Screamer Drive 0 Tone 6 Level 6.nam`
+    - `/Users/joao.faria/Library/Mobile Documents/com~apple~CloudDocs/Musica/Capturas/TONE3000/pedals/Ibanez TS9 Tube Screamer/Ibanez TS9 Tube Screamer Drive 0 Tone 7 Level 7.nam`
+    - `/Users/joao.faria/Library/Mobile Documents/com~apple~CloudDocs/Musica/Capturas/TONE3000/pedals/Ibanez TS9 Tube Screamer/Ibanez TS9 Tube Screamer Drive 2 Tone 7 Level 10.nam`
+    - `/Users/joao.faria/Library/Mobile Documents/com~apple~CloudDocs/Musica/Capturas/TONE3000/pedals/Ibanez TS9 Tube Screamer/Ibanez TS9 Tube Screamer Drive 7 Tone 7 Level 7.nam`
+    - `/Users/joao.faria/Library/Mobile Documents/com~apple~CloudDocs/Musica/Capturas/TONE3000/pedals/Ibanez TS9 Tube Screamer/Ibanez TS9 Tube Screamer Drive 8 Tone 4 Level 5.nam`
+    - `/Users/joao.faria/Library/Mobile Documents/com~apple~CloudDocs/Musica/Capturas/TONE3000/pedals/Ibanez TS9 Tube Screamer/Ibanez TS9 Tube Screamer Drive 8 Tone 8 Level 8.nam`
+    - `/Users/joao.faria/Library/Mobile Documents/com~apple~CloudDocs/Musica/Capturas/TONE3000/pedals/Ibanez TS9 Tube Screamer/Ibanez TS9 Tube Screamer Drive 10 Tone 9 Level 7.nam`
+  - secondary NAM reference:
+    - `/Users/joao.faria/Library/Mobile Documents/com~apple~CloudDocs/Musica/Capturas/TONE3000/pedals/Boost Pedal Library/TS9.nam`
+  - auxiliary IR reference grid:
+    - directory: `/Users/joao.faria/Library/Mobile Documents/com~apple~CloudDocs/Musica/Capturas/IR/IR Guitarra/TubeScreamer TS9 IMPULSES`
+    - coverage: `25` wav files on a drive/tone grid with level locked at `100`
+    - useful anchor files:
+      - `/Users/joao.faria/Library/Mobile Documents/com~apple~CloudDocs/Musica/Capturas/IR/IR Guitarra/TubeScreamer TS9 IMPULSES/TubeScreamer_TS9-0-0-100.wav`
+      - `/Users/joao.faria/Library/Mobile Documents/com~apple~CloudDocs/Musica/Capturas/IR/IR Guitarra/TubeScreamer TS9 IMPULSES/TubeScreamer_TS9-50-50-100.wav`
+      - `/Users/joao.faria/Library/Mobile Documents/com~apple~CloudDocs/Musica/Capturas/IR/IR Guitarra/TubeScreamer TS9 IMPULSES/TubeScreamer_TS9-100-100-100.wav`
 - Native direction:
   - strong first native pedal target
 
