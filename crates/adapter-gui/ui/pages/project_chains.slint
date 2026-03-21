@@ -1022,8 +1022,8 @@ component ChainRow inherits Rectangle {
     callback toggle-chain-block-enabled(int, int);
     callback start-block-insert(int, int);
     callback reorder-chain-block(int, int, int);
-    property <int> blocks-per-row: Math.max(1, root.chain.blocks.length);
-    property <int> block-row-count: 1;
+    property <int> blocks-per-row: Math.max(1, Math.floor((root.width - 188px) / 116px));
+    property <int> block-row-count: root.chain.blocks.length == 0 ? 1 : Math.floor((root.chain.blocks.length - 1) / root.blocks-per-row) + 1;
     property <int> insert-row-count: root.block-row-count;
     in-out property <int> dragging-chain-index: -1;
     in-out property <int> dragging-block-index: -1;
