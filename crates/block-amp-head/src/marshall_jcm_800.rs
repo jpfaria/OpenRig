@@ -12,6 +12,7 @@ use block_core::param::{
 use block_core::{AudioChannelLayout, BlockProcessor};
 
 pub const MODEL_ID: &str = "marshall_jcm_800_2203";
+pub const DISPLAY_NAME: &str = "Marshall JCM 800 2203";
 
 macro_rules! capture {
     ($volume:literal, $gain:literal, $asset_id:literal, $relative_path:literal) => {
@@ -295,6 +296,8 @@ fn build(
 
 pub const MODEL_DEFINITION: AmpHeadModelDefinition = AmpHeadModelDefinition {
     id: MODEL_ID,
+    display_name: DISPLAY_NAME,
+    brand: "marshall",
     backend_kind: AmpHeadBackendKind::Nam,
     schema,
     validate: validate_params,

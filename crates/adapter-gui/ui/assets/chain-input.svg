@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" width="20" height="20">
+  <!-- Ícone de entrada: plug/jack entrando -->
+  <!-- Linha de sinal vindo da esquerda -->
+  <line x1="1" y1="10" x2="9" y2="10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <!-- Ponta de seta apontando para a direita -->
+  <polyline points="7,6 13,10 7,14" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  <!-- Bloco receptor (conector) -->
+  <rect x="13" y="6" width="6" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+</svg>

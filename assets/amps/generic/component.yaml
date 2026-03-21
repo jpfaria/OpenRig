@@ -1,0 +1,96 @@
+id: generic_amp
+name: Amp Genérico
+brand: Generic
+model: Amp
+category: amp_combo
+icon_kind: amp_combo
+description: >
+  Componente genérico de amplificador com controles padrão:
+  Gain, Volume, EQ (Bass/Mid/Treble), Master e Presence.
+
+captures:
+  amp_nam: null
+  cabinet_ir: null
+
+assets:
+  brand_logo: null
+  amp_image: null
+  controls: assets/amps/generic/controls.svg
+
+controls:
+  - id: ctrl-gain
+    label: Gain
+    section: Gain
+    type: knob
+    param_key: gain
+    default: 5.0
+    min: 0.0
+    max: 10.0
+    svg_cx: 48
+    svg_cy: 90
+
+  - id: ctrl-volume
+    label: Volume
+    section: Gain
+    type: knob
+    param_key: volume
+    default: 5.0
+    min: 0.0
+    max: 10.0
+    svg_cx: 112
+    svg_cy: 90
+
+  - id: ctrl-bass
+    label: Bass
+    section: EQ
+    type: knob
+    param_key: bass
+    default: 5.0
+    min: 0.0
+    max: 10.0
+    svg_cx: 192
+    svg_cy: 90
+
+  - id: ctrl-mid
+    label: Mid
+    section: EQ
+    type: knob
+    param_key: mid
+    default: 5.0
+    min: 0.0
+    max: 10.0
+    svg_cx: 256
+    svg_cy: 90
+
+  - id: ctrl-treble
+    label: Treble
+    section: EQ
+    type: knob
+    param_key: treble
+    default: 5.0
+    min: 0.0
+    max: 10.0
+    svg_cx: 320
+    svg_cy: 90
+
+  - id: ctrl-master
+    label: Master
+    section: Master
+    type: knob
+    param_key: master
+    default: 5.0
+    min: 0.0
+    max: 10.0
+    svg_cx: 392
+    svg_cy: 90
+
+  - id: ctrl-presence
+    label: Presence
+    section: Master
+    type: knob
+    param_key: presence
+    default: 5.0
+    min: 0.0
+    max: 10.0
+    svg_cx: 456
+    svg_cy: 90

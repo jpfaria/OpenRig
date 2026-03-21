@@ -1,0 +1,26 @@
+assets:
+  brand_logo: assets/brands/marshall/logo.svg
+  controls: assets/amps/marshall/jcm800-2203/controls.svg
+
+controls:
+  - id: ctrl-volume
+    label: Master
+    section: Volume
+    type: knob
+    param_key: volume
+    default: 50.0
+    min: 50.0
+    max: 70.0
+    svg_cx: 400
+    svg_cy: 100
+
+  - id: ctrl-gain
+    label: Pre-Amp
+    section: Volume
+    type: knob
+    param_key: gain
+    default: 40.0
+    min: 10.0
+    max: 100.0
+    svg_cx: 560
+    svg_cy: 100

@@ -1,0 +1,426 @@
+import { BlockTypePickerItem, BlockModelPickerItem, BlockKnobOverlay } from "../models.slint";
+
+// Beautiful dark model selector with popup
+component ModelSelector inherits Rectangle {
+    in property <[string]> labels;
+    in-out property <int> current-index: 0;
+    callback selected(int);
+
+    height: 34px;
+    background: #060609;
+    border-width: 1px;
+    border-color: #2a2a40;
+    border-radius: 6px;
+
+    Text {
+        x: 12px; y: 0;
+        width: parent.width - 34px;
+        height: parent.height;
+        text: root.current-index >= 0 && root.current-index < root.labels.length
+            ? root.labels[root.current-index]
+            : "";
+        color: #e8edff;
+        font-size: 13px;
+        font-weight: 700;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    // Chevron
+    Text {
+        x: parent.width - 24px; y: 0;
+        width: 20px;
+        height: parent.height;
+        text: "▾";
+        color: #4455aa;
+        font-size: 14px;
+        vertical-alignment: center;
+        horizontal-alignment: center;
+    }
+
+    ta-open := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { popup.show(); }
+    }
+
+    popup := PopupWindow {
+        x: 0;
+        y: root.height + 4px;
+        width: root.width;
+        height: root.labels.length * 36px + 8px;
+
+        Rectangle {
+            width: 100%;
+            height: 100%;
+            background: #08080e;
+            border-width: 1px;
+            border-color: #2a2a40;
+            border-radius: 6px;
+            drop-shadow-blur: 20px;
+            drop-shadow-color: #000000c0;
+            drop-shadow-offset-x: 0px;
+            drop-shadow-offset-y: 6px;
+
+            for label[i] in root.labels : Rectangle {
+                x: 4px;
+                y: 4px + i * 36px;
+                width: parent.width - 8px;
+                height: 36px;
+                border-radius: 5px;
+                background: i == root.current-index ? #14142a : transparent;
+
+                Text {
+                    x: 12px; y: 0;
+                    width: parent.width - 24px;
+                    height: parent.height;
+                    text: label;
+                    color: i == root.current-index ? #7788ff : #b0bce0;
+                    font-size: 13px;
+                    font-weight: i == root.current-index ? 700 : 400;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.current-index = i;
+                        root.selected(i);
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Interactive rotary knob overlay — sits on top of the SVG circle
+component PanelKnob inherits Rectangle {
+    in property <float> value;
+    in property <float> min-val;
+    in property <float> max-val;
+    in property <float> step: 1.0;
+    in property <string> path;
+    callback changed(string, float);
+
+    // normalized 0..1
+    private property <float> norm: root.max-val > root.min-val
+        ? (root.value - root.min-val) / (root.max-val - root.min-val)
+        : 0.0;
+    private property <float> drag-y0: 0;
+    private property <float> drag-val0: 0;
+
+    background: transparent;
+
+    // Hover / active ring
+    Rectangle {
+        x: 2px; y: 2px;
+        width: parent.width - 4px;
+        height: parent.height - 4px;
+        border-radius: (parent.width - 4px) / 2;
+        border-width: ta.has-hover || ta.pressed ? 1.5px : 0px;
+        border-color: ta.pressed ? #8899ffbb : #4455aa55;
+        background: transparent;
+    }
+
+    // Indicator line:
+    //   - Image positioned with top-left at knob center (= rotation pivot)
+    //   - Extends DOWNWARD so at 0° it points to 6 o'clock
+    //   - Formula: 45deg + norm * 270deg puts min at 7:30, max at 4:30 o'clock
+    Image {
+        x: parent.width / 2 - 2px;
+        y: parent.height / 2;
+        width: 4px;
+        height: parent.height / 2 - 5px;
+        source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/knob-indicator.svg");
+        image-fit: fill;
+        colorize: ta.pressed ? #ffffff : (ta.has-hover ? #dde8ff : #9aaccc);
+        transform-rotation: 45deg + root.norm * 270deg;
+    }
+
+    ta := TouchArea {
+        mouse-cursor: ns-resize;
+
+        pointer-event(ev) => {
+            if ev.kind == PointerEventKind.down {
+                root.drag-y0 = ta.mouse-y / 1px;
+                root.drag-val0 = root.value;
+            }
+        }
+
+        moved => {
+            if ta.pressed {
+                let delta = root.drag-y0 - ta.mouse-y / 1px;
+                let range = root.max-val - root.min-val;
+                let raw = root.drag-val0 + delta * range / 200.0;
+                let clamped = raw < root.min-val ? root.min-val : (raw > root.max-val ? root.max-val : raw);
+                root.changed(root.path, clamped);
+            }
+        }
+    }
+}
+
+// Full visual amp head editor window content
+export component AmpPanelEditor inherits Rectangle {
+    in property <[BlockTypePickerItem]> block-type-options;
+    in property <[BlockModelPickerItem]> block-model-options;
+    in property <[string]> block-model-option-labels;
+    in property <int> block-drawer-selected-type-index: -1;
+    in-out property <int> block-drawer-selected-model-index: -1;
+    in property <bool> block-drawer-edit-mode: true;
+    in property <bool> block-drawer-enabled: true;
+    in property <[BlockKnobOverlay]> block-knob-overlays;
+    in property <string> block-drawer-confirm-label: "Adicionar";
+
+    callback choose-block-model(int);
+    callback close-block-drawer();
+    callback save-block-drawer();
+    callback delete-block-drawer();
+    callback toggle-block-drawer-enabled();
+    callback update-block-parameter-number(string, float);
+
+    // Computed
+    private property <string> selected-model-id:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].model_id
+        : "";
+
+    private property <string> selected-brand:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].brand
+        : "";
+
+    private property <length> header-height: 50px;
+    private property <length> panel-height: root.width / 4;
+    private property <length> footer-height: root.block-drawer-edit-mode ? 0px : 52px;
+
+    background: #0a0a0e;
+
+    // ── HEADER ────────────────────────────────────────────────────
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width;
+        height: root.header-height;
+        background: #070709;
+
+        // Separator bottom
+        Rectangle {
+            x: 0; y: parent.height - 1px;
+            width: parent.width;
+            height: 1px;
+            background: #1c1c2e;
+        }
+
+        // Block type icon
+        Image {
+            x: 14px;
+            y: (parent.height - 22px) / 2;
+            width: 22px;
+            height: 22px;
+            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-head.svg");
+            image-fit: contain;
+            colorize: #4455aa;
+        }
+
+        // Type label
+        Text {
+            x: 42px; y: 0;
+            width: 86px;
+            height: parent.height;
+            text: "Amp Head";
+            color: #4455aa;
+            font-size: 11px;
+            font-weight: 700;
+            vertical-alignment: center;
+            letter-spacing: 0.8px;
+        }
+
+        // Model selector
+        ModelSelector {
+            x: 132px;
+            y: (parent.height - 34px) / 2;
+            width: parent.width - 132px - 44px;
+            labels: root.block-model-option-labels;
+            current-index <=> root.block-drawer-selected-model-index;
+            selected(i) => { root.choose-block-model(i); }
+        }
+
+        // Close button
+        Rectangle {
+            x: parent.width - 38px;
+            y: (parent.height - 28px) / 2;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            background: ta-close.has-hover ? #1e0e0e : transparent;
+
+            Text {
+                width: parent.width; height: parent.height;
+                text: "✕";
+                color: ta-close.has-hover ? #cc4444 : #44445a;
+                font-size: 14px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            ta-close := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.close-block-drawer(); }
+            }
+        }
+    }
+
+    // ── PANEL IMAGE + OVERLAYS ─────────────────────────────────────
+    Rectangle {
+        x: 0;
+        y: root.header-height;
+        width: parent.width;
+        height: root.panel-height;
+        clip: true;
+        background: #111;
+
+        // controls.svg panel image (full width, 4:1 ratio)
+        Image {
+            x: 0; y: 0;
+            width: parent.width;
+            height: parent.height;
+            source: root.selected-model-id == "marshall_jcm_800_2203"
+                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/amps/marshall/jcm800-2203/controls.svg")
+                : root.selected-model-id == "american_clean"
+                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/amps/native/american-clean/controls.svg")
+                : root.selected-model-id == "brit_crunch"
+                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/amps/native/brit-crunch/controls.svg")
+                : root.selected-model-id == "modern_high_gain"
+                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/amps/native/modern-high-gain/controls.svg")
+                : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/amps/generic/controls.svg");
+            image-fit: fill;
+        }
+
+        // Brand logo overlay (top-center, semi-transparent)
+        if root.selected-brand == "marshall" : Image {
+            x: (parent.width - 80px) / 2;
+            y: 6px;
+            width: 80px;
+            height: 20px;
+            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/marshall/logo.svg");
+            image-fit: contain;
+            colorize: #ffffff40;
+        }
+
+        // Power LED / Enable toggle (top-left of panel, simulates physical power switch)
+        Rectangle {
+            x: 8px;
+            y: (root.panel-height - 32px) / 2;
+            width: 32px;
+            height: 32px;
+            border-radius: 16px;
+            background: ta-power.has-hover ? #00000060 : transparent;
+
+            // Outer ring
+            Rectangle {
+                x: 4px; y: 4px;
+                width: 24px; height: 24px;
+                border-radius: 12px;
+                background: transparent;
+                border-width: 1px;
+                border-color: root.block-drawer-enabled ? #22aa3380 : #661111;
+            }
+
+            // LED glow
+            Rectangle {
+                x: 10px; y: 10px;
+                width: 12px; height: 12px;
+                border-radius: 6px;
+                background: root.block-drawer-enabled ? #33ee55 : #331111;
+                drop-shadow-blur: root.block-drawer-enabled ? 10px : 0px;
+                drop-shadow-color: root.block-drawer-enabled ? #33ee5599 : #00000000;
+                drop-shadow-offset-x: 0px;
+                drop-shadow-offset-y: 0px;
+            }
+
+            ta-power := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.toggle-block-drawer-enabled(); }
+            }
+        }
+
+        // Delete button (top-right of panel)
+        if root.block-drawer-edit-mode : Rectangle {
+            x: parent.width - 36px;
+            y: 6px;
+            width: 28px;
+            height: 28px;
+            border-radius: 5px;
+            background: ta-del.has-hover ? #3a080808 : #18050505;
+            border-width: 1px;
+            border-color: ta-del.has-hover ? #883333 : #331515;
+
+            Image {
+                x: 5px; y: 5px;
+                width: 18px; height: 18px;
+                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/trash.svg");
+                image-fit: contain;
+                colorize: ta-del.has-hover ? #ff6655 : #772222;
+            }
+
+            ta-del := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.delete-block-drawer(); }
+            }
+        }
+
+        // Knob overlays (positioned at exact svg_cx / svg_cy relative to panel)
+        for knob in root.block-knob-overlays : PanelKnob {
+            x: knob.svg_cx / 800 * parent.width - knob.svg_r / 800 * parent.width;
+            y: knob.svg_cy / 200 * parent.height - knob.svg_r / 200 * parent.height;
+            width: knob.svg_r * 2 / 800 * parent.width;
+            height: knob.svg_r * 2 / 200 * parent.height;
+            value: knob.value;
+            min-val: knob.min_val;
+            max-val: knob.max_val;
+            step: knob.step;
+            path: knob.path;
+            changed(p, v) => { root.update-block-parameter-number(p, v); }
+        }
+    }
+
+    // ── FOOTER (insert mode only) ──────────────────────────────────
+    if !root.block-drawer-edit-mode : Rectangle {
+        x: 0;
+        y: root.header-height + root.panel-height;
+        width: parent.width;
+        height: 52px;
+        background: #070709;
+
+        Rectangle {
+            x: 0; y: 0;
+            width: parent.width; height: 1px;
+            background: #1c1c2e;
+        }
+
+        Rectangle {
+            x: parent.width - 120px;
+            y: (52px - 36px) / 2;
+            width: 104px;
+            height: 36px;
+            background: ta-save.has-hover ? #1a5acc : #102a88;
+            border-radius: 6px;
+
+            Text {
+                width: parent.width; height: parent.height;
+                text: root.block-drawer-confirm-label;
+                color: #e8edff;
+                font-size: 13px;
+                font-weight: 700;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            ta-save := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.save-block-drawer(); }
+            }
+        }
+    }
+}

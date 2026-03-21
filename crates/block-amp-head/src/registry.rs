@@ -7,6 +7,10 @@ use crate::AmpHeadBackendKind;
 #[derive(Clone, Copy)]
 pub struct AmpHeadModelDefinition {
     pub id: &'static str,
+    /// Nome de exibição do modelo (ex: "American Clean", "Marshall JCM 800 2203")
+    pub display_name: &'static str,
+    /// Marca do equipamento (ex: "marshall", "vox", "native")
+    pub brand: &'static str,
     pub backend_kind: AmpHeadBackendKind,
     pub schema: fn() -> Result<ModelParameterSchema>,
     pub validate: fn(&ParameterSet) -> Result<()>,

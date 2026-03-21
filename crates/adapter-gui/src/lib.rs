@@ -122,6 +122,55 @@ fn schedule_block_editor_persist(
     });
 }
 
+#[allow(clippy::too_many_arguments)]
+fn schedule_block_editor_persist_for_block_win(
+    timer: &Rc<Timer>,
+    block_win_weak: slint::Weak<BlockEditorWindow>,
+    main_win_weak: slint::Weak<AppWindow>,
+    block_editor_draft: Rc<RefCell<Option<BlockEditorDraft>>>,
+    block_parameter_items: Rc<VecModel<BlockParameterItem>>,
+    project_session: Rc<RefCell<Option<ProjectSession>>>,
+    project_chains: Rc<VecModel<ProjectChainItem>>,
+    project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
+    saved_project_snapshot: Rc<RefCell<Option<String>>>,
+    project_dirty: Rc<RefCell<bool>>,
+    input_chain_devices: Rc<Vec<AudioDeviceDescriptor>>,
+    output_chain_devices: Rc<Vec<AudioDeviceDescriptor>>,
+    context: &'static str,
+) {
+    timer.stop();
+    timer.start(TimerMode::SingleShot, Duration::from_millis(140), move || {
+        // Only persist if the block window is still alive
+        if block_win_weak.upgrade().is_none() {
+            return;
+        }
+        let Some(main_window) = main_win_weak.upgrade() else {
+            return;
+        };
+        let Some(draft) = block_editor_draft.borrow().clone() else {
+            return;
+        };
+        if draft.block_index.is_none() {
+            return;
+        }
+        if let Err(error) = persist_block_editor_draft(
+            &main_window,
+            &draft,
+            &block_parameter_items,
+            &project_session,
+            &project_chains,
+            &project_runtime,
+            &saved_project_snapshot,
+            &project_dirty,
+            &input_chain_devices,
+            &output_chain_devices,
+            false,
+        ) {
+            log_gui_error(context, error);
+        }
+    });
+}
+
 #[derive(Debug, Clone)]
 struct ProjectPaths {
     default_config_path: PathBuf,
@@ -231,6 +280,67 @@ struct ConfigYaml {
 
 const UNTITLED_PROJECT_NAME: &str = "UNTITLED PROJECT";
 
+struct BlockWindow {
+    chain_index: usize,
+    block_index: usize,
+    window: BlockEditorWindow,
+}
+
+struct KnobInfo {
+    param_key: &'static str,
+    svg_cx: f32,
+    svg_cy: f32,
+    svg_r: f32,
+    min: f32,
+    max: f32,
+    step: f32,
+}
+
+fn knob_infos_for_model(model_id: &str) -> &'static [KnobInfo] {
+    match model_id {
+        "marshall_jcm_800_2203" => &[
+            KnobInfo { param_key: "volume",  svg_cx: 400.0, svg_cy: 100.0, svg_r: 30.0, min: 50.0, max: 70.0,  step: 10.0 },
+            KnobInfo { param_key: "gain",    svg_cx: 560.0, svg_cy: 100.0, svg_r: 30.0, min: 10.0, max: 100.0, step: 10.0 },
+        ],
+        "american_clean" | "brit_crunch" | "modern_high_gain" => &[
+            KnobInfo { param_key: "input_db",  svg_cx: 44.0,  svg_cy: 90.0, svg_r: 16.0, min: -18.0, max: 18.0,  step: 1.0 },
+            KnobInfo { param_key: "gain",      svg_cx: 130.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
+            KnobInfo { param_key: "bass",      svg_cx: 222.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
+            KnobInfo { param_key: "middle",    svg_cx: 302.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
+            KnobInfo { param_key: "treble",    svg_cx: 382.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
+            KnobInfo { param_key: "presence",  svg_cx: 470.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
+            KnobInfo { param_key: "depth",     svg_cx: 550.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
+            KnobInfo { param_key: "sag",       svg_cx: 630.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
+            KnobInfo { param_key: "master",    svg_cx: 706.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
+        ],
+        _ => &[],
+    }
+}
+
+fn build_knob_overlays(model_id: &str, param_items: &[BlockParameterItem]) -> Vec<BlockKnobOverlay> {
+    knob_infos_for_model(model_id)
+        .iter()
+        .map(|info| {
+            let value = param_items
+                .iter()
+                .find(|p| p.path.as_str() == info.param_key)
+                .map(|p| p.numeric_value)
+                .unwrap_or(info.min);
+            BlockKnobOverlay {
+                path: info.param_key.into(),
+                label: info.param_key.into(),
+                svg_cx: info.svg_cx,
+                svg_cy: info.svg_cy,
+                svg_r: info.svg_r,
+                value,
+                min_val: info.min,
+                max_val: info.max,
+                step: info.step,
+            }
+        })
+        .collect()
+}
+
 pub fn run_desktop_app(
     runtime_mode: AppRuntimeMode,
     interaction_mode: InteractionMode,
@@ -248,6 +358,7 @@ pub fn run_desktop_app(
     let project_runtime = Rc::new(RefCell::new(None::<ProjectRuntimeController>));
     let saved_project_snapshot = Rc::new(RefCell::new(None::<String>));
     let project_dirty = Rc::new(RefCell::new(false));
+    let open_block_windows: Rc<RefCell<Vec<BlockWindow>>> = Rc::new(RefCell::new(Vec::new()));
     let audio_settings_mode = Rc::new(RefCell::new(AudioSettingsMode::Gui));
     let input_chain_devices = Rc::new(list_input_device_descriptors()?);
     let output_chain_devices = Rc::new(list_output_device_descriptors()?);
@@ -1958,16 +2069,23 @@ pub fn run_desktop_app(
     }
 
     {
-        let weak_window = window.as_weak();
+        let weak_main_window = window.as_weak();
         let selected_block = selected_block.clone();
         let block_editor_draft = block_editor_draft.clone();
         let block_model_options = block_model_options.clone();
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
         let project_session = project_session.clone();
-        let weak_block_editor_window = block_editor_window.as_weak();
+        let project_chains = project_chains.clone();
+        let project_runtime = project_runtime.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let block_type_options = block_type_options.clone();
+        let open_block_windows = open_block_windows.clone();
         window.on_select_chain_block(move |chain_index, block_index| {
-            let Some(window) = weak_window.upgrade() else {
+            let Some(window) = weak_main_window.upgrade() else {
                 return;
             };
             let session_borrow = project_session.borrow();
@@ -2020,14 +2138,461 @@ pub fn run_desktop_app(
             window.set_block_drawer_enabled(enabled);
             window.set_block_drawer_status_message("".into());
             window.set_show_block_type_picker(false);
+            drop(session_borrow);
             if use_inline_block_editor(&window) {
                 window.set_show_block_drawer(true);
             } else {
                 window.set_show_block_drawer(false);
-                if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
-                    sync_block_editor_window(&window, &block_editor_window);
-                    let _ = block_editor_window.show();
+                let ci = chain_index as usize;
+                let bi = block_index as usize;
+                // Check if a window for this block already exists
+                let existing = open_block_windows.borrow().iter()
+                    .find(|bw| bw.chain_index == ci && bw.block_index == bi)
+                    .map(|bw| bw.window.as_weak());
+                if let Some(weak_win) = existing {
+                    if let Some(win) = weak_win.upgrade() {
+                        sync_block_editor_window(&window, &win);
+                        let _ = win.show();
+                        return;
+                    }
                 }
+                // Create new isolated window
+                let win = match BlockEditorWindow::new() {
+                    Ok(w) => w,
+                    Err(e) => {
+                        window.set_status_message(format!("Erro ao abrir editor: {e}").into());
+                        return;
+                    }
+                };
+                // Per-window models (independent copies of the data)
+                let win_model_options = Rc::new(VecModel::from(
+                    block_model_picker_items(&effect_type)
+                ));
+                let win_model_labels = Rc::new(VecModel::from(
+                    block_model_picker_labels(&block_model_picker_items(&effect_type))
+                ));
+                let win_param_items_vec = block_parameter_items_for_editor(&editor_data);
+                let win_knob_overlays = Rc::new(VecModel::from(
+                    build_knob_overlays(&model_id, &win_param_items_vec)
+                ));
+                let win_param_items = Rc::new(VecModel::from(win_param_items_vec));
+                let win_draft = Rc::new(RefCell::new(Some(BlockEditorDraft {
+                    chain_index: ci,
+                    block_index: Some(bi),
+                    before_index: bi,
+                    effect_type: effect_type.clone(),
+                    model_id: model_id.clone(),
+                    enabled,
+                    is_select: editor_data.is_select,
+                })));
+                let win_timer = Rc::new(Timer::default());
+
+                // Populate window — sync scalars first, then override with per-window models
+                sync_block_editor_window(&window, &win);
+                win.set_block_type_options(ModelRc::from(block_type_options.clone()));
+                win.set_block_model_options(ModelRc::from(win_model_options.clone()));
+                win.set_block_model_option_labels(ModelRc::from(win_model_labels.clone()));
+                win.set_block_parameter_items(ModelRc::from(win_param_items.clone()));
+                win.set_block_knob_overlays(ModelRc::from(win_knob_overlays.clone()));
+
+                // on_choose_block_model
+                {
+                    let win_draft = win_draft.clone();
+                    let win_param_items = win_param_items.clone();
+                    let win_knob_overlays = win_knob_overlays.clone();
+                    let win_timer = win_timer.clone();
+                    let project_session = project_session.clone();
+                    let project_chains = project_chains.clone();
+                    let project_runtime = project_runtime.clone();
+                    let saved_project_snapshot = saved_project_snapshot.clone();
+                    let project_dirty = project_dirty.clone();
+                    let input_chain_devices = input_chain_devices.clone();
+                    let output_chain_devices = output_chain_devices.clone();
+                    let weak_main = weak_main_window.clone();
+                    let weak_win = win.as_weak();
+                    win.on_choose_block_model(move |index| {
+                        let Some(_win) = weak_win.upgrade() else { return; };
+                        let mut draft_borrow = win_draft.borrow_mut();
+                        let Some(draft) = draft_borrow.as_mut() else { return; };
+                        let models = block_model_picker_items(&draft.effect_type);
+                        let Some(model) = models.get(index as usize) else { return; };
+                        draft.model_id = model.model_id.to_string();
+                        draft.effect_type = model.effect_type.to_string();
+                        let new_params = block_parameter_items_for_model(
+                            &model.effect_type, &model.model_id, &ParameterSet::default(),
+                        );
+                        win_knob_overlays.set_vec(build_knob_overlays(&model.model_id, &new_params));
+                        win_param_items.set_vec(new_params);
+                        drop(draft_borrow);
+                        if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
+                            schedule_block_editor_persist_for_block_win(
+                                &win_timer, weak_win.clone(), weak_main.clone(),
+                                win_draft.clone(), win_param_items.clone(),
+                                project_session.clone(), project_chains.clone(), project_runtime.clone(),
+                                saved_project_snapshot.clone(), project_dirty.clone(),
+                                input_chain_devices.clone(), output_chain_devices.clone(),
+                                "block-window.choose-model",
+                            );
+                        }
+                    });
+                }
+
+                // on_toggle_block_drawer_enabled
+                {
+                    let win_draft = win_draft.clone();
+                    let project_session = project_session.clone();
+                    let project_chains = project_chains.clone();
+                    let project_runtime = project_runtime.clone();
+                    let saved_project_snapshot = saved_project_snapshot.clone();
+                    let project_dirty = project_dirty.clone();
+                    let input_chain_devices = input_chain_devices.clone();
+                    let output_chain_devices = output_chain_devices.clone();
+                    let weak_main = weak_main_window.clone();
+                    let weak_win = win.as_weak();
+                    win.on_toggle_block_drawer_enabled(move || {
+                        let Some(win) = weak_win.upgrade() else { return; };
+                        let Some(main) = weak_main.upgrade() else { return; };
+                        let (chain_idx, block_idx, chain_id_opt) = {
+                            let draft_borrow = win_draft.borrow();
+                            let Some(draft) = draft_borrow.as_ref() else { return; };
+                            let Some(block_index) = draft.block_index else { return; };
+                            let mut session_borrow = project_session.borrow_mut();
+                            let Some(session) = session_borrow.as_mut() else { return; };
+                            let Some(chain) = session.project.chains.get_mut(draft.chain_index) else { return; };
+                            let Some(block) = chain.blocks.get_mut(block_index) else { return; };
+                            block.enabled = !block.enabled;
+                            (draft.chain_index, block_index, Some(chain.id.clone()))
+                        };
+                        let new_enabled = {
+                            let session_borrow = project_session.borrow();
+                            let Some(session) = session_borrow.as_ref() else { return; };
+                            let Some(chain) = session.project.chains.get(chain_idx) else { return; };
+                            let Some(block) = chain.blocks.get(block_idx) else { return; };
+                            block.enabled
+                        };
+                        let chain_id = chain_id_opt.unwrap();
+                        let mut session_borrow = project_session.borrow_mut();
+                        let Some(session) = session_borrow.as_mut() else { return; };
+                        if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                            log_gui_error("block-window.toggle-enabled", e);
+                            return;
+                        }
+                        replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+                        sync_project_dirty(&main, session, &saved_project_snapshot, &project_dirty);
+                        drop(session_borrow);
+                        win.set_block_drawer_enabled(new_enabled);
+                    });
+                }
+
+                // on_update_block_parameter_number
+                {
+                    let win_draft = win_draft.clone();
+                    let win_param_items = win_param_items.clone();
+                    let win_knob_overlays = win_knob_overlays.clone();
+                    let win_timer = win_timer.clone();
+                    let project_session = project_session.clone();
+                    let project_chains = project_chains.clone();
+                    let project_runtime = project_runtime.clone();
+                    let saved_project_snapshot = saved_project_snapshot.clone();
+                    let project_dirty = project_dirty.clone();
+                    let input_chain_devices = input_chain_devices.clone();
+                    let output_chain_devices = output_chain_devices.clone();
+                    let weak_main = weak_main_window.clone();
+                    let weak_win = win.as_weak();
+                    win.on_update_block_parameter_number(move |path, value| {
+                        let Some(_win) = weak_win.upgrade() else { return; };
+                        set_block_parameter_number(&win_param_items, path.as_str(), value);
+                        // Update overlay value so the knob indicator re-renders instantly
+                        for i in 0..win_knob_overlays.row_count() {
+                            if let Some(mut overlay) = win_knob_overlays.row_data(i) {
+                                if overlay.path == path {
+                                    overlay.value = value;
+                                    win_knob_overlays.set_row_data(i, overlay);
+                                    break;
+                                }
+                            }
+                        }
+                        if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
+                            schedule_block_editor_persist_for_block_win(
+                                &win_timer, weak_win.clone(), weak_main.clone(),
+                                win_draft.clone(), win_param_items.clone(),
+                                project_session.clone(), project_chains.clone(), project_runtime.clone(),
+                                saved_project_snapshot.clone(), project_dirty.clone(),
+                                input_chain_devices.clone(), output_chain_devices.clone(),
+                                "block-window.number",
+                            );
+                        }
+                    });
+                }
+
+                // on_update_block_parameter_number_text
+                {
+                    let win_draft = win_draft.clone();
+                    let win_param_items = win_param_items.clone();
+                    let win_timer = win_timer.clone();
+                    let project_session = project_session.clone();
+                    let project_chains = project_chains.clone();
+                    let project_runtime = project_runtime.clone();
+                    let saved_project_snapshot = saved_project_snapshot.clone();
+                    let project_dirty = project_dirty.clone();
+                    let input_chain_devices = input_chain_devices.clone();
+                    let output_chain_devices = output_chain_devices.clone();
+                    let weak_main = weak_main_window.clone();
+                    let weak_win = win.as_weak();
+                    win.on_update_block_parameter_number_text(move |path, value_text| {
+                        let Some(_win) = weak_win.upgrade() else { return; };
+                        let normalized = value_text.replace(',', ".");
+                        let Ok(value) = normalized.parse::<f32>() else { return; };
+                        set_block_parameter_number(&win_param_items, path.as_str(), value);
+                        if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
+                            schedule_block_editor_persist_for_block_win(
+                                &win_timer, weak_win.clone(), weak_main.clone(),
+                                win_draft.clone(), win_param_items.clone(),
+                                project_session.clone(), project_chains.clone(), project_runtime.clone(),
+                                saved_project_snapshot.clone(), project_dirty.clone(),
+                                input_chain_devices.clone(), output_chain_devices.clone(),
+                                "block-window.number-text",
+                            );
+                        }
+                    });
+                }
+
+                // on_update_block_parameter_bool
+                {
+                    let win_draft = win_draft.clone();
+                    let win_param_items = win_param_items.clone();
+                    let win_timer = win_timer.clone();
+                    let project_session = project_session.clone();
+                    let project_chains = project_chains.clone();
+                    let project_runtime = project_runtime.clone();
+                    let saved_project_snapshot = saved_project_snapshot.clone();
+                    let project_dirty = project_dirty.clone();
+                    let input_chain_devices = input_chain_devices.clone();
+                    let output_chain_devices = output_chain_devices.clone();
+                    let weak_main = weak_main_window.clone();
+                    let weak_win = win.as_weak();
+                    win.on_update_block_parameter_bool(move |path, value| {
+                        let Some(_win) = weak_win.upgrade() else { return; };
+                        set_block_parameter_bool(&win_param_items, path.as_str(), value);
+                        if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
+                            schedule_block_editor_persist_for_block_win(
+                                &win_timer, weak_win.clone(), weak_main.clone(),
+                                win_draft.clone(), win_param_items.clone(),
+                                project_session.clone(), project_chains.clone(), project_runtime.clone(),
+                                saved_project_snapshot.clone(), project_dirty.clone(),
+                                input_chain_devices.clone(), output_chain_devices.clone(),
+                                "block-window.bool",
+                            );
+                        }
+                    });
+                }
+
+                // on_update_block_parameter_text
+                {
+                    let win_draft = win_draft.clone();
+                    let win_param_items = win_param_items.clone();
+                    let win_timer = win_timer.clone();
+                    let project_session = project_session.clone();
+                    let project_chains = project_chains.clone();
+                    let project_runtime = project_runtime.clone();
+                    let saved_project_snapshot = saved_project_snapshot.clone();
+                    let project_dirty = project_dirty.clone();
+                    let input_chain_devices = input_chain_devices.clone();
+                    let output_chain_devices = output_chain_devices.clone();
+                    let weak_main = weak_main_window.clone();
+                    let weak_win = win.as_weak();
+                    win.on_update_block_parameter_text(move |path, value| {
+                        let Some(_win) = weak_win.upgrade() else { return; };
+                        set_block_parameter_text(&win_param_items, path.as_str(), value.as_str());
+                        if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
+                            schedule_block_editor_persist_for_block_win(
+                                &win_timer, weak_win.clone(), weak_main.clone(),
+                                win_draft.clone(), win_param_items.clone(),
+                                project_session.clone(), project_chains.clone(), project_runtime.clone(),
+                                saved_project_snapshot.clone(), project_dirty.clone(),
+                                input_chain_devices.clone(), output_chain_devices.clone(),
+                                "block-window.text",
+                            );
+                        }
+                    });
+                }
+
+                // on_select_block_parameter_option
+                {
+                    let win_draft = win_draft.clone();
+                    let win_param_items = win_param_items.clone();
+                    let win_timer = win_timer.clone();
+                    let project_session = project_session.clone();
+                    let project_chains = project_chains.clone();
+                    let project_runtime = project_runtime.clone();
+                    let saved_project_snapshot = saved_project_snapshot.clone();
+                    let project_dirty = project_dirty.clone();
+                    let input_chain_devices = input_chain_devices.clone();
+                    let output_chain_devices = output_chain_devices.clone();
+                    let weak_main = weak_main_window.clone();
+                    let weak_win = win.as_weak();
+                    win.on_select_block_parameter_option(move |path, index| {
+                        let Some(_win) = weak_win.upgrade() else { return; };
+                        set_block_parameter_option(&win_param_items, path.as_str(), index);
+                        if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
+                            schedule_block_editor_persist_for_block_win(
+                                &win_timer, weak_win.clone(), weak_main.clone(),
+                                win_draft.clone(), win_param_items.clone(),
+                                project_session.clone(), project_chains.clone(), project_runtime.clone(),
+                                saved_project_snapshot.clone(), project_dirty.clone(),
+                                input_chain_devices.clone(), output_chain_devices.clone(),
+                                "block-window.option",
+                            );
+                        }
+                    });
+                }
+
+                // on_pick_block_parameter_file
+                {
+                    let win_draft = win_draft.clone();
+                    let win_param_items = win_param_items.clone();
+                    let win_timer = win_timer.clone();
+                    let project_session = project_session.clone();
+                    let project_chains = project_chains.clone();
+                    let project_runtime = project_runtime.clone();
+                    let saved_project_snapshot = saved_project_snapshot.clone();
+                    let project_dirty = project_dirty.clone();
+                    let input_chain_devices = input_chain_devices.clone();
+                    let output_chain_devices = output_chain_devices.clone();
+                    let weak_main = weak_main_window.clone();
+                    let weak_win = win.as_weak();
+                    win.on_pick_block_parameter_file(move |path| {
+                        let Some(_win) = weak_win.upgrade() else { return; };
+                        let extensions = block_parameter_extensions(&win_param_items, path.as_str());
+                        let mut dialog = FileDialog::new();
+                        if !extensions.is_empty() {
+                            let refs: Vec<&str> = extensions.iter().map(|v| v.as_str()).collect();
+                            dialog = dialog.add_filter("Arquivos suportados", &refs);
+                        }
+                        let Some(file) = dialog.pick_file() else { return; };
+                        set_block_parameter_text(&win_param_items, path.as_str(), file.to_string_lossy().as_ref());
+                        if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
+                            schedule_block_editor_persist_for_block_win(
+                                &win_timer, weak_win.clone(), weak_main.clone(),
+                                win_draft.clone(), win_param_items.clone(),
+                                project_session.clone(), project_chains.clone(), project_runtime.clone(),
+                                saved_project_snapshot.clone(), project_dirty.clone(),
+                                input_chain_devices.clone(), output_chain_devices.clone(),
+                                "block-window.file",
+                            );
+                        }
+                    });
+                }
+
+                // on_save_block_drawer (edit mode - saves and closes)
+                {
+                    let win_draft = win_draft.clone();
+                    let win_param_items = win_param_items.clone();
+                    let win_timer = win_timer.clone();
+                    let project_session = project_session.clone();
+                    let project_chains = project_chains.clone();
+                    let project_runtime = project_runtime.clone();
+                    let saved_project_snapshot = saved_project_snapshot.clone();
+                    let project_dirty = project_dirty.clone();
+                    let input_chain_devices = input_chain_devices.clone();
+                    let output_chain_devices = output_chain_devices.clone();
+                    let selected_block = selected_block.clone();
+                    let open_block_windows = open_block_windows.clone();
+                    let weak_main = weak_main_window.clone();
+                    let weak_win = win.as_weak();
+                    win.on_save_block_drawer(move || {
+                        let Some(win) = weak_win.upgrade() else { return; };
+                        let Some(main) = weak_main.upgrade() else { return; };
+                        win_timer.stop();
+                        let Some(draft) = win_draft.borrow().clone() else { return; };
+                        if let Err(e) = persist_block_editor_draft(
+                            &main, &draft, &win_param_items,
+                            &project_session, &project_chains, &project_runtime,
+                            &saved_project_snapshot, &project_dirty,
+                            &input_chain_devices, &output_chain_devices, true,
+                        ) {
+                            log_gui_error("block-window.save", e);
+                            return;
+                        }
+                        *selected_block.borrow_mut() = None;
+                        set_selected_block(&main, None);
+                        open_block_windows.borrow_mut().retain(|bw| {
+                            bw.chain_index != draft.chain_index
+                                || bw.block_index != draft.block_index.unwrap_or(usize::MAX)
+                        });
+                        let _ = win.hide();
+                    });
+                }
+
+                // on_delete_block_drawer
+                {
+                    let win_draft = win_draft.clone();
+                    let win_timer = win_timer.clone();
+                    let project_session = project_session.clone();
+                    let project_chains = project_chains.clone();
+                    let project_runtime = project_runtime.clone();
+                    let saved_project_snapshot = saved_project_snapshot.clone();
+                    let project_dirty = project_dirty.clone();
+                    let input_chain_devices = input_chain_devices.clone();
+                    let output_chain_devices = output_chain_devices.clone();
+                    let selected_block = selected_block.clone();
+                    let open_block_windows = open_block_windows.clone();
+                    let weak_main = weak_main_window.clone();
+                    let weak_win = win.as_weak();
+                    win.on_delete_block_drawer(move || {
+                        let Some(win) = weak_win.upgrade() else { return; };
+                        let Some(main) = weak_main.upgrade() else { return; };
+                        win_timer.stop();
+                        let Some(draft) = win_draft.borrow().clone() else { return; };
+                        let Some(block_index) = draft.block_index else { return; };
+                        let mut session_borrow = project_session.borrow_mut();
+                        let Some(session) = session_borrow.as_mut() else { return; };
+                        let Some(chain) = session.project.chains.get_mut(draft.chain_index) else { return; };
+                        if block_index >= chain.blocks.len() { return; }
+                        let chain_id = chain.id.clone();
+                        chain.blocks.remove(block_index);
+                        if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                            log_gui_error("block-window.delete", e);
+                            return;
+                        }
+                        replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+                        sync_project_dirty(&main, session, &saved_project_snapshot, &project_dirty);
+                        main.set_project_running(project_runtime_is_running(&project_runtime));
+                        drop(session_borrow);
+                        *selected_block.borrow_mut() = None;
+                        set_selected_block(&main, None);
+                        open_block_windows.borrow_mut().retain(|bw| {
+                            bw.chain_index != draft.chain_index || bw.block_index != block_index
+                        });
+                        let _ = win.hide();
+                    });
+                }
+
+                // on_close_block_drawer (close without saving)
+                {
+                    let win_draft = win_draft.clone();
+                    let open_block_windows = open_block_windows.clone();
+                    let selected_block = selected_block.clone();
+                    let weak_main = weak_main_window.clone();
+                    let weak_win = win.as_weak();
+                    win.on_close_block_drawer(move || {
+                        let Some(win) = weak_win.upgrade() else { return; };
+                        let Some(main) = weak_main.upgrade() else { return; };
+                        let draft_borrow = win_draft.borrow();
+                        if let Some(draft) = draft_borrow.as_ref() {
+                            open_block_windows.borrow_mut().retain(|bw| {
+                                bw.chain_index != draft.chain_index || Some(bw.block_index) != draft.block_index
+                            });
+                        }
+                        drop(draft_borrow);
+                        *selected_block.borrow_mut() = None;
+                        set_selected_block(&main, None);
+                        let _ = win.hide();
+                    });
+                }
+
+                let _ = win.show();
+                open_block_windows.borrow_mut().push(BlockWindow { chain_index: ci, block_index: bi, window: win });
             }
         });
     }
@@ -3365,6 +3930,12 @@ pub fn run_desktop_app(
         });
     }
 
+    // Ao fechar a janela principal, encerra todo o processo
+    window.window().on_close_requested(|| {
+        let _ = slint::quit_event_loop();
+        slint::CloseRequestResponse::HideWindow
+    });
+
     window.run().map_err(|error| anyhow!(error.to_string()))
 }
 
@@ -3605,44 +4176,62 @@ fn replace_project_chains(
         .chains
         .iter()
         .enumerate()
-        .map(|(index, chain)| ProjectChainItem {
-            title: chain
-                .description
-                .clone()
-                .unwrap_or_else(|| format!("Chain {}", index + 1))
+        .map(|(index, chain)| {
+            let input_settings = project
+                .device_settings
+                .iter()
+                .find(|s| s.device_id == chain.input_device_id);
+            let output_settings = project
+                .device_settings
+                .iter()
+                .find(|s| s.device_id == chain.output_device_id);
+            let input_buffer =
+                input_settings.map(|s| s.buffer_size_frames).unwrap_or(256) as f32;
+            let output_buffer =
+                output_settings.map(|s| s.buffer_size_frames).unwrap_or(256) as f32;
+            let sample_rate = input_settings.map(|s| s.sample_rate).unwrap_or(48000) as f32;
+            let latency_ms = (input_buffer + output_buffer) / sample_rate * 1000.0;
+
+            ProjectChainItem {
+                title: chain
+                    .description
+                    .clone()
+                    .unwrap_or_else(|| format!("Chain {}", index + 1))
+                    .into(),
+                subtitle: chain_routing_summary(chain).into(),
+                enabled: chain.enabled,
+                block_count_label: if chain.blocks.len() == 1 {
+                    "1 block".into()
+                } else {
+                    format!("{} blocks", chain.blocks.len()).into()
+                },
+                input_label: chain_endpoint_label("In", &chain.input_channels).into(),
+                input_tooltip: chain_endpoint_tooltip(
+                    "Entrada",
+                    &chain.input_device_id.0,
+                    &chain.input_channels,
+                    project,
+                    input_devices,
+                )
                 .into(),
-            subtitle: chain_routing_summary(chain).into(),
-            enabled: chain.enabled,
-            block_count_label: if chain.blocks.len() == 1 {
-                "1 block".into()
-            } else {
-                format!("{} blocks", chain.blocks.len()).into()
-            },
-            input_label: chain_endpoint_label("In", &chain.input_channels).into(),
-            input_tooltip: chain_endpoint_tooltip(
-                "Entrada",
-                &chain.input_device_id.0,
-                &chain.input_channels,
-                project,
-                input_devices,
-            )
-            .into(),
-            output_label: chain_endpoint_label("Out", &chain.output_channels).into(),
-            output_tooltip: chain_endpoint_tooltip(
-                "Saída",
-                &chain.output_device_id.0,
-                &chain.output_channels,
-                project,
-                output_devices,
-            )
-            .into(),
-            blocks: ModelRc::from(Rc::new(VecModel::from(
-                chain
-                    .blocks
-                    .iter()
-                    .map(chain_block_item_from_block)
-                    .collect::<Vec<_>>(),
-            ))),
+                output_label: chain_endpoint_label("Out", &chain.output_channels).into(),
+                output_tooltip: chain_endpoint_tooltip(
+                    "Saída",
+                    &chain.output_device_id.0,
+                    &chain.output_channels,
+                    project,
+                    output_devices,
+                )
+                .into(),
+                latency_ms,
+                blocks: ModelRc::from(Rc::new(VecModel::from(
+                    chain
+                        .blocks
+                        .iter()
+                        .map(chain_block_item_from_block)
+                        .collect::<Vec<_>>(),
+                ))),
+            }
         })
         .collect::<Vec<_>>();
     model.set_vec(items);
@@ -3707,19 +4296,30 @@ fn block_type_picker_items() -> Vec<BlockTypePickerItem> {
         .collect()
 }
 
+fn model_brand(effect_type: &str, model_id: &str) -> &'static str {
+    if effect_type != "amp_head" {
+        return "";
+    }
+    if model_id.starts_with("marshall") { return "marshall"; }
+    if model_id.starts_with("vox")      { return "vox"; }
+    if model_id.starts_with("fender")   { return "fender"; }
+    "native"
+}
+
 fn block_model_picker_items(effect_type: &str) -> Vec<BlockModelPickerItem> {
     supported_block_models(effect_type)
         .unwrap_or_default()
         .into_iter()
         .map(|item| BlockModelPickerItem {
-            effect_type: item.effect_type.into(),
-            model_id: item.model_id.into(),
+            effect_type: item.effect_type.clone().into(),
+            model_id: item.model_id.clone().into(),
             label: item.display_name.into(),
             subtitle: "".into(),
             icon_kind: supported_block_type(effect_type)
                 .map(|entry| entry.icon_kind)
                 .unwrap_or(effect_type)
                 .into(),
+            brand: model_brand(&item.effect_type, &item.model_id).into(),
         })
         .collect()
 }

@@ -1,0 +1,160 @@
+id: vox_ac30_top_boost
+name: Vox AC30 Top Boost
+brand: Vox
+model: AC30 Top Boost
+category: amp_combo
+icon_kind: amp_combo
+year: 1964
+description: >
+  O Vox AC30 Top Boost é um dos amplificadores mais icônicos da história do rock.
+  Alimentado por 4 válvulas EL84 em push-pull, produz 30W. Famoso por The Beatles,
+  The Edge (U2), Brian May (Queen), Tom Petty e inúmeros outros artistas.
+
+captures:
+  amp_nam: null
+  cabinet_ir: ir/cabs/vox_ac30_blue
+
+assets:
+  brand_logo: assets/brands/vox/logo.svg
+  amp_image: assets/amps/vox/ac30/amp.svg
+  controls: assets/amps/vox/ac30/controls.svg
+
+controls:
+  - id: ctrl-normal-volume
+    label: Volume
+    section: Normal
+    type: knob
+    param_key: normal_volume
+    default: 5.0
+    min: 0.0
+    max: 10.0
+    svg_cx: 44
+    svg_cy: 90
+
+  - id: ctrl-normal-bass
+    label: Bass
+    section: Normal
+    type: knob
+    param_key: normal_bass
+    default: 5.0
+    min: 0.0
+    max: 10.0
+    svg_cx: 96
+    svg_cy: 80
+
+  - id: ctrl-normal-treble
+    label: Treble
+    section: Normal
+    type: knob
+    param_key: normal_treble
+    default: 5.0
+    min: 0.0
+    max: 10.0
+    svg_cx: 140
+    svg_cy: 80
+
+  - id: ctrl-tb-volume
+    label: Volume
+    section: Top Boost
+    type: knob
+    param_key: tb_volume
+    default: 5.0
+    min: 0.0
+    max: 10.0
+    svg_cx: 214
+    svg_cy: 90
+
+  - id: ctrl-tb-bass
+    label: Bass
+    section: Top Boost
+    type: knob
+    param_key: tb_bass
+    default: 5.0
+    min: 0.0
+    max: 10.0
+    svg_cx: 272
+    svg_cy: 90
+
+  - id: ctrl-tb-treble
+    label: Treble
+    section: Top Boost
+    type: knob
+    param_key: tb_treble
+    default: 7.0
+    min: 0.0
+    max: 10.0
+    svg_cx: 330
+    svg_cy: 90
+
+  - id: ctrl-tb-cut
+    label: Cut
+    section: Top Boost
+    type: knob
+    param_key: tb_cut
+    default: 5.0
+    min: 0.0
+    max: 10.0
+    svg_cx: 388
+    svg_cy: 90
+
+  - id: ctrl-vibrato-speed
+    label: Speed
+    section: Vibrato
+    type: knob
+    param_key: vibrato_speed
+    default: 3.0
+    min: 0.0
+    max: 10.0
+    svg_cx: 476
+    svg_cy: 90
+
+  - id: ctrl-vibrato-depth
+    label: Depth
+    section: Vibrato
+    type: knob
+    param_key: vibrato_depth
+    default: 3.0
+    min: 0.0
+    max: 10.0
+    svg_cx: 538
+    svg_cy: 90
+
+  - id: ctrl-master-volume
+    label: Master
+    section: Master
+    type: knob
+    param_key: master_volume
+    default: 6.0
+    min: 0.0
+    max: 10.0
+    svg_cx: 602
+    svg_cy: 90
+
+  - id: ctrl-presence
+    label: Presence
+    section: Master
+    type: knob
+    param_key: presence
+    default: 5.0
+    min: 0.0
+    max: 10.0
+    svg_cx: 660
+    svg_cy: 90
+
+  - id: ctrl-standby
+    label: Standby
+    section: Power
+    type: toggle
+    param_key: standby
+    default: false
+    svg_cx: 718
+    svg_cy: 90
+
+  - id: ctrl-power
+    label: Power
+    section: Power
+    type: toggle
+    param_key: power
+    default: false
+    svg_cx: 760
+    svg_cy: 90

@@ -21,6 +21,23 @@ pub fn amp_head_backend_kind(model: &str) -> Result<AmpHeadBackendKind> {
     Ok(registry::find_model_definition(model)?.backend_kind)
 }
 
+pub fn amp_head_display_name(model: &str) -> Result<&'static str> {
+    Ok(registry::find_model_definition(model)?.display_name)
+}
+
+pub fn amp_head_brand(model: &str) -> Result<&'static str> {
+    Ok(registry::find_model_definition(model)?.brand)
+}
+
+/// Retorna o tipo do modelo como string legível: "native", "NAM" ou "IR"
+pub fn amp_head_type_label(model: &str) -> Result<&'static str> {
+    Ok(match registry::find_model_definition(model)?.backend_kind {
+        AmpHeadBackendKind::Native => "native",
+        AmpHeadBackendKind::Nam => "NAM",
+        AmpHeadBackendKind::Ir => "IR",
+    })
+}
+
 pub fn amp_head_model_schema(model: &str) -> Result<ModelParameterSchema> {
     (registry::find_model_definition(model)?.schema)()
 }

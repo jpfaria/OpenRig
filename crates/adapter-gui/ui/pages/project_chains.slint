@@ -632,96 +632,50 @@ component ChainActionIcon inherits Rectangle {
 component ChainEndpointChip inherits Rectangle {
     in property <string> label;
     in property <string> tooltip;
+    in property <bool> is-input: true;
     callback clicked();
     out property <bool> is-hovered: hover-area.has-hover;
 
-    width: 64px;
-    height: 32px;
-    background: hover-area.has-hover ? #20262fdc : #161a20dc;
+    width: 72px;
+    height: 52px;
+    background: hover-area.has-hover ? #1e2530e0 : #141820e0;
     border-width: 1px;
-    border-color: #4b5563;
-    border-radius: 8px;
+    border-color: hover-area.has-hover ? #5a7fa8 : #364050;
+    border-radius: 10px;
 
+    // Ícone de entrada ou saída
+    Image {
+        x: (parent.width - 18px) / 2;
+        y: 8px;
+        width: 18px;
+        height: 18px;
+        source: root.is-input
+            ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/chain-input.svg")
+            : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/chain-output.svg");
+        image-fit: contain;
+        colorize: hover-area.has-hover ? #a8c8f0 : #6a8aaa;
+    }
+
+    // Label (nome do dispositivo/canal)
     Text {
-        width: parent.width;
-        height: parent.height;
+        x: 4px;
+        y: 29px;
+        width: parent.width - 8px;
+        height: 16px;
         text: root.label;
-        color: #f1f4f8;
-        font-size: 12px;
-        font-weight: 800;
+        color: hover-area.has-hover ? #d0e4f8 : #8aaac8;
+        font-size: 9px;
+        font-weight: 700;
         horizontal-alignment: center;
         vertical-alignment: center;
+        overflow: elide;
     }
 
     hover-area := TouchArea {
         width: parent.width;
         height: parent.height;
         mouse-cursor: pointer;
-        clicked => {
-            tooltip-popup.close();
-            root.clicked();
-        }
-        pointer-event(e) => {
-            if root.tooltip != "" && self.has-hover && e.kind == PointerEventKind.move {
-                tooltip-popup.show();
-            }
-        }
-    }
-
-    changed is-hovered => {
-        if !root.is-hovered {
-            tooltip-popup.close();
-        }
-    }
-
-    tooltip-popup := PopupWindow {
-        x: root.label == "In" ? root.width : root.width - 312px;
-        y: root.height + 4px;
-        width: 312px;
-        height: 92px;
-
-        Rectangle {
-            width: 312px;
-            height: 92px;
-            background: #0e1218f7;
-            border-width: 1px;
-            border-color: #4d5868;
-            border-radius: 8px;
-
-            Rectangle {
-                x: 0px;
-                y: 0px;
-                width: parent.width;
-                height: 26px;
-                background: #171d26;
-                border-radius: 8px;
-
-                Text {
-                    x: 12px;
-                    width: parent.width - 24px;
-                    height: parent.height;
-                    text: root.label == "In" ? "Entrada" : "Saída";
-                    color: #edf2f9;
-                    font-size: 12px;
-                    font-weight: 800;
-                    vertical-alignment: center;
-                }
-            }
-
-            Text {
-                x: 12px;
-                y: 34px;
-                width: parent.width - 24px;
-                height: parent.height - 42px;
-                text: root.tooltip;
-                color: #dfe6f0;
-                font-size: 11px;
-                font-weight: 700;
-                wrap: word-wrap;
-                horizontal-alignment: left;
-                vertical-alignment: top;
-            }
-        }
+        clicked => { root.clicked(); }
     }
 }
 
@@ -1049,8 +1003,9 @@ component ChainRow inherits Rectangle {
     property <bool> suppress-insert-hover: false;
     property <int> last-block-col: root.chain.blocks.length == 0 ? 0 : Math.mod(root.chain.blocks.length - 1, root.blocks-per-row);
     property <int> last-block-row: root.chain.blocks.length == 0 ? 0 : Math.floor((root.chain.blocks.length - 1) / root.blocks-per-row);
-    property <length> out-chip-x: root.chain.blocks.length == 0 ? 120px : (260px + root.last-block-col * 116px);
-    property <length> out-chip-y: root.last-block-row * 92px + 26px;
+    // Out sempre fixo na borda direita da linha do último bloco
+    property <length> out-chip-x: root.width - 108px;
+    property <length> out-chip-y: root.last-block-row * 92px + 15px;
     out property <bool> any-chip-hovered: in-chip.is-hovered || out-chip.is-hovered;
 
     pure function slot-index-for-position(pointer-x: float, pointer-y: float) -> int {
@@ -1089,6 +1044,19 @@ component ChainRow inherits Rectangle {
             color: #f1f4f8;
             font-size: 18px;
             font-weight: 650;
+            vertical-alignment: center;
+        }
+
+        Text {
+            x: 384px;
+            y: 18px;
+            text: "~" + Math.round(root.chain.latency_ms) + " ms";
+            color: root.chain.latency_ms < 10.0 ? #4ade80
+                 : root.chain.latency_ms < 20.0 ? #facc15
+                 : #f87171;
+            font-size: 11px;
+            font-weight: 500;
+            opacity: 0.75;
             vertical-alignment: center;
         }
 
@@ -1144,22 +1112,32 @@ component ChainRow inherits Rectangle {
             }
         }
 
-        // Connecting line - row 0
+        // Connecting line - row 0: começa na borda direita do In chip (72px), vai até a borda direita
         Rectangle {
-            x: 64px;
+            x: 72px;
             y: 41px;
-            width: root.last-block-row == 0 ? (root.out-chip-x - 64px) : (parent.width - 64px);
+            width: parent.width - 72px;
             height: 2px;
             background: #3b4250;
             border-radius: 1px;
         }
 
-        // Connecting line - row 1 (when wrapping)
+        // Connecting line - row 1 (quando há wrap)
         if root.block-row-count > 1 : Rectangle {
             x: 0px;
             y: 133px;
-            width: root.last-block-row == 1 ? root.out-chip-x : parent.width;
+            width: parent.width;
             height: 2px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+
+        // Conector vertical direita: row 0 → row 1
+        if root.block-row-count > 1 : Rectangle {
+            x: parent.width - 2px;
+            y: 41px;
+            width: 2px;
+            height: 94px;
             background: #3b4250;
             border-radius: 1px;
         }
@@ -1168,8 +1146,18 @@ component ChainRow inherits Rectangle {
         if root.block-row-count > 2 : Rectangle {
             x: 0px;
             y: 225px;
-            width: root.last-block-row == 2 ? root.out-chip-x : parent.width;
+            width: parent.width;
             height: 2px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+
+        // Conector vertical direita: row 1 → row 2
+        if root.block-row-count > 2 : Rectangle {
+            x: parent.width - 2px;
+            y: 133px;
+            width: 2px;
+            height: 94px;
             background: #3b4250;
             border-radius: 1px;
         }
@@ -1178,8 +1166,18 @@ component ChainRow inherits Rectangle {
         if root.block-row-count > 3 : Rectangle {
             x: 0px;
             y: 317px;
-            width: root.last-block-row == 3 ? root.out-chip-x : parent.width;
+            width: parent.width;
             height: 2px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+
+        // Conector vertical direita: row 2 → row 3
+        if root.block-row-count > 3 : Rectangle {
+            x: parent.width - 2px;
+            y: 225px;
+            width: 2px;
+            height: 94px;
             background: #3b4250;
             border-radius: 1px;
         }
@@ -1284,7 +1282,8 @@ component ChainRow inherits Rectangle {
 
         in-chip := ChainEndpointChip {
             x: 0px;
-            y: 26px;
+            y: 15px;
+            is-input: true;
             label: root.chain.input_label;
             tooltip: root.chain.input_tooltip;
             clicked => { root.configure-chain-input(root.chain-index); }
@@ -1293,9 +1292,102 @@ component ChainRow inherits Rectangle {
         out-chip := ChainEndpointChip {
             x: root.out-chip-x;
             y: root.out-chip-y;
+            is-input: false;
             label: root.chain.output_label;
             tooltip: root.chain.output_tooltip;
             clicked => { root.configure-chain-output(root.chain-index); }
+        }
+
+        // In chip tooltip — aparece à direita do chip In
+        if in-chip.is-hovered && root.chain.input_tooltip != "" : Rectangle {
+            x: 76px;
+            y: 8px;
+            width: 312px;
+            height: 92px;
+            background: #0e1218f7;
+            border-width: 1px;
+            border-color: #4d5868;
+            border-radius: 8px;
+
+            Rectangle {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: 26px;
+                background: #171d26;
+                border-radius: 8px;
+
+                Text {
+                    x: 12px;
+                    width: parent.width - 24px;
+                    height: parent.height;
+                    text: "Entrada";
+                    color: #edf2f9;
+                    font-size: 12px;
+                    font-weight: 800;
+                    vertical-alignment: center;
+                }
+            }
+
+            Text {
+                x: 12px;
+                y: 34px;
+                width: parent.width - 24px;
+                height: parent.height - 42px;
+                text: root.chain.input_tooltip;
+                color: #dfe6f0;
+                font-size: 11px;
+                font-weight: 700;
+                wrap: word-wrap;
+                horizontal-alignment: left;
+                vertical-alignment: top;
+            }
+        }
+
+        // Out chip tooltip — aparece à esquerda do chip Out (borda direita 8px antes do chip)
+        if out-chip.is-hovered && root.chain.output_tooltip != "" : Rectangle {
+            x: root.out-chip-x - 320px;
+            y: root.out-chip-y;
+            width: 312px;
+            height: 92px;
+            background: #0e1218f7;
+            border-width: 1px;
+            border-color: #4d5868;
+            border-radius: 8px;
+
+            Rectangle {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: 26px;
+                background: #171d26;
+                border-radius: 8px;
+
+                Text {
+                    x: 12px;
+                    width: parent.width - 24px;
+                    height: parent.height;
+                    text: "Saída";
+                    color: #edf2f9;
+                    font-size: 12px;
+                    font-weight: 800;
+                    vertical-alignment: center;
+                }
+            }
+
+            Text {
+                x: 12px;
+                y: 34px;
+                width: parent.width - 24px;
+                height: parent.height - 42px;
+                text: root.chain.output_tooltip;
+                color: #dfe6f0;
+                font-size: 11px;
+                font-weight: 700;
+                wrap: word-wrap;
+                horizontal-alignment: left;
+                vertical-alignment: top;
+            }
         }
     }
 
@@ -1325,6 +1417,18 @@ export component BlockEditorPanel inherits Rectangle {
     callback select-block-parameter-option(string, int);
     callback pick-block-parameter-file(string);
 
+    // Computed helpers
+    property <bool> is-amp-head:
+        root.block-drawer-selected-type-index >= 0
+        && root.block-drawer-selected-type-index < root.block-type-options.length
+        && root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "amp_head";
+
+    property <string> selected-model-id:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].model_id
+        : "";
+
     background: transparent;
 
     Rectangle {
@@ -1336,6 +1440,7 @@ export component BlockEditorPanel inherits Rectangle {
         border-width: 1px;
         border-color: #2d3340;
 
+        // ── CABEÇALHO ────────────────────────────────────────────
         Image {
             x: 20px;
             y: 18px;
@@ -1418,11 +1523,84 @@ export component BlockEditorPanel inherits Rectangle {
             background: #313743;
         }
 
-        ScrollView {
+        // ── AMP HEAD: seletor de modelo + imagem do painel + parâmetros ───────
+        if root.is-amp-head : ComboBox {
+            x: 20px;
+            y: 74px;
+            width: parent.width - 40px;
+            height: 34px;
+            model: root.block-model-option-labels;
+            current-index <=> root.block-drawer-selected-model-index;
+            selected(_) => { root.choose-block-model(self.current-index); }
+        }
+
+        if root.is-amp-head && root.block-drawer-selected-model-index >= 0 && root.block-drawer-selected-model-index < root.block-model-options.length : Text {
+            x: 20px;
+            y: 112px;
+            width: parent.width - 40px;
+            height: 16px;
+            text: root.block-model-options[root.block-drawer-selected-model-index].subtitle;
+            color: #94a0b0;
+            font-size: 11px;
+        }
+
+        // Imagem da cara do amp (controls.svg) — ocupa toda a largura do painel
+        if root.is-amp-head : Rectangle {
+            x: 8px;
+            y: 132px;
+            width: parent.width - 16px;
+            height: (parent.width - 16px) / 4;
+            border-radius: 6px;
+            clip: true;
+
+            Image {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: parent.height;
+                source: root.selected-model-id == "marshall_jcm_800_2203"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/amps/marshall/jcm800-2203/controls.svg")
+                    : root.selected-model-id == "american_clean"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/amps/native/american-clean/controls.svg")
+                    : root.selected-model-id == "brit_crunch"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/amps/native/brit-crunch/controls.svg")
+                    : root.selected-model-id == "modern_high_gain"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/amps/native/modern-high-gain/controls.svg")
+                    : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/amps/generic/controls.svg");
+                image-fit: fill;
+            }
+        }
+
+        // Parâmetros do amp head
+        if root.is-amp-head : ScrollView {
+            x: 20px;
+            y: 132px + (parent.width - 16px) / 4 + 12px;
+            width: parent.width - 40px;
+            height: parent.height - (132px + (parent.width - 16px) / 4 + 12px) - (root.block-drawer-edit-mode ? 20px : 74px);
+            viewport-width: self.width;
+            viewport-height: root.block-parameter-items.length * 96px;
+
+            for param-item[index] in root.block-parameter-items : BlockParameterRow {
+                x: 0px;
+                y: index * 96px;
+                width: parent.width - 24px;
+                item: param-item;
+                text-changed(path, value) => { root.update-block-parameter-text(path, value); }
+                number-changed(path, value) => { root.update-block-parameter-number(path, value); }
+                number-text-changed(path, value) => { root.update-block-parameter-number-text(path, value); }
+                bool-changed(path, value) => { root.update-block-parameter-bool(path, value); }
+                option-changed(path, value) => { root.select-block-parameter-option(path, value); }
+                file-picked(path) => { root.pick-block-parameter-file(path); }
+            }
+        }
+
+        // ── OUTROS TIPOS: layout original ───────────────────────
+        if !root.is-amp-head : ScrollView {
             x: 20px;
             y: 78px;
             width: parent.width - 40px;
             height: parent.height - 98px;
+            viewport-width: self.width;
             viewport-height: 92px + (root.block-parameter-items.length * 96px);
 
             ComboBox {
@@ -1734,9 +1912,9 @@ export component ProjectChainsPage inherits Rectangle {
         }
 
         BlockEditorPanel {
-            x: parent.width - 420px;
+            x: parent.width - 520px;
             y: 0px;
-            width: 420px;
+            width: 520px;
             height: parent.height;
             block-type-options: root.block-type-options;
             block-model-options: root.block-model-options;

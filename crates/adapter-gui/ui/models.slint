@@ -24,6 +24,7 @@ export struct ProjectChainItem {
     input_tooltip: string,
     output_label: string,
     output_tooltip: string,
+    latency_ms: float,
     blocks: [ChainBlockItem],
 }
 
@@ -40,6 +41,19 @@ export struct BlockModelPickerItem {
     label: string,
     subtitle: string,
     icon_kind: string,
+    brand: string,
+}
+
+export struct BlockKnobOverlay {
+    path: string,
+    label: string,
+    svg_cx: float,
+    svg_cy: float,
+    svg_r: float,
+    value: float,
+    min_val: float,
+    max_val: float,
+    step: float,
 }
 
 export struct BlockParameterItem {
@@ -77,3 +91,4 @@ export struct ChannelOptionItem {
     selected: bool,
     available: bool,
 }
+
