@@ -13,6 +13,7 @@ use block_gain::{gain_model_schema, validate_gain_params};
 use block_ir::{ir_model_schema, validate_ir_params};
 use block_mod::modulation_model_schema;
 use block_nam::nam_model_schema;
+use block_pitch::{pitch_model_schema, validate_pitch_params};
 use block_reverb::reverb_model_schema;
 use block_util::{supported_models as utility_supported_models, utility_model_schema};
 use block_wah::{validate_wah_params, wah_model_schema};
@@ -72,6 +73,7 @@ pub enum CoreBlockKind {
     Gate(GateBlock),
     Eq(EqBlock),
     Wah(WahBlock),
+    Pitch(PitchBlock),
     Tremolo(TremoloBlock),
     Delay(DelayBlock),
     Reverb(ReverbBlock),
@@ -96,6 +98,7 @@ define_model_block!(CompressorBlock);
 define_model_block!(GateBlock);
 define_model_block!(EqBlock);
 define_model_block!(WahBlock);
+define_model_block!(PitchBlock);
 define_model_block!(TremoloBlock);
 define_model_block!(DelayBlock);
 define_model_block!(ReverbBlock);
@@ -268,6 +271,11 @@ impl CoreBlockKind {
                 model: &stage.model,
                 params: &stage.params,
             },
+            CoreBlockKind::Pitch(stage) => BlockModelRef {
+                effect_type: "pitch",
+                model: &stage.model,
+                params: &stage.params,
+            },
             CoreBlockKind::Tremolo(stage) => BlockModelRef {
                 effect_type: "modulation",
                 model: &stage.model,
@@ -346,6 +354,7 @@ pub fn normalize_block_params(
         "ir" => validate_ir_params(model, &normalized).map_err(|error| error.to_string())?,
         "gain" => validate_gain_params(model, &normalized).map_err(|error| error.to_string())?,
         "wah" => validate_wah_params(model, &normalized).map_err(|error| error.to_string())?,
+        "pitch" => validate_pitch_params(model, &normalized).map_err(|error| error.to_string())?,
         _ => {}
     }
     Ok(normalized)
@@ -369,6 +378,7 @@ pub fn schema_for_block_model(
         "dynamics" => dynamics_model_schema(model).map_err(|error| error.to_string()),
         "filter" => filter_model_schema(model).map_err(|error| error.to_string()),
         "wah" => wah_model_schema(model).map_err(|error| error.to_string()),
+        "pitch" => pitch_model_schema(model).map_err(|error| error.to_string()),
         "modulation" => modulation_model_schema(model).map_err(|error| error.to_string()),
         other => Err(format!("unsupported block type '{}'", other)),
     }
@@ -417,6 +427,9 @@ pub fn build_audio_block_kind(
         }),
         "wah" => AudioBlockKind::Core(CoreBlock {
             kind: CoreBlockKind::Wah(WahBlock { model, params }),
+        }),
+        "pitch" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::Pitch(PitchBlock { model, params }),
         }),
         "modulation" => AudioBlockKind::Core(CoreBlock {
             kind: CoreBlockKind::Tremolo(TremoloBlock { model, params }),

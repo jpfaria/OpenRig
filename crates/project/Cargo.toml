@@ -21,3 +21,4 @@ block-full-rig = { path = "../block-full-rig" }
 block-cab = { path = "../block-cab" }
 block-ir = { path = "../block-ir" }
 block-wah = { path = "../block-wah" }
+block-pitch = { path = "../block-pitch" }

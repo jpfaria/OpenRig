@@ -6,6 +6,8 @@ use crate::param::ParameterSet;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BlockTypeCatalogEntry {
     pub effect_type: &'static str,
+    pub display_label: &'static str,
+    pub icon_kind: &'static str,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -20,65 +22,101 @@ type SupportedModelsFn = fn() -> &'static [&'static str];
 #[derive(Clone, Copy)]
 struct BlockRegistryEntry {
     effect_type: &'static str,
+    display_label: &'static str,
+    icon_kind: &'static str,
     supported_models: SupportedModelsFn,
 }
 
-fn block_registry() -> [BlockRegistryEntry; 14] {
+fn block_registry() -> [BlockRegistryEntry; 15] {
     [
         BlockRegistryEntry {
             effect_type: "amp_head",
+            display_label: "AMP",
+            icon_kind: "amp_head",
             supported_models: block_amp_head::supported_models,
         },
         BlockRegistryEntry {
             effect_type: "amp_combo",
+            display_label: "COMBO",
+            icon_kind: "amp_combo",
             supported_models: block_amp_combo::supported_models,
         },
         BlockRegistryEntry {
             effect_type: "cab",
+            display_label: "CAB",
+            icon_kind: "cab",
             supported_models: block_cab::supported_models,
         },
         BlockRegistryEntry {
             effect_type: "ir",
+            display_label: "IR",
+            icon_kind: "ir",
             supported_models: block_ir::supported_models,
         },
         BlockRegistryEntry {
             effect_type: "full_rig",
+            display_label: "RIG",
+            icon_kind: "full_rig",
             supported_models: block_full_rig::supported_models,
         },
         BlockRegistryEntry {
             effect_type: "gain",
+            display_label: "GAIN",
+            icon_kind: "gain",
             supported_models: block_gain::supported_models,
         },
         BlockRegistryEntry {
             effect_type: "dynamics",
+            display_label: "DYN",
+            icon_kind: "dynamics",
             supported_models: block_dyn::supported_models,
         },
         BlockRegistryEntry {
             effect_type: "filter",
+            display_label: "FILTER",
+            icon_kind: "filter",
             supported_models: block_filter::supported_models,
         },
         BlockRegistryEntry {
             effect_type: "wah",
+            display_label: "WAH",
+            icon_kind: "wah",
             supported_models: block_wah::supported_models,
         },
         BlockRegistryEntry {
+            effect_type: "pitch",
+            display_label: "PITCH",
+            icon_kind: "pitch",
+            supported_models: block_pitch::supported_models,
+        },
+        BlockRegistryEntry {
             effect_type: "modulation",
+            display_label: "MOD",
+            icon_kind: "modulation",
             supported_models: block_mod::supported_models,
         },
         BlockRegistryEntry {
             effect_type: "delay",
+            display_label: "DLY",
+            icon_kind: "delay",
             supported_models: block_delay::supported_models,
         },
         BlockRegistryEntry {
             effect_type: "reverb",
+            display_label: "RVB",
+            icon_kind: "reverb",
             supported_models: block_reverb::supported_models,
         },
         BlockRegistryEntry {
             effect_type: "utility",
+            display_label: "UTIL",
+            icon_kind: "utility",
             supported_models: block_util::supported_models,
         },
         BlockRegistryEntry {
             effect_type: "nam",
+            display_label: "NAM",
+            icon_kind: "nam",
             supported_models: block_nam::supported_models,
         },
     ]
@@ -90,8 +128,21 @@ pub fn supported_block_types() -> Vec<BlockTypeCatalogEntry> {
         .filter(|entry| !(entry.supported_models)().is_empty())
         .map(|entry| BlockTypeCatalogEntry {
             effect_type: entry.effect_type,
+            display_label: entry.display_label,
+            icon_kind: entry.icon_kind,
         })
         .collect()
+}
+
+pub fn supported_block_type(effect_type: &str) -> Option<BlockTypeCatalogEntry> {
+    block_registry()
+        .into_iter()
+        .find(|entry| entry.effect_type == effect_type)
+        .map(|entry| BlockTypeCatalogEntry {
+            effect_type: entry.effect_type,
+            display_label: entry.display_label,
+            icon_kind: entry.icon_kind,
+        })
 }
 
 pub fn supported_block_models(effect_type: &str) -> Result<Vec<BlockModelCatalogEntry>, String> {
@@ -137,6 +188,7 @@ mod tests {
         assert!(effect_types.contains(&"nam"));
         assert!(effect_types.contains(&"ir"));
         assert!(effect_types.contains(&"wah"));
+        assert!(effect_types.contains(&"pitch"));
     }
 
     #[test]
