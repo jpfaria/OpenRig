@@ -153,7 +153,9 @@ component PanelKnob inherits Rectangle {
                 let range = root.max-val - root.min-val;
                 let raw = root.drag-val0 + delta * range / 200.0;
                 let clamped = raw < root.min-val ? root.min-val : (raw > root.max-val ? root.max-val : raw);
-                root.changed(root.path, clamped);
+                // Snap to step grid (required by discrete NAM models like JCM 800)
+                let stepped = root.step > 0.0 ? Math.round(clamped / root.step) * root.step : clamped;
+                root.changed(root.path, stepped);
             }
         }
     }
