@@ -1,0 +1,11 @@
+#!/bin/bash
+# Launcher do OpenRig — executa o binário compilado
+DIR="$(cd "$(dirname "$0")" && pwd)"
+BINARY="$(cd "$DIR/../../../.." && pwd)/target/release/adapter-gui"
+
+if [ ! -f "$BINARY" ]; then
+  # Tenta debug build
+  BINARY="$(cd "$DIR/../../../.." && pwd)/target/debug/adapter-gui"
+fi
+
+exec "$BINARY" "$@"
