@@ -352,6 +352,26 @@ export component AmpPanelEditor inherits Rectangle {
             image-fit: fill;
         }
 
+        // Brand logo overlay (on the dark area at top of panel)
+        if root.selected-brand == "marshall" : Image {
+            x: (parent.width - parent.width * 0.35) / 2;
+            y: parent.height * 0.02;
+            width: parent.width * 0.35;
+            height: parent.height * 0.22;
+            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/marshall/logo.svg");
+            image-fit: contain;
+            colorize: #e0e0e0;
+        }
+
+        if root.selected-brand == "vox" : Image {
+            x: (parent.width - parent.width * 0.3) / 2;
+            y: parent.height * 0.02;
+            width: parent.width * 0.3;
+            height: parent.height * 0.22;
+            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/vox/logo.svg");
+            image-fit: contain;
+        }
+
         // Power switch (square toggle like the real amp)
         Rectangle {
             x: 8px;
