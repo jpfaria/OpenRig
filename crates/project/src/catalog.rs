@@ -46,7 +46,7 @@ fn block_registry() -> [BlockRegistryEntry; 14] {
             supported_models: block_full_rig::supported_models,
         },
         BlockRegistryEntry {
-            effect_type: "drive",
+            effect_type: "gain",
             supported_models: block_gain::supported_models,
         },
         BlockRegistryEntry {

@@ -16,7 +16,7 @@ use block_delay::build_delay_processor_for_layout;
 use block_dyn::build_dynamics_processor_for_layout;
 use block_filter::build_filter_processor_for_layout;
 use block_full_rig::build_full_rig_processor_for_layout;
-use block_gain::build_drive_processor_for_layout;
+use block_gain::build_gain_processor_for_layout;
 use block_ir::build_ir_processor_for_layout;
 use block_mod::build_modulation_processor_for_layout;
 use block_nam::build_nam_processor_for_layout;
@@ -433,8 +433,8 @@ fn build_block_runtime_node(
             CoreBlockKind::Drive(stage) => audio_block_runtime_node(
                 block,
                 input_layout,
-                build_audio_processor_for_model(chain, "drive", &stage.model, input_layout, |layout| {
-                    build_drive_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
+                build_audio_processor_for_model(chain, "gain", &stage.model, input_layout, |layout| {
+                    build_gain_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
                 })?,
             ),
             CoreBlockKind::Delay(stage) => audio_block_runtime_node(

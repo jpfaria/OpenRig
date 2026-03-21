@@ -1,7 +1,7 @@
 id: default
 name: guitar 1
 blocks:
-- type: drive
+- type: gain
   enabled: true
   model: blues_overdrive_bd_2
   params:

@@ -9,27 +9,27 @@ pub fn supported_models() -> &'static [&'static str] {
     registry::SUPPORTED_MODELS
 }
 
-pub fn drive_model_schema(model: &str) -> Result<ModelParameterSchema> {
+pub fn gain_model_schema(model: &str) -> Result<ModelParameterSchema> {
     (registry::find_model_definition(model)?.schema)()
 }
 
-pub fn drive_asset_summary(model: &str, params: &ParameterSet) -> Result<String> {
+pub fn gain_asset_summary(model: &str, params: &ParameterSet) -> Result<String> {
     (registry::find_model_definition(model)?.asset_summary)(params)
 }
 
-pub fn validate_drive_params(model: &str, params: &ParameterSet) -> Result<()> {
+pub fn validate_gain_params(model: &str, params: &ParameterSet) -> Result<()> {
     (registry::find_model_definition(model)?.validate)(params)
 }
 
-pub fn build_drive_processor(
+pub fn build_gain_processor(
     model: &str,
     params: &ParameterSet,
     sample_rate: f32,
 ) -> Result<BlockProcessor> {
-    build_drive_processor_for_layout(model, params, sample_rate, AudioChannelLayout::Mono)
+    build_gain_processor_for_layout(model, params, sample_rate, AudioChannelLayout::Mono)
 }
 
-pub fn build_drive_processor_for_layout(
+pub fn build_gain_processor_for_layout(
     model: &str,
     params: &ParameterSet,
     _sample_rate: f32,
@@ -40,14 +40,14 @@ pub fn build_drive_processor_for_layout(
 
 #[cfg(test)]
 mod tests {
-    use super::{drive_model_schema, supported_models};
+    use super::{gain_model_schema, supported_models};
 
     #[test]
-    fn supported_drive_models_expose_valid_schema() {
+    fn supported_gain_models_expose_valid_schema() {
         for model in supported_models() {
-            let schema = drive_model_schema(model).expect("schema should exist");
+            let schema = gain_model_schema(model).expect("schema should exist");
             assert_eq!(schema.model, *model);
-            assert_eq!(schema.effect_type, "drive");
+            assert_eq!(schema.effect_type, "gain");
             assert!(
                 !schema.parameters.is_empty(),
                 "model '{model}' should expose parameters"

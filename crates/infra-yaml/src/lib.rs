@@ -287,7 +287,8 @@ enum AudioBlockYaml {
         #[serde(default)]
         params: Value,
     },
-    Drive {
+    #[serde(rename = "gain")]
+    Gain {
         #[serde(default = "default_enabled")]
         enabled: bool,
         #[serde(default = "default_drive_model")]
@@ -451,7 +452,7 @@ impl AudioBlockYaml {
                     }),
                 }),
             }),
-            AudioBlockYaml::Drive {
+            AudioBlockYaml::Gain {
                 enabled,
                 model,
                 params,
@@ -461,7 +462,7 @@ impl AudioBlockYaml {
                 kind: AudioBlockKind::Core(CoreBlock {
                     kind: CoreBlockKind::Drive(DriveBlock {
                         model: model.clone(),
-                        params: load_model_params("drive", &model, params)?,
+                        params: load_model_params("gain", &model, params)?,
                     }),
                 }),
             }),
@@ -632,7 +633,7 @@ impl AudioBlockYaml {
                     model: stage.model.clone(),
                     params: parameter_set_to_yaml_value(&stage.params),
                 }),
-                CoreBlockKind::Drive(stage) => Ok(Self::Drive {
+                CoreBlockKind::Drive(stage) => Ok(Self::Gain {
                     enabled: block.enabled,
                     model: stage.model.clone(),
                     params: parameter_set_to_yaml_value(&stage.params),

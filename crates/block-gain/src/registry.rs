@@ -17,5 +17,5 @@ pub fn find_model_definition(model: &str) -> Result<&'static GainModelDefinition
     MODEL_DEFINITIONS
         .iter()
         .find(|definition| definition.id == model)
-        .ok_or_else(|| anyhow!("unsupported drive model '{}'", model))
+        .ok_or_else(|| anyhow!("unsupported gain model '{}'", model))
 }

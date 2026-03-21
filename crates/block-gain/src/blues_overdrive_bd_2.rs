@@ -40,7 +40,7 @@ pub const CAPTURES: &[BluesOverdriveCapture] = &[
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
-    let mut schema = model_schema_for("drive", MODEL_ID, "Blues Overdrive BD-2", false);
+    let mut schema = model_schema_for("gain", MODEL_ID, "Blues Overdrive BD-2", false);
     schema.parameters = vec![float_parameter(
         "gain_percent",
         "Gain",
@@ -86,7 +86,7 @@ fn resolve_capture(params: &ParameterSet) -> Result<&'static BluesOverdriveCaptu
         .find(|capture| capture.params == requested)
         .ok_or_else(|| {
             anyhow!(
-                "drive model '{}' does not support gain_percent={}",
+                "gain model '{}' does not support gain_percent={}",
                 MODEL_ID,
                 requested.gain_percent
             )
@@ -98,7 +98,7 @@ fn read_percent(params: &ParameterSet, path: &str) -> Result<i32> {
     let rounded = value.round();
     if (value - rounded).abs() > 1e-4 {
         return Err(anyhow!(
-            "drive model '{}' requires '{}' to be a whole-number percentage, got {}",
+            "gain model '{}' requires '{}' to be a whole-number percentage, got {}",
             MODEL_ID,
             path,
             value

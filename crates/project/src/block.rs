@@ -9,7 +9,7 @@ use block_delay::delay_model_schema;
 use block_dyn::{compressor_supported_models, dynamics_model_schema, gate_supported_models};
 use block_filter::filter_model_schema;
 use block_full_rig::{full_rig_model_schema, validate_full_rig_params};
-use block_gain::{drive_model_schema, validate_drive_params};
+use block_gain::{gain_model_schema, validate_gain_params};
 use block_ir::{ir_model_schema, validate_ir_params};
 use block_mod::modulation_model_schema;
 use block_nam::nam_model_schema;
@@ -229,7 +229,7 @@ impl CoreBlockKind {
                 params: &stage.params,
             },
             CoreBlockKind::Drive(stage) => BlockModelRef {
-                effect_type: "drive",
+                effect_type: "gain",
                 model: &stage.model,
                 params: &stage.params,
             },
@@ -344,7 +344,7 @@ pub fn normalize_block_params(
         }
         "cab" => validate_cab_params(model, &normalized).map_err(|error| error.to_string())?,
         "ir" => validate_ir_params(model, &normalized).map_err(|error| error.to_string())?,
-        "drive" => validate_drive_params(model, &normalized).map_err(|error| error.to_string())?,
+        "gain" => validate_gain_params(model, &normalized).map_err(|error| error.to_string())?,
         "wah" => validate_wah_params(model, &normalized).map_err(|error| error.to_string())?,
         _ => {}
     }
@@ -361,7 +361,7 @@ pub fn schema_for_block_model(
         "full_rig" => full_rig_model_schema(model).map_err(|error| error.to_string()),
         "cab" => cab_model_schema(model).map_err(|error| error.to_string()),
         "ir" => ir_model_schema(model).map_err(|error| error.to_string()),
-        "drive" => drive_model_schema(model).map_err(|error| error.to_string()),
+        "gain" => gain_model_schema(model).map_err(|error| error.to_string()),
         "nam" => nam_model_schema(model).map_err(|error| error.to_string()),
         "delay" => delay_model_schema(model).map_err(|error| error.to_string()),
         "reverb" => reverb_model_schema(model).map_err(|error| error.to_string()),
@@ -396,7 +396,7 @@ pub fn build_audio_block_kind(
         "ir" => AudioBlockKind::Core(CoreBlock {
             kind: CoreBlockKind::Ir(IrBlock { model, params }),
         }),
-        "drive" => AudioBlockKind::Core(CoreBlock {
+        "gain" => AudioBlockKind::Core(CoreBlock {
             kind: CoreBlockKind::Drive(DriveBlock { model, params }),
         }),
         "dynamics" => {
