@@ -37,3 +37,21 @@ pub fn build_drive_processor_for_layout(
 ) -> Result<BlockProcessor> {
     (registry::find_model_definition(model)?.build)(params, layout)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::{drive_model_schema, supported_models};
+
+    #[test]
+    fn supported_drive_models_expose_valid_schema() {
+        for model in supported_models() {
+            let schema = drive_model_schema(model).expect("schema should exist");
+            assert_eq!(schema.model, *model);
+            assert_eq!(schema.effect_type, "drive");
+            assert!(
+                !schema.parameters.is_empty(),
+                "model '{model}' should expose parameters"
+            );
+        }
+    }
+}

@@ -510,6 +510,10 @@ mod tests {
                 let schema =
                     schema_for_block_model(effect_type, model).expect("schema should exist");
                 assert_eq!(schema.model, *model);
+                assert_eq!(
+                    schema.effect_type, effect_type,
+                    "schema for {effect_type}:{model} should expose matching family"
+                );
                 assert!(!schema.parameters.is_empty(), "schema for {effect_type}:{model} should expose parameters");
             }
         }

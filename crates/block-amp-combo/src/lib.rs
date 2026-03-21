@@ -47,6 +47,7 @@ mod tests {
         for model in supported_models() {
             let schema = amp_combo_model_schema(model).expect("schema should exist");
             assert_eq!(schema.model, *model);
+            assert_eq!(schema.effect_type, "amp_combo");
             assert!(!schema.parameters.is_empty(), "model '{model}' should expose parameters");
         }
     }

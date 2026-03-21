@@ -240,7 +240,7 @@ pub const CAPTURES: &[MarshallJcm800Capture] = &[
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
-    let mut schema = model_schema_for("amp", MODEL_ID, "Marshall JCM 800 2203", false);
+    let mut schema = model_schema_for("amp_head", MODEL_ID, "Marshall JCM 800 2203", false);
     schema.parameters = vec![
         float_parameter(
             "volume",
