@@ -658,52 +658,60 @@ component ChainEndpointChip inherits Rectangle {
         height: parent.height;
         mouse-cursor: pointer;
         clicked => { root.clicked(); }
+        pointer-event(e) => {
+            if root.tooltip != "" && e.kind == PointerEventKind.move && self.has-hover {
+                tooltip-popup.show();
+            }
+        }
     }
 
-    if hover-area.has-hover && root.tooltip != "" : Rectangle {
-        x: root.label == "In" ? parent.width : parent.width - 312px;
-        y: 36px;
+    tooltip-popup := PopupWindow {
+        x: root.label == "In" ? root.width : root.width - 312px;
+        y: root.height + 4px;
         width: 312px;
         height: 92px;
-        background: #0e1218f7;
-        border-width: 1px;
-        border-color: #4d5868;
-        border-radius: 8px;
-        z: 300;
 
         Rectangle {
-            x: 0px;
-            y: 0px;
-            width: parent.width;
-            height: 26px;
-            background: #171d26;
-            border-width: 0px;
+            width: 312px;
+            height: 92px;
+            background: #0e1218f7;
+            border-width: 1px;
+            border-color: #4d5868;
+            border-radius: 8px;
+
+            Rectangle {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: 26px;
+                background: #171d26;
+                border-radius: 8px;
+
+                Text {
+                    x: 12px;
+                    width: parent.width - 24px;
+                    height: parent.height;
+                    text: root.label == "In" ? "Entrada" : "Saída";
+                    color: #edf2f9;
+                    font-size: 12px;
+                    font-weight: 800;
+                    vertical-alignment: center;
+                }
+            }
 
             Text {
                 x: 12px;
-                y: 0px;
+                y: 34px;
                 width: parent.width - 24px;
-                height: parent.height;
-                text: root.label == "In" ? "Entrada" : "Saída";
-                color: #edf2f9;
-                font-size: 12px;
-                font-weight: 800;
-                vertical-alignment: center;
+                height: parent.height - 42px;
+                text: root.tooltip;
+                color: #dfe6f0;
+                font-size: 11px;
+                font-weight: 700;
+                wrap: word-wrap;
+                horizontal-alignment: left;
+                vertical-alignment: top;
             }
-        }
-
-        Text {
-            x: 12px;
-            y: 34px;
-            width: parent.width - 24px;
-            height: parent.height - 42px;
-            text: root.tooltip;
-            color: #dfe6f0;
-            font-size: 11px;
-            font-weight: 700;
-            wrap: word-wrap;
-            horizontal-alignment: left;
-            vertical-alignment: top;
         }
     }
 }
