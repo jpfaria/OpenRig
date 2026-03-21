@@ -190,19 +190,6 @@ component PanelKnob inherits Rectangle {
         }
     }
 
-    // Value label below the knob
-    Text {
-        x: -parent.width / 2;
-        y: parent.height + 2px;
-        width: parent.width * 2;
-        height: 14px;
-        text: root.step >= 1.0 ? Math.round(root.value) + "" : Math.round(root.value * 10) / 10 + "";
-        color: ta.has-hover || ta.pressed ? #f1f4f8 : #8090a0;
-        font-size: 9px;
-        font-weight: 600;
-        horizontal-alignment: center;
-        vertical-alignment: center;
-    }
 }
 
 // Full visual amp head editor window content
@@ -260,7 +247,7 @@ export component AmpPanelEditor inherits Rectangle {
         root.selected-type-label == "" ? 0px : 56px;
     private property <length> header-height: 48px;
     private property <length> brand-strip-height:
-        root.selected-brand != "native" && root.selected-brand != "" ? 40px : 1px;
+        root.selected-brand != "native" && root.selected-brand != "" ? 52px : 1px;
     private property <length> panel-height: root.width / 4;
     private property <length> footer-height: root.block-drawer-edit-mode ? 44px : 52px;
 
@@ -355,23 +342,23 @@ export component AmpPanelEditor inherits Rectangle {
             background: #0e0e1e;
         }
 
-        // Marshall brand logo (centralizada, grande)
+        // Marshall brand logo (centralizada, ocupa quase toda a largura)
         if root.selected-brand == "marshall" : Image {
-            x: (parent.width - 260px) / 2;
-            y: (parent.height - 32px) / 2;
-            width: 260px;
-            height: 32px;
+            x: (parent.width - parent.width * 0.5) / 2;
+            y: (parent.height - 40px) / 2;
+            width: parent.width * 0.5;
+            height: 40px;
             source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/marshall/logo.svg");
             image-fit: contain;
-            colorize: #d0d0d0;
+            colorize: #e0e0e0;
         }
 
-        // Vox brand logo (centralizada, grande)
+        // Vox brand logo (centralizada)
         if root.selected-brand == "vox" : Image {
-            x: (parent.width - 200px) / 2;
-            y: (parent.height - 28px) / 2;
-            width: 200px;
-            height: 28px;
+            x: (parent.width - parent.width * 0.4) / 2;
+            y: (parent.height - 36px) / 2;
+            width: parent.width * 0.4;
+            height: 36px;
             source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/vox/logo.svg");
             image-fit: contain;
         }
@@ -453,6 +440,20 @@ export component AmpPanelEditor inherits Rectangle {
             step: knob.step;
             path: knob.path;
             changed(p, v) => { root.update-block-parameter-number(p, v); }
+        }
+
+        // Value labels below each knob (inside panel rect to avoid clip)
+        for knob in root.block-knob-overlays : Text {
+            x: knob.svg_cx / 800 * parent.width - 30px;
+            y: (knob.svg_cy + knob.svg_r + 4) / 200 * parent.height;
+            width: 60px;
+            height: 16px;
+            text: knob.step >= 1.0 ? Math.round(knob.value) + "" : Math.round(knob.value * 10) / 10 + "";
+            color: #e0d8c0;
+            font-size: 10px;
+            font-weight: 600;
+            horizontal-alignment: center;
+            vertical-alignment: center;
         }
     }
 

@@ -1,76 +1,66 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200" width="800" height="200">
   <defs>
     <linearGradient id="panel-top" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#1a1a1a"/>
-      <stop offset="100%" stop-color="#222222"/>
+      <stop offset="0%" stop-color="#1c1c1c"/>
+      <stop offset="100%" stop-color="#252525"/>
     </linearGradient>
-    <linearGradient id="panel-bottom" x1="0" y1="0" x2="0" y2="1">
+    <linearGradient id="panel-gold" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#c4a44a"/>
-      <stop offset="40%" stop-color="#b8963e"/>
-      <stop offset="100%" stop-color="#a08030"/>
+      <stop offset="30%" stop-color="#b89840"/>
+      <stop offset="100%" stop-color="#9a7e30"/>
     </linearGradient>
-    <linearGradient id="knob-fill" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#d4b86a"/>
-      <stop offset="50%" stop-color="#c0a050"/>
+    <radialGradient id="knob-bg" cx="50%" cy="40%" r="50%">
+      <stop offset="0%" stop-color="#d8c070"/>
+      <stop offset="70%" stop-color="#c0a450"/>
       <stop offset="100%" stop-color="#a08838"/>
-    </linearGradient>
+    </radialGradient>
   </defs>
 
-  <!-- Top dark panel -->
-  <rect x="0" y="0" width="800" height="60" fill="url(#panel-top)"/>
-  <!-- Bottom gold panel -->
-  <rect x="0" y="60" width="800" height="140" fill="url(#panel-bottom)"/>
-  <!-- Gold trim line -->
-  <rect x="0" y="58" width="800" height="4" fill="#d4b868" opacity="0.6"/>
+  <!-- Top dark panel (labels area) -->
+  <rect x="0" y="0" width="800" height="50" fill="url(#panel-top)"/>
+  <!-- Gold trim at transition -->
+  <rect x="0" y="48" width="800" height="3" fill="#c8a848" opacity="0.5"/>
+  <!-- Bottom gold panel (knobs area) -->
+  <rect x="0" y="50" width="800" height="150" fill="url(#panel-gold)"/>
+  <!-- Bottom edge shadow -->
+  <rect x="0" y="195" width="800" height="5" fill="#6a5820" opacity="0.5"/>
 
-  <!-- ═══ TOP LABELS ═══ -->
-  <!-- JCM 800 branding -->
-  <text x="60" y="22" font-family="Arial,sans-serif" font-size="14" font-weight="900" fill="#c8c8c8" letter-spacing="2" text-anchor="middle">JCM 800</text>
-  <text x="60" y="36" font-family="Arial,sans-serif" font-size="7" fill="#888" letter-spacing="3" text-anchor="middle">LEAD SERIES</text>
-  <text x="60" y="48" font-family="Arial,sans-serif" font-size="6" fill="#666" letter-spacing="2" text-anchor="middle">STUDIO</text>
+  <!-- ═══ TOP: Section labels ═══ -->
+  <text x="140" y="20" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="#999" letter-spacing="2" text-anchor="middle">PRESENCE</text>
+  <text x="260" y="20" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="#999" letter-spacing="2" text-anchor="middle">BASS</text>
+  <text x="380" y="20" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="#999" letter-spacing="2" text-anchor="middle">MIDDLE</text>
+  <text x="500" y="20" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="#999" letter-spacing="2" text-anchor="middle">TREBLE</text>
+  <text x="620" y="16" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="#999" letter-spacing="2" text-anchor="middle">MASTER</text>
+  <text x="620" y="30" font-family="Arial,sans-serif" font-size="7" fill="#666" letter-spacing="1" text-anchor="middle">VOLUME</text>
+  <text x="720" y="16" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="#999" letter-spacing="2" text-anchor="middle">PRE-AMP</text>
+  <text x="720" y="30" font-family="Arial,sans-serif" font-size="7" fill="#666" letter-spacing="1" text-anchor="middle">VOLUME</text>
 
-  <!-- Vertical separator after branding -->
-  <line x1="130" y1="6" x2="130" y2="54" stroke="#444" stroke-width="0.8" stroke-dasharray="2,2"/>
+  <!-- Thin line under labels -->
+  <line x1="80" y1="40" x2="780" y2="40" stroke="#444" stroke-width="0.5"/>
 
-  <!-- Section labels in dark area -->
-  <text x="220" y="22" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="#aaa" letter-spacing="2" text-anchor="middle">PRESENCE</text>
-  <text x="330" y="22" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="#aaa" letter-spacing="2" text-anchor="middle">BASS</text>
-  <text x="420" y="22" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="#aaa" letter-spacing="2" text-anchor="middle">MIDDLE</text>
-  <text x="510" y="22" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="#aaa" letter-spacing="2" text-anchor="middle">TREBLE</text>
-  <text x="620" y="22" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="#aaa" letter-spacing="2" text-anchor="middle">MASTER</text>
-  <text x="720" y="22" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="#aaa" letter-spacing="2" text-anchor="middle">PRE-AMP</text>
+  <!-- ═══ KNOBS (all same size r=26, on gold panel) ═══ -->
 
-  <!-- Sub-labels -->
-  <text x="620" y="36" font-family="Arial,sans-serif" font-size="7" fill="#777" letter-spacing="1" text-anchor="middle">VOLUME</text>
-  <text x="720" y="36" font-family="Arial,sans-serif" font-size="7" fill="#777" letter-spacing="1" text-anchor="middle">VOLUME</text>
-
-  <!-- ═══ KNOBS ON GOLD PANEL ═══ -->
-
-  <!-- PRESENCE (visual only, not editable for NAM) -->
-  <circle cx="220" cy="120" r="26" fill="url(#knob-fill)" stroke="#8a7030" stroke-width="1.5" opacity="0.5"/>
-  <circle cx="220" cy="120" r="4" fill="#5a4a20" opacity="0.5"/>
-  <text x="220" y="165" font-family="Arial,sans-serif" font-size="8" fill="#5a4a20" text-anchor="middle" opacity="0.5">0 — 10</text>
+  <!-- PRESENCE (visual only, opacity 0.6) -->
+  <circle cx="140" cy="120" r="26" fill="#111" stroke="#505050" stroke-width="1.5" opacity="0.6"/>
+  <circle cx="140" cy="120" r="3" fill="#333" opacity="0.6"/>
 
   <!-- BASS (visual only) -->
-  <circle cx="330" cy="120" r="26" fill="url(#knob-fill)" stroke="#8a7030" stroke-width="1.5" opacity="0.5"/>
-  <circle cx="330" cy="120" r="4" fill="#5a4a20" opacity="0.5"/>
-  <text x="330" y="165" font-family="Arial,sans-serif" font-size="8" fill="#5a4a20" text-anchor="middle" opacity="0.5">0 — 10</text>
+  <circle cx="260" cy="120" r="26" fill="#111" stroke="#505050" stroke-width="1.5" opacity="0.6"/>
+  <circle cx="260" cy="120" r="3" fill="#333" opacity="0.6"/>
 
   <!-- MIDDLE (visual only) -->
-  <circle cx="420" cy="120" r="26" fill="url(#knob-fill)" stroke="#8a7030" stroke-width="1.5" opacity="0.5"/>
-  <circle cx="420" cy="120" r="4" fill="#5a4a20" opacity="0.5"/>
-  <text x="420" y="165" font-family="Arial,sans-serif" font-size="8" fill="#5a4a20" text-anchor="middle" opacity="0.5">0 — 10</text>
+  <circle cx="380" cy="120" r="26" fill="#111" stroke="#505050" stroke-width="1.5" opacity="0.6"/>
+  <circle cx="380" cy="120" r="3" fill="#333" opacity="0.6"/>
 
   <!-- TREBLE (visual only) -->
-  <circle cx="510" cy="120" r="26" fill="url(#knob-fill)" stroke="#8a7030" stroke-width="1.5" opacity="0.5"/>
-  <circle cx="510" cy="120" r="4" fill="#5a4a20" opacity="0.5"/>
-  <text x="510" y="165" font-family="Arial,sans-serif" font-size="8" fill="#5a4a20" text-anchor="middle" opacity="0.5">0 — 10</text>
+  <circle cx="500" cy="120" r="26" fill="#111" stroke="#505050" stroke-width="1.5" opacity="0.6"/>
+  <circle cx="500" cy="120" r="3" fill="#333" opacity="0.6"/>
 
   <!-- MASTER VOLUME (editable — param: volume) -->
-  <circle id="ctrl-volume" cx="620" cy="120" r="30" fill="url(#knob-fill)" stroke="#8a7030" stroke-width="2"/>
-  <circle cx="620" cy="120" r="4" fill="#5a4a20"/>
+  <circle id="ctrl-volume" cx="620" cy="120" r="26" fill="#111" stroke="#505050" stroke-width="1.5"/>
+  <circle cx="620" cy="120" r="3" fill="#444"/>
 
   <!-- PRE-AMP VOLUME (editable — param: gain) -->
-  <circle id="ctrl-gain" cx="720" cy="120" r="30" fill="url(#knob-fill)" stroke="#8a7030" stroke-width="2"/>
-  <circle cx="720" cy="120" r="4" fill="#5a4a20"/>
+  <circle id="ctrl-gain" cx="720" cy="120" r="26" fill="#111" stroke="#505050" stroke-width="1.5"/>
+  <circle cx="720" cy="120" r="3" fill="#444"/>
 </svg>
