@@ -1882,20 +1882,16 @@ export component ProjectChainsPage inherits Rectangle {
 
         if root.project-running : HeaderIconAction {
             x: parent.width - 40px;
-            y: 10px;
-            width: 32px;
-            height: 32px;
+            y: 14px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/stop.svg");
-            active: true;
+            tint: #f87171;
             tooltip: "Parar";
             clicked => { root.stop-project(); }
         }
 
         if !root.project-running : HeaderIconAction {
             x: parent.width - 40px;
-            y: 10px;
-            width: 32px;
-            height: 32px;
+            y: 14px;
             icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/play.svg");
             active: true;
             tooltip: "Iniciar";
