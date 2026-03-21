@@ -41,6 +41,7 @@ These instructions apply to the entire repository unless a deeper `AGENTS.md` ov
 - Current routing/layout support is mono or stereo only.
 - For backend decisions, prefer `docs/backend/current-contract.md` and `docs/adr/` as the canonical reference before relying on old chat context.
 - For MK-300-inspired native block work, prefer `docs/backend/mk-300-v69-effects-reference.md` for canonical parameter naming and module/type grouping.
+- For native block target selection and implementation order, prefer `docs/backend/native-model-catalog.md` before inventing new models or re-triaging the capture library.
 - Device names and model paths are machine-specific; avoid baking in new local paths unless the task explicitly requires it.
 - Start validation with `cargo check` for Rust changes.
 - Changes touching NAM integration should review `crates/nam` Rust FFI code, `crates/nam/build.rs`, and `cpp/` inputs together.
