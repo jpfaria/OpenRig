@@ -633,6 +633,7 @@ component ChainEndpointChip inherits Rectangle {
     in property <string> label;
     in property <string> tooltip;
     callback clicked();
+    out property <bool> is-hovered: hover-area.has-hover;
 
     width: 64px;
     height: 32px;
@@ -1029,6 +1030,11 @@ component ChainRow inherits Rectangle {
     in-out property <int> dragging-block-index: -1;
     in-out property <int> drag-hover-before-index: -1;
     property <bool> suppress-insert-hover: false;
+    property <int> last-block-col: root.chain.blocks.length == 0 ? 0 : Math.mod(root.chain.blocks.length - 1, root.blocks-per-row);
+    property <int> last-block-row: root.chain.blocks.length == 0 ? 0 : Math.floor((root.chain.blocks.length - 1) / root.blocks-per-row);
+    property <length> out-chip-x: root.chain.blocks.length == 0 ? 88px : (220px + root.last-block-col * 116px);
+    property <length> out-chip-y: root.last-block-row * 92px + 26px;
+    out property <bool> any-chip-hovered: in-chip.is-hovered || out-chip.is-hovered;
 
     pure function slot-index-for-position(pointer-x: float, pointer-y: float) -> int {
         let row = Math.max(0, Math.min(root.insert-row-count - 1, Math.floor((pointer-y + 18) / 92)));
@@ -1121,11 +1127,41 @@ component ChainRow inherits Rectangle {
             }
         }
 
-        // Connecting line from In chip to Out chip
+        // Connecting line - row 0
         Rectangle {
             x: 64px;
             y: 41px;
-            width: parent.width - 128px;
+            width: root.last-block-row == 0 ? (root.out-chip-x - 64px) : (parent.width - 64px);
+            height: 2px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+
+        // Connecting line - row 1 (when wrapping)
+        if root.block-row-count > 1 : Rectangle {
+            x: 0px;
+            y: 133px;
+            width: root.last-block-row == 1 ? root.out-chip-x : parent.width;
+            height: 2px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+
+        // Connecting line - row 2
+        if root.block-row-count > 2 : Rectangle {
+            x: 0px;
+            y: 225px;
+            width: root.last-block-row == 2 ? root.out-chip-x : parent.width;
+            height: 2px;
+            background: #3b4250;
+            border-radius: 1px;
+        }
+
+        // Connecting line - row 3
+        if root.block-row-count > 3 : Rectangle {
+            x: 0px;
+            y: 317px;
+            width: root.last-block-row == 3 ? root.out-chip-x : parent.width;
             height: 2px;
             background: #3b4250;
             border-radius: 1px;
@@ -1229,7 +1265,7 @@ component ChainRow inherits Rectangle {
             }
         }
 
-        ChainEndpointChip {
+        in-chip := ChainEndpointChip {
             x: 0px;
             y: 26px;
             label: root.chain.input_label;
@@ -1237,9 +1273,9 @@ component ChainRow inherits Rectangle {
             clicked => { root.configure-chain-input(root.chain-index); }
         }
 
-        ChainEndpointChip {
-            x: parent.width - 64px;
-            y: 26px;
+        out-chip := ChainEndpointChip {
+            x: root.out-chip-x;
+            y: root.out-chip-y;
             label: root.chain.output_label;
             tooltip: root.chain.output_tooltip;
             clicked => { root.configure-chain-output(root.chain-index); }
