@@ -246,8 +246,7 @@ export component AmpPanelEditor inherits Rectangle {
     private property <length> badge-width:
         root.selected-type-label == "" ? 0px : 56px;
     private property <length> header-height: 48px;
-    private property <length> brand-strip-height:
-        root.selected-brand != "native" && root.selected-brand != "" ? 52px : 1px;
+    private property <length> brand-strip-height: 0px;
     private property <length> panel-height: root.width / 4;
     private property <length> footer-height: root.block-drawer-edit-mode ? 44px : 52px;
 
@@ -327,53 +326,7 @@ export component AmpPanelEditor inherits Rectangle {
         }
     }
 
-    // ── BRAND STRIP (40px) — logo centralizada, só para marcas reais ──
-    if root.selected-brand != "native" && root.selected-brand != "" : Rectangle {
-        x: 0;
-        y: root.header-height;
-        width: parent.width;
-        height: root.brand-strip-height;
-        background: #040408;
-
-        // Bottom separator
-        Rectangle {
-            x: 0; y: parent.height - 1px;
-            width: parent.width; height: 1px;
-            background: #0e0e1e;
-        }
-
-        // Marshall brand logo (centralizada, ocupa quase toda a largura)
-        if root.selected-brand == "marshall" : Image {
-            x: (parent.width - parent.width * 0.5) / 2;
-            y: (parent.height - 40px) / 2;
-            width: parent.width * 0.5;
-            height: 40px;
-            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/marshall/logo.svg");
-            image-fit: contain;
-            colorize: #e0e0e0;
-        }
-
-        // Vox brand logo (centralizada)
-        if root.selected-brand == "vox" : Image {
-            x: (parent.width - parent.width * 0.4) / 2;
-            y: (parent.height - 36px) / 2;
-            width: parent.width * 0.4;
-            height: 36px;
-            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/vox/logo.svg");
-            image-fit: contain;
-        }
-    }
-
-    // Sem brand strip para nativos — só um separador fino
-    if root.selected-brand == "native" || root.selected-brand == "" : Rectangle {
-        x: 0;
-        y: root.header-height;
-        width: parent.width;
-        height: 1px;
-        background: #0e0e1e;
-    }
-
-    // ── PANEL RECT ─────────────────────────────────────────────────
+    // ── PANEL RECT (direto após o header, sem brand strip) ─────────────────────────────────────────────────
     Rectangle {
         x: 0;
         y: root.header-height + root.brand-strip-height;
@@ -399,33 +352,47 @@ export component AmpPanelEditor inherits Rectangle {
             image-fit: fill;
         }
 
-        // Power LED (x=10px, vertically centered) — simulates front panel power switch
+        // Power switch (square toggle like the real amp)
         Rectangle {
-            x: 10px;
-            y: (parent.height - 28px) / 2;
-            width: 28px;
-            height: 28px;
-            border-radius: 14px;
-            background: transparent;
-            border-width: 1px;
-            border-color: root.block-drawer-enabled ? #22aa4440 : #661111;
+            x: 8px;
+            y: (parent.height - 36px) / 2 - 4px;
+            width: 30px;
+            height: 36px;
+            border-radius: 3px;
+            background: #0a0a0a;
+            border-width: 1.5px;
+            border-color: #404040;
 
-            // Inner LED dot (centered at 14,14 = 28/2 - 12/2 = 8px offset)
+            // Red indicator when ON, dark when OFF
             Rectangle {
-                x: 8px; y: 8px;
-                width: 12px; height: 12px;
-                border-radius: 6px;
-                background: root.block-drawer-enabled ? #33ee55 : #221111;
-                drop-shadow-blur: root.block-drawer-enabled ? 10px : 0px;
-                drop-shadow-color: root.block-drawer-enabled ? #33ee5599 : #00000000;
-                drop-shadow-offset-x: 0px;
-                drop-shadow-offset-y: 0px;
+                x: 5px;
+                y: root.block-drawer-enabled ? 4px : 18px;
+                width: 20px;
+                height: 14px;
+                border-radius: 2px;
+                background: root.block-drawer-enabled ? #cc2222 : #1a0808;
+                border-width: 1px;
+                border-color: root.block-drawer-enabled ? #ee4444 : #331111;
             }
 
             ta-power := TouchArea {
                 mouse-cursor: pointer;
                 clicked => { root.toggle-block-drawer-enabled(); }
             }
+        }
+
+        // POWER label
+        Text {
+            x: 6px;
+            y: (parent.height - 36px) / 2 + 36px;
+            width: 34px;
+            height: 12px;
+            text: "POWER";
+            color: #666;
+            font-size: 6px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            horizontal-alignment: center;
         }
 
         // Knob overlays (positioned at exact svg_cx / svg_cy relative to panel)

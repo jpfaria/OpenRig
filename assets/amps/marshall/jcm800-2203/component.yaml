@@ -11,8 +11,8 @@ controls:
     default: 50.0
     min: 50.0
     max: 70.0
-    svg_cx: 620
-    svg_cy: 120
+    svg_cx: 650
+    svg_cy: 110
 
   - id: ctrl-gain
     label: Pre-Amp
@@ -22,5 +22,5 @@ controls:
     default: 40.0
     min: 10.0
     max: 100.0
-    svg_cx: 720
-    svg_cy: 120
+    svg_cx: 730
+    svg_cy: 110

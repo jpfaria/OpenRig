@@ -1,66 +1,107 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200" width="800" height="200">
   <defs>
-    <linearGradient id="panel-top" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#1c1c1c"/>
-      <stop offset="100%" stop-color="#252525"/>
+    <linearGradient id="panel-dark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a1a1a"/>
+      <stop offset="100%" stop-color="#222"/>
     </linearGradient>
     <linearGradient id="panel-gold" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#c4a44a"/>
       <stop offset="30%" stop-color="#b89840"/>
       <stop offset="100%" stop-color="#9a7e30"/>
     </linearGradient>
-    <radialGradient id="knob-bg" cx="50%" cy="40%" r="50%">
-      <stop offset="0%" stop-color="#d8c070"/>
-      <stop offset="70%" stop-color="#c0a450"/>
-      <stop offset="100%" stop-color="#a08838"/>
-    </radialGradient>
   </defs>
 
-  <!-- Top dark panel (labels area) -->
-  <rect x="0" y="0" width="800" height="50" fill="url(#panel-top)"/>
-  <!-- Gold trim at transition -->
-  <rect x="0" y="48" width="800" height="3" fill="#c8a848" opacity="0.5"/>
-  <!-- Bottom gold panel (knobs area) -->
-  <rect x="0" y="50" width="800" height="150" fill="url(#panel-gold)"/>
-  <!-- Bottom edge shadow -->
-  <rect x="0" y="195" width="800" height="5" fill="#6a5820" opacity="0.5"/>
+  <!-- Background: dark top, gold bottom -->
+  <rect x="0" y="0" width="800" height="55" fill="url(#panel-dark)"/>
+  <rect x="0" y="55" width="800" height="145" fill="url(#panel-gold)"/>
+  <rect x="0" y="53" width="800" height="3" fill="#d4b868" opacity="0.4"/>
 
-  <!-- ═══ TOP: Section labels ═══ -->
-  <text x="140" y="20" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="#999" letter-spacing="2" text-anchor="middle">PRESENCE</text>
-  <text x="260" y="20" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="#999" letter-spacing="2" text-anchor="middle">BASS</text>
-  <text x="380" y="20" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="#999" letter-spacing="2" text-anchor="middle">MIDDLE</text>
-  <text x="500" y="20" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="#999" letter-spacing="2" text-anchor="middle">TREBLE</text>
-  <text x="620" y="16" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="#999" letter-spacing="2" text-anchor="middle">MASTER</text>
-  <text x="620" y="30" font-family="Arial,sans-serif" font-size="7" fill="#666" letter-spacing="1" text-anchor="middle">VOLUME</text>
-  <text x="720" y="16" font-family="Arial,sans-serif" font-size="9" font-weight="700" fill="#999" letter-spacing="2" text-anchor="middle">PRE-AMP</text>
-  <text x="720" y="30" font-family="Arial,sans-serif" font-size="7" fill="#666" letter-spacing="1" text-anchor="middle">VOLUME</text>
+  <!-- ═══ LEFT: Power section (visual) ═══ -->
+  <text x="48" y="195" font-family="Arial,sans-serif" font-size="7" fill="#5a4a20" font-weight="700" text-anchor="middle">POWER</text>
 
-  <!-- Thin line under labels -->
-  <line x1="80" y1="40" x2="780" y2="40" stroke="#444" stroke-width="0.5"/>
+  <!-- STBY / LOW / HIGH selector (visual) -->
+  <text x="90" y="80" font-family="Arial,sans-serif" font-size="6" fill="#5a4a20" font-weight="700" text-anchor="middle">LOW</text>
+  <rect x="80" y="90" width="20" height="40" rx="3" fill="#0e0e0e" stroke="#505050" stroke-width="1" opacity="0.6"/>
+  <text x="90" y="82" font-family="Arial,sans-serif" font-size="5" fill="#5a4a20" text-anchor="middle" opacity="0.6">STBY</text>
+  <text x="90" y="145" font-family="Arial,sans-serif" font-size="6" fill="#5a4a20" font-weight="700" text-anchor="middle">HIGH</text>
 
-  <!-- ═══ KNOBS (all same size r=26, on gold panel) ═══ -->
+  <!-- ═══ JCM 800 branding ═══ -->
+  <text x="170" y="30" font-family="Georgia,serif" font-size="18" font-weight="900" fill="#c8c8c8" letter-spacing="3" text-anchor="middle">JCM 800</text>
+  <text x="170" y="44" font-family="Arial,sans-serif" font-size="7" fill="#888" letter-spacing="2.5" text-anchor="middle">LEAD SERIES</text>
+  <text x="170" y="53" font-family="Arial,sans-serif" font-size="6" fill="#666" letter-spacing="2" font-style="italic" text-anchor="middle">STUDIO</text>
 
-  <!-- PRESENCE (visual only, opacity 0.6) -->
-  <circle cx="140" cy="120" r="26" fill="#111" stroke="#505050" stroke-width="1.5" opacity="0.6"/>
-  <circle cx="140" cy="120" r="3" fill="#333" opacity="0.6"/>
+  <!-- Vertical separator -->
+  <line x1="240" y1="6" x2="240" y2="48" stroke="#444" stroke-width="0.6" stroke-dasharray="2,2"/>
 
-  <!-- BASS (visual only) -->
-  <circle cx="260" cy="120" r="26" fill="#111" stroke="#505050" stroke-width="1.5" opacity="0.6"/>
-  <circle cx="260" cy="120" r="3" fill="#333" opacity="0.6"/>
+  <!-- ═══ KNOB LABELS (dark area) ═══ -->
+  <text x="310" y="20" font-family="Arial,sans-serif" font-size="8" font-weight="700" fill="#aaa" letter-spacing="2" text-anchor="middle">PRESENCE</text>
+  <text x="400" y="20" font-family="Arial,sans-serif" font-size="8" font-weight="700" fill="#aaa" letter-spacing="2" text-anchor="middle">BASS</text>
+  <text x="480" y="20" font-family="Arial,sans-serif" font-size="8" font-weight="700" fill="#aaa" letter-spacing="2" text-anchor="middle">MIDDLE</text>
+  <text x="560" y="20" font-family="Arial,sans-serif" font-size="8" font-weight="700" fill="#aaa" letter-spacing="2" text-anchor="middle">TREBLE</text>
+  <text x="650" y="16" font-family="Arial,sans-serif" font-size="8" font-weight="700" fill="#aaa" letter-spacing="2" text-anchor="middle">MASTER</text>
+  <text x="650" y="28" font-family="Arial,sans-serif" font-size="6" fill="#777" letter-spacing="1" text-anchor="middle">VOLUME</text>
+  <text x="730" y="16" font-family="Arial,sans-serif" font-size="8" font-weight="700" fill="#aaa" letter-spacing="2" text-anchor="middle">PRE-AMP</text>
+  <text x="730" y="28" font-family="Arial,sans-serif" font-size="6" fill="#777" letter-spacing="1" text-anchor="middle">VOLUME</text>
 
-  <!-- MIDDLE (visual only) -->
-  <circle cx="380" cy="120" r="26" fill="#111" stroke="#505050" stroke-width="1.5" opacity="0.6"/>
-  <circle cx="380" cy="120" r="3" fill="#333" opacity="0.6"/>
+  <!-- Number scale line -->
+  <line x1="250" y1="38" x2="770" y2="38" stroke="#444" stroke-width="0.4"/>
 
-  <!-- TREBLE (visual only) -->
-  <circle cx="500" cy="120" r="26" fill="#111" stroke="#505050" stroke-width="1.5" opacity="0.6"/>
-  <circle cx="500" cy="120" r="3" fill="#333" opacity="0.6"/>
+  <!-- Number markings for each knob (arc approximation: 0 at bottom-left, 10 at bottom-right) -->
+  <!-- PRESENCE -->
+  <text x="286" y="140" font-family="Arial,sans-serif" font-size="6" fill="#5a4a20" text-anchor="middle">0</text>
+  <text x="310" y="155" font-family="Arial,sans-serif" font-size="6" fill="#5a4a20" text-anchor="middle">10</text>
+  <text x="334" y="140" font-family="Arial,sans-serif" font-size="6" fill="#5a4a20" text-anchor="middle">0</text>
+  <!-- BASS -->
+  <text x="376" y="140" font-family="Arial,sans-serif" font-size="6" fill="#5a4a20" text-anchor="middle">0</text>
+  <text x="400" y="155" font-family="Arial,sans-serif" font-size="6" fill="#5a4a20" text-anchor="middle">10</text>
+  <text x="424" y="140" font-family="Arial,sans-serif" font-size="6" fill="#5a4a20" text-anchor="middle">0</text>
+  <!-- MIDDLE -->
+  <text x="456" y="140" font-family="Arial,sans-serif" font-size="6" fill="#5a4a20" text-anchor="middle">0</text>
+  <text x="480" y="155" font-family="Arial,sans-serif" font-size="6" fill="#5a4a20" text-anchor="middle">10</text>
+  <text x="504" y="140" font-family="Arial,sans-serif" font-size="6" fill="#5a4a20" text-anchor="middle">0</text>
+  <!-- TREBLE -->
+  <text x="536" y="140" font-family="Arial,sans-serif" font-size="6" fill="#5a4a20" text-anchor="middle">0</text>
+  <text x="560" y="155" font-family="Arial,sans-serif" font-size="6" fill="#5a4a20" text-anchor="middle">10</text>
+  <text x="584" y="140" font-family="Arial,sans-serif" font-size="6" fill="#5a4a20" text-anchor="middle">0</text>
+  <!-- MASTER -->
+  <text x="626" y="140" font-family="Arial,sans-serif" font-size="6" fill="#5a4a20" text-anchor="middle">0</text>
+  <text x="650" y="155" font-family="Arial,sans-serif" font-size="6" fill="#5a4a20" text-anchor="middle">10</text>
+  <text x="674" y="140" font-family="Arial,sans-serif" font-size="6" fill="#5a4a20" text-anchor="middle">0</text>
+  <!-- PRE-AMP -->
+  <text x="706" y="140" font-family="Arial,sans-serif" font-size="6" fill="#5a4a20" text-anchor="middle">0</text>
+  <text x="730" y="155" font-family="Arial,sans-serif" font-size="6" fill="#5a4a20" text-anchor="middle">10</text>
+  <text x="754" y="140" font-family="Arial,sans-serif" font-size="6" fill="#5a4a20" text-anchor="middle">0</text>
 
-  <!-- MASTER VOLUME (editable — param: volume) -->
-  <circle id="ctrl-volume" cx="620" cy="120" r="26" fill="#111" stroke="#505050" stroke-width="1.5"/>
-  <circle cx="620" cy="120" r="3" fill="#444"/>
+  <!-- ═══ KNOBS (all r=24, same dark style) ═══ -->
 
-  <!-- PRE-AMP VOLUME (editable — param: gain) -->
-  <circle id="ctrl-gain" cx="720" cy="120" r="26" fill="#111" stroke="#505050" stroke-width="1.5"/>
-  <circle cx="720" cy="120" r="3" fill="#444"/>
+  <!-- PRESENCE (visual, not editable for NAM) -->
+  <circle cx="310" cy="110" r="24" fill="#111" stroke="#505050" stroke-width="1.5" opacity="0.6"/>
+  <circle cx="310" cy="110" r="3" fill="#333" opacity="0.6"/>
+
+  <!-- BASS (visual) -->
+  <circle cx="400" cy="110" r="24" fill="#111" stroke="#505050" stroke-width="1.5" opacity="0.6"/>
+  <circle cx="400" cy="110" r="3" fill="#333" opacity="0.6"/>
+
+  <!-- MIDDLE (visual) -->
+  <circle cx="480" cy="110" r="24" fill="#111" stroke="#505050" stroke-width="1.5" opacity="0.6"/>
+  <circle cx="480" cy="110" r="3" fill="#333" opacity="0.6"/>
+
+  <!-- TREBLE (visual) -->
+  <circle cx="560" cy="110" r="24" fill="#111" stroke="#505050" stroke-width="1.5" opacity="0.6"/>
+  <circle cx="560" cy="110" r="3" fill="#333" opacity="0.6"/>
+
+  <!-- MASTER VOLUME (editable) -->
+  <circle id="ctrl-volume" cx="650" cy="110" r="24" fill="#111" stroke="#606060" stroke-width="1.5"/>
+  <circle cx="650" cy="110" r="3" fill="#444"/>
+
+  <!-- PRE-AMP VOLUME (editable) -->
+  <circle id="ctrl-gain" cx="730" cy="110" r="24" fill="#111" stroke="#606060" stroke-width="1.5"/>
+  <circle cx="730" cy="110" r="3" fill="#444"/>
+
+  <!-- ═══ RIGHT: Sensitivity jacks (visual) ═══ -->
+  <text x="785" y="75" font-family="Arial,sans-serif" font-size="6" fill="#5a4a20" font-weight="700" text-anchor="middle">HIGH</text>
+  <circle cx="785" cy="90" r="8" fill="#0e0e0e" stroke="#505050" stroke-width="1" opacity="0.6"/>
+  <text x="785" y="115" font-family="Arial,sans-serif" font-size="6" fill="#5a4a20" font-weight="700" letter-spacing="0.5" text-anchor="middle">SENSITIVITY</text>
+  <circle cx="785" cy="130" r="8" fill="#0e0e0e" stroke="#505050" stroke-width="1" opacity="0.6"/>
+  <text x="785" y="148" font-family="Arial,sans-serif" font-size="6" fill="#5a4a20" font-weight="700" text-anchor="middle">LOW</text>
 </svg>
