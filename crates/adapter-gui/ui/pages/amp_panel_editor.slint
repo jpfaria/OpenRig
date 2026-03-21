@@ -189,6 +189,20 @@ component PanelKnob inherits Rectangle {
             }
         }
     }
+
+    // Value label below the knob
+    Text {
+        x: -parent.width / 2;
+        y: parent.height + 2px;
+        width: parent.width * 2;
+        height: 14px;
+        text: root.step >= 1.0 ? Math.round(root.value) + "" : Math.round(root.value * 10) / 10 + "";
+        color: ta.has-hover || ta.pressed ? #f1f4f8 : #8090a0;
+        font-size: 9px;
+        font-weight: 600;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
 }
 
 // Full visual amp head editor window content
@@ -261,10 +275,10 @@ export component AmpPanelEditor inherits Rectangle {
 
         // Block type icon (left)
         Image {
-            x: 12px;
-            y: (parent.height - 18px) / 2;
-            width: 18px;
-            height: 18px;
+            x: 10px;
+            y: (parent.height - 24px) / 2;
+            width: 24px;
+            height: 24px;
             source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-head.svg");
             image-fit: contain;
             colorize: #f1f4f8;
@@ -272,7 +286,7 @@ export component AmpPanelEditor inherits Rectangle {
 
         // Block type label (left, after icon)
         Text {
-            x: 34px; y: 0;
+            x: 38px; y: 0;
             width: 60px;
             height: parent.height;
             text: root.block-type-label;
@@ -341,39 +355,25 @@ export component AmpPanelEditor inherits Rectangle {
             background: #0e0e1e;
         }
 
-        // Marshall brand logo (centralizada)
+        // Marshall brand logo (centralizada, grande)
         if root.selected-brand == "marshall" : Image {
-            x: (parent.width - 180px) / 2;
-            y: (parent.height - 28px) / 2;
-            width: 180px;
-            height: 28px;
+            x: (parent.width - 260px) / 2;
+            y: (parent.height - 32px) / 2;
+            width: 260px;
+            height: 32px;
             source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/marshall/logo.svg");
             image-fit: contain;
-            colorize: #c0c0c0;
+            colorize: #d0d0d0;
         }
 
-        // Vox brand logo (centralizada)
+        // Vox brand logo (centralizada, grande)
         if root.selected-brand == "vox" : Image {
-            x: (parent.width - 120px) / 2;
-            y: (parent.height - 24px) / 2;
-            width: 120px;
-            height: 24px;
+            x: (parent.width - 200px) / 2;
+            y: (parent.height - 28px) / 2;
+            width: 200px;
+            height: 28px;
             source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/vox/logo.svg");
             image-fit: contain;
-        }
-
-        // Model name (right)
-        Text {
-            x: 0; y: 0;
-            width: parent.width - 16px;
-            height: parent.height;
-            text: root.selected-model-label;
-            color: #606880;
-            font-size: 11px;
-            font-weight: 500;
-            horizontal-alignment: right;
-            vertical-alignment: center;
-            overflow: elide;
         }
     }
 
