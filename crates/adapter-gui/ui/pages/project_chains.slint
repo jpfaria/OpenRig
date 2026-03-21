@@ -868,9 +868,9 @@ component BlockChip inherits Rectangle {
 
     width: 84px;
     height: 84px;
-    background: #17191d;
+    background: root.block.enabled ? #17191d : #111418;
     border-width: hover-area.has-hover ? 3px : 2px;
-    border-color: root.dragging ? #8b95a5 : root.block.enabled ? root.accent-color : #2c3040;
+    border-color: root.dragging ? #8b95a5 : root.block.enabled ? root.accent-color : #3d4455;
     border-radius: 6px;
 
     Image {
@@ -880,7 +880,7 @@ component BlockChip inherits Rectangle {
         height: parent.height - 4px;
         source: root.icon-source;
         image-fit: contain;
-        colorize: root.dragging ? #8b95a5 : root.block.enabled ? #f3f6fb : #3a4050;
+        colorize: root.dragging ? #8b95a5 : root.block.enabled ? #f3f6fb : #5c6678;
     }
 
     Text {
@@ -889,7 +889,7 @@ component BlockChip inherits Rectangle {
         width: parent.width - 16px;
         height: 14px;
         text: root.block-type-label;
-        color: root.dragging ? #8b95a5 : root.block.enabled ? #f3f6fb : #3a4050;
+        color: root.dragging ? #8b95a5 : root.block.enabled ? #f3f6fb : #5c6678;
         font-size: 10px;
         font-weight: 900;
         vertical-alignment: center;
