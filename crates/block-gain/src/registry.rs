@@ -8,7 +8,7 @@ pub struct GainModelDefinition {
     pub schema: fn() -> Result<ModelParameterSchema>,
     pub validate: fn(&ParameterSet) -> Result<()>,
     pub asset_summary: fn(&ParameterSet) -> Result<String>,
-    pub build: fn(&ParameterSet, AudioChannelLayout) -> Result<BlockProcessor>,
+    pub build: fn(&ParameterSet, f32, AudioChannelLayout) -> Result<BlockProcessor>,
 }
 
 include!(concat!(env!("OUT_DIR"), "/generated_registry.rs"));

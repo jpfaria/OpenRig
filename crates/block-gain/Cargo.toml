@@ -6,3 +6,6 @@ edition.workspace = true
 anyhow.workspace = true
 nam = { path = "../nam" }
 block-core = { path = "../block-core" }
+
+[dev-dependencies]
+domain = { path = "../domain" }

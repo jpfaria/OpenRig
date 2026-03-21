@@ -118,7 +118,11 @@ fn schema() -> Result<ModelParameterSchema> {
     Ok(model_schema())
 }
 
-fn build(params: &ParameterSet, layout: AudioChannelLayout) -> Result<BlockProcessor> {
+fn build(
+    params: &ParameterSet,
+    _sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<BlockProcessor> {
     build_processor_for_model(params, layout)
 }
 
