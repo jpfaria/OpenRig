@@ -1933,7 +1933,7 @@ pub fn run_desktop_app(
                 return;
             };
             let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else {
+            let Some(_session) = session_borrow.as_ref() else {
                 return;
             };
 
@@ -3657,7 +3657,7 @@ fn chain_endpoint_label(prefix: &str, channels: &[usize]) -> String {
 }
 
 fn chain_endpoint_tooltip(
-    title: &str,
+    _title: &str,
     device_id: &str,
     channels: &[usize],
     project: &Project,
