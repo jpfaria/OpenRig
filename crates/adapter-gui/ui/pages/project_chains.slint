@@ -657,9 +657,12 @@ component ChainEndpointChip inherits Rectangle {
         width: parent.width;
         height: parent.height;
         mouse-cursor: pointer;
-        clicked => { root.clicked(); }
+        clicked => {
+            tooltip-popup.close();
+            root.clicked();
+        }
         pointer-event(e) => {
-            if root.tooltip != "" && self.has-hover {
+            if root.tooltip != "" && self.has-hover && e.kind == PointerEventKind.move {
                 tooltip-popup.show();
             }
         }
