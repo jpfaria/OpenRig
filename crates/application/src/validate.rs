@@ -149,17 +149,15 @@ fn resolve_block_output_layout(
     block: &AudioBlock,
     input_layout: AudioChannelLayout,
 ) -> Result<AudioChannelLayout> {
+    block
+        .validate_params()
+        .map_err(|error| anyhow!("block '{}': {}", block.id.0, error))?;
+
     match &block.kind {
         AudioBlockKind::Select(select) => {
-            if select.options.is_empty() {
-                bail!("block '{}' has no select options", block.id.0);
-            }
-
-            let selected = select
-                .options
-                .iter()
-                .find(|option| option.id == select.selected_block_id)
-                .ok_or_else(|| anyhow!("block '{}' selected option does not exist", block.id.0))?;
+            let selected = select.selected_option().ok_or_else(|| {
+                anyhow!("block '{}' selected option does not exist", block.id.0)
+            })?;
 
             let mut resolved_layout = None;
             for option in &select.options {

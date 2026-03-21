@@ -84,6 +84,8 @@ pub struct SelectBlock {
     pub options: Vec<AudioBlock>,
 }
 
+const MAX_SELECT_OPTIONS: usize = 8;
+
 define_model_block!(AmpHeadBlock);
 define_model_block!(AmpComboBlock);
 define_model_block!(FullRigBlock);
@@ -118,6 +120,7 @@ impl AudioBlock {
             }
             AudioBlockKind::Core(core) => core.validate_params(),
             AudioBlockKind::Select(select) => {
+                select.validate_structure()?;
                 for option in &select.options {
                     option.validate_params()?;
                 }
@@ -132,13 +135,10 @@ impl AudioBlock {
                 describe_block_params(&self.id, "nam", &stage.model, &stage.params)
             }
             AudioBlockKind::Core(core) => core.parameter_descriptors(&self.id),
-            AudioBlockKind::Select(select) => {
-                let mut descriptors = Vec::new();
-                for option in &select.options {
-                    descriptors.extend(option.parameter_descriptors()?);
-                }
-                Ok(descriptors)
-            }
+            AudioBlockKind::Select(select) => select
+                .selected_option()
+                .ok_or_else(|| "select block selected option does not exist".to_string())?
+                .parameter_descriptors(),
         }
     }
 
@@ -151,13 +151,10 @@ impl AudioBlock {
                 Ok(vec![describe_block_audio(&self.id, "nam", &stage.model)?])
             }
             AudioBlockKind::Core(core) => core.audio_descriptors(&self.id),
-            AudioBlockKind::Select(select) => {
-                let mut descriptors = Vec::new();
-                for option in &select.options {
-                    descriptors.extend(option.audio_descriptors()?);
-                }
-                Ok(descriptors)
-            }
+            AudioBlockKind::Select(select) => select
+                .selected_option()
+                .ok_or_else(|| "select block selected option does not exist".to_string())?
+                .audio_descriptors(),
         }
     }
 
@@ -277,6 +274,54 @@ impl CoreBlockKind {
                 params: &stage.params,
             },
         }
+    }
+}
+
+impl SelectBlock {
+    pub fn selected_option(&self) -> Option<&AudioBlock> {
+        self.options
+            .iter()
+            .find(|option| option.id == self.selected_block_id)
+    }
+
+    pub fn validate_structure(&self) -> Result<(), String> {
+        if self.options.is_empty() {
+            return Err("select block must define at least one option".to_string());
+        }
+        if self.options.len() > MAX_SELECT_OPTIONS {
+            return Err(format!(
+                "select block may define up to {} options",
+                MAX_SELECT_OPTIONS
+            ));
+        }
+
+        let mut effect_type = None::<&str>;
+        for option in &self.options {
+            if matches!(option.kind, AudioBlockKind::Select(_)) {
+                return Err("select block options cannot themselves be select blocks".to_string());
+            }
+
+            let model = option.model_ref().ok_or_else(|| {
+                format!(
+                    "select block option '{}' does not expose a concrete model",
+                    option.id.0
+                )
+            })?;
+
+            match effect_type {
+                Some(existing) if existing != model.effect_type => {
+                    return Err("select block options must use the same effect type".to_string());
+                }
+                None => effect_type = Some(model.effect_type),
+                _ => {}
+            }
+        }
+
+        if self.selected_option().is_none() {
+            return Err("select block selected option does not exist".to_string());
+        }
+
+        Ok(())
     }
 }
 
@@ -442,8 +487,12 @@ fn describe_block_audio(
 
 #[cfg(test)]
 mod tests {
-    use super::{normalize_block_params, schema_for_block_model};
+    use super::{
+        normalize_block_params, schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock,
+        CoreBlockKind, DelayBlock, ReverbBlock, SelectBlock,
+    };
     use crate::param::ParameterSet;
+    use domain::ids::BlockId;
 
     #[test]
     fn project_contract_exposes_family_schemas() {
@@ -497,6 +546,133 @@ mod tests {
                     );
                 }
             }
+        }
+    }
+
+    #[test]
+    fn select_block_requires_at_least_one_option() {
+        let block = AudioBlock {
+            id: BlockId("chain:0:block:0".into()),
+            enabled: true,
+            kind: AudioBlockKind::Select(SelectBlock {
+                selected_block_id: BlockId("chain:0:block:0::missing".into()),
+                options: Vec::new(),
+            }),
+        };
+
+        let error = block
+            .validate_params()
+            .expect_err("empty select options should fail");
+
+        assert!(error.contains("at least one option"));
+    }
+
+    #[test]
+    fn select_block_rejects_missing_selected_option() {
+        let first_model = block_delay::supported_models()
+            .first()
+            .expect("block-delay must expose at least one model");
+
+        let block = AudioBlock {
+            id: BlockId("chain:0:block:0".into()),
+            enabled: true,
+            kind: AudioBlockKind::Select(SelectBlock {
+                selected_block_id: BlockId("chain:0:block:0::missing".into()),
+                options: vec![delay_block("chain:0:block:0::a", first_model)],
+            }),
+        };
+
+        let error = block
+            .validate_params()
+            .expect_err("select without selected option should fail");
+
+        assert!(error.contains("selected option"));
+    }
+
+    #[test]
+    fn select_block_rejects_mixed_effect_types() {
+        let delay_model = block_delay::supported_models()
+            .first()
+            .expect("block-delay must expose at least one model");
+        let reverb_model = block_reverb::supported_models()
+            .first()
+            .expect("block-reverb must expose at least one model");
+
+        let block = AudioBlock {
+            id: BlockId("chain:0:block:0".into()),
+            enabled: true,
+            kind: AudioBlockKind::Select(SelectBlock {
+                selected_block_id: BlockId("chain:0:block:0::delay".into()),
+                options: vec![
+                    delay_block("chain:0:block:0::delay", delay_model),
+                    reverb_block("chain:0:block:0::reverb", reverb_model),
+                ],
+            }),
+        };
+
+        let error = block
+            .validate_params()
+            .expect_err("mixed select families should fail");
+
+        assert!(error.contains("same effect type"));
+    }
+
+    #[test]
+    fn select_block_rejects_more_than_eight_options() {
+        let model = block_delay::supported_models()
+            .first()
+            .expect("block-delay must expose at least one model");
+        let options = (0..9)
+            .map(|index| delay_block(format!("chain:0:block:0::{index}"), model))
+            .collect::<Vec<_>>();
+
+        let block = AudioBlock {
+            id: BlockId("chain:0:block:0".into()),
+            enabled: true,
+            kind: AudioBlockKind::Select(SelectBlock {
+                selected_block_id: BlockId("chain:0:block:0::0".into()),
+                options,
+            }),
+        };
+
+        let error = block
+            .validate_params()
+            .expect_err("select with more than eight options should fail");
+
+        assert!(error.contains("up to 8 options"));
+    }
+
+    fn delay_block(id: impl Into<String>, model: &str) -> AudioBlock {
+        let schema = schema_for_block_model("delay", model).expect("delay schema");
+        let params = ParameterSet::default()
+            .normalized_against(&schema)
+            .expect("delay defaults should normalize");
+        AudioBlock {
+            id: BlockId(id.into()),
+            enabled: true,
+            kind: AudioBlockKind::Core(CoreBlock {
+                kind: CoreBlockKind::Delay(DelayBlock {
+                    model: model.to_string(),
+                    params,
+                }),
+            }),
+        }
+    }
+
+    fn reverb_block(id: impl Into<String>, model: &str) -> AudioBlock {
+        let schema = schema_for_block_model("reverb", model).expect("reverb schema");
+        let params = ParameterSet::default()
+            .normalized_against(&schema)
+            .expect("reverb defaults should normalize");
+        AudioBlock {
+            id: BlockId(id.into()),
+            enabled: true,
+            kind: AudioBlockKind::Core(CoreBlock {
+                kind: CoreBlockKind::Reverb(ReverbBlock {
+                    model: model.to_string(),
+                    params,
+                }),
+            }),
         }
     }
 }

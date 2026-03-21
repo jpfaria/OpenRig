@@ -56,6 +56,7 @@ enum AudioProcessor {
 }
 
 enum ProcessorScratch {
+    None,
     Mono(Vec<f32>),
     DualMono { left: Vec<f32>, right: Vec<f32> },
     Stereo(Vec<[f32; 2]>),
@@ -178,6 +179,8 @@ struct ChainOutputState {
 enum RuntimeProcessor {
     Audio(AudioProcessor),
     Tuner(Box<dyn TunerProcessor>),
+    Select(SelectRuntimeState),
+    Bypass,
 }
 
 struct BlockRuntimeNode {
@@ -191,9 +194,28 @@ struct BlockRuntimeNode {
     processor: RuntimeProcessor,
 }
 
+struct SelectRuntimeState {
+    selected_block_id: BlockId,
+    options: Vec<BlockRuntimeNode>,
+}
+
 struct ProcessorBuildOutcome {
     processor: AudioProcessor,
     output_layout: AudioChannelLayout,
+}
+
+impl SelectRuntimeState {
+    fn selected_node(&self) -> Option<&BlockRuntimeNode> {
+        self.options
+            .iter()
+            .find(|option| option.block_id == self.selected_block_id)
+    }
+
+    fn selected_node_mut(&mut self) -> Option<&mut BlockRuntimeNode> {
+        self.options
+            .iter_mut()
+            .find(|option| option.block_id == self.selected_block_id)
+    }
 }
 
 pub struct RuntimeGraph {
@@ -316,6 +338,22 @@ fn build_runtime_block_nodes(
         if !block.enabled {
             continue;
         }
+        if let AudioBlockKind::Select(select) = &block.kind {
+            let existing_select_node = reusable_nodes
+                .remove(&block.id)
+                .filter(|node| node.input_layout == current_layout);
+            let node = build_select_runtime_node(
+                chain,
+                block,
+                select,
+                current_layout,
+                sample_rate,
+                existing_select_node,
+            )?;
+            current_layout = node.output_layout;
+            blocks.push(node);
+            continue;
+        }
         if let Some(node) = try_reuse_block_node(&mut reusable_nodes, block, current_layout) {
             current_layout = node.output_layout;
             blocks.push(node);
@@ -350,10 +388,11 @@ fn build_block_runtime_node(
     sample_rate: f32,
 ) -> Result<BlockRuntimeNode> {
     Ok(match &block.kind {
+        _ if !block.enabled => bypass_runtime_node(block, input_layout),
         AudioBlockKind::Nam(stage) => audio_block_runtime_node(
             block,
             input_layout,
-            build_nam_audio_processor(chain, stage, input_layout, "nam")?,
+            build_nam_audio_processor(chain, stage, input_layout)?,
         ),
         AudioBlockKind::Core(core) => match &core.kind {
             CoreBlockKind::AmpHead(stage) => audio_block_runtime_node(
@@ -462,9 +501,92 @@ fn build_block_runtime_node(
             ),
         },
         AudioBlockKind::Select(select) => {
-            audio_block_runtime_node(block, input_layout, load_selected_nam(chain, select, input_layout)?)
+            build_select_runtime_node(chain, block, select, input_layout, sample_rate, None)?
         }
     })
+}
+
+fn build_select_runtime_node(
+    chain: &Chain,
+    block: &project::block::AudioBlock,
+    select: &SelectBlock,
+    input_layout: AudioChannelLayout,
+    sample_rate: f32,
+    existing: Option<BlockRuntimeNode>,
+) -> Result<BlockRuntimeNode> {
+    let (instance_serial, mut reusable_option_nodes) = match existing {
+        Some(node) => {
+            let instance_serial = node.instance_serial;
+            let options = match node.processor {
+                RuntimeProcessor::Select(select_runtime) => select_runtime
+                    .options
+                    .into_iter()
+                    .map(|option| (option.block_id.clone(), option))
+                    .collect::<HashMap<_, _>>(),
+                _ => HashMap::new(),
+            };
+            (instance_serial, options)
+        }
+        None => (next_block_instance_serial(), HashMap::new()),
+    };
+
+    let mut option_nodes = Vec::with_capacity(select.options.len());
+    let mut resolved_output_layout = None;
+    for option in &select.options {
+        let option_node = if let Some(node) =
+            try_reuse_block_node(&mut reusable_option_nodes, option, input_layout)
+        {
+            node
+        } else {
+            build_block_runtime_node(chain, option, input_layout, sample_rate)?
+        };
+        if let Some(existing_layout) = resolved_output_layout {
+            if existing_layout != option_node.output_layout {
+                return Err(anyhow!(
+                    "chain '{}' select block '{}' mixes incompatible output layouts across options",
+                    chain.id.0,
+                    block.id.0
+                ));
+            }
+        } else {
+            resolved_output_layout = Some(option_node.output_layout);
+        }
+        option_nodes.push(option_node);
+    }
+
+    let output_layout = option_nodes
+        .iter()
+        .find(|option| option.block_id == select.selected_block_id)
+        .map(|option| option.output_layout)
+        .ok_or_else(|| anyhow!("chain '{}' select block references unknown option", chain.id.0))?;
+
+    Ok(BlockRuntimeNode {
+        instance_serial,
+        block_id: block.id.clone(),
+        block_snapshot: block.clone(),
+        input_layout,
+        output_layout,
+        scratch: ProcessorScratch::None,
+        processor: RuntimeProcessor::Select(SelectRuntimeState {
+            selected_block_id: select.selected_block_id.clone(),
+            options: option_nodes,
+        }),
+    })
+}
+
+fn bypass_runtime_node(
+    block: &project::block::AudioBlock,
+    input_layout: AudioChannelLayout,
+) -> BlockRuntimeNode {
+    BlockRuntimeNode {
+        instance_serial: next_block_instance_serial(),
+        block_id: block.id.clone(),
+        block_snapshot: block.clone(),
+        input_layout,
+        output_layout: input_layout,
+        scratch: ProcessorScratch::None,
+        processor: RuntimeProcessor::Bypass,
+    }
 }
 
 fn audio_block_runtime_node(
@@ -608,9 +730,11 @@ fn build_nam_audio_processor(
     chain: &Chain,
     stage: &NamBlock,
     input_layout: AudioChannelLayout,
-    label: &str,
 ) -> Result<ProcessorBuildOutcome> {
-    let _ = (label, optional_string(&stage.params, "ir_path"), required_string(&stage.params, "model_path")?);
+    let _ = (
+        optional_string(&stage.params, "ir_path"),
+        required_string(&stage.params, "model_path")?,
+    );
     build_audio_processor_for_model(chain, "nam", &stage.model, input_layout, |layout| {
         build_nam_processor_for_layout(&stage.model, &stage.params, layout)
     })
@@ -664,34 +788,6 @@ fn optional_string(params: &ParameterSet, path: &str) -> Option<String> {
         .map(ToString::to_string)
 }
 
-fn load_selected_nam(
-    chain: &Chain,
-    select: &SelectBlock,
-    input_layout: AudioChannelLayout,
-) -> Result<ProcessorBuildOutcome> {
-    let selected = select
-        .options
-        .iter()
-        .find(|option| option.id == select.selected_block_id)
-        .ok_or_else(|| {
-            anyhow!(
-                "chain '{}' select block references unknown option",
-                chain.id.0
-            )
-        })?;
-
-    match &selected.kind {
-        AudioBlockKind::Nam(stage) => {
-            build_nam_audio_processor(chain, stage, input_layout, "selected NAM")
-        }
-        other => Err(anyhow!(
-            "chain '{}' select block chose unsupported option: {:?}",
-            chain.id.0,
-            other
-        )),
-    }
-}
-
 pub fn process_input_f32(runtime: &Arc<ChainRuntimeState>, data: &[f32], input_total_channels: usize) {
     let num_frames = data.len() / input_total_channels;
     let mut processing = runtime.processing.lock().expect("chain runtime poisoned");
@@ -702,9 +798,7 @@ pub fn process_input_f32(runtime: &Arc<ChainRuntimeState>, data: &[f32], input_t
         frame_buffer,
         tuner_samples,
     } = &mut *processing;
-    let tuner_enabled = blocks
-        .iter()
-        .any(|block| matches!(block.processor, RuntimeProcessor::Tuner(_)));
+    let tuner_enabled = blocks.iter().any(block_has_active_tuner);
 
     frame_buffer.clear();
     let frame_buffer_additional = num_frames.saturating_sub(frame_buffer.capacity());
@@ -730,21 +824,58 @@ pub fn process_input_f32(runtime: &Arc<ChainRuntimeState>, data: &[f32], input_t
 
     if tuner_enabled && !tuner_samples.is_empty() {
         for block in blocks.iter_mut() {
-            if let RuntimeProcessor::Tuner(tuner) = &mut block.processor {
-                tuner.process(tuner_samples);
-            }
+            process_tuners(block, tuner_samples);
         }
     }
 
     for block in blocks.iter_mut() {
-        if let RuntimeProcessor::Audio(processor) = &mut block.processor {
-            processor.process_buffer(frame_buffer.as_mut_slice(), &mut block.scratch);
-        }
+        process_audio_block(block, frame_buffer.as_mut_slice());
     }
 
     let mut output = runtime.output.lock().expect("chain runtime poisoned");
     output.processed_frames.extend(frame_buffer.drain(..));
     trim_output_queue(&mut output.processed_frames);
+}
+
+fn block_has_active_tuner(block: &BlockRuntimeNode) -> bool {
+    match &block.processor {
+        RuntimeProcessor::Tuner(_) => true,
+        RuntimeProcessor::Select(select) => select
+            .selected_node()
+            .map(block_has_active_tuner)
+            .unwrap_or(false),
+        RuntimeProcessor::Audio(_) | RuntimeProcessor::Bypass => false,
+    }
+}
+
+fn process_tuners(block: &mut BlockRuntimeNode, tuner_samples: &[f32]) {
+    match &mut block.processor {
+        RuntimeProcessor::Tuner(tuner) => {
+            if !tuner_samples.is_empty() {
+                tuner.process(tuner_samples);
+            }
+        }
+        RuntimeProcessor::Select(select) => {
+            if let Some(selected) = select.selected_node_mut() {
+                process_tuners(selected, tuner_samples);
+            }
+        }
+        RuntimeProcessor::Audio(_) | RuntimeProcessor::Bypass => {}
+    }
+}
+
+fn process_audio_block(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame]) {
+    match &mut block.processor {
+        RuntimeProcessor::Audio(processor) => {
+            processor.process_buffer(frames, &mut block.scratch);
+        }
+        RuntimeProcessor::Select(select) => {
+            if let Some(selected) = select.selected_node_mut() {
+                process_audio_block(selected, frames);
+            }
+        }
+        RuntimeProcessor::Tuner(_) | RuntimeProcessor::Bypass => {}
+    }
 }
 
 pub fn process_output_f32(
@@ -873,6 +1004,7 @@ mod tests {
     };
     use block_amp_head::supported_models as supported_amp_head_models;
     use block_cab::{cab_backend_kind, supported_models as supported_cab_models, CabBackendKind};
+    use block_delay::supported_models as supported_delay_models;
     use block_dyn::compressor_supported_models;
     use block_reverb::supported_models as supported_reverb_models;
     use block_util::supported_models as supported_tuner_models;
@@ -880,7 +1012,7 @@ mod tests {
     use domain::value_objects::ParameterValue;
     use project::block::{
         AmpHeadBlock, AudioBlock, AudioBlockKind, CabBlock, CompressorBlock, CoreBlock,
-        CoreBlockKind, ReverbBlock, TunerBlock, schema_for_block_model,
+        CoreBlockKind, DelayBlock, ReverbBlock, SelectBlock, TunerBlock, schema_for_block_model,
     };
     use project::param::ParameterSet;
     use project::project::Project;
@@ -1158,6 +1290,42 @@ mod tests {
         );
     }
 
+    #[test]
+    fn select_block_builds_for_generic_delay_options() {
+        let chain = select_delay_chain("chain:select", "delay_a");
+
+        let runtime =
+            build_chain_runtime_state(&chain, 48_000.0).expect("select delay chain should build");
+
+        let locked = runtime.processing.lock().expect("runtime poisoned");
+        assert_eq!(locked.blocks.len(), 1);
+    }
+
+    #[test]
+    fn update_chain_runtime_state_preserves_select_instance_when_switching_active_option() {
+        let mut chain = select_delay_chain("chain:select", "delay_a");
+        let runtime =
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"));
+        let original_serial = {
+            let locked = runtime.processing.lock().expect("runtime poisoned");
+            locked.blocks[0].instance_serial
+        };
+
+        if let AudioBlockKind::Select(select) = &mut chain.blocks[0].kind {
+            select.selected_block_id = BlockId("chain:select:block:0::delay_b".into());
+        }
+
+        update_chain_runtime_state(&runtime, &chain, 48_000.0, false)
+            .expect("runtime update should succeed when switching select option");
+
+        let updated_serial = {
+            let locked = runtime.processing.lock().expect("runtime poisoned");
+            locked.blocks[0].instance_serial
+        };
+
+        assert_eq!(updated_serial, original_serial);
+    }
+
     fn tuner_track(chain_id: &str, blocks: Vec<AudioBlock>) -> Chain {
         Chain {
             id: ChainId(chain_id.into()),
@@ -1315,6 +1483,51 @@ mod tests {
                 kind: CoreBlockKind::Reverb(ReverbBlock {
                     params: normalized_defaults("reverb", &model),
                     model,
+                }),
+            }),
+        }
+    }
+
+    fn select_delay_chain(id: &str, selected_option: &str) -> Chain {
+        let models = supported_delay_models();
+        let first_model = models
+            .first()
+            .expect("block-delay must expose at least one model");
+        let second_model = models.get(1).unwrap_or(first_model);
+
+        Chain {
+            id: ChainId(id.into()),
+            description: Some("Delay select".into()),
+            enabled: true,
+            input_device_id: DeviceId("input-device".into()),
+            input_channels: vec![0],
+            output_device_id: DeviceId("output-device".into()),
+            output_channels: vec![0],
+            blocks: vec![AudioBlock {
+                id: BlockId(format!("{id}:block:0")),
+                enabled: true,
+                kind: AudioBlockKind::Select(SelectBlock {
+                    selected_block_id: BlockId(format!("{id}:block:0::{selected_option}")),
+                    options: vec![
+                        delay_block(format!("{id}:block:0::delay_a"), first_model, 120.0),
+                        delay_block(format!("{id}:block:0::delay_b"), second_model, 240.0),
+                    ],
+                }),
+            }],
+            output_mixdown: ChainOutputMixdown::Average,
+        }
+    }
+
+    fn delay_block(id: impl Into<String>, model: &str, time_ms: f32) -> AudioBlock {
+        let mut params = normalized_defaults("delay", model);
+        params.insert("time_ms", ParameterValue::Float(time_ms));
+        AudioBlock {
+            id: BlockId(id.into()),
+            enabled: true,
+            kind: AudioBlockKind::Core(CoreBlock {
+                kind: CoreBlockKind::Delay(DelayBlock {
+                    params,
+                    model: model.to_string(),
                 }),
             }),
         }

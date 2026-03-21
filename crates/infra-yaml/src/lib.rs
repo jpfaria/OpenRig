@@ -12,7 +12,6 @@ use project::project::Project;
 use project::chain::{Chain, ChainOutputMixdown};
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
-use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -363,29 +362,24 @@ enum AudioBlockYaml {
     Select {
         #[serde(default = "default_enabled")]
         enabled: bool,
-        id: String,
         selected: String,
-        options: HashMap<String, SelectOptionYaml>,
+        options: Vec<SelectOptionYaml>,
     },
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-enum SelectOptionYaml {
-    Nam {
-        #[serde(default = "default_enabled")]
-        enabled: bool,
-        #[serde(default = "default_nam_model")]
-        model: String,
-        #[serde(default)]
-        params: Value,
-    },
+struct SelectOptionYaml {
+    id: String,
+    #[serde(flatten)]
+    block: AudioBlockYaml,
 }
 
 impl AudioBlockYaml {
     fn into_audio_block(self, chain_id: &ChainId, index: usize) -> Result<AudioBlock> {
-        let generated_id = generated_block_id(chain_id, index);
+        self.into_audio_block_with_id(generated_block_id(chain_id, index))
+    }
 
+    fn into_audio_block_with_id(self, generated_id: BlockId) -> Result<AudioBlock> {
         match self {
             AudioBlockYaml::AmpHead {
                 enabled,
@@ -580,34 +574,21 @@ impl AudioBlockYaml {
             }),
             AudioBlockYaml::Select {
                 enabled,
-                id,
                 selected,
                 options,
             } => {
-                let selected_block_id = BlockId(format!("{}::{}", id, selected));
+                let select_prefix = generated_id.0.clone();
+                let selected_block_id = BlockId(format!("{}::{}", select_prefix, selected));
                 let options = options
                     .into_iter()
-                    .map(|(name, option)| {
-                        let option_id = BlockId(format!("{}::{}", id, name));
-                        match option {
-                            SelectOptionYaml::Nam {
-                                enabled,
-                                model,
-                                params,
-                            } => Ok(AudioBlock {
-                                id: option_id,
-                                enabled,
-                                kind: AudioBlockKind::Nam(NamBlock {
-                                    model: model.clone(),
-                                    params: load_model_params("nam", &model, params)?,
-                                }),
-                            }),
-                        }
+                    .map(|option| {
+                        let option_id = BlockId(format!("{}::{}", select_prefix, option.id));
+                        option.block.into_audio_block_with_id(option_id)
                     })
                     .collect::<Result<Vec<_>>>()?;
 
                 Ok(AudioBlock {
-                    id: BlockId(id),
+                    id: generated_id,
                     enabled,
                     kind: AudioBlockKind::Select(SelectBlock {
                         selected_block_id,
@@ -698,46 +679,38 @@ impl AudioBlockYaml {
                 }),
             },
             AudioBlockKind::Select(select) => {
-                let id = block.id.0.clone();
                 let selected = select
                     .selected_block_id
                     .0
-                    .rsplit("::")
-                    .next()
+                    .strip_prefix(&format!("{}::", block.id.0))
                     .unwrap_or(select.selected_block_id.0.as_str())
                     .to_string();
-                let mut options = HashMap::new();
-                for option in &select.options {
-                    let name = option
-                        .id
-                        .0
-                        .rsplit("::")
-                        .next()
-                        .unwrap_or(option.id.0.as_str())
-                        .to_string();
-                    match &option.kind {
-                        AudioBlockKind::Nam(stage) => {
-                            options.insert(
-                                name,
-                                SelectOptionYaml::Nam {
-                                    enabled: option.enabled,
-                                    model: stage.model.clone(),
-                                    params: parameter_set_to_yaml_value(&stage.params),
-                                },
-                            );
-                        }
-                        unsupported => {
-                            return Err(anyhow!(
-                                "unsupported select option kind for yaml export: {:?}",
-                                unsupported
-                            ));
-                        }
-                    }
-                }
+                let options = select
+                    .options
+                    .iter()
+                    .enumerate()
+                    .map(|(index, option)| {
+                        Ok(SelectOptionYaml {
+                            id: option
+                                .id
+                                .0
+                                .strip_prefix(&format!("{}::", block.id.0))
+                                .unwrap_or(option.id.0.as_str())
+                                .to_string(),
+                            block: AudioBlockYaml::from_audio_block(option)
+                                .with_context(|| {
+                                    format!(
+                                        "failed to serialize select option {} for block '{}'",
+                                        index,
+                                        block.id.0
+                                    )
+                                })?,
+                        })
+                    })
+                    .collect::<Result<Vec<_>>>()?;
 
                 Ok(Self::Select {
                     enabled: block.enabled,
-                    id,
                     selected,
                     options,
                 })
@@ -998,8 +971,14 @@ const fn default_enabled() -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{load_chain_preset_file, YamlProjectRepository};
-    use domain::ids::{DeviceId, ChainId};
+    use super::{
+        load_chain_preset_file, save_chain_preset_file, ChainBlocksPreset, YamlProjectRepository,
+    };
+    use domain::ids::{BlockId, DeviceId, ChainId};
+    use project::block::{
+        AudioBlock, AudioBlockKind, CoreBlock, CoreBlockKind, DelayBlock, SelectBlock,
+    };
+    use project::param::ParameterSet;
     use project::project::Project;
     use project::chain::{Chain, ChainOutputMixdown};
     use std::fs;
@@ -1154,5 +1133,125 @@ blocks:
                 .model,
             *valid_delay_model
         );
+    }
+
+    #[test]
+    fn load_project_supports_generic_select_options() {
+        let temp_dir = tempdir().expect("temp dir should be created");
+        let project_path = temp_dir.path().join("project.yaml");
+        let delay_models = block_delay::supported_models();
+        let first_model = delay_models
+            .first()
+            .expect("block-delay must expose at least one model");
+        let second_model = delay_models
+            .get(1)
+            .unwrap_or(first_model);
+
+        fs::write(
+            &project_path,
+            format!(
+                r#"
+chains:
+  - enabled: true
+    input_device_id: input-device
+    input_channels: [0]
+    output_device_id: output-device
+    output_channels: [0]
+    blocks:
+      - type: select
+        enabled: true
+        selected: delay_b
+        options:
+          - id: delay_a
+            type: delay
+            model: {first_model}
+            params:
+              time_ms: 120
+              feedback: 0.2
+              mix: 0.3
+          - id: delay_b
+            type: delay
+            model: {second_model}
+            params:
+              time_ms: 240
+              feedback: 0.4
+              mix: 0.25
+"#,
+            ),
+        )
+        .expect("project yaml should be written");
+
+        let repository = YamlProjectRepository { path: project_path };
+        let project = repository
+            .load_current_project()
+            .expect("project should load generic select blocks");
+
+        let select = match &project.chains[0].blocks[0].kind {
+            AudioBlockKind::Select(select) => select,
+            other => panic!("expected select block, got {:?}", other),
+        };
+        assert_eq!(select.options.len(), 2);
+        assert_eq!(select.selected_block_id.0, "chain:0:block:0::delay_b");
+    }
+
+    #[test]
+    fn preset_roundtrips_generic_select_options() {
+        let temp_dir = tempdir().expect("temp dir should be created");
+        let preset_path: PathBuf = temp_dir.path().join("select.yaml");
+        let delay_models = block_delay::supported_models();
+        let first_model = delay_models
+            .first()
+            .expect("block-delay must expose at least one model");
+        let second_model = delay_models
+            .get(1)
+            .unwrap_or(first_model);
+        let preset = ChainBlocksPreset {
+            id: "select".into(),
+            name: Some("Delay Select".into()),
+            blocks: vec![AudioBlock {
+                id: BlockId("preset:select:block:0".into()),
+                enabled: true,
+                kind: AudioBlockKind::Select(SelectBlock {
+                    selected_block_id: BlockId("preset:select:block:0::delay_b".into()),
+                    options: vec![
+                        delay_block("preset:select:block:0::delay_a", first_model, 120.0),
+                        delay_block("preset:select:block:0::delay_b", second_model, 240.0),
+                    ],
+                }),
+            }],
+        };
+
+        save_chain_preset_file(&preset_path, &preset).expect("preset save should succeed");
+        let raw = fs::read_to_string(&preset_path).expect("saved preset should be readable");
+        assert!(raw.contains("type: select"));
+        assert!(raw.contains("- id: delay_a"));
+        assert!(raw.contains("- id: delay_b"));
+
+        let loaded = load_chain_preset_file(&preset_path).expect("preset should reload");
+        let select = match &loaded.blocks[0].kind {
+            AudioBlockKind::Select(select) => select,
+            other => panic!("expected select block, got {:?}", other),
+        };
+        assert_eq!(select.selected_block_id.0, "preset:select:block:0::delay_b");
+        assert_eq!(select.options.len(), 2);
+    }
+
+    fn delay_block(id: impl Into<String>, model: &str, time_ms: f32) -> AudioBlock {
+        let schema =
+            project::block::schema_for_block_model("delay", model).expect("delay schema exists");
+        let mut params = ParameterSet::default()
+            .normalized_against(&schema)
+            .expect("delay defaults should normalize");
+        params.insert("time_ms", domain::value_objects::ParameterValue::Float(time_ms));
+        AudioBlock {
+            id: BlockId(id.into()),
+            enabled: true,
+            kind: AudioBlockKind::Core(CoreBlock {
+                kind: CoreBlockKind::Delay(DelayBlock {
+                    model: model.to_string(),
+                    params,
+                }),
+            }),
+        }
     }
 }
