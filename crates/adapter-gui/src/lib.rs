@@ -299,8 +299,8 @@ struct KnobInfo {
 fn knob_infos_for_model(model_id: &str) -> &'static [KnobInfo] {
     match model_id {
         "marshall_jcm_800_2203" => &[
-            KnobInfo { param_key: "volume",  svg_cx: 650.0, svg_cy: 110.0, svg_r: 24.0, min: 50.0, max: 70.0,  step: 10.0 },
-            KnobInfo { param_key: "gain",    svg_cx: 730.0, svg_cy: 110.0, svg_r: 24.0, min: 10.0, max: 100.0, step: 10.0 },
+            KnobInfo { param_key: "volume",  svg_cx: 650.0, svg_cy: 110.0, svg_r: 25.0, min: 50.0, max: 70.0,  step: 10.0 },
+            KnobInfo { param_key: "gain",    svg_cx: 730.0, svg_cy: 110.0, svg_r: 25.0, min: 10.0, max: 100.0, step: 10.0 },
         ],
         "american_clean" | "brit_crunch" | "modern_high_gain" => &[
             KnobInfo { param_key: "input_db",  svg_cx: 44.0,  svg_cy: 90.0, svg_r: 16.0, min: -18.0, max: 18.0,  step: 0.5 },
