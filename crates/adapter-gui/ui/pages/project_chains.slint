@@ -1032,7 +1032,7 @@ component ChainRow inherits Rectangle {
     property <bool> suppress-insert-hover: false;
     property <int> last-block-col: root.chain.blocks.length == 0 ? 0 : Math.mod(root.chain.blocks.length - 1, root.blocks-per-row);
     property <int> last-block-row: root.chain.blocks.length == 0 ? 0 : Math.floor((root.chain.blocks.length - 1) / root.blocks-per-row);
-    property <length> out-chip-x: root.chain.blocks.length == 0 ? 88px : (220px + root.last-block-col * 116px);
+    property <length> out-chip-x: root.chain.blocks.length == 0 ? 120px : (260px + root.last-block-col * 116px);
     property <length> out-chip-y: root.last-block-row * 92px + 26px;
     out property <bool> any-chip-hovered: in-chip.is-hovered || out-chip.is-hovered;
 
