@@ -57,7 +57,7 @@ component ChannelRow inherits Rectangle {
 export component ChainEndpointEditorPage inherits Rectangle {
     in property <string> title;
     in property <[string]> device-options;
-    in property <int> selected-device-index;
+    in-out property <int> selected-device-index;
     in property <[ChannelOptionItem]> channels;
     in-out property <string> status-message;
     callback select-device(int);
@@ -102,7 +102,7 @@ export component ChainEndpointEditorPage inherits Rectangle {
             width: parent.width - 36px;
             height: 36px;
             model: root.device-options;
-            current-index: root.selected-device-index;
+            current-index <=> root.selected-device-index;
             selected(value) => { root.select-device(self.current-index); }
         }
 

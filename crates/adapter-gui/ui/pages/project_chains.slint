@@ -661,7 +661,7 @@ component ChainEndpointChip inherits Rectangle {
 
     if hover-area.has-hover && root.tooltip != "" : Rectangle {
         x: root.label == "In" ? 0px : parent.width - 312px;
-        y: -112px;
+        y: 36px;
         width: 312px;
         height: 92px;
         background: #0e1218f7;
@@ -868,8 +868,8 @@ component BlockChip inherits Rectangle {
 
     width: 84px;
     height: 84px;
-    background: transparent;
-    border-width: hover-area.has-hover || (root.selected && !root.dragging) ? 3px : 2px;
+    background: #17191d;
+    border-width: hover-area.has-hover ? 3px : 2px;
     border-color: root.dragging ? #8b95a5 : root.accent-color;
     border-radius: 6px;
     opacity: root.block.enabled ? 1 : 0.42;
@@ -881,7 +881,7 @@ component BlockChip inherits Rectangle {
         height: parent.height - 4px;
         source: root.icon-source;
         image-fit: contain;
-        colorize: root.dragging ? #8b95a5 : root.selected ? root.accent-color : #f3f6fb;
+        colorize: root.dragging ? #8b95a5 : #f3f6fb;
     }
 
     Text {
@@ -890,7 +890,7 @@ component BlockChip inherits Rectangle {
         width: parent.width - 16px;
         height: 14px;
         text: root.block-type-label;
-        color: root.dragging ? #8b95a5 : root.selected ? root.accent-color : #f3f6fb;
+        color: root.dragging ? #8b95a5 : #f3f6fb;
         font-size: 10px;
         font-weight: 900;
         vertical-alignment: center;
@@ -1122,12 +1122,14 @@ component ChainRow inherits Rectangle {
             }
         }
 
-        ChainEndpointChip {
-            x: 0px;
-            y: 26px;
-            label: root.chain.input_label;
-            tooltip: root.chain.input_tooltip;
-            clicked => { root.configure-chain-input(root.chain-index); }
+        // Connecting line from In chip to Out chip
+        Rectangle {
+            x: 64px;
+            y: 41px;
+            width: parent.width - 128px;
+            height: 2px;
+            background: #3b4250;
+            border-radius: 1px;
         }
 
         BlockInsertSlot {
@@ -1229,6 +1231,14 @@ component ChainRow inherits Rectangle {
         }
 
         ChainEndpointChip {
+            x: 0px;
+            y: 26px;
+            label: root.chain.input_label;
+            tooltip: root.chain.input_tooltip;
+            clicked => { root.configure-chain-input(root.chain-index); }
+        }
+
+        ChainEndpointChip {
             x: parent.width - 64px;
             y: 26px;
             label: root.chain.output_label;
@@ -1248,7 +1258,7 @@ export component BlockEditorPanel inherits Rectangle {
     in property <string> block-drawer-status-message;
     in property <bool> block-drawer-edit-mode;
     in property <int> block-drawer-selected-type-index;
-    in property <int> block-drawer-selected-model-index;
+    in-out property <int> block-drawer-selected-model-index;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
     callback choose-block-model(int);
@@ -1361,7 +1371,7 @@ export component BlockEditorPanel inherits Rectangle {
                 width: parent.width - 24px;
                 height: 34px;
                 model: root.block-model-option-labels;
-                current-index: root.block-drawer-selected-model-index;
+                current-index <=> root.block-drawer-selected-model-index;
                 selected(_) => { root.choose-block-model(self.current-index); }
             }
 
@@ -1435,7 +1445,7 @@ export component ProjectChainsPage inherits Rectangle {
     in property <string> block-drawer-status-message;
     in property <bool> block-drawer-edit-mode;
     in property <int> block-drawer-selected-type-index;
-    in property <int> block-drawer-selected-model-index;
+    in-out property <int> block-drawer-selected-model-index;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
     in-out property <string> status-message;
@@ -1692,7 +1702,7 @@ export component ProjectChainsPage inherits Rectangle {
             block-drawer-status-message: root.block-drawer-status-message;
             block-drawer-edit-mode: root.block-drawer-edit-mode;
             block-drawer-selected-type-index: root.block-drawer-selected-type-index;
-            block-drawer-selected-model-index: root.block-drawer-selected-model-index;
+            block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
             block-drawer-enabled: root.block-drawer-enabled;
             block-parameter-items: root.block-parameter-items;
             choose-block-model(index) => { root.choose-block-model(index); }

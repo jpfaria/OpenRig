@@ -80,7 +80,7 @@ export component ChainEditorWindow inherits Window {
 export component ChainInputWindow inherits Window {
     icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logomark.svg");
     in property <[string]> device-options;
-    in property <int> selected-device-index;
+    in-out property <int> selected-device-index;
     in property <[ChannelOptionItem]> channels;
     in-out property <string> status-message;
     callback select-device(int);
@@ -99,7 +99,7 @@ export component ChainInputWindow inherits Window {
         height: parent.height;
         title: "Entrada";
         device-options: root.device-options;
-        selected-device-index: root.selected-device-index;
+        selected-device-index <=> root.selected-device-index;
         channels: root.channels;
         status-message: root.status-message;
         select-device(index) => { root.select-device(index); }
@@ -112,7 +112,7 @@ export component ChainInputWindow inherits Window {
 export component ChainOutputWindow inherits Window {
     icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logomark.svg");
     in property <[string]> device-options;
-    in property <int> selected-device-index;
+    in-out property <int> selected-device-index;
     in property <[ChannelOptionItem]> channels;
     in-out property <string> status-message;
     callback select-device(int);
@@ -131,7 +131,7 @@ export component ChainOutputWindow inherits Window {
         height: parent.height;
         title: "Saída";
         device-options: root.device-options;
-        selected-device-index: root.selected-device-index;
+        selected-device-index <=> root.selected-device-index;
         channels: root.channels;
         status-message: root.status-message;
         select-device(index) => { root.select-device(index); }
@@ -151,7 +151,7 @@ export component BlockEditorWindow inherits Window {
     in property <string> block-drawer-status-message;
     in property <bool> block-drawer-edit-mode;
     in property <int> block-drawer-selected-type-index;
-    in property <int> block-drawer-selected-model-index;
+    in-out property <int> block-drawer-selected-model-index;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
     callback choose-block-model(int);
@@ -183,7 +183,7 @@ export component BlockEditorWindow inherits Window {
         block-drawer-status-message: root.block-drawer-status-message;
         block-drawer-edit-mode: root.block-drawer-edit-mode;
         block-drawer-selected-type-index: root.block-drawer-selected-type-index;
-        block-drawer-selected-model-index: root.block-drawer-selected-model-index;
+        block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
         block-drawer-enabled: root.block-drawer-enabled;
         block-parameter-items: root.block-parameter-items;
         choose-block-model(index) => { root.choose-block-model(index); }
@@ -244,7 +244,7 @@ export component AppWindow inherits Window {
     in property <string> block-drawer-status-message;
     in property <bool> block-drawer-edit-mode;
     in property <int> block-drawer-selected-type-index;
-    in property <int> block-drawer-selected-model-index;
+    in-out property <int> block-drawer-selected-model-index;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
     in property <[ChannelOptionItem]> chain-input-channels;
@@ -358,7 +358,7 @@ export component AppWindow inherits Window {
         block-drawer-status-message: root.block-drawer-status-message;
         block-drawer-edit-mode: root.block-drawer-edit-mode;
         block-drawer-selected-type-index: root.block-drawer-selected-type-index;
-        block-drawer-selected-model-index: root.block-drawer-selected-model-index;
+        block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
         block-drawer-enabled: root.block-drawer-enabled;
         block-parameter-items: root.block-parameter-items;
         chain-input-channels: root.chain-input-channels;
@@ -466,7 +466,7 @@ export component AppWindow inherits Window {
         block-drawer-status-message: root.block-drawer-status-message;
         block-drawer-edit-mode: root.block-drawer-edit-mode;
         block-drawer-selected-type-index: root.block-drawer-selected-type-index;
-        block-drawer-selected-model-index: root.block-drawer-selected-model-index;
+        block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
         block-drawer-enabled: root.block-drawer-enabled;
         block-parameter-items: root.block-parameter-items;
         chain-input-channels: root.chain-input-channels;

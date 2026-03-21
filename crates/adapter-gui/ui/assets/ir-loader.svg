@@ -1,9 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
-<rect x="16" y="16" width="224" height="224" rx="28" fill="#121212" stroke="#2F2F2F" stroke-width="4"/>
-
-<rect x="68" y="72" width="120" height="112" rx="12" stroke="#E8E8E8" stroke-width="10"/>
-<path d="M96 112C106 96 120 88 136 88C162 88 182 106 182 132C182 156 164 174 140 176" stroke="#E8E8E8" stroke-width="10" stroke-linecap="round"/>
-<path d="M102 154H152" stroke="#E8E8E8" stroke-width="10" stroke-linecap="round"/>
-<text x="128" y="210" fill="#8E8E8E" font-size="18" font-family="Arial" text-anchor="middle">IR LOADER</text>
-
+<path d="M88 76L88 180" stroke="#E8E8E8" stroke-width="12" stroke-linecap="round"/>
+<path d="M88 76L128 76L128 180L88 180" stroke="#E8E8E8" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M128 96C152 96 168 110 168 128C168 146 152 160 128 160" stroke="#E8E8E8" stroke-width="12" stroke-linecap="round"/>
+<path d="M128 112C142 112 152 119 152 128C152 137 142 144 128 144" stroke="#E8E8E8" stroke-width="10" stroke-linecap="round" opacity="0.6"/>
 </svg>
