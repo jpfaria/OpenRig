@@ -303,7 +303,7 @@ fn knob_infos_for_model(model_id: &str) -> &'static [KnobInfo] {
             KnobInfo { param_key: "gain",    svg_cx: 560.0, svg_cy: 100.0, svg_r: 30.0, min: 10.0, max: 100.0, step: 10.0 },
         ],
         "american_clean" | "brit_crunch" | "modern_high_gain" => &[
-            KnobInfo { param_key: "input_db",  svg_cx: 44.0,  svg_cy: 90.0, svg_r: 16.0, min: -18.0, max: 18.0,  step: 1.0 },
+            KnobInfo { param_key: "input_db",  svg_cx: 44.0,  svg_cy: 90.0, svg_r: 16.0, min: -18.0, max: 18.0,  step: 0.5 },
             KnobInfo { param_key: "gain",      svg_cx: 130.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
             KnobInfo { param_key: "bass",      svg_cx: 222.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
             KnobInfo { param_key: "middle",    svg_cx: 302.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
@@ -321,14 +321,16 @@ fn build_knob_overlays(model_id: &str, param_items: &[BlockParameterItem]) -> Ve
     knob_infos_for_model(model_id)
         .iter()
         .map(|info| {
-            let value = param_items
+            let found = param_items
                 .iter()
-                .find(|p| p.path.as_str() == info.param_key)
-                .map(|p| p.numeric_value)
-                .unwrap_or(info.min);
+                .find(|p| p.path.as_str() == info.param_key);
+            let value = found.map(|p| p.numeric_value).unwrap_or(info.min);
+            let label = found
+                .map(|p| p.label.to_string())
+                .unwrap_or_else(|| info.param_key.to_string());
             BlockKnobOverlay {
                 path: info.param_key.into(),
-                label: info.param_key.into(),
+                label: label.into(),
                 svg_cx: info.svg_cx,
                 svg_cy: info.svg_cy,
                 svg_r: info.svg_r,
