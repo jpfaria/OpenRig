@@ -1112,11 +1112,11 @@ component ChainRow inherits Rectangle {
             }
         }
 
-        // Connecting line - row 0: começa na borda direita do In chip (72px), vai até a borda direita
+        // Connecting line - row 0: termina no Out se for o único row, senão vai até a borda
         Rectangle {
             x: 72px;
             y: 41px;
-            width: parent.width - 72px;
+            width: root.block-row-count == 1 ? (root.out-chip-x - 72px) : (parent.width - 72px);
             height: 2px;
             background: #3b4250;
             border-radius: 1px;
@@ -1126,7 +1126,7 @@ component ChainRow inherits Rectangle {
         if root.block-row-count > 1 : Rectangle {
             x: 0px;
             y: 133px;
-            width: parent.width;
+            width: root.block-row-count == 2 ? root.out-chip-x : parent.width;
             height: 2px;
             background: #3b4250;
             border-radius: 1px;
@@ -1146,7 +1146,7 @@ component ChainRow inherits Rectangle {
         if root.block-row-count > 2 : Rectangle {
             x: 0px;
             y: 225px;
-            width: parent.width;
+            width: root.block-row-count == 3 ? root.out-chip-x : parent.width;
             height: 2px;
             background: #3b4250;
             border-radius: 1px;
@@ -1162,11 +1162,11 @@ component ChainRow inherits Rectangle {
             border-radius: 1px;
         }
 
-        // Connecting line - row 3
+        // Connecting line - row 3 (sempre o último se existir)
         if root.block-row-count > 3 : Rectangle {
             x: 0px;
             y: 317px;
-            width: parent.width;
+            width: root.out-chip-x;
             height: 2px;
             background: #3b4250;
             border-radius: 1px;
