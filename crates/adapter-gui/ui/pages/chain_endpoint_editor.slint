@@ -59,15 +59,9 @@ export component ChainEndpointEditorPage inherits Rectangle {
     in property <[string]> device-options;
     in property <int> selected-device-index;
     in property <[ChannelOptionItem]> channels;
-    in property <[string]> sample-rate-options;
-    in property <[string]> buffer-size-options;
-    in property <int> selected-sample-rate-index;
-    in property <int> selected-buffer-size-index;
     in-out property <string> status-message;
     callback select-device(int);
     callback toggle-channel(int, bool);
-    callback select-sample-rate(string);
-    callback select-buffer-size(string);
     callback save();
     callback cancel();
 
@@ -112,31 +106,11 @@ export component ChainEndpointEditorPage inherits Rectangle {
             selected(value) => { root.select-device(self.current-index); }
         }
 
-        ComboBox {
-            x: 18px;
-            y: 138px;
-            width: 140px;
-            height: 34px;
-            model: root.sample-rate-options;
-            current-index: root.selected-sample-rate-index;
-            selected(value) => { root.select-sample-rate(value); }
-        }
-
-        ComboBox {
-            x: 176px;
-            y: 138px;
-            width: 140px;
-            height: 34px;
-            model: root.buffer-size-options;
-            current-index: root.selected-buffer-size-index;
-            selected(value) => { root.select-buffer-size(value); }
-        }
-
         ScrollView {
             x: 18px;
-            y: 190px;
+            y: 138px;
             width: parent.width - 36px;
-            height: parent.height - 280px;
+            height: parent.height - 228px;
             viewport-width: self.width;
             viewport-height: Math.max(self.height, root.channels.length * 46px);
 

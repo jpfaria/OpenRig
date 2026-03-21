@@ -359,7 +359,7 @@ component BlockTypeCard inherits Rectangle {
         : root.item.effect_type == "cab" ? #f2cb54
         : root.item.effect_type == "ir" ? #7cc9ff
         : root.item.effect_type == "full_rig" ? #63d2ff
-        : root.item.effect_type == "drive" ? #ff6a57
+        : root.item.effect_type == "gain" ? #ff6a57
         : root.item.effect_type == "dynamics" ? #41b8ff
         : root.item.effect_type == "filter" ? #d6c85a
         : root.item.effect_type == "wah" ? #78d06b
@@ -660,27 +660,49 @@ component ChainEndpointChip inherits Rectangle {
     }
 
     if hover-area.has-hover && root.tooltip != "" : Rectangle {
-        x: -42px;
-        y: -42px;
-        width: 148px;
-        height: 34px;
-        background: #11141ad9;
+        x: root.label == "In" ? 0px : parent.width - 312px;
+        y: -112px;
+        width: 312px;
+        height: 92px;
+        background: #0e1218f7;
         border-width: 1px;
-        border-color: #3b4250;
-        border-radius: 4px;
-        z: 60;
+        border-color: #4d5868;
+        border-radius: 8px;
+        z: 300;
+
+        Rectangle {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: 26px;
+            background: #171d26;
+            border-width: 0px;
+
+            Text {
+                x: 12px;
+                y: 0px;
+                width: parent.width - 24px;
+                height: parent.height;
+                text: root.label == "In" ? "Entrada" : "Saída";
+                color: #edf2f9;
+                font-size: 12px;
+                font-weight: 800;
+                vertical-alignment: center;
+            }
+        }
 
         Text {
-            x: 6px;
-            width: parent.width - 12px;
-            height: parent.height;
+            x: 12px;
+            y: 34px;
+            width: parent.width - 24px;
+            height: parent.height - 42px;
             text: root.tooltip;
-            color: #eef2f8;
-            font-size: 10px;
+            color: #dfe6f0;
+            font-size: 11px;
             font-weight: 700;
             wrap: word-wrap;
-            horizontal-alignment: center;
-            vertical-alignment: center;
+            horizontal-alignment: left;
+            vertical-alignment: top;
         }
     }
 }
@@ -819,36 +841,23 @@ component BlockChip inherits Rectangle {
     in property <bool> selected: false;
     in property <image> icon-source;
     in property <bool> dragging: false;
-    property <color> accent-color: root.block.kind == "amp_head" ? #f29f38
-        : root.block.kind == "amp_combo" ? #f06292
-        : root.block.kind == "cab" ? #f2cb54
-        : root.block.kind == "ir" ? #7cc9ff
-        : root.block.kind == "full_rig" ? #63d2ff
-        : root.block.kind == "drive" ? #ff6a57
-        : root.block.kind == "dynamics" ? #41b8ff
-        : root.block.kind == "filter" ? #d6c85a
-        : root.block.kind == "wah" ? #78d06b
-        : root.block.kind == "modulation" ? #58d39b
-        : root.block.kind == "delay" ? #ba8cff
-        : root.block.kind == "reverb" ? #6de1d2
-        : root.block.kind == "utility" ? #95a0b2
-        : root.block.kind == "nam" ? #ff7cd7
+    property <color> accent-color: root.block.icon_kind == "amp_head" ? #f29f38
+        : root.block.icon_kind == "amp_combo" ? #f06292
+        : root.block.icon_kind == "cab" ? #f2cb54
+        : root.block.icon_kind == "ir" ? #7cc9ff
+        : root.block.icon_kind == "full_rig" ? #63d2ff
+        : root.block.icon_kind == "gain" ? #ff6a57
+        : root.block.icon_kind == "dynamics" ? #41b8ff
+        : root.block.icon_kind == "filter" ? #d6c85a
+        : root.block.icon_kind == "wah" ? #78d06b
+        : root.block.icon_kind == "modulation" ? #58d39b
+        : root.block.icon_kind == "delay" ? #ba8cff
+        : root.block.icon_kind == "reverb" ? #6de1d2
+        : root.block.icon_kind == "utility" ? #95a0b2
+        : root.block.icon_kind == "nam" ? #ff7cd7
+        : root.block.icon_kind == "pitch" ? #8f8cff
         : #7fb0ff;
-    property <string> block-type-label: root.block.kind == "amp_head" ? "AMP"
-        : root.block.kind == "amp_combo" ? "COMBO"
-        : root.block.kind == "cab" ? "CAB"
-        : root.block.kind == "ir" ? "IR"
-        : root.block.kind == "full_rig" ? "RIG"
-        : root.block.kind == "drive" ? "DRIVE"
-        : root.block.kind == "dynamics" ? "DYN"
-        : root.block.kind == "filter" ? "FILTER"
-        : root.block.kind == "wah" ? "WAH"
-        : root.block.kind == "modulation" ? "MOD"
-        : root.block.kind == "delay" ? "DLY"
-        : root.block.kind == "reverb" ? "RVB"
-        : root.block.kind == "utility" ? "UTIL"
-        : root.block.kind == "nam" ? "NAM"
-        : "CORE";
+    property <string> block-type-label: root.block.type_label;
     callback clicked();
     callback drag-moved(float, float);
     callback drag-finished(float, float);
@@ -1145,34 +1154,36 @@ component ChainRow inherits Rectangle {
             x: 120px + Math.mod(block-index, root.blocks-per-row) * 116px;
             y: Math.floor(block-index / root.blocks-per-row) * 92px;
             block: block;
-            icon-source: block.kind == "amp_head"
+            icon-source: block.icon_kind == "amp_head"
                 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-head.svg")
-                : block.kind == "amp_combo"
+                : block.icon_kind == "amp_combo"
                 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-combo.svg")
-                : block.kind == "cab"
+                : block.icon_kind == "cab"
                 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/cab.svg")
-                : block.kind == "ir"
+                : block.icon_kind == "ir"
                 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/ir-loader.svg")
-                : block.kind == "full_rig"
+                : block.icon_kind == "full_rig"
                 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/full-rig.svg")
-                : block.kind == "drive"
+                : block.icon_kind == "gain"
                 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gain.svg")
-                : block.kind == "dynamics"
+                : block.icon_kind == "dynamics"
                 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/dyn.svg")
-                : block.kind == "filter"
+                : block.icon_kind == "filter"
                 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/filter.svg")
-                : block.kind == "wah"
+                : block.icon_kind == "wah"
                 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/expression.svg")
-                : block.kind == "modulation"
+                : block.icon_kind == "modulation"
                 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/mod.svg")
-                : block.kind == "delay"
+                : block.icon_kind == "delay"
                 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/delay.svg")
-                : block.kind == "reverb"
+                : block.icon_kind == "reverb"
                 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/reverb.svg")
-                : block.kind == "utility"
+                : block.icon_kind == "utility"
                 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/util.svg")
-                : block.kind == "nam"
+                : block.icon_kind == "nam"
                 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/nam.svg")
+                : block.icon_kind == "pitch"
+                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/pitch.svg")
                 : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
             selected: root.dragging-chain-index == root.chain-index && root.dragging-block-index == block-index
                 ? false
@@ -1228,6 +1239,183 @@ component ChainRow inherits Rectangle {
 
 }
 
+export component BlockEditorPanel inherits Rectangle {
+    in property <[BlockTypePickerItem]> block-type-options;
+    in property <[BlockModelPickerItem]> block-model-options;
+    in property <[string]> block-model-option-labels;
+    in property <string> block-drawer-title;
+    in property <string> block-drawer-confirm-label;
+    in property <string> block-drawer-status-message;
+    in property <bool> block-drawer-edit-mode;
+    in property <int> block-drawer-selected-type-index;
+    in property <int> block-drawer-selected-model-index;
+    in property <bool> block-drawer-enabled;
+    in property <[BlockParameterItem]> block-parameter-items;
+    callback choose-block-model(int);
+    callback close-block-drawer();
+    callback save-block-drawer();
+    callback delete-block-drawer();
+    callback toggle-block-drawer-enabled();
+    callback update-block-parameter-text(string, string);
+    callback update-block-parameter-number(string, float);
+    callback update-block-parameter-number-text(string, string);
+    callback update-block-parameter-bool(string, bool);
+    callback select-block-parameter-option(string, int);
+    callback pick-block-parameter-file(string);
+
+    background: transparent;
+
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        background: #171a20f8;
+        border-width: 1px;
+        border-color: #2d3340;
+
+        Image {
+            x: 20px;
+            y: 18px;
+            width: 28px;
+            height: 28px;
+            source: root.block-drawer-selected-type-index >= 0 && root.block-drawer-selected-type-index < root.block-type-options.length
+                ? (
+                    root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "amp_head"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-head.svg")
+                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "amp_combo"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-combo.svg")
+                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "cab"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/cab.svg")
+                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "ir"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/ir-loader.svg")
+                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "full_rig"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/full-rig.svg")
+                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "gain"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gain.svg")
+                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "dynamics"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/dyn.svg")
+                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "filter"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/filter.svg")
+                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "wah"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/expression.svg")
+                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "modulation"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/mod.svg")
+                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "delay"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/delay.svg")
+                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "reverb"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/reverb.svg")
+                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "utility"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/util.svg")
+                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "nam"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/nam.svg")
+                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "pitch"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/pitch.svg")
+                    : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg")
+                )
+                : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
+            image-fit: contain;
+            colorize: #f3f6fb;
+        }
+
+        Text {
+            x: 56px;
+            y: 20px;
+            width: parent.width - 108px;
+            height: 24px;
+            text: root.block-drawer-selected-type-index >= 0 && root.block-drawer-selected-type-index < root.block-type-options.length
+                ? root.block-type-options[root.block-drawer-selected-type-index].label
+                : "";
+            color: #f3f6fb;
+            font-size: 18px;
+            font-weight: 800;
+            vertical-alignment: center;
+        }
+
+        ChainActionIcon {
+            x: parent.width - 40px;
+            y: 20px;
+            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/close.svg");
+            tooltip: "Fechar";
+            clicked => { root.close-block-drawer(); }
+        }
+
+        Rectangle {
+            x: 20px;
+            y: 62px;
+            width: parent.width - 40px;
+            height: 1px;
+            background: #313743;
+        }
+
+        ScrollView {
+            x: 20px;
+            y: 78px;
+            width: parent.width - 40px;
+            height: parent.height - 168px;
+            viewport-height: 92px + (root.block-parameter-items.length * 96px);
+
+            ComboBox {
+                x: 0px;
+                y: 0px;
+                width: parent.width - 24px;
+                height: 34px;
+                model: root.block-model-option-labels;
+                current-index: root.block-drawer-selected-model-index;
+                selected(_) => { root.choose-block-model(self.current-index); }
+            }
+
+            if root.block-drawer-selected-model-index >= 0 && root.block-drawer-selected-model-index < root.block-model-options.length : Text {
+                x: 0px;
+                y: 40px;
+                width: parent.width - 24px;
+                height: 16px;
+                text: root.block-model-options[root.block-drawer-selected-model-index].subtitle;
+                color: #94a0b0;
+                font-size: 11px;
+            }
+
+            for param-item[index] in root.block-parameter-items : BlockParameterRow {
+                x: 0px;
+                y: 72px + (index * 96px);
+                width: parent.width - 24px;
+                item: param-item;
+                text-changed(path, value) => { root.update-block-parameter-text(path, value); }
+                number-changed(path, value) => { root.update-block-parameter-number(path, value); }
+                number-text-changed(path, value) => { root.update-block-parameter-number-text(path, value); }
+                bool-changed(path, value) => { root.update-block-parameter-bool(path, value); }
+                option-changed(path, value) => { root.select-block-parameter-option(path, value); }
+                file-picked(path) => { root.pick-block-parameter-file(path); }
+            }
+        }
+
+        if root.block-drawer-edit-mode : ChainPowerToggle {
+            x: 20px;
+            y: parent.height - 48px;
+            enabled: root.block-drawer-enabled;
+            tooltip: root.block-drawer-enabled ? "Desativar" : "Ativar";
+            clicked => { root.toggle-block-drawer-enabled(); }
+        }
+
+        if root.block-drawer-edit-mode : ChainActionIcon {
+            x: 60px;
+            y: parent.height - 46px;
+            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/trash.svg");
+            tooltip: "Excluir";
+            clicked => { root.delete-block-drawer(); }
+        }
+
+        if !root.block-drawer-edit-mode : ToolbarButton {
+            x: parent.width - 116px;
+            y: parent.height - 54px;
+            width: 96px;
+            label: root.block-drawer-confirm-label;
+            primary: true;
+            clicked => { root.save-block-drawer(); }
+        }
+    }
+}
+
 export component ProjectChainsPage inherits Rectangle {
     in property <string> project-title;
     in property <string> project-path-label;
@@ -1241,6 +1429,7 @@ export component ProjectChainsPage inherits Rectangle {
     in property <[string]> block-model-option-labels;
     in property <bool> show-block-type-picker;
     in property <bool> show-block-drawer;
+    in property <bool> show-inline-block-drawer: true;
     in property <string> block-drawer-title;
     in property <string> block-drawer-confirm-label;
     in property <string> block-drawer-status-message;
@@ -1475,7 +1664,7 @@ export component ProjectChainsPage inherits Rectangle {
         }
     }
 
-    if root.show-block-drawer : Rectangle {
+    if root.show-inline-block-drawer && root.show-block-drawer : Rectangle {
         x: 0px;
         y: 0px;
         width: parent.width;
@@ -1490,168 +1679,33 @@ export component ProjectChainsPage inherits Rectangle {
             clicked => { root.close-block-drawer(); }
         }
 
-        Rectangle {
+        BlockEditorPanel {
             x: parent.width - 420px;
             y: 0px;
             width: 420px;
             height: parent.height;
-            background: #171a20f8;
-            border-width: 1px;
-            border-color: #2d3340;
-
-            Image {
-                x: 20px;
-                y: 18px;
-                width: 28px;
-                height: 28px;
-                source: root.block-drawer-selected-type-index >= 0 && root.block-drawer-selected-type-index < root.block-type-options.length
-                    ? (
-                        root.block-type-options[root.block-drawer-selected-type-index].effect_type == "amp_head"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-head.svg")
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "amp_combo"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-combo.svg")
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "cab"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/cab.svg")
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "ir"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/ir-loader.svg")
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "full_rig"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/full-rig.svg")
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "drive"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gain.svg")
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "dynamics"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/dyn.svg")
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "filter"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/filter.svg")
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "wah"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/expression.svg")
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "modulation"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/mod.svg")
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "delay"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/delay.svg")
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "reverb"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/reverb.svg")
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "utility"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/util.svg")
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "nam"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/nam.svg")
-                        : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg")
-                    )
-                    : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
-                image-fit: contain;
-                colorize: #f3f6fb;
-            }
-
-            Text {
-                x: 56px;
-                y: 20px;
-                width: parent.width - 108px;
-                height: 24px;
-                text: root.block-drawer-selected-type-index >= 0 && root.block-drawer-selected-type-index < root.block-type-options.length
-                    ? (
-                        root.block-type-options[root.block-drawer-selected-type-index].effect_type == "amp_head" ? "AMP"
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "amp_combo" ? "COMBO"
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "cab" ? "CAB"
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "ir" ? "IR"
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "full_rig" ? "RIG"
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "drive" ? "DRIVE"
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "dynamics" ? "DYN"
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "filter" ? "FILTER"
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "wah" ? "WAH"
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "modulation" ? "MOD"
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "delay" ? "DLY"
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "reverb" ? "RVB"
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "utility" ? "UTIL"
-                        : root.block-type-options[root.block-drawer-selected-type-index].effect_type == "nam" ? "NAM"
-                        : "BLOCK"
-                    )
-                    : "";
-                color: #f3f6fb;
-                font-size: 18px;
-                font-weight: 800;
-                vertical-alignment: center;
-            }
-
-            ChainActionIcon {
-                x: parent.width - 40px;
-                y: 20px;
-                icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/close.svg");
-                tooltip: "Fechar";
-                clicked => { root.close-block-drawer(); }
-            }
-
-            Rectangle {
-                x: 20px;
-                y: 62px;
-                width: parent.width - 40px;
-                height: 1px;
-                background: #313743;
-            }
-
-            ScrollView {
-                x: 20px;
-                y: 78px;
-                width: parent.width - 40px;
-                height: parent.height - 168px;
-                viewport-height: 92px + (root.block-parameter-items.length * 96px);
-
-                ComboBox {
-                    x: 0px;
-                    y: 0px;
-                    width: parent.width - 24px;
-                    height: 34px;
-                    model: root.block-model-option-labels;
-                    current-index: root.block-drawer-selected-model-index;
-                    selected(_) => { root.choose-block-model(self.current-index); }
-                }
-
-                if root.block-drawer-selected-model-index >= 0 && root.block-drawer-selected-model-index < root.block-model-options.length : Text {
-                    x: 0px;
-                    y: 40px;
-                    width: parent.width - 24px;
-                    height: 16px;
-                    text: root.block-model-options[root.block-drawer-selected-model-index].subtitle;
-                    color: #94a0b0;
-                    font-size: 11px;
-                }
-
-                for param-item[index] in root.block-parameter-items : BlockParameterRow {
-                    x: 0px;
-                    y: 72px + (index * 96px);
-                    width: parent.width - 24px;
-                    item: param-item;
-                    text-changed(path, value) => { root.update-block-parameter-text(path, value); }
-                    number-changed(path, value) => { root.update-block-parameter-number(path, value); }
-                    number-text-changed(path, value) => { root.update-block-parameter-number-text(path, value); }
-                    bool-changed(path, value) => { root.update-block-parameter-bool(path, value); }
-                    option-changed(path, value) => { root.select-block-parameter-option(path, value); }
-                    file-picked(path) => { root.pick-block-parameter-file(path); }
-                }
-            }
-
-            if root.block-drawer-edit-mode : ChainPowerToggle {
-                x: 20px;
-                y: parent.height - 48px;
-                enabled: root.block-drawer-enabled;
-                tooltip: root.block-drawer-enabled ? "Desativar" : "Ativar";
-                clicked => { root.toggle-block-drawer-enabled(); }
-            }
-
-            if root.block-drawer-edit-mode : ChainActionIcon {
-                x: 60px;
-                y: parent.height - 46px;
-                icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/trash.svg");
-                tooltip: "Excluir";
-                clicked => { root.delete-block-drawer(); }
-            }
-
-            if !root.block-drawer-edit-mode : ToolbarButton {
-                x: parent.width - 116px;
-                y: parent.height - 54px;
-                width: 96px;
-                label: root.block-drawer-confirm-label;
-                primary: true;
-                clicked => { root.save-block-drawer(); }
-            }
+            block-type-options: root.block-type-options;
+            block-model-options: root.block-model-options;
+            block-model-option-labels: root.block-model-option-labels;
+            block-drawer-title: root.block-drawer-title;
+            block-drawer-confirm-label: root.block-drawer-confirm-label;
+            block-drawer-status-message: root.block-drawer-status-message;
+            block-drawer-edit-mode: root.block-drawer-edit-mode;
+            block-drawer-selected-type-index: root.block-drawer-selected-type-index;
+            block-drawer-selected-model-index: root.block-drawer-selected-model-index;
+            block-drawer-enabled: root.block-drawer-enabled;
+            block-parameter-items: root.block-parameter-items;
+            choose-block-model(index) => { root.choose-block-model(index); }
+            close-block-drawer => { root.close-block-drawer(); }
+            save-block-drawer => { root.save-block-drawer(); }
+            delete-block-drawer => { root.delete-block-drawer(); }
+            toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
+            update-block-parameter-text(path, value) => { root.update-block-parameter-text(path, value); }
+            update-block-parameter-number(path, value) => { root.update-block-parameter-number(path, value); }
+            update-block-parameter-number-text(path, value) => { root.update-block-parameter-number-text(path, value); }
+            update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
+            select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
+            pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
         }
     }
 
@@ -1704,7 +1758,7 @@ export component ProjectChainsPage inherits Rectangle {
                         ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/ir-loader.svg")
                         : type-item.icon_kind == "full_rig"
                         ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/full-rig.svg")
-                        : type-item.icon_kind == "drive"
+                        : type-item.icon_kind == "gain"
                         ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gain.svg")
                         : type-item.icon_kind == "dynamics"
                         ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/dyn.svg")
@@ -1722,6 +1776,8 @@ export component ProjectChainsPage inherits Rectangle {
                         ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/util.svg")
                         : type-item.icon_kind == "nam"
                         ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/nam.svg")
+                        : type-item.icon_kind == "pitch"
+                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/pitch.svg")
                         : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
                     clicked => { root.choose-block-type(index); }
                 }
