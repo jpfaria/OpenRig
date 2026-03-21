@@ -4,7 +4,7 @@ use domain::value_objects::ParameterValue;
 use project::block::{
     normalize_block_params, AmpComboBlock, AmpHeadBlock, AudioBlock, AudioBlockKind, CabBlock,
     CompressorBlock, CoreBlock, CoreBlockKind, DelayBlock, DriveBlock, EqBlock, FullRigBlock,
-    GateBlock, IrBlock, NamBlock, ReverbBlock, SelectBlock, TremoloBlock, TunerBlock, WahBlock,
+    GateBlock, IrBlock, NamBlock, PitchBlock, ReverbBlock, SelectBlock, TremoloBlock, TunerBlock, WahBlock,
 };
 use project::device::DeviceSettings;
 use project::param::ParameterSet;
@@ -360,6 +360,14 @@ enum AudioBlockYaml {
         #[serde(default)]
         params: Value,
     },
+    Pitch {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
+        #[serde(default = "default_pitch_model")]
+        model: String,
+        #[serde(default)]
+        params: Value,
+    },
     Select {
         #[serde(default = "default_enabled")]
         enabled: bool,
@@ -573,6 +581,20 @@ impl AudioBlockYaml {
                     }),
                 }),
             }),
+            AudioBlockYaml::Pitch {
+                enabled,
+                model,
+                params,
+            } => Ok(AudioBlock {
+                id: generated_id,
+                enabled,
+                kind: AudioBlockKind::Core(CoreBlock {
+                    kind: CoreBlockKind::Pitch(PitchBlock {
+                        model: model.clone(),
+                        params: load_model_params("pitch", &model, params)?,
+                    }),
+                }),
+            }),
             AudioBlockYaml::Select {
                 enabled,
                 selected,
@@ -674,6 +696,11 @@ impl AudioBlockYaml {
                     params: parameter_set_to_yaml_value(&stage.params),
                 }),
                 CoreBlockKind::Tremolo(stage) => Ok(Self::Modulation {
+                    enabled: block.enabled,
+                    model: stage.model.clone(),
+                    params: parameter_set_to_yaml_value(&stage.params),
+                }),
+                CoreBlockKind::Pitch(stage) => Ok(Self::Pitch {
                     enabled: block.enabled,
                     model: stage.model.clone(),
                     params: parameter_set_to_yaml_value(&stage.params),
@@ -963,6 +990,13 @@ fn default_modulation_model() -> String {
     block_mod::supported_models()
         .first()
         .expect("block-mod must expose at least one model")
+        .to_string()
+}
+
+fn default_pitch_model() -> String {
+    block_pitch::supported_models()
+        .first()
+        .expect("block-pitch must expose at least one model")
         .to_string()
 }
 

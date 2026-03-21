@@ -89,6 +89,8 @@ fn schedule_block_editor_persist(
     project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     saved_project_snapshot: Rc<RefCell<Option<String>>>,
     project_dirty: Rc<RefCell<bool>>,
+    input_chain_devices: Rc<Vec<AudioDeviceDescriptor>>,
+    output_chain_devices: Rc<Vec<AudioDeviceDescriptor>>,
     context: &'static str,
 ) {
     timer.stop();
@@ -111,6 +113,8 @@ fn schedule_block_editor_persist(
             &project_runtime,
             &saved_project_snapshot,
             &project_dirty,
+            &input_chain_devices,
+            &output_chain_devices,
             false,
         ) {
             log_gui_error(context, error);
@@ -658,6 +662,8 @@ pub fn run_desktop_app(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         window.on_save_audio_settings(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -752,6 +758,8 @@ pub fn run_desktop_app(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         project_settings_window.on_save_audio_settings(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -855,6 +863,8 @@ pub fn run_desktop_app(
         let recent_projects = recent_projects.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         window.on_open_project_file(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -926,6 +936,8 @@ pub fn run_desktop_app(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         window.on_create_project_file(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1050,6 +1062,8 @@ pub fn run_desktop_app(
         let recent_projects = recent_projects.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         window.on_open_recent_project(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1316,6 +1330,8 @@ pub fn run_desktop_app(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         window.on_configure_chain_preset(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1376,6 +1392,8 @@ pub fn run_desktop_app(
         let project_settings_window = project_settings_window.as_weak();
         let chain_editor_window = chain_editor_window.as_weak();
         let block_editor_window = block_editor_window.as_weak();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         window.on_back_to_launcher(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2049,6 +2067,8 @@ pub fn run_desktop_app(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         window.on_toggle_chain_block_enabled(move |chain_index, block_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2098,6 +2118,8 @@ pub fn run_desktop_app(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         window.on_reorder_chain_block(move |chain_index, from_index, before_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2253,6 +2275,8 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         window.on_choose_block_model(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2288,6 +2312,8 @@ pub fn run_desktop_app(
                     project_runtime.clone(),
                     saved_project_snapshot.clone(),
                     project_dirty.clone(),
+                    input_chain_devices.clone(),
+                    output_chain_devices.clone(),
                     "block-drawer.choose-model",
                 );
             }
@@ -2363,6 +2389,8 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         window.on_update_block_parameter_number_text(move |path, value_text| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2386,6 +2414,8 @@ pub fn run_desktop_app(
                         project_runtime.clone(),
                         saved_project_snapshot.clone(),
                         project_dirty.clone(),
+                        input_chain_devices.clone(),
+                        output_chain_devices.clone(),
                         "block-drawer.number-text",
                     );
                 }
@@ -2404,6 +2434,8 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         window.on_toggle_block_drawer_enabled(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2428,6 +2460,8 @@ pub fn run_desktop_app(
                     project_runtime.clone(),
                     saved_project_snapshot.clone(),
                     project_dirty.clone(),
+                    input_chain_devices.clone(),
+                    output_chain_devices.clone(),
                     "block-drawer.toggle-enabled",
                 );
             }
@@ -2445,6 +2479,8 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         window.on_update_block_parameter_text(move |path, value| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2466,6 +2502,8 @@ pub fn run_desktop_app(
                         project_runtime.clone(),
                         saved_project_snapshot.clone(),
                         project_dirty.clone(),
+                        input_chain_devices.clone(),
+                        output_chain_devices.clone(),
                         "block-drawer.text",
                     );
                 }
@@ -2484,6 +2522,8 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         window.on_update_block_parameter_number(move |path, value| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2505,6 +2545,8 @@ pub fn run_desktop_app(
                         project_runtime.clone(),
                         saved_project_snapshot.clone(),
                         project_dirty.clone(),
+                        input_chain_devices.clone(),
+                        output_chain_devices.clone(),
                         "block-drawer.number",
                     );
                 }
@@ -2523,6 +2565,8 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         window.on_update_block_parameter_bool(move |path, value| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2544,6 +2588,8 @@ pub fn run_desktop_app(
                         project_runtime.clone(),
                         saved_project_snapshot.clone(),
                         project_dirty.clone(),
+                        input_chain_devices.clone(),
+                        output_chain_devices.clone(),
                         "block-drawer.bool",
                     );
                 }
@@ -2563,6 +2609,8 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         window.on_select_block_parameter_option(move |path, index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2625,6 +2673,8 @@ pub fn run_desktop_app(
                         project_runtime.clone(),
                         saved_project_snapshot.clone(),
                         project_dirty.clone(),
+                        input_chain_devices.clone(),
+                        output_chain_devices.clone(),
                         "block-drawer.option",
                     );
                 }
@@ -2642,6 +2692,8 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         window.on_pick_block_parameter_file(move |path| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2676,6 +2728,8 @@ pub fn run_desktop_app(
                         project_runtime.clone(),
                         saved_project_snapshot.clone(),
                         project_dirty.clone(),
+                        input_chain_devices.clone(),
+                        output_chain_devices.clone(),
                         "block-drawer.file",
                     );
                 }
@@ -2697,6 +2751,8 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         window.on_save_block_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2715,6 +2771,8 @@ pub fn run_desktop_app(
                 &project_runtime,
                 &saved_project_snapshot,
                 &project_dirty,
+                &input_chain_devices,
+                &output_chain_devices,
                 true,
             ) {
                 log_gui_error("block-drawer.save", error);
@@ -2747,6 +2805,8 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         window.on_delete_block_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2808,6 +2868,8 @@ pub fn run_desktop_app(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         window.on_save_chain(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2902,6 +2964,8 @@ pub fn run_desktop_app(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         chain_editor_window.on_save_chain(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -3189,6 +3253,8 @@ pub fn run_desktop_app(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         window.on_remove_chain(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -3226,6 +3292,8 @@ pub fn run_desktop_app(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
         window.on_toggle_chain_enabled(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -4005,6 +4073,8 @@ fn persist_block_editor_draft(
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
     saved_project_snapshot: &Rc<RefCell<Option<String>>>,
     project_dirty: &Rc<RefCell<bool>>,
+    input_chain_devices: &[AudioDeviceDescriptor],
+    output_chain_devices: &[AudioDeviceDescriptor],
     close_after_save: bool,
 ) -> Result<()> {
     let params =

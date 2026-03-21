@@ -20,6 +20,7 @@ block-delay = { path = "../block-delay" }
 block-dyn = { path = "../block-dyn" }
 block-filter = { path = "../block-filter" }
 block-wah = { path = "../block-wah" }
+block-pitch = { path = "../block-pitch" }
 block-mod = { path = "../block-mod" }
 block-reverb = { path = "../block-reverb" }
 block-util = { path = "../block-util" }

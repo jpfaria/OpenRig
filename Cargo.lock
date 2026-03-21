@@ -2788,6 +2788,7 @@ dependencies = [
  "block-ir",
  "block-mod",
  "block-nam",
+ "block-pitch",
  "block-reverb",
  "block-util",
  "block-wah",

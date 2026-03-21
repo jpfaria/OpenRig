@@ -499,6 +499,7 @@ fn build_block_runtime_node(
                     build_modulation_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
                 })?,
             ),
+            CoreBlockKind::Pitch(_) => bypass_runtime_node(block, input_layout),
         },
         AudioBlockKind::Select(select) => {
             build_select_runtime_node(chain, block, select, input_layout, sample_rate, None)?
