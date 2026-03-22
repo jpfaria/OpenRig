@@ -3,9 +3,11 @@ use block_core::param::{ModelParameterSchema, ParameterSet};
 use block_core::{AudioChannelLayout, BlockProcessor};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum AmpBackendKind { Native, Nam, Ir }
 
 #[derive(Clone, Copy)]
+#[allow(dead_code)]
 pub struct AmpModelDefinition {
     pub id: &'static str,
     pub display_name: &'static str,
