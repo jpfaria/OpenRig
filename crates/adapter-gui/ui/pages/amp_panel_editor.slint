@@ -339,7 +339,7 @@ export component AmpPanelEditor inherits Rectangle {
             }
         }
 
-        // Delete button (ao lado do badge)
+        // Delete button (edit mode, ao lado do badge)
         if root.block-drawer-edit-mode : Rectangle {
             x: parent.width - 32px;
             y: (parent.height - 24px) / 2;
@@ -359,6 +359,29 @@ export component AmpPanelEditor inherits Rectangle {
             ta-del := TouchArea {
                 mouse-cursor: pointer;
                 clicked => { root.delete-block-drawer(); }
+            }
+        }
+
+        // Save button (insert mode, ao lado do badge)
+        if !root.block-drawer-edit-mode : Rectangle {
+            x: parent.width - 32px;
+            y: (parent.height - 24px) / 2;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            background: ta-save.has-hover ? #0a1a30 : transparent;
+
+            Image {
+                x: 3px; y: 3px;
+                width: 18px; height: 18px;
+                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/save.svg");
+                image-fit: contain;
+                colorize: ta-save.has-hover ? #4499ff : #224488;
+            }
+
+            ta-save := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.save-block-drawer(); }
             }
         }
     }
