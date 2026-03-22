@@ -28,47 +28,47 @@ pub const CAPTURES: &[BognerEcstasyCapture] = &[
     capture(
         "clean",
         "4x12_v30",
-        "captures/nam/amps/combo/bogner_ecstasy/ecstacy_clean_4x12_v30.nam",
+        "captures/nam/amps/bogner_ecstasy/ecstacy_clean_4x12_v30.nam",
     ),
     capture(
         "clean",
         "4x12_greenback",
-        "captures/nam/amps/combo/bogner_ecstasy/ecstacy_clean_4x12_greenback.nam",
+        "captures/nam/amps/bogner_ecstasy/ecstacy_clean_4x12_greenback.nam",
     ),
     capture(
         "clean",
         "4x12_g12t",
-        "captures/nam/amps/combo/bogner_ecstasy/ecstacy_clean_4x12_g12t.nam",
+        "captures/nam/amps/bogner_ecstasy/ecstacy_clean_4x12_g12t.nam",
     ),
     capture(
         "crunch",
         "4x12_v30",
-        "captures/nam/amps/combo/bogner_ecstasy/ecstacy_crunch_blue_4x12_v30.nam",
+        "captures/nam/amps/bogner_ecstasy/ecstacy_crunch_blue_4x12_v30.nam",
     ),
     capture(
         "crunch",
         "4x12_greenback",
-        "captures/nam/amps/combo/bogner_ecstasy/ecstacy_crunch_blue_4x12_greenback.nam",
+        "captures/nam/amps/bogner_ecstasy/ecstacy_crunch_blue_4x12_greenback.nam",
     ),
     capture(
         "crunch",
         "4x12_g12t",
-        "captures/nam/amps/combo/bogner_ecstasy/ecstacy_crunch_blue_4x12_g12t.nam",
+        "captures/nam/amps/bogner_ecstasy/ecstacy_crunch_blue_4x12_g12t.nam",
     ),
     capture(
         "drive",
         "4x12_v30",
-        "captures/nam/amps/combo/bogner_ecstasy/ecstacy_drive_red_4x12_v30.nam",
+        "captures/nam/amps/bogner_ecstasy/ecstacy_drive_red_4x12_v30.nam",
     ),
     capture(
         "drive",
         "4x12_greenback",
-        "captures/nam/amps/combo/bogner_ecstasy/ecstacy_drive_red_4x12_greenback.nam",
+        "captures/nam/amps/bogner_ecstasy/ecstacy_drive_red_4x12_greenback.nam",
     ),
     capture(
         "drive",
         "4x12_g12t",
-        "captures/nam/amps/combo/bogner_ecstasy/ecstacy_drive_red_4x12_g12t.nam",
+        "captures/nam/amps/bogner_ecstasy/ecstacy_drive_red_4x12_g12t.nam",
     ),
 ];
 
