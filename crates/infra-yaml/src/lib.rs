@@ -242,7 +242,7 @@ impl ChainYaml {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum AudioBlockYaml {
-    #[serde(rename = "preamp", alias = "amp_head")]
+    #[serde(rename = "preamp")]
     Preamp {
         #[serde(default = "default_enabled")]
         enabled: bool,
@@ -251,7 +251,7 @@ enum AudioBlockYaml {
         #[serde(default)]
         params: Value,
     },
-    #[serde(rename = "amp", alias = "amp_combo")]
+    #[serde(rename = "amp")]
     Amp {
         #[serde(default = "default_enabled")]
         enabled: bool,
