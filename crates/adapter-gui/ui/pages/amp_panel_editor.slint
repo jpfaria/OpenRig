@@ -1,5 +1,7 @@
 import { BlockTypePickerItem, BlockModelPickerItem, BlockKnobOverlay } from "../models.slint";
 
+import "../fonts/Inter.ttf";
+
 // Beautiful dark model selector with popup
 component ModelSelector inherits Rectangle {
     in property <[string]> labels;
@@ -434,9 +436,10 @@ export component AmpPanelEditor inherits Rectangle {
             height: 16px;
             text: knob.label;
             color: root.panel-text;
+            font-family: "Inter";
             font-size: 10px;
-            font-weight: 900;
-            letter-spacing: 2px;
+            font-weight: 800;
+            letter-spacing: 1.5px;
             horizontal-alignment: center;
         }
 
