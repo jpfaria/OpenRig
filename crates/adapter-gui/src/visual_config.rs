@@ -89,19 +89,19 @@ pub fn visual_config_for_model(brand: &str, model_id: &str) -> ModelVisualConfig
                     panel_bg: [0x28, 0x2c, 0x30],
                     panel_text: [0x80, 0x90, 0xa0],
                     brand_strip_bg: [0x1a, 0x1a, 0x1a],
-                    model_font: "",
+                    model_font: "Dancing Script",
                 },
                 "brit_4x12" => ModelVisualConfig {
                     panel_bg: [0x2c, 0x28, 0x24],
                     panel_text: [0x80, 0x90, 0xa0],
                     brand_strip_bg: [0x1a, 0x1a, 0x1a],
-                    model_font: "",
+                    model_font: "Permanent Marker",
                 },
                 "vintage_1x12" => ModelVisualConfig {
                     panel_bg: [0x2a, 0x2a, 0x2e],
                     panel_text: [0x80, 0x90, 0xa0],
                     brand_strip_bg: [0x1a, 0x1a, 0x1a],
-                    model_font: "",
+                    model_font: "Orbitron",
                 },
                 // Delays
                 "analog_warm" => ModelVisualConfig {
