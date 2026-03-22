@@ -19,6 +19,7 @@ pub struct BlockModelCatalogEntry {
     pub display_name: String,
     pub brand: String,
     pub type_label: String,
+    pub supported_instruments: Vec<String>,
 }
 
 type SupportedModelsFn = fn() -> &'static [&'static str];
@@ -201,6 +202,9 @@ pub fn supported_block_models(effect_type: &str) -> Result<Vec<BlockModelCatalog
                 display_name: schema.display_name,
                 brand: visual.as_ref().map(|v| v.brand.to_string()).unwrap_or_default(),
                 type_label: visual.as_ref().map(|v| v.type_label.to_string()).unwrap_or_default(),
+                supported_instruments: visual.as_ref()
+                    .map(|v| v.supported_instruments.iter().map(|s| s.to_string()).collect())
+                    .unwrap_or_else(|| block_core::ALL_INSTRUMENTS.iter().map(|s| s.to_string()).collect()),
             })
         })
         .collect()
