@@ -13,8 +13,15 @@ Mandatory rules for writing code. Apply BEFORE writing, not after. No exceptions
 
 - [ ] Information defined in the RIGHT place? (owner module, not consumer)
 - [ ] Reading from source, or duplicating/inferring?
-- [ ] Brand/type/color/font comes from model definition?
 - [ ] Using `starts_with()`, `contains()`, string matching to determine type/brand? → **WRONG**
+
+### 1b. Separation of Concerns (Business vs Presentation)
+
+- [ ] **NEVER mix UI/visual config in business logic code** — colors, fonts, panel sizes, brand strip colors are GUI concerns
+- [ ] Business logic crates (block-preamp, block-gain, etc.) define ONLY: id, display_name, brand, backend_kind, schema, validate, build
+- [ ] Visual config (panel_bg, panel_text, brand_strip_bg, model_font) lives in the GUI layer (adapter-gui)
+- [ ] Visual config should be in configuration files (YAML/JSON) in the adapter-gui assets, NOT in Rust structs
+- [ ] Adding or changing a color/font NEVER requires recompiling a business logic crate
 
 ### 2. Zero Coupling
 
@@ -88,6 +95,13 @@ Before making a change, verify:
 
 ❌ use_panel_editor: true  // for ALL types without checking UI supports them
    // WRONG: enabling feature without verifying capability
+
+❌ // In block-gain/src/nam_ibanez_ts9.rs:
+   pub const MODEL_DEFINITION = GainModelDefinition {
+       panel_bg: [0x1a, 0x5c, 0x2a],  // UI color in business logic!
+       model_font: "Permanent Marker", // UI font in business logic!
+   };
+   // WRONG: visual config in business logic crate. Move to adapter-gui config
 
 ❌ sed -i '' 's/old/new/g' file.slint
    // WRONG: sed can empty Slint files. Use Edit tool
