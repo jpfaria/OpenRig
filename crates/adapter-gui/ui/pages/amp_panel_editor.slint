@@ -123,7 +123,7 @@ component ModelSelector inherits Rectangle {
     }
 }
 
-// Interactive rotary knob overlay — sits on top of the SVG circle
+// Dial knob — dark circle, dot indicator on edge, value in center
 component PanelKnob inherits Rectangle {
     in property <float> value;
     in property <float> min-val;
@@ -132,39 +132,54 @@ component PanelKnob inherits Rectangle {
     in property <string> path;
     callback changed(string, float);
 
-    // normalized 0..1
     private property <float> norm: root.max-val > root.min-val
         ? (root.value - root.min-val) / (root.max-val - root.min-val)
         : 0.0;
     private property <float> drag-y0: 0;
     private property <float> drag-val0: 0;
+    // Angle: 225° (min, 7:30) → 495° (max, 4:30)
+    private property <angle> dot-angle: 225deg + root.norm * 270deg;
+    private property <length> knob-size: Math.min(root.width, root.height);
+    private property <length> orbit: root.knob-size / 2 - 6px;
 
     background: transparent;
 
-    // Hover / active ring
+    // Dark circle base
     Rectangle {
-        x: 2px; y: 2px;
-        width: parent.width - 4px;
-        height: parent.height - 4px;
-        border-radius: (parent.width - 4px) / 2;
-        border-width: ta.has-hover || ta.pressed ? 1.5px : 0px;
-        border-color: ta.pressed ? #8899ffcc : #4455aa44;
-        background: transparent;
+        x: (parent.width - root.knob-size) / 2;
+        y: (parent.height - root.knob-size) / 2;
+        width: root.knob-size;
+        height: root.knob-size;
+        border-radius: root.knob-size / 2;
+        background: #111;
+        border-width: ta.pressed ? 2.5px : ta.has-hover ? 2px : 1.5px;
+        border-color: ta.pressed ? #6688ff : ta.has-hover ? #4466bb : #333;
     }
 
-    // Indicator line:
-    //   - Image positioned with top-left at knob center (= rotation pivot)
-    //   - Extends DOWNWARD so at 0° it points to 6 o'clock
-    //   - Formula: 45deg + norm * 270deg puts min at 7:30, max at 4:30 o'clock
-    Image {
-        x: parent.width / 2 - 2px;
-        y: parent.height / 2;
-        width: 4px;
-        height: parent.height / 2 - 5px;
-        source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/knob-indicator.svg");
-        image-fit: fill;
-        colorize: ta.pressed ? #ffffff : (ta.has-hover ? #e8f0ff : #b8c8ee);
-        transform-rotation: 45deg + root.norm * 270deg;
+    // Dot indicator on circumference
+    Rectangle {
+        x: parent.width / 2 + Math.sin(root.dot-angle) * (root.orbit / 1px) * 1px - 4px;
+        y: parent.height / 2 - Math.cos(root.dot-angle) * (root.orbit / 1px) * 1px - 4px;
+        width: 8px;
+        height: 8px;
+        border-radius: 4px;
+        background: ta.pressed ? #ffffff : ta.has-hover ? #ddeeff : #aabbdd;
+    }
+
+    // Value in center
+    Text {
+        x: (parent.width - root.knob-size) / 2;
+        y: (parent.height - root.knob-size) / 2;
+        width: root.knob-size;
+        height: root.knob-size;
+        text: root.step >= 1.0
+            ? Math.round(root.value) + ""
+            : Math.round(root.value * 10) / 10 + "";
+        color: ta.pressed ? #ffffff : ta.has-hover ? #ddeeff : #99aabb;
+        font-size: 11px;
+        font-weight: 600;
+        horizontal-alignment: center;
+        vertical-alignment: center;
     }
 
     ta := TouchArea {
@@ -181,15 +196,13 @@ component PanelKnob inherits Rectangle {
             if ta.pressed {
                 let delta = root.drag-y0 - ta.mouse-y / 1px;
                 let range = root.max-val - root.min-val;
-                let raw = root.drag-val0 + delta * range / 200.0;
+                let raw = root.drag-val0 + delta * range / 120.0;
                 let clamped = raw < root.min-val ? root.min-val : (raw > root.max-val ? root.max-val : raw);
-                // Snap to step grid (required by discrete NAM models like JCM 800)
                 let stepped = root.step > 0.0 ? Math.round(clamped / root.step) * root.step : clamped;
                 root.changed(root.path, stepped);
             }
         }
     }
-
 }
 
 // Full visual amp head editor window content
@@ -448,19 +461,7 @@ export component AmpPanelEditor inherits Rectangle {
             changed(p, v) => { root.update-block-parameter-number(p, v); }
         }
 
-        // ── Value labels below each knob ──
-        for knob in root.block-knob-overlays : Text {
-            x: knob.svg_cx / 800 * parent.width - 30px;
-            y: (knob.svg_cy + knob.svg_r + 6) / 200 * parent.height;
-            width: 60px;
-            height: 16px;
-            text: knob.step >= 1.0 ? Math.round(knob.value) + "" : Math.round(knob.value * 10) / 10 + "";
-            color: root.panel-text;
-            font-size: 11px;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
+        // (value labels are now inside each PanelKnob)
     }
 
     // ── FOOTER ─────────────────────────────────────────────────────
