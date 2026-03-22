@@ -8,7 +8,7 @@ use block_core::param::{enum_parameter, required_string, ModelParameterSchema, P
 use block_core::{AudioChannelLayout, BlockProcessor};
 
 pub const MODEL_ID: &str = "bogner_ecstasy";
-pub const DISPLAY_NAME: &str = "Bogner Ecstasy";
+pub const DISPLAY_NAME: &str = "Ecstasy";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 

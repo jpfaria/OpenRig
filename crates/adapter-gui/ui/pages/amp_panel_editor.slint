@@ -219,6 +219,7 @@ export component AmpPanelEditor inherits Rectangle {
     in property <bool> block-drawer-edit-mode: true;
     in property <bool> block-drawer-enabled: true;
     in property <[BlockKnobOverlay]> block-knob-overlays;
+    in property <[BlockParameterItem]> block-parameter-items;
     in property <string> block-drawer-confirm-label: "Adicionar";
 
     callback choose-block-model(int);
@@ -227,6 +228,7 @@ export component AmpPanelEditor inherits Rectangle {
     callback delete-block-drawer();
     callback toggle-block-drawer-enabled();
     callback update-block-parameter-number(string, float);
+    callback select-block-parameter-option(string, int);
 
     // Computed
     private property <string> selected-model-id:
@@ -446,6 +448,16 @@ export component AmpPanelEditor inherits Rectangle {
                 height: 60px;
                 source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/vox/logo.svg");
                 image-fit: contain;
+            }
+
+            if root.selected-brand == "bogner" : Image {
+                x: parent.width * 0.1;
+                y: 6px;
+                width: parent.width * 0.8;
+                height: 60px;
+                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/bogner/logo.svg");
+                image-fit: contain;
+                colorize: #ffffff;
             }
 
             Text {
