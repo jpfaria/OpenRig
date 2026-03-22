@@ -606,7 +606,67 @@ export component AmpPanelEditor inherits Rectangle {
             changed(p, v) => { root.update-block-parameter-number(p, v); }
         }
 
-        // (value labels are now inside each PanelKnob)
+        // ── Enum parameters (segmented controls, alinhados à direita) ──
+        for param[pi] in root.block-parameter-items : Rectangle {
+            // Só mostrar parâmetros do tipo "select" (enums)
+            visible: param.widget_kind == "select";
+            x: parent.width - 56px - (root.block-parameter-items.length - 1 - pi) * 200px - 100px;
+            y: parent.height * 0.54;
+            width: 200px;
+            height: 60px;
+
+            // Label acima
+            Text {
+                x: 0;
+                y: 0;
+                width: parent.width;
+                height: 16px;
+                text: param.label;
+                color: root.panel-text;
+                font-family: "Bebas Neue";
+                font-size: 13px;
+                letter-spacing: 2px;
+                horizontal-alignment: center;
+            }
+
+            // Segmented control
+            Rectangle {
+                x: 4px;
+                y: 20px;
+                width: parent.width - 8px;
+                height: 32px;
+                border-radius: 6px;
+                background: #00000030;
+                border-width: 1px;
+                border-color: #ffffff10;
+
+                for option[oi] in param.option_labels : Rectangle {
+                    x: oi * (parent.width / param.option_labels.length);
+                    y: 0;
+                    width: parent.width / param.option_labels.length;
+                    height: parent.height;
+                    border-radius: 5px;
+                    background: oi == param.selected_option_index ? #3366cc : (seg-ta.has-hover ? #ffffff10 : transparent);
+
+                    Text {
+                        width: parent.width;
+                        height: parent.height;
+                        text: option;
+                        color: oi == param.selected_option_index ? #ffffff : #8090a0;
+                        font-size: 9px;
+                        font-weight: oi == param.selected_option_index ? 800 : 500;
+                        letter-spacing: 0.5px;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+
+                    seg-ta := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.select-block-parameter-option(param.path, oi); }
+                    }
+                }
+            }
+        }
     }
 
     // (footer edit mode removido — delete button agora está no header)

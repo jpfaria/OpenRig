@@ -195,6 +195,7 @@ export component BlockEditorWindow inherits Window {
         block-drawer-edit-mode: root.block-drawer-edit-mode;
         block-drawer-enabled: root.block-drawer-enabled;
         block-knob-overlays: root.block-knob-overlays;
+        block-parameter-items: root.block-parameter-items;
         block-drawer-confirm-label: root.block-drawer-confirm-label;
         choose-block-model(i) => { root.choose-block-model(i); }
         close-block-drawer => { root.close-block-drawer(); }
@@ -202,6 +203,7 @@ export component BlockEditorWindow inherits Window {
         delete-block-drawer => { root.delete-block-drawer(); }
         toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
         update-block-parameter-number(path, val) => { root.update-block-parameter-number(path, val); }
+        select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
     }
 
     // Other block types: existing form-based editor
