@@ -548,9 +548,9 @@ export component BlockPanelEditor inherits Rectangle {
             height: 96px;
             background: root.brand-strip-bg;
 
-            // Ilustração do modelo à esquerda
+            // Ilustração do modelo (centralizado com o nome)
             Image {
-                x: 20px;
+                x: parent.width / 2 - 180px;
                 y: (parent.height - 72px) / 2;
                 width: 72px;
                 height: 72px;
@@ -585,9 +585,9 @@ export component BlockPanelEditor inherits Rectangle {
             }
 
             Text {
-                x: 104px;
+                x: parent.width / 2 - 100px;
                 y: 0;
-                width: parent.width - 120px;
+                width: 280px;
                 height: parent.height;
                 text: root.selected-model-label;
                 color: #c0c8d0;
