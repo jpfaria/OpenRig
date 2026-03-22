@@ -162,6 +162,53 @@ if root.is-preamp : Rectangle {
 
 ---
 
+## Tipos de Instrumento
+
+Cada chain tem um `instrument` que filtra quais blocos podem ser adicionados.
+
+### Valores validos
+
+`electric_guitar` | `acoustic_guitar` | `bass` | `voice` | `keys` | `drums` | `generic`
+
+`generic` = sem filtragem, mostra todos os blocos.
+
+### Constantes (em `crates/block-core/src/lib.rs`)
+
+```rust
+pub const INST_ELECTRIC_GUITAR: &str = "electric_guitar";
+pub const INST_ACOUSTIC_GUITAR: &str = "acoustic_guitar";
+pub const INST_BASS:             &str = "bass";
+pub const INST_VOICE:            &str = "voice";
+pub const INST_KEYS:             &str = "keys";
+pub const INST_DRUMS:            &str = "drums";
+
+pub const ALL_INSTRUMENTS:        &[&str] = &[/* todos acima */];
+pub const GUITAR_BASS:            &[&str] = &[INST_ELECTRIC_GUITAR, INST_BASS];
+pub const GUITAR_ACOUSTIC_BASS:   &[&str] = &[INST_ELECTRIC_GUITAR, INST_ACOUSTIC_GUITAR, INST_BASS];
+```
+
+### Suporte por modelo
+
+Cada `MODEL_DEFINITION` declara `supported_instruments: &[&str]`. O `adapter-gui` filtra a lista de blocos disponiveis usando esse campo ao adicionar blocos a uma chain.
+
+Exemplos de uso tipico:
+- Preamps/amps: `GUITAR_ACOUSTIC_BASS`
+- Amps/cabs com distorcao: `GUITAR_BASS`
+- Efeitos universais (reverb, delay): `ALL_INSTRUMENTS`
+
+### Persistencia
+
+O campo `instrument` e salvo no YAML da chain. Valor padrao (retrocompatibilidade): `electric_guitar`. O instrumento e definido na criacao da chain e nao pode ser alterado depois.
+
+```yaml
+chains:
+  - description: guitar 1
+    instrument: electric_guitar
+    # ...
+```
+
+---
+
 ## Pendencias / Proximos passos
 
 - [ ] **Overlay de knobs sobre controls.svg** — usar `svg_cx`/`svg_cy` do component.yaml para posicionar componentes Slint interativos por cima da imagem
