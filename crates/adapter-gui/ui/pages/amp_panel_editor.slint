@@ -327,30 +327,23 @@ export component AmpPanelEditor inherits Rectangle {
     }
 
     // ── PANEL RECT (direto após o header, sem brand strip) ─────────────────────────────────────────────────
+    // Panel colors by brand
+    private property <color> panel-bg:
+        root.selected-brand == "marshall" ? #b89840
+        : root.selected-brand == "vox" ? #1a1a2a
+        : #1a1a1e;
+    private property <color> panel-text:
+        root.selected-brand == "marshall" ? #5a4a20
+        : root.selected-brand == "vox" ? #aabbcc
+        : #8090a0;
+
     Rectangle {
         x: 0;
         y: root.header-height + root.brand-strip-height;
         width: parent.width;
         height: root.panel-height;
         clip: true;
-        background: #111;
-
-        // controls.svg panel image (full width, 4:1 ratio)
-        Image {
-            x: 0; y: 0;
-            width: parent.width;
-            height: parent.height;
-            source: root.selected-model-id == "marshall_jcm_800_2203"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/amps/marshall/jcm800-2203/controls.svg")
-                : root.selected-model-id == "american_clean"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/amps/native/american-clean/controls.svg")
-                : root.selected-model-id == "brit_crunch"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/amps/native/brit-crunch/controls.svg")
-                : root.selected-model-id == "modern_high_gain"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/amps/native/modern-high-gain/controls.svg")
-                : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/amps/generic/controls.svg");
-            image-fit: fill;
-        }
+        background: root.panel-bg;
 
         // ── Marshall logo (grande, centralizada) ──
         if root.selected-brand == "marshall" : Image {
@@ -360,7 +353,7 @@ export component AmpPanelEditor inherits Rectangle {
             height: 36px;
             source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/marshall/logo.svg");
             image-fit: contain;
-            colorize: #3a3018;
+            colorize: root.panel-text;
         }
 
         if root.selected-brand == "vox" : Image {
@@ -379,7 +372,7 @@ export component AmpPanelEditor inherits Rectangle {
             width: parent.width;
             height: 18px;
             text: root.selected-model-label;
-            color: #5a4a20;
+            color: root.panel-text;
             font-size: 10px;
             font-weight: 700;
             letter-spacing: 1.5px;
@@ -393,7 +386,7 @@ export component AmpPanelEditor inherits Rectangle {
             width: 80px;
             height: 14px;
             text: knob.label;
-            color: #5a4a20;
+            color: root.panel-text;
             font-size: 9px;
             font-weight: 700;
             letter-spacing: 1px;
@@ -434,7 +427,7 @@ export component AmpPanelEditor inherits Rectangle {
             width: 36px;
             height: 12px;
             text: "POWER";
-            color: #5a4a20;
+            color: root.panel-text;
             font-size: 7px;
             font-weight: 700;
             letter-spacing: 0.5px;
@@ -462,7 +455,7 @@ export component AmpPanelEditor inherits Rectangle {
             width: 60px;
             height: 16px;
             text: knob.step >= 1.0 ? Math.round(knob.value) + "" : Math.round(knob.value * 10) / 10 + "";
-            color: #5a4a20;
+            color: root.panel-text;
             font-size: 11px;
             font-weight: 700;
             horizontal-alignment: center;
