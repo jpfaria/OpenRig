@@ -1,5 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 271 94">
-<g transform="translate(0,94) scale(0.1,-0.1)" fill="currentColor" stroke="none">
+<svg version="1.0" xmlns="http://www.w3.org/2000/svg"
+ viewBox="0 0 271.000000 94.000000"
+ preserveAspectRatio="xMidYMid meet">
+<g transform="translate(0.000000,94.000000) scale(0.100000,-0.100000)"
+fill="currentColor" stroke="none">
 <path d="M420 933 c-52 -3 -136 -18 -235 -41 -60 -15 -77 -24 -116 -63 -59
 -61 -78 -104 -56 -126 15 -15 22 -15 92 0 41 10 87 17 102 17 15 0 36 11 49
 25 13 14 34 25 48 25 14 0 37 5 52 10 15 6 36 8 47 4 19 -6 18 -8 -9 -20 -46
