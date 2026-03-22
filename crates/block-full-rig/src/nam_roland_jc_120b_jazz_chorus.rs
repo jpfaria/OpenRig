@@ -5,7 +5,7 @@ use nam::{
     build_processor_with_assets_for_layout, model_schema_for,
     processor::{plugin_params_from_set_with_defaults, NamPluginParams},
 };
-use block_core::param::{bool_parameter, required_bool, ModelParameterSchema, ParameterSet};
+use block_core::param::{bool_parameter, ModelParameterSchema, ParameterSet};
 use block_core::{AudioChannelLayout, BlockProcessor};
 
 pub const MODEL_ID: &str = "roland_jc_120b_jazz_chorus";
@@ -104,9 +104,9 @@ pub fn asset_summary(params: &ParameterSet) -> Result<String> {
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static RolandCapture> {
     let requested = RolandParams {
-        bright_enabled: params.get("bright_enabled").and_then(|v| v.as_bool()).unwrap_or(false),
-        royer_101_enabled: params.get("royer_101_enabled").and_then(|v| v.as_bool()).unwrap_or(true),
-        sm57_enabled: params.get("sm57_enabled").and_then(|v| v.as_bool()).unwrap_or(false),
+        bright_enabled: params.get_bool("bright_enabled").unwrap_or(false),
+        royer_101_enabled: params.get_bool("royer_101_enabled").unwrap_or(true),
+        sm57_enabled: params.get_bool("sm57_enabled").unwrap_or(false),
     };
 
     CAPTURES
