@@ -4323,58 +4323,21 @@ fn model_brand(effect_type: &str, model_id: &str) -> &'static str {
     "native"
 }
 
-fn model_panel_colors(brand: &str, model_id: &str) -> (slint::Color, slint::Color) {
-    match brand {
-        "marshall" => (
-            slint::Color::from_argb_u8(0xff, 0xb8, 0x98, 0x40),
-            slint::Color::from_argb_u8(0xff, 0x5a, 0x4a, 0x20),
-        ),
-        "vox" => (
-            slint::Color::from_argb_u8(0xff, 0x1a, 0x1a, 0x2a),
-            slint::Color::from_argb_u8(0xff, 0xaa, 0xbb, 0xcc),
-        ),
-        _ => match model_id {
-            "american_clean" => (
-                slint::Color::from_argb_u8(0xff, 0x1e, 0x2a, 0x2e),
-                slint::Color::from_argb_u8(0xff, 0x80, 0xa0, 0xa8),
-            ),
-            "brit_crunch" => (
-                slint::Color::from_argb_u8(0xff, 0x2a, 0x24, 0x20),
-                slint::Color::from_argb_u8(0xff, 0xa8, 0x98, 0x80),
-            ),
-            "modern_high_gain" => (
-                slint::Color::from_argb_u8(0xff, 0x20, 0x1a, 0x28),
-                slint::Color::from_argb_u8(0xff, 0x98, 0x88, 0xa8),
-            ),
-            _ => (
-                slint::Color::from_argb_u8(0xff, 0x25, 0x28, 0x30),
-                slint::Color::from_argb_u8(0xff, 0x80, 0x90, 0xa0),
-            ),
-        },
-    }
-}
-
 fn block_model_picker_items(effect_type: &str) -> Vec<BlockModelPickerItem> {
     supported_block_models(effect_type)
         .unwrap_or_default()
         .into_iter()
-        .map(|item| {
-            let brand = model_brand(&item.effect_type, &item.model_id);
-            let (panel_bg, panel_text) = model_panel_colors(brand, &item.model_id);
-            BlockModelPickerItem {
-                effect_type: item.effect_type.clone().into(),
-                model_id: item.model_id.clone().into(),
-                label: item.display_name.into(),
-                subtitle: "".into(),
-                icon_kind: supported_block_type(effect_type)
-                    .map(|entry| entry.icon_kind)
-                    .unwrap_or(effect_type)
-                    .into(),
-                brand: brand.into(),
-                type_label: model_type_label(&item.effect_type, &item.model_id).into(),
-                panel_bg,
-                panel_text,
-            }
+        .map(|item| BlockModelPickerItem {
+            effect_type: item.effect_type.clone().into(),
+            model_id: item.model_id.clone().into(),
+            label: item.display_name.into(),
+            subtitle: "".into(),
+            icon_kind: supported_block_type(effect_type)
+                .map(|entry| entry.icon_kind)
+                .unwrap_or(effect_type)
+                .into(),
+            brand: model_brand(&item.effect_type, &item.model_id).into(),
+            type_label: model_type_label(&item.effect_type, &item.model_id).into(),
         })
         .collect()
 }
