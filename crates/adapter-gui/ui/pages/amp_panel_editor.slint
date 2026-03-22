@@ -132,9 +132,7 @@ component PanelKnob inherits Rectangle {
     in property <string> path;
     callback changed(string, float);
 
-    private property <float> norm: root.max-val > root.min-val
-        ? (root.value - root.min-val) / (root.max-val - root.min-val)
-        : 0.0;
+    private property <float> norm: root.value / 100.0;
     private property <float> drag-y0: 0;
     private property <float> drag-val0: 0;
     // Angle: 225° (min, 7:30) → 495° (max, 4:30)
@@ -458,8 +456,8 @@ export component AmpPanelEditor inherits Rectangle {
             height: 14px;
             text: knob.label;
             color: root.panel-text;
-            font-size: 9px;
-            font-weight: 700;
+            font-size: 10px;
+            font-weight: 900;
             letter-spacing: 1px;
             horizontal-alignment: center;
         }
