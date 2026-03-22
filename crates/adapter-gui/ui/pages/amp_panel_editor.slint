@@ -182,6 +182,70 @@ component PanelKnob inherits Rectangle {
         vertical-alignment: center;
     }
 
+    // ── Button (decrement) ──
+    Rectangle {
+        x: (parent.width - root.knob-size) / 2 - 22px;
+        y: (parent.height - 20px) / 2;
+        width: 20px;
+        height: 20px;
+        border-radius: 10px;
+        background: ta-dec.has-hover ? #ffffff18 : transparent;
+        border-width: 1px;
+        border-color: ta-dec.has-hover ? #666 : #333;
+
+        Text {
+            width: parent.width;
+            height: parent.height;
+            text: "-";
+            color: ta-dec.has-hover ? #fff : #888;
+            font-size: 14px;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+
+        ta-dec := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                let nv = root.value - root.step;
+                let clamped = nv < root.min-val ? root.min-val : nv;
+                root.changed(root.path, clamped);
+            }
+        }
+    }
+
+    // ── Button + (increment) ──
+    Rectangle {
+        x: (parent.width + root.knob-size) / 2 + 2px;
+        y: (parent.height - 20px) / 2;
+        width: 20px;
+        height: 20px;
+        border-radius: 10px;
+        background: ta-inc.has-hover ? #ffffff18 : transparent;
+        border-width: 1px;
+        border-color: ta-inc.has-hover ? #666 : #333;
+
+        Text {
+            width: parent.width;
+            height: parent.height;
+            text: "+";
+            color: ta-inc.has-hover ? #fff : #888;
+            font-size: 14px;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+
+        ta-inc := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                let nv = root.value + root.step;
+                let clamped = nv > root.max-val ? root.max-val : nv;
+                root.changed(root.path, clamped);
+            }
+        }
+    }
+
     ta := TouchArea {
         mouse-cursor: ns-resize;
 
