@@ -427,24 +427,24 @@ export component AmpPanelEditor inherits Rectangle {
             x: 0;
             y: 0;
             width: parent.width;
-            height: 130px;
+            height: 52px;
             background: #1a1a1a;
 
             if root.selected-brand == "marshall" : Image {
-                x: parent.width * 0.02;
-                y: 10px;
-                width: parent.width * 0.96;
-                height: 110px;
+                x: 0px;
+                y: 2px;
+                width: parent.width;
+                height: 48px;
                 source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/marshall/logo.svg");
                 image-fit: contain;
                 colorize: #ffffff;
             }
 
             if root.selected-brand == "vox" : Image {
-                x: parent.width * 0.05;
-                y: 10px;
-                width: parent.width * 0.9;
-                height: 110px;
+                x: 0px;
+                y: 2px;
+                width: parent.width;
+                height: 48px;
                 source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/vox/logo.svg");
                 image-fit: contain;
             }
