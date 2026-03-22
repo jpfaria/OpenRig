@@ -2,9 +2,19 @@ use anyhow::{anyhow, Result};
 use block_core::param::{ModelParameterSchema, ParameterSet};
 use block_core::{AudioChannelLayout, BlockProcessor};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AmpBackendKind { Native, Nam, Ir }
+
 #[derive(Clone, Copy)]
 pub struct AmpModelDefinition {
     pub id: &'static str,
+    pub display_name: &'static str,
+    pub brand: &'static str,
+    pub backend_kind: AmpBackendKind,
+    pub panel_bg: [u8; 3],
+    pub panel_text: [u8; 3],
+    pub brand_strip_bg: [u8; 3],
+    pub model_font: &'static str,
     pub schema: fn() -> Result<ModelParameterSchema>,
     pub validate: fn(&ParameterSet) -> Result<()>,
     pub asset_summary: fn(&ParameterSet) -> Result<String>,

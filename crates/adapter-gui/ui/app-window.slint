@@ -1,0 +1,568 @@
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay } from "models.slint";
+import { DesktopMain } from "desktop_main.slint";
+import { TouchMain } from "touch_main.slint";
+import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, BlockEditorPanel, AmpPanelEditor } from "pages/pages.slint";
+
+export component ProjectSettingsWindow inherits Window {
+    icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logomark.svg");
+    in-out property <string> project-name-draft;
+    in-out property <string> status-message;
+    in property <[DeviceSelectionItem]> project-devices;
+    in property <[string]> sample-rate-options;
+    in property <[string]> buffer-size-options;
+    callback update-project-name(string);
+    callback save-audio-settings();
+    callback close-project-settings();
+    callback toggle-project-device(int, bool);
+    callback update-project-sample-rate(int, string);
+    callback update-project-buffer-size(int, string);
+    title: "OpenRig · Configurar projeto";
+    min-width: 980px;
+    min-height: 680px;
+    preferred-width: 1160px;
+    preferred-height: 760px;
+    background: #040708;
+
+    ProjectSettingsPage {
+        width: parent.width;
+        height: parent.height;
+        project-name-draft: root.project-name-draft;
+        project-devices: root.project-devices;
+        sample-rate-options: root.sample-rate-options;
+        buffer-size-options: root.buffer-size-options;
+        status-message: root.status-message;
+        update-project-name(value) => { root.update-project-name(value); }
+        save-audio-settings => { root.save-audio-settings(); }
+        close-project-settings => { root.close-project-settings(); }
+        toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
+        update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
+        update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
+    }
+}
+
+export component ChainEditorWindow inherits Window {
+    icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logomark.svg");
+    in property <string> editor-title;
+    in property <string> editor-save-label;
+    in-out property <string> chain-name;
+    in property <string> input-summary;
+    in property <string> output-summary;
+    in-out property <string> status-message;
+    callback update-chain-name(string);
+    callback open-input();
+    callback open-output();
+    callback save-chain();
+    callback cancel-chain();
+    title: "OpenRig · Configurar chain";
+    min-width: 980px;
+    min-height: 680px;
+    preferred-width: 1160px;
+    preferred-height: 760px;
+    background: #040708;
+
+    ChainEditorPage {
+        width: parent.width;
+        height: parent.height;
+        title: root.editor-title;
+        save-label: root.editor-save-label;
+        chain-name: root.chain-name;
+        input-summary: root.input-summary;
+        output-summary: root.output-summary;
+        status-message: root.status-message;
+        update-chain-name(value) => { root.update-chain-name(value); }
+        open-input => { root.open-input(); }
+        open-output => { root.open-output(); }
+        save-chain => { root.save-chain(); }
+        cancel-chain => { root.cancel-chain(); }
+    }
+}
+
+export component ChainInputWindow inherits Window {
+    icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logomark.svg");
+    in property <[string]> device-options;
+    in-out property <int> selected-device-index;
+    in property <[ChannelOptionItem]> channels;
+    in-out property <string> status-message;
+    callback select-device(int);
+    callback toggle-channel(int, bool);
+    callback save();
+    callback cancel();
+    title: "OpenRig · Entrada da chain";
+    min-width: 720px;
+    min-height: 620px;
+    preferred-width: 860px;
+    preferred-height: 720px;
+    background: #040708;
+
+    ChainEndpointEditorPage {
+        width: parent.width;
+        height: parent.height;
+        title: "Entrada";
+        device-options: root.device-options;
+        selected-device-index <=> root.selected-device-index;
+        channels: root.channels;
+        status-message: root.status-message;
+        select-device(index) => { root.select-device(index); }
+        toggle-channel(index, selected) => { root.toggle-channel(index, selected); }
+        save => { root.save(); }
+        cancel => { root.cancel(); }
+    }
+}
+
+export component ChainOutputWindow inherits Window {
+    icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logomark.svg");
+    in property <[string]> device-options;
+    in-out property <int> selected-device-index;
+    in property <[ChannelOptionItem]> channels;
+    in-out property <string> status-message;
+    callback select-device(int);
+    callback toggle-channel(int, bool);
+    callback save();
+    callback cancel();
+    title: "OpenRig · Saída da chain";
+    min-width: 720px;
+    min-height: 620px;
+    preferred-width: 860px;
+    preferred-height: 720px;
+    background: #040708;
+
+    ChainEndpointEditorPage {
+        width: parent.width;
+        height: parent.height;
+        title: "Saída";
+        device-options: root.device-options;
+        selected-device-index <=> root.selected-device-index;
+        channels: root.channels;
+        status-message: root.status-message;
+        select-device(index) => { root.select-device(index); }
+        toggle-channel(index, selected) => { root.toggle-channel(index, selected); }
+        save => { root.save(); }
+        cancel => { root.cancel(); }
+    }
+}
+
+export component BlockEditorWindow inherits Window {
+    icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logomark.svg");
+    in property <[BlockTypePickerItem]> block-type-options;
+    in property <[BlockModelPickerItem]> block-model-options;
+    in property <[string]> block-model-option-labels;
+    in property <string> block-drawer-title;
+    in property <string> block-drawer-confirm-label;
+    in property <string> block-drawer-status-message;
+    in property <bool> block-drawer-edit-mode;
+    in property <int> block-drawer-selected-type-index;
+    in-out property <int> block-drawer-selected-model-index;
+    in property <bool> block-drawer-enabled;
+    in property <[BlockParameterItem]> block-parameter-items;
+    in property <[BlockKnobOverlay]> block-knob-overlays;
+    in property <string> block-window-title: "OpenRig · Block";
+    callback choose-block-model(int);
+    callback close-block-drawer();
+    callback save-block-drawer();
+    callback delete-block-drawer();
+    callback toggle-block-drawer-enabled();
+    callback update-block-parameter-text(string, string);
+    callback update-block-parameter-number(string, float);
+    callback update-block-parameter-number-text(string, string);
+    callback update-block-parameter-bool(string, bool);
+    callback select-block-parameter-option(string, int);
+    callback pick-block-parameter-file(string);
+
+    // Computed: should this block type use the visual panel editor?
+    private property <bool> use-panel-editor:
+        root.block-drawer-selected-type-index >= 0
+        && root.block-drawer-selected-type-index < root.block-type-options.length
+        && root.block-type-options[root.block-drawer-selected-type-index].use_panel_editor;
+
+    title: root.block-window-title;
+    min-width: root.use-panel-editor ? 900px : 520px;
+    min-height: root.use-panel-editor ? 275px : 760px;
+    max-width: root.use-panel-editor ? 900px : 520px;
+    max-height: root.use-panel-editor ? 275px : 760px;
+    preferred-width: root.use-panel-editor ? 900px : 520px;
+    preferred-height: root.use-panel-editor ? 275px : 760px;
+    background: #040708;
+
+    // Amp head: visual panel editor
+    if root.use-panel-editor : AmpPanelEditor {
+        width: parent.width;
+        height: parent.height;
+        block-type-options: root.block-type-options;
+        block-model-options: root.block-model-options;
+        block-model-option-labels: root.block-model-option-labels;
+        block-drawer-selected-type-index: root.block-drawer-selected-type-index;
+        block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
+        block-drawer-edit-mode: root.block-drawer-edit-mode;
+        block-drawer-enabled: root.block-drawer-enabled;
+        block-knob-overlays: root.block-knob-overlays;
+        block-drawer-confirm-label: root.block-drawer-confirm-label;
+        choose-block-model(i) => { root.choose-block-model(i); }
+        close-block-drawer => { root.close-block-drawer(); }
+        save-block-drawer => { root.save-block-drawer(); }
+        delete-block-drawer => { root.delete-block-drawer(); }
+        toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
+        update-block-parameter-number(path, val) => { root.update-block-parameter-number(path, val); }
+    }
+
+    // Other block types: existing form-based editor
+    if !root.use-panel-editor : BlockEditorPanel {
+        width: parent.width;
+        height: parent.height;
+        block-type-options: root.block-type-options;
+        block-model-options: root.block-model-options;
+        block-model-option-labels: root.block-model-option-labels;
+        block-drawer-title: root.block-drawer-title;
+        block-drawer-confirm-label: root.block-drawer-confirm-label;
+        block-drawer-status-message: root.block-drawer-status-message;
+        block-drawer-edit-mode: root.block-drawer-edit-mode;
+        block-drawer-selected-type-index: root.block-drawer-selected-type-index;
+        block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
+        block-drawer-enabled: root.block-drawer-enabled;
+        block-parameter-items: root.block-parameter-items;
+        choose-block-model(index) => { root.choose-block-model(index); }
+        close-block-drawer => { root.close-block-drawer(); }
+        save-block-drawer => { root.save-block-drawer(); }
+        delete-block-drawer => { root.delete-block-drawer(); }
+        toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
+        update-block-parameter-text(path, value) => { root.update-block-parameter-text(path, value); }
+        update-block-parameter-number(path, value) => { root.update-block-parameter-number(path, value); }
+        update-block-parameter-number-text(path, value) => { root.update-block-parameter-number-text(path, value); }
+        update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
+        select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
+        pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
+    }
+}
+
+export component AppWindow inherits Window {
+    icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logomark.svg");
+    in property <bool> show-project-launcher;
+    in property <bool> show-project-chains;
+    in property <bool> show-chain-editor;
+    in property <bool> show-project-settings;
+    in property <bool> project-running;
+    in property <bool> project-dirty;
+    in property <string> project-path-label;
+    in property <string> project-title;
+    in-out property <string> project-name-draft;
+    in property <string> runtime-mode-label;
+    in property <string> interaction-mode-label;
+    in property <bool> touch-optimized;
+    in property <bool> show-audio-settings;
+    in-out property <int> wizard-step;
+    in-out property <[DeviceSelectionItem]> input-devices;
+    in-out property <[DeviceSelectionItem]> output-devices;
+    in-out property <[ProjectChainItem]> project-chains;
+    in-out property <[RecentProjectItem]> recent-projects;
+    in-out property <string> recent-project-search;
+    in property <string> chain-editor-title;
+    in property <string> chain-editor-save-label;
+    in-out property <string> chain-draft-name;
+    in property <string> chain-input-summary;
+    in property <string> chain-output-summary;
+    in property <[string]> chain-input-device-options;
+    in property <[string]> chain-output-device-options;
+    in property <int> selected-chain-input-device-index;
+    in property <int> selected-chain-output-device-index;
+    in property <int> selected-chain-block-chain-index;
+    in property <int> selected-chain-block-index;
+    in property <[BlockTypePickerItem]> block-type-options;
+    in property <[BlockModelPickerItem]> block-model-options;
+    in property <[string]> block-model-option-labels;
+    in property <string> block-picker-title;
+    in property <bool> show-block-type-picker;
+    in property <bool> show-block-model-picker;
+    in property <bool> show-block-drawer;
+    in property <string> block-drawer-title;
+    in property <string> block-drawer-confirm-label;
+    in property <string> block-drawer-status-message;
+    in property <bool> block-drawer-edit-mode;
+    in property <int> block-drawer-selected-type-index;
+    in-out property <int> block-drawer-selected-model-index;
+    in property <bool> block-drawer-enabled;
+    in property <[BlockParameterItem]> block-parameter-items;
+    in property <[ChannelOptionItem]> chain-input-channels;
+    in property <[ChannelOptionItem]> chain-output-channels;
+    in-out property <string> status-message;
+    in property <[string]> sample-rate-options: ["44100", "48000", "88200", "96000"];
+    in property <[string]> buffer-size-options: ["32", "64", "128", "256", "512", "1024"];
+
+    callback toggle-input-device(int, bool);
+    callback toggle-output-device(int, bool);
+    callback update-input-sample-rate(int, string);
+    callback update-input-buffer-size(int, string);
+    callback update-output-sample-rate(int, string);
+    callback update-output-buffer-size(int, string);
+    callback go-to-output-step();
+    callback go-to-input-step();
+    callback update-project-name(string);
+    callback save-audio-settings();
+    callback close-project-settings();
+    callback open-project-file();
+    callback create-project-file();
+    callback open-recent-project(int);
+    callback remove-recent-project(int);
+    callback filter-recent-projects(string);
+    callback back-to-launcher();
+    callback add-chain();
+    callback save-project();
+    callback configure-project();
+    callback remove-chain(int);
+    callback toggle-chain-enabled(int);
+    callback configure-chain(int);
+    callback configure-chain-input(int);
+    callback configure-chain-output(int);
+    callback save-chain-preset(int);
+    callback configure-chain-preset(int);
+    callback start-project();
+    callback stop-project();
+    callback update-chain-name(string);
+    callback open-chain-input-editor();
+    callback open-chain-output-editor();
+    callback select-chain-input-device(int);
+    callback select-chain-output-device(int);
+    callback toggle-chain-input-channel(int, bool);
+    callback toggle-chain-output-channel(int, bool);
+    callback select-chain-block(int, int);
+    callback clear-chain-block();
+    callback toggle-chain-block-enabled(int, int);
+    callback start-block-insert(int, int);
+    callback reorder-chain-block(int, int, int);
+    callback choose-block-type(int);
+    callback choose-block-model(int);
+    callback cancel-block-picker();
+    callback close-block-drawer();
+    callback save-block-drawer();
+    callback delete-block-drawer();
+    callback toggle-block-drawer-enabled();
+    callback update-block-parameter-text(string, string);
+    callback update-block-parameter-number(string, float);
+    callback update-block-parameter-number-text(string, string);
+    callback update-block-parameter-bool(string, bool);
+    callback select-block-parameter-option(string, int);
+    callback pick-block-parameter-file(string);
+    callback save-chain();
+    callback cancel-chain();
+    title: "OpenRig";
+    min-width: 980px;
+    min-height: 680px;
+    preferred-width: 1160px;
+    preferred-height: 760px;
+    background: #040708;
+    default-font-family: "Helvetica Neue";
+    if !touch-optimized : DesktopMain {
+        width: 100%;
+        height: 100%;
+        show-project-launcher: root.show-project-launcher;
+        show-project-chains: root.show-project-chains;
+        show-chain-editor: root.show-chain-editor;
+        show-project-settings: root.show-project-settings;
+        project-running: root.project-running;
+        project-dirty: root.project-dirty;
+        project-path-label: root.project-path-label;
+        project-title: root.project-title;
+        project-name-draft: root.project-name-draft;
+        show-audio-settings: root.show-audio-settings;
+        wizard-step: root.wizard-step;
+        input-devices: root.input-devices;
+        output-devices: root.output-devices;
+        project-chains: root.project-chains;
+        recent-projects: root.recent-projects;
+        recent-project-search: root.recent-project-search;
+        chain-editor-title: root.chain-editor-title;
+        chain-editor-save-label: root.chain-editor-save-label;
+        chain-draft-name: root.chain-draft-name;
+        chain-input-summary: root.chain-input-summary;
+        chain-output-summary: root.chain-output-summary;
+        chain-input-device-options: root.chain-input-device-options;
+        chain-output-device-options: root.chain-output-device-options;
+        selected-chain-input-device-index: root.selected-chain-input-device-index;
+        selected-chain-output-device-index: root.selected-chain-output-device-index;
+        selected-chain-block-chain-index: root.selected-chain-block-chain-index;
+        selected-chain-block-index: root.selected-chain-block-index;
+        block-type-options: root.block-type-options;
+        block-model-options: root.block-model-options;
+        block-model-option-labels: root.block-model-option-labels;
+        block-picker-title: root.block-picker-title;
+        show-block-type-picker: root.show-block-type-picker;
+        show-block-model-picker: root.show-block-model-picker;
+        show-block-drawer: root.show-block-drawer;
+        block-drawer-title: root.block-drawer-title;
+        block-drawer-confirm-label: root.block-drawer-confirm-label;
+        block-drawer-status-message: root.block-drawer-status-message;
+        block-drawer-edit-mode: root.block-drawer-edit-mode;
+        block-drawer-selected-type-index: root.block-drawer-selected-type-index;
+        block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
+        block-drawer-enabled: root.block-drawer-enabled;
+        block-parameter-items: root.block-parameter-items;
+        chain-input-channels: root.chain-input-channels;
+        chain-output-channels: root.chain-output-channels;
+        status-message: root.status-message;
+        sample-rate-options: root.sample-rate-options;
+        buffer-size-options: root.buffer-size-options;
+        toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
+        toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
+        update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
+        update-input-buffer-size(index, value) => { root.update-input-buffer-size(index, value); }
+        update-output-sample-rate(index, value) => { root.update-output-sample-rate(index, value); }
+        update-output-buffer-size(index, value) => { root.update-output-buffer-size(index, value); }
+        go-to-output-step => { root.go-to-output-step(); }
+        go-to-input-step => { root.go-to-input-step(); }
+        update-project-name(value) => { root.update-project-name(value); }
+        save-audio-settings => { root.save-audio-settings(); }
+        close-project-settings => { root.close-project-settings(); }
+        open-project-file => { root.open-project-file(); }
+        create-project-file => { root.create-project-file(); }
+        open-recent-project(index) => { root.open-recent-project(index); }
+        remove-recent-project(index) => { root.remove-recent-project(index); }
+        filter-recent-projects(value) => { root.filter-recent-projects(value); }
+        back-to-launcher => { root.back-to-launcher(); }
+        add-chain => { root.add-chain(); }
+        save-project => { root.save-project(); }
+        configure-project => { root.configure-project(); }
+        remove-chain(index) => { root.remove-chain(index); }
+        toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
+        configure-chain(index) => { root.configure-chain(index); }
+        configure-chain-input(index) => { root.configure-chain-input(index); }
+        configure-chain-output(index) => { root.configure-chain-output(index); }
+        save-chain-preset(index) => { root.save-chain-preset(index); }
+        configure-chain-preset(index) => { root.configure-chain-preset(index); }
+        start-project => { root.start-project(); }
+        stop-project => { root.stop-project(); }
+        update-chain-name(value) => { root.update-chain-name(value); }
+        open-chain-input-editor => { root.open-chain-input-editor(); }
+        open-chain-output-editor => { root.open-chain-output-editor(); }
+        select-chain-input-device(index) => { root.select-chain-input-device(index); }
+        select-chain-output-device(index) => { root.select-chain-output-device(index); }
+        toggle-chain-input-channel(index, selected) => { root.toggle-chain-input-channel(index, selected); }
+        toggle-chain-output-channel(index, selected) => { root.toggle-chain-output-channel(index, selected); }
+        select-chain-block(chain-index, block-index) => { root.select-chain-block(chain-index, block-index); }
+        clear-chain-block => { root.clear-chain-block(); }
+        toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }
+        start-block-insert(chain-index, before-index) => { root.start-block-insert(chain-index, before-index); }
+        choose-block-type(index) => { root.choose-block-type(index); }
+        choose-block-model(index) => { root.choose-block-model(index); }
+        cancel-block-picker => { root.cancel-block-picker(); }
+        close-block-drawer => { root.close-block-drawer(); }
+        save-block-drawer => { root.save-block-drawer(); }
+        delete-block-drawer => { root.delete-block-drawer(); }
+        toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
+        update-block-parameter-text(path, value) => { root.update-block-parameter-text(path, value); }
+        update-block-parameter-number(path, value) => { root.update-block-parameter-number(path, value); }
+        update-block-parameter-number-text(path, value) => { root.update-block-parameter-number-text(path, value); }
+        update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
+        select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
+        pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
+        reorder-chain-block(chain-index, from-index, before-index) => { root.reorder-chain-block(chain-index, from-index, before-index); }
+        save-chain => { root.save-chain(); }
+        cancel-chain => { root.cancel-chain(); }
+    }
+
+    if touch-optimized : TouchMain {
+        width: 100%;
+        height: 100%;
+        show-project-launcher: root.show-project-launcher;
+        show-project-chains: root.show-project-chains;
+        show-chain-editor: root.show-chain-editor;
+        show-project-settings: root.show-project-settings;
+        project-running: root.project-running;
+        project-dirty: root.project-dirty;
+        project-path-label: root.project-path-label;
+        project-title: root.project-title;
+        project-name-draft: root.project-name-draft;
+        show-audio-settings: root.show-audio-settings;
+        wizard-step: root.wizard-step;
+        input-devices: root.input-devices;
+        output-devices: root.output-devices;
+        project-chains: root.project-chains;
+        recent-projects: root.recent-projects;
+        recent-project-search: root.recent-project-search;
+        chain-editor-title: root.chain-editor-title;
+        chain-editor-save-label: root.chain-editor-save-label;
+        chain-draft-name: root.chain-draft-name;
+        chain-input-summary: root.chain-input-summary;
+        chain-output-summary: root.chain-output-summary;
+        chain-input-device-options: root.chain-input-device-options;
+        chain-output-device-options: root.chain-output-device-options;
+        selected-chain-input-device-index: root.selected-chain-input-device-index;
+        selected-chain-output-device-index: root.selected-chain-output-device-index;
+        selected-chain-block-chain-index: root.selected-chain-block-chain-index;
+        selected-chain-block-index: root.selected-chain-block-index;
+        block-type-options: root.block-type-options;
+        block-model-options: root.block-model-options;
+        block-model-option-labels: root.block-model-option-labels;
+        block-picker-title: root.block-picker-title;
+        show-block-type-picker: root.show-block-type-picker;
+        show-block-model-picker: root.show-block-model-picker;
+        show-block-drawer: root.show-block-drawer;
+        block-drawer-title: root.block-drawer-title;
+        block-drawer-confirm-label: root.block-drawer-confirm-label;
+        block-drawer-status-message: root.block-drawer-status-message;
+        block-drawer-edit-mode: root.block-drawer-edit-mode;
+        block-drawer-selected-type-index: root.block-drawer-selected-type-index;
+        block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
+        block-drawer-enabled: root.block-drawer-enabled;
+        block-parameter-items: root.block-parameter-items;
+        chain-input-channels: root.chain-input-channels;
+        chain-output-channels: root.chain-output-channels;
+        status-message: root.status-message;
+        sample-rate-options: root.sample-rate-options;
+        buffer-size-options: root.buffer-size-options;
+        toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
+        toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
+        update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
+        update-input-buffer-size(index, value) => { root.update-input-buffer-size(index, value); }
+        update-output-sample-rate(index, value) => { root.update-output-sample-rate(index, value); }
+        update-output-buffer-size(index, value) => { root.update-output-buffer-size(index, value); }
+        go-to-output-step => { root.go-to-output-step(); }
+        go-to-input-step => { root.go-to-input-step(); }
+        update-project-name(value) => { root.update-project-name(value); }
+        save-audio-settings => { root.save-audio-settings(); }
+        close-project-settings => { root.close-project-settings(); }
+        open-project-file => { root.open-project-file(); }
+        create-project-file => { root.create-project-file(); }
+        open-recent-project(index) => { root.open-recent-project(index); }
+        remove-recent-project(index) => { root.remove-recent-project(index); }
+        filter-recent-projects(value) => { root.filter-recent-projects(value); }
+        back-to-launcher => { root.back-to-launcher(); }
+        add-chain => { root.add-chain(); }
+        save-project => { root.save-project(); }
+        configure-project => { root.configure-project(); }
+        remove-chain(index) => { root.remove-chain(index); }
+        toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
+        configure-chain(index) => { root.configure-chain(index); }
+        configure-chain-input(index) => { root.configure-chain-input(index); }
+        configure-chain-output(index) => { root.configure-chain-output(index); }
+        save-chain-preset(index) => { root.save-chain-preset(index); }
+        configure-chain-preset(index) => { root.configure-chain-preset(index); }
+        start-project => { root.start-project(); }
+        stop-project => { root.stop-project(); }
+        update-chain-name(value) => { root.update-chain-name(value); }
+        open-chain-input-editor => { root.open-chain-input-editor(); }
+        open-chain-output-editor => { root.open-chain-output-editor(); }
+        select-chain-input-device(index) => { root.select-chain-input-device(index); }
+        select-chain-output-device(index) => { root.select-chain-output-device(index); }
+        toggle-chain-input-channel(index, selected) => { root.toggle-chain-input-channel(index, selected); }
+        toggle-chain-output-channel(index, selected) => { root.toggle-chain-output-channel(index, selected); }
+        select-chain-block(chain-index, block-index) => { root.select-chain-block(chain-index, block-index); }
+        clear-chain-block => { root.clear-chain-block(); }
+        toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }
+        start-block-insert(chain-index, before-index) => { root.start-block-insert(chain-index, before-index); }
+        choose-block-type(index) => { root.choose-block-type(index); }
+        choose-block-model(index) => { root.choose-block-model(index); }
+        cancel-block-picker => { root.cancel-block-picker(); }
+        close-block-drawer => { root.close-block-drawer(); }
+        save-block-drawer => { root.save-block-drawer(); }
+        delete-block-drawer => { root.delete-block-drawer(); }
+        toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
+        update-block-parameter-text(path, value) => { root.update-block-parameter-text(path, value); }
+        update-block-parameter-number(path, value) => { root.update-block-parameter-number(path, value); }
+        update-block-parameter-number-text(path, value) => { root.update-block-parameter-number-text(path, value); }
+        update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
+        select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
+        pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
+        reorder-chain-block(chain-index, from-index, before-index) => { root.reorder-chain-block(chain-index, from-index, before-index); }
+        save-chain => { root.save-chain(); }
+        cancel-chain => { root.cancel-chain(); }
+    }
+
+}

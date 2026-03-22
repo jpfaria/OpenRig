@@ -7,11 +7,13 @@ use crate::PreampBackendKind;
 #[derive(Clone, Copy)]
 pub struct PreampModelDefinition {
     pub id: &'static str,
-    /// Nome de exibição do modelo (ex: "American Clean", "Marshall JCM 800 2203")
     pub display_name: &'static str,
-    /// Marca do equipamento (ex: "marshall", "vox", "native")
     pub brand: &'static str,
     pub backend_kind: PreampBackendKind,
+    pub panel_bg: [u8; 3],
+    pub panel_text: [u8; 3],
+    pub brand_strip_bg: [u8; 3],
+    pub model_font: &'static str,
     pub schema: fn() -> Result<ModelParameterSchema>,
     pub validate: fn(&ParameterSet) -> Result<()>,
     pub asset_summary: fn(&ParameterSet) -> Result<String>,
