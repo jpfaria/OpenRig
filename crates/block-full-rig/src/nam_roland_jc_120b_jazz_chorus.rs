@@ -112,15 +112,8 @@ fn resolve_capture(params: &ParameterSet) -> Result<&'static RolandCapture> {
     CAPTURES
         .iter()
         .find(|capture| capture.params == requested)
-        .ok_or_else(|| {
-            anyhow!(
-                "full-rig model '{}' does not support bright_enabled={} royer_101_enabled={} sm57_enabled={}",
-                MODEL_ID,
-                requested.bright_enabled,
-                requested.royer_101_enabled,
-                requested.sm57_enabled
-            )
-        })
+        .or_else(|| CAPTURES.first())
+        .ok_or_else(|| anyhow!("no captures available for model '{}'", MODEL_ID))
 }
 
 const fn capture(
