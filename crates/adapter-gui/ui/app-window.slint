@@ -204,6 +204,8 @@ export component BlockEditorWindow inherits Window {
         toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
         update-block-parameter-number(path, val) => { root.update-block-parameter-number(path, val); }
         select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
+        pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
+        update-block-parameter-bool(path, val) => { root.update-block-parameter-bool(path, val); }
     }
 
     // Other block types: existing form-based editor

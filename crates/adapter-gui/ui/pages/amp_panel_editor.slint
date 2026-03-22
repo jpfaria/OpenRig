@@ -229,6 +229,8 @@ export component AmpPanelEditor inherits Rectangle {
     callback toggle-block-drawer-enabled();
     callback update-block-parameter-number(string, float);
     callback select-block-parameter-option(string, int);
+    callback pick-block-parameter-file(string);
+    callback update-block-parameter-bool(string, bool);
 
     // Computed
     private property <string> selected-model-id:
@@ -664,6 +666,94 @@ export component AmpPanelEditor inherits Rectangle {
                         mouse-cursor: pointer;
                         clicked => { root.select-block-parameter-option(param.path, oi); }
                     }
+                }
+            }
+        }
+        // ── Non-enum parameters (numeric stepper, file picker, bool) ──
+        for param[pi] in root.block-parameter-items : Rectangle {
+            visible: param.widget_kind != "enum" && param.widget_kind != "";
+            x: parent.width - 28px - (root.block-parameter-items.length - pi) * 110px;
+            y: parent.height * 0.54;
+            width: 100px;
+            height: 60px;
+
+            // Label
+            Text {
+                x: 0; y: 0;
+                width: parent.width;
+                height: 16px;
+                text: param.label;
+                color: root.panel-text;
+                font-size: 9px;
+                font-weight: 800;
+                letter-spacing: 1px;
+                horizontal-alignment: center;
+            }
+
+            // File picker (widget_kind == "path")
+            if param.widget_kind == "path" : Rectangle {
+                x: 4px; y: 20px;
+                width: parent.width - 8px;
+                height: 32px;
+                border-radius: 6px;
+                background: file-ta.has-hover ? #ffffff18 : #00000030;
+                border-width: 1px;
+                border-color: #ffffff10;
+
+                Text {
+                    width: parent.width;
+                    height: parent.height;
+                    text: param.value_text != "" ? "..." : "Load";
+                    color: param.value_text != "" ? #8090a0 : #4488cc;
+                    font-size: 10px;
+                    font-weight: 600;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+
+                file-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.pick-block-parameter-file(param.path); }
+                }
+            }
+
+            // Numeric stepper (widget_kind == "stepper" or "slider" or "knob")
+            if param.widget_kind == "stepper" || param.widget_kind == "slider" || param.widget_kind == "knob" : PanelKnob {
+                x: (parent.width - 48px) / 2;
+                y: 18px;
+                width: 48px;
+                height: 48px;
+                value: param.numeric_value;
+                min-val: param.numeric_min;
+                max-val: param.numeric_max;
+                step: param.numeric_step;
+                path: param.path;
+                changed(p, v) => { root.update-block-parameter-number(p, v); }
+            }
+
+            // Boolean toggle (widget_kind == "toggle")
+            if param.widget_kind == "toggle" : Rectangle {
+                x: (parent.width - 48px) / 2;
+                y: 24px;
+                width: 48px;
+                height: 24px;
+                border-radius: 12px;
+                background: param.bool_value ? #3366cc : #333;
+                border-width: 1px;
+                border-color: param.bool_value ? #4488dd : #555;
+
+                Rectangle {
+                    x: param.bool_value ? parent.width - 22px : 2px;
+                    y: 2px;
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 10px;
+                    background: #ffffff;
+                }
+
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.update-block-parameter-bool(param.path, !param.bool_value); }
                 }
             }
         }
