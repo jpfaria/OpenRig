@@ -12,7 +12,7 @@ use block_core::param::{
 use block_core::{AudioChannelLayout, BlockProcessor};
 
 pub const MODEL_ID: &str = "marshall_jcm_800_2203";
-pub const DISPLAY_NAME: &str = "Marshall JCM 800 2203";
+pub const DISPLAY_NAME: &str = "JCM 800 2203";
 
 macro_rules! capture {
     ($volume:literal, $gain:literal, $asset_id:literal, $relative_path:literal) => {
