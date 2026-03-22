@@ -540,24 +540,26 @@ export component BlockPanelEditor inherits Rectangle {
             }
         }
 
-        // Nativos: fundo escuro com ícone decorativo + nome do modelo
+        // Nativos: fundo escuro com ilustração do modelo + nome
         if root.selected-brand == "native" || root.selected-brand == "" : Rectangle {
             x: 0;
             y: 0;
             width: parent.width;
-            height: 80px;
+            height: 96px;
             background: root.brand-strip-bg;
 
-            // Ícone decorativo do tipo de bloco
+            // Ilustração do modelo (SVG único por modelo)
             Image {
-                x: (parent.width - 32px) / 2;
-                y: 8px;
-                width: 32px;
-                height: 32px;
-                source: root.selected-icon-source;
+                x: (parent.width - 48px) / 2;
+                y: 6px;
+                width: 48px;
+                height: 48px;
+                source: root.selected-model-id == "analog_warm"
+                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/analog_warm.svg")
+                    : root.selected-icon-source;
                 image-fit: contain;
                 colorize: root.panel-text;
-                opacity: 0.5;
+                opacity: 0.6;
             }
 
             Text {

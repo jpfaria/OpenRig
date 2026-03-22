@@ -163,7 +163,15 @@ After writing code:
 - Feature flag enables something the UI can't handle
 - "Quick fix" that hardcodes a value
 
-### 9. File Organization
+### 9. Responsive UI
+
+- [ ] **All UI elements must be responsive** — never invade adjacent areas
+- [ ] Elements must adapt to window/panel size
+- [ ] No hardcoded absolute positions that break at different sizes
+- [ ] Test with minimum and maximum window sizes before committing
+- [ ] Overflow/clip must be handled — if content doesn't fit, it should scroll or truncate, never overflow
+
+### 10. File Organization
 
 - [ ] **One concern per file** — never dump all configs into a single file
 - [ ] Configuration files organized by component/domain (e.g., `visual_config/preamp.rs`, `visual_config/delay.rs`)
