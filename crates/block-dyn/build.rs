@@ -22,9 +22,9 @@ fn main() {
             continue;
         }
         let item = (stem.to_string(), path.canonicalize().expect("canonical path"));
-        if stem.starts_with("compressor_") {
+        if stem.contains("compressor") {
             compressor_modules.push(item);
-        } else if stem.starts_with("gate_") {
+        } else if stem.contains("gate") {
             gate_modules.push(item);
         }
     }
