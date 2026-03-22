@@ -110,17 +110,27 @@ Before making a change, verify:
 ## Correct Patterns
 
 ```
-✅ let brand = catalog_entry.brand;          // Data from source
-✅ let color = catalog_entry.panel_bg;       // Data from source
+✅ // Business data from catalog
+   let brand = catalog_entry.brand;
+   let type_label = catalog_entry.type_label;
 
-✅ pub const MODEL_DEFINITION = PreampModelDefinition {
-       display_name: DISPLAY_NAME,           // Const, no brand
-       brand: "marshall",                     // Defined here, read elsewhere
-       panel_bg: [0xb8, 0x98, 0x40],        // Visual config in model
+✅ // Visual config from adapter-gui (NOT from business crate)
+   let visual = visual_config_for_model(&brand, &model_id);
+   let panel_bg = visual.panel_bg;
+
+✅ // Model definition has ONLY business logic
+   pub const MODEL_DEFINITION = PreampModelDefinition {
+       id: MODEL_ID,
+       display_name: DISPLAY_NAME,  // No brand in name
+       brand: "marshall",           // Business data
+       backend_kind: PreampBackendKind::Nam,
+       schema, validate, build,     // Business logic only
+       // NO colors, fonts, or visual config here
    };
 
-✅ private property <color> panel-bg:
-       root.block-model-options[index].panel_bg;  // UI reads from data
+✅ // UI reads visual config from adapter-gui layer
+   private property <color> panel-bg:
+       root.block-model-options[index].panel_bg;
 
 ✅ // Before renaming files, check build.rs
    grep "starts_with\|stem ==" crates/block-*/build.rs
@@ -152,3 +162,12 @@ After writing code:
 - Same string appears in code AND Slint AND YAML
 - Feature flag enables something the UI can't handle
 - "Quick fix" that hardcodes a value
+
+## Living Document
+
+This skill is a LIVING DOCUMENT. Every time the user corrects a software engineering mistake:
+1. Identify the violated principle
+2. Add a rule or anti-pattern to this skill
+3. Commit the updated skill
+
+This ensures the same mistake is never repeated.
