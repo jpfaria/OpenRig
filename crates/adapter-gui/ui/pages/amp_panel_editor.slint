@@ -609,7 +609,7 @@ export component AmpPanelEditor inherits Rectangle {
         // ── Enum parameters (segmented controls, alinhados à direita) ──
         for param[pi] in root.block-parameter-items : Rectangle {
             // Só mostrar parâmetros do tipo "select" (enums)
-            visible: param.widget_kind == "select";
+            visible: param.widget_kind == "enum";
             x: parent.width - 56px - (root.block-parameter-items.length - 1 - pi) * 200px - 100px;
             y: parent.height * 0.54;
             width: 200px;
