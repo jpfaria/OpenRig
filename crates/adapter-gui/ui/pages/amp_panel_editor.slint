@@ -549,42 +549,5 @@ export component AmpPanelEditor inherits Rectangle {
 
     // (footer edit mode removido — delete button agora está no header)
 
-    // Insert mode footer: save/add button
-    if !root.block-drawer-edit-mode : Rectangle {
-        x: 0;
-        y: root.header-height + root.brand-strip-height + root.panel-height;
-        width: parent.width;
-        height: 52px;
-        background: #040408;
-
-        Rectangle {
-            x: 0; y: 0;
-            width: parent.width; height: 1px;
-            background: #0e0e1e;
-        }
-
-        Rectangle {
-            x: parent.width - 120px;
-            y: (52px - 36px) / 2;
-            width: 104px;
-            height: 36px;
-            background: ta-save.has-hover ? #1a5acc : #102a88;
-            border-radius: 6px;
-
-            Text {
-                width: parent.width; height: parent.height;
-                text: root.block-drawer-confirm-label;
-                color: #e8edff;
-                font-size: 13px;
-                font-weight: 700;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-            }
-
-            ta-save := TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.save-block-drawer(); }
-            }
-        }
-    }
+    // (insert footer removed — save button is now in the header)
 }
