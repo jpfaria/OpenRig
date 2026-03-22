@@ -202,40 +202,56 @@ export component ChainEditorPage inherits Rectangle {
         x: 32px;
         y: 188px;
         width: parent.width - 64px;
-        height: 36px;
+        height: 48px;
         background: transparent;
 
         for label[index] in root.instrument-labels : Rectangle {
             x: index * 100px;
             y: 0px;
             width: 92px;
-            height: 32px;
+            height: 44px;
             background: index == root.selected-instrument-index ? #2a5da8 : #1d2025;
             border-width: 1px;
             border-color: index == root.selected-instrument-index ? #45a7ff : #41454e;
             border-radius: 4px;
-            opacity: root.is-create-mode ? 1.0 : 0.5;
+            opacity: 1.0;
+
+            Image {
+                x: (parent.width - 16px) / 2;
+                y: 4px;
+                width: 16px;
+                height: 16px;
+                source: index == 0 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/electric_guitar.svg")
+                    : index == 1 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/acoustic_guitar.svg")
+                    : index == 2 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/bass.svg")
+                    : index == 3 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/voice.svg")
+                    : index == 4 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/keys.svg")
+                    : index == 5 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/drums.svg")
+                    : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/generic.svg");
+                image-fit: contain;
+                colorize: index == root.selected-instrument-index ? #f4f7fb : #8a94a2;
+            }
 
             Text {
+                x: 0;
+                y: 22px;
                 width: parent.width;
-                height: parent.height;
+                height: 18px;
                 text: label;
                 color: index == root.selected-instrument-index ? #f4f7fb : #8a94a2;
                 horizontal-alignment: center;
                 vertical-alignment: center;
-                font-size: 11px;
+                font-size: 9px;
                 font-weight: 600;
             }
 
             TouchArea {
                 width: parent.width;
                 height: parent.height;
-                mouse-cursor: root.is-create-mode ? pointer : default;
+                mouse-cursor: pointer;
                 clicked => {
-                    if (root.is-create-mode) {
-                        root.selected-instrument-index = index;
-                        root.select-instrument(index);
-                    }
+                    root.selected-instrument-index = index;
+                    root.select-instrument(index);
                 }
             }
         }

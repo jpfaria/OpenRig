@@ -3544,7 +3544,7 @@ pub fn run_desktop_app(
                 enabled: existing_chain
                     .as_ref()
                     .map(|chain| chain.enabled)
-                    .unwrap_or(true),
+                    .unwrap_or(false),
                 input_device_id: DeviceId(draft.input_device_id.unwrap_or_default()),
                 input_channels: draft.input_channels,
                 output_device_id: DeviceId(draft.output_device_id.unwrap_or_default()),
@@ -3646,7 +3646,7 @@ pub fn run_desktop_app(
                 enabled: existing_chain
                     .as_ref()
                     .map(|chain| chain.enabled)
-                    .unwrap_or(true),
+                    .unwrap_or(false),
                 input_device_id: DeviceId(draft.input_device_id.unwrap_or_default()),
                 input_channels: draft.input_channels,
                 output_device_id: DeviceId(draft.output_device_id.unwrap_or_default()),
@@ -3931,11 +3931,32 @@ pub fn run_desktop_app(
                 window.set_status_message("Nenhum projeto carregado.".into());
                 return;
             };
-            let Some(chain) = session.project.chains.get_mut(index as usize) else {
+            let index = index as usize;
+            let Some(chain) = session.project.chains.get(index) else {
                 window.set_status_message("Chain inválida.".into());
                 return;
             };
-            chain.enabled = !chain.enabled;
+            let will_enable = !chain.enabled;
+            // Check channel conflict before enabling
+            if will_enable {
+                let input_id = chain.input_device_id.clone();
+                let input_channels = chain.input_channels.clone();
+                let chain_id = chain.id.clone();
+                for other in &session.project.chains {
+                    if other.id != chain_id && other.enabled
+                        && other.input_device_id == input_id
+                        && other.input_channels.iter().any(|ch| input_channels.contains(ch))
+                    {
+                        let other_name = other.description.as_deref().unwrap_or("outra chain");
+                        window.set_status_message(
+                            format!("Input channel já em uso por '{}'", other_name).into()
+                        );
+                        return;
+                    }
+                }
+            }
+            let Some(chain) = session.project.chains.get_mut(index) else { return; };
+            chain.enabled = will_enable;
             let chain_id = chain.id.clone();
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 window.set_status_message(error.to_string().into());
