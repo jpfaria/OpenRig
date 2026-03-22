@@ -61,10 +61,6 @@ pub fn pitch_model_visual(model_id: &str) -> Option<ModelVisualData> {
     Some(ModelVisualData {
         brand: "",
         type_label: "NATIVE",
-        panel_bg: [0x2c, 0x2e, 0x34],
-        panel_text: [0x80, 0x90, 0xa0],
-        brand_strip_bg: [0x1a, 0x1a, 0x1a],
-        model_font: "",
     })
 }
 

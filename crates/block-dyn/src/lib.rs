@@ -26,10 +26,6 @@ pub fn dyn_model_visual(model_id: &str) -> Option<ModelVisualData> {
             DynBackendKind::Nam => "NAM",
             DynBackendKind::Ir => "IR",
         },
-        panel_bg: def.panel_bg,
-        panel_text: def.panel_text,
-        brand_strip_bg: def.brand_strip_bg,
-        model_font: def.model_font,
     })
 }
 

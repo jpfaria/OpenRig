@@ -35,6 +35,7 @@ use ui_openrig::{AppRuntimeMode, InteractionMode, UiRuntimeContext};
 use ui_state::{block_drawer_state, block_family_for_kind, chain_routing_summary};
 
 mod ui_state;
+mod visual_config;
 
 slint::include_modules!();
 
@@ -4336,11 +4337,12 @@ fn block_model_picker_items(effect_type: &str) -> Vec<BlockModelPickerItem> {
                 let brand_display = brand[..1].to_uppercase() + &brand[1..];
                 format!("{} {}", brand_display, item.display_name)
             };
-            let [r, g, b] = item.panel_bg;
+            let visual = visual_config::visual_config_for_model(&item.brand, &item.model_id);
+            let [r, g, b] = visual.panel_bg;
             let panel_bg = slint::Color::from_argb_u8(0xff, r, g, b);
-            let [r, g, b] = item.panel_text;
+            let [r, g, b] = visual.panel_text;
             let panel_text = slint::Color::from_argb_u8(0xff, r, g, b);
-            let [r, g, b] = item.brand_strip_bg;
+            let [r, g, b] = visual.brand_strip_bg;
             let brand_strip_bg = slint::Color::from_argb_u8(0xff, r, g, b);
             BlockModelPickerItem {
                 effect_type: item.effect_type.clone().into(),
@@ -4357,7 +4359,7 @@ fn block_model_picker_items(effect_type: &str) -> Vec<BlockModelPickerItem> {
                 panel_bg,
                 panel_text,
                 brand_strip_bg,
-                model_font: item.model_font.clone().into(),
+                model_font: visual.model_font.into(),
             }
         })
         .collect()

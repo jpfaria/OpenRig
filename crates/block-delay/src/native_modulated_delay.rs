@@ -173,10 +173,6 @@ pub const MODEL_DEFINITION: DelayModelDefinition = DelayModelDefinition {
     display_name: DISPLAY_NAME,
     brand: "",
     backend_kind: DelayBackendKind::Native,
-    panel_bg: [0x2c, 0x2e, 0x34],
-    panel_text: [0x80, 0x90, 0xa0],
-    brand_strip_bg: [0x1a, 0x1a, 0x1a],
-    model_font: "",
     schema,
     build,
 };

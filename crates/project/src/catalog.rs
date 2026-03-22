@@ -19,10 +19,6 @@ pub struct BlockModelCatalogEntry {
     pub display_name: String,
     pub brand: String,
     pub type_label: String,
-    pub panel_bg: [u8; 3],
-    pub panel_text: [u8; 3],
-    pub brand_strip_bg: [u8; 3],
-    pub model_font: String,
 }
 
 type SupportedModelsFn = fn() -> &'static [&'static str];
@@ -205,10 +201,6 @@ pub fn supported_block_models(effect_type: &str) -> Result<Vec<BlockModelCatalog
                 display_name: schema.display_name,
                 brand: visual.as_ref().map(|v| v.brand.to_string()).unwrap_or_default(),
                 type_label: visual.as_ref().map(|v| v.type_label.to_string()).unwrap_or_default(),
-                panel_bg: visual.as_ref().map(|v| v.panel_bg).unwrap_or([0x2c, 0x2e, 0x34]),
-                panel_text: visual.as_ref().map(|v| v.panel_text).unwrap_or([0x80, 0x90, 0xa0]),
-                brand_strip_bg: visual.as_ref().map(|v| v.brand_strip_bg).unwrap_or([0x1a, 0x1a, 0x1a]),
-                model_font: visual.as_ref().map(|v| v.model_font.to_string()).unwrap_or_default(),
             })
         })
         .collect()

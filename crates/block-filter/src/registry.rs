@@ -12,10 +12,6 @@ pub struct FilterModelDefinition {
     pub display_name: &'static str,
     pub brand: &'static str,
     pub backend_kind: FilterBackendKind,
-    pub panel_bg: [u8; 3],
-    pub panel_text: [u8; 3],
-    pub brand_strip_bg: [u8; 3],
-    pub model_font: &'static str,
     pub schema: fn() -> Result<ModelParameterSchema>,
     pub build: fn(&ParameterSet, f32, AudioChannelLayout) -> Result<BlockProcessor>,
 }
