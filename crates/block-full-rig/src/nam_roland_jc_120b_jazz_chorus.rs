@@ -104,10 +104,9 @@ pub fn asset_summary(params: &ParameterSet) -> Result<String> {
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static RolandCapture> {
     let requested = RolandParams {
-        bright_enabled: required_bool(params, "bright_enabled").map_err(anyhow::Error::msg)?,
-        royer_101_enabled: required_bool(params, "royer_101_enabled")
-            .map_err(anyhow::Error::msg)?,
-        sm57_enabled: required_bool(params, "sm57_enabled").map_err(anyhow::Error::msg)?,
+        bright_enabled: params.get("bright_enabled").and_then(|v| v.as_bool()).unwrap_or(false),
+        royer_101_enabled: params.get("royer_101_enabled").and_then(|v| v.as_bool()).unwrap_or(true),
+        sm57_enabled: params.get("sm57_enabled").and_then(|v| v.as_bool()).unwrap_or(false),
     };
 
     CAPTURES
