@@ -554,8 +554,30 @@ export component BlockPanelEditor inherits Rectangle {
                 y: 6px;
                 width: 48px;
                 height: 48px;
-                source: root.selected-model-id == "analog_warm"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/analog_warm.svg")
+                source: root.selected-model-id == "analog_warm" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/analog_warm.svg")
+                    : root.selected-model-id == "digital_clean" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/digital_clean.svg")
+                    : root.selected-model-id == "modulated_delay" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/modulated_delay.svg")
+                    : root.selected-model-id == "reverse" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/reverse.svg")
+                    : root.selected-model-id == "slapback" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/slapback.svg")
+                    : root.selected-model-id == "tape_vintage" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/tape_vintage.svg")
+                    : root.selected-model-id == "plate_foundation" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/plate_foundation.svg")
+                    : root.selected-model-id == "compressor_studio_clean" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/compressor_studio_clean.svg")
+                    : root.selected-model-id == "gate_basic" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/gate_basic.svg")
+                    : root.selected-model-id == "eq_three_band_basic" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/eq_three_band_basic.svg")
+                    : root.selected-model-id == "cry_classic" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/cry_classic.svg")
+                    : root.selected-model-id == "tremolo_sine" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/tremolo_sine.svg")
+                    : root.selected-model-id == "tuner_chromatic" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/tuner_chromatic.svg")
+                    : root.selected-model-id == "american_clean" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/american_clean.svg")
+                    : root.selected-model-id == "brit_crunch" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/brit_crunch.svg")
+                    : root.selected-model-id == "modern_high_gain" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/modern_high_gain.svg")
+                    : root.selected-model-id == "blackface_clean" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/blackface_clean.svg")
+                    : root.selected-model-id == "tweed_breakup" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/tweed_breakup.svg")
+                    : root.selected-model-id == "chime" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/chime.svg")
+                    : root.selected-model-id == "american_2x12" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/american_2x12.svg")
+                    : root.selected-model-id == "brit_4x12" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/brit_4x12.svg")
+                    : root.selected-model-id == "vintage_1x12" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/vintage_1x12.svg")
+                    : root.selected-model-id == "generic_ir" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/generic_ir.svg")
+                    : root.selected-model-id == "generic_nam" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/generic_nam.svg")
                     : root.selected-icon-source;
                 image-fit: contain;
                 colorize: root.panel-text;

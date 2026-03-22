@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80">
+  <!-- Noise gate: waveform that gets cut off (gate open/closed) -->
+  <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Gate open section: signal passes through -->
+    <path d="M10,40 C13,30 17,30 20,40 C23,50 27,50 30,40 C33,30 37,30 40,40" />
+    <!-- Gate vertical bars (the gate itself) -->
+    <line x1="44" y1="22" x2="44" y2="58" stroke-width="2" />
+    <line x1="50" y1="22" x2="50" y2="58" stroke-width="2" />
+    <!-- Gate closed section: flat line -->
+    <line x1="54" y1="40" x2="70" y2="40" />
+  </g>
+</svg>
