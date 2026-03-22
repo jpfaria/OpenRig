@@ -182,7 +182,7 @@ impl DeviceSettingsYaml {
 struct ChainYaml {
     #[serde(default)]
     description: Option<String>,
-    #[serde(default = "default_enabled")]
+    #[serde(default = "default_enabled", skip_serializing)]
     enabled: bool,
     input_device_id: String,
     input_channels: Vec<usize>,
@@ -200,7 +200,7 @@ impl ChainYaml {
         Ok(Chain {
             id: chain_id.clone(),
             description: self.description,
-            enabled: self.enabled,
+            enabled: false, // chains always start disabled on load
             input_device_id: DeviceId(self.input_device_id),
             input_channels: self.input_channels,
             output_device_id: DeviceId(self.output_device_id),
