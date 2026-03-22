@@ -43,7 +43,7 @@ fn main() {
     for (module_name, _) in &model_modules {
         generated.push_str(&format!("    {}::MODEL_DEFINITION.id,\n", module_name));
     }
-    generated.push_str("];\n\nconst MODEL_DEFINITIONS: &[AmpHeadModelDefinition] = &[\n");
+    generated.push_str("];\n\nconst MODEL_DEFINITIONS: &[AmpModelDefinition] = &[\n");
     for (module_name, _) in &model_modules {
         generated.push_str(&format!("    {}::MODEL_DEFINITION,\n", module_name));
     }

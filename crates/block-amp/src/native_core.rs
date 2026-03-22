@@ -1,5 +1,5 @@
 use anyhow::Result;
-use block_amp_head::native_core::{
+use block_preamp::native_core::{
     build_native_head_mono_processor, NativeAmpHeadProfile, NativeAmpHeadSettings,
 };
 use block_cab::native_core::{build_native_cab_mono_processor, NativeCabProfile, NativeCabSettings};
@@ -12,7 +12,7 @@ use block_core::{
 };
 
 #[derive(Debug, Clone, Copy)]
-pub struct NativeAmpComboSettings {
+pub struct NativeAmpSettings {
     pub input_db: f32,
     pub gain: f32,
     pub bass: f32,
@@ -26,7 +26,7 @@ pub struct NativeAmpComboSettings {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct NativeAmpComboProfile {
+pub struct NativeAmpProfile {
     pub head_profile: NativeAmpHeadProfile,
     pub cab_profile: NativeCabProfile,
     pub fixed_presence: f32,
@@ -41,7 +41,7 @@ pub struct NativeAmpComboProfile {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct NativeAmpComboSchemaDefaults {
+pub struct NativeAmpSchemaDefaults {
     pub gain: f32,
     pub treble: f32,
     pub bright: bool,
@@ -54,12 +54,12 @@ struct DualMonoProcessor {
     right: Box<dyn MonoProcessor>,
 }
 
-struct NativeAmpComboProcessor {
+struct NativeAmpProcessor {
     head: Box<dyn MonoProcessor>,
     cab: Box<dyn MonoProcessor>,
 }
 
-impl MonoProcessor for NativeAmpComboProcessor {
+impl MonoProcessor for NativeAmpProcessor {
     fn process_sample(&mut self, input: f32) -> f32 {
         let sample = self.head.process_sample(input);
         self.cab.process_sample(sample)
@@ -78,10 +78,10 @@ impl StereoProcessor for DualMonoProcessor {
 pub fn model_schema(
     model_id: &'static str,
     display_name: &'static str,
-    defaults: NativeAmpComboSchemaDefaults,
+    defaults: NativeAmpSchemaDefaults,
 ) -> ModelParameterSchema {
     ModelParameterSchema {
-        effect_type: "amp_combo".into(),
+        effect_type: "amp".into(),
         model: model_id.into(),
         display_name: display_name.into(),
         audio_mode: ModelAudioMode::DualMono,
@@ -186,8 +186,8 @@ pub fn model_schema(
     }
 }
 
-pub fn settings_from_params(params: &ParameterSet) -> Result<NativeAmpComboSettings> {
-    Ok(NativeAmpComboSettings {
+pub fn settings_from_params(params: &ParameterSet) -> Result<NativeAmpSettings> {
+    Ok(NativeAmpSettings {
         input_db: required_f32(params, "input_db").map_err(anyhow::Error::msg)?,
         gain: required_f32(params, "gain").map_err(anyhow::Error::msg)?,
         bass: required_f32(params, "bass").map_err(anyhow::Error::msg)?,
@@ -211,7 +211,7 @@ pub fn asset_summary(model_id: &'static str, _params: &ParameterSet) -> Result<S
 }
 
 pub fn build_processor_for_profile(
-    profile: NativeAmpComboProfile,
+    profile: NativeAmpProfile,
     params: &ParameterSet,
     sample_rate: f32,
     layout: AudioChannelLayout,
@@ -232,8 +232,8 @@ pub fn build_processor_for_profile(
 }
 
 fn build_native_combo_mono_processor(
-    profile: NativeAmpComboProfile,
-    settings: NativeAmpComboSettings,
+    profile: NativeAmpProfile,
+    settings: NativeAmpSettings,
     sample_rate: f32,
 ) -> Box<dyn MonoProcessor> {
     let head = build_native_head_mono_processor(
@@ -269,5 +269,5 @@ fn build_native_combo_mono_processor(
         sample_rate,
     );
 
-    Box::new(NativeAmpComboProcessor { head, cab })
+    Box::new(NativeAmpProcessor { head, cab })
 }

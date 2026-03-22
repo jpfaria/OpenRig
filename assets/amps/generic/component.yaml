@@ -2,8 +2,8 @@ id: generic_amp
 name: Amp Genérico
 brand: Generic
 model: Amp
-category: amp_combo
-icon_kind: amp_combo
+category: amp
+icon_kind: amp
 description: >
   Componente genérico de amplificador com controles padrão:
   Gain, Volume, EQ (Bass/Mid/Treble), Master e Presence.

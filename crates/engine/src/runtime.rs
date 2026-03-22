@@ -6,8 +6,8 @@ use project::block::{
 use project::param::ParameterSet;
 use project::project::Project;
 use project::chain::{Chain, ChainOutputMixdown};
-use block_amp_combo::build_amp_combo_processor_for_layout;
-use block_amp_head::build_amp_head_processor_for_layout;
+use block_amp::build_amp_processor_for_layout;
+use block_preamp::build_preamp_processor_for_layout;
 use block_cab::build_cab_processor_for_layout;
 use block_core::{
     AudioChannelLayout, ModelAudioMode, MonoProcessor, BlockProcessor, StereoProcessor,
@@ -395,18 +395,18 @@ fn build_block_runtime_node(
             build_nam_audio_processor(chain, stage, input_layout)?,
         ),
         AudioBlockKind::Core(core) => match &core.kind {
-            CoreBlockKind::AmpHead(stage) => audio_block_runtime_node(
+            CoreBlockKind::Preamp(stage) => audio_block_runtime_node(
                 block,
                 input_layout,
-                build_audio_processor_for_model(chain, "amp_head", &stage.model, input_layout, |layout| {
-                    build_amp_head_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
+                build_audio_processor_for_model(chain, "preamp", &stage.model, input_layout, |layout| {
+                    build_preamp_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
                 })?,
             ),
-            CoreBlockKind::AmpCombo(stage) => audio_block_runtime_node(
+            CoreBlockKind::Amp(stage) => audio_block_runtime_node(
                 block,
                 input_layout,
-                build_audio_processor_for_model(chain, "amp_combo", &stage.model, input_layout, |layout| {
-                    build_amp_combo_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
+                build_audio_processor_for_model(chain, "amp", &stage.model, input_layout, |layout| {
+                    build_amp_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
                 })?,
             ),
             CoreBlockKind::FullRig(stage) => audio_block_runtime_node(
@@ -1003,7 +1003,7 @@ mod tests {
         build_chain_runtime_state, build_runtime_graph, process_input_f32, process_output_f32,
         update_chain_runtime_state, MAX_BUFFERED_OUTPUT_FRAMES,
     };
-    use block_amp_head::supported_models as supported_amp_head_models;
+    use block_preamp::supported_models as supported_preamp_models;
     use block_cab::{cab_backend_kind, supported_models as supported_cab_models, CabBackendKind};
     use block_delay::supported_models as supported_delay_models;
     use block_dyn::compressor_supported_models;
@@ -1012,7 +1012,7 @@ mod tests {
     use domain::ids::{BlockId, DeviceId, ChainId};
     use domain::value_objects::ParameterValue;
     use project::block::{
-        AmpHeadBlock, AudioBlock, AudioBlockKind, CabBlock, CompressorBlock, CoreBlock,
+        PreampBlock, AudioBlock, AudioBlockKind, CabBlock, CompressorBlock, CoreBlock,
         CoreBlockKind, DelayBlock, ReverbBlock, SelectBlock, TunerBlock, schema_for_block_model,
     };
     use project::param::ParameterSet;
@@ -1222,7 +1222,7 @@ mod tests {
             output_channels: vec![0, 1],
             blocks: vec![
                 compressor_block("chain:stereo:block:0"),
-                amp_head_block("chain:stereo:block:1"),
+                preamp_block("chain:stereo:block:1"),
                 native_cab_block("chain:stereo:block:2"),
                 reverb_block("chain:stereo:block:3"),
             ],
@@ -1262,7 +1262,7 @@ mod tests {
             output_device_id: DeviceId("output-device".into()),
             output_channels: vec![0, 1],
             blocks: vec![
-                marshall_amp_head_block("chain:asset-backed:block:0"),
+                marshall_preamp_block("chain:asset-backed:block:0"),
                 ir_cab_block("chain:asset-backed:block:1"),
                 reverb_block("chain:asset-backed:block:2"),
             ],
@@ -1421,33 +1421,33 @@ mod tests {
         }
     }
 
-    fn amp_head_block(block_id: &str) -> AudioBlock {
-        let model = supported_amp_head_models()
+    fn preamp_block(block_id: &str) -> AudioBlock {
+        let model = supported_preamp_models()
             .iter()
             .find(|model| !model.contains("marshall_jcm_800"))
-            .or_else(|| supported_amp_head_models().first())
-            .expect("block-amp-head must expose at least one model")
+            .or_else(|| supported_preamp_models().first())
+            .expect("block-preamp must expose at least one model")
             .to_string();
         AudioBlock {
             id: BlockId(block_id.into()),
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
-                kind: CoreBlockKind::AmpHead(AmpHeadBlock {
-                    params: normalized_defaults("amp_head", &model),
+                kind: CoreBlockKind::Preamp(PreampBlock {
+                    params: normalized_defaults("preamp", &model),
                     model,
                 }),
             }),
         }
     }
 
-    fn marshall_amp_head_block(block_id: &str) -> AudioBlock {
+    fn marshall_preamp_block(block_id: &str) -> AudioBlock {
         let model = "marshall_jcm_800_2203".to_string();
         AudioBlock {
             id: BlockId(block_id.into()),
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
-                kind: CoreBlockKind::AmpHead(AmpHeadBlock {
-                    params: normalized_defaults("amp_head", &model),
+                kind: CoreBlockKind::Preamp(PreampBlock {
+                    params: normalized_defaults("preamp", &model),
                     model,
                 }),
             }),

@@ -1,8 +1,8 @@
 use domain::ids::BlockId;
 use domain::value_objects::ParameterValue;
 use serde::{Deserialize, Serialize};
-use block_amp_combo::{amp_combo_model_schema, validate_amp_combo_params};
-use block_amp_head::{amp_head_model_schema, validate_amp_head_params};
+use block_amp::{amp_model_schema, validate_amp_params};
+use block_preamp::{preamp_model_schema, validate_preamp_params};
 use block_cab::{cab_model_schema, validate_cab_params};
 use block_core::ModelAudioMode;
 use block_delay::delay_model_schema;
@@ -63,8 +63,8 @@ pub struct CoreBlock {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum CoreBlockKind {
-    AmpHead(AmpHeadBlock),
-    AmpCombo(AmpComboBlock),
+    Preamp(PreampBlock),
+    Amp(AmpBlock),
     FullRig(FullRigBlock),
     Cab(CabBlock),
     Ir(IrBlock),
@@ -88,8 +88,8 @@ pub struct SelectBlock {
 
 const MAX_SELECT_OPTIONS: usize = 8;
 
-define_model_block!(AmpHeadBlock);
-define_model_block!(AmpComboBlock);
+define_model_block!(PreampBlock);
+define_model_block!(AmpBlock);
 define_model_block!(FullRigBlock);
 define_model_block!(CabBlock);
 define_model_block!(IrBlock);
@@ -206,13 +206,13 @@ impl CoreBlock {
 impl CoreBlockKind {
     pub fn model_ref(&self) -> BlockModelRef<'_> {
         match self {
-            CoreBlockKind::AmpHead(stage) => BlockModelRef {
-                effect_type: "amp_head",
+            CoreBlockKind::Preamp(stage) => BlockModelRef {
+                effect_type: "preamp",
                 model: &stage.model,
                 params: &stage.params,
             },
-            CoreBlockKind::AmpCombo(stage) => BlockModelRef {
-                effect_type: "amp_combo",
+            CoreBlockKind::Amp(stage) => BlockModelRef {
+                effect_type: "amp",
                 model: &stage.model,
                 params: &stage.params,
             },
@@ -341,11 +341,11 @@ pub fn normalize_block_params(
     let schema = schema_for_block_model(effect_type, model)?;
     let normalized = params.normalized_against(&schema)?;
     match effect_type {
-        "amp_head" => {
-            validate_amp_head_params(model, &normalized).map_err(|error| error.to_string())?
+        "preamp" => {
+            validate_preamp_params(model, &normalized).map_err(|error| error.to_string())?
         }
-        "amp_combo" => {
-            validate_amp_combo_params(model, &normalized).map_err(|error| error.to_string())?
+        "amp" => {
+            validate_amp_params(model, &normalized).map_err(|error| error.to_string())?
         }
         "full_rig" => {
             validate_full_rig_params(model, &normalized).map_err(|error| error.to_string())?
@@ -365,8 +365,8 @@ pub fn schema_for_block_model(
     model: &str,
 ) -> Result<ModelParameterSchema, String> {
     match effect_type {
-        "amp_head" => amp_head_model_schema(model).map_err(|error| error.to_string()),
-        "amp_combo" => amp_combo_model_schema(model).map_err(|error| error.to_string()),
+        "preamp" => preamp_model_schema(model).map_err(|error| error.to_string()),
+        "amp" => amp_model_schema(model).map_err(|error| error.to_string()),
         "full_rig" => full_rig_model_schema(model).map_err(|error| error.to_string()),
         "cab" => cab_model_schema(model).map_err(|error| error.to_string()),
         "ir" => ir_model_schema(model).map_err(|error| error.to_string()),
@@ -391,11 +391,11 @@ pub fn build_audio_block_kind(
 ) -> Result<AudioBlockKind, String> {
     let model = model.to_string();
     let kind = match effect_type {
-        "amp_head" => AudioBlockKind::Core(CoreBlock {
-            kind: CoreBlockKind::AmpHead(AmpHeadBlock { model, params }),
+        "preamp" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::Preamp(PreampBlock { model, params }),
         }),
-        "amp_combo" => AudioBlockKind::Core(CoreBlock {
-            kind: CoreBlockKind::AmpCombo(AmpComboBlock { model, params }),
+        "amp" => AudioBlockKind::Core(CoreBlock {
+            kind: CoreBlockKind::Amp(AmpBlock { model, params }),
         }),
         "full_rig" => AudioBlockKind::Core(CoreBlock {
             kind: CoreBlockKind::FullRig(FullRigBlock { model, params }),
@@ -510,8 +510,8 @@ mod tests {
     #[test]
     fn project_contract_exposes_family_schemas() {
         let families = [
-            ("amp_head", block_amp_head::supported_models()),
-            ("amp_combo", block_amp_combo::supported_models()),
+            ("preamp", block_preamp::supported_models()),
+            ("amp", block_amp::supported_models()),
             ("cab", block_cab::supported_models()),
             ("ir", block_ir::supported_models()),
             ("wah", block_wah::supported_models()),
@@ -535,8 +535,8 @@ mod tests {
     #[test]
     fn project_contract_normalizes_defaults_for_supported_families() {
         let families = [
-            ("amp_head", block_amp_head::supported_models()),
-            ("amp_combo", block_amp_combo::supported_models()),
+            ("preamp", block_preamp::supported_models()),
+            ("amp", block_amp::supported_models()),
             ("cab", block_cab::supported_models()),
             ("ir", block_ir::supported_models()),
             ("wah", block_wah::supported_models()),

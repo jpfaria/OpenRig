@@ -354,8 +354,8 @@ component BlockTypeCard inherits Rectangle {
     in property <BlockTypePickerItem> item;
     in property <bool> selected: false;
     in property <image> icon-source;
-    property <color> accent-color: root.item.effect_type == "amp_head" ? #f29f38
-        : root.item.effect_type == "amp_combo" ? #f06292
+    property <color> accent-color: root.item.effect_type == "preamp" ? #f29f38
+        : root.item.effect_type == "amp" ? #f06292
         : root.item.effect_type == "cab" ? #f2cb54
         : root.item.effect_type == "ir" ? #7cc9ff
         : root.item.effect_type == "full_rig" ? #63d2ff
@@ -813,8 +813,8 @@ component BlockChip inherits Rectangle {
     in property <bool> selected: false;
     in property <image> icon-source;
     in property <bool> dragging: false;
-    property <color> accent-color: root.block.icon_kind == "amp_head" ? #f29f38
-        : root.block.icon_kind == "amp_combo" ? #f06292
+    property <color> accent-color: root.block.icon_kind == "preamp" ? #f29f38
+        : root.block.icon_kind == "amp" ? #f06292
         : root.block.icon_kind == "cab" ? #f2cb54
         : root.block.icon_kind == "ir" ? #7cc9ff
         : root.block.icon_kind == "full_rig" ? #63d2ff
@@ -1241,9 +1241,9 @@ component ChainRow inherits Rectangle {
             x: 120px + Math.mod(block-index, root.blocks-per-row) * 116px;
             y: Math.floor(block-index / root.blocks-per-row) * 92px;
             block: block;
-            icon-source: block.icon_kind == "amp_head"
+            icon-source: block.icon_kind == "preamp"
                 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-head.svg")
-                : block.icon_kind == "amp_combo"
+                : block.icon_kind == "amp"
                 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-combo.svg")
                 : block.icon_kind == "cab"
                 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/cab.svg")
@@ -1498,10 +1498,10 @@ export component BlockEditorPanel inherits Rectangle {
     callback pick-block-parameter-file(string);
 
     // Computed helpers
-    property <bool> is-amp-head:
+    property <bool> is-preamp:
         root.block-drawer-selected-type-index >= 0
         && root.block-drawer-selected-type-index < root.block-type-options.length
-        && root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "amp_head";
+        && root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "preamp";
 
     property <string> selected-model-id:
         root.block-drawer-selected-model-index >= 0
@@ -1528,9 +1528,9 @@ export component BlockEditorPanel inherits Rectangle {
             height: 28px;
             source: root.block-drawer-selected-type-index >= 0 && root.block-drawer-selected-type-index < root.block-type-options.length
                 ? (
-                    root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "amp_head"
+                    root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "preamp"
                     ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-head.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "amp_combo"
+                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "amp"
                     ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-combo.svg")
                     : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "cab"
                     ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/cab.svg")
@@ -1604,7 +1604,7 @@ export component BlockEditorPanel inherits Rectangle {
         }
 
         // ── AMP HEAD: seletor de modelo + imagem do painel + parâmetros ───────
-        if root.is-amp-head : ComboBox {
+        if root.is-preamp : ComboBox {
             x: 20px;
             y: 74px;
             width: parent.width - 40px;
@@ -1614,7 +1614,7 @@ export component BlockEditorPanel inherits Rectangle {
             selected(_) => { root.choose-block-model(self.current-index); }
         }
 
-        if root.is-amp-head && root.block-drawer-selected-model-index >= 0 && root.block-drawer-selected-model-index < root.block-model-options.length : Text {
+        if root.is-preamp && root.block-drawer-selected-model-index >= 0 && root.block-drawer-selected-model-index < root.block-model-options.length : Text {
             x: 20px;
             y: 112px;
             width: parent.width - 40px;
@@ -1627,7 +1627,7 @@ export component BlockEditorPanel inherits Rectangle {
         // (controls.svg removidos — painel agora é renderizado pelo AmpPanelEditor)
 
         // Parâmetros do amp head
-        if root.is-amp-head : ScrollView {
+        if root.is-preamp : ScrollView {
             x: 20px;
             y: 132px + (parent.width - 16px) / 4 + 12px;
             width: parent.width - 40px;
@@ -1650,7 +1650,7 @@ export component BlockEditorPanel inherits Rectangle {
         }
 
         // ── OUTROS TIPOS: layout original ───────────────────────
-        if !root.is-amp-head : ScrollView {
+        if !root.is-preamp : ScrollView {
             x: 20px;
             y: 78px;
             width: parent.width - 40px;
@@ -2023,9 +2023,9 @@ export component ProjectChainsPage inherits Rectangle {
                     y: Math.floor(index / 4) * 100px;
                     item: type-item;
                     selected: false;
-                    icon-source: type-item.icon_kind == "amp_head"
+                    icon-source: type-item.icon_kind == "preamp"
                         ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-head.svg")
-                        : type-item.icon_kind == "amp_combo"
+                        : type-item.icon_kind == "amp"
                         ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-combo.svg")
                         : type-item.icon_kind == "cab"
                         ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/cab.svg")

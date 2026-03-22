@@ -1,14 +1,14 @@
 use anyhow::Result;
-use block_amp_head::native_core::NativeAmpHeadProfile;
+use block_preamp::native_core::NativeAmpHeadProfile;
 use block_cab::native_core::NativeCabProfile;
 use block_core::param::{ModelParameterSchema, ParameterSet};
 use block_core::{AudioChannelLayout, BlockProcessor};
 
-use crate::native_core::{self, NativeAmpComboProfile, NativeAmpComboSchemaDefaults};
-use crate::registry::AmpComboModelDefinition;
+use crate::native_core::{self, NativeAmpProfile, NativeAmpSchemaDefaults};
+use crate::registry::AmpModelDefinition;
 
-pub const MODEL_ID: &str = "blackface_clean";
-pub const DISPLAY_NAME: &str = "Blackface Clean";
+pub const MODEL_ID: &str = "chime";
+pub const DISPLAY_NAME: &str = "Chime";
 
 const HEAD_PROFILE: NativeAmpHeadProfile = NativeAmpHeadProfile {
     input_trim_db: 3.0,
@@ -26,34 +26,34 @@ const HEAD_PROFILE: NativeAmpHeadProfile = NativeAmpHeadProfile {
 };
 
 const CAB_PROFILE: NativeCabProfile = NativeCabProfile {
-    resonance_hz: 102.0,
-    air_hz: 4_600.0,
-    room_base_ms: 10.0,
-    room_span_ms: 14.0,
-    resonance_gain: 0.26,
-    air_gain: 0.32,
-    high_cut_scale: 1.0,
+    resonance_hz: 126.0,
+    air_hz: 3_900.0,
+    room_base_ms: 8.0,
+    room_span_ms: 12.0,
+    resonance_gain: 0.34,
+    air_gain: 0.26,
+    high_cut_scale: 0.88,
 };
 
-const PROFILE: NativeAmpComboProfile = NativeAmpComboProfile {
+const PROFILE: NativeAmpProfile = NativeAmpProfile {
     head_profile: HEAD_PROFILE,
     cab_profile: CAB_PROFILE,
-    fixed_presence: 58.0,
-    fixed_depth: 34.0,
-    cab_low_cut_hz: 66.0,
-    cab_high_cut_hz: 8_200.0,
-    cab_resonance: 48.0,
-    cab_air: 30.0,
-    cab_mic_position: 58.0,
-    cab_mic_distance: 22.0,
-    gain_bias: -8.0,
+    fixed_presence: 64.0,
+    fixed_depth: 28.0,
+    cab_low_cut_hz: 78.0,
+    cab_high_cut_hz: 8_800.0,
+    cab_resonance: 44.0,
+    cab_air: 36.0,
+    cab_mic_position: 68.0,
+    cab_mic_distance: 20.0,
+    gain_bias: -10.0,
 };
 
-const DEFAULTS: NativeAmpComboSchemaDefaults = NativeAmpComboSchemaDefaults {
-    gain: 32.0,
-    treble: 50.0,
+const DEFAULTS: NativeAmpSchemaDefaults = NativeAmpSchemaDefaults {
+    gain: 38.0,
+    treble: 58.0,
     bright: true,
-    sag: 14.0,
+    sag: 18.0,
     room_mix: 14.0,
 };
 
@@ -73,7 +73,7 @@ fn asset_summary(params: &ParameterSet) -> Result<String> {
     native_core::asset_summary(MODEL_ID, params)
 }
 
-pub const MODEL_DEFINITION: AmpComboModelDefinition = AmpComboModelDefinition {
+pub const MODEL_DEFINITION: AmpModelDefinition = AmpModelDefinition {
     id: MODEL_ID,
     schema,
     validate: native_core::validate_params,

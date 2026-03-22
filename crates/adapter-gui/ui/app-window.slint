@@ -168,23 +168,23 @@ export component BlockEditorWindow inherits Window {
     callback select-block-parameter-option(string, int);
     callback pick-block-parameter-file(string);
 
-    // Computed: is this an amp_head block?
-    private property <bool> is-amp-head:
+    // Computed: is this a preamp block?
+    private property <bool> is-preamp:
         root.block-drawer-selected-type-index >= 0
         && root.block-drawer-selected-type-index < root.block-type-options.length
-        && root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "amp_head";
+        && root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "preamp";
 
     title: root.block-window-title;
-    min-width: root.is-amp-head ? 900px : 520px;
-    min-height: root.is-amp-head ? 275px : 760px;
-    max-width: root.is-amp-head ? 900px : 520px;
-    max-height: root.is-amp-head ? 275px : 760px;
-    preferred-width: root.is-amp-head ? 900px : 520px;
-    preferred-height: root.is-amp-head ? 275px : 760px;
+    min-width: root.is-preamp ? 900px : 520px;
+    min-height: root.is-preamp ? 275px : 760px;
+    max-width: root.is-preamp ? 900px : 520px;
+    max-height: root.is-preamp ? 275px : 760px;
+    preferred-width: root.is-preamp ? 900px : 520px;
+    preferred-height: root.is-preamp ? 275px : 760px;
     background: #040708;
 
     // Amp head: visual panel editor
-    if root.is-amp-head : AmpPanelEditor {
+    if root.is-preamp : AmpPanelEditor {
         width: parent.width;
         height: parent.height;
         block-type-options: root.block-type-options;
@@ -205,7 +205,7 @@ export component BlockEditorWindow inherits Window {
     }
 
     // Other block types: existing form-based editor
-    if !root.is-amp-head : BlockEditorPanel {
+    if !root.is-preamp : BlockEditorPanel {
         width: parent.width;
         height: parent.height;
         block-type-options: root.block-type-options;

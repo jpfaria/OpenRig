@@ -41,7 +41,7 @@ pub fn block_drawer_state(
 
 pub fn block_family_for_kind(kind: &str) -> &'static str {
     match kind {
-        "amp_head" | "amp_combo" | "full_rig" | "nam" => "amp",
+        "preamp" | "amp" | "full_rig" | "nam" => "amp",
         "cab" => "cab",
         "ir" => "ir",
         "gain" => "gain",

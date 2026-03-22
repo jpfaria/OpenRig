@@ -30,16 +30,16 @@ struct BlockRegistryEntry {
 fn block_registry() -> [BlockRegistryEntry; 15] {
     [
         BlockRegistryEntry {
-            effect_type: "amp_head",
+            effect_type: "preamp",
             display_label: "PREAMP",
-            icon_kind: "amp_head",
-            supported_models: block_amp_head::supported_models,
+            icon_kind: "preamp",
+            supported_models: block_preamp::supported_models,
         },
         BlockRegistryEntry {
-            effect_type: "amp_combo",
-            display_label: "COMBO",
-            icon_kind: "amp_combo",
-            supported_models: block_amp_combo::supported_models,
+            effect_type: "amp",
+            display_label: "AMP",
+            icon_kind: "amp",
+            supported_models: block_amp::supported_models,
         },
         BlockRegistryEntry {
             effect_type: "cab",
@@ -183,7 +183,7 @@ mod tests {
             .map(|entry| entry.effect_type)
             .collect::<Vec<_>>();
 
-        assert!(effect_types.contains(&"amp_head"));
+        assert!(effect_types.contains(&"preamp"));
         assert!(effect_types.contains(&"delay"));
         assert!(effect_types.contains(&"nam"));
         assert!(effect_types.contains(&"ir"));
@@ -193,12 +193,12 @@ mod tests {
 
     #[test]
     fn catalog_mirrors_core_supported_models() {
-        let amp_model_ids = supported_block_models("amp_head")
-            .expect("amp head catalog")
+        let amp_model_ids = supported_block_models("preamp")
+            .expect("preamp catalog")
             .into_iter()
             .map(|entry| entry.model_id)
             .collect::<Vec<_>>();
-        let expected = block_amp_head::supported_models()
+        let expected = block_preamp::supported_models()
             .iter()
             .map(|model| (*model).to_string())
             .collect::<Vec<_>>();

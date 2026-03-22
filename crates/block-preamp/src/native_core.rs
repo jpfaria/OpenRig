@@ -162,7 +162,7 @@ pub fn model_schema(
     defaults: NativeAmpHeadSchemaDefaults,
 ) -> ModelParameterSchema {
     ModelParameterSchema {
-        effect_type: "amp_head".into(),
+        effect_type: "preamp".into(),
         model: model_id.into(),
         display_name: display_name.into(),
         audio_mode: ModelAudioMode::DualMono,

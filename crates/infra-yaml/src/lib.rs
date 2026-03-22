@@ -2,7 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use domain::ids::{BlockId, DeviceId, ChainId};
 use domain::value_objects::ParameterValue;
 use project::block::{
-    normalize_block_params, AmpComboBlock, AmpHeadBlock, AudioBlock, AudioBlockKind, CabBlock,
+    normalize_block_params, AmpBlock, PreampBlock, AudioBlock, AudioBlockKind, CabBlock,
     CompressorBlock, CoreBlock, CoreBlockKind, DelayBlock, DriveBlock, EqBlock, FullRigBlock,
     GateBlock, IrBlock, NamBlock, PitchBlock, ReverbBlock, SelectBlock, TremoloBlock, TunerBlock, WahBlock,
 };
@@ -244,20 +244,20 @@ impl ChainYaml {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum AudioBlockYaml {
-    #[serde(rename = "amp_head")]
-    AmpHead {
+    #[serde(rename = "preamp")]
+    Preamp {
         #[serde(default = "default_enabled")]
         enabled: bool,
-        #[serde(default = "default_amp_head_model")]
+        #[serde(default = "default_preamp_model")]
         model: String,
         #[serde(default)]
         params: Value,
     },
-    #[serde(rename = "amp_combo")]
-    AmpCombo {
+    #[serde(rename = "amp")]
+    Amp {
         #[serde(default = "default_enabled")]
         enabled: bool,
-        #[serde(default = "default_amp_combo_model")]
+        #[serde(default = "default_amp_model")]
         model: String,
         #[serde(default)]
         params: Value,
@@ -390,7 +390,7 @@ impl AudioBlockYaml {
 
     fn into_audio_block_with_id(self, generated_id: BlockId) -> Result<AudioBlock> {
         match self {
-            AudioBlockYaml::AmpHead {
+            AudioBlockYaml::Preamp {
                 enabled,
                 model,
                 params,
@@ -398,13 +398,13 @@ impl AudioBlockYaml {
                 id: generated_id,
                 enabled,
                 kind: AudioBlockKind::Core(CoreBlock {
-                    kind: CoreBlockKind::AmpHead(AmpHeadBlock {
+                    kind: CoreBlockKind::Preamp(PreampBlock {
                         model: model.clone(),
-                        params: load_model_params("amp_head", &model, params)?,
+                        params: load_model_params("preamp", &model, params)?,
                     }),
                 }),
             }),
-            AudioBlockYaml::AmpCombo {
+            AudioBlockYaml::Amp {
                 enabled,
                 model,
                 params,
@@ -412,9 +412,9 @@ impl AudioBlockYaml {
                 id: generated_id,
                 enabled,
                 kind: AudioBlockKind::Core(CoreBlock {
-                    kind: CoreBlockKind::AmpCombo(AmpComboBlock {
+                    kind: CoreBlockKind::Amp(AmpBlock {
                         model: model.clone(),
-                        params: load_model_params("amp_combo", &model, params)?,
+                        params: load_model_params("amp", &model, params)?,
                     }),
                 }),
             }),
@@ -630,12 +630,12 @@ impl AudioBlockYaml {
                 params: parameter_set_to_yaml_value(&stage.params),
             }),
             AudioBlockKind::Core(core) => match &core.kind {
-                CoreBlockKind::AmpHead(stage) => Ok(Self::AmpHead {
+                CoreBlockKind::Preamp(stage) => Ok(Self::Preamp {
                     enabled: block.enabled,
                     model: stage.model.clone(),
                     params: parameter_set_to_yaml_value(&stage.params),
                 }),
-                CoreBlockKind::AmpCombo(stage) => Ok(Self::AmpCombo {
+                CoreBlockKind::Amp(stage) => Ok(Self::Amp {
                     enabled: block.enabled,
                     model: stage.model.clone(),
                     params: parameter_set_to_yaml_value(&stage.params),
@@ -909,17 +909,17 @@ fn default_nam_model() -> String {
         .to_string()
 }
 
-fn default_amp_head_model() -> String {
-    block_amp_head::supported_models()
+fn default_preamp_model() -> String {
+    block_preamp::supported_models()
         .first()
-        .expect("block-amp-head must expose at least one model")
+        .expect("block-preamp must expose at least one model")
         .to_string()
 }
 
-fn default_amp_combo_model() -> String {
-    block_amp_combo::supported_models()
+fn default_amp_model() -> String {
+    block_amp::supported_models()
         .first()
-        .expect("block-amp-combo must expose at least one model")
+        .expect("block-amp must expose at least one model")
         .to_string()
 }
 

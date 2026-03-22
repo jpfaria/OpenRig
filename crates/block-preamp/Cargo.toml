@@ -1,5 +1,5 @@
 [package]
-name = "block-amp-head"
+name = "block-preamp"
 version.workspace = true
 edition.workspace = true
 [dependencies]

@@ -5,33 +5,33 @@ use block_core::{AudioChannelLayout, BlockProcessor};
 use crate::native_core::{
     self, NativeAmpHeadProfile, NativeAmpHeadSchemaDefaults,
 };
-use crate::registry::AmpHeadModelDefinition;
-use crate::AmpHeadBackendKind;
+use crate::registry::PreampModelDefinition;
+use crate::PreampBackendKind;
 
-pub const MODEL_ID: &str = "brit_crunch";
-pub const DISPLAY_NAME: &str = "Brit Crunch";
+pub const MODEL_ID: &str = "modern_high_gain";
+pub const DISPLAY_NAME: &str = "Modern High Gain";
 
 const PROFILE: NativeAmpHeadProfile = NativeAmpHeadProfile {
-    input_trim_db: 1.5,
-    drive_scale: 2.8,
-    asymmetry: 0.12,
-    bright_mix: 0.12,
-    low_voice: 0.92,
-    mid_voice: 1.15,
-    high_voice: 0.95,
-    presence_voice: 0.55,
-    depth_voice: 0.38,
-    power_drive: 1.35,
-    low_cut_hz: 48.0,
-    top_end_hz: 8_400.0,
+    input_trim_db: -1.0,
+    drive_scale: 4.1,
+    asymmetry: 0.18,
+    bright_mix: 0.08,
+    low_voice: 0.82,
+    mid_voice: 0.92,
+    high_voice: 1.02,
+    presence_voice: 0.62,
+    depth_voice: 0.58,
+    power_drive: 1.55,
+    low_cut_hz: 72.0,
+    top_end_hz: 7_600.0,
 };
 
 const DEFAULTS: NativeAmpHeadSchemaDefaults = NativeAmpHeadSchemaDefaults {
-    gain: 56.0,
-    presence: 58.0,
-    depth: 48.0,
+    gain: 72.0,
+    presence: 62.0,
+    depth: 60.0,
     bright: false,
-    sag: 24.0,
+    sag: 30.0,
 };
 
 fn schema() -> Result<ModelParameterSchema> {
@@ -50,11 +50,11 @@ fn asset_summary(params: &ParameterSet) -> Result<String> {
     native_core::asset_summary(MODEL_ID, params)
 }
 
-pub const MODEL_DEFINITION: AmpHeadModelDefinition = AmpHeadModelDefinition {
+pub const MODEL_DEFINITION: PreampModelDefinition = PreampModelDefinition {
     id: MODEL_ID,
     display_name: DISPLAY_NAME,
     brand: "native",
-    backend_kind: AmpHeadBackendKind::Native,
+    backend_kind: PreampBackendKind::Native,
     schema,
     validate: native_core::validate_params,
     asset_summary,

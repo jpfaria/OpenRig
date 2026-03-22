@@ -1,11 +1,11 @@
 [package]
-name = "block-amp-combo"
+name = "block-amp"
 version.workspace = true
 edition.workspace = true
 
 [dependencies]
 anyhow.workspace = true
 nam = { path = "../nam" }
-block-amp-head = { path = "../block-amp-head" }
+block-preamp = { path = "../block-preamp" }
 block-cab = { path = "../block-cab" }
 block-core = { path = "../block-core" }

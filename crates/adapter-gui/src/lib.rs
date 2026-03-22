@@ -2198,7 +2198,7 @@ pub fn run_desktop_app(
                 win.set_block_knob_overlays(ModelRc::from(win_knob_overlays.clone()));
 
                 // Set window title from selected model label
-                if effect_type == "amp_head" {
+                if effect_type == "preamp" {
                     let title_label = win_model_options
                         .row_data(win.get_block_drawer_selected_model_index() as usize)
                         .map(|m| m.label.to_string())
@@ -4308,13 +4308,13 @@ fn block_type_picker_items() -> Vec<BlockTypePickerItem> {
 }
 
 fn model_type_label(effect_type: &str, model_id: &str) -> &'static str {
-    if effect_type != "amp_head" { return ""; }
+    if effect_type != "preamp" { return ""; }
     if model_id.starts_with("marshall") { return "NAM"; }
     "NATIVE"
 }
 
 fn model_brand(effect_type: &str, model_id: &str) -> &'static str {
-    if effect_type != "amp_head" {
+    if effect_type != "preamp" {
         return "";
     }
     if model_id.starts_with("marshall") { return "marshall"; }

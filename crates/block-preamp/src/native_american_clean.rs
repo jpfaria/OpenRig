@@ -5,8 +5,8 @@ use block_core::{AudioChannelLayout, BlockProcessor};
 use crate::native_core::{
     self, NativeAmpHeadProfile, NativeAmpHeadSchemaDefaults,
 };
-use crate::registry::AmpHeadModelDefinition;
-use crate::AmpHeadBackendKind;
+use crate::registry::PreampModelDefinition;
+use crate::PreampBackendKind;
 
 pub const MODEL_ID: &str = "american_clean";
 pub const DISPLAY_NAME: &str = "American Clean";
@@ -50,11 +50,11 @@ fn asset_summary(params: &ParameterSet) -> Result<String> {
     native_core::asset_summary(MODEL_ID, params)
 }
 
-pub const MODEL_DEFINITION: AmpHeadModelDefinition = AmpHeadModelDefinition {
+pub const MODEL_DEFINITION: PreampModelDefinition = PreampModelDefinition {
     id: MODEL_ID,
     display_name: DISPLAY_NAME,
     brand: "native",
-    backend_kind: AmpHeadBackendKind::Native,
+    backend_kind: PreampBackendKind::Native,
     schema,
     validate: native_core::validate_params,
     asset_summary,

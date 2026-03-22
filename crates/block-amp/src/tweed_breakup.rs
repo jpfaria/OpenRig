@@ -1,11 +1,11 @@
 use anyhow::Result;
-use block_amp_head::native_core::NativeAmpHeadProfile;
+use block_preamp::native_core::NativeAmpHeadProfile;
 use block_cab::native_core::NativeCabProfile;
 use block_core::param::{ModelParameterSchema, ParameterSet};
 use block_core::{AudioChannelLayout, BlockProcessor};
 
-use crate::native_core::{self, NativeAmpComboProfile, NativeAmpComboSchemaDefaults};
-use crate::registry::AmpComboModelDefinition;
+use crate::native_core::{self, NativeAmpProfile, NativeAmpSchemaDefaults};
+use crate::registry::AmpModelDefinition;
 
 pub const MODEL_ID: &str = "tweed_breakup";
 pub const DISPLAY_NAME: &str = "Tweed Breakup";
@@ -35,7 +35,7 @@ const CAB_PROFILE: NativeCabProfile = NativeCabProfile {
     high_cut_scale: 0.78,
 };
 
-const PROFILE: NativeAmpComboProfile = NativeAmpComboProfile {
+const PROFILE: NativeAmpProfile = NativeAmpProfile {
     head_profile: HEAD_PROFILE,
     cab_profile: CAB_PROFILE,
     fixed_presence: 42.0,
@@ -49,7 +49,7 @@ const PROFILE: NativeAmpComboProfile = NativeAmpComboProfile {
     gain_bias: -15.0,
 };
 
-const DEFAULTS: NativeAmpComboSchemaDefaults = NativeAmpComboSchemaDefaults {
+const DEFAULTS: NativeAmpSchemaDefaults = NativeAmpSchemaDefaults {
     gain: 54.0,
     treble: 50.0,
     bright: false,
@@ -73,7 +73,7 @@ fn asset_summary(params: &ParameterSet) -> Result<String> {
     native_core::asset_summary(MODEL_ID, params)
 }
 
-pub const MODEL_DEFINITION: AmpComboModelDefinition = AmpComboModelDefinition {
+pub const MODEL_DEFINITION: AmpModelDefinition = AmpModelDefinition {
     id: MODEL_ID,
     schema,
     validate: native_core::validate_params,

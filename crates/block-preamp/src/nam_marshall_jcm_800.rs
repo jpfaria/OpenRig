@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use asset_runtime::{materialize, EmbeddedAsset};
-use crate::registry::AmpHeadModelDefinition;
-use crate::AmpHeadBackendKind;
+use crate::registry::PreampModelDefinition;
+use crate::PreampBackendKind;
 use nam::{
     build_processor_with_assets_for_layout, model_schema_for,
     processor::{plugin_params_from_set_with_defaults, NamPluginParams},
@@ -62,186 +62,186 @@ pub const CAPTURES: &[MarshallJcm800Capture] = &[
         50,
         10,
         "amp_head.marshall_jcm_800_2203.mv50.g10",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv5_g1_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv5_g1_azg_700.nam"
     ),
     capture!(
         50,
         20,
         "amp_head.marshall_jcm_800_2203.mv50.g20",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv5_g2_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv5_g2_azg_700.nam"
     ),
     capture!(
         50,
         30,
         "amp_head.marshall_jcm_800_2203.mv50.g30",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv5_g3_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv5_g3_azg_700.nam"
     ),
     capture!(
         50,
         40,
         "amp_head.marshall_jcm_800_2203.mv50.g40",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv5_g4_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv5_g4_azg_700.nam"
     ),
     capture!(
         50,
         50,
         "amp_head.marshall_jcm_800_2203.mv50.g50",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv5_g5_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv5_g5_azg_700.nam"
     ),
     capture!(
         50,
         60,
         "amp_head.marshall_jcm_800_2203.mv50.g60",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv5_g6_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv5_g6_azg_700.nam"
     ),
     capture!(
         50,
         70,
         "amp_head.marshall_jcm_800_2203.mv50.g70",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv5_g7_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv5_g7_azg_700.nam"
     ),
     capture!(
         50,
         80,
         "amp_head.marshall_jcm_800_2203.mv50.g80",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv5_g8_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv5_g8_azg_700.nam"
     ),
     capture!(
         50,
         90,
         "amp_head.marshall_jcm_800_2203.mv50.g90",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv5_g9_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv5_g9_azg_700.nam"
     ),
     capture!(
         50,
         100,
         "amp_head.marshall_jcm_800_2203.mv50.g100",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv5_g10_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv5_g10_azg_700.nam"
     ),
     capture!(
         60,
         10,
         "amp_head.marshall_jcm_800_2203.mv60.g10",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv6_g1_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv6_g1_azg_700.nam"
     ),
     capture!(
         60,
         20,
         "amp_head.marshall_jcm_800_2203.mv60.g20",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv6_g2_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv6_g2_azg_700.nam"
     ),
     capture!(
         60,
         30,
         "amp_head.marshall_jcm_800_2203.mv60.g30",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv6_g3_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv6_g3_azg_700.nam"
     ),
     capture!(
         60,
         40,
         "amp_head.marshall_jcm_800_2203.mv60.g40",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv6_g4_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv6_g4_azg_700.nam"
     ),
     capture!(
         60,
         50,
         "amp_head.marshall_jcm_800_2203.mv60.g50",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv6_g5_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv6_g5_azg_700.nam"
     ),
     capture!(
         60,
         60,
         "amp_head.marshall_jcm_800_2203.mv60.g60",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv6_g6_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv6_g6_azg_700.nam"
     ),
     capture!(
         60,
         70,
         "amp_head.marshall_jcm_800_2203.mv60.g70",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv6_g7_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv6_g7_azg_700.nam"
     ),
     capture!(
         60,
         80,
         "amp_head.marshall_jcm_800_2203.mv60.g80",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv6_g8_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv6_g8_azg_700.nam"
     ),
     capture!(
         60,
         90,
         "amp_head.marshall_jcm_800_2203.mv60.g90",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv6_g9_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv6_g9_azg_700.nam"
     ),
     capture!(
         60,
         100,
         "amp_head.marshall_jcm_800_2203.mv60.g100",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv6_g10_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv6_g10_azg_700.nam"
     ),
     capture!(
         70,
         10,
         "amp_head.marshall_jcm_800_2203.mv70.g10",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv7_g1_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv7_g1_azg_700.nam"
     ),
     capture!(
         70,
         20,
         "amp_head.marshall_jcm_800_2203.mv70.g20",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv7_g2_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv7_g2_azg_700.nam"
     ),
     capture!(
         70,
         30,
         "amp_head.marshall_jcm_800_2203.mv70.g30",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv7_g3_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv7_g3_azg_700.nam"
     ),
     capture!(
         70,
         40,
         "amp_head.marshall_jcm_800_2203.mv70.g40",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv7_g4_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv7_g4_azg_700.nam"
     ),
     capture!(
         70,
         50,
         "amp_head.marshall_jcm_800_2203.mv70.g50",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv7_g5_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv7_g5_azg_700.nam"
     ),
     capture!(
         70,
         60,
         "amp_head.marshall_jcm_800_2203.mv70.g60",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv7_g6_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv7_g6_azg_700.nam"
     ),
     capture!(
         70,
         70,
         "amp_head.marshall_jcm_800_2203.mv70.g70",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv7_g7_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv7_g7_azg_700.nam"
     ),
     capture!(
         70,
         80,
         "amp_head.marshall_jcm_800_2203.mv70.g80",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv7_g8_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv7_g8_azg_700.nam"
     ),
     capture!(
         70,
         90,
         "amp_head.marshall_jcm_800_2203.mv70.g90",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv7_g9_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv7_g9_azg_700.nam"
     ),
     capture!(
         70,
         100,
         "amp_head.marshall_jcm_800_2203.mv70.g100",
-        "captures/nam/amps/heads/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv7_g10_azg_700.nam"
+        "captures/nam/preamp/marshall_jcm_800_2203/jcm800_2203_p5_b5_m5_t5_mv7_g10_azg_700.nam"
     ),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
-    let mut schema = model_schema_for("amp_head", MODEL_ID, DISPLAY_NAME, false);
+    let mut schema = model_schema_for("preamp", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![
         float_parameter(
             "volume",
@@ -294,11 +294,11 @@ fn build(
     build_processor_for_model(params, layout)
 }
 
-pub const MODEL_DEFINITION: AmpHeadModelDefinition = AmpHeadModelDefinition {
+pub const MODEL_DEFINITION: PreampModelDefinition = PreampModelDefinition {
     id: MODEL_ID,
     display_name: DISPLAY_NAME,
     brand: "marshall",
-    backend_kind: AmpHeadBackendKind::Nam,
+    backend_kind: PreampBackendKind::Nam,
     schema,
     validate: validate_params,
     asset_summary,

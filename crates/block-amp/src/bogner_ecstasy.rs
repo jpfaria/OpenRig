@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use crate::registry::AmpComboModelDefinition;
+use crate::registry::AmpModelDefinition;
 use nam::{
     build_processor_with_assets_for_layout, model_schema_for,
     processor::{NamPluginParams, DEFAULT_PLUGIN_PARAMS},
@@ -73,19 +73,19 @@ pub const CAPTURES: &[BognerEcstasyCapture] = &[
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
-    let mut schema = model_schema_for("amp_combo", MODEL_ID, DISPLAY_NAME, false);
+    let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![
         enum_parameter(
             "gain",
             "Gain",
-            Some("Amp Combo"),
+            Some("Amp"),
             Some("clean"),
             &[("clean", "Clean"), ("crunch", "Crunch"), ("drive", "Drive")],
         ),
         enum_parameter(
             "cabinet",
             "Cabinet",
-            Some("Amp Combo"),
+            Some("Amp"),
             Some("4x12_v30"),
             &[
                 ("4x12_v30", "4x12 V30"),
@@ -122,7 +122,7 @@ fn build(
     build_processor_for_model(params, layout)
 }
 
-pub const MODEL_DEFINITION: AmpComboModelDefinition = AmpComboModelDefinition {
+pub const MODEL_DEFINITION: AmpModelDefinition = AmpModelDefinition {
     id: MODEL_ID,
     schema,
     validate: validate_params,

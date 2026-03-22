@@ -16,7 +16,7 @@ blocks:
     ratio: 4.0
     release_ms: 80.0
     threshold: -18.0
-- type: amp_head
+- type: preamp
   enabled: true
   model: brit_crunch
   params:

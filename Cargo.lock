@@ -703,23 +703,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "block-amp-combo"
+name = "block-amp"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "block-amp-head",
  "block-cab",
  "block-core",
- "nam",
-]
-
-[[package]]
-name = "block-amp-head"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "asset-runtime",
- "block-core",
+ "block-preamp",
  "nam",
 ]
 
@@ -818,6 +808,16 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "block-core",
+]
+
+[[package]]
+name = "block-preamp"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "asset-runtime",
+ "block-core",
+ "nam",
 ]
 
 [[package]]
@@ -1573,8 +1573,7 @@ name = "engine"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "block-amp-combo",
- "block-amp-head",
+ "block-amp",
  "block-cab",
  "block-core",
  "block-delay",
@@ -1585,6 +1584,7 @@ dependencies = [
  "block-ir",
  "block-mod",
  "block-nam",
+ "block-preamp",
  "block-reverb",
  "block-util",
  "block-wah",
@@ -2777,8 +2777,7 @@ name = "infra-yaml"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "block-amp-combo",
- "block-amp-head",
+ "block-amp",
  "block-cab",
  "block-delay",
  "block-dyn",
@@ -2789,6 +2788,7 @@ dependencies = [
  "block-mod",
  "block-nam",
  "block-pitch",
+ "block-preamp",
  "block-reverb",
  "block-util",
  "block-wah",
@@ -4105,8 +4105,7 @@ dependencies = [
 name = "project"
 version = "0.1.0"
 dependencies = [
- "block-amp-combo",
- "block-amp-head",
+ "block-amp",
  "block-cab",
  "block-core",
  "block-delay",
@@ -4118,6 +4117,7 @@ dependencies = [
  "block-mod",
  "block-nam",
  "block-pitch",
+ "block-preamp",
  "block-reverb",
  "block-util",
  "block-wah",

@@ -12,8 +12,8 @@ block-mod = { path = "../block-mod" }
 block-filter = { path = "../block-filter" }
 block-dyn = { path = "../block-dyn" }
 block-nam = { path = "../block-nam" }
-block-amp-head = { path = "../block-amp-head" }
-block-amp-combo = { path = "../block-amp-combo" }
+block-preamp = { path = "../block-preamp" }
+block-amp = { path = "../block-amp" }
 block-full-rig = { path = "../block-full-rig" }
 block-cab = { path = "../block-cab" }
 block-ir = { path = "../block-ir" }
