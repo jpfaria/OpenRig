@@ -2233,7 +2233,7 @@ pub fn run_desktop_app(
                     let weak_main = weak_main_window.clone();
                     let weak_win = win.as_weak();
                     win.on_choose_block_model(move |index| {
-                        let Some(_win) = weak_win.upgrade() else { return; };
+                        let Some(win) = weak_win.upgrade() else { return; };
                         let mut draft_borrow = win_draft.borrow_mut();
                         let Some(draft) = draft_borrow.as_mut() else { return; };
                         let models = block_model_picker_items(&draft.effect_type);
@@ -2243,8 +2243,12 @@ pub fn run_desktop_app(
                         let new_params = block_parameter_items_for_model(
                             &model.effect_type, &model.model_id, &ParameterSet::default(),
                         );
-                        win_knob_overlays.set_vec(build_knob_overlays(&model.model_id, &new_params));
-                        win_param_items.set_vec(new_params);
+                        let overlays = build_knob_overlays(&model.model_id, &new_params);
+                        win_knob_overlays.set_vec(overlays.clone());
+                        win_param_items.set_vec(new_params.clone());
+                        // Explicitly set on window to ensure UI updates
+                        win.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
+                        win.set_block_parameter_items(ModelRc::from(Rc::new(VecModel::from(new_params))));
                         drop(draft_borrow);
                         if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
                             schedule_block_editor_persist_for_block_win(
