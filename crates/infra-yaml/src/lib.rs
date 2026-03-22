@@ -179,6 +179,7 @@ impl DeviceSettingsYaml {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[allow(dead_code)]
 struct ChainYaml {
     #[serde(default)]
     description: Option<String>,
