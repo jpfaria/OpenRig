@@ -1624,32 +1624,7 @@ export component BlockEditorPanel inherits Rectangle {
             font-size: 11px;
         }
 
-        // Imagem da cara do amp (controls.svg) — ocupa toda a largura do painel
-        if root.is-amp-head : Rectangle {
-            x: 8px;
-            y: 132px;
-            width: parent.width - 16px;
-            height: (parent.width - 16px) / 4;
-            border-radius: 6px;
-            clip: true;
-
-            Image {
-                x: 0px;
-                y: 0px;
-                width: parent.width;
-                height: parent.height;
-                source: root.selected-model-id == "marshall_jcm_800_2203"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/amps/marshall/jcm800-2203/controls.svg")
-                    : root.selected-model-id == "american_clean"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/amps/native/american-clean/controls.svg")
-                    : root.selected-model-id == "brit_crunch"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/amps/native/brit-crunch/controls.svg")
-                    : root.selected-model-id == "modern_high_gain"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/amps/native/modern-high-gain/controls.svg")
-                    : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/amps/generic/controls.svg");
-                image-fit: fill;
-            }
-        }
+        // (controls.svg removidos — painel agora é renderizado pelo AmpPanelEditor)
 
         // Parâmetros do amp head
         if root.is-amp-head : ScrollView {
