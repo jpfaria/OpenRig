@@ -7,7 +7,7 @@ use block_core::param::{enum_parameter, required_string, ModelParameterSchema, P
 use block_core::{AudioChannelLayout, ModelAudioMode, BlockProcessor};
 
 pub const MODEL_ID: &str = "marshall_4x12_v30";
-pub const DISPLAY_NAME: &str = "Marshall 4x12 V30";
+pub const DISPLAY_NAME: &str = "4x12 V30";
 
 macro_rules! capture {
     ($capture:literal, $asset_id:literal, $relative_path:literal) => {

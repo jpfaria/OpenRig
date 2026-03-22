@@ -11,7 +11,7 @@ use block_core::param::{
 use block_core::{AudioChannelLayout, BlockProcessor};
 
 pub const MODEL_ID: &str = "blues_overdrive_bd_2";
-pub const DISPLAY_NAME: &str = "Blues Overdrive BD-2";
+pub const DISPLAY_NAME: &str = "Blues Driver BD-2";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
