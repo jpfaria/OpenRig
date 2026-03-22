@@ -10,6 +10,7 @@ use block_core::param::{
 use block_core::{AudioChannelLayout, BlockProcessor};
 
 pub const MODEL_ID: &str = "blues_overdrive_bd_2";
+pub const DISPLAY_NAME: &str = "Blues Overdrive BD-2";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
@@ -40,7 +41,7 @@ pub const CAPTURES: &[BluesOverdriveCapture] = &[
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
-    let mut schema = model_schema_for("gain", MODEL_ID, "Blues Overdrive BD-2", false);
+    let mut schema = model_schema_for("gain", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![float_parameter(
         "gain_percent",
         "Gain",

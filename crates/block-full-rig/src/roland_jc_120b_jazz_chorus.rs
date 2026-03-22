@@ -8,6 +8,7 @@ use block_core::param::{bool_parameter, required_bool, ModelParameterSchema, Par
 use block_core::{AudioChannelLayout, BlockProcessor};
 
 pub const MODEL_ID: &str = "roland_jc_120b_jazz_chorus";
+pub const DISPLAY_NAME: &str = "Roland JC-120B Jazz Chorus";
 
 pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
     input_level_db: 0.0,
@@ -73,7 +74,7 @@ pub const CAPTURES: &[RolandCapture] = &[
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
-    let mut schema = model_schema_for("full_rig", MODEL_ID, "Roland JC-120B Jazz Chorus", false);
+    let mut schema = model_schema_for("full_rig", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![
         bool_parameter("bright_enabled", "Bright", Some("Rig"), Some(false)),
         bool_parameter("royer_101_enabled", "Royer 101", Some("Rig"), Some(true)),
