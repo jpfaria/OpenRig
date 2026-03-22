@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use crate::registry::AmpModelDefinition;
+use crate::registry::{AmpBackendKind, AmpModelDefinition};
 use nam::{
     build_processor_with_assets_for_layout, model_schema_for,
     processor::{NamPluginParams, DEFAULT_PLUGIN_PARAMS},
@@ -124,6 +124,13 @@ fn build(
 
 pub const MODEL_DEFINITION: AmpModelDefinition = AmpModelDefinition {
     id: MODEL_ID,
+    display_name: DISPLAY_NAME,
+    brand: "bogner",
+    backend_kind: AmpBackendKind::Nam,
+    panel_bg: [0x2a, 0x20, 0x28],
+    panel_text: [0x80, 0x90, 0xa0],
+    brand_strip_bg: [0x1a, 0x1a, 0x1a],
+    model_font: "",
     schema,
     validate: validate_params,
     asset_summary,

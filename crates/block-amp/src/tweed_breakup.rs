@@ -5,7 +5,7 @@ use block_core::param::{ModelParameterSchema, ParameterSet};
 use block_core::{AudioChannelLayout, BlockProcessor};
 
 use crate::native_core::{self, NativeAmpProfile, NativeAmpSchemaDefaults};
-use crate::registry::AmpModelDefinition;
+use crate::registry::{AmpBackendKind, AmpModelDefinition};
 
 pub const MODEL_ID: &str = "tweed_breakup";
 pub const DISPLAY_NAME: &str = "Tweed Breakup";
@@ -75,6 +75,13 @@ fn asset_summary(params: &ParameterSet) -> Result<String> {
 
 pub const MODEL_DEFINITION: AmpModelDefinition = AmpModelDefinition {
     id: MODEL_ID,
+    display_name: DISPLAY_NAME,
+    brand: "native",
+    backend_kind: AmpBackendKind::Native,
+    panel_bg: [0x38, 0x30, 0x22],
+    panel_text: [0x80, 0x90, 0xa0],
+    brand_strip_bg: [0x1a, 0x1a, 0x1a],
+    model_font: "Permanent Marker",
     schema,
     validate: native_core::validate_params,
     asset_summary,

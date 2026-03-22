@@ -38,6 +38,18 @@ pub fn build_amp_processor_for_layout(
     (registry::find_model_definition(model)?.build)(params, sample_rate, layout)
 }
 
+pub fn amp_brand(model: &str) -> Result<&'static str> {
+    Ok(registry::find_model_definition(model)?.brand)
+}
+
+pub fn amp_type_label(model: &str) -> Result<&'static str> {
+    match registry::find_model_definition(model)?.backend_kind {
+        registry::AmpBackendKind::Native => Ok("NATIVE"),
+        registry::AmpBackendKind::Nam => Ok("NAM"),
+        registry::AmpBackendKind::Ir => Ok("IR"),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{amp_model_schema, supported_models};
