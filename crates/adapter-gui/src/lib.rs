@@ -313,6 +313,15 @@ fn knob_infos_for_model(model_id: &str) -> &'static [KnobInfo] {
             KnobInfo { param_key: "sag",       svg_cx: 630.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
             KnobInfo { param_key: "master",    svg_cx: 706.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
         ],
+        "blackface_clean" | "tweed_breakup" | "chime" => &[
+            KnobInfo { param_key: "gain",      svg_cx: 130.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
+            KnobInfo { param_key: "bass",      svg_cx: 222.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
+            KnobInfo { param_key: "middle",    svg_cx: 302.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
+            KnobInfo { param_key: "treble",    svg_cx: 382.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
+            KnobInfo { param_key: "master",    svg_cx: 470.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
+            KnobInfo { param_key: "sag",       svg_cx: 550.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
+            KnobInfo { param_key: "room_mix",  svg_cx: 630.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
+        ],
         _ => &[],
     }
 }
@@ -4308,24 +4317,32 @@ fn block_type_picker_items() -> Vec<BlockTypePickerItem> {
             label: item.display_label.into(),
             subtitle: "".into(),
             icon_kind: item.icon_kind.into(),
+            use_panel_editor: matches!(item.effect_type, "preamp" | "amp"),
         })
         .collect()
 }
 
 fn model_type_label(effect_type: &str, model_id: &str) -> &'static str {
-    if effect_type != "preamp" { return ""; }
-    if model_id.starts_with("marshall") { return "NAM"; }
-    "NATIVE"
+    match effect_type {
+        "preamp" | "amp" => {
+            if model_id.starts_with("marshall") || model_id.starts_with("bogner") { "NAM" }
+            else { "NATIVE" }
+        }
+        _ => "",
+    }
 }
 
 fn model_brand(effect_type: &str, model_id: &str) -> &'static str {
-    if effect_type != "preamp" {
-        return "";
+    match effect_type {
+        "preamp" | "amp" => {
+            if model_id.starts_with("marshall") { "marshall" }
+            else if model_id.starts_with("vox") { "vox" }
+            else if model_id.starts_with("fender") { "fender" }
+            else if model_id.starts_with("bogner") { "bogner" }
+            else { "native" }
+        }
+        _ => "",
     }
-    if model_id.starts_with("marshall") { return "marshall"; }
-    if model_id.starts_with("vox")      { return "vox"; }
-    if model_id.starts_with("fender")   { return "fender"; }
-    "native"
 }
 
 fn color(r: u8, g: u8, b: u8) -> slint::Color {
@@ -4344,6 +4361,9 @@ fn model_panel_bg(brand: &str, model_id: &str) -> slint::Color {
             "american_clean" => color(0x2a, 0x33, 0x38),
             "brit_crunch" => color(0x34, 0x2e, 0x28),
             "modern_high_gain" => color(0x2a, 0x24, 0x34),
+            "blackface_clean" => color(0x28, 0x30, 0x38),
+            "tweed_breakup" => color(0x38, 0x30, 0x22),
+            "chime" => color(0x2a, 0x34, 0x2a),
             _ => color(0x2c, 0x2e, 0x34),
         },
     }
@@ -4372,6 +4392,9 @@ fn model_font(brand: &str, model_id: &str) -> &'static str {
             "american_clean" => "Dancing Script",
             "brit_crunch" => "Permanent Marker",
             "modern_high_gain" => "Orbitron",
+            "blackface_clean" => "Dancing Script",
+            "tweed_breakup" => "Permanent Marker",
+            "chime" => "Orbitron",
             _ => "",
         },
     }
