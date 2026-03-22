@@ -296,6 +296,8 @@ struct KnobInfo {
     step: f32,
 }
 
+// TODO: knob positions should come from model definitions in block crates
+// (via component.yaml or a KnobLayout in the registry), not hardcoded here.
 fn knob_infos_for_model(model_id: &str) -> &'static [KnobInfo] {
     match model_id {
         "marshall_jcm_800_2203" => &[
@@ -4317,87 +4319,9 @@ fn block_type_picker_items() -> Vec<BlockTypePickerItem> {
             label: item.display_label.into(),
             subtitle: "".into(),
             icon_kind: item.icon_kind.into(),
-            use_panel_editor: matches!(item.effect_type, "preamp" | "amp"),
+            use_panel_editor: item.use_panel_editor,
         })
         .collect()
-}
-
-fn model_type_label(effect_type: &str, model_id: &str) -> &'static str {
-    match effect_type {
-        "preamp" | "amp" => {
-            if model_id.starts_with("marshall") || model_id.starts_with("bogner") { "NAM" }
-            else { "NATIVE" }
-        }
-        _ => "",
-    }
-}
-
-fn model_brand(effect_type: &str, model_id: &str) -> &'static str {
-    match effect_type {
-        "preamp" | "amp" => {
-            if model_id.starts_with("marshall") { "marshall" }
-            else if model_id.starts_with("vox") { "vox" }
-            else if model_id.starts_with("fender") { "fender" }
-            else if model_id.starts_with("bogner") { "bogner" }
-            else { "native" }
-        }
-        _ => "",
-    }
-}
-
-fn color(r: u8, g: u8, b: u8) -> slint::Color {
-    slint::Color::from_argb_u8(0xff, r, g, b)
-}
-
-fn model_panel_bg(brand: &str, model_id: &str) -> slint::Color {
-    match brand {
-        "marshall" => color(0xb8, 0x98, 0x40),
-        "vox" => color(0x1a, 0x1a, 0x2a),
-        "bogner" => color(0x2a, 0x20, 0x28),
-        "roland" => color(0x20, 0x28, 0x2a),
-        "boss" => color(0x2a, 0x28, 0x20),
-        "ibanez" => color(0x22, 0x2a, 0x22),
-        _ => match model_id {
-            "american_clean" => color(0x2a, 0x33, 0x38),
-            "brit_crunch" => color(0x34, 0x2e, 0x28),
-            "modern_high_gain" => color(0x2a, 0x24, 0x34),
-            "blackface_clean" => color(0x28, 0x30, 0x38),
-            "tweed_breakup" => color(0x38, 0x30, 0x22),
-            "chime" => color(0x2a, 0x34, 0x2a),
-            _ => color(0x2c, 0x2e, 0x34),
-        },
-    }
-}
-
-fn model_panel_text(brand: &str) -> slint::Color {
-    match brand {
-        "marshall" => color(0x5a, 0x4a, 0x20),
-        "vox" => color(0xaa, 0xbb, 0xcc),
-        _ => color(0x80, 0x90, 0xa0),
-    }
-}
-
-fn model_brand_strip_bg(brand: &str) -> slint::Color {
-    match brand {
-        "marshall" => color(0x1a, 0x1a, 0x1a),
-        "vox" => color(0x0a, 0x15, 0x20),
-        _ => color(0x1a, 0x1a, 0x1a),
-    }
-}
-
-fn model_font(brand: &str, model_id: &str) -> &'static str {
-    match brand {
-        "marshall" | "vox" | "bogner" | "roland" | "boss" | "ibanez" => "",
-        _ => match model_id {
-            "american_clean" => "Dancing Script",
-            "brit_crunch" => "Permanent Marker",
-            "modern_high_gain" => "Orbitron",
-            "blackface_clean" => "Dancing Script",
-            "tweed_breakup" => "Permanent Marker",
-            "chime" => "Orbitron",
-            _ => "",
-        },
-    }
 }
 
 fn block_model_picker_items(effect_type: &str) -> Vec<BlockModelPickerItem> {
@@ -4405,29 +4329,36 @@ fn block_model_picker_items(effect_type: &str) -> Vec<BlockModelPickerItem> {
         .unwrap_or_default()
         .into_iter()
         .map(|item| {
-            let brand = model_brand(&item.effect_type, &item.model_id);
+            let brand = &item.brand;
             let label = if brand.is_empty() || brand == "native" {
                 item.display_name.clone()
             } else {
                 let brand_display = brand[..1].to_uppercase() + &brand[1..];
                 format!("{} {}", brand_display, item.display_name)
             };
+            let [r, g, b] = item.panel_bg;
+            let panel_bg = slint::Color::from_argb_u8(0xff, r, g, b);
+            let [r, g, b] = item.panel_text;
+            let panel_text = slint::Color::from_argb_u8(0xff, r, g, b);
+            let [r, g, b] = item.brand_strip_bg;
+            let brand_strip_bg = slint::Color::from_argb_u8(0xff, r, g, b);
             BlockModelPickerItem {
-            effect_type: item.effect_type.clone().into(),
-            model_id: item.model_id.clone().into(),
-            label: label.into(),
-            subtitle: "".into(),
-            icon_kind: supported_block_type(effect_type)
-                .map(|entry| entry.icon_kind)
-                .unwrap_or(effect_type)
-                .into(),
-            brand: brand.into(),
-            type_label: model_type_label(&item.effect_type, &item.model_id).into(),
-            panel_bg: model_panel_bg(brand, &item.model_id),
-            panel_text: model_panel_text(brand),
-            brand_strip_bg: model_brand_strip_bg(brand),
-            model_font: model_font(brand, &item.model_id).into(),
-        }})
+                effect_type: item.effect_type.clone().into(),
+                model_id: item.model_id.clone().into(),
+                label: label.into(),
+                subtitle: "".into(),
+                icon_kind: supported_block_type(effect_type)
+                    .map(|entry| entry.icon_kind)
+                    .unwrap_or(effect_type)
+                    .into(),
+                brand: item.brand.clone().into(),
+                type_label: item.type_label.clone().into(),
+                panel_bg,
+                panel_text,
+                brand_strip_bg,
+                model_font: item.model_font.clone().into(),
+            }
+        })
         .collect()
 }
 

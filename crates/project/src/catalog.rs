@@ -2,12 +2,14 @@ use crate::block::{
     build_audio_block_kind, schema_for_block_model, AudioBlockKind,
 };
 use crate::param::ParameterSet;
+use block_core::ModelVisualData;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BlockTypeCatalogEntry {
     pub effect_type: &'static str,
     pub display_label: &'static str,
     pub icon_kind: &'static str,
+    pub use_panel_editor: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -15,16 +17,29 @@ pub struct BlockModelCatalogEntry {
     pub effect_type: String,
     pub model_id: String,
     pub display_name: String,
+    pub brand: String,
+    pub type_label: String,
+    pub panel_bg: [u8; 3],
+    pub panel_text: [u8; 3],
+    pub brand_strip_bg: [u8; 3],
+    pub model_font: String,
 }
 
 type SupportedModelsFn = fn() -> &'static [&'static str];
+type ModelVisualFn = fn(&str) -> Option<ModelVisualData>;
+
+fn no_visual(_model_id: &str) -> Option<ModelVisualData> {
+    None
+}
 
 #[derive(Clone, Copy)]
 struct BlockRegistryEntry {
     effect_type: &'static str,
     display_label: &'static str,
     icon_kind: &'static str,
+    use_panel_editor: bool,
     supported_models: SupportedModelsFn,
+    model_visual: ModelVisualFn,
 }
 
 fn block_registry() -> [BlockRegistryEntry; 15] {
@@ -33,91 +48,121 @@ fn block_registry() -> [BlockRegistryEntry; 15] {
             effect_type: "preamp",
             display_label: "PREAMP",
             icon_kind: "preamp",
+            use_panel_editor: true,
             supported_models: block_preamp::supported_models,
+            model_visual: block_preamp::preamp_model_visual,
         },
         BlockRegistryEntry {
             effect_type: "amp",
             display_label: "AMP",
             icon_kind: "amp",
+            use_panel_editor: true,
             supported_models: block_amp::supported_models,
+            model_visual: block_amp::amp_model_visual,
         },
         BlockRegistryEntry {
             effect_type: "cab",
             display_label: "CAB",
             icon_kind: "cab",
+            use_panel_editor: false,
             supported_models: block_cab::supported_models,
+            model_visual: no_visual,
         },
         BlockRegistryEntry {
             effect_type: "ir",
             display_label: "IR",
             icon_kind: "ir",
+            use_panel_editor: false,
             supported_models: block_ir::supported_models,
+            model_visual: no_visual,
         },
         BlockRegistryEntry {
             effect_type: "full_rig",
             display_label: "RIG",
             icon_kind: "full_rig",
+            use_panel_editor: false,
             supported_models: block_full_rig::supported_models,
+            model_visual: no_visual,
         },
         BlockRegistryEntry {
             effect_type: "gain",
             display_label: "GAIN",
             icon_kind: "gain",
+            use_panel_editor: false,
             supported_models: block_gain::supported_models,
+            model_visual: no_visual,
         },
         BlockRegistryEntry {
             effect_type: "dynamics",
             display_label: "DYN",
             icon_kind: "dynamics",
+            use_panel_editor: false,
             supported_models: block_dyn::supported_models,
+            model_visual: no_visual,
         },
         BlockRegistryEntry {
             effect_type: "filter",
             display_label: "FILTER",
             icon_kind: "filter",
+            use_panel_editor: false,
             supported_models: block_filter::supported_models,
+            model_visual: no_visual,
         },
         BlockRegistryEntry {
             effect_type: "wah",
             display_label: "WAH",
             icon_kind: "wah",
+            use_panel_editor: false,
             supported_models: block_wah::supported_models,
+            model_visual: no_visual,
         },
         BlockRegistryEntry {
             effect_type: "pitch",
             display_label: "PITCH",
             icon_kind: "pitch",
+            use_panel_editor: false,
             supported_models: block_pitch::supported_models,
+            model_visual: no_visual,
         },
         BlockRegistryEntry {
             effect_type: "modulation",
             display_label: "MOD",
             icon_kind: "modulation",
+            use_panel_editor: false,
             supported_models: block_mod::supported_models,
+            model_visual: no_visual,
         },
         BlockRegistryEntry {
             effect_type: "delay",
             display_label: "DLY",
             icon_kind: "delay",
+            use_panel_editor: false,
             supported_models: block_delay::supported_models,
+            model_visual: no_visual,
         },
         BlockRegistryEntry {
             effect_type: "reverb",
             display_label: "RVB",
             icon_kind: "reverb",
+            use_panel_editor: false,
             supported_models: block_reverb::supported_models,
+            model_visual: no_visual,
         },
         BlockRegistryEntry {
             effect_type: "utility",
             display_label: "UTIL",
             icon_kind: "utility",
+            use_panel_editor: false,
             supported_models: block_util::supported_models,
+            model_visual: no_visual,
         },
         BlockRegistryEntry {
             effect_type: "nam",
             display_label: "NAM",
             icon_kind: "nam",
+            use_panel_editor: false,
             supported_models: block_nam::supported_models,
+            model_visual: no_visual,
         },
     ]
 }
@@ -130,6 +175,7 @@ pub fn supported_block_types() -> Vec<BlockTypeCatalogEntry> {
             effect_type: entry.effect_type,
             display_label: entry.display_label,
             icon_kind: entry.icon_kind,
+            use_panel_editor: entry.use_panel_editor,
         })
         .collect()
 }
@@ -142,6 +188,7 @@ pub fn supported_block_type(effect_type: &str) -> Option<BlockTypeCatalogEntry> 
             effect_type: entry.effect_type,
             display_label: entry.display_label,
             icon_kind: entry.icon_kind,
+            use_panel_editor: entry.use_panel_editor,
         })
 }
 
@@ -155,10 +202,17 @@ pub fn supported_block_models(effect_type: &str) -> Result<Vec<BlockModelCatalog
         .iter()
         .map(|model_id| {
             let schema = schema_for_block_model(effect_type, model_id)?;
+            let visual = (entry.model_visual)(model_id);
             Ok(BlockModelCatalogEntry {
                 effect_type: effect_type.to_string(),
                 model_id: (*model_id).to_string(),
                 display_name: schema.display_name,
+                brand: visual.as_ref().map(|v| v.brand.to_string()).unwrap_or_default(),
+                type_label: visual.as_ref().map(|v| v.type_label.to_string()).unwrap_or_default(),
+                panel_bg: visual.as_ref().map(|v| v.panel_bg).unwrap_or([0x2c, 0x2e, 0x34]),
+                panel_text: visual.as_ref().map(|v| v.panel_text).unwrap_or([0x80, 0x90, 0xa0]),
+                brand_strip_bg: visual.as_ref().map(|v| v.brand_strip_bg).unwrap_or([0x1a, 0x1a, 0x1a]),
+                model_font: visual.as_ref().map(|v| v.model_font.to_string()).unwrap_or_default(),
             })
         })
         .collect()

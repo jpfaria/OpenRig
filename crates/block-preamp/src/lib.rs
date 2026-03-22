@@ -4,7 +4,7 @@ mod registry;
 
 use anyhow::Result;
 use block_core::param::{ModelParameterSchema, ParameterSet};
-use block_core::{AudioChannelLayout, BlockProcessor};
+use block_core::{AudioChannelLayout, BlockProcessor, ModelVisualData};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PreampBackendKind {
@@ -35,6 +35,22 @@ pub fn preamp_type_label(model: &str) -> Result<&'static str> {
         PreampBackendKind::Native => "native",
         PreampBackendKind::Nam => "NAM",
         PreampBackendKind::Ir => "IR",
+    })
+}
+
+pub fn preamp_model_visual(model_id: &str) -> Option<ModelVisualData> {
+    let def = registry::find_model_definition(model_id).ok()?;
+    Some(ModelVisualData {
+        brand: def.brand,
+        type_label: match def.backend_kind {
+            PreampBackendKind::Native => "NATIVE",
+            PreampBackendKind::Nam => "NAM",
+            PreampBackendKind::Ir => "IR",
+        },
+        panel_bg: def.panel_bg,
+        panel_text: def.panel_text,
+        brand_strip_bg: def.brand_strip_bg,
+        model_font: def.model_font,
     })
 }
 

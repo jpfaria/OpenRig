@@ -3,7 +3,7 @@ mod registry;
 
 use anyhow::Result;
 use block_core::param::{ModelParameterSchema, ParameterSet};
-use block_core::{AudioChannelLayout, BlockProcessor};
+use block_core::{AudioChannelLayout, BlockProcessor, ModelVisualData};
 
 pub fn supported_models() -> &'static [&'static str] {
     registry::SUPPORTED_MODELS
@@ -36,6 +36,22 @@ pub fn build_amp_processor_for_layout(
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
     (registry::find_model_definition(model)?.build)(params, sample_rate, layout)
+}
+
+pub fn amp_model_visual(model_id: &str) -> Option<ModelVisualData> {
+    let def = registry::find_model_definition(model_id).ok()?;
+    Some(ModelVisualData {
+        brand: def.brand,
+        type_label: match def.backend_kind {
+            registry::AmpBackendKind::Native => "NATIVE",
+            registry::AmpBackendKind::Nam => "NAM",
+            registry::AmpBackendKind::Ir => "IR",
+        },
+        panel_bg: def.panel_bg,
+        panel_text: def.panel_text,
+        brand_strip_bg: def.brand_strip_bg,
+        model_font: def.model_font,
+    })
 }
 
 pub fn amp_brand(model: &str) -> Result<&'static str> {

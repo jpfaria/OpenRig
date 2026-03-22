@@ -58,6 +58,17 @@ impl ModelAudioMode {
     }
 }
 
+/// Visual metadata for a model, used by the GUI catalog layer.
+#[derive(Debug, Clone, Copy)]
+pub struct ModelVisualData {
+    pub brand: &'static str,
+    pub type_label: &'static str,
+    pub panel_bg: [u8; 3],
+    pub panel_text: [u8; 3],
+    pub brand_strip_bg: [u8; 3],
+    pub model_font: &'static str,
+}
+
 pub trait MonoProcessor: Send + Sync + 'static {
     fn process_sample(&mut self, input: f32) -> f32;
     fn process_block(&mut self, buffer: &mut [f32]) {
