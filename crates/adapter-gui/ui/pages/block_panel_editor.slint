@@ -287,6 +287,17 @@ export component BlockPanelEditor inherits Rectangle {
         : root.selected-icon-kind == "utility" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/tuner.svg")
         : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
 
+    private property <float> photo-offset-x:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].photo_offset_x
+        : 0.0;
+    private property <float> photo-offset-y:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].photo_offset_y
+        : 0.0;
+
     // Badge dimensions (for computing ModelSelector right boundary)
     private property <length> badge-width:
         root.selected-type-label == "" ? 0px : 56px;
@@ -460,32 +471,32 @@ export component BlockPanelEditor inherits Rectangle {
 
             // Background photo (transparent, behind logo and text)
             if root.selected-model-id == "marshall_jcm_800_2203" : Image {
-                x: 0; y: 0; width: parent.width; height: parent.height;
+                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
                 source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/photos/marshall_jcm_800_2203.png");
                 image-fit: cover; opacity: 0.25;
             }
             if root.selected-model-id == "marshall_4x12_v30" : Image {
-                x: 0; y: 0; width: parent.width; height: parent.height;
+                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
                 source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/photos/marshall_4x12_v30.png");
                 image-fit: cover; opacity: 0.25;
             }
             if root.selected-model-id == "blues_overdrive_bd_2" : Image {
-                x: 0; y: 0; width: parent.width; height: parent.height;
+                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
                 source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/photos/blues_overdrive_bd_2.png");
                 image-fit: cover; opacity: 0.25;
             }
             if root.selected-model-id == "ibanez_ts9" : Image {
-                x: 0; y: 0; width: parent.width; height: parent.height;
+                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
                 source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/photos/ibanez_ts9.png");
                 image-fit: cover; opacity: 0.25;
             }
             if root.selected-model-id == "bogner_ecstasy" : Image {
-                x: 0; y: 0; width: parent.width; height: parent.height;
+                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
                 source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/photos/bogner_ecstasy.png");
                 image-fit: cover; opacity: 0.25;
             }
             if root.selected-model-id == "roland_jc_120b_jazz_chorus" : Image {
-                x: 0; y: 0; width: parent.width; height: parent.height;
+                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
                 source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/photos/roland_jc_120b_jazz_chorus.png");
                 image-fit: cover; opacity: 0.25;
             }
