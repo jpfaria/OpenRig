@@ -338,17 +338,16 @@ export component AmpPanelEditor inherits Rectangle {
     }
 
     // ── PANEL RECT (direto após o header, sem brand strip) ─────────────────────────────────────────────────
-    // Panel colors by brand
+    // Panel colors from model data (set by Rust)
     private property <color> panel-bg:
-        root.selected-brand == "marshall" ? #b89840
-        : root.selected-brand == "vox" ? #1a1a2a
-        : root.selected-model-id == "american_clean" ? #1e2a2e
-        : root.selected-model-id == "brit_crunch" ? #2a2420
-        : root.selected-model-id == "modern_high_gain" ? #201a28
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].panel_bg
         : #252830;
     private property <color> panel-text:
-        root.selected-brand == "marshall" ? #5a4a20
-        : root.selected-brand == "vox" ? #aabbcc
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].panel_text
         : #8090a0;
 
     Rectangle {
@@ -426,10 +425,10 @@ export component AmpPanelEditor inherits Rectangle {
             }
         }
 
-        // ── Control labels (alinhados à direita, espaçamento 80px) ──
+        // ── Control labels (alinhados à direita, espaçamento 80px, centro vertical) ──
         for knob[ki] in root.block-knob-overlays : Text {
             x: parent.width - 56px - (root.block-knob-overlays.length - 1 - ki) * 80px - 40px;
-            y: parent.height * 0.45;
+            y: (parent.height - 56px) / 2 - 20px;
             width: 80px;
             height: 16px;
             text: knob.label;
@@ -443,7 +442,7 @@ export component AmpPanelEditor inherits Rectangle {
         // ── Power switch ──
         Rectangle {
             x: 10px;
-            y: parent.height * 0.55;
+            y: (parent.height - 40px) / 2;
             width: 32px;
             height: 40px;
             border-radius: 3px;
@@ -470,7 +469,7 @@ export component AmpPanelEditor inherits Rectangle {
 
         Text {
             x: 8px;
-            y: parent.height * 0.55 + 44px;
+            y: (parent.height - 40px) / 2 + 44px;
             width: 36px;
             height: 12px;
             text: "POWER";
@@ -484,7 +483,7 @@ export component AmpPanelEditor inherits Rectangle {
         // ── Knob overlays (alinhados à direita, espaçamento 80px) ──
         for knob[ki] in root.block-knob-overlays : PanelKnob {
             x: parent.width - 56px - (root.block-knob-overlays.length - 1 - ki) * 80px - 28px;
-            y: parent.height * 0.55;
+            y: (parent.height - 56px) / 2;
             width: 56px;
             height: 56px;
             value: knob.value;
