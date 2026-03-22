@@ -550,10 +550,10 @@ export component BlockPanelEditor inherits Rectangle {
 
             // Ilustração do modelo (centralizado com o nome)
             Image {
-                x: parent.width / 2 - 180px;
-                y: (parent.height - 72px) / 2;
-                width: 72px;
-                height: 72px;
+                x: parent.width / 2 - 220px;
+                y: (parent.height - 88px) / 2;
+                width: 88px;
+                height: 88px;
                 source: root.selected-model-id == "analog_warm" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/analog_warm.svg")
                     : root.selected-model-id == "digital_clean" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/digital_clean.svg")
                     : root.selected-model-id == "modulated_delay" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/modulated_delay.svg")
@@ -585,14 +585,14 @@ export component BlockPanelEditor inherits Rectangle {
             }
 
             Text {
-                x: parent.width / 2 - 100px;
+                x: parent.width / 2 - 124px;
                 y: 0;
-                width: 280px;
+                width: 350px;
                 height: parent.height;
                 text: root.selected-model-label;
                 color: #c0c8d0;
                 font-family: root.model-font;
-                font-size: 26px;
+                font-size: 32px;
                 font-weight: 700;
                 horizontal-alignment: left;
                 vertical-alignment: center;
