@@ -422,15 +422,14 @@ export component AmpPanelEditor inherits Rectangle {
         clip: true;
         background: root.panel-bg;
 
-        // ── Brand/model strip (fundo vinho escuro) ──
+        // ── Brand strip (fundo cinza escuro, só a marca) ──
         if root.selected-brand != "native" && root.selected-brand != "" : Rectangle {
             x: 0;
             y: 0;
             width: parent.width;
-            height: 64px;
-            background: #1a0a0a;
+            height: 52px;
+            background: #1a1a1a;
 
-            // Marshall logo
             if root.selected-brand == "marshall" : Image {
                 x: parent.width * 0.1;
                 y: 6px;
@@ -438,10 +437,9 @@ export component AmpPanelEditor inherits Rectangle {
                 height: 40px;
                 source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/marshall/logo.svg");
                 image-fit: contain;
-                colorize: #f0f0f0;
+                colorize: #ffffff;
             }
 
-            // Vox logo
             if root.selected-brand == "vox" : Image {
                 x: parent.width * 0.15;
                 y: 6px;
@@ -449,20 +447,6 @@ export component AmpPanelEditor inherits Rectangle {
                 height: 40px;
                 source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/vox/logo.svg");
                 image-fit: contain;
-            }
-
-            // Model name
-            Text {
-                x: 0;
-                y: 46px;
-                width: parent.width;
-                height: 14px;
-                text: root.selected-model-label;
-                color: #908080;
-                font-size: 9px;
-                font-weight: 600;
-                letter-spacing: 1.5px;
-                horizontal-alignment: center;
             }
         }
 
