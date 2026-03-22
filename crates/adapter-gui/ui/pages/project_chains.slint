@@ -1706,7 +1706,6 @@ export component BlockEditorPanel inherits Rectangle {
 export component ProjectChainsPage inherits Rectangle {
     in property <string> project-title;
     in property <string> project-path-label;
-    in property <bool> project-running;
     in property <bool> project-dirty;
     in property <[ProjectChainItem]> project-chains;
     in property <int> selected-chain-block-chain-index;
@@ -1740,8 +1739,6 @@ export component ProjectChainsPage inherits Rectangle {
     callback configure-chain-output(int);
     callback configure-chain-preset(int);
     callback save-chain-preset(int);
-    callback start-project();
-    callback stop-project();
     callback select-chain-block(int, int);
     callback clear-chain-block();
     callback toggle-chain-block-enabled(int, int);
@@ -1855,23 +1852,6 @@ export component ProjectChainsPage inherits Rectangle {
             clicked => { root.add-chain(); }
         }
 
-        if root.project-running : HeaderIconAction {
-            x: parent.width - 40px;
-            y: 14px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/stop.svg");
-            tint: #f87171;
-            tooltip: "Parar";
-            clicked => { root.stop-project(); }
-        }
-
-        if !root.project-running : HeaderIconAction {
-            x: parent.width - 40px;
-            y: 14px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/play.svg");
-            active: true;
-            tooltip: "Iniciar";
-            clicked => { root.start-project(); }
-        }
     }
 
     Rectangle {

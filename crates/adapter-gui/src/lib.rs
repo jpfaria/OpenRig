@@ -392,7 +392,6 @@ pub fn run_desktop_app(
     window.set_show_project_chains(false);
     window.set_show_chain_editor(false);
     window.set_show_project_settings(false);
-    window.set_project_running(false);
     window.set_project_dirty(false);
     window.set_project_path_label("".into());
     window.set_project_title("Projeto".into());
@@ -862,7 +861,6 @@ pub fn run_desktop_app(
                     );
                     sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
                     window.set_status_message("".into());
-                    window.set_project_running(project_runtime_is_running(&project_runtime));
                     window.set_show_project_chains(true);
                     window.set_show_chain_editor(false);
                     window.set_show_project_settings(false);
@@ -971,7 +969,6 @@ pub fn run_desktop_app(
                     sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
                     settings_window.set_status_message("".into());
                     window.set_status_message("".into());
-                    window.set_project_running(project_runtime_is_running(&project_runtime));
                     window.set_show_project_settings(false);
                     let _ = settings_window.hide();
                 }
@@ -1026,7 +1023,6 @@ pub fn run_desktop_app(
                         &app_config.borrow().recent_projects,
                         window.get_recent_project_search().as_str(),
                     ));
-                    window.set_project_running(false);
                     set_project_dirty(&window, &project_dirty, false);
                     window.set_status_message("".into());
                     window.set_project_title(title.into());
@@ -1077,7 +1073,6 @@ pub fn run_desktop_app(
             );
             *project_session.borrow_mut() = Some(session);
             *saved_project_snapshot.borrow_mut() = None;
-            window.set_project_running(false);
             window.set_status_message("".into());
             set_project_dirty(&window, &project_dirty, true);
             window.set_project_title("Novo Projeto".into());
@@ -1238,7 +1233,6 @@ pub fn run_desktop_app(
                         &app_config.borrow().recent_projects,
                         window.get_recent_project_search().as_str(),
                     ));
-                    window.set_project_running(false);
                     set_project_dirty(&window, &project_dirty, false);
                     window.set_status_message("".into());
                     window.set_project_title(title.into());
@@ -1498,7 +1492,6 @@ pub fn run_desktop_app(
                             &saved_project_snapshot,
                             &project_dirty,
                         );
-                        window.set_project_running(project_runtime_is_running(&project_runtime));
                         window.set_status_message("".into());
                     }
                 }
@@ -1549,7 +1542,6 @@ pub fn run_desktop_app(
             set_project_dirty(&window, &project_dirty, false);
             window.set_project_title("Projeto".into());
             window.set_project_name_draft("".into());
-            window.set_project_running(false);
             window.set_project_path_label("".into());
             window.set_show_project_settings(false);
             window.set_show_chain_editor(false);
@@ -2595,7 +2587,6 @@ pub fn run_desktop_app(
                         }
                         replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
                         sync_project_dirty(&main, session, &saved_project_snapshot, &project_dirty);
-                        main.set_project_running(project_runtime_is_running(&project_runtime));
                         drop(session_borrow);
                         *selected_block.borrow_mut() = None;
                         set_selected_block(&main, None);
@@ -2707,7 +2698,6 @@ pub fn run_desktop_app(
             });
             set_selected_block(&window, selected_block.borrow().as_ref());
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-            window.set_project_running(project_runtime_is_running(&project_runtime));
             window.set_status_message("".into());
         });
     }
@@ -2774,7 +2764,6 @@ pub fn run_desktop_app(
             }
             set_selected_block(&window, selected_block.borrow().as_ref());
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-            window.set_project_running(project_runtime_is_running(&project_runtime));
             window.set_status_message("".into());
         });
     }
@@ -3453,7 +3442,6 @@ pub fn run_desktop_app(
                 &output_chain_devices,
             );
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-            window.set_project_running(project_runtime_is_running(&project_runtime));
             *selected_block.borrow_mut() = None;
             *block_editor_draft.borrow_mut() = None;
             block_model_options.set_vec(Vec::new());
@@ -3558,7 +3546,6 @@ pub fn run_desktop_app(
             );
             *chain_draft.borrow_mut() = None;
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-            window.set_project_running(project_runtime_is_running(&project_runtime));
             window.set_status_message("".into());
             window.set_show_chain_editor(false);
         });
@@ -3659,7 +3646,6 @@ pub fn run_desktop_app(
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             chain_window.set_status_message("".into());
             window.set_status_message("".into());
-            window.set_project_running(project_runtime_is_running(&project_runtime));
             window.set_show_chain_editor(false);
             let _ = chain_window.hide();
         });
@@ -3748,7 +3734,6 @@ pub fn run_desktop_app(
                     &output_chain_devices,
                 );
                 sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-                window.set_project_running(project_runtime_is_running(&project_runtime));
             }
 
             if let Some(chain_window) = weak_chain_window.upgrade() {
@@ -3837,7 +3822,6 @@ pub fn run_desktop_app(
                     &output_chain_devices,
                 );
                 sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-                window.set_project_running(project_runtime_is_running(&project_runtime));
             }
 
             if let Some(chain_window) = weak_chain_window.upgrade() {
@@ -3889,7 +3873,6 @@ pub fn run_desktop_app(
                 &output_chain_devices,
             );
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-            window.set_project_running(project_runtime_is_running(&project_runtime));
             window.set_status_message("".into());
         });
     }
@@ -3929,47 +3912,6 @@ pub fn run_desktop_app(
                 &output_chain_devices,
             );
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-            window.set_project_running(project_runtime_is_running(&project_runtime));
-            window.set_status_message("".into());
-        });
-    }
-
-    {
-        let weak_window = window.as_weak();
-        let project_session = project_session.clone();
-        let project_runtime = project_runtime.clone();
-        window.on_start_project(move || {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
-                return;
-            };
-            match start_project_runtime(session) {
-                Ok(runtime) => {
-                    *project_runtime.borrow_mut() = Some(runtime);
-                    window.set_project_running(project_runtime_is_running(&project_runtime));
-                    window.set_status_message("".into());
-                }
-                Err(error) => {
-                    window.set_project_running(false);
-                    window.set_status_message(error.to_string().into());
-                }
-            }
-        });
-    }
-
-    {
-        let weak_window = window.as_weak();
-        let project_runtime = project_runtime.clone();
-        window.on_stop_project(move || {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            stop_project_runtime(&project_runtime);
-            window.set_project_running(false);
             window.set_status_message("".into());
         });
     }
@@ -4836,7 +4778,6 @@ fn persist_block_editor_draft(
         output_chain_devices,
     );
     sync_project_dirty(window, session, saved_project_snapshot, project_dirty);
-    window.set_project_running(project_runtime_is_running(project_runtime));
 
     if close_after_save {
         window.set_show_block_drawer(false);
@@ -5293,25 +5234,11 @@ fn normalized_chain_description(name: &str) -> Option<String> {
     }
 }
 
-fn project_runtime_is_running(
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-) -> bool {
-    project_runtime
-        .borrow()
-        .as_ref()
-        .map(ProjectRuntimeController::is_running)
-        .unwrap_or(false)
-}
 
 fn stop_project_runtime(project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>) {
     if let Some(mut runtime) = project_runtime.borrow_mut().take() {
         runtime.stop();
     }
-}
-
-fn start_project_runtime(session: &ProjectSession) -> Result<ProjectRuntimeController> {
-    validate_project(&session.project)?;
-    ProjectRuntimeController::start(&session.project)
 }
 
 fn sync_project_runtime(
