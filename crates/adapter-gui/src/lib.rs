@@ -5526,8 +5526,7 @@ mod tests {
     use domain::value_objects::ParameterValue;
     use project::catalog::supported_block_models;
     use project::block::{
-        schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock, CoreBlockKind, DelayBlock,
-        SelectBlock,
+        schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock, SelectBlock,
     };
     use project::param::ParameterSet;
     use slint::Model;
@@ -5630,10 +5629,9 @@ mod tests {
             id: BlockId(id.into()),
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
-                kind: CoreBlockKind::Delay(DelayBlock {
-                    model: model.to_string(),
-                    params,
-                }),
+                effect_type: "delay".to_string(),
+                model: model.to_string(),
+                params,
             }),
         }
     }

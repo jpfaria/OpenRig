@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use domain::ids::{BlockId, ChainId};
 use project::block::{
-    schema_for_block_model, AudioBlockKind, CoreBlockKind, NamBlock, SelectBlock,
+    schema_for_block_model, AudioBlockKind, CoreBlock, NamBlock, SelectBlock,
 };
 use project::param::ParameterSet;
 use project::project::Project;
@@ -394,117 +394,125 @@ fn build_block_runtime_node(
             input_layout,
             build_nam_audio_processor(chain, stage, input_layout)?,
         ),
-        AudioBlockKind::Core(core) => match &core.kind {
-            CoreBlockKind::Preamp(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "preamp", &stage.model, input_layout, |layout| {
-                    build_preamp_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::Amp(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "amp", &stage.model, input_layout, |layout| {
-                    build_amp_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::FullRig(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "full_rig", &stage.model, input_layout, |layout| {
-                    build_full_rig_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::Cab(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "cab", &stage.model, input_layout, |layout| {
-                    build_cab_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::Ir(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "ir", &stage.model, input_layout, |layout| {
-                    build_ir_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::Drive(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "gain", &stage.model, input_layout, |layout| {
-                    build_gain_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::Delay(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "delay", &stage.model, input_layout, |layout| {
-                    build_delay_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::Reverb(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "reverb", &stage.model, input_layout, |layout| {
-                    build_reverb_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::Tuner(stage) => BlockRuntimeNode {
-                instance_serial: next_block_instance_serial(),
-                block_id: block.id.clone(),
-                block_snapshot: block.clone(),
-                input_layout,
-                output_layout: input_layout,
-                scratch: ProcessorScratch::Mono(Vec::new()),
-                processor: RuntimeProcessor::Tuner(build_utility_processor(
-                    &stage.model,
-                    &stage.params,
-                    sample_rate.round() as usize,
-                )?),
-            },
-            CoreBlockKind::Compressor(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "dynamics", &stage.model, input_layout, |layout| {
-                    build_dynamics_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::Gate(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "dynamics", &stage.model, input_layout, |layout| {
-                    build_dynamics_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::Eq(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "filter", &stage.model, input_layout, |layout| {
-                    build_filter_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::Wah(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "wah", &stage.model, input_layout, |layout| {
-                    build_wah_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::Tremolo(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "modulation", &stage.model, input_layout, |layout| {
-                    build_modulation_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::Pitch(_) => bypass_runtime_node(block, input_layout),
-        },
+        AudioBlockKind::Core(core) => build_core_block_runtime_node(chain, block, core, input_layout, sample_rate)?,
         AudioBlockKind::Select(select) => {
             build_select_runtime_node(chain, block, select, input_layout, sample_rate, None)?
         }
     })
+}
+
+fn build_core_block_runtime_node(
+    chain: &Chain,
+    block: &project::block::AudioBlock,
+    core: &CoreBlock,
+    input_layout: AudioChannelLayout,
+    sample_rate: f32,
+) -> Result<BlockRuntimeNode> {
+    let effect_type = core.effect_type.as_str();
+    let model = &core.model;
+    let params = &core.params;
+
+    match effect_type {
+        "preamp" => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, "preamp", model, input_layout, |layout| {
+                build_preamp_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        "amp" => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, "amp", model, input_layout, |layout| {
+                build_amp_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        "full_rig" => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, "full_rig", model, input_layout, |layout| {
+                build_full_rig_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        "cab" => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, "cab", model, input_layout, |layout| {
+                build_cab_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        "ir" => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, "ir", model, input_layout, |layout| {
+                build_ir_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        "gain" => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, "gain", model, input_layout, |layout| {
+                build_gain_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        "delay" => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, "delay", model, input_layout, |layout| {
+                build_delay_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        "reverb" => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, "reverb", model, input_layout, |layout| {
+                build_reverb_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        "utility" => Ok(BlockRuntimeNode {
+            instance_serial: next_block_instance_serial(),
+            block_id: block.id.clone(),
+            block_snapshot: block.clone(),
+            input_layout,
+            output_layout: input_layout,
+            scratch: ProcessorScratch::Mono(Vec::new()),
+            processor: RuntimeProcessor::Tuner(build_utility_processor(
+                model,
+                params,
+                sample_rate.round() as usize,
+            )?),
+        }),
+        "dynamics" => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, "dynamics", model, input_layout, |layout| {
+                build_dynamics_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        "filter" => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, "filter", model, input_layout, |layout| {
+                build_filter_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        "wah" => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, "wah", model, input_layout, |layout| {
+                build_wah_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        "modulation" => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, "modulation", model, input_layout, |layout| {
+                build_modulation_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        "pitch" => Ok(bypass_runtime_node(block, input_layout)),
+        other => Err(anyhow!("unsupported core block effect_type '{}'", other)),
+    }
 }
 
 fn build_select_runtime_node(
@@ -1012,8 +1020,7 @@ mod tests {
     use domain::ids::{BlockId, DeviceId, ChainId};
     use domain::value_objects::ParameterValue;
     use project::block::{
-        PreampBlock, AudioBlock, AudioBlockKind, CabBlock, CompressorBlock, CoreBlock,
-        CoreBlockKind, DelayBlock, ReverbBlock, SelectBlock, TunerBlock, schema_for_block_model,
+        AudioBlock, AudioBlockKind, CoreBlock, SelectBlock, schema_for_block_model,
     };
     use project::param::ParameterSet;
     use project::project::Project;
@@ -1040,10 +1047,9 @@ mod tests {
                     id: BlockId("chain:0:block:0".into()),
                     enabled: true,
                     kind: AudioBlockKind::Core(CoreBlock {
-                        kind: CoreBlockKind::Cab(CabBlock {
-                            model,
-                            params,
-                        }),
+                        effect_type: "cab".to_string(),
+                        model,
+                        params,
                     }),
                 }],
                 output_mixdown: ChainOutputMixdown::Average,
@@ -1077,10 +1083,9 @@ mod tests {
                     id: BlockId("chain:0:block:0".into()),
                     enabled: true,
                     kind: AudioBlockKind::Core(CoreBlock {
-                        kind: CoreBlockKind::Cab(CabBlock {
-                            model,
-                            params,
-                        }),
+                        effect_type: "cab".to_string(),
+                        model,
+                        params,
                     }),
                 }],
                 output_mixdown: ChainOutputMixdown::Average,
@@ -1119,12 +1124,8 @@ mod tests {
                 .collect::<Vec<_>>()
         };
 
-        if let AudioBlockKind::Core(CoreBlock {
-            kind: CoreBlockKind::Tuner(stage),
-        }) = &mut chain.blocks[1].kind
-        {
-            stage
-                .params
+        if let AudioBlockKind::Core(core) = &mut chain.blocks[1].kind {
+            core.params
                 .insert("reference_hz", ParameterValue::Float(432.0));
         }
 
@@ -1352,10 +1353,9 @@ mod tests {
             id: BlockId(block_id.into()),
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
-                kind: CoreBlockKind::Tuner(TunerBlock {
-                    model: tuner_model,
-                    params,
-                }),
+                effect_type: "utility".to_string(),
+                model: tuner_model,
+                params,
             }),
         }
     }
@@ -1395,10 +1395,9 @@ mod tests {
             id: BlockId(block_id.into()),
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
-                kind: CoreBlockKind::Compressor(CompressorBlock {
-                    params: normalized_defaults("dynamics", &model),
-                    model,
-                }),
+                effect_type: "dynamics".to_string(),
+                params: normalized_defaults("dynamics", &model),
+                model,
             }),
         }
     }
@@ -1413,10 +1412,9 @@ mod tests {
             id: BlockId(block_id.into()),
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
-                kind: CoreBlockKind::Cab(CabBlock {
-                    params: normalized_defaults("cab", &model),
-                    model,
-                }),
+                effect_type: "cab".to_string(),
+                params: normalized_defaults("cab", &model),
+                model,
             }),
         }
     }
@@ -1432,10 +1430,9 @@ mod tests {
             id: BlockId(block_id.into()),
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
-                kind: CoreBlockKind::Preamp(PreampBlock {
-                    params: normalized_defaults("preamp", &model),
-                    model,
-                }),
+                effect_type: "preamp".to_string(),
+                params: normalized_defaults("preamp", &model),
+                model,
             }),
         }
     }
@@ -1446,10 +1443,9 @@ mod tests {
             id: BlockId(block_id.into()),
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
-                kind: CoreBlockKind::Preamp(PreampBlock {
-                    params: normalized_defaults("preamp", &model),
-                    model,
-                }),
+                effect_type: "preamp".to_string(),
+                params: normalized_defaults("preamp", &model),
+                model,
             }),
         }
     }
@@ -1464,10 +1460,9 @@ mod tests {
             id: BlockId(block_id.into()),
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
-                kind: CoreBlockKind::Cab(CabBlock {
-                    params: normalized_defaults("cab", &model),
-                    model,
-                }),
+                effect_type: "cab".to_string(),
+                params: normalized_defaults("cab", &model),
+                model,
             }),
         }
     }
@@ -1481,10 +1476,9 @@ mod tests {
             id: BlockId(block_id.into()),
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
-                kind: CoreBlockKind::Reverb(ReverbBlock {
-                    params: normalized_defaults("reverb", &model),
-                    model,
-                }),
+                effect_type: "reverb".to_string(),
+                params: normalized_defaults("reverb", &model),
+                model,
             }),
         }
     }
@@ -1526,10 +1520,9 @@ mod tests {
             id: BlockId(id.into()),
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
-                kind: CoreBlockKind::Delay(DelayBlock {
-                    params,
-                    model: model.to_string(),
-                }),
+                effect_type: "delay".to_string(),
+                model: model.to_string(),
+                params,
             }),
         }
     }

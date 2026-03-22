@@ -2,9 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use domain::ids::{BlockId, DeviceId, ChainId};
 use domain::value_objects::ParameterValue;
 use project::block::{
-    normalize_block_params, AmpBlock, PreampBlock, AudioBlock, AudioBlockKind, CabBlock,
-    CompressorBlock, CoreBlock, CoreBlockKind, DelayBlock, DriveBlock, EqBlock, FullRigBlock,
-    GateBlock, IrBlock, NamBlock, PitchBlock, ReverbBlock, SelectBlock, TremoloBlock, TunerBlock, WahBlock,
+    normalize_block_params, AudioBlock, AudioBlockKind, CoreBlock, NamBlock, SelectBlock,
 };
 use project::device::DeviceSettings;
 use project::param::ParameterSet;
@@ -390,90 +388,6 @@ impl AudioBlockYaml {
 
     fn into_audio_block_with_id(self, generated_id: BlockId) -> Result<AudioBlock> {
         match self {
-            AudioBlockYaml::Preamp {
-                enabled,
-                model,
-                params,
-            } => Ok(AudioBlock {
-                id: generated_id,
-                enabled,
-                kind: AudioBlockKind::Core(CoreBlock {
-                    kind: CoreBlockKind::Preamp(PreampBlock {
-                        model: model.clone(),
-                        params: load_model_params("preamp", &model, params)?,
-                    }),
-                }),
-            }),
-            AudioBlockYaml::Amp {
-                enabled,
-                model,
-                params,
-            } => Ok(AudioBlock {
-                id: generated_id,
-                enabled,
-                kind: AudioBlockKind::Core(CoreBlock {
-                    kind: CoreBlockKind::Amp(AmpBlock {
-                        model: model.clone(),
-                        params: load_model_params("amp", &model, params)?,
-                    }),
-                }),
-            }),
-            AudioBlockYaml::FullRig {
-                enabled,
-                model,
-                params,
-            } => Ok(AudioBlock {
-                id: generated_id,
-                enabled,
-                kind: AudioBlockKind::Core(CoreBlock {
-                    kind: CoreBlockKind::FullRig(FullRigBlock {
-                        model: model.clone(),
-                        params: load_model_params("full_rig", &model, params)?,
-                    }),
-                }),
-            }),
-            AudioBlockYaml::Cab {
-                enabled,
-                model,
-                params,
-            } => Ok(AudioBlock {
-                id: generated_id,
-                enabled,
-                kind: AudioBlockKind::Core(CoreBlock {
-                    kind: CoreBlockKind::Cab(CabBlock {
-                        model: model.clone(),
-                        params: load_model_params("cab", &model, params)?,
-                    }),
-                }),
-            }),
-            AudioBlockYaml::Ir {
-                enabled,
-                model,
-                params,
-            } => Ok(AudioBlock {
-                id: generated_id,
-                enabled,
-                kind: AudioBlockKind::Core(CoreBlock {
-                    kind: CoreBlockKind::Ir(IrBlock {
-                        model: model.clone(),
-                        params: load_model_params("ir", &model, params)?,
-                    }),
-                }),
-            }),
-            AudioBlockYaml::Gain {
-                enabled,
-                model,
-                params,
-            } => Ok(AudioBlock {
-                id: generated_id,
-                enabled,
-                kind: AudioBlockKind::Core(CoreBlock {
-                    kind: CoreBlockKind::Drive(DriveBlock {
-                        model: model.clone(),
-                        params: load_model_params("gain", &model, params)?,
-                    }),
-                }),
-            }),
             AudioBlockYaml::Nam {
                 enabled,
                 model,
@@ -484,115 +398,6 @@ impl AudioBlockYaml {
                 kind: AudioBlockKind::Nam(NamBlock {
                     model: model.clone(),
                     params: load_model_params("nam", &model, params)?,
-                }),
-            }),
-            AudioBlockYaml::Delay {
-                enabled,
-                model,
-                params,
-            } => Ok(AudioBlock {
-                id: generated_id,
-                enabled,
-                kind: AudioBlockKind::Core(CoreBlock {
-                    kind: CoreBlockKind::Delay(DelayBlock {
-                        model: model.clone(),
-                        params: load_model_params("delay", &model, params)?,
-                    }),
-                }),
-            }),
-            AudioBlockYaml::Reverb {
-                enabled,
-                model,
-                params,
-            } => Ok(AudioBlock {
-                id: generated_id,
-                enabled,
-                kind: AudioBlockKind::Core(CoreBlock {
-                    kind: CoreBlockKind::Reverb(ReverbBlock {
-                        model: model.clone(),
-                        params: load_model_params("reverb", &model, params)?,
-                    }),
-                }),
-            }),
-            AudioBlockYaml::Utility {
-                enabled,
-                model,
-                params,
-            } => Ok(AudioBlock {
-                id: generated_id,
-                enabled,
-                kind: AudioBlockKind::Core(CoreBlock {
-                    kind: CoreBlockKind::Tuner(TunerBlock {
-                        model: model.clone(),
-                        params: load_model_params("utility", &model, params)?,
-                    }),
-                }),
-            }),
-            AudioBlockYaml::Dynamics {
-                enabled,
-                model,
-                params,
-            } => Ok(AudioBlock {
-                id: generated_id,
-                enabled,
-                kind: AudioBlockKind::Core(CoreBlock {
-                    kind: build_dynamics_kind(model.clone(), load_model_params("dynamics", &model, params)?)?,
-                }),
-            }),
-            AudioBlockYaml::Filter {
-                enabled,
-                model,
-                params,
-            } => Ok(AudioBlock {
-                id: generated_id,
-                enabled,
-                kind: AudioBlockKind::Core(CoreBlock {
-                    kind: CoreBlockKind::Eq(EqBlock {
-                        model: model.clone(),
-                        params: load_model_params("filter", &model, params)?,
-                    }),
-                }),
-            }),
-            AudioBlockYaml::Wah {
-                enabled,
-                model,
-                params,
-            } => Ok(AudioBlock {
-                id: generated_id,
-                enabled,
-                kind: AudioBlockKind::Core(CoreBlock {
-                    kind: CoreBlockKind::Wah(WahBlock {
-                        model: model.clone(),
-                        params: load_model_params("wah", &model, params)?,
-                    }),
-                }),
-            }),
-            AudioBlockYaml::Modulation {
-                enabled,
-                model,
-                params,
-            } => Ok(AudioBlock {
-                id: generated_id,
-                enabled,
-                kind: AudioBlockKind::Core(CoreBlock {
-                    kind: CoreBlockKind::Tremolo(TremoloBlock {
-                        model: model.clone(),
-                        params: load_model_params("modulation", &model, params)?,
-                    }),
-                }),
-            }),
-            AudioBlockYaml::Pitch {
-                enabled,
-                model,
-                params,
-            } => Ok(AudioBlock {
-                id: generated_id,
-                enabled,
-                kind: AudioBlockKind::Core(CoreBlock {
-                    kind: CoreBlockKind::Pitch(PitchBlock {
-                        model: model.clone(),
-                        params: load_model_params("pitch", &model, params)?,
-                    }),
                 }),
             }),
             AudioBlockYaml::Select {
@@ -619,6 +424,18 @@ impl AudioBlockYaml {
                     }),
                 })
             }
+            other => {
+                let (effect_type, enabled, model, params) = extract_core_block_fields(other);
+                Ok(AudioBlock {
+                    id: generated_id,
+                    enabled,
+                    kind: AudioBlockKind::Core(CoreBlock {
+                        effect_type: effect_type.to_string(),
+                        model: model.clone(),
+                        params: load_model_params(effect_type, &model, params)?,
+                    }),
+                })
+            }
         }
     }
 
@@ -629,83 +446,28 @@ impl AudioBlockYaml {
                 model: stage.model.clone(),
                 params: parameter_set_to_yaml_value(&stage.params),
             }),
-            AudioBlockKind::Core(core) => match &core.kind {
-                CoreBlockKind::Preamp(stage) => Ok(Self::Preamp {
-                    enabled: block.enabled,
-                    model: stage.model.clone(),
-                    params: parameter_set_to_yaml_value(&stage.params),
-                }),
-                CoreBlockKind::Amp(stage) => Ok(Self::Amp {
-                    enabled: block.enabled,
-                    model: stage.model.clone(),
-                    params: parameter_set_to_yaml_value(&stage.params),
-                }),
-                CoreBlockKind::FullRig(stage) => Ok(Self::FullRig {
-                    enabled: block.enabled,
-                    model: stage.model.clone(),
-                    params: parameter_set_to_yaml_value(&stage.params),
-                }),
-                CoreBlockKind::Cab(stage) => Ok(Self::Cab {
-                    enabled: block.enabled,
-                    model: stage.model.clone(),
-                    params: parameter_set_to_yaml_value(&stage.params),
-                }),
-                CoreBlockKind::Ir(stage) => Ok(Self::Ir {
-                    enabled: block.enabled,
-                    model: stage.model.clone(),
-                    params: parameter_set_to_yaml_value(&stage.params),
-                }),
-                CoreBlockKind::Drive(stage) => Ok(Self::Gain {
-                    enabled: block.enabled,
-                    model: stage.model.clone(),
-                    params: parameter_set_to_yaml_value(&stage.params),
-                }),
-                CoreBlockKind::Delay(stage) => Ok(Self::Delay {
-                    enabled: block.enabled,
-                    model: stage.model.clone(),
-                    params: parameter_set_to_yaml_value(&stage.params),
-                }),
-                CoreBlockKind::Reverb(stage) => Ok(Self::Reverb {
-                    enabled: block.enabled,
-                    model: stage.model.clone(),
-                    params: parameter_set_to_yaml_value(&stage.params),
-                }),
-                CoreBlockKind::Tuner(stage) => Ok(Self::Utility {
-                    enabled: block.enabled,
-                    model: stage.model.clone(),
-                    params: parameter_set_to_yaml_value(&stage.params),
-                }),
-                CoreBlockKind::Compressor(stage) => Ok(Self::Dynamics {
-                    enabled: block.enabled,
-                    model: stage.model.clone(),
-                    params: parameter_set_to_yaml_value(&stage.params),
-                }),
-                CoreBlockKind::Gate(stage) => Ok(Self::Dynamics {
-                    enabled: block.enabled,
-                    model: stage.model.clone(),
-                    params: parameter_set_to_yaml_value(&stage.params),
-                }),
-                CoreBlockKind::Eq(stage) => Ok(Self::Filter {
-                    enabled: block.enabled,
-                    model: stage.model.clone(),
-                    params: parameter_set_to_yaml_value(&stage.params),
-                }),
-                CoreBlockKind::Wah(stage) => Ok(Self::Wah {
-                    enabled: block.enabled,
-                    model: stage.model.clone(),
-                    params: parameter_set_to_yaml_value(&stage.params),
-                }),
-                CoreBlockKind::Tremolo(stage) => Ok(Self::Modulation {
-                    enabled: block.enabled,
-                    model: stage.model.clone(),
-                    params: parameter_set_to_yaml_value(&stage.params),
-                }),
-                CoreBlockKind::Pitch(stage) => Ok(Self::Pitch {
-                    enabled: block.enabled,
-                    model: stage.model.clone(),
-                    params: parameter_set_to_yaml_value(&stage.params),
-                }),
-            },
+            AudioBlockKind::Core(core) => {
+                let params = parameter_set_to_yaml_value(&core.params);
+                let enabled = block.enabled;
+                let model = core.model.clone();
+                match core.effect_type.as_str() {
+                    "preamp" => Ok(Self::Preamp { enabled, model, params }),
+                    "amp" => Ok(Self::Amp { enabled, model, params }),
+                    "full_rig" => Ok(Self::FullRig { enabled, model, params }),
+                    "cab" => Ok(Self::Cab { enabled, model, params }),
+                    "ir" => Ok(Self::Ir { enabled, model, params }),
+                    "gain" => Ok(Self::Gain { enabled, model, params }),
+                    "delay" => Ok(Self::Delay { enabled, model, params }),
+                    "reverb" => Ok(Self::Reverb { enabled, model, params }),
+                    "utility" => Ok(Self::Utility { enabled, model, params }),
+                    "dynamics" => Ok(Self::Dynamics { enabled, model, params }),
+                    "filter" => Ok(Self::Filter { enabled, model, params }),
+                    "wah" => Ok(Self::Wah { enabled, model, params }),
+                    "modulation" => Ok(Self::Modulation { enabled, model, params }),
+                    "pitch" => Ok(Self::Pitch { enabled, model, params }),
+                    other => Err(anyhow!("unsupported core block effect_type '{}'", other)),
+                }
+            }
             AudioBlockKind::Select(select) => {
                 let selected = select
                     .selected_block_id
@@ -776,13 +538,25 @@ fn load_model_params(effect_type: &str, model: &str, raw_params: Value) -> Resul
     normalize_block_params(effect_type, model, flattened).map_err(anyhow::Error::msg)
 }
 
-fn build_dynamics_kind(model: String, params: ParameterSet) -> Result<CoreBlockKind> {
-    if block_dyn::compressor_supported_models().contains(&model.as_str()) {
-        Ok(CoreBlockKind::Compressor(CompressorBlock { model, params }))
-    } else if block_dyn::gate_supported_models().contains(&model.as_str()) {
-        Ok(CoreBlockKind::Gate(GateBlock { model, params }))
-    } else {
-        Err(anyhow!("unsupported dynamics model '{}'", model))
+fn extract_core_block_fields(yaml: AudioBlockYaml) -> (&'static str, bool, String, Value) {
+    match yaml {
+        AudioBlockYaml::Preamp { enabled, model, params } => ("preamp", enabled, model, params),
+        AudioBlockYaml::Amp { enabled, model, params } => ("amp", enabled, model, params),
+        AudioBlockYaml::FullRig { enabled, model, params } => ("full_rig", enabled, model, params),
+        AudioBlockYaml::Cab { enabled, model, params } => ("cab", enabled, model, params),
+        AudioBlockYaml::Ir { enabled, model, params } => ("ir", enabled, model, params),
+        AudioBlockYaml::Gain { enabled, model, params } => ("gain", enabled, model, params),
+        AudioBlockYaml::Delay { enabled, model, params } => ("delay", enabled, model, params),
+        AudioBlockYaml::Reverb { enabled, model, params } => ("reverb", enabled, model, params),
+        AudioBlockYaml::Utility { enabled, model, params } => ("utility", enabled, model, params),
+        AudioBlockYaml::Dynamics { enabled, model, params } => ("dynamics", enabled, model, params),
+        AudioBlockYaml::Filter { enabled, model, params } => ("filter", enabled, model, params),
+        AudioBlockYaml::Wah { enabled, model, params } => ("wah", enabled, model, params),
+        AudioBlockYaml::Modulation { enabled, model, params } => ("modulation", enabled, model, params),
+        AudioBlockYaml::Pitch { enabled, model, params } => ("pitch", enabled, model, params),
+        // Nam and Select are handled separately, should never reach here
+        AudioBlockYaml::Nam { enabled, model, params } => ("nam", enabled, model, params),
+        AudioBlockYaml::Select { .. } => unreachable!("Select handled before extract_core_block_fields"),
     }
 }
 
@@ -1011,7 +785,7 @@ mod tests {
     };
     use domain::ids::{BlockId, DeviceId, ChainId};
     use project::block::{
-        AudioBlock, AudioBlockKind, CoreBlock, CoreBlockKind, DelayBlock, SelectBlock,
+        AudioBlock, AudioBlockKind, CoreBlock, SelectBlock,
     };
     use project::param::ParameterSet;
     use project::project::Project;
@@ -1282,10 +1056,9 @@ chains:
             id: BlockId(id.into()),
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
-                kind: CoreBlockKind::Delay(DelayBlock {
-                    model: model.to_string(),
-                    params,
-                }),
+                effect_type: "delay".to_string(),
+                model: model.to_string(),
+                params,
             }),
         }
     }
