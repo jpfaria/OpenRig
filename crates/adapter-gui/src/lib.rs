@@ -2275,15 +2275,24 @@ pub fn run_desktop_app(
                         let Some(win) = weak_win.upgrade() else { return; };
                         let Some(main) = weak_main.upgrade() else { return; };
                         let (chain_idx, block_idx, chain_id_opt) = {
-                            let draft_borrow = win_draft.borrow();
-                            let Some(draft) = draft_borrow.as_ref() else { return; };
-                            let Some(block_index) = draft.block_index else { return; };
+                            let (chain_index, block_index) = {
+                                let draft_borrow = win_draft.borrow();
+                                let Some(draft) = draft_borrow.as_ref() else { return; };
+                                let Some(bi) = draft.block_index else { return; };
+                                (draft.chain_index, bi)
+                            };
                             let mut session_borrow = project_session.borrow_mut();
                             let Some(session) = session_borrow.as_mut() else { return; };
-                            let Some(chain) = session.project.chains.get_mut(draft.chain_index) else { return; };
+                            let Some(chain) = session.project.chains.get_mut(chain_index) else { return; };
                             let Some(block) = chain.blocks.get_mut(block_index) else { return; };
                             block.enabled = !block.enabled;
-                            (draft.chain_index, block_index, Some(chain.id.clone()))
+                            let new_enabled = block.enabled;
+                            let chain_id = chain.id.clone();
+                            drop(session_borrow);
+                            if let Some(draft) = win_draft.borrow_mut().as_mut() {
+                                draft.enabled = new_enabled;
+                            }
+                            (chain_index, block_index, Some(chain_id))
                         };
                         let new_enabled = {
                             let session_borrow = project_session.borrow();
