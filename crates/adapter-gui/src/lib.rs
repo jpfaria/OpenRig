@@ -76,7 +76,6 @@ fn sync_block_editor_window(window: &AppWindow, block_editor_window: &BlockEdito
     );
     block_editor_window.set_block_drawer_enabled(window.get_block_drawer_enabled());
     block_editor_window.set_block_parameter_items(window.get_block_parameter_items());
-    block_editor_window.set_block_knob_overlays(window.get_block_knob_overlays());
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2874,10 +2873,10 @@ pub fn run_desktop_app(
             );
             let overlays = build_knob_overlays(&model.model_id, &new_params);
             block_parameter_items.set_vec(new_params);
-            window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
             window.set_block_drawer_selected_model_index(index);
             window.set_block_drawer_status_message("".into());
             if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
+                block_editor_window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
                 sync_block_editor_window(&window, &block_editor_window);
             }
             if draft.block_index.is_some() {
