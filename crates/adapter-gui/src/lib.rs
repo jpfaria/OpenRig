@@ -212,6 +212,7 @@ struct BlockEditorDraft {
     chain_index: usize,
     block_index: Option<usize>,
     before_index: usize,
+    instrument: String,
     effect_type: String,
     model_id: String,
     enabled: bool,
@@ -508,7 +509,7 @@ pub fn run_desktop_app(
     project_settings_window.set_project_name_draft("".into());
     chain_editor_window.set_chain_name("".into());
 
-    let block_type_options = Rc::new(VecModel::from(block_type_picker_items()));
+    let block_type_options = Rc::new(VecModel::from(block_type_picker_items("generic")));
     let block_model_options = Rc::new(VecModel::from(Vec::<BlockModelPickerItem>::new()));
     let block_model_option_labels = Rc::new(VecModel::from(Vec::<SharedString>::new()));
     let block_parameter_items = Rc::new(VecModel::from(Vec::<BlockParameterItem>::new()));
@@ -2118,16 +2119,18 @@ pub fn run_desktop_app(
                 chain_index: chain_index as usize,
                 block_index: block_index as usize,
             });
+            let instrument = chain.instrument.clone();
             *block_editor_draft.borrow_mut() = Some(BlockEditorDraft {
                 chain_index: chain_index as usize,
                 block_index: Some(block_index as usize),
                 before_index: block_index as usize,
+                instrument: instrument.clone(),
                 effect_type: effect_type.clone(),
                 model_id: model_id.clone(),
                 enabled,
                 is_select: editor_data.is_select,
             });
-            let items = block_model_picker_items(&effect_type);
+            let items = block_model_picker_items(&effect_type, &instrument);
             block_model_option_labels.set_vec(block_model_picker_labels(&items));
             block_model_options.set_vec(items);
             block_parameter_items.set_vec(block_parameter_items_for_editor(&editor_data));
@@ -2137,9 +2140,9 @@ pub fn run_desktop_app(
             window.set_block_drawer_title(drawer_state.title.into());
             window.set_block_drawer_confirm_label(drawer_state.confirm_label.into());
             window.set_block_drawer_edit_mode(true);
-            window.set_block_drawer_selected_type_index(block_type_index(&effect_type));
+            window.set_block_drawer_selected_type_index(block_type_index(&effect_type, &instrument));
             window
-                .set_block_drawer_selected_model_index(block_model_index(&effect_type, &model_id));
+                .set_block_drawer_selected_model_index(block_model_index(&effect_type, &model_id, &instrument));
             window.set_block_drawer_enabled(enabled);
             window.set_block_drawer_status_message("".into());
             window.set_show_block_type_picker(false);
@@ -2171,10 +2174,10 @@ pub fn run_desktop_app(
                 };
                 // Per-window models (independent copies of the data)
                 let win_model_options = Rc::new(VecModel::from(
-                    block_model_picker_items(&effect_type)
+                    block_model_picker_items(&effect_type, &instrument)
                 ));
                 let win_model_labels = Rc::new(VecModel::from(
-                    block_model_picker_labels(&block_model_picker_items(&effect_type))
+                    block_model_picker_labels(&block_model_picker_items(&effect_type, &instrument))
                 ));
                 let win_param_items_vec = block_parameter_items_for_editor(&editor_data);
                 let win_knob_overlays = Rc::new(VecModel::from(
@@ -2185,6 +2188,7 @@ pub fn run_desktop_app(
                     chain_index: ci,
                     block_index: Some(bi),
                     before_index: bi,
+                    instrument: instrument.clone(),
                     effect_type: effect_type.clone(),
                     model_id: model_id.clone(),
                     enabled,
@@ -2193,9 +2197,9 @@ pub fn run_desktop_app(
                 let win_timer = Rc::new(Timer::default());
 
                 // Populate window — ALL data set independently (no sync from AppWindow)
-                let type_index = block_type_index(&effect_type);
+                let type_index = block_type_index(&effect_type, &instrument);
                 let model_index = block_model_index_from_items(&win_model_options, &model_id);
-                win.set_block_type_options(ModelRc::from(Rc::new(VecModel::from(block_type_picker_items()))));
+                win.set_block_type_options(ModelRc::from(Rc::new(VecModel::from(block_type_picker_items(&instrument)))));
                 win.set_block_model_options(ModelRc::from(win_model_options.clone()));
                 win.set_block_model_option_labels(ModelRc::from(win_model_labels.clone()));
                 win.set_block_parameter_items(ModelRc::from(win_param_items.clone()));
@@ -2231,7 +2235,7 @@ pub fn run_desktop_app(
                         let Some(win) = weak_win.upgrade() else { return; };
                         let mut draft_borrow = win_draft.borrow_mut();
                         let Some(draft) = draft_borrow.as_mut() else { return; };
-                        let models = block_model_picker_items(&draft.effect_type);
+                        let models = block_model_picker_items(&draft.effect_type, &draft.instrument);
                         let Some(model) = models.get(index as usize) else { return; };
                         draft.model_id = model.model_id.to_string();
                         draft.effect_type = model.effect_type.to_string();
@@ -2776,21 +2780,26 @@ pub fn run_desktop_app(
         let block_model_options = block_model_options.clone();
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
+        let project_session = project_session.clone();
         window.on_start_block_insert(move |chain_index, before_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            let instrument = project_session.borrow().as_ref()
+                .and_then(|s| s.project.chains.get(chain_index as usize).map(|c| c.instrument.clone()))
+                .unwrap_or_else(|| "electric_guitar".to_string());
             *selected_block.borrow_mut() = None;
             *block_editor_draft.borrow_mut() = Some(BlockEditorDraft {
                 chain_index: chain_index as usize,
                 block_index: None,
                 before_index: before_index as usize,
+                instrument: instrument.clone(),
                 effect_type: String::new(),
                 model_id: String::new(),
                 enabled: true,
                 is_select: false,
             });
-            block_type_options.set_vec(block_type_picker_items());
+            block_type_options.set_vec(block_type_picker_items(&instrument));
             block_model_options.set_vec(Vec::new());
             block_model_option_labels.set_vec(Vec::new());
             block_parameter_items.set_vec(Vec::new());
@@ -2815,11 +2824,14 @@ pub fn run_desktop_app(
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let block_types = block_type_picker_items();
+            let instrument = block_editor_draft.borrow().as_ref()
+                .map(|d| d.instrument.clone())
+                .unwrap_or_else(|| "electric_guitar".to_string());
+            let block_types = block_type_picker_items(&instrument);
             let Some(block_type) = block_types.get(index as usize) else {
                 return;
             };
-            let models = block_model_picker_items(block_type.effect_type.as_str());
+            let models = block_model_picker_items(block_type.effect_type.as_str(), &instrument);
             let Some(model) = models.first() else {
                 return;
             };
@@ -2827,7 +2839,7 @@ pub fn run_desktop_app(
                 draft.effect_type = model.effect_type.to_string();
                 draft.model_id = model.model_id.to_string();
             }
-            let items = block_model_picker_items(block_type.effect_type.as_str());
+            let items = block_model_picker_items(block_type.effect_type.as_str(), &instrument);
             block_model_option_labels.set_vec(block_model_picker_labels(&items));
             block_model_options.set_vec(items);
             let new_params = block_parameter_items_for_model(
@@ -2880,7 +2892,7 @@ pub fn run_desktop_app(
             let Some(draft) = draft_borrow.as_mut() else {
                 return;
             };
-            let models = block_model_picker_items(&draft.effect_type);
+            let models = block_model_picker_items(&draft.effect_type, &draft.instrument);
             let Some(model) = models.get(index as usize) else {
                 return;
             };
@@ -3236,7 +3248,7 @@ pub fn run_desktop_app(
                                     ) {
                                         draft.effect_type = editor_data.effect_type.clone();
                                         draft.model_id = editor_data.model_id.clone();
-                                        let items = block_model_picker_items(&editor_data.effect_type);
+                                        let items = block_model_picker_items(&editor_data.effect_type, &draft.instrument);
                                         select_block_model_option_labels
                                             .set_vec(block_model_picker_labels(&items));
                                         select_block_model_options.set_vec(items);
@@ -3244,11 +3256,13 @@ pub fn run_desktop_app(
                                             .set_vec(block_parameter_items_for_editor(&editor_data));
                                         window.set_block_drawer_selected_type_index(block_type_index(
                                             &editor_data.effect_type,
+                                            &draft.instrument,
                                         ));
                                         window.set_block_drawer_selected_model_index(
                                             block_model_index(
                                                 &editor_data.effect_type,
                                                 &editor_data.model_id,
+                                                &draft.instrument,
                                             ),
                                         );
                                     }
@@ -4275,7 +4289,7 @@ fn format_channel_list(channels: &[usize]) -> String {
     }
 }
 
-fn block_type_picker_items() -> Vec<BlockTypePickerItem> {
+fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerItem> {
     let mut seen = std::collections::BTreeSet::new();
 
     supported_block_types()
@@ -4288,13 +4302,17 @@ fn block_type_picker_items() -> Vec<BlockTypePickerItem> {
             icon_kind: item.icon_kind.into(),
             use_panel_editor: item.use_panel_editor,
         })
+        .filter(|item| {
+            instrument == "generic" || !block_model_picker_items(item.effect_type.as_str(), instrument).is_empty()
+        })
         .collect()
 }
 
-fn block_model_picker_items(effect_type: &str) -> Vec<BlockModelPickerItem> {
+fn block_model_picker_items(effect_type: &str, instrument: &str) -> Vec<BlockModelPickerItem> {
     supported_block_models(effect_type)
         .unwrap_or_default()
         .into_iter()
+        .filter(|item| instrument == "generic" || item.supported_instruments.iter().any(|i| i == instrument))
         .map(|item| {
             let brand = &item.brand;
             let label = if brand.is_empty() || brand == "native" {
@@ -4347,10 +4365,10 @@ fn set_selected_block(window: &AppWindow, selected_block: Option<&SelectedBlock>
     }
 }
 
-fn block_type_index(effect_type: &str) -> i32 {
-    supported_block_types()
+fn block_type_index(effect_type: &str, instrument: &str) -> i32 {
+    block_type_picker_items(instrument)
         .into_iter()
-        .position(|item| item.effect_type == effect_type)
+        .position(|item| item.effect_type.as_str() == effect_type)
         .map(|index| index as i32)
         .unwrap_or(-1)
 }
@@ -4366,10 +4384,11 @@ fn block_model_index_from_items(items: &VecModel<BlockModelPickerItem>, model_id
     0
 }
 
-fn block_model_index(effect_type: &str, model_id: &str) -> i32 {
+fn block_model_index(effect_type: &str, model_id: &str, instrument: &str) -> i32 {
     supported_block_models(effect_type)
         .unwrap_or_default()
-        .iter()
+        .into_iter()
+        .filter(|item| instrument == "generic" || item.supported_instruments.iter().any(|i| i == instrument))
         .position(|item| item.model_id == model_id)
         .map(|index| index as i32)
         .unwrap_or(-1)
