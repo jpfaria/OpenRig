@@ -5331,21 +5331,36 @@ fn sync_live_chain_runtime(
     session: &ProjectSession,
     chain_id: &ChainId,
 ) -> Result<()> {
-    let mut borrow = project_runtime.borrow_mut();
-    let Some(runtime) = borrow.as_mut() else {
-        return Ok(());
-    };
-
-    validate_project(&session.project)?;
-    if let Some(chain) = session
+    let chain = session
         .project
         .chains
         .iter()
-        .find(|chain| &chain.id == chain_id)
-    {
-        runtime.upsert_chain(&session.project, chain)?;
-    } else {
-        runtime.remove_chain(chain_id);
+        .find(|c| &c.id == chain_id);
+    let chain_enabled = chain.map(|c| c.enabled).unwrap_or(false);
+
+    // If chain is being enabled and no runtime exists, create one
+    if chain_enabled {
+        let mut borrow = project_runtime.borrow_mut();
+        if borrow.is_none() {
+            *borrow = Some(ProjectRuntimeController::start(&session.project)?);
+            return Ok(()); // start() already processes all enabled chains via sync_project
+        }
+        drop(borrow);
+    }
+
+    // Normal sync
+    let mut borrow = project_runtime.borrow_mut();
+    if let Some(runtime) = borrow.as_mut() {
+        validate_project(&session.project)?;
+        if let Some(chain) = chain {
+            runtime.upsert_chain(&session.project, chain)?;
+        } else {
+            runtime.remove_chain(chain_id);
+        }
+        // If no chains are running, destroy runtime
+        if !runtime.is_running() {
+            *borrow = None;
+        }
     }
     Ok(())
 }
