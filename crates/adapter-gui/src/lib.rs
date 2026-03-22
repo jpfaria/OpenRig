@@ -33,25 +33,19 @@ use std::{
 };
 use ui_openrig::{AppRuntimeMode, InteractionMode, UiRuntimeContext};
 use ui_state::{block_drawer_state, block_family_for_kind, chain_routing_summary};
-
 mod ui_state;
 mod visual_config;
-
 slint::include_modules!();
-
 const DEFAULT_SAMPLE_RATE: u32 = 48_000;
 const DEFAULT_BUFFER_SIZE_FRAMES: u32 = 256;
 const SUPPORTED_SAMPLE_RATES: &[u32] = &[44_100, 48_000, 88_200, 96_000];
 const SUPPORTED_BUFFER_SIZES: &[u32] = &[32, 64, 128, 256, 512, 1024];
-
 fn log_gui_message(context: &str, message: &str) {
     eprintln!("[adapter-gui] {context}: {message}");
 }
-
 fn log_gui_error(context: &str, error: impl Display) {
     eprintln!("[adapter-gui] {context}: {error}");
 }
-
 fn use_inline_block_editor(window: &AppWindow) -> bool {
     window.get_touch_optimized()
         && window
@@ -60,7 +54,48 @@ fn use_inline_block_editor(window: &AppWindow) -> bool {
             .to_lowercase()
             .contains("touch")
 }
-
+/// Sets a toast notification on the main window and starts the auto-dismiss timer.
+/// Also sets `status_message` for backward compatibility with pages that still reference it.
+fn set_status_with_toast(
+    window: &AppWindow,
+    toast_timer: &Timer,
+    message: &str,
+    level: &str,
+) {
+    window.set_status_message(message.into());
+    window.set_toast_message(message.into());
+    window.set_toast_level(level.into());
+    if !message.is_empty() {
+        match level {
+            "error" => eprintln!("[ERROR] {}", message),
+            "warning" => eprintln!("[WARN] {}", message),
+            _ => eprintln!("[INFO] {}", message),
+        }
+        let weak = window.as_weak();
+        toast_timer.start(TimerMode::SingleShot, Duration::from_secs(3), move || {
+            if let Some(window) = weak.upgrade() {
+                window.set_toast_message("".into());
+                window.set_toast_level("info".into());
+                window.set_status_message("".into());
+            }
+        });
+    }
+}
+fn set_status_error(window: &AppWindow, toast_timer: &Timer, message: &str) {
+    set_status_with_toast(window, toast_timer, message, "error");
+}
+fn set_status_info(window: &AppWindow, toast_timer: &Timer, message: &str) {
+    set_status_with_toast(window, toast_timer, message, "info");
+}
+fn set_status_warning(window: &AppWindow, toast_timer: &Timer, message: &str) {
+    set_status_with_toast(window, toast_timer, message, "warning");
+}
+fn clear_status(window: &AppWindow, toast_timer: &Timer) {
+    toast_timer.stop();
+    window.set_status_message("".into());
+    window.set_toast_message("".into());
+    window.set_toast_level("info".into());
+}
 fn sync_block_editor_window(window: &AppWindow, block_editor_window: &BlockEditorWindow) {
     block_editor_window.set_block_type_options(window.get_block_type_options());
     block_editor_window.set_block_model_options(window.get_block_model_options());
@@ -78,7 +113,6 @@ fn sync_block_editor_window(window: &AppWindow, block_editor_window: &BlockEdito
     block_editor_window.set_block_drawer_enabled(window.get_block_drawer_enabled());
     block_editor_window.set_block_parameter_items(window.get_block_parameter_items());
 }
-
 #[allow(clippy::too_many_arguments)]
 fn schedule_block_editor_persist(
     timer: &Rc<Timer>,
@@ -122,7 +156,6 @@ fn schedule_block_editor_persist(
         }
     });
 }
-
 #[allow(clippy::too_many_arguments)]
 fn schedule_block_editor_persist_for_block_win(
     timer: &Rc<Timer>,
@@ -171,18 +204,15 @@ fn schedule_block_editor_persist_for_block_win(
         }
     });
 }
-
 #[derive(Debug, Clone)]
 struct ProjectPaths {
     default_config_path: PathBuf,
 }
-
 #[derive(Debug, Deserialize, Serialize, Default)]
 struct AppConfigYaml {
     #[serde(default)]
     presets_path: Option<PathBuf>,
 }
-
 #[derive(Debug, Clone)]
 struct ProjectSession {
     project: Project,
@@ -190,7 +220,6 @@ struct ProjectSession {
     config_path: Option<PathBuf>,
     presets_path: PathBuf,
 }
-
 #[derive(Debug, Clone)]
 struct ChainDraft {
     editing_index: Option<usize>,
@@ -201,13 +230,11 @@ struct ChainDraft {
     input_channels: Vec<usize>,
     output_channels: Vec<usize>,
 }
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct SelectedBlock {
     chain_index: usize,
     block_index: usize,
 }
-
 #[derive(Debug, Clone)]
 struct BlockEditorDraft {
     chain_index: usize,
@@ -219,7 +246,6 @@ struct BlockEditorDraft {
     enabled: bool,
     is_select: bool,
 }
-
 struct BlockEditorData {
     effect_type: String,
     model_id: String,
@@ -229,24 +255,20 @@ struct BlockEditorData {
     select_options: Vec<SelectOptionEditorItem>,
     selected_select_option_block_id: Option<String>,
 }
-
 struct SelectOptionEditorItem {
     block_id: String,
     label: String,
 }
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ChainEditorMode {
     Create,
     Edit,
 }
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum AudioSettingsMode {
     Gui,
     Project,
 }
-
 #[derive(Debug, Serialize)]
 struct ProjectYaml {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -255,14 +277,12 @@ struct ProjectYaml {
     device_settings: Vec<ProjectDeviceSettingsYaml>,
     chains: Vec<ProjectChainYaml>,
 }
-
 #[derive(Debug, Serialize)]
 struct ProjectDeviceSettingsYaml {
     device_id: String,
     sample_rate: u32,
     buffer_size_frames: u32,
 }
-
 #[derive(Debug, Serialize)]
 struct ProjectChainYaml {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -275,20 +295,16 @@ struct ProjectChainYaml {
     blocks: Vec<serde_yaml::Value>,
     output_mixdown: ChainOutputMixdown,
 }
-
 #[derive(Debug, Serialize)]
 struct ConfigYaml {
     presets_path: String,
 }
-
 const UNTITLED_PROJECT_NAME: &str = "UNTITLED PROJECT";
-
 struct BlockWindow {
     chain_index: usize,
     block_index: usize,
     window: BlockEditorWindow,
 }
-
 struct KnobInfo {
     param_key: &'static str,
     svg_cx: f32,
@@ -298,7 +314,6 @@ struct KnobInfo {
     max: f32,
     step: f32,
 }
-
 // TODO: knob positions should come from model definitions in block crates
 // (via component.yaml or a KnobLayout in the registry), not hardcoded here.
 fn knob_infos_for_model(model_id: &str) -> &'static [KnobInfo] {
@@ -330,7 +345,6 @@ fn knob_infos_for_model(model_id: &str) -> &'static [KnobInfo] {
         _ => &[],
     }
 }
-
 fn build_knob_overlays(model_id: &str, param_items: &[BlockParameterItem]) -> Vec<BlockKnobOverlay> {
     knob_infos_for_model(model_id)
         .iter()
@@ -356,7 +370,6 @@ fn build_knob_overlays(model_id: &str, param_items: &[BlockParameterItem]) -> Ve
         })
         .collect()
 }
-
 pub fn run_desktop_app(
     runtime_mode: AppRuntimeMode,
     interaction_mode: InteractionMode,
@@ -378,7 +391,6 @@ pub fn run_desktop_app(
     let audio_settings_mode = Rc::new(RefCell::new(AudioSettingsMode::Gui));
     let input_chain_devices = Rc::new(list_input_device_descriptors()?);
     let output_chain_devices = Rc::new(list_output_device_descriptors()?);
-
     let window = AppWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     let project_settings_window =
         ProjectSettingsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
@@ -407,7 +419,6 @@ pub fn run_desktop_app(
     window.set_show_audio_settings(needs_audio_settings);
     window.set_wizard_step(if settings.is_complete() { 1 } else { 0 });
     window.set_status_message("".into());
-
     let input_devices = Rc::new(VecModel::from(
         list_input_device_descriptors()?
             .into_iter()
@@ -461,7 +472,6 @@ pub fn run_desktop_app(
         output_chain_devices.as_ref(),
         &[],
     )));
-
     window.set_input_devices(ModelRc::from(input_devices.clone()));
     window.set_output_devices(ModelRc::from(output_devices.clone()));
     let project_chains = Rc::new(VecModel::from(Vec::<ProjectChainItem>::new()));
@@ -509,12 +519,14 @@ pub fn run_desktop_app(
     chain_editor_window.set_status_message("".into());
     project_settings_window.set_project_name_draft("".into());
     chain_editor_window.set_chain_name("".into());
-
     let block_type_options = Rc::new(VecModel::from(block_type_picker_items("generic")));
     let block_model_options = Rc::new(VecModel::from(Vec::<BlockModelPickerItem>::new()));
     let block_model_option_labels = Rc::new(VecModel::from(Vec::<SharedString>::new()));
     let block_parameter_items = Rc::new(VecModel::from(Vec::<BlockParameterItem>::new()));
     let block_editor_persist_timer = Rc::new(Timer::default());
+    let toast_timer = Rc::new(Timer::default());
+    window.set_toast_message("".into());
+    window.set_toast_level("info".into());
     window.set_block_type_options(ModelRc::from(block_type_options.clone()));
     window.set_block_model_options(ModelRc::from(block_model_options.clone()));
     window.set_block_model_option_labels(ModelRc::from(block_model_option_labels.clone()));
@@ -531,7 +543,6 @@ pub fn run_desktop_app(
     block_editor_window.set_block_drawer_selected_type_index(-1);
     block_editor_window.set_block_drawer_selected_model_index(-1);
     block_editor_window.set_block_drawer_enabled(true);
-
     {
         let weak_window = window.as_weak();
         block_editor_window.on_choose_block_model(move |index| {
@@ -540,7 +551,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         block_editor_window.on_close_block_drawer(move || {
@@ -549,7 +559,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         block_editor_window.on_save_block_drawer(move || {
@@ -558,7 +567,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         block_editor_window.on_delete_block_drawer(move || {
@@ -567,7 +575,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         block_editor_window.on_toggle_block_drawer_enabled(move || {
@@ -576,7 +583,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         block_editor_window.on_update_block_parameter_text(move |path, value| {
@@ -585,7 +591,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         block_editor_window.on_update_block_parameter_number(move |path, value| {
@@ -594,7 +599,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         block_editor_window.on_update_block_parameter_number_text(move |path, value| {
@@ -603,7 +607,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         block_editor_window.on_update_block_parameter_bool(move |path, value| {
@@ -612,7 +615,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         block_editor_window.on_select_block_parameter_option(move |path, index| {
@@ -621,7 +623,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         block_editor_window.on_pick_block_parameter_file(move |path| {
@@ -630,7 +631,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         chain_input_window.on_select_device(move |index| {
@@ -639,7 +639,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         chain_input_window.on_toggle_channel(move |index, selected| {
@@ -648,7 +647,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         chain_output_window.on_select_device(move |index| {
@@ -657,7 +655,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         chain_output_window.on_toggle_channel(move |index, selected| {
@@ -666,11 +663,9 @@ pub fn run_desktop_app(
             }
         });
     }
-
     project_settings_window.set_project_devices(ModelRc::from(project_devices.clone()));
     project_settings_window.set_sample_rate_options(window.get_sample_rate_options());
     project_settings_window.set_buffer_size_options(window.get_buffer_size_options());
-
     chain_input_window.set_device_options(ModelRc::from(chain_input_device_options.clone()));
     chain_input_window.set_channels(ModelRc::from(chain_input_channels.clone()));
     chain_input_window.set_selected_device_index(-1);
@@ -679,105 +674,93 @@ pub fn run_desktop_app(
     chain_output_window.set_channels(ModelRc::from(chain_output_channels.clone()));
     chain_output_window.set_selected_device_index(-1);
     chain_output_window.set_status_message("".into());
-
     {
         let input_devices = input_devices.clone();
         window.on_toggle_input_device(move |index, selected| {
             toggle_device_row(&input_devices, index as usize, selected);
         });
     }
-
     {
         let project_devices = project_devices.clone();
         project_settings_window.on_toggle_project_device(move |index, selected| {
             toggle_device_row(&project_devices, index as usize, selected);
         });
     }
-
     {
         let output_devices = output_devices.clone();
         window.on_toggle_output_device(move |index, selected| {
             toggle_device_row(&output_devices, index as usize, selected);
         });
     }
-
     {
         let input_devices = input_devices.clone();
         window.on_update_input_sample_rate(move |index, value| {
             update_device_sample_rate(&input_devices, index as usize, value);
         });
     }
-
     {
         let input_devices = input_devices.clone();
         window.on_update_input_buffer_size(move |index, value| {
             update_device_buffer_size(&input_devices, index as usize, value);
         });
     }
-
     {
         let project_devices = project_devices.clone();
         project_settings_window.on_update_project_sample_rate(move |index, value| {
             update_device_sample_rate(&project_devices, index as usize, value);
         });
     }
-
     {
         let output_devices = output_devices.clone();
         window.on_update_output_sample_rate(move |index, value| {
             update_device_sample_rate(&output_devices, index as usize, value);
         });
     }
-
     {
         let output_devices = output_devices.clone();
         window.on_update_output_buffer_size(move |index, value| {
             update_device_buffer_size(&output_devices, index as usize, value);
         });
     }
-
     {
         let project_devices = project_devices.clone();
         project_settings_window.on_update_project_buffer_size(move |index, value| {
             update_device_buffer_size(&project_devices, index as usize, value);
         });
     }
-
     {
         let weak_window = window.as_weak();
         let input_devices = input_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_go_to_output_step(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             match selected_device_settings(&input_devices, "input") {
                 Ok(devices) if !devices.is_empty() => {
-                    window.set_status_message("".into());
+                    clear_status(&window, &toast_timer);
                     window.set_wizard_step(1);
                 }
                 Ok(_) => {
-                    window.set_status_message(
-                        "Selecione pelo menos um input antes de continuar.".into(),
-                    );
+                    set_status_warning(&window, &toast_timer, "Selecione pelo menos um input antes de continuar.");
                 }
                 Err(error) => {
-                    window.set_status_message(error.to_string().into());
+                    set_status_error(&window, &toast_timer, &error.to_string());
                 }
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
+        let toast_timer = toast_timer.clone();
         window.on_go_to_input_step(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             window.set_wizard_step(0);
         });
     }
-
     {
         let weak_window = window.as_weak();
         let input_devices = input_devices.clone();
@@ -790,6 +773,7 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_save_audio_settings(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -797,44 +781,39 @@ pub fn run_desktop_app(
             let input_devices = match selected_device_settings(&input_devices, "input") {
                 Ok(devices) => devices,
                 Err(error) => {
-                    window.set_status_message(error.to_string().into());
+                    set_status_error(&window, &toast_timer, &error.to_string());
                     return;
                 }
             };
             let output_devices = match selected_device_settings(&output_devices, "output") {
                 Ok(devices) => devices,
                 Err(error) => {
-                    window.set_status_message(error.to_string().into());
+                    set_status_error(&window, &toast_timer, &error.to_string());
                     return;
                 }
             };
-
             let settings = GuiAudioSettings {
                 input_devices,
                 output_devices,
             };
-
             if !settings.is_complete() {
-                window.set_status_message(
-                    "Selecione pelo menos um input e um output antes de continuar.".into(),
-                );
+                set_status_warning(&window, &toast_timer, "Selecione pelo menos um input e um output antes de continuar.");
                 return;
             }
-
             match *audio_settings_mode.borrow() {
                 AudioSettingsMode::Gui => {
                     match FilesystemStorage::save_gui_audio_settings(&settings) {
                         Ok(()) => {
-                            window.set_status_message("".into());
+                            clear_status(&window, &toast_timer);
                             window.set_show_audio_settings(false);
                         }
-                        Err(error) => window.set_status_message(error.to_string().into()),
+                        Err(error) => set_status_error(&window, &toast_timer, &error.to_string()),
                     }
                 }
                 AudioSettingsMode::Project => {
                     let mut session_borrow = project_session.borrow_mut();
                     let Some(session) = session_borrow.as_mut() else {
-                        window.set_status_message("Nenhum projeto carregado.".into());
+                        set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                         return;
                     };
                     session.project.device_settings = settings
@@ -848,7 +827,7 @@ pub fn run_desktop_app(
                         })
                         .collect();
                     if let Err(error) = sync_project_runtime(&project_runtime, session) {
-                        window.set_status_message(error.to_string().into());
+                        set_status_error(&window, &toast_timer, &error.to_string());
                         return;
                     }
                     replace_project_chains(
@@ -862,7 +841,7 @@ pub fn run_desktop_app(
                             .into(),
                     );
                     sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-                    window.set_status_message("".into());
+                    clear_status(&window, &toast_timer);
                     window.set_show_project_chains(true);
                     window.set_show_chain_editor(false);
                     window.set_show_project_settings(false);
@@ -870,7 +849,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_settings = project_settings_window.as_weak();
@@ -885,6 +863,7 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         project_settings_window.on_save_audio_settings(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -900,7 +879,6 @@ pub fn run_desktop_app(
                     return;
                 }
             };
-
             match *audio_settings_mode.borrow() {
                 AudioSettingsMode::Gui => {
                     let input_devices = match selected_device_settings(&input_devices, "input") {
@@ -917,23 +895,20 @@ pub fn run_desktop_app(
                             return;
                         }
                     };
-
                     let settings = GuiAudioSettings {
                         input_devices,
                         output_devices,
                     };
-
                     if !settings.is_complete() {
                         settings_window.set_status_message(
                             "Selecione pelo menos um input e um output antes de continuar.".into(),
                         );
                         return;
                     }
-
                     match FilesystemStorage::save_gui_audio_settings(&settings) {
                         Ok(()) => {
                             settings_window.set_status_message("".into());
-                            window.set_status_message("".into());
+                            clear_status(&window, &toast_timer);
                             window.set_show_audio_settings(false);
                             let _ = settings_window.hide();
                         }
@@ -970,14 +945,13 @@ pub fn run_desktop_app(
                     );
                     sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
                     settings_window.set_status_message("".into());
-                    window.set_status_message("".into());
+                    clear_status(&window, &toast_timer);
                     window.set_show_project_settings(false);
                     let _ = settings_window.hide();
                 }
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let app_config = app_config.clone();
@@ -989,6 +963,7 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_open_project_file(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1026,7 +1001,7 @@ pub fn run_desktop_app(
                         window.get_recent_project_search().as_str(),
                     ));
                     set_project_dirty(&window, &project_dirty, false);
-                    window.set_status_message("".into());
+                    clear_status(&window, &toast_timer);
                     window.set_project_title(title.into());
                     window.set_project_name_draft(
                         project_session
@@ -1045,12 +1020,11 @@ pub fn run_desktop_app(
                     window.set_show_project_settings(false);
                 }
                 Err(error) => {
-                    window.set_status_message(error.to_string().into());
+                    set_status_error(&window, &toast_timer, &error.to_string());
                 }
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let project_paths = project_paths.clone();
@@ -1061,6 +1035,7 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_create_project_file(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1075,7 +1050,7 @@ pub fn run_desktop_app(
             );
             *project_session.borrow_mut() = Some(session);
             *saved_project_snapshot.borrow_mut() = None;
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             set_project_dirty(&window, &project_dirty, true);
             window.set_project_title("Novo Projeto".into());
             window.set_project_name_draft("".into());
@@ -1086,7 +1061,6 @@ pub fn run_desktop_app(
             window.set_show_project_settings(false);
         });
     }
-
     {
         let weak_window = window.as_weak();
         let app_config = app_config.clone();
@@ -1094,16 +1068,16 @@ pub fn run_desktop_app(
         let recent_projects = recent_projects.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        let toast_timer = toast_timer.clone();
         window.on_save_project(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
-
             let project_path = if let Some(path) = session.project_path.clone() {
                 path
             } else {
@@ -1124,7 +1098,6 @@ pub fn run_desktop_app(
                     .join("presets");
                 path
             };
-
             match save_project_session(session, &project_path) {
                 Ok(()) => {
                     let canonical_path =
@@ -1150,15 +1123,14 @@ pub fn run_desktop_app(
                     );
                     *saved_project_snapshot.borrow_mut() = project_session_snapshot(session).ok();
                     set_project_dirty(&window, &project_dirty, false);
-                    window.set_status_message("".into());
+                    clear_status(&window, &toast_timer);
                 }
                 Err(error) => {
-                    window.set_status_message(error.to_string().into());
+                    set_status_error(&window, &toast_timer, &error.to_string());
                 }
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let app_config = app_config.clone();
@@ -1174,7 +1146,6 @@ pub fn run_desktop_app(
             window.set_recent_project_search(query);
         });
     }
-
     {
         let weak_window = window.as_weak();
         let app_config = app_config.clone();
@@ -1186,6 +1157,7 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_open_recent_project(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1196,19 +1168,13 @@ pub fn run_desktop_app(
                 .get(index as usize)
                 .cloned()
             else {
-                window.set_status_message("Projeto recente inválido.".into());
+                set_status_error(&window, &toast_timer, "Projeto recente inválido.");
                 return;
             };
             if !recent.is_valid {
-                window.set_status_message(
-                    recent
-                        .invalid_reason
-                        .unwrap_or_else(|| "Projeto inválido.".to_string())
-                        .into(),
-                );
+                set_status_error(&window, &toast_timer, &recent .invalid_reason .unwrap_or_else(|| "Projeto inválido.".to_string()) );
                 return;
             }
-
             let path = PathBuf::from(&recent.project_path);
             match load_project_session(&path, &resolve_project_config_path(&path)) {
                 Ok(session) => {
@@ -1236,7 +1202,7 @@ pub fn run_desktop_app(
                         window.get_recent_project_search().as_str(),
                     ));
                     set_project_dirty(&window, &project_dirty, false);
-                    window.set_status_message("".into());
+                    clear_status(&window, &toast_timer);
                     window.set_project_title(title.into());
                     window.set_project_name_draft(
                         project_session
@@ -1265,13 +1231,11 @@ pub fn run_desktop_app(
                         &app_config.borrow().recent_projects,
                         window.get_recent_project_search().as_str(),
                     ));
-                    window
-                        .set_status_message("Projeto inválido. Corrija ou remova da lista.".into());
+                    set_status_error(&window, &toast_timer, "Projeto inválido. Corrija ou remova da lista.");
                 }
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let app_config = app_config.clone();
@@ -1291,7 +1255,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
@@ -1300,6 +1263,7 @@ pub fn run_desktop_app(
         let output_chain_devices = output_chain_devices.clone();
         let audio_settings_mode = audio_settings_mode.clone();
         let project_settings_window = project_settings_window.as_weak();
+        let toast_timer = toast_timer.clone();
         window.on_configure_project(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1309,10 +1273,9 @@ pub fn run_desktop_app(
             };
             let session_borrow = project_session.borrow();
             let Some(session) = session_borrow.as_ref() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
-
             project_devices.set_vec(build_project_device_rows(
                 input_chain_devices.as_ref(),
                 output_chain_devices.as_ref(),
@@ -1323,12 +1286,11 @@ pub fn run_desktop_app(
             settings_window
                 .set_project_name_draft(session.project.name.clone().unwrap_or_default().into());
             settings_window.set_status_message("".into());
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             window.set_show_project_settings(true);
             let _ = settings_window.show();
         });
     }
-
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
@@ -1350,7 +1312,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_settings = project_settings_window.as_weak();
@@ -1377,21 +1338,21 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
+        let toast_timer = toast_timer.clone();
         window.on_close_project_settings(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             window.set_show_project_settings(false);
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_settings = project_settings_window.as_weak();
+        let toast_timer = toast_timer.clone();
         project_settings_window.on_close_project_settings(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1400,26 +1361,26 @@ pub fn run_desktop_app(
                 return;
             };
             settings_window.set_status_message("".into());
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             window.set_show_project_settings(false);
             let _ = settings_window.hide();
         });
     }
-
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
+        let toast_timer = toast_timer.clone();
         window.on_save_chain_preset(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
             let Some(chain) = session.project.chains.get(index as usize) else {
-                window.set_status_message("Chain inválida.".into());
+                set_status_error(&window, &toast_timer, "Chain inválida.");
                 return;
             };
             let default_name = chain
@@ -1438,12 +1399,11 @@ pub fn run_desktop_app(
                 return;
             };
             match save_chain_blocks_to_preset(chain, &path) {
-                Ok(()) => window.set_status_message("Preset salvo.".into()),
-                Err(error) => window.set_status_message(error.to_string().into()),
+                Ok(()) => set_status_info(&window, &toast_timer, "Preset salvo."),
+                Err(error) => set_status_error(&window, &toast_timer, &error.to_string()),
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
@@ -1453,13 +1413,14 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_configure_chain_preset(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
             let Some(path) = FileDialog::new()
@@ -1479,7 +1440,7 @@ pub fn run_desktop_app(
                         if let Err(error) =
                             sync_live_chain_runtime(&project_runtime, session, &chain_id)
                         {
-                            window.set_status_message(error.to_string().into());
+                            set_status_error(&window, &toast_timer, &error.to_string());
                             return;
                         }
                         replace_project_chains(
@@ -1494,14 +1455,13 @@ pub fn run_desktop_app(
                             &saved_project_snapshot,
                             &project_dirty,
                         );
-                        window.set_status_message("".into());
+                        clear_status(&window, &toast_timer);
                     }
                 }
-                Err(error) => window.set_status_message(error.to_string().into()),
+                Err(error) => set_status_error(&window, &toast_timer, &error.to_string()),
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
@@ -1514,6 +1474,7 @@ pub fn run_desktop_app(
         let block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_back_to_launcher(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1540,7 +1501,7 @@ pub fn run_desktop_app(
                 &input_chain_devices,
                 &output_chain_devices,
             );
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             set_project_dirty(&window, &project_dirty, false);
             window.set_project_title("Projeto".into());
             window.set_project_name_draft("".into());
@@ -1551,7 +1512,6 @@ pub fn run_desktop_app(
             window.set_show_project_launcher(true);
         });
     }
-
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
@@ -1561,6 +1521,7 @@ pub fn run_desktop_app(
         let chain_input_channels = chain_input_channels.clone();
         let chain_output_channels = chain_output_channels.clone();
         let chain_editor_window = chain_editor_window.as_weak();
+        let toast_timer = toast_timer.clone();
         window.on_add_chain(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1570,7 +1531,7 @@ pub fn run_desktop_app(
             };
             let borrow = project_session.borrow();
             let Some(session) = borrow.as_ref() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
             let draft = create_chain_draft(
@@ -1610,12 +1571,11 @@ pub fn run_desktop_app(
                 draft.output_device_id.as_deref(),
             ));
             editor_window.set_status_message("".into());
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             window.set_show_chain_editor(true);
             let _ = editor_window.show();
         });
     }
-
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
@@ -1625,6 +1585,7 @@ pub fn run_desktop_app(
         let chain_input_channels = chain_input_channels.clone();
         let chain_output_channels = chain_output_channels.clone();
         let chain_editor_window = chain_editor_window.as_weak();
+        let toast_timer = toast_timer.clone();
         window.on_configure_chain(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1634,11 +1595,11 @@ pub fn run_desktop_app(
             };
             let session_borrow = project_session.borrow();
             let Some(session) = session_borrow.as_ref() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
             let Some(chain) = session.project.chains.get(index as usize) else {
-                window.set_status_message("Chain inválida.".into());
+                set_status_error(&window, &toast_timer, "Chain inválida.");
                 return;
             };
             let draft = chain_draft_from_chain(index as usize, chain);
@@ -1676,12 +1637,11 @@ pub fn run_desktop_app(
                 editor_window.set_selected_instrument_index(instrument_string_to_index(&draft.instrument));
             }
             editor_window.set_status_message("".into());
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             window.set_show_chain_editor(true);
             let _ = editor_window.show();
         });
     }
-
     {
         let weak_window = window.as_weak();
         let chain_draft = chain_draft.clone();
@@ -1695,7 +1655,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_chain_window = chain_editor_window.as_weak();
@@ -1714,7 +1673,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let chain_draft = chain_draft.clone();
         chain_editor_window.on_select_instrument(move |index| {
@@ -1723,7 +1681,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_input_window = chain_input_window.as_weak();
@@ -1768,7 +1725,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_output_window = chain_output_window.as_weak();
@@ -1813,7 +1769,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
@@ -1822,6 +1777,7 @@ pub fn run_desktop_app(
         let chain_input_channels = chain_input_channels.clone();
         let weak_window = window.as_weak();
         let weak_chain_window = chain_editor_window.as_weak();
+        let toast_timer = toast_timer.clone();
         window.on_toggle_chain_input_channel(move |index, selected| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1835,8 +1791,7 @@ pub fn run_desktop_app(
                 return;
             };
             if selected && !option.available && !option.selected {
-                window
-                    .set_status_message("Canal de entrada já está em uso por outra chain.".into());
+                set_status_error(&window, &toast_timer, "Canal de entrada já está em uso por outra chain.");
                 return;
             }
             if selected {
@@ -1864,7 +1819,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
@@ -1904,7 +1858,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_input_window = chain_input_window.as_weak();
@@ -1928,10 +1881,8 @@ pub fn run_desktop_app(
             let Some(chain) = session.project.chains.get(index as usize) else {
                 return;
             };
-
             let draft = chain_draft_from_chain(index as usize, chain);
             *chain_draft.borrow_mut() = Some(draft.clone());
-
             if let Some(chain_window) = weak_chain_window.upgrade() {
                 apply_chain_endpoint_summaries(
                     &window,
@@ -1941,7 +1892,6 @@ pub fn run_desktop_app(
                     &output_chain_devices,
                 );
             }
-
             apply_chain_input_window_state(
                 &input_window,
                 &draft,
@@ -1952,7 +1902,6 @@ pub fn run_desktop_app(
             let _ = input_window.show();
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_output_window = chain_output_window.as_weak();
@@ -1976,10 +1925,8 @@ pub fn run_desktop_app(
             let Some(chain) = session.project.chains.get(index as usize) else {
                 return;
             };
-
             let draft = chain_draft_from_chain(index as usize, chain);
             *chain_draft.borrow_mut() = Some(draft.clone());
-
             if let Some(chain_window) = weak_chain_window.upgrade() {
                 apply_chain_endpoint_summaries(
                     &window,
@@ -1989,7 +1936,6 @@ pub fn run_desktop_app(
                     &output_chain_devices,
                 );
             }
-
             apply_chain_output_window_state(
                 &output_window,
                 &draft,
@@ -1999,7 +1945,6 @@ pub fn run_desktop_app(
             let _ = output_window.show();
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_input_window = chain_input_window.as_weak();
@@ -2023,7 +1968,6 @@ pub fn run_desktop_app(
             let Some(session) = session_borrow.as_ref() else {
                 return;
             };
-
             if let Some(chain_window) = weak_chain_window.upgrade() {
                 apply_chain_endpoint_summaries(
                     &window,
@@ -2033,7 +1977,6 @@ pub fn run_desktop_app(
                     &output_chain_devices,
                 );
             }
-
             apply_chain_input_window_state(
                 &input_window,
                 &draft,
@@ -2044,7 +1987,6 @@ pub fn run_desktop_app(
             let _ = input_window.show();
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_output_window = chain_output_window.as_weak();
@@ -2068,7 +2010,6 @@ pub fn run_desktop_app(
             let Some(_session) = session_borrow.as_ref() else {
                 return;
             };
-
             if let Some(chain_window) = weak_chain_window.upgrade() {
                 apply_chain_endpoint_summaries(
                     &window,
@@ -2078,7 +2019,6 @@ pub fn run_desktop_app(
                     &output_chain_devices,
                 );
             }
-
             apply_chain_output_window_state(
                 &output_window,
                 &draft,
@@ -2088,7 +2028,6 @@ pub fn run_desktop_app(
             let _ = output_window.show();
         });
     }
-
     {
         let weak_main_window = window.as_weak();
         let selected_block = selected_block.clone();
@@ -2104,31 +2043,31 @@ pub fn run_desktop_app(
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         let open_block_windows = open_block_windows.clone();
+        let toast_timer = toast_timer.clone();
         window.on_select_chain_block(move |chain_index, block_index| {
             let Some(window) = weak_main_window.upgrade() else {
                 return;
             };
             let session_borrow = project_session.borrow();
             let Some(session) = session_borrow.as_ref() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
             let Some(chain) = session.project.chains.get(chain_index as usize) else {
-                window.set_status_message("Chain inválida.".into());
+                set_status_error(&window, &toast_timer, "Chain inválida.");
                 return;
             };
             let Some(block) = chain.blocks.get(block_index as usize) else {
-                window.set_status_message("Block inválido.".into());
+                set_status_error(&window, &toast_timer, "Block inválido.");
                 return;
             };
             let Some(editor_data) = block_editor_data(block) else {
-                window.set_status_message("Esse block ainda não pode ser editado pela GUI.".into());
+                set_status_error(&window, &toast_timer, "Esse block ainda não pode ser editado pela GUI.");
                 return;
             };
             let effect_type = editor_data.effect_type.clone();
             let model_id = editor_data.model_id.clone();
             let enabled = editor_data.enabled;
-
             *selected_block.borrow_mut() = Some(SelectedBlock {
                 chain_index: chain_index as usize,
                 block_index: block_index as usize,
@@ -2182,7 +2121,7 @@ pub fn run_desktop_app(
                 let win = match BlockEditorWindow::new() {
                     Ok(w) => w,
                     Err(e) => {
-                        window.set_status_message(format!("Erro ao abrir editor: {e}").into());
+                        set_status_error(&window, &toast_timer, &format!("Erro ao abrir editor: {e}"));
                         return;
                     }
                 };
@@ -2209,7 +2148,6 @@ pub fn run_desktop_app(
                     is_select: editor_data.is_select,
                 })));
                 let win_timer = Rc::new(Timer::default());
-
                 // Populate window — ALL data set independently (no sync from AppWindow)
                 let type_index = block_type_index(&effect_type, &instrument);
                 let model_index = block_model_index_from_items(&win_model_options, &model_id);
@@ -2229,7 +2167,6 @@ pub fn run_desktop_app(
                     .map(|m| m.label.to_string())
                     .unwrap_or_else(|| "Block".to_string());
                 win.set_block_window_title(format!("OpenRig · {}", title_label).into());
-
                 // on_choose_block_model
                 {
                     let win_draft = win_draft.clone();
@@ -2275,7 +2212,6 @@ pub fn run_desktop_app(
                         }
                     });
                 }
-
                 // on_toggle_block_drawer_enabled
                 {
                     let win_draft = win_draft.clone();
@@ -2331,7 +2267,6 @@ pub fn run_desktop_app(
                         win.set_block_drawer_enabled(new_enabled);
                     });
                 }
-
                 // on_update_block_parameter_number
                 {
                     let win_draft = win_draft.clone();
@@ -2372,7 +2307,6 @@ pub fn run_desktop_app(
                         }
                     });
                 }
-
                 // on_update_block_parameter_number_text
                 {
                     let win_draft = win_draft.clone();
@@ -2404,7 +2338,6 @@ pub fn run_desktop_app(
                         }
                     });
                 }
-
                 // on_update_block_parameter_bool
                 {
                     let win_draft = win_draft.clone();
@@ -2434,7 +2367,6 @@ pub fn run_desktop_app(
                         }
                     });
                 }
-
                 // on_update_block_parameter_text
                 {
                     let win_draft = win_draft.clone();
@@ -2464,7 +2396,6 @@ pub fn run_desktop_app(
                         }
                     });
                 }
-
                 // on_select_block_parameter_option
                 {
                     let win_draft = win_draft.clone();
@@ -2494,7 +2425,6 @@ pub fn run_desktop_app(
                         }
                     });
                 }
-
                 // on_pick_block_parameter_file
                 {
                     let win_draft = win_draft.clone();
@@ -2531,7 +2461,6 @@ pub fn run_desktop_app(
                         }
                     });
                 }
-
                 // on_save_block_drawer (edit mode - saves and closes)
                 {
                     let win_draft = win_draft.clone();
@@ -2571,7 +2500,6 @@ pub fn run_desktop_app(
                         let _ = win.hide();
                     });
                 }
-
                 // on_delete_block_drawer
                 {
                     let win_draft = win_draft.clone();
@@ -2614,7 +2542,6 @@ pub fn run_desktop_app(
                         let _ = win.hide();
                     });
                 }
-
                 // on_close_block_drawer (close without saving)
                 {
                     let win_draft = win_draft.clone();
@@ -2637,13 +2564,11 @@ pub fn run_desktop_app(
                         let _ = win.hide();
                     });
                 }
-
                 let _ = win.show();
                 open_block_windows.borrow_mut().push(BlockWindow { chain_index: ci, block_index: bi, window: win });
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let selected_block = selected_block.clone();
@@ -2670,7 +2595,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let selected_block = selected_block.clone();
@@ -2681,27 +2605,28 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_toggle_chain_block_enabled(move |chain_index, block_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
             let Some(chain) = session.project.chains.get_mut(chain_index as usize) else {
-                window.set_status_message("Chain inválida.".into());
+                set_status_error(&window, &toast_timer, "Chain inválida.");
                 return;
             };
             let Some(block) = chain.blocks.get_mut(block_index as usize) else {
-                window.set_status_message("Block inválido.".into());
+                set_status_error(&window, &toast_timer, "Block inválido.");
                 return;
             };
             block.enabled = !block.enabled;
             let chain_id = chain.id.clone();
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                window.set_status_message(error.to_string().into());
+                set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }
             replace_project_chains(
@@ -2716,10 +2641,9 @@ pub fn run_desktop_app(
             });
             set_selected_block(&window, selected_block.borrow().as_ref());
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
         });
     }
-
     {
         let weak_window = window.as_weak();
         let selected_block = selected_block.clone();
@@ -2731,18 +2655,19 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_reorder_chain_block(move |chain_index, from_index, before_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
             let (chain_id, insert_at) = {
                 let Some(chain) = session.project.chains.get_mut(chain_index as usize) else {
-                    window.set_status_message("Chain inválida.".into());
+                    set_status_error(&window, &toast_timer, "Chain inválida.");
                     return;
                 };
                 let block_count = chain.blocks.len() as i32;
@@ -2761,12 +2686,10 @@ pub fn run_desktop_app(
                 chain.blocks.insert(insert_at, block);
                 (chain.id.clone(), insert_at)
             };
-
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                window.set_status_message(error.to_string().into());
+                set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }
-
             replace_project_chains(
                 &project_chains,
                 &session.project,
@@ -2782,10 +2705,9 @@ pub fn run_desktop_app(
             }
             set_selected_block(&window, selected_block.borrow().as_ref());
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
         });
     }
-
     {
         let weak_window = window.as_weak();
         let selected_block = selected_block.clone();
@@ -2826,7 +2748,6 @@ pub fn run_desktop_app(
             window.set_show_block_type_picker(true);
         });
     }
-
     {
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
@@ -2884,7 +2805,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
@@ -2943,7 +2863,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
@@ -2971,7 +2890,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let selected_block = selected_block.clone();
@@ -3002,7 +2920,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
@@ -3046,7 +2963,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
@@ -3091,7 +3007,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
@@ -3134,7 +3049,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
@@ -3177,7 +3091,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
@@ -3220,7 +3133,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
@@ -3307,7 +3219,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
@@ -3362,7 +3273,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let selected_block = selected_block.clone();
@@ -3387,7 +3297,6 @@ pub fn run_desktop_app(
             let Some(draft) = block_editor_draft.borrow().clone() else {
                 return;
             };
-
             if let Err(error) = persist_block_editor_draft(
                 &window,
                 &draft,
@@ -3404,7 +3313,6 @@ pub fn run_desktop_app(
                 log_gui_error("block-drawer.save", error);
                 return;
             }
-
             *selected_block.borrow_mut() = None;
             set_selected_block(&window, None);
             *block_editor_draft.borrow_mut() = None;
@@ -3416,7 +3324,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let selected_block = selected_block.clone();
@@ -3433,6 +3340,7 @@ pub fn run_desktop_app(
         let weak_block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_delete_block_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -3478,13 +3386,12 @@ pub fn run_desktop_app(
             set_selected_block(&window, None);
             window.set_show_block_drawer(false);
             window.set_block_drawer_status_message("".into());
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
                 let _ = block_editor_window.hide();
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let chain_draft = chain_draft.clone();
@@ -3495,39 +3402,39 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_save_chain(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
             let draft = match chain_draft.borrow().clone() {
                 Some(draft) => draft,
                 None => {
-                    window.set_status_message("Nenhuma chain em edição.".into());
+                    set_status_error(&window, &toast_timer, "Nenhuma chain em edição.");
                     return;
                 }
             };
             if draft.input_device_id.is_none() {
-                window.set_status_message("Selecione o dispositivo de entrada.".into());
+                set_status_warning(&window, &toast_timer, "Selecione o dispositivo de entrada.");
                 return;
             }
             if draft.output_device_id.is_none() {
-                window.set_status_message("Selecione o dispositivo de saída.".into());
+                set_status_warning(&window, &toast_timer, "Selecione o dispositivo de saída.");
                 return;
             }
             if draft.input_channels.is_empty() {
-                window.set_status_message("Selecione pelo menos um canal de entrada.".into());
+                set_status_warning(&window, &toast_timer, "Selecione pelo menos um canal de entrada.");
                 return;
             }
             if draft.output_channels.is_empty() {
-                window.set_status_message("Selecione pelo menos um canal de saída.".into());
+                set_status_warning(&window, &toast_timer, "Selecione pelo menos um canal de saída.");
                 return;
             }
-
             let editing_index = draft.editing_index;
             let existing_chain =
                 editing_index.and_then(|index| session.project.chains.get(index).cloned());
@@ -3567,7 +3474,7 @@ pub fn run_desktop_app(
                 session.project.chains.push(chain);
             }
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                window.set_status_message(error.to_string().into());
+                set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }
             replace_project_chains(
@@ -3578,11 +3485,10 @@ pub fn run_desktop_app(
             );
             *chain_draft.borrow_mut() = None;
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             window.set_show_chain_editor(false);
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_chain_window = chain_editor_window.as_weak();
@@ -3594,6 +3500,7 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         chain_editor_window.on_save_chain(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -3629,7 +3536,6 @@ pub fn run_desktop_app(
                 chain_window.set_status_message("Selecione pelo menos um canal de saída.".into());
                 return;
             }
-
             let editing_index = draft.editing_index;
             let existing_chain =
                 editing_index.and_then(|index| session.project.chains.get(index).cloned());
@@ -3681,29 +3587,29 @@ pub fn run_desktop_app(
             *chain_draft.borrow_mut() = None;
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             chain_window.set_status_message("".into());
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             window.set_show_chain_editor(false);
             let _ = chain_window.hide();
         });
     }
-
     {
         let weak_window = window.as_weak();
         let chain_draft = chain_draft.clone();
+        let toast_timer = toast_timer.clone();
         window.on_cancel_chain(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             *chain_draft.borrow_mut() = None;
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             window.set_show_chain_editor(false);
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_chain_window = chain_editor_window.as_weak();
         let chain_draft = chain_draft.clone();
+        let toast_timer = toast_timer.clone();
         chain_editor_window.on_cancel_chain(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -3713,12 +3619,11 @@ pub fn run_desktop_app(
             };
             *chain_draft.borrow_mut() = None;
             chain_window.set_status_message("".into());
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             window.set_show_chain_editor(false);
             let _ = chain_window.hide();
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_input_window = chain_input_window.as_weak();
@@ -3747,7 +3652,6 @@ pub fn run_desktop_app(
                 input_window.set_status_message("Selecione dispositivo e canais.".into());
                 return;
             }
-
             if let Some(index) = draft.editing_index {
                 let mut session_borrow = project_session.borrow_mut();
                 let Some(session) = session_borrow.as_mut() else {
@@ -3771,7 +3675,6 @@ pub fn run_desktop_app(
                 );
                 sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             }
-
             if let Some(chain_window) = weak_chain_window.upgrade() {
                 apply_chain_endpoint_summaries(
                     &window,
@@ -3781,12 +3684,10 @@ pub fn run_desktop_app(
                     &output_chain_devices,
                 );
             }
-
             input_window.set_status_message("".into());
             let _ = input_window.hide();
         });
     }
-
     {
         let weak_output_window = chain_output_window.as_weak();
         chain_output_window.on_cancel(move || {
@@ -3796,7 +3697,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_input_window = chain_input_window.as_weak();
         chain_input_window.on_cancel(move || {
@@ -3806,7 +3706,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_output_window = chain_output_window.as_weak();
@@ -3835,7 +3734,6 @@ pub fn run_desktop_app(
                 output_window.set_status_message("Selecione dispositivo e canais.".into());
                 return;
             }
-
             if let Some(index) = draft.editing_index {
                 let mut session_borrow = project_session.borrow_mut();
                 let Some(session) = session_borrow.as_mut() else {
@@ -3859,7 +3757,6 @@ pub fn run_desktop_app(
                 );
                 sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             }
-
             if let Some(chain_window) = weak_chain_window.upgrade() {
                 apply_chain_endpoint_summaries(
                     &window,
@@ -3869,12 +3766,10 @@ pub fn run_desktop_app(
                     &output_chain_devices,
                 );
             }
-
             output_window.set_status_message("".into());
             let _ = output_window.hide();
         });
     }
-
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
@@ -3884,21 +3779,21 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_remove_chain(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
             let index = index as usize;
             if index >= session.project.chains.len() {
-                window.set_status_message("Chain inválida.".into());
+                set_status_error(&window, &toast_timer, "Chain inválida.");
                 return;
             }
-
             let removed_chain_id = session.project.chains[index].id.clone();
             session.project.chains.remove(index);
             remove_live_chain_runtime(&project_runtime, &removed_chain_id);
@@ -3909,10 +3804,9 @@ pub fn run_desktop_app(
                 &output_chain_devices,
             );
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
         });
     }
-
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
@@ -3922,18 +3816,19 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_toggle_chain_enabled(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
             let index = index as usize;
             let Some(chain) = session.project.chains.get(index) else {
-                window.set_status_message("Chain inválida.".into());
+                set_status_error(&window, &toast_timer, "Chain inválida.");
                 return;
             };
             let will_enable = !chain.enabled;
@@ -3948,9 +3843,7 @@ pub fn run_desktop_app(
                         && other.input_channels.iter().any(|ch| input_channels.contains(ch))
                     {
                         let other_name = other.description.as_deref().unwrap_or("outra chain");
-                        window.set_status_message(
-                            format!("Input channel já em uso por '{}'", other_name).into()
-                        );
+                        set_status_error(&window, &toast_timer, &format!("Input channel já em uso por '{}'", other_name));
                         return;
                     }
                 }
@@ -3959,7 +3852,7 @@ pub fn run_desktop_app(
             chain.enabled = will_enable;
             let chain_id = chain.id.clone();
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                window.set_status_message(error.to_string().into());
+                set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }
             replace_project_chains(
@@ -3969,19 +3862,16 @@ pub fn run_desktop_app(
                 &output_chain_devices,
             );
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
         });
     }
-
     // Ao fechar a janela principal, encerra todo o processo
     window.window().on_close_requested(|| {
         let _ = slint::quit_event_loop();
         slint::CloseRequestResponse::HideWindow
     });
-
     window.run().map_err(|error| anyhow!(error.to_string()))
 }
-
 fn resolve_project_paths() -> ProjectPaths {
     ProjectPaths {
         default_config_path: parse_path_argument("--config").unwrap_or_else(|| {
@@ -3994,7 +3884,6 @@ fn resolve_project_paths() -> ProjectPaths {
         }),
     }
 }
-
 fn load_and_sync_app_config() -> Result<AppConfig> {
     let mut config = FilesystemStorage::load_app_config().unwrap_or_default();
     let changed = sync_recent_projects(&mut config);
@@ -4003,7 +3892,6 @@ fn load_and_sync_app_config() -> Result<AppConfig> {
     }
     Ok(config)
 }
-
 fn sync_recent_projects(config: &mut AppConfig) -> bool {
     let original = config.clone();
     let mut synced = Vec::new();
@@ -4020,7 +3908,6 @@ fn sync_recent_projects(config: &mut AppConfig) -> bool {
         {
             continue;
         }
-
         match (YamlProjectRepository {
             path: canonical_path.clone(),
         })
@@ -4047,7 +3934,6 @@ fn sync_recent_projects(config: &mut AppConfig) -> bool {
     config.recent_projects = synced;
     *config != original
 }
-
 fn canonical_project_path(path: &PathBuf) -> Result<PathBuf> {
     if path.exists() {
         return Ok(fs::canonicalize(path)?);
@@ -4057,7 +3943,6 @@ fn canonical_project_path(path: &PathBuf) -> Result<PathBuf> {
     }
     Ok(env::current_dir()?.join(path))
 }
-
 fn register_recent_project(config: &mut AppConfig, path: &PathBuf, name: &str) {
     let canonical_path = canonical_project_path(path).unwrap_or(path.clone());
     let path_string = canonical_path.to_string_lossy().to_string();
@@ -4078,7 +3963,6 @@ fn register_recent_project(config: &mut AppConfig, path: &PathBuf, name: &str) {
         },
     );
 }
-
 fn mark_recent_project_invalid(config: &mut AppConfig, path: &PathBuf, reason: &str) {
     let canonical_path = canonical_project_path(path).unwrap_or(path.clone());
     let path_string = canonical_path.to_string_lossy().to_string();
@@ -4095,13 +3979,11 @@ fn mark_recent_project_invalid(config: &mut AppConfig, path: &PathBuf, reason: &
         });
     }
 }
-
 fn recent_project_items(
     recent_projects: &[RecentProjectEntry],
     query: &str,
 ) -> Vec<RecentProjectItem> {
     let query = query.trim().to_lowercase();
-
     recent_projects
         .iter()
         .enumerate()
@@ -4109,7 +3991,6 @@ fn recent_project_items(
             if query.is_empty() {
                 return true;
             }
-
             recent.project_name.to_lowercase().contains(&query)
                 || recent.project_path.to_lowercase().contains(&query)
         })
@@ -4126,7 +4007,6 @@ fn recent_project_items(
         })
         .collect()
 }
-
 fn project_display_name(project: &Project) -> String {
     project
         .name
@@ -4136,7 +4016,6 @@ fn project_display_name(project: &Project) -> String {
         .map(|name| name.to_string())
         .unwrap_or_else(|| UNTITLED_PROJECT_NAME.to_string())
 }
-
 fn parse_path_argument(flag: &str) -> Option<PathBuf> {
     let mut args = env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -4146,7 +4025,6 @@ fn parse_path_argument(flag: &str) -> Option<PathBuf> {
     }
     None
 }
-
 fn create_new_project_session(default_config_path: &Path) -> ProjectSession {
     let config = if default_config_path.exists() {
         load_app_config(default_config_path).unwrap_or_default()
@@ -4169,12 +4047,10 @@ fn create_new_project_session(default_config_path: &Path) -> ProjectSession {
             .unwrap_or_else(|| PathBuf::from("./presets")),
     }
 }
-
 fn load_app_config(path: &Path) -> Result<AppConfigYaml> {
     let raw = fs::read_to_string(path)?;
     Ok(serde_yaml::from_str(&raw)?)
 }
-
 fn resolve_project_config_path(project_path: &Path) -> PathBuf {
     project_path
         .parent()
@@ -4182,7 +4058,6 @@ fn resolve_project_config_path(project_path: &Path) -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
         .join("config.yaml")
 }
-
 fn load_project_session(project_path: &Path, config_path: &Path) -> Result<ProjectSession> {
     let config = if config_path.exists() {
         load_app_config(config_path)?
@@ -4208,7 +4083,6 @@ fn load_project_session(project_path: &Path, config_path: &Path) -> Result<Proje
             .join(presets_path),
     })
 }
-
 fn replace_project_chains(
     model: &Rc<VecModel<ProjectChainItem>>,
     project: &Project,
@@ -4234,7 +4108,6 @@ fn replace_project_chains(
                 output_settings.map(|s| s.buffer_size_frames).unwrap_or(256) as f32;
             let sample_rate = input_settings.map(|s| s.sample_rate).unwrap_or(48000) as f32;
             let latency_ms = (input_buffer + output_buffer) / sample_rate * 1000.0;
-
             ProjectChainItem {
                 instrument: chain.instrument.clone().into(),
                 title: chain
@@ -4280,11 +4153,9 @@ fn replace_project_chains(
         .collect::<Vec<_>>();
     model.set_vec(items);
 }
-
 fn chain_endpoint_label(prefix: &str, _channels: &[usize]) -> String {
     prefix.to_string()
 }
-
 fn chain_endpoint_tooltip(
     _title: &str,
     device_id: &str,
@@ -4312,7 +4183,6 @@ fn chain_endpoint_tooltip(
         format_channel_list(channels)
     )
 }
-
 fn format_channel_list(channels: &[usize]) -> String {
     if channels.is_empty() {
         "-".to_string()
@@ -4324,10 +4194,8 @@ fn format_channel_list(channels: &[usize]) -> String {
             .join(", ")
     }
 }
-
 fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerItem> {
     let mut seen = std::collections::BTreeSet::new();
-
     supported_block_types()
         .into_iter()
         .filter(|item| seen.insert(item.effect_type))
@@ -4343,7 +4211,6 @@ fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerItem> {
         })
         .collect()
 }
-
 fn block_model_picker_items(effect_type: &str, instrument: &str) -> Vec<BlockModelPickerItem> {
     supported_block_models(effect_type)
         .unwrap_or_default()
@@ -4386,11 +4253,9 @@ fn block_model_picker_items(effect_type: &str, instrument: &str) -> Vec<BlockMod
         })
         .collect()
 }
-
 fn block_model_picker_labels(items: &[BlockModelPickerItem]) -> Vec<SharedString> {
     items.iter().map(|item| item.label.clone()).collect()
 }
-
 fn set_selected_block(window: &AppWindow, selected_block: Option<&SelectedBlock>) {
     if let Some(selected_block) = selected_block {
         window.set_selected_chain_block_chain_index(selected_block.chain_index as i32);
@@ -4400,7 +4265,6 @@ fn set_selected_block(window: &AppWindow, selected_block: Option<&SelectedBlock>
         window.set_selected_chain_block_index(-1);
     }
 }
-
 fn block_type_index(effect_type: &str, instrument: &str) -> i32 {
     block_type_picker_items(instrument)
         .into_iter()
@@ -4408,7 +4272,6 @@ fn block_type_index(effect_type: &str, instrument: &str) -> i32 {
         .map(|index| index as i32)
         .unwrap_or(-1)
 }
-
 fn block_model_index_from_items(items: &VecModel<BlockModelPickerItem>, model_id: &str) -> i32 {
     for i in 0..items.row_count() {
         if let Some(item) = items.row_data(i) {
@@ -4419,7 +4282,6 @@ fn block_model_index_from_items(items: &VecModel<BlockModelPickerItem>, model_id
     }
     0
 }
-
 fn block_model_index(effect_type: &str, model_id: &str, instrument: &str) -> i32 {
     supported_block_models(effect_type)
         .unwrap_or_default()
@@ -4429,7 +4291,6 @@ fn block_model_index(effect_type: &str, model_id: &str, instrument: &str) -> i32
         .map(|index| index as i32)
         .unwrap_or(-1)
 }
-
 fn unit_label(unit: &ParameterUnit) -> &'static str {
     match unit {
         ParameterUnit::None => "",
@@ -4441,11 +4302,9 @@ fn unit_label(unit: &ParameterUnit) -> &'static str {
         ParameterUnit::Semitones => "st",
     }
 }
-
 fn block_editor_data(block: &AudioBlock) -> Option<BlockEditorData> {
     block_editor_data_with_selected(block, None)
 }
-
 fn block_editor_data_with_selected(
     block: &AudioBlock,
     selected_option_block_id: Option<&str>,
@@ -4495,7 +4354,6 @@ fn block_editor_data_with_selected(
         }),
     }
 }
-
 fn block_parameter_items_for_editor(data: &BlockEditorData) -> Vec<BlockParameterItem> {
     let mut items = Vec::new();
     if !data.select_options.is_empty() {
@@ -4551,7 +4409,6 @@ fn block_parameter_items_for_editor(data: &BlockEditorData) -> Vec<BlockParamete
     ));
     items
 }
-
 fn block_parameter_items_for_model(
     effect_type: &str,
     model_id: &str,
@@ -4685,7 +4542,6 @@ fn block_parameter_items_for_model(
         })
         .collect()
 }
-
 fn set_block_parameter_text(model: &Rc<VecModel<BlockParameterItem>>, path: &str, value: &str) {
     for index in 0..model.row_count() {
         if let Some(mut row) = model.row_data(index) {
@@ -4697,7 +4553,6 @@ fn set_block_parameter_text(model: &Rc<VecModel<BlockParameterItem>>, path: &str
         }
     }
 }
-
 fn set_block_parameter_bool(model: &Rc<VecModel<BlockParameterItem>>, path: &str, value: bool) {
     for index in 0..model.row_count() {
         if let Some(mut row) = model.row_data(index) {
@@ -4709,7 +4564,6 @@ fn set_block_parameter_bool(model: &Rc<VecModel<BlockParameterItem>>, path: &str
         }
     }
 }
-
 fn set_block_parameter_number(model: &Rc<VecModel<BlockParameterItem>>, path: &str, value: f32) {
     for index in 0..model.row_count() {
         if let Some(mut row) = model.row_data(index) {
@@ -4733,7 +4587,6 @@ fn set_block_parameter_number(model: &Rc<VecModel<BlockParameterItem>>, path: &s
         }
     }
 }
-
 #[allow(clippy::too_many_arguments)]
 fn persist_block_editor_draft(
     window: &AppWindow,
@@ -4758,7 +4611,6 @@ fn persist_block_editor_draft(
     } else {
         None
     };
-
     let mut session_borrow = project_session.borrow_mut();
     let session = session_borrow
         .as_mut()
@@ -4769,7 +4621,6 @@ fn persist_block_editor_draft(
             .chains
             .get_mut(draft.chain_index)
             .ok_or_else(|| anyhow!("Chain inválida."))?;
-
         if let Some(block_index) = draft.block_index {
             let block = chain
                 .blocks
@@ -4825,15 +4676,12 @@ fn persist_block_editor_draft(
                 },
             );
         }
-
         chain.id.clone()
     };
-
     if let Err(error) = sync_live_chain_runtime(project_runtime, session, &chain_id) {
         log_gui_error("block-drawer.persist", &error);
         return Err(error);
     }
-
     replace_project_chains(
         project_chains,
         &session.project,
@@ -4841,19 +4689,16 @@ fn persist_block_editor_draft(
         output_chain_devices,
     );
     sync_project_dirty(window, session, saved_project_snapshot, project_dirty);
-
     if close_after_save {
         window.set_show_block_drawer(false);
         window.set_show_block_type_picker(false);
         window.set_block_drawer_selected_model_index(-1);
         window.set_block_drawer_selected_type_index(-1);
     }
-
     window.set_block_drawer_status_message("".into());
     window.set_status_message("".into());
     Ok(())
 }
-
 fn quantize_numeric_value(value: f32, min: f32, max: f32, step: f32, integer: bool) -> f32 {
     let mut clamped = value.clamp(min, max);
     if step > 0.0 {
@@ -4867,7 +4712,6 @@ fn quantize_numeric_value(value: f32, min: f32, max: f32, step: f32, integer: bo
         clamped
     }
 }
-
 fn numeric_widget_kind(min: f32, max: f32, step: f32, integer: bool) -> &'static str {
     if step > 0.0 && max > min {
         let steps = ((max - min) / step).round();
@@ -4878,7 +4722,6 @@ fn numeric_widget_kind(min: f32, max: f32, step: f32, integer: bool) -> &'static
     let _ = integer;
     "slider"
 }
-
 fn set_block_parameter_option(
     model: &Rc<VecModel<BlockParameterItem>>,
     path: &str,
@@ -4899,7 +4742,6 @@ fn set_block_parameter_option(
         }
     }
 }
-
 fn block_parameter_extensions(model: &Rc<VecModel<BlockParameterItem>>, path: &str) -> Vec<String> {
     for index in 0..model.row_count() {
         if let Some(row) = model.row_data(index) {
@@ -4916,7 +4758,6 @@ fn block_parameter_extensions(model: &Rc<VecModel<BlockParameterItem>>, path: &s
     }
     Vec::new()
 }
-
 fn block_parameter_values(
     model: &Rc<VecModel<BlockParameterItem>>,
     effect_type: &str,
@@ -4975,7 +4816,6 @@ fn block_parameter_values(
         .normalized_against(&schema)
         .map_err(|error| anyhow!(error))
 }
-
 fn internal_block_parameter_value(
     model: &Rc<VecModel<BlockParameterItem>>,
     path: &str,
@@ -4996,14 +4836,12 @@ fn internal_block_parameter_value(
     }
     None
 }
-
 fn build_project_device_rows(
     input_devices: &[AudioDeviceDescriptor],
     output_devices: &[AudioDeviceDescriptor],
     device_settings: &[DeviceSettings],
 ) -> Vec<DeviceSelectionItem> {
     let mut rows: Vec<DeviceSelectionItem> = Vec::new();
-
     for device in input_devices.iter().chain(output_devices.iter()) {
         if rows
             .iter()
@@ -5011,7 +4849,6 @@ fn build_project_device_rows(
         {
             continue;
         }
-
         let config = device_settings
             .iter()
             .find(|setting| setting.device_id.0 == device.id)
@@ -5022,7 +4859,6 @@ fn build_project_device_rows(
                 buffer_size_frames: setting.buffer_size_frames,
             })
             .unwrap_or_else(|| default_device_settings(device.id.clone(), device.name.clone()));
-
         rows.push(DeviceSelectionItem {
             device_id: config.device_id.into(),
             name: config.name.into(),
@@ -5033,10 +4869,8 @@ fn build_project_device_rows(
             buffer_size_text: config.buffer_size_frames.to_string().into(),
         });
     }
-
     rows
 }
-
 fn build_project_yaml(session: &ProjectSession) -> Result<ProjectYaml> {
     Ok(ProjectYaml {
         name: session
@@ -5074,16 +4908,13 @@ fn build_project_yaml(session: &ProjectSession) -> Result<ProjectYaml> {
             .collect::<Result<Vec<_>>>()?,
     })
 }
-
 fn project_session_snapshot(session: &ProjectSession) -> Result<String> {
     Ok(serde_yaml::to_string(&build_project_yaml(session)?)?)
 }
-
 fn set_project_dirty(window: &AppWindow, project_dirty: &Rc<RefCell<bool>>, dirty: bool) {
     *project_dirty.borrow_mut() = dirty;
     window.set_project_dirty(dirty);
 }
-
 fn sync_project_dirty(
     window: &AppWindow,
     session: &ProjectSession,
@@ -5098,7 +4929,6 @@ fn sync_project_dirty(
     };
     set_project_dirty(window, project_dirty, dirty);
 }
-
 fn save_project_session(session: &ProjectSession, project_path: &PathBuf) -> Result<()> {
     let parent_dir = project_path
         .parent()
@@ -5106,7 +4936,6 @@ fn save_project_session(session: &ProjectSession, project_path: &PathBuf) -> Res
         .unwrap_or_else(|| PathBuf::from("."));
     fs::create_dir_all(&parent_dir)?;
     fs::write(project_path, project_session_snapshot(session)?)?;
-
     let config_path = session
         .config_path
         .clone()
@@ -5118,7 +4947,6 @@ fn save_project_session(session: &ProjectSession, project_path: &PathBuf) -> Res
     fs::create_dir_all(parent_dir.join("presets"))?;
     Ok(())
 }
-
 fn save_chain_blocks_to_preset(chain: &Chain, path: &Path) -> Result<()> {
     let preset = ChainBlocksPreset {
         id: preset_id_from_path(path)?,
@@ -5127,18 +4955,15 @@ fn save_chain_blocks_to_preset(chain: &Chain, path: &Path) -> Result<()> {
     };
     save_chain_preset_file(path, &preset)
 }
-
 fn load_preset_file(path: &Path) -> Result<ChainBlocksPreset> {
     load_chain_preset_file(path)
 }
-
 fn preset_id_from_path(path: &Path) -> Result<String> {
     path.file_stem()
         .and_then(|value| value.to_str())
         .map(|value| value.to_string())
         .ok_or_else(|| anyhow!("arquivo de preset inválido"))
 }
-
 fn project_title_for_path(project_path: Option<&PathBuf>, project: &Project) -> String {
     if let Some(name) = project
         .name
@@ -5160,14 +4985,12 @@ fn project_title_for_path(project_path: Option<&PathBuf>, project: &Project) -> 
             }
         })
 }
-
 fn selected_device_index(devices: &[AudioDeviceDescriptor], selected_id: Option<&str>) -> i32 {
     selected_id
         .and_then(|selected_id| devices.iter().position(|device| device.id == selected_id))
         .map(|index| index as i32)
         .unwrap_or(-1)
 }
-
 fn create_chain_draft(
     project: &Project,
     input_devices: &[AudioDeviceDescriptor],
@@ -5183,7 +5006,6 @@ fn create_chain_draft(
         output_channels: Vec::new(),
     }
 }
-
 fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
     ChainDraft {
         editing_index: Some(index),
@@ -5198,7 +5020,6 @@ fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
         output_channels: chain.output_channels.clone(),
     }
 }
-
 fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
     let (kind, label) = match &block.kind {
         AudioBlockKind::Select(select) => select
@@ -5211,10 +5032,8 @@ fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
             .map(|block| (block.effect_type.to_string(), block.model.to_string()))
             .unwrap_or_else(|| ("core".to_string(), "block".to_string())),
     };
-
     let family = block_family_for_kind(&kind).to_string();
     let block_type = supported_block_type(&kind);
-
     ChainBlockItem {
         kind: kind.into(),
         icon_kind: block_type
@@ -5232,7 +5051,6 @@ fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
         enabled: block.enabled,
     }
 }
-
 fn build_input_channel_items(
     draft: &ChainDraft,
     project: &Project,
@@ -5255,7 +5073,6 @@ fn build_input_channel_items(
         })
         .flat_map(|(_, chain)| chain.input_channels.iter().copied())
         .collect::<Vec<_>>();
-
     (0..device.channels)
         .map(|channel| ChannelOptionItem {
             index: channel as i32,
@@ -5265,7 +5082,6 @@ fn build_input_channel_items(
         })
         .collect()
 }
-
 fn build_output_channel_items(
     draft: &ChainDraft,
     output_devices: &[AudioDeviceDescriptor],
@@ -5285,11 +5101,9 @@ fn build_output_channel_items(
         })
         .collect()
 }
-
 fn replace_channel_options(model: &Rc<VecModel<ChannelOptionItem>>, items: Vec<ChannelOptionItem>) {
     model.set_vec(items);
 }
-
 fn normalized_chain_description(name: &str) -> Option<String> {
     let trimmed = name.trim();
     if trimmed.is_empty() {
@@ -5298,14 +5112,11 @@ fn normalized_chain_description(name: &str) -> Option<String> {
         Some(trimmed.to_string())
     }
 }
-
-
 fn stop_project_runtime(project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>) {
     if let Some(mut runtime) = project_runtime.borrow_mut().take() {
         runtime.stop();
     }
 }
-
 fn sync_project_runtime(
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
     session: &ProjectSession,
@@ -5317,7 +5128,6 @@ fn sync_project_runtime(
     }
     Ok(())
 }
-
 fn sync_live_chain_runtime(
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
     session: &ProjectSession,
@@ -5329,7 +5139,6 @@ fn sync_live_chain_runtime(
         .iter()
         .find(|c| &c.id == chain_id);
     let chain_enabled = chain.map(|c| c.enabled).unwrap_or(false);
-
     // If chain is being enabled and no runtime exists, create one
     if chain_enabled {
         let mut borrow = project_runtime.borrow_mut();
@@ -5339,7 +5148,6 @@ fn sync_live_chain_runtime(
         }
         drop(borrow);
     }
-
     // Normal sync
     let mut borrow = project_runtime.borrow_mut();
     if let Some(runtime) = borrow.as_mut() {
@@ -5356,7 +5164,6 @@ fn sync_live_chain_runtime(
     }
     Ok(())
 }
-
 fn remove_live_chain_runtime(
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
     chain_id: &ChainId,
@@ -5365,13 +5172,11 @@ fn remove_live_chain_runtime(
         runtime.remove_chain(chain_id);
     }
 }
-
 fn assign_new_block_ids(chain: &mut Chain) {
     for block in &mut chain.blocks {
         assign_new_block_ids_recursive(block, &chain.id);
     }
 }
-
 fn assign_new_block_ids_recursive(block: &mut AudioBlock, chain_id: &ChainId) {
     block.id = BlockId::generate_for_chain(chain_id);
     if let AudioBlockKind::Select(select) = &mut block.kind {
@@ -5380,7 +5185,6 @@ fn assign_new_block_ids_recursive(block: &mut AudioBlock, chain_id: &ChainId) {
         }
     }
 }
-
 const INSTRUMENT_KEYS: &[&str] = &[
     "electric_guitar",
     "acoustic_guitar",
@@ -5390,14 +5194,12 @@ const INSTRUMENT_KEYS: &[&str] = &[
     "drums",
     "generic",
 ];
-
 fn instrument_index_to_string(index: i32) -> &'static str {
     INSTRUMENT_KEYS
         .get(index as usize)
         .copied()
         .unwrap_or("electric_guitar")
 }
-
 fn instrument_string_to_index(instrument: &str) -> i32 {
     INSTRUMENT_KEYS
         .iter()
@@ -5405,7 +5207,6 @@ fn instrument_string_to_index(instrument: &str) -> i32 {
         .map(|i| i as i32)
         .unwrap_or(0)
 }
-
 fn chain_editor_mode(draft: &ChainDraft) -> ChainEditorMode {
     if draft.editing_index.is_some() {
         ChainEditorMode::Edit
@@ -5413,7 +5214,6 @@ fn chain_editor_mode(draft: &ChainDraft) -> ChainEditorMode {
         ChainEditorMode::Create
     }
 }
-
 fn apply_chain_editor_labels(window: &AppWindow, draft: &ChainDraft) {
     match chain_editor_mode(draft) {
         ChainEditorMode::Create => {
@@ -5426,7 +5226,6 @@ fn apply_chain_editor_labels(window: &AppWindow, draft: &ChainDraft) {
         }
     }
 }
-
 fn endpoint_summary(
     device_id: Option<&str>,
     channels: &[usize],
@@ -5447,7 +5246,6 @@ fn endpoint_summary(
     };
     format!("{device_name}\nCanais: {channels}")
 }
-
 fn apply_chain_endpoint_summaries(
     window: &AppWindow,
     chain_editor_window: &ChainEditorWindow,
@@ -5470,7 +5268,6 @@ fn apply_chain_endpoint_summaries(
     chain_editor_window.set_input_summary(input_summary.into());
     chain_editor_window.set_output_summary(output_summary.into());
 }
-
 fn apply_chain_input_window_state(
     input_window: &ChainInputWindow,
     draft: &ChainDraft,
@@ -5488,7 +5285,6 @@ fn apply_chain_input_window_state(
     ));
     input_window.set_status_message("".into());
 }
-
 fn apply_chain_output_window_state(
     output_window: &ChainOutputWindow,
     draft: &ChainDraft,
@@ -5505,14 +5301,12 @@ fn apply_chain_output_window_state(
     ));
     output_window.set_status_message("".into());
 }
-
 fn toggle_device_row(model: &Rc<VecModel<DeviceSelectionItem>>, index: usize, selected: bool) {
     if let Some(mut row) = model.row_data(index) {
         row.selected = selected;
         model.set_row_data(index, row);
     }
 }
-
 fn update_device_sample_rate(
     model: &Rc<VecModel<DeviceSelectionItem>>,
     index: usize,
@@ -5523,7 +5317,6 @@ fn update_device_sample_rate(
         model.set_row_data(index, row);
     }
 }
-
 fn update_device_buffer_size(
     model: &Rc<VecModel<DeviceSelectionItem>>,
     index: usize,
@@ -5534,7 +5327,6 @@ fn update_device_buffer_size(
         model.set_row_data(index, row);
     }
 }
-
 fn selected_device_settings(
     model: &Rc<VecModel<DeviceSelectionItem>>,
     device_kind: &str,
@@ -5558,7 +5350,6 @@ fn selected_device_settings(
         })
         .collect()
 }
-
 fn default_device_settings(device_id: String, name: String) -> GuiAudioDeviceSettings {
     GuiAudioDeviceSettings {
         device_id,
@@ -5567,7 +5358,6 @@ fn default_device_settings(device_id: String, name: String) -> GuiAudioDeviceSet
         buffer_size_frames: DEFAULT_BUFFER_SIZE_FRAMES,
     }
 }
-
 fn normalize_device_settings(mut settings: GuiAudioDeviceSettings) -> GuiAudioDeviceSettings {
     if !SUPPORTED_SAMPLE_RATES.contains(&settings.sample_rate) {
         settings.sample_rate = DEFAULT_SAMPLE_RATE;
@@ -5577,7 +5367,6 @@ fn normalize_device_settings(mut settings: GuiAudioDeviceSettings) -> GuiAudioDe
     }
     settings
 }
-
 fn mark_unselected_devices(
     model: &Rc<VecModel<DeviceSelectionItem>>,
     selected_devices: &[GuiAudioDeviceSettings],
@@ -5592,14 +5381,12 @@ fn mark_unselected_devices(
         model.set_row_data(index, row);
     }
 }
-
 fn parse_positive_u32(value: &str, field: &str) -> Result<u32> {
     value
         .trim()
         .parse::<u32>()
         .map_err(|_| anyhow!("'{}' inválido: '{}'", field, value))
 }
-
 #[cfg(test)]
 mod tests {
     use super::{
@@ -5614,14 +5401,12 @@ mod tests {
     };
     use project::param::ParameterSet;
     use slint::Model;
-
     #[test]
     fn quantize_numeric_value_respects_float_step_and_bounds() {
         assert_eq!(quantize_numeric_value(19.64, 0.0, 100.0, 0.5, false), 19.5);
         assert_eq!(quantize_numeric_value(101.0, 0.0, 100.0, 0.5, false), 100.0);
         assert_eq!(quantize_numeric_value(-1.0, 0.0, 100.0, 0.5, false), 0.0);
     }
-
     #[test]
     fn quantize_numeric_value_respects_integer_step() {
         assert_eq!(
@@ -5633,34 +5418,28 @@ mod tests {
             128.0
         );
     }
-
     #[test]
     fn numeric_widget_kind_prefers_stepper_for_sparse_ranges() {
         assert_eq!(numeric_widget_kind(50.0, 70.0, 10.0, false), "stepper");
         assert_eq!(numeric_widget_kind(10.0, 100.0, 10.0, false), "stepper");
     }
-
     #[test]
     fn numeric_widget_kind_uses_slider_for_dense_ranges() {
         assert_eq!(numeric_widget_kind(0.0, 5.0, 0.01, false), "slider");
         assert_eq!(numeric_widget_kind(1.0, 10.0, 0.1, false), "slider");
     }
-
     #[test]
     fn numeric_widget_kind_prefers_slider_for_large_ranges() {
         assert_eq!(numeric_widget_kind(0.0, 100.0, 0.5, false), "slider");
         assert_eq!(numeric_widget_kind(20.0, 20000.0, 1.0, false), "slider");
     }
-
     #[test]
     fn select_block_editor_uses_selected_option_model() {
         let delay_models = delay_model_ids();
         let first_model = delay_models.first().expect("delay catalog must not be empty");
         let second_model = delay_models.get(1).unwrap_or(first_model);
         let block = select_delay_block("chain:0:block:0", first_model.as_str(), second_model.as_str());
-
         let editor_data = block_editor_data(&block).expect("select should expose editor data");
-
         assert!(editor_data.is_select);
         assert_eq!(editor_data.effect_type, "delay");
         assert_eq!(editor_data.model_id, second_model.as_str());
@@ -5670,25 +5449,21 @@ mod tests {
             Some("chain:0:block:0::delay_b")
         );
     }
-
     #[test]
     fn select_block_editor_includes_active_option_picker() {
         let delay_models = delay_model_ids();
         let first_model = delay_models.first().expect("delay catalog must not be empty");
         let second_model = delay_models.get(1).unwrap_or(first_model);
         let block = select_delay_block("chain:0:block:0", first_model.as_str(), second_model.as_str());
-
         let editor_data = block_editor_data(&block).expect("select should expose editor data");
         let items = block_parameter_items_for_editor(&editor_data);
         let selector = items
             .iter()
             .find(|item| item.path.as_str() == "__select.selected_block_id")
             .expect("select editor should expose active option picker");
-
         assert_eq!(selector.option_values.row_count(), 2);
         assert_eq!(selector.selected_option_index, 1);
     }
-
     fn select_delay_block(id: &str, first_model: &str, second_model: &str) -> AudioBlock {
         AudioBlock {
             id: BlockId(id.into()),
@@ -5702,7 +5477,6 @@ mod tests {
             }),
         }
     }
-
     fn delay_block(id: impl Into<String>, model: &str, time_ms: f32) -> AudioBlock {
         let schema = schema_for_block_model("delay", model).expect("delay schema should exist");
         let mut params = ParameterSet::default()
@@ -5719,7 +5493,6 @@ mod tests {
             }),
         }
     }
-
     fn delay_model_ids() -> Vec<String> {
         supported_block_models("delay")
             .expect("delay catalog should exist")

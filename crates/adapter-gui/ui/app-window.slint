@@ -2,6 +2,7 @@ import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProject
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
 import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, BlockEditorPanel, BlockPanelEditor } from "pages/pages.slint";
+import { Toast } from "components/toast.slint";
 
 export component ProjectSettingsWindow inherits Window {
     icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logomark.svg");
@@ -240,6 +241,16 @@ export component BlockEditorWindow inherits Window {
         update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
         select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
         pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
+    }
+
+    in-out property <string> toast-message;
+    in-out property <string> toast-level: "info";
+
+    Toast {
+        message: root.toast-message;
+        level: root.toast-level;
+        container-width: root.width;
+        container-height: root.height;
     }
 }
 
@@ -566,4 +577,13 @@ export component AppWindow inherits Window {
         cancel-chain => { root.cancel-chain(); }
     }
 
+    in-out property <string> toast-message;
+    in-out property <string> toast-level: "info";
+
+    Toast {
+        message: root.toast-message;
+        level: root.toast-level;
+        container-width: root.width;
+        container-height: root.height;
+    }
 }
