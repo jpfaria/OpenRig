@@ -4346,6 +4346,7 @@ fn block_model_picker_items(effect_type: &str) -> Vec<BlockModelPickerItem> {
                 effect_type: item.effect_type.clone().into(),
                 model_id: item.model_id.clone().into(),
                 label: label.into(),
+                display_name: item.display_name.clone().into(),
                 subtitle: "".into(),
                 icon_kind: supported_block_type(effect_type)
                     .map(|entry| entry.icon_kind)

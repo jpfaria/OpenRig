@@ -252,7 +252,7 @@ export component AmpPanelEditor inherits Rectangle {
     private property <string> selected-model-label:
         root.block-drawer-selected-model-index >= 0
         && root.block-drawer-selected-model-index < root.block-model-options.length
-        ? root.block-model-options[root.block-drawer-selected-model-index].label
+        ? root.block-model-options[root.block-drawer-selected-model-index].display_name
         : "";
 
     private property <string> block-type-label:
@@ -456,6 +456,46 @@ export component AmpPanelEditor inherits Rectangle {
                 width: parent.width * 0.8;
                 height: 60px;
                 source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/bogner/logo.svg");
+                image-fit: contain;
+                colorize: #ffffff;
+            }
+
+            if root.selected-brand == "fender" : Image {
+                x: parent.width * 0.1;
+                y: 6px;
+                width: parent.width * 0.8;
+                height: 60px;
+                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/fender/logo.svg");
+                image-fit: contain;
+                colorize: #ffffff;
+            }
+
+            if root.selected-brand == "ibanez" : Image {
+                x: parent.width * 0.1;
+                y: 6px;
+                width: parent.width * 0.8;
+                height: 60px;
+                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/ibanez/logo.svg");
+                image-fit: contain;
+                colorize: #ffffff;
+            }
+
+            if root.selected-brand == "roland" : Image {
+                x: parent.width * 0.1;
+                y: 6px;
+                width: parent.width * 0.8;
+                height: 60px;
+                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/roland/logo.svg");
+                image-fit: contain;
+                colorize: #ffffff;
+            }
+
+            if root.selected-brand == "boss" : Image {
+                x: parent.width * 0.1;
+                y: 6px;
+                width: parent.width * 0.8;
+                height: 60px;
+                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/boss/logo.svg");
                 image-fit: contain;
                 colorize: #ffffff;
             }
