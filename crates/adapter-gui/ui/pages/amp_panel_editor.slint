@@ -431,10 +431,10 @@ export component AmpPanelEditor inherits Rectangle {
             background: #1a1a1a;
 
             if root.selected-brand == "marshall" : Image {
-                x: 0px;
-                y: 2px;
-                width: parent.width;
-                height: 48px;
+                x: -parent.width * 0.25;
+                y: (parent.height - 72px) / 2;
+                width: parent.width * 1.5;
+                height: 72px;
                 source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/marshall/logo.svg");
                 image-fit: contain;
                 colorize: #ffffff;
