@@ -387,18 +387,22 @@ export component AmpPanelEditor inherits Rectangle {
     }
 
     // ── PANEL RECT (direto após o header, sem brand strip) ─────────────────────────────────────────────────
-    // Panel colors by brand
+    // Panel colors from model data
     private property <color> panel-bg:
-        root.selected-brand == "marshall" ? #b89840
-        : root.selected-brand == "vox" ? #1a1a2a
-        : root.selected-model-id == "american_clean" ? #2a3338
-        : root.selected-model-id == "brit_crunch" ? #342e28
-        : root.selected-model-id == "modern_high_gain" ? #2a2434
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].panel_bg
         : #2c2e34;
     private property <color> panel-text:
-        root.selected-brand == "marshall" ? #5a4a20
-        : root.selected-brand == "vox" ? #aabbcc
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].panel_text
         : #8090a0;
+    private property <color> brand-strip-bg:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].brand_strip_bg
+        : #1a1a1a;
 
     Rectangle {
         x: 0;
@@ -415,9 +419,7 @@ export component AmpPanelEditor inherits Rectangle {
             y: 0;
             width: parent.width;
             height: 96px;
-            background: root.selected-brand == "marshall" ? #1a1a1a
-                      : root.selected-brand == "vox" ? #0a1520
-                      : #141418;
+            background: root.brand-strip-bg;
 
             if root.selected-brand == "marshall" : Image {
                 x: parent.width * 0.1;
@@ -458,7 +460,7 @@ export component AmpPanelEditor inherits Rectangle {
             y: 0;
             width: parent.width;
             height: 56px;
-            background: #1a1a1a;
+            background: root.brand-strip-bg;
 
             Text {
                 x: 0;

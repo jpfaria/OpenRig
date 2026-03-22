@@ -4328,6 +4328,43 @@ fn model_brand(effect_type: &str, model_id: &str) -> &'static str {
     "native"
 }
 
+fn color(r: u8, g: u8, b: u8) -> slint::Color {
+    slint::Color::from_argb_u8(0xff, r, g, b)
+}
+
+fn model_panel_bg(brand: &str, model_id: &str) -> slint::Color {
+    match brand {
+        "marshall" => color(0xb8, 0x98, 0x40),
+        "vox" => color(0x1a, 0x1a, 0x2a),
+        "bogner" => color(0x2a, 0x20, 0x28),
+        "roland" => color(0x20, 0x28, 0x2a),
+        "boss" => color(0x2a, 0x28, 0x20),
+        "ibanez" => color(0x22, 0x2a, 0x22),
+        _ => match model_id {
+            "american_clean" => color(0x2a, 0x33, 0x38),
+            "brit_crunch" => color(0x34, 0x2e, 0x28),
+            "modern_high_gain" => color(0x2a, 0x24, 0x34),
+            _ => color(0x2c, 0x2e, 0x34),
+        },
+    }
+}
+
+fn model_panel_text(brand: &str) -> slint::Color {
+    match brand {
+        "marshall" => color(0x5a, 0x4a, 0x20),
+        "vox" => color(0xaa, 0xbb, 0xcc),
+        _ => color(0x80, 0x90, 0xa0),
+    }
+}
+
+fn model_brand_strip_bg(brand: &str) -> slint::Color {
+    match brand {
+        "marshall" => color(0x1a, 0x1a, 0x1a),
+        "vox" => color(0x0a, 0x15, 0x20),
+        _ => color(0x1a, 0x1a, 0x1a),
+    }
+}
+
 fn block_model_picker_items(effect_type: &str) -> Vec<BlockModelPickerItem> {
     supported_block_models(effect_type)
         .unwrap_or_default()
@@ -4351,6 +4388,9 @@ fn block_model_picker_items(effect_type: &str) -> Vec<BlockModelPickerItem> {
                 .into(),
             brand: brand.into(),
             type_label: model_type_label(&item.effect_type, &item.model_id).into(),
+            panel_bg: model_panel_bg(brand, &item.model_id),
+            panel_text: model_panel_text(brand),
+            brand_strip_bg: model_brand_strip_bg(brand),
         }})
         .collect()
 }
