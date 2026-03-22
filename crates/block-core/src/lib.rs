@@ -58,11 +58,32 @@ impl ModelAudioMode {
     }
 }
 
+// Instrument type constants
+pub const INST_ELECTRIC_GUITAR: &str = "electric_guitar";
+pub const INST_ACOUSTIC_GUITAR: &str = "acoustic_guitar";
+pub const INST_BASS: &str = "bass";
+pub const INST_VOICE: &str = "voice";
+pub const INST_KEYS: &str = "keys";
+pub const INST_DRUMS: &str = "drums";
+
+/// All non-generic instruments
+pub const ALL_INSTRUMENTS: &[&str] = &[
+    INST_ELECTRIC_GUITAR, INST_ACOUSTIC_GUITAR, INST_BASS,
+    INST_VOICE, INST_KEYS, INST_DRUMS,
+];
+
+/// Guitar and bass only (for amps, cabs, gain, wah, etc.)
+pub const GUITAR_BASS: &[&str] = &[INST_ELECTRIC_GUITAR, INST_BASS];
+
+/// Guitar, acoustic guitar and bass (for preamps)
+pub const GUITAR_ACOUSTIC_BASS: &[&str] = &[INST_ELECTRIC_GUITAR, INST_ACOUSTIC_GUITAR, INST_BASS];
+
 /// Visual metadata for a model, used by the GUI catalog layer.
 #[derive(Debug, Clone, Copy)]
 pub struct ModelVisualData {
     pub brand: &'static str,
     pub type_label: &'static str,
+    pub supported_instruments: &'static [&'static str],
 }
 
 pub trait MonoProcessor: Send + Sync + 'static {
