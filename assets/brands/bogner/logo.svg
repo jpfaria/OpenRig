@@ -1,3 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 50">
-  <text x="110" y="40" font-family="'Brush Script MT',cursive" font-size="46" font-weight="400" font-style="italic" fill="currentColor" text-anchor="middle">Bogner</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 80">
+  <g fill="currentColor" transform="translate(20,60) scale(1,-1)">
+    <!-- B -->
+    <path d="M10 0 L10 50 L30 50 Q45 50 45 40 Q45 32 35 28 Q48 26 48 15 Q48 0 30 0 Z M20 8 L30 8 Q38 8 38 16 Q38 24 30 24 L20 24 Z M20 30 L28 30 Q36 30 36 38 Q36 46 28 46 L20 46 Z"/>
+    <!-- o -->
+    <path d="M60 0 Q50 0 50 16 Q50 35 65 35 Q80 35 80 16 Q80 0 65 0 Z M65 7 Q73 7 73 17 Q73 28 65 28 Q57 28 57 17 Q57 7 65 7 Z"/>
+    <!-- g -->
+    <path d="M105 35 L105 0 Q105 -15 90 -15 L88 -15 L88 -8 L90 -8 Q98 -8 98 0 L98 5 Q95 0 88 0 Q78 0 78 17 Q78 35 88 35 Q95 35 98 30 L98 35 Z M90 7 Q98 7 98 17 Q98 28 90 28 Q82 28 82 17 Q82 7 90 7 Z"/>
+    <!-- n -->
+    <path d="M115 0 L115 35 L122 35 L122 30 Q125 35 133 35 Q142 35 142 22 L142 0 L135 0 L135 20 Q135 28 130 28 Q122 28 122 20 L122 0 Z"/>
+    <!-- e -->
+    <path d="M155 0 Q148 0 148 17 Q148 35 160 35 Q172 35 172 20 L172 16 L155 16 Q155 7 162 7 Q168 7 170 12 L172 12 Q170 0 160 0 Z M155 22 L165 22 Q165 28 160 28 Q155 28 155 22 Z"/>
+    <!-- r -->
+    <path d="M180 0 L180 35 L187 35 L187 28 Q190 35 196 35 L196 28 Q188 28 187 22 L187 0 Z"/>
+  </g>
 </svg>
