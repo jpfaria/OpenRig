@@ -391,10 +391,10 @@ export component AmpPanelEditor inherits Rectangle {
     private property <color> panel-bg:
         root.selected-brand == "marshall" ? #b89840
         : root.selected-brand == "vox" ? #1a1a2a
-        : root.selected-model-id == "american_clean" ? #1e2a2e
-        : root.selected-model-id == "brit_crunch" ? #2a2420
-        : root.selected-model-id == "modern_high_gain" ? #201a28
-        : #252830;
+        : root.selected-model-id == "american_clean" ? #2a3338
+        : root.selected-model-id == "brit_crunch" ? #342e28
+        : root.selected-model-id == "modern_high_gain" ? #2a2434
+        : #2c2e34;
     private property <color> panel-text:
         root.selected-brand == "marshall" ? #5a4a20
         : root.selected-brand == "vox" ? #aabbcc
@@ -452,13 +452,13 @@ export component AmpPanelEditor inherits Rectangle {
             }
         }
 
-        // Nativos: sem marca, só o modelo
+        // Nativos: fundo escuro com nome do modelo
         if root.selected-brand == "native" || root.selected-brand == "" : Rectangle {
             x: 0;
             y: 0;
             width: parent.width;
-            height: 40px;
-            background: transparent;
+            height: 56px;
+            background: #1a1a1a;
 
             Text {
                 x: 0;
@@ -466,10 +466,10 @@ export component AmpPanelEditor inherits Rectangle {
                 width: parent.width;
                 height: parent.height;
                 text: root.selected-model-label;
-                color: #8090a0;
-                font-size: 13px;
-                font-weight: 700;
-                letter-spacing: 1px;
+                color: #c0c8d0;
+                font-size: 15px;
+                font-weight: 800;
+                letter-spacing: 2px;
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }
