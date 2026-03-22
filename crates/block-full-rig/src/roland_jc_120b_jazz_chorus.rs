@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use crate::registry::FullRigModelDefinition;
+use crate::FullRigBackendKind;
 use nam::{
     build_processor_with_assets_for_layout, model_schema_for,
     processor::{plugin_params_from_set_with_defaults, NamPluginParams},
@@ -149,6 +150,13 @@ fn build(params: &ParameterSet, layout: AudioChannelLayout) -> Result<BlockProce
 
 pub const MODEL_DEFINITION: FullRigModelDefinition = FullRigModelDefinition {
     id: MODEL_ID,
+    display_name: DISPLAY_NAME,
+    brand: "roland",
+    backend_kind: FullRigBackendKind::Nam,
+    panel_bg: [0x20, 0x28, 0x2a],
+    panel_text: [0x80, 0x90, 0xa0],
+    brand_strip_bg: [0x1a, 0x1a, 0x1a],
+    model_font: "",
     schema,
     validate: validate_params,
     asset_summary,

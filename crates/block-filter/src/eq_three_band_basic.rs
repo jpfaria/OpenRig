@@ -1,11 +1,13 @@
 use anyhow::{Error, Result};
 use crate::registry::FilterModelDefinition;
+use crate::FilterBackendKind;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
 use block_core::{db_to_lin, ModelAudioMode, MonoProcessor, OnePoleHighPass, OnePoleLowPass};
 
 pub const MODEL_ID: &str = "eq_three_band_basic";
+pub const DISPLAY_NAME: &str = "Three Band EQ";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct EqParams {
@@ -134,6 +136,13 @@ fn build(
 
 pub const MODEL_DEFINITION: FilterModelDefinition = FilterModelDefinition {
     id: MODEL_ID,
+    display_name: DISPLAY_NAME,
+    brand: "",
+    backend_kind: FilterBackendKind::Native,
+    panel_bg: [0x2c, 0x2e, 0x34],
+    panel_text: [0x80, 0x90, 0xa0],
+    brand_strip_bg: [0x1a, 0x1a, 0x1a],
+    model_font: "",
     schema,
     build,
 };

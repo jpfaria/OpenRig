@@ -1,5 +1,6 @@
 use anyhow::{Error, Result};
 use crate::registry::ModModelDefinition;
+use crate::ModBackendKind;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
@@ -7,6 +8,7 @@ use block_core::{ModelAudioMode, MonoProcessor};
 use std::f32::consts::TAU;
 
 pub const MODEL_ID: &str = "tremolo_sine";
+pub const DISPLAY_NAME: &str = "Sine Tremolo";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TremoloParams {
@@ -135,6 +137,13 @@ fn build(
 
 pub const MODEL_DEFINITION: ModModelDefinition = ModModelDefinition {
     id: MODEL_ID,
+    display_name: DISPLAY_NAME,
+    brand: "",
+    backend_kind: ModBackendKind::Native,
+    panel_bg: [0x2c, 0x2e, 0x34],
+    panel_text: [0x80, 0x90, 0xa0],
+    brand_strip_bg: [0x1a, 0x1a, 0x1a],
+    model_font: "",
     schema,
     build,
 };

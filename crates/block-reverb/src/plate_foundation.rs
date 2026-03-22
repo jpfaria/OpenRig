@@ -1,11 +1,13 @@
 use anyhow::{Error, Result};
 use crate::registry::ReverbModelDefinition;
+use crate::ReverbBackendKind;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
 use block_core::{ModelAudioMode, MonoProcessor};
 
 pub const MODEL_ID: &str = "plate_foundation";
+pub const DISPLAY_NAME: &str = "Plate Foundation Reverb";
 
 pub struct ReverbParams {
     pub room_size: f32,
@@ -146,6 +148,13 @@ fn build(
 
 pub const MODEL_DEFINITION: ReverbModelDefinition = ReverbModelDefinition {
     id: MODEL_ID,
+    display_name: DISPLAY_NAME,
+    brand: "",
+    backend_kind: ReverbBackendKind::Native,
+    panel_bg: [0x2c, 0x2e, 0x34],
+    panel_text: [0x80, 0x90, 0xa0],
+    brand_strip_bg: [0x1a, 0x1a, 0x1a],
+    model_font: "",
     schema,
     build,
 };

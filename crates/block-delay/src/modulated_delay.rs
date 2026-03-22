@@ -5,6 +5,7 @@ use block_core::param::{
 use block_core::{ModelAudioMode, MonoProcessor};
 
 use crate::registry::{build_dual_mono_delay_processor, DelayModelDefinition};
+use crate::DelayBackendKind;
 use crate::shared::{
     clamp_feedback, clamp_mix, clamp_time_ms, mix_dry_wet, DelayLine, MAX_DELAY_MS, MAX_FEEDBACK,
     MIN_DELAY_MS,
@@ -12,6 +13,7 @@ use crate::shared::{
 use std::f32::consts::TAU;
 
 pub const MODEL_ID: &str = "modulated_delay";
+pub const DISPLAY_NAME: &str = "Modulated Delay";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ModulatedDelayParams {
@@ -168,6 +170,13 @@ fn build(
 
 pub const MODEL_DEFINITION: DelayModelDefinition = DelayModelDefinition {
     id: MODEL_ID,
+    display_name: DISPLAY_NAME,
+    brand: "",
+    backend_kind: DelayBackendKind::Native,
+    panel_bg: [0x2c, 0x2e, 0x34],
+    panel_text: [0x80, 0x90, 0xa0],
+    brand_strip_bg: [0x1a, 0x1a, 0x1a],
+    model_font: "",
     schema,
     build,
 };

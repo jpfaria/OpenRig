@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use crate::registry::GainModelDefinition;
+use crate::GainBackendKind;
 use nam::{
     build_processor_with_assets_for_layout, model_schema_for,
     processor::{NamPluginParams, DEFAULT_PLUGIN_PARAMS},
@@ -129,6 +130,13 @@ fn build(
 
 pub const MODEL_DEFINITION: GainModelDefinition = GainModelDefinition {
     id: MODEL_ID,
+    display_name: DISPLAY_NAME,
+    brand: "boss",
+    backend_kind: GainBackendKind::Nam,
+    panel_bg: [0x2a, 0x28, 0x20],
+    panel_text: [0x80, 0x90, 0xa0],
+    brand_strip_bg: [0x1a, 0x1a, 0x1a],
+    model_font: "",
     schema,
     validate: validate_params,
     asset_summary,

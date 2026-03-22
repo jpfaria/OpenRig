@@ -10,8 +10,10 @@ use ir::{
 };
 
 use crate::registry::IrModelDefinition;
+use crate::IrBlockBackendKind;
 
 pub const MODEL_ID: &str = "generic_ir";
+pub const DISPLAY_NAME: &str = "Impulse Response";
 
 struct DualMonoProcessor {
     left: Box<dyn MonoProcessor>,
@@ -82,6 +84,13 @@ fn build(
 
 pub const MODEL_DEFINITION: IrModelDefinition = IrModelDefinition {
     id: MODEL_ID,
+    display_name: DISPLAY_NAME,
+    brand: "",
+    backend_kind: IrBlockBackendKind::Native,
+    panel_bg: [0x2c, 0x2e, 0x34],
+    panel_text: [0x80, 0x90, 0xa0],
+    brand_strip_bg: [0x1a, 0x1a, 0x1a],
+    model_font: "",
     schema,
     validate,
     asset_summary,

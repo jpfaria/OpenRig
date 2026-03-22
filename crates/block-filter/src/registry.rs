@@ -3,9 +3,19 @@ use block_core::param::ModelParameterSchema;
 use block_core::param::ParameterSet;
 use block_core::{AudioChannelLayout, BlockProcessor};
 
+use crate::FilterBackendKind;
+
 #[derive(Clone, Copy)]
+#[allow(dead_code)]
 pub struct FilterModelDefinition {
     pub id: &'static str,
+    pub display_name: &'static str,
+    pub brand: &'static str,
+    pub backend_kind: FilterBackendKind,
+    pub panel_bg: [u8; 3],
+    pub panel_text: [u8; 3],
+    pub brand_strip_bg: [u8; 3],
+    pub model_font: &'static str,
     pub schema: fn() -> Result<ModelParameterSchema>,
     pub build: fn(&ParameterSet, f32, AudioChannelLayout) -> Result<BlockProcessor>,
 }

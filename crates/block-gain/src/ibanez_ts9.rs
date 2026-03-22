@@ -1,4 +1,5 @@
 use crate::registry::GainModelDefinition;
+use crate::GainBackendKind;
 use anyhow::Result;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
@@ -9,6 +10,7 @@ use block_core::{
 };
 
 pub const MODEL_ID: &str = "ibanez_ts9";
+pub const DISPLAY_NAME: &str = "TS9 Tube Screamer";
 
 #[derive(Debug, Clone, Copy)]
 pub struct Ts9Settings {
@@ -182,6 +184,13 @@ fn build(
 
 pub const MODEL_DEFINITION: GainModelDefinition = GainModelDefinition {
     id: MODEL_ID,
+    display_name: DISPLAY_NAME,
+    brand: "ibanez",
+    backend_kind: GainBackendKind::Nam,
+    panel_bg: [0x22, 0x2a, 0x22],
+    panel_text: [0x80, 0x90, 0xa0],
+    brand_strip_bg: [0x1a, 0x1a, 0x1a],
+    model_font: "",
     schema,
     validate: validate_params,
     asset_summary,

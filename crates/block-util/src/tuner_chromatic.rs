@@ -1,12 +1,14 @@
 use anyhow::{Error, Result};
 use crate::processor::{TunerProcessor, TunerReading};
 use crate::registry::UtilModelDefinition;
+use crate::UtilBackendKind;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
 use block_core::ModelAudioMode;
 
 pub const MODEL_ID: &str = "tuner_chromatic";
+pub const DISPLAY_NAME: &str = "Chromatic Tuner";
 const DEFAULT_REFERENCE_HZ: f32 = 440.0;
 const BUFFER_SIZE: usize = 4096;
 const A1_HZ: f32 = 50.1;
@@ -154,6 +156,13 @@ fn build(params: &ParameterSet, sample_rate: usize) -> Result<Box<dyn TunerProce
 
 pub const MODEL_DEFINITION: UtilModelDefinition = UtilModelDefinition {
     id: MODEL_ID,
+    display_name: DISPLAY_NAME,
+    brand: "",
+    backend_kind: UtilBackendKind::Native,
+    panel_bg: [0x2c, 0x2e, 0x34],
+    panel_text: [0x80, 0x90, 0xa0],
+    brand_strip_bg: [0x1a, 0x1a, 0x1a],
+    model_font: "",
     schema,
     build,
 };

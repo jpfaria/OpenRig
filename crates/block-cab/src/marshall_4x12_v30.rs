@@ -7,6 +7,7 @@ use block_core::param::{enum_parameter, required_string, ModelParameterSchema, P
 use block_core::{AudioChannelLayout, ModelAudioMode, BlockProcessor};
 
 pub const MODEL_ID: &str = "marshall_4x12_v30";
+pub const DISPLAY_NAME: &str = "Marshall 4x12 V30";
 
 macro_rules! capture {
     ($capture:literal, $asset_id:literal, $relative_path:literal) => {
@@ -103,7 +104,13 @@ fn build(
 
 pub const MODEL_DEFINITION: CabModelDefinition = CabModelDefinition {
     id: MODEL_ID,
+    display_name: DISPLAY_NAME,
+    brand: "marshall",
     backend_kind: CabBackendKind::Ir,
+    panel_bg: [0xb8, 0x98, 0x40],
+    panel_text: [0x5a, 0x4a, 0x20],
+    brand_strip_bg: [0x1a, 0x1a, 0x1a],
+    model_font: "",
     schema,
     validate: validate_params,
     asset_summary,
