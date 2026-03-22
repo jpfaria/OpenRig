@@ -429,7 +429,7 @@ export component AmpPanelEditor inherits Rectangle {
         // ── Control labels (alinhados à direita, espaçamento 80px) ──
         for knob[ki] in root.block-knob-overlays : Text {
             x: parent.width - 56px - (root.block-knob-overlays.length - 1 - ki) * 80px - 40px;
-            y: parent.height * 0.6;
+            y: parent.height * 0.52;
             width: 80px;
             height: 16px;
             text: knob.label;
@@ -443,7 +443,7 @@ export component AmpPanelEditor inherits Rectangle {
         // ── Power switch ──
         Rectangle {
             x: 10px;
-            y: parent.height * 0.7;
+            y: parent.height * 0.62;
             width: 32px;
             height: 40px;
             border-radius: 3px;
@@ -470,7 +470,7 @@ export component AmpPanelEditor inherits Rectangle {
 
         Text {
             x: 8px;
-            y: parent.height * 0.7 + 44px;
+            y: parent.height * 0.62 + 44px;
             width: 36px;
             height: 12px;
             text: "POWER";
@@ -484,7 +484,7 @@ export component AmpPanelEditor inherits Rectangle {
         // ── Knob overlays (alinhados à direita, espaçamento 80px) ──
         for knob[ki] in root.block-knob-overlays : PanelKnob {
             x: parent.width - 56px - (root.block-knob-overlays.length - 1 - ki) * 80px - 28px;
-            y: parent.height * 0.7;
+            y: parent.height * 0.62;
             width: 56px;
             height: 56px;
             value: knob.value;
