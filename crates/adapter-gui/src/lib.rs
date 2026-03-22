@@ -4332,18 +4332,26 @@ fn block_model_picker_items(effect_type: &str) -> Vec<BlockModelPickerItem> {
     supported_block_models(effect_type)
         .unwrap_or_default()
         .into_iter()
-        .map(|item| BlockModelPickerItem {
+        .map(|item| {
+            let brand = model_brand(&item.effect_type, &item.model_id);
+            let label = if brand.is_empty() || brand == "native" {
+                item.display_name.clone()
+            } else {
+                let brand_display = brand[..1].to_uppercase() + &brand[1..];
+                format!("{} {}", brand_display, item.display_name)
+            };
+            BlockModelPickerItem {
             effect_type: item.effect_type.clone().into(),
             model_id: item.model_id.clone().into(),
-            label: item.display_name.into(),
+            label: label.into(),
             subtitle: "".into(),
             icon_kind: supported_block_type(effect_type)
                 .map(|entry| entry.icon_kind)
                 .unwrap_or(effect_type)
                 .into(),
-            brand: model_brand(&item.effect_type, &item.model_id).into(),
+            brand: brand.into(),
             type_label: model_type_label(&item.effect_type, &item.model_id).into(),
-        })
+        }})
         .collect()
 }
 
