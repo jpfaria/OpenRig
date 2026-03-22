@@ -2,6 +2,9 @@ import { BlockTypePickerItem, BlockModelPickerItem, BlockKnobOverlay } from "../
 
 import "../fonts/Inter.ttf";
 import "../fonts/BebasNeue.ttf";
+import "../fonts/DancingScript.ttf";
+import "../fonts/PermanentMarker.ttf";
+import "../fonts/Orbitron.ttf";
 
 // Beautiful dark model selector with popup
 component ModelSelector inherits Rectangle {
@@ -403,6 +406,11 @@ export component AmpPanelEditor inherits Rectangle {
         && root.block-drawer-selected-model-index < root.block-model-options.length
         ? root.block-model-options[root.block-drawer-selected-model-index].brand_strip_bg
         : #1a1a1a;
+    private property <string> model-font:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].model_font
+        : "";
 
     Rectangle {
         x: 0;
@@ -469,9 +477,9 @@ export component AmpPanelEditor inherits Rectangle {
                 height: parent.height;
                 text: root.selected-model-label;
                 color: #c0c8d0;
-                font-size: 15px;
-                font-weight: 800;
-                letter-spacing: 2px;
+                font-family: root.model-font;
+                font-size: 22px;
+                font-weight: 700;
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }

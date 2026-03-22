@@ -4365,6 +4365,18 @@ fn model_brand_strip_bg(brand: &str) -> slint::Color {
     }
 }
 
+fn model_font(brand: &str, model_id: &str) -> &'static str {
+    match brand {
+        "marshall" | "vox" | "bogner" | "roland" | "boss" | "ibanez" => "",
+        _ => match model_id {
+            "american_clean" => "Dancing Script",
+            "brit_crunch" => "Permanent Marker",
+            "modern_high_gain" => "Orbitron",
+            _ => "",
+        },
+    }
+}
+
 fn block_model_picker_items(effect_type: &str) -> Vec<BlockModelPickerItem> {
     supported_block_models(effect_type)
         .unwrap_or_default()
@@ -4391,6 +4403,7 @@ fn block_model_picker_items(effect_type: &str) -> Vec<BlockModelPickerItem> {
             panel_bg: model_panel_bg(brand, &item.model_id),
             panel_text: model_panel_text(brand),
             brand_strip_bg: model_brand_strip_bg(brand),
+            model_font: model_font(brand, &item.model_id).into(),
         }})
         .collect()
 }
