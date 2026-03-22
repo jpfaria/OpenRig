@@ -356,13 +356,16 @@ export component AmpPanelEditor inherits Rectangle {
         clip: true;
         background: root.panel-bg;
 
-        // ── Brand strip (fundo cinza escuro, marca + modelo) ──
+        // ── Brand strip (marca + modelo) ──
+        // Com marca real (marshall, vox, etc)
         if root.selected-brand != "native" && root.selected-brand != "" : Rectangle {
             x: 0;
             y: 0;
             width: parent.width;
             height: 96px;
-            background: #1a1a1a;
+            background: root.selected-brand == "marshall" ? #1a1a1a
+                      : root.selected-brand == "vox" ? #0a1520
+                      : #141418;
 
             if root.selected-brand == "marshall" : Image {
                 x: parent.width * 0.1;
@@ -394,6 +397,29 @@ export component AmpPanelEditor inherits Rectangle {
                 font-weight: 600;
                 letter-spacing: 1.5px;
                 horizontal-alignment: center;
+            }
+        }
+
+        // Nativos: sem marca, só o modelo
+        if root.selected-brand == "native" || root.selected-brand == "" : Rectangle {
+            x: 0;
+            y: 0;
+            width: parent.width;
+            height: 40px;
+            background: transparent;
+
+            Text {
+                x: 0;
+                y: 0;
+                width: parent.width;
+                height: parent.height;
+                text: root.selected-model-label;
+                color: #8090a0;
+                font-size: 13px;
+                font-weight: 700;
+                letter-spacing: 1px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
             }
         }
 
