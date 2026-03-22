@@ -61,6 +61,7 @@ pub fn pitch_model_visual(model_id: &str) -> Option<ModelVisualData> {
     Some(ModelVisualData {
         brand: "",
         type_label: "NATIVE",
+        supported_instruments: block_core::ALL_INSTRUMENTS,
     })
 }
 

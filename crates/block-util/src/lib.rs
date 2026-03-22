@@ -29,6 +29,7 @@ pub fn util_model_visual(model_id: &str) -> Option<ModelVisualData> {
             UtilBackendKind::Nam => "NAM",
             UtilBackendKind::Ir => "IR",
         },
+        supported_instruments: def.supported_instruments,
     })
 }
 

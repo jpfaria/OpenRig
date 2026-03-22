@@ -14,6 +14,7 @@ pub struct DelayModelDefinition {
     pub backend_kind: DelayBackendKind,
     pub schema: fn() -> Result<ModelParameterSchema>,
     pub build: fn(&ParameterSet, f32, AudioChannelLayout) -> Result<BlockProcessor>,
+    pub supported_instruments: &'static [&'static str],
 }
 
 pub(crate) fn build_dual_mono_delay_processor<F>(

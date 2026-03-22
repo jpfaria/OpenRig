@@ -26,6 +26,7 @@ pub fn gain_model_visual(model_id: &str) -> Option<ModelVisualData> {
             GainBackendKind::Nam => "NAM",
             GainBackendKind::Ir => "IR",
         },
+        supported_instruments: def.supported_instruments,
     })
 }
 

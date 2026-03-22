@@ -47,6 +47,7 @@ pub fn amp_model_visual(model_id: &str) -> Option<ModelVisualData> {
             registry::AmpBackendKind::Nam => "NAM",
             registry::AmpBackendKind::Ir => "IR",
         },
+        supported_instruments: def.supported_instruments,
     })
 }
 

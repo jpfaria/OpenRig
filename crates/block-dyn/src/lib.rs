@@ -26,6 +26,7 @@ pub fn dyn_model_visual(model_id: &str) -> Option<ModelVisualData> {
             DynBackendKind::Nam => "NAM",
             DynBackendKind::Ir => "IR",
         },
+        supported_instruments: def.supported_instruments,
     })
 }
 

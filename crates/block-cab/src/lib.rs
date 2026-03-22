@@ -28,6 +28,7 @@ pub fn cab_model_visual(model_id: &str) -> Option<ModelVisualData> {
             CabBackendKind::Native => "NATIVE",
             CabBackendKind::Ir => "IR",
         },
+        supported_instruments: def.supported_instruments,
     })
 }
 

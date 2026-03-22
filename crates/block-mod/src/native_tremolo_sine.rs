@@ -142,4 +142,5 @@ pub const MODEL_DEFINITION: ModModelDefinition = ModModelDefinition {
     backend_kind: ModBackendKind::Native,
     schema,
     build,
+    supported_instruments: block_core::ALL_INSTRUMENTS,
 };

@@ -15,6 +15,7 @@ pub struct GainModelDefinition {
     pub validate: fn(&ParameterSet) -> Result<()>,
     pub asset_summary: fn(&ParameterSet) -> Result<String>,
     pub build: fn(&ParameterSet, f32, AudioChannelLayout) -> Result<BlockProcessor>,
+    pub supported_instruments: &'static [&'static str],
 }
 
 include!(concat!(env!("OUT_DIR"), "/generated_registry.rs"));

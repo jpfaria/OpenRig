@@ -25,6 +25,7 @@ pub fn nam_model_visual(model_id: &str) -> Option<ModelVisualData> {
             NamBlockBackendKind::Nam => "NAM",
             NamBlockBackendKind::Ir => "IR",
         },
+        supported_instruments: def.supported_instruments,
     })
 }
 

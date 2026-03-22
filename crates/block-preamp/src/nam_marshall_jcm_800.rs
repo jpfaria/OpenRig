@@ -303,6 +303,7 @@ pub const MODEL_DEFINITION: PreampModelDefinition = PreampModelDefinition {
     validate: validate_params,
     asset_summary,
     build,
+    supported_instruments: block_core::GUITAR_BASS,
 };
 
 pub fn validate_params(params: &ParameterSet) -> Result<()> {

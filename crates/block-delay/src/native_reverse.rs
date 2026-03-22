@@ -178,6 +178,7 @@ pub const MODEL_DEFINITION: DelayModelDefinition = DelayModelDefinition {
     backend_kind: DelayBackendKind::Native,
     schema,
     build,
+    supported_instruments: block_core::ALL_INSTRUMENTS,
 };
 
 fn segment_len_for(time_ms: f32, sample_rate: f32, max_len: usize) -> usize {

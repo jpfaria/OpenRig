@@ -26,6 +26,7 @@ pub fn reverb_model_visual(model_id: &str) -> Option<ModelVisualData> {
             ReverbBackendKind::Nam => "NAM",
             ReverbBackendKind::Ir => "IR",
         },
+        supported_instruments: def.supported_instruments,
     })
 }
 

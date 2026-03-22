@@ -161,6 +161,7 @@ pub const MODEL_DEFINITION: UtilModelDefinition = UtilModelDefinition {
     backend_kind: UtilBackendKind::Native,
     schema,
     build,
+    supported_instruments: block_core::ALL_INSTRUMENTS,
 };
 
 #[cfg(test)]

@@ -82,4 +82,5 @@ pub const MODEL_DEFINITION: AmpModelDefinition = AmpModelDefinition {
     validate: native_core::validate_params,
     asset_summary,
     build,
+    supported_instruments: block_core::GUITAR_ACOUSTIC_BASS,
 };

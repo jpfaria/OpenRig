@@ -91,4 +91,5 @@ pub const MODEL_DEFINITION: IrModelDefinition = IrModelDefinition {
     validate,
     asset_summary,
     build,
+    supported_instruments: block_core::ALL_INSTRUMENTS,
 };

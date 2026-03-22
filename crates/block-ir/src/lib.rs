@@ -25,6 +25,7 @@ pub fn ir_model_visual(model_id: &str) -> Option<ModelVisualData> {
             IrBlockBackendKind::Nam => "NAM",
             IrBlockBackendKind::Ir => "IR",
         },
+        supported_instruments: def.supported_instruments,
     })
 }
 

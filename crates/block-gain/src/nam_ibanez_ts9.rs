@@ -191,4 +191,5 @@ pub const MODEL_DEFINITION: GainModelDefinition = GainModelDefinition {
     validate: validate_params,
     asset_summary,
     build,
+    supported_instruments: block_core::GUITAR_BASS,
 };

@@ -13,6 +13,7 @@ pub struct UtilModelDefinition {
     pub backend_kind: UtilBackendKind,
     pub schema: fn() -> Result<ModelParameterSchema>,
     pub build: fn(&ParameterSet, usize) -> Result<Box<dyn TunerProcessor>>,
+    pub supported_instruments: &'static [&'static str],
 }
 
 include!(concat!(env!("OUT_DIR"), "/generated_registry.rs"));

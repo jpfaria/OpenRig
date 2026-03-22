@@ -141,4 +141,5 @@ pub const MODEL_DEFINITION: FilterModelDefinition = FilterModelDefinition {
     backend_kind: FilterBackendKind::Native,
     schema,
     build,
+    supported_instruments: block_core::ALL_INSTRUMENTS,
 };

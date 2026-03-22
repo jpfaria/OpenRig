@@ -13,6 +13,7 @@ pub struct ReverbModelDefinition {
     pub backend_kind: ReverbBackendKind,
     pub schema: fn() -> Result<ModelParameterSchema>,
     pub build: fn(&ParameterSet, f32, AudioChannelLayout) -> Result<BlockProcessor>,
+    pub supported_instruments: &'static [&'static str],
 }
 
 include!(concat!(env!("OUT_DIR"), "/generated_registry.rs"));

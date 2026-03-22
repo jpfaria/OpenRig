@@ -47,6 +47,7 @@ pub fn preamp_model_visual(model_id: &str) -> Option<ModelVisualData> {
             PreampBackendKind::Nam => "NAM",
             PreampBackendKind::Ir => "IR",
         },
+        supported_instruments: def.supported_instruments,
     })
 }
 

@@ -28,4 +28,5 @@ pub const MODEL_DEFINITION: NamModelDefinition = NamModelDefinition {
     backend_kind: NamBlockBackendKind::Native,
     schema,
     build,
+    supported_instruments: block_core::ALL_INSTRUMENTS,
 };

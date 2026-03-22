@@ -26,6 +26,7 @@ pub fn filter_model_visual(model_id: &str) -> Option<ModelVisualData> {
             FilterBackendKind::Nam => "NAM",
             FilterBackendKind::Ir => "IR",
         },
+        supported_instruments: def.supported_instruments,
     })
 }
 

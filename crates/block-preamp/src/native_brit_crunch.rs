@@ -59,4 +59,5 @@ pub const MODEL_DEFINITION: PreampModelDefinition = PreampModelDefinition {
     validate: native_core::validate_params,
     asset_summary,
     build,
+    supported_instruments: block_core::GUITAR_ACOUSTIC_BASS,
 };

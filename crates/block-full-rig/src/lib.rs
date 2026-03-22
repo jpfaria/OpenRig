@@ -25,6 +25,7 @@ pub fn full_rig_model_visual(model_id: &str) -> Option<ModelVisualData> {
             FullRigBackendKind::Nam => "NAM",
             FullRigBackendKind::Ir => "IR",
         },
+        supported_instruments: def.supported_instruments,
     })
 }
 

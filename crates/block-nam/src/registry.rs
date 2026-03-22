@@ -13,6 +13,7 @@ pub struct NamModelDefinition {
     pub backend_kind: NamBlockBackendKind,
     pub schema: fn() -> Result<ModelParameterSchema>,
     pub build: fn(&ParameterSet, AudioChannelLayout) -> Result<BlockProcessor>,
+    pub supported_instruments: &'static [&'static str],
 }
 
 include!(concat!(env!("OUT_DIR"), "/generated_registry.rs"));

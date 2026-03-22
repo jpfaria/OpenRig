@@ -175,6 +175,7 @@ pub const MODEL_DEFINITION: DelayModelDefinition = DelayModelDefinition {
     backend_kind: DelayBackendKind::Native,
     schema,
     build,
+    supported_instruments: block_core::ALL_INSTRUMENTS,
 };
 
 fn wrap_phase(phase: f32) -> f32 {

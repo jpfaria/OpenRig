@@ -54,4 +54,5 @@ pub const MODEL_DEFINITION: CabModelDefinition = CabModelDefinition {
     validate: native_core::validate_params,
     asset_summary,
     build,
+    supported_instruments: block_core::GUITAR_BASS,
 };
