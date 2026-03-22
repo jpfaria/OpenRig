@@ -1038,6 +1038,7 @@ mod tests {
             chains: vec![Chain {
                 id: ChainId("chain:0".into()),
                 description: Some("Cab test".into()),
+                instrument: "electric_guitar".to_string(),
                 enabled: true,
                 input_device_id: DeviceId("input-device".into()),
                 input_channels: vec![0],
@@ -1074,6 +1075,7 @@ mod tests {
             chains: vec![Chain {
                 id: ChainId("chain:0".into()),
                 description: Some("Cab test".into()),
+                instrument: "electric_guitar".to_string(),
                 enabled: true,
                 input_device_id: DeviceId("input-device".into()),
                 input_channels: vec![0],
@@ -1216,6 +1218,7 @@ mod tests {
         let chain = Chain {
             id: ChainId("chain:stereo".into()),
             description: Some("Stereo isolation".into()),
+            instrument: "electric_guitar".to_string(),
             enabled: true,
             input_device_id: DeviceId("input-device".into()),
             input_channels: vec![0, 1],
@@ -1257,6 +1260,7 @@ mod tests {
         let chain = Chain {
             id: ChainId("chain:asset-backed".into()),
             description: Some("Stereo isolation asset-backed".into()),
+            instrument: "electric_guitar".to_string(),
             enabled: true,
             input_device_id: DeviceId("input-device".into()),
             input_channels: vec![0, 1],
@@ -1332,6 +1336,7 @@ mod tests {
         Chain {
             id: ChainId(chain_id.into()),
             description: Some("Tuner chain".into()),
+            instrument: "electric_guitar".to_string(),
             enabled: true,
             input_device_id: DeviceId("input-device".into()),
             input_channels: vec![0],
@@ -1493,6 +1498,7 @@ mod tests {
         Chain {
             id: ChainId(id.into()),
             description: Some("Delay select".into()),
+            instrument: "electric_guitar".to_string(),
             enabled: true,
             input_device_id: DeviceId("input-device".into()),
             input_channels: vec![0],

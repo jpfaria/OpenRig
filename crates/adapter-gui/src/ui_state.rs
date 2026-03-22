@@ -112,6 +112,7 @@ mod tests {
         let chain = Chain {
             id: ChainId("chain:1".to_string()),
             description: Some("Guitarra".to_string()),
+            instrument: "electric_guitar".to_string(),
             enabled: true,
             input_device_id: DeviceId("in".to_string()),
             input_channels: vec![0],

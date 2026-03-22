@@ -183,6 +183,8 @@ impl DeviceSettingsYaml {
 struct ChainYaml {
     #[serde(default)]
     description: Option<String>,
+    #[serde(default = "default_instrument")]
+    instrument: String,
     #[serde(default = "default_enabled", skip_serializing)]
     enabled: bool,
     input_device_id: String,
@@ -201,6 +203,7 @@ impl ChainYaml {
         Ok(Chain {
             id: chain_id.clone(),
             description: self.description,
+            instrument: self.instrument,
             enabled: false, // chains always start disabled on load
             input_device_id: DeviceId(self.input_device_id),
             input_channels: self.input_channels,
@@ -221,6 +224,7 @@ impl ChainYaml {
     fn from_chain(chain: &Chain) -> Result<Self> {
         Ok(Self {
             description: chain.description.clone(),
+            instrument: chain.instrument.clone(),
             enabled: chain.enabled,
             input_device_id: chain.input_device_id.0.clone(),
             input_channels: chain.input_channels.clone(),
@@ -779,6 +783,10 @@ const fn default_enabled() -> bool {
     true
 }
 
+fn default_instrument() -> String {
+    "electric_guitar".to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
@@ -808,6 +816,7 @@ mod tests {
             chains: vec![Chain {
                 id: ChainId("chain:0".into()),
                 description: Some("Guitar 1".into()),
+                instrument: "electric_guitar".to_string(),
                 enabled: true,
                 input_device_id: DeviceId("input-device".into()),
                 input_channels: vec![0],

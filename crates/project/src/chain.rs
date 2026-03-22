@@ -19,6 +19,7 @@ pub struct Chain {
     pub id: ChainId,
     #[serde(default)]
     pub description: Option<String>,
+    pub instrument: String,
     pub enabled: bool,
     pub input_device_id: DeviceId,
     pub input_channels: Vec<usize>,

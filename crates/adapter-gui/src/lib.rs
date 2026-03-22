@@ -3509,6 +3509,10 @@ pub fn run_desktop_app(
                     .map(|chain| chain.id.clone())
                     .unwrap_or_else(ChainId::generate),
                 description: normalized_chain_description(&draft.name),
+                instrument: existing_chain
+                    .as_ref()
+                    .map(|chain| chain.instrument.clone())
+                    .unwrap_or_else(|| "electric_guitar".to_string()),
                 enabled: existing_chain
                     .as_ref()
                     .map(|chain| chain.enabled)
@@ -3607,6 +3611,10 @@ pub fn run_desktop_app(
                     .map(|chain| chain.id.clone())
                     .unwrap_or_else(ChainId::generate),
                 description: normalized_chain_description(&draft.name),
+                instrument: existing_chain
+                    .as_ref()
+                    .map(|chain| chain.instrument.clone())
+                    .unwrap_or_else(|| "electric_guitar".to_string()),
                 enabled: existing_chain
                     .as_ref()
                     .map(|chain| chain.enabled)
