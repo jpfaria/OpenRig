@@ -1,7 +1,7 @@
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
-import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, BlockEditorPanel, AmpPanelEditor } from "pages/pages.slint";
+import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, BlockEditorPanel, BlockPanelEditor } from "pages/pages.slint";
 
 export component ProjectSettingsWindow inherits Window {
     icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logomark.svg");
@@ -184,7 +184,7 @@ export component BlockEditorWindow inherits Window {
     background: #040708;
 
     // Amp head: visual panel editor
-    if root.use-panel-editor : AmpPanelEditor {
+    if root.use-panel-editor : BlockPanelEditor {
         width: parent.width;
         height: parent.height;
         block-type-options: root.block-type-options;
