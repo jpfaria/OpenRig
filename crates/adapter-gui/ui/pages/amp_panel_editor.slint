@@ -342,6 +342,9 @@ export component AmpPanelEditor inherits Rectangle {
     private property <color> panel-bg:
         root.selected-brand == "marshall" ? #b89840
         : root.selected-brand == "vox" ? #1a1a2a
+        : root.selected-model-id == "american_clean" ? #1e2a2e
+        : root.selected-model-id == "brit_crunch" ? #2a2420
+        : root.selected-model-id == "modern_high_gain" ? #201a28
         : #252830;
     private property <color> panel-text:
         root.selected-brand == "marshall" ? #5a4a20
