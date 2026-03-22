@@ -2813,11 +2813,13 @@ pub fn run_desktop_app(
             let items = block_model_picker_items(block_type.effect_type.as_str());
             block_model_option_labels.set_vec(block_model_picker_labels(&items));
             block_model_options.set_vec(items);
-            block_parameter_items.set_vec(block_parameter_items_for_model(
+            let new_params = block_parameter_items_for_model(
                 &model.effect_type,
                 &model.model_id,
                 &ParameterSet::default(),
-            ));
+            );
+            let overlays = build_knob_overlays(&model.model_id, &new_params);
+            block_parameter_items.set_vec(new_params);
             let drawer_state =
                 block_drawer_state(None, &model.effect_type, Some(&model.model_id));
             window.set_block_drawer_title(drawer_state.title.into());
@@ -2832,6 +2834,7 @@ pub fn run_desktop_app(
             } else {
                 window.set_show_block_drawer(false);
                 if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
+                    block_editor_window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
                     sync_block_editor_window(&window, &block_editor_window);
                     let _ = block_editor_window.show();
                 }
