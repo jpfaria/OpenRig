@@ -548,12 +548,12 @@ export component BlockPanelEditor inherits Rectangle {
             height: 96px;
             background: root.brand-strip-bg;
 
-            // Ilustração do modelo (acima do nome, centralizado)
+            // Ilustração do modelo (à esquerda do nome, centralizado verticalmente)
             Image {
-                x: (parent.width - 52px) / 2;
-                y: 4px;
-                width: 52px;
-                height: 52px;
+                x: parent.width / 2 - 200px;
+                y: (parent.height - 64px) / 2;
+                width: 64px;
+                height: 64px;
                 source: root.selected-model-id == "analog_warm" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/analog_warm.svg")
                     : root.selected-model-id == "digital_clean" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/digital_clean.svg")
                     : root.selected-model-id == "modulated_delay" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/modulated_delay.svg")
@@ -585,23 +585,29 @@ export component BlockPanelEditor inherits Rectangle {
             }
 
             Text {
-                x: 0;
-                y: 56px;
-                width: parent.width;
-                height: 36px;
+                x: parent.width / 2 - 128px;
+                y: 0;
+                width: 340px;
+                height: parent.height;
                 text: root.selected-model-label;
                 color: #c0c8d0;
                 font-family: root.model-font;
                 font-size: 28px;
                 font-weight: 700;
-                horizontal-alignment: center;
+                horizontal-alignment: left;
                 vertical-alignment: center;
             }
         }
 
-        // ── Control labels (alinhados à direita, espaçamento 80px) ──
+        // ── Control labels (responsivo, distribuídos entre power e borda direita) ──
+        property <length> knob-area-start: 60px;
+        property <length> knob-area-width: parent.width - self.knob-area-start - 20px;
+        property <length> knob-spacing: root.block-knob-overlays.length > 0
+            ? self.knob-area-width / root.block-knob-overlays.length
+            : 80px;
+
         for knob[ki] in root.block-knob-overlays : Text {
-            x: parent.width - 56px - (root.block-knob-overlays.length - 1 - ki) * 80px - 40px;
+            x: parent.knob-area-start + ki * parent.knob-spacing + (parent.knob-spacing - 80px) / 2;
             y: parent.height * 0.54;
             width: 80px;
             height: 16px;
@@ -654,9 +660,9 @@ export component BlockPanelEditor inherits Rectangle {
             horizontal-alignment: center;
         }
 
-        // ── Knob overlays (alinhados à direita, espaçamento 80px) ──
+        // ── Knob overlays (responsivo) ──
         for knob[ki] in root.block-knob-overlays : PanelKnob {
-            x: parent.width - 56px - (root.block-knob-overlays.length - 1 - ki) * 80px - 28px;
+            x: parent.knob-area-start + ki * parent.knob-spacing + (parent.knob-spacing - 56px) / 2;
             y: parent.height * 0.62;
             width: 56px;
             height: 56px;
@@ -730,11 +736,15 @@ export component BlockPanelEditor inherits Rectangle {
             }
         }
         // ── Non-enum parameters (only when no knob overlays — avoids duplicates) ──
+        property <length> param-spacing: root.block-parameter-items.length > 0
+            ? (parent.width - 80px) / root.block-parameter-items.length
+            : 100px;
+
         for param[pi] in root.block-parameter-items : Rectangle {
             visible: param.widget_kind != "enum" && param.widget_kind != "" && root.block-knob-overlays.length == 0;
-            x: parent.width - 28px - (root.block-parameter-items.length - pi) * 110px;
+            x: 60px + pi * parent.param-spacing;
             y: parent.height * 0.54;
-            width: 100px;
+            width: parent.param-spacing - 8px;
             height: 60px;
 
             // Label
