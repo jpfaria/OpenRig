@@ -2165,7 +2165,7 @@ pub fn run_desktop_app(
                     .map(|bw| bw.window.as_weak());
                 if let Some(weak_win) = existing {
                     if let Some(win) = weak_win.upgrade() {
-                        sync_block_editor_window(&window, &win);
+                        // Just show — window already has its own independent state
                         let _ = win.show();
                         return;
                     }
@@ -2201,21 +2201,25 @@ pub fn run_desktop_app(
                 })));
                 let win_timer = Rc::new(Timer::default());
 
-                // Populate window — sync scalars first, then override with per-window models
-                sync_block_editor_window(&window, &win);
-                win.set_block_type_options(ModelRc::from(block_type_options.clone()));
+                // Populate window — ALL data set independently (no sync from AppWindow)
+                let type_index = block_type_index(&effect_type);
+                let model_index = block_model_index_from_items(&win_model_options, &model_id);
+                win.set_block_type_options(ModelRc::from(Rc::new(VecModel::from(block_type_picker_items()))));
                 win.set_block_model_options(ModelRc::from(win_model_options.clone()));
                 win.set_block_model_option_labels(ModelRc::from(win_model_labels.clone()));
                 win.set_block_parameter_items(ModelRc::from(win_param_items.clone()));
                 win.set_block_knob_overlays(ModelRc::from(win_knob_overlays.clone()));
-                // Set window title from selected model label
-                if effect_type == "preamp" {
-                    let title_label = win_model_options
-                        .row_data(win.get_block_drawer_selected_model_index() as usize)
-                        .map(|m| m.label.to_string())
-                        .unwrap_or_default();
-                    win.set_block_window_title(format!("OpenRig · {}", title_label).into());
-                }
+                win.set_block_drawer_selected_type_index(type_index);
+                win.set_block_drawer_selected_model_index(model_index);
+                win.set_block_drawer_edit_mode(true);
+                win.set_block_drawer_enabled(enabled);
+                win.set_block_drawer_status_message("".into());
+                // Set window title
+                let title_label = win_model_options
+                    .row_data(model_index as usize)
+                    .map(|m| m.label.to_string())
+                    .unwrap_or_else(|| "Block".to_string());
+                win.set_block_window_title(format!("OpenRig · {}", title_label).into());
 
                 // on_choose_block_model
                 {
@@ -4400,6 +4404,17 @@ fn block_type_index(effect_type: &str) -> i32 {
         .position(|item| item.effect_type == effect_type)
         .map(|index| index as i32)
         .unwrap_or(-1)
+}
+
+fn block_model_index_from_items(items: &VecModel<BlockModelPickerItem>, model_id: &str) -> i32 {
+    for i in 0..items.row_count() {
+        if let Some(item) = items.row_data(i) {
+            if item.model_id.as_str() == model_id {
+                return i as i32;
+            }
+        }
+    }
+    0
 }
 
 fn block_model_index(effect_type: &str, model_id: &str) -> i32 {
