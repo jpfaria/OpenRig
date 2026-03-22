@@ -263,6 +263,30 @@ export component BlockPanelEditor inherits Rectangle {
         ? root.block-type-options[root.block-drawer-selected-type-index].label
         : "PREAMP";
 
+    private property <string> selected-icon-kind:
+        root.block-drawer-selected-type-index >= 0
+        && root.block-drawer-selected-type-index < root.block-type-options.length
+        ? root.block-type-options[root.block-drawer-selected-type-index].icon_kind
+        : "";
+
+    private property <image> selected-icon-source:
+        root.selected-icon-kind == "preamp" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-head.svg")
+        : root.selected-icon-kind == "amp" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-combo.svg")
+        : root.selected-icon-kind == "cab" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/cab.svg")
+        : root.selected-icon-kind == "gain" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gain.svg")
+        : root.selected-icon-kind == "delay" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/delay.svg")
+        : root.selected-icon-kind == "reverb" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/reverb.svg")
+        : root.selected-icon-kind == "dynamics" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/dyn.svg")
+        : root.selected-icon-kind == "filter" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/filter.svg")
+        : root.selected-icon-kind == "wah" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/expression.svg")
+        : root.selected-icon-kind == "pitch" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/pitch.svg")
+        : root.selected-icon-kind == "modulation" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/mod.svg")
+        : root.selected-icon-kind == "ir" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/ir-loader.svg")
+        : root.selected-icon-kind == "nam" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/nam.svg")
+        : root.selected-icon-kind == "full_rig" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/full-rig.svg")
+        : root.selected-icon-kind == "utility" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/tuner.svg")
+        : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
+
     // Badge dimensions (for computing ModelSelector right boundary)
     private property <length> badge-width:
         root.selected-type-label == "" ? 0px : 56px;
@@ -516,23 +540,35 @@ export component BlockPanelEditor inherits Rectangle {
             }
         }
 
-        // Nativos: fundo escuro com nome do modelo
+        // Nativos: fundo escuro com ícone decorativo + nome do modelo
         if root.selected-brand == "native" || root.selected-brand == "" : Rectangle {
             x: 0;
             y: 0;
             width: parent.width;
-            height: 56px;
+            height: 80px;
             background: root.brand-strip-bg;
+
+            // Ícone decorativo do tipo de bloco
+            Image {
+                x: (parent.width - 32px) / 2;
+                y: 8px;
+                width: 32px;
+                height: 32px;
+                source: root.selected-icon-source;
+                image-fit: contain;
+                colorize: root.panel-text;
+                opacity: 0.5;
+            }
 
             Text {
                 x: 0;
-                y: 0;
+                y: 42px;
                 width: parent.width;
-                height: parent.height;
+                height: 32px;
                 text: root.selected-model-label;
                 color: #c0c8d0;
                 font-family: root.model-font;
-                font-size: 22px;
+                font-size: 20px;
                 font-weight: 700;
                 horizontal-alignment: center;
                 vertical-alignment: center;

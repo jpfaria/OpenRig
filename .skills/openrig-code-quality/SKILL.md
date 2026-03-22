@@ -163,6 +163,13 @@ After writing code:
 - Feature flag enables something the UI can't handle
 - "Quick fix" that hardcodes a value
 
+### 9. File Organization
+
+- [ ] **One concern per file** — never dump all configs into a single file
+- [ ] Configuration files organized by component/domain (e.g., `visual_config/preamp.rs`, `visual_config/delay.rs`)
+- [ ] A file with a match/if that grows with every new model → **WRONG, split by component**
+- [ ] If a file has 50+ lines of match arms → it needs to be split
+
 ## Living Document
 
 This skill is a LIVING DOCUMENT. Every time the user corrects a software engineering mistake:

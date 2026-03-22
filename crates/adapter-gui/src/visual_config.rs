@@ -103,6 +103,91 @@ pub fn visual_config_for_model(brand: &str, model_id: &str) -> ModelVisualConfig
                     brand_strip_bg: [0x1a, 0x1a, 0x1a],
                     model_font: "",
                 },
+                // Delays
+                "analog_warm" => ModelVisualConfig {
+                    panel_bg: [0x3a, 0x2a, 0x1a],
+                    panel_text: [0xd0, 0xb0, 0x80],
+                    brand_strip_bg: [0x20, 0x18, 0x10],
+                    model_font: "Dancing Script",
+                },
+                "digital_clean" => ModelVisualConfig {
+                    panel_bg: [0x1a, 0x28, 0x3a],
+                    panel_text: [0x80, 0xb0, 0xe0],
+                    brand_strip_bg: [0x10, 0x18, 0x24],
+                    model_font: "Orbitron",
+                },
+                "modulated_delay" => ModelVisualConfig {
+                    panel_bg: [0x2a, 0x1a, 0x3a],
+                    panel_text: [0xb0, 0x90, 0xd0],
+                    brand_strip_bg: [0x18, 0x10, 0x24],
+                    model_font: "Dancing Script",
+                },
+                "reverse" => ModelVisualConfig {
+                    panel_bg: [0x1a, 0x1a, 0x30],
+                    panel_text: [0x90, 0x90, 0xd0],
+                    brand_strip_bg: [0x10, 0x10, 0x20],
+                    model_font: "Orbitron",
+                },
+                "slapback" => ModelVisualConfig {
+                    panel_bg: [0x30, 0x2a, 0x20],
+                    panel_text: [0xc0, 0xa8, 0x80],
+                    brand_strip_bg: [0x1e, 0x18, 0x12],
+                    model_font: "Permanent Marker",
+                },
+                "tape_vintage" => ModelVisualConfig {
+                    panel_bg: [0x38, 0x28, 0x18],
+                    panel_text: [0xd0, 0xb8, 0x90],
+                    brand_strip_bg: [0x22, 0x18, 0x0e],
+                    model_font: "Dancing Script",
+                },
+                // Reverb
+                "plate_foundation" => ModelVisualConfig {
+                    panel_bg: [0x20, 0x28, 0x34],
+                    panel_text: [0x90, 0xa8, 0xc8],
+                    brand_strip_bg: [0x14, 0x1a, 0x22],
+                    model_font: "Dancing Script",
+                },
+                // Dynamics
+                "compressor_studio_clean" => ModelVisualConfig {
+                    panel_bg: [0x28, 0x30, 0x2a],
+                    panel_text: [0x90, 0xb0, 0x90],
+                    brand_strip_bg: [0x18, 0x20, 0x1a],
+                    model_font: "Orbitron",
+                },
+                "gate_basic" => ModelVisualConfig {
+                    panel_bg: [0x30, 0x28, 0x28],
+                    panel_text: [0xb0, 0x90, 0x90],
+                    brand_strip_bg: [0x20, 0x18, 0x18],
+                    model_font: "Permanent Marker",
+                },
+                // Filter
+                "eq_three_band_basic" => ModelVisualConfig {
+                    panel_bg: [0x24, 0x2c, 0x34],
+                    panel_text: [0x88, 0xa0, 0xc0],
+                    brand_strip_bg: [0x16, 0x1c, 0x22],
+                    model_font: "Orbitron",
+                },
+                // Wah
+                "cry_classic" => ModelVisualConfig {
+                    panel_bg: [0x34, 0x24, 0x1a],
+                    panel_text: [0xc8, 0xa0, 0x70],
+                    brand_strip_bg: [0x22, 0x16, 0x0e],
+                    model_font: "Permanent Marker",
+                },
+                // Mod
+                "tremolo_sine" => ModelVisualConfig {
+                    panel_bg: [0x1a, 0x30, 0x30],
+                    panel_text: [0x80, 0xc0, 0xc0],
+                    brand_strip_bg: [0x10, 0x20, 0x20],
+                    model_font: "Dancing Script",
+                },
+                // Tuner
+                "tuner_chromatic" => ModelVisualConfig {
+                    panel_bg: [0x1a, 0x1a, 0x20],
+                    panel_text: [0x90, 0x90, 0xa8],
+                    brand_strip_bg: [0x10, 0x10, 0x16],
+                    model_font: "Orbitron",
+                },
                 _ => ModelVisualConfig {
                     panel_bg: [0x2c, 0x2e, 0x34],
                     panel_text: [0x80, 0x90, 0xa0],
