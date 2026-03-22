@@ -1035,8 +1035,24 @@ component ChainRow inherits Rectangle {
             clicked => { root.toggle-chain-enabled(root.chain-index); }
         }
 
+        Image {
+            x: 48px;
+            y: 17px;
+            width: 16px;
+            height: 16px;
+            source: root.chain.instrument == "electric_guitar" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/electric_guitar.svg")
+                : root.chain.instrument == "acoustic_guitar" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/acoustic_guitar.svg")
+                : root.chain.instrument == "bass" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/bass.svg")
+                : root.chain.instrument == "voice" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/voice.svg")
+                : root.chain.instrument == "keys" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/keys.svg")
+                : root.chain.instrument == "drums" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/drums.svg")
+                : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/generic.svg");
+            image-fit: contain;
+            colorize: #6a7483;
+        }
+
         Text {
-            x: 56px;
+            x: 72px;
             y: 14px;
             width: 320px;
             height: 24px;

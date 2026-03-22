@@ -195,6 +195,7 @@ struct ProjectSession {
 struct ChainDraft {
     editing_index: Option<usize>,
     name: String,
+    instrument: String,
     input_device_id: Option<String>,
     output_device_id: Option<String>,
     input_channels: Vec<usize>,
@@ -1598,6 +1599,8 @@ pub fn run_desktop_app(
             editor_window.set_chain_name(draft.name.clone().into());
             editor_window.set_editor_title(window.get_chain_editor_title());
             editor_window.set_editor_save_label(window.get_chain_editor_save_label());
+            editor_window.set_is_create_mode(true);
+            editor_window.set_selected_instrument_index(instrument_string_to_index(&draft.instrument));
             window.set_selected_chain_input_device_index(selected_device_index(
                 &input_chain_devices,
                 draft.input_device_id.as_deref(),
@@ -1669,6 +1672,8 @@ pub fn run_desktop_app(
                 );
                 editor_window.set_editor_title(window.get_chain_editor_title());
                 editor_window.set_editor_save_label(window.get_chain_editor_save_label());
+                editor_window.set_is_create_mode(false);
+                editor_window.set_selected_instrument_index(instrument_string_to_index(&draft.instrument));
             }
             editor_window.set_status_message("".into());
             window.set_status_message("".into());
@@ -1706,6 +1711,15 @@ pub fn run_desktop_app(
                 draft.name = value.to_string();
                 window.set_chain_draft_name(value.clone());
                 chain_window.set_chain_name(value);
+            }
+        });
+    }
+
+    {
+        let chain_draft = chain_draft.clone();
+        chain_editor_window.on_select_instrument(move |index| {
+            if let Some(draft) = chain_draft.borrow_mut().as_mut() {
+                draft.instrument = instrument_index_to_string(index).to_string();
             }
         });
     }
@@ -3526,7 +3540,7 @@ pub fn run_desktop_app(
                 instrument: existing_chain
                     .as_ref()
                     .map(|chain| chain.instrument.clone())
-                    .unwrap_or_else(|| "electric_guitar".to_string()),
+                    .unwrap_or_else(|| draft.instrument.clone()),
                 enabled: existing_chain
                     .as_ref()
                     .map(|chain| chain.enabled)
@@ -3628,7 +3642,7 @@ pub fn run_desktop_app(
                 instrument: existing_chain
                     .as_ref()
                     .map(|chain| chain.instrument.clone())
-                    .unwrap_or_else(|| "electric_guitar".to_string()),
+                    .unwrap_or_else(|| draft.instrument.clone()),
                 enabled: existing_chain
                     .as_ref()
                     .map(|chain| chain.enabled)
@@ -4201,6 +4215,7 @@ fn replace_project_chains(
             let latency_ms = (input_buffer + output_buffer) / sample_rate * 1000.0;
 
             ProjectChainItem {
+                instrument: chain.instrument.clone().into(),
                 title: chain
                     .description
                     .clone()
@@ -5140,6 +5155,7 @@ fn create_chain_draft(
     ChainDraft {
         editing_index: None,
         name: format!("Chain {}", project.chains.len() + 1),
+        instrument: "electric_guitar".to_string(),
         input_device_id: input_devices.first().map(|device| device.id.clone()),
         output_device_id: output_devices.first().map(|device| device.id.clone()),
         input_channels: Vec::new(),
@@ -5154,6 +5170,7 @@ fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
             .description
             .clone()
             .unwrap_or_else(|| format!("Chain {}", index + 1)),
+        instrument: chain.instrument.clone(),
         input_device_id: Some(chain.input_device_id.0.clone()),
         output_device_id: Some(chain.output_device_id.0.clone()),
         input_channels: chain.input_channels.clone(),
@@ -5341,6 +5358,31 @@ fn assign_new_block_ids_recursive(block: &mut AudioBlock, chain_id: &ChainId) {
             assign_new_block_ids_recursive(option, chain_id);
         }
     }
+}
+
+const INSTRUMENT_KEYS: &[&str] = &[
+    "electric_guitar",
+    "acoustic_guitar",
+    "bass",
+    "voice",
+    "keys",
+    "drums",
+    "generic",
+];
+
+fn instrument_index_to_string(index: i32) -> &'static str {
+    INSTRUMENT_KEYS
+        .get(index as usize)
+        .copied()
+        .unwrap_or("electric_guitar")
+}
+
+fn instrument_string_to_index(instrument: &str) -> i32 {
+    INSTRUMENT_KEYS
+        .iter()
+        .position(|&key| key == instrument)
+        .map(|i| i as i32)
+        .unwrap_or(0)
 }
 
 fn chain_editor_mode(draft: &ChainDraft) -> ChainEditorMode {
