@@ -138,9 +138,11 @@ component PanelKnob inherits Rectangle {
     in property <string> path;
     callback changed(string, float);
 
-    private property <float> norm: root.value / 100.0;
+    private property <float> norm: root.preview-active ? (root.preview-val - root.min-val) / (root.max-val - root.min-val) : root.value / 100.0;
     private property <float> drag-y0: 0;
     private property <float> drag-val0: 0;
+    private property <bool> preview-active: false;
+    private property <float> preview-val: 0;
     // Angle: 225° (min, 7:30) → 495° (max, 4:30)
     private property <angle> dot-angle: 225deg + root.norm * 270deg;
     private property <length> knob-size: Math.min(root.width, root.height);
@@ -176,9 +178,13 @@ component PanelKnob inherits Rectangle {
         y: (parent.height - root.knob-size) / 2;
         width: root.knob-size;
         height: root.knob-size;
-        text: root.step >= 1.0
-            ? Math.round(root.value) + ""
-            : Math.round(root.value * 10) / 10 + "";
+        text: root.preview-active
+            ? (root.step >= 1.0
+                ? Math.round(root.preview-val) + ""
+                : Math.round(root.preview-val * 10) / 10 + "")
+            : (root.step >= 1.0
+                ? Math.round(root.value) + ""
+                : Math.round(root.value * 10) / 10 + "");
         color: ta.pressed ? #ffffff : ta.has-hover ? #ddeeff : #ccdde8;
         font-size: 14px;
         font-weight: 700;
@@ -193,6 +199,14 @@ component PanelKnob inherits Rectangle {
             if ev.kind == PointerEventKind.down {
                 root.drag-y0 = ta.mouse-y / 1px;
                 root.drag-val0 = root.value;
+                root.preview-active = true;
+                root.preview-val = root.value;
+            }
+            if ev.kind == PointerEventKind.up {
+                if root.preview-active {
+                    root.changed(root.path, root.preview-val);
+                    root.preview-active = false;
+                }
             }
         }
 
@@ -203,7 +217,7 @@ component PanelKnob inherits Rectangle {
                 let raw = root.drag-val0 + delta * range / 120.0;
                 let clamped = raw < root.min-val ? root.min-val : (raw > root.max-val ? root.max-val : raw);
                 let stepped = root.step > 0.0 ? Math.round(clamped / root.step) * root.step : clamped;
-                root.changed(root.path, stepped);
+                root.preview-val = stepped;
             }
         }
     }
