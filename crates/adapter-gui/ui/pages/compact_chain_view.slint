@@ -193,10 +193,11 @@ component CompactBlockRow inherits Rectangle {
         letter-spacing: 1.5px;
     }
 
-    // ── 4. Brand logo OR native model icon ──
-    Image {
+    // ── 4. Brand logo (branded) or type icon repeated (native) ──
+    // For branded models: show brand logo
+    if root.block-data.brand != "" : Image {
         x: 155px;
-        y: (parent.height - 24px) / 2;
+        y: (parent.height - 28px) / 2;
         width: 60px; height: 28px;
         source: root.block-data.brand == "marshall" ? @image-url("../../../../assets/brands/marshall/logo.svg")
             : root.block-data.brand == "bogner" ? @image-url("../../../../assets/brands/bogner/logo.svg")
@@ -214,14 +215,14 @@ component CompactBlockRow inherits Rectangle {
             : root.block-data.brand == "suhr" ? @image-url("../../../../assets/brands/suhr/logo.svg")
             : root.block-data.brand == "morris" ? @image-url("../../../../assets/brands/morris/logo.svg")
             : root.block-data.brand == "santa_cruz" ? @image-url("../../../../assets/brands/santa_cruz/logo.svg")
-            : @image-url("../assets/gear.svg");
+            : @image-url("../../../../assets/brands/marshall/logo.svg");
         image-fit: contain;
         colorize: root.block-data.panel-text;
     }
 
     // ── 5. Model selector dropdown ──
     Rectangle {
-        x: 222px;
+        x: root.block-data.brand != "" ? 222px : 155px;
         y: (parent.height - 32px) / 2;
         width: 260px;
         height: 32px;
@@ -315,7 +316,7 @@ component CompactBlockRow inherits Rectangle {
 
     // Knob overlays (right-aligned, with labels)
     for knob[ki] in root.block-data.knob-overlays : Rectangle {
-        x: parent.width - 16px - (root.block-data.knob-overlays.length - ki) * 68px;
+        x: parent.width - 28px - (root.block-data.knob-overlays.length - ki) * 72px;
         y: 4px;
         width: 62px;
         height: parent.height - 8px;
@@ -346,7 +347,7 @@ component CompactBlockRow inherits Rectangle {
     for param[pi] in root.block-data.parameter-items : Rectangle {
         visible: param.widget_kind == "enum" && param.option_labels.length <= 4;
         x: parent.width - 16px
-            - root.block-data.knob-overlays.length * 68px
+            - root.block-data.knob-overlays.length * 72px
             - (root.block-data.parameter-items.length - pi) * (Math.max(130px, param.option_labels.length * 64px) + 12px);
         y: 4px;
         width: Math.max(130px, param.option_labels.length * 64px);
@@ -394,7 +395,7 @@ component CompactBlockRow inherits Rectangle {
     for param[pi] in root.block-data.parameter-items : Rectangle {
         visible: param.widget_kind == "enum" && param.option_labels.length > 4;
         x: parent.width - 16px
-            - root.block-data.knob-overlays.length * 68px
+            - root.block-data.knob-overlays.length * 72px
             - 220px;
         y: 4px;
         width: 200px;
@@ -515,26 +516,10 @@ export component CompactChainViewPage inherits Rectangle {
         }
 
         Text {
-            x: 44px; width: parent.width - 100px; height: parent.height;
+            x: 44px; width: parent.width - 60px; height: parent.height;
             text: root.chain-title;
             color: #d8e0ff; font-size: 14px; font-weight: 700;
             vertical-alignment: center;
-        }
-
-        // Close button
-        Rectangle {
-            x: parent.width - 36px; y: 10px; width: 24px; height: 24px;
-            border-radius: 4px;
-            background: close-ta.has-hover ? #ffffff15 : transparent;
-            Text {
-                width: 100%; height: 100%;
-                text: "\u{2715}"; color: #8090a0; font-size: 14px;
-                horizontal-alignment: center; vertical-alignment: center;
-            }
-            close-ta := TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.close-compact-view(); }
-            }
         }
     }
 
