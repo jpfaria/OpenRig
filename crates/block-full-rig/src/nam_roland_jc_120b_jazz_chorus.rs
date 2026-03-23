@@ -10,6 +10,7 @@ use block_core::{AudioChannelLayout, BlockProcessor};
 
 pub const MODEL_ID: &str = "roland_jc_120b_jazz_chorus";
 pub const DISPLAY_NAME: &str = "JC-120B Jazz Chorus";
+const BRAND: &str = "roland";
 
 pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
     input_level_db: 0.0,
@@ -144,7 +145,7 @@ fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) ->
 pub const MODEL_DEFINITION: FullRigModelDefinition = FullRigModelDefinition {
     id: MODEL_ID,
     display_name: DISPLAY_NAME,
-    brand: "roland",
+    brand: BRAND,
     backend_kind: FullRigBackendKind::Nam,
     schema,
     validate: validate_params,

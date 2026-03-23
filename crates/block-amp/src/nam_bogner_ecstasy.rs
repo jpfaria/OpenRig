@@ -9,6 +9,7 @@ use block_core::{AudioChannelLayout, BlockProcessor};
 
 pub const MODEL_ID: &str = "bogner_ecstasy";
 pub const DISPLAY_NAME: &str = "Ecstasy";
+const BRAND: &str = "bogner";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
@@ -127,7 +128,7 @@ fn build(
 pub const MODEL_DEFINITION: AmpModelDefinition = AmpModelDefinition {
     id: MODEL_ID,
     display_name: DISPLAY_NAME,
-    brand: "bogner",
+    brand: BRAND,
     backend_kind: AmpBackendKind::Nam,
     schema,
     validate: validate_params,

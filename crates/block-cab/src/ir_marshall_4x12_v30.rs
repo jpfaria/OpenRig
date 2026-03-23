@@ -8,6 +8,7 @@ use block_core::{AudioChannelLayout, ModelAudioMode, BlockProcessor};
 
 pub const MODEL_ID: &str = "marshall_4x12_v30";
 pub const DISPLAY_NAME: &str = "4x12 V30";
+const BRAND: &str = "marshall";
 
 macro_rules! capture {
     ($capture:literal, $asset_id:literal, $relative_path:literal) => {
@@ -105,7 +106,7 @@ fn build(
 pub const MODEL_DEFINITION: CabModelDefinition = CabModelDefinition {
     id: MODEL_ID,
     display_name: DISPLAY_NAME,
-    brand: "marshall",
+    brand: BRAND,
     backend_kind: CabBackendKind::Ir,
     schema,
     validate: validate_params,

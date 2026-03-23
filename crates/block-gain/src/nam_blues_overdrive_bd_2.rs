@@ -12,6 +12,7 @@ use block_core::{AudioChannelLayout, BlockProcessor};
 
 pub const MODEL_ID: &str = "blues_overdrive_bd_2";
 pub const DISPLAY_NAME: &str = "Blues Driver BD-2";
+const BRAND: &str = "boss";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
@@ -133,7 +134,7 @@ fn build(
 pub const MODEL_DEFINITION: GainModelDefinition = GainModelDefinition {
     id: MODEL_ID,
     display_name: DISPLAY_NAME,
-    brand: "boss",
+    brand: BRAND,
     backend_kind: GainBackendKind::Nam,
     schema,
     validate: validate_params,

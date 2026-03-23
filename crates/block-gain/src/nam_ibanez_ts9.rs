@@ -1,173 +1,126 @@
+use anyhow::{anyhow, Result};
 use crate::registry::GainModelDefinition;
 use crate::GainBackendKind;
-use anyhow::Result;
-use block_core::param::{
-    float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
+use nam::{
+    build_processor_with_assets_for_layout, model_schema_for,
+    processor::{plugin_params_from_set_with_defaults, NamPluginParams, DEFAULT_PLUGIN_PARAMS},
 };
-use block_core::{
-    db_to_lin, AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor,
-    OnePoleHighPass, OnePoleLowPass, StereoProcessor,
+use block_core::param::{enum_parameter, ModelParameterSchema, ParameterSet, required_string};
+use block_core::{AudioChannelLayout, BlockProcessor};
+
+pub const MODEL_ID: &str = "nam_ibanez_ts9";
+pub const DISPLAY_NAME: &str = "TS9 Tube Screamer (NAM)";
+const BRAND: &str = "ibanez";
+
+pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
+    input_level_db: 0.0,
+    output_level_db: 0.0,
+    noise_gate_threshold_db: -80.0,
+    noise_gate_enabled: true,
+    eq_enabled: false,
+    bass: 5.0,
+    middle: 5.0,
+    treble: 5.0,
 };
 
-pub const MODEL_ID: &str = "ibanez_ts9";
-pub const DISPLAY_NAME: &str = "TS9 Tube Screamer";
-
-#[derive(Debug, Clone, Copy)]
-pub struct Ts9Settings {
-    pub drive: f32,
-    pub tone: f32,
-    pub level: f32,
+struct Ts9Capture {
+    id: &'static str,
+    label: &'static str,
+    model_path: &'static str,
 }
 
-struct DualMonoProcessor {
-    left: Ts9Processor,
-    right: Ts9Processor,
-}
-
-struct Ts9Processor {
-    settings: Ts9Settings,
-    input_high_pass: OnePoleHighPass,
-    clip_low_pass: OnePoleLowPass,
-    tone_low_pass: OnePoleLowPass,
-    tone_high_pass: OnePoleHighPass,
-    output_high_pass: OnePoleHighPass,
-}
-
-impl StereoProcessor for DualMonoProcessor {
-    fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
-        [
-            self.left.process_sample(input[0]),
-            self.right.process_sample(input[1]),
-        ]
-    }
-}
-
-impl Ts9Processor {
-    fn new(settings: Ts9Settings, sample_rate: f32) -> Self {
-        Self {
-            settings,
-            input_high_pass: OnePoleHighPass::new(85.0, sample_rate),
-            clip_low_pass: OnePoleLowPass::new(4_200.0, sample_rate),
-            tone_low_pass: OnePoleLowPass::new(820.0, sample_rate),
-            tone_high_pass: OnePoleHighPass::new(1_150.0, sample_rate),
-            output_high_pass: OnePoleHighPass::new(35.0, sample_rate),
-        }
-    }
-
-    fn normalized_percent(value: f32) -> f32 {
-        (value / 100.0).clamp(0.0, 1.0)
-    }
-
-    fn soft_clip(sample: f32) -> f32 {
-        let limited = sample.clamp(-3.0, 3.0);
-        limited - (limited * limited * limited) / 3.0
-    }
-}
-
-impl MonoProcessor for Ts9Processor {
-    fn process_sample(&mut self, input: f32) -> f32 {
-        let drive = Self::normalized_percent(self.settings.drive);
-        let tone = Self::normalized_percent(self.settings.tone);
-        let level = Self::normalized_percent(self.settings.level);
-
-        let mut sample = self.input_high_pass.process(input);
-        let pre_gain = 1.2 + drive * 14.0;
-        let mid_push = 1.0 + drive * 0.8;
-
-        sample *= pre_gain;
-        sample = self.clip_low_pass.process(sample) * mid_push;
-        sample = Self::soft_clip(sample);
-        sample = Self::soft_clip(sample * (1.0 + drive * 0.6));
-
-        let low_band = self.tone_low_pass.process(sample);
-        let high_band = self.tone_high_pass.process(sample);
-        let mid_band = sample - low_band - high_band;
-
-        let low_mix = 0.88 - tone * 0.42;
-        let high_mix = 0.10 + tone * 1.05;
-        let mid_mix = 0.95 + (1.0 - (tone - 0.5).abs() * 2.0) * 0.18;
-
-        let voiced = low_band * low_mix + mid_band * mid_mix + high_band * high_mix;
-        let output = self.output_high_pass.process(voiced);
-        let level_gain = db_to_lin(-8.0 + level * 14.0);
-
-        output * level_gain
-    }
-}
+const CAPTURES: &[Ts9Capture] = &[
+    Ts9Capture {
+        id: "clean_warm",
+        label: "Clean Warm (D0 T6 L6)",
+        model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 0 Tone 6 Level 6.nam",
+    },
+    Ts9Capture {
+        id: "clean_bright",
+        label: "Clean Bright (D0 T7 L7)",
+        model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 0 Tone 7 Level 7.nam",
+    },
+    Ts9Capture {
+        id: "clean_hot",
+        label: "Clean Hot (D0 T9 L9)",
+        model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 0 Tone 9 Level 9.nam",
+    },
+    Ts9Capture {
+        id: "light_crunch",
+        label: "Light Crunch (D2 T7 L10)",
+        model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 2 Tone 7 Level 10.nam",
+    },
+    Ts9Capture {
+        id: "mid_drive",
+        label: "Mid Drive (D7 T7 L7)",
+        model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 7 Tone 7 Level 7.nam",
+    },
+    Ts9Capture {
+        id: "mid_drive_hot",
+        label: "Mid Drive Hot (D7 T7 L9)",
+        model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 7 Tone 7 Level 9.nam",
+    },
+    Ts9Capture {
+        id: "heavy_dark",
+        label: "Heavy Dark (D8 T4 L5)",
+        model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 8 Tone 4 Level 5.nam",
+    },
+    Ts9Capture {
+        id: "heavy_bright",
+        label: "Heavy Bright (D8 T8 L8)",
+        model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 8 Tone 8 Level 8.nam",
+    },
+    Ts9Capture {
+        id: "max_drive",
+        label: "Max Drive (D10 T9 L7)",
+        model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 10 Tone 9 Level 7.nam",
+    },
+];
 
 pub fn model_schema() -> ModelParameterSchema {
-    ModelParameterSchema {
-        effect_type: "gain".into(),
-        model: MODEL_ID.into(),
-        display_name: "TS9 Tube Screamer".into(),
-        audio_mode: ModelAudioMode::DualMono,
-        parameters: vec![
-            float_parameter(
-                "drive",
-                "Drive",
-                Some("Gain"),
-                Some(35.0),
-                0.0,
-                100.0,
-                1.0,
-                ParameterUnit::Percent,
-            ),
-            float_parameter(
-                "tone",
-                "Tone",
-                Some("EQ"),
-                Some(50.0),
-                0.0,
-                100.0,
-                1.0,
-                ParameterUnit::Percent,
-            ),
-            float_parameter(
-                "level",
-                "Level",
-                Some("Output"),
-                Some(55.0),
-                0.0,
-                100.0,
-                1.0,
-                ParameterUnit::Percent,
-            ),
-        ],
-    }
+    let options: Vec<(&str, &str)> = CAPTURES.iter().map(|c| (c.id, c.label)).collect();
+    let mut schema = model_schema_for(block_core::EFFECT_TYPE_GAIN, MODEL_ID, DISPLAY_NAME, false);
+    schema.parameters = vec![enum_parameter(
+        "preset",
+        "Preset",
+        Some("Drive"),
+        Some("mid_drive"),
+        &options,
+    )];
+    schema
 }
 
-pub fn validate_params(params: &ParameterSet) -> Result<()> {
-    let _ = read_settings(params)?;
-    Ok(())
-}
-
-pub fn asset_summary(_params: &ParameterSet) -> Result<String> {
-    Ok("native='ibanez_ts9' oracle='nam'".to_string())
-}
-
-pub fn build_processor_for_layout(
+pub fn build_processor_for_model(
     params: &ParameterSet,
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    let settings = read_settings(params)?;
-    Ok(match layout {
-        AudioChannelLayout::Mono => {
-            BlockProcessor::Mono(Box::new(Ts9Processor::new(settings, sample_rate)))
-        }
-        AudioChannelLayout::Stereo => BlockProcessor::Stereo(Box::new(DualMonoProcessor {
-            left: Ts9Processor::new(settings, sample_rate),
-            right: Ts9Processor::new(settings, sample_rate),
-        })),
-    })
+    let capture = resolve_capture(params)?;
+    let plugin_params = plugin_params_from_set_with_defaults(params, NAM_PLUGIN_DEFAULTS)?;
+    build_processor_with_assets_for_layout(
+        capture.model_path,
+        None,
+        plugin_params,
+        sample_rate,
+        layout,
+    )
 }
 
-fn read_settings(params: &ParameterSet) -> Result<Ts9Settings> {
-    Ok(Ts9Settings {
-        drive: required_f32(params, "drive").map_err(anyhow::Error::msg)?,
-        tone: required_f32(params, "tone").map_err(anyhow::Error::msg)?,
-        level: required_f32(params, "level").map_err(anyhow::Error::msg)?,
-    })
+pub fn validate_params(params: &ParameterSet) -> Result<()> {
+    resolve_capture(params).map(|_| ())
+}
+
+pub fn asset_summary(params: &ParameterSet) -> Result<String> {
+    let capture = resolve_capture(params)?;
+    Ok(format!("model='{}'", capture.model_path))
+}
+
+fn resolve_capture(params: &ParameterSet) -> Result<&'static Ts9Capture> {
+    let requested = required_string(params, "preset").map_err(anyhow::Error::msg)?;
+    CAPTURES
+        .iter()
+        .find(|c| c.id == requested)
+        .ok_or_else(|| anyhow!("gain model '{}' does not support preset '{}'", MODEL_ID, requested))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
@@ -179,13 +132,13 @@ fn build(
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    build_processor_for_layout(params, sample_rate, layout)
+    build_processor_for_model(params, sample_rate, layout)
 }
 
 pub const MODEL_DEFINITION: GainModelDefinition = GainModelDefinition {
     id: MODEL_ID,
     display_name: DISPLAY_NAME,
-    brand: "ibanez",
+    brand: BRAND,
     backend_kind: GainBackendKind::Nam,
     schema,
     validate: validate_params,

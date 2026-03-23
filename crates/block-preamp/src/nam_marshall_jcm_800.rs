@@ -13,6 +13,7 @@ use block_core::{AudioChannelLayout, BlockProcessor};
 
 pub const MODEL_ID: &str = "marshall_jcm_800_2203";
 pub const DISPLAY_NAME: &str = "JCM 800 2203";
+const BRAND: &str = "marshall";
 
 macro_rules! capture {
     ($volume:literal, $gain:literal, $asset_id:literal, $relative_path:literal) => {
@@ -299,7 +300,7 @@ fn build(
 pub const MODEL_DEFINITION: PreampModelDefinition = PreampModelDefinition {
     id: MODEL_ID,
     display_name: DISPLAY_NAME,
-    brand: "marshall",
+    brand: BRAND,
     backend_kind: PreampBackendKind::Nam,
     schema,
     validate: validate_params,
