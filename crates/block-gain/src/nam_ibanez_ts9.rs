@@ -5,8 +5,10 @@ use nam::{
     build_processor_with_assets_for_layout, model_schema_for,
     processor::{plugin_params_from_set_with_defaults, NamPluginParams},
 };
-use block_core::param::{enum_parameter, ModelParameterSchema, ParameterSet, required_string};
-use block_core::{AudioChannelLayout, BlockProcessor};
+use block_core::param::{
+    float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
+};
+use block_core::{AudioChannelLayout, BlockProcessor, KnobLayoutEntry};
 
 pub const MODEL_ID: &str = "nam_ibanez_ts9";
 pub const DISPLAY_NAME: &str = "TS9 Tube Screamer (NAM)";
@@ -24,69 +26,31 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
 };
 
 struct Ts9Capture {
-    id: &'static str,
-    label: &'static str,
+    drive: i32,
+    tone: i32,
+    level: i32,
     model_path: &'static str,
 }
 
 const CAPTURES: &[Ts9Capture] = &[
-    Ts9Capture {
-        id: "clean_warm",
-        label: "Clean Warm (D0 T6 L6)",
-        model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 0 Tone 6 Level 6.nam",
-    },
-    Ts9Capture {
-        id: "clean_bright",
-        label: "Clean Bright (D0 T7 L7)",
-        model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 0 Tone 7 Level 7.nam",
-    },
-    Ts9Capture {
-        id: "clean_hot",
-        label: "Clean Hot (D0 T9 L9)",
-        model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 0 Tone 9 Level 9.nam",
-    },
-    Ts9Capture {
-        id: "light_crunch",
-        label: "Light Crunch (D2 T7 L10)",
-        model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 2 Tone 7 Level 10.nam",
-    },
-    Ts9Capture {
-        id: "mid_drive",
-        label: "Mid Drive (D7 T7 L7)",
-        model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 7 Tone 7 Level 7.nam",
-    },
-    Ts9Capture {
-        id: "mid_drive_hot",
-        label: "Mid Drive Hot (D7 T7 L9)",
-        model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 7 Tone 7 Level 9.nam",
-    },
-    Ts9Capture {
-        id: "heavy_dark",
-        label: "Heavy Dark (D8 T4 L5)",
-        model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 8 Tone 4 Level 5.nam",
-    },
-    Ts9Capture {
-        id: "heavy_bright",
-        label: "Heavy Bright (D8 T8 L8)",
-        model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 8 Tone 8 Level 8.nam",
-    },
-    Ts9Capture {
-        id: "max_drive",
-        label: "Max Drive (D10 T9 L7)",
-        model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 10 Tone 9 Level 7.nam",
-    },
+    Ts9Capture { drive: 0,  tone: 6, level: 6,  model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 0 Tone 6 Level 6.nam" },
+    Ts9Capture { drive: 0,  tone: 7, level: 7,  model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 0 Tone 7 Level 7.nam" },
+    Ts9Capture { drive: 0,  tone: 9, level: 9,  model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 0 Tone 9 Level 9.nam" },
+    Ts9Capture { drive: 2,  tone: 7, level: 10, model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 2 Tone 7 Level 10.nam" },
+    Ts9Capture { drive: 7,  tone: 7, level: 7,  model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 7 Tone 7 Level 7.nam" },
+    Ts9Capture { drive: 7,  tone: 7, level: 9,  model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 7 Tone 7 Level 9.nam" },
+    Ts9Capture { drive: 8,  tone: 4, level: 5,  model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 8 Tone 4 Level 5.nam" },
+    Ts9Capture { drive: 8,  tone: 8, level: 8,  model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 8 Tone 8 Level 8.nam" },
+    Ts9Capture { drive: 10, tone: 9, level: 7,  model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 10 Tone 9 Level 7.nam" },
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
-    let options: Vec<(&str, &str)> = CAPTURES.iter().map(|c| (c.id, c.label)).collect();
     let mut schema = model_schema_for(block_core::EFFECT_TYPE_GAIN, MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "preset",
-        "Preset",
-        Some("Drive"),
-        Some("mid_drive"),
-        &options,
-    )];
+    schema.parameters = vec![
+        float_parameter("drive", "Drive", Some("Gain"), Some(7.0), 0.0, 10.0, 1.0, ParameterUnit::None),
+        float_parameter("tone", "Tone", Some("EQ"), Some(7.0), 0.0, 10.0, 1.0, ParameterUnit::None),
+        float_parameter("level", "Level", Some("Output"), Some(7.0), 0.0, 10.0, 1.0, ParameterUnit::None),
+    ];
     schema
 }
 
@@ -96,6 +60,7 @@ pub fn build_processor_for_model(
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
     let capture = resolve_capture(params)?;
+    log::info!("NAM TS9: selected capture D{} T{} L{}", capture.drive, capture.tone, capture.level);
     let plugin_params = plugin_params_from_set_with_defaults(params, NAM_PLUGIN_DEFAULTS)?;
     build_processor_with_assets_for_layout(
         capture.model_path,
@@ -115,12 +80,22 @@ pub fn asset_summary(params: &ParameterSet) -> Result<String> {
     Ok(format!("model='{}'", capture.model_path))
 }
 
+/// Find the capture closest to the requested (drive, tone, level).
+/// Priority: drive first, then tone, then level.
 fn resolve_capture(params: &ParameterSet) -> Result<&'static Ts9Capture> {
-    let requested = required_string(params, "preset").map_err(anyhow::Error::msg)?;
+    let drive = required_f32(params, "drive").map_err(anyhow::Error::msg)?.round() as i32;
+    let tone = required_f32(params, "tone").map_err(anyhow::Error::msg)?.round() as i32;
+    let level = required_f32(params, "level").map_err(anyhow::Error::msg)?.round() as i32;
+
     CAPTURES
         .iter()
-        .find(|c| c.id == requested)
-        .ok_or_else(|| anyhow!("gain model '{}' does not support preset '{}'", MODEL_ID, requested))
+        .min_by_key(|c| {
+            let dd = (c.drive - drive).abs() * 100; // drive has highest weight
+            let dt = (c.tone - tone).abs() * 10;    // tone has medium weight
+            let dl = (c.level - level).abs();        // level has lowest weight
+            dd + dt + dl
+        })
+        .ok_or_else(|| anyhow!("no captures available for model '{}'", MODEL_ID))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
@@ -145,5 +120,9 @@ pub const MODEL_DEFINITION: GainModelDefinition = GainModelDefinition {
     asset_summary,
     build,
     supported_instruments: block_core::GUITAR_BASS,
-    knob_layout: &[],
+    knob_layout: &[
+        KnobLayoutEntry { param_key: "drive", svg_cx: 130.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0, max: 10.0, step: 1.0 },
+        KnobLayoutEntry { param_key: "tone",  svg_cx: 302.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0, max: 10.0, step: 1.0 },
+        KnobLayoutEntry { param_key: "level", svg_cx: 470.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0, max: 10.0, step: 1.0 },
+    ],
 };

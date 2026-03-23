@@ -832,6 +832,7 @@ dependencies = [
  "anyhow",
  "block-core",
  "domain",
+ "log",
  "nam",
 ]
 
