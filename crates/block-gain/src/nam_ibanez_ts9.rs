@@ -3,7 +3,7 @@ use crate::registry::GainModelDefinition;
 use crate::GainBackendKind;
 use nam::{
     build_processor_with_assets_for_layout, model_schema_for,
-    processor::{plugin_params_from_set_with_defaults, NamPluginParams, DEFAULT_PLUGIN_PARAMS},
+    processor::{plugin_params_from_set_with_defaults, NamPluginParams},
 };
 use block_core::param::{enum_parameter, ModelParameterSchema, ParameterSet, required_string};
 use block_core::{AudioChannelLayout, BlockProcessor};
