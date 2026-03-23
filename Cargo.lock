@@ -830,6 +830,7 @@ name = "block-gain"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "asset-runtime",
  "block-core",
  "domain",
  "log",

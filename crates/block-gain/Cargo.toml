@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 [dependencies]
 anyhow.workspace = true
+asset-runtime = { path = "../asset-runtime" }
 nam = { path = "../nam" }
 block-core = { path = "../block-core" }
 log.workspace = true
