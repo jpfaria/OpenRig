@@ -96,24 +96,15 @@ component PanelKnob inherits Rectangle {
     }
 }
 
-// Power toggle (simplified circle)
-component CompactPowerToggle inherits Rectangle {
-    in property <bool> enabled;
-    callback clicked();
-    width: 24px; height: 24px;
-    border-radius: 12px;
-    background: root.enabled ? #29df85 : #3a3e48;
-    border-width: 2px;
-    border-color: root.enabled ? #1aaa55 : #555;
-    TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }
-}
-
 // Single block row
 component CompactBlockRow inherits Rectangle {
     in property <CompactBlockItem> block-data;
+    in property <[string]> model-labels;
+    in property <int> model-selected-index;
     callback toggle-enabled(int, int);
     callback update-parameter-number(int, int, string, float);
     callback select-parameter-option(int, int, string, int);
+    callback choose-model(int, int, int); // chain_index, block_index, model_index
 
     height: 72px;
     background: root.block-data.enabled ? root.block-data.panel-bg : #0e1014;
@@ -122,20 +113,55 @@ component CompactBlockRow inherits Rectangle {
     opacity: root.block-data.enabled ? 1.0 : 0.5;
     border-radius: 4px;
 
-    // Power toggle
-    CompactPowerToggle {
-        x: 12px;
-        y: (parent.height - 24px) / 2;
-        enabled: root.block-data.enabled;
-        clicked => { root.toggle-enabled(root.block-data.chain-index, root.block-data.block-index); }
+    // ── Power switch (same style as block_panel_editor) ──
+    Rectangle {
+        x: 10px;
+        y: (parent.height - 40px) / 2;
+        width: 32px; height: 40px;
+        border-radius: 3px;
+        background: #0a0a0a;
+        border-width: 1.5px;
+        border-color: #404040;
+
+        Rectangle {
+            x: 6px;
+            y: root.block-data.enabled ? 4px : 20px;
+            width: 20px; height: 16px;
+            border-radius: 2px;
+            background: root.block-data.enabled ? #cc2222 : #1a0808;
+            border-width: 1px;
+            border-color: root.block-data.enabled ? #ee4444 : #331111;
+        }
+
+        TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.toggle-enabled(root.block-data.chain-index, root.block-data.block-index); }
+        }
     }
 
-    // Type icon
+    // ── Brand logo or type icon ──
     Image {
-        x: 44px;
-        y: (parent.height - 18px) / 2;
-        width: 18px; height: 18px;
-        source: root.block-data.icon-kind == "preamp" ? @image-url("../assets/amp-head.svg")
+        x: 50px;
+        y: (parent.height - 24px) / 2;
+        width: 60px; height: 24px;
+        source: root.block-data.brand == "marshall" ? @image-url("../../../../assets/brands/marshall/logo.svg")
+            : root.block-data.brand == "bogner" ? @image-url("../../../../assets/brands/bogner/logo.svg")
+            : root.block-data.brand == "gibson" ? @image-url("../../../../assets/brands/gibson/logo.svg")
+            : root.block-data.brand == "martin" ? @image-url("../../../../assets/brands/martin/logo.svg")
+            : root.block-data.brand == "taylor" ? @image-url("../../../../assets/brands/taylor/logo.svg")
+            : root.block-data.brand == "fender" ? @image-url("../../../../assets/brands/fender/logo.svg")
+            : root.block-data.brand == "ibanez" ? @image-url("../../../../assets/brands/ibanez/logo.svg")
+            : root.block-data.brand == "boss" ? @image-url("../../../../assets/brands/boss/logo.svg")
+            : root.block-data.brand == "roland" ? @image-url("../../../../assets/brands/roland/logo.svg")
+            : root.block-data.brand == "vox" ? @image-url("../../../../assets/brands/vox/logo.svg")
+            : root.block-data.brand == "takamine" ? @image-url("../../../../assets/brands/takamine/logo.svg")
+            : root.block-data.brand == "guild" ? @image-url("../../../../assets/brands/guild/logo.svg")
+            : root.block-data.brand == "collings" ? @image-url("../../../../assets/brands/collings/logo.svg")
+            : root.block-data.brand == "suhr" ? @image-url("../../../../assets/brands/suhr/logo.svg")
+            : root.block-data.brand == "morris" ? @image-url("../../../../assets/brands/morris/logo.svg")
+            : root.block-data.brand == "santa_cruz" ? @image-url("../../../../assets/brands/santa_cruz/logo.svg")
+            // Fallback: type icon for brands without logo
+            : root.block-data.icon-kind == "preamp" ? @image-url("../assets/amp-head.svg")
             : root.block-data.icon-kind == "amp" ? @image-url("../assets/amp-combo.svg")
             : root.block-data.icon-kind == "cab" ? @image-url("../assets/cab.svg")
             : root.block-data.icon-kind == "body" ? @image-url("../assets/body.svg")
@@ -144,37 +170,32 @@ component CompactBlockRow inherits Rectangle {
             : root.block-data.icon-kind == "reverb" ? @image-url("../assets/reverb.svg")
             : root.block-data.icon-kind == "dynamics" ? @image-url("../assets/dyn.svg")
             : root.block-data.icon-kind == "filter" ? @image-url("../assets/filter.svg")
-            : root.block-data.icon-kind == "wah" ? @image-url("../assets/expression.svg")
-            : root.block-data.icon-kind == "pitch" ? @image-url("../assets/pitch.svg")
             : root.block-data.icon-kind == "modulation" ? @image-url("../assets/mod.svg")
-            : root.block-data.icon-kind == "ir" ? @image-url("../assets/ir-loader.svg")
-            : root.block-data.icon-kind == "nam" ? @image-url("../assets/nam.svg")
+            : root.block-data.icon-kind == "pitch" ? @image-url("../assets/pitch.svg")
             : root.block-data.icon-kind == "full_rig" ? @image-url("../assets/full-rig.svg")
             : root.block-data.icon-kind == "utility" ? @image-url("../assets/tuner.svg")
             : @image-url("../assets/gear.svg");
         image-fit: contain;
-        colorize: root.block-data.enabled ? #8090a0 : #505868;
+        colorize: root.block-data.panel-text;
     }
 
-    // Brand + Model label
+    // ── Model name (display text) ──
     Text {
-        x: 70px;
+        x: 118px;
         y: 0;
         width: 180px;
         height: parent.height;
-        text: root.block-data.brand != ""
-            ? root.block-data.brand + " " + root.block-data.display-name
-            : root.block-data.display-name;
+        text: root.block-data.display-name;
         color: root.block-data.panel-text;
-        font-size: 11px;
-        font-weight: 600;
+        font-size: 12px;
+        font-weight: 700;
         vertical-alignment: center;
         overflow: elide;
     }
 
-    // Type badge (small)
+    // ── Type badge ──
     if root.block-data.type-label != "" : Rectangle {
-        x: 254px;
+        x: 300px;
         y: (parent.height - 16px) / 2;
         width: 36px; height: 16px;
         border-radius: 3px;
