@@ -902,16 +902,18 @@ component BlockChip inherits Rectangle {
                 }
             }
         }
-        clicked => {
-            let pointer-x = (self.mouse-x + root.x) / 1px;
-            let pointer-y = (self.mouse-y + root.y) / 1px;
-            if root.did-drag {
-                root.drag-finished(pointer-x, pointer-y);
-            } else {
-                root.clicked();
+        pointer-event(e) => {
+            if e.kind == PointerEventKind.up {
+                let pointer-x = (self.mouse-x + root.x) / 1px;
+                let pointer-y = (self.mouse-y + root.y) / 1px;
+                if root.did-drag {
+                    root.drag-finished(pointer-x, pointer-y);
+                } else {
+                    root.clicked();
+                }
+                root.did-drag = false;
+                root.drag-origin-set = false;
             }
-            root.did-drag = false;
-            root.drag-origin-set = false;
         }
     }
 }
