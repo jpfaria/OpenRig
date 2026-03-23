@@ -997,6 +997,7 @@ component ChainRow inherits Rectangle {
     callback toggle-chain-block-enabled(int, int);
     callback start-block-insert(int, int);
     callback reorder-chain-block(int, int, int);
+    callback open-compact-chain-view(int);
     property <int> blocks-per-row: Math.max(1, Math.floor((root.width - 188px) / 116px));
     property <int> block-row-count: root.chain.blocks.length == 0 ? 1 : Math.floor((root.chain.blocks.length - 1) / root.blocks-per-row) + 1;
     property <int> insert-row-count: root.block-row-count;
@@ -1067,6 +1068,14 @@ component ChainRow inherits Rectangle {
             font-size: 14px;
             font-weight: 600;
             vertical-alignment: center;
+        }
+
+        ChainActionIcon {
+            x: parent.width - 196px;
+            y: 14px;
+            icon: @image-url("../assets/gear.svg");
+            tooltip: "Vista compacta";
+            clicked => { root.open-compact-chain-view(root.chain-index); }
         }
 
         ChainActionIcon {
@@ -1765,6 +1774,7 @@ export component ProjectChainsPage inherits Rectangle {
     callback configure-chain-output(int);
     callback configure-chain-preset(int);
     callback save-chain-preset(int);
+    callback open-compact-chain-view(int);
     callback select-chain-block(int, int);
     callback clear-chain-block();
     callback toggle-chain-block-enabled(int, int);
@@ -1929,6 +1939,7 @@ export component ProjectChainsPage inherits Rectangle {
                 configure-chain-output(index) => { root.configure-chain-output(index); }
                 configure-chain-preset(index) => { root.configure-chain-preset(index); }
                 save-chain-preset(index) => { root.save-chain-preset(index); }
+                open-compact-chain-view(index) => { root.open-compact-chain-view(index); }
                 select-chain-block(chain-index, block-index) => { root.select-chain-block(chain-index, block-index); }
                 toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }
                 start-block-insert(chain-index, before-index) => { root.start-block-insert(chain-index, before-index); }

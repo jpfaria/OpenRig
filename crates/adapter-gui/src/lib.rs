@@ -1631,6 +1631,118 @@ pub fn run_desktop_app(
     }
     {
         let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        let project_runtime = project_runtime.clone();
+        let project_chains = project_chains.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let toast_timer = toast_timer.clone();
+        window.on_open_compact_chain_view(move |chain_index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let session_borrow = project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else {
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
+                return;
+            };
+            let ci = chain_index as usize;
+            let Some(chain) = session.project.chains.get(ci) else {
+                set_status_error(&window, &toast_timer, "Chain inválida.");
+                return;
+            };
+
+            let compact_win = match CompactChainViewWindow::new() {
+                Ok(w) => w,
+                Err(e) => {
+                    log::error!("failed to create compact chain view: {e}");
+                    return;
+                }
+            };
+            let title = chain
+                .description
+                .clone()
+                .unwrap_or_else(|| format!("Chain {}", ci + 1));
+            compact_win.set_chain_title(title.into());
+            compact_win.set_chain_index(chain_index);
+
+            let blocks = build_compact_blocks(&session.project, ci);
+            compact_win.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
+
+            // Wire toggle-enabled callback
+            {
+                let project_session = project_session.clone();
+                let project_runtime = project_runtime.clone();
+                let project_chains = project_chains.clone();
+                let input_chain_devices = input_chain_devices.clone();
+                let output_chain_devices = output_chain_devices.clone();
+                let saved_project_snapshot = saved_project_snapshot.clone();
+                let project_dirty = project_dirty.clone();
+                let weak_main = window.as_weak();
+                let weak_compact = compact_win.as_weak();
+                let toast_timer = toast_timer.clone();
+                compact_win.on_toggle_block_enabled(move |ci, bi| {
+                    let Some(main_win) = weak_main.upgrade() else {
+                        return;
+                    };
+                    let Some(cw) = weak_compact.upgrade() else {
+                        return;
+                    };
+                    let mut session_borrow = project_session.borrow_mut();
+                    let Some(session) = session_borrow.as_mut() else {
+                        return;
+                    };
+                    let chain_idx = ci as usize;
+                    let block_idx = bi as usize;
+                    let Some(chain) = session.project.chains.get_mut(chain_idx) else {
+                        return;
+                    };
+                    let Some(block) = chain.blocks.get_mut(block_idx) else {
+                        return;
+                    };
+                    block.enabled = !block.enabled;
+                    let chain_id = chain.id.clone();
+                    if let Err(error) =
+                        sync_live_chain_runtime(&project_runtime, session, &chain_id)
+                    {
+                        set_status_error(&main_win, &toast_timer, &error.to_string());
+                        return;
+                    }
+                    replace_project_chains(
+                        &project_chains,
+                        &session.project,
+                        &input_chain_devices,
+                        &output_chain_devices,
+                    );
+                    // Refresh compact blocks
+                    let blocks = build_compact_blocks(&session.project, chain_idx);
+                    cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
+                    sync_project_dirty(
+                        &main_win,
+                        session,
+                        &saved_project_snapshot,
+                        &project_dirty,
+                    );
+                });
+            }
+
+            // Wire close callback
+            {
+                let weak_compact = compact_win.as_weak();
+                compact_win.on_close_compact_view(move || {
+                    if let Some(cw) = weak_compact.upgrade() {
+                        cw.hide().ok();
+                    }
+                });
+            }
+
+            show_child_window(window.window(), compact_win.window());
+        });
+    }
+    {
+        let weak_window = window.as_weak();
         let chain_draft = chain_draft.clone();
         window.on_update_chain_name(move |value| {
             let Some(window) = weak_window.upgrade() else {
@@ -4386,6 +4498,63 @@ fn unit_label(unit: &ParameterUnit) -> &'static str {
         ParameterUnit::Semitones => "st",
     }
 }
+fn build_compact_blocks(
+    project: &Project,
+    chain_index: usize,
+) -> Vec<CompactBlockItem> {
+    let Some(chain) = project.chains.get(chain_index) else {
+        return Vec::new();
+    };
+    chain
+        .blocks
+        .iter()
+        .enumerate()
+        .filter_map(|(block_index, block)| {
+            let editor_data = block_editor_data(block)?;
+            let params = block_parameter_items_for_editor(&editor_data);
+            let knob_layout =
+                project::catalog::model_knob_layout(&editor_data.effect_type, &editor_data.model_id);
+            let overlays = build_knob_overlays(knob_layout, &params);
+            let icon_kind = supported_block_type(&editor_data.effect_type)
+                .map(|t| t.icon_kind.to_string())
+                .unwrap_or_default();
+            let visual = project::catalog::supported_block_models(&editor_data.effect_type)
+                .ok()
+                .and_then(|models| {
+                    models
+                        .into_iter()
+                        .find(|m| m.model_id == editor_data.model_id)
+                });
+
+            Some(CompactBlockItem {
+                chain_index: chain_index as i32,
+                block_index: block_index as i32,
+                effect_type: editor_data.effect_type.into(),
+                model_id: editor_data.model_id.into(),
+                icon_kind: icon_kind.into(),
+                brand: visual
+                    .as_ref()
+                    .map(|v| block_core::capitalize_first(&v.brand))
+                    .unwrap_or_default()
+                    .into(),
+                display_name: visual
+                    .as_ref()
+                    .map(|v| v.display_name.clone())
+                    .unwrap_or_default()
+                    .into(),
+                type_label: visual
+                    .as_ref()
+                    .map(|v| v.type_label.clone())
+                    .unwrap_or_default()
+                    .into(),
+                enabled: block.enabled,
+                knob_overlays: ModelRc::from(Rc::new(VecModel::from(overlays))),
+                parameter_items: ModelRc::from(Rc::new(VecModel::from(params))),
+            })
+        })
+        .collect()
+}
+
 fn block_editor_data(block: &AudioBlock) -> Option<BlockEditorData> {
     block_editor_data_with_selected(block, None)
 }

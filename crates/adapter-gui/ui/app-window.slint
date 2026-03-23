@@ -1,7 +1,7 @@
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
-import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, BlockEditorPanel, BlockPanelEditor } from "pages/pages.slint";
+import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
 
 export component ProjectSettingsWindow inherits Window {
@@ -254,6 +254,36 @@ export component BlockEditorWindow inherits Window {
     }
 }
 
+export component CompactChainViewWindow inherits Window {
+    icon: @image-url("assets/openrig-logomark.svg");
+    title: "OpenRig \u{00B7} Chain";
+    min-width: 900px;
+    min-height: 300px;
+    preferred-width: 1100px;
+    preferred-height: 500px;
+    background: #0a0c10;
+
+    in property <string> chain-title;
+    in property <int> chain-index;
+    in property <[CompactBlockItem]> compact-blocks;
+
+    callback toggle-block-enabled(int, int);
+    callback update-block-parameter-number(int, int, string, float);
+    callback select-block-parameter-option(int, int, string, int);
+    callback close-compact-view();
+
+    CompactChainViewPage {
+        width: parent.width; height: parent.height;
+        chain-title: root.chain-title;
+        chain-index: root.chain-index;
+        compact-blocks: root.compact-blocks;
+        toggle-block-enabled(ci, bi) => { root.toggle-block-enabled(ci, bi); }
+        update-block-parameter-number(ci, bi, p, v) => { root.update-block-parameter-number(ci, bi, p, v); }
+        select-block-parameter-option(ci, bi, p, oi) => { root.select-block-parameter-option(ci, bi, p, oi); }
+        close-compact-view => { root.close-compact-view(); }
+    }
+}
+
 export component AppWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
     in property <bool> show-project-launcher;
@@ -333,6 +363,7 @@ export component AppWindow inherits Window {
     callback configure-chain-output(int);
     callback save-chain-preset(int);
     callback configure-chain-preset(int);
+    callback open-compact-chain-view(int);
     callback update-chain-name(string);
     callback open-chain-input-editor();
     callback open-chain-output-editor();
@@ -443,6 +474,7 @@ export component AppWindow inherits Window {
         configure-chain-output(index) => { root.configure-chain-output(index); }
         save-chain-preset(index) => { root.save-chain-preset(index); }
         configure-chain-preset(index) => { root.configure-chain-preset(index); }
+        open-compact-chain-view(index) => { root.open-compact-chain-view(index); }
         update-chain-name(value) => { root.update-chain-name(value); }
         open-chain-input-editor => { root.open-chain-input-editor(); }
         open-chain-output-editor => { root.open-chain-output-editor(); }
@@ -548,6 +580,7 @@ export component AppWindow inherits Window {
         configure-chain-output(index) => { root.configure-chain-output(index); }
         save-chain-preset(index) => { root.save-chain-preset(index); }
         configure-chain-preset(index) => { root.configure-chain-preset(index); }
+        open-compact-chain-view(index) => { root.open-compact-chain-view(index); }
         update-chain-name(value) => { root.update-chain-name(value); }
         open-chain-input-editor => { root.open-chain-input-editor(); }
         open-chain-output-editor => { root.open-chain-output-editor(); }

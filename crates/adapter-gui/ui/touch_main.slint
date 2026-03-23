@@ -77,6 +77,7 @@ export component TouchMain inherits Rectangle {
     callback configure-chain-output(int);
     callback save-chain-preset(int);
     callback configure-chain-preset(int);
+    callback open-compact-chain-view(int);
     callback update-chain-name(string);
     callback open-chain-input-editor();
     callback open-chain-output-editor();
@@ -160,6 +161,7 @@ export component TouchMain inherits Rectangle {
             configure-chain-output(index) => { root.configure-chain-output(index); }
             configure-chain-preset(index) => { root.configure-chain-preset(index); }
             save-chain-preset(index) => { root.save-chain-preset(index); }
+            open-compact-chain-view(index) => { root.open-compact-chain-view(index); }
             select-chain-block(chain-index, block-index) => { root.select-chain-block(chain-index, block-index); }
             clear-chain-block => { root.clear-chain-block(); }
             toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }

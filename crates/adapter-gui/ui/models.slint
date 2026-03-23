@@ -87,6 +87,20 @@ export struct BlockParameterItem {
     allow_empty: bool,
 }
 
+export struct CompactBlockItem {
+    chain_index: int,
+    block_index: int,
+    effect_type: string,
+    model_id: string,
+    icon_kind: string,
+    brand: string,
+    display_name: string,
+    type_label: string,
+    enabled: bool,
+    knob_overlays: [BlockKnobOverlay],
+    parameter_items: [BlockParameterItem],
+}
+
 export struct RecentProjectItem {
     original_index: int,
     title: string,
