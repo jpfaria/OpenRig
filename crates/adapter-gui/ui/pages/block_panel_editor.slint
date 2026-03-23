@@ -51,10 +51,11 @@ component ModelSelector inherits Rectangle {
     }
 
     popup := PopupWindow {
+        property <length> list-height: Math.min(root.labels.length * 36px + 8px, 320px);
         x: 0;
         y: root.height + 4px;
         width: root.width;
-        height: root.labels.length * 36px + 8px;
+        height: self.list-height;
 
         Rectangle {
             width: 100%;
@@ -67,6 +68,13 @@ component ModelSelector inherits Rectangle {
             drop-shadow-color: #000000c0;
             drop-shadow-offset-x: 0px;
             drop-shadow-offset-y: 6px;
+            clip: true;
+
+            Flickable {
+                x: 0; y: 0;
+                width: parent.width;
+                height: parent.height;
+                viewport-height: root.labels.length * 36px + 8px;
 
             for label[i] in root.labels : Rectangle {
                 x: 4px;
@@ -124,6 +132,7 @@ component ModelSelector inherits Rectangle {
                         root.selected(i);
                     }
                 }
+            }
             }
         }
     }
@@ -633,6 +642,48 @@ export component BlockPanelEditor inherits Rectangle {
                 source: @image-url("../../../../assets/brands/martin/logo.svg");
                 image-fit: contain;
                 colorize: #ffffff;
+            }
+
+            if root.selected-brand == "takamine" : Image {
+                x: parent.width * 0.1; y: 6px; width: parent.width * 0.8; height: 60px;
+                source: @image-url("../../../../assets/brands/takamine/logo.svg");
+                image-fit: contain; colorize: #ffffff;
+            }
+
+            if root.selected-brand == "guild" : Image {
+                x: parent.width * 0.1; y: 6px; width: parent.width * 0.8; height: 60px;
+                source: @image-url("../../../../assets/brands/guild/logo.svg");
+                image-fit: contain; colorize: #ffffff;
+            }
+
+            if root.selected-brand == "collings" : Image {
+                x: parent.width * 0.1; y: 6px; width: parent.width * 0.8; height: 60px;
+                source: @image-url("../../../../assets/brands/collings/logo.svg");
+                image-fit: contain; colorize: #ffffff;
+            }
+
+            if root.selected-brand == "suhr" : Image {
+                x: parent.width * 0.1; y: 6px; width: parent.width * 0.8; height: 60px;
+                source: @image-url("../../../../assets/brands/suhr/logo.svg");
+                image-fit: contain; colorize: #ffffff;
+            }
+
+            if root.selected-brand == "santa_cruz" : Image {
+                x: parent.width * 0.1; y: 6px; width: parent.width * 0.8; height: 60px;
+                source: @image-url("../../../../assets/brands/santa_cruz/logo.svg");
+                image-fit: contain; colorize: #ffffff;
+            }
+
+            if root.selected-brand == "morris" : Image {
+                x: parent.width * 0.1; y: 6px; width: parent.width * 0.8; height: 60px;
+                source: @image-url("../../../../assets/brands/morris/logo.svg");
+                image-fit: contain; colorize: #ffffff;
+            }
+
+            if root.selected-brand == "fender" : Image {
+                x: parent.width * 0.1; y: 6px; width: parent.width * 0.8; height: 60px;
+                source: @image-url("../../../../assets/brands/fender/logo.svg");
+                image-fit: contain; colorize: #ffffff;
             }
 
             Text {
