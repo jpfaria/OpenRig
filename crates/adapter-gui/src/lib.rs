@@ -4511,26 +4511,28 @@ fn build_compact_blocks(
         .enumerate()
         .filter_map(|(block_index, block)| {
             let editor_data = block_editor_data(block)?;
+            let effect_type = editor_data.effect_type.clone();
+            let model_id = editor_data.model_id.clone();
             let params = block_parameter_items_for_editor(&editor_data);
             let knob_layout =
-                project::catalog::model_knob_layout(&editor_data.effect_type, &editor_data.model_id);
+                project::catalog::model_knob_layout(&effect_type, &model_id);
             let overlays = build_knob_overlays(knob_layout, &params);
-            let icon_kind = supported_block_type(&editor_data.effect_type)
+            let icon_kind = supported_block_type(&effect_type)
                 .map(|t| t.icon_kind.to_string())
                 .unwrap_or_default();
-            let visual = project::catalog::supported_block_models(&editor_data.effect_type)
+            let visual = project::catalog::supported_block_models(&effect_type)
                 .ok()
                 .and_then(|models| {
                     models
                         .into_iter()
-                        .find(|m| m.model_id == editor_data.model_id)
+                        .find(|m| m.model_id == model_id)
                 });
 
             Some(CompactBlockItem {
                 chain_index: chain_index as i32,
                 block_index: block_index as i32,
-                effect_type: editor_data.effect_type.into(),
-                model_id: editor_data.model_id.into(),
+                effect_type: effect_type.clone().into(),
+                model_id: model_id.clone().into(),
                 icon_kind: icon_kind.into(),
                 brand: visual
                     .as_ref()
@@ -4548,6 +4550,18 @@ fn build_compact_blocks(
                     .unwrap_or_default()
                     .into(),
                 enabled: block.enabled,
+                panel_bg: {
+                    let brand_str = visual.as_ref().map(|v| v.brand.as_str()).unwrap_or("");
+                    let vc = visual_config::visual_config_for_model(brand_str, &model_id);
+                    let [r, g, b] = vc.panel_bg;
+                    slint::Color::from_argb_u8(0xff, r, g, b)
+                },
+                panel_text: {
+                    let brand_str = visual.as_ref().map(|v| v.brand.as_str()).unwrap_or("");
+                    let vc = visual_config::visual_config_for_model(brand_str, &model_id);
+                    let [r, g, b] = vc.panel_text;
+                    slint::Color::from_argb_u8(0xff, r, g, b)
+                },
                 knob_overlays: ModelRc::from(Rc::new(VecModel::from(overlays))),
                 parameter_items: ModelRc::from(Rc::new(VecModel::from(params))),
             })

@@ -115,10 +115,12 @@ component CompactBlockRow inherits Rectangle {
     callback update-parameter-number(int, int, string, float);
     callback select-parameter-option(int, int, string, int);
 
-    height: 64px;
-    background: root.block-data.enabled ? #14161a : #0e1014;
+    height: 72px;
+    background: root.block-data.enabled ? root.block-data.panel-bg : #0e1014;
     border-width: 1px;
-    border-color: #252830;
+    border-color: root.block-data.enabled ? root.block-data.panel-bg.darker(0.3) : #252830;
+    opacity: root.block-data.enabled ? 1.0 : 0.5;
+    border-radius: 4px;
 
     // Power toggle
     CompactPowerToggle {
@@ -163,7 +165,7 @@ component CompactBlockRow inherits Rectangle {
         text: root.block-data.brand != ""
             ? root.block-data.brand + " " + root.block-data.display-name
             : root.block-data.display-name;
-        color: root.block-data.enabled ? #d8e0ff : #606878;
+        color: root.block-data.panel-text;
         font-size: 11px;
         font-weight: 600;
         vertical-alignment: center;
@@ -191,58 +193,108 @@ component CompactBlockRow inherits Rectangle {
         }
     }
 
-    // Knob overlays (right-aligned)
-    for knob[ki] in root.block-data.knob-overlays : PanelKnob {
-        x: parent.width - 24px - (root.block-data.knob-overlays.length - ki) * 54px;
-        y: (parent.height - 48px) / 2;
-        width: 48px; height: 48px;
-        value: knob.value;
-        min-val: knob.min_val;
-        max-val: knob.max_val;
-        step: knob.step;
-        path: knob.path;
-        changed(p, v) => { root.update-parameter-number(root.block-data.chain-index, root.block-data.block-index, p, v); }
+    // Knob overlays (right-aligned, with labels)
+    for knob[ki] in root.block-data.knob-overlays : Rectangle {
+        x: parent.width - 16px - (root.block-data.knob-overlays.length - ki) * 58px;
+        y: 2px;
+        width: 52px;
+        height: parent.height - 4px;
+
+        // Label
+        Text {
+            x: 0; y: 0; width: parent.width; height: 12px;
+            text: knob.label;
+            color: root.block-data.panel-text;
+            font-size: 7px; font-weight: 700; letter-spacing: 0.5px;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+
+        PanelKnob {
+            x: 2px; y: 12px;
+            width: 48px; height: 48px;
+            value: knob.value;
+            min-val: knob.min_val;
+            max-val: knob.max_val;
+            step: knob.step;
+            path: knob.path;
+            changed(p, v) => { root.update-parameter-number(root.block-data.chain-index, root.block-data.block-index, p, v); }
+        }
     }
 
-    // Enum parameters (segmented for <=4 options)
+    // Enum parameters (segmented for <=4 options, right-aligned before knobs)
     for param[pi] in root.block-data.parameter-items : Rectangle {
         visible: param.widget_kind == "enum" && param.option_labels.length <= 4;
-        x: 300px + pi * 200px;
-        y: (parent.height - 32px) / 2;
-        width: Math.max(120px, param.option_labels.length * 60px);
-        height: 32px;
-        border-radius: 6px;
-        background: #00000030;
-        border-width: 1px; border-color: #ffffff10;
+        x: parent.width - 16px
+            - root.block-data.knob-overlays.length * 58px
+            - (root.block-data.parameter-items.length - pi) * (Math.max(130px, param.option_labels.length * 64px) + 12px);
+        y: 4px;
+        width: Math.max(130px, param.option_labels.length * 64px);
+        height: parent.height - 8px;
+        // Label
+        Text {
+            x: 0; y: 0; width: parent.width; height: 12px;
+            text: param.label;
+            color: root.block-data.panel-text;
+            font-size: 7px; font-weight: 700; letter-spacing: 0.5px;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
 
-        for option[oi] in param.option_labels : Rectangle {
-            x: oi * (parent.width / param.option_labels.length);
-            width: parent.width / param.option_labels.length;
-            height: parent.height;
+        Rectangle {
+            x: 0; y: 14px;
+            width: parent.width;
+            height: 30px;
             border-radius: 5px;
-            background: oi == param.selected_option_index ? #3366cc : (seg-ta.has-hover ? #ffffff10 : transparent);
-            Text {
-                x: 4px; width: parent.width - 8px; height: parent.height;
-                text: option;
-                color: oi == param.selected_option_index ? #ffffff : #8090a0;
-                font-size: 8px; font-weight: oi == param.selected_option_index ? 700 : 400;
-                horizontal-alignment: center; vertical-alignment: center; overflow: elide;
-            }
-            seg-ta := TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.select-parameter-option(root.block-data.chain-index, root.block-data.block-index, param.path, oi); }
+            background: #00000030;
+            border-width: 1px; border-color: #ffffff10;
+
+            for option[oi] in param.option_labels : Rectangle {
+                x: oi * (parent.width / param.option_labels.length);
+                width: parent.width / param.option_labels.length;
+                height: parent.height;
+                border-radius: 4px;
+                background: oi == param.selected_option_index ? #3366cc : (seg-ta.has-hover ? #ffffff10 : transparent);
+                Text {
+                    x: 4px; width: parent.width - 8px; height: parent.height;
+                    text: option;
+                    color: oi == param.selected_option_index ? #ffffff : #8090a0;
+                    font-size: 8px; font-weight: oi == param.selected_option_index ? 700 : 400;
+                    horizontal-alignment: center; vertical-alignment: center; overflow: elide;
+                }
+                seg-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.select-parameter-option(root.block-data.chain-index, root.block-data.block-index, param.path, oi); }
+                }
             }
         }
     }
 
-    // Dropdown for 5+ enum options
+    // Dropdown for 5+ enum options (right-aligned)
     for param[pi] in root.block-data.parameter-items : Rectangle {
         visible: param.widget_kind == "enum" && param.option_labels.length > 4;
-        x: 300px;
-        y: (parent.height - 28px) / 2;
-        width: 200px; height: 28px;
-        background: #060610;
-        border-width: 1px; border-color: #252538; border-radius: 5px;
+        x: parent.width - 16px
+            - root.block-data.knob-overlays.length * 58px
+            - 220px;
+        y: 4px;
+        width: 200px;
+        height: parent.height - 8px;
+
+        // Label
+        Text {
+            x: 0; y: 0; width: parent.width; height: 12px;
+            text: param.label;
+            color: root.block-data.panel-text;
+            font-size: 7px; font-weight: 700; letter-spacing: 0.5px;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+
+        Rectangle {
+            x: 0; y: 14px;
+            width: parent.width; height: 28px;
+            background: #060610;
+            border-width: 1px; border-color: #252538; border-radius: 5px;
 
         Text {
             x: 8px; width: parent.width - 24px; height: parent.height;
@@ -256,8 +308,8 @@ component CompactBlockRow inherits Rectangle {
             text: "\u{25BC}"; color: #ffffff; font-size: 9px;
             vertical-alignment: center; horizontal-alignment: center;
         }
-        dd-ta := TouchArea { mouse-cursor: pointer; clicked => { dd-popup.show(); } }
-        dd-popup := PopupWindow {
+        dd-ta2 := TouchArea { mouse-cursor: pointer; clicked => { dd-popup2.show(); } }
+        dd-popup2 := PopupWindow {
             property <length> list-h: Math.min(param.option_labels.length * 30px + 6px, 200px);
             x: 0; y: -self.list-h - 4px; width: parent.width; height: self.list-h;
             Rectangle {
@@ -287,6 +339,7 @@ component CompactBlockRow inherits Rectangle {
                     }
                 }
             }
+        }
         }
     }
 }
