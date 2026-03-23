@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80">
+  <g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Acoustic guitar body silhouette -->
+    <path d="M40,8 C40,8 36,8 34,10 L32,14 L32,22 C28,24 22,28 20,34 C18,40 18,46 20,50 C22,54 26,58 30,60 C34,62 36,66 36,70 L44,70 C44,66 46,62 50,60 C54,58 58,54 60,50 C62,46 62,40 60,34 C58,28 52,24 48,22 L48,14 L46,10 C44,8 40,8 40,8 Z" />
+    <!-- Sound hole -->
+    <circle cx="40" cy="44" r="8" />
+    <!-- Bridge -->
+    <line x1="34" y1="56" x2="46" y2="56" />
+    <!-- Strings hint -->
+    <line x1="38" y1="22" x2="38" y2="56" stroke-width="0.5" opacity="0.4" />
+    <line x1="40" y1="22" x2="40" y2="56" stroke-width="0.5" opacity="0.4" />
+    <line x1="42" y1="22" x2="42" y2="56" stroke-width="0.5" opacity="0.4" />
+  </g>
+</svg>

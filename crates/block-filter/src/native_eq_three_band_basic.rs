@@ -142,4 +142,5 @@ pub const MODEL_DEFINITION: FilterModelDefinition = FilterModelDefinition {
     schema,
     build,
     supported_instruments: block_core::ALL_INSTRUMENTS,
+    knob_layout: &[],
 };

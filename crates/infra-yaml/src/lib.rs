@@ -7,7 +7,7 @@ use project::block::{
 use project::device::DeviceSettings;
 use project::param::ParameterSet;
 use project::project::Project;
-use project::chain::{Chain, ChainOutputMixdown};
+use project::chain::{Chain, ChainInputMode, ChainOutputMixdown};
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 use std::fs;
@@ -25,6 +25,7 @@ pub struct ChainBlocksPreset {
 }
 
 pub fn load_chain_preset_file(path: &Path) -> Result<ChainBlocksPreset> {
+    log::info!("loading chain preset from {:?}", path);
     let raw = fs::read_to_string(path)
         .with_context(|| format!("failed to read preset yaml {:?}", path))?;
     let dto: PresetYaml = serde_yaml::from_str(&raw)
@@ -33,6 +34,7 @@ pub fn load_chain_preset_file(path: &Path) -> Result<ChainBlocksPreset> {
 }
 
 pub fn save_chain_preset_file(path: &Path, preset: &ChainBlocksPreset) -> Result<()> {
+    log::info!("saving chain preset to {:?}", path);
     let dto = PresetYaml::from_chain_preset(preset)?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
@@ -54,18 +56,23 @@ pub fn serialize_audio_blocks(blocks: &[project::block::AudioBlock]) -> Result<V
 
 impl YamlProjectRepository {
     pub fn load_current_project(&self) -> Result<Project> {
+        log::info!("loading project from {:?}", self.path);
         let raw = fs::read_to_string(&self.path)
             .with_context(|| format!("failed to read yaml {:?}", self.path))?;
         let dto: ProjectYaml = serde_yaml::from_str(&raw)?;
-        dto.into_project()
+        let project = dto.into_project()?;
+        log::debug!("project loaded: {} chains", project.chains.len());
+        Ok(project)
     }
 
     pub fn save_project(&self, project: &Project) -> Result<()> {
+        log::info!("saving project to {:?}", self.path);
         let dto = ProjectYaml::from_project(project)?;
         if let Some(parent) = self.path.parent() {
             fs::create_dir_all(parent)?;
         }
         fs::write(&self.path, serde_yaml::to_string(&dto)?)?;
+        log::debug!("project saved: {} chains", project.chains.len());
         Ok(())
     }
 }
@@ -195,11 +202,14 @@ struct ChainYaml {
     blocks: Vec<Value>,
     #[serde(default)]
     output_mixdown: ChainOutputMixdown,
+    #[serde(default)]
+    input_mode: ChainInputMode,
 }
 
 impl ChainYaml {
     fn into_chain(self, index: usize) -> Result<Chain> {
         let chain_id = generated_chain_id(index);
+        log::debug!("deserializing chain index={}, description={:?}, instrument='{}'", index, self.description, self.instrument);
         Ok(Chain {
             id: chain_id.clone(),
             description: self.description,
@@ -218,6 +228,7 @@ impl ChainYaml {
                 })
                 .collect(),
             output_mixdown: self.output_mixdown,
+            input_mode: self.input_mode,
         })
     }
 
@@ -240,6 +251,7 @@ impl ChainYaml {
                 })
                 .collect::<Result<Vec<_>>>()?,
             output_mixdown: chain.output_mixdown,
+            input_mode: chain.input_mode,
         })
     }
 }
@@ -278,6 +290,14 @@ enum AudioBlockYaml {
         #[serde(default = "default_enabled")]
         enabled: bool,
         #[serde(default = "default_cab_model")]
+        model: String,
+        #[serde(default)]
+        params: Value,
+    },
+    Body {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
+        #[serde(default = "default_body_model")]
         model: String,
         #[serde(default)]
         params: Value,
@@ -402,7 +422,7 @@ impl AudioBlockYaml {
                 enabled,
                 kind: AudioBlockKind::Nam(NamBlock {
                     model: model.clone(),
-                    params: load_model_params("nam", &model, params)?,
+                    params: load_model_params(block_core::EFFECT_TYPE_NAM, &model, params)?,
                 }),
             }),
             AudioBlockYaml::Select {
@@ -456,20 +476,21 @@ impl AudioBlockYaml {
                 let enabled = block.enabled;
                 let model = core.model.clone();
                 match core.effect_type.as_str() {
-                    "preamp" => Ok(Self::Preamp { enabled, model, params }),
-                    "amp" => Ok(Self::Amp { enabled, model, params }),
-                    "full_rig" => Ok(Self::FullRig { enabled, model, params }),
-                    "cab" => Ok(Self::Cab { enabled, model, params }),
-                    "ir" => Ok(Self::Ir { enabled, model, params }),
-                    "gain" => Ok(Self::Gain { enabled, model, params }),
-                    "delay" => Ok(Self::Delay { enabled, model, params }),
-                    "reverb" => Ok(Self::Reverb { enabled, model, params }),
-                    "utility" => Ok(Self::Utility { enabled, model, params }),
-                    "dynamics" => Ok(Self::Dynamics { enabled, model, params }),
-                    "filter" => Ok(Self::Filter { enabled, model, params }),
-                    "wah" => Ok(Self::Wah { enabled, model, params }),
-                    "modulation" => Ok(Self::Modulation { enabled, model, params }),
-                    "pitch" => Ok(Self::Pitch { enabled, model, params }),
+                    block_core::EFFECT_TYPE_PREAMP => Ok(Self::Preamp { enabled, model, params }),
+                    block_core::EFFECT_TYPE_AMP => Ok(Self::Amp { enabled, model, params }),
+                    block_core::EFFECT_TYPE_FULL_RIG => Ok(Self::FullRig { enabled, model, params }),
+                    block_core::EFFECT_TYPE_CAB => Ok(Self::Cab { enabled, model, params }),
+                    block_core::EFFECT_TYPE_BODY => Ok(Self::Body { enabled, model, params }),
+                    block_core::EFFECT_TYPE_IR => Ok(Self::Ir { enabled, model, params }),
+                    block_core::EFFECT_TYPE_GAIN => Ok(Self::Gain { enabled, model, params }),
+                    block_core::EFFECT_TYPE_DELAY => Ok(Self::Delay { enabled, model, params }),
+                    block_core::EFFECT_TYPE_REVERB => Ok(Self::Reverb { enabled, model, params }),
+                    block_core::EFFECT_TYPE_UTILITY => Ok(Self::Utility { enabled, model, params }),
+                    block_core::EFFECT_TYPE_DYNAMICS => Ok(Self::Dynamics { enabled, model, params }),
+                    block_core::EFFECT_TYPE_FILTER => Ok(Self::Filter { enabled, model, params }),
+                    block_core::EFFECT_TYPE_WAH => Ok(Self::Wah { enabled, model, params }),
+                    block_core::EFFECT_TYPE_MODULATION => Ok(Self::Modulation { enabled, model, params }),
+                    block_core::EFFECT_TYPE_PITCH => Ok(Self::Pitch { enabled, model, params }),
                     other => Err(anyhow!("unsupported core block effect_type '{}'", other)),
                 }
             }
@@ -518,6 +539,10 @@ fn load_audio_block_value(value: Value, chain_id: &ChainId, index: usize) -> Opt
     let yaml = match serde_yaml::from_value::<AudioBlockYaml>(value) {
         Ok(yaml) => yaml,
         Err(error) => {
+            log::warn!(
+                "ignoring unsupported or invalid block at {}:{}: {}",
+                chain_id.0, index, error
+            );
             eprintln!(
                 "ignoring unsupported or invalid block at {}:{}: {}",
                 chain_id.0, index, error
@@ -527,8 +552,15 @@ fn load_audio_block_value(value: Value, chain_id: &ChainId, index: usize) -> Opt
     };
 
     match yaml.into_audio_block(chain_id, index) {
-        Ok(block) => Some(block),
+        Ok(block) => {
+            log::debug!("loaded block at {}:{}", chain_id.0, index);
+            Some(block)
+        }
         Err(error) => {
+            log::warn!(
+                "ignoring unsupported or invalid block at {}:{}: {}",
+                chain_id.0, index, error
+            );
             eprintln!(
                 "ignoring unsupported or invalid block at {}:{}: {}",
                 chain_id.0, index, error
@@ -545,22 +577,22 @@ fn load_model_params(effect_type: &str, model: &str, raw_params: Value) -> Resul
 
 fn extract_core_block_fields(yaml: AudioBlockYaml) -> (&'static str, bool, String, Value) {
     match yaml {
-        AudioBlockYaml::Preamp { enabled, model, params } => ("preamp", enabled, model, params),
-        AudioBlockYaml::Amp { enabled, model, params } => ("amp", enabled, model, params),
-        AudioBlockYaml::FullRig { enabled, model, params } => ("full_rig", enabled, model, params),
-        AudioBlockYaml::Cab { enabled, model, params } => ("cab", enabled, model, params),
-        AudioBlockYaml::Ir { enabled, model, params } => ("ir", enabled, model, params),
-        AudioBlockYaml::Gain { enabled, model, params } => ("gain", enabled, model, params),
-        AudioBlockYaml::Delay { enabled, model, params } => ("delay", enabled, model, params),
-        AudioBlockYaml::Reverb { enabled, model, params } => ("reverb", enabled, model, params),
-        AudioBlockYaml::Utility { enabled, model, params } => ("utility", enabled, model, params),
-        AudioBlockYaml::Dynamics { enabled, model, params } => ("dynamics", enabled, model, params),
-        AudioBlockYaml::Filter { enabled, model, params } => ("filter", enabled, model, params),
-        AudioBlockYaml::Wah { enabled, model, params } => ("wah", enabled, model, params),
-        AudioBlockYaml::Modulation { enabled, model, params } => ("modulation", enabled, model, params),
-        AudioBlockYaml::Pitch { enabled, model, params } => ("pitch", enabled, model, params),
-        // Nam and Select are handled separately, should never reach here
-        AudioBlockYaml::Nam { enabled, model, params } => ("nam", enabled, model, params),
+        AudioBlockYaml::Preamp { enabled, model, params } => (block_core::EFFECT_TYPE_PREAMP, enabled, model, params),
+        AudioBlockYaml::Amp { enabled, model, params } => (block_core::EFFECT_TYPE_AMP, enabled, model, params),
+        AudioBlockYaml::FullRig { enabled, model, params } => (block_core::EFFECT_TYPE_FULL_RIG, enabled, model, params),
+        AudioBlockYaml::Cab { enabled, model, params } => (block_core::EFFECT_TYPE_CAB, enabled, model, params),
+        AudioBlockYaml::Body { enabled, model, params } => (block_core::EFFECT_TYPE_BODY, enabled, model, params),
+        AudioBlockYaml::Ir { enabled, model, params } => (block_core::EFFECT_TYPE_IR, enabled, model, params),
+        AudioBlockYaml::Gain { enabled, model, params } => (block_core::EFFECT_TYPE_GAIN, enabled, model, params),
+        AudioBlockYaml::Delay { enabled, model, params } => (block_core::EFFECT_TYPE_DELAY, enabled, model, params),
+        AudioBlockYaml::Reverb { enabled, model, params } => (block_core::EFFECT_TYPE_REVERB, enabled, model, params),
+        AudioBlockYaml::Utility { enabled, model, params } => (block_core::EFFECT_TYPE_UTILITY, enabled, model, params),
+        AudioBlockYaml::Dynamics { enabled, model, params } => (block_core::EFFECT_TYPE_DYNAMICS, enabled, model, params),
+        AudioBlockYaml::Filter { enabled, model, params } => (block_core::EFFECT_TYPE_FILTER, enabled, model, params),
+        AudioBlockYaml::Wah { enabled, model, params } => (block_core::EFFECT_TYPE_WAH, enabled, model, params),
+        AudioBlockYaml::Modulation { enabled, model, params } => (block_core::EFFECT_TYPE_MODULATION, enabled, model, params),
+        AudioBlockYaml::Pitch { enabled, model, params } => (block_core::EFFECT_TYPE_PITCH, enabled, model, params),
+        AudioBlockYaml::Nam { enabled, model, params } => (block_core::EFFECT_TYPE_NAM, enabled, model, params),
         AudioBlockYaml::Select { .. } => unreachable!("Select handled before extract_core_block_fields"),
     }
 }
@@ -716,6 +748,13 @@ fn default_cab_model() -> String {
         .to_string()
 }
 
+fn default_body_model() -> String {
+    block_body::supported_models()
+        .first()
+        .expect("block-body must expose at least one model")
+        .to_string()
+}
+
 fn default_drive_model() -> String {
     block_gain::supported_models()
         .first()
@@ -784,7 +823,7 @@ const fn default_enabled() -> bool {
 }
 
 fn default_instrument() -> String {
-    "electric_guitar".to_string()
+    block_core::DEFAULT_INSTRUMENT.to_string()
 }
 
 #[cfg(test)]
@@ -798,7 +837,7 @@ mod tests {
     };
     use project::param::ParameterSet;
     use project::project::Project;
-    use project::chain::{Chain, ChainOutputMixdown};
+    use project::chain::{Chain, ChainInputMode, ChainOutputMixdown};
     use std::fs;
     use std::path::PathBuf;
     use tempfile::tempdir;
@@ -824,6 +863,7 @@ mod tests {
                 output_channels: vec![0, 1],
                 blocks: Vec::new(),
                 output_mixdown: ChainOutputMixdown::Average,
+                input_mode: ChainInputMode::Auto,
             }],
         };
 

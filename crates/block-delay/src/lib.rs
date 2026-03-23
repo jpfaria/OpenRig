@@ -27,6 +27,7 @@ pub fn delay_model_visual(model_id: &str) -> Option<ModelVisualData> {
             DelayBackendKind::Ir => "IR",
         },
         supported_instruments: def.supported_instruments,
+        knob_layout: def.knob_layout,
     })
 }
 

@@ -32,7 +32,7 @@ pub fn preamp_brand(model: &str) -> Result<&'static str> {
 /// Retorna o tipo do modelo como string legível: "native", "NAM" ou "IR"
 pub fn preamp_type_label(model: &str) -> Result<&'static str> {
     Ok(match registry::find_model_definition(model)?.backend_kind {
-        PreampBackendKind::Native => "native",
+        PreampBackendKind::Native => block_core::BRAND_NATIVE,
         PreampBackendKind::Nam => "NAM",
         PreampBackendKind::Ir => "IR",
     })
@@ -48,6 +48,7 @@ pub fn preamp_model_visual(model_id: &str) -> Option<ModelVisualData> {
             PreampBackendKind::Ir => "IR",
         },
         supported_instruments: def.supported_instruments,
+        knob_layout: def.knob_layout,
     })
 }
 

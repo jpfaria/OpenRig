@@ -270,22 +270,23 @@ export component BlockPanelEditor inherits Rectangle {
         : "";
 
     private property <image> selected-icon-source:
-        root.selected-icon-kind == "preamp" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-head.svg")
-        : root.selected-icon-kind == "amp" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-combo.svg")
-        : root.selected-icon-kind == "cab" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/cab.svg")
-        : root.selected-icon-kind == "gain" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gain.svg")
-        : root.selected-icon-kind == "delay" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/delay.svg")
-        : root.selected-icon-kind == "reverb" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/reverb.svg")
-        : root.selected-icon-kind == "dynamics" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/dyn.svg")
-        : root.selected-icon-kind == "filter" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/filter.svg")
-        : root.selected-icon-kind == "wah" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/expression.svg")
-        : root.selected-icon-kind == "pitch" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/pitch.svg")
-        : root.selected-icon-kind == "modulation" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/mod.svg")
-        : root.selected-icon-kind == "ir" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/ir-loader.svg")
-        : root.selected-icon-kind == "nam" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/nam.svg")
-        : root.selected-icon-kind == "full_rig" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/full-rig.svg")
-        : root.selected-icon-kind == "utility" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/tuner.svg")
-        : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
+        root.selected-icon-kind == "preamp" ? @image-url("../assets/amp-head.svg")
+        : root.selected-icon-kind == "amp" ? @image-url("../assets/amp-combo.svg")
+        : root.selected-icon-kind == "cab" ? @image-url("../assets/cab.svg")
+        : root.selected-icon-kind == "body" ? @image-url("../assets/body.svg")
+        : root.selected-icon-kind == "gain" ? @image-url("../assets/gain.svg")
+        : root.selected-icon-kind == "delay" ? @image-url("../assets/delay.svg")
+        : root.selected-icon-kind == "reverb" ? @image-url("../assets/reverb.svg")
+        : root.selected-icon-kind == "dynamics" ? @image-url("../assets/dyn.svg")
+        : root.selected-icon-kind == "filter" ? @image-url("../assets/filter.svg")
+        : root.selected-icon-kind == "wah" ? @image-url("../assets/expression.svg")
+        : root.selected-icon-kind == "pitch" ? @image-url("../assets/pitch.svg")
+        : root.selected-icon-kind == "modulation" ? @image-url("../assets/mod.svg")
+        : root.selected-icon-kind == "ir" ? @image-url("../assets/ir-loader.svg")
+        : root.selected-icon-kind == "nam" ? @image-url("../assets/nam.svg")
+        : root.selected-icon-kind == "full_rig" ? @image-url("../assets/full-rig.svg")
+        : root.selected-icon-kind == "utility" ? @image-url("../assets/tuner.svg")
+        : @image-url("../assets/gear.svg");
 
     private property <float> photo-offset-x:
         root.block-drawer-selected-model-index >= 0
@@ -393,7 +394,7 @@ export component BlockPanelEditor inherits Rectangle {
             Image {
                 x: 3px; y: 3px;
                 width: 18px; height: 18px;
-                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/trash.svg");
+                source: @image-url("../assets/trash.svg");
                 image-fit: contain;
                 colorize: ta-del.has-hover ? #ff4433 : #662222;
             }
@@ -416,7 +417,7 @@ export component BlockPanelEditor inherits Rectangle {
             Image {
                 x: 3px; y: 3px;
                 width: 18px; height: 18px;
-                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/save.svg");
+                source: @image-url("../assets/save.svg");
                 image-fit: contain;
                 colorize: ta-save.has-hover ? #4499ff : #224488;
             }
@@ -472,32 +473,52 @@ export component BlockPanelEditor inherits Rectangle {
             // Background photo (transparent, behind logo and text)
             if root.selected-model-id == "marshall_jcm_800_2203" : Image {
                 x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
-                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/photos/marshall_jcm_800_2203.png");
+                source: @image-url("../../../../assets/models/photos/marshall_jcm_800_2203.png");
                 image-fit: cover; opacity: 0.25;
             }
             if root.selected-model-id == "marshall_4x12_v30" : Image {
                 x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
-                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/photos/marshall_4x12_v30.png");
+                source: @image-url("../../../../assets/models/photos/marshall_4x12_v30.png");
                 image-fit: cover; opacity: 0.25;
             }
             if root.selected-model-id == "blues_overdrive_bd_2" : Image {
                 x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
-                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/photos/blues_overdrive_bd_2.png");
+                source: @image-url("../../../../assets/models/photos/blues_overdrive_bd_2.png");
                 image-fit: cover; opacity: 0.25;
             }
             if root.selected-model-id == "ibanez_ts9" : Image {
                 x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
-                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/photos/ibanez_ts9.png");
+                source: @image-url("../../../../assets/models/photos/ibanez_ts9.png");
                 image-fit: cover; opacity: 0.25;
             }
             if root.selected-model-id == "bogner_ecstasy" : Image {
                 x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
-                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/photos/bogner_ecstasy.png");
+                source: @image-url("../../../../assets/models/photos/bogner_ecstasy.png");
                 image-fit: cover; opacity: 0.25;
             }
             if root.selected-model-id == "roland_jc_120b_jazz_chorus" : Image {
                 x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
-                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/photos/roland_jc_120b_jazz_chorus.png");
+                source: @image-url("../../../../assets/models/photos/roland_jc_120b_jazz_chorus.png");
+                image-fit: cover; opacity: 0.25;
+            }
+            if root.selected-model-id == "gibson_sj_200" : Image {
+                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
+                source: @image-url("../../../../assets/models/photos/gibson_sj_200.png");
+                image-fit: cover; opacity: 0.25;
+            }
+            if root.selected-model-id == "gibson_j_45" : Image {
+                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
+                source: @image-url("../../../../assets/models/photos/gibson_j_45.png");
+                image-fit: cover; opacity: 0.25;
+            }
+            if root.selected-model-id == "martin_d_35" : Image {
+                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
+                source: @image-url("../../../../assets/models/photos/martin_d_35.png");
+                image-fit: cover; opacity: 0.25;
+            }
+            if root.selected-model-id == "martin_om_28" : Image {
+                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
+                source: @image-url("../../../../assets/models/photos/martin_om_28.png");
                 image-fit: cover; opacity: 0.25;
             }
 
@@ -506,7 +527,7 @@ export component BlockPanelEditor inherits Rectangle {
                 y: 6px;
                 width: parent.width * 0.8;
                 height: 60px;
-                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/marshall/logo.svg");
+                source: @image-url("../../../../assets/brands/marshall/logo.svg");
                 image-fit: contain;
                 colorize: #ffffff;
             }
@@ -516,7 +537,7 @@ export component BlockPanelEditor inherits Rectangle {
                 y: 6px;
                 width: parent.width * 0.8;
                 height: 60px;
-                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/vox/logo.svg");
+                source: @image-url("../../../../assets/brands/vox/logo.svg");
                 image-fit: contain;
             }
 
@@ -525,7 +546,7 @@ export component BlockPanelEditor inherits Rectangle {
                 y: 6px;
                 width: parent.width * 0.8;
                 height: 60px;
-                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/bogner/logo.svg");
+                source: @image-url("../../../../assets/brands/bogner/logo.svg");
                 image-fit: contain;
                 colorize: #ffffff;
             }
@@ -535,7 +556,7 @@ export component BlockPanelEditor inherits Rectangle {
                 y: 6px;
                 width: parent.width * 0.8;
                 height: 60px;
-                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/fender/logo.svg");
+                source: @image-url("../../../../assets/brands/fender/logo.svg");
                 image-fit: contain;
                 colorize: #ffffff;
             }
@@ -545,7 +566,7 @@ export component BlockPanelEditor inherits Rectangle {
                 y: 6px;
                 width: parent.width * 0.8;
                 height: 60px;
-                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/ibanez/logo.svg");
+                source: @image-url("../../../../assets/brands/ibanez/logo.svg");
                 image-fit: contain;
                 colorize: #ffffff;
             }
@@ -555,7 +576,7 @@ export component BlockPanelEditor inherits Rectangle {
                 y: 6px;
                 width: parent.width * 0.8;
                 height: 60px;
-                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/roland/logo.svg");
+                source: @image-url("../../../../assets/brands/roland/logo.svg");
                 image-fit: contain;
                 colorize: #ffffff;
             }
@@ -565,7 +586,27 @@ export component BlockPanelEditor inherits Rectangle {
                 y: 6px;
                 width: parent.width * 0.8;
                 height: 60px;
-                source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/assets/brands/boss/logo.svg");
+                source: @image-url("../../../../assets/brands/boss/logo.svg");
+                image-fit: contain;
+                colorize: #ffffff;
+            }
+
+            if root.selected-brand == "gibson" : Image {
+                x: parent.width * 0.1;
+                y: 6px;
+                width: parent.width * 0.8;
+                height: 60px;
+                source: @image-url("../../../../assets/brands/gibson/logo.svg");
+                image-fit: contain;
+                colorize: #ffffff;
+            }
+
+            if root.selected-brand == "martin" : Image {
+                x: parent.width * 0.1;
+                y: 6px;
+                width: parent.width * 0.8;
+                height: 60px;
+                source: @image-url("../../../../assets/brands/martin/logo.svg");
                 image-fit: contain;
                 colorize: #ffffff;
             }
@@ -598,30 +639,30 @@ export component BlockPanelEditor inherits Rectangle {
                 y: (parent.height - 64px) / 2;
                 width: 64px;
                 height: 64px;
-                source: root.selected-model-id == "analog_warm" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/analog_warm.svg")
-                    : root.selected-model-id == "digital_clean" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/digital_clean.svg")
-                    : root.selected-model-id == "modulated_delay" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/modulated_delay.svg")
-                    : root.selected-model-id == "reverse" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/reverse.svg")
-                    : root.selected-model-id == "slapback" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/slapback.svg")
-                    : root.selected-model-id == "tape_vintage" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/tape_vintage.svg")
-                    : root.selected-model-id == "plate_foundation" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/plate_foundation.svg")
-                    : root.selected-model-id == "compressor_studio_clean" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/compressor_studio_clean.svg")
-                    : root.selected-model-id == "gate_basic" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/gate_basic.svg")
-                    : root.selected-model-id == "eq_three_band_basic" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/eq_three_band_basic.svg")
-                    : root.selected-model-id == "cry_classic" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/cry_classic.svg")
-                    : root.selected-model-id == "tremolo_sine" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/tremolo_sine.svg")
-                    : root.selected-model-id == "tuner_chromatic" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/tuner_chromatic.svg")
-                    : root.selected-model-id == "american_clean" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/american_clean.svg")
-                    : root.selected-model-id == "brit_crunch" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/brit_crunch.svg")
-                    : root.selected-model-id == "modern_high_gain" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/modern_high_gain.svg")
-                    : root.selected-model-id == "blackface_clean" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/blackface_clean.svg")
-                    : root.selected-model-id == "tweed_breakup" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/tweed_breakup.svg")
-                    : root.selected-model-id == "chime" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/chime.svg")
-                    : root.selected-model-id == "american_2x12" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/american_2x12.svg")
-                    : root.selected-model-id == "brit_4x12" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/brit_4x12.svg")
-                    : root.selected-model-id == "vintage_1x12" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/vintage_1x12.svg")
-                    : root.selected-model-id == "generic_ir" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/generic_ir.svg")
-                    : root.selected-model-id == "generic_nam" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/models/generic_nam.svg")
+                source: root.selected-model-id == "analog_warm" ? @image-url("../../../../assets/models/analog_warm.svg")
+                    : root.selected-model-id == "digital_clean" ? @image-url("../../../../assets/models/digital_clean.svg")
+                    : root.selected-model-id == "modulated_delay" ? @image-url("../../../../assets/models/modulated_delay.svg")
+                    : root.selected-model-id == "reverse" ? @image-url("../../../../assets/models/reverse.svg")
+                    : root.selected-model-id == "slapback" ? @image-url("../../../../assets/models/slapback.svg")
+                    : root.selected-model-id == "tape_vintage" ? @image-url("../../../../assets/models/tape_vintage.svg")
+                    : root.selected-model-id == "plate_foundation" ? @image-url("../../../../assets/models/plate_foundation.svg")
+                    : root.selected-model-id == "compressor_studio_clean" ? @image-url("../../../../assets/models/compressor_studio_clean.svg")
+                    : root.selected-model-id == "gate_basic" ? @image-url("../../../../assets/models/gate_basic.svg")
+                    : root.selected-model-id == "eq_three_band_basic" ? @image-url("../../../../assets/models/eq_three_band_basic.svg")
+                    : root.selected-model-id == "cry_classic" ? @image-url("../../../../assets/models/cry_classic.svg")
+                    : root.selected-model-id == "tremolo_sine" ? @image-url("../../../../assets/models/tremolo_sine.svg")
+                    : root.selected-model-id == "tuner_chromatic" ? @image-url("../../../../assets/models/tuner_chromatic.svg")
+                    : root.selected-model-id == "american_clean" ? @image-url("../../../../assets/models/american_clean.svg")
+                    : root.selected-model-id == "brit_crunch" ? @image-url("../../../../assets/models/brit_crunch.svg")
+                    : root.selected-model-id == "modern_high_gain" ? @image-url("../../../../assets/models/modern_high_gain.svg")
+                    : root.selected-model-id == "blackface_clean" ? @image-url("../../../../assets/models/blackface_clean.svg")
+                    : root.selected-model-id == "tweed_breakup" ? @image-url("../../../../assets/models/tweed_breakup.svg")
+                    : root.selected-model-id == "chime" ? @image-url("../../../../assets/models/chime.svg")
+                    : root.selected-model-id == "american_2x12" ? @image-url("../../../../assets/models/american_2x12.svg")
+                    : root.selected-model-id == "brit_4x12" ? @image-url("../../../../assets/models/brit_4x12.svg")
+                    : root.selected-model-id == "vintage_1x12" ? @image-url("../../../../assets/models/vintage_1x12.svg")
+                    : root.selected-model-id == "generic_ir" ? @image-url("../../../../assets/models/generic_ir.svg")
+                    : root.selected-model-id == "generic_nam" ? @image-url("../../../../assets/models/generic_nam.svg")
                     : root.selected-icon-source;
                 image-fit: contain;
                 colorize: root.panel-text;
@@ -716,9 +757,10 @@ export component BlockPanelEditor inherits Rectangle {
         for param[pi] in root.block-parameter-items : Rectangle {
             // Só mostrar parâmetros do tipo "select" (enums)
             visible: param.widget_kind == "enum";
-            x: parent.width - 28px - (root.block-parameter-items.length - pi) * 160px;
+            property <length> seg-width: Math.max(150px, param.option_labels.length * 96px);
+            x: parent.width - 28px - (root.block-parameter-items.length - pi) * (self.seg-width + 24px);
             y: parent.height * 0.54;
-            width: 150px;
+            width: self.seg-width;
             height: 60px;
 
             // Label acima
@@ -755,7 +797,8 @@ export component BlockPanelEditor inherits Rectangle {
                     background: oi == param.selected_option_index ? #3366cc : (seg-ta.has-hover ? #ffffff10 : transparent);
 
                     Text {
-                        width: parent.width;
+                        x: 4px;
+                        width: parent.width - 8px;
                         height: parent.height;
                         text: option;
                         color: oi == param.selected_option_index ? #ffffff : #8090a0;
@@ -764,6 +807,7 @@ export component BlockPanelEditor inherits Rectangle {
                         letter-spacing: 0.5px;
                         horizontal-alignment: center;
                         vertical-alignment: center;
+                        overflow: elide;
                     }
 
                     seg-ta := TouchArea {

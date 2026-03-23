@@ -123,7 +123,9 @@ impl FilesystemStorage {
 
     pub fn load_gui_audio_settings() -> Result<Option<GuiAudioSettings>> {
         let path = Self::gui_settings_path()?;
+        log::info!("loading gui audio settings from {:?}", path);
         if !path.exists() {
+            log::debug!("gui audio settings file not found, returning None");
             return Ok(None);
         }
         let raw = fs::read_to_string(&path)
@@ -131,6 +133,7 @@ impl FilesystemStorage {
         let settings = match serde_yaml::from_str::<GuiAudioSettings>(&raw) {
             Ok(settings) => settings,
             Err(_) => {
+                log::warn!("failed to parse gui settings as current format, trying legacy format");
                 let legacy = serde_yaml::from_str::<LegacyGuiAudioSettings>(&raw)
                     .with_context(|| format!("failed to parse gui settings from {:?}", path))?;
                 legacy.into()
@@ -141,9 +144,11 @@ impl FilesystemStorage {
 
     pub fn save_gui_audio_settings(settings: &GuiAudioSettings) -> Result<()> {
         let path = Self::gui_settings_path()?;
+        log::info!("saving gui audio settings to {:?}", path);
         let parent = path
             .parent()
             .context("gui settings path has no parent directory")?;
+        log::debug!("ensuring directory exists: {:?}", parent);
         fs::create_dir_all(parent)
             .with_context(|| format!("failed to create gui settings directory {:?}", parent))?;
         let raw = serde_yaml::to_string(settings)?;
@@ -154,7 +159,9 @@ impl FilesystemStorage {
 
     pub fn load_app_config() -> Result<AppConfig> {
         let path = Self::app_config_path()?;
+        log::info!("loading app config from {:?}", path);
         if !path.exists() {
+            log::debug!("app config file not found, using defaults");
             return Ok(AppConfig::default());
         }
         let raw = fs::read_to_string(&path)
@@ -165,9 +172,11 @@ impl FilesystemStorage {
 
     pub fn save_app_config(config: &AppConfig) -> Result<()> {
         let path = Self::app_config_path()?;
+        log::info!("saving app config to {:?}", path);
         let parent = path
             .parent()
             .context("app config path has no parent directory")?;
+        log::debug!("ensuring directory exists: {:?}", parent);
         fs::create_dir_all(parent)
             .with_context(|| format!("failed to create app config directory {:?}", parent))?;
         let raw = serde_yaml::to_string(config)?;

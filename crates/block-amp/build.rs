@@ -24,7 +24,7 @@ fn main() {
 
         let contents = fs::read_to_string(&path).expect("read source");
         if contents.contains("MODEL_DEFINITION") {
-            model_modules.push((stem.to_string(), path.canonicalize().expect("canonical path")));
+            model_modules.push((stem.to_string(), path.to_path_buf()));
         }
     }
 

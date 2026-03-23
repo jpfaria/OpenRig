@@ -6,5 +6,6 @@ edition.workspace = true
 anyhow.workspace = true
 block-core = { path = "../block-core" }
 domain = { path = "../domain" }
+log.workspace = true
 [build-dependencies]
 cmake = "0.1"

@@ -162,6 +162,7 @@ pub const MODEL_DEFINITION: UtilModelDefinition = UtilModelDefinition {
     schema,
     build,
     supported_instruments: block_core::ALL_INSTRUMENTS,
+    knob_layout: &[],
 };
 
 #[cfg(test)]

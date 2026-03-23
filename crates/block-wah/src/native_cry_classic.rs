@@ -199,5 +199,6 @@ pub const MODEL_DEFINITION: WahModelDefinition = WahModelDefinition {
     validate,
     build,
     supported_instruments: block_core::GUITAR_BASS,
+    knob_layout: &[],
 };
 

@@ -269,6 +269,7 @@ pub fn model_schema() -> ModelParameterSchema {
 
 pub fn build_processor_for_model(
     params: &ParameterSet,
+    sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
     let capture = resolve_capture(params)?;
@@ -278,6 +279,7 @@ pub fn build_processor_for_model(
         &model_path.to_string_lossy(),
         None,
         plugin_params,
+        sample_rate,
         layout,
     )
 }
@@ -288,10 +290,10 @@ fn schema() -> Result<ModelParameterSchema> {
 
 fn build(
     params: &ParameterSet,
-    _sample_rate: f32,
+    sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    build_processor_for_model(params, layout)
+    build_processor_for_model(params, sample_rate, layout)
 }
 
 pub const MODEL_DEFINITION: PreampModelDefinition = PreampModelDefinition {
@@ -304,6 +306,10 @@ pub const MODEL_DEFINITION: PreampModelDefinition = PreampModelDefinition {
     asset_summary,
     build,
     supported_instruments: block_core::GUITAR_BASS,
+    knob_layout: &[
+        block_core::KnobLayoutEntry { param_key: "volume",  svg_cx: 500.0, svg_cy: 140.0, svg_r: 22.0, min: 50.0, max: 70.0,  step: 10.0 },
+        block_core::KnobLayoutEntry { param_key: "gain",    svg_cx: 650.0, svg_cy: 140.0, svg_r: 22.0, min: 10.0, max: 100.0, step: 10.0 },
+    ],
 };
 
 pub fn validate_params(params: &ParameterSet) -> Result<()> {

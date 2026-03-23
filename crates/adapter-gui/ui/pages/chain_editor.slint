@@ -221,13 +221,13 @@ export component ChainEditorPage inherits Rectangle {
                 y: 4px;
                 width: 16px;
                 height: 16px;
-                source: index == 0 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/electric_guitar.svg")
-                    : index == 1 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/acoustic_guitar.svg")
-                    : index == 2 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/bass.svg")
-                    : index == 3 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/voice.svg")
-                    : index == 4 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/keys.svg")
-                    : index == 5 ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/drums.svg")
-                    : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/generic.svg");
+                source: index == 0 ? @image-url("../../../../assets/instruments/electric_guitar.svg")
+                    : index == 1 ? @image-url("../../../../assets/instruments/acoustic_guitar.svg")
+                    : index == 2 ? @image-url("../../../../assets/instruments/bass.svg")
+                    : index == 3 ? @image-url("../../../../assets/instruments/voice.svg")
+                    : index == 4 ? @image-url("../../../../assets/instruments/keys.svg")
+                    : index == 5 ? @image-url("../../../../assets/instruments/drums.svg")
+                    : @image-url("../../../../assets/instruments/generic.svg");
                 image-fit: contain;
                 colorize: index == root.selected-instrument-index ? #f4f7fb : #8a94a2;
             }

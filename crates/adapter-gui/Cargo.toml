@@ -6,6 +6,7 @@ edition.workspace = true
 [dependencies]
 anyhow.workspace = true
 application = { path = "../application" }
+block-core = { path = "../block-core" }
 cpal = "0.17"
 domain = { path = "../domain" }
 engine = { path = "../engine" }
@@ -16,6 +17,8 @@ serde.workspace = true
 serde_yaml.workspace = true
 rfd = "0.15"
 slint.workspace = true
+log.workspace = true
+env_logger.workspace = true
 project = { path = "../project" }
 ui-openrig = { path = "../ui-openrig" }
 

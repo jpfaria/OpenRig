@@ -3,6 +3,7 @@ use domain::value_objects::ParameterValue;
 use serde::{Deserialize, Serialize};
 use block_amp::{amp_model_schema, validate_amp_params};
 use block_preamp::{preamp_model_schema, validate_preamp_params};
+use block_body::{body_model_schema, validate_body_params};
 use block_cab::{cab_model_schema, validate_cab_params};
 use block_core::ModelAudioMode;
 use block_delay::delay_model_schema;
@@ -79,7 +80,7 @@ impl AudioBlock {
         }
         match &self.kind {
             AudioBlockKind::Nam(stage) => {
-                normalize_block_params("nam", &stage.model, stage.params.clone())?;
+                normalize_block_params(block_core::EFFECT_TYPE_NAM, &stage.model, stage.params.clone())?;
                 Ok(())
             }
             AudioBlockKind::Core(core) => core.validate_params(),
@@ -96,7 +97,7 @@ impl AudioBlock {
     pub fn parameter_descriptors(&self) -> Result<Vec<BlockParameterDescriptor>, String> {
         match &self.kind {
             AudioBlockKind::Nam(stage) => {
-                describe_block_params(&self.id, "nam", &stage.model, &stage.params)
+                describe_block_params(&self.id, block_core::EFFECT_TYPE_NAM, &stage.model, &stage.params)
             }
             AudioBlockKind::Core(core) => core.parameter_descriptors(&self.id),
             AudioBlockKind::Select(select) => select
@@ -112,7 +113,7 @@ impl AudioBlock {
         }
         match &self.kind {
             AudioBlockKind::Nam(stage) => {
-                Ok(vec![describe_block_audio(&self.id, "nam", &stage.model)?])
+                Ok(vec![describe_block_audio(&self.id, block_core::EFFECT_TYPE_NAM, &stage.model)?])
             }
             AudioBlockKind::Core(core) => core.audio_descriptors(&self.id),
             AudioBlockKind::Select(select) => select
@@ -125,7 +126,7 @@ impl AudioBlock {
     pub fn model_ref(&self) -> Option<BlockModelRef<'_>> {
         match &self.kind {
             AudioBlockKind::Nam(stage) => Some(BlockModelRef {
-                effect_type: "nam",
+                effect_type: block_core::EFFECT_TYPE_NAM,
                 model: &stage.model,
                 params: &stage.params,
             }),
@@ -224,21 +225,23 @@ pub fn normalize_block_params(
 ) -> Result<ParameterSet, String> {
     let schema = schema_for_block_model(effect_type, model)?;
     let normalized = params.normalized_against(&schema)?;
+    use block_core::*;
     match effect_type {
-        "preamp" => {
+        EFFECT_TYPE_PREAMP => {
             validate_preamp_params(model, &normalized).map_err(|error| error.to_string())?
         }
-        "amp" => {
+        EFFECT_TYPE_AMP => {
             validate_amp_params(model, &normalized).map_err(|error| error.to_string())?
         }
-        "full_rig" => {
+        EFFECT_TYPE_FULL_RIG => {
             validate_full_rig_params(model, &normalized).map_err(|error| error.to_string())?
         }
-        "cab" => validate_cab_params(model, &normalized).map_err(|error| error.to_string())?,
-        "ir" => validate_ir_params(model, &normalized).map_err(|error| error.to_string())?,
-        "gain" => validate_gain_params(model, &normalized).map_err(|error| error.to_string())?,
-        "wah" => validate_wah_params(model, &normalized).map_err(|error| error.to_string())?,
-        "pitch" => validate_pitch_params(model, &normalized).map_err(|error| error.to_string())?,
+        EFFECT_TYPE_CAB => validate_cab_params(model, &normalized).map_err(|error| error.to_string())?,
+        EFFECT_TYPE_BODY => validate_body_params(model, &normalized).map_err(|error| error.to_string())?,
+        EFFECT_TYPE_IR => validate_ir_params(model, &normalized).map_err(|error| error.to_string())?,
+        EFFECT_TYPE_GAIN => validate_gain_params(model, &normalized).map_err(|error| error.to_string())?,
+        EFFECT_TYPE_WAH => validate_wah_params(model, &normalized).map_err(|error| error.to_string())?,
+        EFFECT_TYPE_PITCH => validate_pitch_params(model, &normalized).map_err(|error| error.to_string())?,
         _ => {}
     }
     Ok(normalized)
@@ -248,22 +251,24 @@ pub fn schema_for_block_model(
     effect_type: &str,
     model: &str,
 ) -> Result<ModelParameterSchema, String> {
+    use block_core::*;
     match effect_type {
-        "preamp" => preamp_model_schema(model).map_err(|error| error.to_string()),
-        "amp" => amp_model_schema(model).map_err(|error| error.to_string()),
-        "full_rig" => full_rig_model_schema(model).map_err(|error| error.to_string()),
-        "cab" => cab_model_schema(model).map_err(|error| error.to_string()),
-        "ir" => ir_model_schema(model).map_err(|error| error.to_string()),
-        "gain" => gain_model_schema(model).map_err(|error| error.to_string()),
-        "nam" => nam_model_schema(model).map_err(|error| error.to_string()),
-        "delay" => delay_model_schema(model).map_err(|error| error.to_string()),
-        "reverb" => reverb_model_schema(model).map_err(|error| error.to_string()),
-        "utility" => utility_model_schema(model).map_err(|error| error.to_string()),
-        "dynamics" => dynamics_model_schema(model).map_err(|error| error.to_string()),
-        "filter" => filter_model_schema(model).map_err(|error| error.to_string()),
-        "wah" => wah_model_schema(model).map_err(|error| error.to_string()),
-        "pitch" => pitch_model_schema(model).map_err(|error| error.to_string()),
-        "modulation" => modulation_model_schema(model).map_err(|error| error.to_string()),
+        EFFECT_TYPE_PREAMP => preamp_model_schema(model).map_err(|error| error.to_string()),
+        EFFECT_TYPE_AMP => amp_model_schema(model).map_err(|error| error.to_string()),
+        EFFECT_TYPE_FULL_RIG => full_rig_model_schema(model).map_err(|error| error.to_string()),
+        EFFECT_TYPE_CAB => cab_model_schema(model).map_err(|error| error.to_string()),
+        EFFECT_TYPE_BODY => body_model_schema(model).map_err(|error| error.to_string()),
+        EFFECT_TYPE_IR => ir_model_schema(model).map_err(|error| error.to_string()),
+        EFFECT_TYPE_GAIN => gain_model_schema(model).map_err(|error| error.to_string()),
+        EFFECT_TYPE_NAM => nam_model_schema(model).map_err(|error| error.to_string()),
+        EFFECT_TYPE_DELAY => delay_model_schema(model).map_err(|error| error.to_string()),
+        EFFECT_TYPE_REVERB => reverb_model_schema(model).map_err(|error| error.to_string()),
+        EFFECT_TYPE_UTILITY => utility_model_schema(model).map_err(|error| error.to_string()),
+        EFFECT_TYPE_DYNAMICS => dynamics_model_schema(model).map_err(|error| error.to_string()),
+        EFFECT_TYPE_FILTER => filter_model_schema(model).map_err(|error| error.to_string()),
+        EFFECT_TYPE_WAH => wah_model_schema(model).map_err(|error| error.to_string()),
+        EFFECT_TYPE_PITCH => pitch_model_schema(model).map_err(|error| error.to_string()),
+        EFFECT_TYPE_MODULATION => modulation_model_schema(model).map_err(|error| error.to_string()),
         other => Err(format!("unsupported block type '{}'", other)),
     }
 }
@@ -274,16 +279,19 @@ pub fn build_audio_block_kind(
     params: ParameterSet,
 ) -> Result<AudioBlockKind, String> {
     let model = model.to_string();
+    use block_core::*;
     let kind = match effect_type {
-        "preamp" | "amp" | "full_rig" | "cab" | "ir" | "gain" | "dynamics" | "filter" | "wah"
-        | "pitch" | "modulation" | "delay" | "reverb" | "utility" => {
+        EFFECT_TYPE_PREAMP | EFFECT_TYPE_AMP | EFFECT_TYPE_FULL_RIG | EFFECT_TYPE_CAB
+        | EFFECT_TYPE_BODY | EFFECT_TYPE_IR | EFFECT_TYPE_GAIN | EFFECT_TYPE_DYNAMICS
+        | EFFECT_TYPE_FILTER | EFFECT_TYPE_WAH | EFFECT_TYPE_PITCH | EFFECT_TYPE_MODULATION
+        | EFFECT_TYPE_DELAY | EFFECT_TYPE_REVERB | EFFECT_TYPE_UTILITY => {
             AudioBlockKind::Core(CoreBlock {
                 effect_type: effect_type.to_string(),
                 model,
                 params,
             })
         }
-        "nam" => AudioBlockKind::Nam(NamBlock { model, params }),
+        EFFECT_TYPE_NAM => AudioBlockKind::Nam(NamBlock { model, params }),
         other => return Err(format!("unsupported block type '{}'", other)),
     };
     Ok(kind)

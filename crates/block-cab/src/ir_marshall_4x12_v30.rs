@@ -112,6 +112,7 @@ pub const MODEL_DEFINITION: CabModelDefinition = CabModelDefinition {
     asset_summary,
     build,
     supported_instruments: block_core::GUITAR_BASS,
+    knob_layout: &[],
 };
 
 pub fn validate_params(params: &ParameterSet) -> Result<()> {

@@ -537,7 +537,7 @@ component BlockParameterRow inherits Rectangle {
             y: 2px;
             width: 20px;
             height: 20px;
-            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/open-file.svg");
+            source: @image-url("../assets/open-file.svg");
             image-fit: contain;
         }
 
@@ -650,8 +650,8 @@ component ChainEndpointChip inherits Rectangle {
         width: 18px;
         height: 18px;
         source: root.is-input
-            ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/chain-input.svg")
-            : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/chain-output.svg");
+            ? @image-url("../assets/chain-input.svg")
+            : @image-url("../assets/chain-output.svg");
         image-fit: contain;
         colorize: hover-area.has-hover ? #a8c8f0 : #6a8aaa;
     }
@@ -816,6 +816,7 @@ component BlockChip inherits Rectangle {
     property <color> accent-color: root.block.icon_kind == "preamp" ? #f29f38
         : root.block.icon_kind == "amp" ? #f06292
         : root.block.icon_kind == "cab" ? #f2cb54
+        : root.block.icon_kind == "body" ? #c8946a
         : root.block.icon_kind == "ir" ? #7cc9ff
         : root.block.icon_kind == "full_rig" ? #63d2ff
         : root.block.icon_kind == "gain" ? #ff6a57
@@ -950,7 +951,7 @@ component BlockInsertSlot inherits Rectangle {
             y: 2px;
             width: 20px;
             height: 20px;
-            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/block-drop-target.svg");
+            source: @image-url("../assets/block-drop-target.svg");
             image-fit: contain;
         }
 
@@ -1009,8 +1010,11 @@ component ChainRow inherits Rectangle {
     out property <bool> any-chip-hovered: in-chip.is-hovered || out-chip.is-hovered;
 
     pure function slot-index-for-position(pointer-x: float, pointer-y: float) -> int {
+        // Blocks start at x=120, each 116px wide.
+        // Slot 0 is before block 0 (x<172), slot N is after block N-1 center.
+        // Block N center = 172 + N*116. Crossing the center moves to slot N+1.
         let row = Math.max(0, Math.min(root.insert-row-count - 1, Math.floor((pointer-y + 18) / 92)));
-        let col = Math.max(0, Math.min(root.blocks-per-row, Math.round((pointer-x - 16) / 116)));
+        let col = Math.max(0, Math.min(root.blocks-per-row, Math.round((pointer-x - 172) / 116 + 0.5)));
         let candidate = row * root.blocks-per-row + col;
         return Math.max(0, Math.min(root.chain.blocks.length, candidate));
     }
@@ -1040,13 +1044,13 @@ component ChainRow inherits Rectangle {
             y: 17px;
             width: 16px;
             height: 16px;
-            source: root.chain.instrument == "electric_guitar" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/electric_guitar.svg")
-                : root.chain.instrument == "acoustic_guitar" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/acoustic_guitar.svg")
-                : root.chain.instrument == "bass" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/bass.svg")
-                : root.chain.instrument == "voice" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/voice.svg")
-                : root.chain.instrument == "keys" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/keys.svg")
-                : root.chain.instrument == "drums" ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/drums.svg")
-                : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/instruments/generic.svg");
+            source: root.chain.instrument == "electric_guitar" ? @image-url("../../../../assets/instruments/electric_guitar.svg")
+                : root.chain.instrument == "acoustic_guitar" ? @image-url("../../../../assets/instruments/acoustic_guitar.svg")
+                : root.chain.instrument == "bass" ? @image-url("../../../../assets/instruments/bass.svg")
+                : root.chain.instrument == "voice" ? @image-url("../../../../assets/instruments/voice.svg")
+                : root.chain.instrument == "keys" ? @image-url("../../../../assets/instruments/keys.svg")
+                : root.chain.instrument == "drums" ? @image-url("../../../../assets/instruments/drums.svg")
+                : @image-url("../../../../assets/instruments/generic.svg");
             image-fit: contain;
             colorize: #6a7483;
         }
@@ -1066,7 +1070,7 @@ component ChainRow inherits Rectangle {
         ChainActionIcon {
             x: parent.width - 156px;
             y: 14px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
+            icon: @image-url("../assets/gear.svg");
             tooltip: "Configurar";
             clicked => { root.configure-chain(root.chain-index); }
         }
@@ -1074,7 +1078,7 @@ component ChainRow inherits Rectangle {
         ChainActionIcon {
             x: parent.width - 116px;
             y: 14px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/open-file.svg");
+            icon: @image-url("../assets/open-file.svg");
             tooltip: "Abrir preset";
             clicked => { root.configure-chain-preset(root.chain-index); }
         }
@@ -1082,7 +1086,7 @@ component ChainRow inherits Rectangle {
         ChainActionIcon {
             x: parent.width - 76px;
             y: 14px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/save.svg");
+            icon: @image-url("../assets/save.svg");
             tooltip: "Salvar preset";
             clicked => { root.save-chain-preset(root.chain-index); }
         }
@@ -1090,7 +1094,7 @@ component ChainRow inherits Rectangle {
         ChainActionIcon {
             x: parent.width - 36px;
             y: 14px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/trash.svg");
+            icon: @image-url("../assets/trash.svg");
             tooltip: "Excluir";
             clicked => { root.remove-chain(root.chain-index); }
         }
@@ -1258,36 +1262,38 @@ component ChainRow inherits Rectangle {
             y: Math.floor(block-index / root.blocks-per-row) * 92px;
             block: block;
             icon-source: block.icon_kind == "preamp"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-head.svg")
+                ? @image-url("../assets/amp-head.svg")
                 : block.icon_kind == "amp"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-combo.svg")
+                ? @image-url("../assets/amp-combo.svg")
                 : block.icon_kind == "cab"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/cab.svg")
+                ? @image-url("../assets/cab.svg")
+                : block.icon_kind == "body"
+                ? @image-url("../assets/body.svg")
                 : block.icon_kind == "ir"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/ir-loader.svg")
+                ? @image-url("../assets/ir-loader.svg")
                 : block.icon_kind == "full_rig"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/full-rig.svg")
+                ? @image-url("../assets/full-rig.svg")
                 : block.icon_kind == "gain"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gain.svg")
+                ? @image-url("../assets/gain.svg")
                 : block.icon_kind == "dynamics"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/dyn.svg")
+                ? @image-url("../assets/dyn.svg")
                 : block.icon_kind == "filter"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/filter.svg")
+                ? @image-url("../assets/filter.svg")
                 : block.icon_kind == "wah"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/expression.svg")
+                ? @image-url("../assets/expression.svg")
                 : block.icon_kind == "modulation"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/mod.svg")
+                ? @image-url("../assets/mod.svg")
                 : block.icon_kind == "delay"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/delay.svg")
+                ? @image-url("../assets/delay.svg")
                 : block.icon_kind == "reverb"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/reverb.svg")
+                ? @image-url("../assets/reverb.svg")
                 : block.icon_kind == "utility"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/util.svg")
+                ? @image-url("../assets/util.svg")
                 : block.icon_kind == "nam"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/nam.svg")
+                ? @image-url("../assets/nam.svg")
                 : block.icon_kind == "pitch"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/pitch.svg")
-                : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
+                ? @image-url("../assets/pitch.svg")
+                : @image-url("../assets/gear.svg");
             selected: root.dragging-chain-index == root.chain-index && root.dragging-block-index == block-index
                 ? false
                 : root.selected-block-chain-index == root.chain-index && root.selected-block-index == block-index;
@@ -1545,38 +1551,40 @@ export component BlockEditorPanel inherits Rectangle {
             source: root.block-drawer-selected-type-index >= 0 && root.block-drawer-selected-type-index < root.block-type-options.length
                 ? (
                     root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "preamp"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-head.svg")
+                    ? @image-url("../assets/amp-head.svg")
                     : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "amp"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-combo.svg")
+                    ? @image-url("../assets/amp-combo.svg")
                     : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "cab"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/cab.svg")
+                    ? @image-url("../assets/cab.svg")
+                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "body"
+                    ? @image-url("../assets/body.svg")
                     : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "ir"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/ir-loader.svg")
+                    ? @image-url("../assets/ir-loader.svg")
                     : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "full_rig"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/full-rig.svg")
+                    ? @image-url("../assets/full-rig.svg")
                     : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "gain"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gain.svg")
+                    ? @image-url("../assets/gain.svg")
                     : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "dynamics"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/dyn.svg")
+                    ? @image-url("../assets/dyn.svg")
                     : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "filter"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/filter.svg")
+                    ? @image-url("../assets/filter.svg")
                     : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "wah"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/expression.svg")
+                    ? @image-url("../assets/expression.svg")
                     : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "modulation"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/mod.svg")
+                    ? @image-url("../assets/mod.svg")
                     : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "delay"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/delay.svg")
+                    ? @image-url("../assets/delay.svg")
                     : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "reverb"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/reverb.svg")
+                    ? @image-url("../assets/reverb.svg")
                     : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "utility"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/util.svg")
+                    ? @image-url("../assets/util.svg")
                     : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "nam"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/nam.svg")
+                    ? @image-url("../assets/nam.svg")
                     : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "pitch"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/pitch.svg")
-                    : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg")
+                    ? @image-url("../assets/pitch.svg")
+                    : @image-url("../assets/gear.svg")
                 )
-                : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
+                : @image-url("../assets/gear.svg");
             image-fit: contain;
             colorize: #f3f6fb;
         }
@@ -1606,7 +1614,7 @@ export component BlockEditorPanel inherits Rectangle {
         if root.block-drawer-edit-mode : ChainActionIcon {
             x: parent.width - 40px;
             y: 20px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/trash.svg");
+            icon: @image-url("../assets/trash.svg");
             tooltip: "Excluir";
             clicked => { root.delete-block-drawer(); }
         }
@@ -1788,7 +1796,7 @@ export component ProjectChainsPage inherits Rectangle {
             y: 0px;
             width: parent.width;
             height: parent.height;
-            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/launcher-block-bg.jpg");
+            source: @image-url("../assets/launcher-block-bg.jpg");
             image-fit: cover;
             opacity: 1;
         }
@@ -1838,7 +1846,7 @@ export component ProjectChainsPage inherits Rectangle {
         HeaderIconAction {
             x: parent.width - 160px;
             y: 14px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/arrow-left.svg");
+            icon: @image-url("../assets/arrow-left.svg");
             tooltip: "Voltar";
             clicked => { root.back-to-launcher(); }
         }
@@ -1846,7 +1854,7 @@ export component ProjectChainsPage inherits Rectangle {
         HeaderIconAction {
             x: parent.width - 120px;
             y: 14px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
+            icon: @image-url("../assets/gear.svg");
             tooltip: "Projeto";
             clicked => { root.configure-project(); }
         }
@@ -1854,7 +1862,7 @@ export component ProjectChainsPage inherits Rectangle {
         HeaderIconAction {
             x: parent.width - 80px;
             y: 14px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/save.svg");
+            icon: @image-url("../assets/save.svg");
             tint: root.project-dirty ? #f3c64f : #eef2f8;
             tooltip: "Salvar";
             clicked => { root.save-project(); }
@@ -1863,7 +1871,7 @@ export component ProjectChainsPage inherits Rectangle {
         HeaderIconAction {
             x: parent.width - 40px;
             y: 14px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/plus.svg");
+            icon: @image-url("../assets/plus.svg");
             tooltip: "Nova chain";
             clicked => { root.add-chain(); }
         }
@@ -2020,36 +2028,38 @@ export component ProjectChainsPage inherits Rectangle {
                     item: type-item;
                     selected: false;
                     icon-source: type-item.icon_kind == "preamp"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-head.svg")
+                        ? @image-url("../assets/amp-head.svg")
                         : type-item.icon_kind == "amp"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-combo.svg")
+                        ? @image-url("../assets/amp-combo.svg")
                         : type-item.icon_kind == "cab"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/cab.svg")
+                        ? @image-url("../assets/cab.svg")
+                        : type-item.icon_kind == "body"
+                        ? @image-url("../assets/body.svg")
                         : type-item.icon_kind == "ir"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/ir-loader.svg")
+                        ? @image-url("../assets/ir-loader.svg")
                         : type-item.icon_kind == "full_rig"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/full-rig.svg")
+                        ? @image-url("../assets/full-rig.svg")
                         : type-item.icon_kind == "gain"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gain.svg")
+                        ? @image-url("../assets/gain.svg")
                         : type-item.icon_kind == "dynamics"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/dyn.svg")
+                        ? @image-url("../assets/dyn.svg")
                         : type-item.icon_kind == "filter"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/filter.svg")
+                        ? @image-url("../assets/filter.svg")
                         : type-item.icon_kind == "wah"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/expression.svg")
+                        ? @image-url("../assets/expression.svg")
                         : type-item.icon_kind == "modulation"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/mod.svg")
+                        ? @image-url("../assets/mod.svg")
                         : type-item.icon_kind == "delay"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/delay.svg")
+                        ? @image-url("../assets/delay.svg")
                         : type-item.icon_kind == "reverb"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/reverb.svg")
+                        ? @image-url("../assets/reverb.svg")
                         : type-item.icon_kind == "utility"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/util.svg")
+                        ? @image-url("../assets/util.svg")
                         : type-item.icon_kind == "nam"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/nam.svg")
+                        ? @image-url("../assets/nam.svg")
                         : type-item.icon_kind == "pitch"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/pitch.svg")
-                        : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
+                        ? @image-url("../assets/pitch.svg")
+                        : @image-url("../assets/gear.svg");
                     clicked => { root.choose-block-type(index); }
                 }
             }

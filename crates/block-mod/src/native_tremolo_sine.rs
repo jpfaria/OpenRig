@@ -143,4 +143,5 @@ pub const MODEL_DEFINITION: ModModelDefinition = ModModelDefinition {
     schema,
     build,
     supported_instruments: block_core::ALL_INSTRUMENTS,
+    knob_layout: &[],
 };

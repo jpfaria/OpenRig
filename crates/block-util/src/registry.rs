@@ -14,6 +14,7 @@ pub struct UtilModelDefinition {
     pub schema: fn() -> Result<ModelParameterSchema>,
     pub build: fn(&ParameterSet, usize) -> Result<Box<dyn TunerProcessor>>,
     pub supported_instruments: &'static [&'static str],
+    pub knob_layout: &'static [block_core::KnobLayoutEntry],
 }
 
 include!(concat!(env!("OUT_DIR"), "/generated_registry.rs"));

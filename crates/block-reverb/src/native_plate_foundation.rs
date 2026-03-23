@@ -154,6 +154,7 @@ pub const MODEL_DEFINITION: ReverbModelDefinition = ReverbModelDefinition {
     schema,
     build,
     supported_instruments: block_core::ALL_INSTRUMENTS,
+    knob_layout: &[],
 };
 fn room_feedback(room_size: f32) -> f32 {
     (0.2 + room_size.clamp(0.0, 1.0) * 0.77).clamp(0.0, 0.97)

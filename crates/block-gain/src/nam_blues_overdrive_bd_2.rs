@@ -58,6 +58,7 @@ pub fn model_schema() -> ModelParameterSchema {
 
 pub fn build_processor_for_model(
     params: &ParameterSet,
+    sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
     let capture = resolve_capture(params)?;
@@ -65,6 +66,7 @@ pub fn build_processor_for_model(
         capture.model_path,
         None,
         NAM_PLUGIN_FIXED_PARAMS,
+        sample_rate,
         layout,
     )
 }
@@ -122,10 +124,10 @@ fn schema() -> Result<ModelParameterSchema> {
 
 fn build(
     params: &ParameterSet,
-    _sample_rate: f32,
+    sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    build_processor_for_model(params, layout)
+    build_processor_for_model(params, sample_rate, layout)
 }
 
 pub const MODEL_DEFINITION: GainModelDefinition = GainModelDefinition {
@@ -138,4 +140,5 @@ pub const MODEL_DEFINITION: GainModelDefinition = GainModelDefinition {
     asset_summary,
     build,
     supported_instruments: block_core::GUITAR_BASS,
+    knob_layout: &[],
 };

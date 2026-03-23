@@ -65,6 +65,31 @@ pub const INST_BASS: &str = "bass";
 pub const INST_VOICE: &str = "voice";
 pub const INST_KEYS: &str = "keys";
 pub const INST_DRUMS: &str = "drums";
+pub const INST_GENERIC: &str = "generic";
+
+// Brand constants
+pub const BRAND_NATIVE: &str = "native";
+
+// Effect type constants
+pub const EFFECT_TYPE_PREAMP: &str = "preamp";
+pub const EFFECT_TYPE_AMP: &str = "amp";
+pub const EFFECT_TYPE_FULL_RIG: &str = "full_rig";
+pub const EFFECT_TYPE_CAB: &str = "cab";
+pub const EFFECT_TYPE_IR: &str = "ir";
+pub const EFFECT_TYPE_GAIN: &str = "gain";
+pub const EFFECT_TYPE_NAM: &str = "nam";
+pub const EFFECT_TYPE_DELAY: &str = "delay";
+pub const EFFECT_TYPE_REVERB: &str = "reverb";
+pub const EFFECT_TYPE_UTILITY: &str = "utility";
+pub const EFFECT_TYPE_DYNAMICS: &str = "dynamics";
+pub const EFFECT_TYPE_FILTER: &str = "filter";
+pub const EFFECT_TYPE_WAH: &str = "wah";
+pub const EFFECT_TYPE_PITCH: &str = "pitch";
+pub const EFFECT_TYPE_MODULATION: &str = "modulation";
+pub const EFFECT_TYPE_BODY: &str = "body";
+
+// Default instrument (used as fallback)
+pub const DEFAULT_INSTRUMENT: &str = INST_ELECTRIC_GUITAR;
 
 /// All non-generic instruments
 pub const ALL_INSTRUMENTS: &[&str] = &[
@@ -78,12 +103,25 @@ pub const GUITAR_BASS: &[&str] = &[INST_ELECTRIC_GUITAR, INST_BASS];
 /// Guitar, acoustic guitar and bass (for preamps)
 pub const GUITAR_ACOUSTIC_BASS: &[&str] = &[INST_ELECTRIC_GUITAR, INST_ACOUSTIC_GUITAR, INST_BASS];
 
+/// Describes the position and range of a single knob overlay on the panel SVG.
+#[derive(Debug, Clone, Copy)]
+pub struct KnobLayoutEntry {
+    pub param_key: &'static str,
+    pub svg_cx: f32,
+    pub svg_cy: f32,
+    pub svg_r: f32,
+    pub min: f32,
+    pub max: f32,
+    pub step: f32,
+}
+
 /// Visual metadata for a model, used by the GUI catalog layer.
 #[derive(Debug, Clone, Copy)]
 pub struct ModelVisualData {
     pub brand: &'static str,
     pub type_label: &'static str,
     pub supported_instruments: &'static [&'static str],
+    pub knob_layout: &'static [KnobLayoutEntry],
 }
 
 pub trait MonoProcessor: Send + Sync + 'static {
@@ -113,6 +151,22 @@ pub trait NamedModel {
     fn model_key(&self) -> &'static str;
     fn display_name(&self) -> &'static str;
 }
+/// Capitalize the first character of a string, leaving the rest unchanged.
+pub fn capitalize_first(s: &str) -> String {
+    let mut chars = s.chars();
+    match chars.next() {
+        None => String::new(),
+        Some(first) => {
+            let mut result = String::with_capacity(s.len());
+            for c in first.to_uppercase() {
+                result.push(c);
+            }
+            result.push_str(chars.as_str());
+            result
+        }
+    }
+}
+
 pub fn db_to_lin(db: f32) -> f32 {
     10f32.powf(db / 20.0)
 }

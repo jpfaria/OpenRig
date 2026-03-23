@@ -21,7 +21,7 @@ fn main() {
         if !contents.contains("MODEL_DEFINITION") {
             continue;
         }
-        let item = (stem.to_string(), path.canonicalize().expect("canonical path"));
+        let item = (stem.to_string(), path.to_path_buf());
         if stem.contains("compressor") {
             compressor_modules.push(item);
         } else if stem.contains("gate") {

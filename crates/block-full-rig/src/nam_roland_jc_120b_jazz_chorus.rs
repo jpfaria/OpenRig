@@ -86,11 +86,12 @@ pub fn model_schema() -> ModelParameterSchema {
 
 pub fn build_processor_for_model(
     params: &ParameterSet,
+    sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
     let capture = resolve_capture(params)?;
     let plugin_params = plugin_params_from_set_with_defaults(params, NAM_PLUGIN_DEFAULTS)?;
-    build_processor_with_assets_for_layout(capture.model_path, None, plugin_params, layout)
+    build_processor_with_assets_for_layout(capture.model_path, None, plugin_params, sample_rate, layout)
 }
 
 pub fn validate_params(params: &ParameterSet) -> Result<()> {
@@ -136,8 +137,8 @@ fn schema() -> Result<ModelParameterSchema> {
     Ok(model_schema())
 }
 
-fn build(params: &ParameterSet, layout: AudioChannelLayout) -> Result<BlockProcessor> {
-    build_processor_for_model(params, layout)
+fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) -> Result<BlockProcessor> {
+    build_processor_for_model(params, sample_rate, layout)
 }
 
 pub const MODEL_DEFINITION: FullRigModelDefinition = FullRigModelDefinition {
@@ -150,4 +151,5 @@ pub const MODEL_DEFINITION: FullRigModelDefinition = FullRigModelDefinition {
     asset_summary,
     build,
     supported_instruments: block_core::GUITAR_BASS,
+    knob_layout: &[],
 };

@@ -17,8 +17,8 @@ fn schema() -> Result<ModelParameterSchema> {
     ))
 }
 
-fn build(params: &ParameterSet, layout: AudioChannelLayout) -> Result<BlockProcessor> {
-    nam::build_processor_for_layout(params, layout)
+fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) -> Result<BlockProcessor> {
+    nam::build_processor_for_layout(params, sample_rate, layout)
 }
 
 pub const MODEL_DEFINITION: NamModelDefinition = NamModelDefinition {
@@ -29,4 +29,5 @@ pub const MODEL_DEFINITION: NamModelDefinition = NamModelDefinition {
     schema,
     build,
     supported_instruments: block_core::ALL_INSTRUMENTS,
+    knob_layout: &[],
 };

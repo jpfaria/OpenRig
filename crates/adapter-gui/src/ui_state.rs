@@ -40,18 +40,20 @@ pub fn block_drawer_state(
 }
 
 pub fn block_family_for_kind(kind: &str) -> &'static str {
+    use block_core::*;
     match kind {
-        "preamp" | "amp" | "full_rig" | "nam" => "amp",
-        "cab" => "cab",
-        "ir" => "ir",
-        "gain" => "gain",
-        "dynamics" => "dynamics",
-        "filter" => "filter",
-        "wah" => "wah",
-        "pitch" => "pitch",
-        "modulation" => "modulation",
-        "delay" | "reverb" => "space",
-        "utility" => "utility",
+        EFFECT_TYPE_PREAMP | EFFECT_TYPE_AMP | EFFECT_TYPE_FULL_RIG | EFFECT_TYPE_NAM => "amp",
+        EFFECT_TYPE_CAB => "cab",
+        EFFECT_TYPE_BODY => "body",
+        EFFECT_TYPE_IR => "ir",
+        EFFECT_TYPE_GAIN => "gain",
+        EFFECT_TYPE_DYNAMICS => "dynamics",
+        EFFECT_TYPE_FILTER => "filter",
+        EFFECT_TYPE_WAH => "wah",
+        EFFECT_TYPE_PITCH => "pitch",
+        EFFECT_TYPE_MODULATION => "modulation",
+        EFFECT_TYPE_DELAY | EFFECT_TYPE_REVERB => "space",
+        EFFECT_TYPE_UTILITY => "utility",
         _ => "utility",
     }
 }
@@ -81,7 +83,7 @@ fn channels_label(channels: &[usize]) -> String {
 mod tests {
     use super::{insertion_slot_indices, block_drawer_state, chain_routing_summary, BlockDrawerMode};
     use domain::ids::{DeviceId, ChainId};
-    use project::chain::{Chain, ChainOutputMixdown};
+    use project::chain::{Chain, ChainInputMode, ChainOutputMixdown};
 
     #[test]
     fn insertion_slots_cover_edges_and_between_positions() {
@@ -112,7 +114,7 @@ mod tests {
         let chain = Chain {
             id: ChainId("chain:1".to_string()),
             description: Some("Guitarra".to_string()),
-            instrument: "electric_guitar".to_string(),
+            instrument: block_core::INST_ELECTRIC_GUITAR.to_string(),
             enabled: true,
             input_device_id: DeviceId("in".to_string()),
             input_channels: vec![0],
@@ -120,6 +122,7 @@ mod tests {
             output_channels: vec![0, 1],
             blocks: Vec::new(),
             output_mixdown: ChainOutputMixdown::Average,
+            input_mode: ChainInputMode::Auto,
         };
 
         assert_eq!(

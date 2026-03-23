@@ -3,6 +3,7 @@ name = "engine"
 version.workspace = true
 edition.workspace = true
 [dependencies]
+log.workspace = true
 anyhow.workspace = true
 domain = { path = "../domain" }
 block-core = { path = "../block-core" }
@@ -16,6 +17,7 @@ block-preamp = { path = "../block-preamp" }
 block-amp = { path = "../block-amp" }
 block-full-rig = { path = "../block-full-rig" }
 block-cab = { path = "../block-cab" }
+block-body = { path = "../block-body" }
 block-ir = { path = "../block-ir" }
 block-wah = { path = "../block-wah" }
 block-reverb = { path = "../block-reverb" }

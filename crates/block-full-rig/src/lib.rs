@@ -26,6 +26,7 @@ pub fn full_rig_model_visual(model_id: &str) -> Option<ModelVisualData> {
             FullRigBackendKind::Ir => "IR",
         },
         supported_instruments: def.supported_instruments,
+        knob_layout: def.knob_layout,
     })
 }
 
@@ -44,8 +45,8 @@ pub fn validate_full_rig_params(model: &str, params: &ParameterSet) -> Result<()
 pub fn build_full_rig_processor_for_layout(
     model: &str,
     params: &ParameterSet,
-    _sample_rate: f32,
+    sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    (registry::find_model_definition(model)?.build)(params, layout)
+    (registry::find_model_definition(model)?.build)(params, sample_rate, layout)
 }

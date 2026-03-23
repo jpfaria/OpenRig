@@ -135,6 +135,7 @@ pub const MODEL_DEFINITION: DelayModelDefinition = DelayModelDefinition {
     schema,
     build,
     supported_instruments: block_core::ALL_INSTRUMENTS,
+    knob_layout: &[],
 };
 
 #[cfg(test)]

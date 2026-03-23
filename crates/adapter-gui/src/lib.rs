@@ -1,4 +1,7 @@
 use anyhow::{anyhow, Result};
+
+const SELECT_PATH_PREFIX: &str = "__select.";
+const SELECT_SELECTED_BLOCK_ID: &str = "__select.selected_block_id";
 use application::validate::validate_project;
 use domain::ids::{BlockId, DeviceId, ChainId};
 use infra_cpal::{
@@ -19,7 +22,7 @@ use project::catalog::{supported_block_models, supported_block_type, supported_b
 use project::device::DeviceSettings;
 use project::param::{ParameterDomain, ParameterSet, ParameterUnit};
 use project::project::Project;
-use project::chain::{Chain, ChainOutputMixdown};
+use project::chain::{Chain, ChainInputMode, ChainOutputMixdown};
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 use slint::{Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
@@ -41,10 +44,10 @@ const DEFAULT_BUFFER_SIZE_FRAMES: u32 = 256;
 const SUPPORTED_SAMPLE_RATES: &[u32] = &[44_100, 48_000, 88_200, 96_000];
 const SUPPORTED_BUFFER_SIZES: &[u32] = &[32, 64, 128, 256, 512, 1024];
 fn log_gui_message(context: &str, message: &str) {
-    eprintln!("[adapter-gui] {context}: {message}");
+    log::info!("[adapter-gui] {context}: {message}");
 }
 fn log_gui_error(context: &str, error: impl Display) {
-    eprintln!("[adapter-gui] {context}: {error}");
+    log::error!("[adapter-gui] {context}: {error}");
 }
 fn use_inline_block_editor(window: &AppWindow) -> bool {
     window.get_touch_optimized()
@@ -67,9 +70,18 @@ fn set_status_with_toast(
     window.set_toast_level(level.into());
     if !message.is_empty() {
         match level {
-            "error" => eprintln!("[ERROR] {}", message),
-            "warning" => eprintln!("[WARN] {}", message),
-            _ => eprintln!("[INFO] {}", message),
+            "error" => {
+                log::error!("{}", message);
+                eprintln!("[ERROR] {}", message);
+            }
+            "warning" => {
+                log::warn!("{}", message);
+                eprintln!("[WARN] {}", message);
+            }
+            _ => {
+                log::info!("{}", message);
+                eprintln!("[INFO] {}", message);
+            }
         }
         let weak = window.as_weak();
         toast_timer.start(TimerMode::SingleShot, Duration::from_secs(3), move || {
@@ -129,7 +141,7 @@ fn schedule_block_editor_persist(
     context: &'static str,
 ) {
     timer.stop();
-    timer.start(TimerMode::SingleShot, Duration::from_millis(140), move || {
+    timer.start(TimerMode::SingleShot, Duration::from_millis(30), move || {
         let Some(window) = window_weak.upgrade() else {
             return;
         };
@@ -152,7 +164,8 @@ fn schedule_block_editor_persist(
             &output_chain_devices,
             false,
         ) {
-            log_gui_error(context, error);
+            log::error!("[adapter-gui] {context}: {error}");
+            window.set_block_drawer_status_message(error.to_string().into());
         }
     });
 }
@@ -173,7 +186,7 @@ fn schedule_block_editor_persist_for_block_win(
     context: &'static str,
 ) {
     timer.stop();
-    timer.start(TimerMode::SingleShot, Duration::from_millis(140), move || {
+    timer.start(TimerMode::SingleShot, Duration::from_millis(30), move || {
         // Only persist if the block window is still alive
         if block_win_weak.upgrade().is_none() {
             return;
@@ -200,7 +213,8 @@ fn schedule_block_editor_persist_for_block_win(
             &output_chain_devices,
             false,
         ) {
-            log_gui_error(context, error);
+            log::error!("[adapter-gui] {context}: {error}");
+            main_window.set_block_drawer_status_message(error.to_string().into());
         }
     });
 }
@@ -287,13 +301,14 @@ struct ProjectDeviceSettingsYaml {
 struct ProjectChainYaml {
     #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
-    enabled: bool,
+    instrument: String,
     input_device_id: String,
     input_channels: Vec<usize>,
     output_device_id: String,
     output_channels: Vec<usize>,
     blocks: Vec<serde_yaml::Value>,
     output_mixdown: ChainOutputMixdown,
+    input_mode: ChainInputMode,
 }
 #[derive(Debug, Serialize)]
 struct ConfigYaml {
@@ -305,48 +320,8 @@ struct BlockWindow {
     block_index: usize,
     window: BlockEditorWindow,
 }
-struct KnobInfo {
-    param_key: &'static str,
-    svg_cx: f32,
-    svg_cy: f32,
-    svg_r: f32,
-    min: f32,
-    max: f32,
-    step: f32,
-}
-// TODO: knob positions should come from model definitions in block crates
-// (via component.yaml or a KnobLayout in the registry), not hardcoded here.
-fn knob_infos_for_model(model_id: &str) -> &'static [KnobInfo] {
-    match model_id {
-        "marshall_jcm_800_2203" => &[
-            KnobInfo { param_key: "volume",  svg_cx: 500.0, svg_cy: 140.0, svg_r: 22.0, min: 50.0, max: 70.0,  step: 10.0 },
-            KnobInfo { param_key: "gain",    svg_cx: 650.0, svg_cy: 140.0, svg_r: 22.0, min: 10.0, max: 100.0, step: 10.0 },
-        ],
-        "american_clean" | "brit_crunch" | "modern_high_gain" => &[
-            KnobInfo { param_key: "input_db",  svg_cx: 44.0,  svg_cy: 90.0, svg_r: 16.0, min: -18.0, max: 18.0,  step: 0.5 },
-            KnobInfo { param_key: "gain",      svg_cx: 130.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-            KnobInfo { param_key: "bass",      svg_cx: 222.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-            KnobInfo { param_key: "middle",    svg_cx: 302.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-            KnobInfo { param_key: "treble",    svg_cx: 382.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-            KnobInfo { param_key: "presence",  svg_cx: 470.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-            KnobInfo { param_key: "depth",     svg_cx: 550.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-            KnobInfo { param_key: "sag",       svg_cx: 630.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-            KnobInfo { param_key: "master",    svg_cx: 706.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-        ],
-        "blackface_clean" | "tweed_breakup" | "chime" => &[
-            KnobInfo { param_key: "gain",      svg_cx: 130.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-            KnobInfo { param_key: "bass",      svg_cx: 222.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-            KnobInfo { param_key: "middle",    svg_cx: 302.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-            KnobInfo { param_key: "treble",    svg_cx: 382.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-            KnobInfo { param_key: "master",    svg_cx: 470.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-            KnobInfo { param_key: "sag",       svg_cx: 550.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-            KnobInfo { param_key: "room_mix",  svg_cx: 630.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-        ],
-        _ => &[],
-    }
-}
-fn build_knob_overlays(model_id: &str, param_items: &[BlockParameterItem]) -> Vec<BlockKnobOverlay> {
-    knob_infos_for_model(model_id)
+fn build_knob_overlays(knob_layout: &[block_core::KnobLayoutEntry], param_items: &[BlockParameterItem]) -> Vec<BlockKnobOverlay> {
+    knob_layout
         .iter()
         .map(|info| {
             let found = param_items
@@ -374,6 +349,7 @@ pub fn run_desktop_app(
     runtime_mode: AppRuntimeMode,
     interaction_mode: InteractionMode,
 ) -> Result<()> {
+    log::info!("starting desktop app: runtime_mode={:?}, interaction_mode={:?}", runtime_mode, interaction_mode);
     let context = UiRuntimeContext::new(runtime_mode, interaction_mode);
     let settings = FilesystemStorage::load_gui_audio_settings()?.unwrap_or_default();
     let needs_audio_settings =
@@ -519,7 +495,7 @@ pub fn run_desktop_app(
     chain_editor_window.set_status_message("".into());
     project_settings_window.set_project_name_draft("".into());
     chain_editor_window.set_chain_name("".into());
-    let block_type_options = Rc::new(VecModel::from(block_type_picker_items("generic")));
+    let block_type_options = Rc::new(VecModel::from(block_type_picker_items(block_core::INST_GENERIC)));
     let block_model_options = Rc::new(VecModel::from(Vec::<BlockModelPickerItem>::new()));
     let block_model_option_labels = Rc::new(VecModel::from(Vec::<SharedString>::new()));
     let block_parameter_items = Rc::new(VecModel::from(Vec::<BlockParameterItem>::new()));
@@ -965,6 +941,7 @@ pub fn run_desktop_app(
         let output_chain_devices = output_chain_devices.clone();
         let toast_timer = toast_timer.clone();
         window.on_open_project_file(move || {
+            log::info!("on_open_project_file triggered");
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -975,6 +952,7 @@ pub fn run_desktop_app(
             else {
                 return;
             };
+            log::info!("opening project file: {:?}", path);
             match load_project_session(&path, &resolve_project_config_path(&path)) {
                 Ok(session) => {
                     let canonical_path = canonical_project_path(&path).unwrap_or(path.clone());
@@ -1070,6 +1048,7 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let toast_timer = toast_timer.clone();
         window.on_save_project(move || {
+            log::info!("on_save_project triggered");
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -1523,6 +1502,7 @@ pub fn run_desktop_app(
         let chain_editor_window = chain_editor_window.as_weak();
         let toast_timer = toast_timer.clone();
         window.on_add_chain(move || {
+            log::info!("on_add_chain triggered");
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -1676,8 +1656,13 @@ pub fn run_desktop_app(
     {
         let chain_draft = chain_draft.clone();
         chain_editor_window.on_select_instrument(move |index| {
+            let instrument = instrument_index_to_string(index).to_string();
+            log::debug!("[select_instrument] index={}, instrument='{}'", index, instrument);
             if let Some(draft) = chain_draft.borrow_mut().as_mut() {
-                draft.instrument = instrument_index_to_string(index).to_string();
+                draft.instrument = instrument;
+                log::debug!("[select_instrument] draft updated to '{}'", draft.instrument);
+            } else {
+                log::warn!("[select_instrument] no draft to update!");
             }
         });
     }
@@ -2073,6 +2058,7 @@ pub fn run_desktop_app(
                 block_index: block_index as usize,
             });
             let instrument = chain.instrument.clone();
+            log::info!("[select_chain_block] chain_index={}, block_index={}, effect_type='{}', model_id='{}', enabled={}", chain_index, block_index, effect_type, model_id, enabled);
             *block_editor_draft.borrow_mut() = Some(BlockEditorDraft {
                 chain_index: chain_index as usize,
                 block_index: Some(block_index as usize),
@@ -2084,6 +2070,10 @@ pub fn run_desktop_app(
                 is_select: editor_data.is_select,
             });
             let items = block_model_picker_items(&effect_type, &instrument);
+            log::debug!("[select_chain_block] filtered models count={}", items.len());
+            for item in &items {
+                log::debug!("[select_chain_block]   model='{}'", item.model_id);
+            }
             block_model_option_labels.set_vec(block_model_picker_labels(&items));
             block_model_options.set_vec(items);
             block_parameter_items.set_vec(block_parameter_items_for_editor(&editor_data));
@@ -2134,7 +2124,7 @@ pub fn run_desktop_app(
                 ));
                 let win_param_items_vec = block_parameter_items_for_editor(&editor_data);
                 let win_knob_overlays = Rc::new(VecModel::from(
-                    build_knob_overlays(&model_id, &win_param_items_vec)
+                    build_knob_overlays(project::catalog::model_knob_layout(&effect_type, &model_id), &win_param_items_vec)
                 ));
                 let win_param_items = Rc::new(VecModel::from(win_param_items_vec));
                 let win_draft = Rc::new(RefCell::new(Some(BlockEditorDraft {
@@ -2183,7 +2173,7 @@ pub fn run_desktop_app(
                     let weak_main = weak_main_window.clone();
                     let weak_win = win.as_weak();
                     win.on_choose_block_model(move |index| {
-                        let Some(win) = weak_win.upgrade() else { return; };
+                        let Some(_win) = weak_win.upgrade() else { return; };
                         let mut draft_borrow = win_draft.borrow_mut();
                         let Some(draft) = draft_borrow.as_mut() else { return; };
                         let models = block_model_picker_items(&draft.effect_type, &draft.instrument);
@@ -2193,12 +2183,9 @@ pub fn run_desktop_app(
                         let new_params = block_parameter_items_for_model(
                             &model.effect_type, &model.model_id, &ParameterSet::default(),
                         );
-                        let overlays = build_knob_overlays(&model.model_id, &new_params);
-                        win_knob_overlays.set_vec(overlays.clone());
-                        win_param_items.set_vec(new_params.clone());
-                        // Explicitly set on window to ensure UI updates
-                        win.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
-                        win.set_block_parameter_items(ModelRc::from(Rc::new(VecModel::from(new_params))));
+                        let overlays = build_knob_overlays(project::catalog::model_knob_layout(&model.effect_type, &model.model_id), &new_params);
+                        win_knob_overlays.set_vec(overlays);
+                        win_param_items.set_vec(new_params);
                         drop(draft_borrow);
                         if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
                             schedule_block_editor_persist_for_block_win(
@@ -2254,11 +2241,14 @@ pub fn run_desktop_app(
                             let Some(block) = chain.blocks.get(block_idx) else { return; };
                             block.enabled
                         };
-                        let chain_id = chain_id_opt.unwrap();
+                        let Some(chain_id) = chain_id_opt else { return; };
                         let mut session_borrow = project_session.borrow_mut();
                         let Some(session) = session_borrow.as_mut() else { return; };
                         if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                            log_gui_error("block-window.toggle-enabled", e);
+                            log::error!("[adapter-gui] block-window.toggle-enabled: {e}");
+                            if let Some(w) = weak_main.upgrade() {
+                                w.set_block_drawer_status_message(e.to_string().into());
+                            }
                             return;
                         }
                         replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
@@ -2488,7 +2478,8 @@ pub fn run_desktop_app(
                             &saved_project_snapshot, &project_dirty,
                             &input_chain_devices, &output_chain_devices, true,
                         ) {
-                            log_gui_error("block-window.save", e);
+                            log::error!("[adapter-gui] block-window.save: {e}");
+                            main.set_block_drawer_status_message(e.to_string().into());
                             return;
                         }
                         *selected_block.borrow_mut() = None;
@@ -2528,7 +2519,10 @@ pub fn run_desktop_app(
                         let chain_id = chain.id.clone();
                         chain.blocks.remove(block_index);
                         if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                            log_gui_error("block-window.delete", e);
+                            log::error!("[adapter-gui] block-window.delete: {e}");
+                            if let Some(w) = weak_main.upgrade() {
+                                w.set_block_drawer_status_message(e.to_string().into());
+                            }
                             return;
                         }
                         replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
@@ -2610,6 +2604,7 @@ pub fn run_desktop_app(
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            log::info!("on_toggle_chain_block_enabled: chain_index={}, block_index={}", chain_index, block_index);
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
                 set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
@@ -2648,6 +2643,7 @@ pub fn run_desktop_app(
         let weak_window = window.as_weak();
         let selected_block = selected_block.clone();
         let block_editor_draft = block_editor_draft.clone();
+        let block_editor_persist_timer = block_editor_persist_timer.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
@@ -2656,7 +2652,9 @@ pub fn run_desktop_app(
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         let toast_timer = toast_timer.clone();
+        let open_block_windows = open_block_windows.clone();
         window.on_reorder_chain_block(move |chain_index, from_index, before_index| {
+            log::info!("[reorder_chain_block] chain_index={}, from_index={}, before_index={}", chain_index, from_index, before_index);
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -2665,7 +2663,7 @@ pub fn run_desktop_app(
                 set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
-            let (chain_id, insert_at) = {
+            let (chain_id, _insert_at) = {
                 let Some(chain) = session.project.chains.get_mut(chain_index as usize) else {
                     set_status_error(&window, &toast_timer, "Chain inválida.");
                     return;
@@ -2696,14 +2694,23 @@ pub fn run_desktop_app(
                 &input_chain_devices,
                 &output_chain_devices,
             );
+            // Close editor and clear all state — avoids stale index references
+            block_editor_persist_timer.stop();
             *selected_block.borrow_mut() = None;
-            if let Some(draft) = block_editor_draft.borrow_mut().as_mut() {
-                if draft.chain_index == chain_index as usize && draft.block_index.is_some() {
-                    draft.block_index = Some(insert_at);
-                    draft.before_index = insert_at;
+            *block_editor_draft.borrow_mut() = None;
+            // Close all open block editor windows for this chain
+            {
+                let ci = chain_index as usize;
+                for bw in open_block_windows.borrow().iter() {
+                    if bw.chain_index == ci {
+                        let _ = bw.window.hide();
+                    }
                 }
+                open_block_windows.borrow_mut().retain(|bw| bw.chain_index != ci);
             }
-            set_selected_block(&window, selected_block.borrow().as_ref());
+            window.set_show_block_drawer(false);
+            window.set_show_block_type_picker(false);
+            set_selected_block(&window, None);
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             clear_status(&window, &toast_timer);
         });
@@ -2718,12 +2725,21 @@ pub fn run_desktop_app(
         let block_parameter_items = block_parameter_items.clone();
         let project_session = project_session.clone();
         window.on_start_block_insert(move |chain_index, before_index| {
+            log::debug!("on_start_block_insert: chain_index={}, before_index={}", chain_index, before_index);
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             let instrument = project_session.borrow().as_ref()
-                .and_then(|s| s.project.chains.get(chain_index as usize).map(|c| c.instrument.clone()))
-                .unwrap_or_else(|| "electric_guitar".to_string());
+                .and_then(|s| {
+                    let chain = s.project.chains.get(chain_index as usize)?;
+                    log::info!("=== START_BLOCK_INSERT: chain_index={}, chain.instrument='{}', chain.description={:?} ===",
+                        chain_index, chain.instrument, chain.description);
+                    Some(chain.instrument.clone())
+                })
+                .unwrap_or_else(|| {
+                    log::warn!("=== START_BLOCK_INSERT: no chain at index {}, defaulting to electric_guitar ===", chain_index);
+                    block_core::DEFAULT_INSTRUMENT.to_string()
+                });
             *selected_block.borrow_mut() = None;
             *block_editor_draft.borrow_mut() = Some(BlockEditorDraft {
                 chain_index: chain_index as usize,
@@ -2761,11 +2777,12 @@ pub fn run_desktop_app(
             };
             let instrument = block_editor_draft.borrow().as_ref()
                 .map(|d| d.instrument.clone())
-                .unwrap_or_else(|| "electric_guitar".to_string());
+                .unwrap_or_else(|| block_core::DEFAULT_INSTRUMENT.to_string());
             let block_types = block_type_picker_items(&instrument);
             let Some(block_type) = block_types.get(index as usize) else {
                 return;
             };
+            log::debug!("on_choose_block_type: index={}, type='{}', instrument='{}'", index, block_type.effect_type, instrument);
             let models = block_model_picker_items(block_type.effect_type.as_str(), &instrument);
             let Some(model) = models.first() else {
                 return;
@@ -2782,7 +2799,7 @@ pub fn run_desktop_app(
                 &model.model_id,
                 &ParameterSet::default(),
             );
-            let overlays = build_knob_overlays(&model.model_id, &new_params);
+            let overlays = build_knob_overlays(project::catalog::model_knob_layout(&model.effect_type, &model.model_id), &new_params);
             block_parameter_items.set_vec(new_params);
             let drawer_state =
                 block_drawer_state(None, &model.effect_type, Some(&model.model_id));
@@ -2830,6 +2847,7 @@ pub fn run_desktop_app(
             let Some(model) = models.get(index as usize) else {
                 return;
             };
+            log::debug!("on_choose_block_model: index={}, model_id='{}', effect_type='{}'", index, model.model_id, model.effect_type);
             draft.model_id = model.model_id.to_string();
             draft.effect_type = model.effect_type.to_string();
             let new_params = block_parameter_items_for_model(
@@ -2837,7 +2855,7 @@ pub fn run_desktop_app(
                 &model.model_id,
                 &ParameterSet::default(),
             );
-            let overlays = build_knob_overlays(&model.model_id, &new_params);
+            let overlays = build_knob_overlays(project::catalog::model_knob_layout(&model.effect_type, &model.model_id), &new_params);
             block_parameter_items.set_vec(new_params);
             window.set_block_drawer_selected_model_index(index);
             window.set_block_drawer_status_message("".into());
@@ -2985,6 +3003,8 @@ pub fn run_desktop_app(
                 return;
             };
             draft.enabled = !draft.enabled;
+            log::info!("[toggle_block_drawer_enabled] chain_index={}, block_index={:?}, enabled={}, effect_type='{}', model_id='{}'",
+                draft.chain_index, draft.block_index, draft.enabled, draft.effect_type, draft.model_id);
             window.set_block_drawer_enabled(draft.enabled);
             if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
                 block_editor_window.set_block_drawer_enabled(draft.enabled);
@@ -3152,9 +3172,9 @@ pub fn run_desktop_app(
                 return;
             };
             set_block_parameter_option(&block_parameter_items, path.as_str(), index);
-            if path.as_str() == "__select.selected_block_id" {
+            if path.as_str() == SELECT_SELECTED_BLOCK_ID {
                 let selected_option_block_id =
-                    internal_block_parameter_value(&block_parameter_items, "__select.selected_block_id");
+                    internal_block_parameter_value(&block_parameter_items, SELECT_SELECTED_BLOCK_ID);
                 if let (Some(draft), Some(selected_option_block_id)) = (
                     block_editor_draft.borrow_mut().as_mut(),
                     selected_option_block_id,
@@ -3310,7 +3330,8 @@ pub fn run_desktop_app(
                 &output_chain_devices,
                 true,
             ) {
-                log_gui_error("block-drawer.save", error);
+                log::error!("[adapter-gui] block-drawer.save: {error}");
+                window.set_block_drawer_status_message(error.to_string().into());
                 return;
             }
             *selected_block.borrow_mut() = None;
@@ -3352,6 +3373,7 @@ pub fn run_desktop_app(
             let Some(block_index) = draft.block_index else {
                 return;
             };
+            log::info!("on_delete_block: chain_index={}, block_index={}, effect_type='{}', model_id='{}'", draft.chain_index, block_index, draft.effect_type, draft.model_id);
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
                 log_gui_message("block-drawer.delete", "Nenhum projeto carregado.");
@@ -3368,7 +3390,8 @@ pub fn run_desktop_app(
             let chain_id = chain.id.clone();
             chain.blocks.remove(block_index);
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                log_gui_error("block-drawer.delete", error);
+                log::error!("[adapter-gui] block-drawer.delete: {error}");
+                set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }
             replace_project_chains(
@@ -3404,6 +3427,7 @@ pub fn run_desktop_app(
         let output_chain_devices = output_chain_devices.clone();
         let toast_timer = toast_timer.clone();
         window.on_save_chain(move || {
+            log::info!("on_save_chain triggered");
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -3436,6 +3460,7 @@ pub fn run_desktop_app(
                 return;
             }
             let editing_index = draft.editing_index;
+            log::debug!("[save_chain] editing_index={:?}, draft.instrument='{}'", editing_index, draft.instrument);
             let existing_chain =
                 editing_index.and_then(|index| session.project.chains.get(index).cloned());
             let chain = Chain {
@@ -3444,10 +3469,7 @@ pub fn run_desktop_app(
                     .map(|chain| chain.id.clone())
                     .unwrap_or_else(ChainId::generate),
                 description: normalized_chain_description(&draft.name),
-                instrument: existing_chain
-                    .as_ref()
-                    .map(|chain| chain.instrument.clone())
-                    .unwrap_or_else(|| draft.instrument.clone()),
+                instrument: draft.instrument.clone(),
                 enabled: existing_chain
                     .as_ref()
                     .map(|chain| chain.enabled)
@@ -3464,7 +3486,13 @@ pub fn run_desktop_app(
                     .as_ref()
                     .map(|chain| chain.output_mixdown)
                     .unwrap_or(ChainOutputMixdown::Average),
+                input_mode: existing_chain
+                    .as_ref()
+                    .map(|chain| chain.input_mode)
+                    .unwrap_or(ChainInputMode::Auto),
             };
+            log::info!("=== CHAIN SAVED: id='{}', name={:?}, instrument='{}', editing={:?} ===",
+                chain.id.0, chain.description, chain.instrument, editing_index);
             let chain_id = chain.id.clone();
             if let Some(index) = editing_index {
                 if let Some(current) = session.project.chains.get_mut(index) {
@@ -3537,6 +3565,7 @@ pub fn run_desktop_app(
                 return;
             }
             let editing_index = draft.editing_index;
+            log::debug!("[save_chain] editing_index={:?}, draft.instrument='{}'", editing_index, draft.instrument);
             let existing_chain =
                 editing_index.and_then(|index| session.project.chains.get(index).cloned());
             let chain = Chain {
@@ -3545,10 +3574,7 @@ pub fn run_desktop_app(
                     .map(|chain| chain.id.clone())
                     .unwrap_or_else(ChainId::generate),
                 description: normalized_chain_description(&draft.name),
-                instrument: existing_chain
-                    .as_ref()
-                    .map(|chain| chain.instrument.clone())
-                    .unwrap_or_else(|| draft.instrument.clone()),
+                instrument: draft.instrument.clone(),
                 enabled: existing_chain
                     .as_ref()
                     .map(|chain| chain.enabled)
@@ -3565,7 +3591,13 @@ pub fn run_desktop_app(
                     .as_ref()
                     .map(|chain| chain.output_mixdown)
                     .unwrap_or(ChainOutputMixdown::Average),
+                input_mode: existing_chain
+                    .as_ref()
+                    .map(|chain| chain.input_mode)
+                    .unwrap_or(ChainInputMode::Auto),
             };
+            log::info!("=== CHAIN SAVED: id='{}', name={:?}, instrument='{}', editing={:?} ===",
+                chain.id.0, chain.description, chain.instrument, editing_index);
             let chain_id = chain.id.clone();
             if let Some(index) = editing_index {
                 if let Some(current) = session.project.chains.get_mut(index) {
@@ -3812,8 +3844,6 @@ pub fn run_desktop_app(
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         let toast_timer = toast_timer.clone();
@@ -3832,6 +3862,7 @@ pub fn run_desktop_app(
                 return;
             };
             let will_enable = !chain.enabled;
+            log::info!("on_toggle_chain_enabled: index={}, will_enable={}", index, will_enable);
             // Check channel conflict before enabling
             if will_enable {
                 let input_id = chain.input_device_id.clone();
@@ -3861,7 +3892,7 @@ pub fn run_desktop_app(
                 &input_chain_devices,
                 &output_chain_devices,
             );
-            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            // enabled is runtime-only state — do NOT mark project as dirty
             clear_status(&window, &toast_timer);
         });
     }
@@ -4059,6 +4090,7 @@ fn resolve_project_config_path(project_path: &Path) -> PathBuf {
         .join("config.yaml")
 }
 fn load_project_session(project_path: &Path, config_path: &Path) -> Result<ProjectSession> {
+    log::info!("loading project session from {:?}", project_path);
     let config = if config_path.exists() {
         load_app_config(config_path)?
     } else {
@@ -4207,21 +4239,25 @@ fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerItem> {
             use_panel_editor: item.use_panel_editor,
         })
         .filter(|item| {
-            instrument == "generic" || !block_model_picker_items(item.effect_type.as_str(), instrument).is_empty()
+            instrument == block_core::INST_GENERIC || !block_model_picker_items(item.effect_type.as_str(), instrument).is_empty()
         })
         .collect()
 }
 fn block_model_picker_items(effect_type: &str, instrument: &str) -> Vec<BlockModelPickerItem> {
-    supported_block_models(effect_type)
-        .unwrap_or_default()
+    let all_models = supported_block_models(effect_type).unwrap_or_default();
+    log::debug!("[block_model_picker_items] effect_type='{}', instrument='{}', total_models={}", effect_type, instrument, all_models.len());
+    for m in &all_models {
+        log::debug!("[block_model_picker_items]   model='{}' supported_instruments={:?}", m.model_id, m.supported_instruments);
+    }
+    all_models
         .into_iter()
-        .filter(|item| instrument == "generic" || item.supported_instruments.iter().any(|i| i == instrument))
+        .filter(|item| instrument == block_core::INST_GENERIC || item.supported_instruments.iter().any(|i| i == instrument))
         .map(|item| {
             let brand = &item.brand;
-            let label = if brand.is_empty() || brand == "native" {
+            let label = if brand.is_empty() || brand == block_core::BRAND_NATIVE {
                 item.display_name.clone()
             } else {
-                let brand_display = brand[..1].to_uppercase() + &brand[1..];
+                let brand_display = block_core::capitalize_first(brand);
                 format!("{} {}", brand_display, item.display_name)
             };
             let visual = visual_config::visual_config_for_model(&item.brand, &item.model_id);
@@ -4286,7 +4322,7 @@ fn block_model_index(effect_type: &str, model_id: &str, instrument: &str) -> i32
     supported_block_models(effect_type)
         .unwrap_or_default()
         .into_iter()
-        .filter(|item| instrument == "generic" || item.supported_instruments.iter().any(|i| i == instrument))
+        .filter(|item| instrument == block_core::INST_GENERIC || item.supported_instruments.iter().any(|i| i == instrument))
         .position(|item| item.model_id == model_id)
         .map(|index| index as i32)
         .unwrap_or(-1)
@@ -4378,7 +4414,7 @@ fn block_parameter_items_for_editor(data: &BlockEditorData) -> Vec<BlockParamete
             .map(|index| index as i32)
             .unwrap_or(0);
         items.push(BlockParameterItem {
-            path: "__select.selected_block_id".into(),
+            path: SELECT_SELECTED_BLOCK_ID.into(),
             label: "Modelo ativo".into(),
             group: "Select".into(),
             widget_kind: "enum".into(),
@@ -4605,7 +4641,7 @@ fn persist_block_editor_draft(
         block_parameter_values(block_parameter_items, &draft.effect_type, &draft.model_id)?;
     let selected_select_option_block_id = if draft.is_select {
         Some(
-            internal_block_parameter_value(block_parameter_items, "__select.selected_block_id")
+            internal_block_parameter_value(block_parameter_items, SELECT_SELECTED_BLOCK_ID)
                 .ok_or_else(|| anyhow!("Seleção do select inválida."))?,
         )
     } else {
@@ -4769,7 +4805,7 @@ fn block_parameter_values(
         let Some(row) = model.row_data(index) else {
             continue;
         };
-        if row.path.as_str().starts_with("__select.") {
+        if row.path.as_str().starts_with(SELECT_PATH_PREFIX) {
             continue;
         }
         let value = match row.widget_kind.as_str() {
@@ -4896,13 +4932,14 @@ fn build_project_yaml(session: &ProjectSession) -> Result<ProjectYaml> {
             .map(|chain| -> Result<ProjectChainYaml> {
                 Ok(ProjectChainYaml {
                     description: chain.description.clone(),
-                    enabled: chain.enabled,
+                    instrument: chain.instrument.clone(),
                     input_device_id: chain.input_device_id.0.clone(),
                     input_channels: chain.input_channels.clone(),
                     output_device_id: chain.output_device_id.0.clone(),
                     output_channels: chain.output_channels.clone(),
                     blocks: serialize_audio_blocks(&chain.blocks)?,
                     output_mixdown: chain.output_mixdown,
+                    input_mode: chain.input_mode,
                 })
             })
             .collect::<Result<Vec<_>>>()?,
@@ -4930,6 +4967,7 @@ fn sync_project_dirty(
     set_project_dirty(window, project_dirty, dirty);
 }
 fn save_project_session(session: &ProjectSession, project_path: &PathBuf) -> Result<()> {
+    log::info!("saving project session to {:?}", project_path);
     let parent_dir = project_path
         .parent()
         .map(PathBuf::from)
@@ -4999,7 +5037,7 @@ fn create_chain_draft(
     ChainDraft {
         editing_index: None,
         name: format!("Chain {}", project.chains.len() + 1),
-        instrument: "electric_guitar".to_string(),
+        instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
         input_device_id: input_devices.first().map(|device| device.id.clone()),
         output_device_id: output_devices.first().map(|device| device.id.clone()),
         input_channels: Vec::new(),
@@ -5133,6 +5171,7 @@ fn sync_live_chain_runtime(
     session: &ProjectSession,
     chain_id: &ChainId,
 ) -> Result<()> {
+    log::debug!("sync_live_chain_runtime: chain_id='{}'", chain_id.0);
     let chain = session
         .project
         .chains
@@ -5186,19 +5225,19 @@ fn assign_new_block_ids_recursive(block: &mut AudioBlock, chain_id: &ChainId) {
     }
 }
 const INSTRUMENT_KEYS: &[&str] = &[
-    "electric_guitar",
-    "acoustic_guitar",
-    "bass",
-    "voice",
-    "keys",
-    "drums",
-    "generic",
+    block_core::INST_ELECTRIC_GUITAR,
+    block_core::INST_ACOUSTIC_GUITAR,
+    block_core::INST_BASS,
+    block_core::INST_VOICE,
+    block_core::INST_KEYS,
+    block_core::INST_DRUMS,
+    block_core::INST_GENERIC,
 ];
 fn instrument_index_to_string(index: i32) -> &'static str {
     INSTRUMENT_KEYS
         .get(index as usize)
         .copied()
-        .unwrap_or("electric_guitar")
+        .unwrap_or(block_core::DEFAULT_INSTRUMENT)
 }
 fn instrument_string_to_index(instrument: &str) -> i32 {
     INSTRUMENT_KEYS
@@ -5391,7 +5430,7 @@ fn parse_positive_u32(value: &str, field: &str) -> Result<u32> {
 mod tests {
     use super::{
         block_editor_data, block_parameter_items_for_editor, numeric_widget_kind,
-        quantize_numeric_value,
+        quantize_numeric_value, SELECT_SELECTED_BLOCK_ID,
     };
     use domain::ids::BlockId;
     use domain::value_objects::ParameterValue;
@@ -5459,7 +5498,7 @@ mod tests {
         let items = block_parameter_items_for_editor(&editor_data);
         let selector = items
             .iter()
-            .find(|item| item.path.as_str() == "__select.selected_block_id")
+            .find(|item| item.path.as_str() == SELECT_SELECTED_BLOCK_ID)
             .expect("select editor should expose active option picker");
         assert_eq!(selector.option_values.row_count(), 2);
         assert_eq!(selector.selected_option_index, 1);

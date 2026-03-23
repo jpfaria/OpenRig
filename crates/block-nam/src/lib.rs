@@ -26,6 +26,7 @@ pub fn nam_model_visual(model_id: &str) -> Option<ModelVisualData> {
             NamBlockBackendKind::Ir => "IR",
         },
         supported_instruments: def.supported_instruments,
+        knob_layout: def.knob_layout,
     })
 }
 
@@ -33,14 +34,15 @@ pub fn nam_model_schema(model: &str) -> Result<ModelParameterSchema> {
     (registry::find_model_definition(model)?.schema)()
 }
 
-pub fn build_nam_processor(model: &str, params: &ParameterSet) -> Result<BlockProcessor> {
-    build_nam_processor_for_layout(model, params, AudioChannelLayout::Mono)
+pub fn build_nam_processor(model: &str, params: &ParameterSet, sample_rate: f32) -> Result<BlockProcessor> {
+    build_nam_processor_for_layout(model, params, sample_rate, AudioChannelLayout::Mono)
 }
 
 pub fn build_nam_processor_for_layout(
     model: &str,
     params: &ParameterSet,
+    sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    (registry::find_model_definition(model)?.build)(params, layout)
+    (registry::find_model_definition(model)?.build)(params, sample_rate, layout)
 }
