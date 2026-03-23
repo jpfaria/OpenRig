@@ -503,12 +503,14 @@ export component CompactChainViewPage inherits Rectangle {
         }
     }
 
-    // Block rows (no interactive flickable — knobs handle their own drag)
+    // Block rows — interactive: false prevents Flickable from capturing
+    // vertical drag that knobs need. Scroll via mouse wheel still works.
     Flickable {
         x: 0; y: 48px;
         width: parent.width;
         height: parent.height - 48px;
         viewport-height: root.compact-blocks.length * 106px;
+        interactive: false;
 
         for block-item[bi] in root.compact-blocks : CompactBlockRow {
             y: bi * 106px;
