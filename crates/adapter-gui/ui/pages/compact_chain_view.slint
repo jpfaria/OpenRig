@@ -137,29 +137,12 @@ component CompactBlockRow inherits Rectangle {
         }
     }
 
-    // ── Brand logo or type icon ──
+    // ── 2. Type icon (always shown) ──
     Image {
         x: 50px;
-        y: (parent.height - 24px) / 2;
-        width: 60px; height: 24px;
-        source: root.block-data.brand == "marshall" ? @image-url("../../../../assets/brands/marshall/logo.svg")
-            : root.block-data.brand == "bogner" ? @image-url("../../../../assets/brands/bogner/logo.svg")
-            : root.block-data.brand == "gibson" ? @image-url("../../../../assets/brands/gibson/logo.svg")
-            : root.block-data.brand == "martin" ? @image-url("../../../../assets/brands/martin/logo.svg")
-            : root.block-data.brand == "taylor" ? @image-url("../../../../assets/brands/taylor/logo.svg")
-            : root.block-data.brand == "fender" ? @image-url("../../../../assets/brands/fender/logo.svg")
-            : root.block-data.brand == "ibanez" ? @image-url("../../../../assets/brands/ibanez/logo.svg")
-            : root.block-data.brand == "boss" ? @image-url("../../../../assets/brands/boss/logo.svg")
-            : root.block-data.brand == "roland" ? @image-url("../../../../assets/brands/roland/logo.svg")
-            : root.block-data.brand == "vox" ? @image-url("../../../../assets/brands/vox/logo.svg")
-            : root.block-data.brand == "takamine" ? @image-url("../../../../assets/brands/takamine/logo.svg")
-            : root.block-data.brand == "guild" ? @image-url("../../../../assets/brands/guild/logo.svg")
-            : root.block-data.brand == "collings" ? @image-url("../../../../assets/brands/collings/logo.svg")
-            : root.block-data.brand == "suhr" ? @image-url("../../../../assets/brands/suhr/logo.svg")
-            : root.block-data.brand == "morris" ? @image-url("../../../../assets/brands/morris/logo.svg")
-            : root.block-data.brand == "santa_cruz" ? @image-url("../../../../assets/brands/santa_cruz/logo.svg")
-            // Fallback: type icon for brands without logo
-            : root.block-data.icon-kind == "preamp" ? @image-url("../assets/amp-head.svg")
+        y: (parent.height - 18px) / 2;
+        width: 18px; height: 18px;
+        source: root.block-data.icon-kind == "preamp" ? @image-url("../assets/amp-head.svg")
             : root.block-data.icon-kind == "amp" ? @image-url("../assets/amp-combo.svg")
             : root.block-data.icon-kind == "cab" ? @image-url("../assets/cab.svg")
             : root.block-data.icon-kind == "body" ? @image-url("../assets/body.svg")
@@ -168,8 +151,11 @@ component CompactBlockRow inherits Rectangle {
             : root.block-data.icon-kind == "reverb" ? @image-url("../assets/reverb.svg")
             : root.block-data.icon-kind == "dynamics" ? @image-url("../assets/dyn.svg")
             : root.block-data.icon-kind == "filter" ? @image-url("../assets/filter.svg")
+            : root.block-data.icon-kind == "wah" ? @image-url("../assets/expression.svg")
             : root.block-data.icon-kind == "modulation" ? @image-url("../assets/mod.svg")
             : root.block-data.icon-kind == "pitch" ? @image-url("../assets/pitch.svg")
+            : root.block-data.icon-kind == "ir" ? @image-url("../assets/ir-loader.svg")
+            : root.block-data.icon-kind == "nam" ? @image-url("../assets/nam.svg")
             : root.block-data.icon-kind == "full_rig" ? @image-url("../assets/full-rig.svg")
             : root.block-data.icon-kind == "utility" ? @image-url("../assets/tuner.svg")
             : @image-url("../assets/gear.svg");
@@ -177,10 +163,10 @@ component CompactBlockRow inherits Rectangle {
         colorize: root.block-data.panel-text;
     }
 
-    // ── Block type label (PREAMP, AMP, CAB, BODY, etc.) ──
+    // ── 3. Block type label ──
     Text {
-        x: 118px;
-        y: 4px;
+        x: 74px;
+        y: (parent.height - 12px) / 2;
         width: 60px;
         height: 12px;
         text: root.block-data.effect-type == "preamp" ? "PREAMP"
@@ -206,11 +192,38 @@ component CompactBlockRow inherits Rectangle {
         letter-spacing: 1px;
     }
 
-    // ── Model selector dropdown ──
+    // ── 4. Brand logo (if exists) or native icon ──
+    Image {
+        x: 140px;
+        y: (parent.height - 24px) / 2;
+        width: 60px; height: 24px;
+        visible: root.block-data.brand != "";
+        source: root.block-data.brand == "marshall" ? @image-url("../../../../assets/brands/marshall/logo.svg")
+            : root.block-data.brand == "bogner" ? @image-url("../../../../assets/brands/bogner/logo.svg")
+            : root.block-data.brand == "gibson" ? @image-url("../../../../assets/brands/gibson/logo.svg")
+            : root.block-data.brand == "martin" ? @image-url("../../../../assets/brands/martin/logo.svg")
+            : root.block-data.brand == "taylor" ? @image-url("../../../../assets/brands/taylor/logo.svg")
+            : root.block-data.brand == "fender" ? @image-url("../../../../assets/brands/fender/logo.svg")
+            : root.block-data.brand == "ibanez" ? @image-url("../../../../assets/brands/ibanez/logo.svg")
+            : root.block-data.brand == "boss" ? @image-url("../../../../assets/brands/boss/logo.svg")
+            : root.block-data.brand == "roland" ? @image-url("../../../../assets/brands/roland/logo.svg")
+            : root.block-data.brand == "vox" ? @image-url("../../../../assets/brands/vox/logo.svg")
+            : root.block-data.brand == "takamine" ? @image-url("../../../../assets/brands/takamine/logo.svg")
+            : root.block-data.brand == "guild" ? @image-url("../../../../assets/brands/guild/logo.svg")
+            : root.block-data.brand == "collings" ? @image-url("../../../../assets/brands/collings/logo.svg")
+            : root.block-data.brand == "suhr" ? @image-url("../../../../assets/brands/suhr/logo.svg")
+            : root.block-data.brand == "morris" ? @image-url("../../../../assets/brands/morris/logo.svg")
+            : root.block-data.brand == "santa_cruz" ? @image-url("../../../../assets/brands/santa_cruz/logo.svg")
+            : @image-url("../assets/gear.svg");
+        image-fit: contain;
+        colorize: root.block-data.panel-text;
+    }
+
+    // ── 5. Model selector dropdown ──
     Rectangle {
-        x: 118px;
-        y: 20px;
-        width: 220px;
+        x: root.block-data.brand != "" ? 208px : 140px;
+        y: (parent.height - 28px) / 2;
+        width: 200px;
         height: 28px;
         background: #060610;
         border-width: 1px;
