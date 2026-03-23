@@ -1073,8 +1073,8 @@ component ChainRow inherits Rectangle {
         ChainActionIcon {
             x: parent.width - 196px;
             y: 14px;
-            icon: @image-url("../assets/gear.svg");
-            tooltip: "Vista compacta";
+            icon: @image-url("../assets/expand.svg");
+            tooltip: "Expandir blocos";
             clicked => { root.open-compact-chain-view(root.chain-index); }
         }
 
