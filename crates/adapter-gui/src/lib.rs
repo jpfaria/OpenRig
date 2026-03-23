@@ -2512,6 +2512,15 @@ pub fn run_desktop_app(
                         win_timer.stop();
                         let Some(draft) = win_draft.borrow().clone() else { return; };
                         let Some(block_index) = draft.block_index else { return; };
+                        let confirmed = rfd::MessageDialog::new()
+                            .set_title("Excluir bloco")
+                            .set_description(format!("Excluir o bloco \"{}\"?", draft.model_id))
+                            .set_buttons(rfd::MessageButtons::YesNo)
+                            .set_level(rfd::MessageLevel::Warning)
+                            .show();
+                        if !matches!(confirmed, rfd::MessageDialogResult::Yes) {
+                            return;
+                        }
                         let mut session_borrow = project_session.borrow_mut();
                         let Some(session) = session_borrow.as_mut() else { return; };
                         let Some(chain) = session.project.chains.get_mut(draft.chain_index) else { return; };
@@ -3373,6 +3382,15 @@ pub fn run_desktop_app(
             let Some(block_index) = draft.block_index else {
                 return;
             };
+            let confirmed = rfd::MessageDialog::new()
+                .set_title("Excluir bloco")
+                .set_description(format!("Excluir o bloco \"{}\"?", draft.model_id))
+                .set_buttons(rfd::MessageButtons::YesNo)
+                .set_level(rfd::MessageLevel::Warning)
+                .show();
+            if !matches!(confirmed, rfd::MessageDialogResult::Yes) {
+                return;
+            }
             log::info!("on_delete_block: chain_index={}, block_index={}, effect_type='{}', model_id='{}'", draft.chain_index, block_index, draft.effect_type, draft.model_id);
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
@@ -3816,14 +3834,37 @@ pub fn run_desktop_app(
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            let chain_name = {
+                let session_borrow = project_session.borrow();
+                let Some(session) = session_borrow.as_ref() else {
+                    set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
+                    return;
+                };
+                let index = index as usize;
+                if index >= session.project.chains.len() {
+                    set_status_error(&window, &toast_timer, "Chain inválida.");
+                    return;
+                }
+                session.project.chains[index]
+                    .description
+                    .clone()
+                    .unwrap_or_else(|| format!("Chain {}", index + 1))
+            };
+            let confirmed = rfd::MessageDialog::new()
+                .set_title("Excluir chain")
+                .set_description(format!("Excluir a chain \"{}\"?", chain_name))
+                .set_buttons(rfd::MessageButtons::YesNo)
+                .set_level(rfd::MessageLevel::Warning)
+                .show();
+            if !matches!(confirmed, rfd::MessageDialogResult::Yes) {
+                return;
+            }
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
             let index = index as usize;
             if index >= session.project.chains.len() {
-                set_status_error(&window, &toast_timer, "Chain inválida.");
                 return;
             }
             let removed_chain_id = session.project.chains[index].id.clone();
