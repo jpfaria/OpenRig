@@ -272,6 +272,7 @@ export component CompactChainViewWindow inherits Window {
     callback toggle-block-enabled(int, int);
     callback update-block-parameter-number(int, int, string, float);
     callback select-block-parameter-option(int, int, string, int);
+    callback choose-block-model(int, int, int);
     callback open-block-detail(int, int);
     callback close-compact-view();
 
@@ -285,6 +286,7 @@ export component CompactChainViewWindow inherits Window {
         toggle-block-enabled(ci, bi) => { root.toggle-block-enabled(ci, bi); }
         update-block-parameter-number(ci, bi, p, v) => { root.update-block-parameter-number(ci, bi, p, v); }
         select-block-parameter-option(ci, bi, p, oi) => { root.select-block-parameter-option(ci, bi, p, oi); }
+        choose-block-model(ci, bi, mi) => { root.choose-block-model(ci, bi, mi); }
         open-block-detail(ci, bi) => { root.open-block-detail(ci, bi); }
         close-compact-view => { root.close-compact-view(); }
     }

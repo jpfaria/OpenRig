@@ -1768,6 +1768,95 @@ pub fn run_desktop_app(
                 });
             }
 
+            // Wire choose-block-model
+            {
+                let project_session = project_session.clone();
+                let project_runtime = project_runtime.clone();
+                let project_chains = project_chains.clone();
+                let input_chain_devices = input_chain_devices.clone();
+                let output_chain_devices = output_chain_devices.clone();
+                let saved_project_snapshot = saved_project_snapshot.clone();
+                let project_dirty = project_dirty.clone();
+                let weak_main = window.as_weak();
+                let weak_compact = compact_win.as_weak();
+                let toast_timer = toast_timer.clone();
+                compact_win.on_choose_block_model(move |ci, bi, mi| {
+                    let Some(main_win) = weak_main.upgrade() else { return; };
+                    let Some(cw) = weak_compact.upgrade() else { return; };
+                    let chain_idx = ci as usize;
+                    let block_idx = bi as usize;
+                    let model_idx = mi as usize;
+
+                    // Get the instrument to filter models
+                    let instrument = {
+                        let session_borrow = project_session.borrow();
+                        let Some(session) = session_borrow.as_ref() else { return; };
+                        let Some(chain) = session.project.chains.get(chain_idx) else { return; };
+                        chain.instrument.clone()
+                    };
+
+                    // Get the effect type from the current block
+                    let effect_type = {
+                        let session_borrow = project_session.borrow();
+                        let Some(session) = session_borrow.as_ref() else { return; };
+                        let Some(chain) = session.project.chains.get(chain_idx) else { return; };
+                        let Some(block) = chain.blocks.get(block_idx) else { return; };
+                        let Some(data) = block_editor_data(block) else { return; };
+                        data.effect_type.clone()
+                    };
+
+                    let models = block_model_picker_items(&effect_type, &instrument);
+                    let Some(model) = models.get(model_idx) else { return; };
+                    let new_model_id = model.model_id.to_string();
+                    let new_effect_type = model.effect_type.to_string();
+
+                    // Build new block kind with default params
+                    let new_params = block_core::param::ParameterSet::default();
+                    let schema = match project::block::schema_for_block_model(&new_effect_type, &new_model_id) {
+                        Ok(s) => s,
+                        Err(e) => {
+                            log::error!("compact choose-model schema error: {e}");
+                            return;
+                        }
+                    };
+                    let normalized = match new_params.normalized_against(&schema) {
+                        Ok(p) => p,
+                        Err(e) => {
+                            log::error!("compact choose-model normalize error: {e}");
+                            return;
+                        }
+                    };
+                    let kind = match project::block::build_audio_block_kind(&new_effect_type, &new_model_id, normalized) {
+                        Ok(k) => k,
+                        Err(e) => {
+                            log::error!("compact choose-model build error: {e}");
+                            return;
+                        }
+                    };
+
+                    // Apply to project
+                    let mut session_borrow = project_session.borrow_mut();
+                    let Some(session) = session_borrow.as_mut() else { return; };
+                    let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
+                    let Some(block) = chain.blocks.get_mut(block_idx) else { return; };
+                    let block_id = block.id.clone();
+                    let enabled = block.enabled;
+                    block.kind = kind;
+                    block.id = block_id;
+                    block.enabled = enabled;
+
+                    let chain_id = chain.id.clone();
+                    if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                        set_status_error(&main_win, &toast_timer, &error.to_string());
+                        return;
+                    }
+                    replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+                    let blocks = build_compact_blocks(&session.project, chain_idx);
+                    cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
+                    sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty);
+                });
+            }
+
             show_child_window(window.window(), compact_win.window());
         });
     }
@@ -4594,6 +4683,17 @@ fn build_compact_blocks(
                 },
                 knob_overlays: ModelRc::from(Rc::new(VecModel::from(overlays))),
                 parameter_items: ModelRc::from(Rc::new(VecModel::from(params))),
+                model_labels: {
+                    let instrument = chain.instrument.as_str();
+                    let items = block_model_picker_items(&effect_type, instrument);
+                    let labels: Vec<SharedString> = items.iter().map(|i| i.label.clone()).collect();
+                    ModelRc::from(Rc::new(VecModel::from(labels)))
+                },
+                model_selected_index: {
+                    let instrument = chain.instrument.as_str();
+                    let items = block_model_picker_items(&effect_type, instrument);
+                    items.iter().position(|i| i.model_id.as_str() == model_id).map(|i| i as i32).unwrap_or(-1)
+                },
             })
         })
         .collect()

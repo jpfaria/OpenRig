@@ -102,7 +102,8 @@ component CompactBlockRow inherits Rectangle {
     callback toggle-enabled(int, int);
     callback update-parameter-number(int, int, string, float);
     callback select-parameter-option(int, int, string, int);
-    callback open-block-detail(int, int); // chain_index, block_index — opens full editor
+    callback choose-model(int, int, int); // chain_index, block_index, model_index
+    callback open-block-detail(int, int);
 
     height: 100px;
     background: root.block-data.enabled ? root.block-data.panel-bg : #0e1014;
@@ -111,28 +112,27 @@ component CompactBlockRow inherits Rectangle {
     opacity: root.block-data.enabled ? 1.0 : 0.5;
     border-radius: 4px;
 
-    // ── 1. Power toggle (same as chain list — circle with bar) ──
+    // ── 1. Power switch (block style — rectangular with red LED) ──
     Rectangle {
         x: 10px;
-        y: (parent.height - 32px) / 2;
-        width: 32px; height: 32px;
-        background: pwr-ta.has-hover ? #ffffff08 : transparent;
+        y: (parent.height - 40px) / 2;
+        width: 32px; height: 40px;
+        border-radius: 3px;
+        background: #0a0a0a;
+        border-width: 1.5px;
+        border-color: #404040;
 
         Rectangle {
-            x: 6px; y: 6px;
-            width: 20px; height: 20px;
-            border-width: 2px;
-            border-color: root.block-data.enabled ? #29df85 : #6a7483;
-            border-radius: 10px;
-        }
-        Rectangle {
-            x: 15px; y: 5px;
-            width: 2px; height: 10px;
-            background: root.block-data.enabled ? #29df85 : #6a7483;
-            border-radius: 1px;
+            x: 6px;
+            y: root.block-data.enabled ? 4px : 20px;
+            width: 20px; height: 16px;
+            border-radius: 2px;
+            background: root.block-data.enabled ? #cc2222 : #1a0808;
+            border-width: 1px;
+            border-color: root.block-data.enabled ? #ee4444 : #331111;
         }
 
-        pwr-ta := TouchArea {
+        TouchArea {
             mouse-cursor: pointer;
             clicked => { root.toggle-enabled(root.block-data.chain-index, root.block-data.block-index); }
         }
@@ -275,7 +275,41 @@ component CompactBlockRow inherits Rectangle {
 
         model-ta := TouchArea {
             mouse-cursor: pointer;
-            clicked => { root.open-block-detail(root.block-data.chain-index, root.block-data.block-index); }
+            clicked => { model-popup.show(); }
+        }
+
+        model-popup := PopupWindow {
+            property <length> list-h: Math.min(root.block-data.model-labels.length * 32px + 6px, 300px);
+            x: 0; y: parent.height + 4px;
+            width: parent.width; height: self.list-h;
+            Rectangle {
+                width: 100%; height: 100%;
+                background: #08080e; border-width: 1px; border-color: #2a2a40;
+                border-radius: 5px; clip: true;
+                drop-shadow-blur: 16px; drop-shadow-color: #000000c0;
+                Flickable {
+                    width: parent.width; height: parent.height;
+                    viewport-height: root.block-data.model-labels.length * 32px + 6px;
+                    for label[mi] in root.block-data.model-labels : Rectangle {
+                        x: 3px; y: 3px + mi * 32px;
+                        width: parent.width - 6px; height: 30px;
+                        border-radius: 4px;
+                        background: mi == root.block-data.model-selected-index ? #14142a : (ml-ta.has-hover ? #ffffff08 : transparent);
+                        Text {
+                            x: 8px; width: parent.width - 16px; height: parent.height;
+                            text: label;
+                            color: mi == root.block-data.model-selected-index ? #7788ff : #b0bce0;
+                            font-size: 11px;
+                            font-weight: mi == root.block-data.model-selected-index ? 700 : 400;
+                            vertical-alignment: center; overflow: elide;
+                        }
+                        ml-ta := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.choose-model(root.block-data.chain-index, root.block-data.block-index, mi); }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -441,6 +475,7 @@ export component CompactChainViewPage inherits Rectangle {
     callback toggle-block-enabled(int, int);
     callback update-block-parameter-number(int, int, string, float);
     callback select-block-parameter-option(int, int, string, int);
+    callback choose-block-model(int, int, int);
     callback open-block-detail(int, int);
     callback close-compact-view();
 
@@ -519,6 +554,7 @@ export component CompactChainViewPage inherits Rectangle {
             toggle-enabled(ci, bi2) => { root.toggle-block-enabled(ci, bi2); }
             update-parameter-number(ci, bi2, p, v) => { root.update-block-parameter-number(ci, bi2, p, v); }
             select-parameter-option(ci, bi2, p, oi) => { root.select-block-parameter-option(ci, bi2, p, oi); }
+            choose-model(ci, bi2, mi) => { root.choose-block-model(ci, bi2, mi); }
             open-block-detail(ci, bi2) => { root.open-block-detail(ci, bi2); }
         }
     }
