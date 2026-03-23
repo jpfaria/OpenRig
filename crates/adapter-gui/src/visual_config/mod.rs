@@ -5,6 +5,7 @@ mod brand_ibanez;
 mod brand_marshall;
 mod brand_martin;
 mod brand_roland;
+mod brand_taylor;
 mod brand_vox;
 mod native_american_clean;
 mod native_brit_crunch;
@@ -66,6 +67,7 @@ fn all_entries() -> Vec<VisualConfigEntry> {
     entries.extend(brand_ibanez::entries());
     entries.extend(brand_martin::entries());
     entries.extend(brand_roland::entries());
+    entries.extend(brand_taylor::entries());
     entries.extend(brand_vox::entries());
     entries.push(native_american_clean::entry());
     entries.push(native_brit_crunch::entry());

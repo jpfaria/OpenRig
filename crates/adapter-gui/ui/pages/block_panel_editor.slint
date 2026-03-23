@@ -605,6 +605,16 @@ export component BlockPanelEditor inherits Rectangle {
                 colorize: #ffffff;
             }
 
+            if root.selected-brand == "taylor" : Image {
+                x: parent.width * 0.1;
+                y: 6px;
+                width: parent.width * 0.8;
+                height: 60px;
+                source: @image-url("../../../../assets/brands/taylor/logo.svg");
+                image-fit: contain;
+                colorize: #ffffff;
+            }
+
             if root.selected-brand == "gibson" : Image {
                 x: parent.width * 0.1;
                 y: 6px;
