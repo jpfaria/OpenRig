@@ -1667,6 +1667,7 @@ pub fn run_desktop_app(
                 .unwrap_or_else(|| format!("Chain {}", ci + 1));
             compact_win.set_chain_title(title.into());
             compact_win.set_chain_index(chain_index);
+            compact_win.set_chain_enabled(chain.enabled);
 
             let blocks = build_compact_blocks(&session.project, ci);
             compact_win.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));

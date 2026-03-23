@@ -592,6 +592,7 @@ component ChainActionIcon inherits Rectangle {
         height: 20px;
         source: root.icon;
         image-fit: contain;
+        colorize: hover-area.has-hover ? #ffffff : #8a94a2;
     }
 
     hover-area := TouchArea {
@@ -1058,16 +1059,26 @@ component ChainRow inherits Rectangle {
             colorize: #6a7483;
         }
 
-        Text {
+        Rectangle {
             x: 72px;
             y: 14px;
             width: 320px;
             height: 24px;
-            text: root.chain.title;
-            color: #f1f4f8;
-            font-size: 14px;
-            font-weight: 600;
-            vertical-alignment: center;
+
+            Text {
+                width: parent.width;
+                height: parent.height;
+                text: root.chain.title;
+                color: title-ta.has-hover ? #ffffff : #f1f4f8;
+                font-size: 14px;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
+
+            title-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.open-compact-chain-view(root.chain-index); }
+            }
         }
 
         ChainActionIcon {

@@ -265,8 +265,10 @@ export component CompactChainViewWindow inherits Window {
 
     in property <string> chain-title;
     in property <int> chain-index;
+    in property <bool> chain-enabled;
     in property <[CompactBlockItem]> compact-blocks;
 
+    callback toggle-chain-enabled(int);
     callback toggle-block-enabled(int, int);
     callback update-block-parameter-number(int, int, string, float);
     callback select-block-parameter-option(int, int, string, int);
@@ -277,7 +279,9 @@ export component CompactChainViewWindow inherits Window {
         width: parent.width; height: parent.height;
         chain-title: root.chain-title;
         chain-index: root.chain-index;
+        chain-enabled: root.chain-enabled;
         compact-blocks: root.compact-blocks;
+        toggle-chain-enabled(ci) => { root.toggle-chain-enabled(ci); }
         toggle-block-enabled(ci, bi) => { root.toggle-block-enabled(ci, bi); }
         update-block-parameter-number(ci, bi, p, v) => { root.update-block-parameter-number(ci, bi, p, v); }
         select-block-parameter-option(ci, bi, p, oi) => { root.select-block-parameter-option(ci, bi, p, oi); }

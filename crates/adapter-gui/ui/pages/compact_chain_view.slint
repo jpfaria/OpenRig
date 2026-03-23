@@ -104,7 +104,7 @@ component CompactBlockRow inherits Rectangle {
     callback select-parameter-option(int, int, string, int);
     callback open-block-detail(int, int); // chain_index, block_index — opens full editor
 
-    height: 72px;
+    height: 100px;
     background: root.block-data.enabled ? root.block-data.panel-bg : #0e1014;
     border-width: 1px;
     border-color: root.block-data.enabled ? root.block-data.panel-bg.darker(0.3) : #252830;
@@ -281,10 +281,10 @@ component CompactBlockRow inherits Rectangle {
 
     // Knob overlays (right-aligned, with labels)
     for knob[ki] in root.block-data.knob-overlays : Rectangle {
-        x: parent.width - 16px - (root.block-data.knob-overlays.length - ki) * 58px;
-        y: 2px;
-        width: 52px;
-        height: parent.height - 4px;
+        x: parent.width - 16px - (root.block-data.knob-overlays.length - ki) * 68px;
+        y: 4px;
+        width: 62px;
+        height: parent.height - 8px;
 
         // Label
         Text {
@@ -297,8 +297,8 @@ component CompactBlockRow inherits Rectangle {
         }
 
         PanelKnob {
-            x: 2px; y: 12px;
-            width: 48px; height: 48px;
+            x: 2px; y: 14px;
+            width: 58px; height: 58px;
             value: knob.value;
             min-val: knob.min_val;
             max-val: knob.max_val;
@@ -312,7 +312,7 @@ component CompactBlockRow inherits Rectangle {
     for param[pi] in root.block-data.parameter-items : Rectangle {
         visible: param.widget_kind == "enum" && param.option_labels.length <= 4;
         x: parent.width - 16px
-            - root.block-data.knob-overlays.length * 58px
+            - root.block-data.knob-overlays.length * 68px
             - (root.block-data.parameter-items.length - pi) * (Math.max(130px, param.option_labels.length * 64px) + 12px);
         y: 4px;
         width: Math.max(130px, param.option_labels.length * 64px);
@@ -360,7 +360,7 @@ component CompactBlockRow inherits Rectangle {
     for param[pi] in root.block-data.parameter-items : Rectangle {
         visible: param.widget_kind == "enum" && param.option_labels.length > 4;
         x: parent.width - 16px
-            - root.block-data.knob-overlays.length * 58px
+            - root.block-data.knob-overlays.length * 68px
             - 220px;
         y: 4px;
         width: 200px;
@@ -436,6 +436,8 @@ export component CompactChainViewPage inherits Rectangle {
     in property <int> chain-index;
     in property <[CompactBlockItem]> compact-blocks;
 
+    in property <bool> chain-enabled;
+    callback toggle-chain-enabled(int);
     callback toggle-block-enabled(int, int);
     callback update-block-parameter-number(int, int, string, float);
     callback select-block-parameter-option(int, int, string, int);
@@ -446,12 +448,38 @@ export component CompactChainViewPage inherits Rectangle {
 
     // Header
     Rectangle {
-        x: 0; y: 0; width: parent.width; height: 40px;
+        x: 0; y: 0; width: parent.width; height: 44px;
         background: #12141a;
         border-width: 0px; border-color: #252830;
 
+        // Chain power toggle
+        Rectangle {
+            x: 12px;
+            y: (parent.height - 28px) / 2;
+            width: 24px; height: 28px;
+            border-radius: 3px;
+            background: #0a0a0a;
+            border-width: 1.5px;
+            border-color: #404040;
+
+            Rectangle {
+                x: 4px;
+                y: root.chain-enabled ? 2px : 14px;
+                width: 16px; height: 12px;
+                border-radius: 2px;
+                background: root.chain-enabled ? #cc2222 : #1a0808;
+                border-width: 1px;
+                border-color: root.chain-enabled ? #ee4444 : #331111;
+            }
+
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.toggle-chain-enabled(root.chain-index); }
+            }
+        }
+
         Text {
-            x: 16px; width: parent.width - 80px; height: parent.height;
+            x: 44px; width: parent.width - 100px; height: parent.height;
             text: root.chain-title;
             color: #d8e0ff; font-size: 14px; font-weight: 700;
             vertical-alignment: center;
@@ -459,7 +487,7 @@ export component CompactChainViewPage inherits Rectangle {
 
         // Close button
         Rectangle {
-            x: parent.width - 36px; y: 8px; width: 24px; height: 24px;
+            x: parent.width - 36px; y: 10px; width: 24px; height: 24px;
             border-radius: 4px;
             background: close-ta.has-hover ? #ffffff15 : transparent;
             Text {
@@ -474,15 +502,15 @@ export component CompactChainViewPage inherits Rectangle {
         }
     }
 
-    // Block rows
+    // Block rows (no interactive flickable — knobs handle their own drag)
     Flickable {
-        x: 0; y: 44px;
+        x: 0; y: 48px;
         width: parent.width;
-        height: parent.height - 44px;
-        viewport-height: root.compact-blocks.length * 76px;
+        height: parent.height - 48px;
+        viewport-height: root.compact-blocks.length * 106px;
 
         for block-item[bi] in root.compact-blocks : CompactBlockRow {
-            y: bi * 76px;
+            y: bi * 106px;
             width: parent.width;
             block-data: block-item;
             toggle-enabled(ci, bi2) => { root.toggle-block-enabled(ci, bi2); }
