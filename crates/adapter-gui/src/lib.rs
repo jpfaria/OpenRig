@@ -49,6 +49,13 @@ fn log_gui_message(context: &str, message: &str) {
 fn log_gui_error(context: &str, error: impl Display) {
     log::error!("[adapter-gui] {context}: {error}");
 }
+fn show_child_window(parent_window: &slint::Window, child_window: &slint::Window) {
+    let pos = parent_window.position();
+    child_window.set_position(slint::WindowPosition::Physical(
+        slint::PhysicalPosition { x: pos.x + 40, y: pos.y + 40 },
+    ));
+    let _ = child_window.show();
+}
 fn use_inline_block_editor(window: &AppWindow) -> bool {
     window.get_touch_optimized()
         && window
@@ -1267,7 +1274,7 @@ pub fn run_desktop_app(
             settings_window.set_status_message("".into());
             clear_status(&window, &toast_timer);
             window.set_show_project_settings(true);
-            let _ = settings_window.show();
+            show_child_window(window.window(), settings_window.window());
         });
     }
     {
@@ -1553,7 +1560,7 @@ pub fn run_desktop_app(
             editor_window.set_status_message("".into());
             clear_status(&window, &toast_timer);
             window.set_show_chain_editor(true);
-            let _ = editor_window.show();
+            show_child_window(window.window(), editor_window.window());
         });
     }
     {
@@ -1619,7 +1626,7 @@ pub fn run_desktop_app(
             editor_window.set_status_message("".into());
             clear_status(&window, &toast_timer);
             window.set_show_chain_editor(true);
-            let _ = editor_window.show();
+            show_child_window(window.window(), editor_window.window());
         });
     }
     {
@@ -1884,7 +1891,7 @@ pub fn run_desktop_app(
                 &input_chain_devices,
                 &chain_input_channels,
             );
-            let _ = input_window.show();
+            show_child_window(window.window(), input_window.window());
         });
     }
     {
@@ -1927,7 +1934,7 @@ pub fn run_desktop_app(
                 &output_chain_devices,
                 &chain_output_channels,
             );
-            let _ = output_window.show();
+            show_child_window(window.window(), output_window.window());
         });
     }
     {
@@ -1969,7 +1976,7 @@ pub fn run_desktop_app(
                 &input_chain_devices,
                 &chain_input_channels,
             );
-            let _ = input_window.show();
+            show_child_window(window.window(), input_window.window());
         });
     }
     {
@@ -2010,7 +2017,7 @@ pub fn run_desktop_app(
                 &output_chain_devices,
                 &chain_output_channels,
             );
-            let _ = output_window.show();
+            show_child_window(window.window(), output_window.window());
         });
     }
     {
@@ -2103,7 +2110,7 @@ pub fn run_desktop_app(
                 if let Some(weak_win) = existing {
                     if let Some(win) = weak_win.upgrade() {
                         // Just show — window already has its own independent state
-                        let _ = win.show();
+                        show_child_window(window.window(), win.window());
                         return;
                     }
                 }
@@ -2567,7 +2574,7 @@ pub fn run_desktop_app(
                         let _ = win.hide();
                     });
                 }
-                let _ = win.show();
+                show_child_window(window.window(), win.window());
                 open_block_windows.borrow_mut().push(BlockWindow { chain_index: ci, block_index: bi, window: win });
             }
         });
@@ -2826,7 +2833,7 @@ pub fn run_desktop_app(
                 if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
                     block_editor_window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
                     sync_block_editor_window(&window, &block_editor_window);
-                    let _ = block_editor_window.show();
+                    show_child_window(window.window(), block_editor_window.window());
                 }
             }
         });
