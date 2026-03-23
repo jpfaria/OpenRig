@@ -3,6 +3,7 @@ mod brand_boss;
 mod brand_diezel;
 mod brand_dumble;
 mod brand_evh;
+mod brand_fender;
 mod brand_gibson;
 mod brand_ibanez;
 mod brand_jhs;
@@ -72,6 +73,7 @@ fn all_entries() -> Vec<VisualConfigEntry> {
     entries.extend(brand_diezel::entries());
     entries.extend(brand_dumble::entries());
     entries.extend(brand_evh::entries());
+    entries.extend(brand_fender::entries());
     entries.extend(brand_gibson::entries());
     entries.extend(brand_ibanez::entries());
     entries.extend(brand_jhs::entries());
