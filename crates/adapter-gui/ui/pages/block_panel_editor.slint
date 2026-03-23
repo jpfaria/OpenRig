@@ -880,10 +880,11 @@ export component BlockPanelEditor inherits Rectangle {
                 }
 
                 param-popup := PopupWindow {
+                    property <length> list-height: Math.min(param.option_labels.length * 36px + 8px, 260px);
                     x: 0;
-                    y: parent.height + 4px;
+                    y: -self.list-height - 4px;
                     width: parent.width;
-                    height: param.option_labels.length * 36px + 8px;
+                    height: self.list-height;
 
                     Rectangle {
                         width: 100%;
@@ -896,31 +897,39 @@ export component BlockPanelEditor inherits Rectangle {
                         drop-shadow-color: #000000c0;
                         drop-shadow-offset-x: 0px;
                         drop-shadow-offset-y: 6px;
+                        clip: true;
 
-                        for option[oi] in param.option_labels : Rectangle {
-                            x: 4px;
-                            y: 4px + oi * 36px;
-                            width: parent.width - 8px;
-                            height: 36px;
-                            border-radius: 5px;
-                            background: oi == param.selected_option_index ? #14142a : (opt-ta.has-hover ? #ffffff08 : transparent);
+                        Flickable {
+                            x: 0; y: 0;
+                            width: parent.width;
+                            height: parent.height;
+                            viewport-height: param.option_labels.length * 36px + 8px;
 
-                            Text {
-                                x: 12px; y: 0;
-                                width: parent.width - 24px;
-                                height: parent.height;
-                                text: option;
-                                color: oi == param.selected_option_index ? #7788ff : #b0bce0;
-                                font-size: 13px;
-                                font-weight: oi == param.selected_option_index ? 700 : 400;
-                                vertical-alignment: center;
-                                overflow: elide;
-                            }
+                            for option[oi] in param.option_labels : Rectangle {
+                                x: 4px;
+                                y: 4px + oi * 36px;
+                                width: parent.width - 8px;
+                                height: 36px;
+                                border-radius: 5px;
+                                background: oi == param.selected_option_index ? #14142a : (opt-ta.has-hover ? #ffffff08 : transparent);
 
-                            opt-ta := TouchArea {
-                                mouse-cursor: pointer;
-                                clicked => {
-                                    root.select-block-parameter-option(param.path, oi);
+                                Text {
+                                    x: 12px; y: 0;
+                                    width: parent.width - 24px;
+                                    height: parent.height;
+                                    text: option;
+                                    color: oi == param.selected_option_index ? #7788ff : #b0bce0;
+                                    font-size: 13px;
+                                    font-weight: oi == param.selected_option_index ? 700 : 400;
+                                    vertical-alignment: center;
+                                    overflow: elide;
+                                }
+
+                                opt-ta := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.select-block-parameter-option(param.path, oi);
+                                    }
                                 }
                             }
                         }
