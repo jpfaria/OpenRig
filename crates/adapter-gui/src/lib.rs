@@ -1739,6 +1739,35 @@ pub fn run_desktop_app(
                 });
             }
 
+            // Wire toggle-chain-enabled
+            {
+                let project_session = project_session.clone();
+                let project_runtime = project_runtime.clone();
+                let project_chains = project_chains.clone();
+                let input_chain_devices = input_chain_devices.clone();
+                let output_chain_devices = output_chain_devices.clone();
+                let weak_main = window.as_weak();
+                let weak_compact = compact_win.as_weak();
+                let toast_timer = toast_timer.clone();
+                compact_win.on_toggle_chain_enabled(move |ci| {
+                    let Some(main_win) = weak_main.upgrade() else { return; };
+                    let Some(cw) = weak_compact.upgrade() else { return; };
+                    let mut session_borrow = project_session.borrow_mut();
+                    let Some(session) = session_borrow.as_mut() else { return; };
+                    let chain_idx = ci as usize;
+                    let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
+                    let will_enable = !chain.enabled;
+                    chain.enabled = will_enable;
+                    let chain_id = chain.id.clone();
+                    if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                        set_status_error(&main_win, &toast_timer, &error.to_string());
+                        return;
+                    }
+                    replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+                    cw.set_chain_enabled(will_enable);
+                });
+            }
+
             show_child_window(window.window(), compact_win.window());
         });
     }
