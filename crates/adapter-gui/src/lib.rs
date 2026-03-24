@@ -5580,6 +5580,28 @@ fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
         output_channels: chain.output_channels.clone(),
     }
 }
+fn load_thumbnail_image(effect_type: &str, model_id: &str) -> (slint::Image, bool) {
+    match block_thumbnails::thumbnail_png(effect_type, model_id) {
+        Some(png_bytes) => {
+            match image::load_from_memory_with_format(png_bytes, image::ImageFormat::Png) {
+                Ok(img) => {
+                    let rgba = img.to_rgba8();
+                    let buffer = slint::SharedPixelBuffer::<slint::Rgba8Pixel>::clone_from_slice(
+                        rgba.as_raw(),
+                        rgba.width(),
+                        rgba.height(),
+                    );
+                    (slint::Image::from_rgba8(buffer), true)
+                }
+                Err(e) => {
+                    log::warn!("Failed to decode thumbnail for {}/{}: {}", effect_type, model_id, e);
+                    (slint::Image::default(), false)
+                }
+            }
+        }
+        None => (slint::Image::default(), false)
+    }
+}
 fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
     let (kind, label) = match &block.kind {
         AudioBlockKind::Select(select) => select
@@ -5594,6 +5616,7 @@ fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
     };
     let family = block_family_for_kind(&kind).to_string();
     let block_type = supported_block_type(&kind);
+    let (thumbnail, has_thumbnail) = load_thumbnail_image(&kind, &label);
     ChainBlockItem {
         kind: kind.into(),
         icon_kind: block_type
@@ -5609,6 +5632,8 @@ fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
         label: label.into(),
         family: family.into(),
         enabled: block.enabled,
+        thumbnail,
+        has_thumbnail,
     }
 }
 fn build_input_channel_items(
