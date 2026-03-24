@@ -5,9 +5,7 @@ use block_core::param::{
     bool_parameter, file_path_parameter, float_parameter, optional_string, required_string,
     ModelParameterSchema, ParameterSet, ParameterSpec, ParameterUnit,
 };
-use block_core::{ModelAudioMode, MonoProcessor};
-use std::ffi::CString;
-use std::os::raw::{c_char, c_void};
+use block_core::{db_to_lin, ModelAudioMode, MonoProcessor};
 
 pub fn supports_model(model: &str) -> bool {
     model == GENERIC_NAM_MODEL_ID
@@ -122,21 +120,6 @@ pub fn plugin_parameter_specs_with_defaults(defaults: NamPluginParams) -> Vec<Pa
     ]
 }
 
-#[repr(C)]
-struct NamPluginConfig {
-    model_path_utf8: *const c_char,
-    ir_path_utf8: *const c_char,
-    input_db: f32,
-    output_db: f32,
-    noise_gate_threshold_db: f32,
-    bass: f32,
-    middle: f32,
-    treble: f32,
-    noise_gate_enabled: u8,
-    eq_enabled: u8,
-    ir_enabled: u8,
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct NamPluginParams {
     pub input_level_db: f32,
@@ -196,53 +179,68 @@ pub fn plugin_params_from_set_with_defaults(
     })
 }
 
-unsafe extern "C" {
-    fn nam_create(config: *const NamPluginConfig) -> *mut c_void;
-    fn nam_destroy(handle: *mut c_void);
-    fn nam_process(handle: *mut c_void, input: *const f32, output: *mut f32, nframes: i32);
+// --- NeuralAudioCAPI FFI (from neural-amp-modeler-lv2) ---
+
+/// Opaque model handle from NeuralAudioCAPI
+#[repr(C)]
+struct NeuralModel {
+    _opaque: [u8; 0],
 }
+
+unsafe extern "C" {
+    fn CreateModelFromFile(model_path: *const u16) -> *mut NeuralModel;
+    fn DeleteModel(model: *mut NeuralModel);
+    fn Process(model: *mut NeuralModel, input: *const f32, output: *mut f32, num_samples: usize);
+    fn GetRecommendedInputDBAdjustment(model: *mut NeuralModel) -> f32;
+    fn GetRecommendedOutputDBAdjustment(model: *mut NeuralModel) -> f32;
+}
+
 pub struct NamProcessor {
-    handle: *mut c_void,
+    model: *mut NeuralModel,
+    input_gain: f32,
+    output_gain: f32,
+    scratch_input: Vec<f32>,
     scratch_output: Vec<f32>,
 }
+
 unsafe impl Send for NamProcessor {}
 unsafe impl Sync for NamProcessor {}
+
 impl Drop for NamProcessor {
     fn drop(&mut self) {
-        if !self.handle.is_null() {
-            unsafe { nam_destroy(self.handle) };
-            self.handle = std::ptr::null_mut();
+        if !self.model.is_null() {
+            unsafe { DeleteModel(self.model) };
+            self.model = std::ptr::null_mut();
         }
     }
 }
+
 impl NamProcessor {
-    pub fn new(model_path: &str, ir_path: Option<&str>, params: NamPluginParams) -> Result<Self> {
-        let model_path = CString::new(model_path)?;
-        let ir_path = ir_path.map(CString::new).transpose()?;
-        let config = NamPluginConfig {
-            model_path_utf8: model_path.as_ptr(),
-            ir_path_utf8: ir_path
-                .as_ref()
-                .map_or(std::ptr::null(), |value| value.as_ptr()),
-            input_db: params.input_level_db,
-            output_db: params.output_level_db,
-            noise_gate_threshold_db: params.noise_gate_threshold_db,
-            bass: params.bass,
-            middle: params.middle,
-            treble: params.treble,
-            noise_gate_enabled: params.noise_gate_enabled as u8,
-            eq_enabled: params.eq_enabled as u8,
-            ir_enabled: ir_path.is_some() as u8,
-        };
-        let handle = unsafe { nam_create(&config) };
-        if handle.is_null() {
-            bail!(
-                "failed to load NAM model '{}'",
-                model_path.to_string_lossy()
-            );
+    pub fn new(model_path: &str, _ir_path: Option<&str>, params: NamPluginParams) -> Result<Self> {
+        // NeuralAudioCAPI uses wide string (wchar_t = u16 on most platforms)
+        let wide_path: Vec<u16> = model_path.encode_utf16().chain(std::iter::once(0)).collect();
+
+        let model = unsafe { CreateModelFromFile(wide_path.as_ptr()) };
+        if model.is_null() {
+            bail!("failed to load NAM model '{}'", model_path);
         }
+
+        let recommended_input_db = unsafe { GetRecommendedInputDBAdjustment(model) };
+        let recommended_output_db = unsafe { GetRecommendedOutputDBAdjustment(model) };
+
+        let input_gain = db_to_lin(params.input_level_db + recommended_input_db);
+        let output_gain = db_to_lin(params.output_level_db + recommended_output_db);
+
+        log::info!(
+            "NAM model loaded: '{}', input_adj={:.1}dB, output_adj={:.1}dB",
+            model_path, recommended_input_db, recommended_output_db
+        );
+
         Ok(Self {
-            handle,
+            model,
+            input_gain,
+            output_gain,
+            scratch_input: Vec::new(),
             scratch_output: Vec::new(),
         })
     }
@@ -250,28 +248,37 @@ impl NamProcessor {
 
 impl MonoProcessor for NamProcessor {
     fn process_sample(&mut self, sample: f32) -> f32 {
-        let input = [sample];
+        let input = [sample * self.input_gain];
         let mut output = [0.0f32];
         unsafe {
-            nam_process(self.handle, input.as_ptr(), output.as_mut_ptr(), 1);
+            Process(self.model, input.as_ptr(), output.as_mut_ptr(), 1);
         }
-        output[0]
+        output[0] * self.output_gain
     }
 
     fn process_block(&mut self, buffer: &mut [f32]) {
         if buffer.is_empty() {
             return;
         }
+        // Apply input gain
+        self.scratch_input.resize(buffer.len(), 0.0);
+        for (dst, src) in self.scratch_input.iter_mut().zip(buffer.iter()) {
+            *dst = *src * self.input_gain;
+        }
+        // Process through neural model
         self.scratch_output.resize(buffer.len(), 0.0);
         unsafe {
-            nam_process(
-                self.handle,
-                buffer.as_ptr(),
+            Process(
+                self.model,
+                self.scratch_input.as_ptr(),
                 self.scratch_output.as_mut_ptr(),
-                buffer.len() as i32,
+                buffer.len(),
             );
         }
-        buffer.copy_from_slice(&self.scratch_output);
+        // Apply output gain
+        for (dst, src) in buffer.iter_mut().zip(self.scratch_output.iter()) {
+            *dst = *src * self.output_gain;
+        }
     }
 }
 
