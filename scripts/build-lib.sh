@@ -131,6 +131,17 @@ build_docker() {
                 -e "CMAKE_EXTRA=-DCMAKE_SYSTEM_NAME=Windows -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++"
             )
             ;;
+        windows-arm64)
+            # Cross-compile using llvm-mingw (aarch64-w64-mingw32) on Linux amd64
+            docker_platform="linux/amd64"
+            docker_tag="$DOCKER_IMAGE:linux-amd64"
+            extra_env=(
+                -e "CROSS_COMPILE=aarch64-w64-mingw32"
+                -e "CC=aarch64-w64-mingw32-gcc"
+                -e "CXX=aarch64-w64-mingw32-g++"
+                -e "CMAKE_EXTRA=-DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=ARM64 -DCMAKE_C_COMPILER=aarch64-w64-mingw32-gcc -DCMAKE_CXX_COMPILER=aarch64-w64-mingw32-g++"
+            )
+            ;;
         *)
             echo "ERROR: Unsupported Docker platform: $platform"
             exit 1
@@ -165,7 +176,7 @@ build_docker() {
     done
 }
 
-ALL_PLATFORMS=(macos-universal linux-x86_64 linux-aarch64 windows-x64)
+ALL_PLATFORMS=(macos-universal linux-x86_64 linux-aarch64 windows-x64 windows-arm64)
 
 # --- Dispatch ---
 if [ "$PLATFORM" = "all" ]; then
@@ -191,12 +202,12 @@ else
         macos-universal)
             build_native
             ;;
-        linux-x86_64|linux-aarch64|windows-x64)
+        linux-x86_64|linux-aarch64|windows-x64|windows-arm64)
             build_docker "$PLATFORM"
             ;;
         *)
             echo "ERROR: Unsupported platform: $PLATFORM"
-            echo "Supported: macos-universal, linux-x86_64, linux-aarch64, windows-x64, all"
+            echo "Supported: macos-universal, linux-x86_64, linux-aarch64, windows-x64, windows-arm64, all"
             exit 1
             ;;
     esac

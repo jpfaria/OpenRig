@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y \
     libtool \
     git \
     python3 \
+    curl \
+    xz-utils \
     # Audio / LV2 dependencies
     lv2-dev \
     libsndfile1-dev \
@@ -25,9 +27,22 @@ RUN apt-get update && apt-get install -y \
     liblo-dev \
     libjack-jackd2-dev \
     libfluidsynth-dev \
-    # MinGW for Windows cross-compilation
+    # MinGW for Windows x64 cross-compilation
     mingw-w64 \
     && rm -rf /var/lib/apt/lists/*
+
+# llvm-mingw for Windows ARM64 cross-compilation
+# Only install on amd64 (ARM64 docker uses native mingw-w64 + llvm)
+ARG TARGETARCH
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+        LLVM_MINGW_VER="20260311" && \
+        curl -fsSL "https://github.com/mstorsjo/llvm-mingw/releases/download/${LLVM_MINGW_VER}/llvm-mingw-${LLVM_MINGW_VER}-ucrt-ubuntu-22.04-x86_64.tar.xz" \
+            | tar -xJ -C /opt && \
+        ln -s /opt/llvm-mingw-${LLVM_MINGW_VER}-ucrt-ubuntu-22.04-x86_64 /opt/llvm-mingw && \
+        echo 'export PATH="/opt/llvm-mingw/bin:$PATH"' >> /etc/profile.d/llvm-mingw.sh; \
+    fi
+
+ENV PATH="/opt/llvm-mingw/bin:${PATH}"
 
 WORKDIR /build
 
