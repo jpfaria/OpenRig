@@ -598,27 +598,26 @@ export component CompactChainViewPage inherits Rectangle {
         width: parent.width;
         height: parent.height - 48px;
         viewport-height: root.compact-blocks.length * 112px + 24px;
-        interactive: !root.drag-active;
+        interactive: false;
 
-        // Insert slot before first block
+        // Insert slot before first block (invisible until hover)
         Rectangle {
             x: 0; y: 0;
             width: parent.width; height: 12px;
-            background: insert0-ta.has-hover ? #3366cc20 : transparent;
 
-            // Center line + button
             Rectangle {
                 x: 4px; y: 5px;
                 width: parent.width - 8px; height: 2px;
-                background: insert0-ta.has-hover ? #3366cc : transparent;
+                background: #3366cc;
                 border-radius: 1px;
+                visible: insert0-ta.has-hover;
             }
             Rectangle {
-                x: (parent.width - 24px) / 2;
-                y: 0;
+                x: (parent.width - 24px) / 2; y: 0;
                 width: 24px; height: 12px;
                 border-radius: 6px;
-                background: insert0-ta.has-hover ? #3366cc : transparent;
+                background: #3366cc;
+                visible: insert0-ta.has-hover;
 
                 Text {
                     width: 100%; height: 100%;
@@ -728,20 +727,20 @@ export component CompactChainViewPage inherits Rectangle {
             x: 0; y: 12px + bi * 112px + 100px;
             width: parent.width; height: 12px;
             visible: !root.drag-active;
-            background: insert-ta.has-hover ? #3366cc20 : transparent;
 
             Rectangle {
                 x: 4px; y: 5px;
                 width: parent.width - 8px; height: 2px;
-                background: insert-ta.has-hover ? #3366cc : transparent;
+                background: #3366cc;
                 border-radius: 1px;
+                visible: insert-ta.has-hover;
             }
             Rectangle {
-                x: (parent.width - 24px) / 2;
-                y: 0;
+                x: (parent.width - 24px) / 2; y: 0;
                 width: 24px; height: 12px;
                 border-radius: 6px;
-                background: insert-ta.has-hover ? #3366cc : transparent;
+                background: #3366cc;
+                visible: insert-ta.has-hover;
 
                 Text {
                     width: 100%; height: 100%;
