@@ -6,6 +6,8 @@ import { Toast } from "components/toast.slint";
 
 export component ProjectSettingsWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
+    default-font-family: "Ek Mukta";
+    default-font-size: 13px;
     in-out property <string> project-name-draft;
     in-out property <string> status-message;
     in property <[DeviceSelectionItem]> project-devices;
@@ -43,6 +45,8 @@ export component ProjectSettingsWindow inherits Window {
 
 export component ChainEditorWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
+    default-font-family: "Ek Mukta";
+    default-font-size: 13px;
     in property <string> editor-title;
     in property <string> editor-save-label;
     in-out property <string> chain-name;
@@ -86,6 +90,8 @@ export component ChainEditorWindow inherits Window {
 
 export component ChainInputWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
+    default-font-family: "Ek Mukta";
+    default-font-size: 13px;
     in property <[string]> device-options;
     in-out property <int> selected-device-index;
     in property <[ChannelOptionItem]> channels;
@@ -118,6 +124,8 @@ export component ChainInputWindow inherits Window {
 
 export component ChainOutputWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
+    default-font-family: "Ek Mukta";
+    default-font-size: 13px;
     in property <[string]> device-options;
     in-out property <int> selected-device-index;
     in property <[ChannelOptionItem]> channels;
@@ -150,6 +158,8 @@ export component ChainOutputWindow inherits Window {
 
 export component BlockEditorWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
+    default-font-family: "Ek Mukta";
+    default-font-size: 13px;
     in property <[BlockTypePickerItem]> block-type-options;
     in property <[BlockModelPickerItem]> block-model-options;
     in property <[string]> block-model-option-labels;
@@ -256,6 +266,8 @@ export component BlockEditorWindow inherits Window {
 
 export component CompactChainViewWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
+    default-font-family: "Ek Mukta";
+    default-font-size: 13px;
     title: "OpenRig \u{00B7} Chain";
     min-width: 900px;
     min-height: 300px;
@@ -298,6 +310,8 @@ export component CompactChainViewWindow inherits Window {
 
 export component AppWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
+    default-font-family: "Ek Mukta";
+    default-font-size: 13px;
     in property <bool> show-project-launcher;
     in property <bool> show-project-chains;
     in property <bool> show-chain-editor;
@@ -409,8 +423,6 @@ export component AppWindow inherits Window {
     preferred-width: 1160px;
     preferred-height: 760px;
     background: #040708;
-    default-font-family: "Ek Mukta";
-    default-font-size: 13px;
     if !touch-optimized : DesktopMain {
         width: 100%;
         height: 100%;
