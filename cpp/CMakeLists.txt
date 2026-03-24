@@ -10,7 +10,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
 endif()
 
-set(NAM_CORE_DIR ${CMAKE_SOURCE_DIR}/../NeuralAmpModelerCore)
+set(NAM_CORE_DIR ${CMAKE_SOURCE_DIR}/../deps/NeuralAmpModelerCore)
 set(NAM_DEPS_DIR ${NAM_CORE_DIR}/Dependencies)
 
 file(GLOB_RECURSE NAM_SOURCES

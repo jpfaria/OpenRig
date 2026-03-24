@@ -5,11 +5,11 @@
 #include <memory>
 #include <vector>
 
-#include "../NeuralAmpModelerCore/NAM/get_dsp.h"
-#include "../NeuralAmpModelerCore/NAM/dsp.h"
-#include "../NeuralAmpModelerCore/Dependencies/AudioDSPTools/dsp/ImpulseResponse.h"
-#include "../NeuralAmpModelerCore/Dependencies/AudioDSPTools/dsp/NoiseGate.h"
-#include "../NeuralAmpModelerCore/Dependencies/AudioDSPTools/dsp/dsp.h"
+#include "../deps/NeuralAmpModelerCore/NAM/get_dsp.h"
+#include "../deps/NeuralAmpModelerCore/NAM/dsp.h"
+#include "../deps/NeuralAmpModelerCore/Dependencies/AudioDSPTools/dsp/ImpulseResponse.h"
+#include "../deps/NeuralAmpModelerCore/Dependencies/AudioDSPTools/dsp/NoiseGate.h"
+#include "../deps/NeuralAmpModelerCore/Dependencies/AudioDSPTools/dsp/dsp.h"
 #include "nam_tone_stack.h"
 
 struct NamHandle {

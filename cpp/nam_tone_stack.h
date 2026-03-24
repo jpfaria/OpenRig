@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../NeuralAmpModelerCore/Dependencies/AudioDSPTools/dsp/RecursiveLinearFilter.h"
-#include "../NeuralAmpModelerCore/Dependencies/AudioDSPTools/dsp/dsp.h"
+#include "../deps/NeuralAmpModelerCore/Dependencies/AudioDSPTools/dsp/RecursiveLinearFilter.h"
+#include "../deps/NeuralAmpModelerCore/Dependencies/AudioDSPTools/dsp/dsp.h"
 
 namespace openrig
 {
