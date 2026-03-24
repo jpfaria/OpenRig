@@ -841,44 +841,58 @@ component BlockChip inherits Rectangle {
     property <float> drag-origin-y: 0;
 
     width: 84px;
-    height: 84px;
-    background: root.block.enabled ? #17191d : #111418;
-    border-width: hover-area.has-hover ? 3px : 2px;
-    border-color: root.dragging ? #8b95a5 : root.block.enabled ? root.accent-color : #606c80;
+    height: 100px;
+    background: transparent;
+    border-width: 0px;
     border-radius: 6px;
+
+    // Type label on top
+    Text {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: 14px;
+        text: root.block-type-label;
+        color: root.block.enabled ? root.accent-color : #5c6678;
+        font-size: 8px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    // Hover outline around pedal area — only on mouse hover
+    Rectangle {
+        x: 4px;
+        y: 14px;
+        width: parent.width - 8px;
+        height: 78px;
+        background: transparent;
+        border-width: hover-area.has-hover ? 2px : 0px;
+        border-color: root.accent-color;
+        border-radius: 4px;
+    }
 
     if root.block.has-thumbnail : Image {
         x: 2px;
-        y: 2px;
+        y: 15px;
         width: parent.width - 4px;
-        height: parent.height - 4px;
+        height: 76px;
         source: root.block.thumbnail;
         image-fit: contain;
-        opacity: root.block.enabled ? 1.0 : 0.4;
     }
 
     if !root.block.has-thumbnail : Image {
         x: 0px;
-        y: 8px;
+        y: 17px;
         width: parent.width;
-        height: parent.height - 4px;
+        height: 72px;
         source: root.icon-source;
         image-fit: contain;
         colorize: root.dragging ? #8b95a5 : root.block.enabled ? #f3f6fb : #5c6678;
     }
 
-    if !root.block.has-thumbnail : Text {
-        x: 8px;
-        y: 4px;
-        width: parent.width - 16px;
-        height: 14px;
-        text: root.block-type-label;
-        color: root.dragging ? #8b95a5 : root.block.enabled ? #f3f6fb : #5c6678;
-        font-size: 10px;
-        font-weight: 900;
-        vertical-alignment: center;
-    }
-
+    // LED status dot
     Rectangle {
         x: parent.width - 10px;
         y: parent.height - 10px;
@@ -1020,7 +1034,7 @@ component ChainRow inherits Rectangle {
     property <int> last-block-row: root.chain.blocks.length == 0 ? 0 : Math.floor((root.chain.blocks.length - 1) / root.blocks-per-row);
     // Out sempre fixo na borda direita da linha do último bloco
     property <length> out-chip-x: root.width - 108px;
-    property <length> out-chip-y: root.last-block-row * 92px + 15px;
+    property <length> out-chip-y: root.last-block-row * 108px + 15px;
     out property <bool> any-chip-hovered: in-chip.is-hovered || out-chip.is-hovered;
 
     pure function slot-index-for-position(pointer-x: float, pointer-y: float) -> int {
@@ -1037,7 +1051,7 @@ component ChainRow inherits Rectangle {
     border-width: 1px;
     border-color: #31353d;
     border-radius: 6px;
-    height: 74px + (root.block-row-count * 92px);
+    height: 74px + (root.block-row-count * 108px);
 
     Rectangle {
         x: 0px;
@@ -1136,7 +1150,7 @@ component ChainRow inherits Rectangle {
         x: 18px;
         y: 62px;
         width: parent.width - 36px;
-        height: root.block-row-count * 92px;
+        height: root.block-row-count * 108px;
         background: transparent;
 
         TouchArea {
@@ -1151,28 +1165,29 @@ component ChainRow inherits Rectangle {
             }
         }
 
-        // Row 0: termina no Out se for o único row, senão vai até a borda direita
+        // Routing lines — pedal center is at y = 52px + row * 108px
+        // Row 0 horizontal
         Rectangle {
             x: 72px;
-            y: 41px;
+            y: 52px;
             width: root.block-row-count == 1 ? (root.out-chip-x - 72px) : (parent.width - 72px);
             height: 2px;
             background: #3b4250;
             border-radius: 1px;
         }
 
-        // U-turn row 0 → row 1: vertical direita + horizontal bridge + vertical esquerda
+        // U-turn row 0 → row 1
         if root.block-row-count > 1 : Rectangle {
             x: parent.width - 2px;
-            y: 41px;
+            y: 52px;
             width: 2px;
-            height: 48px;
+            height: 56px;
             background: #3b4250;
             border-radius: 1px;
         }
         if root.block-row-count > 1 : Rectangle {
             x: 0px;
-            y: 87px;
+            y: 106px;
             width: parent.width;
             height: 2px;
             background: #3b4250;
@@ -1180,17 +1195,17 @@ component ChainRow inherits Rectangle {
         }
         if root.block-row-count > 1 : Rectangle {
             x: 0px;
-            y: 87px;
+            y: 106px;
             width: 2px;
-            height: 48px;
+            height: 54px;
             background: #3b4250;
             border-radius: 1px;
         }
 
-        // Row 1: começa da esquerda, termina no Out se for o último, senão vai até a borda
+        // Row 1 horizontal
         if root.block-row-count > 1 : Rectangle {
             x: 0px;
-            y: 133px;
+            y: 160px;
             width: root.block-row-count == 2 ? root.out-chip-x : parent.width;
             height: 2px;
             background: #3b4250;
@@ -1200,15 +1215,15 @@ component ChainRow inherits Rectangle {
         // U-turn row 1 → row 2
         if root.block-row-count > 2 : Rectangle {
             x: parent.width - 2px;
-            y: 133px;
+            y: 160px;
             width: 2px;
-            height: 48px;
+            height: 56px;
             background: #3b4250;
             border-radius: 1px;
         }
         if root.block-row-count > 2 : Rectangle {
             x: 0px;
-            y: 179px;
+            y: 214px;
             width: parent.width;
             height: 2px;
             background: #3b4250;
@@ -1216,17 +1231,17 @@ component ChainRow inherits Rectangle {
         }
         if root.block-row-count > 2 : Rectangle {
             x: 0px;
-            y: 179px;
+            y: 214px;
             width: 2px;
-            height: 48px;
+            height: 54px;
             background: #3b4250;
             border-radius: 1px;
         }
 
-        // Row 2
+        // Row 2 horizontal
         if root.block-row-count > 2 : Rectangle {
             x: 0px;
-            y: 225px;
+            y: 268px;
             width: root.block-row-count == 3 ? root.out-chip-x : parent.width;
             height: 2px;
             background: #3b4250;
@@ -1236,15 +1251,15 @@ component ChainRow inherits Rectangle {
         // U-turn row 2 → row 3
         if root.block-row-count > 3 : Rectangle {
             x: parent.width - 2px;
-            y: 225px;
+            y: 268px;
             width: 2px;
-            height: 48px;
+            height: 56px;
             background: #3b4250;
             border-radius: 1px;
         }
         if root.block-row-count > 3 : Rectangle {
             x: 0px;
-            y: 271px;
+            y: 322px;
             width: parent.width;
             height: 2px;
             background: #3b4250;
@@ -1252,17 +1267,17 @@ component ChainRow inherits Rectangle {
         }
         if root.block-row-count > 3 : Rectangle {
             x: 0px;
-            y: 271px;
+            y: 322px;
             width: 2px;
-            height: 48px;
+            height: 54px;
             background: #3b4250;
             border-radius: 1px;
         }
 
-        // Row 3 (sempre o último se existir)
+        // Row 3 horizontal
         if root.block-row-count > 3 : Rectangle {
             x: 0px;
-            y: 317px;
+            y: 376px;
             width: root.out-chip-x;
             height: 2px;
             background: #3b4250;
@@ -1291,7 +1306,7 @@ component ChainRow inherits Rectangle {
 
         for block[block-index] in root.chain.blocks : BlockChip {
             x: 120px + Math.mod(block-index, root.blocks-per-row) * 116px;
-            y: Math.floor(block-index / root.blocks-per-row) * 92px;
+            y: Math.floor(block-index / root.blocks-per-row) * 108px;
             block: block;
             icon-source: block.icon_kind == "preamp"
                 ? @image-url("../assets/amp-head.svg")
@@ -1352,7 +1367,7 @@ component ChainRow inherits Rectangle {
 
         for block[block-index] in root.chain.blocks : BlockInsertSlot {
             x: 204px + Math.mod(block-index, root.blocks-per-row) * 116px;
-            y: 30px + Math.floor(block-index / root.blocks-per-row) * 92px;
+            y: 30px + Math.floor(block-index / root.blocks-per-row) * 108px;
             move-target: root.dragging-chain-index == root.chain-index && root.dragging-block-index >= 0;
             suppress-hover-affordance: root.suppress-insert-hover;
             active-drop-target: root.dragging-chain-index == root.chain-index && root.dragging-block-index >= 0 && root.drag-hover-before-index == block-index + 1;
