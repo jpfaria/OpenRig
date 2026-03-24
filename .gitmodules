@@ -55,3 +55,21 @@
 [submodule "deps/mod-utilities"]
 	path = deps/mod-utilities
 	url = https://github.com/mod-audio/mod-utilities.git
+[submodule "deps/mod-resources"]
+	path = deps/mod-resources
+	url = https://github.com/moddevices/mod-resources.git
+[submodule "deps/libxputty"]
+	path = deps/libxputty
+	url = https://github.com/brummer10/libxputty.git
+[submodule "deps/svg-pedals-boss"]
+	path = deps/svg-pedals-boss
+	url = https://github.com/SVG-Effects-Pedals/Boss-SVG-Tribute-Pack.git
+[submodule "deps/svg-pedals-ehx"]
+	path = deps/svg-pedals-ehx
+	url = https://github.com/SVG-Effects-Pedals/EHX-SVG-Tribute-Pack.git
+[submodule "deps/svg-pedals-ibanez"]
+	path = deps/svg-pedals-ibanez
+	url = https://github.com/SVG-Effects-Pedals/Maxon-Ibanez-SVG-Tribute-Pack.git
+[submodule "deps/svg-pedals-moogerfooger"]
+	path = deps/svg-pedals-moogerfooger
+	url = https://github.com/SVG-Effects-Pedals/Moogerfooger-SVG-Tribute-Pack.git
