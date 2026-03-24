@@ -27,6 +27,17 @@ Use `./scripts/add-dep.sh` to add new ones.
 | AnalogTapeModel | https://github.com/jatinchowdhury18/AnalogTapeModel | `604372e` | CMake/JUCE | ChowCentaur, CHOWTapeModel |
 | Schrammel_OJD | https://github.com/JanosGit/Schrammel_OJD | `03c0e84` | CMake/JUCE | OJD overdrive |
 
+## Visual Asset Dependencies
+
+| Name | Repository | Pinned Hash | License | Content |
+|------|-----------|-------------|---------|---------|
+| mod-resources | https://github.com/moddevices/mod-resources | `7249dcb` | GPL-3.0 | Pedal templates, knobs, switches, backgrounds |
+| libxputty | https://github.com/brummer10/libxputty | `2dcd730` | 0BSD | Widget framework with knobs/pedals (reference) |
+| svg-pedals-boss | https://github.com/SVG-Effects-Pedals/Boss-SVG-Tribute-Pack | `5c7fa5a` | CC BY-NC-SA | Boss pedal SVGs (DS-1, SD-1, BD-2, DD-7, etc.) |
+| svg-pedals-ehx | https://github.com/SVG-Effects-Pedals/EHX-SVG-Tribute-Pack | `5883f6b` | CC BY-NC-SA | EHX pedal SVGs (Memory Man, POG2, etc.) |
+| svg-pedals-ibanez | https://github.com/SVG-Effects-Pedals/Maxon-Ibanez-SVG-Tribute-Pack | `1c293b6` | CC BY-NC-SA | Ibanez/Maxon SVGs (TS-9, CS-9, FL-9, AD-9) |
+| svg-pedals-moogerfooger | https://github.com/SVG-Effects-Pedals/Moogerfooger-SVG-Tribute-Pack | `061310b` | CC BY-NC-SA | Moogerfooger SVGs (MF-101 to MF-108) |
+
 ## Updating a dependency
 
 Submodules are pinned to the exact commit above. To update:
