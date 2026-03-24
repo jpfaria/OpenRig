@@ -6,6 +6,7 @@ on:
       - 'deps/**'
       - 'scripts/build-lib-internal.sh'
       - '.github/workflows/build-libs.yml'
+    # Note: commits pushed with GITHUB_TOKEN do NOT trigger workflows (no loop)
   workflow_dispatch:
     inputs:
       plugin:
@@ -322,29 +323,36 @@ jobs:
           name: windows-arm64-${{ matrix.plugin }}
           path: libs-output/windows-arm64/
 
-  # Combine all artifacts into a single package
-  package:
-    needs: [linux-x86_64, linux-aarch64, macos-universal, windows-x64, windows-arm64]
-    if: always() && needs.detect-changes.result != 'skipped'
+  # Collect artifacts and commit back to the repo
+  commit-libs:
+    needs: [detect-changes, linux-x86_64, linux-aarch64, macos-universal, windows-x64, windows-arm64]
+    if: always() && needs.detect-changes.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          lfs: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: Organize by platform
+      - name: Copy binaries to libs/
         run: |
-          mkdir -p libs/nam libs/lv2
           for platform in linux-x86_64 linux-aarch64 macos-universal windows-x64 windows-arm64; do
             mkdir -p "libs/lv2/$platform" "libs/nam/$platform"
             for dir in artifacts/${platform}-*/; do
               [ -d "$dir" ] || continue
-              # NAM goes to libs/nam/, everything else to libs/lv2/
-              for f in "$dir"/*NeuralAudioCAPI*; do
-                [ -f "$f" ] && cp "$f" "libs/nam/$platform/"
-              done
               for f in "$dir"/*; do
-                [ -f "$f" ] && echo "$f" | grep -qv NeuralAudioCAPI && cp "$f" "libs/lv2/$platform/"
+                [ -f "$f" ] || continue
+                fname=$(basename "$f")
+                if echo "$fname" | grep -q "NeuralAudioCAPI"; then
+                  cp "$f" "libs/nam/$platform/"
+                else
+                  cp "$f" "libs/lv2/$platform/"
+                fi
               done
             done
           done
@@ -356,7 +364,21 @@ jobs:
             echo "$platform: NAM=$nam_count, LV2=$lv2_count"
           done
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: libs-all-platforms
-          path: libs/
+      - name: Setup Git LFS
+        run: git lfs install
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add libs/
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          # Build commit message from changed plugins
+          PLUGINS=$(echo '${{ needs.detect-changes.outputs.plugins }}' | tr -d '[]"' | tr ',' ' ')
+          git commit -m "ci: update prebuilt libs for ${PLUGINS}"
+          git push
