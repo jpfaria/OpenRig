@@ -4689,7 +4689,7 @@ fn build_compact_blocks(
                 icon_kind: icon_kind.into(),
                 brand: visual
                     .as_ref()
-                    .map(|v| block_core::capitalize_first(&v.brand))
+                    .map(|v| v.brand.clone())
                     .unwrap_or_default()
                     .into(),
                 display_name: visual

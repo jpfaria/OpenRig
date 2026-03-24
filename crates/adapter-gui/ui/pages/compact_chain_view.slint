@@ -141,8 +141,8 @@ component CompactBlockRow inherits Rectangle {
     // ── 2. Type icon (always shown) ──
     Image {
         x: 48px;
-        y: (parent.height - 28px) / 2;
-        width: 28px; height: 28px;
+        y: (parent.height - 32px) / 2;
+        width: 32px; height: 32px;
         source: root.block-data.icon-kind == "preamp" ? @image-url("../assets/amp-head.svg")
             : root.block-data.icon-kind == "amp" ? @image-url("../assets/amp-combo.svg")
             : root.block-data.icon-kind == "cab" ? @image-url("../assets/cab.svg")
@@ -166,10 +166,10 @@ component CompactBlockRow inherits Rectangle {
 
     // ── 3. Block type label ──
     Text {
-        x: 82px;
-        y: (parent.height - 16px) / 2;
+        x: 86px;
+        y: (parent.height - 18px) / 2;
         width: 70px;
-        height: 16px;
+        height: 18px;
         text: root.block-data.effect-type == "preamp" ? "PREAMP"
             : root.block-data.effect-type == "amp" ? "AMP"
             : root.block-data.effect-type == "cab" ? "CAB"
@@ -188,9 +188,10 @@ component CompactBlockRow inherits Rectangle {
             : root.block-data.effect-type == "nam" ? "NAM"
             : "";
         color: root.block-data.panel-text;
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 900;
         letter-spacing: 1.5px;
+        vertical-alignment: center;
     }
 
     // ── 4. Brand logo (branded) or native model illustration ──
@@ -213,7 +214,7 @@ component CompactBlockRow inherits Rectangle {
     if root.block-data.brand == "santa_cruz" : Image { x: 155px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/santa_cruz/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
     // Native models: show model illustration SVG
     if root.block-data.brand == "" : Image {
-        x: 155px; y: (parent.height - 28px) / 2; width: 28px; height: 28px;
+        x: 155px; y: (parent.height - 40px) / 2; width: 40px; height: 40px;
         source: root.block-data.model-id == "gate_basic" ? @image-url("../../../../assets/models/gate_basic.svg")
             : root.block-data.model-id == "compressor_studio_clean" ? @image-url("../../../../assets/models/compressor_studio_clean.svg")
             : root.block-data.model-id == "analog_warm" ? @image-url("../../../../assets/models/analog_warm.svg")
@@ -236,6 +237,8 @@ component CompactBlockRow inherits Rectangle {
             : root.block-data.model-id == "american_2x12" ? @image-url("../../../../assets/models/american_2x12.svg")
             : root.block-data.model-id == "brit_4x12" ? @image-url("../../../../assets/models/brit_4x12.svg")
             : root.block-data.model-id == "vintage_1x12" ? @image-url("../../../../assets/models/vintage_1x12.svg")
+            : root.block-data.model-id == "generic_ir" ? @image-url("../../../../assets/models/generic_ir.svg")
+            : root.block-data.model-id == "generic_nam" ? @image-url("../../../../assets/models/generic_nam.svg")
             : root.block-data.icon-kind == "preamp" ? @image-url("../assets/amp-head.svg")
             : root.block-data.icon-kind == "amp" ? @image-url("../assets/amp-combo.svg")
             : root.block-data.icon-kind == "cab" ? @image-url("../assets/cab.svg")
@@ -248,9 +251,9 @@ component CompactBlockRow inherits Rectangle {
         colorize: root.block-data.panel-text;
     }
 
-    // ── 5. Model selector dropdown (always at same x) ──
+    // ── 5. Model selector dropdown (same x for all) ──
     Rectangle {
-        x: root.block-data.brand != "" ? 222px : 190px;
+        x: 222px;
         y: (parent.height - 32px) / 2;
         width: 260px;
         height: 32px;
@@ -342,12 +345,42 @@ component CompactBlockRow inherits Rectangle {
         }
     }
 
+    // Non-enum numeric params as knobs (when no knob overlays defined)
+    for param[pi] in root.block-data.parameter-items : Rectangle {
+        visible: root.block-data.knob-overlays.length == 0
+            && param.widget_kind != "enum" && param.widget_kind != "" && param.widget_kind != "bool";
+        x: parent.width - 28px - (root.block-data.parameter-items.length - pi) * 72px;
+        y: (parent.height - 72px) / 2;
+        width: 62px;
+        height: 72px;
+
+        Text {
+            x: 0; y: 0; width: parent.width; height: 12px;
+            text: param.label;
+            color: root.block-data.panel-text;
+            font-size: 7px; font-weight: 700; letter-spacing: 0.5px;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+
+        PanelKnob {
+            x: 2px; y: 14px;
+            width: 58px; height: 58px;
+            value: param.numeric_value;
+            min-val: param.numeric_min;
+            max-val: param.numeric_max;
+            step: param.numeric_step;
+            path: param.path;
+            changed(p, v) => { root.update-parameter-number(root.block-data.chain-index, root.block-data.block-index, p, v); }
+        }
+    }
+
     // Knob overlays (right-aligned, with labels)
     for knob[ki] in root.block-data.knob-overlays : Rectangle {
         x: parent.width - 28px - (root.block-data.knob-overlays.length - ki) * 72px;
-        y: 8px;
+        y: (parent.height - 72px) / 2;
         width: 62px;
-        height: parent.height - 8px;
+        height: 72px;
 
         // Label
         Text {
@@ -377,9 +410,9 @@ component CompactBlockRow inherits Rectangle {
         x: parent.width - 16px
             - root.block-data.knob-overlays.length * 72px
             - (root.block-data.parameter-items.length - pi) * (Math.max(130px, param.option_labels.length * 64px) + 12px);
-        y: 4px;
+        y: (parent.height - 44px) / 2;
         width: Math.max(130px, param.option_labels.length * 64px);
-        height: parent.height - 8px;
+        height: 44px;
         // Label
         Text {
             x: 0; y: 0; width: parent.width; height: 12px;
@@ -425,9 +458,9 @@ component CompactBlockRow inherits Rectangle {
         x: parent.width - 16px
             - root.block-data.knob-overlays.length * 72px
             - 220px;
-        y: 4px;
+        y: (parent.height - 42px) / 2;
         width: 200px;
-        height: parent.height - 8px;
+        height: 42px;
 
         // Label
         Text {
@@ -510,6 +543,13 @@ export component CompactChainViewPage inherits Rectangle {
     callback open-block-detail(int, int);
     callback close-compact-view();
 
+    // Drag-to-reorder state
+    private property <int> dragging-block-index: -1;
+    private property <int> drag-hover-before-index: -1;
+    private property <float> drag-start-y: 0;
+    private property <float> drag-current-y: 0;
+    private property <bool> drag-active: false;
+
     background: #0a0c10;
 
     // Header
@@ -559,7 +599,7 @@ export component CompactChainViewPage inherits Rectangle {
         width: parent.width;
         height: parent.height - 48px;
         viewport-height: root.compact-blocks.length * 112px + 24px;
-        interactive: false;
+        interactive: !root.drag-active;
 
         // Insert slot before first block
         Rectangle {
@@ -587,21 +627,89 @@ export component CompactChainViewPage inherits Rectangle {
             }
         }
 
-        for block-item[bi] in root.compact-blocks : CompactBlockRow {
+        for block-item[bi] in root.compact-blocks : Rectangle {
             y: 12px + bi * 112px;
             width: parent.width;
-            block-data: block-item;
-            toggle-enabled(ci, bi2) => { root.toggle-block-enabled(ci, bi2); }
-            update-parameter-number(ci, bi2, p, v) => { root.update-block-parameter-number(ci, bi2, p, v); }
-            select-parameter-option(ci, bi2, p, oi) => { root.select-block-parameter-option(ci, bi2, p, oi); }
-            choose-model(ci, bi2, mi) => { root.choose-block-model(ci, bi2, mi); }
-            open-block-detail(ci, bi2) => { root.open-block-detail(ci, bi2); }
+            height: 100px;
+            // Dim the row being dragged
+            opacity: root.drag-active && root.dragging-block-index == bi ? 0.3 : 1.0;
+
+            CompactBlockRow {
+                width: parent.width;
+                height: 100px;
+                block-data: block-item;
+                toggle-enabled(ci, bi2) => { root.toggle-block-enabled(ci, bi2); }
+                update-parameter-number(ci, bi2, p, v) => { root.update-block-parameter-number(ci, bi2, p, v); }
+                select-parameter-option(ci, bi2, p, oi) => { root.select-block-parameter-option(ci, bi2, p, oi); }
+                choose-model(ci, bi2, mi) => { root.choose-block-model(ci, bi2, mi); }
+                open-block-detail(ci, bi2) => { root.open-block-detail(ci, bi2); }
+            }
+
+            // Drag handle on the left edge
+            drag-ta := TouchArea {
+                x: 0; y: 0;
+                width: 10px; height: parent.height;
+                mouse-cursor: grab;
+
+                pointer-event(ev) => {
+                    if ev.kind == PointerEventKind.down {
+                        root.drag-start-y = self.absolute-position.y / 1px + self.mouse-y / 1px;
+                        root.drag-current-y = root.drag-start-y;
+                        root.dragging-block-index = bi;
+                        root.drag-hover-before-index = -1;
+                    }
+                    if ev.kind == PointerEventKind.up {
+                        if root.drag-active && root.drag-hover-before-index >= 0
+                            && root.drag-hover-before-index != root.dragging-block-index
+                            && root.drag-hover-before-index != root.dragging-block-index + 1 {
+                            root.reorder-block(root.chain-index, root.dragging-block-index, root.drag-hover-before-index);
+                        }
+                        root.dragging-block-index = -1;
+                        root.drag-hover-before-index = -1;
+                        root.drag-active = false;
+                    }
+                }
+
+                moved => {
+                    if self.pressed && root.dragging-block-index >= 0 {
+                        root.drag-current-y = self.absolute-position.y / 1px + self.mouse-y / 1px;
+                        let delta = root.drag-current-y - root.drag-start-y;
+                        if !root.drag-active && (delta > 8.0 || delta < -8.0) {
+                            root.drag-active = true;
+                        }
+                        if root.drag-active {
+                            // Calculate which slot the cursor is over
+                            // Each row is 112px (100 + 12 gap), starting at y=48+12=60 in page coords
+                            // Slot i is at the top of row i => page-y = 60 + i*112
+                            // We use absolute position relative to the flickable area
+                            let mouse-page-y = root.drag-current-y - 60.0;
+                            // Find closest slot boundary
+                            let slot-f = mouse-page-y / 112.0;
+                            let slot-i = slot-f < 0.0 ? 0 : (slot-f > root.compact-blocks.length * 1.0 ? root.compact-blocks.length : Math.round(slot-f));
+                            root.drag-hover-before-index = slot-i;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Drop indicator line (shown during drag)
+        if root.drag-active && root.drag-hover-before-index >= 0
+            && root.drag-hover-before-index != root.dragging-block-index
+            && root.drag-hover-before-index != root.dragging-block-index + 1 : Rectangle {
+            x: 8px;
+            y: root.drag-hover-before-index * 112px + 12px - 1px;
+            width: parent.width - 16px;
+            height: 3px;
+            border-radius: 1.5px;
+            background: #4488ff;
         }
 
         // Insert slots after each block
         for block-item[bi] in root.compact-blocks : Rectangle {
             x: 0; y: 12px + bi * 112px + 100px;
             width: parent.width; height: 12px;
+            visible: !root.drag-active;
 
             Rectangle {
                 x: (parent.width - 28px) / 2;
