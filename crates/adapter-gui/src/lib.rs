@@ -5581,6 +5581,20 @@ fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
     }
 }
 fn load_thumbnail_image(effect_type: &str, model_id: &str) -> (slint::Image, bool) {
+    use std::cell::RefCell;
+    use std::collections::HashMap;
+
+    thread_local! {
+        static CACHE: RefCell<HashMap<(String, String), slint::Image>> = RefCell::new(HashMap::new());
+    }
+
+    let key = (effect_type.to_string(), model_id.to_string());
+
+    let cached = CACHE.with(|c| c.borrow().get(&key).cloned());
+    if let Some(img) = cached {
+        return (img, true);
+    }
+
     match block_thumbnails::thumbnail_png(effect_type, model_id) {
         Some(png_bytes) => {
             match image::load_from_memory_with_format(png_bytes, image::ImageFormat::Png) {
@@ -5591,7 +5605,9 @@ fn load_thumbnail_image(effect_type: &str, model_id: &str) -> (slint::Image, boo
                         rgba.width(),
                         rgba.height(),
                     );
-                    (slint::Image::from_rgba8(buffer), true)
+                    let slint_img = slint::Image::from_rgba8(buffer);
+                    CACHE.with(|c| c.borrow_mut().insert(key, slint_img.clone()));
+                    (slint_img, true)
                 }
                 Err(e) => {
                     log::warn!("Failed to decode thumbnail for {}/{}: {}", effect_type, model_id, e);
