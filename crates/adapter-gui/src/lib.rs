@@ -1869,15 +1869,8 @@ pub fn run_desktop_app(
             // Wire reorder-block
             {
                 let project_session = project_session.clone();
-                let project_runtime = project_runtime.clone();
-                let project_chains = project_chains.clone();
-                let input_chain_devices = input_chain_devices.clone();
-                let output_chain_devices = output_chain_devices.clone();
-                let saved_project_snapshot = saved_project_snapshot.clone();
-                let project_dirty = project_dirty.clone();
                 let weak_main = window.as_weak();
                 let weak_compact = compact_win.as_weak();
-                let toast_timer = toast_timer.clone();
                 compact_win.on_reorder_block(move |ci, from, before| {
                     let Some(main_win) = weak_main.upgrade() else { return; };
                     let Some(cw) = weak_compact.upgrade() else { return; };
