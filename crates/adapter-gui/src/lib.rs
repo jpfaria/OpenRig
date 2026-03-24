@@ -1861,7 +1861,10 @@ pub fn run_desktop_app(
             {
                 let weak_main = window.as_weak();
                 compact_win.on_insert_block(move |ci, before| {
+                    log::info!("[compact] insert-block: chain={}, before={}", ci, before);
                     let Some(main_win) = weak_main.upgrade() else { return; };
+                    // Bring main window to front and trigger block insert
+                    let _ = main_win.window().show();
                     main_win.invoke_start_block_insert(ci, before);
                 });
             }
@@ -1872,6 +1875,7 @@ pub fn run_desktop_app(
                 let weak_main = window.as_weak();
                 let weak_compact = compact_win.as_weak();
                 compact_win.on_reorder_block(move |ci, from, before| {
+                    log::info!("[compact] reorder-block: chain={}, from={}, before={}", ci, from, before);
                     let Some(main_win) = weak_main.upgrade() else { return; };
                     let Some(cw) = weak_compact.upgrade() else { return; };
                     // Reuse main window's reorder logic

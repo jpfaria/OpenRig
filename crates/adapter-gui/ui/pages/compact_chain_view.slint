@@ -194,27 +194,120 @@ component CompactBlockRow inherits Rectangle {
         vertical-alignment: center;
     }
 
-    // ── 4. Brand logo (branded) or native model illustration ──
+    // ── 4. Model selector dropdown (after type label) ──
+    Rectangle {
+        x: 155px;
+        y: (parent.height - 32px) / 2;
+        width: 260px;
+        height: 32px;
+        background: #060610;
+        border-width: 1px;
+        border-color: #252538;
+        border-radius: 5px;
+
+        Text {
+            x: 8px; y: 0;
+            width: parent.width - 28px;
+            height: parent.height;
+            text: root.block-data.display-name;
+            color: #d8e0ff;
+            font-size: 12px;
+            font-weight: 700;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+
+        Text {
+            x: parent.width - 20px; y: 0;
+            width: 16px; height: parent.height;
+            text: "\u{25BC}";
+            color: #8090a0;
+            font-size: 9px;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+        }
+
+        if root.block-data.type-label != "" : Rectangle {
+            x: parent.width - 64px;
+            y: (parent.height - 16px) / 2;
+            width: 36px; height: 16px;
+            border-radius: 3px;
+            background: root.block-data.type-label == "NATIVE" ? #0d2a0d
+                : root.block-data.type-label == "NAM" ? #0d1a2e : #2e1a0d;
+            border-width: 1px;
+            border-color: root.block-data.type-label == "NATIVE" ? #1a6b1a
+                : root.block-data.type-label == "NAM" ? #1a4488 : #883300;
+            Text {
+                width: 100%; height: 100%;
+                text: root.block-data.type-label;
+                color: root.block-data.type-label == "NATIVE" ? #33bb33
+                    : root.block-data.type-label == "NAM" ? #4499ff : #ff8833;
+                font-size: 7px; font-weight: 800;
+                horizontal-alignment: center; vertical-alignment: center;
+            }
+        }
+
+        model-select-ta := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { model-select-popup.show(); }
+        }
+
+        model-select-popup := PopupWindow {
+            property <length> list-h: Math.min(root.block-data.model-labels.length * 32px + 6px, 300px);
+            x: 0; y: parent.height + 4px;
+            width: parent.width; height: self.list-h;
+            Rectangle {
+                width: 100%; height: 100%;
+                background: #08080e; border-width: 1px; border-color: #2a2a40;
+                border-radius: 5px; clip: true;
+                drop-shadow-blur: 16px; drop-shadow-color: #000000c0;
+                Flickable {
+                    width: parent.width; height: parent.height;
+                    viewport-height: root.block-data.model-labels.length * 32px + 6px;
+                    for label[mi] in root.block-data.model-labels : Rectangle {
+                        x: 3px; y: 3px + mi * 32px;
+                        width: parent.width - 6px; height: 30px;
+                        border-radius: 4px;
+                        background: mi == root.block-data.model-selected-index ? #14142a : (ml-sel-ta.has-hover ? #ffffff08 : transparent);
+                        Text {
+                            x: 8px; width: parent.width - 16px; height: parent.height;
+                            text: label;
+                            color: mi == root.block-data.model-selected-index ? #7788ff : #b0bce0;
+                            font-size: 11px;
+                            font-weight: mi == root.block-data.model-selected-index ? 700 : 400;
+                            vertical-alignment: center; overflow: elide;
+                        }
+                        ml-sel-ta := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.choose-model(root.block-data.chain-index, root.block-data.block-index, mi); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── 5. Brand logo (branded) or native model illustration ──
     // Branded models: show brand logo
-    if root.block-data.brand == "marshall" : Image { x: 155px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/marshall/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
-    if root.block-data.brand == "bogner" : Image { x: 155px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/bogner/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
-    if root.block-data.brand == "gibson" : Image { x: 155px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/gibson/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
-    if root.block-data.brand == "martin" : Image { x: 155px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/martin/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
-    if root.block-data.brand == "taylor" : Image { x: 155px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/taylor/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
-    if root.block-data.brand == "fender" : Image { x: 155px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/fender/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
-    if root.block-data.brand == "ibanez" : Image { x: 155px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/ibanez/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
-    if root.block-data.brand == "boss" : Image { x: 155px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/boss/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
-    if root.block-data.brand == "roland" : Image { x: 155px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/roland/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
-    if root.block-data.brand == "vox" : Image { x: 155px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/vox/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
-    if root.block-data.brand == "takamine" : Image { x: 155px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/takamine/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
-    if root.block-data.brand == "guild" : Image { x: 155px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/guild/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
-    if root.block-data.brand == "collings" : Image { x: 155px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/collings/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
-    if root.block-data.brand == "suhr" : Image { x: 155px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/suhr/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
-    if root.block-data.brand == "morris" : Image { x: 155px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/morris/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
-    if root.block-data.brand == "santa_cruz" : Image { x: 155px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/santa_cruz/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
+    if root.block-data.brand == "marshall" : Image { x: 422px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/marshall/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
+    if root.block-data.brand == "bogner" : Image { x: 422px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/bogner/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
+    if root.block-data.brand == "gibson" : Image { x: 422px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/gibson/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
+    if root.block-data.brand == "martin" : Image { x: 422px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/martin/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
+    if root.block-data.brand == "taylor" : Image { x: 422px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/taylor/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
+    if root.block-data.brand == "fender" : Image { x: 422px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/fender/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
+    if root.block-data.brand == "ibanez" : Image { x: 422px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/ibanez/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
+    if root.block-data.brand == "boss" : Image { x: 422px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/boss/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
+    if root.block-data.brand == "roland" : Image { x: 422px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/roland/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
+    if root.block-data.brand == "vox" : Image { x: 422px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/vox/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
+    if root.block-data.brand == "takamine" : Image { x: 422px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/takamine/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
+    if root.block-data.brand == "guild" : Image { x: 422px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/guild/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
+    if root.block-data.brand == "collings" : Image { x: 422px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/collings/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
+    if root.block-data.brand == "suhr" : Image { x: 422px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/suhr/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
+    if root.block-data.brand == "morris" : Image { x: 422px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/morris/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
+    if root.block-data.brand == "santa_cruz" : Image { x: 422px; y: (parent.height - 28px) / 2; width: 60px; height: 28px; source: @image-url("../../../../assets/brands/santa_cruz/logo.svg"); image-fit: contain; colorize: root.block-data.panel-text; }
     // Native models: show model illustration SVG
     if root.block-data.brand == "" : Image {
-        x: 155px; y: (parent.height - 40px) / 2; width: 40px; height: 40px;
+        x: 422px; y: (parent.height - 40px) / 2; width: 40px; height: 40px;
         source: root.block-data.model-id == "gate_basic" ? @image-url("../../../../assets/models/gate_basic.svg")
             : root.block-data.model-id == "compressor_studio_clean" ? @image-url("../../../../assets/models/compressor_studio_clean.svg")
             : root.block-data.model-id == "analog_warm" ? @image-url("../../../../assets/models/analog_warm.svg")
@@ -249,100 +342,6 @@ component CompactBlockRow inherits Rectangle {
             : @image-url("../assets/gear.svg");
         image-fit: contain;
         colorize: root.block-data.panel-text;
-    }
-
-    // ── 5. Model selector dropdown (same x for all) ──
-    Rectangle {
-        x: 222px;
-        y: (parent.height - 32px) / 2;
-        width: 260px;
-        height: 32px;
-        background: #060610;
-        border-width: 1px;
-        border-color: #252538;
-        border-radius: 5px;
-
-        Text {
-            x: 8px; y: 0;
-            width: parent.width - 28px;
-            height: parent.height;
-            text: root.block-data.display-name;
-            color: #d8e0ff;
-            font-size: 11px;
-            font-weight: 700;
-            vertical-alignment: center;
-            overflow: elide;
-        }
-
-        Text {
-            x: parent.width - 20px; y: 0;
-            width: 16px; height: parent.height;
-            text: "\u{25BC}";
-            color: #8090a0;
-            font-size: 9px;
-            vertical-alignment: center;
-            horizontal-alignment: center;
-        }
-
-        // Type badge inside select
-        if root.block-data.type-label != "" : Rectangle {
-            x: parent.width - 64px;
-            y: (parent.height - 16px) / 2;
-            width: 36px; height: 16px;
-            border-radius: 3px;
-            background: root.block-data.type-label == "NATIVE" ? #0d2a0d
-                : root.block-data.type-label == "NAM" ? #0d1a2e : #2e1a0d;
-            border-width: 1px;
-            border-color: root.block-data.type-label == "NATIVE" ? #1a6b1a
-                : root.block-data.type-label == "NAM" ? #1a4488 : #883300;
-            Text {
-                width: 100%; height: 100%;
-                text: root.block-data.type-label;
-                color: root.block-data.type-label == "NATIVE" ? #33bb33
-                    : root.block-data.type-label == "NAM" ? #4499ff : #ff8833;
-                font-size: 7px; font-weight: 800;
-                horizontal-alignment: center; vertical-alignment: center;
-            }
-        }
-
-        model-ta := TouchArea {
-            mouse-cursor: pointer;
-            clicked => { model-popup.show(); }
-        }
-
-        model-popup := PopupWindow {
-            property <length> list-h: Math.min(root.block-data.model-labels.length * 32px + 6px, 300px);
-            x: 0; y: parent.height + 4px;
-            width: parent.width; height: self.list-h;
-            Rectangle {
-                width: 100%; height: 100%;
-                background: #08080e; border-width: 1px; border-color: #2a2a40;
-                border-radius: 5px; clip: true;
-                drop-shadow-blur: 16px; drop-shadow-color: #000000c0;
-                Flickable {
-                    width: parent.width; height: parent.height;
-                    viewport-height: root.block-data.model-labels.length * 32px + 6px;
-                    for label[mi] in root.block-data.model-labels : Rectangle {
-                        x: 3px; y: 3px + mi * 32px;
-                        width: parent.width - 6px; height: 30px;
-                        border-radius: 4px;
-                        background: mi == root.block-data.model-selected-index ? #14142a : (ml-ta.has-hover ? #ffffff08 : transparent);
-                        Text {
-                            x: 8px; width: parent.width - 16px; height: parent.height;
-                            text: label;
-                            color: mi == root.block-data.model-selected-index ? #7788ff : #b0bce0;
-                            font-size: 11px;
-                            font-weight: mi == root.block-data.model-selected-index ? 700 : 400;
-                            vertical-alignment: center; overflow: elide;
-                        }
-                        ml-ta := TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => { root.choose-model(root.block-data.chain-index, root.block-data.block-index, mi); }
-                        }
-                    }
-                }
-            }
-        }
     }
 
     // Non-enum numeric params as knobs (when no knob overlays defined)
@@ -605,25 +604,32 @@ export component CompactChainViewPage inherits Rectangle {
         Rectangle {
             x: 0; y: 0;
             width: parent.width; height: 12px;
+            background: insert0-ta.has-hover ? #3366cc20 : transparent;
 
+            // Center line + button
             Rectangle {
-                x: (parent.width - 28px) / 2;
+                x: 4px; y: 5px;
+                width: parent.width - 8px; height: 2px;
+                background: insert0-ta.has-hover ? #3366cc : transparent;
+                border-radius: 1px;
+            }
+            Rectangle {
+                x: (parent.width - 24px) / 2;
                 y: 0;
-                width: 28px; height: 12px;
+                width: 24px; height: 12px;
                 border-radius: 6px;
                 background: insert0-ta.has-hover ? #3366cc : transparent;
-                opacity: insert0-ta.has-hover ? 1.0 : 0.0;
 
                 Text {
                     width: 100%; height: 100%;
-                    text: "+"; color: #ffffff; font-size: 14px; font-weight: 800;
+                    text: "+"; color: #ffffff; font-size: 12px; font-weight: 800;
                     horizontal-alignment: center; vertical-alignment: center;
                 }
+            }
 
-                insert0-ta := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { root.insert-block(root.chain-index, 0); }
-                }
+            insert0-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.insert-block(root.chain-index, 0); }
             }
         }
 
@@ -645,10 +651,22 @@ export component CompactChainViewPage inherits Rectangle {
                 open-block-detail(ci, bi2) => { root.open-block-detail(ci, bi2); }
             }
 
-            // Drag handle on the left edge
+            // Drag handle — visible grip on left edge
+            Rectangle {
+                x: 0; y: 0;
+                width: 8px; height: parent.height;
+                background: drag-ta.has-hover ? #ffffff15 : #ffffff08;
+                border-radius: 2px;
+
+                // Grip dots
+                Rectangle { x: 2px; y: parent.height / 2 - 10px; width: 4px; height: 4px; border-radius: 2px; background: #ffffff30; }
+                Rectangle { x: 2px; y: parent.height / 2;        width: 4px; height: 4px; border-radius: 2px; background: #ffffff30; }
+                Rectangle { x: 2px; y: parent.height / 2 + 10px; width: 4px; height: 4px; border-radius: 2px; background: #ffffff30; }
+            }
+
             drag-ta := TouchArea {
                 x: 0; y: 0;
-                width: 10px; height: parent.height;
+                width: 44px; height: parent.height;
                 mouse-cursor: grab;
 
                 pointer-event(ev) => {
@@ -710,18 +728,24 @@ export component CompactChainViewPage inherits Rectangle {
             x: 0; y: 12px + bi * 112px + 100px;
             width: parent.width; height: 12px;
             visible: !root.drag-active;
+            background: insert-ta.has-hover ? #3366cc20 : transparent;
 
             Rectangle {
-                x: (parent.width - 28px) / 2;
+                x: 4px; y: 5px;
+                width: parent.width - 8px; height: 2px;
+                background: insert-ta.has-hover ? #3366cc : transparent;
+                border-radius: 1px;
+            }
+            Rectangle {
+                x: (parent.width - 24px) / 2;
                 y: 0;
-                width: 28px; height: 12px;
+                width: 24px; height: 12px;
                 border-radius: 6px;
                 background: insert-ta.has-hover ? #3366cc : transparent;
-                opacity: insert-ta.has-hover ? 1.0 : 0.0;
 
                 Text {
                     width: 100%; height: 100%;
-                    text: "+"; color: #ffffff; font-size: 14px; font-weight: 800;
+                    text: "+"; color: #ffffff; font-size: 12px; font-weight: 800;
                     horizontal-alignment: center; vertical-alignment: center;
                 }
 
