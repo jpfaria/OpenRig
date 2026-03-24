@@ -188,6 +188,10 @@ struct NeuralModel {
 }
 
 unsafe extern "C" {
+    // wchar_t is u32 on macOS/Linux, u16 on Windows
+    #[cfg(not(target_os = "windows"))]
+    fn CreateModelFromFile(model_path: *const u32) -> *mut NeuralModel;
+    #[cfg(target_os = "windows")]
     fn CreateModelFromFile(model_path: *const u16) -> *mut NeuralModel;
     fn DeleteModel(model: *mut NeuralModel);
     fn Process(model: *mut NeuralModel, input: *const f32, output: *mut f32, num_samples: usize);
@@ -217,10 +221,17 @@ impl Drop for NamProcessor {
 
 impl NamProcessor {
     pub fn new(model_path: &str, _ir_path: Option<&str>, params: NamPluginParams) -> Result<Self> {
-        // NeuralAudioCAPI uses wide string (wchar_t = u16 on most platforms)
-        let wide_path: Vec<u16> = model_path.encode_utf16().chain(std::iter::once(0)).collect();
-
-        let model = unsafe { CreateModelFromFile(wide_path.as_ptr()) };
+        // wchar_t is u32 on macOS/Linux (UTF-32), u16 on Windows (UTF-16)
+        #[cfg(not(target_os = "windows"))]
+        let model = {
+            let wide_path: Vec<u32> = model_path.chars().map(|c| c as u32).chain(std::iter::once(0)).collect();
+            unsafe { CreateModelFromFile(wide_path.as_ptr()) }
+        };
+        #[cfg(target_os = "windows")]
+        let model = {
+            let wide_path: Vec<u16> = model_path.encode_utf16().chain(std::iter::once(0)).collect();
+            unsafe { CreateModelFromFile(wide_path.as_ptr()) }
+        };
         if model.is_null() {
             bail!("failed to load NAM model '{}'", model_path);
         }
