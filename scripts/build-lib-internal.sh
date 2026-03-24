@@ -115,14 +115,14 @@ build_nam() {
 
 build_dragonfly_reverb() {
     local src="$DEPS_DIR/dragonfly-reverb"
-    do_make "$src" BUILD_LV2=true NOOPT=true
+    do_make "$src" BUILD_LV2=true NOOPT=true HAVE_OPENGL=false HAVE_CAIRO=false HAVE_VULKAN=false HAVE_STUB=true USE_FILE_BROWSER=false
     collect_libs "$src/bin" "*_dsp"
 }
 
 build_zam_plugins() {
     local src="$DEPS_DIR/zam-plugins"
-    do_make "$src" BUILD_LV2=true NOOPT=true
-    collect_libs "$src/bin" "Zam*_dsp" "Zam*_ui"
+    do_make "$src" BUILD_LV2=true NOOPT=true HAVE_OPENGL=false HAVE_CAIRO=false HAVE_VULKAN=false HAVE_STUB=true USE_FILE_BROWSER=false
+    collect_libs "$src/bin" "Zam*_dsp"
 }
 
 build_mod_utilities() {
@@ -145,19 +145,19 @@ build_tap_lv2() {
 
 build_shiro_plugins() {
     local src="$DEPS_DIR/SHIRO-Plugins"
-    do_make "$src" BUILD_LV2=true NOOPT=true
+    do_make "$src" BUILD_LV2=true NOOPT=true HAVE_OPENGL=false HAVE_CAIRO=false HAVE_VULKAN=false HAVE_STUB=true USE_FILE_BROWSER=false
     collect_libs "$src/bin" "*_dsp"
 }
 
 build_dpf_plugins() {
     local src="$DEPS_DIR/DPF-Plugins"
-    do_make "$src" BUILD_LV2=true NOOPT=true
+    do_make "$src" BUILD_LV2=true NOOPT=true HAVE_OPENGL=false HAVE_CAIRO=false HAVE_VULKAN=false HAVE_STUB=true USE_FILE_BROWSER=false
     collect_libs "$src/bin" "*_dsp"
 }
 
 build_mverb() {
     local src="$DEPS_DIR/MVerb"
-    do_make "$src" BUILD_LV2=true NOOPT=true
+    do_make "$src" BUILD_LV2=true NOOPT=true HAVE_OPENGL=false HAVE_CAIRO=false HAVE_VULKAN=false HAVE_STUB=true USE_FILE_BROWSER=false
     collect_libs "$src/bin" "*_dsp"
 }
 
@@ -181,7 +181,7 @@ build_invada_studio() {
 
 build_wolf_shaper() {
     local src="$DEPS_DIR/wolf-shaper"
-    do_make "$src" BUILD_LV2=true NOOPT=true
+    do_make "$src" BUILD_LV2=true NOOPT=true HAVE_OPENGL=false HAVE_CAIRO=false HAVE_VULKAN=false HAVE_STUB=true USE_FILE_BROWSER=false
     collect_libs "$src/bin" "*_dsp"
 }
 

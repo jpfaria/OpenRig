@@ -168,7 +168,7 @@ build_docker() {
 
         docker run --rm \
             --platform "$docker_platform" \
-            -v "$PROJECT_ROOT/deps:/build/deps:ro" \
+            -v "$PROJECT_ROOT/deps:/build/deps" \
             -v "$out_dir:/output" \
             ${extra_env[@]+"${extra_env[@]}"} \
             "$docker_tag" \
