@@ -505,6 +505,8 @@ export component CompactChainViewPage inherits Rectangle {
     callback update-block-parameter-number(int, int, string, float);
     callback select-block-parameter-option(int, int, string, int);
     callback choose-block-model(int, int, int);
+    callback insert-block(int, int); // chain_index, before_index
+    callback reorder-block(int, int, int); // chain_index, from_index, before_index
     callback open-block-detail(int, int);
     callback close-compact-view();
 
@@ -551,17 +553,42 @@ export component CompactChainViewPage inherits Rectangle {
         }
     }
 
-    // Block rows — interactive: false prevents Flickable from capturing
-    // vertical drag that knobs need. Scroll via mouse wheel still works.
+    // Block rows with insert slots between them
     Flickable {
         x: 0; y: 48px;
         width: parent.width;
         height: parent.height - 48px;
-        viewport-height: root.compact-blocks.length * 106px;
+        viewport-height: root.compact-blocks.length * 112px + 24px;
         interactive: false;
 
+        // Insert slot before first block
+        Rectangle {
+            x: 0; y: 0;
+            width: parent.width; height: 12px;
+
+            Rectangle {
+                x: (parent.width - 28px) / 2;
+                y: 0;
+                width: 28px; height: 12px;
+                border-radius: 6px;
+                background: insert0-ta.has-hover ? #3366cc : transparent;
+                opacity: insert0-ta.has-hover ? 1.0 : 0.0;
+
+                Text {
+                    width: 100%; height: 100%;
+                    text: "+"; color: #ffffff; font-size: 14px; font-weight: 800;
+                    horizontal-alignment: center; vertical-alignment: center;
+                }
+
+                insert0-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.insert-block(root.chain-index, 0); }
+                }
+            }
+        }
+
         for block-item[bi] in root.compact-blocks : CompactBlockRow {
-            y: bi * 106px;
+            y: 12px + bi * 112px;
             width: parent.width;
             block-data: block-item;
             toggle-enabled(ci, bi2) => { root.toggle-block-enabled(ci, bi2); }
@@ -569,6 +596,32 @@ export component CompactChainViewPage inherits Rectangle {
             select-parameter-option(ci, bi2, p, oi) => { root.select-block-parameter-option(ci, bi2, p, oi); }
             choose-model(ci, bi2, mi) => { root.choose-block-model(ci, bi2, mi); }
             open-block-detail(ci, bi2) => { root.open-block-detail(ci, bi2); }
+        }
+
+        // Insert slots after each block
+        for block-item[bi] in root.compact-blocks : Rectangle {
+            x: 0; y: 12px + bi * 112px + 100px;
+            width: parent.width; height: 12px;
+
+            Rectangle {
+                x: (parent.width - 28px) / 2;
+                y: 0;
+                width: 28px; height: 12px;
+                border-radius: 6px;
+                background: insert-ta.has-hover ? #3366cc : transparent;
+                opacity: insert-ta.has-hover ? 1.0 : 0.0;
+
+                Text {
+                    width: 100%; height: 100%;
+                    text: "+"; color: #ffffff; font-size: 14px; font-weight: 800;
+                    horizontal-alignment: center; vertical-alignment: center;
+                }
+
+                insert-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.insert-block(root.chain-index, bi + 1); }
+                }
+            }
         }
     }
 }

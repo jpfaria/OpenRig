@@ -1857,6 +1857,40 @@ pub fn run_desktop_app(
                 });
             }
 
+            // Wire insert-block — triggers the block type picker on the main window
+            {
+                let weak_main = window.as_weak();
+                compact_win.on_insert_block(move |ci, before| {
+                    let Some(main_win) = weak_main.upgrade() else { return; };
+                    main_win.invoke_start_block_insert(ci, before);
+                });
+            }
+
+            // Wire reorder-block
+            {
+                let project_session = project_session.clone();
+                let project_runtime = project_runtime.clone();
+                let project_chains = project_chains.clone();
+                let input_chain_devices = input_chain_devices.clone();
+                let output_chain_devices = output_chain_devices.clone();
+                let saved_project_snapshot = saved_project_snapshot.clone();
+                let project_dirty = project_dirty.clone();
+                let weak_main = window.as_weak();
+                let weak_compact = compact_win.as_weak();
+                let toast_timer = toast_timer.clone();
+                compact_win.on_reorder_block(move |ci, from, before| {
+                    let Some(main_win) = weak_main.upgrade() else { return; };
+                    let Some(cw) = weak_compact.upgrade() else { return; };
+                    // Reuse main window's reorder logic
+                    main_win.invoke_reorder_chain_block(ci, from, before);
+                    // Refresh compact blocks
+                    let session_borrow = project_session.borrow();
+                    let Some(session) = session_borrow.as_ref() else { return; };
+                    let blocks = build_compact_blocks(&session.project, ci as usize);
+                    cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
+                });
+            }
+
             show_child_window(window.window(), compact_win.window());
         });
     }
