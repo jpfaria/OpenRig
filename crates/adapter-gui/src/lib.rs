@@ -326,6 +326,8 @@ struct BlockWindow {
     chain_index: usize,
     block_index: usize,
     window: BlockEditorWindow,
+    #[allow(dead_code)]
+    stream_timer: Option<Rc<Timer>>,
 }
 fn build_knob_overlays(knob_layout: &[block_core::KnobLayoutEntry], param_items: &[BlockParameterItem]) -> Vec<BlockKnobOverlay> {
     knob_layout
@@ -2601,6 +2603,7 @@ pub fn run_desktop_app(
                 win.set_block_window_title(format!("OpenRig · {}", title_label).into());
 
                 // Stream data timer — polls tuner/meter readings when block produces them
+                let mut block_stream_timer: Option<Rc<Timer>> = None;
                 if effect_type == block_core::EFFECT_TYPE_UTILITY {
                     let stream_timer = Rc::new(Timer::default());
                     let weak_win_stream = win.as_weak();
@@ -2647,8 +2650,7 @@ pub fn run_desktop_app(
                             }
                         },
                     );
-                    // Keep timer alive by storing in draft
-                    let _stream_timer_keepalive = stream_timer;
+                    block_stream_timer = Some(stream_timer);
                 }
 
                 // on_choose_block_model
@@ -3062,7 +3064,7 @@ pub fn run_desktop_app(
                     });
                 }
                 show_child_window(window.window(), win.window());
-                open_block_windows.borrow_mut().push(BlockWindow { chain_index: ci, block_index: bi, window: win });
+                open_block_windows.borrow_mut().push(BlockWindow { chain_index: ci, block_index: bi, window: win, stream_timer: block_stream_timer });
             }
         });
     }
