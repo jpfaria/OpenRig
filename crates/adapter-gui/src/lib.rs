@@ -2516,7 +2516,7 @@ pub fn run_desktop_app(
             let items = block_model_picker_items(&effect_type, &instrument);
             log::debug!("[select_chain_block] filtered models count={}", items.len());
             for item in &items {
-                log::debug!("[select_chain_block]   model='{}'", item.model_id);
+                log::trace!("[select_chain_block]   model='{}'", item.model_id);
             }
             block_model_option_labels.set_vec(block_model_picker_labels(&items));
             block_model_options.set_vec(items);
@@ -2617,7 +2617,7 @@ pub fn run_desktop_app(
                             };
                             let runtime_borrow = project_runtime_stream.borrow();
                             let Some(runtime) = runtime_borrow.as_ref() else {
-                                log::debug!("[tuner-stream] no runtime");
+                                log::trace!("[tuner-stream] no runtime");
                                 return;
                             };
                             if let Some(reading) = runtime.poll_tuner_reading() {
@@ -4798,9 +4798,9 @@ fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerItem> {
 }
 fn block_model_picker_items(effect_type: &str, instrument: &str) -> Vec<BlockModelPickerItem> {
     let all_models = supported_block_models(effect_type).unwrap_or_default();
-    log::debug!("[block_model_picker_items] effect_type='{}', instrument='{}', total_models={}", effect_type, instrument, all_models.len());
+    log::trace!("[block_model_picker_items] effect_type='{}', instrument='{}', total_models={}", effect_type, instrument, all_models.len());
     for m in &all_models {
-        log::debug!("[block_model_picker_items]   model='{}' supported_instruments={:?}", m.model_id, m.supported_instruments);
+        log::trace!("[block_model_picker_items]   model='{}' supported_instruments={:?}", m.model_id, m.supported_instruments);
     }
     all_models
         .into_iter()

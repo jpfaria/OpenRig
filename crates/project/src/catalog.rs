@@ -181,7 +181,7 @@ pub fn supported_block_types() -> Vec<BlockTypeCatalogEntry> {
             use_panel_editor: entry.use_panel_editor,
         })
         .collect();
-    log::debug!("supported_block_types: {} types registered", types.len());
+    log::trace!("supported_block_types: {} types registered", types.len());
     types
 }
 
@@ -198,7 +198,7 @@ pub fn supported_block_type(effect_type: &str) -> Option<BlockTypeCatalogEntry> 
 }
 
 pub fn supported_block_models(effect_type: &str) -> Result<Vec<BlockModelCatalogEntry>, String> {
-    log::debug!("looking up models for effect_type='{}'", effect_type);
+    log::trace!("looking up models for effect_type='{}'", effect_type);
     let entry = block_registry()
         .into_iter()
         .find(|entry| entry.effect_type == effect_type)
