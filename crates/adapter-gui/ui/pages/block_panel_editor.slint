@@ -1,4 +1,6 @@
 import { BlockTypePickerItem, BlockModelPickerItem, BlockKnobOverlay, BlockParameterItem } from "../models.slint";
+import { BrandLogo } from "../components/brand_logo.slint";
+import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 
 import "../fonts/Inter.ttf";
 import "../fonts/BebasNeue.ttf";
@@ -545,151 +547,13 @@ export component BlockPanelEditor inherits Rectangle {
                 image-fit: cover; opacity: 0.25;
             }
 
-            if root.selected-brand == "marshall" : Image {
+            BrandLogo {
                 x: parent.width * 0.1;
                 y: 6px;
                 width: parent.width * 0.8;
                 height: 60px;
-                source: @image-url("../../../../assets/brands/marshall/logo.svg");
-                image-fit: contain;
-                colorize: #ffffff;
-            }
-
-            if root.selected-brand == "vox" : Image {
-                x: parent.width * 0.1;
-                y: 6px;
-                width: parent.width * 0.8;
-                height: 60px;
-                source: @image-url("../../../../assets/brands/vox/logo.svg");
-                image-fit: contain;
-            }
-
-            if root.selected-brand == "bogner" : Image {
-                x: parent.width * 0.1;
-                y: 6px;
-                width: parent.width * 0.8;
-                height: 60px;
-                source: @image-url("../../../../assets/brands/bogner/logo.svg");
-                image-fit: contain;
-                colorize: #ffffff;
-            }
-
-            if root.selected-brand == "fender" : Image {
-                x: parent.width * 0.1;
-                y: 6px;
-                width: parent.width * 0.8;
-                height: 60px;
-                source: @image-url("../../../../assets/brands/fender/logo.svg");
-                image-fit: contain;
-                colorize: #ffffff;
-            }
-
-            if root.selected-brand == "ibanez" : Image {
-                x: parent.width * 0.1;
-                y: 6px;
-                width: parent.width * 0.8;
-                height: 60px;
-                source: @image-url("../../../../assets/brands/ibanez/logo.svg");
-                image-fit: contain;
-                colorize: #ffffff;
-            }
-
-            if root.selected-brand == "roland" : Image {
-                x: parent.width * 0.1;
-                y: 6px;
-                width: parent.width * 0.8;
-                height: 60px;
-                source: @image-url("../../../../assets/brands/roland/logo.svg");
-                image-fit: contain;
-                colorize: #ffffff;
-            }
-
-            if root.selected-brand == "boss" : Image {
-                x: parent.width * 0.1;
-                y: 6px;
-                width: parent.width * 0.8;
-                height: 60px;
-                source: @image-url("../../../../assets/brands/boss/logo.svg");
-                image-fit: contain;
-                colorize: #ffffff;
-            }
-
-            if root.selected-brand == "taylor" : Image {
-                x: parent.width * 0.1;
-                y: 6px;
-                width: parent.width * 0.8;
-                height: 60px;
-                source: @image-url("../../../../assets/brands/taylor/logo.svg");
-                image-fit: contain;
-                colorize: #ffffff;
-            }
-
-            if root.selected-brand == "gibson" : Image {
-                x: parent.width * 0.1;
-                y: 6px;
-                width: parent.width * 0.8;
-                height: 60px;
-                source: @image-url("../../../../assets/brands/gibson/logo.svg");
-                image-fit: contain;
-                colorize: #ffffff;
-            }
-
-            if root.selected-brand == "martin" : Image {
-                x: parent.width * 0.1;
-                y: 6px;
-                width: parent.width * 0.8;
-                height: 60px;
-                source: @image-url("../../../../assets/brands/martin/logo.svg");
-                image-fit: contain;
-                colorize: #ffffff;
-            }
-
-            if root.selected-brand == "takamine" : Image {
-                x: parent.width * 0.1; y: 6px; width: parent.width * 0.8; height: 60px;
-                source: @image-url("../../../../assets/brands/takamine/logo.svg");
-                image-fit: contain; colorize: #ffffff;
-            }
-
-            if root.selected-brand == "guild" : Image {
-                x: parent.width * 0.1; y: 6px; width: parent.width * 0.8; height: 60px;
-                source: @image-url("../../../../assets/brands/guild/logo.svg");
-                image-fit: contain; colorize: #ffffff;
-            }
-
-            if root.selected-brand == "collings" : Image {
-                x: parent.width * 0.1; y: 6px; width: parent.width * 0.8; height: 60px;
-                source: @image-url("../../../../assets/brands/collings/logo.svg");
-                image-fit: contain; colorize: #ffffff;
-            }
-
-            if root.selected-brand == "suhr" : Image {
-                x: parent.width * 0.1; y: 6px; width: parent.width * 0.8; height: 60px;
-                source: @image-url("../../../../assets/brands/suhr/logo.svg");
-                image-fit: contain; colorize: #ffffff;
-            }
-
-            if root.selected-brand == "santa_cruz" : Image {
-                x: parent.width * 0.1; y: 6px; width: parent.width * 0.8; height: 60px;
-                source: @image-url("../../../../assets/brands/santa_cruz/logo.svg");
-                image-fit: contain; colorize: #ffffff;
-            }
-
-            if root.selected-brand == "morris" : Image {
-                x: parent.width * 0.1; y: 6px; width: parent.width * 0.8; height: 60px;
-                source: @image-url("../../../../assets/brands/morris/logo.svg");
-                image-fit: contain; colorize: #ffffff;
-            }
-
-            if root.selected-brand == "jhs" : Image {
-                x: parent.width * 0.1; y: 6px; width: parent.width * 0.8; height: 60px;
-                source: @image-url("../../../../assets/brands/jhs/logo.png");
-                image-fit: contain; colorize: #ffffff;
-            }
-
-            if root.selected-brand == "fender" : Image {
-                x: parent.width * 0.1; y: 6px; width: parent.width * 0.8; height: 60px;
-                source: @image-url("../../../../assets/brands/fender/logo.svg");
-                image-fit: contain; colorize: #ffffff;
+                brand: root.selected-brand;
+                tint: root.panel-text;
             }
 
             Text {
