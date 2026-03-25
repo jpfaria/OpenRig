@@ -65,7 +65,7 @@ fn block_registry() -> [BlockRegistryEntry; 16] {
         },
         BlockRegistryEntry {
             effect_type: EFFECT_TYPE_BODY,
-            display_label: "Body",
+            display_label: "BODY",
             icon_kind: "body",
             use_panel_editor: true,
             supported_models: block_body::supported_models,
