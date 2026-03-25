@@ -371,6 +371,7 @@ pub fn run_desktop_app(
     let saved_project_snapshot = Rc::new(RefCell::new(None::<String>));
     let project_dirty = Rc::new(RefCell::new(false));
     let open_block_windows: Rc<RefCell<Vec<BlockWindow>>> = Rc::new(RefCell::new(Vec::new()));
+    let open_compact_window: Rc<RefCell<Option<(usize, slint::Weak<CompactChainViewWindow>)>>> = Rc::new(RefCell::new(None));
     let audio_settings_mode = Rc::new(RefCell::new(AudioSettingsMode::Gui));
     let input_chain_devices = Rc::new(list_input_device_descriptors()?);
     let output_chain_devices = Rc::new(list_output_device_descriptors()?);
@@ -1639,6 +1640,7 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let toast_timer = toast_timer.clone();
+        let open_compact_window = open_compact_window.clone();
         window.on_open_compact_chain_view(move |chain_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1674,6 +1676,9 @@ pub fn run_desktop_app(
 
             let blocks = build_compact_blocks(&session.project, ci);
             compact_win.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
+
+            // Store weak ref for refresh after block insert/save
+            *open_compact_window.borrow_mut() = Some((ci, compact_win.as_weak()));
 
             // Wire toggle-enabled callback
             {
@@ -3721,6 +3726,8 @@ pub fn run_desktop_app(
         let weak_block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let open_compact_window_save = open_compact_window.clone();
+        let project_session_save = project_session.clone();
         window.on_save_block_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -3754,6 +3761,16 @@ pub fn run_desktop_app(
             block_parameter_items.set_vec(Vec::new());
             if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
                 let _ = block_editor_window.hide();
+            }
+            // Refresh compact chain view if open
+            if let Some((ci, weak_cw)) = open_compact_window_save.borrow().as_ref() {
+                if let Some(cw) = weak_cw.upgrade() {
+                    let session_borrow = project_session_save.borrow();
+                    if let Some(session) = session_borrow.as_ref() {
+                        let blocks = build_compact_blocks(&session.project, *ci);
+                        cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
+                    }
+                }
             }
         });
     }
