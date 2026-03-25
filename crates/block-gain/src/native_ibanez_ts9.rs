@@ -72,25 +72,29 @@ impl MonoProcessor for Ts9Processor {
         let level = Self::normalized_percent(self.settings.level);
 
         let mut sample = self.input_high_pass.process(input);
-        let pre_gain = 1.2 + drive * 14.0;
-        let mid_push = 1.0 + drive * 0.8;
+
+        // Drive stage — TS9 has moderate gain, not extreme
+        let pre_gain = 1.0 + drive * 8.0;
+        let mid_push = 1.0 + drive * 0.5;
 
         sample *= pre_gain;
         sample = self.clip_low_pass.process(sample) * mid_push;
         sample = Self::soft_clip(sample);
-        sample = Self::soft_clip(sample * (1.0 + drive * 0.6));
 
+        // Tone stack
         let low_band = self.tone_low_pass.process(sample);
         let high_band = self.tone_high_pass.process(sample);
         let mid_band = sample - low_band - high_band;
 
-        let low_mix = 0.88 - tone * 0.42;
-        let high_mix = 0.10 + tone * 1.05;
-        let mid_mix = 0.95 + (1.0 - (tone - 0.5).abs() * 2.0) * 0.18;
+        let low_mix = 0.85 - tone * 0.40;
+        let high_mix = 0.12 + tone * 0.90;
+        let mid_mix = 0.90 + (1.0 - (tone - 0.5).abs() * 2.0) * 0.15;
 
         let voiced = low_band * low_mix + mid_band * mid_mix + high_band * high_mix;
         let output = self.output_high_pass.process(voiced);
-        let level_gain = db_to_lin(-8.0 + level * 14.0);
+
+        // Level: full range from silence to +6dB
+        let level_gain = db_to_lin(-60.0 + level * 66.0);
 
         output * level_gain
     }
