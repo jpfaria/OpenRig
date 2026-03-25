@@ -1,4 +1,4 @@
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
 import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage } from "pages/pages.slint";
@@ -185,6 +185,9 @@ export component BlockEditorWindow inherits Window {
     callback select-block-parameter-option(string, int);
     callback pick-block-parameter-file(string);
 
+    // Realtime data stream from engine (tuner, meter, analyzer, etc.)
+    in property <BlockStreamData> block-stream-data;
+
     // Computed: should this block type use the visual panel editor?
     private property <bool> use-panel-editor:
         root.block-drawer-selected-type-index >= 0
@@ -214,6 +217,7 @@ export component BlockEditorWindow inherits Window {
         block-knob-overlays: root.block-knob-overlays;
         block-parameter-items: root.block-parameter-items;
         block-drawer-confirm-label: root.block-drawer-confirm-label;
+        block-stream-data: root.block-stream-data;
         choose-block-model(i) => { root.choose-block-model(i); }
         close-block-drawer => { root.close-block-drawer(); }
         save-block-drawer => { root.save-block-drawer(); }

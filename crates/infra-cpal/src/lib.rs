@@ -218,6 +218,18 @@ impl ProjectRuntimeController {
         !self.active_chains.is_empty()
     }
 
+    /// Returns the first active tuner reading from any running chain.
+    pub fn poll_tuner_reading(&self) -> Option<block_util::TunerReading> {
+        for (_, runtime) in &self.runtime_graph.chains {
+            if let Ok(reading) = runtime.tuner_reading.lock() {
+                if reading.frequency.is_some() {
+                    return Some(reading.clone());
+                }
+            }
+        }
+        None
+    }
+
     fn upsert_chain_with_resolved(
         &mut self,
         chain: &Chain,

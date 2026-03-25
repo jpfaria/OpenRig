@@ -1,0 +1,84 @@
+// Tuner display overlay component.
+// Receives data as properties — no logic about how to detect notes.
+
+export component TunerDisplay inherits Rectangle {
+    in property <string> note: "";
+    in property <float> cents: 0.0;
+    in property <float> frequency: 0.0;
+    in property <bool> active: false;
+    in property <bool> in-tune: false;
+
+    visible: root.active;
+
+    width: 200px;
+    height: 64px;
+    background: #0a0c10e0;
+    border-width: 1px;
+    border-color: root.in-tune ? #29df85 : #ff6a57;
+    border-radius: 8px;
+
+    // Note name
+    Text {
+        x: 12px; y: 4px;
+        width: 60px; height: 36px;
+        text: root.note;
+        color: root.in-tune ? #29df85 : #f3f6fb;
+        font-size: 28px;
+        font-weight: 900;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    // Frequency
+    Text {
+        x: 12px; y: 40px;
+        width: 60px; height: 16px;
+        text: Math.round(root.frequency) + " Hz";
+        color: #607080;
+        font-size: 9px;
+        horizontal-alignment: center;
+    }
+
+    // Cents indicator bar
+    Rectangle {
+        x: 80px; y: 14px;
+        width: 108px; height: 8px;
+        background: #1a1e28;
+        border-radius: 4px;
+
+        // Center mark
+        Rectangle {
+            x: (parent.width - 2px) / 2;
+            y: 0; width: 2px; height: parent.height;
+            background: #405060;
+        }
+
+        // Cents needle
+        Rectangle {
+            x: (parent.width / 2) + (root.cents / 50.0) * (parent.width / 2) - 3px;
+            y: 0; width: 6px; height: parent.height;
+            background: root.in-tune ? #29df85 : #ff6a57;
+            border-radius: 3px;
+        }
+    }
+
+    // Cents text
+    Text {
+        x: 80px; y: 28px;
+        width: 108px; height: 14px;
+        text: (root.cents >= 0 ? "+" : "") + Math.round(root.cents) + " cents";
+        color: root.in-tune ? #29df85 : #8090a0;
+        font-size: 9px;
+        horizontal-alignment: center;
+    }
+
+    // In-tune indicator
+    if root.in-tune : Text {
+        x: 80px; y: 44px;
+        width: 108px; height: 14px;
+        text: "IN TUNE";
+        color: #29df85;
+        font-size: 9px; font-weight: 700; letter-spacing: 1px;
+        horizontal-alignment: center;
+    }
+}

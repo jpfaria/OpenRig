@@ -2599,6 +2599,58 @@ pub fn run_desktop_app(
                     .map(|m| m.label.to_string())
                     .unwrap_or_else(|| "Block".to_string());
                 win.set_block_window_title(format!("OpenRig · {}", title_label).into());
+
+                // Stream data timer — polls tuner/meter readings when block produces them
+                if effect_type == block_core::EFFECT_TYPE_UTILITY {
+                    let stream_timer = Rc::new(Timer::default());
+                    let weak_win_stream = win.as_weak();
+                    let project_runtime_stream = project_runtime.clone();
+                    stream_timer.start(
+                        slint::TimerMode::Repeated,
+                        std::time::Duration::from_millis(50),
+                        move || {
+                            let Some(win) = weak_win_stream.upgrade() else {
+                                return;
+                            };
+                            let runtime_borrow = project_runtime_stream.borrow();
+                            let Some(runtime) = runtime_borrow.as_ref() else {
+                                return;
+                            };
+                            if let Some(reading) = runtime.poll_tuner_reading() {
+                                let entries = vec![
+                                    BlockStreamEntry {
+                                        key: "note".into(),
+                                        value: 0.0,
+                                        text: reading.note.unwrap_or_default().into(),
+                                    },
+                                    BlockStreamEntry {
+                                        key: "cents".into(),
+                                        value: reading.cents_off.unwrap_or(0.0),
+                                        text: format!("{:+.0}", reading.cents_off.unwrap_or(0.0)).into(),
+                                    },
+                                    BlockStreamEntry {
+                                        key: "frequency".into(),
+                                        value: reading.frequency.unwrap_or(0.0),
+                                        text: format!("{:.1} Hz", reading.frequency.unwrap_or(0.0)).into(),
+                                    },
+                                    BlockStreamEntry {
+                                        key: "in_tune".into(),
+                                        value: if reading.in_tune { 1.0 } else { 0.0 },
+                                        text: if reading.in_tune { "IN TUNE".into() } else { "".into() },
+                                    },
+                                ];
+                                win.set_block_stream_data(BlockStreamData {
+                                    active: true,
+                                    stream_kind: "tuner".into(),
+                                    entries: ModelRc::from(Rc::new(VecModel::from(entries))),
+                                });
+                            }
+                        },
+                    );
+                    // Keep timer alive by storing in draft
+                    let _stream_timer_keepalive = stream_timer;
+                }
+
                 // on_choose_block_model
                 {
                     let win_draft = win_draft.clone();

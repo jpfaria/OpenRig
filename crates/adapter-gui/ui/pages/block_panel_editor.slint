@@ -1,4 +1,4 @@
-import { BlockTypePickerItem, BlockModelPickerItem, BlockKnobOverlay, BlockParameterItem } from "../models.slint";
+import { BlockTypePickerItem, BlockModelPickerItem, BlockKnobOverlay, BlockParameterItem, BlockStreamData } from "../models.slint";
 import { BrandLogo } from "../components/brand_logo.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 
@@ -246,6 +246,7 @@ export component BlockPanelEditor inherits Rectangle {
     in property <[BlockKnobOverlay]> block-knob-overlays;
     in property <[BlockParameterItem]> block-parameter-items;
     in property <string> block-drawer-confirm-label: "Adicionar";
+    in property <BlockStreamData> block-stream-data;
 
     callback choose-block-model(int);
     callback close-block-drawer();
@@ -966,7 +967,65 @@ export component BlockPanelEditor inherits Rectangle {
         }
     }
 
-    // (footer edit mode removido — delete button agora está no header)
+    // ── Realtime stream display (tuner, meter, analyzer — any block) ──
+    if root.block-stream-data.active : Rectangle {
+        x: 0;
+        y: parent.height * 0.15;
+        width: parent.width;
+        height: parent.height * 0.35;
+        background: transparent;
 
-    // (insert footer removed — save button is now in the header)
+        // Render each stream entry as a labeled value
+        for entry[ei] in root.block-stream-data.entries : Rectangle {
+            x: 20px + ei * 180px;
+            y: 0;
+            width: 170px;
+            height: parent.height;
+            background: transparent;
+
+            // Label
+            Text {
+                x: 0; y: 0; width: parent.width; height: 16px;
+                text: entry.key;
+                color: #607080;
+                font-size: 9px; font-weight: 700; letter-spacing: 1px;
+                horizontal-alignment: center;
+            }
+
+            // Main text value (large)
+            Text {
+                x: 0; y: 16px; width: parent.width; height: 50px;
+                text: entry.text;
+                color: entry.value > 0.5 && entry.key == "in_tune" ? #29df85 : #f3f6fb;
+                font-size: entry.text.character-count <= 3 ? 36px : 18px;
+                font-weight: 900;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            // Bar indicator (for values that have a meaningful range like cents)
+            if entry.value > -999.0 && entry.value < 999.0 && entry.key != "in_tune" && entry.key != "note" : Rectangle {
+                x: 10px; y: 70px;
+                width: parent.width - 20px; height: 6px;
+                background: #1a1e28;
+                border-radius: 3px;
+
+                // Center mark
+                Rectangle {
+                    x: (parent.width - 1px) / 2;
+                    y: 0; width: 1px; height: parent.height;
+                    background: #405060;
+                }
+
+                // Value needle (maps value to position, assumes ±50 range)
+                Rectangle {
+                    property <float> norm: (entry.value / 50.0).clamp(-1.0, 1.0);
+                    x: (parent.width / 2) + self.norm * (parent.width / 2) - 3px;
+                    y: 0; width: 6px; height: parent.height;
+                    background: self.norm > -0.1 && self.norm < 0.1 ? #29df85 : #ff6a57;
+                    border-radius: 3px;
+                }
+            }
+        }
+    }
 }
