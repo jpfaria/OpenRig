@@ -1074,6 +1074,17 @@ fn silent_frame(layout: AudioChannelLayout) -> AudioFrame {
     }
 }
 
+/// Soft limiter to prevent output from exceeding 0dBFS.
+/// Uses tanh-like saturation for natural limiting.
+#[inline]
+fn output_limiter(sample: f32) -> f32 {
+    if sample.abs() <= 0.9 {
+        sample
+    } else {
+        sample.clamp(-1.0, 1.0)
+    }
+}
+
 fn write_output_frame(
     chain_frame: AudioFrame,
     output_channels: &[usize],
@@ -1082,9 +1093,10 @@ fn write_output_frame(
 ) {
     match chain_frame {
         AudioFrame::Mono(sample) => {
+            let limited = output_limiter(sample);
             for &channel_index in output_channels {
                 if let Some(dst) = frame.get_mut(channel_index) {
-                    *dst = sample;
+                    *dst = limited;
                 }
             }
         }
@@ -1092,15 +1104,15 @@ fn write_output_frame(
             [] => {}
             [channel_index] => {
                 if let Some(dst) = frame.get_mut(*channel_index) {
-                    *dst = apply_mixdown(mixdown, left, right);
+                    *dst = output_limiter(apply_mixdown(mixdown, left, right));
                 }
             }
             [left_channel, right_channel, ..] => {
                 if let Some(dst) = frame.get_mut(*left_channel) {
-                    *dst = left;
+                    *dst = output_limiter(left);
                 }
                 if let Some(dst) = frame.get_mut(*right_channel) {
-                    *dst = right;
+                    *dst = output_limiter(right);
                 }
             }
         },
