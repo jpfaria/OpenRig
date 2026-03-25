@@ -5580,19 +5580,19 @@ fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
         output_channels: chain.output_channels.clone(),
     }
 }
-fn load_thumbnail_image(effect_type: &str, model_id: &str) -> (slint::Image, bool) {
+fn load_thumbnail_image(effect_type: &str, model_id: &str) -> (slint::Image, bool, f32, f32) {
     use std::cell::RefCell;
     use std::collections::HashMap;
 
     thread_local! {
-        static CACHE: RefCell<HashMap<(String, String), slint::Image>> = RefCell::new(HashMap::new());
+        static CACHE: RefCell<HashMap<(String, String), (slint::Image, f32, f32)>> = RefCell::new(HashMap::new());
     }
 
     let key = (effect_type.to_string(), model_id.to_string());
 
     let cached = CACHE.with(|c| c.borrow().get(&key).cloned());
-    if let Some(img) = cached {
-        return (img, true);
+    if let Some((img, w, h)) = cached {
+        return (img, true, w, h);
     }
 
     match block_thumbnails::thumbnail_png(effect_type, model_id) {
@@ -5600,22 +5600,24 @@ fn load_thumbnail_image(effect_type: &str, model_id: &str) -> (slint::Image, boo
             match image::load_from_memory_with_format(png_bytes, image::ImageFormat::Png) {
                 Ok(img) => {
                     let rgba = img.to_rgba8();
+                    let w = rgba.width() as f32;
+                    let h = rgba.height() as f32;
                     let buffer = slint::SharedPixelBuffer::<slint::Rgba8Pixel>::clone_from_slice(
                         rgba.as_raw(),
                         rgba.width(),
                         rgba.height(),
                     );
                     let slint_img = slint::Image::from_rgba8(buffer);
-                    CACHE.with(|c| c.borrow_mut().insert(key, slint_img.clone()));
-                    (slint_img, true)
+                    CACHE.with(|c| c.borrow_mut().insert(key, (slint_img.clone(), w, h)));
+                    (slint_img, true, w, h)
                 }
                 Err(e) => {
                     log::warn!("Failed to decode thumbnail for {}/{}: {}", effect_type, model_id, e);
-                    (slint::Image::default(), false)
+                    (slint::Image::default(), false, 0.0, 0.0)
                 }
             }
         }
-        None => (slint::Image::default(), false)
+        None => (slint::Image::default(), false, 0.0, 0.0)
     }
 }
 fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
@@ -5632,7 +5634,7 @@ fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
     };
     let family = block_family_for_kind(&kind).to_string();
     let block_type = supported_block_type(&kind);
-    let (thumbnail, has_thumbnail) = load_thumbnail_image(&kind, &label);
+    let (thumbnail, has_thumbnail, thumb_width, thumb_height) = load_thumbnail_image(&kind, &label);
     ChainBlockItem {
         kind: kind.into(),
         icon_kind: block_type
@@ -5650,6 +5652,8 @@ fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
         enabled: block.enabled,
         thumbnail,
         has_thumbnail,
+        thumb_width,
+        thumb_height,
     }
 }
 fn build_input_channel_items(
