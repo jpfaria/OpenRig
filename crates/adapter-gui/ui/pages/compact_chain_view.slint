@@ -1,5 +1,6 @@
 import { ScrollView } from "std-widgets.slint";
 import { CompactBlockItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem } from "../models.slint";
+import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 
 // Dial knob — dark circle, dot indicator on edge, value in center
 // (duplicated from block_panel_editor.slint)
@@ -140,29 +141,12 @@ component CompactBlockRow inherits Rectangle {
     }
 
     // ── 2. Type icon (always shown) ──
-    Image {
+    EffectTypeIcon {
         x: 48px;
         y: (parent.height - 32px) / 2;
         width: 32px; height: 32px;
-        source: root.block-data.icon-kind == "preamp" ? @image-url("../assets/amp-head.svg")
-            : root.block-data.icon-kind == "amp" ? @image-url("../assets/amp-combo.svg")
-            : root.block-data.icon-kind == "cab" ? @image-url("../assets/cab.svg")
-            : root.block-data.icon-kind == "body" ? @image-url("../assets/body.svg")
-            : root.block-data.icon-kind == "gain" ? @image-url("../assets/gain.svg")
-            : root.block-data.icon-kind == "delay" ? @image-url("../assets/delay.svg")
-            : root.block-data.icon-kind == "reverb" ? @image-url("../assets/reverb.svg")
-            : root.block-data.icon-kind == "dynamics" ? @image-url("../assets/dyn.svg")
-            : root.block-data.icon-kind == "filter" ? @image-url("../assets/filter.svg")
-            : root.block-data.icon-kind == "wah" ? @image-url("../assets/expression.svg")
-            : root.block-data.icon-kind == "modulation" ? @image-url("../assets/mod.svg")
-            : root.block-data.icon-kind == "pitch" ? @image-url("../assets/pitch.svg")
-            : root.block-data.icon-kind == "ir" ? @image-url("../assets/ir-loader.svg")
-            : root.block-data.icon-kind == "nam" ? @image-url("../assets/nam.svg")
-            : root.block-data.icon-kind == "full_rig" ? @image-url("../assets/full-rig.svg")
-            : root.block-data.icon-kind == "utility" ? @image-url("../assets/tuner.svg")
-            : @image-url("../assets/gear.svg");
-        image-fit: contain;
-        colorize: root.block-data.panel-text;
+        icon-kind: root.block-data.icon-kind;
+        tint: root.block-data.panel-text;
     }
 
     // ── 3. Block type label ──
@@ -171,23 +155,7 @@ component CompactBlockRow inherits Rectangle {
         y: (parent.height - 18px) / 2;
         width: 70px;
         height: 18px;
-        text: root.block-data.effect-type == "preamp" ? "PREAMP"
-            : root.block-data.effect-type == "amp" ? "AMP"
-            : root.block-data.effect-type == "cab" ? "CAB"
-            : root.block-data.effect-type == "body" ? "BODY"
-            : root.block-data.effect-type == "gain" ? "GAIN"
-            : root.block-data.effect-type == "delay" ? "DELAY"
-            : root.block-data.effect-type == "reverb" ? "REVERB"
-            : root.block-data.effect-type == "dynamics" ? "DYN"
-            : root.block-data.effect-type == "filter" ? "FILTER"
-            : root.block-data.effect-type == "modulation" ? "MOD"
-            : root.block-data.effect-type == "pitch" ? "PITCH"
-            : root.block-data.effect-type == "full_rig" ? "FULL RIG"
-            : root.block-data.effect-type == "utility" ? "UTIL"
-            : root.block-data.effect-type == "wah" ? "WAH"
-            : root.block-data.effect-type == "ir" ? "IR"
-            : root.block-data.effect-type == "nam" ? "NAM"
-            : "";
+        text: root.block-data.display-label;
         color: root.block-data.panel-text;
         font-size: 12px;
         font-weight: 900;
@@ -821,23 +789,7 @@ export component CompactChainViewPage inherits Rectangle {
                     height: 96px;
                     border-radius: 6px;
                     border-width: 1px;
-                    border-color: type-item.icon_kind == "preamp" ? #f29f38
-                        : type-item.icon_kind == "amp" ? #f06292
-                        : type-item.icon_kind == "cab" ? #f2cb54
-                        : type-item.icon_kind == "body" ? #c8946a
-                        : type-item.icon_kind == "ir" ? #7cc9ff
-                        : type-item.icon_kind == "full_rig" ? #63d2ff
-                        : type-item.icon_kind == "gain" ? #ff6a57
-                        : type-item.icon_kind == "dynamics" ? #41b8ff
-                        : type-item.icon_kind == "filter" ? #d6c85a
-                        : type-item.icon_kind == "wah" ? #78d06b
-                        : type-item.icon_kind == "modulation" ? #58d39b
-                        : type-item.icon_kind == "delay" ? #ba8cff
-                        : type-item.icon_kind == "reverb" ? #6de1d2
-                        : type-item.icon_kind == "utility" ? #95a0b2
-                        : type-item.icon_kind == "nam" ? #ff7cd7
-                        : type-item.icon_kind == "pitch" ? #8f8cff
-                        : #7fb0ff;
+                    border-color: type-item.accent-color;
                     background: type-ta.has-hover ? #252830 : #1a1d24;
 
                     Text {
@@ -850,30 +802,13 @@ export component CompactChainViewPage inherits Rectangle {
                         horizontal-alignment: center;
                     }
 
-                    Image {
+                    EffectTypeIcon {
                         x: (parent.width - 48px) / 2;
                         y: 28px;
                         width: 48px;
                         height: 48px;
-                        source: type-item.icon_kind == "preamp" ? @image-url("../assets/amp-head.svg")
-                            : type-item.icon_kind == "amp" ? @image-url("../assets/amp-combo.svg")
-                            : type-item.icon_kind == "cab" ? @image-url("../assets/cab.svg")
-                            : type-item.icon_kind == "body" ? @image-url("../assets/body.svg")
-                            : type-item.icon_kind == "ir" ? @image-url("../assets/ir-loader.svg")
-                            : type-item.icon_kind == "full_rig" ? @image-url("../assets/full-rig.svg")
-                            : type-item.icon_kind == "gain" ? @image-url("../assets/gain.svg")
-                            : type-item.icon_kind == "dynamics" ? @image-url("../assets/dyn.svg")
-                            : type-item.icon_kind == "filter" ? @image-url("../assets/filter.svg")
-                            : type-item.icon_kind == "wah" ? @image-url("../assets/expression.svg")
-                            : type-item.icon_kind == "modulation" ? @image-url("../assets/mod.svg")
-                            : type-item.icon_kind == "delay" ? @image-url("../assets/delay.svg")
-                            : type-item.icon_kind == "reverb" ? @image-url("../assets/reverb.svg")
-                            : type-item.icon_kind == "utility" ? @image-url("../assets/util.svg")
-                            : type-item.icon_kind == "nam" ? @image-url("../assets/nam.svg")
-                            : type-item.icon_kind == "pitch" ? @image-url("../assets/pitch.svg")
-                            : @image-url("../assets/gear.svg");
-                        image-fit: contain;
-                        colorize: parent.border-color;
+                        icon-kind: type-item.icon-kind;
+                        tint: type-item.accent-color;
                     }
 
                     type-ta := TouchArea {

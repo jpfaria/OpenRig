@@ -1,5 +1,6 @@
 import { ComboBox, ScrollView, VerticalBox } from "std-widgets.slint";
 import { ProjectChainItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, ChainBlockItem } from "../models.slint";
+import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 
 component ToolbarButton inherits Rectangle {
     in property <string> label;
@@ -353,23 +354,7 @@ component BlockFootswitch inherits Rectangle {
 component BlockTypeCard inherits Rectangle {
     in property <BlockTypePickerItem> item;
     in property <bool> selected: false;
-    in property <image> icon-source;
-    property <color> accent-color: root.item.effect_type == "preamp" ? #f29f38
-        : root.item.effect_type == "amp" ? #f06292
-        : root.item.effect_type == "cab" ? #f2cb54
-        : root.item.effect_type == "ir" ? #7cc9ff
-        : root.item.effect_type == "full_rig" ? #63d2ff
-        : root.item.effect_type == "gain" ? #ff6a57
-        : root.item.effect_type == "dynamics" ? #41b8ff
-        : root.item.effect_type == "filter" ? #d6c85a
-        : root.item.effect_type == "wah" ? #78d06b
-        : root.item.effect_type == "modulation" ? #58d39b
-        : root.item.effect_type == "delay" ? #ba8cff
-        : root.item.effect_type == "reverb" ? #6de1d2
-        : root.item.effect_type == "utility" ? #95a0b2
-        : root.item.effect_type == "nam" ? #ff7cd7
-        : #7fb0ff;
-    property <string> type-label: root.item.label;
+    property <color> accent-color: root.item.accent-color;
     callback clicked();
 
     width: 88px;
@@ -384,21 +369,20 @@ component BlockTypeCard inherits Rectangle {
         y: 5px;
         width: parent.width - 16px;
         height: 14px;
-        text: root.type-label;
+        text: root.item.label;
         color: #f3f6fb;
         font-size: 10px;
         font-weight: 900;
         vertical-alignment: center;
     }
 
-    Image {
+    EffectTypeIcon {
         x: 14px;
         y: 20px;
         width: 60px;
         height: 60px;
-        source: root.icon-source;
-        image-fit: contain;
-        colorize: root.accent-color;
+        icon-kind: root.item.icon-kind;
+        tint: root.accent-color;
     }
 
     TouchArea {
@@ -812,25 +796,8 @@ component HeaderIconAction inherits Rectangle {
 component BlockChip inherits Rectangle {
     in property <ChainBlockItem> block;
     in property <bool> selected: false;
-    in property <image> icon-source;
     in property <bool> dragging: false;
-    property <color> accent-color: root.block.icon_kind == "preamp" ? #f29f38
-        : root.block.icon_kind == "amp" ? #f06292
-        : root.block.icon_kind == "cab" ? #f2cb54
-        : root.block.icon_kind == "body" ? #c8946a
-        : root.block.icon_kind == "ir" ? #7cc9ff
-        : root.block.icon_kind == "full_rig" ? #63d2ff
-        : root.block.icon_kind == "gain" ? #ff6a57
-        : root.block.icon_kind == "dynamics" ? #41b8ff
-        : root.block.icon_kind == "filter" ? #d6c85a
-        : root.block.icon_kind == "wah" ? #78d06b
-        : root.block.icon_kind == "modulation" ? #58d39b
-        : root.block.icon_kind == "delay" ? #ba8cff
-        : root.block.icon_kind == "reverb" ? #6de1d2
-        : root.block.icon_kind == "utility" ? #95a0b2
-        : root.block.icon_kind == "nam" ? #ff7cd7
-        : root.block.icon_kind == "pitch" ? #8f8cff
-        : #7fb0ff;
+    property <color> accent-color: root.block.accent-color;
     property <string> block-type-label: root.block.type_label;
     callback clicked();
     callback drag-moved(float, float);
@@ -880,14 +847,13 @@ component BlockChip inherits Rectangle {
         image-fit: contain;
     }
 
-    if !root.block.has-thumbnail : Image {
+    if !root.block.has-thumbnail : EffectTypeIcon {
         x: 0px;
         y: 17px;
         width: parent.width;
         height: 72px;
-        source: root.icon-source;
-        image-fit: contain;
-        colorize: root.dragging ? #8b95a5 : root.block.enabled ? #f3f6fb : #5c6678;
+        icon-kind: root.block.icon-kind;
+        tint: root.dragging ? #8b95a5 : root.block.enabled ? #f3f6fb : #5c6678;
     }
 
     // White hover outline — hugs the actual rendered thumbnail
@@ -1330,39 +1296,6 @@ component ChainRow inherits Rectangle {
             x: 120px + Math.mod(block-index, root.blocks-per-row) * 116px;
             y: Math.floor(block-index / root.blocks-per-row) * 108px;
             block: block;
-            icon-source: block.icon_kind == "preamp"
-                ? @image-url("../assets/amp-head.svg")
-                : block.icon_kind == "amp"
-                ? @image-url("../assets/amp-combo.svg")
-                : block.icon_kind == "cab"
-                ? @image-url("../assets/cab.svg")
-                : block.icon_kind == "body"
-                ? @image-url("../assets/body.svg")
-                : block.icon_kind == "ir"
-                ? @image-url("../assets/ir-loader.svg")
-                : block.icon_kind == "full_rig"
-                ? @image-url("../assets/full-rig.svg")
-                : block.icon_kind == "gain"
-                ? @image-url("../assets/gain.svg")
-                : block.icon_kind == "dynamics"
-                ? @image-url("../assets/dyn.svg")
-                : block.icon_kind == "filter"
-                ? @image-url("../assets/filter.svg")
-                : block.icon_kind == "wah"
-                ? @image-url("../assets/expression.svg")
-                : block.icon_kind == "modulation"
-                ? @image-url("../assets/mod.svg")
-                : block.icon_kind == "delay"
-                ? @image-url("../assets/delay.svg")
-                : block.icon_kind == "reverb"
-                ? @image-url("../assets/reverb.svg")
-                : block.icon_kind == "utility"
-                ? @image-url("../assets/util.svg")
-                : block.icon_kind == "nam"
-                ? @image-url("../assets/nam.svg")
-                : block.icon_kind == "pitch"
-                ? @image-url("../assets/pitch.svg")
-                : @image-url("../assets/gear.svg");
             selected: root.dragging-chain-index == root.chain-index && root.dragging-block-index == block-index
                 ? false
                 : root.selected-block-chain-index == root.chain-index && root.selected-block-index == block-index;
@@ -1612,50 +1545,15 @@ export component BlockEditorPanel inherits Rectangle {
         border-color: #2d3340;
 
         // ── CABEÇALHO ────────────────────────────────────────────
-        Image {
+        EffectTypeIcon {
             x: 20px;
             y: 18px;
             width: 28px;
             height: 28px;
-            source: root.block-drawer-selected-type-index >= 0 && root.block-drawer-selected-type-index < root.block-type-options.length
-                ? (
-                    root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "preamp"
-                    ? @image-url("../assets/amp-head.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "amp"
-                    ? @image-url("../assets/amp-combo.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "cab"
-                    ? @image-url("../assets/cab.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "body"
-                    ? @image-url("../assets/body.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "ir"
-                    ? @image-url("../assets/ir-loader.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "full_rig"
-                    ? @image-url("../assets/full-rig.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "gain"
-                    ? @image-url("../assets/gain.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "dynamics"
-                    ? @image-url("../assets/dyn.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "filter"
-                    ? @image-url("../assets/filter.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "wah"
-                    ? @image-url("../assets/expression.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "modulation"
-                    ? @image-url("../assets/mod.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "delay"
-                    ? @image-url("../assets/delay.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "reverb"
-                    ? @image-url("../assets/reverb.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "utility"
-                    ? @image-url("../assets/util.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "nam"
-                    ? @image-url("../assets/nam.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "pitch"
-                    ? @image-url("../assets/pitch.svg")
-                    : @image-url("../assets/gear.svg")
-                )
-                : @image-url("../assets/gear.svg");
-            image-fit: contain;
-            colorize: #f3f6fb;
+            icon-kind: root.block-drawer-selected-type-index >= 0 && root.block-drawer-selected-type-index < root.block-type-options.length
+                ? root.block-type-options[root.block-drawer-selected-type-index].icon_kind
+                : "";
+            tint: #f3f6fb;
         }
 
         Text {
@@ -2098,39 +1996,6 @@ export component ProjectChainsPage inherits Rectangle {
                     y: Math.floor(index / 4) * 100px;
                     item: type-item;
                     selected: false;
-                    icon-source: type-item.icon_kind == "preamp"
-                        ? @image-url("../assets/amp-head.svg")
-                        : type-item.icon_kind == "amp"
-                        ? @image-url("../assets/amp-combo.svg")
-                        : type-item.icon_kind == "cab"
-                        ? @image-url("../assets/cab.svg")
-                        : type-item.icon_kind == "body"
-                        ? @image-url("../assets/body.svg")
-                        : type-item.icon_kind == "ir"
-                        ? @image-url("../assets/ir-loader.svg")
-                        : type-item.icon_kind == "full_rig"
-                        ? @image-url("../assets/full-rig.svg")
-                        : type-item.icon_kind == "gain"
-                        ? @image-url("../assets/gain.svg")
-                        : type-item.icon_kind == "dynamics"
-                        ? @image-url("../assets/dyn.svg")
-                        : type-item.icon_kind == "filter"
-                        ? @image-url("../assets/filter.svg")
-                        : type-item.icon_kind == "wah"
-                        ? @image-url("../assets/expression.svg")
-                        : type-item.icon_kind == "modulation"
-                        ? @image-url("../assets/mod.svg")
-                        : type-item.icon_kind == "delay"
-                        ? @image-url("../assets/delay.svg")
-                        : type-item.icon_kind == "reverb"
-                        ? @image-url("../assets/reverb.svg")
-                        : type-item.icon_kind == "utility"
-                        ? @image-url("../assets/util.svg")
-                        : type-item.icon_kind == "nam"
-                        ? @image-url("../assets/nam.svg")
-                        : type-item.icon_kind == "pitch"
-                        ? @image-url("../assets/pitch.svg")
-                        : @image-url("../assets/gear.svg");
                     clicked => { root.choose-block-type(index); }
                 }
             }

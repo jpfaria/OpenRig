@@ -4732,6 +4732,8 @@ fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerItem> {
             subtitle: "".into(),
             icon_kind: item.icon_kind.into(),
             use_panel_editor: item.use_panel_editor,
+            accent_color: crate::ui_state::accent_color_for_icon_kind(item.icon_kind),
+            icon_source: slint::Image::default(),
         })
         .filter(|item| {
             instrument == block_core::INST_GENERIC || !block_model_picker_items(item.effect_type.as_str(), instrument).is_empty()
@@ -4868,7 +4870,7 @@ fn build_compact_blocks(
                 block_index: block_index as i32,
                 effect_type: effect_type.clone().into(),
                 model_id: model_id.clone().into(),
-                icon_kind: icon_kind.into(),
+                icon_kind: icon_kind.clone().into(),
                 brand: visual
                     .as_ref()
                     .map(|v| v.brand.clone())
@@ -4897,6 +4899,12 @@ fn build_compact_blocks(
                     let [r, g, b] = vc.panel_text;
                     slint::Color::from_argb_u8(0xff, r, g, b)
                 },
+                accent_color: crate::ui_state::accent_color_for_icon_kind(&icon_kind),
+                display_label: {
+                    let bt = supported_block_type(&effect_type);
+                    bt.map(|e| e.display_label).unwrap_or("BLOCK").into()
+                },
+                icon_source: slint::Image::default(),
                 knob_overlays: ModelRc::from(Rc::new(VecModel::from(overlays))),
                 parameter_items: ModelRc::from(Rc::new(VecModel::from(params))),
                 model_labels: {
@@ -5713,6 +5721,10 @@ fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
         has_thumbnail,
         thumb_width,
         thumb_height,
+        accent_color: crate::ui_state::accent_color_for_icon_kind(
+            block_type.as_ref().map(|e| e.icon_kind).unwrap_or("core"),
+        ),
+        icon_source: slint::Image::default(),
     }
 }
 fn build_input_channel_items(

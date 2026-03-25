@@ -1,0 +1,31 @@
+// Single source of truth for brand → logo mapping.
+// Use this component everywhere instead of duplicating the if chain.
+
+export component BrandLogo inherits Image {
+    in property <string> brand;
+    in property <color> tint: #ffffff;
+
+    visible: root.brand != "native" && root.brand != "";
+
+    source: root.brand == "marshall" ? @image-url("../../../../assets/brands/marshall/logo.svg")
+        : root.brand == "vox" ? @image-url("../../../../assets/brands/vox/logo.svg")
+        : root.brand == "bogner" ? @image-url("../../../../assets/brands/bogner/logo.svg")
+        : root.brand == "fender" ? @image-url("../../../../assets/brands/fender/logo.svg")
+        : root.brand == "ibanez" ? @image-url("../../../../assets/brands/ibanez/logo.svg")
+        : root.brand == "roland" ? @image-url("../../../../assets/brands/roland/logo.svg")
+        : root.brand == "boss" ? @image-url("../../../../assets/brands/boss/logo.svg")
+        : root.brand == "taylor" ? @image-url("../../../../assets/brands/taylor/logo.svg")
+        : root.brand == "gibson" ? @image-url("../../../../assets/brands/gibson/logo.svg")
+        : root.brand == "martin" ? @image-url("../../../../assets/brands/martin/logo.svg")
+        : root.brand == "takamine" ? @image-url("../../../../assets/brands/takamine/logo.svg")
+        : root.brand == "guild" ? @image-url("../../../../assets/brands/guild/logo.svg")
+        : root.brand == "collings" ? @image-url("../../../../assets/brands/collings/logo.svg")
+        : root.brand == "suhr" ? @image-url("../../../../assets/brands/suhr/logo.svg")
+        : root.brand == "santa_cruz" ? @image-url("../../../../assets/brands/santa_cruz/logo.svg")
+        : root.brand == "morris" ? @image-url("../../../../assets/brands/morris/logo.svg")
+        : root.brand == "jhs" ? @image-url("../../../../assets/brands/jhs/logo.png")
+        : root.brand == "diezel" ? @image-url("../../../../assets/brands/marshall/logo.svg")
+        : @image-url("../../../../assets/brands/marshall/logo.svg");
+    image-fit: contain;
+    colorize: root.brand == "vox" ? Colors.transparent : root.tint;
+}

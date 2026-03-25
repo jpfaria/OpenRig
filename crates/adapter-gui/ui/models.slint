@@ -17,6 +17,8 @@ export struct ChainBlockItem {
     has_thumbnail: bool,
     thumb_width: float,
     thumb_height: float,
+    accent_color: color,
+    icon_source: image,
 }
 
 export struct ProjectChainItem {
@@ -39,6 +41,8 @@ export struct BlockTypePickerItem {
     subtitle: string,
     icon_kind: string,
     use_panel_editor: bool,
+    accent_color: color,
+    icon_source: image,
 }
 
 export struct BlockModelPickerItem {
@@ -100,9 +104,12 @@ export struct CompactBlockItem {
     brand: string,
     display_name: string,
     type_label: string,
+    display_label: string,
     enabled: bool,
     panel_bg: color,
     panel_text: color,
+    accent_color: color,
+    icon_source: image,
     knob_overlays: [BlockKnobOverlay],
     parameter_items: [BlockParameterItem],
     model_labels: [string],
