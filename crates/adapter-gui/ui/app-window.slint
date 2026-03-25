@@ -291,6 +291,7 @@ export component CompactChainViewWindow inherits Window {
     callback open-block-detail(int, int);
     callback close-compact-view();
     callback choose-block-type(int, int, int);
+    callback remove-block(int, int);
 
     CompactChainViewPage {
         width: parent.width; height: parent.height;
@@ -309,6 +310,7 @@ export component CompactChainViewWindow inherits Window {
         open-block-detail(ci, bi) => { root.open-block-detail(ci, bi); }
         close-compact-view => { root.close-compact-view(); }
         choose-block-type(ci, before, ti) => { root.choose-block-type(ci, before, ti); }
+        remove-block(ci, bi) => { root.remove-block(ci, bi); }
     }
 }
 

@@ -104,6 +104,7 @@ component CompactBlockRow inherits Rectangle {
     callback select-parameter-option(int, int, string, int);
     callback choose-model(int, int, int); // chain_index, block_index, model_index
     callback open-block-detail(int, int);
+    callback remove-block(int, int);
 
     height: 100px;
     background: root.block-data.panel-bg;
@@ -523,6 +524,29 @@ component CompactBlockRow inherits Rectangle {
         }
         }
     }
+
+    // ── Delete button (top-right corner, visible on hover) ──
+    Rectangle {
+        x: parent.width - 28px;
+        y: 4px;
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        background: del-ta.has-hover ? #ff4444 : transparent;
+        opacity: del-ta.has-hover ? 1.0 : 0.4;
+
+        Image {
+            x: 4px; y: 4px; width: 16px; height: 16px;
+            source: @image-url("../assets/trash.svg");
+            image-fit: contain;
+            colorize: del-ta.has-hover ? white : #8090a0;
+        }
+
+        del-ta := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.remove-block(root.block-data.chain-index, root.block-data.block-index); }
+        }
+    }
 }
 
 // Main page
@@ -542,6 +566,7 @@ export component CompactChainViewPage inherits Rectangle {
     callback open-block-detail(int, int);
     callback close-compact-view();
     callback choose-block-type(int, int, int); // chain_index, before_index, type_index
+    callback remove-block(int, int); // chain_index, block_index
 
     // Type picker state
     in property <[BlockTypePickerItem]> block-type-options;
@@ -654,6 +679,7 @@ export component CompactChainViewPage inherits Rectangle {
                 select-parameter-option(ci, bi2, p, oi) => { root.select-block-parameter-option(ci, bi2, p, oi); }
                 choose-model(ci, bi2, mi) => { root.choose-block-model(ci, bi2, mi); }
                 open-block-detail(ci, bi2) => { root.open-block-detail(ci, bi2); }
+                remove-block(ci, bi2) => { root.remove-block(ci, bi2); }
             }
 
             // Drag handle — visible grip on left edge

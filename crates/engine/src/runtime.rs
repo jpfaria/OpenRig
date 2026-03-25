@@ -423,11 +423,18 @@ fn build_runtime_block_nodes(
             continue;
         }
         if let Some(node) = try_reuse_block_node(&mut reusable_nodes, block, current_layout) {
+            log::info!("[engine] reuse block {:?} (id={})", block.model_ref().map(|m| m.model), block.id.0);
             current_layout = node.output_layout;
             blocks.push(node);
             continue;
         }
 
+        log::info!("[engine] rebuild block {:?} (id={}) with params:", block.model_ref().map(|m| m.model), block.id.0);
+        if let Some(model) = block.model_ref() {
+            for (path, value) in model.params.values.iter() {
+                log::info!("[engine]   {} = {:?}", path, value);
+            }
+        }
         let node = build_block_runtime_node(chain, block, current_layout, sample_rate)?;
         current_layout = node.output_layout;
         blocks.push(node);

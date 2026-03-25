@@ -1878,6 +1878,40 @@ pub fn run_desktop_app(
                 });
             }
 
+            // Wire remove-block
+            {
+                let project_session = project_session.clone();
+                let weak_main = window.as_weak();
+                let weak_compact = compact_win.as_weak();
+                let project_chains = project_chains.clone();
+                let project_runtime = project_runtime.clone();
+                let saved_project_snapshot = saved_project_snapshot.clone();
+                let project_dirty = project_dirty.clone();
+                let input_chain_devices = input_chain_devices.clone();
+                let output_chain_devices = output_chain_devices.clone();
+                let toast_timer = toast_timer.clone();
+                compact_win.on_remove_block(move |ci, bi| {
+                    log::info!("[compact] remove-block: chain={}, block={}", ci, bi);
+                    let Some(main_win) = weak_main.upgrade() else { return; };
+                    let Some(cw) = weak_compact.upgrade() else { return; };
+                    let mut session_borrow = project_session.borrow_mut();
+                    let Some(session) = session_borrow.as_mut() else { return; };
+                    let chain_idx = ci as usize;
+                    let block_idx = bi as usize;
+                    let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
+                    if block_idx >= chain.blocks.len() { return; }
+                    chain.blocks.remove(block_idx);
+                    let chain_id = chain.id.clone();
+                    if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                        log::error!("[compact] remove-block runtime sync: {}", e);
+                    }
+                    replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+                    let blocks = build_compact_blocks(&session.project, chain_idx);
+                    cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
+                    sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty);
+                });
+            }
+
             // Wire reorder-block
             {
                 let project_session = project_session.clone();
@@ -5182,6 +5216,10 @@ fn persist_block_editor_draft(
 ) -> Result<()> {
     let params =
         block_parameter_values(block_parameter_items, &draft.effect_type, &draft.model_id)?;
+    log::info!("[persist] effect_type='{}', model_id='{}', close_after_save={}, params:", draft.effect_type, draft.model_id, close_after_save);
+    for (path, value) in params.values.iter() {
+        log::info!("[persist]   {} = {:?}", path, value);
+    }
     let selected_select_option_block_id = if draft.is_select {
         Some(
             internal_block_parameter_value(block_parameter_items, SELECT_SELECTED_BLOCK_ID)
