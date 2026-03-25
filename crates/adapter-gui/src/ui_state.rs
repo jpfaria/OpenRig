@@ -65,6 +65,7 @@ pub fn accent_color_for_icon_kind(icon_kind: &str) -> slint::Color {
 
 /// Icon SVG index for an icon_kind. Used to load the correct icon from a pre-built array.
 /// Returns a numeric index into EFFECT_TYPE_ICONS.
+#[allow(dead_code)]
 pub fn icon_index_for_icon_kind(icon_kind: &str) -> usize {
     match icon_kind {
         "preamp" => 0,
