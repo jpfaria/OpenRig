@@ -828,11 +828,11 @@ export component BlockPanelEditor inherits Rectangle {
             changed(p, v) => { root.update-block-parameter-number(p, v); }
         }
 
-        // ── Enum parameters (segmented for ≤4 options, dropdown for 5+) ──
+        // ── Enum parameters (segmented for ≤4 options) ──
         for param[pi] in root.block-parameter-items : Rectangle {
             visible: param.widget_kind == "enum" && param.option_labels.length <= 4;
             property <length> seg-width: Math.max(150px, param.option_labels.length * 80px);
-            x: 60px + pi * (self.seg-width + 16px);
+            x: 60px + pi * 290px;
             y: parent.height * 0.54;
             width: self.seg-width;
             height: 60px;
@@ -885,7 +885,7 @@ export component BlockPanelEditor inherits Rectangle {
         // ── Enum parameters with 5+ options (dropdown select) ──
         for param[pi] in root.block-parameter-items : Rectangle {
             visible: param.widget_kind == "enum" && param.option_labels.length > 4;
-            x: 60px + pi * 280px;
+            x: 60px + pi * 290px;
             y: parent.height * 0.54;
             width: 260px;
             height: 60px;
