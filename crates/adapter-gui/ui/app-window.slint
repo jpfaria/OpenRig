@@ -279,6 +279,7 @@ export component CompactChainViewWindow inherits Window {
     in property <int> chain-index;
     in property <bool> chain-enabled;
     in property <[CompactBlockItem]> compact-blocks;
+    in property <[BlockTypePickerItem]> block-type-options;
 
     callback toggle-chain-enabled(int);
     callback toggle-block-enabled(int, int);
@@ -289,6 +290,7 @@ export component CompactChainViewWindow inherits Window {
     callback reorder-block(int, int, int);
     callback open-block-detail(int, int);
     callback close-compact-view();
+    callback choose-block-type(int, int, int);
 
     CompactChainViewPage {
         width: parent.width; height: parent.height;
@@ -296,6 +298,7 @@ export component CompactChainViewWindow inherits Window {
         chain-index: root.chain-index;
         chain-enabled: root.chain-enabled;
         compact-blocks: root.compact-blocks;
+        block-type-options: root.block-type-options;
         toggle-chain-enabled(ci) => { root.toggle-chain-enabled(ci); }
         toggle-block-enabled(ci, bi) => { root.toggle-block-enabled(ci, bi); }
         update-block-parameter-number(ci, bi, p, v) => { root.update-block-parameter-number(ci, bi, p, v); }
@@ -305,6 +308,7 @@ export component CompactChainViewWindow inherits Window {
         reorder-block(ci, from, before) => { root.reorder-block(ci, from, before); }
         open-block-detail(ci, bi) => { root.open-block-detail(ci, bi); }
         close-compact-view => { root.close-compact-view(); }
+        choose-block-type(ci, before, ti) => { root.choose-block-type(ci, before, ti); }
     }
 }
 

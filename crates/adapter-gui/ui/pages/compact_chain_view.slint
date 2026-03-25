@@ -1,5 +1,5 @@
 import { ScrollView } from "std-widgets.slint";
-import { CompactBlockItem, BlockKnobOverlay, BlockParameterItem } from "../models.slint";
+import { CompactBlockItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem } from "../models.slint";
 
 // Dial knob — dark circle, dot indicator on edge, value in center
 // (duplicated from block_panel_editor.slint)
@@ -541,6 +541,12 @@ export component CompactChainViewPage inherits Rectangle {
     callback reorder-block(int, int, int); // chain_index, from_index, before_index
     callback open-block-detail(int, int);
     callback close-compact-view();
+    callback choose-block-type(int, int, int); // chain_index, before_index, type_index
+
+    // Type picker state
+    in property <[BlockTypePickerItem]> block-type-options;
+    private property <bool> show-type-picker: false;
+    private property <int> insert-before-index: 0;
 
     // Drag-to-reorder state
     private property <int> dragging-block-index: -1;
@@ -607,7 +613,7 @@ export component CompactChainViewPage inherits Rectangle {
 
             insert0-ta := TouchArea {
                 mouse-cursor: pointer;
-                clicked => { root.insert-block(root.chain-index, 0); }
+                clicked => { root.insert-before-index = 0; root.show-type-picker = true; }
             }
 
             Rectangle {
@@ -728,7 +734,7 @@ export component CompactChainViewPage inherits Rectangle {
 
             insert-ta := TouchArea {
                 mouse-cursor: pointer;
-                clicked => { root.insert-block(root.chain-index, bi + 1); }
+                clicked => { root.insert-before-index = bi + 1; root.show-type-picker = true; }
             }
 
             Rectangle {
@@ -749,6 +755,108 @@ export component CompactChainViewPage inherits Rectangle {
                     width: 100%; height: 100%;
                     text: "+"; color: #ffffff; font-size: 12px; font-weight: 800;
                     horizontal-alignment: center; vertical-alignment: center;
+                }
+            }
+        }
+    }
+
+    // ── Type picker modal overlay ──
+    if root.show-type-picker : Rectangle {
+        x: 0; y: 0; width: parent.width; height: parent.height;
+        background: #0405069a;
+
+        TouchArea {
+            width: 100%; height: 100%;
+            clicked => { root.show-type-picker = false; }
+        }
+
+        Rectangle {
+            property <int> row-count: Math.max(1, Math.floor((root.block-type-options.length - 1) / 4) + 1);
+            property <length> content-height: self.row-count * 100px;
+            x: (parent.width - 472px) / 2;
+            y: (parent.height - self.height) / 2;
+            width: 472px;
+            height: Math.min(parent.height - 80px, self.content-height + 40px);
+            background: #171a20f8;
+            border-width: 1px;
+            border-color: #2d3340;
+            border-radius: 6px;
+
+            ScrollView {
+                x: 20px; y: 20px;
+                width: parent.width - 40px;
+                height: parent.height - 40px;
+                viewport-height: parent.content-height;
+
+                for type-item[index] in root.block-type-options : Rectangle {
+                    x: Math.mod(index, 4) * 106px;
+                    y: Math.floor(index / 4) * 100px;
+                    width: 100px;
+                    height: 96px;
+                    border-radius: 6px;
+                    border-width: 1px;
+                    border-color: type-item.icon_kind == "preamp" ? #f29f38
+                        : type-item.icon_kind == "amp" ? #f06292
+                        : type-item.icon_kind == "cab" ? #f2cb54
+                        : type-item.icon_kind == "body" ? #c8946a
+                        : type-item.icon_kind == "ir" ? #7cc9ff
+                        : type-item.icon_kind == "full_rig" ? #63d2ff
+                        : type-item.icon_kind == "gain" ? #ff6a57
+                        : type-item.icon_kind == "dynamics" ? #41b8ff
+                        : type-item.icon_kind == "filter" ? #d6c85a
+                        : type-item.icon_kind == "wah" ? #78d06b
+                        : type-item.icon_kind == "modulation" ? #58d39b
+                        : type-item.icon_kind == "delay" ? #ba8cff
+                        : type-item.icon_kind == "reverb" ? #6de1d2
+                        : type-item.icon_kind == "utility" ? #95a0b2
+                        : type-item.icon_kind == "nam" ? #ff7cd7
+                        : type-item.icon_kind == "pitch" ? #8f8cff
+                        : #7fb0ff;
+                    background: type-ta.has-hover ? #252830 : #1a1d24;
+
+                    Text {
+                        x: 0; y: 6px; width: parent.width; height: 16px;
+                        text: type-item.label;
+                        color: #d8e0ff;
+                        font-size: 10px;
+                        font-weight: 700;
+                        letter-spacing: 1px;
+                        horizontal-alignment: center;
+                    }
+
+                    Image {
+                        x: (parent.width - 48px) / 2;
+                        y: 28px;
+                        width: 48px;
+                        height: 48px;
+                        source: type-item.icon_kind == "preamp" ? @image-url("../assets/amp-head.svg")
+                            : type-item.icon_kind == "amp" ? @image-url("../assets/amp-combo.svg")
+                            : type-item.icon_kind == "cab" ? @image-url("../assets/cab.svg")
+                            : type-item.icon_kind == "body" ? @image-url("../assets/body.svg")
+                            : type-item.icon_kind == "ir" ? @image-url("../assets/ir-loader.svg")
+                            : type-item.icon_kind == "full_rig" ? @image-url("../assets/full-rig.svg")
+                            : type-item.icon_kind == "gain" ? @image-url("../assets/gain.svg")
+                            : type-item.icon_kind == "dynamics" ? @image-url("../assets/dyn.svg")
+                            : type-item.icon_kind == "filter" ? @image-url("../assets/filter.svg")
+                            : type-item.icon_kind == "wah" ? @image-url("../assets/expression.svg")
+                            : type-item.icon_kind == "modulation" ? @image-url("../assets/mod.svg")
+                            : type-item.icon_kind == "delay" ? @image-url("../assets/delay.svg")
+                            : type-item.icon_kind == "reverb" ? @image-url("../assets/reverb.svg")
+                            : type-item.icon_kind == "utility" ? @image-url("../assets/util.svg")
+                            : type-item.icon_kind == "nam" ? @image-url("../assets/nam.svg")
+                            : type-item.icon_kind == "pitch" ? @image-url("../assets/pitch.svg")
+                            : @image-url("../assets/gear.svg");
+                        image-fit: contain;
+                        colorize: parent.border-color;
+                    }
+
+                    type-ta := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.show-type-picker = false;
+                            root.choose-block-type(root.chain-index, root.insert-before-index, index);
+                        }
+                    }
                 }
             }
         }

@@ -1668,6 +1668,9 @@ pub fn run_desktop_app(
             compact_win.set_chain_title(title.into());
             compact_win.set_chain_index(chain_index);
             compact_win.set_chain_enabled(chain.enabled);
+            compact_win.set_block_type_options(ModelRc::from(Rc::new(VecModel::from(
+                block_type_picker_items(&chain.instrument),
+            ))));
 
             let blocks = build_compact_blocks(&session.project, ci);
             compact_win.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
@@ -1857,15 +1860,16 @@ pub fn run_desktop_app(
                 });
             }
 
-            // Wire insert-block — triggers the block type picker on the main window
+            // Wire choose-block-type — when user picks a type from the compact view picker
             {
                 let weak_main = window.as_weak();
-                compact_win.on_insert_block(move |ci, before| {
-                    log::info!("[compact] insert-block: chain={}, before={}", ci, before);
+                compact_win.on_choose_block_type(move |ci, before, type_index| {
+                    log::info!("[compact] choose-block-type: chain={}, before={}, type_index={}", ci, before, type_index);
                     let Some(main_win) = weak_main.upgrade() else { return; };
-                    // Bring main window to front and trigger block insert
-                    let _ = main_win.window().show();
+                    // Trigger the full insert flow on the main window (sets up draft + opens editor)
                     main_win.invoke_start_block_insert(ci, before);
+                    // Select the type that was chosen
+                    main_win.invoke_choose_block_type(type_index);
                 });
             }
 
