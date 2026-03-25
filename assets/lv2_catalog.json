@@ -1,0 +1,3377 @@
+{
+  "lv2_plugins": [
+    {
+      "id": "chowcentaur",
+      "name": "ChowCentaur",
+      "uri": "https://github.com/jatinchowdhury18/KlonCentaur",
+      "plugin_dir": "ChowCentaur.lv2",
+      "binary": "ChowCentaur.dylib",
+      "effect_type": "gain",
+      "audio_in": 1,
+      "audio_out": 1,
+      "parameters": [
+        {
+          "symbol": "level",
+          "name": "Level",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        },
+        {
+          "symbol": "lv2_enabled",
+          "name": "Enabled",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "toggle"
+        },
+        {
+          "symbol": "mode",
+          "name": "Mode",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "integer"
+        },
+        {
+          "symbol": "mono",
+          "name": "Mono",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "toggle"
+        },
+        {
+          "symbol": "treble",
+          "name": "Treble",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "dragonflyearlyreflections",
+      "name": "Dragonfly Early Reflections",
+      "uri": "urn:dragonfly:early",
+      "plugin_dir": "DragonflyEarlyReflections.lv2",
+      "binary": "DragonflyEarlyReflections_dsp.dylib",
+      "effect_type": "reverb",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "early_level",
+          "name": "Wet Level",
+          "default": 20.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "high_cut",
+          "name": "High Cut",
+          "default": 10000.0,
+          "min": 1000.0,
+          "max": 16000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "low_cut",
+          "name": "Low Cut",
+          "default": 50.0,
+          "min": 0.0,
+          "max": 200.0,
+          "type": "float"
+        },
+        {
+          "symbol": "program",
+          "name": "Program",
+          "default": 2.0,
+          "min": 0.0,
+          "max": 7.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "Abrupt Echo",
+              "value": 0.0
+            }
+          ]
+        },
+        {
+          "symbol": "size",
+          "name": "Size",
+          "default": 20.0,
+          "min": 10.0,
+          "max": 60.0,
+          "type": "float"
+        },
+        {
+          "symbol": "width",
+          "name": "Width",
+          "default": 100.0,
+          "min": 50.0,
+          "max": 150.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "dragonflyhallreverb",
+      "name": "Dragonfly Hall Reverb",
+      "uri": "https://github.com/michaelwillis/dragonfly-reverb",
+      "plugin_dir": "DragonflyHallReverb.lv2",
+      "binary": "DragonflyHallReverb_dsp.dylib",
+      "effect_type": "reverb",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "decay",
+          "name": "Decay",
+          "default": 1.29999995232,
+          "min": 0.10000000149,
+          "max": 10.0,
+          "type": "float"
+        },
+        {
+          "symbol": "delay",
+          "name": "Predelay",
+          "default": 4.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "diffuse",
+          "name": "Diffuse",
+          "default": 90.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "early_level",
+          "name": "Early Level",
+          "default": 10.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "early_send",
+          "name": "Early Send",
+          "default": 20.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "high_cut",
+          "name": "High Cut",
+          "default": 7600.0,
+          "min": 1000.0,
+          "max": 16000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "high_mult",
+          "name": "High Mult",
+          "default": 0.5,
+          "min": 0.20000000298,
+          "max": 1.20000004768,
+          "type": "float"
+        },
+        {
+          "symbol": "high_xo",
+          "name": "High Cross",
+          "default": 5500.0,
+          "min": 1000.0,
+          "max": 16000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "late_level",
+          "name": "Late Level",
+          "default": 20.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "low_cut",
+          "name": "Low Cut",
+          "default": 4.0,
+          "min": 0.0,
+          "max": 200.0,
+          "type": "float"
+        },
+        {
+          "symbol": "low_mult",
+          "name": "Low Mult",
+          "default": 1.29999995232,
+          "min": 0.5,
+          "max": 2.5,
+          "type": "float"
+        },
+        {
+          "symbol": "low_xo",
+          "name": "Low Cross",
+          "default": 500.0,
+          "min": 200.0,
+          "max": 1200.0,
+          "type": "float"
+        },
+        {
+          "symbol": "modulation",
+          "name": "Modulation",
+          "default": 15.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "size",
+          "name": "Size",
+          "default": 24.0,
+          "min": 10.0,
+          "max": 60.0,
+          "type": "float"
+        },
+        {
+          "symbol": "spin",
+          "name": "Spin",
+          "default": 3.29999995232,
+          "min": 0.0,
+          "max": 10.0,
+          "type": "float"
+        },
+        {
+          "symbol": "wander",
+          "name": "Wander",
+          "default": 15.0,
+          "min": 0.0,
+          "max": 40.0,
+          "type": "float"
+        },
+        {
+          "symbol": "width",
+          "name": "Width",
+          "default": 100.0,
+          "min": 50.0,
+          "max": 150.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "dragonflyplatereverb",
+      "name": "Dragonfly Plate Reverb",
+      "uri": "urn:dragonfly:plate",
+      "plugin_dir": "DragonflyPlateReverb.lv2",
+      "binary": "DragonflyPlateReverb_dsp.dylib",
+      "effect_type": "reverb",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "algorithm",
+          "name": "Algorithm",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 2.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "Simple",
+              "value": 0.0
+            }
+          ]
+        },
+        {
+          "symbol": "decay",
+          "name": "Decay",
+          "default": 0.40000000596,
+          "min": 0.10000000149,
+          "max": 10.0,
+          "type": "float"
+        },
+        {
+          "symbol": "early_damp",
+          "name": "Dampen",
+          "default": 13000.0,
+          "min": 1000.0,
+          "max": 16000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "early_level",
+          "name": "Wet Level",
+          "default": 20.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "high_cut",
+          "name": "High Cut",
+          "default": 16000.0,
+          "min": 1000.0,
+          "max": 16000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "low_cut",
+          "name": "Low Cut",
+          "default": 200.0,
+          "min": 0.0,
+          "max": 200.0,
+          "type": "float"
+        },
+        {
+          "symbol": "predelay",
+          "name": "Predelay",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "width",
+          "name": "Width",
+          "default": 100.0,
+          "min": 50.0,
+          "max": 150.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "dragonflyroomreverb",
+      "name": "Dragonfly Room Reverb",
+      "uri": "urn:dragonfly:room",
+      "plugin_dir": "DragonflyRoomReverb.lv2",
+      "binary": "DragonflyRoomReverb_dsp.dylib",
+      "effect_type": "reverb",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "boost_freq",
+          "name": "Boost Freq",
+          "default": 600.0,
+          "min": 50.0,
+          "max": 1050.0,
+          "type": "float"
+        },
+        {
+          "symbol": "decay",
+          "name": "Decay",
+          "default": 0.40000000596,
+          "min": 0.10000000149,
+          "max": 10.0,
+          "type": "float"
+        },
+        {
+          "symbol": "diffuse",
+          "name": "Diffuse",
+          "default": 70.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "early_damp",
+          "name": "Early Damp",
+          "default": 10000.0,
+          "min": 1000.0,
+          "max": 16000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "early_level",
+          "name": "Early Level",
+          "default": 10.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "early_send",
+          "name": "Early Send",
+          "default": 20.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "in_high_cut",
+          "name": "High Cut",
+          "default": 16000.0,
+          "min": 1000.0,
+          "max": 16000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "in_low_cut",
+          "name": "Low Cut",
+          "default": 4.0,
+          "min": 0.0,
+          "max": 200.0,
+          "type": "float"
+        },
+        {
+          "symbol": "late_damp",
+          "name": "Late Damp",
+          "default": 9400.0,
+          "min": 1000.0,
+          "max": 16000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "late_level",
+          "name": "Late Level",
+          "default": 20.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "low_boost",
+          "name": "Low Boost",
+          "default": 50.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "predelay",
+          "name": "Predelay",
+          "default": 8.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "size",
+          "name": "Size",
+          "default": 12.0,
+          "min": 8.0,
+          "max": 32.0,
+          "type": "float"
+        },
+        {
+          "symbol": "spin",
+          "name": "Spin",
+          "default": 0.800000011921,
+          "min": 0.0,
+          "max": 5.0,
+          "type": "float"
+        },
+        {
+          "symbol": "wander",
+          "name": "Wander",
+          "default": 40.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "width",
+          "name": "Width",
+          "default": 100.0,
+          "min": 50.0,
+          "max": 150.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "harmless",
+      "name": "Harmless",
+      "uri": "https://github.com/ninodewit/SHIRO-Plugins/plugins/harmless",
+      "plugin_dir": "Harmless.lv2",
+      "binary": "Harmless_dsp.dylib",
+      "effect_type": "modulation",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "depth",
+          "name": "depth",
+          "default": 100.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "phase",
+          "name": "phase",
+          "default": 0.0,
+          "min": -180.0,
+          "max": 180.0,
+          "type": "float"
+        },
+        {
+          "symbol": "shape",
+          "name": "shape",
+          "default": 0.5,
+          "min": 0.01,
+          "max": 0.99,
+          "type": "float"
+        },
+        {
+          "symbol": "tone",
+          "name": "tone",
+          "default": 6000.0,
+          "min": 500.0,
+          "max": 6000.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "larynx",
+      "name": "Larynx",
+      "uri": "https://github.com/ninodewit/SHIRO-Plugins/plugins/larynx",
+      "plugin_dir": "Larynx.lv2",
+      "binary": "Larynx_dsp.dylib",
+      "effect_type": "modulation",
+      "audio_in": 1,
+      "audio_out": 1,
+      "parameters": [
+        {
+          "symbol": "depth",
+          "name": "depth",
+          "default": 1.0,
+          "min": 0.1,
+          "max": 5.0,
+          "type": "float"
+        },
+        {
+          "symbol": "rate",
+          "name": "rate",
+          "default": 5.0,
+          "min": 0.1,
+          "max": 10.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "mod-cabinetloader",
+      "name": "Cabinet Loader",
+      "uri": "https://mod.audio/plugins/CabinetLoader",
+      "plugin_dir": "MOD-CabinetLoader.lv2",
+      "binary": "MOD-CabinetLoader_dsp.dylib",
+      "effect_type": "amp",
+      "audio_in": 1,
+      "audio_out": 1,
+      "parameters": [
+        {
+          "symbol": "lv2_enabled",
+          "name": "Enabled",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "toggle"
+        }
+      ]
+    },
+    {
+      "id": "mod-convolutionloader",
+      "name": "Convolution Loader",
+      "uri": "https://mod.audio/plugins/ConvolutionLoader",
+      "plugin_dir": "MOD-ConvolutionLoader.lv2",
+      "binary": "MOD-ConvolutionLoader_dsp.dylib",
+      "effect_type": "reverb",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "buffered",
+          "name": "Buffered",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "toggle"
+        },
+        {
+          "symbol": "hpf",
+          "name": "High Pass Filter",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 500.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "Off",
+              "value": 0.0
+            }
+          ]
+        },
+        {
+          "symbol": "lv2_enabled",
+          "name": "Enabled",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "toggle"
+        },
+        {
+          "symbol": "trails",
+          "name": "Trails",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "toggle"
+        },
+        {
+          "symbol": "wetlevel",
+          "name": "Wet Level",
+          "default": -30.0,
+          "min": -60.0,
+          "max": 0.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "Off",
+              "value": -60.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "mverb",
+      "name": "MVerb",
+      "uri": "http://distrho.sf.net/plugins/MVerb",
+      "plugin_dir": "MVerb.lv2",
+      "binary": "MVerb_dsp.dylib",
+      "effect_type": "reverb",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "bandwidth",
+          "name": "Bandwidth",
+          "default": 50.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "decay",
+          "name": "Decay",
+          "default": 50.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "density",
+          "name": "Density",
+          "default": 50.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "earlymix",
+          "name": "Early/Late Mix",
+          "default": 50.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "gain",
+          "name": "Gain",
+          "default": 100.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "mix",
+          "name": "Mix",
+          "default": 50.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "predelay",
+          "name": "Predelay",
+          "default": 50.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "size",
+          "name": "Size",
+          "default": 75.0,
+          "min": 5.0,
+          "max": 100.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "modulay",
+      "name": "Modulay",
+      "uri": "https://github.com/ninodewit/SHIRO-Plugins/plugins/modulay",
+      "plugin_dir": "Modulay.lv2",
+      "binary": "Modulay_dsp.dylib",
+      "effect_type": "delay",
+      "audio_in": 1,
+      "audio_out": 1,
+      "parameters": [
+        {
+          "symbol": "depth",
+          "name": "depth",
+          "default": 1.0,
+          "min": 0.1,
+          "max": 3.0,
+          "type": "float"
+        },
+        {
+          "symbol": "mix",
+          "name": "mix",
+          "default": 75.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "morph",
+          "name": "morph",
+          "default": 50.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "rate",
+          "name": "rate",
+          "default": 2.0,
+          "min": 0.1,
+          "max": 5.0,
+          "type": "float"
+        },
+        {
+          "symbol": "time",
+          "name": "time",
+          "default": 500.0,
+          "min": 20.0,
+          "max": 1000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "tone",
+          "name": "tone",
+          "default": 3000.0,
+          "min": 500.0,
+          "max": 6000.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "ojd",
+      "name": "Schrammel OJD",
+      "uri": "https://github.com/JanosGit/Schrammel_OJD",
+      "plugin_dir": "OJD.lv2",
+      "binary": "OJD.dylib",
+      "effect_type": "gain",
+      "audio_in": 1,
+      "audio_out": 1,
+      "parameters": [
+        {
+          "symbol": "hp_lp",
+          "name": "HP / LP",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "integer"
+        },
+        {
+          "symbol": "lv2_enabled",
+          "name": "Enabled",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "toggle"
+        },
+        {
+          "symbol": "tone",
+          "name": "Tone",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        },
+        {
+          "symbol": "volume",
+          "name": "Volume",
+          "default": 0.835,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "pitchotto",
+      "name": "Pitchotto",
+      "uri": "https://github.com/ninodewit/SHIRO-Plugins/plugins/pitchotto",
+      "plugin_dir": "Pitchotto.lv2",
+      "binary": "Pitchotto_dsp.so",
+      "effect_type": "pitch",
+      "audio_in": 1,
+      "audio_out": 1,
+      "parameters": [
+        {
+          "symbol": "blur",
+          "name": "blur",
+          "default": 0.25,
+          "min": 0.01,
+          "max": 0.25,
+          "type": "float"
+        },
+        {
+          "symbol": "cutoff",
+          "name": "cutoff",
+          "default": 2250.0,
+          "min": 0.0,
+          "max": 3000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "delay1",
+          "name": "delay1",
+          "default": 100.0,
+          "min": 0.1,
+          "max": 1000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "delay2",
+          "name": "delay2",
+          "default": 100.0,
+          "min": 0.1,
+          "max": 1000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "mix",
+          "name": "mix",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        },
+        {
+          "symbol": "ratio1",
+          "name": "ratio1",
+          "default": 0.5,
+          "min": 0.5,
+          "max": 2.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "shiroverb",
+      "name": "Shiroverb",
+      "uri": "https://github.com/ninodewit/SHIRO-Plugins/plugins/shiroverb",
+      "plugin_dir": "Shiroverb.lv2",
+      "binary": "Shiroverb_dsp.dylib",
+      "effect_type": "reverb",
+      "audio_in": 1,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "bandwidth",
+          "name": "bandwidth",
+          "default": 75.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "damping",
+          "name": "damping",
+          "default": 50.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "decay",
+          "name": "decay",
+          "default": 50.0,
+          "min": 1.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "mix",
+          "name": "mix",
+          "default": 50.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "ratio",
+          "name": "ratio",
+          "default": 2.0,
+          "min": 0.5,
+          "max": 2.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "- Octave",
+              "value": 0.5
+            },
+            {
+              "label": "+ Fifth",
+              "value": 1.5
+            },
+            {
+              "label": "+ Octave",
+              "value": 2.0
+            }
+          ]
+        },
+        {
+          "symbol": "roomsize",
+          "name": "roomsize",
+          "default": 150.0,
+          "min": 1.0,
+          "max": 300.0,
+          "type": "float"
+        },
+        {
+          "symbol": "tone",
+          "name": "tone",
+          "default": 1500.0,
+          "min": 500.0,
+          "max": 6000.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "zamcomp",
+      "name": "ZamComp",
+      "uri": "urn:zamaudio:ZamComp",
+      "plugin_dir": "ZamComp.lv2",
+      "binary": "ZamComp_dsp.dylib",
+      "effect_type": "dynamics",
+      "audio_in": 2,
+      "audio_out": 1,
+      "parameters": [
+        {
+          "symbol": "kn",
+          "name": "Knee",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 8.0,
+          "type": "float"
+        },
+        {
+          "symbol": "mak",
+          "name": "Makeup",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 30.0,
+          "type": "float"
+        },
+        {
+          "symbol": "rat",
+          "name": "Ratio",
+          "default": 4.0,
+          "min": 1.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "rel",
+          "name": "Release",
+          "default": 80.0,
+          "min": 1.0,
+          "max": 500.0,
+          "type": "float"
+        },
+        {
+          "symbol": "sidech",
+          "name": "Sidechain",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "toggle"
+        },
+        {
+          "symbol": "slew",
+          "name": "Slew",
+          "default": 1.0,
+          "min": 1.0,
+          "max": 150.0,
+          "type": "float"
+        },
+        {
+          "symbol": "thr",
+          "name": "Threshold",
+          "default": 0.0,
+          "min": -80.0,
+          "max": 0.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "artyfx-bitta",
+      "name": "Bitta",
+      "uri": "http://www.openavproductions.com/artyfx#bitta",
+      "plugin_dir": "artyfx-bitta.lv2",
+      "binary": "artyfx.so",
+      "effect_type": "gain",
+      "audio_in": 1,
+      "audio_out": 1,
+      "parameters": [
+        {
+          "symbol": "active",
+          "name": "Active",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "toggle"
+        },
+        {
+          "symbol": "crush",
+          "name": "Crush",
+          "default": 16.0,
+          "min": 1.0,
+          "max": 16.0,
+          "type": "integer"
+        },
+        {
+          "symbol": "drywet",
+          "name": "Dry/Wet",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "artyfx",
+      "name": "Driva",
+      "uri": "http://www.openavproductions.com/artyfx#driva",
+      "plugin_dir": "artyfx.lv2",
+      "binary": "artyfx.dylib",
+      "effect_type": "reverb",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "Hi_Mid",
+          "name": "HiMid Gain",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        },
+        {
+          "symbol": "High",
+          "name": "High Gain",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Level",
+          "name": "Gain",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Lo_Mid",
+          "name": "LoMid Gain",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Low",
+          "name": "Low Gain",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        },
+        {
+          "symbol": "active",
+          "name": "Active",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "toggle"
+        },
+        {
+          "symbol": "active",
+          "name": "Active",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "toggle"
+        },
+        {
+          "symbol": "damping",
+          "name": "Damping",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        },
+        {
+          "symbol": "distortion",
+          "name": "Distortion",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        },
+        {
+          "symbol": "dry_wet",
+          "name": "Dry/Wet Mix",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        },
+        {
+          "symbol": "frequency_control",
+          "name": "Frequency Control",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        },
+        {
+          "symbol": "time",
+          "name": "Time",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        },
+        {
+          "symbol": "tone",
+          "name": "Tone",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 6.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "Odie",
+              "value": 0.0
+            },
+            {
+              "label": "Grunge",
+              "value": 1.0
+            },
+            {
+              "label": "Distort",
+              "value": 2.0
+            },
+            {
+              "label": "Ratty",
+              "value": 3.0
+            },
+            {
+              "label": "Classic",
+              "value": 4.0
+            },
+            {
+              "label": "Morbid",
+              "value": 5.0
+            },
+            {
+              "label": "Metal",
+              "value": 6.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "avocado",
+      "name": "avocado",
+      "uri": "http://remaincalm.org/plugins/avocado",
+      "plugin_dir": "avocado.lv2",
+      "binary": "avocado_dsp.dylib",
+      "effect_type": "delay",
+      "audio_in": 1,
+      "audio_out": 1,
+      "parameters": []
+    },
+    {
+      "id": "ewham",
+      "name": "the infamous ewham",
+      "uri": "http://ssj71.github.io/infamousPlugins/plugs.html#ewham",
+      "plugin_dir": "ewham.lv2",
+      "binary": "ewham.so",
+      "effect_type": "pitch",
+      "audio_in": 1,
+      "audio_out": 1,
+      "parameters": [
+        {
+          "symbol": "FINISH",
+          "name": "Finish",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        },
+        {
+          "symbol": "FINISH",
+          "name": "Finish",
+          "default": 12.0,
+          "min": -36.0,
+          "max": 24.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "-3 Oct",
+              "value": -36.0
+            },
+            {
+              "label": "-2 Oct",
+              "value": -24.0
+            },
+            {
+              "label": "-1 Oct",
+              "value": -12.0
+            },
+            {
+              "label": "-5th",
+              "value": -7.0
+            },
+            {
+              "label": "No Shift",
+              "value": 0.0
+            },
+            {
+              "label": "+5th",
+              "value": 7.0
+            },
+            {
+              "label": "+1 Oct",
+              "value": 12.0
+            },
+            {
+              "label": "+2 Oct",
+              "value": 24.0
+            }
+          ]
+        },
+        {
+          "symbol": "LOCK",
+          "name": "Lock Mode",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 2.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "None",
+              "value": 0.0
+            },
+            {
+              "label": "Land on Semitone",
+              "value": 1.0
+            },
+            {
+              "label": "Lock to Semitone",
+              "value": 2.0
+            }
+          ]
+        },
+        {
+          "symbol": "MODE",
+          "name": "Mode",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 2.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "Classic Shift",
+              "value": 0.0
+            },
+            {
+              "label": "Harmomizer",
+              "value": 1.0
+            },
+            {
+              "label": "Chorus",
+              "value": 2.0
+            }
+          ]
+        },
+        {
+          "symbol": "START",
+          "name": "Start",
+          "default": 0.0,
+          "min": -36.0,
+          "max": 24.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "-3 Oct",
+              "value": -36.0
+            },
+            {
+              "label": "-2 Oct",
+              "value": -24.0
+            },
+            {
+              "label": "-1 Oct",
+              "value": -12.0
+            },
+            {
+              "label": "-5th",
+              "value": -7.0
+            },
+            {
+              "label": "No Shift",
+              "value": 0.0
+            },
+            {
+              "label": "+5th",
+              "value": 7.0
+            },
+            {
+              "label": "+1 Oct",
+              "value": 12.0
+            },
+            {
+              "label": "+2 Oct",
+              "value": 24.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "floaty",
+      "name": "floaty",
+      "uri": "http://remaincalm.org/plugins/floaty",
+      "plugin_dir": "floaty.lv2",
+      "binary": "floaty_dsp.dylib",
+      "effect_type": "delay",
+      "audio_in": 1,
+      "audio_out": 1,
+      "parameters": [
+        {
+          "symbol": "feedback",
+          "name": "Feedback",
+          "default": 20.0,
+          "min": 0.0,
+          "max": 60.0,
+          "type": "float"
+        },
+        {
+          "symbol": "filter",
+          "name": "Tone",
+          "default": 19.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "mix",
+          "name": "Mix",
+          "default": 42.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "rate",
+          "name": "Playback Rate",
+          "default": 1.0,
+          "min": -2.0,
+          "max": 2.0,
+          "type": "float"
+        },
+        {
+          "symbol": "warp",
+          "name": "Warp",
+          "default": 60.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "mod-mda-ambience",
+      "name": "MDA Ambience",
+      "uri": "",
+      "plugin_dir": "mod-mda-Ambience.lv2",
+      "binary": "Ambience.so",
+      "effect_type": "reverb",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "hf_damp",
+          "name": "Damping",
+          "default": 70.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "in",
+          "name": "Input",
+          "default": 7.0,
+          "min": 0.0,
+          "max": 10.0,
+          "type": "float"
+        },
+        {
+          "symbol": "mix",
+          "name": "Mix",
+          "default": 90.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "output",
+          "name": "Level",
+          "default": 0.0,
+          "min": -20.0,
+          "max": 20.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "mod-mda-degrade",
+      "name": "MDA Degrade",
+      "uri": "",
+      "plugin_dir": "mod-mda-Degrade.lv2",
+      "binary": "Degrade.so",
+      "effect_type": "gain",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "even_odd",
+          "name": "EvenOdd",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "Even",
+              "value": 0.0
+            }
+          ]
+        },
+        {
+          "symbol": "in",
+          "name": "Input",
+          "default": -6.0,
+          "min": -30.0,
+          "max": 0.0,
+          "type": "float"
+        },
+        {
+          "symbol": "integrator_sr",
+          "name": "Integrator",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "Integrator Off",
+              "value": 0.0
+            }
+          ]
+        },
+        {
+          "symbol": "non_lin",
+          "name": "Non-Lin",
+          "default": 0.16,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        },
+        {
+          "symbol": "output",
+          "name": "Output",
+          "default": 0.0,
+          "min": -20.0,
+          "max": 20.0,
+          "type": "integer"
+        },
+        {
+          "symbol": "post_filt",
+          "name": "Post Filter",
+          "default": 15000.0,
+          "min": 200.0,
+          "max": 20000.0,
+          "type": "integer"
+        },
+        {
+          "symbol": "quant",
+          "name": "Quant",
+          "default": 10.0,
+          "min": 4.0,
+          "max": 16.0,
+          "type": "integer"
+        },
+        {
+          "symbol": "rate",
+          "name": "Rate",
+          "default": 48000.0,
+          "min": 4800.0,
+          "max": 48000.0,
+          "type": "integer"
+        }
+      ]
+    },
+    {
+      "id": "mod-mda-detune",
+      "name": "MDA Detune",
+      "uri": "",
+      "plugin_dir": "mod-mda-Detune.lv2",
+      "binary": "Detune.dylib",
+      "effect_type": "pitch",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "in",
+          "name": "Input",
+          "default": 2.4,
+          "min": 0.0,
+          "max": 300.0,
+          "type": "float"
+        },
+        {
+          "symbol": "latency",
+          "name": "Latency",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        },
+        {
+          "symbol": "mix",
+          "name": "Mix",
+          "default": 50.0,
+          "min": 0.0,
+          "max": 99.0,
+          "type": "float"
+        },
+        {
+          "symbol": "output",
+          "name": "Level",
+          "default": 0.0,
+          "min": -20.0,
+          "max": 20.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "mod-mda-dubdelay",
+      "name": "MDA DubDelay",
+      "uri": "",
+      "plugin_dir": "mod-mda-DubDelay.lv2",
+      "binary": "DubDelay.so",
+      "effect_type": "delay",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "fb_tone",
+          "name": "Fb Tone",
+          "default": 0.0,
+          "min": -100.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "feedback",
+          "name": "Feedback",
+          "default": 55.0,
+          "min": -110.0,
+          "max": 110.0,
+          "type": "float"
+        },
+        {
+          "symbol": "fx_mix",
+          "name": "FX Mix",
+          "default": 50.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "in",
+          "name": "Input",
+          "default": 460.0,
+          "min": 1.0,
+          "max": 7500.0,
+          "type": "float"
+        },
+        {
+          "symbol": "lfo_depth",
+          "name": "LFO Depth",
+          "default": 30.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "lfo_rate",
+          "name": "LFO Rate",
+          "default": 0.05,
+          "min": 0.01,
+          "max": 10.0,
+          "type": "float"
+        },
+        {
+          "symbol": "output",
+          "name": "Level",
+          "default": 0.0,
+          "min": -12.0,
+          "max": 6.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "mod-mda-leslie",
+      "name": "MDA Leslie",
+      "uri": "",
+      "plugin_dir": "mod-mda-Leslie.lv2",
+      "binary": "Leslie.so",
+      "effect_type": "amp",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "hi_depth",
+          "name": "Hi Depth",
+          "default": 70.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "hi_throb",
+          "name": "Hi Throb",
+          "default": 70.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "hi_width",
+          "name": "Hi Width",
+          "default": 70.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "in",
+          "name": "Input",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "Stop",
+              "value": 0.0
+            }
+          ]
+        },
+        {
+          "symbol": "lo_throb",
+          "name": "Lo Throb",
+          "default": 60.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "lo_width",
+          "name": "Lo Width",
+          "default": 50.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "output",
+          "name": "Level",
+          "default": 0.0,
+          "min": -20.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "speed",
+          "name": "Rate",
+          "default": 100.0,
+          "min": 0.0,
+          "max": 200.0,
+          "type": "float"
+        },
+        {
+          "symbol": "x_over",
+          "name": "X-Over",
+          "default": 772.8,
+          "min": 150.0,
+          "max": 1510.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "mod-mda-overdrive",
+      "name": "MDA Overdrive",
+      "uri": "",
+      "plugin_dir": "mod-mda-Overdrive.lv2",
+      "binary": "Overdrive.so",
+      "effect_type": "gain",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "in",
+          "name": "Input",
+          "default": 50.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "muffle",
+          "name": "Muffle",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "output",
+          "name": "Level",
+          "default": 4.0,
+          "min": -20.0,
+          "max": 20.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "mod-mda-repsycho",
+      "name": "MDA LV2",
+      "uri": "",
+      "plugin_dir": "mod-mda-RePsycho.lv2",
+      "binary": "RePsycho.so",
+      "effect_type": "pitch",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "decay",
+          "name": "Decay",
+          "default": 0.0,
+          "min": -50.0,
+          "max": 50.0,
+          "type": "float"
+        },
+        {
+          "symbol": "fine",
+          "name": "Fine",
+          "default": 0.0,
+          "min": -100.0,
+          "max": 0.0,
+          "type": "float"
+        },
+        {
+          "symbol": "hold",
+          "name": "Hold",
+          "default": 122.5,
+          "min": 10.0,
+          "max": 260.0,
+          "type": "float"
+        },
+        {
+          "symbol": "mda",
+          "name": "Input",
+          "default": 0.0,
+          "min": -24.0,
+          "max": 0.0,
+          "type": "integer"
+        },
+        {
+          "symbol": "mix",
+          "name": "Mix",
+          "default": 100.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "quality",
+          "name": "Quality",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "Low",
+              "value": 0.0
+            }
+          ]
+        },
+        {
+          "symbol": "thresh",
+          "name": "Thresh",
+          "default": -12.0,
+          "min": -30.0,
+          "max": 0.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "mod-mda-ringmod",
+      "name": "MDA RingMod",
+      "uri": "",
+      "plugin_dir": "mod-mda-RingMod.lv2",
+      "binary": "RingMod.so",
+      "effect_type": "modulation",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "feedback",
+          "name": "Feedback",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "fine",
+          "name": "Fine",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "in",
+          "name": "Input",
+          "default": 1000.0,
+          "min": 0.0,
+          "max": 16000.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "mod-mda-thruzero",
+      "name": "MDA LV2",
+      "uri": "",
+      "plugin_dir": "mod-mda-ThruZero.lv2",
+      "binary": "ThruZero.dylib",
+      "effect_type": "modulation",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "depth",
+          "name": "Depth",
+          "default": 20.0,
+          "min": 0.0,
+          "max": 42.0,
+          "type": "float"
+        },
+        {
+          "symbol": "depth_mod",
+          "name": "Depth Mod",
+          "default": 100.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "feedback",
+          "name": "Feedback",
+          "default": -40.0,
+          "min": -100.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "mda",
+          "name": "Input",
+          "default": 0.08,
+          "min": 0.01,
+          "max": 10.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "-",
+              "value": 0.01
+            }
+          ]
+        },
+        {
+          "symbol": "mix",
+          "name": "Mix",
+          "default": 47.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "mod-tal-reverb-2",
+      "name": "TAL-Reverb-II",
+      "uri": "http://moddevices.com/plugins/tal-reverb-2",
+      "plugin_dir": "mod-tal-Reverb-2.lv2",
+      "binary": "TAL-Reverb-2.so",
+      "effect_type": "reverb",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "high_shelf_frequency",
+          "name": "high frequency",
+          "default": 3039.0,
+          "min": 100.0,
+          "max": 10000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "high_shelf_gain",
+          "name": "high gain",
+          "default": -1.2,
+          "min": -18.0,
+          "max": 0.0,
+          "type": "float"
+        },
+        {
+          "symbol": "low_shelf_frequency",
+          "name": "low frequency",
+          "default": 257.0,
+          "min": 100.0,
+          "max": 10000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "low_shelf_gain",
+          "name": "low gain",
+          "default": -0.4,
+          "min": -18.0,
+          "max": 0.0,
+          "type": "float"
+        },
+        {
+          "symbol": "peak_frequency",
+          "name": "mid frequency",
+          "default": 2237.0,
+          "min": 100.0,
+          "max": 10000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "peak_gain",
+          "name": "mid gain",
+          "default": -1.7,
+          "min": -18.0,
+          "max": 0.0,
+          "type": "float"
+        },
+        {
+          "symbol": "pre_delay",
+          "name": "pre delay",
+          "default": 37.0,
+          "min": 0.0,
+          "max": 1000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "room_size",
+          "name": "room size",
+          "default": 0.752,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        },
+        {
+          "symbol": "stereo_input",
+          "name": "Freewheel",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "toggle"
+        },
+        {
+          "symbol": "stereo_input",
+          "name": "stereo input",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "toggle"
+        },
+        {
+          "symbol": "stereo_width",
+          "name": "stereo width",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        },
+        {
+          "symbol": "wet",
+          "name": "wet",
+          "default": -24.1,
+          "min": -96.0,
+          "max": 26.4,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "mud",
+      "name": "mud",
+      "uri": "http://remaincalm.org/plugins/mud",
+      "plugin_dir": "mud.lv2",
+      "binary": "mud_dsp.dylib",
+      "effect_type": "filter",
+      "audio_in": 1,
+      "audio_out": 1,
+      "parameters": [
+        {
+          "symbol": "filter",
+          "name": "Filter",
+          "default": 50.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "lfo",
+          "name": "LFO",
+          "default": 50.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "lfo",
+          "name": "LFO",
+          "default": 0.0,
+          "min": -100.0,
+          "max": 100.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "neural_amp_modeler",
+      "name": "Neural Amp Modeler",
+      "uri": "http://github.com/mikeoliphant/neural-amp-modeler-lv2",
+      "plugin_dir": "neural_amp_modeler.lv2",
+      "binary": "neural_amp_modeler.so",
+      "effect_type": "amp",
+      "audio_in": 1,
+      "audio_out": 1,
+      "parameters": [
+        {
+          "symbol": "output",
+          "name": "Output",
+          "default": 0.0,
+          "min": -20.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "output_level",
+          "name": "Output Lvl",
+          "default": 0.0,
+          "min": -20.0,
+          "max": 20.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "paranoia",
+      "name": "paranoia",
+      "uri": "http://remaincalm.org/plugins/paranoia",
+      "plugin_dir": "paranoia.lv2",
+      "binary": "paranoia_dsp.dylib",
+      "effect_type": "gain",
+      "audio_in": 1,
+      "audio_out": 1,
+      "parameters": [
+        {
+          "symbol": "crush",
+          "name": "Crush",
+          "default": 100.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "filter",
+          "name": "Filter",
+          "default": 40.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "nuclear",
+          "name": "Mangle",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 16.0,
+          "type": "float"
+        },
+        {
+          "symbol": "wet",
+          "name": "Level",
+          "default": -9.0,
+          "min": -24.0,
+          "max": 6.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "stuck",
+      "name": "the infamous stuck",
+      "uri": "http://ssj71.github.io/infamousPlugins/plugs.html#stuck",
+      "plugin_dir": "stuck.lv2",
+      "binary": "stuck.so",
+      "effect_type": "delay",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "DRONE_GAIN",
+          "name": "Drone Gain",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 2.0,
+          "type": "float"
+        },
+        {
+          "symbol": "DRONE_GAIN",
+          "name": "Drone Gain",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 2.0,
+          "type": "float"
+        },
+        {
+          "symbol": "RELEASE",
+          "name": "Release",
+          "default": 0.5,
+          "min": 0.01,
+          "max": 3.0,
+          "type": "toggle"
+        },
+        {
+          "symbol": "RELEASE",
+          "name": "Release",
+          "default": 0.5,
+          "min": 0.01,
+          "max": 3.0,
+          "type": "float"
+        },
+        {
+          "symbol": "STICK_IT",
+          "name": "Audio In",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "toggle"
+        }
+      ]
+    },
+    {
+      "id": "tap-chorusflanger",
+      "name": "TAP Chorus/Flanger",
+      "uri": "http://moddevices.com/plugins/tap/chorusflanger",
+      "plugin_dir": "tap-chorusflanger.lv2",
+      "binary": "tap_chorusflanger.dylib",
+      "effect_type": "modulation",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "Contour",
+          "name": "Contour",
+          "default": 100.0,
+          "min": 20.0,
+          "max": 20000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Delay",
+          "name": "Delay",
+          "default": 25.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Depth",
+          "name": "Depth",
+          "default": 75.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "DryLevel",
+          "name": "Dry",
+          "default": 1.75,
+          "min": 0.0,
+          "max": 5.0,
+          "type": "float"
+        },
+        {
+          "symbol": "DryLevel",
+          "name": "Dry Level",
+          "default": -3.0,
+          "min": -90.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "LRPhaseShift",
+          "name": "L/R Phase Shift",
+          "default": 90.0,
+          "min": 0.0,
+          "max": 180.0,
+          "type": "float"
+        },
+        {
+          "symbol": "WetLevel",
+          "name": "Wet Level",
+          "default": -3.0,
+          "min": -90.0,
+          "max": 20.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "tap-deesser",
+      "name": "TAP DeEsser",
+      "uri": "http://moddevices.com/plugins/tap/deesser",
+      "plugin_dir": "tap-deesser.lv2",
+      "binary": "tap_deesser.so",
+      "effect_type": "dynamics",
+      "audio_in": 1,
+      "audio_out": 1,
+      "parameters": [
+        {
+          "symbol": "frequency",
+          "name": "Frequency",
+          "default": 0.0,
+          "min": -50.0,
+          "max": 10.0,
+          "type": "float"
+        },
+        {
+          "symbol": "frequency",
+          "name": "Frequency",
+          "default": 5500.0,
+          "min": 2000.0,
+          "max": 16000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "monitor",
+          "name": "Monitor",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "Audio",
+              "value": 0.0
+            },
+            {
+              "label": "Sidechain",
+              "value": 1.0
+            }
+          ]
+        },
+        {
+          "symbol": "sidechainfilter",
+          "name": "Sidechain Filter",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "Highpass",
+              "value": 0.0
+            },
+            {
+              "label": "Bandpass",
+              "value": 1.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tap-dynamics-st",
+      "name": "TAP Stereo Dynamics",
+      "uri": "http://moddevices.com/plugins/tap/dynamics-st",
+      "plugin_dir": "tap-dynamics-st.lv2",
+      "binary": "tap_dynamics-st.so",
+      "effect_type": "dynamics",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "function",
+          "name": "Function",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 14.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "2:1 comp at -6 dB",
+              "value": 0.0
+            }
+          ]
+        },
+        {
+          "symbol": "makeup",
+          "name": "MkUp Gain",
+          "default": 128.0,
+          "min": 4.0,
+          "max": 500.0,
+          "type": "float"
+        },
+        {
+          "symbol": "makeup",
+          "name": "Makeup Gain",
+          "default": 0.0,
+          "min": -20.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "offset",
+          "name": "Offset Gain",
+          "default": 0.0,
+          "min": -20.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "releaseM",
+          "name": "Release",
+          "default": 502.0,
+          "min": 4.0,
+          "max": 1000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "stereo",
+          "name": "Stereo Mode",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 2.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "Independent",
+              "value": 0.0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tap-dynamics",
+      "name": "TAP Mono Dynamics",
+      "uri": "http://moddevices.com/plugins/tap/dynamics",
+      "plugin_dir": "tap-dynamics.lv2",
+      "binary": "tap_dynamics.so",
+      "effect_type": "dynamics",
+      "audio_in": 1,
+      "audio_out": 1,
+      "parameters": [
+        {
+          "symbol": "function",
+          "name": "Function",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 14.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "2:1 comp at -6 dB",
+              "value": 0.0
+            }
+          ]
+        },
+        {
+          "symbol": "makeup",
+          "name": "MkUp Gain",
+          "default": 128.0,
+          "min": 4.0,
+          "max": 500.0,
+          "type": "float"
+        },
+        {
+          "symbol": "makeup",
+          "name": "Makeup Gain",
+          "default": 0.0,
+          "min": -20.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "offset",
+          "name": "Offset Gain",
+          "default": 0.0,
+          "min": -20.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "release",
+          "name": "Release",
+          "default": 502.0,
+          "min": 4.0,
+          "max": 1000.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "tap-echo",
+      "name": "TAP Stereo Echo",
+      "uri": "http://moddevices.com/plugins/tap/echo",
+      "plugin_dir": "tap-echo.lv2",
+      "binary": "tap_echo.dylib",
+      "effect_type": "delay",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "crossmode",
+          "name": "Cross Mode",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "toggle"
+        },
+        {
+          "symbol": "dryLevel",
+          "name": "Dry",
+          "default": 300.0,
+          "min": 0.0,
+          "max": 2000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "dryLevel",
+          "name": "Dry Level",
+          "default": -4.0,
+          "min": -70.0,
+          "max": 10.0,
+          "type": "float"
+        },
+        {
+          "symbol": "haaseffect",
+          "name": "Haas Effect",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "toggle"
+        },
+        {
+          "symbol": "lecholevel",
+          "name": "Left Echo Level",
+          "default": -4.0,
+          "min": -70.0,
+          "max": 10.0,
+          "type": "float"
+        },
+        {
+          "symbol": "lfeedback",
+          "name": "Left Feedback",
+          "default": 50.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "recholevel",
+          "name": "Right Echo Level",
+          "default": -4.0,
+          "min": -70.0,
+          "max": 10.0,
+          "type": "float"
+        },
+        {
+          "symbol": "rhaasdelay",
+          "name": "Right Haas Delay",
+          "default": 300.0,
+          "min": 0.0,
+          "max": 2000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "rhaasfeedback",
+          "name": "Right Haas Feedback",
+          "default": 50.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "swapoutputs",
+          "name": "Swap Outputs",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "toggle"
+        }
+      ]
+    },
+    {
+      "id": "tap-eq",
+      "name": "TAP Equalizer",
+      "uri": "http://moddevices.com/plugins/tap/eq",
+      "plugin_dir": "tap-eq.lv2",
+      "binary": "tap_eq.so",
+      "effect_type": "filter",
+      "audio_in": 1,
+      "audio_out": 1,
+      "parameters": [
+        {
+          "symbol": "Band1FreqHz",
+          "name": "Band 1 Freq [Hz]",
+          "default": 100.0,
+          "min": 40.0,
+          "max": 280.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band2FreqHz",
+          "name": "Band 2 Freq [Hz]",
+          "default": 200.0,
+          "min": 100.0,
+          "max": 500.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band2GainDb",
+          "name": "Band 2 Gain [dB]",
+          "default": 0.0,
+          "min": -50.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band3FreqHz",
+          "name": "Band 3 Freq [Hz]",
+          "default": 400.0,
+          "min": 200.0,
+          "max": 1000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band3GainDb",
+          "name": "Band 3 Gain [dB]",
+          "default": 0.0,
+          "min": -50.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band4FreqHz",
+          "name": "Band 4 Freq [Hz]",
+          "default": 1000.0,
+          "min": 400.0,
+          "max": 2800.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band4GainDb",
+          "name": "Band 4 Gain [dB]",
+          "default": 0.0,
+          "min": -50.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band5FreqHz",
+          "name": "Band 5 Freq [Hz]",
+          "default": 3000.0,
+          "min": 1000.0,
+          "max": 5000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band5GainDb",
+          "name": "Band 5 Gain [dB]",
+          "default": 0.0,
+          "min": -50.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band6FreqHz",
+          "name": "Band 6 Freq [Hz]",
+          "default": 6000.0,
+          "min": 3000.0,
+          "max": 9000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band6GainDb",
+          "name": "Band 6 Gain [dB]",
+          "default": 0.0,
+          "min": -50.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band7FreqHz",
+          "name": "Band 7 Freq [Hz]",
+          "default": 12000.0,
+          "min": 6000.0,
+          "max": 18000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band7GainDb",
+          "name": "Band 7 Gain [dB]",
+          "default": 0.0,
+          "min": -50.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band8FreqHz",
+          "name": "Band 8 Freq [Hz]",
+          "default": 15000.0,
+          "min": 10000.0,
+          "max": 20000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band8GainDb",
+          "name": "Band 1 Gain [dB]",
+          "default": 0.0,
+          "min": -50.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band8GainDb",
+          "name": "Band 8 Gain [dB]",
+          "default": 0.0,
+          "min": -50.0,
+          "max": 20.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "tap-eqbw",
+      "name": "TAP Equalizer/BW",
+      "uri": "http://moddevices.com/plugins/tap/eqbw",
+      "plugin_dir": "tap-eqbw.lv2",
+      "binary": "tap_eqbw.so",
+      "effect_type": "filter",
+      "audio_in": 1,
+      "audio_out": 1,
+      "parameters": [
+        {
+          "symbol": "Band1BandwidthOctaves",
+          "name": "Band 1 Bandwidth [octaves]",
+          "default": 1.0,
+          "min": 0.1,
+          "max": 5.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band1FreqHz",
+          "name": "Band 1 Freq [Hz]",
+          "default": 100.0,
+          "min": 40.0,
+          "max": 280.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band2BandwidthOctaves",
+          "name": "Band 2 Bandwidth [octaves]",
+          "default": 1.0,
+          "min": 0.1,
+          "max": 5.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band2FreqHz",
+          "name": "Band 2 Freq [Hz]",
+          "default": 200.0,
+          "min": 100.0,
+          "max": 500.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band2GainDb",
+          "name": "Band 2 Gain [dB]",
+          "default": 0.0,
+          "min": -50.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band3BandwidthOctaves",
+          "name": "Band 3 Bandwidth [octaves]",
+          "default": 1.0,
+          "min": 0.1,
+          "max": 5.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band3FreqHz",
+          "name": "Band 3 Freq [Hz]",
+          "default": 400.0,
+          "min": 200.0,
+          "max": 1000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band3GainDb",
+          "name": "Band 3 Gain [dB]",
+          "default": 0.0,
+          "min": -50.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band4BandwidthOctaves",
+          "name": "Band 4 Bandwidth [octaves]",
+          "default": 1.0,
+          "min": 0.1,
+          "max": 5.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band4FreqHz",
+          "name": "Band 4 Freq [Hz]",
+          "default": 1000.0,
+          "min": 400.0,
+          "max": 2800.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band4GainDb",
+          "name": "Band 4 Gain [dB]",
+          "default": 0.0,
+          "min": -50.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band5BandwidthOctaves",
+          "name": "Band 5 Bandwidth [octaves]",
+          "default": 1.0,
+          "min": 0.1,
+          "max": 5.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band5FreqHz",
+          "name": "Band 5 Freq [Hz]",
+          "default": 3000.0,
+          "min": 1000.0,
+          "max": 5000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band5GainDb",
+          "name": "Band 5 Gain [dB]",
+          "default": 0.0,
+          "min": -50.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band6BandwidthOctaves",
+          "name": "Band 6 Bandwidth [octaves]",
+          "default": 1.0,
+          "min": 0.1,
+          "max": 5.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band6FreqHz",
+          "name": "Band 6 Freq [Hz]",
+          "default": 6000.0,
+          "min": 3000.0,
+          "max": 9000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band6GainDb",
+          "name": "Band 6 Gain [dB]",
+          "default": 0.0,
+          "min": -50.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band7BandwidthOctaves",
+          "name": "Band 7 Bandwidth [octaves]",
+          "default": 1.0,
+          "min": 0.1,
+          "max": 5.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band7FreqHz",
+          "name": "Band 7 Freq [Hz]",
+          "default": 12000.0,
+          "min": 6000.0,
+          "max": 18000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band7GainDb",
+          "name": "Band 7 Gain [dB]",
+          "default": 0.0,
+          "min": -50.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band8BandwidthOctaves",
+          "name": "Band 8 Bandwidth [octaves]",
+          "default": 1.0,
+          "min": 0.1,
+          "max": 5.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band8FreqHz",
+          "name": "Band 8 Freq [Hz]",
+          "default": 15000.0,
+          "min": 10000.0,
+          "max": 20000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band8GainDb",
+          "name": "Band 1 Gain [dB]",
+          "default": 0.0,
+          "min": -50.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Band8GainDb",
+          "name": "Band 8 Gain [dB]",
+          "default": 0.0,
+          "min": -50.0,
+          "max": 20.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "tap-limiter",
+      "name": "TAP Scaling Limiter",
+      "uri": "http://moddevices.com/plugins/tap/limiter",
+      "plugin_dir": "tap-limiter.lv2",
+      "binary": "tap_limiter.so",
+      "effect_type": "dynamics",
+      "audio_in": 1,
+      "audio_out": 1,
+      "parameters": [
+        {
+          "symbol": "outputvolume",
+          "name": "Level",
+          "default": 0.0,
+          "min": -30.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "outputvolume",
+          "name": "Output Volume",
+          "default": 0.0,
+          "min": -30.0,
+          "max": 20.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "tap-pitch",
+      "name": "TAP Pitch Shifter",
+      "uri": "http://moddevices.com/plugins/tap/pitch",
+      "plugin_dir": "tap-pitch.lv2",
+      "binary": "tap_pitch.so",
+      "effect_type": "pitch",
+      "audio_in": 1,
+      "audio_out": 1,
+      "parameters": [
+        {
+          "symbol": "Drylevel",
+          "name": "Dry",
+          "default": 0.0,
+          "min": -12.0,
+          "max": 12.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Drylevel",
+          "name": "Dry Level",
+          "default": -90.0,
+          "min": -90.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Latency",
+          "name": "latency",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 16027.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Rate",
+          "name": "Rate Shift [%]",
+          "default": 0.0,
+          "min": -50.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Wetlevel",
+          "name": "Wet Level",
+          "default": 0.0,
+          "min": -90.0,
+          "max": 20.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "tap-reflector",
+      "name": "TAP Reflector",
+      "uri": "http://moddevices.com/plugins/tap/reflector",
+      "plugin_dir": "tap-reflector.lv2",
+      "binary": "tap_reflector.dylib",
+      "effect_type": "delay",
+      "audio_in": 1,
+      "audio_out": 1,
+      "parameters": [
+        {
+          "symbol": "dry",
+          "name": "Dry Level",
+          "default": 0.0,
+          "min": -90.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "wet",
+          "name": "Wet",
+          "default": 1000.0,
+          "min": 100.0,
+          "max": 1600.0,
+          "type": "float"
+        },
+        {
+          "symbol": "wet",
+          "name": "Wet Level",
+          "default": 0.0,
+          "min": -90.0,
+          "max": 20.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "tap-reverb",
+      "name": "TAP Reverberator",
+      "uri": "http://moddevices.com/plugins/tap/reverb",
+      "plugin_dir": "tap-reverb.lv2",
+      "binary": "tap_reverb.so",
+      "effect_type": "reverb",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "allps_en",
+          "name": "Allpass Filters",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "toggle"
+        },
+        {
+          "symbol": "bandpass_en",
+          "name": "Bandpass Filter",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "toggle"
+        },
+        {
+          "symbol": "combs_en",
+          "name": "Comb Filters",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "toggle"
+        },
+        {
+          "symbol": "drylevel",
+          "name": "Dry Level",
+          "default": -4.0,
+          "min": -70.0,
+          "max": 10.0,
+          "type": "float"
+        },
+        {
+          "symbol": "mode",
+          "name": "Reverb Type",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 42.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "AfterBurn",
+              "value": 0.0
+            }
+          ]
+        },
+        {
+          "symbol": "stereo_enh",
+          "name": "Enhanced Stereo",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "toggle"
+        },
+        {
+          "symbol": "wetlevel",
+          "name": "Wet",
+          "default": 2800.0,
+          "min": 0.0,
+          "max": 10000.0,
+          "type": "float"
+        },
+        {
+          "symbol": "wetlevel",
+          "name": "Wet Level",
+          "default": -12.0,
+          "min": -70.0,
+          "max": 10.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "tap-rotspeak",
+      "name": "TAP Rotary Speaker",
+      "uri": "http://moddevices.com/plugins/tap/rotspeak",
+      "plugin_dir": "tap-rotspeak.lv2",
+      "binary": "tap_rotspeak.so",
+      "effect_type": "modulation",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "bassfreq",
+          "name": "Rotor Frequency",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 30.0,
+          "type": "float"
+        },
+        {
+          "symbol": "hrbal",
+          "name": "Mix",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 30.0,
+          "type": "float"
+        },
+        {
+          "symbol": "hrbal",
+          "name": "Rotor/Horn Mix",
+          "default": 0.5,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        },
+        {
+          "symbol": "stwidht",
+          "name": "Mic Distance",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "tap-sigmoid",
+      "name": "TAP Sigmoid Booster",
+      "uri": "http://moddevices.com/plugins/tap/sigmoid",
+      "plugin_dir": "tap-sigmoid.lv2",
+      "binary": "tap_sigmoid.so",
+      "effect_type": "gain",
+      "audio_in": 1,
+      "audio_out": 1,
+      "parameters": [
+        {
+          "symbol": "Postgain",
+          "name": "Postgain",
+          "default": 0.0,
+          "min": -12.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "Pregain",
+          "name": "Pre-gain",
+          "default": 0.0,
+          "min": -12.0,
+          "max": 20.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "tap-tremolo",
+      "name": "TAP Tremolo",
+      "uri": "http://moddevices.com/plugins/tap/tremolo",
+      "plugin_dir": "tap-tremolo.lv2",
+      "binary": "tap_tremolo.dylib",
+      "effect_type": "modulation",
+      "audio_in": 1,
+      "audio_out": 1,
+      "parameters": [
+        {
+          "symbol": "depth",
+          "name": "Depth",
+          "default": 50.0,
+          "min": 0.0,
+          "max": 100.0,
+          "type": "float"
+        },
+        {
+          "symbol": "gain",
+          "name": "Level",
+          "default": 5.0,
+          "min": 0.0,
+          "max": 20.0,
+          "type": "float"
+        },
+        {
+          "symbol": "gain",
+          "name": "Gain",
+          "default": 0.0,
+          "min": -70.0,
+          "max": 20.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "tap-tubewarmth",
+      "name": "TAP Tubewarmth",
+      "uri": "http://moddevices.com/plugins/tap/tubewarmth",
+      "plugin_dir": "tap-tubewarmth.lv2",
+      "binary": "tap_tubewarmth.dylib",
+      "effect_type": "amp",
+      "audio_in": 1,
+      "audio_out": 1,
+      "parameters": [
+        {
+          "symbol": "blend",
+          "name": "Tape/Tube Blend",
+          "default": 5.0,
+          "min": 0.1,
+          "max": 10.0,
+          "type": "float"
+        },
+        {
+          "symbol": "blend",
+          "name": "Tape--Tube Blend",
+          "default": 10.0,
+          "min": -10.0,
+          "max": 10.0,
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "id": "wolf-shaper",
+      "name": "Wolf Shaper",
+      "uri": "https://github.com/pdesaulniers/wolf-shaper",
+      "plugin_dir": "wolf-shaper.lv2",
+      "binary": "wolf-shaper_dsp.dylib",
+      "effect_type": "gain",
+      "audio_in": 2,
+      "audio_out": 2,
+      "parameters": [
+        {
+          "symbol": "bipolarmode",
+          "name": "Bipolar Mode",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "Unipolar",
+              "value": 0.0
+            }
+          ]
+        },
+        {
+          "symbol": "oversample",
+          "name": "Oversample",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 4.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "None",
+              "value": 0.0
+            }
+          ]
+        },
+        {
+          "symbol": "postgain",
+          "name": "Post Gain",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        },
+        {
+          "symbol": "removedc",
+          "name": "Remove DC Offset",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "toggle"
+        },
+        {
+          "symbol": "vwarpamount",
+          "name": "V Warp Amount",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        },
+        {
+          "symbol": "vwarptype",
+          "name": "V Warp Type",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 6.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "None",
+              "value": 0.0
+            }
+          ]
+        },
+        {
+          "symbol": "warpamount",
+          "name": "H Warp Amount",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        },
+        {
+          "symbol": "warptype",
+          "name": "H Warp Type",
+          "default": 0.0,
+          "min": 0.0,
+          "max": 6.0,
+          "type": "enum",
+          "options": [
+            {
+              "label": "None",
+              "value": 0.0
+            }
+          ]
+        },
+        {
+          "symbol": "wet",
+          "name": "Wet",
+          "default": 1.0,
+          "min": 0.0,
+          "max": 1.0,
+          "type": "float"
+        }
+      ]
+    }
+  ]
+}
