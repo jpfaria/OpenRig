@@ -2621,7 +2621,7 @@ pub fn run_desktop_app(
                                 return;
                             };
                             if let Some(reading) = runtime.poll_tuner_reading() {
-                                log::info!("[tuner-stream] note={:?} freq={:?} cents={:?}", reading.note, reading.frequency, reading.cents_off);
+                                log::trace!("[tuner-stream] note={:?} freq={:?} cents={:?}", reading.note, reading.frequency, reading.cents_off);
                                 let entries = vec![
                                     BlockStreamEntry {
                                         key: "note".into(),

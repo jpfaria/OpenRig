@@ -1039,7 +1039,18 @@ component ChainRow inherits Rectangle {
     border-width: 1px;
     border-color: #31353d;
     border-radius: 6px;
+    clip: true;
     height: 74px + (root.block-row-count * 108px);
+
+    // Wood texture background
+    Image {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        source: @image-url("../../../../assets/backgrounds/pedalboard_wood.jpg");
+        image-fit: cover;
+    }
 
     Rectangle {
         x: 0px;

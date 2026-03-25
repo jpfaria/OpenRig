@@ -5,7 +5,7 @@ use block_core::param::{
     bool_parameter, float_parameter, required_bool, required_f32, ModelParameterSchema,
     ParameterSet, ParameterUnit,
 };
-use block_core::{db_to_lin, AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
+use block_core::{db_to_lin, AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor};
 
 pub const MODEL_ID: &str = "volume";
 pub const DISPLAY_NAME: &str = "Volume";
