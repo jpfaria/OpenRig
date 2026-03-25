@@ -1,11 +1,30 @@
 // Single source of truth for brand → logo mapping.
 // Use this component everywhere instead of duplicating the if chain.
+// Brands without a logo are hidden automatically.
 
 export component BrandLogo inherits Image {
     in property <string> brand;
     in property <color> tint: #ffffff;
 
-    visible: root.brand != "native" && root.brand != "";
+    property <bool> has-logo: root.brand == "marshall"
+        || root.brand == "vox"
+        || root.brand == "bogner"
+        || root.brand == "fender"
+        || root.brand == "ibanez"
+        || root.brand == "roland"
+        || root.brand == "boss"
+        || root.brand == "taylor"
+        || root.brand == "gibson"
+        || root.brand == "martin"
+        || root.brand == "takamine"
+        || root.brand == "guild"
+        || root.brand == "collings"
+        || root.brand == "suhr"
+        || root.brand == "santa_cruz"
+        || root.brand == "morris"
+        || root.brand == "jhs";
+
+    visible: root.has-logo;
 
     source: root.brand == "marshall" ? @image-url("../../../../assets/brands/marshall/logo.svg")
         : root.brand == "vox" ? @image-url("../../../../assets/brands/vox/logo.svg")
@@ -24,8 +43,7 @@ export component BrandLogo inherits Image {
         : root.brand == "santa_cruz" ? @image-url("../../../../assets/brands/santa_cruz/logo.svg")
         : root.brand == "morris" ? @image-url("../../../../assets/brands/morris/logo.svg")
         : root.brand == "jhs" ? @image-url("../../../../assets/brands/jhs/logo.png")
-        : root.brand == "diezel" ? @image-url("../../../../assets/brands/marshall/logo.svg")
-        : @image-url("../../../../assets/brands/marshall/logo.svg");
+        : @image-url("../../../../assets/brands/marshall/logo.svg"); // fallback never shown (visible: false)
     image-fit: contain;
     colorize: root.brand == "vox" ? Colors.transparent : root.tint;
 }
