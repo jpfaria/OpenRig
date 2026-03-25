@@ -160,6 +160,7 @@ impl AudioProcessor {
 pub struct ChainRuntimeState {
     processing: Mutex<ChainProcessingState>,
     output: Mutex<ChainOutputState>,
+    pub tuner_reading: Mutex<block_util::TunerReading>,
 }
 
 /// Number of frames to fade in after a chain rebuild to avoid clicks/pops.
@@ -286,6 +287,7 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
             output_mixdown: chain.output_mixdown,
             processed_frames: VecDeque::with_capacity(MAX_BUFFERED_OUTPUT_FRAMES),
         }),
+        tuner_reading: Mutex::new(block_util::TunerReading::default()),
     })
 }
 
@@ -943,6 +945,12 @@ pub fn process_input_f32(runtime: &Arc<ChainRuntimeState>, data: &[f32], input_t
         for block in blocks.iter_mut() {
             process_tuners(block, tuner_samples);
         }
+        // Copy latest tuner reading for UI access
+        if let Some(reading) = blocks.iter().find_map(extract_tuner_reading) {
+            if let Ok(mut tr) = runtime.tuner_reading.lock() {
+                *tr = reading;
+            }
+        }
     }
 
     for block in blocks.iter_mut() {
@@ -983,6 +991,19 @@ fn block_has_active_tuner(block: &BlockRuntimeNode) -> bool {
             .map(block_has_active_tuner)
             .unwrap_or(false),
         RuntimeProcessor::Audio(_) | RuntimeProcessor::Bypass => false,
+    }
+}
+
+fn extract_tuner_reading(block: &BlockRuntimeNode) -> Option<block_util::TunerReading> {
+    match &block.processor {
+        RuntimeProcessor::Tuner(tuner) => {
+            let r = tuner.latest_reading();
+            if r.frequency.is_some() { Some(r.clone()) } else { None }
+        }
+        RuntimeProcessor::Select(select) => {
+            select.selected_node().and_then(extract_tuner_reading)
+        }
+        _ => None,
     }
 }
 

@@ -6,7 +6,7 @@ use anyhow::Result;
 use block_core::param::{ModelParameterSchema, ParameterSet};
 use block_core::ModelVisualData;
 
-pub use processor::TunerProcessor;
+pub use processor::{TunerProcessor, TunerReading};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(dead_code)]
