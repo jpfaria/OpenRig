@@ -945,9 +945,9 @@ pub fn process_input_f32(runtime: &Arc<ChainRuntimeState>, data: &[f32], input_t
         for block in blocks.iter_mut() {
             process_tuners(block, tuner_samples);
         }
-        // Copy latest tuner reading for UI access
+        // Copy latest tuner reading for UI access (non-blocking to avoid audio glitches)
         if let Some(reading) = blocks.iter().find_map(extract_tuner_reading) {
-            if let Ok(mut tr) = runtime.tuner_reading.lock() {
+            if let Ok(mut tr) = runtime.tuner_reading.try_lock() {
                 *tr = reading;
             }
         }
