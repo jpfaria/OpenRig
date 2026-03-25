@@ -1889,7 +1889,7 @@ pub fn run_desktop_app(
                 let project_dirty = project_dirty.clone();
                 let input_chain_devices = input_chain_devices.clone();
                 let output_chain_devices = output_chain_devices.clone();
-                let toast_timer = toast_timer.clone();
+                let _toast_timer = toast_timer.clone();
                 compact_win.on_remove_block(move |ci, bi| {
                     log::info!("[compact] remove-block: chain={}, block={}", ci, bi);
                     let Some(main_win) = weak_main.upgrade() else { return; };

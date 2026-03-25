@@ -185,23 +185,18 @@ pub fn model_schema() -> ModelParameterSchema {
             &[("2", "Ch 2"), ("3", "Ch 3"), ("4", "Ch 4")],
         ),
         enum_parameter(
-            "gain",
+            "voicing",
+            "Voicing",
+            Some("Amp"),
+            Some("high"),
+            &[("bright", "Bright"), ("low", "Low"), ("mid", "Mid"), ("high", "High")],
+        ),
+        enum_parameter(
+            "gain_level",
             "Gain",
             Some("Amp"),
-            Some("hg_01"),
-            &[
-                ("br_lg", "Bright Low"),
-                ("br_mg", "Bright Mid"),
-                ("lg_01", "Low 1"),
-                ("lg_02", "Low 2"),
-                ("lg_03", "Low 3"),
-                ("mg_01", "Mid 1"),
-                ("mg_02", "Mid 2"),
-                ("mg_03", "Mid 3"),
-                ("hg_01", "High 1"),
-                ("hg_02", "High 2"),
-                ("hg_03", "High 3"),
-            ],
+            Some("1"),
+            &[("1", "1"), ("2", "2"), ("3", "3")],
         ),
         enum_parameter(
             "boost",
@@ -265,10 +260,36 @@ pub fn asset_summary(params: &ParameterSet) -> Result<String> {
     Ok(format!("asset_id='{}'", capture.asset.id))
 }
 
+fn voicing_gain_to_gain_level(voicing: &str, level: &str) -> GainLevel {
+    match (voicing, level) {
+        ("bright", "1") | ("bright", "2") | ("bright", "3") => {
+            // Bright only has Low and Mid variants
+            if level == "1" { GainLevel::BrLg } else { GainLevel::BrMg }
+        }
+        ("low", "1") => GainLevel::Lg01,
+        ("low", "2") => GainLevel::Lg02,
+        ("low", _)   => GainLevel::Lg03,
+        ("mid", "1") => GainLevel::Mg01,
+        ("mid", "2") => GainLevel::Mg02,
+        ("mid", _)   => GainLevel::Mg03,
+        ("high", "1") => GainLevel::Hg01,
+        ("high", "2") => GainLevel::Hg02,
+        ("high", _)   => GainLevel::Hg03,
+        _ => GainLevel::Hg01,
+    }
+}
+
 fn resolve_capture(params: &ParameterSet) -> Result<&'static DiezelVh4Capture> {
     let channel = parse_channel(&required_string(params, "channel").map_err(anyhow::Error::msg)?)?;
-    let gain = parse_gain(&required_string(params, "gain").map_err(anyhow::Error::msg)?)?;
     let boost = parse_boost(&required_string(params, "boost").map_err(anyhow::Error::msg)?)?;
+
+    // Support both old "gain" param (combined) and new "voicing"+"gain_level" (separate)
+    let gain = if let Ok(voicing) = required_string(params, "voicing").map_err(anyhow::Error::msg) {
+        let level = required_string(params, "gain_level").map_err(anyhow::Error::msg).unwrap_or_else(|_| "1".to_string());
+        voicing_gain_to_gain_level(&voicing, &level)
+    } else {
+        parse_gain(&required_string(params, "gain").map_err(anyhow::Error::msg)?)?
+    };
 
     // Try exact match first
     if let Some(capture) = CAPTURES.iter().find(|c| c.channel == channel && c.gain == gain && c.boost == boost) {
