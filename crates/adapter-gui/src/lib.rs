@@ -2617,9 +2617,11 @@ pub fn run_desktop_app(
                             };
                             let runtime_borrow = project_runtime_stream.borrow();
                             let Some(runtime) = runtime_borrow.as_ref() else {
+                                log::debug!("[tuner-stream] no runtime");
                                 return;
                             };
                             if let Some(reading) = runtime.poll_tuner_reading() {
+                                log::info!("[tuner-stream] note={:?} freq={:?} cents={:?}", reading.note, reading.frequency, reading.cents_off);
                                 let entries = vec![
                                     BlockStreamEntry {
                                         key: "note".into(),
