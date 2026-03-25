@@ -103,15 +103,22 @@ impl TunerProcessor for ChromaticTuner {
         if !self.enabled {
             return;
         }
+        // Only accumulate samples — detection runs lazily when reading is requested
         self.buffer.extend_from_slice(samples);
-        if self.buffer.len() >= BUFFER_SIZE {
-            let detected_frequency = self.simple_amdf();
-            self.reading = detected_frequency.into();
-            self.buffer.clear();
+        if self.buffer.len() > BUFFER_SIZE * 2 {
+            // Trim old samples, keep the latest BUFFER_SIZE
+            let start = self.buffer.len() - BUFFER_SIZE;
+            self.buffer.drain(..start);
         }
     }
 
-    fn latest_reading(&self) -> &TunerReading {
+    fn latest_reading(&mut self) -> &TunerReading {
+        // Run detection lazily — called from UI polling, NOT audio thread
+        if self.buffer.len() >= BUFFER_SIZE {
+            let detected = self.simple_amdf();
+            self.reading = detected.into();
+            self.buffer.clear();
+        }
         &self.reading
     }
 }

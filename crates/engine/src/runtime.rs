@@ -163,6 +163,20 @@ pub struct ChainRuntimeState {
     pub tuner_reading: Mutex<block_util::TunerReading>,
 }
 
+impl ChainRuntimeState {
+    /// Poll tuner reading from UI thread (non-blocking).
+    /// Runs the lazy detection if enough samples accumulated.
+    pub fn poll_tuner(&self) -> Option<block_util::TunerReading> {
+        let mut processing = self.processing.try_lock().ok()?;
+        for block in processing.blocks.iter_mut() {
+            if let Some(reading) = extract_tuner_reading(block) {
+                return Some(reading);
+            }
+        }
+        None
+    }
+}
+
 /// Number of frames to fade in after a chain rebuild to avoid clicks/pops.
 const FADE_IN_FRAMES: usize = 128;
 
@@ -945,12 +959,6 @@ pub fn process_input_f32(runtime: &Arc<ChainRuntimeState>, data: &[f32], input_t
         for block in blocks.iter_mut() {
             process_tuners(block, tuner_samples);
         }
-        // Copy latest tuner reading for UI access (non-blocking to avoid audio glitches)
-        if let Some(reading) = blocks.iter().find_map(extract_tuner_reading) {
-            if let Ok(mut tr) = runtime.tuner_reading.try_lock() {
-                *tr = reading;
-            }
-        }
     }
 
     for block in blocks.iter_mut() {
@@ -994,14 +1002,14 @@ fn block_has_active_tuner(block: &BlockRuntimeNode) -> bool {
     }
 }
 
-fn extract_tuner_reading(block: &BlockRuntimeNode) -> Option<block_util::TunerReading> {
-    match &block.processor {
+fn extract_tuner_reading(block: &mut BlockRuntimeNode) -> Option<block_util::TunerReading> {
+    match &mut block.processor {
         RuntimeProcessor::Tuner(tuner) => {
             let r = tuner.latest_reading();
             if r.frequency.is_some() { Some(r.clone()) } else { None }
         }
         RuntimeProcessor::Select(select) => {
-            select.selected_node().and_then(extract_tuner_reading)
+            select.selected_node_mut().and_then(extract_tuner_reading)
         }
         _ => None,
     }
