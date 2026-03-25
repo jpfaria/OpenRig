@@ -202,7 +202,7 @@ component PanelKnob inherits Rectangle {
     }
 
     ta := TouchArea {
-        mouse-cursor: ns-resize;
+        mouse-cursor: ta.pressed ? none : ns-resize;
 
         pointer-event(ev) => {
             if ev.kind == PointerEventKind.down {
