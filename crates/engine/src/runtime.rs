@@ -1095,14 +1095,13 @@ fn silent_frame(layout: AudioChannelLayout) -> AudioFrame {
     }
 }
 
-/// Soft limiter to prevent output from exceeding 0dBFS.
-/// Uses tanh-like saturation for natural limiting.
+/// Soft limiter — transparent below 0dBFS, gentle saturation above.
 #[inline]
 fn output_limiter(sample: f32) -> f32 {
-    if sample.abs() <= 0.9 {
+    if sample.abs() < 0.95 {
         sample
     } else {
-        sample.clamp(-1.0, 1.0)
+        sample.tanh()
     }
 }
 
