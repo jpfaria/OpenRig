@@ -680,6 +680,12 @@ export component BlockPanelEditor inherits Rectangle {
                 image-fit: contain; colorize: #ffffff;
             }
 
+            if root.selected-brand == "jhs" : Image {
+                x: parent.width * 0.1; y: 6px; width: parent.width * 0.8; height: 60px;
+                source: @image-url("../../../../assets/brands/jhs/logo.png");
+                image-fit: contain; colorize: #ffffff;
+            }
+
             if root.selected-brand == "fender" : Image {
                 x: parent.width * 0.1; y: 6px; width: parent.width * 0.8; height: 60px;
                 source: @image-url("../../../../assets/brands/fender/logo.svg");
@@ -831,10 +837,13 @@ export component BlockPanelEditor inherits Rectangle {
         // ── Enum parameters (segmented for ≤4 options) ──
         for param[pi] in root.block-parameter-items : Rectangle {
             visible: param.widget_kind == "enum" && param.option_labels.length <= 4;
-            property <length> seg-width: Math.max(150px, param.option_labels.length * 80px);
-            x: 60px + pi * 290px;
+            property <length> seg-width: Math.max(120px, param.option_labels.length * 72px);
+            property <length> available: parent.width - 60px - 28px;
+            property <int> enum-count: root.block-parameter-items.length;
+            property <length> slot-width: enum-count > 0 ? available / enum-count : 290px;
+            x: 60px + pi * slot-width;
             y: parent.height * 0.54;
-            width: self.seg-width;
+            width: Math.min(self.seg-width, slot-width - 8px);
             height: 60px;
 
             Text {
@@ -885,9 +894,12 @@ export component BlockPanelEditor inherits Rectangle {
         // ── Enum parameters with 5+ options (dropdown select) ──
         for param[pi] in root.block-parameter-items : Rectangle {
             visible: param.widget_kind == "enum" && param.option_labels.length > 4;
-            x: 60px + pi * 290px;
+            property <length> available: parent.width - 60px - 28px;
+            property <int> enum-count: root.block-parameter-items.length;
+            property <length> slot-width: enum-count > 0 ? available / enum-count : 290px;
+            x: 60px + pi * slot-width;
             y: parent.height * 0.54;
-            width: 260px;
+            width: Math.min(260px, slot-width - 8px);
             height: 60px;
 
             Text {
