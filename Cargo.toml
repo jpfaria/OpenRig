@@ -22,6 +22,7 @@ members = [
   "crates/block-full-rig",
   "crates/block-cab",
   "crates/block-body",
+  "crates/lv2",
   "crates/ir",
   "crates/block-ir",
   "crates/block-wah",

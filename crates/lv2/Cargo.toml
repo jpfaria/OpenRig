@@ -1,0 +1,10 @@
+[package]
+name = "lv2"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+block-core = { path = "../block-core" }
+anyhow.workspace = true
+log.workspace = true
+libloading = "0.8"

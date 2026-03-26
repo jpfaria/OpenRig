@@ -129,10 +129,12 @@ dependencies = [
  "anyhow",
  "application",
  "block-core",
+ "block-thumbnails",
  "cpal",
  "domain",
  "engine",
  "env_logger",
+ "image",
  "infra-cpal",
  "infra-filesystem",
  "infra-yaml",
@@ -892,6 +894,10 @@ dependencies = [
 
 [[package]]
 name = "block-routing"
+version = "0.1.0"
+
+[[package]]
+name = "block-thumbnails"
 version = "0.1.0"
 
 [[package]]
@@ -2849,6 +2855,7 @@ name = "infra-cpal"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "block-util",
  "cpal",
  "domain",
  "engine",
@@ -3223,6 +3230,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fae87c125b03c1d2c0150c90365d7d6bcc53fb73a9acaef207d2d065860f062"
 dependencies = [
  "imgref",
+]
+
+[[package]]
+name = "lv2"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "block-core",
+ "libloading",
+ "log",
 ]
 
 [[package]]
