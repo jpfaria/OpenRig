@@ -235,7 +235,7 @@ struct ChainOutputState {
 
 enum RuntimeProcessor {
     Audio(AudioProcessor),
-    Tuner(Box<dyn TunerProcessor>),
+    Tuner(()),
     Select(SelectRuntimeState),
     Bypass,
 }
