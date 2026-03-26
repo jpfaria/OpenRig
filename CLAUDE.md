@@ -6,6 +6,33 @@ Pedalboard/rig virtual para guitarra em Rust. Processa áudio em cadeia (chain) 
 
 ---
 
+## Fluxo de Desenvolvimento (OBRIGATORIO)
+
+Toda mudanca segue este fluxo. Sem excecoes.
+
+```
+Issue → Branch → Commits → PR → Review/Merge
+```
+
+1. **Issue primeiro** — criar issue no GitHub antes de escrever qualquer codigo
+2. **Branch por issue** — `git checkout -b issue-{N}-descricao-curta`
+3. **Commits em ingles** — sem `Co-Authored-By`, foco no "why"
+4. **PR para main** — `gh pr create` com `Closes #N` no body
+5. **Merge policy**:
+   - **Bugfix**: merge imediato apos criar o PR
+   - **Feature**: PR aguarda review antes de merge
+
+### Regras de codigo
+
+- **Zero warnings** — `cargo build` nao pode ter nenhum warning
+- **Zero acoplamento** — blocos nao referenciam modelos, brands ou effect types especificos
+- **Single source of truth** — constantes definidas uma vez, nunca duplicadas
+- **Separacao de concerns** — crates de business logic nao tem config visual/UI
+
+Ver `CONTRIBUTING.md` para detalhes completos.
+
+---
+
 ## Arquitetura
 
 ### Crates principais
