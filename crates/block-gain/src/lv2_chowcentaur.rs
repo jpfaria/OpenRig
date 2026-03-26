@@ -7,7 +7,7 @@ use block_core::param::{
 };
 use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
 
-pub const MODEL_ID: &str = "chowcentaur";
+pub const MODEL_ID: &str = "lv2_chowcentaur";
 pub const DISPLAY_NAME: &str = "Centaur";
 const BRAND: &str = "chowdsp";
 
