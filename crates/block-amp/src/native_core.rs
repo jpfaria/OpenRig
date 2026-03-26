@@ -236,10 +236,6 @@ fn build_native_combo_mono_processor(
     settings: NativeAmpSettings,
     sample_rate: f32,
 ) -> Box<dyn MonoProcessor> {
-    fn percent_to_gain_db(p: f32) -> f32 {
-        -18.0 + (p / 100.0) * 36.0
-    }
-
     let head = build_native_head_mono_processor(
         profile.head_profile,
         NativeAmpHeadSettings {

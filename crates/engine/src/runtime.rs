@@ -235,6 +235,7 @@ struct ChainOutputState {
 
 enum RuntimeProcessor {
     Audio(AudioProcessor),
+    #[allow(dead_code)]
     Tuner(Box<dyn TunerProcessor>),
     Select(SelectRuntimeState),
     Bypass,
@@ -1070,6 +1071,7 @@ fn detect_pitch(samples: &[f32]) -> block_util::TunerReading {
     block_util::TunerReading::from(Some(freq))
 }
 
+#[allow(dead_code)]
 fn extract_tuner_reading(block: &mut BlockRuntimeNode) -> Option<block_util::TunerReading> {
     match &mut block.processor {
         RuntimeProcessor::Tuner(tuner) => {
@@ -1083,6 +1085,7 @@ fn extract_tuner_reading(block: &mut BlockRuntimeNode) -> Option<block_util::Tun
     }
 }
 
+#[allow(dead_code)]
 fn process_tuners(block: &mut BlockRuntimeNode, tuner_samples: &[f32]) {
     match &mut block.processor {
         RuntimeProcessor::Tuner(tuner) => {

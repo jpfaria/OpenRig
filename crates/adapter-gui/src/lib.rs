@@ -2079,7 +2079,7 @@ pub fn run_desktop_app(
                         let reading = rt.poll_tuner_reading();
                         if let Some(reading) = reading {
                             let session_borrow = project_session_poll.borrow();
-                            let Some(session) = session_borrow.as_ref() else { return; };
+                            let Some(_session) = session_borrow.as_ref() else { return; };
                             // Find tuner block index and update its stream data
                             let compact_blocks = cw.get_compact_blocks();
                             for i in 0..compact_blocks.row_count() {
@@ -5027,6 +5027,7 @@ fn build_compact_blocks(
                     let items = block_model_picker_items(&effect_type, instrument);
                     items.iter().position(|i| i.model_id.as_str() == model_id).map(|i| i as i32).unwrap_or(-1)
                 },
+                stream_data: Default::default(),
             })
         })
         .collect()

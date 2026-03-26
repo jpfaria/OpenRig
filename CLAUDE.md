@@ -6,6 +6,46 @@ Pedalboard/rig virtual para guitarra em Rust. Processa áudio em cadeia (chain) 
 
 ---
 
+## Fluxo de Desenvolvimento — Gitflow (OBRIGATORIO)
+
+Este projeto segue [Gitflow](https://nvie.com/posts/a-successful-git-branching-model/). Sem excecoes.
+
+```
+Issue → Branch (from develop) → Commits → PR → Review/Merge
+```
+
+### Branches
+
+| Branch | Proposito | Merge into |
+|--------|-----------|------------|
+| `main` | Releases prontas para producao | — |
+| `develop` | Integracao para proxima release | `main` |
+| `feature/*` | Novas funcionalidades | `develop` |
+| `bugfix/*` | Correcoes de bugs | `develop` |
+| `hotfix/*` | Correcoes urgentes em producao | `main` + `develop` |
+| `release/*` | Preparacao de release | `main` + `develop` |
+
+### Fluxo
+
+1. **Issue primeiro** — criar issue no GitHub antes de escrever qualquer codigo
+2. **Branch por issue desde develop** — `git checkout -b feature/issue-{N}-descricao` ou `bugfix/issue-{N}-descricao`
+3. **Commits em ingles** — sem `Co-Authored-By`, foco no "why"
+4. **PR para develop** — `gh pr create --base develop` com `Closes #N` no body
+5. **Merge policy**:
+   - **Bugfix/Hotfix**: merge imediato apos criar o PR
+   - **Feature/Enhancement**: PR aguarda review antes de merge
+
+### Regras de codigo
+
+- **Zero warnings** — `cargo build` nao pode ter nenhum warning
+- **Zero acoplamento** — blocos nao referenciam modelos, brands ou effect types especificos
+- **Single source of truth** — constantes definidas uma vez, nunca duplicadas
+- **Separacao de concerns** — crates de business logic nao tem config visual/UI
+
+Ver `CONTRIBUTING.md` para detalhes completos.
+
+---
+
 ## Arquitetura
 
 ### Crates principais

@@ -95,6 +95,21 @@ export struct BlockParameterItem {
     allow_empty: bool,
 }
 
+// Key-value entry for realtime data streams
+export struct BlockStreamEntry {
+    key: string,
+    value: float,
+    text: string,
+}
+
+// Realtime data stream for blocks that produce live readings (tuner, meter, analyzer).
+// The block editor polls this data and renders it when a stream is active.
+export struct BlockStreamData {
+    active: bool,
+    stream_kind: string,          // "tuner", "meter", "analyzer"
+    entries: [BlockStreamEntry],  // arbitrary key-value pairs
+}
+
 export struct CompactBlockItem {
     chain_index: int,
     block_index: int,
@@ -115,21 +130,6 @@ export struct CompactBlockItem {
     model_labels: [string],
     model_selected_index: int,
     stream_data: BlockStreamData,
-}
-
-// Key-value entry for realtime data streams
-export struct BlockStreamEntry {
-    key: string,
-    value: float,
-    text: string,
-}
-
-// Realtime data stream for blocks that produce live readings (tuner, meter, analyzer).
-// The block editor polls this data and renders it when a stream is active.
-export struct BlockStreamData {
-    active: bool,
-    stream_kind: string,          // "tuner", "meter", "analyzer"
-    entries: [BlockStreamEntry],  // arbitrary key-value pairs
 }
 
 export struct RecentProjectItem {
