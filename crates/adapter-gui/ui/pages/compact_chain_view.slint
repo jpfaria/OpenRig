@@ -489,6 +489,62 @@ component CompactBlockRow inherits Rectangle {
         }
     }
 
+    // ── Stream data display (tuner readings, meter, etc.) ──
+    if root.block-data.stream-data.active : Rectangle {
+        x: 500px;
+        y: 4px;
+        width: parent.width - 540px;
+        height: parent.height - 8px;
+        background: transparent;
+
+        for entry[ei] in root.block-data.stream-data.entries : Rectangle {
+            property <length> slot-w: parent.width / root.block-data.stream-data.entries.length;
+            x: ei * slot-w;
+            y: 0;
+            width: slot-w;
+            height: parent.height;
+
+            Text {
+                x: 0; y: 2px; width: parent.width; height: 12px;
+                text: entry.key;
+                color: #506070;
+                font-size: 7px; font-weight: 700; letter-spacing: 1px;
+                horizontal-alignment: center;
+            }
+
+            Text {
+                x: 0; y: 14px; width: parent.width; height: parent.height - 32px;
+                text: entry.text;
+                color: entry.value > 0.5 && entry.key == "in_tune" ? #29df85 : root.block-data.panel-text;
+                font-size: entry.text.character-count <= 3 ? 28px : 14px;
+                font-weight: 900;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            if entry.key == "cents" : Rectangle {
+                x: 8px; y: parent.height - 14px;
+                width: parent.width - 16px; height: 6px;
+                background: #1a1e28;
+                border-radius: 3px;
+
+                Rectangle {
+                    x: (parent.width - 1px) / 2;
+                    y: 0; width: 1px; height: parent.height;
+                    background: #405060;
+                }
+
+                Rectangle {
+                    property <float> norm: (entry.value / 50.0).clamp(-1.0, 1.0);
+                    x: (parent.width / 2) + self.norm * (parent.width / 2) - 3px;
+                    y: 0; width: 6px; height: parent.height;
+                    background: self.norm > -0.1 && self.norm < 0.1 ? #29df85 : #ff6a57;
+                    border-radius: 3px;
+                }
+            }
+        }
+    }
+
     // ── Delete button (top-right corner, visible on hover) ──
     Rectangle {
         x: parent.width - 28px;

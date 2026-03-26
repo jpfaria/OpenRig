@@ -16,7 +16,7 @@ pub struct NativeCabSettings {
     pub mic_position: f32,
     pub mic_distance: f32,
     pub room_mix: f32,
-    pub output_db: f32,
+    pub output: f32,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -100,6 +100,10 @@ impl DelayTap {
     }
 }
 
+fn percent_to_gain_db(p: f32) -> f32 {
+    -18.0 + (p / 100.0) * 36.0
+}
+
 impl NativeCabProcessor {
     fn new(profile: NativeCabProfile, settings: NativeCabSettings, sample_rate: f32) -> Self {
         let mic_position = (settings.mic_position / 100.0).clamp(0.0, 1.0);
@@ -114,7 +118,7 @@ impl NativeCabProcessor {
         Self {
             settings,
             profile,
-            output_gain: db_to_lin(settings.output_db),
+            output_gain: db_to_lin(percent_to_gain_db(settings.output)),
             low_cut: OnePoleHighPass::new(settings.low_cut_hz, sample_rate),
             core_low_pass: OnePoleLowPass::new(effective_high_cut, sample_rate),
             resonance_high_pass: OnePoleHighPass::new(profile.resonance_hz * 0.75, sample_rate),
@@ -237,14 +241,14 @@ pub fn model_schema(
                 ParameterUnit::Percent,
             ),
             float_parameter(
-                "output_db",
+                "output",
                 "Output",
                 Some("Output"),
-                Some(0.0),
-                -18.0,
-                18.0,
-                0.5,
-                ParameterUnit::Decibels,
+                Some(50.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
             ),
         ],
     }
@@ -259,7 +263,7 @@ pub fn settings_from_params(params: &ParameterSet) -> Result<NativeCabSettings> 
         mic_position: required_f32(params, "mic_position").map_err(anyhow::Error::msg)?,
         mic_distance: required_f32(params, "mic_distance").map_err(anyhow::Error::msg)?,
         room_mix: required_f32(params, "room_mix").map_err(anyhow::Error::msg)?,
-        output_db: required_f32(params, "output_db").map_err(anyhow::Error::msg)?,
+        output: required_f32(params, "output").map_err(anyhow::Error::msg)?,
     })
 }
 

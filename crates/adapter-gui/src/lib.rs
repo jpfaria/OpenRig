@@ -2063,6 +2063,60 @@ pub fn run_desktop_app(
                 });
             }
 
+            // Tuner stream polling timer — updates stream_data for tuner blocks
+            {
+                let weak_cw = compact_win.as_weak();
+                let project_runtime_poll = project_runtime.clone();
+                let project_session_poll = project_session.clone();
+                let tuner_timer = Timer::default();
+                tuner_timer.start(
+                    slint::TimerMode::Repeated,
+                    std::time::Duration::from_millis(80),
+                    move || {
+                        let Some(cw) = weak_cw.upgrade() else { return; };
+                        let rt_borrow = project_runtime_poll.borrow();
+                        let Some(rt) = rt_borrow.as_ref() else { return; };
+                        let reading = rt.poll_tuner_reading();
+                        if let Some(reading) = reading {
+                            let session_borrow = project_session_poll.borrow();
+                            let Some(session) = session_borrow.as_ref() else { return; };
+                            // Find tuner block index and update its stream data
+                            let compact_blocks = cw.get_compact_blocks();
+                            for i in 0..compact_blocks.row_count() {
+                                if let Some(mut item) = compact_blocks.row_data(i) {
+                                    if item.effect_type == "utility" {
+                                        item.stream_data = BlockStreamData {
+                                            active: true,
+                                            stream_kind: "tuner".into(),
+                                            entries: ModelRc::from(Rc::new(VecModel::from(vec![
+                                                BlockStreamEntry {
+                                                    key: "note".into(),
+                                                    value: 0.0,
+                                                    text: reading.note.clone().unwrap_or_default().into(),
+                                                },
+                                                BlockStreamEntry {
+                                                    key: "cents".into(),
+                                                    value: reading.cents_off.unwrap_or(0.0),
+                                                    text: format!("{:+.0}", reading.cents_off.unwrap_or(0.0)).into(),
+                                                },
+                                                BlockStreamEntry {
+                                                    key: "Hz".into(),
+                                                    value: reading.frequency.unwrap_or(0.0),
+                                                    text: format!("{:.0}", reading.frequency.unwrap_or(0.0)).into(),
+                                                },
+                                            ]))),
+                                        };
+                                        compact_blocks.set_row_data(i, item);
+                                    }
+                                }
+                            }
+                        }
+                    },
+                );
+                // Timer lives as long as compact_win (dropped when window closes)
+                std::mem::forget(tuner_timer);
+            }
+
             show_child_window(window.window(), compact_win.window());
         });
     }
@@ -2487,9 +2541,11 @@ pub fn run_desktop_app(
                 return;
             };
             let Some(block) = chain.blocks.get(block_index as usize) else {
+                log::warn!("[select_chain_block] block_index={} out of bounds, chain has {} blocks", block_index, chain.blocks.len());
                 set_status_error(&window, &toast_timer, "Block inválido.");
                 return;
             };
+            log::info!("[select_chain_block] block at index {}: id='{}', kind={:?}", block_index, block.id.0, block.model_ref().map(|m| format!("{}/{}", m.effect_type, m.model)));
             let Some(editor_data) = block_editor_data(block) else {
                 set_status_error(&window, &toast_timer, "Esse block ainda não pode ser editado pela GUI.");
                 return;
@@ -4799,9 +4855,6 @@ fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerItem> {
 fn block_model_picker_items(effect_type: &str, instrument: &str) -> Vec<BlockModelPickerItem> {
     let all_models = supported_block_models(effect_type).unwrap_or_default();
     log::trace!("[block_model_picker_items] effect_type='{}', instrument='{}', total_models={}", effect_type, instrument, all_models.len());
-    for m in &all_models {
-        log::trace!("[block_model_picker_items]   model='{}' supported_instruments={:?}", m.model_id, m.supported_instruments);
-    }
     all_models
         .into_iter()
         .filter(|item| instrument == block_core::INST_GENERIC || item.supported_instruments.iter().any(|i| i == instrument))

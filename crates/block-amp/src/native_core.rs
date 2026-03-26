@@ -13,7 +13,7 @@ use block_core::{
 
 #[derive(Debug, Clone, Copy)]
 pub struct NativeAmpSettings {
-    pub input_db: f32,
+    pub input: f32,
     pub gain: f32,
     pub bass: f32,
     pub middle: f32,
@@ -22,7 +22,7 @@ pub struct NativeAmpSettings {
     pub bright: bool,
     pub sag: f32,
     pub room_mix: f32,
-    pub output_db: f32,
+    pub output: f32,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -87,14 +87,14 @@ pub fn model_schema(
         audio_mode: ModelAudioMode::DualMono,
         parameters: vec![
             float_parameter(
-                "input_db",
+                "input",
                 "Input",
                 Some("Input"),
-                Some(0.0),
-                -18.0,
-                18.0,
-                0.5,
-                ParameterUnit::Decibels,
+                Some(50.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
             ),
             float_parameter(
                 "gain",
@@ -173,14 +173,14 @@ pub fn model_schema(
                 ParameterUnit::Percent,
             ),
             float_parameter(
-                "output_db",
+                "output",
                 "Output",
                 Some("Output"),
-                Some(0.0),
-                -18.0,
-                18.0,
-                0.5,
-                ParameterUnit::Decibels,
+                Some(50.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
             ),
         ],
     }
@@ -188,7 +188,7 @@ pub fn model_schema(
 
 pub fn settings_from_params(params: &ParameterSet) -> Result<NativeAmpSettings> {
     Ok(NativeAmpSettings {
-        input_db: required_f32(params, "input_db").map_err(anyhow::Error::msg)?,
+        input: required_f32(params, "input").map_err(anyhow::Error::msg)?,
         gain: required_f32(params, "gain").map_err(anyhow::Error::msg)?,
         bass: required_f32(params, "bass").map_err(anyhow::Error::msg)?,
         middle: required_f32(params, "middle").map_err(anyhow::Error::msg)?,
@@ -197,7 +197,7 @@ pub fn settings_from_params(params: &ParameterSet) -> Result<NativeAmpSettings> 
         bright: required_bool(params, "bright").map_err(anyhow::Error::msg)?,
         sag: required_f32(params, "sag").map_err(anyhow::Error::msg)?,
         room_mix: required_f32(params, "room_mix").map_err(anyhow::Error::msg)?,
-        output_db: required_f32(params, "output_db").map_err(anyhow::Error::msg)?,
+        output: required_f32(params, "output").map_err(anyhow::Error::msg)?,
     })
 }
 
@@ -236,10 +236,14 @@ fn build_native_combo_mono_processor(
     settings: NativeAmpSettings,
     sample_rate: f32,
 ) -> Box<dyn MonoProcessor> {
+    fn percent_to_gain_db(p: f32) -> f32 {
+        -18.0 + (p / 100.0) * 36.0
+    }
+
     let head = build_native_head_mono_processor(
         profile.head_profile,
         NativeAmpHeadSettings {
-            input_db: settings.input_db,
+            input: settings.input,
             gain: (settings.gain + profile.gain_bias).clamp(0.0, 100.0),
             bass: settings.bass,
             middle: settings.middle,
@@ -247,7 +251,7 @@ fn build_native_combo_mono_processor(
             presence: profile.fixed_presence,
             depth: profile.fixed_depth,
             master: settings.master,
-            output_db: 0.0,
+            output: 50.0, // unity (0 dB) for head; cab handles output
             bright: settings.bright,
             sag: settings.sag,
         },
@@ -264,7 +268,7 @@ fn build_native_combo_mono_processor(
             mic_position: profile.cab_mic_position,
             mic_distance: profile.cab_mic_distance,
             room_mix: settings.room_mix,
-            output_db: settings.output_db,
+            output: settings.output,
         },
         sample_rate,
     );

@@ -11,11 +11,11 @@ blocks:
   model: compressor_studio_clean
   params:
     attack_ms: 10.0
-    makeup_gain_db: 0.0
-    mix: 1.0
-    ratio: 4.0
+    makeup_gain: 50.0
+    mix: 100.0
+    ratio: 16.0
     release_ms: 80.0
-    threshold: -18.0
+    threshold: 70.0
 - type: preamp
   enabled: true
   model: brit_crunch
@@ -24,10 +24,10 @@ blocks:
     bright: false
     depth: 48.0
     gain: 56.0
-    input_db: 0.0
+    input: 50.0
     master: 62.0
     middle: 50.0
-    output_db: 0.0
+    output: 50.0
     presence: 58.0
     sag: 24.0
     treble: 50.0
@@ -40,26 +40,26 @@ blocks:
     low_cut_hz: 100.0
     mic_distance: 24.0
     mic_position: 50.0
-    output_db: 0.0
+    output: 50.0
     resonance: 55.0
     room_mix: 12.0
 - type: delay
   enabled: false
   model: digital_clean
   params:
-    feedback: 0.3499999940395355
-    mix: 0.30000001192092896
+    feedback: 35.0
+    mix: 30.0
     time_ms: 380.0
 - type: reverb
   enabled: true
   model: plate_foundation
   params:
-    damping: 0.3499999940395355
-    mix: 0.25
-    room_size: 0.44999998807907104
+    damping: 35.0
+    mix: 25.0
+    room_size: 45.0
 - type: modulation
   enabled: false
   model: tremolo_sine
   params:
-    depth: 0.5
+    depth: 50.0
     rate_hz: 4.0

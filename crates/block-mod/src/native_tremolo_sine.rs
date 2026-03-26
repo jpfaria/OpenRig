@@ -20,7 +20,7 @@ impl Default for TremoloParams {
     fn default() -> Self {
         Self {
             rate_hz: 4.0,
-            depth: 0.5,
+            depth: 50.0,
         }
     }
 }
@@ -48,9 +48,9 @@ pub fn model_schema() -> ModelParameterSchema {
                 None,
                 Some(TremoloParams::default().depth),
                 0.0,
+                100.0,
                 1.0,
-                0.01,
-                ParameterUnit::None,
+                ParameterUnit::Percent,
             ),
         ],
     }
@@ -59,7 +59,7 @@ pub fn model_schema() -> ModelParameterSchema {
 pub fn params_from_set(params: &ParameterSet) -> Result<TremoloParams> {
     Ok(TremoloParams {
         rate_hz: required_f32(params, "rate_hz").map_err(Error::msg)?,
-        depth: required_f32(params, "depth").map_err(Error::msg)?,
+        depth: required_f32(params, "depth").map_err(Error::msg)? / 100.0,
     })
 }
 

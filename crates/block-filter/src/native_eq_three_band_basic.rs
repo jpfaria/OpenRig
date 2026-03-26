@@ -11,17 +11,17 @@ pub const DISPLAY_NAME: &str = "Three Band EQ";
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct EqParams {
-    pub low_gain_db: f32,
-    pub mid_gain_db: f32,
-    pub high_gain_db: f32,
+    pub low: f32,
+    pub mid: f32,
+    pub high: f32,
 }
 
 impl Default for EqParams {
     fn default() -> Self {
         Self {
-            low_gain_db: 0.0,
-            mid_gain_db: 0.0,
-            high_gain_db: 0.0,
+            low: 50.0,
+            mid: 50.0,
+            high: 50.0,
         }
     }
 }
@@ -30,48 +30,51 @@ pub fn model_schema() -> ModelParameterSchema {
     ModelParameterSchema {
         effect_type: "filter".to_string(),
         model: MODEL_ID.to_string(),
-        display_name: "Three Band EQ".to_string(),
+        display_name: DISPLAY_NAME.to_string(),
         audio_mode: ModelAudioMode::DualMono,
         parameters: vec![
             float_parameter(
-                "low_gain_db",
+                "low",
                 "Low",
                 None,
-                Some(EqParams::default().low_gain_db),
-                -24.0,
-                24.0,
-                0.1,
-                ParameterUnit::Decibels,
+                Some(EqParams::default().low),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
             ),
             float_parameter(
-                "mid_gain_db",
+                "mid",
                 "Mid",
                 None,
-                Some(EqParams::default().mid_gain_db),
-                -24.0,
-                24.0,
-                0.1,
-                ParameterUnit::Decibels,
+                Some(EqParams::default().mid),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
             ),
             float_parameter(
-                "high_gain_db",
+                "high",
                 "High",
                 None,
-                Some(EqParams::default().high_gain_db),
-                -24.0,
-                24.0,
-                0.1,
-                ParameterUnit::Decibels,
+                Some(EqParams::default().high),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
             ),
         ],
     }
 }
 
 pub fn params_from_set(params: &ParameterSet) -> Result<EqParams> {
+    let low_pct = required_f32(params, "low").map_err(Error::msg)?;
+    let mid_pct = required_f32(params, "mid").map_err(Error::msg)?;
+    let high_pct = required_f32(params, "high").map_err(Error::msg)?;
     Ok(EqParams {
-        low_gain_db: required_f32(params, "low_gain_db").map_err(Error::msg)?,
-        mid_gain_db: required_f32(params, "mid_gain_db").map_err(Error::msg)?,
-        high_gain_db: required_f32(params, "high_gain_db").map_err(Error::msg)?,
+        low: -24.0 + (low_pct / 100.0) * 48.0,
+        mid: -24.0 + (mid_pct / 100.0) * 48.0,
+        high: -24.0 + (high_pct / 100.0) * 48.0,
     })
 }
 
@@ -107,9 +110,9 @@ impl MonoProcessor for ThreeBandEq {
 pub fn build_processor(params: &ParameterSet, sample_rate: f32) -> Result<Box<dyn MonoProcessor>> {
     let params = params_from_set(params)?;
     Ok(Box::new(ThreeBandEq::new(
-        params.low_gain_db,
-        params.mid_gain_db,
-        params.high_gain_db,
+        params.low,
+        params.mid,
+        params.high,
         sample_rate,
     )))
 }

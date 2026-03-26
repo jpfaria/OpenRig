@@ -61,7 +61,7 @@ pub const MODEL_DEFINITION: PreampModelDefinition = PreampModelDefinition {
     build,
     supported_instruments: block_core::GUITAR_BASS,
     knob_layout: &[
-        block_core::KnobLayoutEntry { param_key: "input_db",  svg_cx: 44.0,  svg_cy: 90.0, svg_r: 16.0, min: -18.0, max: 18.0,  step: 0.5 },
+        block_core::KnobLayoutEntry { param_key: "input",     svg_cx: 44.0,  svg_cy: 90.0, svg_r: 16.0, min: 0.0,   max: 100.0, step: 1.0 },
         block_core::KnobLayoutEntry { param_key: "gain",      svg_cx: 130.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
         block_core::KnobLayoutEntry { param_key: "bass",      svg_cx: 222.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
         block_core::KnobLayoutEntry { param_key: "middle",    svg_cx: 302.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },

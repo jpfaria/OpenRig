@@ -24,5 +24,5 @@ chains:
         enabled: true
         params:
           time_ms: 200
-          feedback: 0.6
-          mix: 0.55
+          feedback: 60
+          mix: 55

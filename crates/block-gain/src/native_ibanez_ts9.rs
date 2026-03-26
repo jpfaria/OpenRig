@@ -5,7 +5,7 @@ use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
 use block_core::{
-    db_to_lin, AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor,
+    AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor,
     OnePoleHighPass, OnePoleLowPass, StereoProcessor,
 };
 

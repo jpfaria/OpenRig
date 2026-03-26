@@ -48,7 +48,6 @@ Mandatory rules for writing code. Apply BEFORE writing, not after. No exceptions
 ### 5. UI / Slint
 
 - [ ] No hardcoded colors by model_id or brand in Slint
-- [ ] No knob SVGs (knobs are Slint components only)
 - [ ] Brand logos: `if brand == CONST` for `@image-url` (Slint limitation, acceptable)
 - [ ] Panel editor works generically — no type-specific logic
 

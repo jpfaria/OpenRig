@@ -15,19 +15,19 @@ pub struct CompressorParams {
     pub ratio: f32,
     pub attack_ms: f32,
     pub release_ms: f32,
-    pub makeup_gain_db: f32,
+    pub makeup_gain: f32,
     pub mix: f32,
 }
 
 impl Default for CompressorParams {
     fn default() -> Self {
         Self {
-            threshold: -18.0,
-            ratio: 4.0,
+            threshold: 70.0,
+            ratio: 16.0,
             attack_ms: 10.0,
             release_ms: 80.0,
-            makeup_gain_db: 0.0,
-            mix: 1.0,
+            makeup_gain: 50.0,
+            mix: 100.0,
         }
     }
 }
@@ -44,20 +44,20 @@ pub fn model_schema() -> ModelParameterSchema {
                 "Threshold",
                 None,
                 Some(CompressorParams::default().threshold),
-                -60.0,
                 0.0,
-                0.1,
-                ParameterUnit::Decibels,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
             ),
             float_parameter(
                 "ratio",
                 "Ratio",
                 None,
                 Some(CompressorParams::default().ratio),
+                0.0,
+                100.0,
                 1.0,
-                20.0,
-                0.1,
-                ParameterUnit::Ratio,
+                ParameterUnit::Percent,
             ),
             float_parameter(
                 "attack_ms",
@@ -80,14 +80,14 @@ pub fn model_schema() -> ModelParameterSchema {
                 ParameterUnit::Milliseconds,
             ),
             float_parameter(
-                "makeup_gain_db",
+                "makeup_gain",
                 "Makeup Gain",
                 None,
-                Some(CompressorParams::default().makeup_gain_db),
-                -24.0,
-                24.0,
-                0.1,
-                ParameterUnit::Decibels,
+                Some(CompressorParams::default().makeup_gain),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
             ),
             float_parameter(
                 "mix",
@@ -95,22 +95,26 @@ pub fn model_schema() -> ModelParameterSchema {
                 None,
                 Some(CompressorParams::default().mix),
                 0.0,
+                100.0,
                 1.0,
-                0.01,
-                ParameterUnit::None,
+                ParameterUnit::Percent,
             ),
         ],
     }
 }
 
 pub fn params_from_set(params: &ParameterSet) -> Result<CompressorParams> {
+    let threshold_pct = required_f32(params, "threshold").map_err(Error::msg)?;
+    let ratio_pct = required_f32(params, "ratio").map_err(Error::msg)?;
+    let makeup_pct = required_f32(params, "makeup_gain").map_err(Error::msg)?;
+    let mix_pct = required_f32(params, "mix").map_err(Error::msg)?;
     Ok(CompressorParams {
-        threshold: required_f32(params, "threshold").map_err(Error::msg)?,
-        ratio: required_f32(params, "ratio").map_err(Error::msg)?,
+        threshold: -60.0 + (threshold_pct / 100.0) * 60.0,
+        ratio: 1.0 + (ratio_pct / 100.0) * 19.0,
         attack_ms: required_f32(params, "attack_ms").map_err(Error::msg)?,
         release_ms: required_f32(params, "release_ms").map_err(Error::msg)?,
-        makeup_gain_db: required_f32(params, "makeup_gain_db").map_err(Error::msg)?,
-        mix: required_f32(params, "mix").map_err(Error::msg)?,
+        makeup_gain: -24.0 + (makeup_pct / 100.0) * 48.0,
+        mix: mix_pct / 100.0,
     })
 }
 
@@ -165,7 +169,7 @@ pub fn build_processor(params: &ParameterSet, sample_rate: f32) -> Result<Box<dy
         params.ratio,
         params.attack_ms,
         params.release_ms,
-        params.makeup_gain_db,
+        params.makeup_gain,
         params.mix,
         sample_rate,
     )))

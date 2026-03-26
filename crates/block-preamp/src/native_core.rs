@@ -10,7 +10,7 @@ use block_core::{
 
 #[derive(Debug, Clone, Copy)]
 pub struct NativeAmpHeadSettings {
-    pub input_db: f32,
+    pub input: f32,
     pub gain: f32,
     pub bass: f32,
     pub middle: f32,
@@ -18,7 +18,7 @@ pub struct NativeAmpHeadSettings {
     pub presence: f32,
     pub depth: f32,
     pub master: f32,
-    pub output_db: f32,
+    pub output: f32,
     pub bright: bool,
     pub sag: f32,
 }
@@ -78,6 +78,10 @@ impl StereoProcessor for DualMonoProcessor {
 }
 
 impl NativeAmpHeadProcessor {
+    fn percent_to_gain_db(p: f32) -> f32 {
+        -18.0 + (p / 100.0) * 36.0
+    }
+
     fn new(
         profile: NativeAmpHeadProfile,
         settings: NativeAmpHeadSettings,
@@ -86,8 +90,8 @@ impl NativeAmpHeadProcessor {
         NativeAmpHeadProcessor {
             profile,
             settings,
-            input_gain: db_to_lin(settings.input_db + profile.input_trim_db),
-            output_gain: db_to_lin(settings.output_db),
+            input_gain: db_to_lin(Self::percent_to_gain_db(settings.input) + profile.input_trim_db),
+            output_gain: db_to_lin(Self::percent_to_gain_db(settings.output)),
             pre_high_pass: OnePoleHighPass::new(profile.low_cut_hz, sample_rate),
             bright_high_pass: OnePoleHighPass::new(1_500.0, sample_rate),
             tone_low: OnePoleLowPass::new(260.0, sample_rate),
@@ -168,14 +172,14 @@ pub fn model_schema(
         audio_mode: ModelAudioMode::DualMono,
         parameters: vec![
             float_parameter(
-                "input_db",
+                "input",
                 "Input",
                 Some("Input"),
-                Some(0.0),
-                -18.0,
-                18.0,
-                0.5,
-                ParameterUnit::Decibels,
+                Some(50.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
             ),
             float_parameter(
                 "gain",
@@ -248,14 +252,14 @@ pub fn model_schema(
                 ParameterUnit::Percent,
             ),
             float_parameter(
-                "output_db",
+                "output",
                 "Output",
                 Some("Output"),
-                Some(0.0),
-                -18.0,
-                18.0,
-                0.5,
-                ParameterUnit::Decibels,
+                Some(50.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
             ),
             bool_parameter(
                 "bright",
@@ -279,7 +283,7 @@ pub fn model_schema(
 
 pub fn settings_from_params(params: &ParameterSet) -> Result<NativeAmpHeadSettings> {
     Ok(NativeAmpHeadSettings {
-        input_db: required_f32(params, "input_db").map_err(anyhow::Error::msg)?,
+        input: required_f32(params, "input").map_err(anyhow::Error::msg)?,
         gain: required_f32(params, "gain").map_err(anyhow::Error::msg)?,
         bass: required_f32(params, "bass").map_err(anyhow::Error::msg)?,
         middle: required_f32(params, "middle").map_err(anyhow::Error::msg)?,
@@ -287,7 +291,7 @@ pub fn settings_from_params(params: &ParameterSet) -> Result<NativeAmpHeadSettin
         presence: required_f32(params, "presence").map_err(anyhow::Error::msg)?,
         depth: required_f32(params, "depth").map_err(anyhow::Error::msg)?,
         master: required_f32(params, "master").map_err(anyhow::Error::msg)?,
-        output_db: required_f32(params, "output_db").map_err(anyhow::Error::msg)?,
+        output: required_f32(params, "output").map_err(anyhow::Error::msg)?,
         bright: required_bool(params, "bright").map_err(anyhow::Error::msg)?,
         sag: required_f32(params, "sag").map_err(anyhow::Error::msg)?,
     })

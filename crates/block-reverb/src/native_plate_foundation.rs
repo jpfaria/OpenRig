@@ -18,9 +18,9 @@ pub struct ReverbParams {
 impl Default for ReverbParams {
     fn default() -> Self {
         Self {
-            room_size: 0.45,
-            damping: 0.35,
-            mix: 0.25,
+            room_size: 45.0,
+            damping: 35.0,
+            mix: 25.0,
         }
     }
 }
@@ -38,9 +38,9 @@ pub fn model_schema() -> ModelParameterSchema {
                 None,
                 Some(ReverbParams::default().room_size),
                 0.0,
+                100.0,
                 1.0,
-                0.01,
-                ParameterUnit::None,
+                ParameterUnit::Percent,
             ),
             float_parameter(
                 "damping",
@@ -48,9 +48,9 @@ pub fn model_schema() -> ModelParameterSchema {
                 None,
                 Some(ReverbParams::default().damping),
                 0.0,
+                100.0,
                 1.0,
-                0.01,
-                ParameterUnit::None,
+                ParameterUnit::Percent,
             ),
             float_parameter(
                 "mix",
@@ -58,9 +58,9 @@ pub fn model_schema() -> ModelParameterSchema {
                 None,
                 Some(ReverbParams::default().mix),
                 0.0,
+                100.0,
                 1.0,
-                0.01,
-                ParameterUnit::None,
+                ParameterUnit::Percent,
             ),
         ],
     }
@@ -68,9 +68,9 @@ pub fn model_schema() -> ModelParameterSchema {
 
 pub fn params_from_set(params: &ParameterSet) -> Result<ReverbParams> {
     Ok(ReverbParams {
-        room_size: required_f32(params, "room_size").map_err(Error::msg)?,
-        damping: required_f32(params, "damping").map_err(Error::msg)?,
-        mix: required_f32(params, "mix").map_err(Error::msg)?,
+        room_size: required_f32(params, "room_size").map_err(Error::msg)? / 100.0,
+        damping: required_f32(params, "damping").map_err(Error::msg)? / 100.0,
+        mix: required_f32(params, "mix").map_err(Error::msg)? / 100.0,
     })
 }
 

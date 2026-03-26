@@ -28,10 +28,10 @@ impl Default for TapeVintageParams {
     fn default() -> Self {
         Self {
             time_ms: 430.0,
-            feedback: 0.42,
-            mix: 0.32,
-            tone: 0.42,
-            flutter: 0.25,
+            feedback: 42.0,
+            mix: 32.0,
+            tone: 42.0,
+            flutter: 25.0,
         }
     }
 }
@@ -59,9 +59,9 @@ pub fn model_schema() -> ModelParameterSchema {
                 None,
                 Some(TapeVintageParams::default().feedback),
                 0.0,
-                MAX_FEEDBACK,
-                0.01,
-                ParameterUnit::None,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
             ),
             float_parameter(
                 "mix",
@@ -69,9 +69,9 @@ pub fn model_schema() -> ModelParameterSchema {
                 None,
                 Some(TapeVintageParams::default().mix),
                 0.0,
+                100.0,
                 1.0,
-                0.01,
-                ParameterUnit::None,
+                ParameterUnit::Percent,
             ),
             float_parameter(
                 "tone",
@@ -79,9 +79,9 @@ pub fn model_schema() -> ModelParameterSchema {
                 None,
                 Some(TapeVintageParams::default().tone),
                 0.0,
+                100.0,
                 1.0,
-                0.01,
-                ParameterUnit::None,
+                ParameterUnit::Percent,
             ),
             float_parameter(
                 "flutter",
@@ -89,9 +89,9 @@ pub fn model_schema() -> ModelParameterSchema {
                 None,
                 Some(TapeVintageParams::default().flutter),
                 0.0,
+                100.0,
                 1.0,
-                0.01,
-                ParameterUnit::None,
+                ParameterUnit::Percent,
             ),
         ],
     }
@@ -100,10 +100,13 @@ pub fn model_schema() -> ModelParameterSchema {
 pub fn params_from_set(params: &ParameterSet) -> Result<TapeVintageParams> {
     Ok(TapeVintageParams {
         time_ms: required_f32(params, "time_ms").map_err(Error::msg)?,
-        feedback: required_f32(params, "feedback").map_err(Error::msg)?,
-        mix: required_f32(params, "mix").map_err(Error::msg)?,
-        tone: required_f32(params, "tone").map_err(Error::msg)?,
-        flutter: required_f32(params, "flutter").map_err(Error::msg)?,
+        feedback: {
+            let value = required_f32(params, "feedback").map_err(Error::msg)?;
+            (value / 100.0).min(MAX_FEEDBACK)
+        },
+        mix: required_f32(params, "mix").map_err(Error::msg)? / 100.0,
+        tone: required_f32(params, "tone").map_err(Error::msg)? / 100.0,
+        flutter: required_f32(params, "flutter").map_err(Error::msg)? / 100.0,
     })
 }
 

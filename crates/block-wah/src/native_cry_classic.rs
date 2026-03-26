@@ -18,7 +18,7 @@ struct WahSettings {
     position: f32,
     q: f32,
     mix: f32,
-    output_db: f32,
+    output: f32,
 }
 
 struct WahProcessor {
@@ -64,7 +64,7 @@ impl WahProcessor {
             y1: 0.0,
             y2: 0.0,
             mix: settings.mix.clamp(0.0, 1.0),
-            output_gain: block_core::db_to_lin(settings.output_db),
+            output_gain: block_core::db_to_lin(settings.output),
         };
         processor.update_coefficients(settings.position, settings.q);
         processor
@@ -118,52 +118,56 @@ fn schema() -> Result<ModelParameterSchema> {
                 "position",
                 "Position",
                 Some("Wah"),
-                Some(0.55),
+                Some(55.0),
                 0.0,
+                100.0,
                 1.0,
-                0.01,
-                ParameterUnit::None,
+                ParameterUnit::Percent,
             ),
             float_parameter(
                 "q",
-                "Q",
+                "Resonance",
                 Some("Wah"),
-                Some(1.8),
-                0.2,
-                12.0,
-                0.1,
-                ParameterUnit::None,
+                Some(15.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
             ),
             float_parameter(
                 "mix",
                 "Mix",
                 Some("Output"),
-                Some(1.0),
+                Some(100.0),
                 0.0,
+                100.0,
                 1.0,
-                0.01,
                 ParameterUnit::Percent,
             ),
             float_parameter(
-                "output_db",
+                "output",
                 "Output",
                 Some("Output"),
-                Some(0.0),
-                -24.0,
-                24.0,
-                0.1,
-                ParameterUnit::Decibels,
+                Some(50.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
             ),
         ],
     })
 }
 
 fn settings_from_params(params: &ParameterSet) -> Result<WahSettings> {
+    let position_pct = required_f32(params, "position").map_err(Error::msg)?;
+    let q_pct = required_f32(params, "q").map_err(Error::msg)?;
+    let mix_pct = required_f32(params, "mix").map_err(Error::msg)?;
+    let output_pct = required_f32(params, "output").map_err(Error::msg)?;
     Ok(WahSettings {
-        position: required_f32(params, "position").map_err(Error::msg)?,
-        q: required_f32(params, "q").map_err(Error::msg)?,
-        mix: required_f32(params, "mix").map_err(Error::msg)?,
-        output_db: required_f32(params, "output_db").map_err(Error::msg)?,
+        position: position_pct / 100.0,
+        q: 0.2 + (q_pct / 100.0) * 11.8,
+        mix: mix_pct / 100.0,
+        output: -24.0 + (output_pct / 100.0) * 48.0,
     })
 }
 

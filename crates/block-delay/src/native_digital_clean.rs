@@ -25,8 +25,8 @@ impl Default for DigitalCleanParams {
     fn default() -> Self {
         Self {
             time_ms: 380.0,
-            feedback: 0.35,
-            mix: 0.30,
+            feedback: 35.0,
+            mix: 30.0,
         }
     }
 }
@@ -54,9 +54,9 @@ pub fn model_schema() -> ModelParameterSchema {
                 None,
                 Some(DigitalCleanParams::default().feedback),
                 0.0,
-                MAX_FEEDBACK,
-                0.01,
-                ParameterUnit::None,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
             ),
             float_parameter(
                 "mix",
@@ -64,9 +64,9 @@ pub fn model_schema() -> ModelParameterSchema {
                 None,
                 Some(DigitalCleanParams::default().mix),
                 0.0,
+                100.0,
                 1.0,
-                0.01,
-                ParameterUnit::None,
+                ParameterUnit::Percent,
             ),
         ],
     }
@@ -75,8 +75,11 @@ pub fn model_schema() -> ModelParameterSchema {
 pub fn params_from_set(params: &ParameterSet) -> Result<DigitalCleanParams> {
     Ok(DigitalCleanParams {
         time_ms: required_f32(params, "time_ms").map_err(Error::msg)?,
-        feedback: required_f32(params, "feedback").map_err(Error::msg)?,
-        mix: required_f32(params, "mix").map_err(Error::msg)?,
+        feedback: {
+            let value = required_f32(params, "feedback").map_err(Error::msg)?;
+            (value / 100.0).min(MAX_FEEDBACK)
+        },
+        mix: required_f32(params, "mix").map_err(Error::msg)? / 100.0,
     })
 }
 

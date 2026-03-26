@@ -28,10 +28,10 @@ impl Default for ModulatedDelayParams {
     fn default() -> Self {
         Self {
             time_ms: 410.0,
-            feedback: 0.38,
-            mix: 0.30,
+            feedback: 38.0,
+            mix: 30.0,
             rate_hz: 0.8,
-            depth: 0.35,
+            depth: 35.0,
         }
     }
 }
@@ -59,9 +59,9 @@ pub fn model_schema() -> ModelParameterSchema {
                 None,
                 Some(ModulatedDelayParams::default().feedback),
                 0.0,
-                MAX_FEEDBACK,
-                0.01,
-                ParameterUnit::None,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
             ),
             float_parameter(
                 "mix",
@@ -69,9 +69,9 @@ pub fn model_schema() -> ModelParameterSchema {
                 None,
                 Some(ModulatedDelayParams::default().mix),
                 0.0,
+                100.0,
                 1.0,
-                0.01,
-                ParameterUnit::None,
+                ParameterUnit::Percent,
             ),
             float_parameter(
                 "rate_hz",
@@ -89,9 +89,9 @@ pub fn model_schema() -> ModelParameterSchema {
                 None,
                 Some(ModulatedDelayParams::default().depth),
                 0.0,
+                100.0,
                 1.0,
-                0.01,
-                ParameterUnit::None,
+                ParameterUnit::Percent,
             ),
         ],
     }
@@ -100,10 +100,13 @@ pub fn model_schema() -> ModelParameterSchema {
 pub fn params_from_set(params: &ParameterSet) -> Result<ModulatedDelayParams> {
     Ok(ModulatedDelayParams {
         time_ms: required_f32(params, "time_ms").map_err(Error::msg)?,
-        feedback: required_f32(params, "feedback").map_err(Error::msg)?,
-        mix: required_f32(params, "mix").map_err(Error::msg)?,
+        feedback: {
+            let value = required_f32(params, "feedback").map_err(Error::msg)?;
+            (value / 100.0).min(MAX_FEEDBACK)
+        },
+        mix: required_f32(params, "mix").map_err(Error::msg)? / 100.0,
         rate_hz: required_f32(params, "rate_hz").map_err(Error::msg)?,
-        depth: required_f32(params, "depth").map_err(Error::msg)?,
+        depth: required_f32(params, "depth").map_err(Error::msg)? / 100.0,
     })
 }
 
