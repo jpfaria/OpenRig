@@ -1,0 +1,195 @@
+use crate::registry::GainModelDefinition;
+use crate::GainBackendKind;
+use anyhow::Result;
+use block_core::param::{
+    float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
+};
+use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode};
+
+pub const MODEL_ID: &str = "lv2_mda_overdrive";
+pub const DISPLAY_NAME: &str = "MDA Overdrive";
+const BRAND: &str = "mda";
+
+const PLUGIN_URI: &str = "http://moddevices.com/plugins/mda/Overdrive";
+const PLUGIN_DIR: &str = "mod-mda-Overdrive.lv2";
+
+#[cfg(target_os = "macos")]
+const PLUGIN_BINARY: &str = "Overdrive.dylib";
+#[cfg(target_os = "linux")]
+const PLUGIN_BINARY: &str = "Overdrive.so";
+#[cfg(target_os = "windows")]
+const PLUGIN_BINARY: &str = "Overdrive.dll";
+
+// LV2 port indices (from TTL)
+const PORT_DRIVE: usize = 0;
+const PORT_MUFFLE: usize = 1;
+const PORT_OUTPUT: usize = 2;
+const PORT_LEFT_IN: usize = 3;
+const PORT_RIGHT_IN: usize = 4;
+const PORT_LEFT_OUT: usize = 5;
+const PORT_RIGHT_OUT: usize = 6;
+
+pub fn model_schema() -> ModelParameterSchema {
+    ModelParameterSchema {
+        effect_type: block_core::EFFECT_TYPE_GAIN.into(),
+        model: MODEL_ID.into(),
+        display_name: DISPLAY_NAME.into(),
+        audio_mode: ModelAudioMode::TrueStereo,
+        parameters: vec![
+            float_parameter(
+                "drive",
+                "Drive",
+                None,
+                Some(50.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "muffle",
+                "Muffle",
+                None,
+                Some(0.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "level",
+                "Level",
+                None,
+                Some(60.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+        ],
+    }
+}
+
+fn validate_params(params: &ParameterSet) -> Result<()> {
+    let _ = required_f32(params, "drive").map_err(anyhow::Error::msg)?;
+    let _ = required_f32(params, "muffle").map_err(anyhow::Error::msg)?;
+    let _ = required_f32(params, "level").map_err(anyhow::Error::msg)?;
+    Ok(())
+}
+
+fn asset_summary(_params: &ParameterSet) -> Result<String> {
+    Ok(format!("lv2='{}'", MODEL_ID))
+}
+
+fn resolve_lib_path() -> Result<String> {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+
+    let candidates = [
+        exe_dir
+            .as_ref()
+            .map(|d| d.join("../../").join(lv2::default_lv2_lib_dir()).join(PLUGIN_BINARY)),
+        Some(std::path::PathBuf::from(lv2::default_lv2_lib_dir()).join(PLUGIN_BINARY)),
+    ];
+
+    for candidate in candidates.iter().flatten() {
+        if candidate.exists() {
+            return Ok(candidate.to_string_lossy().to_string());
+        }
+    }
+
+    anyhow::bail!(
+        "LV2 binary '{}' not found in '{}'",
+        PLUGIN_BINARY,
+        lv2::default_lv2_lib_dir()
+    )
+}
+
+fn resolve_bundle_path() -> Result<String> {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+
+    let candidates = [
+        exe_dir
+            .as_ref()
+            .map(|d| d.join("../../plugins").join(PLUGIN_DIR)),
+        Some(std::path::PathBuf::from("plugins").join(PLUGIN_DIR)),
+    ];
+
+    for candidate in candidates.iter().flatten() {
+        if candidate.exists() {
+            return Ok(candidate.to_string_lossy().to_string());
+        }
+    }
+
+    anyhow::bail!("LV2 bundle '{}' not found in plugins/", PLUGIN_DIR)
+}
+
+fn build(
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<BlockProcessor> {
+    let drive = required_f32(params, "drive").map_err(anyhow::Error::msg)?;
+    let muffle = required_f32(params, "muffle").map_err(anyhow::Error::msg)?;
+    // Level: 0-100% maps to -20..+20 dB
+    let level_pct = required_f32(params, "level").map_err(anyhow::Error::msg)?;
+    let output = -20.0 + (level_pct / 100.0) * 40.0;
+
+    let lib_path = resolve_lib_path()?;
+    let bundle_path = resolve_bundle_path()?;
+
+    match layout {
+        AudioChannelLayout::Mono => {
+            let processor = lv2::build_lv2_processor(
+                &lib_path,
+                PLUGIN_URI,
+                sample_rate as f64,
+                &bundle_path,
+                &[PORT_LEFT_IN],
+                &[PORT_LEFT_OUT],
+                &[
+                    (PORT_DRIVE, drive),
+                    (PORT_MUFFLE, muffle),
+                    (PORT_OUTPUT, output),
+                ],
+            )?;
+            Ok(BlockProcessor::Mono(Box::new(processor)))
+        }
+        AudioChannelLayout::Stereo => {
+            let processor = lv2::build_stereo_lv2_processor(
+                &lib_path,
+                PLUGIN_URI,
+                sample_rate as f64,
+                &bundle_path,
+                &[PORT_LEFT_IN, PORT_RIGHT_IN],
+                &[PORT_LEFT_OUT, PORT_RIGHT_OUT],
+                &[
+                    (PORT_DRIVE, drive),
+                    (PORT_MUFFLE, muffle),
+                    (PORT_OUTPUT, output),
+                ],
+            )?;
+            Ok(BlockProcessor::Stereo(Box::new(processor)))
+        }
+    }
+}
+
+fn schema() -> Result<ModelParameterSchema> {
+    Ok(model_schema())
+}
+
+pub const MODEL_DEFINITION: GainModelDefinition = GainModelDefinition {
+    id: MODEL_ID,
+    display_name: DISPLAY_NAME,
+    brand: BRAND,
+    backend_kind: GainBackendKind::Lv2,
+    schema,
+    validate: validate_params,
+    asset_summary,
+    build,
+    supported_instruments: block_core::GUITAR_BASS,
+    knob_layout: &[],
+};

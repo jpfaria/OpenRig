@@ -1,8 +1,10 @@
 mod host;
 mod processor;
+mod stereo_processor;
 
 pub use host::{Lv2Plugin, Lv2PortInfo, Lv2PortKind};
 pub use processor::Lv2Processor;
+pub use stereo_processor::StereoLv2Processor;
 
 use anyhow::Result;
 
@@ -26,6 +28,25 @@ pub fn build_lv2_processor(
 ) -> Result<Lv2Processor> {
     let plugin = Lv2Plugin::load(lib_path, uri, sample_rate, bundle_path)?;
     Ok(Lv2Processor::new(
+        plugin,
+        audio_in_ports,
+        audio_out_ports,
+        control_ports,
+    ))
+}
+
+/// Build a ready-to-use stereo LV2 processor (2-in / 2-out).
+pub fn build_stereo_lv2_processor(
+    lib_path: &str,
+    uri: &str,
+    sample_rate: f64,
+    bundle_path: &str,
+    audio_in_ports: &[usize],
+    audio_out_ports: &[usize],
+    control_ports: &[(usize, f32)],
+) -> Result<StereoLv2Processor> {
+    let plugin = Lv2Plugin::load(lib_path, uri, sample_rate, bundle_path)?;
+    Ok(StereoLv2Processor::new(
         plugin,
         audio_in_ports,
         audio_out_ports,
