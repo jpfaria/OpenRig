@@ -5,7 +5,7 @@ use block_core::param::{
     enum_parameter, float_parameter, required_f32, required_string,
     ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode};
+use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
 
 pub const MODEL_ID: &str = "chowcentaur";
 pub const DISPLAY_NAME: &str = "Centaur";
@@ -37,7 +37,7 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: block_core::EFFECT_TYPE_GAIN.into(),
         model: MODEL_ID.into(),
         display_name: DISPLAY_NAME.into(),
-        audio_mode: ModelAudioMode::MonoOnly,
+        audio_mode: ModelAudioMode::DualMono,
         parameters: vec![
             float_parameter(
                 "gain",
@@ -138,25 +138,31 @@ fn resolve_bundle_path() -> Result<String> {
     anyhow::bail!("LV2 bundle '{}' not found in plugins/", PLUGIN_DIR)
 }
 
-fn build(
-    params: &ParameterSet,
-    sample_rate: f32,
-    layout: AudioChannelLayout,
-) -> Result<BlockProcessor> {
-    if layout != AudioChannelLayout::Mono {
-        anyhow::bail!("ChowCentaur is mono-only");
+struct DualMonoLv2 {
+    left: lv2::Lv2Processor,
+    right: lv2::Lv2Processor,
+}
+
+impl StereoProcessor for DualMonoLv2 {
+    fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
+        [
+            self.left.process_sample(input[0]),
+            self.right.process_sample(input[1]),
+        ]
     }
+}
 
-    let gain = required_f32(params, "gain").map_err(anyhow::Error::msg)? / 100.0;
-    let treble = required_f32(params, "treble").map_err(anyhow::Error::msg)? / 100.0;
-    let level = required_f32(params, "level").map_err(anyhow::Error::msg)? / 100.0;
-    let mode_str = required_string(params, "mode").map_err(anyhow::Error::msg)?;
-    let mode: f32 = if mode_str == "neural" { 1.0 } else { 0.0 };
-
+fn build_mono_processor(
+    sample_rate: f32,
+    gain: f32,
+    treble: f32,
+    level: f32,
+    mode: f32,
+) -> Result<lv2::Lv2Processor> {
     let lib_path = resolve_lib_path()?;
     let bundle_path = resolve_bundle_path()?;
 
-    let processor = lv2::build_lv2_processor(
+    lv2::build_lv2_processor(
         &lib_path,
         PLUGIN_URI,
         sample_rate as f64,
@@ -172,9 +178,31 @@ fn build(
             (PORT_ENABLED, 1.0),
             (PORT_MONO, 1.0),
         ],
-    )?;
+    )
+}
 
-    Ok(BlockProcessor::Mono(Box::new(processor)))
+fn build(
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<BlockProcessor> {
+    let gain = required_f32(params, "gain").map_err(anyhow::Error::msg)? / 100.0;
+    let treble = required_f32(params, "treble").map_err(anyhow::Error::msg)? / 100.0;
+    let level = required_f32(params, "level").map_err(anyhow::Error::msg)? / 100.0;
+    let mode_str = required_string(params, "mode").map_err(anyhow::Error::msg)?;
+    let mode: f32 = if mode_str == "neural" { 1.0 } else { 0.0 };
+
+    match layout {
+        AudioChannelLayout::Mono => {
+            let processor = build_mono_processor(sample_rate, gain, treble, level, mode)?;
+            Ok(BlockProcessor::Mono(Box::new(processor)))
+        }
+        AudioChannelLayout::Stereo => {
+            let left = build_mono_processor(sample_rate, gain, treble, level, mode)?;
+            let right = build_mono_processor(sample_rate, gain, treble, level, mode)?;
+            Ok(BlockProcessor::Stereo(Box::new(DualMonoLv2 { left, right })))
+        }
+    }
 }
 
 fn schema() -> Result<ModelParameterSchema> {
