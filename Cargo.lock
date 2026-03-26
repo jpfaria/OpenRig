@@ -129,10 +129,12 @@ dependencies = [
  "anyhow",
  "application",
  "block-core",
+ "block-thumbnails",
  "cpal",
  "domain",
  "engine",
  "env_logger",
+ "image",
  "infra-cpal",
  "infra-filesystem",
  "infra-yaml",
@@ -892,6 +894,10 @@ dependencies = [
 
 [[package]]
 name = "block-routing"
+version = "0.1.0"
+
+[[package]]
+name = "block-thumbnails"
 version = "0.1.0"
 
 [[package]]
@@ -2849,6 +2855,7 @@ name = "infra-cpal"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "block-util",
  "cpal",
  "domain",
  "engine",
