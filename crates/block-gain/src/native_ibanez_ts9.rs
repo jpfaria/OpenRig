@@ -93,8 +93,8 @@ impl MonoProcessor for Ts9Processor {
         let voiced = low_band * low_mix + mid_band * mid_mix + high_band * high_mix;
         let output = self.output_high_pass.process(voiced);
 
-        // Level: full range from silence to +6dB
-        let level_gain = db_to_lin(-60.0 + level * 66.0);
+        // Level: linear gain from 0 to 2x (0% = silent, 50% = unity, 100% = +6dB)
+        let level_gain = level * 2.0;
 
         output * level_gain
     }
