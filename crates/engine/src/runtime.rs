@@ -160,20 +160,55 @@ impl AudioProcessor {
 pub struct ChainRuntimeState {
     processing: Mutex<ChainProcessingState>,
     output: Mutex<ChainOutputState>,
+    /// Tuner samples written by audio thread, read+cleared by UI thread.
+    tuner_shared_buffer: Mutex<Vec<f32>>,
+    /// Tuner state owned by UI thread only (never touched by audio).
     pub tuner_reading: Mutex<block_util::TunerReading>,
 }
 
 impl ChainRuntimeState {
-    /// Poll tuner reading from UI thread (non-blocking).
-    /// Runs the lazy detection if enough samples accumulated.
-    pub fn poll_tuner(&self) -> Option<block_util::TunerReading> {
-        let mut processing = self.processing.try_lock().ok()?;
-        for block in processing.blocks.iter_mut() {
-            if let Some(reading) = extract_tuner_reading(block) {
-                return Some(reading);
+    /// Called from audio thread: append tuner samples (fast, non-blocking).
+    pub fn push_tuner_samples(&self, samples: &[f32]) {
+        if let Ok(mut buf) = self.tuner_shared_buffer.try_lock() {
+            buf.extend_from_slice(samples);
+            // Cap at 8192 to prevent unbounded growth
+            if buf.len() > 8192 {
+                let start = buf.len() - 4096;
+                buf.drain(..start);
             }
         }
-        None
+    }
+
+    /// Called from UI thread: run detection on accumulated samples.
+    pub fn poll_tuner(&self) -> Option<block_util::TunerReading> {
+        // Grab samples quickly
+        let samples = {
+            let mut buf = self.tuner_shared_buffer.try_lock().ok()?;
+            if buf.len() < 2048 {
+                return self.tuner_reading.try_lock().ok().and_then(|r| {
+                    if r.frequency.is_some() { Some(r.clone()) } else { None }
+                });
+            }
+            let s = buf.clone();
+            buf.clear();
+            s
+        };
+
+        // Run detection outside any lock (takes ~1ms, fine for UI thread)
+        let reading = detect_pitch(&samples);
+
+        // Store for next poll if no detection
+        if let Ok(mut tr) = self.tuner_reading.try_lock() {
+            if reading.frequency.is_some() {
+                *tr = reading.clone();
+            }
+        }
+
+        if reading.frequency.is_some() { Some(reading) } else {
+            self.tuner_reading.try_lock().ok().and_then(|r| {
+                if r.frequency.is_some() { Some(r.clone()) } else { None }
+            })
+        }
     }
 }
 
@@ -301,6 +336,7 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
             output_mixdown: chain.output_mixdown,
             processed_frames: VecDeque::with_capacity(MAX_BUFFERED_OUTPUT_FRAMES),
         }),
+        tuner_shared_buffer: Mutex::new(Vec::with_capacity(8192)),
         tuner_reading: Mutex::new(block_util::TunerReading::default()),
     })
 }
@@ -956,9 +992,8 @@ pub fn process_input_f32(runtime: &Arc<ChainRuntimeState>, data: &[f32], input_t
     }
 
     if tuner_enabled && !tuner_samples.is_empty() {
-        for block in blocks.iter_mut() {
-            process_tuners(block, tuner_samples);
-        }
+        // Push samples to shared buffer — UI thread does the detection
+        runtime.push_tuner_samples(tuner_samples);
     }
 
     for block in blocks.iter_mut() {
@@ -1000,6 +1035,39 @@ fn block_has_active_tuner(block: &BlockRuntimeNode) -> bool {
             .unwrap_or(false),
         RuntimeProcessor::Audio(_) | RuntimeProcessor::Bypass => false,
     }
+}
+
+/// Simple AMDF pitch detection — runs on UI thread, NOT audio thread.
+fn detect_pitch(samples: &[f32]) -> block_util::TunerReading {
+    let sample_rate = 44100.0_f32; // TODO: pass actual sample rate
+    let rms = (samples.iter().map(|s| s * s).sum::<f32>() / samples.len() as f32).sqrt();
+    if rms < 0.01 || samples.len() < 512 {
+        return block_util::TunerReading::default();
+    }
+
+    let min_period = (sample_rate / 1000.0) as usize; // ~1000 Hz max
+    let max_period = (sample_rate / 65.0) as usize;   // ~65 Hz min (C2)
+    let len = samples.len();
+    let mut best_period = 0;
+    let mut min_diff = f32::MAX;
+
+    for lag in min_period..max_period.min(len / 2) {
+        let mut diff = 0.0_f32;
+        for i in 0..(len - lag) {
+            diff += (samples[i] - samples[i + lag]).abs();
+        }
+        if diff < min_diff {
+            min_diff = diff;
+            best_period = lag;
+        }
+    }
+
+    if best_period == 0 {
+        return block_util::TunerReading::default();
+    }
+
+    let freq = sample_rate / best_period as f32;
+    block_util::TunerReading::from(Some(freq))
 }
 
 fn extract_tuner_reading(block: &mut BlockRuntimeNode) -> Option<block_util::TunerReading> {

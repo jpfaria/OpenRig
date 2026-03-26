@@ -10,9 +10,9 @@ use block_core::ModelAudioMode;
 pub const MODEL_ID: &str = "tuner_chromatic";
 pub const DISPLAY_NAME: &str = "Chromatic Tuner";
 const DEFAULT_REFERENCE_HZ: f32 = 440.0;
-const BUFFER_SIZE: usize = 4096;
-const A1_HZ: f32 = 50.1;
-const E6_HZ: f32 = 1245.0;
+const BUFFER_SIZE: usize = 2048;
+const A1_HZ: f32 = 65.0;   // C2 — lowest useful guitar note
+const E6_HZ: f32 = 1000.0; // Narrower range for faster detection
 
 pub fn model_schema() -> ModelParameterSchema {
     ModelParameterSchema {
