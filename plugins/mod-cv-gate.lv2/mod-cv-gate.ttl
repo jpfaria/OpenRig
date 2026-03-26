@@ -1,0 +1,102 @@
+@prefix lv2:  <http://lv2plug.in/ns/lv2core#>.
+@prefix doap: <http://usefulinc.com/ns/doap#>.
+@prefix epp: <http://lv2plug.in/ns/ext/port-props#>.
+@prefix foaf: <http://xmlns.com/foaf/0.1/>.
+@prefix modgui: <http://moddevices.com/ns/modgui#>.
+@prefix mod: <http://moddevices.com/ns/mod#>.
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>.
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#>.
+@prefix atom: <http://lv2plug.in/ns/ext/atom#> .
+@prefix midi: <http://lv2plug.in/ns/ext/midi#> .
+@prefix urid: <http://lv2plug.in/ns/ext/urid#> .
+@prefix units: <http://lv2plug.in/ns/extensions/units#> .
+
+<http://moddevices.com/plugins/mod-devel/mod-cv-gate>
+a lv2:Plugin, mod:ControlVoltagePlugin;
+
+doap:name "CV Gate";
+doap:license "GPL v2+";
+doap:developer [
+    foaf:name "Bram Giesen";
+    foaf:homepage <>;
+    foaf:mbox <mailto:bram@moddevices.com>;
+    ];
+
+doap:maintainer [
+    foaf:name "MOD";
+    foaf:homepage <http://moddevices.com>;
+    foaf:mbox <mailto:bram@moddevices.com>;
+    ];
+
+    lv2:minorVersion 1;
+    lv2:microVersion 0;
+
+rdfs:comment """
+A variable CV gate that has a parameter to set the value that opens the gate and a parameter that sets the value that closes the gate.
+
+The plugin sends the input signal to the output whenever the gate is opened. When the gate is closed, the output will send the value 0v.
+
+Features:
+Plugin by MOD Devices
+""";
+
+lv2:port
+[
+    a lv2:InputPort, lv2:CVPort, mod:CVPort;
+    lv2:index 0;
+    lv2:minimum 0.0 ;
+    lv2:maximum 10.0 ;
+    lv2:symbol "Gate";
+    lv2:name "Gate";
+],
+[
+    a lv2:InputPort, lv2:CVPort, mod:CVPort;
+    lv2:index 1;
+    lv2:minimum -5.0 ;
+    lv2:maximum 5.0 ;
+    lv2:symbol "CVin";
+    lv2:name "CV Input";
+],
+[
+    a lv2:OutputPort, lv2:CVPort, mod:CVPort;
+    lv2:index 2;
+    lv2:minimum -5.0 ;
+    lv2:maximum 5.0 ;
+    lv2:symbol "CVout";
+    lv2:name "CV Output";
+],
+[
+    a lv2:InputPort ,
+    lv2:ControlPort ;
+    lv2:index 3 ;
+    lv2:symbol "OpeningThreshold" ;
+    lv2:name "OpeningThreshold";
+    lv2:default 1.0 ;
+    lv2:minimum -10.0 ;
+    lv2:maximum 10.0 ;
+    units:unit mod:volts ;
+],
+[
+    a lv2:InputPort ,
+    lv2:ControlPort ;
+    lv2:index 4 ;
+    lv2:symbol "ClosingThreshold" ;
+    lv2:name "ClosingThreshold";
+    lv2:default 0.9 ;
+    lv2:minimum -10.0 ;
+    lv2:maximum 10.0 ;
+    units:unit mod:volts ;
+],
+[
+    a lv2:InputPort ,
+    lv2:ControlPort ;
+    lv2:index 5 ;
+    lv2:symbol "PluginEnabled" ;
+    lv2:name "PluginEnabled" ;
+    lv2:default 1.0 ;
+    lv2:minimum 0.0 ;
+    lv2:maximum 1.0 ;
+    lv2:designation lv2:enabled;
+    lv2:portProperty lv2:toggled;
+]
+.
