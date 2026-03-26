@@ -88,6 +88,67 @@ gh pr create --title "Release v1.0.0" --base main
 git tag -a v1.0.0 -m "Release v1.0.0"
 ```
 
+## Parallel Agents with Git Worktrees
+
+Multiple AI agents (Claude Code sessions) can work on different issues simultaneously using Git worktrees. Each agent gets an isolated copy of the repo with its own branch.
+
+### Directory structure
+
+```
+OpenRig/                              ← develop (main workspace)
+OpenRig-worktrees/
+  issue-4-lv2/                        ← feature/issue-4-lv2-plugin-host
+  issue-1-48khz/                      ← feature/issue-1-force-48khz
+  issue-3-timbre/                     ← bugfix/issue-3-timbre
+```
+
+### Creating a worktree for an issue
+
+```bash
+# From the main repo
+cd /path/to/OpenRig
+
+# Create the branch from develop
+git checkout develop
+git pull origin develop
+git checkout -b feature/issue-{N}-short-description
+
+# Create the worktree
+git worktree add ../OpenRig-worktrees/issue-{N}-short-description feature/issue-{N}-short-description
+```
+
+### Agent naming convention
+
+Each agent has a short name matching the issue topic:
+
+| Agent Name | Worktree | Branch | Issue |
+|------------|----------|--------|-------|
+| `lv2` | `issue-4-lv2/` | `feature/issue-4-lv2-plugin-host` | #4 |
+| `48khz` | `issue-1-48khz/` | `feature/issue-1-force-48khz` | #1 |
+| `timbre` | `issue-3-timbre/` | `bugfix/issue-3-timbre` | #3 |
+
+### Rules
+
+- **One agent per worktree** — never share a worktree between agents
+- **One branch per issue** — never mix issues in a single branch
+- **Always start from develop** — create the branch from latest develop
+- **Merge develop regularly** — keep your branch up to date with `git merge develop`
+- **PR when done** — push and create PR to develop, then remove the worktree
+
+### Cleanup
+
+```bash
+# After PR is merged
+git worktree remove ../OpenRig-worktrees/issue-{N}-short-description
+git branch -d feature/issue-{N}-short-description
+```
+
+### Listing active worktrees
+
+```bash
+git worktree list
+```
+
 ## Code Quality
 
 - **Zero warnings** — `cargo build` must produce no warnings
