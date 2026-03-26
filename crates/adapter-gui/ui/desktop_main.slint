@@ -8,7 +8,6 @@ export component DesktopMain inherits Rectangle {
     in property <bool> show-project-chains;
     in property <bool> show-chain-editor;
     in property <bool> show-project-settings;
-    in property <bool> project-running;
     in property <bool> project-dirty;
     in property <string> project-path-label;
     in property <string> project-title;
@@ -78,8 +77,7 @@ export component DesktopMain inherits Rectangle {
     callback configure-chain-output(int);
     callback save-chain-preset(int);
     callback configure-chain-preset(int);
-    callback start-project();
-    callback stop-project();
+    callback open-compact-chain-view(int);
     callback update-chain-name(string);
     callback open-chain-input-editor();
     callback open-chain-output-editor();
@@ -135,7 +133,6 @@ export component DesktopMain inherits Rectangle {
             height: parent.height;
             project-title: root.project-title;
             project-path-label: root.project-path-label;
-            project-running: root.project-running;
             project-dirty: root.project-dirty;
             project-chains: root.project-chains;
             selected-chain-block-chain-index: root.selected-chain-block-chain-index;
@@ -166,8 +163,7 @@ export component DesktopMain inherits Rectangle {
             configure-chain-output(index) => { root.configure-chain-output(index); }
             configure-chain-preset(index) => { root.configure-chain-preset(index); }
             save-chain-preset(index) => { root.save-chain-preset(index); }
-            start-project => { root.start-project(); }
-            stop-project => { root.stop-project(); }
+            open-compact-chain-view(index) => { root.open-compact-chain-view(index); }
             select-chain-block(chain-index, block-index) => { root.select-chain-block(chain-index, block-index); }
             clear-chain-block => { root.clear-chain-block(); }
             toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }

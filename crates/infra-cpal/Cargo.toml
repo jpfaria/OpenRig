@@ -3,8 +3,10 @@ name = "infra-cpal"
 version.workspace = true
 edition.workspace = true
 [dependencies]
+log.workspace = true
 anyhow.workspace = true
 cpal.workspace = true
 domain = { path = "../domain" }
 engine = { path = "../engine" }
+block-util = { path = "../block-util" }
 project = { path = "../project" }

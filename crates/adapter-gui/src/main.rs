@@ -2,6 +2,8 @@ use adapter_gui::run_desktop_app;
 use ui_openrig::{AppRuntimeMode, InteractionMode};
 
 fn main() -> anyhow::Result<()> {
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
+        .init();
     let runtime_mode = match std::env::var("OPENRIG_APP_MODE").ok().as_deref() {
         Some("pedalboard") => AppRuntimeMode::Pedalboard,
         Some("controller") => AppRuntimeMode::Controller,

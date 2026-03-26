@@ -1,0 +1,384 @@
+name: Build Plugin Libraries
+
+on:
+  push:
+    paths:
+      - 'deps/**'
+      - 'scripts/build-lib-internal.sh'
+      - '.github/workflows/build-libs.yml'
+    # Note: commits pushed with GITHUB_TOKEN do NOT trigger workflows (no loop)
+  workflow_dispatch:
+    inputs:
+      plugin:
+        description: 'Plugin to build (e.g. nam, dragonfly-reverb, or "all")'
+        required: true
+        default: 'all'
+
+jobs:
+  # Detect which plugins changed
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      plugins: ${{ steps.detect.outputs.plugins }}
+      has_changes: ${{ steps.detect.outputs.has_changes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          submodules: false
+
+      - name: Detect changed plugins
+        id: detect
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            PLUGIN="${{ github.event.inputs.plugin }}"
+            echo "plugins=[\"$PLUGIN\"]" >> "$GITHUB_OUTPUT"
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            echo "Manual trigger: $PLUGIN"
+            exit 0
+          fi
+
+          # Map submodule dirs to build-lib plugin names
+          declare -A DIR_TO_PLUGIN=(
+            ["deps/neural-amp-modeler-lv2"]="nam"
+            ["deps/dragonfly-reverb"]="dragonfly-reverb"
+            ["deps/zam-plugins"]="zam-plugins"
+            ["deps/mod-utilities"]="mod-utilities"
+            ["deps/caps-lv2"]="caps-lv2"
+            ["deps/tap-lv2"]="tap-lv2"
+            ["deps/SHIRO-Plugins"]="shiro-plugins"
+            ["deps/DPF-Plugins"]="dpf-plugins"
+            ["deps/MVerb"]="mverb"
+            ["deps/mda-lv2"]="mda-lv2"
+            ["deps/fomp"]="fomp"
+            ["deps/invada-studio"]="invada-studio"
+            ["deps/wolf-shaper"]="wolf-shaper"
+            ["deps/openAV-ArtyFX"]="artyfx"
+            ["deps/sooperlooper"]="sooperlooper"
+            ["deps/setBfree"]="setbfree"
+            ["deps/GxPlugins.lv2"]="gxplugins"
+            ["deps/AnalogTapeModel"]="chowcentaur"
+            ["deps/Schrammel_OJD"]="ojd"
+          )
+
+          # If build script changed, rebuild all
+          if git diff --name-only HEAD~1 HEAD | grep -q "scripts/build-lib-internal.sh"; then
+            echo 'plugins=["all"]' >> "$GITHUB_OUTPUT"
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            echo "Build script changed — rebuilding all"
+            exit 0
+          fi
+
+          CHANGED_DIRS=$(git diff --name-only HEAD~1 HEAD | grep "^deps/" | cut -d'/' -f1-2 | sort -u)
+          PLUGINS=()
+
+          for dir in $CHANGED_DIRS; do
+            plugin="${DIR_TO_PLUGIN[$dir]:-}"
+            if [ -n "$plugin" ]; then
+              PLUGINS+=("\"$plugin\"")
+              echo "Changed: $dir -> $plugin"
+            fi
+          done
+
+          if [ ${#PLUGINS[@]} -eq 0 ]; then
+            echo "plugins=[]" >> "$GITHUB_OUTPUT"
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No plugin changes detected"
+          else
+            JSON=$(IFS=,; echo "[${PLUGINS[*]}]")
+            echo "plugins=$JSON" >> "$GITHUB_OUTPUT"
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            echo "Plugins to build: $JSON"
+          fi
+
+  # Build on Linux x86_64
+  linux-x86_64:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        plugin: ${{ fromJson(needs.detect-changes.outputs.plugins) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake meson ninja-build pkg-config \
+            autoconf automake libtool \
+            lv2-dev libsndfile1-dev libsamplerate0-dev libfftw3-dev \
+            libzita-convolver-dev libglu1-mesa-dev libcairo2-dev \
+            libx11-dev liblo-dev libjack-jackd2-dev libfluidsynth-dev
+
+      - name: Build ${{ matrix.plugin }}
+        run: |
+          OUTPUT_DIR="$GITHUB_WORKSPACE/output" \
+          DEPS_DIR="$GITHUB_WORKSPACE/deps" \
+          BUILD_WORK_DIR="/tmp/openrig-build" \
+            bash scripts/build-lib-internal.sh ${{ matrix.plugin }}
+
+      - name: Organize output
+        run: |
+          DEST="libs-output/linux-x86_64"
+          mkdir -p "$DEST"
+          cp output/*.so "$DEST/" 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86_64-${{ matrix.plugin }}
+          path: libs-output/linux-x86_64/
+
+  # Build on Linux aarch64
+  linux-aarch64:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-22.04-arm
+    strategy:
+      matrix:
+        plugin: ${{ fromJson(needs.detect-changes.outputs.plugins) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake meson ninja-build pkg-config \
+            autoconf automake libtool \
+            lv2-dev libsndfile1-dev libsamplerate0-dev libfftw3-dev \
+            libzita-convolver-dev libglu1-mesa-dev libcairo2-dev \
+            libx11-dev liblo-dev libjack-jackd2-dev libfluidsynth-dev
+
+      - name: Build ${{ matrix.plugin }}
+        run: |
+          OUTPUT_DIR="$GITHUB_WORKSPACE/output" \
+          DEPS_DIR="$GITHUB_WORKSPACE/deps" \
+          BUILD_WORK_DIR="/tmp/openrig-build" \
+            bash scripts/build-lib-internal.sh ${{ matrix.plugin }}
+
+      - name: Organize output
+        run: |
+          DEST="libs-output/linux-aarch64"
+          mkdir -p "$DEST"
+          cp output/*.so "$DEST/" 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-aarch64-${{ matrix.plugin }}
+          path: libs-output/linux-aarch64/
+
+  # Build on macOS (universal binary)
+  macos-universal:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: macos-14
+    strategy:
+      matrix:
+        plugin: ${{ fromJson(needs.detect-changes.outputs.plugins) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          brew install cmake meson ninja pkg-config autoconf automake libtool \
+            lv2 libsndfile libsamplerate fftw cairo jack fluidsynth
+
+      - name: Build ${{ matrix.plugin }}
+        run: |
+          OUTPUT_DIR="$GITHUB_WORKSPACE/output" \
+          DEPS_DIR="$GITHUB_WORKSPACE/deps" \
+          BUILD_WORK_DIR="/tmp/openrig-build" \
+          CMAKE_EXTRA="-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64 -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0" \
+            bash scripts/build-lib-internal.sh ${{ matrix.plugin }}
+
+      - name: Organize output
+        run: |
+          DEST="libs-output/macos-universal"
+          mkdir -p "$DEST"
+          cp output/*.dylib "$DEST/" 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-universal-${{ matrix.plugin }}
+          path: libs-output/macos-universal/
+
+  # Build on Windows x64 (MSYS2/MinGW)
+  windows-x64:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        plugin: ${{ fromJson(needs.detect-changes.outputs.plugins) }}
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-meson
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-pkg-config
+            mingw-w64-x86_64-lv2
+            mingw-w64-x86_64-libsndfile
+            mingw-w64-x86_64-libsamplerate
+            mingw-w64-x86_64-fftw
+            mingw-w64-x86_64-cairo
+            make
+            autoconf
+            automake
+            libtool
+            git
+
+      - name: Build ${{ matrix.plugin }}
+        run: |
+          export OUTPUT_DIR="$(pwd)/output"
+          export DEPS_DIR="$(pwd)/deps"
+          export BUILD_WORK_DIR="/tmp/openrig-build"
+          mkdir -p "$OUTPUT_DIR"
+          bash scripts/build-lib-internal.sh ${{ matrix.plugin }}
+
+      - name: Organize output
+        run: |
+          DEST="libs-output/windows-x64"
+          mkdir -p "$DEST"
+          cp output/*.dll "$DEST/" 2>/dev/null || true
+          cp output/*.so "$DEST/" 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64-${{ matrix.plugin }}
+          path: libs-output/windows-x64/
+
+  # Build on Windows ARM64 (cross-compile from x64 with llvm-mingw)
+  windows-arm64:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        plugin: ${{ fromJson(needs.detect-changes.outputs.plugins) }}
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: CLANG64
+          update: true
+          install: >-
+            mingw-w64-clang-aarch64-gcc
+            mingw-w64-clang-aarch64-cmake
+            mingw-w64-clang-x86_64-cmake
+            mingw-w64-clang-x86_64-meson
+            mingw-w64-clang-x86_64-ninja
+            mingw-w64-clang-x86_64-pkg-config
+            make
+            autoconf
+            automake
+            libtool
+            git
+
+      - name: Build ${{ matrix.plugin }}
+        run: |
+          export OUTPUT_DIR="$(pwd)/output"
+          export DEPS_DIR="$(pwd)/deps"
+          export BUILD_WORK_DIR="/tmp/openrig-build"
+          export CROSS_COMPILE="aarch64-w64-mingw32"
+          export CC="aarch64-w64-mingw32-gcc"
+          export CXX="aarch64-w64-mingw32-g++"
+          export CMAKE_EXTRA="-DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=ARM64 -DCMAKE_C_COMPILER=aarch64-w64-mingw32-gcc -DCMAKE_CXX_COMPILER=aarch64-w64-mingw32-g++"
+          mkdir -p "$OUTPUT_DIR"
+          bash scripts/build-lib-internal.sh ${{ matrix.plugin }}
+
+      - name: Organize output
+        run: |
+          DEST="libs-output/windows-arm64"
+          mkdir -p "$DEST"
+          cp output/*.dll "$DEST/" 2>/dev/null || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-arm64-${{ matrix.plugin }}
+          path: libs-output/windows-arm64/
+
+  # Collect artifacts and commit back to the repo
+  commit-libs:
+    needs: [detect-changes, linux-x86_64, linux-aarch64, macos-universal, windows-x64, windows-arm64]
+    if: always() && needs.detect-changes.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          lfs: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Copy binaries to libs/
+        run: |
+          for platform in linux-x86_64 linux-aarch64 macos-universal windows-x64 windows-arm64; do
+            mkdir -p "libs/lv2/$platform" "libs/nam/$platform"
+            for dir in artifacts/${platform}-*/; do
+              [ -d "$dir" ] || continue
+              for f in "$dir"/*; do
+                [ -f "$f" ] || continue
+                fname=$(basename "$f")
+                if echo "$fname" | grep -q "NeuralAudioCAPI"; then
+                  cp "$f" "libs/nam/$platform/"
+                else
+                  cp "$f" "libs/lv2/$platform/"
+                fi
+              done
+            done
+          done
+
+          echo "=== Build summary ==="
+          for platform in linux-x86_64 linux-aarch64 macos-universal windows-x64 windows-arm64; do
+            nam_count=$(ls "libs/nam/$platform/" 2>/dev/null | wc -l)
+            lv2_count=$(ls "libs/lv2/$platform/" 2>/dev/null | wc -l)
+            echo "$platform: NAM=$nam_count, LV2=$lv2_count"
+          done
+
+      - name: Setup Git LFS
+        run: git lfs install
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add libs/
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          # Build commit message from changed plugins
+          PLUGINS=$(echo '${{ needs.detect-changes.outputs.plugins }}' | tr -d '[]"' | tr ',' ' ')
+          git commit -m "ci: update prebuilt libs for ${PLUGINS}"
+          git push

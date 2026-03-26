@@ -2,10 +2,32 @@ mod registry;
 
 use anyhow::Result;
 use block_core::param::{ModelParameterSchema, ParameterSet};
-use block_core::{AudioChannelLayout, BlockProcessor};
+use block_core::{AudioChannelLayout, BlockProcessor, ModelVisualData};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
+pub enum WahBackendKind {
+    Native,
+    Nam,
+    Ir,
+}
 
 pub fn supported_models() -> &'static [&'static str] {
     registry::SUPPORTED_MODELS
+}
+
+pub fn wah_model_visual(model_id: &str) -> Option<ModelVisualData> {
+    let def = registry::find_model_definition(model_id).ok()?;
+    Some(ModelVisualData {
+        brand: def.brand,
+        type_label: match def.backend_kind {
+            WahBackendKind::Native => "NATIVE",
+            WahBackendKind::Nam => "NAM",
+            WahBackendKind::Ir => "IR",
+        },
+        supported_instruments: def.supported_instruments,
+        knob_layout: def.knob_layout,
+    })
 }
 
 pub fn wah_model_schema(model: &str) -> Result<ModelParameterSchema> {

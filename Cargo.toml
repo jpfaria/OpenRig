@@ -17,13 +17,15 @@ members = [
   "crates/asset-runtime",
   "crates/nam",
   "crates/block-nam",
-  "crates/block-amp-head",
-  "crates/block-amp-combo",
+  "crates/block-preamp",
+  "crates/block-amp",
   "crates/block-full-rig",
   "crates/block-cab",
+  "crates/block-body",
   "crates/ir",
   "crates/block-ir",
   "crates/block-wah",
+  "crates/block-thumbnails",
   "crates/ui-openrig",
   "crates/infra-yaml",
   "crates/infra-filesystem",
@@ -54,3 +56,5 @@ uuid = { version = "1", features = ["v4", "serde"] }
 arc-swap = "1.7"
 slint = "1.14"
 slint-build = "1.14"
+log = "0.4"
+env_logger = "0.11"

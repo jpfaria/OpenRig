@@ -2,12 +2,19 @@ use anyhow::{anyhow, Result};
 use block_core::param::ModelParameterSchema;
 use block_core::param::ParameterSet;
 use crate::processor::TunerProcessor;
+use crate::UtilBackendKind;
 
 #[derive(Clone, Copy)]
+#[allow(dead_code)]
 pub struct UtilModelDefinition {
     pub id: &'static str,
+    pub display_name: &'static str,
+    pub brand: &'static str,
+    pub backend_kind: UtilBackendKind,
     pub schema: fn() -> Result<ModelParameterSchema>,
     pub build: fn(&ParameterSet, usize) -> Result<Box<dyn TunerProcessor>>,
+    pub supported_instruments: &'static [&'static str],
+    pub knob_layout: &'static [block_core::KnobLayoutEntry],
 }
 
 include!(concat!(env!("OUT_DIR"), "/generated_registry.rs"));

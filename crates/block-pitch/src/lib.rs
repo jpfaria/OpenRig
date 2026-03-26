@@ -1,8 +1,18 @@
 use anyhow::{anyhow, Result};
 use block_core::param::{float_parameter, ModelParameterSchema, ParameterSet, ParameterUnit};
-use block_core::ModelAudioMode;
+use block_core::{ModelAudioMode, ModelVisualData};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
+pub enum PitchBackendKind {
+    Native,
+    Nam,
+    Ir,
+}
 
 const MODEL_ID: &str = "octave_simple";
+#[allow(dead_code)]
+const DISPLAY_NAME: &str = "Simple Octave";
 const SUPPORTED_MODELS: &[&str] = &[MODEL_ID];
 
 pub fn supported_models() -> &'static [&'static str] {
@@ -41,6 +51,18 @@ pub fn pitch_model_schema(model: &str) -> Result<ModelParameterSchema> {
                 ParameterUnit::Percent,
             ),
         ],
+    })
+}
+
+pub fn pitch_model_visual(model_id: &str) -> Option<ModelVisualData> {
+    if model_id != MODEL_ID {
+        return None;
+    }
+    Some(ModelVisualData {
+        brand: "",
+        type_label: "NATIVE",
+        supported_instruments: block_core::ALL_INSTRUMENTS,
+        knob_layout: &[],
     })
 }
 

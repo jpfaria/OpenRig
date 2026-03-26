@@ -1,0 +1,1030 @@
+import { BlockTypePickerItem, BlockModelPickerItem, BlockKnobOverlay, BlockParameterItem, BlockStreamData } from "../models.slint";
+import { BrandLogo } from "../components/brand_logo.slint";
+import { EffectTypeIcon } from "../components/effect_type_icon.slint";
+
+import "../fonts/Inter.ttf";
+import "../fonts/BebasNeue.ttf";
+import "../fonts/DancingScript.ttf";
+import "../fonts/PermanentMarker.ttf";
+import "../fonts/Orbitron.ttf";
+
+// Beautiful dark model selector with popup
+component ModelSelector inherits Rectangle {
+    in property <[string]> labels;
+    in property <[BlockModelPickerItem]> models;
+    in-out property <int> current-index: 0;
+    callback selected(int);
+
+    height: 34px;
+    background: #060610;
+    border-width: 1px;
+    border-color: #252538;
+    border-radius: 6px;
+
+    Text {
+        x: 12px; y: 0;
+        width: parent.width - 34px;
+        height: parent.height;
+        text: root.current-index >= 0 && root.current-index < root.labels.length
+            ? root.labels[root.current-index]
+            : "";
+        color: #d8e0ff;
+        font-size: 13px;
+        font-weight: 700;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    // Chevron
+    Text {
+        x: parent.width - 22px; y: 0;
+        width: 18px;
+        height: parent.height;
+        text: "▼";
+        color: #ffffff;
+        font-size: 11px;
+        vertical-alignment: center;
+        horizontal-alignment: center;
+    }
+
+    ta-open := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { popup.show(); }
+    }
+
+    popup := PopupWindow {
+        property <length> list-height: Math.min(root.labels.length * 36px + 8px, 320px);
+        x: 0;
+        y: root.height + 4px;
+        width: root.width;
+        height: self.list-height;
+
+        Rectangle {
+            width: 100%;
+            height: 100%;
+            background: #08080e;
+            border-width: 1px;
+            border-color: #2a2a40;
+            border-radius: 6px;
+            drop-shadow-blur: 20px;
+            drop-shadow-color: #000000c0;
+            drop-shadow-offset-x: 0px;
+            drop-shadow-offset-y: 6px;
+            clip: true;
+
+            Flickable {
+                x: 0; y: 0;
+                width: parent.width;
+                height: parent.height;
+                viewport-height: root.labels.length * 36px + 8px;
+
+            for label[i] in root.labels : Rectangle {
+                x: 4px;
+                y: 4px + i * 36px;
+                width: parent.width - 8px;
+                height: 36px;
+                border-radius: 5px;
+                background: i == root.current-index ? #14142a : transparent;
+
+                Text {
+                    x: 12px; y: 0;
+                    width: parent.width - 70px;
+                    height: parent.height;
+                    text: label;
+                    color: i == root.current-index ? #7788ff : #b0bce0;
+                    font-size: 13px;
+                    font-weight: i == root.current-index ? 700 : 400;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+
+                if i < root.models.length && root.models[i].type_label != "" : Rectangle {
+                    x: parent.width - 54px;
+                    y: (parent.height - 18px) / 2;
+                    width: 42px;
+                    height: 18px;
+                    border-radius: 3px;
+                    background: root.models[i].type_label == "NATIVE" ? #0d2a0d
+                        : root.models[i].type_label == "NAM" ? #0d1a2e
+                        : #2e1a0d;
+                    border-width: 1px;
+                    border-color: root.models[i].type_label == "NATIVE" ? #1a6b1a
+                        : root.models[i].type_label == "NAM" ? #1a4488
+                        : #883300;
+
+                    Text {
+                        width: parent.width;
+                        height: parent.height;
+                        text: root.models[i].type_label;
+                        color: root.models[i].type_label == "NATIVE" ? #33bb33
+                            : root.models[i].type_label == "NAM" ? #4499ff
+                            : #ff8833;
+                        font-size: 7px;
+                        font-weight: 800;
+                        letter-spacing: 0.5px;
+                        vertical-alignment: center;
+                        horizontal-alignment: center;
+                    }
+                }
+
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.current-index = i;
+                        root.selected(i);
+                    }
+                }
+            }
+            }
+        }
+    }
+}
+
+// Dial knob — dark circle, dot indicator on edge, value in center
+component PanelKnob inherits Rectangle {
+    in property <float> value;
+    in property <float> min-val;
+    in property <float> max-val;
+    in property <float> step: 1.0;
+    in property <string> path;
+    callback changed(string, float);
+
+    private property <float> norm: root.preview-active ? (root.preview-val - root.min-val) / (root.max-val - root.min-val) : root.value / 100.0;
+    private property <float> drag-y0: 0;
+    private property <float> drag-val0: 0;
+    private property <bool> preview-active: false;
+    private property <float> preview-val: 0;
+    // Angle: 225° (min, 7:30) → 495° (max, 4:30)
+    private property <angle> dot-angle: 225deg + root.norm * 270deg;
+    private property <length> knob-size: Math.min(root.width, root.height);
+    private property <length> orbit: root.knob-size / 2 - 6px;
+
+    background: transparent;
+
+    // Dark circle base
+    Rectangle {
+        x: (parent.width - root.knob-size) / 2;
+        y: (parent.height - root.knob-size) / 2;
+        width: root.knob-size;
+        height: root.knob-size;
+        border-radius: root.knob-size / 2;
+        background: #111;
+        border-width: ta.pressed ? 2.5px : ta.has-hover ? 2px : 1.5px;
+        border-color: ta.pressed ? #6688ff : ta.has-hover ? #4466bb : #333;
+    }
+
+    // Dot indicator on circumference
+    Rectangle {
+        x: parent.width / 2 + Math.sin(root.dot-angle) * (root.orbit / 1px) * 1px - 4px;
+        y: parent.height / 2 - Math.cos(root.dot-angle) * (root.orbit / 1px) * 1px - 4px;
+        width: 8px;
+        height: 8px;
+        border-radius: 4px;
+        background: ta.pressed ? #ffffff : ta.has-hover ? #ddeeff : #aabbdd;
+    }
+
+    // Value in center
+    Text {
+        x: (parent.width - root.knob-size) / 2;
+        y: (parent.height - root.knob-size) / 2;
+        width: root.knob-size;
+        height: root.knob-size;
+        text: root.preview-active
+            ? (root.step >= 1.0
+                ? Math.round(root.preview-val) + ""
+                : Math.round(root.preview-val * 10) / 10 + "")
+            : (root.step >= 1.0
+                ? Math.round(root.value) + ""
+                : Math.round(root.value * 10) / 10 + "");
+        color: ta.pressed ? #ffffff : ta.has-hover ? #ddeeff : #ccdde8;
+        font-size: 14px;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    ta := TouchArea {
+        mouse-cursor: ta.pressed ? none : ns-resize;
+
+        pointer-event(ev) => {
+            if ev.kind == PointerEventKind.down {
+                root.drag-y0 = ta.mouse-y / 1px;
+                root.drag-val0 = root.value;
+                root.preview-active = true;
+                root.preview-val = root.value;
+            }
+            if ev.kind == PointerEventKind.up {
+                if root.preview-active {
+                    root.changed(root.path, root.preview-val);
+                    root.preview-active = false;
+                }
+            }
+        }
+
+        moved => {
+            if ta.pressed {
+                let delta = root.drag-y0 - ta.mouse-y / 1px;
+                let range = root.max-val - root.min-val;
+                let raw = root.drag-val0 + delta * range / 120.0;
+                let clamped = raw < root.min-val ? root.min-val : (raw > root.max-val ? root.max-val : raw);
+                let stepped = root.step > 0.0 ? Math.round(clamped / root.step) * root.step : clamped;
+                root.preview-val = stepped;
+            }
+        }
+    }
+}
+
+// Full visual amp head editor window content
+export component BlockPanelEditor inherits Rectangle {
+    in property <[BlockTypePickerItem]> block-type-options;
+    in property <[BlockModelPickerItem]> block-model-options;
+    in property <[string]> block-model-option-labels;
+    in property <int> block-drawer-selected-type-index: -1;
+    in-out property <int> block-drawer-selected-model-index: -1;
+    in property <bool> block-drawer-edit-mode: true;
+    in property <bool> block-drawer-enabled: true;
+    in property <[BlockKnobOverlay]> block-knob-overlays;
+    in property <[BlockParameterItem]> block-parameter-items;
+    in property <string> block-drawer-confirm-label: "Adicionar";
+    in property <BlockStreamData> block-stream-data;
+
+    callback choose-block-model(int);
+    callback close-block-drawer();
+    callback save-block-drawer();
+    callback delete-block-drawer();
+    callback toggle-block-drawer-enabled();
+    callback update-block-parameter-number(string, float);
+    callback select-block-parameter-option(string, int);
+    callback pick-block-parameter-file(string);
+    callback update-block-parameter-bool(string, bool);
+
+    // Computed
+    private property <string> selected-model-id:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].model_id
+        : "";
+
+    private property <string> selected-brand:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].brand
+        : "";
+
+    private property <string> selected-type-label:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].type_label
+        : "";
+
+    private property <string> selected-model-label:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].display_name
+        : "";
+
+    private property <string> block-type-label:
+        root.block-drawer-selected-type-index >= 0
+        && root.block-drawer-selected-type-index < root.block-type-options.length
+        ? root.block-type-options[root.block-drawer-selected-type-index].label
+        : "PREAMP";
+
+    private property <string> selected-icon-kind:
+        root.block-drawer-selected-type-index >= 0
+        && root.block-drawer-selected-type-index < root.block-type-options.length
+        ? root.block-type-options[root.block-drawer-selected-type-index].icon_kind
+        : "";
+
+    private property <image> selected-icon-source:
+        root.selected-icon-kind == "preamp" ? @image-url("../assets/amp-head.svg")
+        : root.selected-icon-kind == "amp" ? @image-url("../assets/amp-combo.svg")
+        : root.selected-icon-kind == "cab" ? @image-url("../assets/cab.svg")
+        : root.selected-icon-kind == "body" ? @image-url("../assets/body.svg")
+        : root.selected-icon-kind == "gain" ? @image-url("../assets/gain.svg")
+        : root.selected-icon-kind == "delay" ? @image-url("../assets/delay.svg")
+        : root.selected-icon-kind == "reverb" ? @image-url("../assets/reverb.svg")
+        : root.selected-icon-kind == "dynamics" ? @image-url("../assets/dyn.svg")
+        : root.selected-icon-kind == "filter" ? @image-url("../assets/filter.svg")
+        : root.selected-icon-kind == "wah" ? @image-url("../assets/expression.svg")
+        : root.selected-icon-kind == "pitch" ? @image-url("../assets/pitch.svg")
+        : root.selected-icon-kind == "modulation" ? @image-url("../assets/mod.svg")
+        : root.selected-icon-kind == "ir" ? @image-url("../assets/ir-loader.svg")
+        : root.selected-icon-kind == "nam" ? @image-url("../assets/nam.svg")
+        : root.selected-icon-kind == "full_rig" ? @image-url("../assets/full-rig.svg")
+        : root.selected-icon-kind == "utility" ? @image-url("../assets/tuner.svg")
+        : @image-url("../assets/gear.svg");
+
+    private property <float> photo-offset-x:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].photo_offset_x
+        : 0.0;
+    private property <float> photo-offset-y:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].photo_offset_y
+        : 0.0;
+
+    // Badge dimensions (for computing ModelSelector right boundary)
+    private property <length> badge-width:
+        root.selected-type-label == "" ? 0px : 56px;
+    private property <length> header-height: 48px;
+    private property <length> brand-strip-height: 0px;
+    private property <length> panel-height: root.width / 4;
+    private property <length> footer-height: root.block-drawer-edit-mode ? 0px : 52px;
+
+    background: #0a0a0e;
+
+    // ── HEADER (48px) ──────────────────────────────────────────────
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width;
+        height: root.header-height;
+        background: #06060c;
+
+        // Block type icon (left)
+        Image {
+            x: 10px;
+            y: (parent.height - 24px) / 2;
+            width: 24px;
+            height: 24px;
+            source: root.selected-icon-source;
+            image-fit: contain;
+            colorize: #f1f4f8;
+        }
+
+        // Block type label (left, after icon)
+        Text {
+            x: 38px; y: 0;
+            width: 60px;
+            height: parent.height;
+            text: root.block-type-label;
+            color: #f1f4f8;
+            font-size: 10px;
+            font-weight: 900;
+            vertical-alignment: center;
+            letter-spacing: 1.5px;
+        }
+
+        // Model selector (fills middle)
+        ModelSelector {
+            x: 100px;
+            y: (parent.height - 34px) / 2;
+            width: parent.width - 100px - root.badge-width - 48px;
+            labels: root.block-model-option-labels;
+            models: root.block-model-options;
+            current-index <=> root.block-drawer-selected-model-index;
+            selected(i) => { root.choose-block-model(i); }
+        }
+
+        // Type badge
+        if root.selected-type-label != "" : Rectangle {
+            x: parent.width - root.badge-width - 40px;
+            y: (parent.height - 22px) / 2;
+            width: root.badge-width;
+            height: 22px;
+            border-radius: 4px;
+            background: root.selected-type-label == "NATIVE" ? #0d2a0d
+                : root.selected-type-label == "NAM" ? #0d1a2e
+                : #2e1a0d;
+            border-width: 1px;
+            border-color: root.selected-type-label == "NATIVE" ? #1a6b1a
+                : root.selected-type-label == "NAM" ? #1a4488
+                : #883300;
+
+            Text {
+                x: 8px; y: 0;
+                width: parent.width - 16px;
+                height: parent.height;
+                text: root.selected-type-label;
+                color: root.selected-type-label == "NATIVE" ? #33bb33
+                    : root.selected-type-label == "NAM" ? #4499ff
+                    : #ff8833;
+                font-size: 9px;
+                font-weight: 800;
+                letter-spacing: 0.8px;
+                vertical-alignment: center;
+                horizontal-alignment: center;
+            }
+        }
+
+        // Delete button (edit mode, ao lado do badge)
+        if root.block-drawer-edit-mode : Rectangle {
+            x: parent.width - 32px;
+            y: (parent.height - 24px) / 2;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            background: ta-del.has-hover ? #1a0000 : transparent;
+
+            Image {
+                x: 3px; y: 3px;
+                width: 18px; height: 18px;
+                source: @image-url("../assets/trash.svg");
+                image-fit: contain;
+                colorize: ta-del.has-hover ? #ff4433 : #662222;
+            }
+
+            ta-del := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.delete-block-drawer(); }
+            }
+        }
+
+        // Save button (insert mode, ao lado do badge)
+        if !root.block-drawer-edit-mode : Rectangle {
+            x: parent.width - 32px;
+            y: (parent.height - 24px) / 2;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            background: ta-save.has-hover ? #0a1a30 : transparent;
+
+            Image {
+                x: 3px; y: 3px;
+                width: 18px; height: 18px;
+                source: @image-url("../assets/save.svg");
+                image-fit: contain;
+                colorize: ta-save.has-hover ? #4499ff : #224488;
+            }
+
+            ta-save := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.save-block-drawer(); }
+            }
+        }
+    }
+
+    // ── PANEL RECT (direto após o header, sem brand strip) ─────────────────────────────────────────────────
+    // Panel colors from model data
+    private property <color> panel-bg:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].panel_bg
+        : #2c2e34;
+    private property <color> panel-text:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].panel_text
+        : #8090a0;
+    private property <color> brand-strip-bg:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].brand_strip_bg
+        : #1a1a1a;
+    private property <string> model-font:
+        root.block-drawer-selected-model-index >= 0
+        && root.block-drawer-selected-model-index < root.block-model-options.length
+        ? root.block-model-options[root.block-drawer-selected-model-index].model_font
+        : "";
+
+    Rectangle {
+        x: 0;
+        y: root.header-height + root.brand-strip-height;
+        width: parent.width;
+        height: root.panel-height;
+        clip: true;
+        background: root.panel-bg;
+
+        // ── Brand strip (marca + modelo) ──
+        // Com marca real (marshall, vox, etc)
+        if root.selected-brand != "native" && root.selected-brand != "" : Rectangle {
+            x: 0;
+            y: 0;
+            width: parent.width;
+            height: 96px;
+            background: root.brand-strip-bg;
+            clip: true;
+
+            // Background photo (transparent, behind logo and text)
+            if root.selected-model-id == "marshall_jcm_800_2203" : Image {
+                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
+                source: @image-url("../../../../assets/models/photos/marshall_jcm_800_2203.png");
+                image-fit: cover; opacity: 0.25;
+            }
+            if root.selected-model-id == "marshall_4x12_v30" : Image {
+                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
+                source: @image-url("../../../../assets/models/photos/marshall_4x12_v30.png");
+                image-fit: cover; opacity: 0.25;
+            }
+            if root.selected-model-id == "blues_overdrive_bd_2" : Image {
+                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
+                source: @image-url("../../../../assets/models/photos/blues_overdrive_bd_2.png");
+                image-fit: cover; opacity: 0.25;
+            }
+            if root.selected-model-id == "ibanez_ts9" : Image {
+                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
+                source: @image-url("../../../../assets/models/photos/ibanez_ts9.png");
+                image-fit: cover; opacity: 0.25;
+            }
+            if root.selected-model-id == "bogner_ecstasy" : Image {
+                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
+                source: @image-url("../../../../assets/models/photos/bogner_ecstasy.png");
+                image-fit: cover; opacity: 0.25;
+            }
+            if root.selected-model-id == "roland_jc_120b_jazz_chorus" : Image {
+                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
+                source: @image-url("../../../../assets/models/photos/roland_jc_120b_jazz_chorus.png");
+                image-fit: cover; opacity: 0.25;
+            }
+            if root.selected-model-id == "gibson_sj_200" : Image {
+                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
+                source: @image-url("../../../../assets/models/photos/gibson_sj_200.png");
+                image-fit: cover; opacity: 0.25;
+            }
+            if root.selected-model-id == "gibson_j_45" : Image {
+                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
+                source: @image-url("../../../../assets/models/photos/gibson_j_45.png");
+                image-fit: cover; opacity: 0.25;
+            }
+            if root.selected-model-id == "martin_d_35" : Image {
+                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
+                source: @image-url("../../../../assets/models/photos/martin_d_35.png");
+                image-fit: cover; opacity: 0.25;
+            }
+            if root.selected-model-id == "martin_om_28" : Image {
+                x: root.photo-offset-x * parent.width; y: root.photo-offset-y * parent.height; width: parent.width; height: parent.height * 2;
+                source: @image-url("../../../../assets/models/photos/martin_om_28.png");
+                image-fit: cover; opacity: 0.25;
+            }
+
+            BrandLogo {
+                x: parent.width * 0.1;
+                y: 6px;
+                width: parent.width * 0.8;
+                height: 60px;
+                brand: root.selected-brand;
+                tint: root.panel-text;
+            }
+
+            Text {
+                x: 0;
+                y: 70px;
+                width: parent.width;
+                height: 20px;
+                text: root.selected-model-label;
+                color: #666;
+                font-size: 11px;
+                font-weight: 600;
+                letter-spacing: 1.5px;
+                horizontal-alignment: center;
+            }
+        }
+
+        // Nativos: fundo escuro com ilustração do modelo + nome
+        if root.selected-brand == "native" || root.selected-brand == "" : Rectangle {
+            x: 0;
+            y: 0;
+            width: parent.width;
+            height: 96px;
+            background: root.brand-strip-bg;
+
+            // Ilustração do modelo (à esquerda do nome, ambos centralizados)
+            Image {
+                x: (parent.width / 2) - 200px;
+                y: (parent.height - 64px) / 2;
+                width: 64px;
+                height: 64px;
+                source: root.selected-model-id == "analog_warm" ? @image-url("../../../../assets/models/analog_warm.svg")
+                    : root.selected-model-id == "digital_clean" ? @image-url("../../../../assets/models/digital_clean.svg")
+                    : root.selected-model-id == "modulated_delay" ? @image-url("../../../../assets/models/modulated_delay.svg")
+                    : root.selected-model-id == "reverse" ? @image-url("../../../../assets/models/reverse.svg")
+                    : root.selected-model-id == "slapback" ? @image-url("../../../../assets/models/slapback.svg")
+                    : root.selected-model-id == "tape_vintage" ? @image-url("../../../../assets/models/tape_vintage.svg")
+                    : root.selected-model-id == "plate_foundation" ? @image-url("../../../../assets/models/plate_foundation.svg")
+                    : root.selected-model-id == "compressor_studio_clean" ? @image-url("../../../../assets/models/compressor_studio_clean.svg")
+                    : root.selected-model-id == "gate_basic" ? @image-url("../../../../assets/models/gate_basic.svg")
+                    : root.selected-model-id == "eq_three_band_basic" ? @image-url("../../../../assets/models/eq_three_band_basic.svg")
+                    : root.selected-model-id == "cry_classic" ? @image-url("../../../../assets/models/cry_classic.svg")
+                    : root.selected-model-id == "tremolo_sine" ? @image-url("../../../../assets/models/tremolo_sine.svg")
+                    : root.selected-model-id == "tuner_chromatic" ? @image-url("../../../../assets/models/tuner_chromatic.svg")
+                    : root.selected-model-id == "american_clean" ? @image-url("../../../../assets/models/american_clean.svg")
+                    : root.selected-model-id == "brit_crunch" ? @image-url("../../../../assets/models/brit_crunch.svg")
+                    : root.selected-model-id == "modern_high_gain" ? @image-url("../../../../assets/models/modern_high_gain.svg")
+                    : root.selected-model-id == "blackface_clean" ? @image-url("../../../../assets/models/blackface_clean.svg")
+                    : root.selected-model-id == "tweed_breakup" ? @image-url("../../../../assets/models/tweed_breakup.svg")
+                    : root.selected-model-id == "chime" ? @image-url("../../../../assets/models/chime.svg")
+                    : root.selected-model-id == "american_2x12" ? @image-url("../../../../assets/models/american_2x12.svg")
+                    : root.selected-model-id == "brit_4x12" ? @image-url("../../../../assets/models/brit_4x12.svg")
+                    : root.selected-model-id == "vintage_1x12" ? @image-url("../../../../assets/models/vintage_1x12.svg")
+                    : root.selected-model-id == "generic_ir" ? @image-url("../../../../assets/models/generic_ir.svg")
+                    : root.selected-model-id == "generic_nam" ? @image-url("../../../../assets/models/generic_nam.svg")
+                    : root.selected-icon-source;
+                image-fit: contain;
+                colorize: root.panel-text;
+                opacity: 0.6;
+            }
+
+            Text {
+                x: (parent.width / 2) - 128px;
+                y: 0;
+                width: 340px;
+                height: parent.height;
+                text: root.selected-model-label;
+                color: #c0c8d0;
+                font-family: root.model-font;
+                font-size: 28px;
+                font-weight: 700;
+                horizontal-alignment: left;
+                vertical-alignment: center;
+            }
+        }
+
+        // ── Control labels (alinhados à direita, espaçamento fixo 70px) ──
+        for knob[ki] in root.block-knob-overlays : Text {
+            x: parent.width - 28px - (root.block-knob-overlays.length - ki) * 70px - 10px;
+            y: parent.height * 0.54;
+            width: 80px;
+            height: 16px;
+            text: knob.label;
+            color: root.panel-text;
+            font-family: "Bebas Neue";
+            font-size: 13px;
+            letter-spacing: 2px;
+            horizontal-alignment: center;
+        }
+
+        // ── Power switch ──
+        Rectangle {
+            x: 10px;
+            y: parent.height * 0.62;
+            width: 32px;
+            height: 40px;
+            border-radius: 3px;
+            background: #0a0a0a;
+            border-width: 1.5px;
+            border-color: #404040;
+
+            Rectangle {
+                x: 6px;
+                y: root.block-drawer-enabled ? 4px : 20px;
+                width: 20px;
+                height: 16px;
+                border-radius: 2px;
+                background: root.block-drawer-enabled ? #cc2222 : #1a0808;
+                border-width: 1px;
+                border-color: root.block-drawer-enabled ? #ee4444 : #331111;
+            }
+
+            ta-power := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.toggle-block-drawer-enabled(); }
+            }
+        }
+
+        Text {
+            x: 8px;
+            y: parent.height * 0.62 + 44px;
+            width: 36px;
+            height: 12px;
+            text: "POWER";
+            color: root.panel-text;
+            font-size: 7px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            horizontal-alignment: center;
+        }
+
+        // ── Knob overlays (alinhados à direita, espaçamento fixo 70px) ──
+        for knob[ki] in root.block-knob-overlays : PanelKnob {
+            x: parent.width - 28px - (root.block-knob-overlays.length - ki) * 70px - 3px;
+            y: parent.height * 0.62;
+            width: 56px;
+            height: 56px;
+            value: knob.value;
+            min-val: knob.min_val;
+            max-val: knob.max_val;
+            step: knob.step;
+            path: knob.path;
+            changed(p, v) => { root.update-block-parameter-number(p, v); }
+        }
+
+        // ── Enum parameters (segmented for ≤4 options) ──
+        for param[pi] in root.block-parameter-items : Rectangle {
+            visible: param.widget_kind == "enum" && param.option_labels.length <= 4;
+            property <length> seg-width: Math.max(120px, param.option_labels.length * 72px);
+            property <length> available: parent.width - 60px - 28px;
+            property <int> enum-count: root.block-parameter-items.length;
+            property <length> slot-width: enum-count > 0 ? available / enum-count : 290px;
+            x: 60px + pi * slot-width;
+            y: parent.height * 0.54;
+            width: Math.min(self.seg-width, slot-width - 8px);
+            height: 60px;
+
+            Text {
+                x: 0; y: 0; width: parent.width; height: 16px;
+                text: param.label;
+                color: root.panel-text;
+                font-family: "Bebas Neue";
+                font-size: 13px;
+                letter-spacing: 2px;
+                horizontal-alignment: center;
+            }
+
+            Rectangle {
+                x: 4px; y: 20px;
+                width: parent.width - 8px; height: 32px;
+                border-radius: 6px;
+                background: #00000030;
+                border-width: 1px; border-color: #ffffff10;
+
+                for option[oi] in param.option_labels : Rectangle {
+                    x: oi * (parent.width / param.option_labels.length);
+                    y: 0;
+                    width: parent.width / param.option_labels.length;
+                    height: parent.height;
+                    border-radius: 5px;
+                    background: oi == param.selected_option_index ? #3366cc : (seg-ta.has-hover ? #ffffff10 : transparent);
+
+                    Text {
+                        x: 4px; width: parent.width - 8px; height: parent.height;
+                        text: option;
+                        color: oi == param.selected_option_index ? #ffffff : #8090a0;
+                        font-size: 9px;
+                        font-weight: oi == param.selected_option_index ? 800 : 500;
+                        letter-spacing: 0.5px;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                        overflow: elide;
+                    }
+
+                    seg-ta := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.select-block-parameter-option(param.path, oi); }
+                    }
+                }
+            }
+        }
+
+        // ── Enum parameters with 5+ options (dropdown select) ──
+        for param[pi] in root.block-parameter-items : Rectangle {
+            visible: param.widget_kind == "enum" && param.option_labels.length > 4;
+            property <length> available: parent.width - 60px - 28px;
+            property <int> enum-count: root.block-parameter-items.length;
+            property <length> slot-width: enum-count > 0 ? available / enum-count : 290px;
+            x: 60px + pi * slot-width;
+            y: parent.height * 0.54;
+            width: Math.min(260px, slot-width - 8px);
+            height: 60px;
+
+            Text {
+                x: 0; y: 0; width: parent.width; height: 16px;
+                text: param.label;
+                color: root.panel-text;
+                font-family: "Bebas Neue";
+                font-size: 13px;
+                letter-spacing: 2px;
+                horizontal-alignment: center;
+            }
+
+            // Select box (same style as model selector)
+            Rectangle {
+                x: 0; y: 22px;
+                width: parent.width;
+                height: 34px;
+                background: #060610;
+                border-width: 1px;
+                border-color: #252538;
+                border-radius: 6px;
+
+                Text {
+                    x: 12px; y: 0;
+                    width: parent.width - 34px;
+                    height: parent.height;
+                    text: param.selected_option_index >= 0 && param.selected_option_index < param.option_labels.length
+                        ? param.option_labels[param.selected_option_index]
+                        : "";
+                    color: #d8e0ff;
+                    font-size: 13px;
+                    font-weight: 700;
+                    vertical-alignment: center;
+                    overflow: elide;
+                }
+
+                Text {
+                    x: parent.width - 22px; y: 0;
+                    width: 18px;
+                    height: parent.height;
+                    text: "\u{25BC}";
+                    color: #ffffff;
+                    font-size: 11px;
+                    vertical-alignment: center;
+                    horizontal-alignment: center;
+                }
+
+                param-open := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { param-popup.show(); }
+                }
+
+                param-popup := PopupWindow {
+                    property <length> list-height: Math.min(param.option_labels.length * 36px + 8px, 260px);
+                    x: 0;
+                    y: -self.list-height - 4px;
+                    width: parent.width;
+                    height: self.list-height;
+
+                    Rectangle {
+                        width: 100%;
+                        height: 100%;
+                        background: #08080e;
+                        border-width: 1px;
+                        border-color: #2a2a40;
+                        border-radius: 6px;
+                        drop-shadow-blur: 20px;
+                        drop-shadow-color: #000000c0;
+                        drop-shadow-offset-x: 0px;
+                        drop-shadow-offset-y: 6px;
+                        clip: true;
+
+                        Flickable {
+                            x: 0; y: 0;
+                            width: parent.width;
+                            height: parent.height;
+                            viewport-height: param.option_labels.length * 36px + 8px;
+
+                            for option[oi] in param.option_labels : Rectangle {
+                                x: 4px;
+                                y: 4px + oi * 36px;
+                                width: parent.width - 8px;
+                                height: 36px;
+                                border-radius: 5px;
+                                background: oi == param.selected_option_index ? #14142a : (opt-ta.has-hover ? #ffffff08 : transparent);
+
+                                Text {
+                                    x: 12px; y: 0;
+                                    width: parent.width - 24px;
+                                    height: parent.height;
+                                    text: option;
+                                    color: oi == param.selected_option_index ? #7788ff : #b0bce0;
+                                    font-size: 13px;
+                                    font-weight: oi == param.selected_option_index ? 700 : 400;
+                                    vertical-alignment: center;
+                                    overflow: elide;
+                                }
+
+                                opt-ta := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.select-block-parameter-option(param.path, oi);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // ── Non-enum parameters (only when no knob overlays — avoids duplicates) ──
+        for param[pi] in root.block-parameter-items : Rectangle {
+            visible: param.widget_kind != "enum" && param.widget_kind != "" && root.block-knob-overlays.length == 0;
+            x: parent.width - 28px - (root.block-parameter-items.length - pi) * 90px;
+            y: parent.height * 0.54;
+            width: 82px;
+            height: 60px;
+
+            // Label
+            Text {
+                x: 0; y: 0;
+                width: parent.width;
+                height: 16px;
+                text: param.label;
+                color: root.panel-text;
+                font-size: 9px;
+                font-weight: 800;
+                letter-spacing: 1px;
+                horizontal-alignment: center;
+            }
+
+            // File picker (widget_kind == "path")
+            if param.widget_kind == "path" : Rectangle {
+                x: 4px; y: 20px;
+                width: parent.width - 8px;
+                height: 32px;
+                border-radius: 6px;
+                background: file-ta.has-hover ? #ffffff18 : #00000030;
+                border-width: 1px;
+                border-color: #ffffff10;
+
+                Text {
+                    x: 4px;
+                    width: parent.width - 8px;
+                    height: parent.height;
+                    text: param.value_text != "" ? param.value_text : "Load";
+                    color: param.value_text != "" ? #8090a0 : #4488cc;
+                    font-size: 8px;
+                    font-weight: 600;
+                    overflow: elide;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+
+                file-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.pick-block-parameter-file(param.path); }
+                }
+            }
+
+            // Numeric stepper (widget_kind == "stepper" or "slider" or "knob")
+            if param.widget_kind == "stepper" || param.widget_kind == "slider" || param.widget_kind == "knob" : PanelKnob {
+                x: (parent.width - 48px) / 2;
+                y: 18px;
+                width: 48px;
+                height: 48px;
+                value: param.numeric_value;
+                min-val: param.numeric_min;
+                max-val: param.numeric_max;
+                step: param.numeric_step;
+                path: param.path;
+                changed(p, v) => { root.update-block-parameter-number(p, v); }
+            }
+
+            // Boolean toggle (widget_kind == "bool")
+            if param.widget_kind == "bool" : Rectangle {
+                x: (parent.width - 48px) / 2;
+                y: 24px;
+                width: 48px;
+                height: 24px;
+                border-radius: 12px;
+                background: param.bool_value ? #3366cc : #333;
+                border-width: 1px;
+                border-color: param.bool_value ? #4488dd : #555;
+
+                Rectangle {
+                    x: param.bool_value ? parent.width - 22px : 2px;
+                    y: 2px;
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 10px;
+                    background: #ffffff;
+                }
+
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.update-block-parameter-bool(param.path, !param.bool_value); }
+                }
+            }
+        }
+    }
+
+    // ── Realtime stream display (tuner, meter, analyzer — any block) ──
+    if root.block-stream-data.active : Rectangle {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        height: parent.height * 0.52;
+        background: #0a0c10;
+
+        // Render entries in a centered layout
+        for entry[ei] in root.block-stream-data.entries : Rectangle {
+            property <length> slot-w: parent.width / root.block-stream-data.entries.length;
+            x: ei * slot-w;
+            y: 10px;
+            width: slot-w;
+            height: parent.height - 20px;
+            background: transparent;
+
+            // Label
+            Text {
+                x: 0; y: 0; width: parent.width; height: 14px;
+                text: entry.key;
+                color: #506070;
+                font-size: 8px; font-weight: 700; letter-spacing: 1.5px;
+                horizontal-alignment: center;
+            }
+
+            // Main text value
+            Text {
+                x: 0; y: 14px; width: parent.width; height: parent.height - 40px;
+                text: entry.text;
+                color: entry.value > 0.5 && entry.key == "in_tune" ? #29df85 : #f3f6fb;
+                font-size: entry.text.character-count <= 3 ? 42px : 20px;
+                font-weight: 900;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            // Bar indicator (cents-like values)
+            if entry.key == "cents" : Rectangle {
+                x: 10px; y: parent.height - 20px;
+                width: parent.width - 20px; height: 8px;
+                background: #1a1e28;
+                border-radius: 4px;
+
+                Rectangle {
+                    x: (parent.width - 2px) / 2;
+                    y: 0; width: 2px; height: parent.height;
+                    background: #405060;
+                }
+
+                Rectangle {
+                    property <float> norm: (entry.value / 50.0).clamp(-1.0, 1.0);
+                    x: (parent.width / 2) + self.norm * (parent.width / 2) - 4px;
+                    y: 0; width: 8px; height: parent.height;
+                    background: self.norm > -0.1 && self.norm < 0.1 ? #29df85 : #ff6a57;
+                    border-radius: 4px;
+                }
+            }
+        }
+    }
+}

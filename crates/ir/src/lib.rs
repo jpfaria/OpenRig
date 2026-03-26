@@ -106,6 +106,14 @@ impl IrAsset {
     }
 }
 
+/// Maximum IR length in samples at the file's native sample rate.
+/// Longer tails are truncated with a cosine fade-out.
+/// 8192 samples ≈ 170ms at 48kHz — more than enough for cabs and body IRs.
+const MAX_IR_SAMPLES: usize = 8192;
+
+/// Fade-out length in samples applied when truncating.
+const FADE_OUT_SAMPLES: usize = 512;
+
 pub fn build_mono_ir_processor_from_wav(
     path: &str,
     runtime_sample_rate: f32,
@@ -114,10 +122,11 @@ pub fn build_mono_ir_processor_from_wav(
     if ir.channel_count() != 1 {
         bail!("IR '{}' is not mono", path);
     }
-    validate_sample_rate(&ir, runtime_sample_rate, path)?;
     let IrChannelData::Mono(samples) = ir.channel_data else {
         unreachable!()
     };
+    let samples = truncate_with_fade(samples, path);
+    let samples = resample_if_needed(samples, ir.sample_rate, runtime_sample_rate, path);
     Ok(Box::new(MonoIrProcessor::new(samples)))
 }
 
@@ -129,33 +138,98 @@ pub fn build_stereo_ir_processor_from_wav(
     if ir.channel_count() != 2 {
         bail!("IR '{}' is not stereo", path);
     }
-    validate_sample_rate(&ir, runtime_sample_rate, path)?;
     let IrChannelData::Stereo(left, right) = ir.channel_data else {
         unreachable!()
     };
+    let left = truncate_with_fade(left, path);
+    let right = truncate_with_fade(right, path);
+    let left = resample_if_needed(left, ir.sample_rate, runtime_sample_rate, path);
+    let right = resample_if_needed(right, ir.sample_rate, runtime_sample_rate, path);
     Ok(Box::new(StereoIrProcessor::new(left, right)))
 }
 
-fn validate_sample_rate(ir: &IrAsset, runtime_sample_rate: f32, path: &str) -> Result<()> {
-    let runtime_sample_rate = runtime_sample_rate.round() as u32;
-    if runtime_sample_rate == 0 {
-        bail!("runtime sample rate must be greater than zero");
+fn truncate_with_fade(mut samples: Vec<f32>, path: &str) -> Vec<f32> {
+    if samples.len() <= MAX_IR_SAMPLES {
+        return samples;
     }
-    if ir.sample_rate != runtime_sample_rate {
-        bail!(
-            "IR '{}' uses sample_rate {} but runtime is {}",
-            path,
-            ir.sample_rate,
-            runtime_sample_rate
-        );
+    log::info!(
+        "truncating IR '{}' from {} to {} samples with {}‑sample fade‑out",
+        path, samples.len(), MAX_IR_SAMPLES, FADE_OUT_SAMPLES
+    );
+    samples.truncate(MAX_IR_SAMPLES);
+    let fade_start = MAX_IR_SAMPLES.saturating_sub(FADE_OUT_SAMPLES);
+    for i in fade_start..MAX_IR_SAMPLES {
+        let t = (i - fade_start) as f32 / FADE_OUT_SAMPLES as f32;
+        let gain = 0.5 * (1.0 + (std::f32::consts::PI * t).cos()); // cosine fade
+        samples[i] *= gain;
     }
-    Ok(())
+    samples
 }
 
+fn resample_if_needed(samples: Vec<f32>, ir_rate: u32, runtime_rate: f32, path: &str) -> Vec<f32> {
+    let runtime_rate = runtime_rate.round() as u32;
+    if runtime_rate == 0 || ir_rate == runtime_rate {
+        return samples;
+    }
+    log::info!(
+        "resampling IR '{}' from {}Hz to {}Hz ({} samples)",
+        path, ir_rate, runtime_rate, samples.len()
+    );
+    let ratio = runtime_rate as f64 / ir_rate as f64;
+    let new_len = (samples.len() as f64 * ratio).round() as usize;
+    if new_len == 0 {
+        return vec![0.0];
+    }
+    // Windowed sinc interpolation (Lanczos kernel, a=4)
+    const SINC_HALF_WIDTH: usize = 4;
+    let mut resampled = Vec::with_capacity(new_len);
+    for i in 0..new_len {
+        let src_pos = i as f64 / ratio;
+        let center = src_pos.floor() as i64;
+        let frac = src_pos - center as f64;
+        let mut sum = 0.0f64;
+        let mut weight_sum = 0.0f64;
+        for j in -(SINC_HALF_WIDTH as i64)..=(SINC_HALF_WIDTH as i64) {
+            let idx = center + j;
+            if idx < 0 || idx >= samples.len() as i64 {
+                continue;
+            }
+            let x = frac - j as f64;
+            let w = lanczos_kernel(x, SINC_HALF_WIDTH as f64);
+            sum += samples[idx as usize] as f64 * w;
+            weight_sum += w;
+        }
+        let value = if weight_sum.abs() > 1e-10 { sum / weight_sum } else { 0.0 };
+        resampled.push(value as f32);
+    }
+    resampled
+}
+
+fn lanczos_kernel(x: f64, a: f64) -> f64 {
+    if x.abs() < 1e-10 {
+        return 1.0;
+    }
+    if x.abs() >= a {
+        return 0.0;
+    }
+    let pi_x = std::f64::consts::PI * x;
+    (a * pi_x.sin() * (pi_x / a).sin()) / (pi_x * pi_x)
+}
+
+/// Uniformly partitioned FFT convolver with internal buffering.
+///
+/// Splits the IR into fixed-size segments, pre-computes their FFTs, and
+/// convolves with small FFTs. Internal buffering decouples audio block size
+/// from partition size — works efficiently with any buffer size.
 struct FftBlockConvolver {
     ir: Vec<f32>,
-    state: Option<FftConvolverState>,
+    state: Option<PartitionedState>,
 }
+
+/// Minimum partition size. Keeps the number of partitions low for
+/// real-time performance. With MAX_IR_SAMPLES=8192 and PARTITION_SIZE=512,
+/// we get at most 16 partitions — very manageable.
+const PARTITION_SIZE: usize = 512;
 
 impl FftBlockConvolver {
     fn new(ir: Vec<f32>) -> Result<Self> {
@@ -169,87 +243,146 @@ impl FftBlockConvolver {
         if buffer.is_empty() {
             return;
         }
-        self.ensure_state(buffer.len());
-        let state = self.state.as_mut().expect("fft state initialized");
-        state.input.fill(0.0);
-        state.input[..buffer.len()].copy_from_slice(buffer);
-        state
-            .forward
-            .process(&mut state.input, &mut state.spectrum)
-            .expect("forward FFT should succeed");
+        self.ensure_state();
+        let state = self.state.as_mut().expect("partitioned state initialized");
 
-        for (bin, ir_bin) in state.spectrum.iter_mut().zip(state.ir_spectrum.iter()) {
-            *bin *= *ir_bin;
-        }
+        // Feed samples into internal input buffer, process partition-sized
+        // chunks, and drain output buffer back into the caller's buffer.
+        let out_len = state.output_buf.len();
+        for i in 0..buffer.len() {
+            state.input_buf[state.input_pos] = buffer[i];
+            buffer[i] = state.output_buf[state.output_pos % out_len];
+            state.output_buf[state.output_pos % out_len] = 0.0;
+            state.input_pos += 1;
+            state.output_pos += 1;
+            if state.output_pos >= out_len {
+                state.output_pos -= out_len;
+            }
 
-        state
-            .inverse
-            .process(&mut state.spectrum, &mut state.output)
-            .expect("inverse FFT should succeed");
-
-        let scale = state.fft_len as f32;
-        for sample in &mut state.output {
-            *sample /= scale;
-        }
-
-        for (index, sample) in buffer.iter_mut().enumerate() {
-            *sample = state.output[index] + state.overlap.get(index).copied().unwrap_or(0.0);
-        }
-
-        if !state.overlap.is_empty() {
-            let block_len = buffer.len();
-            for (index, sample) in state.overlap.iter_mut().enumerate() {
-                *sample = state.output[block_len + index];
+            if state.input_pos == state.partition_size {
+                Self::process_partition(state);
+                state.input_pos = 0;
             }
         }
     }
 
-    fn ensure_state(&mut self, block_len: usize) {
-        if self
-            .state
-            .as_ref()
-            .is_some_and(|state| state.block_len == block_len)
-        {
+    fn process_partition(state: &mut PartitionedState) {
+        let ps = state.partition_size;
+        let fft_len = state.fft_len;
+        let spectrum_len = fft_len / 2 + 1;
+        let scale = fft_len as f32;
+
+        // Forward FFT of input partition (zero-padded)
+        state.fft_input.fill(0.0);
+        state.fft_input[..ps].copy_from_slice(&state.input_buf[..ps]);
+        state.forward
+            .process(&mut state.fft_input, &mut state.fft_scratch)
+            .expect("forward FFT");
+
+        // Store in frequency delay line (ring buffer)
+        state.fdl_write = (state.fdl_write + 1) % state.num_partitions;
+        let write_offset = state.fdl_write * spectrum_len;
+        state.fdl[write_offset..write_offset + spectrum_len]
+            .copy_from_slice(&state.fft_scratch);
+
+        // Multiply-accumulate across all IR partitions
+        state.accum.iter_mut().for_each(|c| *c = Complex32::default());
+        for p in 0..state.num_partitions {
+            let fdl_idx = (state.fdl_write + state.num_partitions - p) % state.num_partitions;
+            let fdl_off = fdl_idx * spectrum_len;
+            let ir_off = p * spectrum_len;
+            for i in 0..spectrum_len {
+                state.accum[i] += state.fdl[fdl_off + i] * state.ir_partitions[ir_off + i];
+            }
+        }
+
+        // Inverse FFT
+        state.inverse
+            .process(&mut state.accum, &mut state.fft_output)
+            .expect("inverse FFT");
+
+        // Overlap-add into output ring buffer
+        for i in 0..fft_len {
+            let out_idx = (state.output_pos + i) % state.output_buf.len();
+            state.output_buf[out_idx] += state.fft_output[i] / scale;
+        }
+    }
+
+    fn ensure_state(&mut self) {
+        if self.state.is_some() {
             return;
         }
 
-        let tail_len = self.ir.len().saturating_sub(1);
-        let fft_len = (block_len + tail_len).next_power_of_two().max(2);
+        let ps = PARTITION_SIZE;
+        let fft_len = (ps * 2).next_power_of_two();
+        let spectrum_len = fft_len / 2 + 1;
+
+        let num_partitions = (self.ir.len() + ps - 1) / ps;
         let mut planner = RealFftPlanner::<f32>::new();
         let forward = planner.plan_fft_forward(fft_len);
         let inverse = planner.plan_fft_inverse(fft_len);
 
-        let mut ir_input = forward.make_input_vec();
-        ir_input[..self.ir.len()].copy_from_slice(&self.ir);
-        let mut ir_spectrum = forward.make_output_vec();
-        forward
-            .process(&mut ir_input, &mut ir_spectrum)
-            .expect("IR FFT should succeed");
+        // Pre-compute FFT of each IR partition
+        let mut ir_partitions = vec![Complex32::default(); num_partitions * spectrum_len];
+        let mut buf = vec![0.0f32; fft_len];
+        let mut out = vec![Complex32::default(); spectrum_len];
+        for p in 0..num_partitions {
+            buf.fill(0.0);
+            let start = p * ps;
+            let end = (start + ps).min(self.ir.len());
+            buf[..end - start].copy_from_slice(&self.ir[start..end]);
+            forward.process(&mut buf, &mut out).expect("IR partition FFT");
+            let offset = p * spectrum_len;
+            ir_partitions[offset..offset + spectrum_len].copy_from_slice(&out);
+        }
 
-        self.state = Some(FftConvolverState {
-            block_len,
+        // Output ring buffer must be large enough to hold the full
+        // convolution result overlap: num_partitions * partition_size + fft_len
+        let output_buf_len = (num_partitions + 1) * ps + fft_len;
+
+        log::debug!(
+            "IR convolver: {} samples, {} partitions of {}, fft_len={}, output_buf={}",
+            self.ir.len(), num_partitions, ps, fft_len, output_buf_len
+        );
+
+        self.state = Some(PartitionedState {
+            partition_size: ps,
             fft_len,
+            num_partitions,
             forward,
             inverse,
-            input: vec![0.0; fft_len],
-            spectrum: vec![Complex32::default(); fft_len / 2 + 1],
-            output: vec![0.0; fft_len],
-            ir_spectrum,
-            overlap: vec![0.0; tail_len],
+            ir_partitions,
+            fdl: vec![Complex32::default(); num_partitions * spectrum_len],
+            fdl_write: 0,
+            input_buf: vec![0.0; ps],
+            input_pos: 0,
+            output_buf: vec![0.0; output_buf_len],
+            output_pos: 0,
+            fft_input: vec![0.0; fft_len],
+            fft_output: vec![0.0; fft_len],
+            fft_scratch: vec![Complex32::default(); spectrum_len],
+            accum: vec![Complex32::default(); spectrum_len],
         });
     }
 }
 
-struct FftConvolverState {
-    block_len: usize,
+struct PartitionedState {
+    partition_size: usize,
     fft_len: usize,
+    num_partitions: usize,
     forward: Arc<dyn RealToComplex<f32>>,
     inverse: Arc<dyn ComplexToReal<f32>>,
-    input: Vec<f32>,
-    spectrum: Vec<Complex32>,
-    output: Vec<f32>,
-    ir_spectrum: Vec<Complex32>,
-    overlap: Vec<f32>,
+    ir_partitions: Vec<Complex32>,
+    fdl: Vec<Complex32>,
+    fdl_write: usize,
+    input_buf: Vec<f32>,
+    input_pos: usize,
+    output_buf: Vec<f32>,
+    output_pos: usize,
+    fft_input: Vec<f32>,
+    fft_output: Vec<f32>,
+    fft_scratch: Vec<Complex32>,
+    accum: Vec<Complex32>,
 }
 
 pub struct MonoIrProcessor {

@@ -3,12 +3,19 @@ use block_core::param::{ModelParameterSchema, ParameterSet};
 use block_core::{AudioChannelLayout, BlockProcessor, MonoProcessor};
 
 use crate::shared::build_dual_mono_from_builder;
+use crate::DelayBackendKind;
 
 #[derive(Clone, Copy)]
+#[allow(dead_code)]
 pub struct DelayModelDefinition {
     pub id: &'static str,
+    pub display_name: &'static str,
+    pub brand: &'static str,
+    pub backend_kind: DelayBackendKind,
     pub schema: fn() -> Result<ModelParameterSchema>,
     pub build: fn(&ParameterSet, f32, AudioChannelLayout) -> Result<BlockProcessor>,
+    pub supported_instruments: &'static [&'static str],
+    pub knob_layout: &'static [block_core::KnobLayoutEntry],
 }
 
 pub(crate) fn build_dual_mono_delay_processor<F>(

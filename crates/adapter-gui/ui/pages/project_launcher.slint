@@ -142,7 +142,7 @@ component RecentProjectRow inherits Rectangle {
         y: 21px;
         width: 18px;
         height: 18px;
-        source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/trash.svg");
+        source: @image-url("../assets/trash.svg");
     }
 
     main-area := TouchArea {
@@ -227,7 +227,7 @@ export component ProjectLauncherPage inherits Rectangle {
             y: 0px;
             width: parent.width;
             height: parent.height;
-            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/launcher-block-bg.jpg");
+            source: @image-url("../assets/launcher-block-bg.jpg");
             image-fit: cover;
             opacity: 1;
         }
@@ -261,7 +261,7 @@ export component ProjectLauncherPage inherits Rectangle {
             y: -4px;
             width: 68px;
             height: 68px;
-            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logomark.svg");
+            source: @image-url("../assets/openrig-logomark.svg");
             image-fit: contain;
         }
 
@@ -270,14 +270,14 @@ export component ProjectLauncherPage inherits Rectangle {
             y: 2px;
             width: 210px;
             height: 52px;
-            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/openrig-logotype.png");
+            source: @image-url("../assets/openrig-logotype.png");
             image-fit: contain;
         }
 
         IconLauncherButton {
             x: parent.width - 212px;
             y: 6px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/open-file.svg");
+            icon: @image-url("../assets/open-file.svg");
             tooltip: "Abrir projeto";
             clicked => { root.open-project-file(); }
         }

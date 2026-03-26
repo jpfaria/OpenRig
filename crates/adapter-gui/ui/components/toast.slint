@@ -1,0 +1,30 @@
+export component Toast inherits Rectangle {
+    in property <string> message;
+    in property <string> level: "info"; // "error", "warning", "info"
+    in property <length> container-width;
+    in property <length> container-height;
+
+    // Visible when message is not empty
+    visible: root.message != "";
+
+    x: (root.container-width - self.width) / 2;
+    y: root.container-height - 60px;
+    width: Math.min(root.container-width - 40px, 500px);
+    height: 40px;
+    border-radius: 8px;
+    background: root.level == "error" ? #dc2626cc
+             : root.level == "warning" ? #d97706cc
+             : #2563ebcc;
+
+    Text {
+        width: parent.width - 24px;
+        height: parent.height;
+        x: 12px;
+        text: root.message;
+        color: #ffffff;
+        font-size: 12px;
+        font-weight: 600;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+}

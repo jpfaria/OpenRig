@@ -20,22 +20,24 @@ pub fn model_schema_for(
     schema
 }
 
-pub fn build_processor(params: &ParameterSet) -> Result<BlockProcessor> {
-    build_processor_for_layout(params, AudioChannelLayout::Mono)
+pub fn build_processor(params: &ParameterSet, sample_rate: f32) -> Result<BlockProcessor> {
+    build_processor_for_layout(params, sample_rate, AudioChannelLayout::Mono)
 }
 
 pub fn build_processor_for_layout(
     params: &ParameterSet,
+    sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
     let (model_path, ir_path, plugin_params) = params_from_set(params)?;
-    build_processor_with_assets_for_layout(&model_path, ir_path.as_deref(), plugin_params, layout)
+    build_processor_with_assets_for_layout(&model_path, ir_path.as_deref(), plugin_params, sample_rate, layout)
 }
 
 pub fn build_processor_with_assets_for_layout(
     model_path: &str,
     ir_path: Option<&str>,
     plugin_params: NamPluginParams,
+    _sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
     match layout {
@@ -49,3 +51,4 @@ pub fn build_processor_with_assets_for_layout(
         }
     }
 }
+

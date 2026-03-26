@@ -1,0 +1,75 @@
+[submodule "deps/neural-amp-modeler-lv2"]
+	path = deps/neural-amp-modeler-lv2
+	url = https://github.com/mikeoliphant/neural-amp-modeler-lv2.git
+[submodule "deps/dragonfly-reverb"]
+	path = deps/dragonfly-reverb
+	url = https://github.com/michaelwillis/dragonfly-reverb.git
+[submodule "deps/zam-plugins"]
+	path = deps/zam-plugins
+	url = https://github.com/zamaudio/zam-plugins.git
+[submodule "deps/caps-lv2"]
+	path = deps/caps-lv2
+	url = https://github.com/mod-audio/caps-lv2.git
+[submodule "deps/tap-lv2"]
+	path = deps/tap-lv2
+	url = https://github.com/moddevices/tap-lv2.git
+[submodule "deps/SHIRO-Plugins"]
+	path = deps/SHIRO-Plugins
+	url = https://github.com/ninodewit/SHIRO-Plugins.git
+[submodule "deps/DPF-Plugins"]
+	path = deps/DPF-Plugins
+	url = https://github.com/DISTRHO/DPF-Plugins.git
+[submodule "deps/MVerb"]
+	path = deps/MVerb
+	url = https://github.com/DISTRHO/MVerb.git
+[submodule "deps/mda-lv2"]
+	path = deps/mda-lv2
+	url = https://gitlab.com/drobilla/mda-lv2.git
+[submodule "deps/fomp"]
+	path = deps/fomp
+	url = https://gitlab.com/drobilla/fomp.git
+[submodule "deps/invada-studio"]
+	path = deps/invada-studio
+	url = https://github.com/BlokasLabs/invada-studio.git
+[submodule "deps/wolf-shaper"]
+	path = deps/wolf-shaper
+	url = https://github.com/wolf-plugins/wolf-shaper.git
+[submodule "deps/sooperlooper"]
+	path = deps/sooperlooper
+	url = https://github.com/essej/sooperlooper.git
+[submodule "deps/setBfree"]
+	path = deps/setBfree
+	url = https://github.com/pantherb/setBfree.git
+[submodule "deps/GxPlugins.lv2"]
+	path = deps/GxPlugins.lv2
+	url = https://github.com/brummer10/GxPlugins.lv2.git
+[submodule "deps/openAV-ArtyFX"]
+	path = deps/openAV-ArtyFX
+	url = https://github.com/openAVproductions/openAV-ArtyFX.git
+[submodule "deps/AnalogTapeModel"]
+	path = deps/AnalogTapeModel
+	url = https://github.com/jatinchowdhury18/AnalogTapeModel.git
+[submodule "deps/Schrammel_OJD"]
+	path = deps/Schrammel_OJD
+	url = https://github.com/JanosGit/Schrammel_OJD.git
+[submodule "deps/mod-utilities"]
+	path = deps/mod-utilities
+	url = https://github.com/mod-audio/mod-utilities.git
+[submodule "deps/mod-resources"]
+	path = deps/mod-resources
+	url = https://github.com/moddevices/mod-resources.git
+[submodule "deps/libxputty"]
+	path = deps/libxputty
+	url = https://github.com/brummer10/libxputty.git
+[submodule "deps/svg-pedals-boss"]
+	path = deps/svg-pedals-boss
+	url = https://github.com/SVG-Effects-Pedals/Boss-SVG-Tribute-Pack.git
+[submodule "deps/svg-pedals-ehx"]
+	path = deps/svg-pedals-ehx
+	url = https://github.com/SVG-Effects-Pedals/EHX-SVG-Tribute-Pack.git
+[submodule "deps/svg-pedals-ibanez"]
+	path = deps/svg-pedals-ibanez
+	url = https://github.com/SVG-Effects-Pedals/Maxon-Ibanez-SVG-Tribute-Pack.git
+[submodule "deps/svg-pedals-moogerfooger"]
+	path = deps/svg-pedals-moogerfooger
+	url = https://github.com/SVG-Effects-Pedals/Moogerfooger-SVG-Tribute-Pack.git

@@ -3,5 +3,6 @@ name = "block-core"
 version.workspace = true
 edition.workspace = true
 [dependencies]
+log.workspace = true
 serde.workspace = true
 domain = { path = "../domain" }

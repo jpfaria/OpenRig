@@ -8,3 +8,4 @@ anyhow.workspace = true
 hound = "3.5"
 realfft = "3"
 block-core = { path = "../block-core" }
+log.workspace = true

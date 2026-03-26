@@ -1,0 +1,877 @@
+import { ScrollView } from "std-widgets.slint";
+import { CompactBlockItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem } from "../models.slint";
+import { EffectTypeIcon } from "../components/effect_type_icon.slint";
+import { BrandLogo } from "../components/brand_logo.slint";
+
+// Dial knob — dark circle, dot indicator on edge, value in center
+// (duplicated from block_panel_editor.slint)
+component PanelKnob inherits Rectangle {
+    in property <float> value;
+    in property <float> min-val;
+    in property <float> max-val;
+    in property <float> step: 1.0;
+    in property <string> path;
+    callback changed(string, float);
+
+    private property <float> norm: root.preview-active ? (root.preview-val - root.min-val) / (root.max-val - root.min-val) : root.value / 100.0;
+    private property <float> drag-y0: 0;
+    private property <float> drag-val0: 0;
+    private property <bool> preview-active: false;
+    private property <float> preview-val: 0;
+    // Angle: 225deg (min, 7:30) -> 495deg (max, 4:30)
+    private property <angle> dot-angle: 225deg + root.norm * 270deg;
+    private property <length> knob-size: Math.min(root.width, root.height);
+    private property <length> orbit: root.knob-size / 2 - 6px;
+
+    background: transparent;
+
+    // Dark circle base
+    Rectangle {
+        x: (parent.width - root.knob-size) / 2;
+        y: (parent.height - root.knob-size) / 2;
+        width: root.knob-size;
+        height: root.knob-size;
+        border-radius: root.knob-size / 2;
+        background: #111;
+        border-width: ta.pressed ? 2.5px : ta.has-hover ? 2px : 1.5px;
+        border-color: ta.pressed ? #6688ff : ta.has-hover ? #4466bb : #333;
+    }
+
+    // Dot indicator on circumference
+    Rectangle {
+        x: parent.width / 2 + Math.sin(root.dot-angle) * (root.orbit / 1px) * 1px - 4px;
+        y: parent.height / 2 - Math.cos(root.dot-angle) * (root.orbit / 1px) * 1px - 4px;
+        width: 8px;
+        height: 8px;
+        border-radius: 4px;
+        background: ta.pressed ? #ffffff : ta.has-hover ? #ddeeff : #aabbdd;
+    }
+
+    // Value in center
+    Text {
+        x: (parent.width - root.knob-size) / 2;
+        y: (parent.height - root.knob-size) / 2;
+        width: root.knob-size;
+        height: root.knob-size;
+        text: root.preview-active
+            ? (root.step >= 1.0
+                ? Math.round(root.preview-val) + ""
+                : Math.round(root.preview-val * 10) / 10 + "")
+            : (root.step >= 1.0
+                ? Math.round(root.value) + ""
+                : Math.round(root.value * 10) / 10 + "");
+        color: ta.pressed ? #ffffff : ta.has-hover ? #ddeeff : #ccdde8;
+        font-size: 14px;
+        font-weight: 700;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    ta := TouchArea {
+        mouse-cursor: ns-resize;
+
+        pointer-event(ev) => {
+            if ev.kind == PointerEventKind.down {
+                root.drag-y0 = ta.mouse-y / 1px;
+                root.drag-val0 = root.value;
+                root.preview-active = true;
+                root.preview-val = root.value;
+            }
+            if ev.kind == PointerEventKind.up {
+                if root.preview-active {
+                    root.changed(root.path, root.preview-val);
+                    root.preview-active = false;
+                }
+            }
+        }
+
+        moved => {
+            if ta.pressed {
+                let delta = root.drag-y0 - ta.mouse-y / 1px;
+                let range = root.max-val - root.min-val;
+                let raw = root.drag-val0 + delta * range / 120.0;
+                let clamped = raw < root.min-val ? root.min-val : (raw > root.max-val ? root.max-val : raw);
+                let stepped = root.step > 0.0 ? Math.round(clamped / root.step) * root.step : clamped;
+                root.preview-val = stepped;
+            }
+        }
+    }
+}
+
+// Single block row
+component CompactBlockRow inherits Rectangle {
+    in property <CompactBlockItem> block-data;
+    callback toggle-enabled(int, int);
+    callback update-parameter-number(int, int, string, float);
+    callback select-parameter-option(int, int, string, int);
+    callback choose-model(int, int, int); // chain_index, block_index, model_index
+    callback open-block-detail(int, int);
+    callback remove-block(int, int);
+
+    height: 100px;
+    background: root.block-data.panel-bg;
+    border-width: 1px;
+    border-color: root.block-data.enabled ? root.block-data.panel-bg.darker(0.3) : #252830;
+    opacity: root.block-data.enabled ? 1.0 : 0.5;
+    border-radius: 4px;
+
+    // ── 1. Power switch (block style — rectangular with red LED) ──
+    Rectangle {
+        x: 10px;
+        y: (parent.height - 40px) / 2;
+        width: 32px; height: 40px;
+        border-radius: 3px;
+        background: #0a0a0a;
+        border-width: 1.5px;
+        border-color: #404040;
+
+        Rectangle {
+            x: 6px;
+            y: root.block-data.enabled ? 4px : 20px;
+            width: 20px; height: 16px;
+            border-radius: 2px;
+            background: root.block-data.enabled ? #cc2222 : #1a0808;
+            border-width: 1px;
+            border-color: root.block-data.enabled ? #ee4444 : #331111;
+        }
+
+        TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.toggle-enabled(root.block-data.chain-index, root.block-data.block-index); }
+        }
+    }
+
+    // ── 2. Type icon (always shown) ──
+    EffectTypeIcon {
+        x: 48px;
+        y: (parent.height - 32px) / 2;
+        width: 32px; height: 32px;
+        icon-kind: root.block-data.icon-kind;
+        tint: root.block-data.panel-text;
+    }
+
+    // ── 3. Block type label ──
+    Text {
+        x: 86px;
+        y: (parent.height - 18px) / 2;
+        width: 70px;
+        height: 18px;
+        text: root.block-data.display-label;
+        color: root.block-data.panel-text;
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: 1.5px;
+        vertical-alignment: center;
+    }
+
+    // ── 4. Model selector dropdown (after type label) ──
+    Rectangle {
+        x: 155px;
+        y: (parent.height - 32px) / 2;
+        width: 260px;
+        height: 32px;
+        background: #060610;
+        border-width: 1px;
+        border-color: #252538;
+        border-radius: 5px;
+
+        Text {
+            x: 8px; y: 0;
+            width: parent.width - 28px;
+            height: parent.height;
+            text: root.block-data.display-name;
+            color: #d8e0ff;
+            font-size: 12px;
+            font-weight: 700;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+
+        Text {
+            x: parent.width - 20px; y: 0;
+            width: 16px; height: parent.height;
+            text: "\u{25BC}";
+            color: #8090a0;
+            font-size: 9px;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+        }
+
+        if root.block-data.type-label != "" : Rectangle {
+            x: parent.width - 64px;
+            y: (parent.height - 16px) / 2;
+            width: 36px; height: 16px;
+            border-radius: 3px;
+            background: root.block-data.type-label == "NATIVE" ? #0d2a0d
+                : root.block-data.type-label == "NAM" ? #0d1a2e : #2e1a0d;
+            border-width: 1px;
+            border-color: root.block-data.type-label == "NATIVE" ? #1a6b1a
+                : root.block-data.type-label == "NAM" ? #1a4488 : #883300;
+            Text {
+                width: 100%; height: 100%;
+                text: root.block-data.type-label;
+                color: root.block-data.type-label == "NATIVE" ? #33bb33
+                    : root.block-data.type-label == "NAM" ? #4499ff : #ff8833;
+                font-size: 7px; font-weight: 800;
+                horizontal-alignment: center; vertical-alignment: center;
+            }
+        }
+
+        model-select-ta := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { model-select-popup.show(); }
+        }
+
+        model-select-popup := PopupWindow {
+            property <length> list-h: Math.min(root.block-data.model-labels.length * 32px + 6px, 300px);
+            x: 0; y: parent.height + 4px;
+            width: parent.width; height: self.list-h;
+            Rectangle {
+                width: 100%; height: 100%;
+                background: #08080e; border-width: 1px; border-color: #2a2a40;
+                border-radius: 5px; clip: true;
+                drop-shadow-blur: 16px; drop-shadow-color: #000000c0;
+                Flickable {
+                    width: parent.width; height: parent.height;
+                    viewport-height: root.block-data.model-labels.length * 32px + 6px;
+                    for label[mi] in root.block-data.model-labels : Rectangle {
+                        x: 3px; y: 3px + mi * 32px;
+                        width: parent.width - 6px; height: 30px;
+                        border-radius: 4px;
+                        background: mi == root.block-data.model-selected-index ? #14142a : (ml-sel-ta.has-hover ? #ffffff08 : transparent);
+                        Text {
+                            x: 8px; width: parent.width - 16px; height: parent.height;
+                            text: label;
+                            color: mi == root.block-data.model-selected-index ? #7788ff : #b0bce0;
+                            font-size: 11px;
+                            font-weight: mi == root.block-data.model-selected-index ? 700 : 400;
+                            vertical-alignment: center; overflow: elide;
+                        }
+                        ml-sel-ta := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.choose-model(root.block-data.chain-index, root.block-data.block-index, mi); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ── 5. Brand logo (branded) or native model illustration ──
+    BrandLogo {
+        x: 422px;
+        y: (parent.height - 28px) / 2;
+        width: 60px;
+        height: 28px;
+        brand: root.block-data.brand;
+        tint: root.block-data.panel-text;
+    }
+    // Native models: show model illustration SVG
+    if root.block-data.brand == "" : Image {
+        x: 422px; y: (parent.height - 40px) / 2; width: 40px; height: 40px;
+        source: root.block-data.model-id == "gate_basic" ? @image-url("../../../../assets/models/gate_basic.svg")
+            : root.block-data.model-id == "compressor_studio_clean" ? @image-url("../../../../assets/models/compressor_studio_clean.svg")
+            : root.block-data.model-id == "analog_warm" ? @image-url("../../../../assets/models/analog_warm.svg")
+            : root.block-data.model-id == "digital_clean" ? @image-url("../../../../assets/models/digital_clean.svg")
+            : root.block-data.model-id == "modulated_delay" ? @image-url("../../../../assets/models/modulated_delay.svg")
+            : root.block-data.model-id == "reverse" ? @image-url("../../../../assets/models/reverse.svg")
+            : root.block-data.model-id == "slapback" ? @image-url("../../../../assets/models/slapback.svg")
+            : root.block-data.model-id == "tape_vintage" ? @image-url("../../../../assets/models/tape_vintage.svg")
+            : root.block-data.model-id == "plate_foundation" ? @image-url("../../../../assets/models/plate_foundation.svg")
+            : root.block-data.model-id == "eq_three_band_basic" ? @image-url("../../../../assets/models/eq_three_band_basic.svg")
+            : root.block-data.model-id == "cry_classic" ? @image-url("../../../../assets/models/cry_classic.svg")
+            : root.block-data.model-id == "tremolo_sine" ? @image-url("../../../../assets/models/tremolo_sine.svg")
+            : root.block-data.model-id == "tuner_chromatic" ? @image-url("../../../../assets/models/tuner_chromatic.svg")
+            : root.block-data.model-id == "american_clean" ? @image-url("../../../../assets/models/american_clean.svg")
+            : root.block-data.model-id == "brit_crunch" ? @image-url("../../../../assets/models/brit_crunch.svg")
+            : root.block-data.model-id == "modern_high_gain" ? @image-url("../../../../assets/models/modern_high_gain.svg")
+            : root.block-data.model-id == "blackface_clean" ? @image-url("../../../../assets/models/blackface_clean.svg")
+            : root.block-data.model-id == "tweed_breakup" ? @image-url("../../../../assets/models/tweed_breakup.svg")
+            : root.block-data.model-id == "chime" ? @image-url("../../../../assets/models/chime.svg")
+            : root.block-data.model-id == "american_2x12" ? @image-url("../../../../assets/models/american_2x12.svg")
+            : root.block-data.model-id == "brit_4x12" ? @image-url("../../../../assets/models/brit_4x12.svg")
+            : root.block-data.model-id == "vintage_1x12" ? @image-url("../../../../assets/models/vintage_1x12.svg")
+            : root.block-data.model-id == "generic_ir" ? @image-url("../../../../assets/models/generic_ir.svg")
+            : root.block-data.model-id == "generic_nam" ? @image-url("../../../../assets/models/generic_nam.svg")
+            : root.block-data.icon-kind == "preamp" ? @image-url("../assets/amp-head.svg")
+            : root.block-data.icon-kind == "amp" ? @image-url("../assets/amp-combo.svg")
+            : root.block-data.icon-kind == "cab" ? @image-url("../assets/cab.svg")
+            : root.block-data.icon-kind == "delay" ? @image-url("../assets/delay.svg")
+            : root.block-data.icon-kind == "reverb" ? @image-url("../assets/reverb.svg")
+            : root.block-data.icon-kind == "dynamics" ? @image-url("../assets/dyn.svg")
+            : root.block-data.icon-kind == "modulation" ? @image-url("../assets/mod.svg")
+            : @image-url("../assets/gear.svg");
+        image-fit: contain;
+        colorize: root.block-data.panel-text;
+    }
+
+    // Non-enum numeric params as knobs (when no knob overlays defined)
+    for param[pi] in root.block-data.parameter-items : Rectangle {
+        visible: root.block-data.knob-overlays.length == 0
+            && param.widget_kind != "enum" && param.widget_kind != "" && param.widget_kind != "bool";
+        x: parent.width - 28px - (root.block-data.parameter-items.length - pi) * 72px;
+        y: (parent.height - 72px) / 2;
+        width: 62px;
+        height: 72px;
+
+        Text {
+            x: 0; y: 0; width: parent.width; height: 12px;
+            text: param.label;
+            color: root.block-data.panel-text;
+            font-size: 7px; font-weight: 700; letter-spacing: 0.5px;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+
+        PanelKnob {
+            x: 2px; y: 14px;
+            width: 58px; height: 58px;
+            value: param.numeric_value;
+            min-val: param.numeric_min;
+            max-val: param.numeric_max;
+            step: param.numeric_step;
+            path: param.path;
+            changed(p, v) => { root.update-parameter-number(root.block-data.chain-index, root.block-data.block-index, p, v); }
+        }
+    }
+
+    // Knob overlays (right-aligned, with labels)
+    for knob[ki] in root.block-data.knob-overlays : Rectangle {
+        x: parent.width - 28px - (root.block-data.knob-overlays.length - ki) * 72px;
+        y: (parent.height - 72px) / 2;
+        width: 62px;
+        height: 72px;
+
+        // Label
+        Text {
+            x: 0; y: 0; width: parent.width; height: 12px;
+            text: knob.label;
+            color: root.block-data.panel-text;
+            font-size: 7px; font-weight: 700; letter-spacing: 0.5px;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+
+        PanelKnob {
+            x: 2px; y: 14px;
+            width: 58px; height: 58px;
+            value: knob.value;
+            min-val: knob.min_val;
+            max-val: knob.max_val;
+            step: knob.step;
+            path: knob.path;
+            changed(p, v) => { root.update-parameter-number(root.block-data.chain-index, root.block-data.block-index, p, v); }
+        }
+    }
+
+    // Enum parameters (segmented for <=4 options)
+    for param[pi] in root.block-data.parameter-items : Rectangle {
+        visible: param.widget_kind == "enum" && param.option_labels.length <= 4;
+        property <length> knobs-width: root.block-data.knob-overlays.length * 72px;
+        property <length> available: parent.width - 500px - self.knobs-width - 16px;
+        property <int> param-count: root.block-data.parameter-items.length;
+        property <length> slot-width: param-count > 0 ? available / param-count : 200px;
+        x: 500px + pi * slot-width;
+        y: (parent.height - 44px) / 2;
+        width: Math.min(Math.max(120px, param.option_labels.length * 56px), slot-width - 8px);
+        height: 44px;
+        // Label
+        Text {
+            x: 0; y: 0; width: parent.width; height: 12px;
+            text: param.label;
+            color: root.block-data.panel-text;
+            font-size: 7px; font-weight: 700; letter-spacing: 0.5px;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+
+        Rectangle {
+            x: 0; y: 14px;
+            width: parent.width;
+            height: 30px;
+            border-radius: 5px;
+            background: #00000030;
+            border-width: 1px; border-color: #ffffff10;
+
+            for option[oi] in param.option_labels : Rectangle {
+                x: oi * (parent.width / param.option_labels.length);
+                width: parent.width / param.option_labels.length;
+                height: parent.height;
+                border-radius: 4px;
+                background: oi == param.selected_option_index ? #3366cc : (seg-ta.has-hover ? #ffffff10 : transparent);
+                Text {
+                    x: 4px; width: parent.width - 8px; height: parent.height;
+                    text: option;
+                    color: oi == param.selected_option_index ? #ffffff : #8090a0;
+                    font-size: 8px; font-weight: oi == param.selected_option_index ? 700 : 400;
+                    horizontal-alignment: center; vertical-alignment: center; overflow: elide;
+                }
+                seg-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.select-parameter-option(root.block-data.chain-index, root.block-data.block-index, param.path, oi); }
+                }
+            }
+        }
+    }
+
+    // Dropdown for 5+ enum options
+    for param[pi] in root.block-data.parameter-items : Rectangle {
+        visible: param.widget_kind == "enum" && param.option_labels.length > 4;
+        property <length> knobs-w: root.block-data.knob-overlays.length * 72px;
+        property <length> avail: parent.width - 500px - self.knobs-w - 16px;
+        property <int> p-count: root.block-data.parameter-items.length;
+        property <length> slot-w: p-count > 0 ? avail / p-count : 200px;
+        x: 500px + pi * slot-w;
+        y: (parent.height - 42px) / 2;
+        width: 200px;
+        height: 42px;
+
+        // Label
+        Text {
+            x: 0; y: 0; width: parent.width; height: 12px;
+            text: param.label;
+            color: root.block-data.panel-text;
+            font-size: 7px; font-weight: 700; letter-spacing: 0.5px;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+
+        Rectangle {
+            x: 0; y: 14px;
+            width: parent.width; height: 28px;
+            background: #060610;
+            border-width: 1px; border-color: #252538; border-radius: 5px;
+
+        Text {
+            x: 8px; width: parent.width - 24px; height: parent.height;
+            text: param.selected_option_index >= 0 && param.selected_option_index < param.option_labels.length
+                ? param.option_labels[param.selected_option_index] : "";
+            color: #d8e0ff; font-size: 11px; font-weight: 600;
+            vertical-alignment: center; overflow: elide;
+        }
+        Text {
+            x: parent.width - 18px; width: 14px; height: parent.height;
+            text: "\u{25BC}"; color: #ffffff; font-size: 9px;
+            vertical-alignment: center; horizontal-alignment: center;
+        }
+        dd-ta2 := TouchArea { mouse-cursor: pointer; clicked => { dd-popup2.show(); } }
+        dd-popup2 := PopupWindow {
+            property <length> list-h: Math.min(param.option_labels.length * 30px + 6px, 200px);
+            x: 0; y: -self.list-h - 4px; width: parent.width; height: self.list-h;
+            Rectangle {
+                width: 100%; height: 100%;
+                background: #08080e; border-width: 1px; border-color: #2a2a40;
+                border-radius: 5px; clip: true;
+                drop-shadow-blur: 12px; drop-shadow-color: #000000a0;
+                Flickable {
+                    width: parent.width; height: parent.height;
+                    viewport-height: param.option_labels.length * 30px + 6px;
+                    for option[oi] in param.option_labels : Rectangle {
+                        x: 3px; y: 3px + oi * 30px;
+                        width: parent.width - 6px; height: 28px;
+                        border-radius: 4px;
+                        background: oi == param.selected_option_index ? #14142a : (opt-ta.has-hover ? #ffffff08 : transparent);
+                        Text {
+                            x: 8px; width: parent.width - 16px; height: parent.height;
+                            text: option;
+                            color: oi == param.selected_option_index ? #7788ff : #b0bce0;
+                            font-size: 11px; font-weight: oi == param.selected_option_index ? 600 : 400;
+                            vertical-alignment: center; overflow: elide;
+                        }
+                        opt-ta := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.select-parameter-option(root.block-data.chain-index, root.block-data.block-index, param.path, oi); }
+                        }
+                    }
+                }
+            }
+        }
+        }
+    }
+
+    // ── Stream data display (tuner readings, meter, etc.) ──
+    if root.block-data.stream-data.active : Rectangle {
+        x: 500px;
+        y: 4px;
+        width: parent.width - 540px;
+        height: parent.height - 8px;
+        background: transparent;
+
+        for entry[ei] in root.block-data.stream-data.entries : Rectangle {
+            property <length> slot-w: parent.width / root.block-data.stream-data.entries.length;
+            x: ei * slot-w;
+            y: 0;
+            width: slot-w;
+            height: parent.height;
+
+            Text {
+                x: 0; y: 2px; width: parent.width; height: 12px;
+                text: entry.key;
+                color: #506070;
+                font-size: 7px; font-weight: 700; letter-spacing: 1px;
+                horizontal-alignment: center;
+            }
+
+            Text {
+                x: 0; y: 14px; width: parent.width; height: parent.height - 32px;
+                text: entry.text;
+                color: entry.value > 0.5 && entry.key == "in_tune" ? #29df85 : root.block-data.panel-text;
+                font-size: entry.text.character-count <= 3 ? 28px : 14px;
+                font-weight: 900;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            if entry.key == "cents" : Rectangle {
+                x: 8px; y: parent.height - 14px;
+                width: parent.width - 16px; height: 6px;
+                background: #1a1e28;
+                border-radius: 3px;
+
+                Rectangle {
+                    x: (parent.width - 1px) / 2;
+                    y: 0; width: 1px; height: parent.height;
+                    background: #405060;
+                }
+
+                Rectangle {
+                    property <float> norm: (entry.value / 50.0).clamp(-1.0, 1.0);
+                    x: (parent.width / 2) + self.norm * (parent.width / 2) - 3px;
+                    y: 0; width: 6px; height: parent.height;
+                    background: self.norm > -0.1 && self.norm < 0.1 ? #29df85 : #ff6a57;
+                    border-radius: 3px;
+                }
+            }
+        }
+    }
+
+    // ── Delete button (top-right corner, visible on hover) ──
+    Rectangle {
+        x: parent.width - 28px;
+        y: 4px;
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        background: del-ta.has-hover ? #ff4444 : transparent;
+        opacity: del-ta.has-hover ? 1.0 : 0.4;
+
+        Image {
+            x: 4px; y: 4px; width: 16px; height: 16px;
+            source: @image-url("../assets/trash.svg");
+            image-fit: contain;
+            colorize: del-ta.has-hover ? white : #8090a0;
+        }
+
+        del-ta := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.remove-block(root.block-data.chain-index, root.block-data.block-index); }
+        }
+    }
+}
+
+// Main page
+export component CompactChainViewPage inherits Rectangle {
+    in property <string> chain-title;
+    in property <int> chain-index;
+    in property <[CompactBlockItem]> compact-blocks;
+
+    in property <bool> chain-enabled;
+    callback toggle-chain-enabled(int);
+    callback toggle-block-enabled(int, int);
+    callback update-block-parameter-number(int, int, string, float);
+    callback select-block-parameter-option(int, int, string, int);
+    callback choose-block-model(int, int, int);
+    callback insert-block(int, int); // chain_index, before_index
+    callback reorder-block(int, int, int); // chain_index, from_index, before_index
+    callback open-block-detail(int, int);
+    callback close-compact-view();
+    callback choose-block-type(int, int, int); // chain_index, before_index, type_index
+    callback remove-block(int, int); // chain_index, block_index
+
+    // Type picker state
+    in property <[BlockTypePickerItem]> block-type-options;
+    private property <bool> show-type-picker: false;
+    private property <int> insert-before-index: 0;
+
+    // Drag-to-reorder state
+    private property <int> dragging-block-index: -1;
+    private property <int> drag-hover-before-index: -1;
+    private property <float> drag-start-y: 0;
+    private property <float> drag-current-y: 0;
+    private property <bool> drag-active: false;
+
+    background: #0a0c10;
+
+    // Header
+    Rectangle {
+        x: 0; y: 0; width: parent.width; height: 44px;
+        background: #12141a;
+        border-width: 0px; border-color: #252830;
+
+        // Chain power toggle (same circle+bar as chain list)
+        Rectangle {
+            x: 12px;
+            y: (parent.height - 28px) / 2;
+            width: 28px; height: 28px;
+            background: chain-pwr-ta.has-hover ? #ffffff08 : transparent;
+
+            Rectangle {
+                x: 4px; y: 4px;
+                width: 20px; height: 20px;
+                border-width: 2px;
+                border-color: root.chain-enabled ? #29df85 : #6a7483;
+                border-radius: 10px;
+            }
+            Rectangle {
+                x: 13px; y: 3px;
+                width: 2px; height: 10px;
+                background: root.chain-enabled ? #29df85 : #6a7483;
+                border-radius: 1px;
+            }
+
+            chain-pwr-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.toggle-chain-enabled(root.chain-index); }
+            }
+        }
+
+        Text {
+            x: 44px; width: parent.width - 60px; height: parent.height;
+            text: root.chain-title;
+            color: #d8e0ff; font-size: 14px; font-weight: 700;
+            vertical-alignment: center;
+        }
+    }
+
+    // Block rows with insert slots between them
+    Flickable {
+        x: 0; y: 48px;
+        width: parent.width;
+        height: parent.height - 48px;
+        viewport-height: root.compact-blocks.length * 112px + 24px;
+        interactive: false;
+
+        // Insert slot before first block (invisible until hover)
+        Rectangle {
+            x: 0; y: 0;
+            width: parent.width; height: 12px;
+
+            insert0-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.insert-before-index = 0; root.show-type-picker = true; }
+            }
+
+            Rectangle {
+                x: 4px; y: 5px;
+                width: parent.width - 8px; height: 2px;
+                background: #3366cc;
+                border-radius: 1px;
+                opacity: insert0-ta.has-hover ? 1.0 : 0.0;
+            }
+            Rectangle {
+                x: (parent.width - 24px) / 2; y: 0;
+                width: 24px; height: 12px;
+                border-radius: 6px;
+                background: #3366cc;
+                opacity: insert0-ta.has-hover ? 1.0 : 0.0;
+
+                Text {
+                    width: 100%; height: 100%;
+                    text: "+"; color: #ffffff; font-size: 12px; font-weight: 800;
+                    horizontal-alignment: center; vertical-alignment: center;
+                }
+            }
+        }
+
+        for block-item[bi] in root.compact-blocks : Rectangle {
+            y: 12px + bi * 112px;
+            width: parent.width;
+            height: 100px;
+            // Dim the row being dragged
+            opacity: root.drag-active && root.dragging-block-index == bi ? 0.3 : 1.0;
+
+            CompactBlockRow {
+                width: parent.width;
+                height: 100px;
+                block-data: block-item;
+                toggle-enabled(ci, bi2) => { root.toggle-block-enabled(ci, bi2); }
+                update-parameter-number(ci, bi2, p, v) => { root.update-block-parameter-number(ci, bi2, p, v); }
+                select-parameter-option(ci, bi2, p, oi) => { root.select-block-parameter-option(ci, bi2, p, oi); }
+                choose-model(ci, bi2, mi) => { root.choose-block-model(ci, bi2, mi); }
+                open-block-detail(ci, bi2) => { root.open-block-detail(ci, bi2); }
+                remove-block(ci, bi2) => { root.remove-block(ci, bi2); }
+            }
+
+            // Drag handle — visible grip on left edge
+            Rectangle {
+                x: 0; y: 0;
+                width: 8px; height: parent.height;
+                background: drag-ta.has-hover ? #ffffff15 : #ffffff08;
+                border-radius: 2px;
+
+                // Grip dots
+                Rectangle { x: 2px; y: parent.height / 2 - 10px; width: 4px; height: 4px; border-radius: 2px; background: #ffffff30; }
+                Rectangle { x: 2px; y: parent.height / 2;        width: 4px; height: 4px; border-radius: 2px; background: #ffffff30; }
+                Rectangle { x: 2px; y: parent.height / 2 + 10px; width: 4px; height: 4px; border-radius: 2px; background: #ffffff30; }
+            }
+
+            drag-ta := TouchArea {
+                x: 0; y: 0;
+                width: 8px; height: parent.height;
+                mouse-cursor: grab;
+
+                pointer-event(ev) => {
+                    if ev.kind == PointerEventKind.down {
+                        root.drag-start-y = self.absolute-position.y / 1px + self.mouse-y / 1px;
+                        root.drag-current-y = root.drag-start-y;
+                        root.dragging-block-index = bi;
+                        root.drag-hover-before-index = -1;
+                    }
+                    if ev.kind == PointerEventKind.up {
+                        if root.drag-active && root.drag-hover-before-index >= 0
+                            && root.drag-hover-before-index != root.dragging-block-index
+                            && root.drag-hover-before-index != root.dragging-block-index + 1 {
+                            root.reorder-block(root.chain-index, root.dragging-block-index, root.drag-hover-before-index);
+                        }
+                        root.dragging-block-index = -1;
+                        root.drag-hover-before-index = -1;
+                        root.drag-active = false;
+                    }
+                }
+
+                moved => {
+                    if self.pressed && root.dragging-block-index >= 0 {
+                        root.drag-current-y = self.absolute-position.y / 1px + self.mouse-y / 1px;
+                        let delta = root.drag-current-y - root.drag-start-y;
+                        if !root.drag-active && (delta > 8.0 || delta < -8.0) {
+                            root.drag-active = true;
+                        }
+                        if root.drag-active {
+                            // Calculate target slot from drag delta
+                            // Each row is 112px. Delta of +112 = move down 1 slot.
+                            let delta-slots = Math.round(delta / 112.0);
+                            let target = root.dragging-block-index + delta-slots;
+                            // Clamp: if moving down, target is "before" index (0..length)
+                            let clamped = target < 0 ? 0 : (target > root.compact-blocks.length ? root.compact-blocks.length : target);
+                            root.drag-hover-before-index = clamped;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Drop indicator line (shown during drag)
+        if root.drag-active && root.drag-hover-before-index >= 0
+            && root.drag-hover-before-index != root.dragging-block-index
+            && root.drag-hover-before-index != root.dragging-block-index + 1 : Rectangle {
+            x: 8px;
+            y: root.drag-hover-before-index * 112px + 12px - 1px;
+            width: parent.width - 16px;
+            height: 3px;
+            border-radius: 1.5px;
+            background: #4488ff;
+        }
+
+        // Insert slots after each block
+        for block-item[bi] in root.compact-blocks : Rectangle {
+            x: 0; y: 12px + bi * 112px + 100px;
+            width: parent.width; height: 12px;
+            visible: !root.drag-active;
+
+            insert-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.insert-before-index = bi + 1; root.show-type-picker = true; }
+            }
+
+            Rectangle {
+                x: 4px; y: 5px;
+                width: parent.width - 8px; height: 2px;
+                background: #3366cc;
+                border-radius: 1px;
+                opacity: insert-ta.has-hover ? 1.0 : 0.0;
+            }
+            Rectangle {
+                x: (parent.width - 24px) / 2; y: 0;
+                width: 24px; height: 12px;
+                border-radius: 6px;
+                background: #3366cc;
+                opacity: insert-ta.has-hover ? 1.0 : 0.0;
+
+                Text {
+                    width: 100%; height: 100%;
+                    text: "+"; color: #ffffff; font-size: 12px; font-weight: 800;
+                    horizontal-alignment: center; vertical-alignment: center;
+                }
+            }
+        }
+    }
+
+    // ── Type picker modal overlay ──
+    if root.show-type-picker : Rectangle {
+        x: 0; y: 0; width: parent.width; height: parent.height;
+        background: #0405069a;
+
+        TouchArea {
+            width: 100%; height: 100%;
+            clicked => { root.show-type-picker = false; }
+        }
+
+        Rectangle {
+            property <int> row-count: Math.max(1, Math.floor((root.block-type-options.length - 1) / 4) + 1);
+            property <length> content-height: self.row-count * 100px;
+            x: (parent.width - 472px) / 2;
+            y: (parent.height - self.height) / 2;
+            width: 472px;
+            height: Math.min(parent.height - 80px, self.content-height + 40px);
+            background: #171a20f8;
+            border-width: 1px;
+            border-color: #2d3340;
+            border-radius: 6px;
+
+            ScrollView {
+                x: 20px; y: 20px;
+                width: parent.width - 40px;
+                height: parent.height - 40px;
+                viewport-height: parent.content-height;
+
+                for type-item[index] in root.block-type-options : Rectangle {
+                    x: Math.mod(index, 4) * 106px;
+                    y: Math.floor(index / 4) * 100px;
+                    width: 100px;
+                    height: 96px;
+                    border-radius: 6px;
+                    border-width: 1px;
+                    border-color: type-item.accent-color;
+                    background: type-ta.has-hover ? #252830 : #1a1d24;
+
+                    Text {
+                        x: 0; y: 6px; width: parent.width; height: 16px;
+                        text: type-item.label;
+                        color: #d8e0ff;
+                        font-size: 10px;
+                        font-weight: 700;
+                        letter-spacing: 1px;
+                        horizontal-alignment: center;
+                    }
+
+                    EffectTypeIcon {
+                        x: (parent.width - 48px) / 2;
+                        y: 28px;
+                        width: 48px;
+                        height: 48px;
+                        icon-kind: type-item.icon-kind;
+                        tint: type-item.accent-color;
+                    }
+
+                    type-ta := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.show-type-picker = false;
+                            root.choose-block-type(root.chain-index, root.insert-before-index, index);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

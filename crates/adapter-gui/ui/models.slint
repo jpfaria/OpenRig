@@ -13,9 +13,16 @@ export struct ChainBlockItem {
     label: string,
     family: string,
     enabled: bool,
+    thumbnail: image,
+    has_thumbnail: bool,
+    thumb_width: float,
+    thumb_height: float,
+    accent_color: color,
+    icon_source: image,
 }
 
 export struct ProjectChainItem {
+    instrument: string,
     title: string,
     subtitle: string,
     enabled: bool,
@@ -33,16 +40,26 @@ export struct BlockTypePickerItem {
     label: string,
     subtitle: string,
     icon_kind: string,
+    use_panel_editor: bool,
+    accent_color: color,
+    icon_source: image,
 }
 
 export struct BlockModelPickerItem {
     effect_type: string,
     model_id: string,
     label: string,
+    display_name: string,
     subtitle: string,
     icon_kind: string,
     brand: string,
     type_label: string,
+    panel_bg: color,
+    panel_text: color,
+    brand_strip_bg: color,
+    model_font: string,
+    photo_offset_x: float,
+    photo_offset_y: float,
 }
 
 export struct BlockKnobOverlay {
@@ -76,6 +93,43 @@ export struct BlockParameterItem {
     file_extensions: [string],
     optional: bool,
     allow_empty: bool,
+}
+
+export struct CompactBlockItem {
+    chain_index: int,
+    block_index: int,
+    effect_type: string,
+    model_id: string,
+    icon_kind: string,
+    brand: string,
+    display_name: string,
+    type_label: string,
+    display_label: string,
+    enabled: bool,
+    panel_bg: color,
+    panel_text: color,
+    accent_color: color,
+    icon_source: image,
+    knob_overlays: [BlockKnobOverlay],
+    parameter_items: [BlockParameterItem],
+    model_labels: [string],
+    model_selected_index: int,
+    stream_data: BlockStreamData,
+}
+
+// Key-value entry for realtime data streams
+export struct BlockStreamEntry {
+    key: string,
+    value: float,
+    text: string,
+}
+
+// Realtime data stream for blocks that produce live readings (tuner, meter, analyzer).
+// The block editor polls this data and renders it when a stream is active.
+export struct BlockStreamData {
+    active: bool,
+    stream_kind: string,          // "tuner", "meter", "analyzer"
+    entries: [BlockStreamEntry],  // arbitrary key-value pairs
 }
 
 export struct RecentProjectItem {

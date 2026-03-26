@@ -8,5 +8,5 @@ pub struct TunerReading {
 
 pub trait TunerProcessor: Send {
     fn process(&mut self, samples: &[f32]);
-    fn latest_reading(&self) -> &TunerReading;
+    fn latest_reading(&mut self) -> &TunerReading;
 }

@@ -1,4 +1,7 @@
 use anyhow::{anyhow, Result};
+
+const SELECT_PATH_PREFIX: &str = "__select.";
+const SELECT_SELECTED_BLOCK_ID: &str = "__select.selected_block_id";
 use application::validate::validate_project;
 use domain::ids::{BlockId, DeviceId, ChainId};
 use infra_cpal::{
@@ -19,7 +22,7 @@ use project::catalog::{supported_block_models, supported_block_type, supported_b
 use project::device::DeviceSettings;
 use project::param::{ParameterDomain, ParameterSet, ParameterUnit};
 use project::project::Project;
-use project::chain::{Chain, ChainOutputMixdown};
+use project::chain::{Chain, ChainInputMode, ChainOutputMixdown};
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 use slint::{Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
@@ -33,24 +36,26 @@ use std::{
 };
 use ui_openrig::{AppRuntimeMode, InteractionMode, UiRuntimeContext};
 use ui_state::{block_drawer_state, block_family_for_kind, chain_routing_summary};
-
 mod ui_state;
-
+mod visual_config;
 slint::include_modules!();
-
 const DEFAULT_SAMPLE_RATE: u32 = 48_000;
 const DEFAULT_BUFFER_SIZE_FRAMES: u32 = 256;
 const SUPPORTED_SAMPLE_RATES: &[u32] = &[44_100, 48_000, 88_200, 96_000];
 const SUPPORTED_BUFFER_SIZES: &[u32] = &[32, 64, 128, 256, 512, 1024];
-
 fn log_gui_message(context: &str, message: &str) {
-    eprintln!("[adapter-gui] {context}: {message}");
+    log::info!("[adapter-gui] {context}: {message}");
 }
-
 fn log_gui_error(context: &str, error: impl Display) {
-    eprintln!("[adapter-gui] {context}: {error}");
+    log::error!("[adapter-gui] {context}: {error}");
 }
-
+fn show_child_window(parent_window: &slint::Window, child_window: &slint::Window) {
+    let pos = parent_window.position();
+    child_window.set_position(slint::WindowPosition::Physical(
+        slint::PhysicalPosition { x: pos.x + 40, y: pos.y + 40 },
+    ));
+    let _ = child_window.show();
+}
 fn use_inline_block_editor(window: &AppWindow) -> bool {
     window.get_touch_optimized()
         && window
@@ -59,7 +64,57 @@ fn use_inline_block_editor(window: &AppWindow) -> bool {
             .to_lowercase()
             .contains("touch")
 }
-
+/// Sets a toast notification on the main window and starts the auto-dismiss timer.
+/// Also sets `status_message` for backward compatibility with pages that still reference it.
+fn set_status_with_toast(
+    window: &AppWindow,
+    toast_timer: &Timer,
+    message: &str,
+    level: &str,
+) {
+    window.set_status_message(message.into());
+    window.set_toast_message(message.into());
+    window.set_toast_level(level.into());
+    if !message.is_empty() {
+        match level {
+            "error" => {
+                log::error!("{}", message);
+                eprintln!("[ERROR] {}", message);
+            }
+            "warning" => {
+                log::warn!("{}", message);
+                eprintln!("[WARN] {}", message);
+            }
+            _ => {
+                log::info!("{}", message);
+                eprintln!("[INFO] {}", message);
+            }
+        }
+        let weak = window.as_weak();
+        toast_timer.start(TimerMode::SingleShot, Duration::from_secs(3), move || {
+            if let Some(window) = weak.upgrade() {
+                window.set_toast_message("".into());
+                window.set_toast_level("info".into());
+                window.set_status_message("".into());
+            }
+        });
+    }
+}
+fn set_status_error(window: &AppWindow, toast_timer: &Timer, message: &str) {
+    set_status_with_toast(window, toast_timer, message, "error");
+}
+fn set_status_info(window: &AppWindow, toast_timer: &Timer, message: &str) {
+    set_status_with_toast(window, toast_timer, message, "info");
+}
+fn set_status_warning(window: &AppWindow, toast_timer: &Timer, message: &str) {
+    set_status_with_toast(window, toast_timer, message, "warning");
+}
+fn clear_status(window: &AppWindow, toast_timer: &Timer) {
+    toast_timer.stop();
+    window.set_status_message("".into());
+    window.set_toast_message("".into());
+    window.set_toast_level("info".into());
+}
 fn sync_block_editor_window(window: &AppWindow, block_editor_window: &BlockEditorWindow) {
     block_editor_window.set_block_type_options(window.get_block_type_options());
     block_editor_window.set_block_model_options(window.get_block_model_options());
@@ -77,7 +132,6 @@ fn sync_block_editor_window(window: &AppWindow, block_editor_window: &BlockEdito
     block_editor_window.set_block_drawer_enabled(window.get_block_drawer_enabled());
     block_editor_window.set_block_parameter_items(window.get_block_parameter_items());
 }
-
 #[allow(clippy::too_many_arguments)]
 fn schedule_block_editor_persist(
     timer: &Rc<Timer>,
@@ -94,7 +148,7 @@ fn schedule_block_editor_persist(
     context: &'static str,
 ) {
     timer.stop();
-    timer.start(TimerMode::SingleShot, Duration::from_millis(140), move || {
+    timer.start(TimerMode::SingleShot, Duration::from_millis(30), move || {
         let Some(window) = window_weak.upgrade() else {
             return;
         };
@@ -117,11 +171,11 @@ fn schedule_block_editor_persist(
             &output_chain_devices,
             false,
         ) {
-            log_gui_error(context, error);
+            log::error!("[adapter-gui] {context}: {error}");
+            window.set_block_drawer_status_message(error.to_string().into());
         }
     });
 }
-
 #[allow(clippy::too_many_arguments)]
 fn schedule_block_editor_persist_for_block_win(
     timer: &Rc<Timer>,
@@ -139,7 +193,7 @@ fn schedule_block_editor_persist_for_block_win(
     context: &'static str,
 ) {
     timer.stop();
-    timer.start(TimerMode::SingleShot, Duration::from_millis(140), move || {
+    timer.start(TimerMode::SingleShot, Duration::from_millis(30), move || {
         // Only persist if the block window is still alive
         if block_win_weak.upgrade().is_none() {
             return;
@@ -166,22 +220,20 @@ fn schedule_block_editor_persist_for_block_win(
             &output_chain_devices,
             false,
         ) {
-            log_gui_error(context, error);
+            log::error!("[adapter-gui] {context}: {error}");
+            main_window.set_block_drawer_status_message(error.to_string().into());
         }
     });
 }
-
 #[derive(Debug, Clone)]
 struct ProjectPaths {
     default_config_path: PathBuf,
 }
-
 #[derive(Debug, Deserialize, Serialize, Default)]
 struct AppConfigYaml {
     #[serde(default)]
     presets_path: Option<PathBuf>,
 }
-
 #[derive(Debug, Clone)]
 struct ProjectSession {
     project: Project,
@@ -189,34 +241,32 @@ struct ProjectSession {
     config_path: Option<PathBuf>,
     presets_path: PathBuf,
 }
-
 #[derive(Debug, Clone)]
 struct ChainDraft {
     editing_index: Option<usize>,
     name: String,
+    instrument: String,
     input_device_id: Option<String>,
     output_device_id: Option<String>,
     input_channels: Vec<usize>,
     output_channels: Vec<usize>,
 }
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct SelectedBlock {
     chain_index: usize,
     block_index: usize,
 }
-
 #[derive(Debug, Clone)]
 struct BlockEditorDraft {
     chain_index: usize,
     block_index: Option<usize>,
     before_index: usize,
+    instrument: String,
     effect_type: String,
     model_id: String,
     enabled: bool,
     is_select: bool,
 }
-
 struct BlockEditorData {
     effect_type: String,
     model_id: String,
@@ -226,24 +276,20 @@ struct BlockEditorData {
     select_options: Vec<SelectOptionEditorItem>,
     selected_select_option_block_id: Option<String>,
 }
-
 struct SelectOptionEditorItem {
     block_id: String,
     label: String,
 }
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ChainEditorMode {
     Create,
     Edit,
 }
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum AudioSettingsMode {
     Gui,
     Project,
 }
-
 #[derive(Debug, Serialize)]
 struct ProjectYaml {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -252,73 +298,39 @@ struct ProjectYaml {
     device_settings: Vec<ProjectDeviceSettingsYaml>,
     chains: Vec<ProjectChainYaml>,
 }
-
 #[derive(Debug, Serialize)]
 struct ProjectDeviceSettingsYaml {
     device_id: String,
     sample_rate: u32,
     buffer_size_frames: u32,
 }
-
 #[derive(Debug, Serialize)]
 struct ProjectChainYaml {
     #[serde(skip_serializing_if = "Option::is_none")]
     description: Option<String>,
-    enabled: bool,
+    instrument: String,
     input_device_id: String,
     input_channels: Vec<usize>,
     output_device_id: String,
     output_channels: Vec<usize>,
     blocks: Vec<serde_yaml::Value>,
     output_mixdown: ChainOutputMixdown,
+    input_mode: ChainInputMode,
 }
-
 #[derive(Debug, Serialize)]
 struct ConfigYaml {
     presets_path: String,
 }
-
 const UNTITLED_PROJECT_NAME: &str = "UNTITLED PROJECT";
-
 struct BlockWindow {
     chain_index: usize,
     block_index: usize,
     window: BlockEditorWindow,
+    #[allow(dead_code)]
+    stream_timer: Option<Rc<Timer>>,
 }
-
-struct KnobInfo {
-    param_key: &'static str,
-    svg_cx: f32,
-    svg_cy: f32,
-    svg_r: f32,
-    min: f32,
-    max: f32,
-    step: f32,
-}
-
-fn knob_infos_for_model(model_id: &str) -> &'static [KnobInfo] {
-    match model_id {
-        "marshall_jcm_800_2203" => &[
-            KnobInfo { param_key: "volume",  svg_cx: 500.0, svg_cy: 140.0, svg_r: 22.0, min: 50.0, max: 70.0,  step: 10.0 },
-            KnobInfo { param_key: "gain",    svg_cx: 650.0, svg_cy: 140.0, svg_r: 22.0, min: 10.0, max: 100.0, step: 10.0 },
-        ],
-        "american_clean" | "brit_crunch" | "modern_high_gain" => &[
-            KnobInfo { param_key: "input_db",  svg_cx: 44.0,  svg_cy: 90.0, svg_r: 16.0, min: -18.0, max: 18.0,  step: 0.5 },
-            KnobInfo { param_key: "gain",      svg_cx: 130.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-            KnobInfo { param_key: "bass",      svg_cx: 222.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-            KnobInfo { param_key: "middle",    svg_cx: 302.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-            KnobInfo { param_key: "treble",    svg_cx: 382.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-            KnobInfo { param_key: "presence",  svg_cx: 470.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-            KnobInfo { param_key: "depth",     svg_cx: 550.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-            KnobInfo { param_key: "sag",       svg_cx: 630.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-            KnobInfo { param_key: "master",    svg_cx: 706.0, svg_cy: 90.0, svg_r: 22.0, min: 0.0,   max: 100.0, step: 1.0 },
-        ],
-        _ => &[],
-    }
-}
-
-fn build_knob_overlays(model_id: &str, param_items: &[BlockParameterItem]) -> Vec<BlockKnobOverlay> {
-    knob_infos_for_model(model_id)
+fn build_knob_overlays(knob_layout: &[block_core::KnobLayoutEntry], param_items: &[BlockParameterItem]) -> Vec<BlockKnobOverlay> {
+    knob_layout
         .iter()
         .map(|info| {
             let found = param_items
@@ -342,11 +354,11 @@ fn build_knob_overlays(model_id: &str, param_items: &[BlockParameterItem]) -> Ve
         })
         .collect()
 }
-
 pub fn run_desktop_app(
     runtime_mode: AppRuntimeMode,
     interaction_mode: InteractionMode,
 ) -> Result<()> {
+    log::info!("starting desktop app: runtime_mode={:?}, interaction_mode={:?}", runtime_mode, interaction_mode);
     let context = UiRuntimeContext::new(runtime_mode, interaction_mode);
     let settings = FilesystemStorage::load_gui_audio_settings()?.unwrap_or_default();
     let needs_audio_settings =
@@ -361,10 +373,10 @@ pub fn run_desktop_app(
     let saved_project_snapshot = Rc::new(RefCell::new(None::<String>));
     let project_dirty = Rc::new(RefCell::new(false));
     let open_block_windows: Rc<RefCell<Vec<BlockWindow>>> = Rc::new(RefCell::new(Vec::new()));
+    let open_compact_window: Rc<RefCell<Option<(usize, slint::Weak<CompactChainViewWindow>)>>> = Rc::new(RefCell::new(None));
     let audio_settings_mode = Rc::new(RefCell::new(AudioSettingsMode::Gui));
     let input_chain_devices = Rc::new(list_input_device_descriptors()?);
     let output_chain_devices = Rc::new(list_output_device_descriptors()?);
-
     let window = AppWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     let project_settings_window =
         ProjectSettingsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
@@ -380,7 +392,6 @@ pub fn run_desktop_app(
     window.set_show_project_chains(false);
     window.set_show_chain_editor(false);
     window.set_show_project_settings(false);
-    window.set_project_running(false);
     window.set_project_dirty(false);
     window.set_project_path_label("".into());
     window.set_project_title("Projeto".into());
@@ -394,7 +405,6 @@ pub fn run_desktop_app(
     window.set_show_audio_settings(needs_audio_settings);
     window.set_wizard_step(if settings.is_complete() { 1 } else { 0 });
     window.set_status_message("".into());
-
     let input_devices = Rc::new(VecModel::from(
         list_input_device_descriptors()?
             .into_iter()
@@ -448,7 +458,6 @@ pub fn run_desktop_app(
         output_chain_devices.as_ref(),
         &[],
     )));
-
     window.set_input_devices(ModelRc::from(input_devices.clone()));
     window.set_output_devices(ModelRc::from(output_devices.clone()));
     let project_chains = Rc::new(VecModel::from(Vec::<ProjectChainItem>::new()));
@@ -496,12 +505,14 @@ pub fn run_desktop_app(
     chain_editor_window.set_status_message("".into());
     project_settings_window.set_project_name_draft("".into());
     chain_editor_window.set_chain_name("".into());
-
-    let block_type_options = Rc::new(VecModel::from(block_type_picker_items()));
+    let block_type_options = Rc::new(VecModel::from(block_type_picker_items(block_core::INST_GENERIC)));
     let block_model_options = Rc::new(VecModel::from(Vec::<BlockModelPickerItem>::new()));
     let block_model_option_labels = Rc::new(VecModel::from(Vec::<SharedString>::new()));
     let block_parameter_items = Rc::new(VecModel::from(Vec::<BlockParameterItem>::new()));
     let block_editor_persist_timer = Rc::new(Timer::default());
+    let toast_timer = Rc::new(Timer::default());
+    window.set_toast_message("".into());
+    window.set_toast_level("info".into());
     window.set_block_type_options(ModelRc::from(block_type_options.clone()));
     window.set_block_model_options(ModelRc::from(block_model_options.clone()));
     window.set_block_model_option_labels(ModelRc::from(block_model_option_labels.clone()));
@@ -518,7 +529,6 @@ pub fn run_desktop_app(
     block_editor_window.set_block_drawer_selected_type_index(-1);
     block_editor_window.set_block_drawer_selected_model_index(-1);
     block_editor_window.set_block_drawer_enabled(true);
-
     {
         let weak_window = window.as_weak();
         block_editor_window.on_choose_block_model(move |index| {
@@ -527,7 +537,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         block_editor_window.on_close_block_drawer(move || {
@@ -536,7 +545,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         block_editor_window.on_save_block_drawer(move || {
@@ -545,7 +553,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         block_editor_window.on_delete_block_drawer(move || {
@@ -554,7 +561,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         block_editor_window.on_toggle_block_drawer_enabled(move || {
@@ -563,7 +569,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         block_editor_window.on_update_block_parameter_text(move |path, value| {
@@ -572,7 +577,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         block_editor_window.on_update_block_parameter_number(move |path, value| {
@@ -581,7 +585,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         block_editor_window.on_update_block_parameter_number_text(move |path, value| {
@@ -590,7 +593,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         block_editor_window.on_update_block_parameter_bool(move |path, value| {
@@ -599,7 +601,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         block_editor_window.on_select_block_parameter_option(move |path, index| {
@@ -608,7 +609,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         block_editor_window.on_pick_block_parameter_file(move |path| {
@@ -617,7 +617,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         chain_input_window.on_select_device(move |index| {
@@ -626,7 +625,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         chain_input_window.on_toggle_channel(move |index, selected| {
@@ -635,7 +633,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         chain_output_window.on_select_device(move |index| {
@@ -644,7 +641,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         chain_output_window.on_toggle_channel(move |index, selected| {
@@ -653,11 +649,9 @@ pub fn run_desktop_app(
             }
         });
     }
-
     project_settings_window.set_project_devices(ModelRc::from(project_devices.clone()));
     project_settings_window.set_sample_rate_options(window.get_sample_rate_options());
     project_settings_window.set_buffer_size_options(window.get_buffer_size_options());
-
     chain_input_window.set_device_options(ModelRc::from(chain_input_device_options.clone()));
     chain_input_window.set_channels(ModelRc::from(chain_input_channels.clone()));
     chain_input_window.set_selected_device_index(-1);
@@ -666,105 +660,93 @@ pub fn run_desktop_app(
     chain_output_window.set_channels(ModelRc::from(chain_output_channels.clone()));
     chain_output_window.set_selected_device_index(-1);
     chain_output_window.set_status_message("".into());
-
     {
         let input_devices = input_devices.clone();
         window.on_toggle_input_device(move |index, selected| {
             toggle_device_row(&input_devices, index as usize, selected);
         });
     }
-
     {
         let project_devices = project_devices.clone();
         project_settings_window.on_toggle_project_device(move |index, selected| {
             toggle_device_row(&project_devices, index as usize, selected);
         });
     }
-
     {
         let output_devices = output_devices.clone();
         window.on_toggle_output_device(move |index, selected| {
             toggle_device_row(&output_devices, index as usize, selected);
         });
     }
-
     {
         let input_devices = input_devices.clone();
         window.on_update_input_sample_rate(move |index, value| {
             update_device_sample_rate(&input_devices, index as usize, value);
         });
     }
-
     {
         let input_devices = input_devices.clone();
         window.on_update_input_buffer_size(move |index, value| {
             update_device_buffer_size(&input_devices, index as usize, value);
         });
     }
-
     {
         let project_devices = project_devices.clone();
         project_settings_window.on_update_project_sample_rate(move |index, value| {
             update_device_sample_rate(&project_devices, index as usize, value);
         });
     }
-
     {
         let output_devices = output_devices.clone();
         window.on_update_output_sample_rate(move |index, value| {
             update_device_sample_rate(&output_devices, index as usize, value);
         });
     }
-
     {
         let output_devices = output_devices.clone();
         window.on_update_output_buffer_size(move |index, value| {
             update_device_buffer_size(&output_devices, index as usize, value);
         });
     }
-
     {
         let project_devices = project_devices.clone();
         project_settings_window.on_update_project_buffer_size(move |index, value| {
             update_device_buffer_size(&project_devices, index as usize, value);
         });
     }
-
     {
         let weak_window = window.as_weak();
         let input_devices = input_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_go_to_output_step(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             match selected_device_settings(&input_devices, "input") {
                 Ok(devices) if !devices.is_empty() => {
-                    window.set_status_message("".into());
+                    clear_status(&window, &toast_timer);
                     window.set_wizard_step(1);
                 }
                 Ok(_) => {
-                    window.set_status_message(
-                        "Selecione pelo menos um input antes de continuar.".into(),
-                    );
+                    set_status_warning(&window, &toast_timer, "Selecione pelo menos um input antes de continuar.");
                 }
                 Err(error) => {
-                    window.set_status_message(error.to_string().into());
+                    set_status_error(&window, &toast_timer, &error.to_string());
                 }
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
+        let toast_timer = toast_timer.clone();
         window.on_go_to_input_step(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             window.set_wizard_step(0);
         });
     }
-
     {
         let weak_window = window.as_weak();
         let input_devices = input_devices.clone();
@@ -777,6 +759,7 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_save_audio_settings(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -784,44 +767,39 @@ pub fn run_desktop_app(
             let input_devices = match selected_device_settings(&input_devices, "input") {
                 Ok(devices) => devices,
                 Err(error) => {
-                    window.set_status_message(error.to_string().into());
+                    set_status_error(&window, &toast_timer, &error.to_string());
                     return;
                 }
             };
             let output_devices = match selected_device_settings(&output_devices, "output") {
                 Ok(devices) => devices,
                 Err(error) => {
-                    window.set_status_message(error.to_string().into());
+                    set_status_error(&window, &toast_timer, &error.to_string());
                     return;
                 }
             };
-
             let settings = GuiAudioSettings {
                 input_devices,
                 output_devices,
             };
-
             if !settings.is_complete() {
-                window.set_status_message(
-                    "Selecione pelo menos um input e um output antes de continuar.".into(),
-                );
+                set_status_warning(&window, &toast_timer, "Selecione pelo menos um input e um output antes de continuar.");
                 return;
             }
-
             match *audio_settings_mode.borrow() {
                 AudioSettingsMode::Gui => {
                     match FilesystemStorage::save_gui_audio_settings(&settings) {
                         Ok(()) => {
-                            window.set_status_message("".into());
+                            clear_status(&window, &toast_timer);
                             window.set_show_audio_settings(false);
                         }
-                        Err(error) => window.set_status_message(error.to_string().into()),
+                        Err(error) => set_status_error(&window, &toast_timer, &error.to_string()),
                     }
                 }
                 AudioSettingsMode::Project => {
                     let mut session_borrow = project_session.borrow_mut();
                     let Some(session) = session_borrow.as_mut() else {
-                        window.set_status_message("Nenhum projeto carregado.".into());
+                        set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                         return;
                     };
                     session.project.device_settings = settings
@@ -835,7 +813,7 @@ pub fn run_desktop_app(
                         })
                         .collect();
                     if let Err(error) = sync_project_runtime(&project_runtime, session) {
-                        window.set_status_message(error.to_string().into());
+                        set_status_error(&window, &toast_timer, &error.to_string());
                         return;
                     }
                     replace_project_chains(
@@ -849,8 +827,7 @@ pub fn run_desktop_app(
                             .into(),
                     );
                     sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-                    window.set_status_message("".into());
-                    window.set_project_running(project_runtime_is_running(&project_runtime));
+                    clear_status(&window, &toast_timer);
                     window.set_show_project_chains(true);
                     window.set_show_chain_editor(false);
                     window.set_show_project_settings(false);
@@ -858,7 +835,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_settings = project_settings_window.as_weak();
@@ -873,6 +849,7 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         project_settings_window.on_save_audio_settings(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -888,7 +865,6 @@ pub fn run_desktop_app(
                     return;
                 }
             };
-
             match *audio_settings_mode.borrow() {
                 AudioSettingsMode::Gui => {
                     let input_devices = match selected_device_settings(&input_devices, "input") {
@@ -905,23 +881,20 @@ pub fn run_desktop_app(
                             return;
                         }
                     };
-
                     let settings = GuiAudioSettings {
                         input_devices,
                         output_devices,
                     };
-
                     if !settings.is_complete() {
                         settings_window.set_status_message(
                             "Selecione pelo menos um input e um output antes de continuar.".into(),
                         );
                         return;
                     }
-
                     match FilesystemStorage::save_gui_audio_settings(&settings) {
                         Ok(()) => {
                             settings_window.set_status_message("".into());
-                            window.set_status_message("".into());
+                            clear_status(&window, &toast_timer);
                             window.set_show_audio_settings(false);
                             let _ = settings_window.hide();
                         }
@@ -958,15 +931,13 @@ pub fn run_desktop_app(
                     );
                     sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
                     settings_window.set_status_message("".into());
-                    window.set_status_message("".into());
-                    window.set_project_running(project_runtime_is_running(&project_runtime));
+                    clear_status(&window, &toast_timer);
                     window.set_show_project_settings(false);
                     let _ = settings_window.hide();
                 }
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let app_config = app_config.clone();
@@ -978,7 +949,9 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_open_project_file(move || {
+            log::info!("on_open_project_file triggered");
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -989,6 +962,7 @@ pub fn run_desktop_app(
             else {
                 return;
             };
+            log::info!("opening project file: {:?}", path);
             match load_project_session(&path, &resolve_project_config_path(&path)) {
                 Ok(session) => {
                     let canonical_path = canonical_project_path(&path).unwrap_or(path.clone());
@@ -1014,9 +988,8 @@ pub fn run_desktop_app(
                         &app_config.borrow().recent_projects,
                         window.get_recent_project_search().as_str(),
                     ));
-                    window.set_project_running(false);
                     set_project_dirty(&window, &project_dirty, false);
-                    window.set_status_message("".into());
+                    clear_status(&window, &toast_timer);
                     window.set_project_title(title.into());
                     window.set_project_name_draft(
                         project_session
@@ -1035,12 +1008,11 @@ pub fn run_desktop_app(
                     window.set_show_project_settings(false);
                 }
                 Err(error) => {
-                    window.set_status_message(error.to_string().into());
+                    set_status_error(&window, &toast_timer, &error.to_string());
                 }
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let project_paths = project_paths.clone();
@@ -1051,6 +1023,7 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_create_project_file(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1065,8 +1038,7 @@ pub fn run_desktop_app(
             );
             *project_session.borrow_mut() = Some(session);
             *saved_project_snapshot.borrow_mut() = None;
-            window.set_project_running(false);
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             set_project_dirty(&window, &project_dirty, true);
             window.set_project_title("Novo Projeto".into());
             window.set_project_name_draft("".into());
@@ -1077,7 +1049,6 @@ pub fn run_desktop_app(
             window.set_show_project_settings(false);
         });
     }
-
     {
         let weak_window = window.as_weak();
         let app_config = app_config.clone();
@@ -1085,16 +1056,17 @@ pub fn run_desktop_app(
         let recent_projects = recent_projects.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
+        let toast_timer = toast_timer.clone();
         window.on_save_project(move || {
+            log::info!("on_save_project triggered");
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
-
             let project_path = if let Some(path) = session.project_path.clone() {
                 path
             } else {
@@ -1115,7 +1087,6 @@ pub fn run_desktop_app(
                     .join("presets");
                 path
             };
-
             match save_project_session(session, &project_path) {
                 Ok(()) => {
                     let canonical_path =
@@ -1141,15 +1112,14 @@ pub fn run_desktop_app(
                     );
                     *saved_project_snapshot.borrow_mut() = project_session_snapshot(session).ok();
                     set_project_dirty(&window, &project_dirty, false);
-                    window.set_status_message("".into());
+                    clear_status(&window, &toast_timer);
                 }
                 Err(error) => {
-                    window.set_status_message(error.to_string().into());
+                    set_status_error(&window, &toast_timer, &error.to_string());
                 }
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let app_config = app_config.clone();
@@ -1165,7 +1135,6 @@ pub fn run_desktop_app(
             window.set_recent_project_search(query);
         });
     }
-
     {
         let weak_window = window.as_weak();
         let app_config = app_config.clone();
@@ -1177,6 +1146,7 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_open_recent_project(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1187,19 +1157,13 @@ pub fn run_desktop_app(
                 .get(index as usize)
                 .cloned()
             else {
-                window.set_status_message("Projeto recente inválido.".into());
+                set_status_error(&window, &toast_timer, "Projeto recente inválido.");
                 return;
             };
             if !recent.is_valid {
-                window.set_status_message(
-                    recent
-                        .invalid_reason
-                        .unwrap_or_else(|| "Projeto inválido.".to_string())
-                        .into(),
-                );
+                set_status_error(&window, &toast_timer, &recent .invalid_reason .unwrap_or_else(|| "Projeto inválido.".to_string()) );
                 return;
             }
-
             let path = PathBuf::from(&recent.project_path);
             match load_project_session(&path, &resolve_project_config_path(&path)) {
                 Ok(session) => {
@@ -1226,9 +1190,8 @@ pub fn run_desktop_app(
                         &app_config.borrow().recent_projects,
                         window.get_recent_project_search().as_str(),
                     ));
-                    window.set_project_running(false);
                     set_project_dirty(&window, &project_dirty, false);
-                    window.set_status_message("".into());
+                    clear_status(&window, &toast_timer);
                     window.set_project_title(title.into());
                     window.set_project_name_draft(
                         project_session
@@ -1257,13 +1220,11 @@ pub fn run_desktop_app(
                         &app_config.borrow().recent_projects,
                         window.get_recent_project_search().as_str(),
                     ));
-                    window
-                        .set_status_message("Projeto inválido. Corrija ou remova da lista.".into());
+                    set_status_error(&window, &toast_timer, "Projeto inválido. Corrija ou remova da lista.");
                 }
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let app_config = app_config.clone();
@@ -1283,7 +1244,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
@@ -1292,6 +1252,7 @@ pub fn run_desktop_app(
         let output_chain_devices = output_chain_devices.clone();
         let audio_settings_mode = audio_settings_mode.clone();
         let project_settings_window = project_settings_window.as_weak();
+        let toast_timer = toast_timer.clone();
         window.on_configure_project(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1301,10 +1262,9 @@ pub fn run_desktop_app(
             };
             let session_borrow = project_session.borrow();
             let Some(session) = session_borrow.as_ref() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
-
             project_devices.set_vec(build_project_device_rows(
                 input_chain_devices.as_ref(),
                 output_chain_devices.as_ref(),
@@ -1315,12 +1275,11 @@ pub fn run_desktop_app(
             settings_window
                 .set_project_name_draft(session.project.name.clone().unwrap_or_default().into());
             settings_window.set_status_message("".into());
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             window.set_show_project_settings(true);
-            let _ = settings_window.show();
+            show_child_window(window.window(), settings_window.window());
         });
     }
-
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
@@ -1342,7 +1301,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_settings = project_settings_window.as_weak();
@@ -1369,21 +1327,21 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
+        let toast_timer = toast_timer.clone();
         window.on_close_project_settings(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             window.set_show_project_settings(false);
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_settings = project_settings_window.as_weak();
+        let toast_timer = toast_timer.clone();
         project_settings_window.on_close_project_settings(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1392,26 +1350,26 @@ pub fn run_desktop_app(
                 return;
             };
             settings_window.set_status_message("".into());
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             window.set_show_project_settings(false);
             let _ = settings_window.hide();
         });
     }
-
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
+        let toast_timer = toast_timer.clone();
         window.on_save_chain_preset(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
             let Some(chain) = session.project.chains.get(index as usize) else {
-                window.set_status_message("Chain inválida.".into());
+                set_status_error(&window, &toast_timer, "Chain inválida.");
                 return;
             };
             let default_name = chain
@@ -1430,12 +1388,11 @@ pub fn run_desktop_app(
                 return;
             };
             match save_chain_blocks_to_preset(chain, &path) {
-                Ok(()) => window.set_status_message("Preset salvo.".into()),
-                Err(error) => window.set_status_message(error.to_string().into()),
+                Ok(()) => set_status_info(&window, &toast_timer, "Preset salvo."),
+                Err(error) => set_status_error(&window, &toast_timer, &error.to_string()),
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
@@ -1445,13 +1402,14 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_configure_chain_preset(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
             let Some(path) = FileDialog::new()
@@ -1471,7 +1429,7 @@ pub fn run_desktop_app(
                         if let Err(error) =
                             sync_live_chain_runtime(&project_runtime, session, &chain_id)
                         {
-                            window.set_status_message(error.to_string().into());
+                            set_status_error(&window, &toast_timer, &error.to_string());
                             return;
                         }
                         replace_project_chains(
@@ -1486,15 +1444,13 @@ pub fn run_desktop_app(
                             &saved_project_snapshot,
                             &project_dirty,
                         );
-                        window.set_project_running(project_runtime_is_running(&project_runtime));
-                        window.set_status_message("".into());
+                        clear_status(&window, &toast_timer);
                     }
                 }
-                Err(error) => window.set_status_message(error.to_string().into()),
+                Err(error) => set_status_error(&window, &toast_timer, &error.to_string()),
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
@@ -1507,6 +1463,7 @@ pub fn run_desktop_app(
         let block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_back_to_launcher(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1533,11 +1490,10 @@ pub fn run_desktop_app(
                 &input_chain_devices,
                 &output_chain_devices,
             );
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             set_project_dirty(&window, &project_dirty, false);
             window.set_project_title("Projeto".into());
             window.set_project_name_draft("".into());
-            window.set_project_running(false);
             window.set_project_path_label("".into());
             window.set_show_project_settings(false);
             window.set_show_chain_editor(false);
@@ -1545,7 +1501,6 @@ pub fn run_desktop_app(
             window.set_show_project_launcher(true);
         });
     }
-
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
@@ -1555,7 +1510,9 @@ pub fn run_desktop_app(
         let chain_input_channels = chain_input_channels.clone();
         let chain_output_channels = chain_output_channels.clone();
         let chain_editor_window = chain_editor_window.as_weak();
+        let toast_timer = toast_timer.clone();
         window.on_add_chain(move || {
+            log::info!("on_add_chain triggered");
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -1564,7 +1521,7 @@ pub fn run_desktop_app(
             };
             let borrow = project_session.borrow();
             let Some(session) = borrow.as_ref() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
             let draft = create_chain_draft(
@@ -1593,6 +1550,8 @@ pub fn run_desktop_app(
             editor_window.set_chain_name(draft.name.clone().into());
             editor_window.set_editor_title(window.get_chain_editor_title());
             editor_window.set_editor_save_label(window.get_chain_editor_save_label());
+            editor_window.set_is_create_mode(true);
+            editor_window.set_selected_instrument_index(instrument_string_to_index(&draft.instrument));
             window.set_selected_chain_input_device_index(selected_device_index(
                 &input_chain_devices,
                 draft.input_device_id.as_deref(),
@@ -1602,12 +1561,11 @@ pub fn run_desktop_app(
                 draft.output_device_id.as_deref(),
             ));
             editor_window.set_status_message("".into());
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             window.set_show_chain_editor(true);
-            let _ = editor_window.show();
+            show_child_window(window.window(), editor_window.window());
         });
     }
-
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
@@ -1617,6 +1575,7 @@ pub fn run_desktop_app(
         let chain_input_channels = chain_input_channels.clone();
         let chain_output_channels = chain_output_channels.clone();
         let chain_editor_window = chain_editor_window.as_weak();
+        let toast_timer = toast_timer.clone();
         window.on_configure_chain(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1626,11 +1585,11 @@ pub fn run_desktop_app(
             };
             let session_borrow = project_session.borrow();
             let Some(session) = session_borrow.as_ref() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
             let Some(chain) = session.project.chains.get(index as usize) else {
-                window.set_status_message("Chain inválida.".into());
+                set_status_error(&window, &toast_timer, "Chain inválida.");
                 return;
             };
             let draft = chain_draft_from_chain(index as usize, chain);
@@ -1664,14 +1623,503 @@ pub fn run_desktop_app(
                 );
                 editor_window.set_editor_title(window.get_chain_editor_title());
                 editor_window.set_editor_save_label(window.get_chain_editor_save_label());
+                editor_window.set_is_create_mode(false);
+                editor_window.set_selected_instrument_index(instrument_string_to_index(&draft.instrument));
             }
             editor_window.set_status_message("".into());
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             window.set_show_chain_editor(true);
-            let _ = editor_window.show();
+            show_child_window(window.window(), editor_window.window());
         });
     }
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        let project_runtime = project_runtime.clone();
+        let project_chains = project_chains.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let toast_timer = toast_timer.clone();
+        let open_compact_window = open_compact_window.clone();
+        window.on_open_compact_chain_view(move |chain_index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let session_borrow = project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else {
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
+                return;
+            };
+            let ci = chain_index as usize;
+            let Some(chain) = session.project.chains.get(ci) else {
+                set_status_error(&window, &toast_timer, "Chain inválida.");
+                return;
+            };
 
+            let compact_win = match CompactChainViewWindow::new() {
+                Ok(w) => w,
+                Err(e) => {
+                    log::error!("failed to create compact chain view: {e}");
+                    return;
+                }
+            };
+            let title = chain
+                .description
+                .clone()
+                .unwrap_or_else(|| format!("Chain {}", ci + 1));
+            compact_win.set_chain_title(title.into());
+            compact_win.set_chain_index(chain_index);
+            compact_win.set_chain_enabled(chain.enabled);
+            compact_win.set_block_type_options(ModelRc::from(Rc::new(VecModel::from(
+                block_type_picker_items(&chain.instrument),
+            ))));
+
+            let blocks = build_compact_blocks(&session.project, ci);
+            compact_win.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
+
+            // Store weak ref for refresh after block insert/save
+            *open_compact_window.borrow_mut() = Some((ci, compact_win.as_weak()));
+
+            // Wire toggle-enabled callback
+            {
+                let project_session = project_session.clone();
+                let project_runtime = project_runtime.clone();
+                let project_chains = project_chains.clone();
+                let input_chain_devices = input_chain_devices.clone();
+                let output_chain_devices = output_chain_devices.clone();
+                let saved_project_snapshot = saved_project_snapshot.clone();
+                let project_dirty = project_dirty.clone();
+                let weak_main = window.as_weak();
+                let weak_compact = compact_win.as_weak();
+                let toast_timer = toast_timer.clone();
+                compact_win.on_toggle_block_enabled(move |ci, bi| {
+                    let Some(main_win) = weak_main.upgrade() else {
+                        return;
+                    };
+                    let Some(cw) = weak_compact.upgrade() else {
+                        return;
+                    };
+                    let mut session_borrow = project_session.borrow_mut();
+                    let Some(session) = session_borrow.as_mut() else {
+                        return;
+                    };
+                    let chain_idx = ci as usize;
+                    let block_idx = bi as usize;
+                    let Some(chain) = session.project.chains.get_mut(chain_idx) else {
+                        return;
+                    };
+                    let Some(block) = chain.blocks.get_mut(block_idx) else {
+                        return;
+                    };
+                    block.enabled = !block.enabled;
+                    let chain_id = chain.id.clone();
+                    if let Err(error) =
+                        sync_live_chain_runtime(&project_runtime, session, &chain_id)
+                    {
+                        set_status_error(&main_win, &toast_timer, &error.to_string());
+                        return;
+                    }
+                    replace_project_chains(
+                        &project_chains,
+                        &session.project,
+                        &input_chain_devices,
+                        &output_chain_devices,
+                    );
+                    // Refresh compact blocks
+                    let blocks = build_compact_blocks(&session.project, chain_idx);
+                    cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
+                    sync_project_dirty(
+                        &main_win,
+                        session,
+                        &saved_project_snapshot,
+                        &project_dirty,
+                    );
+                });
+            }
+
+            // Wire close callback
+            {
+                let weak_compact = compact_win.as_weak();
+                compact_win.on_close_compact_view(move || {
+                    if let Some(cw) = weak_compact.upgrade() {
+                        cw.hide().ok();
+                    }
+                });
+            }
+
+            // Wire toggle-chain-enabled
+            {
+                let project_session = project_session.clone();
+                let project_runtime = project_runtime.clone();
+                let project_chains = project_chains.clone();
+                let input_chain_devices = input_chain_devices.clone();
+                let output_chain_devices = output_chain_devices.clone();
+                let weak_main = window.as_weak();
+                let weak_compact = compact_win.as_weak();
+                let toast_timer = toast_timer.clone();
+                compact_win.on_toggle_chain_enabled(move |ci| {
+                    let Some(main_win) = weak_main.upgrade() else { return; };
+                    let Some(cw) = weak_compact.upgrade() else { return; };
+                    let mut session_borrow = project_session.borrow_mut();
+                    let Some(session) = session_borrow.as_mut() else { return; };
+                    let chain_idx = ci as usize;
+                    let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
+                    let will_enable = !chain.enabled;
+                    chain.enabled = will_enable;
+                    let chain_id = chain.id.clone();
+                    if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                        set_status_error(&main_win, &toast_timer, &error.to_string());
+                        return;
+                    }
+                    replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+                    cw.set_chain_enabled(will_enable);
+                });
+            }
+
+            // Wire choose-block-model
+            {
+                let project_session = project_session.clone();
+                let project_runtime = project_runtime.clone();
+                let project_chains = project_chains.clone();
+                let input_chain_devices = input_chain_devices.clone();
+                let output_chain_devices = output_chain_devices.clone();
+                let saved_project_snapshot = saved_project_snapshot.clone();
+                let project_dirty = project_dirty.clone();
+                let weak_main = window.as_weak();
+                let weak_compact = compact_win.as_weak();
+                let toast_timer = toast_timer.clone();
+                compact_win.on_choose_block_model(move |ci, bi, mi| {
+                    let Some(main_win) = weak_main.upgrade() else { return; };
+                    let Some(cw) = weak_compact.upgrade() else { return; };
+                    let chain_idx = ci as usize;
+                    let block_idx = bi as usize;
+                    let model_idx = mi as usize;
+
+                    // Get the instrument to filter models
+                    let instrument = {
+                        let session_borrow = project_session.borrow();
+                        let Some(session) = session_borrow.as_ref() else { return; };
+                        let Some(chain) = session.project.chains.get(chain_idx) else { return; };
+                        chain.instrument.clone()
+                    };
+
+                    // Get the effect type from the current block
+                    let effect_type = {
+                        let session_borrow = project_session.borrow();
+                        let Some(session) = session_borrow.as_ref() else { return; };
+                        let Some(chain) = session.project.chains.get(chain_idx) else { return; };
+                        let Some(block) = chain.blocks.get(block_idx) else { return; };
+                        let Some(data) = block_editor_data(block) else { return; };
+                        data.effect_type.clone()
+                    };
+
+                    let models = block_model_picker_items(&effect_type, &instrument);
+                    let Some(model) = models.get(model_idx) else { return; };
+                    let new_model_id = model.model_id.to_string();
+                    let new_effect_type = model.effect_type.to_string();
+
+                    // Build new block kind with default params
+                    let new_params = block_core::param::ParameterSet::default();
+                    let schema = match project::block::schema_for_block_model(&new_effect_type, &new_model_id) {
+                        Ok(s) => s,
+                        Err(e) => {
+                            log::error!("compact choose-model schema error: {e}");
+                            return;
+                        }
+                    };
+                    let normalized = match new_params.normalized_against(&schema) {
+                        Ok(p) => p,
+                        Err(e) => {
+                            log::error!("compact choose-model normalize error: {e}");
+                            return;
+                        }
+                    };
+                    let kind = match project::block::build_audio_block_kind(&new_effect_type, &new_model_id, normalized) {
+                        Ok(k) => k,
+                        Err(e) => {
+                            log::error!("compact choose-model build error: {e}");
+                            return;
+                        }
+                    };
+
+                    // Apply to project
+                    let mut session_borrow = project_session.borrow_mut();
+                    let Some(session) = session_borrow.as_mut() else { return; };
+                    let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
+                    let Some(block) = chain.blocks.get_mut(block_idx) else { return; };
+                    let block_id = block.id.clone();
+                    let enabled = block.enabled;
+                    block.kind = kind;
+                    block.id = block_id;
+                    block.enabled = enabled;
+
+                    let chain_id = chain.id.clone();
+                    if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                        set_status_error(&main_win, &toast_timer, &error.to_string());
+                        return;
+                    }
+                    replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+                    let blocks = build_compact_blocks(&session.project, chain_idx);
+                    cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
+                    sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty);
+                });
+            }
+
+            // Wire choose-block-type — when user picks a type from the compact view picker
+            {
+                let weak_main = window.as_weak();
+                compact_win.on_choose_block_type(move |ci, before, type_index| {
+                    log::info!("[compact] choose-block-type: chain={}, before={}, type_index={}", ci, before, type_index);
+                    let Some(main_win) = weak_main.upgrade() else { return; };
+                    // Trigger the full insert flow on the main window (sets up draft + opens editor)
+                    main_win.invoke_start_block_insert(ci, before);
+                    // Select the type that was chosen
+                    main_win.invoke_choose_block_type(type_index);
+                });
+            }
+
+            // Wire remove-block
+            {
+                let project_session = project_session.clone();
+                let weak_main = window.as_weak();
+                let weak_compact = compact_win.as_weak();
+                let project_chains = project_chains.clone();
+                let project_runtime = project_runtime.clone();
+                let saved_project_snapshot = saved_project_snapshot.clone();
+                let project_dirty = project_dirty.clone();
+                let input_chain_devices = input_chain_devices.clone();
+                let output_chain_devices = output_chain_devices.clone();
+                let _toast_timer = toast_timer.clone();
+                compact_win.on_remove_block(move |ci, bi| {
+                    log::info!("[compact] remove-block: chain={}, block={}", ci, bi);
+                    let Some(main_win) = weak_main.upgrade() else { return; };
+                    let Some(cw) = weak_compact.upgrade() else { return; };
+                    let mut session_borrow = project_session.borrow_mut();
+                    let Some(session) = session_borrow.as_mut() else { return; };
+                    let chain_idx = ci as usize;
+                    let block_idx = bi as usize;
+                    let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
+                    if block_idx >= chain.blocks.len() { return; }
+                    chain.blocks.remove(block_idx);
+                    let chain_id = chain.id.clone();
+                    if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                        log::error!("[compact] remove-block runtime sync: {}", e);
+                    }
+                    replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+                    let blocks = build_compact_blocks(&session.project, chain_idx);
+                    cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
+                    sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty);
+                });
+            }
+
+            // Wire reorder-block
+            {
+                let project_session = project_session.clone();
+                let weak_main = window.as_weak();
+                let weak_compact = compact_win.as_weak();
+                compact_win.on_reorder_block(move |ci, from, before| {
+                    log::info!("[compact] reorder-block: chain={}, from={}, before={}", ci, from, before);
+                    let Some(main_win) = weak_main.upgrade() else { return; };
+                    let Some(cw) = weak_compact.upgrade() else { return; };
+                    // Reuse main window's reorder logic
+                    main_win.invoke_reorder_chain_block(ci, from, before);
+                    // Refresh compact blocks
+                    let session_borrow = project_session.borrow();
+                    let Some(session) = session_borrow.as_ref() else { return; };
+                    let blocks = build_compact_blocks(&session.project, ci as usize);
+                    cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
+                });
+            }
+
+            // Wire update-block-parameter-number (knobs)
+            {
+                let project_session = project_session.clone();
+                let project_runtime = project_runtime.clone();
+                let project_chains = project_chains.clone();
+                let input_chain_devices = input_chain_devices.clone();
+                let output_chain_devices = output_chain_devices.clone();
+                let saved_project_snapshot = saved_project_snapshot.clone();
+                let project_dirty = project_dirty.clone();
+                let weak_main = window.as_weak();
+                let weak_compact = compact_win.as_weak();
+                let toast_timer = toast_timer.clone();
+                compact_win.on_update_block_parameter_number(move |ci, bi, path, value| {
+                    let Some(main_win) = weak_main.upgrade() else { return; };
+                    let Some(cw) = weak_compact.upgrade() else { return; };
+                    let chain_idx = ci as usize;
+                    let block_idx = bi as usize;
+                    let mut session_borrow = project_session.borrow_mut();
+                    let Some(session) = session_borrow.as_mut() else { return; };
+                    let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
+                    let Some(block) = chain.blocks.get_mut(block_idx) else { return; };
+                    // Update the parameter in the block
+                    if let AudioBlockKind::Core(ref mut core) = block.kind {
+                        core.params.insert(path.as_str(), domain::value_objects::ParameterValue::Float(value));
+                    }
+                    // Rebuild block kind with updated params
+                    let Some(data) = block_editor_data(block) else { return; };
+                    let params_set = data.params.clone();
+                    match project::block::build_audio_block_kind(&data.effect_type, &data.model_id, params_set) {
+                        Ok(kind) => {
+                            let id = block.id.clone();
+                            let enabled = block.enabled;
+                            block.kind = kind;
+                            block.id = id;
+                            block.enabled = enabled;
+                        }
+                        Err(e) => {
+                            log::error!("[compact] update param error: {e}");
+                            return;
+                        }
+                    }
+                    let chain_id = chain.id.clone();
+                    if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                        set_status_error(&main_win, &toast_timer, &e.to_string());
+                        return;
+                    }
+                    replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+                    let blocks = build_compact_blocks(&session.project, chain_idx);
+                    cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
+                    sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty);
+                });
+            }
+
+            // Wire select-block-parameter-option (enums)
+            {
+                let project_session = project_session.clone();
+                let project_runtime = project_runtime.clone();
+                let project_chains = project_chains.clone();
+                let input_chain_devices = input_chain_devices.clone();
+                let output_chain_devices = output_chain_devices.clone();
+                let saved_project_snapshot = saved_project_snapshot.clone();
+                let project_dirty = project_dirty.clone();
+                let weak_main = window.as_weak();
+                let weak_compact = compact_win.as_weak();
+                let toast_timer = toast_timer.clone();
+                compact_win.on_select_block_parameter_option(move |ci, bi, path, option_index| {
+                    let Some(main_win) = weak_main.upgrade() else { return; };
+                    let Some(cw) = weak_compact.upgrade() else { return; };
+                    let chain_idx = ci as usize;
+                    let block_idx = bi as usize;
+                    let mut session_borrow = project_session.borrow_mut();
+                    let Some(session) = session_borrow.as_mut() else { return; };
+                    let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
+                    let Some(block) = chain.blocks.get_mut(block_idx) else { return; };
+                    // Get the option value from the schema
+                    let Some(data) = block_editor_data(block) else { return; };
+                    let schema = match project::block::schema_for_block_model(&data.effect_type, &data.model_id) {
+                        Ok(s) => s,
+                        Err(_) => return,
+                    };
+                    let Some(param_spec) = schema.parameters.iter().find(|p| p.path == path.as_str()) else { return; };
+                    let option_value = match &param_spec.domain {
+                        block_core::param::ParameterDomain::Enum { options } => {
+                            options.get(option_index as usize).map(|o| o.value.clone())
+                        }
+                        _ => None,
+                    };
+                    let Some(value) = option_value else { return; };
+                    // Update param
+                    if let AudioBlockKind::Core(ref mut core) = block.kind {
+                        core.params.insert(path.as_str(), domain::value_objects::ParameterValue::String(value));
+                    }
+                    // Rebuild
+                    let Some(data) = block_editor_data(block) else { return; };
+                    let params_set = data.params.clone();
+                    match project::block::build_audio_block_kind(&data.effect_type, &data.model_id, params_set) {
+                        Ok(kind) => {
+                            let id = block.id.clone();
+                            let enabled = block.enabled;
+                            block.kind = kind;
+                            block.id = id;
+                            block.enabled = enabled;
+                        }
+                        Err(e) => {
+                            log::error!("[compact] select option error: {e}");
+                            return;
+                        }
+                    }
+                    let chain_id = chain.id.clone();
+                    if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                        set_status_error(&main_win, &toast_timer, &e.to_string());
+                        return;
+                    }
+                    replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+                    let blocks = build_compact_blocks(&session.project, chain_idx);
+                    cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
+                    sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty);
+                });
+            }
+
+            // Wire open-block-detail (click on model select opens full editor)
+            {
+                let weak_main = window.as_weak();
+                compact_win.on_open_block_detail(move |ci, bi| {
+                    let Some(main_win) = weak_main.upgrade() else { return; };
+                    main_win.invoke_select_chain_block(ci, bi);
+                    let _ = main_win.window().show();
+                });
+            }
+
+            // Tuner stream polling timer — updates stream_data for tuner blocks
+            {
+                let weak_cw = compact_win.as_weak();
+                let project_runtime_poll = project_runtime.clone();
+                let project_session_poll = project_session.clone();
+                let tuner_timer = Timer::default();
+                tuner_timer.start(
+                    slint::TimerMode::Repeated,
+                    std::time::Duration::from_millis(80),
+                    move || {
+                        let Some(cw) = weak_cw.upgrade() else { return; };
+                        let rt_borrow = project_runtime_poll.borrow();
+                        let Some(rt) = rt_borrow.as_ref() else { return; };
+                        let reading = rt.poll_tuner_reading();
+                        if let Some(reading) = reading {
+                            let session_borrow = project_session_poll.borrow();
+                            let Some(_session) = session_borrow.as_ref() else { return; };
+                            // Find tuner block index and update its stream data
+                            let compact_blocks = cw.get_compact_blocks();
+                            for i in 0..compact_blocks.row_count() {
+                                if let Some(mut item) = compact_blocks.row_data(i) {
+                                    if item.effect_type == "utility" {
+                                        item.stream_data = BlockStreamData {
+                                            active: true,
+                                            stream_kind: "tuner".into(),
+                                            entries: ModelRc::from(Rc::new(VecModel::from(vec![
+                                                BlockStreamEntry {
+                                                    key: "note".into(),
+                                                    value: 0.0,
+                                                    text: reading.note.clone().unwrap_or_default().into(),
+                                                },
+                                                BlockStreamEntry {
+                                                    key: "cents".into(),
+                                                    value: reading.cents_off.unwrap_or(0.0),
+                                                    text: format!("{:+.0}", reading.cents_off.unwrap_or(0.0)).into(),
+                                                },
+                                                BlockStreamEntry {
+                                                    key: "Hz".into(),
+                                                    value: reading.frequency.unwrap_or(0.0),
+                                                    text: format!("{:.0}", reading.frequency.unwrap_or(0.0)).into(),
+                                                },
+                                            ]))),
+                                        };
+                                        compact_blocks.set_row_data(i, item);
+                                    }
+                                }
+                            }
+                        }
+                    },
+                );
+                // Timer lives as long as compact_win (dropped when window closes)
+                std::mem::forget(tuner_timer);
+            }
+
+            show_child_window(window.window(), compact_win.window());
+        });
+    }
     {
         let weak_window = window.as_weak();
         let chain_draft = chain_draft.clone();
@@ -1685,7 +2133,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_chain_window = chain_editor_window.as_weak();
@@ -1704,7 +2151,19 @@ pub fn run_desktop_app(
             }
         });
     }
-
+    {
+        let chain_draft = chain_draft.clone();
+        chain_editor_window.on_select_instrument(move |index| {
+            let instrument = instrument_index_to_string(index).to_string();
+            log::debug!("[select_instrument] index={}, instrument='{}'", index, instrument);
+            if let Some(draft) = chain_draft.borrow_mut().as_mut() {
+                draft.instrument = instrument;
+                log::debug!("[select_instrument] draft updated to '{}'", draft.instrument);
+            } else {
+                log::warn!("[select_instrument] no draft to update!");
+            }
+        });
+    }
     {
         let weak_window = window.as_weak();
         let weak_input_window = chain_input_window.as_weak();
@@ -1749,7 +2208,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_output_window = chain_output_window.as_weak();
@@ -1794,7 +2252,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
@@ -1803,6 +2260,7 @@ pub fn run_desktop_app(
         let chain_input_channels = chain_input_channels.clone();
         let weak_window = window.as_weak();
         let weak_chain_window = chain_editor_window.as_weak();
+        let toast_timer = toast_timer.clone();
         window.on_toggle_chain_input_channel(move |index, selected| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -1816,8 +2274,7 @@ pub fn run_desktop_app(
                 return;
             };
             if selected && !option.available && !option.selected {
-                window
-                    .set_status_message("Canal de entrada já está em uso por outra chain.".into());
+                set_status_error(&window, &toast_timer, "Canal de entrada já está em uso por outra chain.");
                 return;
             }
             if selected {
@@ -1845,7 +2302,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
@@ -1885,7 +2341,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_input_window = chain_input_window.as_weak();
@@ -1909,10 +2364,8 @@ pub fn run_desktop_app(
             let Some(chain) = session.project.chains.get(index as usize) else {
                 return;
             };
-
             let draft = chain_draft_from_chain(index as usize, chain);
             *chain_draft.borrow_mut() = Some(draft.clone());
-
             if let Some(chain_window) = weak_chain_window.upgrade() {
                 apply_chain_endpoint_summaries(
                     &window,
@@ -1922,7 +2375,6 @@ pub fn run_desktop_app(
                     &output_chain_devices,
                 );
             }
-
             apply_chain_input_window_state(
                 &input_window,
                 &draft,
@@ -1930,10 +2382,9 @@ pub fn run_desktop_app(
                 &input_chain_devices,
                 &chain_input_channels,
             );
-            let _ = input_window.show();
+            show_child_window(window.window(), input_window.window());
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_output_window = chain_output_window.as_weak();
@@ -1957,10 +2408,8 @@ pub fn run_desktop_app(
             let Some(chain) = session.project.chains.get(index as usize) else {
                 return;
             };
-
             let draft = chain_draft_from_chain(index as usize, chain);
             *chain_draft.borrow_mut() = Some(draft.clone());
-
             if let Some(chain_window) = weak_chain_window.upgrade() {
                 apply_chain_endpoint_summaries(
                     &window,
@@ -1970,17 +2419,15 @@ pub fn run_desktop_app(
                     &output_chain_devices,
                 );
             }
-
             apply_chain_output_window_state(
                 &output_window,
                 &draft,
                 &output_chain_devices,
                 &chain_output_channels,
             );
-            let _ = output_window.show();
+            show_child_window(window.window(), output_window.window());
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_input_window = chain_input_window.as_weak();
@@ -2004,7 +2451,6 @@ pub fn run_desktop_app(
             let Some(session) = session_borrow.as_ref() else {
                 return;
             };
-
             if let Some(chain_window) = weak_chain_window.upgrade() {
                 apply_chain_endpoint_summaries(
                     &window,
@@ -2014,7 +2460,6 @@ pub fn run_desktop_app(
                     &output_chain_devices,
                 );
             }
-
             apply_chain_input_window_state(
                 &input_window,
                 &draft,
@@ -2022,10 +2467,9 @@ pub fn run_desktop_app(
                 &input_chain_devices,
                 &chain_input_channels,
             );
-            let _ = input_window.show();
+            show_child_window(window.window(), input_window.window());
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_output_window = chain_output_window.as_weak();
@@ -2049,7 +2493,6 @@ pub fn run_desktop_app(
             let Some(_session) = session_borrow.as_ref() else {
                 return;
             };
-
             if let Some(chain_window) = weak_chain_window.upgrade() {
                 apply_chain_endpoint_summaries(
                     &window,
@@ -2059,17 +2502,15 @@ pub fn run_desktop_app(
                     &output_chain_devices,
                 );
             }
-
             apply_chain_output_window_state(
                 &output_window,
                 &draft,
                 &output_chain_devices,
                 &chain_output_channels,
             );
-            let _ = output_window.show();
+            show_child_window(window.window(), output_window.window());
         });
     }
-
     {
         let weak_main_window = window.as_weak();
         let selected_block = selected_block.clone();
@@ -2084,47 +2525,55 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
-        let block_type_options = block_type_options.clone();
         let open_block_windows = open_block_windows.clone();
+        let toast_timer = toast_timer.clone();
         window.on_select_chain_block(move |chain_index, block_index| {
             let Some(window) = weak_main_window.upgrade() else {
                 return;
             };
             let session_borrow = project_session.borrow();
             let Some(session) = session_borrow.as_ref() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
             let Some(chain) = session.project.chains.get(chain_index as usize) else {
-                window.set_status_message("Chain inválida.".into());
+                set_status_error(&window, &toast_timer, "Chain inválida.");
                 return;
             };
             let Some(block) = chain.blocks.get(block_index as usize) else {
-                window.set_status_message("Block inválido.".into());
+                log::warn!("[select_chain_block] block_index={} out of bounds, chain has {} blocks", block_index, chain.blocks.len());
+                set_status_error(&window, &toast_timer, "Block inválido.");
                 return;
             };
+            log::info!("[select_chain_block] block at index {}: id='{}', kind={:?}", block_index, block.id.0, block.model_ref().map(|m| format!("{}/{}", m.effect_type, m.model)));
             let Some(editor_data) = block_editor_data(block) else {
-                window.set_status_message("Esse block ainda não pode ser editado pela GUI.".into());
+                set_status_error(&window, &toast_timer, "Esse block ainda não pode ser editado pela GUI.");
                 return;
             };
             let effect_type = editor_data.effect_type.clone();
             let model_id = editor_data.model_id.clone();
             let enabled = editor_data.enabled;
-
             *selected_block.borrow_mut() = Some(SelectedBlock {
                 chain_index: chain_index as usize,
                 block_index: block_index as usize,
             });
+            let instrument = chain.instrument.clone();
+            log::info!("[select_chain_block] chain_index={}, block_index={}, effect_type='{}', model_id='{}', enabled={}", chain_index, block_index, effect_type, model_id, enabled);
             *block_editor_draft.borrow_mut() = Some(BlockEditorDraft {
                 chain_index: chain_index as usize,
                 block_index: Some(block_index as usize),
                 before_index: block_index as usize,
+                instrument: instrument.clone(),
                 effect_type: effect_type.clone(),
                 model_id: model_id.clone(),
                 enabled,
                 is_select: editor_data.is_select,
             });
-            let items = block_model_picker_items(&effect_type);
+            let items = block_model_picker_items(&effect_type, &instrument);
+            log::debug!("[select_chain_block] filtered models count={}", items.len());
+            for item in &items {
+                log::trace!("[select_chain_block]   model='{}'", item.model_id);
+            }
             block_model_option_labels.set_vec(block_model_picker_labels(&items));
             block_model_options.set_vec(items);
             block_parameter_items.set_vec(block_parameter_items_for_editor(&editor_data));
@@ -2134,9 +2583,9 @@ pub fn run_desktop_app(
             window.set_block_drawer_title(drawer_state.title.into());
             window.set_block_drawer_confirm_label(drawer_state.confirm_label.into());
             window.set_block_drawer_edit_mode(true);
-            window.set_block_drawer_selected_type_index(block_type_index(&effect_type));
+            window.set_block_drawer_selected_type_index(block_type_index(&effect_type, &instrument));
             window
-                .set_block_drawer_selected_model_index(block_model_index(&effect_type, &model_id));
+                .set_block_drawer_selected_model_index(block_model_index(&effect_type, &model_id, &instrument));
             window.set_block_drawer_enabled(enabled);
             window.set_block_drawer_status_message("".into());
             window.set_show_block_type_picker(false);
@@ -2153,8 +2602,8 @@ pub fn run_desktop_app(
                     .map(|bw| bw.window.as_weak());
                 if let Some(weak_win) = existing {
                     if let Some(win) = weak_win.upgrade() {
-                        sync_block_editor_window(&window, &win);
-                        let _ = win.show();
+                        // Just show — window already has its own independent state
+                        show_child_window(window.window(), win.window());
                         return;
                     }
                 }
@@ -2162,48 +2611,104 @@ pub fn run_desktop_app(
                 let win = match BlockEditorWindow::new() {
                     Ok(w) => w,
                     Err(e) => {
-                        window.set_status_message(format!("Erro ao abrir editor: {e}").into());
+                        set_status_error(&window, &toast_timer, &format!("Erro ao abrir editor: {e}"));
                         return;
                     }
                 };
                 // Per-window models (independent copies of the data)
                 let win_model_options = Rc::new(VecModel::from(
-                    block_model_picker_items(&effect_type)
+                    block_model_picker_items(&effect_type, &instrument)
                 ));
                 let win_model_labels = Rc::new(VecModel::from(
-                    block_model_picker_labels(&block_model_picker_items(&effect_type))
+                    block_model_picker_labels(&block_model_picker_items(&effect_type, &instrument))
                 ));
                 let win_param_items_vec = block_parameter_items_for_editor(&editor_data);
                 let win_knob_overlays = Rc::new(VecModel::from(
-                    build_knob_overlays(&model_id, &win_param_items_vec)
+                    build_knob_overlays(project::catalog::model_knob_layout(&effect_type, &model_id), &win_param_items_vec)
                 ));
                 let win_param_items = Rc::new(VecModel::from(win_param_items_vec));
                 let win_draft = Rc::new(RefCell::new(Some(BlockEditorDraft {
                     chain_index: ci,
                     block_index: Some(bi),
                     before_index: bi,
+                    instrument: instrument.clone(),
                     effect_type: effect_type.clone(),
                     model_id: model_id.clone(),
                     enabled,
                     is_select: editor_data.is_select,
                 })));
                 let win_timer = Rc::new(Timer::default());
-
-                // Populate window — sync scalars first, then override with per-window models
-                sync_block_editor_window(&window, &win);
-                win.set_block_type_options(ModelRc::from(block_type_options.clone()));
+                // Populate window — ALL data set independently (no sync from AppWindow)
+                let type_index = block_type_index(&effect_type, &instrument);
+                let model_index = block_model_index_from_items(&win_model_options, &model_id);
+                win.set_block_type_options(ModelRc::from(Rc::new(VecModel::from(block_type_picker_items(&instrument)))));
                 win.set_block_model_options(ModelRc::from(win_model_options.clone()));
                 win.set_block_model_option_labels(ModelRc::from(win_model_labels.clone()));
                 win.set_block_parameter_items(ModelRc::from(win_param_items.clone()));
                 win.set_block_knob_overlays(ModelRc::from(win_knob_overlays.clone()));
+                win.set_block_drawer_selected_type_index(type_index);
+                win.set_block_drawer_selected_model_index(model_index);
+                win.set_block_drawer_edit_mode(true);
+                win.set_block_drawer_enabled(enabled);
+                win.set_block_drawer_status_message("".into());
+                // Set window title
+                let title_label = win_model_options
+                    .row_data(model_index as usize)
+                    .map(|m| m.label.to_string())
+                    .unwrap_or_else(|| "Block".to_string());
+                win.set_block_window_title(format!("OpenRig · {}", title_label).into());
 
-                // Set window title from selected model label
-                if effect_type == "amp_head" {
-                    let title_label = win_model_options
-                        .row_data(win.get_block_drawer_selected_model_index() as usize)
-                        .map(|m| m.label.to_string())
-                        .unwrap_or_default();
-                    win.set_block_window_title(format!("OpenRig · {}", title_label).into());
+                // Stream data timer — polls tuner/meter readings when block produces them
+                let mut block_stream_timer: Option<Rc<Timer>> = None;
+                if effect_type == block_core::EFFECT_TYPE_UTILITY {
+                    let stream_timer = Rc::new(Timer::default());
+                    let weak_win_stream = win.as_weak();
+                    let project_runtime_stream = project_runtime.clone();
+                    stream_timer.start(
+                        slint::TimerMode::Repeated,
+                        std::time::Duration::from_millis(50),
+                        move || {
+                            let Some(win) = weak_win_stream.upgrade() else {
+                                return;
+                            };
+                            let runtime_borrow = project_runtime_stream.borrow();
+                            let Some(runtime) = runtime_borrow.as_ref() else {
+                                log::trace!("[tuner-stream] no runtime");
+                                return;
+                            };
+                            if let Some(reading) = runtime.poll_tuner_reading() {
+                                log::trace!("[tuner-stream] note={:?} freq={:?} cents={:?}", reading.note, reading.frequency, reading.cents_off);
+                                let entries = vec![
+                                    BlockStreamEntry {
+                                        key: "note".into(),
+                                        value: 0.0,
+                                        text: reading.note.unwrap_or_default().into(),
+                                    },
+                                    BlockStreamEntry {
+                                        key: "cents".into(),
+                                        value: reading.cents_off.unwrap_or(0.0),
+                                        text: format!("{:+.0}", reading.cents_off.unwrap_or(0.0)).into(),
+                                    },
+                                    BlockStreamEntry {
+                                        key: "frequency".into(),
+                                        value: reading.frequency.unwrap_or(0.0),
+                                        text: format!("{:.1} Hz", reading.frequency.unwrap_or(0.0)).into(),
+                                    },
+                                    BlockStreamEntry {
+                                        key: "in_tune".into(),
+                                        value: if reading.in_tune { 1.0 } else { 0.0 },
+                                        text: if reading.in_tune { "IN TUNE".into() } else { "".into() },
+                                    },
+                                ];
+                                win.set_block_stream_data(BlockStreamData {
+                                    active: true,
+                                    stream_kind: "tuner".into(),
+                                    entries: ModelRc::from(Rc::new(VecModel::from(entries))),
+                                });
+                            }
+                        },
+                    );
+                    block_stream_timer = Some(stream_timer);
                 }
 
                 // on_choose_block_model
@@ -2225,14 +2730,15 @@ pub fn run_desktop_app(
                         let Some(_win) = weak_win.upgrade() else { return; };
                         let mut draft_borrow = win_draft.borrow_mut();
                         let Some(draft) = draft_borrow.as_mut() else { return; };
-                        let models = block_model_picker_items(&draft.effect_type);
+                        let models = block_model_picker_items(&draft.effect_type, &draft.instrument);
                         let Some(model) = models.get(index as usize) else { return; };
                         draft.model_id = model.model_id.to_string();
                         draft.effect_type = model.effect_type.to_string();
                         let new_params = block_parameter_items_for_model(
                             &model.effect_type, &model.model_id, &ParameterSet::default(),
                         );
-                        win_knob_overlays.set_vec(build_knob_overlays(&model.model_id, &new_params));
+                        let overlays = build_knob_overlays(project::catalog::model_knob_layout(&model.effect_type, &model.model_id), &new_params);
+                        win_knob_overlays.set_vec(overlays);
                         win_param_items.set_vec(new_params);
                         drop(draft_borrow);
                         if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
@@ -2247,7 +2753,6 @@ pub fn run_desktop_app(
                         }
                     });
                 }
-
                 // on_toggle_block_drawer_enabled
                 {
                     let win_draft = win_draft.clone();
@@ -2264,15 +2769,24 @@ pub fn run_desktop_app(
                         let Some(win) = weak_win.upgrade() else { return; };
                         let Some(main) = weak_main.upgrade() else { return; };
                         let (chain_idx, block_idx, chain_id_opt) = {
-                            let draft_borrow = win_draft.borrow();
-                            let Some(draft) = draft_borrow.as_ref() else { return; };
-                            let Some(block_index) = draft.block_index else { return; };
+                            let (chain_index, block_index) = {
+                                let draft_borrow = win_draft.borrow();
+                                let Some(draft) = draft_borrow.as_ref() else { return; };
+                                let Some(bi) = draft.block_index else { return; };
+                                (draft.chain_index, bi)
+                            };
                             let mut session_borrow = project_session.borrow_mut();
                             let Some(session) = session_borrow.as_mut() else { return; };
-                            let Some(chain) = session.project.chains.get_mut(draft.chain_index) else { return; };
+                            let Some(chain) = session.project.chains.get_mut(chain_index) else { return; };
                             let Some(block) = chain.blocks.get_mut(block_index) else { return; };
                             block.enabled = !block.enabled;
-                            (draft.chain_index, block_index, Some(chain.id.clone()))
+                            let new_enabled = block.enabled;
+                            let chain_id = chain.id.clone();
+                            drop(session_borrow);
+                            if let Some(draft) = win_draft.borrow_mut().as_mut() {
+                                draft.enabled = new_enabled;
+                            }
+                            (chain_index, block_index, Some(chain_id))
                         };
                         let new_enabled = {
                             let session_borrow = project_session.borrow();
@@ -2281,11 +2795,14 @@ pub fn run_desktop_app(
                             let Some(block) = chain.blocks.get(block_idx) else { return; };
                             block.enabled
                         };
-                        let chain_id = chain_id_opt.unwrap();
+                        let Some(chain_id) = chain_id_opt else { return; };
                         let mut session_borrow = project_session.borrow_mut();
                         let Some(session) = session_borrow.as_mut() else { return; };
                         if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                            log_gui_error("block-window.toggle-enabled", e);
+                            log::error!("[adapter-gui] block-window.toggle-enabled: {e}");
+                            if let Some(w) = weak_main.upgrade() {
+                                w.set_block_drawer_status_message(e.to_string().into());
+                            }
                             return;
                         }
                         replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
@@ -2294,7 +2811,6 @@ pub fn run_desktop_app(
                         win.set_block_drawer_enabled(new_enabled);
                     });
                 }
-
                 // on_update_block_parameter_number
                 {
                     let win_draft = win_draft.clone();
@@ -2335,7 +2851,6 @@ pub fn run_desktop_app(
                         }
                     });
                 }
-
                 // on_update_block_parameter_number_text
                 {
                     let win_draft = win_draft.clone();
@@ -2367,7 +2882,6 @@ pub fn run_desktop_app(
                         }
                     });
                 }
-
                 // on_update_block_parameter_bool
                 {
                     let win_draft = win_draft.clone();
@@ -2397,7 +2911,6 @@ pub fn run_desktop_app(
                         }
                     });
                 }
-
                 // on_update_block_parameter_text
                 {
                     let win_draft = win_draft.clone();
@@ -2427,7 +2940,6 @@ pub fn run_desktop_app(
                         }
                     });
                 }
-
                 // on_select_block_parameter_option
                 {
                     let win_draft = win_draft.clone();
@@ -2457,7 +2969,6 @@ pub fn run_desktop_app(
                         }
                     });
                 }
-
                 // on_pick_block_parameter_file
                 {
                     let win_draft = win_draft.clone();
@@ -2494,7 +3005,6 @@ pub fn run_desktop_app(
                         }
                     });
                 }
-
                 // on_save_block_drawer (edit mode - saves and closes)
                 {
                     let win_draft = win_draft.clone();
@@ -2522,7 +3032,8 @@ pub fn run_desktop_app(
                             &saved_project_snapshot, &project_dirty,
                             &input_chain_devices, &output_chain_devices, true,
                         ) {
-                            log_gui_error("block-window.save", e);
+                            log::error!("[adapter-gui] block-window.save: {e}");
+                            main.set_block_drawer_status_message(e.to_string().into());
                             return;
                         }
                         *selected_block.borrow_mut() = None;
@@ -2534,7 +3045,6 @@ pub fn run_desktop_app(
                         let _ = win.hide();
                     });
                 }
-
                 // on_delete_block_drawer
                 {
                     let win_draft = win_draft.clone();
@@ -2556,6 +3066,15 @@ pub fn run_desktop_app(
                         win_timer.stop();
                         let Some(draft) = win_draft.borrow().clone() else { return; };
                         let Some(block_index) = draft.block_index else { return; };
+                        let confirmed = rfd::MessageDialog::new()
+                            .set_title("Excluir bloco")
+                            .set_description(format!("Excluir o bloco \"{}\"?", draft.model_id))
+                            .set_buttons(rfd::MessageButtons::YesNo)
+                            .set_level(rfd::MessageLevel::Warning)
+                            .show();
+                        if !matches!(confirmed, rfd::MessageDialogResult::Yes) {
+                            return;
+                        }
                         let mut session_borrow = project_session.borrow_mut();
                         let Some(session) = session_borrow.as_mut() else { return; };
                         let Some(chain) = session.project.chains.get_mut(draft.chain_index) else { return; };
@@ -2563,12 +3082,14 @@ pub fn run_desktop_app(
                         let chain_id = chain.id.clone();
                         chain.blocks.remove(block_index);
                         if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                            log_gui_error("block-window.delete", e);
+                            log::error!("[adapter-gui] block-window.delete: {e}");
+                            if let Some(w) = weak_main.upgrade() {
+                                w.set_block_drawer_status_message(e.to_string().into());
+                            }
                             return;
                         }
                         replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
                         sync_project_dirty(&main, session, &saved_project_snapshot, &project_dirty);
-                        main.set_project_running(project_runtime_is_running(&project_runtime));
                         drop(session_borrow);
                         *selected_block.borrow_mut() = None;
                         set_selected_block(&main, None);
@@ -2578,7 +3099,6 @@ pub fn run_desktop_app(
                         let _ = win.hide();
                     });
                 }
-
                 // on_close_block_drawer (close without saving)
                 {
                     let win_draft = win_draft.clone();
@@ -2601,13 +3121,11 @@ pub fn run_desktop_app(
                         let _ = win.hide();
                     });
                 }
-
-                let _ = win.show();
-                open_block_windows.borrow_mut().push(BlockWindow { chain_index: ci, block_index: bi, window: win });
+                show_child_window(window.window(), win.window());
+                open_block_windows.borrow_mut().push(BlockWindow { chain_index: ci, block_index: bi, window: win, stream_timer: block_stream_timer });
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let selected_block = selected_block.clone();
@@ -2634,7 +3152,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let selected_block = selected_block.clone();
@@ -2645,27 +3162,29 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_toggle_chain_block_enabled(move |chain_index, block_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            log::info!("on_toggle_chain_block_enabled: chain_index={}, block_index={}", chain_index, block_index);
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
             let Some(chain) = session.project.chains.get_mut(chain_index as usize) else {
-                window.set_status_message("Chain inválida.".into());
+                set_status_error(&window, &toast_timer, "Chain inválida.");
                 return;
             };
             let Some(block) = chain.blocks.get_mut(block_index as usize) else {
-                window.set_status_message("Block inválido.".into());
+                set_status_error(&window, &toast_timer, "Block inválido.");
                 return;
             };
             block.enabled = !block.enabled;
             let chain_id = chain.id.clone();
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                window.set_status_message(error.to_string().into());
+                set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }
             replace_project_chains(
@@ -2680,15 +3199,14 @@ pub fn run_desktop_app(
             });
             set_selected_block(&window, selected_block.borrow().as_ref());
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-            window.set_project_running(project_runtime_is_running(&project_runtime));
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
         });
     }
-
     {
         let weak_window = window.as_weak();
         let selected_block = selected_block.clone();
         let block_editor_draft = block_editor_draft.clone();
+        let block_editor_persist_timer = block_editor_persist_timer.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
@@ -2696,18 +3214,21 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
+        let open_block_windows = open_block_windows.clone();
         window.on_reorder_chain_block(move |chain_index, from_index, before_index| {
+            log::info!("[reorder_chain_block] chain_index={}, from_index={}, before_index={}", chain_index, from_index, before_index);
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
-            let (chain_id, insert_at) = {
+            let (chain_id, _insert_at) = {
                 let Some(chain) = session.project.chains.get_mut(chain_index as usize) else {
-                    window.set_status_message("Chain inválida.".into());
+                    set_status_error(&window, &toast_timer, "Chain inválida.");
                     return;
                 };
                 let block_count = chain.blocks.len() as i32;
@@ -2726,32 +3247,37 @@ pub fn run_desktop_app(
                 chain.blocks.insert(insert_at, block);
                 (chain.id.clone(), insert_at)
             };
-
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                window.set_status_message(error.to_string().into());
+                set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }
-
             replace_project_chains(
                 &project_chains,
                 &session.project,
                 &input_chain_devices,
                 &output_chain_devices,
             );
+            // Close editor and clear all state — avoids stale index references
+            block_editor_persist_timer.stop();
             *selected_block.borrow_mut() = None;
-            if let Some(draft) = block_editor_draft.borrow_mut().as_mut() {
-                if draft.chain_index == chain_index as usize && draft.block_index.is_some() {
-                    draft.block_index = Some(insert_at);
-                    draft.before_index = insert_at;
+            *block_editor_draft.borrow_mut() = None;
+            // Close all open block editor windows for this chain
+            {
+                let ci = chain_index as usize;
+                for bw in open_block_windows.borrow().iter() {
+                    if bw.chain_index == ci {
+                        let _ = bw.window.hide();
+                    }
                 }
+                open_block_windows.borrow_mut().retain(|bw| bw.chain_index != ci);
             }
-            set_selected_block(&window, selected_block.borrow().as_ref());
+            window.set_show_block_drawer(false);
+            window.set_show_block_type_picker(false);
+            set_selected_block(&window, None);
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-            window.set_project_running(project_runtime_is_running(&project_runtime));
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
         });
     }
-
     {
         let weak_window = window.as_weak();
         let selected_block = selected_block.clone();
@@ -2760,21 +3286,35 @@ pub fn run_desktop_app(
         let block_model_options = block_model_options.clone();
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
+        let project_session = project_session.clone();
         window.on_start_block_insert(move |chain_index, before_index| {
+            log::debug!("on_start_block_insert: chain_index={}, before_index={}", chain_index, before_index);
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            let instrument = project_session.borrow().as_ref()
+                .and_then(|s| {
+                    let chain = s.project.chains.get(chain_index as usize)?;
+                    log::info!("=== START_BLOCK_INSERT: chain_index={}, chain.instrument='{}', chain.description={:?} ===",
+                        chain_index, chain.instrument, chain.description);
+                    Some(chain.instrument.clone())
+                })
+                .unwrap_or_else(|| {
+                    log::warn!("=== START_BLOCK_INSERT: no chain at index {}, defaulting to electric_guitar ===", chain_index);
+                    block_core::DEFAULT_INSTRUMENT.to_string()
+                });
             *selected_block.borrow_mut() = None;
             *block_editor_draft.borrow_mut() = Some(BlockEditorDraft {
                 chain_index: chain_index as usize,
                 block_index: None,
                 before_index: before_index as usize,
+                instrument: instrument.clone(),
                 effect_type: String::new(),
                 model_id: String::new(),
                 enabled: true,
                 is_select: false,
             });
-            block_type_options.set_vec(block_type_picker_items());
+            block_type_options.set_vec(block_type_picker_items(&instrument));
             block_model_options.set_vec(Vec::new());
             block_model_option_labels.set_vec(Vec::new());
             block_parameter_items.set_vec(Vec::new());
@@ -2787,7 +3327,6 @@ pub fn run_desktop_app(
             window.set_show_block_type_picker(true);
         });
     }
-
     {
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
@@ -2799,11 +3338,15 @@ pub fn run_desktop_app(
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let block_types = block_type_picker_items();
+            let instrument = block_editor_draft.borrow().as_ref()
+                .map(|d| d.instrument.clone())
+                .unwrap_or_else(|| block_core::DEFAULT_INSTRUMENT.to_string());
+            let block_types = block_type_picker_items(&instrument);
             let Some(block_type) = block_types.get(index as usize) else {
                 return;
             };
-            let models = block_model_picker_items(block_type.effect_type.as_str());
+            log::debug!("on_choose_block_type: index={}, type='{}', instrument='{}'", index, block_type.effect_type, instrument);
+            let models = block_model_picker_items(block_type.effect_type.as_str(), &instrument);
             let Some(model) = models.first() else {
                 return;
             };
@@ -2811,14 +3354,16 @@ pub fn run_desktop_app(
                 draft.effect_type = model.effect_type.to_string();
                 draft.model_id = model.model_id.to_string();
             }
-            let items = block_model_picker_items(block_type.effect_type.as_str());
+            let items = block_model_picker_items(block_type.effect_type.as_str(), &instrument);
             block_model_option_labels.set_vec(block_model_picker_labels(&items));
             block_model_options.set_vec(items);
-            block_parameter_items.set_vec(block_parameter_items_for_model(
+            let new_params = block_parameter_items_for_model(
                 &model.effect_type,
                 &model.model_id,
                 &ParameterSet::default(),
-            ));
+            );
+            let overlays = build_knob_overlays(project::catalog::model_knob_layout(&model.effect_type, &model.model_id), &new_params);
+            block_parameter_items.set_vec(new_params);
             let drawer_state =
                 block_drawer_state(None, &model.effect_type, Some(&model.model_id));
             window.set_block_drawer_title(drawer_state.title.into());
@@ -2833,13 +3378,13 @@ pub fn run_desktop_app(
             } else {
                 window.set_show_block_drawer(false);
                 if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
+                    block_editor_window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
                     sync_block_editor_window(&window, &block_editor_window);
-                    let _ = block_editor_window.show();
+                    show_child_window(window.window(), block_editor_window.window());
                 }
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
@@ -2861,20 +3406,24 @@ pub fn run_desktop_app(
             let Some(draft) = draft_borrow.as_mut() else {
                 return;
             };
-            let models = block_model_picker_items(&draft.effect_type);
+            let models = block_model_picker_items(&draft.effect_type, &draft.instrument);
             let Some(model) = models.get(index as usize) else {
                 return;
             };
+            log::debug!("on_choose_block_model: index={}, model_id='{}', effect_type='{}'", index, model.model_id, model.effect_type);
             draft.model_id = model.model_id.to_string();
             draft.effect_type = model.effect_type.to_string();
-            block_parameter_items.set_vec(block_parameter_items_for_model(
+            let new_params = block_parameter_items_for_model(
                 &model.effect_type,
                 &model.model_id,
                 &ParameterSet::default(),
-            ));
+            );
+            let overlays = build_knob_overlays(project::catalog::model_knob_layout(&model.effect_type, &model.model_id), &new_params);
+            block_parameter_items.set_vec(new_params);
             window.set_block_drawer_selected_model_index(index);
             window.set_block_drawer_status_message("".into());
             if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
+                block_editor_window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
                 sync_block_editor_window(&window, &block_editor_window);
             }
             if draft.block_index.is_some() {
@@ -2895,7 +3444,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
@@ -2923,7 +3471,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let selected_block = selected_block.clone();
@@ -2954,7 +3501,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
@@ -2998,7 +3544,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
@@ -3021,6 +3566,8 @@ pub fn run_desktop_app(
                 return;
             };
             draft.enabled = !draft.enabled;
+            log::info!("[toggle_block_drawer_enabled] chain_index={}, block_index={:?}, enabled={}, effect_type='{}', model_id='{}'",
+                draft.chain_index, draft.block_index, draft.enabled, draft.effect_type, draft.model_id);
             window.set_block_drawer_enabled(draft.enabled);
             if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
                 block_editor_window.set_block_drawer_enabled(draft.enabled);
@@ -3043,7 +3590,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
@@ -3086,7 +3632,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
@@ -3129,7 +3674,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
@@ -3172,7 +3716,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
@@ -3192,9 +3735,9 @@ pub fn run_desktop_app(
                 return;
             };
             set_block_parameter_option(&block_parameter_items, path.as_str(), index);
-            if path.as_str() == "__select.selected_block_id" {
+            if path.as_str() == SELECT_SELECTED_BLOCK_ID {
                 let selected_option_block_id =
-                    internal_block_parameter_value(&block_parameter_items, "__select.selected_block_id");
+                    internal_block_parameter_value(&block_parameter_items, SELECT_SELECTED_BLOCK_ID);
                 if let (Some(draft), Some(selected_option_block_id)) = (
                     block_editor_draft.borrow_mut().as_mut(),
                     selected_option_block_id,
@@ -3214,7 +3757,7 @@ pub fn run_desktop_app(
                                     ) {
                                         draft.effect_type = editor_data.effect_type.clone();
                                         draft.model_id = editor_data.model_id.clone();
-                                        let items = block_model_picker_items(&editor_data.effect_type);
+                                        let items = block_model_picker_items(&editor_data.effect_type, &draft.instrument);
                                         select_block_model_option_labels
                                             .set_vec(block_model_picker_labels(&items));
                                         select_block_model_options.set_vec(items);
@@ -3222,11 +3765,13 @@ pub fn run_desktop_app(
                                             .set_vec(block_parameter_items_for_editor(&editor_data));
                                         window.set_block_drawer_selected_type_index(block_type_index(
                                             &editor_data.effect_type,
+                                            &draft.instrument,
                                         ));
                                         window.set_block_drawer_selected_model_index(
                                             block_model_index(
                                                 &editor_data.effect_type,
                                                 &editor_data.model_id,
+                                                &draft.instrument,
                                             ),
                                         );
                                     }
@@ -3257,7 +3802,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
@@ -3312,7 +3856,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let selected_block = selected_block.clone();
@@ -3329,6 +3872,8 @@ pub fn run_desktop_app(
         let weak_block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let open_compact_window_save = open_compact_window.clone();
+        let project_session_save = project_session.clone();
         window.on_save_block_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -3337,7 +3882,6 @@ pub fn run_desktop_app(
             let Some(draft) = block_editor_draft.borrow().clone() else {
                 return;
             };
-
             if let Err(error) = persist_block_editor_draft(
                 &window,
                 &draft,
@@ -3351,10 +3895,10 @@ pub fn run_desktop_app(
                 &output_chain_devices,
                 true,
             ) {
-                log_gui_error("block-drawer.save", error);
+                log::error!("[adapter-gui] block-drawer.save: {error}");
+                window.set_block_drawer_status_message(error.to_string().into());
                 return;
             }
-
             *selected_block.borrow_mut() = None;
             set_selected_block(&window, None);
             *block_editor_draft.borrow_mut() = None;
@@ -3364,9 +3908,18 @@ pub fn run_desktop_app(
             if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
                 let _ = block_editor_window.hide();
             }
+            // Refresh compact chain view if open
+            if let Some((ci, weak_cw)) = open_compact_window_save.borrow().as_ref() {
+                if let Some(cw) = weak_cw.upgrade() {
+                    let session_borrow = project_session_save.borrow();
+                    if let Some(session) = session_borrow.as_ref() {
+                        let blocks = build_compact_blocks(&session.project, *ci);
+                        cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
+                    }
+                }
+            }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let selected_block = selected_block.clone();
@@ -3383,6 +3936,7 @@ pub fn run_desktop_app(
         let weak_block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_delete_block_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -3394,6 +3948,16 @@ pub fn run_desktop_app(
             let Some(block_index) = draft.block_index else {
                 return;
             };
+            let confirmed = rfd::MessageDialog::new()
+                .set_title("Excluir bloco")
+                .set_description(format!("Excluir o bloco \"{}\"?", draft.model_id))
+                .set_buttons(rfd::MessageButtons::YesNo)
+                .set_level(rfd::MessageLevel::Warning)
+                .show();
+            if !matches!(confirmed, rfd::MessageDialogResult::Yes) {
+                return;
+            }
+            log::info!("on_delete_block: chain_index={}, block_index={}, effect_type='{}', model_id='{}'", draft.chain_index, block_index, draft.effect_type, draft.model_id);
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
                 log_gui_message("block-drawer.delete", "Nenhum projeto carregado.");
@@ -3410,7 +3974,8 @@ pub fn run_desktop_app(
             let chain_id = chain.id.clone();
             chain.blocks.remove(block_index);
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                log_gui_error("block-drawer.delete", error);
+                log::error!("[adapter-gui] block-drawer.delete: {error}");
+                set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }
             replace_project_chains(
@@ -3420,7 +3985,6 @@ pub fn run_desktop_app(
                 &output_chain_devices,
             );
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-            window.set_project_running(project_runtime_is_running(&project_runtime));
             *selected_block.borrow_mut() = None;
             *block_editor_draft.borrow_mut() = None;
             block_model_options.set_vec(Vec::new());
@@ -3429,13 +3993,12 @@ pub fn run_desktop_app(
             set_selected_block(&window, None);
             window.set_show_block_drawer(false);
             window.set_block_drawer_status_message("".into());
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
                 let _ = block_editor_window.hide();
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let chain_draft = chain_draft.clone();
@@ -3446,40 +4009,42 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_save_chain(move || {
+            log::info!("on_save_chain triggered");
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
             let draft = match chain_draft.borrow().clone() {
                 Some(draft) => draft,
                 None => {
-                    window.set_status_message("Nenhuma chain em edição.".into());
+                    set_status_error(&window, &toast_timer, "Nenhuma chain em edição.");
                     return;
                 }
             };
             if draft.input_device_id.is_none() {
-                window.set_status_message("Selecione o dispositivo de entrada.".into());
+                set_status_warning(&window, &toast_timer, "Selecione o dispositivo de entrada.");
                 return;
             }
             if draft.output_device_id.is_none() {
-                window.set_status_message("Selecione o dispositivo de saída.".into());
+                set_status_warning(&window, &toast_timer, "Selecione o dispositivo de saída.");
                 return;
             }
             if draft.input_channels.is_empty() {
-                window.set_status_message("Selecione pelo menos um canal de entrada.".into());
+                set_status_warning(&window, &toast_timer, "Selecione pelo menos um canal de entrada.");
                 return;
             }
             if draft.output_channels.is_empty() {
-                window.set_status_message("Selecione pelo menos um canal de saída.".into());
+                set_status_warning(&window, &toast_timer, "Selecione pelo menos um canal de saída.");
                 return;
             }
-
             let editing_index = draft.editing_index;
+            log::debug!("[save_chain] editing_index={:?}, draft.instrument='{}'", editing_index, draft.instrument);
             let existing_chain =
                 editing_index.and_then(|index| session.project.chains.get(index).cloned());
             let chain = Chain {
@@ -3488,10 +4053,11 @@ pub fn run_desktop_app(
                     .map(|chain| chain.id.clone())
                     .unwrap_or_else(ChainId::generate),
                 description: normalized_chain_description(&draft.name),
+                instrument: draft.instrument.clone(),
                 enabled: existing_chain
                     .as_ref()
                     .map(|chain| chain.enabled)
-                    .unwrap_or(true),
+                    .unwrap_or(false),
                 input_device_id: DeviceId(draft.input_device_id.unwrap_or_default()),
                 input_channels: draft.input_channels,
                 output_device_id: DeviceId(draft.output_device_id.unwrap_or_default()),
@@ -3504,7 +4070,13 @@ pub fn run_desktop_app(
                     .as_ref()
                     .map(|chain| chain.output_mixdown)
                     .unwrap_or(ChainOutputMixdown::Average),
+                input_mode: existing_chain
+                    .as_ref()
+                    .map(|chain| chain.input_mode)
+                    .unwrap_or(ChainInputMode::Auto),
             };
+            log::info!("=== CHAIN SAVED: id='{}', name={:?}, instrument='{}', editing={:?} ===",
+                chain.id.0, chain.description, chain.instrument, editing_index);
             let chain_id = chain.id.clone();
             if let Some(index) = editing_index {
                 if let Some(current) = session.project.chains.get_mut(index) {
@@ -3514,7 +4086,7 @@ pub fn run_desktop_app(
                 session.project.chains.push(chain);
             }
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                window.set_status_message(error.to_string().into());
+                set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }
             replace_project_chains(
@@ -3525,12 +4097,10 @@ pub fn run_desktop_app(
             );
             *chain_draft.borrow_mut() = None;
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-            window.set_project_running(project_runtime_is_running(&project_runtime));
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             window.set_show_chain_editor(false);
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_chain_window = chain_editor_window.as_weak();
@@ -3542,6 +4112,7 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         chain_editor_window.on_save_chain(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -3577,8 +4148,8 @@ pub fn run_desktop_app(
                 chain_window.set_status_message("Selecione pelo menos um canal de saída.".into());
                 return;
             }
-
             let editing_index = draft.editing_index;
+            log::debug!("[save_chain] editing_index={:?}, draft.instrument='{}'", editing_index, draft.instrument);
             let existing_chain =
                 editing_index.and_then(|index| session.project.chains.get(index).cloned());
             let chain = Chain {
@@ -3587,10 +4158,11 @@ pub fn run_desktop_app(
                     .map(|chain| chain.id.clone())
                     .unwrap_or_else(ChainId::generate),
                 description: normalized_chain_description(&draft.name),
+                instrument: draft.instrument.clone(),
                 enabled: existing_chain
                     .as_ref()
                     .map(|chain| chain.enabled)
-                    .unwrap_or(true),
+                    .unwrap_or(false),
                 input_device_id: DeviceId(draft.input_device_id.unwrap_or_default()),
                 input_channels: draft.input_channels,
                 output_device_id: DeviceId(draft.output_device_id.unwrap_or_default()),
@@ -3603,7 +4175,13 @@ pub fn run_desktop_app(
                     .as_ref()
                     .map(|chain| chain.output_mixdown)
                     .unwrap_or(ChainOutputMixdown::Average),
+                input_mode: existing_chain
+                    .as_ref()
+                    .map(|chain| chain.input_mode)
+                    .unwrap_or(ChainInputMode::Auto),
             };
+            log::info!("=== CHAIN SAVED: id='{}', name={:?}, instrument='{}', editing={:?} ===",
+                chain.id.0, chain.description, chain.instrument, editing_index);
             let chain_id = chain.id.clone();
             if let Some(index) = editing_index {
                 if let Some(current) = session.project.chains.get_mut(index) {
@@ -3625,30 +4203,29 @@ pub fn run_desktop_app(
             *chain_draft.borrow_mut() = None;
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             chain_window.set_status_message("".into());
-            window.set_status_message("".into());
-            window.set_project_running(project_runtime_is_running(&project_runtime));
+            clear_status(&window, &toast_timer);
             window.set_show_chain_editor(false);
             let _ = chain_window.hide();
         });
     }
-
     {
         let weak_window = window.as_weak();
         let chain_draft = chain_draft.clone();
+        let toast_timer = toast_timer.clone();
         window.on_cancel_chain(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             *chain_draft.borrow_mut() = None;
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             window.set_show_chain_editor(false);
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_chain_window = chain_editor_window.as_weak();
         let chain_draft = chain_draft.clone();
+        let toast_timer = toast_timer.clone();
         chain_editor_window.on_cancel_chain(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -3658,12 +4235,11 @@ pub fn run_desktop_app(
             };
             *chain_draft.borrow_mut() = None;
             chain_window.set_status_message("".into());
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
             window.set_show_chain_editor(false);
             let _ = chain_window.hide();
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_input_window = chain_input_window.as_weak();
@@ -3692,7 +4268,6 @@ pub fn run_desktop_app(
                 input_window.set_status_message("Selecione dispositivo e canais.".into());
                 return;
             }
-
             if let Some(index) = draft.editing_index {
                 let mut session_borrow = project_session.borrow_mut();
                 let Some(session) = session_borrow.as_mut() else {
@@ -3715,9 +4290,7 @@ pub fn run_desktop_app(
                     &output_chain_devices,
                 );
                 sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-                window.set_project_running(project_runtime_is_running(&project_runtime));
             }
-
             if let Some(chain_window) = weak_chain_window.upgrade() {
                 apply_chain_endpoint_summaries(
                     &window,
@@ -3727,12 +4300,10 @@ pub fn run_desktop_app(
                     &output_chain_devices,
                 );
             }
-
             input_window.set_status_message("".into());
             let _ = input_window.hide();
         });
     }
-
     {
         let weak_output_window = chain_output_window.as_weak();
         chain_output_window.on_cancel(move || {
@@ -3742,7 +4313,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_input_window = chain_input_window.as_weak();
         chain_input_window.on_cancel(move || {
@@ -3752,7 +4322,6 @@ pub fn run_desktop_app(
             }
         });
     }
-
     {
         let weak_window = window.as_weak();
         let weak_output_window = chain_output_window.as_weak();
@@ -3781,7 +4350,6 @@ pub fn run_desktop_app(
                 output_window.set_status_message("Selecione dispositivo e canais.".into());
                 return;
             }
-
             if let Some(index) = draft.editing_index {
                 let mut session_borrow = project_session.borrow_mut();
                 let Some(session) = session_borrow.as_mut() else {
@@ -3804,9 +4372,7 @@ pub fn run_desktop_app(
                     &output_chain_devices,
                 );
                 sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-                window.set_project_running(project_runtime_is_running(&project_runtime));
             }
-
             if let Some(chain_window) = weak_chain_window.upgrade() {
                 apply_chain_endpoint_summaries(
                     &window,
@@ -3816,12 +4382,10 @@ pub fn run_desktop_app(
                     &output_chain_devices,
                 );
             }
-
             output_window.set_status_message("".into());
             let _ = output_window.hide();
         });
     }
-
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
@@ -3831,21 +4395,44 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_remove_chain(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            let chain_name = {
+                let session_borrow = project_session.borrow();
+                let Some(session) = session_borrow.as_ref() else {
+                    set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
+                    return;
+                };
+                let index = index as usize;
+                if index >= session.project.chains.len() {
+                    set_status_error(&window, &toast_timer, "Chain inválida.");
+                    return;
+                }
+                session.project.chains[index]
+                    .description
+                    .clone()
+                    .unwrap_or_else(|| format!("Chain {}", index + 1))
+            };
+            let confirmed = rfd::MessageDialog::new()
+                .set_title("Excluir chain")
+                .set_description(format!("Excluir a chain \"{}\"?", chain_name))
+                .set_buttons(rfd::MessageButtons::YesNo)
+                .set_level(rfd::MessageLevel::Warning)
+                .show();
+            if !matches!(confirmed, rfd::MessageDialogResult::Yes) {
+                return;
+            }
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
                 return;
             };
             let index = index as usize;
             if index >= session.project.chains.len() {
-                window.set_status_message("Chain inválida.".into());
                 return;
             }
-
             let removed_chain_id = session.project.chains[index].id.clone();
             session.project.chains.remove(index);
             remove_live_chain_runtime(&project_runtime, &removed_chain_id);
@@ -3856,37 +4443,54 @@ pub fn run_desktop_app(
                 &output_chain_devices,
             );
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-            window.set_project_running(project_runtime_is_running(&project_runtime));
-            window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
         });
     }
-
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
         window.on_toggle_chain_enabled(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
+                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
-            let Some(chain) = session.project.chains.get_mut(index as usize) else {
-                window.set_status_message("Chain inválida.".into());
+            let index = index as usize;
+            let Some(chain) = session.project.chains.get(index) else {
+                set_status_error(&window, &toast_timer, "Chain inválida.");
                 return;
             };
-            chain.enabled = !chain.enabled;
+            let will_enable = !chain.enabled;
+            log::info!("on_toggle_chain_enabled: index={}, will_enable={}", index, will_enable);
+            // Check channel conflict before enabling
+            if will_enable {
+                let input_id = chain.input_device_id.clone();
+                let input_channels = chain.input_channels.clone();
+                let chain_id = chain.id.clone();
+                for other in &session.project.chains {
+                    if other.id != chain_id && other.enabled
+                        && other.input_device_id == input_id
+                        && other.input_channels.iter().any(|ch| input_channels.contains(ch))
+                    {
+                        let other_name = other.description.as_deref().unwrap_or("outra chain");
+                        set_status_error(&window, &toast_timer, &format!("Input channel já em uso por '{}'", other_name));
+                        return;
+                    }
+                }
+            }
+            let Some(chain) = session.project.chains.get_mut(index) else { return; };
+            chain.enabled = will_enable;
             let chain_id = chain.id.clone();
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                window.set_status_message(error.to_string().into());
+                set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }
             replace_project_chains(
@@ -3895,61 +4499,17 @@ pub fn run_desktop_app(
                 &input_chain_devices,
                 &output_chain_devices,
             );
-            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-            window.set_project_running(project_runtime_is_running(&project_runtime));
-            window.set_status_message("".into());
+            // enabled is runtime-only state — do NOT mark project as dirty
+            clear_status(&window, &toast_timer);
         });
     }
-
-    {
-        let weak_window = window.as_weak();
-        let project_session = project_session.clone();
-        let project_runtime = project_runtime.clone();
-        window.on_start_project(move || {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else {
-                window.set_status_message("Nenhum projeto carregado.".into());
-                return;
-            };
-            match start_project_runtime(session) {
-                Ok(runtime) => {
-                    *project_runtime.borrow_mut() = Some(runtime);
-                    window.set_project_running(project_runtime_is_running(&project_runtime));
-                    window.set_status_message("".into());
-                }
-                Err(error) => {
-                    window.set_project_running(false);
-                    window.set_status_message(error.to_string().into());
-                }
-            }
-        });
-    }
-
-    {
-        let weak_window = window.as_weak();
-        let project_runtime = project_runtime.clone();
-        window.on_stop_project(move || {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            stop_project_runtime(&project_runtime);
-            window.set_project_running(false);
-            window.set_status_message("".into());
-        });
-    }
-
     // Ao fechar a janela principal, encerra todo o processo
     window.window().on_close_requested(|| {
         let _ = slint::quit_event_loop();
         slint::CloseRequestResponse::HideWindow
     });
-
     window.run().map_err(|error| anyhow!(error.to_string()))
 }
-
 fn resolve_project_paths() -> ProjectPaths {
     ProjectPaths {
         default_config_path: parse_path_argument("--config").unwrap_or_else(|| {
@@ -3962,7 +4522,6 @@ fn resolve_project_paths() -> ProjectPaths {
         }),
     }
 }
-
 fn load_and_sync_app_config() -> Result<AppConfig> {
     let mut config = FilesystemStorage::load_app_config().unwrap_or_default();
     let changed = sync_recent_projects(&mut config);
@@ -3971,7 +4530,6 @@ fn load_and_sync_app_config() -> Result<AppConfig> {
     }
     Ok(config)
 }
-
 fn sync_recent_projects(config: &mut AppConfig) -> bool {
     let original = config.clone();
     let mut synced = Vec::new();
@@ -3988,7 +4546,6 @@ fn sync_recent_projects(config: &mut AppConfig) -> bool {
         {
             continue;
         }
-
         match (YamlProjectRepository {
             path: canonical_path.clone(),
         })
@@ -4015,7 +4572,6 @@ fn sync_recent_projects(config: &mut AppConfig) -> bool {
     config.recent_projects = synced;
     *config != original
 }
-
 fn canonical_project_path(path: &PathBuf) -> Result<PathBuf> {
     if path.exists() {
         return Ok(fs::canonicalize(path)?);
@@ -4025,7 +4581,6 @@ fn canonical_project_path(path: &PathBuf) -> Result<PathBuf> {
     }
     Ok(env::current_dir()?.join(path))
 }
-
 fn register_recent_project(config: &mut AppConfig, path: &PathBuf, name: &str) {
     let canonical_path = canonical_project_path(path).unwrap_or(path.clone());
     let path_string = canonical_path.to_string_lossy().to_string();
@@ -4046,7 +4601,6 @@ fn register_recent_project(config: &mut AppConfig, path: &PathBuf, name: &str) {
         },
     );
 }
-
 fn mark_recent_project_invalid(config: &mut AppConfig, path: &PathBuf, reason: &str) {
     let canonical_path = canonical_project_path(path).unwrap_or(path.clone());
     let path_string = canonical_path.to_string_lossy().to_string();
@@ -4063,13 +4617,11 @@ fn mark_recent_project_invalid(config: &mut AppConfig, path: &PathBuf, reason: &
         });
     }
 }
-
 fn recent_project_items(
     recent_projects: &[RecentProjectEntry],
     query: &str,
 ) -> Vec<RecentProjectItem> {
     let query = query.trim().to_lowercase();
-
     recent_projects
         .iter()
         .enumerate()
@@ -4077,7 +4629,6 @@ fn recent_project_items(
             if query.is_empty() {
                 return true;
             }
-
             recent.project_name.to_lowercase().contains(&query)
                 || recent.project_path.to_lowercase().contains(&query)
         })
@@ -4094,7 +4645,6 @@ fn recent_project_items(
         })
         .collect()
 }
-
 fn project_display_name(project: &Project) -> String {
     project
         .name
@@ -4104,7 +4654,6 @@ fn project_display_name(project: &Project) -> String {
         .map(|name| name.to_string())
         .unwrap_or_else(|| UNTITLED_PROJECT_NAME.to_string())
 }
-
 fn parse_path_argument(flag: &str) -> Option<PathBuf> {
     let mut args = env::args().skip(1);
     while let Some(arg) = args.next() {
@@ -4114,7 +4663,6 @@ fn parse_path_argument(flag: &str) -> Option<PathBuf> {
     }
     None
 }
-
 fn create_new_project_session(default_config_path: &Path) -> ProjectSession {
     let config = if default_config_path.exists() {
         load_app_config(default_config_path).unwrap_or_default()
@@ -4137,12 +4685,10 @@ fn create_new_project_session(default_config_path: &Path) -> ProjectSession {
             .unwrap_or_else(|| PathBuf::from("./presets")),
     }
 }
-
 fn load_app_config(path: &Path) -> Result<AppConfigYaml> {
     let raw = fs::read_to_string(path)?;
     Ok(serde_yaml::from_str(&raw)?)
 }
-
 fn resolve_project_config_path(project_path: &Path) -> PathBuf {
     project_path
         .parent()
@@ -4150,8 +4696,8 @@ fn resolve_project_config_path(project_path: &Path) -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
         .join("config.yaml")
 }
-
 fn load_project_session(project_path: &Path, config_path: &Path) -> Result<ProjectSession> {
+    log::info!("loading project session from {:?}", project_path);
     let config = if config_path.exists() {
         load_app_config(config_path)?
     } else {
@@ -4176,7 +4722,6 @@ fn load_project_session(project_path: &Path, config_path: &Path) -> Result<Proje
             .join(presets_path),
     })
 }
-
 fn replace_project_chains(
     model: &Rc<VecModel<ProjectChainItem>>,
     project: &Project,
@@ -4202,8 +4747,8 @@ fn replace_project_chains(
                 output_settings.map(|s| s.buffer_size_frames).unwrap_or(256) as f32;
             let sample_rate = input_settings.map(|s| s.sample_rate).unwrap_or(48000) as f32;
             let latency_ms = (input_buffer + output_buffer) / sample_rate * 1000.0;
-
             ProjectChainItem {
+                instrument: chain.instrument.clone().into(),
                 title: chain
                     .description
                     .clone()
@@ -4247,11 +4792,9 @@ fn replace_project_chains(
         .collect::<Vec<_>>();
     model.set_vec(items);
 }
-
 fn chain_endpoint_label(prefix: &str, _channels: &[usize]) -> String {
     prefix.to_string()
 }
-
 fn chain_endpoint_tooltip(
     _title: &str,
     device_id: &str,
@@ -4279,7 +4822,6 @@ fn chain_endpoint_tooltip(
         format_channel_list(channels)
     )
 }
-
 fn format_channel_list(channels: &[usize]) -> String {
     if channels.is_empty() {
         "-".to_string()
@@ -4291,10 +4833,8 @@ fn format_channel_list(channels: &[usize]) -> String {
             .join(", ")
     }
 }
-
-fn block_type_picker_items() -> Vec<BlockTypePickerItem> {
+fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerItem> {
     let mut seen = std::collections::BTreeSet::new();
-
     supported_block_types()
         .into_iter()
         .filter(|item| seen.insert(item.effect_type))
@@ -4303,49 +4843,61 @@ fn block_type_picker_items() -> Vec<BlockTypePickerItem> {
             label: item.display_label.into(),
             subtitle: "".into(),
             icon_kind: item.icon_kind.into(),
+            use_panel_editor: item.use_panel_editor,
+            accent_color: crate::ui_state::accent_color_for_icon_kind(item.icon_kind),
+            icon_source: slint::Image::default(),
+        })
+        .filter(|item| {
+            instrument == block_core::INST_GENERIC || !block_model_picker_items(item.effect_type.as_str(), instrument).is_empty()
         })
         .collect()
 }
-
-fn model_type_label(effect_type: &str, model_id: &str) -> &'static str {
-    if effect_type != "amp_head" { return ""; }
-    if model_id.starts_with("marshall") { return "NAM"; }
-    "NATIVE"
-}
-
-fn model_brand(effect_type: &str, model_id: &str) -> &'static str {
-    if effect_type != "amp_head" {
-        return "";
-    }
-    if model_id.starts_with("marshall") { return "marshall"; }
-    if model_id.starts_with("vox")      { return "vox"; }
-    if model_id.starts_with("fender")   { return "fender"; }
-    "native"
-}
-
-fn block_model_picker_items(effect_type: &str) -> Vec<BlockModelPickerItem> {
-    supported_block_models(effect_type)
-        .unwrap_or_default()
+fn block_model_picker_items(effect_type: &str, instrument: &str) -> Vec<BlockModelPickerItem> {
+    let all_models = supported_block_models(effect_type).unwrap_or_default();
+    log::trace!("[block_model_picker_items] effect_type='{}', instrument='{}', total_models={}", effect_type, instrument, all_models.len());
+    all_models
         .into_iter()
-        .map(|item| BlockModelPickerItem {
-            effect_type: item.effect_type.clone().into(),
-            model_id: item.model_id.clone().into(),
-            label: item.display_name.into(),
-            subtitle: "".into(),
-            icon_kind: supported_block_type(effect_type)
-                .map(|entry| entry.icon_kind)
-                .unwrap_or(effect_type)
-                .into(),
-            brand: model_brand(&item.effect_type, &item.model_id).into(),
-            type_label: model_type_label(&item.effect_type, &item.model_id).into(),
+        .filter(|item| instrument == block_core::INST_GENERIC || item.supported_instruments.iter().any(|i| i == instrument))
+        .map(|item| {
+            let brand = &item.brand;
+            let label = if brand.is_empty() || brand == block_core::BRAND_NATIVE {
+                item.display_name.clone()
+            } else {
+                let brand_display = block_core::capitalize_first(brand);
+                format!("{} {}", brand_display, item.display_name)
+            };
+            let visual = visual_config::visual_config_for_model(&item.brand, &item.model_id);
+            let [r, g, b] = visual.panel_bg;
+            let panel_bg = slint::Color::from_argb_u8(0xff, r, g, b);
+            let [r, g, b] = visual.panel_text;
+            let panel_text = slint::Color::from_argb_u8(0xff, r, g, b);
+            let [r, g, b] = visual.brand_strip_bg;
+            let brand_strip_bg = slint::Color::from_argb_u8(0xff, r, g, b);
+            BlockModelPickerItem {
+                effect_type: item.effect_type.clone().into(),
+                model_id: item.model_id.clone().into(),
+                label: label.into(),
+                display_name: item.display_name.clone().into(),
+                subtitle: "".into(),
+                icon_kind: supported_block_type(effect_type)
+                    .map(|entry| entry.icon_kind)
+                    .unwrap_or(effect_type)
+                    .into(),
+                brand: item.brand.clone().into(),
+                type_label: item.type_label.clone().into(),
+                panel_bg,
+                panel_text,
+                brand_strip_bg,
+                model_font: visual.model_font.into(),
+                photo_offset_x: visual.photo_offset_x,
+                photo_offset_y: visual.photo_offset_y,
+            }
         })
         .collect()
 }
-
 fn block_model_picker_labels(items: &[BlockModelPickerItem]) -> Vec<SharedString> {
     items.iter().map(|item| item.label.clone()).collect()
 }
-
 fn set_selected_block(window: &AppWindow, selected_block: Option<&SelectedBlock>) {
     if let Some(selected_block) = selected_block {
         window.set_selected_chain_block_chain_index(selected_block.chain_index as i32);
@@ -4355,24 +4907,32 @@ fn set_selected_block(window: &AppWindow, selected_block: Option<&SelectedBlock>
         window.set_selected_chain_block_index(-1);
     }
 }
-
-fn block_type_index(effect_type: &str) -> i32 {
-    supported_block_types()
+fn block_type_index(effect_type: &str, instrument: &str) -> i32 {
+    block_type_picker_items(instrument)
         .into_iter()
-        .position(|item| item.effect_type == effect_type)
+        .position(|item| item.effect_type.as_str() == effect_type)
         .map(|index| index as i32)
         .unwrap_or(-1)
 }
-
-fn block_model_index(effect_type: &str, model_id: &str) -> i32 {
+fn block_model_index_from_items(items: &VecModel<BlockModelPickerItem>, model_id: &str) -> i32 {
+    for i in 0..items.row_count() {
+        if let Some(item) = items.row_data(i) {
+            if item.model_id.as_str() == model_id {
+                return i as i32;
+            }
+        }
+    }
+    0
+}
+fn block_model_index(effect_type: &str, model_id: &str, instrument: &str) -> i32 {
     supported_block_models(effect_type)
         .unwrap_or_default()
-        .iter()
+        .into_iter()
+        .filter(|item| instrument == block_core::INST_GENERIC || item.supported_instruments.iter().any(|i| i == instrument))
         .position(|item| item.model_id == model_id)
         .map(|index| index as i32)
         .unwrap_or(-1)
 }
-
 fn unit_label(unit: &ParameterUnit) -> &'static str {
     match unit {
         ParameterUnit::None => "",
@@ -4384,11 +4944,98 @@ fn unit_label(unit: &ParameterUnit) -> &'static str {
         ParameterUnit::Semitones => "st",
     }
 }
+fn build_compact_blocks(
+    project: &Project,
+    chain_index: usize,
+) -> Vec<CompactBlockItem> {
+    let Some(chain) = project.chains.get(chain_index) else {
+        return Vec::new();
+    };
+    chain
+        .blocks
+        .iter()
+        .enumerate()
+        .filter_map(|(block_index, block)| {
+            let editor_data = block_editor_data(block)?;
+            let effect_type = editor_data.effect_type.clone();
+            let model_id = editor_data.model_id.clone();
+            let params = block_parameter_items_for_editor(&editor_data);
+            let knob_layout =
+                project::catalog::model_knob_layout(&effect_type, &model_id);
+            let overlays = build_knob_overlays(knob_layout, &params);
+            let icon_kind = supported_block_type(&effect_type)
+                .map(|t| t.icon_kind.to_string())
+                .unwrap_or_default();
+            let visual = project::catalog::supported_block_models(&effect_type)
+                .ok()
+                .and_then(|models| {
+                    models
+                        .into_iter()
+                        .find(|m| m.model_id == model_id)
+                });
+
+            Some(CompactBlockItem {
+                chain_index: chain_index as i32,
+                block_index: block_index as i32,
+                effect_type: effect_type.clone().into(),
+                model_id: model_id.clone().into(),
+                icon_kind: icon_kind.clone().into(),
+                brand: visual
+                    .as_ref()
+                    .map(|v| v.brand.clone())
+                    .unwrap_or_default()
+                    .into(),
+                display_name: visual
+                    .as_ref()
+                    .map(|v| v.display_name.clone())
+                    .unwrap_or_default()
+                    .into(),
+                type_label: visual
+                    .as_ref()
+                    .map(|v| v.type_label.clone())
+                    .unwrap_or_default()
+                    .into(),
+                enabled: block.enabled,
+                panel_bg: {
+                    let brand_str = visual.as_ref().map(|v| v.brand.as_str()).unwrap_or("");
+                    let vc = visual_config::visual_config_for_model(brand_str, &model_id);
+                    let [r, g, b] = vc.panel_bg;
+                    slint::Color::from_argb_u8(0xff, r, g, b)
+                },
+                panel_text: {
+                    let brand_str = visual.as_ref().map(|v| v.brand.as_str()).unwrap_or("");
+                    let vc = visual_config::visual_config_for_model(brand_str, &model_id);
+                    let [r, g, b] = vc.panel_text;
+                    slint::Color::from_argb_u8(0xff, r, g, b)
+                },
+                accent_color: crate::ui_state::accent_color_for_icon_kind(&icon_kind),
+                display_label: {
+                    let bt = supported_block_type(&effect_type);
+                    bt.map(|e| e.display_label).unwrap_or("BLOCK").into()
+                },
+                icon_source: slint::Image::default(),
+                knob_overlays: ModelRc::from(Rc::new(VecModel::from(overlays))),
+                parameter_items: ModelRc::from(Rc::new(VecModel::from(params))),
+                model_labels: {
+                    let instrument = chain.instrument.as_str();
+                    let items = block_model_picker_items(&effect_type, instrument);
+                    let labels: Vec<SharedString> = items.iter().map(|i| i.label.clone()).collect();
+                    ModelRc::from(Rc::new(VecModel::from(labels)))
+                },
+                model_selected_index: {
+                    let instrument = chain.instrument.as_str();
+                    let items = block_model_picker_items(&effect_type, instrument);
+                    items.iter().position(|i| i.model_id.as_str() == model_id).map(|i| i as i32).unwrap_or(-1)
+                },
+                stream_data: Default::default(),
+            })
+        })
+        .collect()
+}
 
 fn block_editor_data(block: &AudioBlock) -> Option<BlockEditorData> {
     block_editor_data_with_selected(block, None)
 }
-
 fn block_editor_data_with_selected(
     block: &AudioBlock,
     selected_option_block_id: Option<&str>,
@@ -4438,7 +5085,6 @@ fn block_editor_data_with_selected(
         }),
     }
 }
-
 fn block_parameter_items_for_editor(data: &BlockEditorData) -> Vec<BlockParameterItem> {
     let mut items = Vec::new();
     if !data.select_options.is_empty() {
@@ -4463,7 +5109,7 @@ fn block_parameter_items_for_editor(data: &BlockEditorData) -> Vec<BlockParamete
             .map(|index| index as i32)
             .unwrap_or(0);
         items.push(BlockParameterItem {
-            path: "__select.selected_block_id".into(),
+            path: SELECT_SELECTED_BLOCK_ID.into(),
             label: "Modelo ativo".into(),
             group: "Select".into(),
             widget_kind: "enum".into(),
@@ -4494,7 +5140,6 @@ fn block_parameter_items_for_editor(data: &BlockEditorData) -> Vec<BlockParamete
     ));
     items
 }
-
 fn block_parameter_items_for_model(
     effect_type: &str,
     model_id: &str,
@@ -4628,7 +5273,6 @@ fn block_parameter_items_for_model(
         })
         .collect()
 }
-
 fn set_block_parameter_text(model: &Rc<VecModel<BlockParameterItem>>, path: &str, value: &str) {
     for index in 0..model.row_count() {
         if let Some(mut row) = model.row_data(index) {
@@ -4640,7 +5284,6 @@ fn set_block_parameter_text(model: &Rc<VecModel<BlockParameterItem>>, path: &str
         }
     }
 }
-
 fn set_block_parameter_bool(model: &Rc<VecModel<BlockParameterItem>>, path: &str, value: bool) {
     for index in 0..model.row_count() {
         if let Some(mut row) = model.row_data(index) {
@@ -4652,7 +5295,6 @@ fn set_block_parameter_bool(model: &Rc<VecModel<BlockParameterItem>>, path: &str
         }
     }
 }
-
 fn set_block_parameter_number(model: &Rc<VecModel<BlockParameterItem>>, path: &str, value: f32) {
     for index in 0..model.row_count() {
         if let Some(mut row) = model.row_data(index) {
@@ -4676,7 +5318,6 @@ fn set_block_parameter_number(model: &Rc<VecModel<BlockParameterItem>>, path: &s
         }
     }
 }
-
 #[allow(clippy::too_many_arguments)]
 fn persist_block_editor_draft(
     window: &AppWindow,
@@ -4693,15 +5334,18 @@ fn persist_block_editor_draft(
 ) -> Result<()> {
     let params =
         block_parameter_values(block_parameter_items, &draft.effect_type, &draft.model_id)?;
+    log::info!("[persist] effect_type='{}', model_id='{}', close_after_save={}, params:", draft.effect_type, draft.model_id, close_after_save);
+    for (path, value) in params.values.iter() {
+        log::info!("[persist]   {} = {:?}", path, value);
+    }
     let selected_select_option_block_id = if draft.is_select {
         Some(
-            internal_block_parameter_value(block_parameter_items, "__select.selected_block_id")
+            internal_block_parameter_value(block_parameter_items, SELECT_SELECTED_BLOCK_ID)
                 .ok_or_else(|| anyhow!("Seleção do select inválida."))?,
         )
     } else {
         None
     };
-
     let mut session_borrow = project_session.borrow_mut();
     let session = session_borrow
         .as_mut()
@@ -4712,7 +5356,6 @@ fn persist_block_editor_draft(
             .chains
             .get_mut(draft.chain_index)
             .ok_or_else(|| anyhow!("Chain inválida."))?;
-
         if let Some(block_index) = draft.block_index {
             let block = chain
                 .blocks
@@ -4768,15 +5411,12 @@ fn persist_block_editor_draft(
                 },
             );
         }
-
         chain.id.clone()
     };
-
     if let Err(error) = sync_live_chain_runtime(project_runtime, session, &chain_id) {
         log_gui_error("block-drawer.persist", &error);
         return Err(error);
     }
-
     replace_project_chains(
         project_chains,
         &session.project,
@@ -4784,20 +5424,16 @@ fn persist_block_editor_draft(
         output_chain_devices,
     );
     sync_project_dirty(window, session, saved_project_snapshot, project_dirty);
-    window.set_project_running(project_runtime_is_running(project_runtime));
-
     if close_after_save {
         window.set_show_block_drawer(false);
         window.set_show_block_type_picker(false);
         window.set_block_drawer_selected_model_index(-1);
         window.set_block_drawer_selected_type_index(-1);
     }
-
     window.set_block_drawer_status_message("".into());
     window.set_status_message("".into());
     Ok(())
 }
-
 fn quantize_numeric_value(value: f32, min: f32, max: f32, step: f32, integer: bool) -> f32 {
     let mut clamped = value.clamp(min, max);
     if step > 0.0 {
@@ -4811,7 +5447,6 @@ fn quantize_numeric_value(value: f32, min: f32, max: f32, step: f32, integer: bo
         clamped
     }
 }
-
 fn numeric_widget_kind(min: f32, max: f32, step: f32, integer: bool) -> &'static str {
     if step > 0.0 && max > min {
         let steps = ((max - min) / step).round();
@@ -4822,7 +5457,6 @@ fn numeric_widget_kind(min: f32, max: f32, step: f32, integer: bool) -> &'static
     let _ = integer;
     "slider"
 }
-
 fn set_block_parameter_option(
     model: &Rc<VecModel<BlockParameterItem>>,
     path: &str,
@@ -4843,7 +5477,6 @@ fn set_block_parameter_option(
         }
     }
 }
-
 fn block_parameter_extensions(model: &Rc<VecModel<BlockParameterItem>>, path: &str) -> Vec<String> {
     for index in 0..model.row_count() {
         if let Some(row) = model.row_data(index) {
@@ -4860,7 +5493,6 @@ fn block_parameter_extensions(model: &Rc<VecModel<BlockParameterItem>>, path: &s
     }
     Vec::new()
 }
-
 fn block_parameter_values(
     model: &Rc<VecModel<BlockParameterItem>>,
     effect_type: &str,
@@ -4872,7 +5504,7 @@ fn block_parameter_values(
         let Some(row) = model.row_data(index) else {
             continue;
         };
-        if row.path.as_str().starts_with("__select.") {
+        if row.path.as_str().starts_with(SELECT_PATH_PREFIX) {
             continue;
         }
         let value = match row.widget_kind.as_str() {
@@ -4919,7 +5551,6 @@ fn block_parameter_values(
         .normalized_against(&schema)
         .map_err(|error| anyhow!(error))
 }
-
 fn internal_block_parameter_value(
     model: &Rc<VecModel<BlockParameterItem>>,
     path: &str,
@@ -4940,14 +5571,12 @@ fn internal_block_parameter_value(
     }
     None
 }
-
 fn build_project_device_rows(
     input_devices: &[AudioDeviceDescriptor],
     output_devices: &[AudioDeviceDescriptor],
     device_settings: &[DeviceSettings],
 ) -> Vec<DeviceSelectionItem> {
     let mut rows: Vec<DeviceSelectionItem> = Vec::new();
-
     for device in input_devices.iter().chain(output_devices.iter()) {
         if rows
             .iter()
@@ -4955,7 +5584,6 @@ fn build_project_device_rows(
         {
             continue;
         }
-
         let config = device_settings
             .iter()
             .find(|setting| setting.device_id.0 == device.id)
@@ -4966,7 +5594,6 @@ fn build_project_device_rows(
                 buffer_size_frames: setting.buffer_size_frames,
             })
             .unwrap_or_else(|| default_device_settings(device.id.clone(), device.name.clone()));
-
         rows.push(DeviceSelectionItem {
             device_id: config.device_id.into(),
             name: config.name.into(),
@@ -4977,10 +5604,8 @@ fn build_project_device_rows(
             buffer_size_text: config.buffer_size_frames.to_string().into(),
         });
     }
-
     rows
 }
-
 fn build_project_yaml(session: &ProjectSession) -> Result<ProjectYaml> {
     Ok(ProjectYaml {
         name: session
@@ -5006,28 +5631,26 @@ fn build_project_yaml(session: &ProjectSession) -> Result<ProjectYaml> {
             .map(|chain| -> Result<ProjectChainYaml> {
                 Ok(ProjectChainYaml {
                     description: chain.description.clone(),
-                    enabled: chain.enabled,
+                    instrument: chain.instrument.clone(),
                     input_device_id: chain.input_device_id.0.clone(),
                     input_channels: chain.input_channels.clone(),
                     output_device_id: chain.output_device_id.0.clone(),
                     output_channels: chain.output_channels.clone(),
                     blocks: serialize_audio_blocks(&chain.blocks)?,
                     output_mixdown: chain.output_mixdown,
+                    input_mode: chain.input_mode,
                 })
             })
             .collect::<Result<Vec<_>>>()?,
     })
 }
-
 fn project_session_snapshot(session: &ProjectSession) -> Result<String> {
     Ok(serde_yaml::to_string(&build_project_yaml(session)?)?)
 }
-
 fn set_project_dirty(window: &AppWindow, project_dirty: &Rc<RefCell<bool>>, dirty: bool) {
     *project_dirty.borrow_mut() = dirty;
     window.set_project_dirty(dirty);
 }
-
 fn sync_project_dirty(
     window: &AppWindow,
     session: &ProjectSession,
@@ -5042,15 +5665,14 @@ fn sync_project_dirty(
     };
     set_project_dirty(window, project_dirty, dirty);
 }
-
 fn save_project_session(session: &ProjectSession, project_path: &PathBuf) -> Result<()> {
+    log::info!("saving project session to {:?}", project_path);
     let parent_dir = project_path
         .parent()
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("."));
     fs::create_dir_all(&parent_dir)?;
     fs::write(project_path, project_session_snapshot(session)?)?;
-
     let config_path = session
         .config_path
         .clone()
@@ -5062,7 +5684,6 @@ fn save_project_session(session: &ProjectSession, project_path: &PathBuf) -> Res
     fs::create_dir_all(parent_dir.join("presets"))?;
     Ok(())
 }
-
 fn save_chain_blocks_to_preset(chain: &Chain, path: &Path) -> Result<()> {
     let preset = ChainBlocksPreset {
         id: preset_id_from_path(path)?,
@@ -5071,18 +5692,15 @@ fn save_chain_blocks_to_preset(chain: &Chain, path: &Path) -> Result<()> {
     };
     save_chain_preset_file(path, &preset)
 }
-
 fn load_preset_file(path: &Path) -> Result<ChainBlocksPreset> {
     load_chain_preset_file(path)
 }
-
 fn preset_id_from_path(path: &Path) -> Result<String> {
     path.file_stem()
         .and_then(|value| value.to_str())
         .map(|value| value.to_string())
         .ok_or_else(|| anyhow!("arquivo de preset inválido"))
 }
-
 fn project_title_for_path(project_path: Option<&PathBuf>, project: &Project) -> String {
     if let Some(name) = project
         .name
@@ -5104,14 +5722,12 @@ fn project_title_for_path(project_path: Option<&PathBuf>, project: &Project) -> 
             }
         })
 }
-
 fn selected_device_index(devices: &[AudioDeviceDescriptor], selected_id: Option<&str>) -> i32 {
     selected_id
         .and_then(|selected_id| devices.iter().position(|device| device.id == selected_id))
         .map(|index| index as i32)
         .unwrap_or(-1)
 }
-
 fn create_chain_draft(
     project: &Project,
     input_devices: &[AudioDeviceDescriptor],
@@ -5120,13 +5736,13 @@ fn create_chain_draft(
     ChainDraft {
         editing_index: None,
         name: format!("Chain {}", project.chains.len() + 1),
+        instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
         input_device_id: input_devices.first().map(|device| device.id.clone()),
         output_device_id: output_devices.first().map(|device| device.id.clone()),
         input_channels: Vec::new(),
         output_channels: Vec::new(),
     }
 }
-
 fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
     ChainDraft {
         editing_index: Some(index),
@@ -5134,13 +5750,53 @@ fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
             .description
             .clone()
             .unwrap_or_else(|| format!("Chain {}", index + 1)),
+        instrument: chain.instrument.clone(),
         input_device_id: Some(chain.input_device_id.0.clone()),
         output_device_id: Some(chain.output_device_id.0.clone()),
         input_channels: chain.input_channels.clone(),
         output_channels: chain.output_channels.clone(),
     }
 }
+fn load_thumbnail_image(effect_type: &str, model_id: &str) -> (slint::Image, bool, f32, f32) {
+    use std::cell::RefCell;
+    use std::collections::HashMap;
 
+    thread_local! {
+        static CACHE: RefCell<HashMap<(String, String), (slint::Image, f32, f32)>> = RefCell::new(HashMap::new());
+    }
+
+    let key = (effect_type.to_string(), model_id.to_string());
+
+    let cached = CACHE.with(|c| c.borrow().get(&key).cloned());
+    if let Some((img, w, h)) = cached {
+        return (img, true, w, h);
+    }
+
+    match block_thumbnails::thumbnail_png(effect_type, model_id) {
+        Some(png_bytes) => {
+            match image::load_from_memory_with_format(png_bytes, image::ImageFormat::Png) {
+                Ok(img) => {
+                    let rgba = img.to_rgba8();
+                    let w = rgba.width() as f32;
+                    let h = rgba.height() as f32;
+                    let buffer = slint::SharedPixelBuffer::<slint::Rgba8Pixel>::clone_from_slice(
+                        rgba.as_raw(),
+                        rgba.width(),
+                        rgba.height(),
+                    );
+                    let slint_img = slint::Image::from_rgba8(buffer);
+                    CACHE.with(|c| c.borrow_mut().insert(key, (slint_img.clone(), w, h)));
+                    (slint_img, true, w, h)
+                }
+                Err(e) => {
+                    log::warn!("Failed to decode thumbnail for {}/{}: {}", effect_type, model_id, e);
+                    (slint::Image::default(), false, 0.0, 0.0)
+                }
+            }
+        }
+        None => (slint::Image::default(), false, 0.0, 0.0)
+    }
+}
 fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
     let (kind, label) = match &block.kind {
         AudioBlockKind::Select(select) => select
@@ -5153,10 +5809,9 @@ fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
             .map(|block| (block.effect_type.to_string(), block.model.to_string()))
             .unwrap_or_else(|| ("core".to_string(), "block".to_string())),
     };
-
     let family = block_family_for_kind(&kind).to_string();
     let block_type = supported_block_type(&kind);
-
+    let (thumbnail, has_thumbnail, thumb_width, thumb_height) = load_thumbnail_image(&kind, &label);
     ChainBlockItem {
         kind: kind.into(),
         icon_kind: block_type
@@ -5172,9 +5827,16 @@ fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
         label: label.into(),
         family: family.into(),
         enabled: block.enabled,
+        thumbnail,
+        has_thumbnail,
+        thumb_width,
+        thumb_height,
+        accent_color: crate::ui_state::accent_color_for_icon_kind(
+            block_type.as_ref().map(|e| e.icon_kind).unwrap_or("core"),
+        ),
+        icon_source: slint::Image::default(),
     }
 }
-
 fn build_input_channel_items(
     draft: &ChainDraft,
     project: &Project,
@@ -5197,7 +5859,6 @@ fn build_input_channel_items(
         })
         .flat_map(|(_, chain)| chain.input_channels.iter().copied())
         .collect::<Vec<_>>();
-
     (0..device.channels)
         .map(|channel| ChannelOptionItem {
             index: channel as i32,
@@ -5207,7 +5868,6 @@ fn build_input_channel_items(
         })
         .collect()
 }
-
 fn build_output_channel_items(
     draft: &ChainDraft,
     output_devices: &[AudioDeviceDescriptor],
@@ -5227,11 +5887,9 @@ fn build_output_channel_items(
         })
         .collect()
 }
-
 fn replace_channel_options(model: &Rc<VecModel<ChannelOptionItem>>, items: Vec<ChannelOptionItem>) {
     model.set_vec(items);
 }
-
 fn normalized_chain_description(name: &str) -> Option<String> {
     let trimmed = name.trim();
     if trimmed.is_empty() {
@@ -5240,28 +5898,11 @@ fn normalized_chain_description(name: &str) -> Option<String> {
         Some(trimmed.to_string())
     }
 }
-
-fn project_runtime_is_running(
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-) -> bool {
-    project_runtime
-        .borrow()
-        .as_ref()
-        .map(ProjectRuntimeController::is_running)
-        .unwrap_or(false)
-}
-
 fn stop_project_runtime(project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>) {
     if let Some(mut runtime) = project_runtime.borrow_mut().take() {
         runtime.stop();
     }
 }
-
-fn start_project_runtime(session: &ProjectSession) -> Result<ProjectRuntimeController> {
-    validate_project(&session.project)?;
-    ProjectRuntimeController::start(&session.project)
-}
-
 fn sync_project_runtime(
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
     session: &ProjectSession,
@@ -5273,31 +5914,43 @@ fn sync_project_runtime(
     }
     Ok(())
 }
-
 fn sync_live_chain_runtime(
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
     session: &ProjectSession,
     chain_id: &ChainId,
 ) -> Result<()> {
-    let mut borrow = project_runtime.borrow_mut();
-    let Some(runtime) = borrow.as_mut() else {
-        return Ok(());
-    };
-
-    validate_project(&session.project)?;
-    if let Some(chain) = session
+    log::debug!("sync_live_chain_runtime: chain_id='{}'", chain_id.0);
+    let chain = session
         .project
         .chains
         .iter()
-        .find(|chain| &chain.id == chain_id)
-    {
-        runtime.upsert_chain(&session.project, chain)?;
-    } else {
-        runtime.remove_chain(chain_id);
+        .find(|c| &c.id == chain_id);
+    let chain_enabled = chain.map(|c| c.enabled).unwrap_or(false);
+    // If chain is being enabled and no runtime exists, create one
+    if chain_enabled {
+        let mut borrow = project_runtime.borrow_mut();
+        if borrow.is_none() {
+            *borrow = Some(ProjectRuntimeController::start(&session.project)?);
+            return Ok(()); // start() already processes all enabled chains via sync_project
+        }
+        drop(borrow);
+    }
+    // Normal sync
+    let mut borrow = project_runtime.borrow_mut();
+    if let Some(runtime) = borrow.as_mut() {
+        validate_project(&session.project)?;
+        if let Some(chain) = chain {
+            runtime.upsert_chain(&session.project, chain)?;
+        } else {
+            runtime.remove_chain(chain_id);
+        }
+        // If no chains are running, destroy runtime
+        if !runtime.is_running() {
+            *borrow = None;
+        }
     }
     Ok(())
 }
-
 fn remove_live_chain_runtime(
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
     chain_id: &ChainId,
@@ -5306,13 +5959,11 @@ fn remove_live_chain_runtime(
         runtime.remove_chain(chain_id);
     }
 }
-
 fn assign_new_block_ids(chain: &mut Chain) {
     for block in &mut chain.blocks {
         assign_new_block_ids_recursive(block, &chain.id);
     }
 }
-
 fn assign_new_block_ids_recursive(block: &mut AudioBlock, chain_id: &ChainId) {
     block.id = BlockId::generate_for_chain(chain_id);
     if let AudioBlockKind::Select(select) = &mut block.kind {
@@ -5321,7 +5972,28 @@ fn assign_new_block_ids_recursive(block: &mut AudioBlock, chain_id: &ChainId) {
         }
     }
 }
-
+const INSTRUMENT_KEYS: &[&str] = &[
+    block_core::INST_ELECTRIC_GUITAR,
+    block_core::INST_ACOUSTIC_GUITAR,
+    block_core::INST_BASS,
+    block_core::INST_VOICE,
+    block_core::INST_KEYS,
+    block_core::INST_DRUMS,
+    block_core::INST_GENERIC,
+];
+fn instrument_index_to_string(index: i32) -> &'static str {
+    INSTRUMENT_KEYS
+        .get(index as usize)
+        .copied()
+        .unwrap_or(block_core::DEFAULT_INSTRUMENT)
+}
+fn instrument_string_to_index(instrument: &str) -> i32 {
+    INSTRUMENT_KEYS
+        .iter()
+        .position(|&key| key == instrument)
+        .map(|i| i as i32)
+        .unwrap_or(0)
+}
 fn chain_editor_mode(draft: &ChainDraft) -> ChainEditorMode {
     if draft.editing_index.is_some() {
         ChainEditorMode::Edit
@@ -5329,7 +6001,6 @@ fn chain_editor_mode(draft: &ChainDraft) -> ChainEditorMode {
         ChainEditorMode::Create
     }
 }
-
 fn apply_chain_editor_labels(window: &AppWindow, draft: &ChainDraft) {
     match chain_editor_mode(draft) {
         ChainEditorMode::Create => {
@@ -5342,7 +6013,6 @@ fn apply_chain_editor_labels(window: &AppWindow, draft: &ChainDraft) {
         }
     }
 }
-
 fn endpoint_summary(
     device_id: Option<&str>,
     channels: &[usize],
@@ -5363,7 +6033,6 @@ fn endpoint_summary(
     };
     format!("{device_name}\nCanais: {channels}")
 }
-
 fn apply_chain_endpoint_summaries(
     window: &AppWindow,
     chain_editor_window: &ChainEditorWindow,
@@ -5386,7 +6055,6 @@ fn apply_chain_endpoint_summaries(
     chain_editor_window.set_input_summary(input_summary.into());
     chain_editor_window.set_output_summary(output_summary.into());
 }
-
 fn apply_chain_input_window_state(
     input_window: &ChainInputWindow,
     draft: &ChainDraft,
@@ -5404,7 +6072,6 @@ fn apply_chain_input_window_state(
     ));
     input_window.set_status_message("".into());
 }
-
 fn apply_chain_output_window_state(
     output_window: &ChainOutputWindow,
     draft: &ChainDraft,
@@ -5421,14 +6088,12 @@ fn apply_chain_output_window_state(
     ));
     output_window.set_status_message("".into());
 }
-
 fn toggle_device_row(model: &Rc<VecModel<DeviceSelectionItem>>, index: usize, selected: bool) {
     if let Some(mut row) = model.row_data(index) {
         row.selected = selected;
         model.set_row_data(index, row);
     }
 }
-
 fn update_device_sample_rate(
     model: &Rc<VecModel<DeviceSelectionItem>>,
     index: usize,
@@ -5439,7 +6104,6 @@ fn update_device_sample_rate(
         model.set_row_data(index, row);
     }
 }
-
 fn update_device_buffer_size(
     model: &Rc<VecModel<DeviceSelectionItem>>,
     index: usize,
@@ -5450,7 +6114,6 @@ fn update_device_buffer_size(
         model.set_row_data(index, row);
     }
 }
-
 fn selected_device_settings(
     model: &Rc<VecModel<DeviceSelectionItem>>,
     device_kind: &str,
@@ -5474,7 +6137,6 @@ fn selected_device_settings(
         })
         .collect()
 }
-
 fn default_device_settings(device_id: String, name: String) -> GuiAudioDeviceSettings {
     GuiAudioDeviceSettings {
         device_id,
@@ -5483,7 +6145,6 @@ fn default_device_settings(device_id: String, name: String) -> GuiAudioDeviceSet
         buffer_size_frames: DEFAULT_BUFFER_SIZE_FRAMES,
     }
 }
-
 fn normalize_device_settings(mut settings: GuiAudioDeviceSettings) -> GuiAudioDeviceSettings {
     if !SUPPORTED_SAMPLE_RATES.contains(&settings.sample_rate) {
         settings.sample_rate = DEFAULT_SAMPLE_RATE;
@@ -5493,7 +6154,6 @@ fn normalize_device_settings(mut settings: GuiAudioDeviceSettings) -> GuiAudioDe
     }
     settings
 }
-
 fn mark_unselected_devices(
     model: &Rc<VecModel<DeviceSelectionItem>>,
     selected_devices: &[GuiAudioDeviceSettings],
@@ -5508,37 +6168,32 @@ fn mark_unselected_devices(
         model.set_row_data(index, row);
     }
 }
-
 fn parse_positive_u32(value: &str, field: &str) -> Result<u32> {
     value
         .trim()
         .parse::<u32>()
         .map_err(|_| anyhow!("'{}' inválido: '{}'", field, value))
 }
-
 #[cfg(test)]
 mod tests {
     use super::{
         block_editor_data, block_parameter_items_for_editor, numeric_widget_kind,
-        quantize_numeric_value,
+        quantize_numeric_value, SELECT_SELECTED_BLOCK_ID,
     };
     use domain::ids::BlockId;
     use domain::value_objects::ParameterValue;
     use project::catalog::supported_block_models;
     use project::block::{
-        schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock, CoreBlockKind, DelayBlock,
-        SelectBlock,
+        schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock, SelectBlock,
     };
     use project::param::ParameterSet;
     use slint::Model;
-
     #[test]
     fn quantize_numeric_value_respects_float_step_and_bounds() {
         assert_eq!(quantize_numeric_value(19.64, 0.0, 100.0, 0.5, false), 19.5);
         assert_eq!(quantize_numeric_value(101.0, 0.0, 100.0, 0.5, false), 100.0);
         assert_eq!(quantize_numeric_value(-1.0, 0.0, 100.0, 0.5, false), 0.0);
     }
-
     #[test]
     fn quantize_numeric_value_respects_integer_step() {
         assert_eq!(
@@ -5550,34 +6205,28 @@ mod tests {
             128.0
         );
     }
-
     #[test]
     fn numeric_widget_kind_prefers_stepper_for_sparse_ranges() {
         assert_eq!(numeric_widget_kind(50.0, 70.0, 10.0, false), "stepper");
         assert_eq!(numeric_widget_kind(10.0, 100.0, 10.0, false), "stepper");
     }
-
     #[test]
     fn numeric_widget_kind_uses_slider_for_dense_ranges() {
         assert_eq!(numeric_widget_kind(0.0, 5.0, 0.01, false), "slider");
         assert_eq!(numeric_widget_kind(1.0, 10.0, 0.1, false), "slider");
     }
-
     #[test]
     fn numeric_widget_kind_prefers_slider_for_large_ranges() {
         assert_eq!(numeric_widget_kind(0.0, 100.0, 0.5, false), "slider");
         assert_eq!(numeric_widget_kind(20.0, 20000.0, 1.0, false), "slider");
     }
-
     #[test]
     fn select_block_editor_uses_selected_option_model() {
         let delay_models = delay_model_ids();
         let first_model = delay_models.first().expect("delay catalog must not be empty");
         let second_model = delay_models.get(1).unwrap_or(first_model);
         let block = select_delay_block("chain:0:block:0", first_model.as_str(), second_model.as_str());
-
         let editor_data = block_editor_data(&block).expect("select should expose editor data");
-
         assert!(editor_data.is_select);
         assert_eq!(editor_data.effect_type, "delay");
         assert_eq!(editor_data.model_id, second_model.as_str());
@@ -5587,25 +6236,21 @@ mod tests {
             Some("chain:0:block:0::delay_b")
         );
     }
-
     #[test]
     fn select_block_editor_includes_active_option_picker() {
         let delay_models = delay_model_ids();
         let first_model = delay_models.first().expect("delay catalog must not be empty");
         let second_model = delay_models.get(1).unwrap_or(first_model);
         let block = select_delay_block("chain:0:block:0", first_model.as_str(), second_model.as_str());
-
         let editor_data = block_editor_data(&block).expect("select should expose editor data");
         let items = block_parameter_items_for_editor(&editor_data);
         let selector = items
             .iter()
-            .find(|item| item.path.as_str() == "__select.selected_block_id")
+            .find(|item| item.path.as_str() == SELECT_SELECTED_BLOCK_ID)
             .expect("select editor should expose active option picker");
-
         assert_eq!(selector.option_values.row_count(), 2);
         assert_eq!(selector.selected_option_index, 1);
     }
-
     fn select_delay_block(id: &str, first_model: &str, second_model: &str) -> AudioBlock {
         AudioBlock {
             id: BlockId(id.into()),
@@ -5619,7 +6264,6 @@ mod tests {
             }),
         }
     }
-
     fn delay_block(id: impl Into<String>, model: &str, time_ms: f32) -> AudioBlock {
         let schema = schema_for_block_model("delay", model).expect("delay schema should exist");
         let mut params = ParameterSet::default()
@@ -5630,14 +6274,12 @@ mod tests {
             id: BlockId(id.into()),
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
-                kind: CoreBlockKind::Delay(DelayBlock {
-                    model: model.to_string(),
-                    params,
-                }),
+                effect_type: "delay".to_string(),
+                model: model.to_string(),
+                params,
             }),
         }
     }
-
     fn delay_model_ids() -> Vec<String> {
         supported_block_models("delay")
             .expect("delay catalog should exist")

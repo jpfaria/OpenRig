@@ -1,13 +1,14 @@
 use anyhow::{anyhow, Result};
 use domain::ids::{BlockId, ChainId};
 use project::block::{
-    schema_for_block_model, AudioBlockKind, CoreBlockKind, NamBlock, SelectBlock,
+    schema_for_block_model, AudioBlockKind, CoreBlock, NamBlock, SelectBlock,
 };
 use project::param::ParameterSet;
 use project::project::Project;
-use project::chain::{Chain, ChainOutputMixdown};
-use block_amp_combo::build_amp_combo_processor_for_layout;
-use block_amp_head::build_amp_head_processor_for_layout;
+use project::chain::{Chain, ChainOutputMixdown, ProcessingLayout};
+use block_amp::build_amp_processor_for_layout;
+use block_preamp::build_preamp_processor_for_layout;
+use block_body::build_body_processor_for_layout;
 use block_cab::build_cab_processor_for_layout;
 use block_core::{
     AudioChannelLayout, ModelAudioMode, MonoProcessor, BlockProcessor, StereoProcessor,
@@ -159,14 +160,70 @@ impl AudioProcessor {
 pub struct ChainRuntimeState {
     processing: Mutex<ChainProcessingState>,
     output: Mutex<ChainOutputState>,
+    /// Tuner samples written by audio thread, read+cleared by UI thread.
+    tuner_shared_buffer: Mutex<Vec<f32>>,
+    /// Tuner state owned by UI thread only (never touched by audio).
+    pub tuner_reading: Mutex<block_util::TunerReading>,
 }
 
+impl ChainRuntimeState {
+    /// Called from audio thread: append tuner samples (fast, non-blocking).
+    pub fn push_tuner_samples(&self, samples: &[f32]) {
+        if let Ok(mut buf) = self.tuner_shared_buffer.try_lock() {
+            buf.extend_from_slice(samples);
+            // Cap at 8192 to prevent unbounded growth
+            if buf.len() > 8192 {
+                let start = buf.len() - 4096;
+                buf.drain(..start);
+            }
+        }
+    }
+
+    /// Called from UI thread: run detection on accumulated samples.
+    pub fn poll_tuner(&self) -> Option<block_util::TunerReading> {
+        // Grab samples quickly
+        let samples = {
+            let mut buf = self.tuner_shared_buffer.try_lock().ok()?;
+            if buf.len() < 2048 {
+                return self.tuner_reading.try_lock().ok().and_then(|r| {
+                    if r.frequency.is_some() { Some(r.clone()) } else { None }
+                });
+            }
+            let s = buf.clone();
+            buf.clear();
+            s
+        };
+
+        // Run detection outside any lock (takes ~1ms, fine for UI thread)
+        let reading = detect_pitch(&samples);
+
+        // Store for next poll if no detection
+        if let Ok(mut tr) = self.tuner_reading.try_lock() {
+            if reading.frequency.is_some() {
+                *tr = reading.clone();
+            }
+        }
+
+        if reading.frequency.is_some() { Some(reading) } else {
+            self.tuner_reading.try_lock().ok().and_then(|r| {
+                if r.frequency.is_some() { Some(r.clone()) } else { None }
+            })
+        }
+    }
+}
+
+/// Number of frames to fade in after a chain rebuild to avoid clicks/pops.
+const FADE_IN_FRAMES: usize = 128;
+
 struct ChainProcessingState {
-    input_layout: AudioChannelLayout,
+    input_read_layout: AudioChannelLayout,
+    processing_layout: AudioChannelLayout,
     input_channels: Vec<usize>,
     blocks: Vec<BlockRuntimeNode>,
     frame_buffer: Vec<AudioFrame>,
     tuner_samples: Vec<f32>,
+    /// Remaining frames of fade-in after a rebuild (0 = no fade active).
+    fade_in_remaining: usize,
 }
 
 struct ChainOutputState {
@@ -178,6 +235,7 @@ struct ChainOutputState {
 
 enum RuntimeProcessor {
     Audio(AudioProcessor),
+    #[allow(dead_code)]
     Tuner(Box<dyn TunerProcessor>),
     Select(SelectRuntimeState),
     Bypass,
@@ -241,17 +299,37 @@ pub fn build_runtime_graph(
 }
 
 pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<ChainRuntimeState> {
-    let input_layout = layout_from_channels(chain.input_channels.len())?;
+    let input_read_layout = layout_from_channels(chain.input_channels.len().min(2).max(1))?;
+    let proc_layout = project::chain::processing_layout(
+        &chain.input_channels,
+        &chain.output_channels,
+        chain.input_mode,
+    );
+    let processing_layout_channel = match proc_layout {
+        ProcessingLayout::Mono | ProcessingLayout::DualMono => AudioChannelLayout::Mono,
+        ProcessingLayout::Stereo => AudioChannelLayout::Stereo,
+    };
+    log::info!(
+        "chain '{}' processing layout: input_read={}, processing={:?} (in={} out={} mode={:?})",
+        chain.id.0,
+        layout_label(input_read_layout),
+        proc_layout,
+        chain.input_channels.len(),
+        chain.output_channels.len(),
+        chain.input_mode,
+    );
     let (blocks, output_layout) =
-        build_runtime_block_nodes(chain, input_layout, sample_rate, None)?;
+        build_runtime_block_nodes(chain, processing_layout_channel, sample_rate, None)?;
 
     Ok(ChainRuntimeState {
         processing: Mutex::new(ChainProcessingState {
-            input_layout,
+            input_read_layout,
+            processing_layout: processing_layout_channel,
             input_channels: chain.input_channels.clone(),
             blocks,
             frame_buffer: Vec::new(),
             tuner_samples: Vec::new(),
+            fade_in_remaining: FADE_IN_FRAMES,
         }),
         output: Mutex::new(ChainOutputState {
             output_layout,
@@ -259,6 +337,8 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
             output_mixdown: chain.output_mixdown,
             processed_frames: VecDeque::with_capacity(MAX_BUFFERED_OUTPUT_FRAMES),
         }),
+        tuner_shared_buffer: Mutex::new(Vec::with_capacity(8192)),
+        tuner_reading: Mutex::new(block_util::TunerReading::default()),
     })
 }
 
@@ -268,22 +348,54 @@ pub fn update_chain_runtime_state(
     sample_rate: f32,
     reset_output_queue: bool,
 ) -> Result<()> {
-    let input_layout = layout_from_channels(chain.input_channels.len())?;
-    let mut processing = runtime.processing.lock().expect("chain runtime poisoned");
-    let existing = std::mem::take(&mut processing.blocks);
+    let input_read_layout = layout_from_channels(chain.input_channels.len().min(2).max(1))?;
+    let proc_layout = project::chain::processing_layout(
+        &chain.input_channels,
+        &chain.output_channels,
+        chain.input_mode,
+    );
+    let processing_layout_channel = match proc_layout {
+        ProcessingLayout::Mono | ProcessingLayout::DualMono => AudioChannelLayout::Mono,
+        ProcessingLayout::Stereo => AudioChannelLayout::Stereo,
+    };
+    log::info!(
+        "chain '{}' update processing layout: input_read={}, processing={:?} (in={} out={} mode={:?})",
+        chain.id.0,
+        layout_label(input_read_layout),
+        proc_layout,
+        chain.input_channels.len(),
+        chain.output_channels.len(),
+        chain.input_mode,
+    );
+
+    // Step 1: Extract existing blocks (brief lock)
+    let existing = {
+        let mut processing = runtime.processing.lock().expect("chain runtime poisoned");
+        std::mem::take(&mut processing.blocks)
+    };
+
+    // Step 2: Build new blocks OUTSIDE the lock (no audio interruption)
     let (blocks, output_layout) =
-        build_runtime_block_nodes(chain, input_layout, sample_rate, Some(existing))?;
-    processing.input_layout = input_layout;
-    processing.input_channels = chain.input_channels.clone();
-    processing.blocks = blocks;
-    processing.frame_buffer.clear();
-    processing.tuner_samples.clear();
-    drop(processing);
+        build_runtime_block_nodes(chain, processing_layout_channel, sample_rate, Some(existing))?;
+    let new_input_channels = chain.input_channels.clone();
+    let new_output_channels = chain.output_channels.clone();
+    let new_mixdown = chain.output_mixdown;
+
+    // Step 3: Swap in the new state (brief lock — just pointer assignments)
+    {
+        let mut processing = runtime.processing.lock().expect("chain runtime poisoned");
+        processing.input_read_layout = input_read_layout;
+        processing.processing_layout = processing_layout_channel;
+        processing.input_channels = new_input_channels;
+        processing.blocks = blocks;
+        // Don't clear frame_buffer — let current frames finish processing
+        processing.fade_in_remaining = FADE_IN_FRAMES;
+    }
 
     let mut output = runtime.output.lock().expect("chain runtime poisoned");
     output.output_layout = output_layout;
-    output.output_channels = chain.output_channels.clone();
-    output.output_mixdown = chain.output_mixdown;
+    output.output_channels = new_output_channels;
+    output.output_mixdown = new_mixdown;
     if reset_output_queue {
         output.processed_frames.clear();
     } else {
@@ -335,7 +447,16 @@ fn build_runtime_block_nodes(
         .collect::<HashMap<_, _>>();
 
     for block in &chain.blocks {
+        // Disabled blocks: try to reuse existing node (keeps processor alive
+        // for instant re-enable), otherwise create a bypass node.
         if !block.enabled {
+            if let Some(mut node) = reusable_nodes.remove(&block.id) {
+                node.block_snapshot = block.clone();
+                // Keep the processor alive but don't change layout
+                blocks.push(node);
+            } else {
+                blocks.push(bypass_runtime_node(block, current_layout));
+            }
             continue;
         }
         if let AudioBlockKind::Select(select) = &block.kind {
@@ -355,11 +476,18 @@ fn build_runtime_block_nodes(
             continue;
         }
         if let Some(node) = try_reuse_block_node(&mut reusable_nodes, block, current_layout) {
+            log::info!("[engine] reuse block {:?} (id={})", block.model_ref().map(|m| m.model), block.id.0);
             current_layout = node.output_layout;
             blocks.push(node);
             continue;
         }
 
+        log::info!("[engine] rebuild block {:?} (id={}) with params:", block.model_ref().map(|m| m.model), block.id.0);
+        if let Some(model) = block.model_ref() {
+            for (path, value) in model.params.values.iter() {
+                log::info!("[engine]   {} = {:?}", path, value);
+            }
+        }
         let node = build_block_runtime_node(chain, block, current_layout, sample_rate)?;
         current_layout = node.output_layout;
         blocks.push(node);
@@ -373,12 +501,22 @@ fn try_reuse_block_node(
     block: &project::block::AudioBlock,
     current_layout: AudioChannelLayout,
 ) -> Option<BlockRuntimeNode> {
-    let node = reusable_nodes.remove(&block.id)?;
-    if node.block_snapshot == *block && node.input_layout == current_layout {
-        Some(node)
-    } else {
-        None
+    let mut node = reusable_nodes.remove(&block.id)?;
+    if node.input_layout != current_layout {
+        return None;
     }
+    // Exact match — reuse as-is
+    if node.block_snapshot == *block {
+        return Some(node);
+    }
+    // Only enabled changed — reuse processor, update snapshot
+    let mut snapshot_without_enabled = node.block_snapshot.clone();
+    snapshot_without_enabled.enabled = block.enabled;
+    if snapshot_without_enabled == *block {
+        node.block_snapshot = block.clone();
+        return Some(node);
+    }
+    None
 }
 
 fn build_block_runtime_node(
@@ -392,119 +530,135 @@ fn build_block_runtime_node(
         AudioBlockKind::Nam(stage) => audio_block_runtime_node(
             block,
             input_layout,
-            build_nam_audio_processor(chain, stage, input_layout)?,
+            build_nam_audio_processor(chain, stage, input_layout, sample_rate)?,
         ),
-        AudioBlockKind::Core(core) => match &core.kind {
-            CoreBlockKind::AmpHead(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "amp_head", &stage.model, input_layout, |layout| {
-                    build_amp_head_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::AmpCombo(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "amp_combo", &stage.model, input_layout, |layout| {
-                    build_amp_combo_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::FullRig(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "full_rig", &stage.model, input_layout, |layout| {
-                    build_full_rig_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::Cab(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "cab", &stage.model, input_layout, |layout| {
-                    build_cab_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::Ir(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "ir", &stage.model, input_layout, |layout| {
-                    build_ir_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::Drive(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "gain", &stage.model, input_layout, |layout| {
-                    build_gain_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::Delay(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "delay", &stage.model, input_layout, |layout| {
-                    build_delay_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::Reverb(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "reverb", &stage.model, input_layout, |layout| {
-                    build_reverb_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::Tuner(stage) => BlockRuntimeNode {
-                instance_serial: next_block_instance_serial(),
-                block_id: block.id.clone(),
-                block_snapshot: block.clone(),
-                input_layout,
-                output_layout: input_layout,
-                scratch: ProcessorScratch::Mono(Vec::new()),
-                processor: RuntimeProcessor::Tuner(build_utility_processor(
-                    &stage.model,
-                    &stage.params,
-                    sample_rate.round() as usize,
-                )?),
-            },
-            CoreBlockKind::Compressor(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "dynamics", &stage.model, input_layout, |layout| {
-                    build_dynamics_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::Gate(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "dynamics", &stage.model, input_layout, |layout| {
-                    build_dynamics_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::Eq(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "filter", &stage.model, input_layout, |layout| {
-                    build_filter_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::Wah(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "wah", &stage.model, input_layout, |layout| {
-                    build_wah_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::Tremolo(stage) => audio_block_runtime_node(
-                block,
-                input_layout,
-                build_audio_processor_for_model(chain, "modulation", &stage.model, input_layout, |layout| {
-                    build_modulation_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
-                })?,
-            ),
-            CoreBlockKind::Pitch(_) => bypass_runtime_node(block, input_layout),
-        },
+        AudioBlockKind::Core(core) => build_core_block_runtime_node(chain, block, core, input_layout, sample_rate)?,
         AudioBlockKind::Select(select) => {
             build_select_runtime_node(chain, block, select, input_layout, sample_rate, None)?
         }
     })
+}
+
+fn build_core_block_runtime_node(
+    chain: &Chain,
+    block: &project::block::AudioBlock,
+    core: &CoreBlock,
+    input_layout: AudioChannelLayout,
+    sample_rate: f32,
+) -> Result<BlockRuntimeNode> {
+    let effect_type = core.effect_type.as_str();
+    let model = &core.model;
+    let params = &core.params;
+
+    use block_core::*;
+    match effect_type {
+        EFFECT_TYPE_PREAMP => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, EFFECT_TYPE_PREAMP, model, input_layout, |layout| {
+                build_preamp_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        EFFECT_TYPE_AMP => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, EFFECT_TYPE_AMP, model, input_layout, |layout| {
+                build_amp_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        EFFECT_TYPE_FULL_RIG => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, EFFECT_TYPE_FULL_RIG, model, input_layout, |layout| {
+                build_full_rig_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        EFFECT_TYPE_CAB => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, EFFECT_TYPE_CAB, model, input_layout, |layout| {
+                build_cab_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        EFFECT_TYPE_BODY => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, EFFECT_TYPE_BODY, model, input_layout, |layout| {
+                build_body_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        EFFECT_TYPE_IR => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, EFFECT_TYPE_IR, model, input_layout, |layout| {
+                build_ir_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        EFFECT_TYPE_GAIN => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, EFFECT_TYPE_GAIN, model, input_layout, |layout| {
+                build_gain_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        EFFECT_TYPE_DELAY => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, EFFECT_TYPE_DELAY, model, input_layout, |layout| {
+                build_delay_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        EFFECT_TYPE_REVERB => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, EFFECT_TYPE_REVERB, model, input_layout, |layout| {
+                build_reverb_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        EFFECT_TYPE_UTILITY => Ok(BlockRuntimeNode {
+            instance_serial: next_block_instance_serial(),
+            block_id: block.id.clone(),
+            block_snapshot: block.clone(),
+            input_layout,
+            output_layout: input_layout,
+            scratch: ProcessorScratch::Mono(Vec::new()),
+            processor: RuntimeProcessor::Tuner(build_utility_processor(
+                model,
+                params,
+                sample_rate.round() as usize,
+            )?),
+        }),
+        EFFECT_TYPE_DYNAMICS => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, EFFECT_TYPE_DYNAMICS, model, input_layout, |layout| {
+                build_dynamics_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        EFFECT_TYPE_FILTER => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, EFFECT_TYPE_FILTER, model, input_layout, |layout| {
+                build_filter_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        EFFECT_TYPE_WAH => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, EFFECT_TYPE_WAH, model, input_layout, |layout| {
+                build_wah_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        EFFECT_TYPE_MODULATION => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, EFFECT_TYPE_MODULATION, model, input_layout, |layout| {
+                build_modulation_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
+        EFFECT_TYPE_PITCH => Ok(bypass_runtime_node(block, input_layout)),
+        other => Err(anyhow!("unsupported core block effect_type '{}'", other)),
+    }
 }
 
 fn build_select_runtime_node(
@@ -731,13 +885,14 @@ fn build_nam_audio_processor(
     chain: &Chain,
     stage: &NamBlock,
     input_layout: AudioChannelLayout,
+    sample_rate: f32,
 ) -> Result<ProcessorBuildOutcome> {
     let _ = (
         optional_string(&stage.params, "ir_path"),
         required_string(&stage.params, "model_path")?,
     );
-    build_audio_processor_for_model(chain, "nam", &stage.model, input_layout, |layout| {
-        build_nam_processor_for_layout(&stage.model, &stage.params, layout)
+    build_audio_processor_for_model(chain, block_core::EFFECT_TYPE_NAM, &stage.model, input_layout, |layout| {
+        build_nam_processor_for_layout(&stage.model, &stage.params, sample_rate, layout)
     })
 }
 
@@ -793,11 +948,13 @@ pub fn process_input_f32(runtime: &Arc<ChainRuntimeState>, data: &[f32], input_t
     let num_frames = data.len() / input_total_channels;
     let mut processing = runtime.processing.lock().expect("chain runtime poisoned");
     let ChainProcessingState {
-        input_layout,
+        input_read_layout,
+        processing_layout,
         input_channels,
         blocks,
         frame_buffer,
         tuner_samples,
+        fade_in_remaining,
     } = &mut *processing;
     let tuner_enabled = blocks.iter().any(block_has_active_tuner);
 
@@ -816,7 +973,19 @@ pub fn process_input_f32(runtime: &Arc<ChainRuntimeState>, data: &[f32], input_t
     }
 
     for frame in data.chunks(input_total_channels).take(num_frames) {
-        let chain_frame = read_input_frame(*input_layout, input_channels, frame);
+        let raw_frame = read_input_frame(*input_read_layout, input_channels, frame);
+        // Adapt to processing layout
+        let chain_frame = match (*input_read_layout, *processing_layout) {
+            (AudioChannelLayout::Mono, AudioChannelLayout::Stereo) => {
+                // Mono input → duplicate to stereo for processing
+                let sample = match raw_frame {
+                    AudioFrame::Mono(s) => s,
+                    _ => unreachable!(),
+                };
+                AudioFrame::Stereo([sample, sample])
+            }
+            _ => raw_frame, // layout matches, use as-is
+        };
         if tuner_enabled {
             tuner_samples.push(chain_frame.mono_mix());
         }
@@ -824,13 +993,33 @@ pub fn process_input_f32(runtime: &Arc<ChainRuntimeState>, data: &[f32], input_t
     }
 
     if tuner_enabled && !tuner_samples.is_empty() {
-        for block in blocks.iter_mut() {
-            process_tuners(block, tuner_samples);
-        }
+        // Push samples to shared buffer — UI thread does the detection
+        runtime.push_tuner_samples(tuner_samples);
     }
 
     for block in blocks.iter_mut() {
         process_audio_block(block, frame_buffer.as_mut_slice());
+    }
+
+    // Apply fade-in after chain rebuild to avoid clicks/pops
+    if *fade_in_remaining > 0 {
+        let fade_total = FADE_IN_FRAMES as f32;
+        for frame in frame_buffer.iter_mut() {
+            if *fade_in_remaining == 0 {
+                break;
+            }
+            let progress = 1.0 - (*fade_in_remaining as f32 / fade_total);
+            // Cosine fade for smooth transition
+            let gain = 0.5 * (1.0 - (std::f32::consts::PI * progress).cos());
+            match frame {
+                AudioFrame::Mono(s) => *s *= gain,
+                AudioFrame::Stereo([l, r]) => {
+                    *l *= gain;
+                    *r *= gain;
+                }
+            }
+            *fade_in_remaining -= 1;
+        }
     }
 
     let mut output = runtime.output.lock().expect("chain runtime poisoned");
@@ -849,6 +1038,54 @@ fn block_has_active_tuner(block: &BlockRuntimeNode) -> bool {
     }
 }
 
+/// Simple AMDF pitch detection — runs on UI thread, NOT audio thread.
+fn detect_pitch(samples: &[f32]) -> block_util::TunerReading {
+    let sample_rate = 44100.0_f32; // TODO: pass actual sample rate
+    let rms = (samples.iter().map(|s| s * s).sum::<f32>() / samples.len() as f32).sqrt();
+    if rms < 0.01 || samples.len() < 512 {
+        return block_util::TunerReading::default();
+    }
+
+    let min_period = (sample_rate / 1000.0) as usize; // ~1000 Hz max
+    let max_period = (sample_rate / 65.0) as usize;   // ~65 Hz min (C2)
+    let len = samples.len();
+    let mut best_period = 0;
+    let mut min_diff = f32::MAX;
+
+    for lag in min_period..max_period.min(len / 2) {
+        let mut diff = 0.0_f32;
+        for i in 0..(len - lag) {
+            diff += (samples[i] - samples[i + lag]).abs();
+        }
+        if diff < min_diff {
+            min_diff = diff;
+            best_period = lag;
+        }
+    }
+
+    if best_period == 0 {
+        return block_util::TunerReading::default();
+    }
+
+    let freq = sample_rate / best_period as f32;
+    block_util::TunerReading::from(Some(freq))
+}
+
+#[allow(dead_code)]
+fn extract_tuner_reading(block: &mut BlockRuntimeNode) -> Option<block_util::TunerReading> {
+    match &mut block.processor {
+        RuntimeProcessor::Tuner(tuner) => {
+            let r = tuner.latest_reading();
+            if r.frequency.is_some() { Some(r.clone()) } else { None }
+        }
+        RuntimeProcessor::Select(select) => {
+            select.selected_node_mut().and_then(extract_tuner_reading)
+        }
+        _ => None,
+    }
+}
+
+#[allow(dead_code)]
 fn process_tuners(block: &mut BlockRuntimeNode, tuner_samples: &[f32]) {
     match &mut block.processor {
         RuntimeProcessor::Tuner(tuner) => {
@@ -866,6 +1103,10 @@ fn process_tuners(block: &mut BlockRuntimeNode, tuner_samples: &[f32]) {
 }
 
 fn process_audio_block(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame]) {
+    // Skip disabled blocks (processor is kept alive for instant re-enable)
+    if !block.block_snapshot.enabled {
+        return;
+    }
     match &mut block.processor {
         RuntimeProcessor::Audio(processor) => {
             processor.process_buffer(frames, &mut block.scratch);
@@ -933,6 +1174,16 @@ fn silent_frame(layout: AudioChannelLayout) -> AudioFrame {
     }
 }
 
+/// Soft limiter — transparent below 0dBFS, gentle saturation above.
+#[inline]
+fn output_limiter(sample: f32) -> f32 {
+    if sample.abs() < 0.95 {
+        sample
+    } else {
+        sample.tanh()
+    }
+}
+
 fn write_output_frame(
     chain_frame: AudioFrame,
     output_channels: &[usize],
@@ -941,9 +1192,10 @@ fn write_output_frame(
 ) {
     match chain_frame {
         AudioFrame::Mono(sample) => {
+            let limited = output_limiter(sample);
             for &channel_index in output_channels {
                 if let Some(dst) = frame.get_mut(channel_index) {
-                    *dst = sample;
+                    *dst = limited;
                 }
             }
         }
@@ -951,15 +1203,15 @@ fn write_output_frame(
             [] => {}
             [channel_index] => {
                 if let Some(dst) = frame.get_mut(*channel_index) {
-                    *dst = apply_mixdown(mixdown, left, right);
+                    *dst = output_limiter(apply_mixdown(mixdown, left, right));
                 }
             }
             [left_channel, right_channel, ..] => {
                 if let Some(dst) = frame.get_mut(*left_channel) {
-                    *dst = left;
+                    *dst = output_limiter(left);
                 }
                 if let Some(dst) = frame.get_mut(*right_channel) {
-                    *dst = right;
+                    *dst = output_limiter(right);
                 }
             }
         },
@@ -1003,7 +1255,7 @@ mod tests {
         build_chain_runtime_state, build_runtime_graph, process_input_f32, process_output_f32,
         update_chain_runtime_state, MAX_BUFFERED_OUTPUT_FRAMES,
     };
-    use block_amp_head::supported_models as supported_amp_head_models;
+    use block_preamp::supported_models as supported_preamp_models;
     use block_cab::{cab_backend_kind, supported_models as supported_cab_models, CabBackendKind};
     use block_delay::supported_models as supported_delay_models;
     use block_dyn::compressor_supported_models;
@@ -1012,12 +1264,11 @@ mod tests {
     use domain::ids::{BlockId, DeviceId, ChainId};
     use domain::value_objects::ParameterValue;
     use project::block::{
-        AmpHeadBlock, AudioBlock, AudioBlockKind, CabBlock, CompressorBlock, CoreBlock,
-        CoreBlockKind, DelayBlock, ReverbBlock, SelectBlock, TunerBlock, schema_for_block_model,
+        AudioBlock, AudioBlockKind, CoreBlock, SelectBlock, schema_for_block_model,
     };
     use project::param::ParameterSet;
     use project::project::Project;
-    use project::chain::{Chain, ChainOutputMixdown};
+    use project::chain::{Chain, ChainInputMode, ChainOutputMixdown};
     use std::collections::HashMap;
     use std::sync::Arc;
 
@@ -1031,6 +1282,7 @@ mod tests {
             chains: vec![Chain {
                 id: ChainId("chain:0".into()),
                 description: Some("Cab test".into()),
+                instrument: "electric_guitar".to_string(),
                 enabled: true,
                 input_device_id: DeviceId("input-device".into()),
                 input_channels: vec![0],
@@ -1040,13 +1292,13 @@ mod tests {
                     id: BlockId("chain:0:block:0".into()),
                     enabled: true,
                     kind: AudioBlockKind::Core(CoreBlock {
-                        kind: CoreBlockKind::Cab(CabBlock {
-                            model,
-                            params,
-                        }),
+                        effect_type: "cab".to_string(),
+                        model,
+                        params,
                     }),
                 }],
                 output_mixdown: ChainOutputMixdown::Average,
+                input_mode: ChainInputMode::Auto,
             }],
         };
 
@@ -1068,6 +1320,7 @@ mod tests {
             chains: vec![Chain {
                 id: ChainId("chain:0".into()),
                 description: Some("Cab test".into()),
+                instrument: "electric_guitar".to_string(),
                 enabled: true,
                 input_device_id: DeviceId("input-device".into()),
                 input_channels: vec![0],
@@ -1077,13 +1330,13 @@ mod tests {
                     id: BlockId("chain:0:block:0".into()),
                     enabled: true,
                     kind: AudioBlockKind::Core(CoreBlock {
-                        kind: CoreBlockKind::Cab(CabBlock {
-                            model,
-                            params,
-                        }),
+                        effect_type: "cab".to_string(),
+                        model,
+                        params,
                     }),
                 }],
                 output_mixdown: ChainOutputMixdown::Average,
+                input_mode: ChainInputMode::Auto,
             }],
         };
 
@@ -1119,12 +1372,8 @@ mod tests {
                 .collect::<Vec<_>>()
         };
 
-        if let AudioBlockKind::Core(CoreBlock {
-            kind: CoreBlockKind::Tuner(stage),
-        }) = &mut chain.blocks[1].kind
-        {
-            stage
-                .params
+        if let AudioBlockKind::Core(core) = &mut chain.blocks[1].kind {
+            core.params
                 .insert("reference_hz", ParameterValue::Float(432.0));
         }
 
@@ -1215,6 +1464,7 @@ mod tests {
         let chain = Chain {
             id: ChainId("chain:stereo".into()),
             description: Some("Stereo isolation".into()),
+            instrument: "electric_guitar".to_string(),
             enabled: true,
             input_device_id: DeviceId("input-device".into()),
             input_channels: vec![0, 1],
@@ -1222,11 +1472,12 @@ mod tests {
             output_channels: vec![0, 1],
             blocks: vec![
                 compressor_block("chain:stereo:block:0"),
-                amp_head_block("chain:stereo:block:1"),
+                preamp_block("chain:stereo:block:1"),
                 native_cab_block("chain:stereo:block:2"),
                 reverb_block("chain:stereo:block:3"),
             ],
             output_mixdown: ChainOutputMixdown::Average,
+            input_mode: ChainInputMode::Auto,
         };
         let runtime =
             Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"));
@@ -1256,17 +1507,19 @@ mod tests {
         let chain = Chain {
             id: ChainId("chain:asset-backed".into()),
             description: Some("Stereo isolation asset-backed".into()),
+            instrument: "electric_guitar".to_string(),
             enabled: true,
             input_device_id: DeviceId("input-device".into()),
             input_channels: vec![0, 1],
             output_device_id: DeviceId("output-device".into()),
             output_channels: vec![0, 1],
             blocks: vec![
-                marshall_amp_head_block("chain:asset-backed:block:0"),
+                marshall_preamp_block("chain:asset-backed:block:0"),
                 ir_cab_block("chain:asset-backed:block:1"),
                 reverb_block("chain:asset-backed:block:2"),
             ],
             output_mixdown: ChainOutputMixdown::Average,
+            input_mode: ChainInputMode::Auto,
         };
         let runtime =
             Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"));
@@ -1331,6 +1584,7 @@ mod tests {
         Chain {
             id: ChainId(chain_id.into()),
             description: Some("Tuner chain".into()),
+            instrument: "electric_guitar".to_string(),
             enabled: true,
             input_device_id: DeviceId("input-device".into()),
             input_channels: vec![0],
@@ -1338,6 +1592,7 @@ mod tests {
             output_channels: vec![0],
             blocks,
             output_mixdown: ChainOutputMixdown::Average,
+            input_mode: ChainInputMode::Auto,
         }
     }
 
@@ -1352,10 +1607,9 @@ mod tests {
             id: BlockId(block_id.into()),
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
-                kind: CoreBlockKind::Tuner(TunerBlock {
-                    model: tuner_model,
-                    params,
-                }),
+                effect_type: "utility".to_string(),
+                model: tuner_model,
+                params,
             }),
         }
     }
@@ -1395,10 +1649,9 @@ mod tests {
             id: BlockId(block_id.into()),
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
-                kind: CoreBlockKind::Compressor(CompressorBlock {
-                    params: normalized_defaults("dynamics", &model),
-                    model,
-                }),
+                effect_type: "dynamics".to_string(),
+                params: normalized_defaults("dynamics", &model),
+                model,
             }),
         }
     }
@@ -1413,43 +1666,40 @@ mod tests {
             id: BlockId(block_id.into()),
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
-                kind: CoreBlockKind::Cab(CabBlock {
-                    params: normalized_defaults("cab", &model),
-                    model,
-                }),
+                effect_type: "cab".to_string(),
+                params: normalized_defaults("cab", &model),
+                model,
             }),
         }
     }
 
-    fn amp_head_block(block_id: &str) -> AudioBlock {
-        let model = supported_amp_head_models()
+    fn preamp_block(block_id: &str) -> AudioBlock {
+        let model = supported_preamp_models()
             .iter()
             .find(|model| !model.contains("marshall_jcm_800"))
-            .or_else(|| supported_amp_head_models().first())
-            .expect("block-amp-head must expose at least one model")
+            .or_else(|| supported_preamp_models().first())
+            .expect("block-preamp must expose at least one model")
             .to_string();
         AudioBlock {
             id: BlockId(block_id.into()),
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
-                kind: CoreBlockKind::AmpHead(AmpHeadBlock {
-                    params: normalized_defaults("amp_head", &model),
-                    model,
-                }),
+                effect_type: "preamp".to_string(),
+                params: normalized_defaults("preamp", &model),
+                model,
             }),
         }
     }
 
-    fn marshall_amp_head_block(block_id: &str) -> AudioBlock {
+    fn marshall_preamp_block(block_id: &str) -> AudioBlock {
         let model = "marshall_jcm_800_2203".to_string();
         AudioBlock {
             id: BlockId(block_id.into()),
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
-                kind: CoreBlockKind::AmpHead(AmpHeadBlock {
-                    params: normalized_defaults("amp_head", &model),
-                    model,
-                }),
+                effect_type: "preamp".to_string(),
+                params: normalized_defaults("preamp", &model),
+                model,
             }),
         }
     }
@@ -1464,10 +1714,9 @@ mod tests {
             id: BlockId(block_id.into()),
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
-                kind: CoreBlockKind::Cab(CabBlock {
-                    params: normalized_defaults("cab", &model),
-                    model,
-                }),
+                effect_type: "cab".to_string(),
+                params: normalized_defaults("cab", &model),
+                model,
             }),
         }
     }
@@ -1481,10 +1730,9 @@ mod tests {
             id: BlockId(block_id.into()),
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
-                kind: CoreBlockKind::Reverb(ReverbBlock {
-                    params: normalized_defaults("reverb", &model),
-                    model,
-                }),
+                effect_type: "reverb".to_string(),
+                params: normalized_defaults("reverb", &model),
+                model,
             }),
         }
     }
@@ -1499,6 +1747,7 @@ mod tests {
         Chain {
             id: ChainId(id.into()),
             description: Some("Delay select".into()),
+            instrument: "electric_guitar".to_string(),
             enabled: true,
             input_device_id: DeviceId("input-device".into()),
             input_channels: vec![0],
@@ -1516,6 +1765,7 @@ mod tests {
                 }),
             }],
             output_mixdown: ChainOutputMixdown::Average,
+            input_mode: ChainInputMode::Auto,
         }
     }
 
@@ -1526,10 +1776,9 @@ mod tests {
             id: BlockId(id.into()),
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
-                kind: CoreBlockKind::Delay(DelayBlock {
-                    params,
-                    model: model.to_string(),
-                }),
+                effect_type: "delay".to_string(),
+                model: model.to_string(),
+                params,
             }),
         }
     }

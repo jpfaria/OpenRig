@@ -63,6 +63,7 @@ pub struct ProjectRuntimeController {
     active_chains: HashMap<ChainId, ActiveChainRuntime>,
 }
 pub fn list_devices() -> Result<Vec<String>> {
+    log::debug!("listing all audio devices");
     let host = cpal::default_host();
     let mut devices = Vec::new();
     for device in host.input_devices()? {
@@ -85,6 +86,7 @@ pub fn list_devices() -> Result<Vec<String>> {
 }
 
 pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
+    log::debug!("listing input device descriptors");
     let host = cpal::default_host();
     let mut devices = Vec::new();
     for device in host.input_devices()? {
@@ -100,6 +102,7 @@ pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
 }
 
 pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
+    log::debug!("listing output device descriptors");
     let host = cpal::default_host();
     let mut devices = Vec::new();
     for device in host.output_devices()? {
@@ -117,6 +120,7 @@ pub fn build_streams_for_project(
     project: &Project,
     runtime_graph: &RuntimeGraph,
 ) -> Result<Vec<Stream>> {
+    log::info!("building audio streams for project");
     let host = cpal::default_host();
     validate_channels_against_devices(project, &host)?;
     let mut resolved_chains = resolve_enabled_chain_audio_configs(&host, project)?;
@@ -142,6 +146,7 @@ pub fn build_streams_for_project(
 
 impl ProjectRuntimeController {
     pub fn start(project: &Project) -> Result<Self> {
+        log::info!("starting project runtime controller");
         let mut controller = Self {
             runtime_graph: RuntimeGraph {
                 chains: HashMap::new(),
@@ -153,6 +158,7 @@ impl ProjectRuntimeController {
     }
 
     pub fn sync_project(&mut self, project: &Project) -> Result<()> {
+        log::debug!("syncing project runtime with {} chains", project.chains.len());
         let host = cpal::default_host();
         validate_channels_against_devices(project, &host)?;
         let mut resolved_chains = resolve_enabled_chain_audio_configs(&host, project)?;
@@ -164,6 +170,7 @@ impl ProjectRuntimeController {
             .cloned()
             .collect::<Vec<_>>();
         for chain_id in removed_chain_ids {
+            log::info!("removing chain '{}' from runtime", chain_id.0);
             self.active_chains.remove(&chain_id);
             self.runtime_graph.remove_chain(&chain_id);
         }
@@ -183,6 +190,7 @@ impl ProjectRuntimeController {
     }
 
     pub fn upsert_chain(&mut self, project: &Project, chain: &Chain) -> Result<()> {
+        log::info!("upserting chain '{}', enabled={}", chain.id.0, chain.enabled);
         if !chain.enabled {
             self.remove_chain(&chain.id);
             return Ok(());
@@ -195,17 +203,29 @@ impl ProjectRuntimeController {
     }
 
     pub fn remove_chain(&mut self, chain_id: &ChainId) {
+        log::info!("removing chain '{}' from runtime", chain_id.0);
         self.active_chains.remove(chain_id);
         self.runtime_graph.remove_chain(chain_id);
     }
 
     pub fn stop(&mut self) {
+        log::info!("stopping project runtime controller");
         self.active_chains.clear();
         self.runtime_graph.chains.clear();
     }
 
     pub fn is_running(&self) -> bool {
         !self.active_chains.is_empty()
+    }
+
+    /// Returns the first active tuner reading from any running chain.
+    pub fn poll_tuner_reading(&self) -> Option<block_util::TunerReading> {
+        for (_, runtime) in &self.runtime_graph.chains {
+            if let Some(reading) = runtime.poll_tuner() {
+                return Some(reading);
+            }
+        }
+        None
     }
 
     fn upsert_chain_with_resolved(
@@ -512,9 +532,11 @@ fn build_input_stream_for_chain(
     resolved_input_device: ResolvedInputDevice,
     runtime: Arc<ChainRuntimeState>,
 ) -> Result<Stream> {
+    log::debug!("building input stream for chain '{}'", chain_id.0);
     let sample_format = resolved_input_device.supported.sample_format();
     let sample_rate = resolved_input_sample_rate(&resolved_input_device);
     let buffer_size_frames = resolved_input_buffer_size_frames(&resolved_input_device);
+    log::debug!("input stream config: chain='{}', sample_rate={}, buffer_size={}, format={:?}, channels={}", chain_id.0, sample_rate, buffer_size_frames, sample_format, resolved_input_device.supported.channels());
     let stream_config = build_stream_config(
         resolved_input_device.supported.channels(),
         sample_rate,
@@ -531,7 +553,7 @@ fn build_input_stream_for_chain(
                 move |data: &[f32], _| {
                     process_input_f32(&runtime_for_data, data, channels);
                 },
-                move |err| eprintln!("[{}] input error: {}", error_chain_id, err),
+                move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
             )?
         }
@@ -549,7 +571,7 @@ fn build_input_stream_for_chain(
                     }
                     process_input_f32(&runtime_for_data, &converted, channels);
                 },
-                move |err| eprintln!("[{}] input error: {}", error_chain_id, err),
+                move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
             )?
         }
@@ -567,7 +589,7 @@ fn build_input_stream_for_chain(
                     }
                     process_input_f32(&runtime_for_data, &converted, channels);
                 },
-                move |err| eprintln!("[{}] input error: {}", error_chain_id, err),
+                move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
             )?
         }
@@ -586,9 +608,11 @@ fn build_output_stream_for_chain(
     resolved_output_device: ResolvedOutputDevice,
     runtime: Arc<ChainRuntimeState>,
 ) -> Result<Stream> {
+    log::debug!("building output stream for chain '{}'", chain_id.0);
     let sample_format = resolved_output_device.supported.sample_format();
     let sample_rate = resolved_output_sample_rate(&resolved_output_device);
     let buffer_size_frames = resolved_output_buffer_size_frames(&resolved_output_device);
+    log::debug!("output stream config: chain='{}', sample_rate={}, buffer_size={}, format={:?}, channels={}", chain_id.0, sample_rate, buffer_size_frames, sample_format, resolved_output_device.supported.channels());
     let stream_config = build_stream_config(
         resolved_output_device.supported.channels(),
         sample_rate,
@@ -605,7 +629,7 @@ fn build_output_stream_for_chain(
                 move |out: &mut [f32], _| {
                     process_output_f32(&runtime_for_data, out, channels);
                 },
-                move |err| eprintln!("[{}] output error: {}", error_chain_id, err),
+                move |err| log::error!("[{}] output stream error: {}", error_chain_id, err),
                 None,
             )?
         }
@@ -624,7 +648,7 @@ fn build_output_stream_for_chain(
                             (*src * i16::MAX as f32).clamp(i16::MIN as f32, i16::MAX as f32) as i16;
                     }
                 },
-                move |err| eprintln!("[{}] output error: {}", error_chain_id, err),
+                move |err| log::error!("[{}] output stream error: {}", error_chain_id, err),
                 None,
             )?
         }
@@ -644,7 +668,7 @@ fn build_output_stream_for_chain(
                         *dst = normalized as u16;
                     }
                 },
-                move |err| eprintln!("[{}] output error: {}", error_chain_id, err),
+                move |err| log::error!("[{}] output stream error: {}", error_chain_id, err),
                 None,
             )?
         }
@@ -681,10 +705,12 @@ fn build_active_chain_runtime(
     resolved: ResolvedChainAudioConfig,
     runtime: Arc<ChainRuntimeState>,
 ) -> Result<ActiveChainRuntime> {
+    log::info!("building active chain runtime for '{}', sample_rate={}", chain_id.0, resolved.sample_rate);
     let stream_signature = resolved.stream_signature.clone();
     let (input_stream, output_stream) = build_chain_streams(chain_id, resolved, runtime)?;
     input_stream.play()?;
     output_stream.play()?;
+    log::info!("audio streams started for chain '{}'", chain_id.0);
     Ok(ActiveChainRuntime {
         stream_signature,
         _input_stream: input_stream,

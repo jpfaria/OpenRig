@@ -53,6 +53,14 @@ impl ParameterSet {
 
         for (path, value) in &self.values {
             let Some(spec) = known_specs.get(path.as_str()) else {
+                // Keep unknown parameters instead of silently dropping them.
+                // They may belong to a different version of the model or be
+                // internal state that should survive round-trips.
+                log::warn!(
+                    "[param] keeping unknown parameter '{}' (not in schema for {} model '{}')",
+                    path, schema.effect_type, schema.model
+                );
+                values.insert(path.clone(), value.clone());
                 continue;
             };
             spec.validate_value(value).map_err(|error| {

@@ -1,5 +1,6 @@
 import { ComboBox, ScrollView, VerticalBox } from "std-widgets.slint";
 import { ProjectChainItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, ChainBlockItem } from "../models.slint";
+import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 
 component ToolbarButton inherits Rectangle {
     in property <string> label;
@@ -353,23 +354,7 @@ component BlockFootswitch inherits Rectangle {
 component BlockTypeCard inherits Rectangle {
     in property <BlockTypePickerItem> item;
     in property <bool> selected: false;
-    in property <image> icon-source;
-    property <color> accent-color: root.item.effect_type == "amp_head" ? #f29f38
-        : root.item.effect_type == "amp_combo" ? #f06292
-        : root.item.effect_type == "cab" ? #f2cb54
-        : root.item.effect_type == "ir" ? #7cc9ff
-        : root.item.effect_type == "full_rig" ? #63d2ff
-        : root.item.effect_type == "gain" ? #ff6a57
-        : root.item.effect_type == "dynamics" ? #41b8ff
-        : root.item.effect_type == "filter" ? #d6c85a
-        : root.item.effect_type == "wah" ? #78d06b
-        : root.item.effect_type == "modulation" ? #58d39b
-        : root.item.effect_type == "delay" ? #ba8cff
-        : root.item.effect_type == "reverb" ? #6de1d2
-        : root.item.effect_type == "utility" ? #95a0b2
-        : root.item.effect_type == "nam" ? #ff7cd7
-        : #7fb0ff;
-    property <string> type-label: root.item.label;
+    property <color> accent-color: root.item.accent-color;
     callback clicked();
 
     width: 88px;
@@ -384,21 +369,20 @@ component BlockTypeCard inherits Rectangle {
         y: 5px;
         width: parent.width - 16px;
         height: 14px;
-        text: root.type-label;
+        text: root.item.label;
         color: #f3f6fb;
         font-size: 10px;
         font-weight: 900;
         vertical-alignment: center;
     }
 
-    Image {
+    EffectTypeIcon {
         x: 14px;
         y: 20px;
         width: 60px;
         height: 60px;
-        source: root.icon-source;
-        image-fit: contain;
-        colorize: root.accent-color;
+        icon-kind: root.item.icon-kind;
+        tint: root.accent-color;
     }
 
     TouchArea {
@@ -537,7 +521,7 @@ component BlockParameterRow inherits Rectangle {
             y: 2px;
             width: 20px;
             height: 20px;
-            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/open-file.svg");
+            source: @image-url("../assets/open-file.svg");
             image-fit: contain;
         }
 
@@ -592,6 +576,7 @@ component ChainActionIcon inherits Rectangle {
         height: 20px;
         source: root.icon;
         image-fit: contain;
+        colorize: hover-area.has-hover ? #ffffff : #8a94a2;
     }
 
     hover-area := TouchArea {
@@ -650,8 +635,8 @@ component ChainEndpointChip inherits Rectangle {
         width: 18px;
         height: 18px;
         source: root.is-input
-            ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/chain-input.svg")
-            : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/chain-output.svg");
+            ? @image-url("../assets/chain-input.svg")
+            : @image-url("../assets/chain-output.svg");
         image-fit: contain;
         colorize: hover-area.has-hover ? #a8c8f0 : #6a8aaa;
     }
@@ -811,24 +796,8 @@ component HeaderIconAction inherits Rectangle {
 component BlockChip inherits Rectangle {
     in property <ChainBlockItem> block;
     in property <bool> selected: false;
-    in property <image> icon-source;
     in property <bool> dragging: false;
-    property <color> accent-color: root.block.icon_kind == "amp_head" ? #f29f38
-        : root.block.icon_kind == "amp_combo" ? #f06292
-        : root.block.icon_kind == "cab" ? #f2cb54
-        : root.block.icon_kind == "ir" ? #7cc9ff
-        : root.block.icon_kind == "full_rig" ? #63d2ff
-        : root.block.icon_kind == "gain" ? #ff6a57
-        : root.block.icon_kind == "dynamics" ? #41b8ff
-        : root.block.icon_kind == "filter" ? #d6c85a
-        : root.block.icon_kind == "wah" ? #78d06b
-        : root.block.icon_kind == "modulation" ? #58d39b
-        : root.block.icon_kind == "delay" ? #ba8cff
-        : root.block.icon_kind == "reverb" ? #6de1d2
-        : root.block.icon_kind == "utility" ? #95a0b2
-        : root.block.icon_kind == "nam" ? #ff7cd7
-        : root.block.icon_kind == "pitch" ? #8f8cff
-        : #7fb0ff;
+    property <color> accent-color: root.block.accent-color;
     property <string> block-type-label: root.block.type_label;
     callback clicked();
     callback drag-moved(float, float);
@@ -839,34 +808,79 @@ component BlockChip inherits Rectangle {
     property <float> drag-origin-y: 0;
 
     width: 84px;
-    height: 84px;
-    background: root.block.enabled ? #17191d : #111418;
-    border-width: hover-area.has-hover ? 3px : 2px;
-    border-color: root.dragging ? #8b95a5 : root.block.enabled ? root.accent-color : #606c80;
+    height: 100px;
+    background: transparent;
+    border-width: 0px;
     border-radius: 6px;
 
-    Image {
-        x: 0px;
-        y: 8px;
-        width: parent.width;
-        height: parent.height - 4px;
-        source: root.icon-source;
-        image-fit: contain;
-        colorize: root.dragging ? #8b95a5 : root.block.enabled ? #f3f6fb : #5c6678;
-    }
-
+    // Type label on top
     Text {
-        x: 8px;
-        y: 4px;
-        width: parent.width - 16px;
+        x: 0px;
+        y: 0px;
+        width: parent.width;
         height: 14px;
         text: root.block-type-label;
-        color: root.dragging ? #8b95a5 : root.block.enabled ? #f3f6fb : #5c6678;
-        font-size: 10px;
-        font-weight: 900;
+        color: root.block.enabled ? root.accent-color : #5c6678;
+        font-size: 8px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        horizontal-alignment: center;
         vertical-alignment: center;
     }
 
+    // Calculate rendered thumbnail size (image-fit: contain in 80x76 area)
+    property <float> img-aspect: root.block.thumb-height > 0 ? root.block.thumb-width / root.block.thumb-height : 1.0;
+    property <float> area-aspect: 80.0 / 76.0;
+    property <float> rendered-w: img-aspect > area-aspect ? 80.0 : 76.0 * img-aspect;
+    property <float> rendered-h: img-aspect > area-aspect ? 80.0 / img-aspect : 76.0;
+    property <length> rw: rendered-w * 1px;
+    property <length> rh: rendered-h * 1px;
+    property <length> rx: (84px - rw) / 2;
+    property <length> ry: 15px + (76px - rh) / 2;
+
+    if root.block.has-thumbnail : Image {
+        x: 2px;
+        y: 15px;
+        width: 80px;
+        height: 76px;
+        source: root.block.thumbnail;
+        image-fit: contain;
+    }
+
+    if !root.block.has-thumbnail : EffectTypeIcon {
+        x: 0px;
+        y: 17px;
+        width: parent.width;
+        height: 72px;
+        icon-kind: root.block.icon-kind;
+        tint: root.dragging ? #8b95a5 : root.block.enabled ? #f3f6fb : #5c6678;
+    }
+
+    // White hover outline — hugs the actual rendered thumbnail
+    if hover-area.has-hover && root.block.has-thumbnail : Rectangle {
+        x: root.rx - 2px;
+        y: root.ry - 2px;
+        width: root.rw + 4px;
+        height: root.rh + 4px;
+        background: transparent;
+        border-width: 1.5px;
+        border-color: #ffffff60;
+        border-radius: 4px;
+    }
+
+    // Fallback hover for non-thumbnail blocks
+    if hover-area.has-hover && !root.block.has-thumbnail : Rectangle {
+        x: 4px;
+        y: 15px;
+        width: parent.width - 8px;
+        height: 74px;
+        background: transparent;
+        border-width: 1.5px;
+        border-color: #ffffff60;
+        border-radius: 4px;
+    }
+
+    // LED status dot
     Rectangle {
         x: parent.width - 10px;
         y: parent.height - 10px;
@@ -901,16 +915,18 @@ component BlockChip inherits Rectangle {
                 }
             }
         }
-        clicked => {
-            let pointer-x = (self.mouse-x + root.x) / 1px;
-            let pointer-y = (self.mouse-y + root.y) / 1px;
-            if root.did-drag {
-                root.drag-finished(pointer-x, pointer-y);
-            } else {
-                root.clicked();
+        pointer-event(e) => {
+            if e.kind == PointerEventKind.up {
+                let pointer-x = (self.mouse-x + root.x) / 1px;
+                let pointer-y = (self.mouse-y + root.y) / 1px;
+                if root.did-drag {
+                    root.drag-finished(pointer-x, pointer-y);
+                } else {
+                    root.clicked();
+                }
+                root.did-drag = false;
+                root.drag-origin-set = false;
             }
-            root.did-drag = false;
-            root.drag-origin-set = false;
         }
     }
 }
@@ -931,7 +947,7 @@ component BlockInsertSlot inherits Rectangle {
         y: 11px;
         width: parent.width;
         height: 2px;
-        background: root.active-drop-target ? #a9b2bf : hover-area.has-hover && !root.suppress-hover-affordance ? #8b95a5 : #3b4250;
+        background: #3b4250;
         border-radius: 1px;
     }
 
@@ -950,7 +966,7 @@ component BlockInsertSlot inherits Rectangle {
             y: 2px;
             width: 20px;
             height: 20px;
-            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/block-drop-target.svg");
+            source: @image-url("../assets/block-drop-target.svg");
             image-fit: contain;
         }
 
@@ -994,6 +1010,7 @@ component ChainRow inherits Rectangle {
     callback toggle-chain-block-enabled(int, int);
     callback start-block-insert(int, int);
     callback reorder-chain-block(int, int, int);
+    callback open-compact-chain-view(int);
     property <int> blocks-per-row: Math.max(1, Math.floor((root.width - 188px) / 116px));
     property <int> block-row-count: root.chain.blocks.length == 0 ? 1 : Math.floor((root.chain.blocks.length - 1) / root.blocks-per-row) + 1;
     property <int> insert-row-count: root.block-row-count;
@@ -1005,21 +1022,56 @@ component ChainRow inherits Rectangle {
     property <int> last-block-row: root.chain.blocks.length == 0 ? 0 : Math.floor((root.chain.blocks.length - 1) / root.blocks-per-row);
     // Out sempre fixo na borda direita da linha do último bloco
     property <length> out-chip-x: root.width - 108px;
-    property <length> out-chip-y: root.last-block-row * 92px + 15px;
+    property <length> out-chip-y: root.last-block-row * 108px + 24px;
     out property <bool> any-chip-hovered: in-chip.is-hovered || out-chip.is-hovered;
 
     pure function slot-index-for-position(pointer-x: float, pointer-y: float) -> int {
+        // Blocks start at x=120, each 116px wide.
+        // Slot 0 is before block 0 (x<172), slot N is after block N-1 center.
+        // Block N center = 172 + N*116. Crossing the center moves to slot N+1.
         let row = Math.max(0, Math.min(root.insert-row-count - 1, Math.floor((pointer-y + 18) / 92)));
-        let col = Math.max(0, Math.min(root.blocks-per-row, Math.round((pointer-x - 16) / 116)));
+        let col = Math.max(0, Math.min(root.blocks-per-row, Math.round((pointer-x - 172) / 116 + 0.5)));
         let candidate = row * root.blocks-per-row + col;
         return Math.max(0, Math.min(root.chain.blocks.length, candidate));
     }
 
     background: transparent;
-    border-width: 1px;
-    border-color: #31353d;
     border-radius: 6px;
-    height: 74px + (root.block-row-count * 92px);
+    height: 74px + (root.block-row-count * 108px);
+
+    // Drop shadow layers
+    Rectangle {
+        x: 2px; y: 4px;
+        width: parent.width - 4px;
+        height: parent.height;
+        border-radius: 10px;
+        background: #00000040;
+    }
+    Rectangle {
+        x: 1px; y: 2px;
+        width: parent.width - 2px;
+        height: parent.height;
+        border-radius: 8px;
+        background: #00000030;
+    }
+
+    // Main card with wood texture
+    Rectangle {
+        x: 0px; y: 0px;
+        width: parent.width;
+        height: parent.height;
+        border-radius: 6px;
+        clip: true;
+
+        Image {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: parent.height;
+            source: @image-url("../../../../assets/backgrounds/pedalboard_wood.jpg");
+            image-fit: cover;
+        }
+    }
 
     Rectangle {
         x: 0px;
@@ -1035,22 +1087,56 @@ component ChainRow inherits Rectangle {
             clicked => { root.toggle-chain-enabled(root.chain-index); }
         }
 
-        Text {
-            x: 56px;
+        Image {
+            x: 48px;
+            y: 17px;
+            width: 16px;
+            height: 16px;
+            source: root.chain.instrument == "electric_guitar" ? @image-url("../../../../assets/instruments/electric_guitar.svg")
+                : root.chain.instrument == "acoustic_guitar" ? @image-url("../../../../assets/instruments/acoustic_guitar.svg")
+                : root.chain.instrument == "bass" ? @image-url("../../../../assets/instruments/bass.svg")
+                : root.chain.instrument == "voice" ? @image-url("../../../../assets/instruments/voice.svg")
+                : root.chain.instrument == "keys" ? @image-url("../../../../assets/instruments/keys.svg")
+                : root.chain.instrument == "drums" ? @image-url("../../../../assets/instruments/drums.svg")
+                : @image-url("../../../../assets/instruments/generic.svg");
+            image-fit: contain;
+            colorize: #6a7483;
+        }
+
+        Rectangle {
+            x: 72px;
             y: 14px;
             width: 320px;
             height: 24px;
-            text: root.chain.title;
-            color: #f1f4f8;
-            font-size: 14px;
-            font-weight: 600;
-            vertical-alignment: center;
+
+            Text {
+                width: parent.width;
+                height: parent.height;
+                text: root.chain.title;
+                color: title-ta.has-hover ? #ffffff : #f1f4f8;
+                font-size: 14px;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
+
+            title-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.open-compact-chain-view(root.chain-index); }
+            }
+        }
+
+        ChainActionIcon {
+            x: parent.width - 196px;
+            y: 14px;
+            icon: @image-url("../assets/expand.svg");
+            tooltip: "Expandir blocos";
+            clicked => { root.open-compact-chain-view(root.chain-index); }
         }
 
         ChainActionIcon {
             x: parent.width - 156px;
             y: 14px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
+            icon: @image-url("../assets/gear.svg");
             tooltip: "Configurar";
             clicked => { root.configure-chain(root.chain-index); }
         }
@@ -1058,7 +1144,7 @@ component ChainRow inherits Rectangle {
         ChainActionIcon {
             x: parent.width - 116px;
             y: 14px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/open-file.svg");
+            icon: @image-url("../assets/open-file.svg");
             tooltip: "Abrir preset";
             clicked => { root.configure-chain-preset(root.chain-index); }
         }
@@ -1066,7 +1152,7 @@ component ChainRow inherits Rectangle {
         ChainActionIcon {
             x: parent.width - 76px;
             y: 14px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/save.svg");
+            icon: @image-url("../assets/save.svg");
             tooltip: "Salvar preset";
             clicked => { root.save-chain-preset(root.chain-index); }
         }
@@ -1074,7 +1160,7 @@ component ChainRow inherits Rectangle {
         ChainActionIcon {
             x: parent.width - 36px;
             y: 14px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/trash.svg");
+            icon: @image-url("../assets/trash.svg");
             tooltip: "Excluir";
             clicked => { root.remove-chain(root.chain-index); }
         }
@@ -1084,7 +1170,7 @@ component ChainRow inherits Rectangle {
         x: 18px;
         y: 62px;
         width: parent.width - 36px;
-        height: root.block-row-count * 92px;
+        height: root.block-row-count * 108px;
         background: transparent;
 
         TouchArea {
@@ -1099,28 +1185,29 @@ component ChainRow inherits Rectangle {
             }
         }
 
-        // Row 0: termina no Out se for o único row, senão vai até a borda direita
+        // Routing lines — pedal center is at y = 52px + row * 108px
+        // Row 0 horizontal
         Rectangle {
             x: 72px;
-            y: 41px;
+            y: 52px;
             width: root.block-row-count == 1 ? (root.out-chip-x - 72px) : (parent.width - 72px);
             height: 2px;
             background: #3b4250;
             border-radius: 1px;
         }
 
-        // U-turn row 0 → row 1: vertical direita + horizontal bridge + vertical esquerda
+        // U-turn row 0 → row 1
         if root.block-row-count > 1 : Rectangle {
             x: parent.width - 2px;
-            y: 41px;
+            y: 52px;
             width: 2px;
-            height: 48px;
+            height: 56px;
             background: #3b4250;
             border-radius: 1px;
         }
         if root.block-row-count > 1 : Rectangle {
             x: 0px;
-            y: 87px;
+            y: 106px;
             width: parent.width;
             height: 2px;
             background: #3b4250;
@@ -1128,17 +1215,17 @@ component ChainRow inherits Rectangle {
         }
         if root.block-row-count > 1 : Rectangle {
             x: 0px;
-            y: 87px;
+            y: 106px;
             width: 2px;
-            height: 48px;
+            height: 54px;
             background: #3b4250;
             border-radius: 1px;
         }
 
-        // Row 1: começa da esquerda, termina no Out se for o último, senão vai até a borda
+        // Row 1 horizontal
         if root.block-row-count > 1 : Rectangle {
             x: 0px;
-            y: 133px;
+            y: 160px;
             width: root.block-row-count == 2 ? root.out-chip-x : parent.width;
             height: 2px;
             background: #3b4250;
@@ -1148,15 +1235,15 @@ component ChainRow inherits Rectangle {
         // U-turn row 1 → row 2
         if root.block-row-count > 2 : Rectangle {
             x: parent.width - 2px;
-            y: 133px;
+            y: 160px;
             width: 2px;
-            height: 48px;
+            height: 56px;
             background: #3b4250;
             border-radius: 1px;
         }
         if root.block-row-count > 2 : Rectangle {
             x: 0px;
-            y: 179px;
+            y: 214px;
             width: parent.width;
             height: 2px;
             background: #3b4250;
@@ -1164,17 +1251,17 @@ component ChainRow inherits Rectangle {
         }
         if root.block-row-count > 2 : Rectangle {
             x: 0px;
-            y: 179px;
+            y: 214px;
             width: 2px;
-            height: 48px;
+            height: 54px;
             background: #3b4250;
             border-radius: 1px;
         }
 
-        // Row 2
+        // Row 2 horizontal
         if root.block-row-count > 2 : Rectangle {
             x: 0px;
-            y: 225px;
+            y: 268px;
             width: root.block-row-count == 3 ? root.out-chip-x : parent.width;
             height: 2px;
             background: #3b4250;
@@ -1184,15 +1271,15 @@ component ChainRow inherits Rectangle {
         // U-turn row 2 → row 3
         if root.block-row-count > 3 : Rectangle {
             x: parent.width - 2px;
-            y: 225px;
+            y: 268px;
             width: 2px;
-            height: 48px;
+            height: 56px;
             background: #3b4250;
             border-radius: 1px;
         }
         if root.block-row-count > 3 : Rectangle {
             x: 0px;
-            y: 271px;
+            y: 322px;
             width: parent.width;
             height: 2px;
             background: #3b4250;
@@ -1200,17 +1287,17 @@ component ChainRow inherits Rectangle {
         }
         if root.block-row-count > 3 : Rectangle {
             x: 0px;
-            y: 271px;
+            y: 322px;
             width: 2px;
-            height: 48px;
+            height: 54px;
             background: #3b4250;
             border-radius: 1px;
         }
 
-        // Row 3 (sempre o último se existir)
+        // Row 3 horizontal
         if root.block-row-count > 3 : Rectangle {
             x: 0px;
-            y: 317px;
+            y: 376px;
             width: root.out-chip-x;
             height: 2px;
             background: #3b4250;
@@ -1219,7 +1306,7 @@ component ChainRow inherits Rectangle {
 
         BlockInsertSlot {
             x: 88px;
-            y: 30px;
+            y: 41px;
             empty-slot: root.chain.blocks.length == 0;
             move-target: root.dragging-chain-index == root.chain-index && root.dragging-block-index >= 0;
             suppress-hover-affordance: root.suppress-insert-hover;
@@ -1239,39 +1326,8 @@ component ChainRow inherits Rectangle {
 
         for block[block-index] in root.chain.blocks : BlockChip {
             x: 120px + Math.mod(block-index, root.blocks-per-row) * 116px;
-            y: Math.floor(block-index / root.blocks-per-row) * 92px;
+            y: Math.floor(block-index / root.blocks-per-row) * 108px;
             block: block;
-            icon-source: block.icon_kind == "amp_head"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-head.svg")
-                : block.icon_kind == "amp_combo"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-combo.svg")
-                : block.icon_kind == "cab"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/cab.svg")
-                : block.icon_kind == "ir"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/ir-loader.svg")
-                : block.icon_kind == "full_rig"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/full-rig.svg")
-                : block.icon_kind == "gain"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gain.svg")
-                : block.icon_kind == "dynamics"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/dyn.svg")
-                : block.icon_kind == "filter"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/filter.svg")
-                : block.icon_kind == "wah"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/expression.svg")
-                : block.icon_kind == "modulation"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/mod.svg")
-                : block.icon_kind == "delay"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/delay.svg")
-                : block.icon_kind == "reverb"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/reverb.svg")
-                : block.icon_kind == "utility"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/util.svg")
-                : block.icon_kind == "nam"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/nam.svg")
-                : block.icon_kind == "pitch"
-                ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/pitch.svg")
-                : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
             selected: root.dragging-chain-index == root.chain-index && root.dragging-block-index == block-index
                 ? false
                 : root.selected-block-chain-index == root.chain-index && root.selected-block-index == block-index;
@@ -1298,7 +1354,7 @@ component ChainRow inherits Rectangle {
 
         for block[block-index] in root.chain.blocks : BlockInsertSlot {
             x: 204px + Math.mod(block-index, root.blocks-per-row) * 116px;
-            y: 30px + Math.floor(block-index / root.blocks-per-row) * 92px;
+            y: 41px + Math.floor(block-index / root.blocks-per-row) * 108px;
             move-target: root.dragging-chain-index == root.chain-index && root.dragging-block-index >= 0;
             suppress-hover-affordance: root.suppress-insert-hover;
             active-drop-target: root.dragging-chain-index == root.chain-index && root.dragging-block-index >= 0 && root.drag-hover-before-index == block-index + 1;
@@ -1498,10 +1554,10 @@ export component BlockEditorPanel inherits Rectangle {
     callback pick-block-parameter-file(string);
 
     // Computed helpers
-    property <bool> is-amp-head:
+    property <bool> is-preamp:
         root.block-drawer-selected-type-index >= 0
         && root.block-drawer-selected-type-index < root.block-type-options.length
-        && root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "amp_head";
+        && root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "preamp";
 
     property <string> selected-model-id:
         root.block-drawer-selected-model-index >= 0
@@ -1521,48 +1577,15 @@ export component BlockEditorPanel inherits Rectangle {
         border-color: #2d3340;
 
         // ── CABEÇALHO ────────────────────────────────────────────
-        Image {
+        EffectTypeIcon {
             x: 20px;
             y: 18px;
             width: 28px;
             height: 28px;
-            source: root.block-drawer-selected-type-index >= 0 && root.block-drawer-selected-type-index < root.block-type-options.length
-                ? (
-                    root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "amp_head"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-head.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "amp_combo"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-combo.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "cab"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/cab.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "ir"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/ir-loader.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "full_rig"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/full-rig.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "gain"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gain.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "dynamics"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/dyn.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "filter"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/filter.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "wah"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/expression.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "modulation"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/mod.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "delay"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/delay.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "reverb"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/reverb.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "utility"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/util.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "nam"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/nam.svg")
-                    : root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "pitch"
-                    ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/pitch.svg")
-                    : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg")
-                )
-                : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
-            image-fit: contain;
-            colorize: #f3f6fb;
+            icon-kind: root.block-drawer-selected-type-index >= 0 && root.block-drawer-selected-type-index < root.block-type-options.length
+                ? root.block-type-options[root.block-drawer-selected-type-index].icon_kind
+                : "";
+            tint: #f3f6fb;
         }
 
         Text {
@@ -1590,7 +1613,7 @@ export component BlockEditorPanel inherits Rectangle {
         if root.block-drawer-edit-mode : ChainActionIcon {
             x: parent.width - 40px;
             y: 20px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/trash.svg");
+            icon: @image-url("../assets/trash.svg");
             tooltip: "Excluir";
             clicked => { root.delete-block-drawer(); }
         }
@@ -1604,7 +1627,7 @@ export component BlockEditorPanel inherits Rectangle {
         }
 
         // ── AMP HEAD: seletor de modelo + imagem do painel + parâmetros ───────
-        if root.is-amp-head : ComboBox {
+        if root.is-preamp : ComboBox {
             x: 20px;
             y: 74px;
             width: parent.width - 40px;
@@ -1614,7 +1637,7 @@ export component BlockEditorPanel inherits Rectangle {
             selected(_) => { root.choose-block-model(self.current-index); }
         }
 
-        if root.is-amp-head && root.block-drawer-selected-model-index >= 0 && root.block-drawer-selected-model-index < root.block-model-options.length : Text {
+        if root.is-preamp && root.block-drawer-selected-model-index >= 0 && root.block-drawer-selected-model-index < root.block-model-options.length : Text {
             x: 20px;
             y: 112px;
             width: parent.width - 40px;
@@ -1624,10 +1647,10 @@ export component BlockEditorPanel inherits Rectangle {
             font-size: 11px;
         }
 
-        // (controls.svg removidos — painel agora é renderizado pelo AmpPanelEditor)
+        // (controls.svg removidos — painel agora é renderizado pelo BlockPanelEditor)
 
         // Parâmetros do amp head
-        if root.is-amp-head : ScrollView {
+        if root.is-preamp : ScrollView {
             x: 20px;
             y: 132px + (parent.width - 16px) / 4 + 12px;
             width: parent.width - 40px;
@@ -1650,7 +1673,7 @@ export component BlockEditorPanel inherits Rectangle {
         }
 
         // ── OUTROS TIPOS: layout original ───────────────────────
-        if !root.is-amp-head : ScrollView {
+        if !root.is-preamp : ScrollView {
             x: 20px;
             y: 78px;
             width: parent.width - 40px;
@@ -1706,7 +1729,6 @@ export component BlockEditorPanel inherits Rectangle {
 export component ProjectChainsPage inherits Rectangle {
     in property <string> project-title;
     in property <string> project-path-label;
-    in property <bool> project-running;
     in property <bool> project-dirty;
     in property <[ProjectChainItem]> project-chains;
     in property <int> selected-chain-block-chain-index;
@@ -1740,8 +1762,7 @@ export component ProjectChainsPage inherits Rectangle {
     callback configure-chain-output(int);
     callback configure-chain-preset(int);
     callback save-chain-preset(int);
-    callback start-project();
-    callback stop-project();
+    callback open-compact-chain-view(int);
     callback select-chain-block(int, int);
     callback clear-chain-block();
     callback toggle-chain-block-enabled(int, int);
@@ -1775,9 +1796,8 @@ export component ProjectChainsPage inherits Rectangle {
             y: 0px;
             width: parent.width;
             height: parent.height;
-            source: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/launcher-block-bg.jpg");
+            source: @image-url("../../../../assets/backgrounds/pedalboard_wood.jpg");
             image-fit: cover;
-            opacity: 1;
         }
 
         Rectangle {
@@ -1785,7 +1805,7 @@ export component ProjectChainsPage inherits Rectangle {
             y: 0px;
             width: parent.width;
             height: parent.height;
-            background: @linear-gradient(180deg, #17191dcc 0%, #17191de6 38%, #17191dd9 100%);
+            background: #000000aa;
         }
 
         TouchArea {
@@ -1823,55 +1843,38 @@ export component ProjectChainsPage inherits Rectangle {
         }
 
         HeaderIconAction {
-            x: parent.width - 200px;
+            x: parent.width - 160px;
             y: 14px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/arrow-left.svg");
+            icon: @image-url("../assets/arrow-left.svg");
             tooltip: "Voltar";
             clicked => { root.back-to-launcher(); }
         }
 
         HeaderIconAction {
-            x: parent.width - 160px;
+            x: parent.width - 120px;
             y: 14px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
+            icon: @image-url("../assets/gear.svg");
             tooltip: "Projeto";
             clicked => { root.configure-project(); }
         }
 
         HeaderIconAction {
-            x: parent.width - 120px;
+            x: parent.width - 80px;
             y: 14px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/save.svg");
+            icon: @image-url("../assets/save.svg");
             tint: root.project-dirty ? #f3c64f : #eef2f8;
             tooltip: "Salvar";
             clicked => { root.save-project(); }
         }
 
         HeaderIconAction {
-            x: parent.width - 80px;
+            x: parent.width - 40px;
             y: 14px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/plus.svg");
+            icon: @image-url("../assets/plus.svg");
             tooltip: "Nova chain";
             clicked => { root.add-chain(); }
         }
 
-        if root.project-running : HeaderIconAction {
-            x: parent.width - 40px;
-            y: 14px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/stop.svg");
-            tint: #f87171;
-            tooltip: "Parar";
-            clicked => { root.stop-project(); }
-        }
-
-        if !root.project-running : HeaderIconAction {
-            x: parent.width - 40px;
-            y: 14px;
-            icon: @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/play.svg");
-            active: true;
-            tooltip: "Iniciar";
-            clicked => { root.start-project(); }
-        }
     }
 
     Rectangle {
@@ -1923,6 +1926,7 @@ export component ProjectChainsPage inherits Rectangle {
                 configure-chain-output(index) => { root.configure-chain-output(index); }
                 configure-chain-preset(index) => { root.configure-chain-preset(index); }
                 save-chain-preset(index) => { root.save-chain-preset(index); }
+                open-compact-chain-view(index) => { root.open-compact-chain-view(index); }
                 select-chain-block(chain-index, block-index) => { root.select-chain-block(chain-index, block-index); }
                 toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }
                 start-block-insert(chain-index, before-index) => { root.start-block-insert(chain-index, before-index); }
@@ -2023,37 +2027,6 @@ export component ProjectChainsPage inherits Rectangle {
                     y: Math.floor(index / 4) * 100px;
                     item: type-item;
                     selected: false;
-                    icon-source: type-item.icon_kind == "amp_head"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-head.svg")
-                        : type-item.icon_kind == "amp_combo"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/amp-combo.svg")
-                        : type-item.icon_kind == "cab"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/cab.svg")
-                        : type-item.icon_kind == "ir"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/ir-loader.svg")
-                        : type-item.icon_kind == "full_rig"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/full-rig.svg")
-                        : type-item.icon_kind == "gain"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gain.svg")
-                        : type-item.icon_kind == "dynamics"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/dyn.svg")
-                        : type-item.icon_kind == "filter"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/filter.svg")
-                        : type-item.icon_kind == "wah"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/expression.svg")
-                        : type-item.icon_kind == "modulation"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/mod.svg")
-                        : type-item.icon_kind == "delay"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/delay.svg")
-                        : type-item.icon_kind == "reverb"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/reverb.svg")
-                        : type-item.icon_kind == "utility"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/util.svg")
-                        : type-item.icon_kind == "nam"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/nam.svg")
-                        : type-item.icon_kind == "pitch"
-                        ? @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/pitch.svg")
-                        : @image-url("/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/crates/adapter-gui/ui/assets/gear.svg");
                     clicked => { root.choose-block-type(index); }
                 }
             }
