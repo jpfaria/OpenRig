@@ -35,6 +35,30 @@ Issue → Branch (from develop) → Commits → PR → Review/Merge
    - **Bugfix/Hotfix**: merge imediato apos criar o PR
    - **Feature/Enhancement**: PR aguarda review antes de merge
 
+### Agents paralelos com Git Worktrees
+
+Multiplos agents trabalham em issues diferentes usando worktrees isoladas:
+
+```
+OpenRig/                              ← develop (workspace principal)
+OpenRig-worktrees/
+  issue-{N}-nome/                     ← branch da issue
+```
+
+Regras:
+- **Um agent por worktree** — nunca compartilhar
+- **Uma branch por issue** — nunca misturar issues
+- **Sempre a partir de develop** — criar branch do develop atualizado
+- **PR quando terminar** — push + PR para develop + remover worktree
+- **Documentacao vai direto na main** — CONTRIBUTING.md, CLAUDE.md, AGENTS.md, README.md
+
+Criar worktree:
+```bash
+git checkout develop && git pull origin develop
+git checkout -b feature/issue-{N}-descricao
+git worktree add ../OpenRig-worktrees/issue-{N}-descricao feature/issue-{N}-descricao
+```
+
 ### Regras de codigo
 
 - **Zero warnings** — `cargo build` nao pode ter nenhum warning
