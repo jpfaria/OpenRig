@@ -93,7 +93,7 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 | **Gain** | Overdrive, distorção, fuzz, boost | Volume, TS9 Tube Screamer (native), TS9, BD-2, JHS Andy Timmons (NAM), Chow Centaur, OJD, Wolf Shaper + 4 outros (LV2) |
 | **Delay** | Eco e repetição temporal | Digital Clean, Analog Warm, Slapback, Reverse, Modulated, Tape Vintage (native) |
 | **Reverb** | Ambiência e simulação de espaço | Plate Foundation (native) |
-| **Modulation** | Chorus, flanger, tremolo | Sine Tremolo (native) |
+| **Modulation** | Chorus, flanger, tremolo | Sine Tremolo, Stereo Chorus (native) |
 | **Dynamics** | Compressor e gate | Studio Clean Compressor, Noise Gate (native) |
 | **Filter** | EQ e moldagem tonal | Three Band EQ (native) |
 | **Wah** | Pedal wah-wah | Cry Classic (native) |
@@ -101,7 +101,7 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 | **Body** | Ressonância de corpo acústico | 114 modelos IR (Taylor, Martin, Gibson, Takamine, Guild, etc.) |
 | **Full Rig** | Amp completo all-in-one | Roland JC-120B Jazz Chorus (NAM) |
 
-**Total: 169 modelos em 14 tipos de bloco.**
+**Total: 170 modelos em 14 tipos de bloco.**
 
 ### Parâmetros comuns
 
