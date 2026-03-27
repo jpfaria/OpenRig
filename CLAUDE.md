@@ -70,6 +70,73 @@ Ver `CONTRIBUTING.md` para detalhes completos.
 
 ---
 
+## O Produto (visão do usuário)
+
+OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de efeitos visualmente, ajusta parâmetros em tempo real e toca com áudio profissional.
+
+### Telas principais
+
+- **Launcher** — criar/abrir projetos, projetos recentes
+- **Chains** — visualização da cadeia de blocos (pedalboard), arrastar/reordenar blocos
+- **Block Editor** — editar parâmetros de um bloco (knobs, sliders, switches)
+- **Compact Chain View** — visão compacta com power switches e troca rápida de modelo
+- **Settings** — dispositivos de áudio (input/output), sample rate, buffer size
+- **Chain Editor** — nome da chain, instrumento, endpoints de I/O
+
+### Tipos de bloco e para que servem
+
+| Tipo | O que faz | Modelos |
+|------|-----------|---------|
+| **Preamp** | Pré-amplificação, gain e EQ do amp | American Clean, Brit Crunch, Modern High Gain (native), JCM 800 2203, Diezel VH4 (NAM) |
+| **Amp** | Amplificador completo (preamp + power amp + cab) | Blackface Clean, Tweed Breakup, Chime (native), Bogner Ecstasy/Shiva, Dumble ODS, EVH 5150, Marshall JCM 800/JVM, Mesa Mark V/Rectifier, Peavey 5150 (NAM) |
+| **Cab** | Simulação de caixa/falante | American 2x12, Brit 4x12, Vintage 1x12 (native), Marshall 4x12 V30, Fender Deluxe, Vox AC30 Blue + 5 outros (IR) |
+| **Gain** | Overdrive, distorção, fuzz, boost | Volume, TS9 Tube Screamer (native), TS9, BD-2, JHS Andy Timmons (NAM), Chow Centaur, OJD, Wolf Shaper + 4 outros (LV2) |
+| **Delay** | Eco e repetição temporal | Digital Clean, Analog Warm, Slapback, Reverse, Modulated, Tape Vintage (native) |
+| **Reverb** | Ambiência e simulação de espaço | Plate Foundation (native) |
+| **Modulation** | Chorus, flanger, tremolo | Sine Tremolo (native) |
+| **Dynamics** | Compressor e gate | Studio Clean Compressor, Noise Gate (native) |
+| **Filter** | EQ e moldagem tonal | Three Band EQ (native) |
+| **Wah** | Pedal wah-wah | Cry Classic (native) |
+| **Utility** | Ferramentas | Chromatic Tuner (native) |
+| **Body** | Ressonância de corpo acústico | 114 modelos IR (Taylor, Martin, Gibson, Takamine, Guild, etc.) |
+| **Full Rig** | Amp completo all-in-one | Roland JC-120B Jazz Chorus (NAM) |
+
+**Total: 169 modelos em 14 tipos de bloco.**
+
+### Parâmetros comuns
+
+- **Preamp/Amp nativos**: input, gain, bass, middle, treble, presence, depth, sag, master, bright
+- **NAM preamp**: volume (50-70%), gain (10-100%) em steps
+- **Delay**: time_ms (1-2000ms), feedback (0-100%), mix (0-100%)
+- **Reverb**: room_size, damping, mix (0-100%)
+- **Compressor**: threshold, ratio, attack_ms, release_ms, makeup_gain, mix
+- **Gate**: threshold, attack_ms, release_ms
+- **EQ**: low, mid, high (0-100% → -24dB a +24dB)
+- **Gain pedals**: drive, tone, level
+- **Volume**: volume (0-100%), mute (on/off)
+- **Tuner**: reference_hz (400-480Hz, default 440)
+
+### Backends de áudio
+
+- **Native** — DSP em Rust, mais rápido, menor CPU
+- **NAM** — Neural Amp Modeler, captura realista de amps/pedais
+- **IR** — Impulse Response, convolução para cabs e corpos acústicos
+- **LV2** — Plugins externos open-source
+
+### Instrumentos suportados
+
+electric_guitar, acoustic_guitar, bass, voice, keys, drums, generic
+
+Cada chain tem um instrumento que filtra quais blocos podem ser adicionados.
+
+### Configuração de áudio
+
+- Devices: input e output independentes
+- Sample rates: 44.1kHz, 48kHz, 88.2kHz, 96kHz
+- Buffer sizes: 32, 64, 128, 256, 512, 1024 samples
+
+---
+
 ## Arquitetura
 
 ### Crates principais
