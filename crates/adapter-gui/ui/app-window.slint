@@ -29,7 +29,7 @@ export component ProjectSettingsWindow inherits Window {
     ProjectSettingsPage {
         width: parent.width;
         height: parent.height;
-        project-name-draft: root.project-name-draft;
+        project-name-draft <=> root.project-name-draft;
         project-devices: root.project-devices;
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
@@ -447,7 +447,7 @@ export component AppWindow inherits Window {
         project-dirty: root.project-dirty;
         project-path-label: root.project-path-label;
         project-title: root.project-title;
-        project-name-draft: root.project-name-draft;
+        project-name-draft <=> root.project-name-draft;
         show-audio-settings: root.show-audio-settings;
         wizard-step: root.wizard-step;
         input-devices: root.input-devices;
@@ -556,7 +556,7 @@ export component AppWindow inherits Window {
         project-dirty: root.project-dirty;
         project-path-label: root.project-path-label;
         project-title: root.project-title;
-        project-name-draft: root.project-name-draft;
+        project-name-draft <=> root.project-name-draft;
         show-audio-settings: root.show-audio-settings;
         wizard-step: root.wizard-step;
         input-devices: root.input-devices;
