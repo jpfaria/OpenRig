@@ -389,6 +389,7 @@ pub fn run_desktop_app(
     let block_editor_window =
         BlockEditorWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     window.set_show_project_launcher(true);
+    window.set_show_project_setup(false);
     window.set_show_project_chains(false);
     window.set_show_chain_editor(false);
     window.set_show_project_settings(false);
@@ -1003,6 +1004,7 @@ pub fn run_desktop_app(
                         format!("Projeto: {}", canonical_path.display()).into(),
                     );
                     window.set_show_project_launcher(false);
+                    window.set_show_project_setup(false);
                     window.set_show_project_chains(true);
                     window.set_show_chain_editor(false);
                     window.set_show_project_settings(false);
@@ -1011,6 +1013,22 @@ pub fn run_desktop_app(
                     set_status_error(&window, &toast_timer, &error.to_string());
                 }
             }
+        });
+    }
+    {
+        let weak_window = window.as_weak();
+        let toast_timer = toast_timer.clone();
+        window.on_create_project_file(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            clear_status(&window, &toast_timer);
+            window.set_project_name_draft("".into());
+            window.set_show_project_launcher(false);
+            window.set_show_project_setup(true);
+            window.set_show_project_chains(false);
+            window.set_show_chain_editor(false);
+            window.set_show_project_settings(false);
         });
     }
     {
@@ -1024,12 +1042,18 @@ pub fn run_desktop_app(
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         let toast_timer = toast_timer.clone();
-        window.on_create_project_file(move || {
+        window.on_confirm_new_project(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            let name = window.get_project_name_draft().trim().to_string();
+            if name.is_empty() {
+                set_status_error(&window, &toast_timer, "O nome do projeto é obrigatório.");
+                return;
+            }
             stop_project_runtime(&project_runtime);
-            let session = create_new_project_session(&project_paths.default_config_path);
+            let mut session = create_new_project_session(&project_paths.default_config_path);
+            session.project.name = Some(name.clone());
             replace_project_chains(
                 &project_chains,
                 &session.project,
@@ -1040,13 +1064,25 @@ pub fn run_desktop_app(
             *saved_project_snapshot.borrow_mut() = None;
             clear_status(&window, &toast_timer);
             set_project_dirty(&window, &project_dirty, true);
-            window.set_project_title("Novo Projeto".into());
-            window.set_project_name_draft("".into());
+            window.set_project_title(name.into());
             window.set_project_path_label("Projeto em memória".into());
+            window.set_show_project_setup(false);
             window.set_show_project_launcher(false);
             window.set_show_project_chains(true);
             window.set_show_chain_editor(false);
             window.set_show_project_settings(false);
+        });
+    }
+    {
+        let weak_window = window.as_weak();
+        let toast_timer = toast_timer.clone();
+        window.on_cancel_new_project(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            clear_status(&window, &toast_timer);
+            window.set_show_project_setup(false);
+            window.set_show_project_launcher(true);
         });
     }
     {
@@ -1498,6 +1534,7 @@ pub fn run_desktop_app(
             window.set_show_project_settings(false);
             window.set_show_chain_editor(false);
             window.set_show_project_chains(false);
+            window.set_show_project_setup(false);
             window.set_show_project_launcher(true);
         });
     }

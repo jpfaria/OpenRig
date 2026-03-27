@@ -1,10 +1,11 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem } from "models.slint";
-import { ProjectLauncherPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage } from "pages/pages.slint";
+import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage } from "pages/pages.slint";
 
 export component DesktopMain inherits Rectangle {
     in property <bool> show-project-launcher;
+    in property <bool> show-project-setup;
     in property <bool> show-project-chains;
     in property <bool> show-chain-editor;
     in property <bool> show-project-settings;
@@ -63,6 +64,8 @@ export component DesktopMain inherits Rectangle {
     callback close-project-settings();
     callback open-project-file();
     callback create-project-file();
+    callback confirm-new-project();
+    callback cancel-new-project();
     callback open-recent-project(int);
     callback remove-recent-project(int);
     callback filter-recent-projects(string);
@@ -123,7 +126,16 @@ export component DesktopMain inherits Rectangle {
         filter-recent-projects(value) => { root.filter-recent-projects(value); }
     }
 
-    if !root.show-project-launcher : Rectangle {
+    if root.show-project-setup : ProjectSetupPage {
+        width: parent.width;
+        height: parent.height;
+        project-name <=> root.project-name-draft;
+        status-message <=> root.status-message;
+        confirm => { root.confirm-new-project(); }
+        cancel => { root.cancel-new-project(); }
+    }
+
+    if !root.show-project-launcher && !root.show-project-setup : Rectangle {
         width: parent.width;
         height: parent.height;
         background: transparent;
@@ -191,3 +203,4 @@ export component DesktopMain inherits Rectangle {
         }
     }
 }
+

@@ -323,6 +323,7 @@ export component AppWindow inherits Window {
     default-font-family: "Ek Mukta";
     default-font-size: 13px;
     in property <bool> show-project-launcher;
+    in property <bool> show-project-setup;
     in property <bool> show-project-chains;
     in property <bool> show-chain-editor;
     in property <bool> show-project-settings;
@@ -385,6 +386,8 @@ export component AppWindow inherits Window {
     callback close-project-settings();
     callback open-project-file();
     callback create-project-file();
+    callback confirm-new-project();
+    callback cancel-new-project();
     callback open-recent-project(int);
     callback remove-recent-project(int);
     callback filter-recent-projects(string);
@@ -437,6 +440,7 @@ export component AppWindow inherits Window {
         width: 100%;
         height: 100%;
         show-project-launcher: root.show-project-launcher;
+        show-project-setup: root.show-project-setup;
         show-project-chains: root.show-project-chains;
         show-chain-editor: root.show-chain-editor;
         show-project-settings: root.show-project-settings;
@@ -495,6 +499,8 @@ export component AppWindow inherits Window {
         close-project-settings => { root.close-project-settings(); }
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }
+        confirm-new-project => { root.confirm-new-project(); }
+        cancel-new-project => { root.cancel-new-project(); }
         open-recent-project(index) => { root.open-recent-project(index); }
         remove-recent-project(index) => { root.remove-recent-project(index); }
         filter-recent-projects(value) => { root.filter-recent-projects(value); }
@@ -543,6 +549,7 @@ export component AppWindow inherits Window {
         width: 100%;
         height: 100%;
         show-project-launcher: root.show-project-launcher;
+        show-project-setup: root.show-project-setup;
         show-project-chains: root.show-project-chains;
         show-chain-editor: root.show-chain-editor;
         show-project-settings: root.show-project-settings;
@@ -601,6 +608,8 @@ export component AppWindow inherits Window {
         close-project-settings => { root.close-project-settings(); }
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }
+        confirm-new-project => { root.confirm-new-project(); }
+        cancel-new-project => { root.cancel-new-project(); }
         open-recent-project(index) => { root.open-recent-project(index); }
         remove-recent-project(index) => { root.remove-recent-project(index); }
         filter-recent-projects(value) => { root.filter-recent-projects(value); }
@@ -646,6 +655,7 @@ export component AppWindow inherits Window {
     }
 
     in-out property <string> toast-message;
+
     in-out property <string> toast-level: "info";
 
     Toast {
