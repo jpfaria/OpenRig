@@ -39,6 +39,7 @@ component NameInput inherits Rectangle {
     in-out property <string> text;
     callback changed(string);
     callback accepted();
+    public function focus-input() { input.focus(); }
 
     height: 40px;
     background: #1d2025;
@@ -82,6 +83,8 @@ export component ProjectSetupPage inherits Rectangle {
     callback cancel();
 
     private property <bool> can-confirm: root.project-name != "";
+
+    init => { name-input.focus-input(); }
 
     background: #1b1d22;
 
@@ -165,7 +168,7 @@ export component ProjectSetupPage inherits Rectangle {
             font-weight: 600;
         }
 
-        NameInput {
+        name-input := NameInput {
             x: 28px;
             y: 98px;
             width: parent.width - 56px;
