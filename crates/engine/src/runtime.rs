@@ -1063,12 +1063,10 @@ pub fn process_input_f32(
     input_total_channels: usize,
 ) {
     let num_frames = data.len() / input_total_channels;
-
     let mut processing = match runtime.processing.try_lock() {
         Ok(guard) => guard,
         Err(_) => return,
     };
-
     let ChainProcessingState {
         input_states,
         tuner_samples,
