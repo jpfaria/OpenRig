@@ -53,3 +53,32 @@ These instructions apply to the entire repository unless a deeper `AGENTS.md` ov
 - Do not rely on generated files under `target/`.
 - Clean obvious unused imports or warnings introduced by your changes.
 - Tolerate temporary `dead_code` in broader domain modeling only when it supports the intended architecture.
+
+## Task Execution Strategy
+
+Before implementing any issue, evaluate its complexity:
+
+### Step 1 — Assess complexity
+- Read the full issue, including all comments
+- Estimate how many files need to change
+- If more than 5 files or 3 logical changes: the task is complex
+
+### Step 2 — Plan before coding
+- For complex tasks: post a plan as a comment listing numbered sub-tasks
+- Each sub-task must be small, independently compilable, and committable
+- Wait for approval before implementing (unless the user said "implement" or "execute")
+
+### Step 3 — Execute sequentially
+- Work on ONE sub-task at a time
+- After each sub-task: `cargo build` must pass with zero warnings
+- Commit after each sub-task with a clear message
+- Use a SINGLE branch for the entire issue: `feature/issue-{N}-description` or `bugfix/issue-{N}-description`
+
+### Step 4 — Deliver
+- When all sub-tasks are done, create a single PR to `develop`
+- PR body must include `Closes #N` where N is the issue number
+- List what was done in the PR description
+
+### If a run is interrupted (max-turns)
+- Comment on the issue with progress so far and what remains
+- On the next `@claude continue`, pick up from where you left off
