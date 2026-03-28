@@ -43,8 +43,6 @@ jobs:
           base_branch: "develop"
           branch_prefix: "feature/"
           claude_args: "--max-turns 200"
-          prompt: |
-            ## How you work
 
             You are an autonomous agent working on the OpenRig project. Follow CLAUDE.md strictly.
 
