@@ -250,6 +250,7 @@ struct ChainDraft {
     output_device_id: Option<String>,
     input_channels: Vec<usize>,
     output_channels: Vec<usize>,
+    input_mode: ChainInputMode,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct SelectedBlock {
@@ -2202,6 +2203,15 @@ pub fn run_desktop_app(
         });
     }
     {
+        let chain_draft = chain_draft.clone();
+        chain_input_window.on_select_input_mode(move |index| {
+            if let Some(draft) = chain_draft.borrow_mut().as_mut() {
+                draft.input_mode = input_mode_from_index(index);
+                log::debug!("[select_input_mode] index={}, mode={:?}", index, draft.input_mode);
+            }
+        });
+    }
+    {
         let weak_window = window.as_weak();
         let weak_input_window = chain_input_window.as_weak();
         let weak_chain_window = chain_editor_window.as_weak();
@@ -4107,10 +4117,7 @@ pub fn run_desktop_app(
                     .as_ref()
                     .map(|chain| chain.output_mixdown)
                     .unwrap_or(ChainOutputMixdown::Average),
-                input_mode: existing_chain
-                    .as_ref()
-                    .map(|chain| chain.input_mode)
-                    .unwrap_or(ChainInputMode::Auto),
+                input_mode: draft.input_mode,
             };
             log::info!("=== CHAIN SAVED: id='{}', name={:?}, instrument='{}', editing={:?} ===",
                 chain.id.0, chain.description, chain.instrument, editing_index);
@@ -4212,10 +4219,7 @@ pub fn run_desktop_app(
                     .as_ref()
                     .map(|chain| chain.output_mixdown)
                     .unwrap_or(ChainOutputMixdown::Average),
-                input_mode: existing_chain
-                    .as_ref()
-                    .map(|chain| chain.input_mode)
-                    .unwrap_or(ChainInputMode::Auto),
+                input_mode: draft.input_mode,
             };
             log::info!("=== CHAIN SAVED: id='{}', name={:?}, instrument='{}', editing={:?} ===",
                 chain.id.0, chain.description, chain.instrument, editing_index);
@@ -5778,6 +5782,7 @@ fn create_chain_draft(
         output_device_id: output_devices.first().map(|device| device.id.clone()),
         input_channels: Vec::new(),
         output_channels: Vec::new(),
+        input_mode: ChainInputMode::Mono,
     }
 }
 fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
@@ -5792,6 +5797,7 @@ fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
         output_device_id: Some(chain.output_device_id.0.clone()),
         input_channels: chain.input_channels.clone(),
         output_channels: chain.output_channels.clone(),
+        input_mode: chain.input_mode,
     }
 }
 fn load_thumbnail_image(effect_type: &str, model_id: &str) -> (slint::Image, bool, f32, f32) {
@@ -6024,6 +6030,20 @@ fn instrument_index_to_string(index: i32) -> &'static str {
         .copied()
         .unwrap_or(block_core::DEFAULT_INSTRUMENT)
 }
+fn input_mode_to_index(mode: ChainInputMode) -> i32 {
+    match mode {
+        ChainInputMode::Mono => 0,
+        ChainInputMode::Stereo => 1,
+        ChainInputMode::DualMono => 2,
+    }
+}
+fn input_mode_from_index(index: i32) -> ChainInputMode {
+    match index {
+        1 => ChainInputMode::Stereo,
+        2 => ChainInputMode::DualMono,
+        _ => ChainInputMode::Mono,
+    }
+}
 fn instrument_string_to_index(instrument: &str) -> i32 {
     INSTRUMENT_KEYS
         .iter()
@@ -6107,6 +6127,7 @@ fn apply_chain_input_window_state(
         input_devices,
         draft.input_device_id.as_deref(),
     ));
+    input_window.set_selected_input_mode_index(input_mode_to_index(draft.input_mode));
     input_window.set_status_message("".into());
 }
 fn apply_chain_output_window_state(
