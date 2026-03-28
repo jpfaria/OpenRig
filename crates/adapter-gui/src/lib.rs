@@ -28,6 +28,7 @@ use serde::{Deserialize, Serialize};
 use slint::{Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
 use std::fmt::Display;
 use std::rc::Rc;
+use std::sync::Arc;
 use std::{
     cell::RefCell,
     env, fs,
@@ -366,6 +367,7 @@ pub fn run_desktop_app(
         context.capabilities.can_select_audio_device && !settings.is_complete();
     let project_paths = resolve_project_paths();
     let app_config = Rc::new(RefCell::new(load_and_sync_app_config()?));
+    let feedback_service = Arc::new(feedback::FeedbackService::new());
     let project_session = Rc::new(RefCell::new(None::<ProjectSession>));
     let chain_draft = Rc::new(RefCell::new(None::<ChainDraft>));
     let selected_block = Rc::new(RefCell::new(None::<SelectedBlock>));
@@ -4555,21 +4557,25 @@ pub fn run_desktop_app(
             window.set_feedback_dialog_visible(true);
         });
     }
-    // Feedback: submit via GitHub REST API (runs in background thread)
+    // Feedback: submit via configured driver (runs in background thread)
     {
         let weak_window = window.as_weak();
+        let feedback_service = Arc::clone(&feedback_service);
         window.on_submit_feedback(move |kind, title, description| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let kind = kind.to_string();
-            let title = title.to_string();
-            let description = description.to_string();
-            let error_context = window.get_feedback_error_context().to_string();
+            let report = feedback::FeedbackReport {
+                kind: kind.to_string(),
+                title: title.to_string(),
+                description: description.to_string(),
+                context: window.get_feedback_error_context().to_string(),
+            };
             let weak_window = weak_window.clone();
+            let feedback_service = Arc::clone(&feedback_service);
             window.set_feedback_status_message("Enviando…".into());
             std::thread::spawn(move || {
-                let result = feedback::submit_gh_feedback(&kind, &title, &description, &error_context);
+                let result = feedback_service.submit(report);
                 let _ = slint::invoke_from_event_loop(move || {
                     let Some(window) = weak_window.upgrade() else {
                         return;
@@ -4608,7 +4614,7 @@ pub fn run_desktop_app(
                         Err(error) => {
                             log_gui_error("submit_feedback", &error);
                             window.set_feedback_status_message(
-                                format!("Erro ao enviar: {error}").into(),
+                                "Não foi possível enviar o feedback. Tente novamente mais tarde.".into(),
                             );
                         }
                     }
