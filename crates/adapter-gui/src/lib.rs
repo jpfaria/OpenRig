@@ -4555,7 +4555,7 @@ pub fn run_desktop_app(
             window.set_feedback_dialog_visible(true);
         });
     }
-    // Feedback: submit via gh CLI
+    // Feedback: submit via GitHub REST API (runs in background thread)
     {
         let weak_window = window.as_weak();
         let toast_timer = toast_timer.clone();
@@ -4563,26 +4563,36 @@ pub fn run_desktop_app(
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            let kind = kind.to_string();
+            let title = title.to_string();
+            let description = description.to_string();
             let error_context = window.get_feedback_error_context().to_string();
-            match feedback::submit_gh_feedback(
-                kind.as_str(),
-                title.as_str(),
-                description.as_str(),
-                &error_context,
-            ) {
-                Ok(()) => {
-                    window.set_feedback_dialog_visible(false);
-                    window.set_feedback_description("".into());
-                    window.set_feedback_error_context("".into());
-                    set_status_info(&window, &toast_timer, "Feedback enviado! Obrigado.");
-                }
-                Err(error) => {
-                    log_gui_error("submit_feedback", &error);
-                    window.set_feedback_status_message(
-                        format!("Erro ao enviar: {error}").into(),
-                    );
-                }
-            }
+            let weak_window = weak_window.clone();
+            let toast_timer = toast_timer.clone();
+            window.set_feedback_status_message("Enviando…".into());
+            std::thread::spawn(move || {
+                let result = feedback::submit_gh_feedback(&kind, &title, &description, &error_context);
+                let _ = slint::invoke_from_event_loop(move || {
+                    let Some(window) = weak_window.upgrade() else {
+                        return;
+                    };
+                    match result {
+                        Ok(()) => {
+                            window.set_feedback_dialog_visible(false);
+                            window.set_feedback_description("".into());
+                            window.set_feedback_error_context("".into());
+                            window.set_feedback_status_message("".into());
+                            set_status_info(&window, &toast_timer, "Feedback enviado! Obrigado.");
+                        }
+                        Err(error) => {
+                            log_gui_error("submit_feedback", &error);
+                            window.set_feedback_status_message(
+                                format!("Erro ao enviar: {error}").into(),
+                            );
+                        }
+                    }
+                });
+            });
         });
     }
     // Ao fechar a janela principal, encerra todo o processo

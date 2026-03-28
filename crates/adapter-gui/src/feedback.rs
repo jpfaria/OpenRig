@@ -1,5 +1,10 @@
 use anyhow::{Context, Result};
-use std::process::Command;
+
+const GITHUB_TOKEN: &str = match option_env!("OPENRIG_FEEDBACK_TOKEN") {
+    Some(t) => t,
+    None => "",
+};
+const GITHUB_REPO: &str = "jpfaria/OpenRig";
 
 /// Builds the GitHub issue body from description and optional error context.
 pub fn build_issue_body(description: &str, context: &str) -> String {
@@ -11,22 +16,41 @@ pub fn build_issue_body(description: &str, context: &str) -> String {
     body
 }
 
-/// Submits a feedback issue via the `gh` CLI.
+/// Submits a feedback issue via the GitHub REST API.
 ///
 /// `kind` must be `"bug"` or `"enhancement"`.
 pub fn submit_gh_feedback(kind: &str, title: &str, description: &str, context: &str) -> Result<()> {
+    if GITHUB_TOKEN.is_empty() {
+        return Err(anyhow::anyhow!(
+            "Token do GitHub não configurado. Compile com OPENRIG_FEEDBACK_TOKEN=<token>."
+        ));
+    }
+
     let body = build_issue_body(description, context);
     let label = if kind == "bug" { "bug" } else { "enhancement" };
-    let status = Command::new("gh")
-        .args(["issue", "create", "--title", title, "--body", &body, "--label", label])
-        .status()
-        .context("Falha ao executar 'gh'. Certifique-se de que o GitHub CLI está instalado e autenticado.")?;
-    if status.success() {
+
+    let payload = serde_json::json!({
+        "title": title,
+        "body": body,
+        "labels": [label]
+    });
+
+    let url = format!("https://api.github.com/repos/{GITHUB_REPO}/issues");
+
+    let response = ureq::post(&url)
+        .set("Authorization", &format!("Bearer {GITHUB_TOKEN}"))
+        .set("Accept", "application/vnd.github+json")
+        .set("X-GitHub-Api-Version", "2022-11-28")
+        .set("User-Agent", "OpenRig")
+        .send_json(payload)
+        .context("Falha ao criar issue no GitHub")?;
+
+    if response.status() == 201 {
         Ok(())
     } else {
         Err(anyhow::anyhow!(
-            "gh issue create falhou com código {}",
-            status.code().unwrap_or(-1)
+            "GitHub API retornou status {}",
+            response.status()
         ))
     }
 }
