@@ -7,10 +7,16 @@ chains:
   - description: guitar 1
     instrument: electric_guitar
     enabled: true
-    input_device_id: "coreaudio:AppleUSBAudioEngine:Focusrite:Scarlett 2i2 4th Gen:S21ANUD3C1EEBE:1,2"
-    input_channels: [0]
-    output_device_id: "coreaudio:AppleUSBAudioEngine:Focusrite:Scarlett 2i2 4th Gen:S21ANUD3C1EEBE:1,2"
-    output_channels: [0, 1]
+    inputs:
+      - name: Input 1
+        device_id: "coreaudio:AppleUSBAudioEngine:Focusrite:Scarlett 2i2 4th Gen:S21ANUD3C1EEBE:1,2"
+        mode: mono
+        channels: [0]
+    outputs:
+      - name: Output 1
+        device_id: "coreaudio:AppleUSBAudioEngine:Focusrite:Scarlett 2i2 4th Gen:S21ANUD3C1EEBE:1,2"
+        mode: stereo
+        channels: [0, 1]
     blocks:
       - type: preamp
         model: marshall_jcm_800_2203

@@ -5,7 +5,9 @@ use project::block::{
 };
 use project::param::ParameterSet;
 use project::project::Project;
-use project::chain::{Chain, ChainInputMode, ChainOutputMixdown, ProcessingLayout};
+use project::chain::{
+    Chain, ChainInput, ChainInputMode, ChainOutputMixdown, ChainOutputMode, ProcessingLayout,
+};
 use block_amp::build_amp_processor_for_layout;
 use block_preamp::build_preamp_processor_for_layout;
 use block_body::build_body_processor_for_layout;
@@ -215,22 +217,32 @@ impl ChainRuntimeState {
 /// Number of frames to fade in after a chain rebuild to avoid clicks/pops.
 const FADE_IN_FRAMES: usize = 128;
 
-struct ChainProcessingState {
+struct InputProcessingState {
     input_read_layout: AudioChannelLayout,
     processing_layout: AudioChannelLayout,
     input_channels: Vec<usize>,
     blocks: Vec<BlockRuntimeNode>,
     frame_buffer: Vec<AudioFrame>,
-    tuner_samples: Vec<f32>,
     /// Remaining frames of fade-in after a rebuild (0 = no fade active).
     fade_in_remaining: usize,
 }
 
-struct ChainOutputState {
+struct ChainProcessingState {
+    input_states: Vec<InputProcessingState>,
+    tuner_samples: Vec<f32>,
+    #[allow(dead_code)]
+    mixed_buffer: Vec<AudioFrame>,
+}
+
+struct OutputRoutingState {
     output_layout: AudioChannelLayout,
     output_channels: Vec<usize>,
     output_mixdown: ChainOutputMixdown,
-    processed_frames: VecDeque<AudioFrame>,
+    queue: VecDeque<AudioFrame>,
+}
+
+struct ChainOutputState {
+    output_routes: Vec<OutputRoutingState>,
 }
 
 enum RuntimeProcessor {
@@ -299,52 +311,148 @@ pub fn build_runtime_graph(
 }
 
 pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<ChainRuntimeState> {
-    let input_read_layout = match chain.input_mode {
-        ChainInputMode::Mono => AudioChannelLayout::Mono,
-        ChainInputMode::Stereo | ChainInputMode::DualMono => {
-            layout_from_channels(chain.input_channels.len().min(2).max(1))?
-        }
+    // Resolve effective inputs: use new multi-input if available, else legacy fallback
+    let effective_inputs = effective_inputs(chain);
+    let effective_outputs = effective_outputs(chain);
+
+    // Collect all output channels for processing layout determination
+    let all_output_channels: Vec<usize> = effective_outputs
+        .iter()
+        .flat_map(|o| o.channels.iter().copied())
+        .collect();
+
+    let mut input_states = Vec::with_capacity(effective_inputs.len());
+    for input in &effective_inputs {
+        let input_state = build_input_processing_state(chain, input, &all_output_channels, sample_rate, None)?;
+        input_states.push(input_state);
+    }
+
+    let mut output_routes = Vec::with_capacity(effective_outputs.len());
+    for output in &effective_outputs {
+        output_routes.push(build_output_routing_state(output));
+    }
+
+    Ok(ChainRuntimeState {
+        processing: Mutex::new(ChainProcessingState {
+            input_states,
+            tuner_samples: Vec::new(),
+            mixed_buffer: Vec::with_capacity(1024),
+        }),
+        output: Mutex::new(ChainOutputState { output_routes }),
+        tuner_shared_buffer: Mutex::new(Vec::with_capacity(8192)),
+        tuner_reading: Mutex::new(block_util::TunerReading::default()),
+    })
+}
+
+/// Build effective inputs from chain, falling back to legacy fields if `inputs` is empty.
+fn effective_inputs(chain: &Chain) -> Vec<ChainInput> {
+    if !chain.inputs.is_empty() {
+        return chain.inputs.clone();
+    }
+    // Legacy fallback
+    if chain.input_device_id.0.is_empty() && chain.input_channels.is_empty() {
+        // Completely empty — return a single mono input on channel 0 so processing works
+        return vec![ChainInput {
+            name: "Input 1".to_string(),
+            device_id: chain.input_device_id.clone(),
+            mode: chain.input_mode,
+            channels: if chain.input_channels.is_empty() {
+                vec![0]
+            } else {
+                chain.input_channels.clone()
+            },
+        }];
+    }
+    vec![ChainInput {
+        name: "Input 1".to_string(),
+        device_id: chain.input_device_id.clone(),
+        mode: chain.input_mode,
+        channels: chain.input_channels.clone(),
+    }]
+}
+
+/// Build effective outputs from chain, falling back to legacy fields if `outputs` is empty.
+fn effective_outputs(chain: &Chain) -> Vec<project::chain::ChainOutput> {
+    if !chain.outputs.is_empty() {
+        return chain.outputs.clone();
+    }
+    // Legacy fallback
+    let mode = if chain.output_channels.len() >= 2 {
+        ChainOutputMode::Stereo
+    } else {
+        ChainOutputMode::Mono
     };
+    vec![project::chain::ChainOutput {
+        name: "Output 1".to_string(),
+        device_id: chain.output_device_id.clone(),
+        mode,
+        channels: if chain.output_channels.is_empty() {
+            vec![0]
+        } else {
+            chain.output_channels.clone()
+        },
+    }]
+}
+
+fn build_input_processing_state(
+    chain: &Chain,
+    input: &ChainInput,
+    output_channels: &[usize],
+    sample_rate: f32,
+    existing_blocks: Option<Vec<BlockRuntimeNode>>,
+) -> Result<InputProcessingState> {
+    // Use both input and output channel info to determine processing layout
+    // (matches legacy behavior: mono input + stereo output = stereo processing)
     let proc_layout = project::chain::processing_layout(
-        &chain.input_channels,
-        &chain.output_channels,
-        chain.input_mode,
+        &input.channels,
+        output_channels,
+        input.mode,
     );
     let processing_layout_channel = match proc_layout {
         ProcessingLayout::Mono | ProcessingLayout::DualMono => AudioChannelLayout::Mono,
         ProcessingLayout::Stereo => AudioChannelLayout::Stereo,
     };
+    let input_read_layout = match input.mode {
+        ChainInputMode::Mono => AudioChannelLayout::Mono,
+        ChainInputMode::Stereo | ChainInputMode::DualMono => AudioChannelLayout::Stereo,
+    };
     log::info!(
-        "chain '{}' processing layout: input_read={}, processing={:?} (in={} out={} mode={:?})",
+        "chain '{}' input '{}' processing layout: input_read={}, processing={:?} (channels={:?} mode={:?})",
         chain.id.0,
+        input.name,
         layout_label(input_read_layout),
         proc_layout,
-        chain.input_channels.len(),
-        chain.output_channels.len(),
-        chain.input_mode,
+        input.channels,
+        input.mode,
     );
-    let (blocks, output_layout) =
-        build_runtime_block_nodes(chain, processing_layout_channel, sample_rate, None)?;
+    let (blocks, _output_layout) =
+        build_runtime_block_nodes(chain, processing_layout_channel, sample_rate, existing_blocks)?;
 
-    Ok(ChainRuntimeState {
-        processing: Mutex::new(ChainProcessingState {
-            input_read_layout,
-            processing_layout: processing_layout_channel,
-            input_channels: chain.input_channels.clone(),
-            blocks,
-            frame_buffer: Vec::new(),
-            tuner_samples: Vec::new(),
-            fade_in_remaining: FADE_IN_FRAMES,
-        }),
-        output: Mutex::new(ChainOutputState {
-            output_layout,
-            output_channels: chain.output_channels.clone(),
-            output_mixdown: chain.output_mixdown,
-            processed_frames: VecDeque::with_capacity(MAX_BUFFERED_OUTPUT_FRAMES),
-        }),
-        tuner_shared_buffer: Mutex::new(Vec::with_capacity(8192)),
-        tuner_reading: Mutex::new(block_util::TunerReading::default()),
+    Ok(InputProcessingState {
+        input_read_layout,
+        processing_layout: processing_layout_channel,
+        input_channels: input.channels.clone(),
+        blocks,
+        frame_buffer: Vec::with_capacity(1024),
+        fade_in_remaining: FADE_IN_FRAMES,
     })
+}
+
+fn build_output_routing_state(output: &project::chain::ChainOutput) -> OutputRoutingState {
+    let output_layout = if output.channels.len() >= 2 {
+        match output.mode {
+            ChainOutputMode::Stereo => AudioChannelLayout::Stereo,
+            ChainOutputMode::Mono => AudioChannelLayout::Mono,
+        }
+    } else {
+        AudioChannelLayout::Mono
+    };
+    OutputRoutingState {
+        output_layout,
+        output_channels: output.channels.clone(),
+        output_mixdown: ChainOutputMixdown::Average,
+        queue: VecDeque::with_capacity(MAX_BUFFERED_OUTPUT_FRAMES),
+    }
 }
 
 pub fn update_chain_runtime_state(
@@ -353,63 +461,57 @@ pub fn update_chain_runtime_state(
     sample_rate: f32,
     reset_output_queue: bool,
 ) -> Result<()> {
-    let input_read_layout = match chain.input_mode {
-        ChainInputMode::Mono => AudioChannelLayout::Mono,
-        ChainInputMode::Stereo | ChainInputMode::DualMono => {
-            layout_from_channels(chain.input_channels.len().min(2).max(1))?
-        }
-    };
-    let proc_layout = project::chain::processing_layout(
-        &chain.input_channels,
-        &chain.output_channels,
-        chain.input_mode,
-    );
-    let processing_layout_channel = match proc_layout {
-        ProcessingLayout::Mono | ProcessingLayout::DualMono => AudioChannelLayout::Mono,
-        ProcessingLayout::Stereo => AudioChannelLayout::Stereo,
-    };
-    log::info!(
-        "chain '{}' update processing layout: input_read={}, processing={:?} (in={} out={} mode={:?})",
-        chain.id.0,
-        layout_label(input_read_layout),
-        proc_layout,
-        chain.input_channels.len(),
-        chain.output_channels.len(),
-        chain.input_mode,
-    );
+    let effective_ins = effective_inputs(chain);
+    let effective_outs = effective_outputs(chain);
+    let all_output_channels: Vec<usize> = effective_outs
+        .iter()
+        .flat_map(|o| o.channels.iter().copied())
+        .collect();
 
-    // Step 1: Extract existing blocks (brief lock)
-    let existing = {
+    // Step 1: Extract existing blocks from all input states (brief lock)
+    let mut existing_per_input: Vec<Vec<BlockRuntimeNode>> = {
         let mut processing = runtime.processing.lock().expect("chain runtime poisoned");
-        std::mem::take(&mut processing.blocks)
+        processing
+            .input_states
+            .iter_mut()
+            .map(|is| std::mem::take(&mut is.blocks))
+            .collect()
     };
 
-    // Step 2: Build new blocks OUTSIDE the lock (no audio interruption)
-    let (blocks, output_layout) =
-        build_runtime_block_nodes(chain, processing_layout_channel, sample_rate, Some(existing))?;
-    let new_input_channels = chain.input_channels.clone();
-    let new_output_channels = chain.output_channels.clone();
-    let new_mixdown = chain.output_mixdown;
-
-    // Step 3: Swap in the new state (brief lock — just pointer assignments)
-    {
-        let mut processing = runtime.processing.lock().expect("chain runtime poisoned");
-        processing.input_read_layout = input_read_layout;
-        processing.processing_layout = processing_layout_channel;
-        processing.input_channels = new_input_channels;
-        processing.blocks = blocks;
-        // Don't clear frame_buffer — let current frames finish processing
-        processing.fade_in_remaining = FADE_IN_FRAMES;
+    // Step 2: Build new input states OUTSIDE the lock (no audio interruption)
+    let mut new_input_states = Vec::with_capacity(effective_ins.len());
+    for (i, input) in effective_ins.iter().enumerate() {
+        let existing = if i < existing_per_input.len() {
+            Some(std::mem::take(&mut existing_per_input[i]))
+        } else {
+            None
+        };
+        let input_state = build_input_processing_state(chain, input, &all_output_channels, sample_rate, existing)?;
+        new_input_states.push(input_state);
     }
 
-    let mut output = runtime.output.lock().expect("chain runtime poisoned");
-    output.output_layout = output_layout;
-    output.output_channels = new_output_channels;
-    output.output_mixdown = new_mixdown;
-    if reset_output_queue {
-        output.processed_frames.clear();
-    } else {
-        trim_output_queue(&mut output.processed_frames);
+    // Build new output routes
+    let new_output_routes: Vec<OutputRoutingState> = effective_outs
+        .iter()
+        .map(|o| build_output_routing_state(o))
+        .collect();
+
+    // Step 3: Swap in new state (brief lock)
+    {
+        let mut processing = runtime.processing.lock().expect("chain runtime poisoned");
+        processing.input_states = new_input_states;
+    }
+
+    {
+        let mut output = runtime.output.lock().expect("chain runtime poisoned");
+        // Preserve existing queues where possible
+        let old_routes = std::mem::replace(&mut output.output_routes, new_output_routes);
+        for (new_route, old_route) in output.output_routes.iter_mut().zip(old_routes.into_iter()) {
+            if !reset_output_queue {
+                new_route.queue = old_route.queue;
+                trim_output_queue(&mut new_route.queue);
+            }
+        }
     }
 
     Ok(())
@@ -954,21 +1056,37 @@ fn optional_string(params: &ParameterSet, path: &str) -> Option<String> {
         .map(ToString::to_string)
 }
 
-pub fn process_input_f32(runtime: &Arc<ChainRuntimeState>, data: &[f32], input_total_channels: usize) {
+pub fn process_input_f32(
+    runtime: &Arc<ChainRuntimeState>,
+    input_index: usize,
+    data: &[f32],
+    input_total_channels: usize,
+) {
     let num_frames = data.len() / input_total_channels;
     let mut processing = match runtime.processing.try_lock() {
         Ok(guard) => guard,
-        Err(_) => return, // Skip this buffer rather than blocking the audio thread
+        Err(_) => return,
     };
     let ChainProcessingState {
+        input_states,
+        tuner_samples,
+        mixed_buffer: _,
+    } = &mut *processing;
+
+    let input_state = match input_states.get_mut(input_index) {
+        Some(s) => s,
+        None => return,
+    };
+
+    let InputProcessingState {
         input_read_layout,
         processing_layout,
         input_channels,
         blocks,
         frame_buffer,
-        tuner_samples,
         fade_in_remaining,
-    } = &mut *processing;
+    } = input_state;
+
     let tuner_enabled = blocks.iter().any(block_has_active_tuner);
 
     frame_buffer.clear();
@@ -990,7 +1108,7 @@ pub fn process_input_f32(runtime: &Arc<ChainRuntimeState>, data: &[f32], input_t
         // Adapt to processing layout
         let chain_frame = match (*input_read_layout, *processing_layout) {
             (AudioChannelLayout::Mono, AudioChannelLayout::Stereo) => {
-                // Mono input → duplicate to stereo for processing
+                // Mono input -> duplicate to stereo for processing
                 let sample = match raw_frame {
                     AudioFrame::Mono(s) => s,
                     _ => unreachable!(),
@@ -1035,9 +1153,29 @@ pub fn process_input_f32(runtime: &Arc<ChainRuntimeState>, data: &[f32], input_t
         }
     }
 
-    let mut output = runtime.output.lock().expect("chain runtime poisoned");
-    output.processed_frames.extend(frame_buffer.drain(..));
-    trim_output_queue(&mut output.processed_frames);
+    // Collect processed frames into a local vec, then release processing lock
+    let processed: Vec<AudioFrame> = input_state.frame_buffer.drain(..).collect();
+    drop(processing);
+
+    // Mix processed frames into all output routes.
+    // If the queue already has frames (from another input), sum them.
+    // Otherwise, push new frames.
+    if let Ok(mut output) = runtime.output.try_lock() {
+        for route in output.output_routes.iter_mut() {
+            let existing_len = route.queue.len();
+            for (i, &frame) in processed.iter().enumerate() {
+                if i < existing_len {
+                    // Sum with existing frame from another input
+                    let existing = &mut route.queue[i];
+                    *existing = mix_frames(*existing, frame);
+                } else {
+                    // No existing frame yet — push as-is
+                    route.queue.push_back(frame);
+                }
+            }
+            trim_output_queue(&mut route.queue);
+        }
+    }
 }
 
 fn block_has_active_tuner(block: &BlockRuntimeNode) -> bool {
@@ -1135,13 +1273,20 @@ fn process_audio_block(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame]) 
 
 pub fn process_output_f32(
     runtime: &Arc<ChainRuntimeState>,
+    output_index: usize,
     out: &mut [f32],
     output_total_channels: usize,
 ) {
     let mut output_state = match runtime.output.try_lock() {
         Ok(guard) => guard,
         Err(_) => {
-            // Cannot block the audio thread — fill with silence
+            out.fill(0.0);
+            return;
+        }
+    };
+    let route = match output_state.output_routes.get_mut(output_index) {
+        Some(r) => r,
+        None => {
             out.fill(0.0);
             return;
         }
@@ -1150,15 +1295,15 @@ pub fn process_output_f32(
 
     for frame in out.chunks_mut(output_total_channels).take(num_frames) {
         frame.fill(0.0);
-        let processed = output_state
-            .processed_frames
+        let processed = route
+            .queue
             .pop_front()
-            .unwrap_or_else(|| silent_frame(output_state.output_layout));
+            .unwrap_or_else(|| silent_frame(route.output_layout));
         write_output_frame(
             processed,
-            &output_state.output_channels,
+            &route.output_channels,
             frame,
-            output_state.output_mixdown,
+            route.output_mixdown,
         );
     }
 }
@@ -1191,6 +1336,22 @@ fn silent_frame(layout: AudioChannelLayout) -> AudioFrame {
     match layout {
         AudioChannelLayout::Mono => AudioFrame::Mono(0.0),
         AudioChannelLayout::Stereo => AudioFrame::Stereo([0.0, 0.0]),
+    }
+}
+
+/// Sum two audio frames together (for mixing multiple input streams).
+fn mix_frames(a: AudioFrame, b: AudioFrame) -> AudioFrame {
+    match (a, b) {
+        (AudioFrame::Mono(l), AudioFrame::Mono(r)) => AudioFrame::Mono(l + r),
+        (AudioFrame::Stereo([l1, r1]), AudioFrame::Stereo([l2, r2])) => {
+            AudioFrame::Stereo([l1 + l2, r1 + r2])
+        }
+        (AudioFrame::Mono(m), AudioFrame::Stereo([l, r])) => {
+            AudioFrame::Stereo([m + l, m + r])
+        }
+        (AudioFrame::Stereo([l, r]), AudioFrame::Mono(m)) => {
+            AudioFrame::Stereo([l + m, r + m])
+        }
     }
 }
 
@@ -1247,6 +1408,7 @@ fn apply_mixdown(mixdown: ChainOutputMixdown, left: f32, right: f32) -> f32 {
     }
 }
 
+#[allow(dead_code)]
 fn layout_from_channels(channel_count: usize) -> Result<AudioChannelLayout> {
     match channel_count {
         1 => Ok(AudioChannelLayout::Mono),
@@ -1304,6 +1466,8 @@ mod tests {
                 description: Some("Cab test".into()),
                 instrument: "electric_guitar".to_string(),
                 enabled: true,
+                inputs: Vec::new(),
+                outputs: Vec::new(),
                 input_device_id: DeviceId("input-device".into()),
                 input_channels: vec![0],
                 output_device_id: DeviceId("output-device".into()),
@@ -1342,6 +1506,8 @@ mod tests {
                 description: Some("Cab test".into()),
                 instrument: "electric_guitar".to_string(),
                 enabled: true,
+                inputs: Vec::new(),
+                outputs: Vec::new(),
                 input_device_id: DeviceId("input-device".into()),
                 input_channels: vec![0],
                 output_device_id: DeviceId("output-device".into()),
@@ -1386,6 +1552,7 @@ mod tests {
         let original_serials = {
             let locked = runtime.processing.lock().expect("runtime poisoned");
             locked
+                .input_states[0]
                 .blocks
                 .iter()
                 .map(|block| block.instance_serial)
@@ -1403,6 +1570,7 @@ mod tests {
         let updated_serials = {
             let locked = runtime.processing.lock().expect("runtime poisoned");
             locked
+                .input_states[0]
                 .blocks
                 .iter()
                 .map(|block| block.instance_serial)
@@ -1428,6 +1596,7 @@ mod tests {
         let original_by_block_id = {
             let locked = runtime.processing.lock().expect("runtime poisoned");
             locked
+                .input_states[0]
                 .blocks
                 .iter()
                 .map(|block| (block.block_id.clone(), block.instance_serial))
@@ -1440,8 +1609,8 @@ mod tests {
             .expect("runtime update should succeed");
 
         let reordered = runtime.processing.lock().expect("runtime poisoned");
-        assert_eq!(reordered.blocks.len(), 2);
-        for block in &reordered.blocks {
+        assert_eq!(reordered.input_states[0].blocks.len(), 2);
+        for block in &reordered.input_states[0].blocks {
             assert_eq!(
                 Some(&block.instance_serial),
                 original_by_block_id.get(&block.block_id)
@@ -1457,10 +1626,10 @@ mod tests {
         let total_frames = MAX_BUFFERED_OUTPUT_FRAMES + 64;
         let input = vec![0.25f32; total_frames];
 
-        process_input_f32(&runtime, &input, 1);
+        process_input_f32(&runtime, 0, &input, 1);
 
         let output = runtime.output.lock().expect("runtime poisoned");
-        assert_eq!(output.processed_frames.len(), MAX_BUFFERED_OUTPUT_FRAMES);
+        assert_eq!(output.output_routes[0].queue.len(), MAX_BUFFERED_OUTPUT_FRAMES);
     }
 
     #[test]
@@ -1469,14 +1638,14 @@ mod tests {
         let runtime =
             Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"));
 
-        process_input_f32(&runtime, &[0.25, 0.5, 0.75, 1.0], 1);
+        process_input_f32(&runtime, 0, &[0.25, 0.5, 0.75, 1.0], 1);
 
         let mut out = vec![0.0f32; 4];
-        process_output_f32(&runtime, &mut out, 1);
+        process_output_f32(&runtime, 0, &mut out, 1);
 
         assert_eq!(out, vec![0.25, 0.5, 0.75, 1.0]);
         let output = runtime.output.lock().expect("runtime poisoned");
-        assert!(output.processed_frames.is_empty());
+        assert!(output.output_routes[0].queue.is_empty());
     }
 
     #[test]
@@ -1486,6 +1655,8 @@ mod tests {
             description: Some("Stereo isolation".into()),
             instrument: "electric_guitar".to_string(),
             enabled: true,
+            inputs: Vec::new(),
+            outputs: Vec::new(),
             input_device_id: DeviceId("input-device".into()),
             input_channels: vec![0, 1],
             output_device_id: DeviceId("output-device".into()),
@@ -1507,10 +1678,10 @@ mod tests {
             frame[0] = 0.25;
             frame[1] = 0.0;
         }
-        process_input_f32(&runtime, &input, 2);
+        process_input_f32(&runtime, 0, &input, 2);
 
         let mut output = vec![0.0f32; input.len()];
-        process_output_f32(&runtime, &mut output, 2);
+        process_output_f32(&runtime, 0, &mut output, 2);
 
         let right_peak = output
             .chunks_exact(2)
@@ -1529,6 +1700,8 @@ mod tests {
             description: Some("Stereo isolation asset-backed".into()),
             instrument: "electric_guitar".to_string(),
             enabled: true,
+            inputs: Vec::new(),
+            outputs: Vec::new(),
             input_device_id: DeviceId("input-device".into()),
             input_channels: vec![0, 1],
             output_device_id: DeviceId("output-device".into()),
@@ -1549,10 +1722,10 @@ mod tests {
             frame[0] = 0.25;
             frame[1] = 0.0;
         }
-        process_input_f32(&runtime, &input, 2);
+        process_input_f32(&runtime, 0, &input, 2);
 
         let mut output = vec![0.0f32; input.len()];
-        process_output_f32(&runtime, &mut output, 2);
+        process_output_f32(&runtime, 0, &mut output, 2);
 
         let right_peak = output
             .chunks_exact(2)
@@ -1572,7 +1745,7 @@ mod tests {
             build_chain_runtime_state(&chain, 48_000.0).expect("select delay chain should build");
 
         let locked = runtime.processing.lock().expect("runtime poisoned");
-        assert_eq!(locked.blocks.len(), 1);
+        assert_eq!(locked.input_states[0].blocks.len(), 1);
     }
 
     #[test]
@@ -1582,7 +1755,7 @@ mod tests {
             Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"));
         let original_serial = {
             let locked = runtime.processing.lock().expect("runtime poisoned");
-            locked.blocks[0].instance_serial
+            locked.input_states[0].blocks[0].instance_serial
         };
 
         if let AudioBlockKind::Select(select) = &mut chain.blocks[0].kind {
@@ -1594,7 +1767,7 @@ mod tests {
 
         let updated_serial = {
             let locked = runtime.processing.lock().expect("runtime poisoned");
-            locked.blocks[0].instance_serial
+            locked.input_states[0].blocks[0].instance_serial
         };
 
         assert_eq!(updated_serial, original_serial);
@@ -1606,6 +1779,8 @@ mod tests {
             description: Some("Tuner chain".into()),
             instrument: "electric_guitar".to_string(),
             enabled: true,
+            inputs: Vec::new(),
+            outputs: Vec::new(),
             input_device_id: DeviceId("input-device".into()),
             input_channels: vec![0],
             output_device_id: DeviceId("output-device".into()),
@@ -1769,6 +1944,8 @@ mod tests {
             description: Some("Delay select".into()),
             instrument: "electric_guitar".to_string(),
             enabled: true,
+            inputs: Vec::new(),
+            outputs: Vec::new(),
             input_device_id: DeviceId("input-device".into()),
             input_channels: vec![0],
             output_device_id: DeviceId("output-device".into()),

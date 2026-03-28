@@ -7,7 +7,7 @@ use project::block::{
 use project::device::DeviceSettings;
 use project::param::ParameterSet;
 use project::project::Project;
-use project::chain::{Chain, ChainInputMode, ChainOutputMixdown};
+use project::chain::{Chain, ChainInput, ChainInputMode, ChainOutput, ChainOutputMixdown, ChainOutputMode};
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 use std::fs;
@@ -186,6 +186,34 @@ impl DeviceSettingsYaml {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+struct ChainInputYaml {
+    #[serde(default = "default_input_yaml_name")]
+    name: String,
+    device_id: String,
+    #[serde(default)]
+    mode: ChainInputMode,
+    channels: Vec<usize>,
+}
+
+fn default_input_yaml_name() -> String {
+    "Input".to_string()
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct ChainOutputYaml {
+    #[serde(default = "default_output_yaml_name")]
+    name: String,
+    device_id: String,
+    #[serde(default)]
+    mode: ChainOutputMode,
+    channels: Vec<usize>,
+}
+
+fn default_output_yaml_name() -> String {
+    "Output".to_string()
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 #[allow(dead_code)]
 struct ChainYaml {
     #[serde(default)]
@@ -194,15 +222,25 @@ struct ChainYaml {
     instrument: String,
     #[serde(default = "default_enabled", skip_serializing)]
     enabled: bool,
-    input_device_id: String,
-    input_channels: Vec<usize>,
-    output_device_id: String,
-    output_channels: Vec<usize>,
+    // New multi-input/output fields
+    #[serde(default)]
+    inputs: Vec<ChainInputYaml>,
+    #[serde(default)]
+    outputs: Vec<ChainOutputYaml>,
+    // Legacy fields — kept for backward-compatible deserialization, skipped on serialization
+    #[serde(default, skip_serializing)]
+    input_device_id: Option<String>,
+    #[serde(default, skip_serializing)]
+    input_channels: Option<Vec<usize>>,
+    #[serde(default, skip_serializing)]
+    output_device_id: Option<String>,
+    #[serde(default, skip_serializing)]
+    output_channels: Option<Vec<usize>>,
     #[serde(default)]
     blocks: Vec<Value>,
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     output_mixdown: ChainOutputMixdown,
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     input_mode: ChainInputMode,
 }
 
@@ -210,15 +248,33 @@ impl ChainYaml {
     fn into_chain(self, index: usize) -> Result<Chain> {
         let chain_id = generated_chain_id(index);
         log::debug!("deserializing chain index={}, description={:?}, instrument='{}'", index, self.description, self.instrument);
-        Ok(Chain {
+
+        // Convert new-format inputs/outputs from YAML DTOs
+        let inputs: Vec<ChainInput> = self.inputs.into_iter().map(|i| ChainInput {
+            name: i.name,
+            device_id: DeviceId(i.device_id),
+            mode: i.mode,
+            channels: i.channels,
+        }).collect();
+
+        let outputs: Vec<ChainOutput> = self.outputs.into_iter().map(|o| ChainOutput {
+            name: o.name,
+            device_id: DeviceId(o.device_id),
+            mode: o.mode,
+            channels: o.channels,
+        }).collect();
+
+        let mut chain = Chain {
             id: chain_id.clone(),
             description: self.description,
             instrument: self.instrument,
             enabled: false, // chains always start disabled on load
-            input_device_id: DeviceId(self.input_device_id),
-            input_channels: self.input_channels,
-            output_device_id: DeviceId(self.output_device_id),
-            output_channels: self.output_channels,
+            inputs,
+            outputs,
+            input_device_id: DeviceId(self.input_device_id.unwrap_or_default()),
+            input_channels: self.input_channels.unwrap_or_default(),
+            output_device_id: DeviceId(self.output_device_id.unwrap_or_default()),
+            output_channels: self.output_channels.unwrap_or_default(),
             blocks: self
                 .blocks
                 .into_iter()
@@ -229,18 +285,41 @@ impl ChainYaml {
                 .collect(),
             output_mixdown: self.output_mixdown,
             input_mode: self.input_mode,
-        })
+        };
+
+        // Migrate legacy single-input/output to multi-input/output if needed
+        chain.migrate_legacy_io();
+
+        Ok(chain)
     }
 
     fn from_chain(chain: &Chain) -> Result<Self> {
+        // Serialize using new inputs/outputs format
+        let inputs = chain.inputs.iter().map(|i| ChainInputYaml {
+            name: i.name.clone(),
+            device_id: i.device_id.0.clone(),
+            mode: i.mode,
+            channels: i.channels.clone(),
+        }).collect();
+
+        let outputs = chain.outputs.iter().map(|o| ChainOutputYaml {
+            name: o.name.clone(),
+            device_id: o.device_id.0.clone(),
+            mode: o.mode,
+            channels: o.channels.clone(),
+        }).collect();
+
         Ok(Self {
             description: chain.description.clone(),
             instrument: chain.instrument.clone(),
             enabled: chain.enabled,
-            input_device_id: chain.input_device_id.0.clone(),
-            input_channels: chain.input_channels.clone(),
-            output_device_id: chain.output_device_id.0.clone(),
-            output_channels: chain.output_channels.clone(),
+            inputs,
+            outputs,
+            // Legacy fields are None when serializing new format
+            input_device_id: None,
+            input_channels: None,
+            output_device_id: None,
+            output_channels: None,
             blocks: chain
                 .blocks
                 .iter()
@@ -837,7 +916,7 @@ mod tests {
     };
     use project::param::ParameterSet;
     use project::project::Project;
-    use project::chain::{Chain, ChainInputMode, ChainOutputMixdown};
+    use project::chain::{Chain, ChainInput, ChainInputMode, ChainOutput, ChainOutputMixdown, ChainOutputMode};
     use std::fs;
     use std::path::PathBuf;
     use tempfile::tempdir;
@@ -857,10 +936,22 @@ mod tests {
                 description: Some("Guitar 1".into()),
                 instrument: "electric_guitar".to_string(),
                 enabled: true,
-                input_device_id: DeviceId("input-device".into()),
-                input_channels: vec![0],
-                output_device_id: DeviceId("output-device".into()),
-                output_channels: vec![0, 1],
+                inputs: vec![ChainInput {
+                    name: "Input 1".to_string(),
+                    device_id: DeviceId("input-device".into()),
+                    mode: ChainInputMode::Mono,
+                    channels: vec![0],
+                }],
+                outputs: vec![ChainOutput {
+                    name: "Output 1".to_string(),
+                    device_id: DeviceId("output-device".into()),
+                    mode: ChainOutputMode::Stereo,
+                    channels: vec![0, 1],
+                }],
+                input_device_id: DeviceId("".into()),
+                input_channels: vec![],
+                output_device_id: DeviceId("".into()),
+                output_channels: vec![],
                 blocks: Vec::new(),
                 output_mixdown: ChainOutputMixdown::Average,
                 input_mode: ChainInputMode::Mono,
@@ -880,26 +971,45 @@ mod tests {
         assert_eq!(loaded.name, original.name);
         assert_eq!(loaded.chains.len(), 1);
         assert_eq!(loaded.chains[0].description, original.chains[0].description);
-        assert_eq!(
-            loaded.chains[0].input_device_id,
-            original.chains[0].input_device_id
-        );
-        assert_eq!(
-            loaded.chains[0].input_channels,
-            original.chains[0].input_channels
-        );
-        assert_eq!(
-            loaded.chains[0].output_device_id,
-            original.chains[0].output_device_id
-        );
-        assert_eq!(
-            loaded.chains[0].output_channels,
-            original.chains[0].output_channels
-        );
-        assert_eq!(
-            loaded.chains[0].output_mixdown,
-            original.chains[0].output_mixdown
-        );
+        assert_eq!(loaded.chains[0].inputs.len(), 1);
+        assert_eq!(loaded.chains[0].inputs[0].device_id, DeviceId("input-device".into()));
+        assert_eq!(loaded.chains[0].inputs[0].channels, vec![0]);
+        assert_eq!(loaded.chains[0].outputs.len(), 1);
+        assert_eq!(loaded.chains[0].outputs[0].device_id, DeviceId("output-device".into()));
+        assert_eq!(loaded.chains[0].outputs[0].channels, vec![0, 1]);
+    }
+
+    #[test]
+    fn load_project_migrates_legacy_io_format() {
+        let temp_dir = tempdir().expect("temp dir should be created");
+        let project_path = temp_dir.path().join("project.yaml");
+        fs::write(
+            &project_path,
+            r#"
+chains:
+  - enabled: true
+    input_device_id: legacy-input
+    input_channels: [0]
+    output_device_id: legacy-output
+    output_channels: [0, 1]
+    blocks: []
+"#,
+        )
+        .expect("project yaml should be written");
+
+        let repository = YamlProjectRepository { path: project_path };
+        let project = repository
+            .load_current_project()
+            .expect("legacy project should load with migration");
+
+        assert_eq!(project.chains.len(), 1);
+        assert_eq!(project.chains[0].inputs.len(), 1);
+        assert_eq!(project.chains[0].inputs[0].device_id, DeviceId("legacy-input".into()));
+        assert_eq!(project.chains[0].inputs[0].channels, vec![0]);
+        assert_eq!(project.chains[0].outputs.len(), 1);
+        assert_eq!(project.chains[0].outputs[0].device_id, DeviceId("legacy-output".into()));
+        assert_eq!(project.chains[0].outputs[0].channels, vec![0, 1]);
+        assert_eq!(project.chains[0].outputs[0].mode, ChainOutputMode::Stereo);
     }
 
     #[test]

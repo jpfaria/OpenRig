@@ -165,6 +165,8 @@ mod tests {
             description: Some("Guitarra".to_string()),
             instrument: block_core::INST_ELECTRIC_GUITAR.to_string(),
             enabled: true,
+            inputs: Vec::new(),
+            outputs: Vec::new(),
             input_device_id: DeviceId("in".to_string()),
             input_channels: vec![0],
             output_device_id: DeviceId("out".to_string()),

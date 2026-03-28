@@ -1439,7 +1439,7 @@ component ChainRow inherits Rectangle {
             x: 76px;
             y: 8px;
             width: 312px;
-            height: 92px;
+            height: Math.max(92px, input-tooltip-text.preferred-height + 42px);
             background: #0e1218f7;
             border-width: 1px;
             border-color: #4d5868;
@@ -1465,7 +1465,7 @@ component ChainRow inherits Rectangle {
                 }
             }
 
-            Text {
+            input-tooltip-text := Text {
                 x: 12px;
                 y: 34px;
                 width: parent.width - 24px;
@@ -1485,7 +1485,7 @@ component ChainRow inherits Rectangle {
             x: root.out-chip-x - 320px;
             y: root.out-chip-y;
             width: 312px;
-            height: 92px;
+            height: Math.max(92px, output-tooltip-text.preferred-height + 42px);
             background: #0e1218f7;
             border-width: 1px;
             border-color: #4d5868;
@@ -1511,7 +1511,7 @@ component ChainRow inherits Rectangle {
                 }
             }
 
-            Text {
+            output-tooltip-text := Text {
                 x: 12px;
                 y: 34px;
                 width: parent.width - 24px;

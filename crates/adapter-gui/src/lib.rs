@@ -22,7 +22,7 @@ use project::catalog::{supported_block_models, supported_block_type, supported_b
 use project::device::DeviceSettings;
 use project::param::{ParameterDomain, ParameterSet, ParameterUnit};
 use project::project::Project;
-use project::chain::{Chain, ChainInputMode, ChainOutputMixdown};
+use project::chain::{Chain, ChainInput, ChainInputMode, ChainOutput, ChainOutputMixdown, ChainOutputMode};
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 use slint::{Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
@@ -242,15 +242,28 @@ struct ProjectSession {
     presets_path: PathBuf,
 }
 #[derive(Debug, Clone)]
+struct InputGroupDraft {
+    name: String,
+    device_id: Option<String>,
+    channels: Vec<usize>,
+    mode: ChainInputMode,
+}
+#[derive(Debug, Clone)]
+struct OutputGroupDraft {
+    name: String,
+    device_id: Option<String>,
+    channels: Vec<usize>,
+    mode: ChainOutputMode,
+}
+#[derive(Debug, Clone)]
 struct ChainDraft {
     editing_index: Option<usize>,
     name: String,
     instrument: String,
-    input_device_id: Option<String>,
-    output_device_id: Option<String>,
-    input_channels: Vec<usize>,
-    output_channels: Vec<usize>,
-    input_mode: ChainInputMode,
+    inputs: Vec<InputGroupDraft>,
+    outputs: Vec<OutputGroupDraft>,
+    editing_input_index: Option<usize>,
+    editing_output_index: Option<usize>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct SelectedBlock {
@@ -387,6 +400,10 @@ pub fn run_desktop_app(
         ChainInputWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     let chain_output_window =
         ChainOutputWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    let chain_input_groups_window =
+        ChainInputGroupsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    let chain_output_groups_window =
+        ChainOutputGroupsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     let block_editor_window =
         BlockEditorWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     window.set_show_project_launcher(true);
@@ -648,6 +665,19 @@ pub fn run_desktop_app(
         chain_output_window.on_toggle_channel(move |index, selected| {
             if let Some(window) = weak_window.upgrade() {
                 window.invoke_toggle_chain_output_channel(index, selected);
+            }
+        });
+    }
+    {
+        let chain_draft = chain_draft.clone();
+        chain_output_window.on_select_output_mode(move |index| {
+            if let Some(draft) = chain_draft.borrow_mut().as_mut() {
+                if let Some(gi) = draft.editing_output_index {
+                    if let Some(output) = draft.outputs.get_mut(gi) {
+                        output.mode = output_mode_from_index(index);
+                        log::debug!("[select_output_mode] group={}, index={}, mode={:?}", gi, index, output.mode);
+                    }
+                }
             }
         });
     }
@@ -1569,21 +1599,25 @@ pub fn run_desktop_app(
             );
             *chain_draft.borrow_mut() = Some(draft.clone());
             apply_chain_editor_labels(&window, &draft);
-            apply_chain_endpoint_summaries(
+            apply_chain_io_groups(
                 &window,
                 &editor_window,
                 &draft,
                 &input_chain_devices,
                 &output_chain_devices,
             );
-            replace_channel_options(
-                &chain_input_channels,
-                build_input_channel_items(&draft, &session.project, &input_chain_devices),
-            );
-            replace_channel_options(
-                &chain_output_channels,
-                build_output_channel_items(&draft, &output_chain_devices),
-            );
+            if let Some(input_group) = draft.inputs.first() {
+                replace_channel_options(
+                    &chain_input_channels,
+                    build_input_channel_items(input_group, &draft, &session.project, &input_chain_devices),
+                );
+            }
+            if let Some(output_group) = draft.outputs.first() {
+                replace_channel_options(
+                    &chain_output_channels,
+                    build_output_channel_items(output_group, &output_chain_devices),
+                );
+            }
             window.set_chain_draft_name(draft.name.clone().into());
             editor_window.set_chain_name(draft.name.clone().into());
             editor_window.set_editor_title(window.get_chain_editor_title());
@@ -1592,11 +1626,11 @@ pub fn run_desktop_app(
             editor_window.set_selected_instrument_index(instrument_string_to_index(&draft.instrument));
             window.set_selected_chain_input_device_index(selected_device_index(
                 &input_chain_devices,
-                draft.input_device_id.as_deref(),
+                draft.inputs.first().and_then(|i| i.device_id.as_deref()),
             ));
             window.set_selected_chain_output_device_index(selected_device_index(
                 &output_chain_devices,
-                draft.output_device_id.as_deref(),
+                draft.outputs.first().and_then(|o| o.device_id.as_deref()),
             ));
             editor_window.set_status_message("".into());
             clear_status(&window, &toast_timer);
@@ -1631,28 +1665,32 @@ pub fn run_desktop_app(
                 return;
             };
             let draft = chain_draft_from_chain(index as usize, chain);
-            replace_channel_options(
-                &chain_input_channels,
-                build_input_channel_items(&draft, &session.project, &input_chain_devices),
-            );
-            replace_channel_options(
-                &chain_output_channels,
-                build_output_channel_items(&draft, &output_chain_devices),
-            );
+            if let Some(input_group) = draft.inputs.first() {
+                replace_channel_options(
+                    &chain_input_channels,
+                    build_input_channel_items(input_group, &draft, &session.project, &input_chain_devices),
+                );
+            }
+            if let Some(output_group) = draft.outputs.first() {
+                replace_channel_options(
+                    &chain_output_channels,
+                    build_output_channel_items(output_group, &output_chain_devices),
+                );
+            }
             window.set_chain_draft_name(draft.name.clone().into());
             editor_window.set_chain_name(draft.name.clone().into());
             window.set_selected_chain_input_device_index(selected_device_index(
                 &input_chain_devices,
-                draft.input_device_id.as_deref(),
+                draft.inputs.first().and_then(|i| i.device_id.as_deref()),
             ));
             window.set_selected_chain_output_device_index(selected_device_index(
                 &output_chain_devices,
-                draft.output_device_id.as_deref(),
+                draft.outputs.first().and_then(|o| o.device_id.as_deref()),
             ));
             *chain_draft.borrow_mut() = Some(draft);
             if let Some(draft) = chain_draft.borrow().as_ref() {
                 apply_chain_editor_labels(&window, draft);
-                apply_chain_endpoint_summaries(
+                apply_chain_io_groups(
                     &window,
                     &editor_window,
                     draft,
@@ -2206,8 +2244,12 @@ pub fn run_desktop_app(
         let chain_draft = chain_draft.clone();
         chain_input_window.on_select_input_mode(move |index| {
             if let Some(draft) = chain_draft.borrow_mut().as_mut() {
-                draft.input_mode = input_mode_from_index(index);
-                log::debug!("[select_input_mode] index={}, mode={:?}", index, draft.input_mode);
+                if let Some(gi) = draft.editing_input_index {
+                    if let Some(input) = draft.inputs.get_mut(gi) {
+                        input.mode = input_mode_from_index(index);
+                        log::debug!("[select_input_mode] group={}, index={}, mode={:?}", gi, index, input.mode);
+                    }
+                }
             }
         });
     }
@@ -2231,15 +2273,27 @@ pub fn run_desktop_app(
             let Some(device) = input_chain_devices.get(index as usize) else {
                 return;
             };
-            draft.input_device_id = Some(device.id.clone());
-            draft.input_channels.clear();
+            let Some(gi) = draft.editing_input_index else {
+                return;
+            };
+            // Mutate the group first
+            {
+                let Some(input_group) = draft.inputs.get_mut(gi) else {
+                    return;
+                };
+                input_group.device_id = Some(device.id.clone());
+                input_group.channels.clear();
+            }
+            // Now use immutable references
             if let Some(session) = project_session.borrow().as_ref() {
-                replace_channel_options(
-                    &chain_input_channels,
-                    build_input_channel_items(draft, &session.project, &input_chain_devices),
-                );
+                if let Some(input_group) = draft.inputs.get(gi) {
+                    replace_channel_options(
+                        &chain_input_channels,
+                        build_input_channel_items(input_group, draft, &session.project, &input_chain_devices),
+                    );
+                }
                 if let Some(chain_window) = weak_chain_window.upgrade() {
-                    apply_chain_endpoint_summaries(
+                    apply_chain_io_groups(
                         &window,
                         &chain_window,
                         draft,
@@ -2248,7 +2302,10 @@ pub fn run_desktop_app(
                     );
                 }
             }
-            let selected_index = selected_device_index(&input_chain_devices, draft.input_device_id.as_deref());
+            let selected_index = selected_device_index(
+                &input_chain_devices,
+                draft.inputs.get(gi).and_then(|ig| ig.device_id.as_deref()),
+            );
             window.set_selected_chain_input_device_index(selected_index);
             if let Some(input_window) = weak_input_window.upgrade() {
                 input_window.set_selected_device_index(selected_index);
@@ -2275,15 +2332,25 @@ pub fn run_desktop_app(
             let Some(device) = output_chain_devices.get(index as usize) else {
                 return;
             };
-            draft.output_device_id = Some(device.id.clone());
-            draft.output_channels.clear();
+            let Some(gi) = draft.editing_output_index else {
+                return;
+            };
+            {
+                let Some(output_group) = draft.outputs.get_mut(gi) else {
+                    return;
+                };
+                output_group.device_id = Some(device.id.clone());
+                output_group.channels.clear();
+            }
             if project_session.borrow().as_ref().is_some() {
-                replace_channel_options(
-                    &chain_output_channels,
-                    build_output_channel_items(draft, &output_chain_devices),
-                );
+                if let Some(output_group) = draft.outputs.get(gi) {
+                    replace_channel_options(
+                        &chain_output_channels,
+                        build_output_channel_items(output_group, &output_chain_devices),
+                    );
+                }
                 if let Some(chain_window) = weak_chain_window.upgrade() {
-                    apply_chain_endpoint_summaries(
+                    apply_chain_io_groups(
                         &window,
                         &chain_window,
                         draft,
@@ -2292,7 +2359,10 @@ pub fn run_desktop_app(
                     );
                 }
             }
-            let selected_index = selected_device_index(&output_chain_devices, draft.output_device_id.as_deref());
+            let selected_index = selected_device_index(
+                &output_chain_devices,
+                draft.outputs.get(gi).and_then(|og| og.device_id.as_deref()),
+            );
             window.set_selected_chain_output_device_index(selected_index);
             if let Some(output_window) = weak_output_window.upgrade() {
                 output_window.set_selected_device_index(selected_index);
@@ -2324,21 +2394,31 @@ pub fn run_desktop_app(
                 set_status_error(&window, &toast_timer, "Canal de entrada já está em uso por outra chain.");
                 return;
             }
-            if selected {
-                if !draft.input_channels.contains(&channel) {
-                    draft.input_channels.push(channel);
-                    draft.input_channels.sort_unstable();
+            let Some(gi) = draft.editing_input_index else {
+                return;
+            };
+            {
+                let Some(input_group) = draft.inputs.get_mut(gi) else {
+                    return;
+                };
+                if selected {
+                    if !input_group.channels.contains(&channel) {
+                        input_group.channels.push(channel);
+                        input_group.channels.sort_unstable();
+                    }
+                } else {
+                    input_group.channels.retain(|current| *current != channel);
                 }
-            } else {
-                draft.input_channels.retain(|current| *current != channel);
             }
             if let Some(session) = project_session.borrow().as_ref() {
-                replace_channel_options(
-                    &chain_input_channels,
-                    build_input_channel_items(draft, &session.project, &input_chain_devices),
-                );
+                if let Some(input_group) = draft.inputs.get(gi) {
+                    replace_channel_options(
+                        &chain_input_channels,
+                        build_input_channel_items(input_group, draft, &session.project, &input_chain_devices),
+                    );
+                }
                 if let Some(chain_window) = weak_chain_window.upgrade() {
-                    apply_chain_endpoint_summaries(
+                    apply_chain_io_groups(
                         &window,
                         &chain_window,
                         draft,
@@ -2363,21 +2443,31 @@ pub fn run_desktop_app(
                 return;
             };
             let channel = index as usize;
-            if selected {
-                if !draft.output_channels.contains(&channel) {
-                    draft.output_channels.push(channel);
-                    draft.output_channels.sort_unstable();
+            let Some(gi) = draft.editing_output_index else {
+                return;
+            };
+            {
+                let Some(output_group) = draft.outputs.get_mut(gi) else {
+                    return;
+                };
+                if selected {
+                    if !output_group.channels.contains(&channel) {
+                        output_group.channels.push(channel);
+                        output_group.channels.sort_unstable();
+                    }
+                } else {
+                    output_group.channels.retain(|current| *current != channel);
                 }
-            } else {
-                draft.output_channels.retain(|current| *current != channel);
             }
             if project_session.borrow().as_ref().is_some() {
-                replace_channel_options(
-                    &chain_output_channels,
-                    build_output_channel_items(draft, &output_chain_devices),
-                );
+                if let Some(output_group) = draft.outputs.get(gi) {
+                    replace_channel_options(
+                        &chain_output_channels,
+                        build_output_channel_items(output_group, &output_chain_devices),
+                    );
+                }
                 if let (Some(window), Some(chain_window)) = (weak_window.upgrade(), weak_chain_window.upgrade()) {
-                    apply_chain_endpoint_summaries(
+                    apply_chain_io_groups(
                         &window,
                         &chain_window,
                         draft,
@@ -2390,18 +2480,16 @@ pub fn run_desktop_app(
     }
     {
         let weak_window = window.as_weak();
-        let weak_input_window = chain_input_window.as_weak();
-        let weak_chain_window = chain_editor_window.as_weak();
+        let weak_groups_window = chain_input_groups_window.as_weak();
         let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
-        let chain_input_channels = chain_input_channels.clone();
         window.on_configure_chain_input(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let Some(input_window) = weak_input_window.upgrade() else {
+            let Some(groups_window) = weak_groups_window.upgrade() else {
                 return;
             };
             let session_borrow = project_session.borrow();
@@ -2412,40 +2500,27 @@ pub fn run_desktop_app(
                 return;
             };
             let draft = chain_draft_from_chain(index as usize, chain);
-            *chain_draft.borrow_mut() = Some(draft.clone());
-            if let Some(chain_window) = weak_chain_window.upgrade() {
-                apply_chain_endpoint_summaries(
-                    &window,
-                    &chain_window,
-                    &draft,
-                    &input_chain_devices,
-                    &output_chain_devices,
-                );
-            }
-            apply_chain_input_window_state(
-                &input_window,
-                &draft,
-                &session.project,
-                &input_chain_devices,
-                &chain_input_channels,
-            );
-            show_child_window(window.window(), input_window.window());
+            let (input_items, _) =
+                build_io_group_items(&draft, &input_chain_devices, &output_chain_devices);
+            groups_window
+                .set_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
+            groups_window.set_status_message("".into());
+            *chain_draft.borrow_mut() = Some(draft);
+            show_child_window(window.window(), groups_window.window());
         });
     }
     {
         let weak_window = window.as_weak();
-        let weak_output_window = chain_output_window.as_weak();
-        let weak_chain_window = chain_editor_window.as_weak();
+        let weak_groups_window = chain_output_groups_window.as_weak();
         let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
-        let chain_output_channels = chain_output_channels.clone();
         window.on_configure_chain_output(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let Some(output_window) = weak_output_window.upgrade() else {
+            let Some(groups_window) = weak_groups_window.upgrade() else {
                 return;
             };
             let session_borrow = project_session.borrow();
@@ -2456,23 +2531,13 @@ pub fn run_desktop_app(
                 return;
             };
             let draft = chain_draft_from_chain(index as usize, chain);
-            *chain_draft.borrow_mut() = Some(draft.clone());
-            if let Some(chain_window) = weak_chain_window.upgrade() {
-                apply_chain_endpoint_summaries(
-                    &window,
-                    &chain_window,
-                    &draft,
-                    &input_chain_devices,
-                    &output_chain_devices,
-                );
-            }
-            apply_chain_output_window_state(
-                &output_window,
-                &draft,
-                &output_chain_devices,
-                &chain_output_channels,
-            );
-            show_child_window(window.window(), output_window.window());
+            let (_, output_items) =
+                build_io_group_items(&draft, &input_chain_devices, &output_chain_devices);
+            groups_window
+                .set_groups(ModelRc::from(Rc::new(VecModel::from(output_items))));
+            groups_window.set_status_message("".into());
+            *chain_draft.borrow_mut() = Some(draft);
+            show_child_window(window.window(), groups_window.window());
         });
     }
     {
@@ -2484,14 +2549,23 @@ pub fn run_desktop_app(
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         let chain_input_channels = chain_input_channels.clone();
-        chain_editor_window.on_open_input(move || {
+        chain_editor_window.on_edit_input(move |group_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             let Some(input_window) = weak_input_window.upgrade() else {
                 return;
             };
-            let Some(draft) = chain_draft.borrow().clone() else {
+            let gi = group_index as usize;
+            {
+                let mut draft_borrow = chain_draft.borrow_mut();
+                let Some(draft) = draft_borrow.as_mut() else {
+                    return;
+                };
+                draft.editing_input_index = Some(gi);
+            }
+            let draft_borrow = chain_draft.borrow();
+            let Some(draft) = draft_borrow.as_ref() else {
                 return;
             };
             let session_borrow = project_session.borrow();
@@ -2499,21 +2573,24 @@ pub fn run_desktop_app(
                 return;
             };
             if let Some(chain_window) = weak_chain_window.upgrade() {
-                apply_chain_endpoint_summaries(
+                apply_chain_io_groups(
                     &window,
                     &chain_window,
-                    &draft,
+                    draft,
                     &input_chain_devices,
                     &output_chain_devices,
                 );
             }
-            apply_chain_input_window_state(
-                &input_window,
-                &draft,
-                &session.project,
-                &input_chain_devices,
-                &chain_input_channels,
-            );
+            if let Some(input_group) = draft.inputs.get(gi) {
+                apply_chain_input_window_state(
+                    &input_window,
+                    input_group,
+                    draft,
+                    &session.project,
+                    &input_chain_devices,
+                    &chain_input_channels,
+                );
+            }
             show_child_window(window.window(), input_window.window());
         });
     }
@@ -2526,14 +2603,23 @@ pub fn run_desktop_app(
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         let chain_output_channels = chain_output_channels.clone();
-        chain_editor_window.on_open_output(move || {
+        chain_editor_window.on_edit_output(move |group_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             let Some(output_window) = weak_output_window.upgrade() else {
                 return;
             };
-            let Some(draft) = chain_draft.borrow().clone() else {
+            let gi = group_index as usize;
+            {
+                let mut draft_borrow = chain_draft.borrow_mut();
+                let Some(draft) = draft_borrow.as_mut() else {
+                    return;
+                };
+                draft.editing_output_index = Some(gi);
+            }
+            let draft_borrow = chain_draft.borrow();
+            let Some(draft) = draft_borrow.as_ref() else {
                 return;
             };
             let session_borrow = project_session.borrow();
@@ -2541,7 +2627,342 @@ pub fn run_desktop_app(
                 return;
             };
             if let Some(chain_window) = weak_chain_window.upgrade() {
-                apply_chain_endpoint_summaries(
+                apply_chain_io_groups(
+                    &window,
+                    &chain_window,
+                    draft,
+                    &input_chain_devices,
+                    &output_chain_devices,
+                );
+            }
+            if let Some(output_group) = draft.outputs.get(gi) {
+                apply_chain_output_window_state(
+                    &output_window,
+                    output_group,
+                    &output_chain_devices,
+                    &chain_output_channels,
+                );
+            }
+            show_child_window(window.window(), output_window.window());
+        });
+    }
+    {
+        let weak_window = window.as_weak();
+        let weak_chain_window = chain_editor_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        chain_editor_window.on_add_input(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let Some(chain_window) = weak_chain_window.upgrade() else {
+                return;
+            };
+            let mut draft_borrow = chain_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else {
+                return;
+            };
+            let idx = draft.inputs.len() + 1;
+            draft.inputs.push(InputGroupDraft {
+                name: format!("Input {}", idx),
+                device_id: input_chain_devices.first().map(|d| d.id.clone()),
+                channels: Vec::new(),
+                mode: ChainInputMode::Mono,
+            });
+            apply_chain_io_groups(
+                &window,
+                &chain_window,
+                draft,
+                &input_chain_devices,
+                &output_chain_devices,
+            );
+        });
+    }
+    {
+        let weak_window = window.as_weak();
+        let weak_chain_window = chain_editor_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        chain_editor_window.on_add_output(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let Some(chain_window) = weak_chain_window.upgrade() else {
+                return;
+            };
+            let mut draft_borrow = chain_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else {
+                return;
+            };
+            let idx = draft.outputs.len() + 1;
+            draft.outputs.push(OutputGroupDraft {
+                name: format!("Output {}", idx),
+                device_id: output_chain_devices.first().map(|d| d.id.clone()),
+                channels: Vec::new(),
+                mode: ChainOutputMode::Stereo,
+            });
+            apply_chain_io_groups(
+                &window,
+                &chain_window,
+                draft,
+                &input_chain_devices,
+                &output_chain_devices,
+            );
+        });
+    }
+    {
+        let weak_window = window.as_weak();
+        let weak_chain_window = chain_editor_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        chain_editor_window.on_remove_input(move |group_index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let Some(chain_window) = weak_chain_window.upgrade() else {
+                return;
+            };
+            let mut draft_borrow = chain_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else {
+                return;
+            };
+            let gi = group_index as usize;
+            if gi < draft.inputs.len() {
+                draft.inputs.remove(gi);
+                // Reset editing index if it was pointing to the removed group
+                if draft.editing_input_index == Some(gi) {
+                    draft.editing_input_index = None;
+                } else if let Some(idx) = draft.editing_input_index {
+                    if idx > gi {
+                        draft.editing_input_index = Some(idx - 1);
+                    }
+                }
+            }
+            apply_chain_io_groups(
+                &window,
+                &chain_window,
+                draft,
+                &input_chain_devices,
+                &output_chain_devices,
+            );
+        });
+    }
+    {
+        let weak_window = window.as_weak();
+        let weak_chain_window = chain_editor_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        chain_editor_window.on_remove_output(move |group_index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let Some(chain_window) = weak_chain_window.upgrade() else {
+                return;
+            };
+            let mut draft_borrow = chain_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else {
+                return;
+            };
+            let gi = group_index as usize;
+            if gi < draft.outputs.len() {
+                draft.outputs.remove(gi);
+                if draft.editing_output_index == Some(gi) {
+                    draft.editing_output_index = None;
+                } else if let Some(idx) = draft.editing_output_index {
+                    if idx > gi {
+                        draft.editing_output_index = Some(idx - 1);
+                    }
+                }
+            }
+            apply_chain_io_groups(
+                &window,
+                &chain_window,
+                draft,
+                &input_chain_devices,
+                &output_chain_devices,
+            );
+        });
+    }
+    // --- ChainInputGroupsWindow callbacks ---
+    {
+        let weak_window = window.as_weak();
+        let weak_input_window = chain_input_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let chain_input_channels = chain_input_channels.clone();
+        chain_input_groups_window.on_edit_group(move |group_index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let Some(input_window) = weak_input_window.upgrade() else {
+                return;
+            };
+            let gi = group_index as usize;
+            {
+                let mut draft_borrow = chain_draft.borrow_mut();
+                let Some(draft) = draft_borrow.as_mut() else {
+                    return;
+                };
+                draft.editing_input_index = Some(gi);
+            }
+            let draft_borrow = chain_draft.borrow();
+            let Some(draft) = draft_borrow.as_ref() else {
+                return;
+            };
+            let session_borrow = project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else {
+                return;
+            };
+            if let Some(input_group) = draft.inputs.get(gi) {
+                apply_chain_input_window_state(
+                    &input_window,
+                    input_group,
+                    draft,
+                    &session.project,
+                    &input_chain_devices,
+                    &chain_input_channels,
+                );
+            }
+            show_child_window(window.window(), input_window.window());
+        });
+    }
+    {
+        let weak_groups_window = chain_input_groups_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        chain_input_groups_window.on_remove_group(move |group_index| {
+            let Some(groups_window) = weak_groups_window.upgrade() else {
+                return;
+            };
+            let mut draft_borrow = chain_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else {
+                return;
+            };
+            let gi = group_index as usize;
+            if gi < draft.inputs.len() {
+                draft.inputs.remove(gi);
+                if draft.editing_input_index == Some(gi) {
+                    draft.editing_input_index = None;
+                } else if let Some(idx) = draft.editing_input_index {
+                    if idx > gi {
+                        draft.editing_input_index = Some(idx - 1);
+                    }
+                }
+            }
+            let (input_items, _) =
+                build_io_group_items(draft, &input_chain_devices, &output_chain_devices);
+            groups_window
+                .set_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
+        });
+    }
+    {
+        let weak_groups_window = chain_input_groups_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        chain_input_groups_window.on_add_group(move || {
+            let Some(groups_window) = weak_groups_window.upgrade() else {
+                return;
+            };
+            let mut draft_borrow = chain_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else {
+                return;
+            };
+            let idx = draft.inputs.len() + 1;
+            draft.inputs.push(InputGroupDraft {
+                name: format!("Input {}", idx),
+                device_id: input_chain_devices.first().map(|d| d.id.clone()),
+                channels: Vec::new(),
+                mode: ChainInputMode::Mono,
+            });
+            let (input_items, _) =
+                build_io_group_items(draft, &input_chain_devices, &output_chain_devices);
+            groups_window
+                .set_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
+        });
+    }
+    {
+        let weak_window = window.as_weak();
+        let weak_groups_window = chain_input_groups_window.as_weak();
+        let weak_chain_window = chain_editor_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        let project_chains = project_chains.clone();
+        let project_runtime = project_runtime.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
+        chain_input_groups_window.on_save(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let Some(groups_window) = weak_groups_window.upgrade() else {
+                return;
+            };
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                groups_window.set_status_message("Nenhum projeto carregado.".into());
+                return;
+            };
+            let draft = match chain_draft.borrow().clone() {
+                Some(draft) => draft,
+                None => {
+                    groups_window.set_status_message("Nenhuma chain em edi\u{00E7}\u{00E3}o.".into());
+                    return;
+                }
+            };
+            if draft.inputs.is_empty() {
+                groups_window.set_status_message("Adicione pelo menos uma entrada.".into());
+                return;
+            }
+            for (i, input) in draft.inputs.iter().enumerate() {
+                if input.device_id.is_none() {
+                    groups_window.set_status_message(
+                        format!("Entrada {}: selecione o dispositivo.", i + 1).into(),
+                    );
+                    return;
+                }
+                if input.channels.is_empty() {
+                    groups_window.set_status_message(
+                        format!("Entrada {}: selecione pelo menos um canal.", i + 1).into(),
+                    );
+                    return;
+                }
+            }
+            let editing_index = draft.editing_index;
+            let existing_chain =
+                editing_index.and_then(|index| session.project.chains.get(index).cloned());
+            let chain = chain_from_draft(&draft, existing_chain.as_ref());
+            if let Err(msg) = chain.validate_channel_conflicts() {
+                groups_window.set_status_message(msg.into());
+                return;
+            }
+            let chain_id = chain.id.clone();
+            if let Some(index) = editing_index {
+                if let Some(current) = session.project.chains.get_mut(index) {
+                    *current = chain;
+                }
+            }
+            if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                groups_window.set_status_message(error.to_string().into());
+                return;
+            }
+            replace_project_chains(
+                &project_chains,
+                &session.project,
+                &input_chain_devices,
+                &output_chain_devices,
+            );
+            if let Some(chain_window) = weak_chain_window.upgrade() {
+                apply_chain_io_groups(
                     &window,
                     &chain_window,
                     &draft,
@@ -2549,13 +2970,216 @@ pub fn run_desktop_app(
                     &output_chain_devices,
                 );
             }
-            apply_chain_output_window_state(
-                &output_window,
-                &draft,
-                &output_chain_devices,
-                &chain_output_channels,
-            );
+            *chain_draft.borrow_mut() = None;
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            groups_window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
+            let _ = groups_window.hide();
+        });
+    }
+    {
+        let weak_groups_window = chain_input_groups_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        chain_input_groups_window.on_cancel(move || {
+            let Some(groups_window) = weak_groups_window.upgrade() else {
+                return;
+            };
+            *chain_draft.borrow_mut() = None;
+            let _ = groups_window.hide();
+        });
+    }
+    // --- ChainOutputGroupsWindow callbacks ---
+    {
+        let weak_window = window.as_weak();
+        let weak_output_window = chain_output_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let chain_output_channels = chain_output_channels.clone();
+        chain_output_groups_window.on_edit_group(move |group_index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let Some(output_window) = weak_output_window.upgrade() else {
+                return;
+            };
+            let gi = group_index as usize;
+            {
+                let mut draft_borrow = chain_draft.borrow_mut();
+                let Some(draft) = draft_borrow.as_mut() else {
+                    return;
+                };
+                draft.editing_output_index = Some(gi);
+            }
+            let draft_borrow = chain_draft.borrow();
+            let Some(draft) = draft_borrow.as_ref() else {
+                return;
+            };
+            if let Some(output_group) = draft.outputs.get(gi) {
+                apply_chain_output_window_state(
+                    &output_window,
+                    output_group,
+                    &output_chain_devices,
+                    &chain_output_channels,
+                );
+            }
             show_child_window(window.window(), output_window.window());
+        });
+    }
+    {
+        let weak_groups_window = chain_output_groups_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        chain_output_groups_window.on_remove_group(move |group_index| {
+            let Some(groups_window) = weak_groups_window.upgrade() else {
+                return;
+            };
+            let mut draft_borrow = chain_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else {
+                return;
+            };
+            let gi = group_index as usize;
+            if gi < draft.outputs.len() {
+                draft.outputs.remove(gi);
+                if draft.editing_output_index == Some(gi) {
+                    draft.editing_output_index = None;
+                } else if let Some(idx) = draft.editing_output_index {
+                    if idx > gi {
+                        draft.editing_output_index = Some(idx - 1);
+                    }
+                }
+            }
+            let (_, output_items) =
+                build_io_group_items(draft, &input_chain_devices, &output_chain_devices);
+            groups_window
+                .set_groups(ModelRc::from(Rc::new(VecModel::from(output_items))));
+        });
+    }
+    {
+        let weak_groups_window = chain_output_groups_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        chain_output_groups_window.on_add_group(move || {
+            let Some(groups_window) = weak_groups_window.upgrade() else {
+                return;
+            };
+            let mut draft_borrow = chain_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else {
+                return;
+            };
+            let idx = draft.outputs.len() + 1;
+            draft.outputs.push(OutputGroupDraft {
+                name: format!("Output {}", idx),
+                device_id: output_chain_devices.first().map(|d| d.id.clone()),
+                channels: Vec::new(),
+                mode: ChainOutputMode::Stereo,
+            });
+            let (_, output_items) =
+                build_io_group_items(draft, &input_chain_devices, &output_chain_devices);
+            groups_window
+                .set_groups(ModelRc::from(Rc::new(VecModel::from(output_items))));
+        });
+    }
+    {
+        let weak_window = window.as_weak();
+        let weak_groups_window = chain_output_groups_window.as_weak();
+        let weak_chain_window = chain_editor_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        let project_chains = project_chains.clone();
+        let project_runtime = project_runtime.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
+        chain_output_groups_window.on_save(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let Some(groups_window) = weak_groups_window.upgrade() else {
+                return;
+            };
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                groups_window.set_status_message("Nenhum projeto carregado.".into());
+                return;
+            };
+            let draft = match chain_draft.borrow().clone() {
+                Some(draft) => draft,
+                None => {
+                    groups_window.set_status_message("Nenhuma chain em edi\u{00E7}\u{00E3}o.".into());
+                    return;
+                }
+            };
+            if draft.outputs.is_empty() {
+                groups_window.set_status_message("Adicione pelo menos uma sa\u{00ED}da.".into());
+                return;
+            }
+            for (i, output) in draft.outputs.iter().enumerate() {
+                if output.device_id.is_none() {
+                    groups_window.set_status_message(
+                        format!("Sa\u{00ED}da {}: selecione o dispositivo.", i + 1).into(),
+                    );
+                    return;
+                }
+                if output.channels.is_empty() {
+                    groups_window.set_status_message(
+                        format!("Sa\u{00ED}da {}: selecione pelo menos um canal.", i + 1).into(),
+                    );
+                    return;
+                }
+            }
+            let editing_index = draft.editing_index;
+            let existing_chain =
+                editing_index.and_then(|index| session.project.chains.get(index).cloned());
+            let chain = chain_from_draft(&draft, existing_chain.as_ref());
+            if let Err(msg) = chain.validate_channel_conflicts() {
+                groups_window.set_status_message(msg.into());
+                return;
+            }
+            let chain_id = chain.id.clone();
+            if let Some(index) = editing_index {
+                if let Some(current) = session.project.chains.get_mut(index) {
+                    *current = chain;
+                }
+            }
+            if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                groups_window.set_status_message(error.to_string().into());
+                return;
+            }
+            replace_project_chains(
+                &project_chains,
+                &session.project,
+                &input_chain_devices,
+                &output_chain_devices,
+            );
+            if let Some(chain_window) = weak_chain_window.upgrade() {
+                apply_chain_io_groups(
+                    &window,
+                    &chain_window,
+                    &draft,
+                    &input_chain_devices,
+                    &output_chain_devices,
+                );
+            }
+            *chain_draft.borrow_mut() = None;
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            groups_window.set_status_message("".into());
+            clear_status(&window, &toast_timer);
+            let _ = groups_window.hide();
+        });
+    }
+    {
+        let weak_groups_window = chain_output_groups_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        chain_output_groups_window.on_cancel(move || {
+            let Some(groups_window) = weak_groups_window.upgrade() else {
+                return;
+            };
+            *chain_draft.borrow_mut() = None;
+            let _ = groups_window.hide();
         });
     }
     {
@@ -4074,51 +4698,43 @@ pub fn run_desktop_app(
                     return;
                 }
             };
-            if draft.input_device_id.is_none() {
-                set_status_warning(&window, &toast_timer, "Selecione o dispositivo de entrada.");
+            if draft.inputs.is_empty() {
+                set_status_warning(&window, &toast_timer, "Adicione pelo menos uma entrada.");
                 return;
             }
-            if draft.output_device_id.is_none() {
-                set_status_warning(&window, &toast_timer, "Selecione o dispositivo de saída.");
+            if draft.outputs.is_empty() {
+                set_status_warning(&window, &toast_timer, "Adicione pelo menos uma saída.");
                 return;
             }
-            if draft.input_channels.is_empty() {
-                set_status_warning(&window, &toast_timer, "Selecione pelo menos um canal de entrada.");
-                return;
+            for (i, input) in draft.inputs.iter().enumerate() {
+                if input.device_id.is_none() {
+                    set_status_warning(&window, &toast_timer, &format!("Entrada {}: selecione o dispositivo.", i + 1));
+                    return;
+                }
+                if input.channels.is_empty() {
+                    set_status_warning(&window, &toast_timer, &format!("Entrada {}: selecione pelo menos um canal.", i + 1));
+                    return;
+                }
             }
-            if draft.output_channels.is_empty() {
-                set_status_warning(&window, &toast_timer, "Selecione pelo menos um canal de saída.");
-                return;
+            for (i, output) in draft.outputs.iter().enumerate() {
+                if output.device_id.is_none() {
+                    set_status_warning(&window, &toast_timer, &format!("Saída {}: selecione o dispositivo.", i + 1));
+                    return;
+                }
+                if output.channels.is_empty() {
+                    set_status_warning(&window, &toast_timer, &format!("Saída {}: selecione pelo menos um canal.", i + 1));
+                    return;
+                }
             }
             let editing_index = draft.editing_index;
             log::debug!("[save_chain] editing_index={:?}, draft.instrument='{}'", editing_index, draft.instrument);
             let existing_chain =
                 editing_index.and_then(|index| session.project.chains.get(index).cloned());
-            let chain = Chain {
-                id: existing_chain
-                    .as_ref()
-                    .map(|chain| chain.id.clone())
-                    .unwrap_or_else(ChainId::generate),
-                description: normalized_chain_description(&draft.name),
-                instrument: draft.instrument.clone(),
-                enabled: existing_chain
-                    .as_ref()
-                    .map(|chain| chain.enabled)
-                    .unwrap_or(false),
-                input_device_id: DeviceId(draft.input_device_id.unwrap_or_default()),
-                input_channels: draft.input_channels,
-                output_device_id: DeviceId(draft.output_device_id.unwrap_or_default()),
-                output_channels: draft.output_channels,
-                blocks: existing_chain
-                    .as_ref()
-                    .map(|chain| chain.blocks.clone())
-                    .unwrap_or_default(),
-                output_mixdown: existing_chain
-                    .as_ref()
-                    .map(|chain| chain.output_mixdown)
-                    .unwrap_or(ChainOutputMixdown::Average),
-                input_mode: draft.input_mode,
-            };
+            let chain = chain_from_draft(&draft, existing_chain.as_ref());
+            if let Err(msg) = chain.validate_channel_conflicts() {
+                set_status_warning(&window, &toast_timer, &msg);
+                return;
+            }
             log::info!("=== CHAIN SAVED: id='{}', name={:?}, instrument='{}', editing={:?} ===",
                 chain.id.0, chain.description, chain.instrument, editing_index);
             let chain_id = chain.id.clone();
@@ -4176,51 +4792,43 @@ pub fn run_desktop_app(
                     return;
                 }
             };
-            if draft.input_device_id.is_none() {
-                chain_window.set_status_message("Selecione o dispositivo de entrada.".into());
+            if draft.inputs.is_empty() {
+                chain_window.set_status_message("Adicione pelo menos uma entrada.".into());
                 return;
             }
-            if draft.output_device_id.is_none() {
-                chain_window.set_status_message("Selecione o dispositivo de saída.".into());
+            if draft.outputs.is_empty() {
+                chain_window.set_status_message("Adicione pelo menos uma saída.".into());
                 return;
             }
-            if draft.input_channels.is_empty() {
-                chain_window.set_status_message("Selecione pelo menos um canal de entrada.".into());
-                return;
+            for (i, input) in draft.inputs.iter().enumerate() {
+                if input.device_id.is_none() {
+                    chain_window.set_status_message(format!("Entrada {}: selecione o dispositivo.", i + 1).into());
+                    return;
+                }
+                if input.channels.is_empty() {
+                    chain_window.set_status_message(format!("Entrada {}: selecione pelo menos um canal.", i + 1).into());
+                    return;
+                }
             }
-            if draft.output_channels.is_empty() {
-                chain_window.set_status_message("Selecione pelo menos um canal de saída.".into());
-                return;
+            for (i, output) in draft.outputs.iter().enumerate() {
+                if output.device_id.is_none() {
+                    chain_window.set_status_message(format!("Saída {}: selecione o dispositivo.", i + 1).into());
+                    return;
+                }
+                if output.channels.is_empty() {
+                    chain_window.set_status_message(format!("Saída {}: selecione pelo menos um canal.", i + 1).into());
+                    return;
+                }
             }
             let editing_index = draft.editing_index;
             log::debug!("[save_chain] editing_index={:?}, draft.instrument='{}'", editing_index, draft.instrument);
             let existing_chain =
                 editing_index.and_then(|index| session.project.chains.get(index).cloned());
-            let chain = Chain {
-                id: existing_chain
-                    .as_ref()
-                    .map(|chain| chain.id.clone())
-                    .unwrap_or_else(ChainId::generate),
-                description: normalized_chain_description(&draft.name),
-                instrument: draft.instrument.clone(),
-                enabled: existing_chain
-                    .as_ref()
-                    .map(|chain| chain.enabled)
-                    .unwrap_or(false),
-                input_device_id: DeviceId(draft.input_device_id.unwrap_or_default()),
-                input_channels: draft.input_channels,
-                output_device_id: DeviceId(draft.output_device_id.unwrap_or_default()),
-                output_channels: draft.output_channels,
-                blocks: existing_chain
-                    .as_ref()
-                    .map(|chain| chain.blocks.clone())
-                    .unwrap_or_default(),
-                output_mixdown: existing_chain
-                    .as_ref()
-                    .map(|chain| chain.output_mixdown)
-                    .unwrap_or(ChainOutputMixdown::Average),
-                input_mode: draft.input_mode,
-            };
+            let chain = chain_from_draft(&draft, existing_chain.as_ref());
+            if let Err(msg) = chain.validate_channel_conflicts() {
+                chain_window.set_status_message(msg.into());
+                return;
+            }
             log::info!("=== CHAIN SAVED: id='{}', name={:?}, instrument='{}', editing={:?} ===",
                 chain.id.0, chain.description, chain.instrument, editing_index);
             let chain_id = chain.id.clone();
@@ -4285,6 +4893,7 @@ pub fn run_desktop_app(
         let weak_window = window.as_weak();
         let weak_input_window = chain_input_window.as_weak();
         let weak_chain_window = chain_editor_window.as_weak();
+        let weak_input_groups_window = chain_input_groups_window.as_weak();
         let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
@@ -4305,7 +4914,15 @@ pub fn run_desktop_app(
                 let _ = input_window.hide();
                 return;
             };
-            if draft.input_device_id.is_none() || draft.input_channels.is_empty() {
+            let Some(gi) = draft.editing_input_index else {
+                let _ = input_window.hide();
+                return;
+            };
+            let Some(input_group) = draft.inputs.get(gi) else {
+                let _ = input_window.hide();
+                return;
+            };
+            if input_group.device_id.is_none() || input_group.channels.is_empty() {
                 input_window.set_status_message("Selecione dispositivo e canais.".into());
                 return;
             }
@@ -4317,8 +4934,19 @@ pub fn run_desktop_app(
                 let Some(chain) = session.project.chains.get_mut(index) else {
                     return;
                 };
-                chain.input_device_id = DeviceId(draft.input_device_id.clone().unwrap_or_default());
-                chain.input_channels = draft.input_channels.clone();
+                // Update the chain's inputs from draft
+                chain.inputs = draft.inputs.iter().map(|ig| ChainInput {
+                    name: ig.name.clone(),
+                    device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
+                    mode: ig.mode,
+                    channels: ig.channels.clone(),
+                }).collect();
+                // Also update legacy fields from first input for backward compat
+                if let Some(first) = draft.inputs.first() {
+                    chain.input_device_id = DeviceId(first.device_id.clone().unwrap_or_default());
+                    chain.input_channels = first.channels.clone();
+                    chain.input_mode = first.mode;
+                }
                 let chain_id = chain.id.clone();
                 if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                     eprintln!("input editor save error: {error}");
@@ -4333,13 +4961,20 @@ pub fn run_desktop_app(
                 sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             }
             if let Some(chain_window) = weak_chain_window.upgrade() {
-                apply_chain_endpoint_summaries(
+                apply_chain_io_groups(
                     &window,
                     &chain_window,
                     draft,
                     &input_chain_devices,
                     &output_chain_devices,
                 );
+            }
+            // Refresh input groups window if open
+            if let Some(groups_window) = weak_input_groups_window.upgrade() {
+                let (input_items, _) =
+                    build_io_group_items(draft, &input_chain_devices, &output_chain_devices);
+                groups_window
+                    .set_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
             }
             input_window.set_status_message("".into());
             let _ = input_window.hide();
@@ -4367,6 +5002,7 @@ pub fn run_desktop_app(
         let weak_window = window.as_weak();
         let weak_output_window = chain_output_window.as_weak();
         let weak_chain_window = chain_editor_window.as_weak();
+        let weak_output_groups_window = chain_output_groups_window.as_weak();
         let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
@@ -4387,7 +5023,15 @@ pub fn run_desktop_app(
                 let _ = output_window.hide();
                 return;
             };
-            if draft.output_device_id.is_none() || draft.output_channels.is_empty() {
+            let Some(gi) = draft.editing_output_index else {
+                let _ = output_window.hide();
+                return;
+            };
+            let Some(output_group) = draft.outputs.get(gi) else {
+                let _ = output_window.hide();
+                return;
+            };
+            if output_group.device_id.is_none() || output_group.channels.is_empty() {
                 output_window.set_status_message("Selecione dispositivo e canais.".into());
                 return;
             }
@@ -4399,8 +5043,18 @@ pub fn run_desktop_app(
                 let Some(chain) = session.project.chains.get_mut(index) else {
                     return;
                 };
-                chain.output_device_id = DeviceId(draft.output_device_id.clone().unwrap_or_default());
-                chain.output_channels = draft.output_channels.clone();
+                // Update the chain's outputs from draft
+                chain.outputs = draft.outputs.iter().map(|og| ChainOutput {
+                    name: og.name.clone(),
+                    device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
+                    mode: og.mode,
+                    channels: og.channels.clone(),
+                }).collect();
+                // Also update legacy fields from first output for backward compat
+                if let Some(first) = draft.outputs.first() {
+                    chain.output_device_id = DeviceId(first.device_id.clone().unwrap_or_default());
+                    chain.output_channels = first.channels.clone();
+                }
                 let chain_id = chain.id.clone();
                 if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                     eprintln!("output editor save error: {error}");
@@ -4415,13 +5069,20 @@ pub fn run_desktop_app(
                 sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             }
             if let Some(chain_window) = weak_chain_window.upgrade() {
-                apply_chain_endpoint_summaries(
+                apply_chain_io_groups(
                     &window,
                     &chain_window,
                     draft,
                     &input_chain_devices,
                     &output_chain_devices,
                 );
+            }
+            // Refresh output groups window if open
+            if let Some(groups_window) = weak_output_groups_window.upgrade() {
+                let (_, output_items) =
+                    build_io_group_items(draft, &input_chain_devices, &output_chain_devices);
+                groups_window
+                    .set_groups(ModelRc::from(Rc::new(VecModel::from(output_items))));
             }
             output_window.set_status_message("".into());
             let _ = output_window.hide();
@@ -4803,22 +5464,9 @@ fn replace_project_chains(
                     format!("{} blocks", chain.blocks.len()).into()
                 },
                 input_label: chain_endpoint_label("In", &chain.input_channels).into(),
-                input_tooltip: chain_endpoint_tooltip(
-                    "Entrada",
-                    &chain.input_device_id.0,
-                    &chain.input_channels,
-                    project,
-                    input_devices,
-                )
-                .into(),
+                input_tooltip: chain_inputs_tooltip(chain, project, input_devices).into(),
                 output_label: chain_endpoint_label("Out", &chain.output_channels).into(),
-                output_tooltip: chain_endpoint_tooltip(
-                    "Saída",
-                    &chain.output_device_id.0,
-                    &chain.output_channels,
-                    project,
-                    output_devices,
-                )
+                output_tooltip: chain_outputs_tooltip(chain, project, output_devices)
                 .into(),
                 latency_ms,
                 blocks: ModelRc::from(Rc::new(VecModel::from(
@@ -4862,6 +5510,49 @@ fn chain_endpoint_tooltip(
         "{device_name}\nConfiguração: {sample_rate} Hz · {buffer} frames\nCanais: {}",
         format_channel_list(channels)
     )
+}
+fn chain_inputs_tooltip(
+    chain: &Chain,
+    project: &Project,
+    devices: &[AudioDeviceDescriptor],
+) -> String {
+    if chain.inputs.is_empty() {
+        return chain_endpoint_tooltip("Entrada", &chain.input_device_id.0, &chain.input_channels, project, devices);
+    }
+    chain.inputs.iter().map(|input| {
+        let device_name = devices
+            .iter()
+            .find(|d| d.id == input.device_id.0)
+            .map(|d| d.name.as_str())
+            .unwrap_or(&input.device_id.0);
+        let mode = match input.mode {
+            ChainInputMode::Mono => "Mono",
+            ChainInputMode::Stereo => "Stereo",
+            ChainInputMode::DualMono => "Dual Mono",
+        };
+        format!("{}: {} · {} · Ch {}", input.name, device_name, mode, format_channel_list(&input.channels))
+    }).collect::<Vec<_>>().join("\n")
+}
+fn chain_outputs_tooltip(
+    chain: &Chain,
+    project: &Project,
+    devices: &[AudioDeviceDescriptor],
+) -> String {
+    if chain.outputs.is_empty() {
+        return chain_endpoint_tooltip("Saída", &chain.output_device_id.0, &chain.output_channels, project, devices);
+    }
+    chain.outputs.iter().map(|output| {
+        let device_name = devices
+            .iter()
+            .find(|d| d.id == output.device_id.0)
+            .map(|d| d.name.as_str())
+            .unwrap_or(&output.device_id.0);
+        let mode = match output.mode {
+            ChainOutputMode::Mono => "Mono",
+            ChainOutputMode::Stereo => "Stereo",
+        };
+        format!("{}: {} · {} · Ch {}", output.name, device_name, mode, format_channel_list(&output.channels))
+    }).collect::<Vec<_>>().join("\n")
 }
 fn format_channel_list(channels: &[usize]) -> String {
     if channels.is_empty() {
@@ -5774,18 +6465,89 @@ fn create_chain_draft(
     input_devices: &[AudioDeviceDescriptor],
     output_devices: &[AudioDeviceDescriptor],
 ) -> ChainDraft {
+    let default_input = InputGroupDraft {
+        name: "Input 1".to_string(),
+        device_id: input_devices.first().map(|device| device.id.clone()),
+        channels: Vec::new(),
+        mode: ChainInputMode::Mono,
+    };
+    let default_output = OutputGroupDraft {
+        name: "Output 1".to_string(),
+        device_id: output_devices.first().map(|device| device.id.clone()),
+        channels: Vec::new(),
+        mode: ChainOutputMode::Stereo,
+    };
     ChainDraft {
         editing_index: None,
         name: format!("Chain {}", project.chains.len() + 1),
         instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
-        input_device_id: input_devices.first().map(|device| device.id.clone()),
-        output_device_id: output_devices.first().map(|device| device.id.clone()),
-        input_channels: Vec::new(),
-        output_channels: Vec::new(),
-        input_mode: ChainInputMode::Mono,
+        inputs: vec![default_input],
+        outputs: vec![default_output],
+        editing_input_index: None,
+        editing_output_index: None,
     }
 }
 fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
+    let inputs: Vec<InputGroupDraft> = if chain.inputs.is_empty() {
+        // Legacy single-input chain
+        vec![InputGroupDraft {
+            name: "Input 1".to_string(),
+            device_id: if chain.input_device_id.0.is_empty() {
+                None
+            } else {
+                Some(chain.input_device_id.0.clone())
+            },
+            channels: chain.input_channels.clone(),
+            mode: chain.input_mode,
+        }]
+    } else {
+        chain
+            .inputs
+            .iter()
+            .map(|input| InputGroupDraft {
+                name: input.name.clone(),
+                device_id: if input.device_id.0.is_empty() {
+                    None
+                } else {
+                    Some(input.device_id.0.clone())
+                },
+                channels: input.channels.clone(),
+                mode: input.mode,
+            })
+            .collect()
+    };
+    let outputs: Vec<OutputGroupDraft> = if chain.outputs.is_empty() {
+        // Legacy single-output chain
+        vec![OutputGroupDraft {
+            name: "Output 1".to_string(),
+            device_id: if chain.output_device_id.0.is_empty() {
+                None
+            } else {
+                Some(chain.output_device_id.0.clone())
+            },
+            channels: chain.output_channels.clone(),
+            mode: if chain.output_channels.len() >= 2 {
+                ChainOutputMode::Stereo
+            } else {
+                ChainOutputMode::Mono
+            },
+        }]
+    } else {
+        chain
+            .outputs
+            .iter()
+            .map(|output| OutputGroupDraft {
+                name: output.name.clone(),
+                device_id: if output.device_id.0.is_empty() {
+                    None
+                } else {
+                    Some(output.device_id.0.clone())
+                },
+                channels: output.channels.clone(),
+                mode: output.mode,
+            })
+            .collect()
+    };
     ChainDraft {
         editing_index: Some(index),
         name: chain
@@ -5793,11 +6555,10 @@ fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
             .clone()
             .unwrap_or_else(|| format!("Chain {}", index + 1)),
         instrument: chain.instrument.clone(),
-        input_device_id: Some(chain.input_device_id.0.clone()),
-        output_device_id: Some(chain.output_device_id.0.clone()),
-        input_channels: chain.input_channels.clone(),
-        output_channels: chain.output_channels.clone(),
-        input_mode: chain.input_mode,
+        inputs,
+        outputs,
+        editing_input_index: None,
+        editing_output_index: None,
     }
 }
 fn load_thumbnail_image(effect_type: &str, model_id: &str) -> (slint::Image, bool, f32, f32) {
@@ -5881,11 +6642,12 @@ fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
     }
 }
 fn build_input_channel_items(
+    input_group: &InputGroupDraft,
     draft: &ChainDraft,
     project: &Project,
     input_devices: &[AudioDeviceDescriptor],
 ) -> Vec<ChannelOptionItem> {
-    let Some(device_id) = draft.input_device_id.as_ref() else {
+    let Some(device_id) = input_group.device_id.as_ref() else {
         return Vec::new();
     };
     let Some(device) = input_devices.iter().find(|device| &device.id == device_id) else {
@@ -5897,25 +6659,35 @@ fn build_input_channel_items(
         .enumerate()
         .filter(|(index, chain)| {
             chain.enabled
-                && chain.input_device_id.0 == *device_id
                 && draft.editing_index != Some(*index)
         })
-        .flat_map(|(_, chain)| chain.input_channels.iter().copied())
+        .flat_map(|(_, chain)| {
+            chain.inputs.iter()
+                .filter(|inp| inp.device_id.0 == *device_id)
+                .flat_map(|inp| inp.channels.iter().copied())
+                .chain(
+                    if chain.input_device_id.0 == *device_id {
+                        chain.input_channels.clone()
+                    } else {
+                        Vec::new()
+                    }
+                )
+        })
         .collect::<Vec<_>>();
     (0..device.channels)
         .map(|channel| ChannelOptionItem {
             index: channel as i32,
             label: format!("Canal {}", channel + 1).into(),
-            selected: draft.input_channels.contains(&channel),
+            selected: input_group.channels.contains(&channel),
             available: !used_channels.contains(&channel),
         })
         .collect()
 }
 fn build_output_channel_items(
-    draft: &ChainDraft,
+    output_group: &OutputGroupDraft,
     output_devices: &[AudioDeviceDescriptor],
 ) -> Vec<ChannelOptionItem> {
-    let Some(device_id) = draft.output_device_id.as_ref() else {
+    let Some(device_id) = output_group.device_id.as_ref() else {
         return Vec::new();
     };
     let Some(device) = output_devices.iter().find(|device| &device.id == device_id) else {
@@ -5925,7 +6697,7 @@ fn build_output_channel_items(
         .map(|channel| ChannelOptionItem {
             index: channel as i32,
             label: format!("Canal {}", channel + 1).into(),
-            selected: draft.output_channels.contains(&channel),
+            selected: output_group.channels.contains(&channel),
             available: true,
         })
         .collect()
@@ -5939,6 +6711,66 @@ fn normalized_chain_description(name: &str) -> Option<String> {
         None
     } else {
         Some(trimmed.to_string())
+    }
+}
+fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain>) -> Chain {
+    let inputs: Vec<ChainInput> = draft
+        .inputs
+        .iter()
+        .map(|ig| ChainInput {
+            name: ig.name.clone(),
+            device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
+            mode: ig.mode,
+            channels: ig.channels.clone(),
+        })
+        .collect();
+    let outputs: Vec<ChainOutput> = draft
+        .outputs
+        .iter()
+        .map(|og| ChainOutput {
+            name: og.name.clone(),
+            device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
+            mode: og.mode,
+            channels: og.channels.clone(),
+        })
+        .collect();
+    // Legacy fields from first input/output for backward compat
+    let first_input = draft.inputs.first();
+    let first_output = draft.outputs.first();
+    Chain {
+        id: existing_chain
+            .map(|c| c.id.clone())
+            .unwrap_or_else(ChainId::generate),
+        description: normalized_chain_description(&draft.name),
+        instrument: draft.instrument.clone(),
+        enabled: existing_chain.map(|c| c.enabled).unwrap_or(false),
+        inputs,
+        outputs,
+        input_device_id: DeviceId(
+            first_input
+                .and_then(|i| i.device_id.clone())
+                .unwrap_or_default(),
+        ),
+        input_channels: first_input
+            .map(|i| i.channels.clone())
+            .unwrap_or_default(),
+        output_device_id: DeviceId(
+            first_output
+                .and_then(|o| o.device_id.clone())
+                .unwrap_or_default(),
+        ),
+        output_channels: first_output
+            .map(|o| o.channels.clone())
+            .unwrap_or_default(),
+        blocks: existing_chain
+            .map(|c| c.blocks.clone())
+            .unwrap_or_default(),
+        output_mixdown: existing_chain
+            .map(|c| c.output_mixdown)
+            .unwrap_or(ChainOutputMixdown::Average),
+        input_mode: first_input
+            .map(|i| i.mode)
+            .unwrap_or(ChainInputMode::Mono),
     }
 }
 fn stop_project_runtime(project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>) {
@@ -6044,6 +6876,18 @@ fn input_mode_from_index(index: i32) -> ChainInputMode {
         _ => ChainInputMode::Mono,
     }
 }
+fn output_mode_to_index(mode: ChainOutputMode) -> i32 {
+    match mode {
+        ChainOutputMode::Mono => 0,
+        ChainOutputMode::Stereo => 1,
+    }
+}
+fn output_mode_from_index(index: i32) -> ChainOutputMode {
+    match index {
+        1 => ChainOutputMode::Stereo,
+        _ => ChainOutputMode::Mono,
+    }
+}
 fn instrument_string_to_index(instrument: &str) -> i32 {
     INSTRUMENT_KEYS
         .iter()
@@ -6088,32 +6932,72 @@ fn endpoint_summary(
             .collect::<Vec<_>>()
             .join(", ")
     };
-    format!("{device_name}\nCanais: {channels}")
+    format!("{device_name} · Ch {channels}")
 }
-fn apply_chain_endpoint_summaries(
+fn build_io_group_items(
+    draft: &ChainDraft,
+    input_devices: &[AudioDeviceDescriptor],
+    output_devices: &[AudioDeviceDescriptor],
+) -> (Vec<IoGroupItem>, Vec<IoGroupItem>) {
+    let input_items: Vec<IoGroupItem> = draft
+        .inputs
+        .iter()
+        .map(|input| {
+            let summary = endpoint_summary(
+                input.device_id.as_deref(),
+                &input.channels,
+                input_devices,
+            );
+            IoGroupItem {
+                name: input.name.clone().into(),
+                summary: summary.into(),
+            }
+        })
+        .collect();
+    let output_items: Vec<IoGroupItem> = draft
+        .outputs
+        .iter()
+        .map(|output| {
+            let summary = endpoint_summary(
+                output.device_id.as_deref(),
+                &output.channels,
+                output_devices,
+            );
+            IoGroupItem {
+                name: output.name.clone().into(),
+                summary: summary.into(),
+            }
+        })
+        .collect();
+    (input_items, output_items)
+}
+fn apply_chain_io_groups(
     window: &AppWindow,
     chain_editor_window: &ChainEditorWindow,
     draft: &ChainDraft,
     input_devices: &[AudioDeviceDescriptor],
     output_devices: &[AudioDeviceDescriptor],
 ) {
-    let input_summary = endpoint_summary(
-        draft.input_device_id.as_deref(),
-        &draft.input_channels,
-        input_devices,
-    );
-    let output_summary = endpoint_summary(
-        draft.output_device_id.as_deref(),
-        &draft.output_channels,
-        output_devices,
-    );
-    window.set_chain_input_summary(input_summary.clone().into());
-    window.set_chain_output_summary(output_summary.clone().into());
-    chain_editor_window.set_input_summary(input_summary.into());
-    chain_editor_window.set_output_summary(output_summary.into());
+    let (input_items, output_items) = build_io_group_items(draft, input_devices, output_devices);
+    // Update main window summaries (first input/output for legacy compat)
+    let input_summary = draft
+        .inputs
+        .first()
+        .map(|i| endpoint_summary(i.device_id.as_deref(), &i.channels, input_devices))
+        .unwrap_or_default();
+    let output_summary = draft
+        .outputs
+        .first()
+        .map(|o| endpoint_summary(o.device_id.as_deref(), &o.channels, output_devices))
+        .unwrap_or_default();
+    window.set_chain_input_summary(input_summary.into());
+    window.set_chain_output_summary(output_summary.into());
+    chain_editor_window.set_input_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
+    chain_editor_window.set_output_groups(ModelRc::from(Rc::new(VecModel::from(output_items))));
 }
 fn apply_chain_input_window_state(
     input_window: &ChainInputWindow,
+    input_group: &InputGroupDraft,
     draft: &ChainDraft,
     project: &Project,
     input_devices: &[AudioDeviceDescriptor],
@@ -6121,29 +7005,30 @@ fn apply_chain_input_window_state(
 ) {
     replace_channel_options(
         channel_model,
-        build_input_channel_items(draft, project, input_devices),
+        build_input_channel_items(input_group, draft, project, input_devices),
     );
     input_window.set_selected_device_index(selected_device_index(
         input_devices,
-        draft.input_device_id.as_deref(),
+        input_group.device_id.as_deref(),
     ));
-    input_window.set_selected_input_mode_index(input_mode_to_index(draft.input_mode));
+    input_window.set_selected_input_mode_index(input_mode_to_index(input_group.mode));
     input_window.set_status_message("".into());
 }
 fn apply_chain_output_window_state(
     output_window: &ChainOutputWindow,
-    draft: &ChainDraft,
+    output_group: &OutputGroupDraft,
     output_devices: &[AudioDeviceDescriptor],
     channel_model: &Rc<VecModel<ChannelOptionItem>>,
 ) {
     replace_channel_options(
         channel_model,
-        build_output_channel_items(draft, output_devices),
+        build_output_channel_items(output_group, output_devices),
     );
     output_window.set_selected_device_index(selected_device_index(
         output_devices,
-        draft.output_device_id.as_deref(),
+        output_group.device_id.as_deref(),
     ));
+    output_window.set_selected_output_mode_index(output_mode_to_index(output_group.mode));
     output_window.set_status_message("".into());
 }
 fn toggle_device_row(model: &Rc<VecModel<DeviceSelectionItem>>, index: usize, selected: bool) {

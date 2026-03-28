@@ -26,6 +26,14 @@ pub enum ChainInputMode {
     DualMono,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ChainOutputMode {
+    Mono,
+    #[default]
+    Stereo,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProcessingLayout {
     Mono,
@@ -60,6 +68,44 @@ pub fn processing_layout(
     }
 }
 
+/// Determines the processing layout from a ChainInput alone.
+pub fn processing_layout_for_input(input: &ChainInput) -> ProcessingLayout {
+    let ch_count = input.channels.len();
+    match input.mode {
+        ChainInputMode::DualMono if ch_count >= 2 => ProcessingLayout::DualMono,
+        ChainInputMode::Stereo if ch_count >= 2 => ProcessingLayout::Stereo,
+        _ => ProcessingLayout::Mono,
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ChainInput {
+    #[serde(default = "default_input_name")]
+    pub name: String,
+    pub device_id: DeviceId,
+    #[serde(default)]
+    pub mode: ChainInputMode,
+    pub channels: Vec<usize>,
+}
+
+fn default_input_name() -> String {
+    "Input".to_string()
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ChainOutput {
+    #[serde(default = "default_output_name")]
+    pub name: String,
+    pub device_id: DeviceId,
+    #[serde(default)]
+    pub mode: ChainOutputMode,
+    pub channels: Vec<usize>,
+}
+
+fn default_output_name() -> String {
+    "Output".to_string()
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Chain {
     #[serde(skip)]
@@ -68,13 +114,84 @@ pub struct Chain {
     pub description: Option<String>,
     pub instrument: String,
     pub enabled: bool,
-    pub input_device_id: DeviceId,
-    pub input_channels: Vec<usize>,
-    pub output_device_id: DeviceId,
-    pub output_channels: Vec<usize>,
+    // New multi-input/output fields
+    #[serde(default)]
+    pub inputs: Vec<ChainInput>,
+    #[serde(default)]
+    pub outputs: Vec<ChainOutput>,
     #[serde(default)]
     pub blocks: Vec<AudioBlock>,
+    // Legacy fields — kept for backward-compatible deserialization, skipped on serialization
+    #[serde(default, skip_serializing)]
+    pub input_device_id: DeviceId,
+    #[serde(default, skip_serializing)]
+    pub input_channels: Vec<usize>,
+    #[serde(default, skip_serializing)]
+    pub output_device_id: DeviceId,
+    #[serde(default, skip_serializing)]
+    pub output_channels: Vec<usize>,
+    #[serde(default, skip_serializing)]
     pub output_mixdown: ChainOutputMixdown,
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     pub input_mode: ChainInputMode,
+}
+
+impl Chain {
+    /// Migrate legacy single-input/output to new multi-input/output model.
+    /// Called after deserialization.
+    pub fn migrate_legacy_io(&mut self) {
+        if self.inputs.is_empty() && !self.input_device_id.0.is_empty() {
+            self.inputs.push(ChainInput {
+                name: "Input 1".to_string(),
+                device_id: self.input_device_id.clone(),
+                mode: self.input_mode,
+                channels: self.input_channels.clone(),
+            });
+        }
+        if self.outputs.is_empty() && !self.output_device_id.0.is_empty() {
+            let mode = if self.output_channels.len() >= 2 {
+                ChainOutputMode::Stereo
+            } else {
+                ChainOutputMode::Mono
+            };
+            self.outputs.push(ChainOutput {
+                name: "Output 1".to_string(),
+                device_id: self.output_device_id.clone(),
+                mode,
+                channels: self.output_channels.clone(),
+            });
+        }
+    }
+
+    /// Validate that no two inputs share the same device+channel,
+    /// and no two outputs share the same device+channel.
+    pub fn validate_channel_conflicts(&self) -> Result<(), String> {
+        let mut used: Vec<(String, usize)> = Vec::new();
+        for input in &self.inputs {
+            for &ch in &input.channels {
+                let key = (input.device_id.0.clone(), ch);
+                if used.contains(&key) {
+                    return Err(format!(
+                        "Channel {} on device '{}' is used by multiple inputs",
+                        ch, input.device_id.0
+                    ));
+                }
+                used.push(key);
+            }
+        }
+        let mut used: Vec<(String, usize)> = Vec::new();
+        for output in &self.outputs {
+            for &ch in &output.channels {
+                let key = (output.device_id.0.clone(), ch);
+                if used.contains(&key) {
+                    return Err(format!(
+                        "Channel {} on device '{}' is used by multiple outputs",
+                        ch, output.device_id.0
+                    ));
+                }
+                used.push(key);
+            }
+        }
+        Ok(())
+    }
 }
