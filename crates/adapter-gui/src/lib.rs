@@ -4589,14 +4589,15 @@ pub fn run_desktop_app(
                             let weak = window.as_weak();
                             // Rc<Timer> cannot be sent across threads, so we create a local
                             // timer here (inside invoke_from_event_loop = event loop thread).
-                            // Capturing the clone in the callback keeps it alive until it fires.
+                            // RefCell<Option<>> lets us .take() the clone (FnMut-compatible).
                             let timer = Rc::new(Timer::default());
-                            let timer_keep_alive = timer.clone();
+                            let timer_keep_alive =
+                                Rc::new(RefCell::new(Some(timer.clone())));
                             timer.start(
                                 TimerMode::SingleShot,
                                 Duration::from_secs(3),
                                 move || {
-                                    drop(timer_keep_alive);
+                                    timer_keep_alive.borrow_mut().take();
                                     if let Some(w) = weak.upgrade() {
                                         w.set_toast_message("".into());
                                         w.set_toast_level("info".into());
