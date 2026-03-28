@@ -13,7 +13,7 @@ concurrency:
 jobs:
   claude:
     if: |
-      github.event.sender.type != 'Bot' &&
+      !endsWith(github.event.sender.login, '[bot]') &&
       contains(github.event.comment.body, '@claude')
     runs-on: ubuntu-latest
     timeout-minutes: 30
