@@ -77,6 +77,7 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 ### Telas principais
 
 - **Launcher** — criar/abrir projetos, projetos recentes
+- **Project Setup** — tela intermediária ao criar novo projeto; pede o nome antes de abrir a view principal
 - **Chains** — visualização da cadeia de blocos (pedalboard), arrastar/reordenar blocos
 - **Block Editor** — editar parâmetros de um bloco (knobs, sliders, switches)
 - **Compact Chain View** — visão compacta com power switches e troca rápida de modelo
