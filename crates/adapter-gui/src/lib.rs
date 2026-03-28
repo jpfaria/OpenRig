@@ -4558,7 +4558,6 @@ pub fn run_desktop_app(
     // Feedback: submit via GitHub REST API (runs in background thread)
     {
         let weak_window = window.as_weak();
-        let toast_timer = toast_timer.clone();
         window.on_submit_feedback(move |kind, title, description| {
             let Some(window) = weak_window.upgrade() else {
                 return;
