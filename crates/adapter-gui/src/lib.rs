@@ -4351,6 +4351,10 @@ pub fn run_desktop_app(
             let existing_chain =
                 editing_index.and_then(|index| session.project.chains.get(index).cloned());
             let chain = chain_from_draft(&draft, existing_chain.as_ref());
+            if let Err(msg) = chain.validate_channel_conflicts() {
+                set_status_warning(&window, &toast_timer, &msg);
+                return;
+            }
             log::info!("=== CHAIN SAVED: id='{}', name={:?}, instrument='{}', editing={:?} ===",
                 chain.id.0, chain.description, chain.instrument, editing_index);
             let chain_id = chain.id.clone();
@@ -4441,6 +4445,10 @@ pub fn run_desktop_app(
             let existing_chain =
                 editing_index.and_then(|index| session.project.chains.get(index).cloned());
             let chain = chain_from_draft(&draft, existing_chain.as_ref());
+            if let Err(msg) = chain.validate_channel_conflicts() {
+                chain_window.set_status_message(msg.into());
+                return;
+            }
             log::info!("=== CHAIN SAVED: id='{}', name={:?}, instrument='{}', editing={:?} ===",
                 chain.id.0, chain.description, chain.instrument, editing_index);
             let chain_id = chain.id.clone();
