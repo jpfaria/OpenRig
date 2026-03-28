@@ -5081,22 +5081,9 @@ fn replace_project_chains(
                     format!("{} blocks", chain.blocks.len()).into()
                 },
                 input_label: chain_endpoint_label("In", &chain.input_channels).into(),
-                input_tooltip: chain_endpoint_tooltip(
-                    "Entrada",
-                    &chain.input_device_id.0,
-                    &chain.input_channels,
-                    project,
-                    input_devices,
-                )
-                .into(),
+                input_tooltip: chain_inputs_tooltip(chain, project, input_devices).into(),
                 output_label: chain_endpoint_label("Out", &chain.output_channels).into(),
-                output_tooltip: chain_endpoint_tooltip(
-                    "Saída",
-                    &chain.output_device_id.0,
-                    &chain.output_channels,
-                    project,
-                    output_devices,
-                )
+                output_tooltip: chain_outputs_tooltip(chain, project, output_devices)
                 .into(),
                 latency_ms,
                 blocks: ModelRc::from(Rc::new(VecModel::from(
@@ -5140,6 +5127,49 @@ fn chain_endpoint_tooltip(
         "{device_name}\nConfiguração: {sample_rate} Hz · {buffer} frames\nCanais: {}",
         format_channel_list(channels)
     )
+}
+fn chain_inputs_tooltip(
+    chain: &Chain,
+    project: &Project,
+    devices: &[AudioDeviceDescriptor],
+) -> String {
+    if chain.inputs.is_empty() {
+        return chain_endpoint_tooltip("Entrada", &chain.input_device_id.0, &chain.input_channels, project, devices);
+    }
+    chain.inputs.iter().map(|input| {
+        let device_name = devices
+            .iter()
+            .find(|d| d.id == input.device_id.0)
+            .map(|d| d.name.as_str())
+            .unwrap_or(&input.device_id.0);
+        let mode = match input.mode {
+            ChainInputMode::Mono => "Mono",
+            ChainInputMode::Stereo => "Stereo",
+            ChainInputMode::DualMono => "Dual Mono",
+        };
+        format!("{}: {} · {} · Ch {}", input.name, device_name, mode, format_channel_list(&input.channels))
+    }).collect::<Vec<_>>().join("\n")
+}
+fn chain_outputs_tooltip(
+    chain: &Chain,
+    project: &Project,
+    devices: &[AudioDeviceDescriptor],
+) -> String {
+    if chain.outputs.is_empty() {
+        return chain_endpoint_tooltip("Saída", &chain.output_device_id.0, &chain.output_channels, project, devices);
+    }
+    chain.outputs.iter().map(|output| {
+        let device_name = devices
+            .iter()
+            .find(|d| d.id == output.device_id.0)
+            .map(|d| d.name.as_str())
+            .unwrap_or(&output.device_id.0);
+        let mode = match output.mode {
+            ChainOutputMode::Mono => "Mono",
+            ChainOutputMode::Stereo => "Stereo",
+        };
+        format!("{}: {} · {} · Ch {}", output.name, device_name, mode, format_channel_list(&output.channels))
+    }).collect::<Vec<_>>().join("\n")
 }
 fn format_channel_list(channels: &[usize]) -> String {
     if channels.is_empty() {
