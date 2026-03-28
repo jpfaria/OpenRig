@@ -133,9 +133,14 @@ Cada chain tem um instrumento que filtra quais blocos podem ser adicionados.
 
 ### Configuração de áudio
 
-- Devices: input e output independentes
+- **Multi-input/multi-output**: cada chain tem N inputs e M outputs
+  - Cada input tem: `name`, `device_id`, `mode` (mono/stereo/dual_mono), `channels`
+  - Cada output tem: `name`, `device_id`, `mode` (mono/stereo), `channels`
+  - Cada input roda sua propria instancia paralela da cadeia de blocos
+- Devices: input e output independentes (podem ser devices diferentes)
 - Sample rates: 44.1kHz, 48kHz, 88.2kHz, 96kHz
 - Buffer sizes: 32, 64, 128, 256, 512, 1024 samples
+- **Migração**: YAML antigo com `input_device_id`/`output_device_id` (campos únicos) é migrado automaticamente para o formato `inputs`/`outputs` ao carregar
 
 ---
 
@@ -337,7 +342,23 @@ O campo `instrument` e salvo no YAML da chain. Valor padrao (retrocompatibilidad
 chains:
   - description: guitar 1
     instrument: electric_guitar
-    # ...
+    inputs:
+      - name: Input 1
+        device_id: "coreaudio:..."
+        mode: mono
+        channels: [0]
+    outputs:
+      - name: Output 1
+        device_id: "coreaudio:..."
+        mode: stereo
+        channels: [0, 1]
+    blocks:
+      - type: preamp
+        model: marshall_jcm_800_2203
+        enabled: true
+        params:
+          volume: 70.0
+          gain: 40.0
 ```
 
 ---
