@@ -1145,7 +1145,7 @@ pub fn process_output_f32(
 
 fn trim_output_queue(queue: &mut VecDeque<AudioFrame>) {
     while queue.len() > MAX_BUFFERED_OUTPUT_FRAMES {
-        queue.pop_front();
+        queue.pop_back();
     }
 }
 
