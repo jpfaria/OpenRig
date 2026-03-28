@@ -1,7 +1,7 @@
-use domain::ids::{ChainId, DeviceId};
+use domain::ids::ChainId;
 use serde::{Deserialize, Serialize};
 
-use crate::block::AudioBlock;
+use crate::block::{AudioBlock, AudioBlockKind, InputBlock, OutputBlock};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
@@ -68,42 +68,14 @@ pub fn processing_layout(
     }
 }
 
-/// Determines the processing layout from a ChainInput alone.
-pub fn processing_layout_for_input(input: &ChainInput) -> ProcessingLayout {
+/// Determines the processing layout from an InputBlock alone.
+pub fn processing_layout_for_input(input: &InputBlock) -> ProcessingLayout {
     let ch_count = input.channels.len();
     match input.mode {
         ChainInputMode::DualMono if ch_count >= 2 => ProcessingLayout::DualMono,
         ChainInputMode::Stereo if ch_count >= 2 => ProcessingLayout::Stereo,
         _ => ProcessingLayout::Mono,
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ChainInput {
-    #[serde(default = "default_input_name")]
-    pub name: String,
-    pub device_id: DeviceId,
-    #[serde(default)]
-    pub mode: ChainInputMode,
-    pub channels: Vec<usize>,
-}
-
-fn default_input_name() -> String {
-    "Input".to_string()
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ChainOutput {
-    #[serde(default = "default_output_name")]
-    pub name: String,
-    pub device_id: DeviceId,
-    #[serde(default)]
-    pub mode: ChainOutputMode,
-    pub channels: Vec<usize>,
-}
-
-fn default_output_name() -> String {
-    "Output".to_string()
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -114,60 +86,56 @@ pub struct Chain {
     pub description: Option<String>,
     pub instrument: String,
     pub enabled: bool,
-    // New multi-input/output fields
-    #[serde(default)]
-    pub inputs: Vec<ChainInput>,
-    #[serde(default)]
-    pub outputs: Vec<ChainOutput>,
     #[serde(default)]
     pub blocks: Vec<AudioBlock>,
-    // Legacy fields — kept for backward-compatible deserialization, skipped on serialization
-    #[serde(default, skip_serializing)]
-    pub input_device_id: DeviceId,
-    #[serde(default, skip_serializing)]
-    pub input_channels: Vec<usize>,
-    #[serde(default, skip_serializing)]
-    pub output_device_id: DeviceId,
-    #[serde(default, skip_serializing)]
-    pub output_channels: Vec<usize>,
-    #[serde(default, skip_serializing)]
-    pub output_mixdown: ChainOutputMixdown,
-    #[serde(default, skip_serializing)]
-    pub input_mode: ChainInputMode,
 }
 
 impl Chain {
-    /// Migrate legacy single-input/output to new multi-input/output model.
-    /// Called after deserialization.
-    pub fn migrate_legacy_io(&mut self) {
-        if self.inputs.is_empty() && !self.input_device_id.0.is_empty() {
-            self.inputs.push(ChainInput {
-                name: "Input 1".to_string(),
-                device_id: self.input_device_id.clone(),
-                mode: self.input_mode,
-                channels: self.input_channels.clone(),
-            });
-        }
-        if self.outputs.is_empty() && !self.output_device_id.0.is_empty() {
-            let mode = if self.output_channels.len() >= 2 {
-                ChainOutputMode::Stereo
-            } else {
-                ChainOutputMode::Mono
-            };
-            self.outputs.push(ChainOutput {
-                name: "Output 1".to_string(),
-                device_id: self.output_device_id.clone(),
-                mode,
-                channels: self.output_channels.clone(),
-            });
-        }
+    /// Returns all Input blocks with their indices in the blocks vec.
+    pub fn input_blocks(&self) -> Vec<(usize, &InputBlock)> {
+        self.blocks
+            .iter()
+            .enumerate()
+            .filter_map(|(i, b)| match &b.kind {
+                AudioBlockKind::Input(input) => Some((i, input)),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Returns all Output blocks with their indices in the blocks vec.
+    pub fn output_blocks(&self) -> Vec<(usize, &OutputBlock)> {
+        self.blocks
+            .iter()
+            .enumerate()
+            .filter_map(|(i, b)| match &b.kind {
+                AudioBlockKind::Output(output) => Some((i, output)),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Returns the first Input block, if any.
+    pub fn first_input(&self) -> Option<&InputBlock> {
+        self.blocks.iter().find_map(|b| match &b.kind {
+            AudioBlockKind::Input(input) => Some(input),
+            _ => None,
+        })
+    }
+
+    /// Returns the last Output block, if any.
+    pub fn last_output(&self) -> Option<&OutputBlock> {
+        self.blocks.iter().rev().find_map(|b| match &b.kind {
+            AudioBlockKind::Output(output) => Some(output),
+            _ => None,
+        })
     }
 
     /// Validate that no two inputs share the same device+channel,
     /// and no two outputs share the same device+channel.
     pub fn validate_channel_conflicts(&self) -> Result<(), String> {
         let mut used: Vec<(String, usize)> = Vec::new();
-        for input in &self.inputs {
+        for (_, input) in self.input_blocks() {
             for &ch in &input.channels {
                 let key = (input.device_id.0.clone(), ch);
                 if used.contains(&key) {
@@ -180,7 +148,7 @@ impl Chain {
             }
         }
         let mut used: Vec<(String, usize)> = Vec::new();
-        for output in &self.outputs {
+        for (_, output) in self.output_blocks() {
             for &ch in &output.channels {
                 let key = (output.device_id.0.clone(), ch);
                 if used.contains(&key) {

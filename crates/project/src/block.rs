@@ -1,4 +1,4 @@
-use domain::ids::BlockId;
+use domain::ids::{BlockId, DeviceId};
 use domain::value_objects::ParameterValue;
 use serde::{Deserialize, Serialize};
 use block_amp::{amp_model_schema, validate_amp_params};
@@ -19,6 +19,7 @@ use block_reverb::reverb_model_schema;
 use block_util::utility_model_schema;
 use block_wah::{validate_wah_params, wah_model_schema};
 
+use crate::chain::{ChainInputMode, ChainOutputMode};
 use crate::param::{BlockParameterDescriptor, ModelParameterSchema, ParameterSet};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -43,6 +44,26 @@ pub enum AudioBlockKind {
     Nam(NamBlock),
     Core(CoreBlock),
     Select(SelectBlock),
+    Input(InputBlock),
+    Output(OutputBlock),
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputBlock {
+    pub name: String,
+    pub device_id: DeviceId,
+    #[serde(default)]
+    pub mode: ChainInputMode,
+    pub channels: Vec<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OutputBlock {
+    pub name: String,
+    pub device_id: DeviceId,
+    #[serde(default)]
+    pub mode: ChainOutputMode,
+    pub channels: Vec<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -91,6 +112,7 @@ impl AudioBlock {
                 }
                 Ok(())
             }
+            AudioBlockKind::Input(_) | AudioBlockKind::Output(_) => Ok(()),
         }
     }
 
@@ -104,6 +126,7 @@ impl AudioBlock {
                 .selected_option()
                 .ok_or_else(|| "select block selected option does not exist".to_string())?
                 .parameter_descriptors(),
+            AudioBlockKind::Input(_) | AudioBlockKind::Output(_) => Ok(Vec::new()),
         }
     }
 
@@ -120,6 +143,7 @@ impl AudioBlock {
                 .selected_option()
                 .ok_or_else(|| "select block selected option does not exist".to_string())?
                 .audio_descriptors(),
+            AudioBlockKind::Input(_) | AudioBlockKind::Output(_) => Ok(Vec::new()),
         }
     }
 
@@ -131,7 +155,7 @@ impl AudioBlock {
                 params: &stage.params,
             }),
             AudioBlockKind::Core(core) => Some(core.model_ref()),
-            AudioBlockKind::Select(_) => None,
+            AudioBlockKind::Select(_) | AudioBlockKind::Input(_) | AudioBlockKind::Output(_) => None,
         }
     }
 }
@@ -190,8 +214,8 @@ impl SelectBlock {
 
         let mut effect_type = None::<&str>;
         for option in &self.options {
-            if matches!(option.kind, AudioBlockKind::Select(_)) {
-                return Err("select block options cannot themselves be select blocks".to_string());
+            if matches!(option.kind, AudioBlockKind::Select(_) | AudioBlockKind::Input(_) | AudioBlockKind::Output(_)) {
+                return Err("select block options cannot be select, input, or output blocks".to_string());
             }
 
             let model = option.model_ref().ok_or_else(|| {

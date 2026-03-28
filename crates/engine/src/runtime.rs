@@ -1,12 +1,12 @@
 use anyhow::{anyhow, Result};
 use domain::ids::{BlockId, ChainId};
 use project::block::{
-    schema_for_block_model, AudioBlockKind, CoreBlock, NamBlock, SelectBlock,
+    schema_for_block_model, AudioBlockKind, CoreBlock, InputBlock, NamBlock, OutputBlock, SelectBlock,
 };
 use project::param::ParameterSet;
 use project::project::Project;
 use project::chain::{
-    Chain, ChainInput, ChainInputMode, ChainOutputMixdown, ChainOutputMode, ProcessingLayout,
+    Chain, ChainInputMode, ChainOutputMixdown, ChainOutputMode, ProcessingLayout,
 };
 use block_amp::build_amp_processor_for_layout;
 use block_preamp::build_preamp_processor_for_layout;
@@ -344,59 +344,41 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
     })
 }
 
-/// Build effective inputs from chain, falling back to legacy fields if `inputs` is empty.
-fn effective_inputs(chain: &Chain) -> Vec<ChainInput> {
-    if !chain.inputs.is_empty() {
-        return chain.inputs.clone();
+/// Build effective inputs from chain's InputBlock entries.
+/// Falls back to a single mono input on channel 0 if no InputBlocks exist.
+fn effective_inputs(chain: &Chain) -> Vec<InputBlock> {
+    let input_blocks: Vec<InputBlock> = chain.input_blocks().into_iter().map(|(_, ib)| ib.clone()).collect();
+    if !input_blocks.is_empty() {
+        return input_blocks;
     }
-    // Legacy fallback
-    if chain.input_device_id.0.is_empty() && chain.input_channels.is_empty() {
-        // Completely empty — return a single mono input on channel 0 so processing works
-        return vec![ChainInput {
-            name: "Input 1".to_string(),
-            device_id: chain.input_device_id.clone(),
-            mode: chain.input_mode,
-            channels: if chain.input_channels.is_empty() {
-                vec![0]
-            } else {
-                chain.input_channels.clone()
-            },
-        }];
-    }
-    vec![ChainInput {
+    // Fallback — no InputBlocks defined
+    vec![InputBlock {
         name: "Input 1".to_string(),
-        device_id: chain.input_device_id.clone(),
-        mode: chain.input_mode,
-        channels: chain.input_channels.clone(),
+        device_id: domain::ids::DeviceId("".to_string()),
+        mode: ChainInputMode::Mono,
+        channels: vec![0],
     }]
 }
 
-/// Build effective outputs from chain, falling back to legacy fields if `outputs` is empty.
-fn effective_outputs(chain: &Chain) -> Vec<project::chain::ChainOutput> {
-    if !chain.outputs.is_empty() {
-        return chain.outputs.clone();
+/// Build effective outputs from chain's OutputBlock entries.
+/// Falls back to a single mono output on channel 0 if no OutputBlocks exist.
+fn effective_outputs(chain: &Chain) -> Vec<OutputBlock> {
+    let output_blocks: Vec<OutputBlock> = chain.output_blocks().into_iter().map(|(_, ob)| ob.clone()).collect();
+    if !output_blocks.is_empty() {
+        return output_blocks;
     }
-    // Legacy fallback
-    let mode = if chain.output_channels.len() >= 2 {
-        ChainOutputMode::Stereo
-    } else {
-        ChainOutputMode::Mono
-    };
-    vec![project::chain::ChainOutput {
+    // Fallback — no OutputBlocks defined
+    vec![OutputBlock {
         name: "Output 1".to_string(),
-        device_id: chain.output_device_id.clone(),
-        mode,
-        channels: if chain.output_channels.is_empty() {
-            vec![0]
-        } else {
-            chain.output_channels.clone()
-        },
+        device_id: domain::ids::DeviceId("".to_string()),
+        mode: ChainOutputMode::Mono,
+        channels: vec![0],
     }]
 }
 
 fn build_input_processing_state(
     chain: &Chain,
-    input: &ChainInput,
+    input: &InputBlock,
     output_channels: &[usize],
     sample_rate: f32,
     existing_blocks: Option<Vec<BlockRuntimeNode>>,
@@ -438,7 +420,7 @@ fn build_input_processing_state(
     })
 }
 
-fn build_output_routing_state(output: &project::chain::ChainOutput) -> OutputRoutingState {
+fn build_output_routing_state(output: &OutputBlock) -> OutputRoutingState {
     let output_layout = if output.channels.len() >= 2 {
         match output.mode {
             ChainOutputMode::Stereo => AudioChannelLayout::Stereo,
@@ -571,6 +553,10 @@ fn build_runtime_block_nodes(
             }
             continue;
         }
+        // Input/Output blocks are routing metadata; skip them in the processing chain
+        if matches!(&block.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)) {
+            continue;
+        }
         if let AudioBlockKind::Select(select) = &block.kind {
             let existing_select_node = reusable_nodes
                 .remove(&block.id)
@@ -648,6 +634,8 @@ fn build_block_runtime_node(
         AudioBlockKind::Select(select) => {
             build_select_runtime_node(chain, block, select, input_layout, sample_rate, None)?
         }
+        // Input/Output blocks are routing-only; they don't process audio in the block chain
+        AudioBlockKind::Input(_) | AudioBlockKind::Output(_) => bypass_runtime_node(block, input_layout),
     })
 }
 
@@ -1446,11 +1434,11 @@ mod tests {
     use domain::ids::{BlockId, DeviceId, ChainId};
     use domain::value_objects::ParameterValue;
     use project::block::{
-        AudioBlock, AudioBlockKind, CoreBlock, SelectBlock, schema_for_block_model,
+        AudioBlock, AudioBlockKind, CoreBlock, InputBlock, OutputBlock, SelectBlock, schema_for_block_model,
     };
     use project::param::ParameterSet;
     use project::project::Project;
-    use project::chain::{Chain, ChainInputMode, ChainOutputMixdown};
+    use project::chain::{Chain, ChainInputMode, ChainOutputMode};
     use std::collections::HashMap;
     use std::sync::Arc;
 
@@ -1466,12 +1454,6 @@ mod tests {
                 description: Some("Cab test".into()),
                 instrument: "electric_guitar".to_string(),
                 enabled: true,
-                inputs: Vec::new(),
-                outputs: Vec::new(),
-                input_device_id: DeviceId("input-device".into()),
-                input_channels: vec![0],
-                output_device_id: DeviceId("output-device".into()),
-                output_channels: vec![0],
                 blocks: vec![AudioBlock {
                     id: BlockId("chain:0:block:0".into()),
                     enabled: true,
@@ -1481,8 +1463,6 @@ mod tests {
                         params,
                     }),
                 }],
-                output_mixdown: ChainOutputMixdown::Average,
-                input_mode: ChainInputMode::Mono,
             }],
         };
 
@@ -1506,12 +1486,6 @@ mod tests {
                 description: Some("Cab test".into()),
                 instrument: "electric_guitar".to_string(),
                 enabled: true,
-                inputs: Vec::new(),
-                outputs: Vec::new(),
-                input_device_id: DeviceId("input-device".into()),
-                input_channels: vec![0],
-                output_device_id: DeviceId("output-device".into()),
-                output_channels: vec![0],
                 blocks: vec![AudioBlock {
                     id: BlockId("chain:0:block:0".into()),
                     enabled: true,
@@ -1521,8 +1495,6 @@ mod tests {
                         params,
                     }),
                 }],
-                output_mixdown: ChainOutputMixdown::Average,
-                input_mode: ChainInputMode::Mono,
             }],
         };
 
@@ -1655,20 +1627,32 @@ mod tests {
             description: Some("Stereo isolation".into()),
             instrument: "electric_guitar".to_string(),
             enabled: true,
-            inputs: Vec::new(),
-            outputs: Vec::new(),
-            input_device_id: DeviceId("input-device".into()),
-            input_channels: vec![0, 1],
-            output_device_id: DeviceId("output-device".into()),
-            output_channels: vec![0, 1],
             blocks: vec![
+                AudioBlock {
+                    id: BlockId("chain:stereo:input:0".into()),
+                    enabled: true,
+                    kind: AudioBlockKind::Input(InputBlock {
+                        name: "Input 1".to_string(),
+                        device_id: DeviceId("input-device".into()),
+                        mode: ChainInputMode::Mono,
+                        channels: vec![0, 1],
+                    }),
+                },
                 compressor_block("chain:stereo:block:0"),
                 preamp_block("chain:stereo:block:1"),
                 native_cab_block("chain:stereo:block:2"),
                 reverb_block("chain:stereo:block:3"),
+                AudioBlock {
+                    id: BlockId("chain:stereo:output:0".into()),
+                    enabled: true,
+                    kind: AudioBlockKind::Output(OutputBlock {
+                        name: "Output 1".to_string(),
+                        device_id: DeviceId("output-device".into()),
+                        mode: ChainOutputMode::Stereo,
+                        channels: vec![0, 1],
+                    }),
+                },
             ],
-            output_mixdown: ChainOutputMixdown::Average,
-            input_mode: ChainInputMode::Mono,
         };
         let runtime =
             Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"));
@@ -1700,19 +1684,31 @@ mod tests {
             description: Some("Stereo isolation asset-backed".into()),
             instrument: "electric_guitar".to_string(),
             enabled: true,
-            inputs: Vec::new(),
-            outputs: Vec::new(),
-            input_device_id: DeviceId("input-device".into()),
-            input_channels: vec![0, 1],
-            output_device_id: DeviceId("output-device".into()),
-            output_channels: vec![0, 1],
             blocks: vec![
+                AudioBlock {
+                    id: BlockId("chain:asset-backed:input:0".into()),
+                    enabled: true,
+                    kind: AudioBlockKind::Input(InputBlock {
+                        name: "Input 1".to_string(),
+                        device_id: DeviceId("input-device".into()),
+                        mode: ChainInputMode::Mono,
+                        channels: vec![0, 1],
+                    }),
+                },
                 marshall_preamp_block("chain:asset-backed:block:0"),
                 ir_cab_block("chain:asset-backed:block:1"),
                 reverb_block("chain:asset-backed:block:2"),
+                AudioBlock {
+                    id: BlockId("chain:asset-backed:output:0".into()),
+                    enabled: true,
+                    kind: AudioBlockKind::Output(OutputBlock {
+                        name: "Output 1".to_string(),
+                        device_id: DeviceId("output-device".into()),
+                        mode: ChainOutputMode::Stereo,
+                        channels: vec![0, 1],
+                    }),
+                },
             ],
-            output_mixdown: ChainOutputMixdown::Average,
-            input_mode: ChainInputMode::Mono,
         };
         let runtime =
             Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"));
@@ -1779,15 +1775,7 @@ mod tests {
             description: Some("Tuner chain".into()),
             instrument: "electric_guitar".to_string(),
             enabled: true,
-            inputs: Vec::new(),
-            outputs: Vec::new(),
-            input_device_id: DeviceId("input-device".into()),
-            input_channels: vec![0],
-            output_device_id: DeviceId("output-device".into()),
-            output_channels: vec![0],
             blocks,
-            output_mixdown: ChainOutputMixdown::Average,
-            input_mode: ChainInputMode::Mono,
         }
     }
 
@@ -1944,12 +1932,6 @@ mod tests {
             description: Some("Delay select".into()),
             instrument: "electric_guitar".to_string(),
             enabled: true,
-            inputs: Vec::new(),
-            outputs: Vec::new(),
-            input_device_id: DeviceId("input-device".into()),
-            input_channels: vec![0],
-            output_device_id: DeviceId("output-device".into()),
-            output_channels: vec![0],
             blocks: vec![AudioBlock {
                 id: BlockId(format!("{id}:block:0")),
                 enabled: true,
@@ -1961,8 +1943,6 @@ mod tests {
                     ],
                 }),
             }],
-            output_mixdown: ChainOutputMixdown::Average,
-            input_mode: ChainInputMode::Mono,
         }
     }
 
