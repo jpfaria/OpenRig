@@ -3,6 +3,7 @@ export component Toast inherits Rectangle {
     in property <string> level: "info"; // "error", "warning", "info"
     in property <length> container-width;
     in property <length> container-height;
+    callback report-error(string); // triggered when user clicks "Reportar" on an error toast
 
     // Visible when message is not empty
     visible: root.message != "";
@@ -17,7 +18,7 @@ export component Toast inherits Rectangle {
              : #2563ebcc;
 
     Text {
-        width: parent.width - 24px;
+        width: root.level == "error" ? parent.width - 110px : parent.width - 24px;
         height: parent.height;
         x: 12px;
         text: root.message;
@@ -26,5 +27,31 @@ export component Toast inherits Rectangle {
         font-weight: 600;
         vertical-alignment: center;
         overflow: elide;
+    }
+
+    if root.level == "error" : Rectangle {
+        x: parent.width - 92px;
+        y: 6px;
+        width: 80px;
+        height: 28px;
+        background: #ffffff22;
+        border-width: 1px;
+        border-color: #ffffff44;
+        border-radius: 5px;
+
+        Text {
+            width: parent.width; height: parent.height;
+            text: "Reportar";
+            color: #ffffff;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        TouchArea {
+            width: parent.width; height: parent.height;
+            mouse-cursor: pointer;
+            clicked => { root.report-error(root.message); }
+        }
     }
 }

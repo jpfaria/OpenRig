@@ -1,0 +1,249 @@
+// Feedback dialog — lets the user report bugs or suggestions via gh CLI.
+// Shown as an overlay on the main window.
+export component FeedbackDialog inherits Rectangle {
+    in property <bool> visible-dialog: false;
+    in-out property <string> description;
+    in-out property <string> error-context;   // pre-filled when triggered from a toast error
+    in-out property <int> kind-index: 0;      // 0 = sugestão, 1 = bug
+    in property <string> status-message;
+
+    callback submit(string, string, string);  // kind, title, description
+    callback cancel();
+
+    visible: root.visible-dialog;
+
+    // Dim background overlay
+    background: #00000099;
+    x: 0px; y: 0px;
+    width: 100%; height: 100%;
+
+    // Stop clicks from passing through
+    TouchArea { width: parent.width; height: parent.height; }
+
+    // Centered card
+    card := Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: 460px;
+        height: root.error-context != "" ? 420px : 360px;
+        background: #1e2129;
+        border-width: 1px;
+        border-color: #32363d;
+        border-radius: 10px;
+
+        // Title
+        Text {
+            x: 0px;
+            y: 24px;
+            width: parent.width;
+            height: 24px;
+            text: "Enviar feedback";
+            color: #f1f4f8;
+            horizontal-alignment: center;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        // Kind tabs
+        kind-bar := Rectangle {
+            x: 24px;
+            y: 64px;
+            width: parent.width - 48px;
+            height: 34px;
+            background: #141619;
+            border-radius: 6px;
+
+            // Sugestão tab
+            Rectangle {
+                x: 2px; y: 2px;
+                width: (parent.width - 4px) / 2;
+                height: parent.height - 4px;
+                background: root.kind-index == 0 ? #2563eb : transparent;
+                border-radius: 5px;
+
+                Text {
+                    width: parent.width; height: parent.height;
+                    text: "Sugestão";
+                    color: root.kind-index == 0 ? #ffffff : #8d95a2;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                    font-size: 12px;
+                    font-weight: 600;
+                }
+                TouchArea {
+                    width: parent.width; height: parent.height;
+                    mouse-cursor: pointer;
+                    clicked => { root.kind-index = 0; }
+                }
+            }
+
+            // Bug tab
+            Rectangle {
+                x: (parent.width - 4px) / 2 + 2px; y: 2px;
+                width: (parent.width - 4px) / 2;
+                height: parent.height - 4px;
+                background: root.kind-index == 1 ? #dc2626 : transparent;
+                border-radius: 5px;
+
+                Text {
+                    width: parent.width; height: parent.height;
+                    text: "Bug";
+                    color: root.kind-index == 1 ? #ffffff : #8d95a2;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                    font-size: 12px;
+                    font-weight: 600;
+                }
+                TouchArea {
+                    width: parent.width; height: parent.height;
+                    mouse-cursor: pointer;
+                    clicked => { root.kind-index = 1; }
+                }
+            }
+        }
+
+        // Description label
+        Text {
+            x: 24px;
+            y: 112px;
+            width: 200px;
+            height: 18px;
+            text: "Descrição";
+            color: #8d95a2;
+            font-size: 12px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+
+        // Description textarea
+        desc-box := Rectangle {
+            x: 24px;
+            y: 132px;
+            width: parent.width - 48px;
+            height: 100px;
+            background: #141619;
+            border-width: 1px;
+            border-color: #3a3f49;
+            border-radius: 5px;
+
+            TextInput {
+                x: 10px; y: 8px;
+                width: parent.width - 20px;
+                height: parent.height - 16px;
+                text <=> root.description;
+                color: #e8ecf2;
+                font-size: 12px;
+                single-line: false;
+                wrap: word-wrap;
+            }
+        }
+
+        // Error context (visible only when pre-filled)
+        if root.error-context != "" : Text {
+            x: 24px;
+            y: 246px;
+            width: 200px;
+            height: 18px;
+            text: "Contexto do erro";
+            color: #8d95a2;
+            font-size: 12px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+
+        if root.error-context != "" : Rectangle {
+            x: 24px;
+            y: 266px;
+            width: card.width - 48px;
+            height: 60px;
+            background: #0f1115;
+            border-width: 1px;
+            border-color: #3a3f49;
+            border-radius: 5px;
+
+            Text {
+                x: 10px; y: 8px;
+                width: parent.width - 20px;
+                height: parent.height - 16px;
+                text: root.error-context;
+                color: #ff8080;
+                font-size: 11px;
+                overflow: elide;
+            }
+        }
+
+        // Status message
+        if root.status-message != "" : Text {
+            x: 24px;
+            y: card.height - 72px;
+            width: card.width - 48px;
+            height: 18px;
+            text: root.status-message;
+            color: #ff6b6b;
+            font-size: 11px;
+            vertical-alignment: center;
+        }
+
+        // Buttons
+        // Cancel button
+        Rectangle {
+            x: card.width - 24px - 120px - 8px - 120px;
+            y: card.height - 48px;
+            width: 120px;
+            height: 34px;
+            background: #2a2f38;
+            border-width: 1px;
+            border-color: #4c515b;
+            border-radius: 6px;
+
+            Text {
+                width: parent.width; height: parent.height;
+                text: "Cancelar";
+                color: #d0d5de;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                font-size: 13px;
+                font-weight: 600;
+            }
+            TouchArea {
+                width: parent.width; height: parent.height;
+                mouse-cursor: pointer;
+                clicked => { root.cancel(); }
+            }
+        }
+
+        // Submit button
+        submit-enabled := Rectangle {
+            x: card.width - 24px - 120px;
+            y: card.height - 48px;
+            width: 120px;
+            height: 34px;
+            background: root.description != "" ? #188cff : #1e2329;
+            border-width: 1px;
+            border-color: root.description != "" ? #45a7ff : #353a42;
+            border-radius: 6px;
+            opacity: root.description != "" ? 1.0 : 0.5;
+
+            Text {
+                width: parent.width; height: parent.height;
+                text: "Enviar";
+                color: #f4f7fb;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                font-size: 13px;
+                font-weight: 600;
+            }
+            if root.description != "" : TouchArea {
+                width: parent.width; height: parent.height;
+                mouse-cursor: pointer;
+                clicked => {
+                    root.submit(
+                        root.kind-index == 0 ? "enhancement" : "bug",
+                        root.kind-index == 0 ? "Sugestão: " + root.description : "Bug: " + root.description,
+                        root.description
+                    );
+                }
+            }
+        }
+    }
+}

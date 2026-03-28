@@ -36,6 +36,7 @@ use std::{
 };
 use ui_openrig::{AppRuntimeMode, InteractionMode, UiRuntimeContext};
 use ui_state::{block_drawer_state, block_family_for_kind, chain_routing_summary};
+mod feedback;
 mod ui_state;
 mod visual_config;
 slint::include_modules!();
@@ -4538,6 +4539,50 @@ pub fn run_desktop_app(
             );
             // enabled is runtime-only state — do NOT mark project as dirty
             clear_status(&window, &toast_timer);
+        });
+    }
+    // Feedback: open dialog (triggered by button or toast "Reportar")
+    {
+        let weak_window = window.as_weak();
+        window.on_open_feedback_dialog(move |error_context| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let is_error = !error_context.is_empty();
+            window.set_feedback_error_context(error_context);
+            window.set_feedback_description("".into());
+            window.set_feedback_kind_index(if is_error { 1 } else { 0 });
+            window.set_feedback_dialog_visible(true);
+        });
+    }
+    // Feedback: submit via gh CLI
+    {
+        let weak_window = window.as_weak();
+        let toast_timer = toast_timer.clone();
+        window.on_submit_feedback(move |kind, title, description| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let error_context = window.get_feedback_error_context().to_string();
+            match feedback::submit_gh_feedback(
+                kind.as_str(),
+                title.as_str(),
+                description.as_str(),
+                &error_context,
+            ) {
+                Ok(()) => {
+                    window.set_feedback_dialog_visible(false);
+                    window.set_feedback_description("".into());
+                    window.set_feedback_error_context("".into());
+                    set_status_info(&window, &toast_timer, "Feedback enviado! Obrigado.");
+                }
+                Err(error) => {
+                    log_gui_error("submit_feedback", &error);
+                    window.set_feedback_status_message(
+                        format!("Erro ao enviar: {error}").into(),
+                    );
+                }
+            }
         });
     }
     // Ao fechar a janela principal, encerra todo o processo

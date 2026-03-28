@@ -3,6 +3,7 @@ import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
 import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
+import { FeedbackDialog } from "components/feedback_dialog.slint";
 
 export component ProjectSettingsWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
@@ -430,6 +431,9 @@ export component AppWindow inherits Window {
     callback pick-block-parameter-file(string);
     callback save-chain();
     callback cancel-chain();
+    // Feedback dialog callbacks
+    callback open-feedback-dialog(string);   // arg: pre-filled error context (empty for manual)
+    callback submit-feedback(string, string, string); // kind, title, description
     title: "OpenRig";
     min-width: 980px;
     min-height: 680px;
@@ -658,10 +662,64 @@ export component AppWindow inherits Window {
 
     in-out property <string> toast-level: "info";
 
+    // Feedback dialog state (managed by Rust)
+    in-out property <bool> feedback-dialog-visible: false;
+    in-out property <string> feedback-description: "";
+    in-out property <string> feedback-error-context: "";
+    in-out property <int> feedback-kind-index: 0;
+    in-out property <string> feedback-status-message: "";
+
     Toast {
         message: root.toast-message;
         level: root.toast-level;
         container-width: root.width;
         container-height: root.height;
+        report-error(msg) => { root.open-feedback-dialog(msg); }
+    }
+
+    // Persistent feedback button — bottom-right corner
+    Rectangle {
+        x: root.width - 116px;
+        y: root.height - 40px;
+        width: 104px;
+        height: 28px;
+        background: #1e2330;
+        border-width: 1px;
+        border-color: #3a3f4d;
+        border-radius: 14px;
+        opacity: 0.85;
+
+        Text {
+            width: parent.width - 8px;
+            height: parent.height;
+            x: 4px;
+            text: "✦ Feedback";
+            color: #7a8499;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        TouchArea {
+            width: parent.width; height: parent.height;
+            mouse-cursor: pointer;
+            clicked => { root.open-feedback-dialog(""); }
+        }
+    }
+
+    // Feedback dialog overlay
+    FeedbackDialog {
+        visible-dialog: root.feedback-dialog-visible;
+        description <=> root.feedback-description;
+        error-context: root.feedback-error-context;
+        kind-index <=> root.feedback-kind-index;
+        status-message: root.feedback-status-message;
+        submit(kind, title, desc) => { root.submit-feedback(kind, title, desc); }
+        cancel => {
+            root.feedback-dialog-visible = false;
+            root.feedback-description = "";
+            root.feedback-error-context = "";
+            root.feedback-kind-index = 0;
+        }
     }
 }
