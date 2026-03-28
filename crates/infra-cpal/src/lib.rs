@@ -8,7 +8,7 @@ use domain::ids::ChainId;
 use engine::runtime::{process_input_f32, process_output_f32, RuntimeGraph, ChainRuntimeState};
 use project::device::DeviceSettings;
 use project::project::Project;
-use project::chain::Chain;
+use project::chain::{Chain, ChainInput, ChainOutput};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -32,30 +32,40 @@ struct ResolvedOutputDevice {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+struct InputStreamSignature {
+    device_id: String,
+    channels: Vec<usize>,
+    stream_channels: u16,
+    sample_rate: u32,
+    buffer_size_frames: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct OutputStreamSignature {
+    device_id: String,
+    channels: Vec<usize>,
+    stream_channels: u16,
+    sample_rate: u32,
+    buffer_size_frames: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct ChainStreamSignature {
-    input_device_id: String,
-    input_channels: Vec<usize>,
-    input_stream_channels: u16,
-    input_sample_rate: u32,
-    input_buffer_size_frames: u32,
-    output_device_id: String,
-    output_channels: Vec<usize>,
-    output_stream_channels: u16,
-    output_sample_rate: u32,
-    output_buffer_size_frames: u32,
+    inputs: Vec<InputStreamSignature>,
+    outputs: Vec<OutputStreamSignature>,
 }
 
 struct ResolvedChainAudioConfig {
-    input: ResolvedInputDevice,
-    output: ResolvedOutputDevice,
+    inputs: Vec<ResolvedInputDevice>,
+    outputs: Vec<ResolvedOutputDevice>,
     sample_rate: f32,
     stream_signature: ChainStreamSignature,
 }
 
 struct ActiveChainRuntime {
     stream_signature: ChainStreamSignature,
-    _input_stream: Stream,
-    _output_stream: Stream,
+    _input_streams: Vec<Stream>,
+    _output_streams: Vec<Stream>,
 }
 
 pub struct ProjectRuntimeController {
@@ -137,9 +147,9 @@ pub fn build_streams_for_project(
         let resolved = resolved_chains
             .remove(&chain.id)
             .ok_or_else(|| anyhow!("chain '{}' missing resolved audio config", chain.id.0))?;
-        let (input_stream, output_stream) = build_chain_streams(&chain.id, resolved, runtime)?;
-        streams.push(input_stream);
-        streams.push(output_stream);
+        let (input_streams, output_streams) = build_chain_streams(&chain.id, resolved, runtime)?;
+        streams.extend(input_streams);
+        streams.extend(output_streams);
     }
     Ok(streams)
 }
@@ -260,13 +270,9 @@ pub fn resolve_project_chain_sample_rates(project: &Project) -> Result<HashMap<C
         if !chain.enabled {
             continue;
         }
-        let resolved_input = resolve_input_device_for_chain(&host, project, chain)?;
-        let resolved_output = resolve_output_device_for_chain(&host, project, chain)?;
-        let sample_rate = resolve_chain_runtime_sample_rate(
-            &chain.id.0,
-            &resolved_input.supported,
-            &resolved_output.supported,
-        )?;
+        let inputs = resolve_chain_inputs(&host, project, chain)?;
+        let outputs = resolve_chain_outputs(&host, project, chain)?;
+        let sample_rate = resolve_multi_io_sample_rate(&chain.id.0, &inputs, &outputs)?;
         sample_rates.insert(chain.id.clone(), sample_rate);
     }
 
@@ -379,6 +385,146 @@ fn resolve_output_device_for_chain(
     })
 }
 
+fn resolve_input_device_for_chain_input(
+    host: &cpal::Host,
+    project: &Project,
+    input: &ChainInput,
+) -> Result<ResolvedInputDevice> {
+    let settings = project
+        .device_settings
+        .iter()
+        .find(|settings| settings.device_id == input.device_id)
+        .cloned();
+    let device = find_input_device_by_id(host, &input.device_id.0)?.ok_or_else(|| {
+        anyhow!(
+            "input device '{}' not found by device_id",
+            input.device_id.0
+        )
+    })?;
+    let default_config = device.default_input_config().with_context(|| {
+        format!(
+            "failed to get default input config for '{}'",
+            input.device_id.0
+        )
+    })?;
+    let supported_ranges = device
+        .supported_input_configs()
+        .with_context(|| {
+            format!(
+                "failed to enumerate input configs for '{}'",
+                input.device_id.0
+            )
+        })?
+        .collect::<Vec<_>>();
+    let required_channels = required_channel_count(&input.channels);
+    let supported = select_supported_stream_config(
+        &default_config,
+        &supported_ranges,
+        settings.as_ref().map(|settings| settings.sample_rate),
+        required_channels,
+        &input.device_id.0,
+    )?;
+    if let Some(settings) = &settings {
+        validate_buffer_size(
+            settings.buffer_size_frames,
+            supported.buffer_size(),
+            &settings.device_id.0,
+        )?;
+    }
+    Ok(ResolvedInputDevice {
+        settings,
+        device,
+        supported,
+    })
+}
+
+fn resolve_output_device_for_chain_output(
+    host: &cpal::Host,
+    project: &Project,
+    output: &ChainOutput,
+) -> Result<ResolvedOutputDevice> {
+    let settings = project
+        .device_settings
+        .iter()
+        .find(|settings| settings.device_id == output.device_id)
+        .cloned();
+    let device = find_output_device_by_id(host, &output.device_id.0)?.ok_or_else(|| {
+        anyhow!(
+            "output device '{}' not found by device_id",
+            output.device_id.0
+        )
+    })?;
+    let default_config = device.default_output_config().with_context(|| {
+        format!(
+            "failed to get default output config for '{}'",
+            output.device_id.0
+        )
+    })?;
+    let supported_ranges = device
+        .supported_output_configs()
+        .with_context(|| {
+            format!(
+                "failed to enumerate output configs for '{}'",
+                output.device_id.0
+            )
+        })?
+        .collect::<Vec<_>>();
+    let required_channels = required_channel_count(&output.channels);
+    let supported = select_supported_stream_config(
+        &default_config,
+        &supported_ranges,
+        settings.as_ref().map(|settings| settings.sample_rate),
+        required_channels,
+        &output.device_id.0,
+    )?;
+    if let Some(settings) = &settings {
+        validate_buffer_size(
+            settings.buffer_size_frames,
+            supported.buffer_size(),
+            &settings.device_id.0,
+        )?;
+    }
+    Ok(ResolvedOutputDevice {
+        settings,
+        device,
+        supported,
+    })
+}
+
+fn resolve_chain_inputs(
+    host: &cpal::Host,
+    project: &Project,
+    chain: &Chain,
+) -> Result<Vec<ResolvedInputDevice>> {
+    if !chain.inputs.is_empty() {
+        chain
+            .inputs
+            .iter()
+            .map(|input| resolve_input_device_for_chain_input(host, project, input))
+            .collect()
+    } else {
+        // Legacy fallback: single input from chain.input_device_id
+        Ok(vec![resolve_input_device_for_chain(host, project, chain)?])
+    }
+}
+
+fn resolve_chain_outputs(
+    host: &cpal::Host,
+    project: &Project,
+    chain: &Chain,
+) -> Result<Vec<ResolvedOutputDevice>> {
+    if !chain.outputs.is_empty() {
+        chain
+            .outputs
+            .iter()
+            .map(|output| resolve_output_device_for_chain_output(host, project, output))
+            .collect()
+    } else {
+        // Legacy fallback: single output from chain.output_device_id
+        Ok(vec![resolve_output_device_for_chain(host, project, chain)?])
+    }
+}
+
 fn resolve_enabled_chain_audio_configs(
     host: &cpal::Host,
     project: &Project,
@@ -390,20 +536,8 @@ fn resolve_enabled_chain_audio_configs(
             continue;
         }
 
-        let input = resolve_input_device_for_chain(host, project, chain)?;
-        let output = resolve_output_device_for_chain(host, project, chain)?;
-        let sample_rate =
-            resolve_chain_runtime_sample_rate(&chain.id.0, &input.supported, &output.supported)?;
-
-        resolved.insert(
-            chain.id.clone(),
-            ResolvedChainAudioConfig {
-                stream_signature: build_chain_stream_signature(chain, &input, &output),
-                input,
-                output,
-                sample_rate,
-            },
-        );
+        let config = resolve_chain_audio_config(host, project, chain)?;
+        resolved.insert(chain.id.clone(), config);
     }
 
     Ok(resolved)
@@ -414,16 +548,19 @@ fn resolve_chain_audio_config(
     project: &Project,
     chain: &Chain,
 ) -> Result<ResolvedChainAudioConfig> {
-    let input = resolve_input_device_for_chain(host, project, chain)?;
-    let output = resolve_output_device_for_chain(host, project, chain)?;
-    let sample_rate =
-        resolve_chain_runtime_sample_rate(&chain.id.0, &input.supported, &output.supported)?;
+    let inputs = resolve_chain_inputs(host, project, chain)?;
+    let outputs = resolve_chain_outputs(host, project, chain)?;
+
+    // Validate sample rates: all inputs and outputs must agree
+    let sample_rate = resolve_multi_io_sample_rate(&chain.id.0, &inputs, &outputs)?;
+
+    let stream_signature = build_chain_stream_signature_multi(chain, &inputs, &outputs);
 
     Ok(ResolvedChainAudioConfig {
-        stream_signature: build_chain_stream_signature(chain, &input, &output),
-        input,
-        output,
+        inputs,
+        outputs,
         sample_rate,
+        stream_signature,
     })
 }
 
@@ -459,56 +596,88 @@ fn validate_channels_against_devices(project: &Project, host: &cpal::Host) -> Re
 }
 
 fn validate_chain_channels_against_devices(host: &cpal::Host, chain: &Chain) -> Result<()> {
-    let input_device =
-        find_input_device_by_id(host, &chain.input_device_id.0)?.ok_or_else(|| {
-            anyhow!(
-                "chain '{}' missing input device '{}'",
-                chain.id.0,
-                chain.input_device_id.0
-            )
-        })?;
-    let total_channels = max_supported_input_channels(&input_device).with_context(|| {
-        format!(
-            "failed to resolve input channel capacity for '{}'",
-            chain.input_device_id.0
+    if !chain.inputs.is_empty() {
+        for input in &chain.inputs {
+            validate_input_channels_against_device(host, &chain.id.0, &input.device_id.0, &input.channels)?;
+        }
+    } else {
+        // Legacy fallback
+        validate_input_channels_against_device(host, &chain.id.0, &chain.input_device_id.0, &chain.input_channels)?;
+    }
+
+    if !chain.outputs.is_empty() {
+        for output in &chain.outputs {
+            validate_output_channels_against_device(host, &chain.id.0, &output.device_id.0, &output.channels)?;
+        }
+    } else {
+        // Legacy fallback
+        validate_output_channels_against_device(host, &chain.id.0, &chain.output_device_id.0, &chain.output_channels)?;
+    }
+
+    Ok(())
+}
+
+fn validate_input_channels_against_device(
+    host: &cpal::Host,
+    chain_id: &str,
+    device_id: &str,
+    channels: &[usize],
+) -> Result<()> {
+    let device = find_input_device_by_id(host, device_id)?.ok_or_else(|| {
+        anyhow!(
+            "chain '{}' missing input device '{}'",
+            chain_id,
+            device_id
         )
     })?;
-    for channel in &chain.input_channels {
+    let total_channels = max_supported_input_channels(&device).with_context(|| {
+        format!(
+            "failed to resolve input channel capacity for '{}'",
+            device_id
+        )
+    })?;
+    for channel in channels {
         if *channel >= total_channels {
             bail!(
                 "chain '{}' invalid: input channel '{}' outside device range (channels={})",
-                chain.id.0,
+                chain_id,
                 channel,
                 total_channels
             );
         }
     }
+    Ok(())
+}
 
-    let output_device =
-        find_output_device_by_id(host, &chain.output_device_id.0)?.ok_or_else(|| {
-            anyhow!(
-                "chain '{}' missing output device '{}'",
-                chain.id.0,
-                chain.output_device_id.0
-            )
-        })?;
-    let total_channels = max_supported_output_channels(&output_device).with_context(|| {
-        format!(
-            "failed to resolve output channel capacity for '{}'",
-            chain.output_device_id.0
+fn validate_output_channels_against_device(
+    host: &cpal::Host,
+    chain_id: &str,
+    device_id: &str,
+    channels: &[usize],
+) -> Result<()> {
+    let device = find_output_device_by_id(host, device_id)?.ok_or_else(|| {
+        anyhow!(
+            "chain '{}' missing output device '{}'",
+            chain_id,
+            device_id
         )
     })?;
-    for channel in &chain.output_channels {
+    let total_channels = max_supported_output_channels(&device).with_context(|| {
+        format!(
+            "failed to resolve output channel capacity for '{}'",
+            device_id
+        )
+    })?;
+    for channel in channels {
         if *channel >= total_channels {
             bail!(
                 "chain '{}' invalid: output channel '{}' outside device range (channels={})",
-                chain.id.0,
+                chain_id,
                 channel,
                 total_channels
             );
         }
     }
-
     Ok(())
 }
 fn find_input_device_by_id(host: &cpal::Host, device_id: &str) -> Result<Option<cpal::Device>> {
@@ -527,16 +696,24 @@ fn find_output_device_by_id(host: &cpal::Host, device_id: &str) -> Result<Option
     }
     Ok(None)
 }
-fn build_input_stream_for_chain(
+fn build_input_stream_for_input(
     chain_id: &ChainId,
+    input_index: usize,
     resolved_input_device: ResolvedInputDevice,
     runtime: Arc<ChainRuntimeState>,
 ) -> Result<Stream> {
-    log::debug!("building input stream for chain '{}'", chain_id.0);
+    log::debug!(
+        "building input stream for chain '{}' input_index={}",
+        chain_id.0,
+        input_index
+    );
     let sample_format = resolved_input_device.supported.sample_format();
     let sample_rate = resolved_input_sample_rate(&resolved_input_device);
     let buffer_size_frames = resolved_input_buffer_size_frames(&resolved_input_device);
-    log::debug!("input stream config: chain='{}', sample_rate={}, buffer_size={}, format={:?}, channels={}", chain_id.0, sample_rate, buffer_size_frames, sample_format, resolved_input_device.supported.channels());
+    log::debug!(
+        "input stream config: chain='{}', input_index={}, sample_rate={}, buffer_size={}, format={:?}, channels={}",
+        chain_id.0, input_index, sample_rate, buffer_size_frames, sample_format, resolved_input_device.supported.channels()
+    );
     let stream_config = build_stream_config(
         resolved_input_device.supported.channels(),
         sample_rate,
@@ -551,7 +728,7 @@ fn build_input_stream_for_chain(
             device.build_input_stream(
                 &stream_config,
                 move |data: &[f32], _| {
-                    process_input_f32(&runtime_for_data, 0, data, channels);
+                    process_input_f32(&runtime_for_data, input_index, data, channels);
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
@@ -569,7 +746,7 @@ fn build_input_stream_for_chain(
                     for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
                         *dst = src as f32 / i16::MAX as f32;
                     }
-                    process_input_f32(&runtime_for_data, 0, &converted, channels);
+                    process_input_f32(&runtime_for_data, input_index, &converted, channels);
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
@@ -587,7 +764,7 @@ fn build_input_stream_for_chain(
                     for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
                         *dst = (src as f32 / u16::MAX as f32) * 2.0 - 1.0;
                     }
-                    process_input_f32(&runtime_for_data, 0, &converted, channels);
+                    process_input_f32(&runtime_for_data, input_index, &converted, channels);
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
@@ -603,16 +780,25 @@ fn build_input_stream_for_chain(
     };
     Ok(stream)
 }
-fn build_output_stream_for_chain(
+
+fn build_output_stream_for_output(
     chain_id: &ChainId,
+    output_index: usize,
     resolved_output_device: ResolvedOutputDevice,
     runtime: Arc<ChainRuntimeState>,
 ) -> Result<Stream> {
-    log::debug!("building output stream for chain '{}'", chain_id.0);
+    log::debug!(
+        "building output stream for chain '{}' output_index={}",
+        chain_id.0,
+        output_index
+    );
     let sample_format = resolved_output_device.supported.sample_format();
     let sample_rate = resolved_output_sample_rate(&resolved_output_device);
     let buffer_size_frames = resolved_output_buffer_size_frames(&resolved_output_device);
-    log::debug!("output stream config: chain='{}', sample_rate={}, buffer_size={}, format={:?}, channels={}", chain_id.0, sample_rate, buffer_size_frames, sample_format, resolved_output_device.supported.channels());
+    log::debug!(
+        "output stream config: chain='{}', output_index={}, sample_rate={}, buffer_size={}, format={:?}, channels={}",
+        chain_id.0, output_index, sample_rate, buffer_size_frames, sample_format, resolved_output_device.supported.channels()
+    );
     let stream_config = build_stream_config(
         resolved_output_device.supported.channels(),
         sample_rate,
@@ -627,7 +813,7 @@ fn build_output_stream_for_chain(
             device.build_output_stream(
                 &stream_config,
                 move |out: &mut [f32], _| {
-                    process_output_f32(&runtime_for_data, 0, out, channels);
+                    process_output_f32(&runtime_for_data, output_index, out, channels);
                 },
                 move |err| log::error!("[{}] output stream error: {}", error_chain_id, err),
                 None,
@@ -642,7 +828,7 @@ fn build_output_stream_for_chain(
                 &stream_config,
                 move |out: &mut [i16], _| {
                     temp.resize(out.len(), 0.0);
-                    process_output_f32(&runtime_for_data, 0, &mut temp, channels);
+                    process_output_f32(&runtime_for_data, output_index, &mut temp, channels);
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         *dst =
                             (*src * i16::MAX as f32).clamp(i16::MIN as f32, i16::MAX as f32) as i16;
@@ -661,7 +847,7 @@ fn build_output_stream_for_chain(
                 &stream_config,
                 move |out: &mut [u16], _| {
                     temp.resize(out.len(), 0.0);
-                    process_output_f32(&runtime_for_data, 0, &mut temp, channels);
+                    process_output_f32(&runtime_for_data, output_index, &mut temp, channels);
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         let normalized =
                             ((*src + 1.0) * 0.5 * u16::MAX as f32).clamp(0.0, u16::MAX as f32);
@@ -682,6 +868,7 @@ fn build_output_stream_for_chain(
     };
     Ok(stream)
 }
+
 fn build_stream_config(channels: u16, sample_rate: u32, buffer_size_frames: u32) -> StreamConfig {
     StreamConfig {
         channels,
@@ -694,10 +881,22 @@ fn build_chain_streams(
     chain_id: &ChainId,
     resolved: ResolvedChainAudioConfig,
     runtime: Arc<ChainRuntimeState>,
-) -> Result<(Stream, Stream)> {
-    let input_stream = build_input_stream_for_chain(chain_id, resolved.input, runtime.clone())?;
-    let output_stream = build_output_stream_for_chain(chain_id, resolved.output, runtime)?;
-    Ok((input_stream, output_stream))
+) -> Result<(Vec<Stream>, Vec<Stream>)> {
+    let mut input_streams = Vec::new();
+    for (i, resolved_input) in resolved.inputs.into_iter().enumerate() {
+        let stream =
+            build_input_stream_for_input(chain_id, i, resolved_input, runtime.clone())?;
+        input_streams.push(stream);
+    }
+
+    let mut output_streams = Vec::new();
+    for (j, resolved_output) in resolved.outputs.into_iter().enumerate() {
+        let stream =
+            build_output_stream_for_output(chain_id, j, resolved_output, runtime.clone())?;
+        output_streams.push(stream);
+    }
+
+    Ok((input_streams, output_streams))
 }
 
 fn build_active_chain_runtime(
@@ -707,33 +906,86 @@ fn build_active_chain_runtime(
 ) -> Result<ActiveChainRuntime> {
     log::info!("building active chain runtime for '{}', sample_rate={}", chain_id.0, resolved.sample_rate);
     let stream_signature = resolved.stream_signature.clone();
-    let (input_stream, output_stream) = build_chain_streams(chain_id, resolved, runtime)?;
-    input_stream.play()?;
-    output_stream.play()?;
-    log::info!("audio streams started for chain '{}'", chain_id.0);
+    let (input_streams, output_streams) = build_chain_streams(chain_id, resolved, runtime)?;
+    for stream in &input_streams {
+        stream.play()?;
+    }
+    for stream in &output_streams {
+        stream.play()?;
+    }
+    log::info!(
+        "audio streams started for chain '{}': {} input(s), {} output(s)",
+        chain_id.0,
+        input_streams.len(),
+        output_streams.len()
+    );
     Ok(ActiveChainRuntime {
         stream_signature,
-        _input_stream: input_stream,
-        _output_stream: output_stream,
+        _input_streams: input_streams,
+        _output_streams: output_streams,
     })
 }
 
-fn build_chain_stream_signature(
+fn build_chain_stream_signature_multi(
     chain: &Chain,
-    input: &ResolvedInputDevice,
-    output: &ResolvedOutputDevice,
+    inputs: &[ResolvedInputDevice],
+    outputs: &[ResolvedOutputDevice],
 ) -> ChainStreamSignature {
+    let input_sigs: Vec<InputStreamSignature> = if !chain.inputs.is_empty() {
+        chain
+            .inputs
+            .iter()
+            .zip(inputs.iter())
+            .map(|(ci, ri)| InputStreamSignature {
+                device_id: ci.device_id.0.clone(),
+                channels: ci.channels.clone(),
+                stream_channels: ri.supported.channels(),
+                sample_rate: resolved_input_sample_rate(ri),
+                buffer_size_frames: resolved_input_buffer_size_frames(ri),
+            })
+            .collect()
+    } else {
+        inputs
+            .iter()
+            .map(|ri| InputStreamSignature {
+                device_id: chain.input_device_id.0.clone(),
+                channels: chain.input_channels.clone(),
+                stream_channels: ri.supported.channels(),
+                sample_rate: resolved_input_sample_rate(ri),
+                buffer_size_frames: resolved_input_buffer_size_frames(ri),
+            })
+            .collect()
+    };
+
+    let output_sigs: Vec<OutputStreamSignature> = if !chain.outputs.is_empty() {
+        chain
+            .outputs
+            .iter()
+            .zip(outputs.iter())
+            .map(|(co, ro)| OutputStreamSignature {
+                device_id: co.device_id.0.clone(),
+                channels: co.channels.clone(),
+                stream_channels: ro.supported.channels(),
+                sample_rate: resolved_output_sample_rate(ro),
+                buffer_size_frames: resolved_output_buffer_size_frames(ro),
+            })
+            .collect()
+    } else {
+        outputs
+            .iter()
+            .map(|ro| OutputStreamSignature {
+                device_id: chain.output_device_id.0.clone(),
+                channels: chain.output_channels.clone(),
+                stream_channels: ro.supported.channels(),
+                sample_rate: resolved_output_sample_rate(ro),
+                buffer_size_frames: resolved_output_buffer_size_frames(ro),
+            })
+            .collect()
+    };
+
     ChainStreamSignature {
-        input_device_id: chain.input_device_id.0.clone(),
-        input_channels: chain.input_channels.clone(),
-        input_stream_channels: input.supported.channels(),
-        input_sample_rate: resolved_input_sample_rate(input),
-        input_buffer_size_frames: resolved_input_buffer_size_frames(input),
-        output_device_id: chain.output_device_id.0.clone(),
-        output_channels: chain.output_channels.clone(),
-        output_stream_channels: output.supported.channels(),
-        output_sample_rate: resolved_output_sample_rate(output),
-        output_buffer_size_frames: resolved_output_buffer_size_frames(output),
+        inputs: input_sigs,
+        outputs: output_sigs,
     }
 }
 
@@ -810,6 +1062,7 @@ fn select_supported_stream_config(
     })
 }
 
+#[cfg(test)]
 fn resolve_chain_runtime_sample_rate(
     chain_id: &str,
     input: &SupportedStreamConfig,
@@ -825,6 +1078,44 @@ fn resolve_chain_runtime_sample_rate(
     }
 
     Ok(input.sample_rate() as f32)
+}
+
+fn resolve_multi_io_sample_rate(
+    chain_id: &str,
+    inputs: &[ResolvedInputDevice],
+    outputs: &[ResolvedOutputDevice],
+) -> Result<f32> {
+    let mut rate: Option<u32> = None;
+    for ri in inputs {
+        let sr = resolved_input_sample_rate(ri);
+        if let Some(prev) = rate {
+            if prev != sr {
+                bail!(
+                    "chain '{}' invalid: mismatched sample rates across inputs ({} vs {})",
+                    chain_id,
+                    prev,
+                    sr
+                );
+            }
+        }
+        rate = Some(sr);
+    }
+    for ro in outputs {
+        let sr = resolved_output_sample_rate(ro);
+        if let Some(prev) = rate {
+            if prev != sr {
+                bail!(
+                    "chain '{}' invalid: mismatched sample rates across I/O ({} vs {})",
+                    chain_id,
+                    prev,
+                    sr
+                );
+            }
+        }
+        rate = Some(sr);
+    }
+    rate.map(|r| r as f32)
+        .ok_or_else(|| anyhow!("chain '{}' has no inputs or outputs", chain_id))
 }
 
 fn max_supported_input_channels(device: &cpal::Device) -> Result<usize> {
