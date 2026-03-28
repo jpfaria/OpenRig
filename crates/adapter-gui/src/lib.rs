@@ -4105,6 +4105,14 @@ pub fn run_desktop_app(
                     .as_ref()
                     .map(|chain| chain.enabled)
                     .unwrap_or(false),
+                inputs: existing_chain
+                    .as_ref()
+                    .map(|chain| chain.inputs.clone())
+                    .unwrap_or_default(),
+                outputs: existing_chain
+                    .as_ref()
+                    .map(|chain| chain.outputs.clone())
+                    .unwrap_or_default(),
                 input_device_id: DeviceId(draft.input_device_id.unwrap_or_default()),
                 input_channels: draft.input_channels,
                 output_device_id: DeviceId(draft.output_device_id.unwrap_or_default()),
@@ -4207,6 +4215,14 @@ pub fn run_desktop_app(
                     .as_ref()
                     .map(|chain| chain.enabled)
                     .unwrap_or(false),
+                inputs: existing_chain
+                    .as_ref()
+                    .map(|chain| chain.inputs.clone())
+                    .unwrap_or_default(),
+                outputs: existing_chain
+                    .as_ref()
+                    .map(|chain| chain.outputs.clone())
+                    .unwrap_or_default(),
                 input_device_id: DeviceId(draft.input_device_id.unwrap_or_default()),
                 input_channels: draft.input_channels,
                 output_device_id: DeviceId(draft.output_device_id.unwrap_or_default()),

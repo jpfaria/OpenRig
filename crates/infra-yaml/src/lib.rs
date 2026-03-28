@@ -215,6 +215,8 @@ impl ChainYaml {
             description: self.description,
             instrument: self.instrument,
             enabled: false, // chains always start disabled on load
+            inputs: Vec::new(),
+            outputs: Vec::new(),
             input_device_id: DeviceId(self.input_device_id),
             input_channels: self.input_channels,
             output_device_id: DeviceId(self.output_device_id),
@@ -857,6 +859,8 @@ mod tests {
                 description: Some("Guitar 1".into()),
                 instrument: "electric_guitar".to_string(),
                 enabled: true,
+                inputs: Vec::new(),
+                outputs: Vec::new(),
                 input_device_id: DeviceId("input-device".into()),
                 input_channels: vec![0],
                 output_device_id: DeviceId("output-device".into()),
