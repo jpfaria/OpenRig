@@ -125,11 +125,12 @@ export component ChainInputWindow inherits Window {
         selected-device-index <=> root.selected-device-index;
         channels: root.channels;
         status-message: root.status-message;
-        show-input-mode: true;
-        selected-input-mode-index <=> root.selected-input-mode-index;
+        show-mode-selector: true;
+        mode-labels: ["Mono", "Stereo", "Dual Mono"];
+        selected-mode-index <=> root.selected-input-mode-index;
         select-device(index) => { root.select-device(index); }
         toggle-channel(index, selected) => { root.toggle-channel(index, selected); }
-        select-input-mode(index) => { root.select-input-mode(index); }
+        select-mode(index) => { root.select-input-mode(index); }
         save => { root.save(); }
         cancel => { root.cancel(); }
     }
@@ -143,8 +144,10 @@ export component ChainOutputWindow inherits Window {
     in-out property <int> selected-device-index;
     in property <[ChannelOptionItem]> channels;
     in-out property <string> status-message;
+    in-out property <int> selected-output-mode-index: 0;
     callback select-device(int);
     callback toggle-channel(int, bool);
+    callback select-output-mode(int);
     callback save();
     callback cancel();
     title: "OpenRig · Saída da chain";
@@ -162,8 +165,12 @@ export component ChainOutputWindow inherits Window {
         selected-device-index <=> root.selected-device-index;
         channels: root.channels;
         status-message: root.status-message;
+        show-mode-selector: true;
+        mode-labels: ["Mono", "Stereo"];
+        selected-mode-index <=> root.selected-output-mode-index;
         select-device(index) => { root.select-device(index); }
         toggle-channel(index, selected) => { root.toggle-channel(index, selected); }
+        select-mode(index) => { root.select-output-mode(index); }
         save => { root.save(); }
         cancel => { root.cancel(); }
     }

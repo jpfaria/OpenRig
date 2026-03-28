@@ -664,6 +664,19 @@ pub fn run_desktop_app(
             }
         });
     }
+    {
+        let chain_draft = chain_draft.clone();
+        chain_output_window.on_select_output_mode(move |index| {
+            if let Some(draft) = chain_draft.borrow_mut().as_mut() {
+                if let Some(gi) = draft.editing_output_index {
+                    if let Some(output) = draft.outputs.get_mut(gi) {
+                        output.mode = output_mode_from_index(index);
+                        log::debug!("[select_output_mode] group={}, index={}, mode={:?}", gi, index, output.mode);
+                    }
+                }
+            }
+        });
+    }
     project_settings_window.set_project_devices(ModelRc::from(project_devices.clone()));
     project_settings_window.set_sample_rate_options(window.get_sample_rate_options());
     project_settings_window.set_buffer_size_options(window.get_buffer_size_options());
@@ -6450,6 +6463,18 @@ fn input_mode_from_index(index: i32) -> ChainInputMode {
         _ => ChainInputMode::Mono,
     }
 }
+fn output_mode_to_index(mode: ChainOutputMode) -> i32 {
+    match mode {
+        ChainOutputMode::Mono => 0,
+        ChainOutputMode::Stereo => 1,
+    }
+}
+fn output_mode_from_index(index: i32) -> ChainOutputMode {
+    match index {
+        1 => ChainOutputMode::Stereo,
+        _ => ChainOutputMode::Mono,
+    }
+}
 fn instrument_string_to_index(instrument: &str) -> i32 {
     INSTRUMENT_KEYS
         .iter()
@@ -6590,6 +6615,7 @@ fn apply_chain_output_window_state(
         output_devices,
         output_group.device_id.as_deref(),
     ));
+    output_window.set_selected_output_mode_index(output_mode_to_index(output_group.mode));
     output_window.set_status_message("".into());
 }
 fn toggle_device_row(model: &Rc<VecModel<DeviceSelectionItem>>, index: usize, selected: bool) {
