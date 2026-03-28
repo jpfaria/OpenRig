@@ -5,7 +5,7 @@ use project::block::{
 };
 use project::param::ParameterSet;
 use project::project::Project;
-use project::chain::{Chain, ChainOutputMixdown, ProcessingLayout};
+use project::chain::{Chain, ChainInputMode, ChainOutputMixdown, ProcessingLayout};
 use block_amp::build_amp_processor_for_layout;
 use block_preamp::build_preamp_processor_for_layout;
 use block_body::build_body_processor_for_layout;
@@ -299,7 +299,12 @@ pub fn build_runtime_graph(
 }
 
 pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<ChainRuntimeState> {
-    let input_read_layout = layout_from_channels(chain.input_channels.len().min(2).max(1))?;
+    let input_read_layout = match chain.input_mode {
+        ChainInputMode::Mono => AudioChannelLayout::Mono,
+        ChainInputMode::Stereo | ChainInputMode::DualMono => {
+            layout_from_channels(chain.input_channels.len().min(2).max(1))?
+        }
+    };
     let proc_layout = project::chain::processing_layout(
         &chain.input_channels,
         &chain.output_channels,
@@ -348,7 +353,12 @@ pub fn update_chain_runtime_state(
     sample_rate: f32,
     reset_output_queue: bool,
 ) -> Result<()> {
-    let input_read_layout = layout_from_channels(chain.input_channels.len().min(2).max(1))?;
+    let input_read_layout = match chain.input_mode {
+        ChainInputMode::Mono => AudioChannelLayout::Mono,
+        ChainInputMode::Stereo | ChainInputMode::DualMono => {
+            layout_from_channels(chain.input_channels.len().min(2).max(1))?
+        }
+    };
     let proc_layout = project::chain::processing_layout(
         &chain.input_channels,
         &chain.output_channels,
@@ -1298,7 +1308,7 @@ mod tests {
                     }),
                 }],
                 output_mixdown: ChainOutputMixdown::Average,
-                input_mode: ChainInputMode::Auto,
+                input_mode: ChainInputMode::Mono,
             }],
         };
 
@@ -1336,7 +1346,7 @@ mod tests {
                     }),
                 }],
                 output_mixdown: ChainOutputMixdown::Average,
-                input_mode: ChainInputMode::Auto,
+                input_mode: ChainInputMode::Mono,
             }],
         };
 
@@ -1477,7 +1487,7 @@ mod tests {
                 reverb_block("chain:stereo:block:3"),
             ],
             output_mixdown: ChainOutputMixdown::Average,
-            input_mode: ChainInputMode::Auto,
+            input_mode: ChainInputMode::Mono,
         };
         let runtime =
             Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"));
@@ -1519,7 +1529,7 @@ mod tests {
                 reverb_block("chain:asset-backed:block:2"),
             ],
             output_mixdown: ChainOutputMixdown::Average,
-            input_mode: ChainInputMode::Auto,
+            input_mode: ChainInputMode::Mono,
         };
         let runtime =
             Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"));
@@ -1592,7 +1602,7 @@ mod tests {
             output_channels: vec![0],
             blocks,
             output_mixdown: ChainOutputMixdown::Average,
-            input_mode: ChainInputMode::Auto,
+            input_mode: ChainInputMode::Mono,
         }
     }
 
@@ -1765,7 +1775,7 @@ mod tests {
                 }),
             }],
             output_mixdown: ChainOutputMixdown::Average,
-            input_mode: ChainInputMode::Auto,
+            input_mode: ChainInputMode::Mono,
         }
     }
 

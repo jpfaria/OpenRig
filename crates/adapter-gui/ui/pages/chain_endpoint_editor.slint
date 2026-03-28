@@ -102,8 +102,11 @@ export component ChainEndpointEditorPage inherits Rectangle {
     in-out property <int> selected-device-index;
     in property <[ChannelOptionItem]> channels;
     in-out property <string> status-message;
+    in property <bool> show-input-mode: false;
+    in-out property <int> selected-input-mode-index: 0;
     callback select-device(int);
     callback toggle-channel(int, bool);
+    callback select-input-mode(int);
     callback save();
     callback cancel();
 
@@ -149,9 +152,68 @@ export component ChainEndpointEditorPage inherits Rectangle {
         selected(value) => { root.select-device(self.current-index); }
     }
 
+    // Input mode section — only shown in input editor
+    if root.show-input-mode : Rectangle {
+        x: 32px;
+        y: 150px;
+        width: parent.width - 64px;
+        height: 1px;
+        background: #2a2f38;
+    }
+
+    if root.show-input-mode : Text {
+        x: 32px;
+        y: 163px;
+        width: 120px;
+        height: 16px;
+        text: "Tipo de Entrada";
+        color: #7a8694;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    if root.show-input-mode : Rectangle {
+        x: 32px;
+        y: 183px;
+        width: 104px;
+        height: 44px;
+        background: root.selected-input-mode-index == 0 ? #2a5da8 : #1d2025;
+        border-width: 1px;
+        border-color: root.selected-input-mode-index == 0 ? #45a7ff : #41454e;
+        border-radius: 4px;
+        Text { width: parent.width; height: parent.height; text: "Mono"; color: root.selected-input-mode-index == 0 ? #f4f7fb : #8a94a2; horizontal-alignment: center; vertical-alignment: center; font-size: 12px; font-weight: 600; }
+        TouchArea { width: parent.width; height: parent.height; mouse-cursor: pointer; clicked => { root.selected-input-mode-index = 0; root.select-input-mode(0); } }
+    }
+
+    if root.show-input-mode : Rectangle {
+        x: 144px;
+        y: 183px;
+        width: 104px;
+        height: 44px;
+        background: root.selected-input-mode-index == 1 ? #2a5da8 : #1d2025;
+        border-width: 1px;
+        border-color: root.selected-input-mode-index == 1 ? #45a7ff : #41454e;
+        border-radius: 4px;
+        Text { width: parent.width; height: parent.height; text: "Stereo"; color: root.selected-input-mode-index == 1 ? #f4f7fb : #8a94a2; horizontal-alignment: center; vertical-alignment: center; font-size: 12px; font-weight: 600; }
+        TouchArea { width: parent.width; height: parent.height; mouse-cursor: pointer; clicked => { root.selected-input-mode-index = 1; root.select-input-mode(1); } }
+    }
+
+    if root.show-input-mode : Rectangle {
+        x: 256px;
+        y: 183px;
+        width: 104px;
+        height: 44px;
+        background: root.selected-input-mode-index == 2 ? #2a5da8 : #1d2025;
+        border-width: 1px;
+        border-color: root.selected-input-mode-index == 2 ? #45a7ff : #41454e;
+        border-radius: 4px;
+        Text { width: parent.width; height: parent.height; text: "Dual Mono"; color: root.selected-input-mode-index == 2 ? #f4f7fb : #8a94a2; horizontal-alignment: center; vertical-alignment: center; font-size: 12px; font-weight: 600; }
+        TouchArea { width: parent.width; height: parent.height; mouse-cursor: pointer; clicked => { root.selected-input-mode-index = 2; root.select-input-mode(2); } }
+    }
+
     Rectangle {
         x: 32px;
-        y: 154px;
+        y: root.show-input-mode ? 246px : 154px;
         width: parent.width - 64px;
         height: 1px;
         background: #2a2f38;
@@ -159,7 +221,7 @@ export component ChainEndpointEditorPage inherits Rectangle {
 
     Text {
         x: 32px;
-        y: 166px;
+        y: root.show-input-mode ? 258px : 166px;
         width: 120px;
         height: 16px;
         text: "Canais";
@@ -170,9 +232,9 @@ export component ChainEndpointEditorPage inherits Rectangle {
 
     ScrollView {
         x: 32px;
-        y: 188px;
+        y: root.show-input-mode ? 278px : 188px;
         width: parent.width - 64px;
-        height: parent.height - 252px;
+        height: parent.height - (root.show-input-mode ? 342px : 252px);
         viewport-width: self.width;
         viewport-height: Math.max(self.height, root.channels.length * 48px);
 

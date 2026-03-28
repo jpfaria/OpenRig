@@ -96,8 +96,10 @@ export component ChainInputWindow inherits Window {
     in-out property <int> selected-device-index;
     in property <[ChannelOptionItem]> channels;
     in-out property <string> status-message;
+    in-out property <int> selected-input-mode-index: 0;
     callback select-device(int);
     callback toggle-channel(int, bool);
+    callback select-input-mode(int);
     callback save();
     callback cancel();
     title: "OpenRig · Entrada da chain";
@@ -115,8 +117,11 @@ export component ChainInputWindow inherits Window {
         selected-device-index <=> root.selected-device-index;
         channels: root.channels;
         status-message: root.status-message;
+        show-input-mode: true;
+        selected-input-mode-index <=> root.selected-input-mode-index;
         select-device(index) => { root.select-device(index); }
         toggle-channel(index, selected) => { root.toggle-channel(index, selected); }
+        select-input-mode(index) => { root.select-input-mode(index); }
         save => { root.save(); }
         cancel => { root.cancel(); }
     }

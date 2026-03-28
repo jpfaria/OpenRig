@@ -863,7 +863,7 @@ mod tests {
                 output_channels: vec![0, 1],
                 blocks: Vec::new(),
                 output_mixdown: ChainOutputMixdown::Average,
-                input_mode: ChainInputMode::Auto,
+                input_mode: ChainInputMode::Mono,
             }],
         };
 

@@ -16,8 +16,13 @@ pub enum ChainOutputMixdown {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ChainInputMode {
+    /// Single-channel input; upmixed to stereo for stereo outputs.
     #[default]
-    Auto,
+    #[serde(alias = "auto")]
+    Mono,
+    /// Two-channel input treated as a true stereo L/R pair.
+    Stereo,
+    /// Two independent mono pipelines (e.g. two guitars on separate inputs).
     DualMono,
 }
 
@@ -38,22 +43,20 @@ pub fn processing_layout(
     let in_count = input_channels.len();
     let out_count = output_channels.len();
 
-    // Dual mono is explicit — 2 independent mono pipelines
+    // Dual mono: 2 independent mono pipelines
     if in_count >= 2 && matches!(input_mode, ChainInputMode::DualMono) {
         return ProcessingLayout::DualMono;
     }
 
-    // Otherwise, output determines processing mode
-    match (in_count, out_count) {
-        (_, 0) => ProcessingLayout::Mono, // no output, default mono
-        (_, 1) => {
-            if in_count >= 2 {
-                ProcessingLayout::Stereo // stereo in → stereo processing → mixdown at output
-            } else {
-                ProcessingLayout::Mono
-            }
-        }
-        (_, _) => ProcessingLayout::Stereo, // 2+ outputs → stereo processing
+    // Stereo input: always process as stereo
+    if matches!(input_mode, ChainInputMode::Stereo) {
+        return ProcessingLayout::Stereo;
+    }
+
+    // Mono input: output channel count determines final layout (upmix if needed)
+    match out_count {
+        0 | 1 => ProcessingLayout::Mono,
+        _ => ProcessingLayout::Stereo,
     }
 }
 
