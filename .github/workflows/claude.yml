@@ -34,4 +34,5 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           base_branch: "develop"
           branch_prefix: "feature/"
+          branch_name_template: "{{prefix}}issue-{{entityNumber}}"
           claude_args: "--max-turns 200"
