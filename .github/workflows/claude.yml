@@ -10,6 +10,10 @@ on:
   issues:
     types: [opened, assigned, labeled]
 
+concurrency:
+  group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
 jobs:
   claude:
     if: |
@@ -18,6 +22,7 @@ jobs:
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
       (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: write
       pull-requests: write
@@ -27,7 +32,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
@@ -37,4 +42,25 @@ jobs:
           label_trigger: "claude"
           base_branch: "develop"
           branch_prefix: "feature/"
-          claude_args: "--max-turns 50"
+          claude_args: "--max-turns 200"
+          prompt: |
+            ## How you work
+
+            You are an autonomous agent working on the OpenRig project. Follow CLAUDE.md strictly.
+
+            ## Task execution strategy
+
+            For any non-trivial task:
+            1. PLAN first — break the work into small, sequential sub-tasks. Post the plan as a comment.
+            2. Execute ONE sub-task at a time. Commit after each sub-task.
+            3. After each sub-task, verify with `cargo build` (zero warnings required).
+            4. Use a SINGLE branch for the entire issue: `feature/issue-{N}-description`
+            5. When ALL sub-tasks are done, create a single PR to develop.
+
+            ## Rules
+            - Gitflow: branch from develop, PR to develop
+            - Commits in English, no Co-Authored-By
+            - Zero warnings on `cargo build`
+            - Zero coupling (read .claude/skills/openrig-code-quality/SKILL.md)
+            - PR body must include "Closes #{issue_number}"
+            - If a task is too large, comment your plan and wait for approval before implementing
