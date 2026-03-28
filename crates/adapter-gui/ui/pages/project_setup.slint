@@ -1,0 +1,217 @@
+component SetupButton inherits Rectangle {
+    in property <string> label;
+    in property <bool> primary: false;
+    in property <bool> enabled: true;
+    callback clicked();
+
+    width: 120px;
+    height: 36px;
+    background: root.enabled
+        ? (primary ? #188cff : #2f3339)
+        : #1e2329;
+    border-width: 1px;
+    border-color: root.enabled
+        ? (primary ? #45a7ff : #4c515b)
+        : #353a42;
+    border-radius: 6px;
+    opacity: root.enabled ? 1.0 : 0.5;
+
+    Text {
+        width: parent.width;
+        height: parent.height;
+        text: root.label;
+        color: #f4f7fb;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    if root.enabled : TouchArea {
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+component NameInput inherits Rectangle {
+    in-out property <string> text;
+    callback changed(string);
+    callback accepted();
+    public function focus-input() { input.focus(); }
+
+    height: 40px;
+    background: #1d2025;
+    border-width: 1px;
+    border-color: #41454e;
+    border-radius: 4px;
+
+    if root.text == "" : Text {
+        x: 12px;
+        y: 0px;
+        width: parent.width - 24px;
+        height: parent.height;
+        text: "Ex: Guitarra ao vivo";
+        color: #555d6a;
+        vertical-alignment: center;
+        font-size: 13px;
+    }
+
+    input := TextInput {
+        x: 12px;
+        y: 0px;
+        width: parent.width - 24px;
+        height: parent.height;
+        text: root.text;
+        color: #f3f6fb;
+        single-line: true;
+        vertical-alignment: center;
+        font-size: 13px;
+        edited => {
+            root.text = self.text;
+            root.changed(self.text);
+        }
+        accepted => { root.accepted(); }
+    }
+}
+
+export component ProjectSetupPage inherits Rectangle {
+    in-out property <string> project-name;
+    in-out property <string> status-message;
+    callback confirm();
+    callback cancel();
+
+    private property <bool> can-confirm: root.project-name != "";
+
+    init => { name-input.focus-input(); }
+
+    background: #1b1d22;
+
+    Image {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        source: @image-url("../assets/launcher-block-bg.jpg");
+        image-fit: cover;
+    }
+
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        background: @linear-gradient(180deg, #17191dcc 0%, #17191de6 38%, #17191dd9 100%);
+    }
+
+    // Logo header
+    Rectangle {
+        x: 24px;
+        y: 18px;
+        width: parent.width - 48px;
+        height: 52px;
+        background: transparent;
+
+        Image {
+            x: 0px;
+            y: -4px;
+            width: 68px;
+            height: 68px;
+            source: @image-url("../assets/openrig-logomark.svg");
+            image-fit: contain;
+        }
+
+        Image {
+            x: 40px;
+            y: 2px;
+            width: 210px;
+            height: 52px;
+            source: @image-url("../assets/openrig-logotype.png");
+            image-fit: contain;
+        }
+    }
+
+    // Centered card
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        width: 420px;
+        height: 220px;
+        background: #22242988;
+        border-width: 1px;
+        border-color: #32363daa;
+        border-radius: 8px;
+
+        Text {
+            x: 0px;
+            y: 28px;
+            width: parent.width;
+            height: 28px;
+            text: "Novo Projeto";
+            color: #f1f4f8;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        Text {
+            x: 28px;
+            y: 76px;
+            width: 120px;
+            height: 20px;
+            text: "Nome do projeto";
+            color: #8d95a2;
+            vertical-alignment: center;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        name-input := NameInput {
+            x: 28px;
+            y: 98px;
+            width: parent.width - 56px;
+            text <=> root.project-name;
+            changed(value) => {
+                root.project-name = value;
+                root.status-message = "";
+            }
+            accepted => {
+                if root.can-confirm {
+                    root.confirm();
+                } else {
+                    root.status-message = "O nome do projeto é obrigatório.";
+                }
+            }
+        }
+
+        if root.status-message != "" : Text {
+            x: 28px;
+            y: 148px;
+            width: parent.width - 56px;
+            height: 18px;
+            text: root.status-message;
+            color: #ff6b6b;
+            vertical-alignment: center;
+            font-size: 11px;
+        }
+
+        // Buttons
+        SetupButton {
+            x: parent.width - 28px - 120px - 8px - 120px;
+            y: 168px;
+            label: "Cancelar";
+            clicked => { root.cancel(); }
+        }
+
+        SetupButton {
+            x: parent.width - 28px - 120px;
+            y: 168px;
+            label: "Criar projeto";
+            primary: true;
+            enabled: root.can-confirm;
+            clicked => { root.confirm(); }
+        }
+    }
+}
