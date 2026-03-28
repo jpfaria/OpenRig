@@ -173,10 +173,15 @@ export component ProjectSetupPage inherits Rectangle {
             y: 98px;
             width: parent.width - 56px;
             text <=> root.project-name;
-            changed(value) => { root.project-name = value; }
+            changed(value) => {
+                root.project-name = value;
+                root.status-message = "";
+            }
             accepted => {
                 if root.can-confirm {
                     root.confirm();
+                } else {
+                    root.status-message = "O nome do projeto é obrigatório.";
                 }
             }
         }
