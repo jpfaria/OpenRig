@@ -1,0 +1,266 @@
+import { ScrollView } from "std-widgets.slint";
+import { IoGroupItem } from "../models.slint";
+
+component FooterButton inherits Rectangle {
+    in property <string> label;
+    in property <bool> primary: false;
+    callback clicked();
+
+    width: primary ? 112px : 104px;
+    height: 38px;
+    background: primary ? #188cff : #2f3339;
+    border-width: 1px;
+    border-color: primary ? #45a7ff : #4c515b;
+    border-radius: 4px;
+
+    Text {
+        width: parent.width;
+        height: parent.height;
+        text: root.label;
+        color: #f4f7fb;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    TouchArea {
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+component IoGroupRow inherits Rectangle {
+    in property <string> group-name;
+    in property <string> group-summary;
+    callback edit-clicked();
+    callback remove-clicked();
+
+    height: 52px;
+    background: transparent;
+
+    property <bool> hovered: false;
+
+    states [
+        hovered when hovered: {
+            background: #1e2229;
+        }
+    ]
+
+    border-radius: 6px;
+
+    Text {
+        x: 0px;
+        y: 6px;
+        width: parent.width - 60px;
+        height: 18px;
+        text: root.group-name;
+        color: #edf2f9;
+        font-size: 13px;
+        font-weight: 700;
+        vertical-alignment: center;
+    }
+
+    Text {
+        x: 0px;
+        y: 28px;
+        width: parent.width - 60px;
+        height: 18px;
+        text: root.group-summary;
+        color: #6b7786;
+        font-size: 12px;
+        overflow: elide;
+        vertical-alignment: center;
+    }
+
+    // Remove button
+    Rectangle {
+        x: parent.width - 52px;
+        y: 10px;
+        width: 24px;
+        height: 32px;
+        border-radius: 4px;
+
+        Text {
+            width: parent.width;
+            height: parent.height;
+            text: "\u{2715}";
+            color: #5a6270;
+            font-size: 13px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+
+        TouchArea {
+            width: parent.width;
+            height: parent.height;
+            mouse-cursor: pointer;
+            clicked => { root.remove-clicked(); }
+        }
+    }
+
+    // Edit chevron
+    Text {
+        x: parent.width - 20px;
+        y: 0px;
+        width: 20px;
+        height: parent.height;
+        text: "\u{203A}";
+        color: #4c5566;
+        font-size: 18px;
+        horizontal-alignment: right;
+        vertical-alignment: center;
+    }
+
+    TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width - 56px;
+        height: parent.height;
+        mouse-cursor: pointer;
+        pointer-event(e) => {
+            if (e.kind == PointerEventKind.move) {
+                root.hovered = true;
+            }
+        }
+        clicked => { root.edit-clicked(); }
+    }
+}
+
+component AddGroupButton inherits Rectangle {
+    in property <string> label;
+    callback clicked();
+
+    height: 36px;
+    background: transparent;
+    border-width: 1px;
+    border-color: #2a2f38;
+    border-radius: 6px;
+
+    property <bool> hovered: false;
+
+    states [
+        hovered when hovered: {
+            border-color: #45a7ff;
+        }
+    ]
+
+    Text {
+        width: parent.width;
+        height: parent.height;
+        text: root.label;
+        color: #45a7ff;
+        font-size: 12px;
+        font-weight: 600;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    TouchArea {
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        pointer-event(e) => {
+            if (e.kind == PointerEventKind.move) {
+                root.hovered = true;
+            }
+        }
+        clicked => { root.clicked(); }
+    }
+}
+
+export component ChainIoGroupsPage inherits Rectangle {
+    in property <string> title;
+    in property <string> add-label;
+    in property <[IoGroupItem]> groups;
+    in-out property <string> status-message;
+    callback edit-group(int);
+    callback remove-group(int);
+    callback add-group();
+    callback save();
+    callback cancel();
+
+    background: #171a1f;
+
+    Text {
+        x: 32px;
+        y: 28px;
+        width: parent.width - 64px;
+        height: 28px;
+        text: root.title;
+        color: #edf2f9;
+        font-size: 20px;
+        font-weight: 800;
+    }
+
+    Rectangle {
+        x: 32px;
+        y: 68px;
+        width: parent.width - 64px;
+        height: 1px;
+        background: #2a2f38;
+    }
+
+    ScrollView {
+        x: 32px;
+        y: 84px;
+        width: root.width - 64px;
+        height: root.height - 84px - 72px;
+
+        VerticalLayout {
+            spacing: 0px;
+            width: root.width - 64px;
+
+            for group[index] in root.groups : IoGroupRow {
+                width: root.width - 64px;
+                group-name: group.name;
+                group-summary: group.summary;
+                edit-clicked => { root.edit-group(index); }
+                remove-clicked => { root.remove-group(index); }
+            }
+
+            AddGroupButton {
+                width: root.width - 64px;
+                label: root.add-label;
+                clicked => { root.add-group(); }
+            }
+        }
+    }
+
+    // Separator before footer
+    Rectangle {
+        x: 32px;
+        y: parent.height - 72px;
+        width: parent.width - 64px;
+        height: 1px;
+        background: #2a2f38;
+    }
+
+    Text {
+        x: 32px;
+        y: parent.height - 58px;
+        width: parent.width - 64px - 240px;
+        height: 38px;
+        text: root.status-message;
+        color: #8db9ff;
+        font-size: 12px;
+        vertical-alignment: center;
+    }
+
+    FooterButton {
+        x: parent.width - 232px;
+        y: parent.height - 58px;
+        label: "Cancelar";
+        clicked => { root.cancel(); }
+    }
+
+    FooterButton {
+        x: parent.width - 120px;
+        y: parent.height - 58px;
+        label: "OK";
+        primary: true;
+        clicked => { root.save(); }
+    }
+}

@@ -1,7 +1,7 @@
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
-import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage } from "pages/pages.slint";
+import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
 
 export component ProjectSettingsWindow inherits Window {
@@ -171,6 +171,72 @@ export component ChainOutputWindow inherits Window {
         select-device(index) => { root.select-device(index); }
         toggle-channel(index, selected) => { root.toggle-channel(index, selected); }
         select-mode(index) => { root.select-output-mode(index); }
+        save => { root.save(); }
+        cancel => { root.cancel(); }
+    }
+}
+
+export component ChainInputGroupsWindow inherits Window {
+    icon: @image-url("assets/openrig-logomark.svg");
+    default-font-family: "Ek Mukta";
+    default-font-size: 13px;
+    in property <[IoGroupItem]> groups;
+    in-out property <string> status-message;
+    callback edit-group(int);
+    callback remove-group(int);
+    callback add-group();
+    callback save();
+    callback cancel();
+    title: "OpenRig \u{00B7} Entradas da chain";
+    min-width: 720px;
+    min-height: 620px;
+    preferred-width: 860px;
+    preferred-height: 720px;
+    background: #040708;
+
+    ChainIoGroupsPage {
+        width: parent.width;
+        height: parent.height;
+        title: "Entradas";
+        add-label: "+ Adicionar entrada";
+        groups: root.groups;
+        status-message <=> root.status-message;
+        edit-group(index) => { root.edit-group(index); }
+        remove-group(index) => { root.remove-group(index); }
+        add-group => { root.add-group(); }
+        save => { root.save(); }
+        cancel => { root.cancel(); }
+    }
+}
+
+export component ChainOutputGroupsWindow inherits Window {
+    icon: @image-url("assets/openrig-logomark.svg");
+    default-font-family: "Ek Mukta";
+    default-font-size: 13px;
+    in property <[IoGroupItem]> groups;
+    in-out property <string> status-message;
+    callback edit-group(int);
+    callback remove-group(int);
+    callback add-group();
+    callback save();
+    callback cancel();
+    title: "OpenRig \u{00B7} Sa\u{00ED}das da chain";
+    min-width: 720px;
+    min-height: 620px;
+    preferred-width: 860px;
+    preferred-height: 720px;
+    background: #040708;
+
+    ChainIoGroupsPage {
+        width: parent.width;
+        height: parent.height;
+        title: "Sa\u{00ED}das";
+        add-label: "+ Adicionar sa\u{00ED}da";
+        groups: root.groups;
+        status-message <=> root.status-message;
+        edit-group(index) => { root.edit-group(index); }
+        remove-group(index) => { root.remove-group(index); }
+        add-group => { root.add-group(); }
         save => { root.save(); }
         cancel => { root.cancel(); }
     }
