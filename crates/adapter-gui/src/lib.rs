@@ -4568,7 +4568,6 @@ pub fn run_desktop_app(
             let description = description.to_string();
             let error_context = window.get_feedback_error_context().to_string();
             let weak_window = weak_window.clone();
-            let toast_timer = toast_timer.clone();
             window.set_feedback_status_message("Enviando…".into());
             std::thread::spawn(move || {
                 let result = feedback::submit_gh_feedback(&kind, &title, &description, &error_context);
@@ -4582,7 +4581,29 @@ pub fn run_desktop_app(
                             window.set_feedback_description("".into());
                             window.set_feedback_error_context("".into());
                             window.set_feedback_status_message("".into());
-                            set_status_info(&window, &toast_timer, "Feedback enviado! Obrigado.");
+                            let msg = "Feedback enviado! Obrigado.";
+                            window.set_status_message(msg.into());
+                            window.set_toast_message(msg.into());
+                            window.set_toast_level("info".into());
+                            log::info!("{}", msg);
+                            let weak = window.as_weak();
+                            // Rc<Timer> cannot be sent across threads, so we create a local
+                            // timer here (inside invoke_from_event_loop = event loop thread).
+                            // Capturing the clone in the callback keeps it alive until it fires.
+                            let timer = Rc::new(Timer::default());
+                            let timer_keep_alive = timer.clone();
+                            timer.start(
+                                TimerMode::SingleShot,
+                                Duration::from_secs(3),
+                                move || {
+                                    drop(timer_keep_alive);
+                                    if let Some(w) = weak.upgrade() {
+                                        w.set_toast_message("".into());
+                                        w.set_toast_level("info".into());
+                                        w.set_status_message("".into());
+                                    }
+                                },
+                            );
                         }
                         Err(error) => {
                             log_gui_error("submit_feedback", &error);
