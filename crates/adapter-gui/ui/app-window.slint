@@ -55,12 +55,14 @@ export component ChainEditorWindow inherits Window {
     in-out property <string> status-message;
     in property <bool> is-create-mode: true;
     in-out property <int> selected-instrument-index: 0;
+    in-out property <int> selected-input-mode-index: 0;
     callback update-chain-name(string);
     callback open-input();
     callback open-output();
     callback save-chain();
     callback cancel-chain();
     callback select-instrument(int);
+    callback select-input-mode(int);
     title: "OpenRig · Configurar chain";
     min-width: 980px;
     min-height: 680px;
@@ -79,12 +81,14 @@ export component ChainEditorWindow inherits Window {
         status-message: root.status-message;
         is-create-mode: root.is-create-mode;
         selected-instrument-index: root.selected-instrument-index;
+        selected-input-mode-index: root.selected-input-mode-index;
         update-chain-name(value) => { root.update-chain-name(value); }
         open-input => { root.open-input(); }
         open-output => { root.open-output(); }
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }
         select-instrument(index) => { root.select-instrument(index); }
+        select-input-mode(index) => { root.select-input-mode(index); }
     }
 }
 

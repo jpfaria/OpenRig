@@ -130,13 +130,16 @@ export component ChainEditorPage inherits Rectangle {
     in-out property <string> status-message;
     in property <bool> is-create-mode: true;
     in-out property <int> selected-instrument-index: 0;
+    in-out property <int> selected-input-mode-index: 0;
     in property <[string]> instrument-labels: ["Guitarra", "Violao", "Baixo", "Voz", "Teclado", "Bateria", "Outro"];
+    in property <[string]> input-mode-labels: ["Mono", "Stereo", "Dual Mono"];
     callback update-chain-name(string);
     callback open-input();
     callback open-output();
     callback save-chain();
     callback cancel-chain();
     callback select-instrument(int);
+    callback select-input-mode(int);
 
     background: #171a1f;
 
@@ -265,9 +268,68 @@ export component ChainEditorPage inherits Rectangle {
         background: #2a2f38;
     }
 
+    Text {
+        x: 32px;
+        y: 248px;
+        width: 120px;
+        height: 16px;
+        text: "Tipo de Entrada";
+        color: #7a8694;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    Rectangle {
+        x: 32px;
+        y: 268px;
+        width: parent.width - 64px;
+        height: 48px;
+        background: transparent;
+
+        for label[index] in root.input-mode-labels : Rectangle {
+            x: index * 120px;
+            y: 0px;
+            width: 108px;
+            height: 44px;
+            background: index == root.selected-input-mode-index ? #2a5da8 : #1d2025;
+            border-width: 1px;
+            border-color: index == root.selected-input-mode-index ? #45a7ff : #41454e;
+            border-radius: 4px;
+
+            Text {
+                width: parent.width;
+                height: parent.height;
+                text: label;
+                color: index == root.selected-input-mode-index ? #f4f7fb : #8a94a2;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                font-size: 12px;
+                font-weight: 600;
+            }
+
+            TouchArea {
+                width: parent.width;
+                height: parent.height;
+                mouse-cursor: pointer;
+                clicked => {
+                    root.selected-input-mode-index = index;
+                    root.select-input-mode(index);
+                }
+            }
+        }
+    }
+
+    Rectangle {
+        x: 32px;
+        y: 324px;
+        width: parent.width - 64px;
+        height: 1px;
+        background: #2a2f38;
+    }
+
     EditRow {
         x: 32px;
-        y: 244px;
+        y: 332px;
         width: parent.width - 64px;
         label: "Entrada";
         summary: root.input-summary;
@@ -276,7 +338,7 @@ export component ChainEditorPage inherits Rectangle {
 
     Rectangle {
         x: 32px;
-        y: 296px;
+        y: 384px;
         width: parent.width - 64px;
         height: 1px;
         background: #2a2f38;
@@ -284,7 +346,7 @@ export component ChainEditorPage inherits Rectangle {
 
     EditRow {
         x: 32px;
-        y: 304px;
+        y: 392px;
         width: parent.width - 64px;
         label: "Saída";
         summary: root.output-summary;
@@ -293,7 +355,7 @@ export component ChainEditorPage inherits Rectangle {
 
     Rectangle {
         x: 32px;
-        y: 356px;
+        y: 444px;
         width: parent.width - 64px;
         height: 1px;
         background: #2a2f38;

@@ -1590,6 +1590,7 @@ pub fn run_desktop_app(
             editor_window.set_editor_save_label(window.get_chain_editor_save_label());
             editor_window.set_is_create_mode(true);
             editor_window.set_selected_instrument_index(instrument_string_to_index(&draft.instrument));
+            editor_window.set_selected_input_mode_index(input_mode_to_index(draft.input_mode));
             window.set_selected_chain_input_device_index(selected_device_index(
                 &input_chain_devices,
                 draft.input_device_id.as_deref(),
@@ -1663,6 +1664,7 @@ pub fn run_desktop_app(
                 editor_window.set_editor_save_label(window.get_chain_editor_save_label());
                 editor_window.set_is_create_mode(false);
                 editor_window.set_selected_instrument_index(instrument_string_to_index(&draft.instrument));
+                editor_window.set_selected_input_mode_index(input_mode_to_index(draft.input_mode));
             }
             editor_window.set_status_message("".into());
             clear_status(&window, &toast_timer);
@@ -2199,6 +2201,16 @@ pub fn run_desktop_app(
                 log::debug!("[select_instrument] draft updated to '{}'", draft.instrument);
             } else {
                 log::warn!("[select_instrument] no draft to update!");
+            }
+        });
+    }
+    {
+        let chain_draft = chain_draft.clone();
+        chain_editor_window.on_select_input_mode(move |index| {
+            let mode = input_mode_from_index(index);
+            log::debug!("[select_input_mode] index={}, mode={:?}", index, mode);
+            if let Some(draft) = chain_draft.borrow_mut().as_mut() {
+                draft.input_mode = mode;
             }
         });
     }
