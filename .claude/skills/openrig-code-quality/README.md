@@ -13,7 +13,7 @@ Copy or symlink to your Claude skills directory:
 ln -s "$(pwd)/.skills/openrig-code-quality" ~/.claude/skills/openrig-code-quality
 
 # Option 2: Copy
-cp -r .skills/openrig-code-quality ~/.claude/skills/openrig-code-quality
+cp -r skills/openrig-code-quality ~/.claude/skills/openrig-code-quality
 ```
 
 Then invoke with `/openrig-code-quality` in any Claude Code session.
@@ -27,7 +27,7 @@ Copy or symlink to your Codex skills directory:
 ln -s "$(pwd)/.skills/openrig-code-quality" ~/.agents/skills/openrig-code-quality
 
 # Option 2: Copy
-cp -r .skills/openrig-code-quality ~/.agents/skills/openrig-code-quality
+cp -r skills/openrig-code-quality ~/.agents/skills/openrig-code-quality
 ```
 
 ### Verification
@@ -49,5 +49,5 @@ The checklist will be loaded into context. Follow ALL rules before writing code.
 If installed via symlink, pulling the repo automatically updates the skill. If copied, re-copy after changes:
 
 ```bash
-cp -r .skills/openrig-code-quality ~/.claude/skills/openrig-code-quality
+cp -r skills/openrig-code-quality ~/.claude/skills/openrig-code-quality
 ```
