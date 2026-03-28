@@ -177,6 +177,16 @@ After writing code:
 - [ ] A file with a match/if that grows with every new model → **WRONG, split by component**
 - [ ] If a file has 50+ lines of match arms → it needs to be split
 
+### 11. Documentation Always Up-to-Date
+
+- [ ] **CLAUDE.md must always reflect current state** — when creating, removing, or changing models, block types, parameters, features, or screens, update the corresponding section in CLAUDE.md
+- [ ] Added a new model? → update the "Tipos de bloco" table and parameter list
+- [ ] Added a new block type? → add it to the table with description and models
+- [ ] Changed parameters? → update "Parâmetros comuns" section
+- [ ] Added a new screen/feature? → update "Telas principais" section
+- [ ] Removed something? → remove from CLAUDE.md too, no stale documentation
+- [ ] Documentation is part of the task — not a separate step. If you change code, you change docs in the same commit
+
 ## Living Document
 
 This skill is a LIVING DOCUMENT. Every time the user corrects a software engineering mistake:
