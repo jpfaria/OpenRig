@@ -37,16 +37,4 @@ jobs:
           label_trigger: "claude"
           base_branch: "develop"
           branch_prefix: "feature/"
-          claude_args: |
-            --max-turns 50
-          prompt: |
-            You MUST follow the project's CLAUDE.md strictly. Key rules:
-            - Gitflow: always branch from develop, never from main
-            - Branch naming: feature/issue-{N}-description or bugfix/issue-{N}-description
-            - PR target: always develop, never main
-            - Commits in English, no Co-Authored-By
-            - Zero warnings on cargo build
-            - Zero coupling: blocks never reference specific models or brands
-            - Read .claude/skills/openrig-code-quality/SKILL.md before writing any code
-            - Always run cargo build and verify zero warnings before committing
-            - PR body must include "Closes #{issue_number}"
+          claude_args: "--max-turns 50"
