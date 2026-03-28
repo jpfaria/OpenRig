@@ -956,7 +956,10 @@ fn optional_string(params: &ParameterSet, path: &str) -> Option<String> {
 
 pub fn process_input_f32(runtime: &Arc<ChainRuntimeState>, data: &[f32], input_total_channels: usize) {
     let num_frames = data.len() / input_total_channels;
-    let mut processing = runtime.processing.lock().expect("chain runtime poisoned");
+    let mut processing = match runtime.processing.try_lock() {
+        Ok(guard) => guard,
+        Err(_) => return, // Skip this buffer rather than blocking the audio thread
+    };
     let ChainProcessingState {
         input_read_layout,
         processing_layout,
@@ -1135,7 +1138,14 @@ pub fn process_output_f32(
     out: &mut [f32],
     output_total_channels: usize,
 ) {
-    let mut output_state = runtime.output.lock().expect("chain runtime poisoned");
+    let mut output_state = match runtime.output.try_lock() {
+        Ok(guard) => guard,
+        Err(_) => {
+            // Cannot block the audio thread — fill with silence
+            out.fill(0.0);
+            return;
+        }
+    };
     let num_frames = out.len() / output_total_channels;
 
     for frame in out.chunks_mut(output_total_channels).take(num_frames) {
