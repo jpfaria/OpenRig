@@ -1,4 +1,4 @@
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
 import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage } from "pages/pages.slint";
@@ -50,14 +50,18 @@ export component ChainEditorWindow inherits Window {
     in property <string> editor-title;
     in property <string> editor-save-label;
     in-out property <string> chain-name;
-    in property <string> input-summary;
-    in property <string> output-summary;
+    in property <[IoGroupItem]> input-groups;
+    in property <[IoGroupItem]> output-groups;
     in-out property <string> status-message;
     in property <bool> is-create-mode: true;
     in-out property <int> selected-instrument-index: 0;
     callback update-chain-name(string);
-    callback open-input();
-    callback open-output();
+    callback edit-input(int);
+    callback remove-input(int);
+    callback add-input();
+    callback edit-output(int);
+    callback remove-output(int);
+    callback add-output();
     callback save-chain();
     callback cancel-chain();
     callback select-instrument(int);
@@ -74,14 +78,18 @@ export component ChainEditorWindow inherits Window {
         title: root.editor-title;
         save-label: root.editor-save-label;
         chain-name: root.chain-name;
-        input-summary: root.input-summary;
-        output-summary: root.output-summary;
+        input-groups: root.input-groups;
+        output-groups: root.output-groups;
         status-message: root.status-message;
         is-create-mode: root.is-create-mode;
         selected-instrument-index: root.selected-instrument-index;
         update-chain-name(value) => { root.update-chain-name(value); }
-        open-input => { root.open-input(); }
-        open-output => { root.open-output(); }
+        edit-input(index) => { root.edit-input(index); }
+        remove-input(index) => { root.remove-input(index); }
+        add-input => { root.add-input(); }
+        edit-output(index) => { root.edit-output(index); }
+        remove-output(index) => { root.remove-output(index); }
+        add-output => { root.add-output(); }
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }
         select-instrument(index) => { root.select-instrument(index); }
