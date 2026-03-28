@@ -1157,10 +1157,22 @@ pub fn process_input_f32(
     let processed: Vec<AudioFrame> = input_state.frame_buffer.drain(..).collect();
     drop(processing);
 
-    // Push processed frames to all output routes
+    // Mix processed frames into all output routes.
+    // If the queue already has frames (from another input), sum them.
+    // Otherwise, push new frames.
     if let Ok(mut output) = runtime.output.try_lock() {
         for route in output.output_routes.iter_mut() {
-            route.queue.extend(processed.iter().copied());
+            let existing_len = route.queue.len();
+            for (i, &frame) in processed.iter().enumerate() {
+                if i < existing_len {
+                    // Sum with existing frame from another input
+                    let existing = &mut route.queue[i];
+                    *existing = mix_frames(*existing, frame);
+                } else {
+                    // No existing frame yet — push as-is
+                    route.queue.push_back(frame);
+                }
+            }
             trim_output_queue(&mut route.queue);
         }
     }
@@ -1324,6 +1336,22 @@ fn silent_frame(layout: AudioChannelLayout) -> AudioFrame {
     match layout {
         AudioChannelLayout::Mono => AudioFrame::Mono(0.0),
         AudioChannelLayout::Stereo => AudioFrame::Stereo([0.0, 0.0]),
+    }
+}
+
+/// Sum two audio frames together (for mixing multiple input streams).
+fn mix_frames(a: AudioFrame, b: AudioFrame) -> AudioFrame {
+    match (a, b) {
+        (AudioFrame::Mono(l), AudioFrame::Mono(r)) => AudioFrame::Mono(l + r),
+        (AudioFrame::Stereo([l1, r1]), AudioFrame::Stereo([l2, r2])) => {
+            AudioFrame::Stereo([l1 + l2, r1 + r2])
+        }
+        (AudioFrame::Mono(m), AudioFrame::Stereo([l, r])) => {
+            AudioFrame::Stereo([m + l, m + r])
+        }
+        (AudioFrame::Stereo([l, r]), AudioFrame::Mono(m)) => {
+            AudioFrame::Stereo([l + m, r + m])
+        }
     }
 }
 
