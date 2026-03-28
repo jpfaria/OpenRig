@@ -37,6 +37,8 @@ jobs:
           label_trigger: "claude"
           base_branch: "develop"
           branch_prefix: "feature/"
+          plugins: |
+            superpowers@claude-plugins-official
           prompt: |
             You MUST follow the project's CLAUDE.md strictly. Key rules:
             - Gitflow: always branch from develop, never from main
