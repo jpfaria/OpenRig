@@ -37,6 +37,8 @@ jobs:
           label_trigger: "claude"
           base_branch: "develop"
           branch_prefix: "feature/"
+          claude_args: |
+            --max-turns 50
           prompt: |
             You MUST follow the project's CLAUDE.md strictly. Key rules:
             - Gitflow: always branch from develop, never from main
