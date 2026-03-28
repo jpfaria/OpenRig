@@ -551,7 +551,7 @@ fn build_input_stream_for_chain(
             device.build_input_stream(
                 &stream_config,
                 move |data: &[f32], _| {
-                    process_input_f32(&runtime_for_data, data, channels);
+                    process_input_f32(&runtime_for_data, 0, data, channels);
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
@@ -569,7 +569,7 @@ fn build_input_stream_for_chain(
                     for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
                         *dst = src as f32 / i16::MAX as f32;
                     }
-                    process_input_f32(&runtime_for_data, &converted, channels);
+                    process_input_f32(&runtime_for_data, 0, &converted, channels);
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
@@ -587,7 +587,7 @@ fn build_input_stream_for_chain(
                     for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
                         *dst = (src as f32 / u16::MAX as f32) * 2.0 - 1.0;
                     }
-                    process_input_f32(&runtime_for_data, &converted, channels);
+                    process_input_f32(&runtime_for_data, 0, &converted, channels);
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
@@ -627,7 +627,7 @@ fn build_output_stream_for_chain(
             device.build_output_stream(
                 &stream_config,
                 move |out: &mut [f32], _| {
-                    process_output_f32(&runtime_for_data, out, channels);
+                    process_output_f32(&runtime_for_data, 0, out, channels);
                 },
                 move |err| log::error!("[{}] output stream error: {}", error_chain_id, err),
                 None,
@@ -642,7 +642,7 @@ fn build_output_stream_for_chain(
                 &stream_config,
                 move |out: &mut [i16], _| {
                     temp.resize(out.len(), 0.0);
-                    process_output_f32(&runtime_for_data, &mut temp, channels);
+                    process_output_f32(&runtime_for_data, 0, &mut temp, channels);
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         *dst =
                             (*src * i16::MAX as f32).clamp(i16::MIN as f32, i16::MAX as f32) as i16;
@@ -661,7 +661,7 @@ fn build_output_stream_for_chain(
                 &stream_config,
                 move |out: &mut [u16], _| {
                     temp.resize(out.len(), 0.0);
-                    process_output_f32(&runtime_for_data, &mut temp, channels);
+                    process_output_f32(&runtime_for_data, 0, &mut temp, channels);
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         let normalized =
                             ((*src + 1.0) * 0.5 * u16::MAX as f32).clamp(0.0, u16::MAX as f32);
