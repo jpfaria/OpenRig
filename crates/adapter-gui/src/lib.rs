@@ -3920,7 +3920,7 @@ pub fn run_desktop_app(
         let toast_timer = toast_timer.clone();
         let open_block_windows = open_block_windows.clone();
         window.on_reorder_chain_block(move |chain_index, from_index, before_index| {
-            log::info!("[reorder_chain_block] chain_index={}, from_index={}, before_index={}", chain_index, from_index, before_index);
+            log::info!("[reorder_chain_block] chain_index={}, from_index={} (real), before_index={} (UI)", chain_index, from_index, before_index);
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -3938,11 +3938,15 @@ pub fn run_desktop_app(
                 if from_index < 0 || from_index >= block_count {
                     return;
                 }
-                let mut normalized_before = before_index.clamp(0, block_count);
-                if normalized_before == from_index || normalized_before == from_index + 1 {
+                // before_index is in UI space (excludes hidden first Input and last Output).
+                // Convert to real block index before operating on chain.blocks.
+                let real_before = ui_index_to_real_block_index(chain, before_index as usize) as i32;
+                log::info!("[reorder_chain_block] real_before={}", real_before);
+                if real_before == from_index || real_before == from_index + 1 {
                     return;
                 }
                 let block = chain.blocks.remove(from_index as usize);
+                let mut normalized_before = real_before;
                 if normalized_before > from_index {
                     normalized_before -= 1;
                 }
