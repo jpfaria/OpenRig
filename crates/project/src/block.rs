@@ -49,8 +49,7 @@ pub enum AudioBlockKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct InputBlock {
-    pub name: String,
+pub struct InputEntry {
     pub device_id: DeviceId,
     #[serde(default)]
     pub mode: ChainInputMode,
@@ -58,12 +57,42 @@ pub struct InputBlock {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct OutputBlock {
-    pub name: String,
+pub struct OutputEntry {
     pub device_id: DeviceId,
     #[serde(default)]
     pub mode: ChainOutputMode,
     pub channels: Vec<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputBlock {
+    pub name: String,
+    pub entries: Vec<InputEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OutputBlock {
+    pub name: String,
+    pub entries: Vec<OutputEntry>,
+}
+
+impl InputBlock {
+    pub fn validate_channel_conflicts(&self) -> Result<(), String> {
+        let mut used: Vec<(String, usize)> = Vec::new();
+        for entry in &self.entries {
+            for &ch in &entry.channels {
+                let key = (entry.device_id.0.clone(), ch);
+                if used.contains(&key) {
+                    return Err(format!(
+                        "Channel {} on device '{}' is used by multiple entries",
+                        ch, entry.device_id.0
+                    ));
+                }
+                used.push(key);
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -368,10 +397,11 @@ fn describe_block_audio(
 mod tests {
     use super::{
         normalize_block_params, schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock,
-        SelectBlock,
+        InputBlock, InputEntry, OutputBlock, OutputEntry, SelectBlock,
     };
+    use crate::chain::{ChainInputMode, ChainOutputMode};
     use crate::param::ParameterSet;
-    use domain::ids::BlockId;
+    use domain::ids::{BlockId, DeviceId};
 
     #[test]
     fn project_contract_exposes_family_schemas() {
@@ -556,4 +586,126 @@ mod tests {
             }),
         }
     }
+
+    // --- InputBlock/OutputBlock multi-entry tests ---
+
+    #[test]
+    fn input_block_supports_multiple_entries() {
+        let input = InputBlock {
+            name: "Guitars".to_string(),
+            entries: vec![
+                InputEntry {
+                    device_id: DeviceId("scarlett".into()),
+                    mode: ChainInputMode::Mono,
+                    channels: vec![0],
+                },
+                InputEntry {
+                    device_id: DeviceId("scarlett".into()),
+                    mode: ChainInputMode::Mono,
+                    channels: vec![1],
+                },
+            ],
+        };
+        assert_eq!(input.entries.len(), 2);
+        assert_eq!(input.entries[0].channels, vec![0]);
+        assert_eq!(input.entries[1].channels, vec![1]);
+    }
+
+    #[test]
+    fn output_block_supports_multiple_entries() {
+        let output = OutputBlock {
+            name: "Monitors".to_string(),
+            entries: vec![
+                OutputEntry {
+                    device_id: DeviceId("scarlett".into()),
+                    mode: ChainOutputMode::Stereo,
+                    channels: vec![0, 1],
+                },
+                OutputEntry {
+                    device_id: DeviceId("macbook".into()),
+                    mode: ChainOutputMode::Stereo,
+                    channels: vec![0, 1],
+                },
+            ],
+        };
+        assert_eq!(output.entries.len(), 2);
+        assert_eq!(output.entries[0].device_id.0, "scarlett");
+        assert_eq!(output.entries[1].device_id.0, "macbook");
+    }
+
+    #[test]
+    fn input_block_single_entry_works() {
+        let input = InputBlock {
+            name: "Guitar".to_string(),
+            entries: vec![InputEntry {
+                device_id: DeviceId("scarlett".into()),
+                mode: ChainInputMode::Mono,
+                channels: vec![0],
+            }],
+        };
+        assert_eq!(input.entries.len(), 1);
+    }
+
+    #[test]
+    fn input_block_validates_no_duplicate_device_channels() {
+        let input = InputBlock {
+            name: "Bad".to_string(),
+            entries: vec![
+                InputEntry {
+                    device_id: DeviceId("scarlett".into()),
+                    mode: ChainInputMode::Mono,
+                    channels: vec![0],
+                },
+                InputEntry {
+                    device_id: DeviceId("scarlett".into()),
+                    mode: ChainInputMode::Mono,
+                    channels: vec![0], // duplicate!
+                },
+            ],
+        };
+        let result = input.validate_channel_conflicts();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Channel 0"));
+    }
+
+    #[test]
+    fn input_block_allows_different_channels_same_device() {
+        let input = InputBlock {
+            name: "OK".to_string(),
+            entries: vec![
+                InputEntry {
+                    device_id: DeviceId("scarlett".into()),
+                    mode: ChainInputMode::Mono,
+                    channels: vec![0],
+                },
+                InputEntry {
+                    device_id: DeviceId("scarlett".into()),
+                    mode: ChainInputMode::Mono,
+                    channels: vec![1],
+                },
+            ],
+        };
+        assert!(input.validate_channel_conflicts().is_ok());
+    }
+
+    #[test]
+    fn input_block_allows_same_channel_different_devices() {
+        let input = InputBlock {
+            name: "OK".to_string(),
+            entries: vec![
+                InputEntry {
+                    device_id: DeviceId("scarlett".into()),
+                    mode: ChainInputMode::Mono,
+                    channels: vec![0],
+                },
+                InputEntry {
+                    device_id: DeviceId("macbook".into()),
+                    mode: ChainInputMode::Mono,
+                    channels: vec![0],
+                },
+            ],
+        };
+        assert!(input.validate_channel_conflicts().is_ok());
+    }
+
 }

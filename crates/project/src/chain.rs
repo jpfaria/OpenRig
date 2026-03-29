@@ -1,7 +1,7 @@
 use domain::ids::ChainId;
 use serde::{Deserialize, Serialize};
 
-use crate::block::{AudioBlock, AudioBlockKind, InputBlock, OutputBlock};
+use crate::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
@@ -68,10 +68,10 @@ pub fn processing_layout(
     }
 }
 
-/// Determines the processing layout from an InputBlock alone.
-pub fn processing_layout_for_input(input: &InputBlock) -> ProcessingLayout {
-    let ch_count = input.channels.len();
-    match input.mode {
+/// Determines the processing layout from an InputEntry.
+pub fn processing_layout_for_input_entry(entry: &InputEntry) -> ProcessingLayout {
+    let ch_count = entry.channels.len();
+    match entry.mode {
         ChainInputMode::DualMono if ch_count >= 2 => ProcessingLayout::DualMono,
         ChainInputMode::Stereo if ch_count >= 2 => ProcessingLayout::Stereo,
         _ => ProcessingLayout::Mono,
@@ -131,33 +131,37 @@ impl Chain {
         })
     }
 
-    /// Validate that no two inputs share the same device+channel,
-    /// and no two outputs share the same device+channel.
+    /// Validate that no two input entries share the same device+channel,
+    /// and no two output entries share the same device+channel.
     pub fn validate_channel_conflicts(&self) -> Result<(), String> {
         let mut used: Vec<(String, usize)> = Vec::new();
         for (_, input) in self.input_blocks() {
-            for &ch in &input.channels {
-                let key = (input.device_id.0.clone(), ch);
-                if used.contains(&key) {
-                    return Err(format!(
-                        "Channel {} on device '{}' is used by multiple inputs",
-                        ch, input.device_id.0
-                    ));
+            for entry in &input.entries {
+                for &ch in &entry.channels {
+                    let key = (entry.device_id.0.clone(), ch);
+                    if used.contains(&key) {
+                        return Err(format!(
+                            "Channel {} on device '{}' is used by multiple inputs",
+                            ch, entry.device_id.0
+                        ));
+                    }
+                    used.push(key);
                 }
-                used.push(key);
             }
         }
         let mut used: Vec<(String, usize)> = Vec::new();
         for (_, output) in self.output_blocks() {
-            for &ch in &output.channels {
-                let key = (output.device_id.0.clone(), ch);
-                if used.contains(&key) {
-                    return Err(format!(
-                        "Channel {} on device '{}' is used by multiple outputs",
-                        ch, output.device_id.0
-                    ));
+            for entry in &output.entries {
+                for &ch in &entry.channels {
+                    let key = (entry.device_id.0.clone(), ch);
+                    if used.contains(&key) {
+                        return Err(format!(
+                            "Channel {} on device '{}' is used by multiple outputs",
+                            ch, entry.device_id.0
+                        ));
+                    }
+                    used.push(key);
                 }
-                used.push(key);
             }
         }
         Ok(())
