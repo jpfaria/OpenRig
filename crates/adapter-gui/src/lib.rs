@@ -6809,19 +6809,22 @@ fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
             mode: ChainInputMode::Mono,
         }]
     } else {
+        // Expand ALL entries from ALL InputBlocks into separate drafts
         input_blocks
             .iter()
-            .map(|(_, input)| {
-                let first = input.entries.first();
-                InputGroupDraft {
-                    name: input.name.clone(),
-                    device_id: first
-                        .map(|e| &e.device_id.0)
-                        .filter(|id| !id.is_empty())
-                        .cloned(),
-                    channels: first.map(|e| e.channels.clone()).unwrap_or_default(),
-                    mode: first.map(|e| e.mode).unwrap_or_default(),
-                }
+            .flat_map(|(_, input)| {
+                input.entries.iter().enumerate().map(move |(ei, entry)| {
+                    InputGroupDraft {
+                        name: if input.entries.len() == 1 {
+                            input.name.clone()
+                        } else {
+                            format!("{} {}", input.name, ei + 1)
+                        },
+                        device_id: if entry.device_id.0.is_empty() { None } else { Some(entry.device_id.0.clone()) },
+                        channels: entry.channels.clone(),
+                        mode: entry.mode,
+                    }
+                })
             })
             .collect()
     };
@@ -6836,17 +6839,19 @@ fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
     } else {
         output_blocks
             .iter()
-            .map(|(_, output)| {
-                let first = output.entries.first();
-                OutputGroupDraft {
-                    name: output.name.clone(),
-                    device_id: first
-                        .map(|e| &e.device_id.0)
-                        .filter(|id| !id.is_empty())
-                        .cloned(),
-                    channels: first.map(|e| e.channels.clone()).unwrap_or_default(),
-                    mode: first.map(|e| e.mode).unwrap_or_default(),
-                }
+            .flat_map(|(_, output)| {
+                output.entries.iter().enumerate().map(move |(ei, entry)| {
+                    OutputGroupDraft {
+                        name: if output.entries.len() == 1 {
+                            output.name.clone()
+                        } else {
+                            format!("{} {}", output.name, ei + 1)
+                        },
+                        device_id: if entry.device_id.0.is_empty() { None } else { Some(entry.device_id.0.clone()) },
+                        channels: entry.channels.clone(),
+                        mode: entry.mode,
+                    }
+                })
             })
             .collect()
     };
@@ -7032,43 +7037,53 @@ fn normalized_chain_description(name: &str) -> Option<String> {
     }
 }
 fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain>) -> Chain {
-    // Build input blocks from draft
-    let input_blocks: Vec<AudioBlock> = draft
+    // All draft inputs become entries of a SINGLE fixed InputBlock
+    let input_entries: Vec<InputEntry> = draft
         .inputs
         .iter()
-        .enumerate()
-        .map(|(i, ig)| AudioBlock {
-            id: BlockId(format!("input:{}", i)),
+        .filter(|ig| ig.device_id.is_some() && !ig.channels.is_empty())
+        .map(|ig| InputEntry {
+            device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
+            mode: ig.mode,
+            channels: ig.channels.clone(),
+        })
+        .collect();
+    let input_blocks: Vec<AudioBlock> = if input_entries.is_empty() {
+        Vec::new()
+    } else {
+        vec![AudioBlock {
+            id: BlockId("input:0".into()),
             enabled: true,
             kind: AudioBlockKind::Input(InputBlock {
-                name: ig.name.clone(),
-                entries: vec![InputEntry {
-                    device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
-                    mode: ig.mode,
-                    channels: ig.channels.clone(),
-                }],
+                name: draft.inputs.first().map(|i| i.name.clone()).unwrap_or_else(|| "Input".into()),
+                entries: input_entries,
             }),
-        })
-        .collect();
+        }]
+    };
 
-    // Build output blocks from draft
-    let output_blocks: Vec<AudioBlock> = draft
+    // All draft outputs become entries of a SINGLE fixed OutputBlock
+    let output_entries: Vec<OutputEntry> = draft
         .outputs
         .iter()
-        .enumerate()
-        .map(|(i, og)| AudioBlock {
-            id: BlockId(format!("output:{}", i)),
-            enabled: true,
-            kind: AudioBlockKind::Output(OutputBlock {
-                name: og.name.clone(),
-                entries: vec![OutputEntry {
-                    device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
-                    mode: og.mode,
-                    channels: og.channels.clone(),
-                }],
-            }),
+        .filter(|og| og.device_id.is_some() && !og.channels.is_empty())
+        .map(|og| OutputEntry {
+            device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
+            mode: og.mode,
+            channels: og.channels.clone(),
         })
         .collect();
+    let output_blocks: Vec<AudioBlock> = if output_entries.is_empty() {
+        Vec::new()
+    } else {
+        vec![AudioBlock {
+            id: BlockId("output:0".into()),
+            enabled: true,
+            kind: AudioBlockKind::Output(OutputBlock {
+                name: draft.outputs.first().map(|o| o.name.clone()).unwrap_or_else(|| "Output".into()),
+                entries: output_entries,
+            }),
+        }]
+    };
 
     // Get existing non-I/O blocks
     let audio_blocks: Vec<AudioBlock> = existing_chain
