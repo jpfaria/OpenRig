@@ -5475,10 +5475,15 @@ fn replace_project_chains(
                     .into(),
                 subtitle: chain_routing_summary(chain).into(),
                 enabled: chain.enabled,
-                block_count_label: if chain.blocks.len() == 1 {
-                    "1 block".into()
-                } else {
-                    format!("{} blocks", chain.blocks.len()).into()
+                block_count_label: {
+                    let effect_block_count = chain.blocks.iter()
+                        .filter(|b| !matches!(&b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
+                        .count();
+                    if effect_block_count == 1 {
+                        "1 block".into()
+                    } else {
+                        format!("{} blocks", effect_block_count).into()
+                    }
                 },
                 input_label: {
                     let input_chs: Vec<usize> = chain.input_blocks().into_iter()
@@ -5500,6 +5505,7 @@ fn replace_project_chains(
                     chain
                         .blocks
                         .iter()
+                        .filter(|b| !matches!(&b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
                         .map(chain_block_item_from_block)
                         .collect::<Vec<_>>(),
                 ))),
