@@ -3216,11 +3216,9 @@ pub fn run_desktop_app(
         let output_chain_devices = output_chain_devices.clone();
         let open_block_windows = open_block_windows.clone();
         let toast_timer = toast_timer.clone();
-        let weak_input_window_for_select = chain_input_window.as_weak();
-        let weak_output_window_for_select = chain_output_window.as_weak();
+        let weak_input_groups_for_select = chain_input_groups_window.as_weak();
+        let weak_output_groups_for_select = chain_output_groups_window.as_weak();
         let chain_draft_for_select = chain_draft.clone();
-        let chain_input_channels_for_select = chain_input_channels.clone();
-        let chain_output_channels_for_select = chain_output_channels.clone();
         window.on_select_chain_block(move |chain_index, block_index| {
             let Some(window) = weak_main_window.upgrade() else {
                 return;
@@ -3239,46 +3237,43 @@ pub fn run_desktop_app(
                 set_status_error(&window, &toast_timer, "Block inválido.");
                 return;
             };
-            // Handle I/O blocks — open device/channel editor instead of block editor
+            // Handle I/O blocks — open I/O groups window with entries of THIS specific block
             match &block.kind {
-                AudioBlockKind::Input(_) => {
-                    let draft = chain_draft_from_chain(chain_index as usize, chain);
-                    // Find which input group index this block corresponds to
-                    let input_idx = chain.input_blocks().iter()
-                        .position(|(i, _)| *i == block_index as usize)
-                        .unwrap_or(0);
-                    let mut draft = draft;
-                    draft.editing_input_index = Some(input_idx);
-                    if let Some(input_group) = draft.inputs.get(input_idx) {
-                        if let Some(iw) = weak_input_window_for_select.upgrade() {
-                            apply_chain_input_window_state(
-                                &iw, input_group, &draft, &session.project,
-                                &input_chain_devices, &chain_input_channels_for_select,
-                            );
-                            *chain_draft_for_select.borrow_mut() = Some(draft);
-                            drop(session_borrow);
-                            show_child_window(window.window(), iw.window());
-                        }
+                AudioBlockKind::Input(ib) => {
+                    let inputs: Vec<InputGroupDraft> = ib.entries.iter().map(|e| InputGroupDraft {
+                        name: e.name.clone(),
+                        device_id: if e.device_id.0.is_empty() { None } else { Some(e.device_id.0.clone()) },
+                        channels: e.channels.clone(),
+                        mode: e.mode,
+                    }).collect();
+                    let mut draft = chain_draft_from_chain(chain_index as usize, chain);
+                    draft.inputs = inputs;
+                    let (input_items, _) = build_io_group_items(&draft, &input_chain_devices, &output_chain_devices);
+                    if let Some(gw) = weak_input_groups_for_select.upgrade() {
+                        gw.set_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
+                        gw.set_status_message("".into());
+                        *chain_draft_for_select.borrow_mut() = Some(draft);
+                        drop(session_borrow);
+                        show_child_window(window.window(), gw.window());
                     }
                     return;
                 }
-                AudioBlockKind::Output(_) => {
-                    let draft = chain_draft_from_chain(chain_index as usize, chain);
-                    let output_idx = chain.output_blocks().iter()
-                        .position(|(i, _)| *i == block_index as usize)
-                        .unwrap_or(0);
-                    let mut draft = draft;
-                    draft.editing_output_index = Some(output_idx);
-                    if let Some(output_group) = draft.outputs.get(output_idx) {
-                        if let Some(ow) = weak_output_window_for_select.upgrade() {
-                            apply_chain_output_window_state(
-                                &ow, output_group,
-                                &output_chain_devices, &chain_output_channels_for_select,
-                            );
-                            *chain_draft_for_select.borrow_mut() = Some(draft);
-                            drop(session_borrow);
-                            show_child_window(window.window(), ow.window());
-                        }
+                AudioBlockKind::Output(ob) => {
+                    let outputs: Vec<OutputGroupDraft> = ob.entries.iter().map(|e| OutputGroupDraft {
+                        name: e.name.clone(),
+                        device_id: if e.device_id.0.is_empty() { None } else { Some(e.device_id.0.clone()) },
+                        channels: e.channels.clone(),
+                        mode: e.mode,
+                    }).collect();
+                    let mut draft = chain_draft_from_chain(chain_index as usize, chain);
+                    draft.outputs = outputs;
+                    let (_, output_items) = build_io_group_items(&draft, &input_chain_devices, &output_chain_devices);
+                    if let Some(gw) = weak_output_groups_for_select.upgrade() {
+                        gw.set_groups(ModelRc::from(Rc::new(VecModel::from(output_items))));
+                        gw.set_status_message("".into());
+                        *chain_draft_for_select.borrow_mut() = Some(draft);
+                        drop(session_borrow);
+                        show_child_window(window.window(), gw.window());
                     }
                     return;
                 }
@@ -5883,12 +5878,12 @@ fn chain_inputs_tooltip(
     _project: &Project,
     devices: &[AudioDeviceDescriptor],
 ) -> String {
-    let input_blocks = chain.input_blocks();
-    if input_blocks.is_empty() {
+    // Show only entries from the FIRST InputBlock (chip In)
+    let first_input = chain.first_input();
+    let Some(input) = first_input else {
         return "No input configured".to_string();
-    }
-    input_blocks.iter().flat_map(|(_, input)| {
-        input.entries.iter().enumerate().map(move |(ei, entry)| {
+    };
+    input.entries.iter().enumerate().map(|(ei, entry)| {
             let device_name = devices
                 .iter()
                 .find(|d| d.id == entry.device_id.0)
@@ -5901,7 +5896,6 @@ fn chain_inputs_tooltip(
             };
             let label = if entry.name.is_empty() { format!("Input #{}", ei + 1) } else { entry.name.clone() };
             format!("{}: {} · {} · Ch {}", label, device_name, mode, format_channel_list(&entry.channels))
-        })
     }).collect::<Vec<_>>().join("\n")
 }
 fn chain_outputs_tooltip(
@@ -5909,24 +5903,23 @@ fn chain_outputs_tooltip(
     _project: &Project,
     devices: &[AudioDeviceDescriptor],
 ) -> String {
-    let output_blocks = chain.output_blocks();
-    if output_blocks.is_empty() {
+    // Show only entries from the LAST OutputBlock (chip Out)
+    let last_output = chain.last_output();
+    let Some(output) = last_output else {
         return "No output configured".to_string();
-    }
-    output_blocks.iter().flat_map(|(_, output)| {
-        output.entries.iter().enumerate().map(move |(ei, entry)| {
-            let device_name = devices
-                .iter()
-                .find(|d| d.id == entry.device_id.0)
-                .map(|d| d.name.as_str())
-                .unwrap_or(&entry.device_id.0);
-            let mode = match entry.mode {
-                ChainOutputMode::Mono => "Mono",
-                ChainOutputMode::Stereo => "Stereo",
-            };
-            let label = if entry.name.is_empty() { format!("Output #{}", ei + 1) } else { entry.name.clone() };
-            format!("{}: {} · {} · Ch {}", label, device_name, mode, format_channel_list(&entry.channels))
-        })
+    };
+    output.entries.iter().enumerate().map(|(ei, entry)| {
+        let device_name = devices
+            .iter()
+            .find(|d| d.id == entry.device_id.0)
+            .map(|d| d.name.as_str())
+            .unwrap_or(&entry.device_id.0);
+        let mode = match entry.mode {
+            ChainOutputMode::Mono => "Mono",
+            ChainOutputMode::Stereo => "Stereo",
+        };
+        let label = if entry.name.is_empty() { format!("Output #{}", ei + 1) } else { entry.name.clone() };
+        format!("{}: {} · {} · Ch {}", label, device_name, mode, format_channel_list(&entry.channels))
     }).collect::<Vec<_>>().join("\n")
 }
 fn format_channel_list(channels: &[usize]) -> String {
