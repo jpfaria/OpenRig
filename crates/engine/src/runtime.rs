@@ -347,9 +347,13 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
 /// Build effective input entries from chain's InputBlock entries.
 /// Falls back to a single mono input on channel 0 if no InputBlocks exist.
 fn effective_inputs(chain: &Chain) -> Vec<InputEntry> {
-    let entries: Vec<InputEntry> = chain.input_blocks()
-        .into_iter()
-        .flat_map(|(_, ib)| ib.entries.iter().cloned())
+    let entries: Vec<InputEntry> = chain.blocks.iter()
+        .filter(|b| b.enabled)
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Input(ib) => Some(ib),
+            _ => None,
+        })
+        .flat_map(|ib| ib.entries.iter().cloned())
         .collect();
     if !entries.is_empty() {
         return entries;
@@ -366,9 +370,13 @@ fn effective_inputs(chain: &Chain) -> Vec<InputEntry> {
 /// Build effective output entries from chain's OutputBlock entries.
 /// Falls back to a single mono output on channel 0 if no OutputBlocks exist.
 fn effective_outputs(chain: &Chain) -> Vec<OutputEntry> {
-    let entries: Vec<OutputEntry> = chain.output_blocks()
-        .into_iter()
-        .flat_map(|(_, ob)| ob.entries.iter().cloned())
+    let entries: Vec<OutputEntry> = chain.blocks.iter()
+        .filter(|b| b.enabled)
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Output(ob) => Some(ob),
+            _ => None,
+        })
+        .flat_map(|ob| ob.entries.iter().cloned())
         .collect();
     if !entries.is_empty() {
         return entries;
