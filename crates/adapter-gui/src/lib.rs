@@ -265,6 +265,10 @@ struct ChainDraft {
     outputs: Vec<OutputGroupDraft>,
     editing_input_index: Option<usize>,
     editing_output_index: Option<usize>,
+    /// Which block in chain.blocks is being edited by the I/O groups window.
+    /// None = editing the fixed chip (first input / last output).
+    /// Some(idx) = editing a specific I/O block at chain.blocks[idx].
+    editing_io_block_index: Option<usize>,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct SelectedBlock {
@@ -2956,6 +2960,35 @@ pub fn run_desktop_app(
                 }
             }
             let editing_index = draft.editing_index;
+            // If editing a specific I/O block in the middle (not the fixed chip), update ONLY that block
+            if let (Some(chain_idx), Some(block_idx)) = (editing_index, draft.editing_io_block_index) {
+                let new_entries: Vec<InputEntry> = draft.inputs.iter()
+                    .filter(|ig| ig.device_id.is_some() && !ig.channels.is_empty())
+                    .map(|ig| InputEntry {
+                        name: ig.name.clone(),
+                        device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
+                        mode: ig.mode,
+                        channels: ig.channels.clone(),
+                    }).collect();
+                if let Some(chain) = session.project.chains.get_mut(chain_idx) {
+                    if let Some(block) = chain.blocks.get_mut(block_idx) {
+                        if let AudioBlockKind::Input(ref mut ib) = block.kind {
+                            ib.entries = new_entries;
+                        }
+                    }
+                    let chain_id = chain.id.clone();
+                    if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                        groups_window.set_status_message(error.to_string().into());
+                        return;
+                    }
+                    replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                }
+                *chain_draft.borrow_mut() = None;
+                groups_window.set_status_message("".into());
+                let _ = groups_window.hide();
+                return;
+            }
             let existing_chain =
                 editing_index.and_then(|index| session.project.chains.get(index).cloned());
             let chain = chain_from_draft(&draft, existing_chain.as_ref());
@@ -3150,6 +3183,35 @@ pub fn run_desktop_app(
                 }
             }
             let editing_index = draft.editing_index;
+            // If editing a specific output block in the middle, update ONLY that block
+            if let (Some(chain_idx), Some(block_idx)) = (editing_index, draft.editing_io_block_index) {
+                let new_entries: Vec<OutputEntry> = draft.outputs.iter()
+                    .filter(|og| og.device_id.is_some() && !og.channels.is_empty())
+                    .map(|og| OutputEntry {
+                        name: og.name.clone(),
+                        device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
+                        mode: og.mode,
+                        channels: og.channels.clone(),
+                    }).collect();
+                if let Some(chain) = session.project.chains.get_mut(chain_idx) {
+                    if let Some(block) = chain.blocks.get_mut(block_idx) {
+                        if let AudioBlockKind::Output(ref mut ob) = block.kind {
+                            ob.entries = new_entries;
+                        }
+                    }
+                    let chain_id = chain.id.clone();
+                    if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                        groups_window.set_status_message(error.to_string().into());
+                        return;
+                    }
+                    replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                }
+                *chain_draft.borrow_mut() = None;
+                groups_window.set_status_message("".into());
+                let _ = groups_window.hide();
+                return;
+            }
             let existing_chain =
                 editing_index.and_then(|index| session.project.chains.get(index).cloned());
             let chain = chain_from_draft(&draft, existing_chain.as_ref());
@@ -3248,6 +3310,7 @@ pub fn run_desktop_app(
                     }).collect();
                     let mut draft = chain_draft_from_chain(chain_index as usize, chain);
                     draft.inputs = inputs;
+                    draft.editing_io_block_index = Some(block_index as usize);
                     let (input_items, _) = build_io_group_items(&draft, &input_chain_devices, &output_chain_devices);
                     if let Some(gw) = weak_input_groups_for_select.upgrade() {
                         gw.set_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
@@ -3267,6 +3330,7 @@ pub fn run_desktop_app(
                     }).collect();
                     let mut draft = chain_draft_from_chain(chain_index as usize, chain);
                     draft.outputs = outputs;
+                    draft.editing_io_block_index = Some(block_index as usize);
                     let (_, output_items) = build_io_group_items(&draft, &input_chain_devices, &output_chain_devices);
                     if let Some(gw) = weak_output_groups_for_select.upgrade() {
                         gw.set_groups(ModelRc::from(Rc::new(VecModel::from(output_items))));
@@ -4134,6 +4198,7 @@ pub fn run_desktop_app(
                         outputs: Vec::new(),
                         editing_input_index: Some(0),
                         editing_output_index: None,
+        editing_io_block_index: None,
                     });
                     if let Some(input_window) = weak_input_window_for_type.upgrade() {
                         let draft_borrow = chain_draft_for_type.borrow();
@@ -4164,6 +4229,7 @@ pub fn run_desktop_app(
                         instrument: instrument.clone(),
                         inputs: Vec::new(),
                         outputs: vec![output_group.clone()],
+        editing_io_block_index: None,
                         editing_input_index: None,
                         editing_output_index: Some(0),
                     });
@@ -6833,6 +6899,7 @@ fn create_chain_draft(
         instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
         inputs: vec![default_input],
         outputs: vec![default_output],
+        editing_io_block_index: None,
         editing_input_index: None,
         editing_output_index: None,
     }
@@ -6893,6 +6960,7 @@ fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
             .unwrap_or_else(|| format!("Chain {}", index + 1)),
         instrument: chain.instrument.clone(),
         inputs,
+        editing_io_block_index: None,
         outputs,
         editing_input_index: None,
         editing_output_index: None,
