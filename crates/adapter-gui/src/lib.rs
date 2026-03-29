@@ -3180,6 +3180,11 @@ pub fn run_desktop_app(
         let output_chain_devices = output_chain_devices.clone();
         let open_block_windows = open_block_windows.clone();
         let toast_timer = toast_timer.clone();
+        let weak_input_window_for_select = chain_input_window.as_weak();
+        let weak_output_window_for_select = chain_output_window.as_weak();
+        let chain_draft_for_select = chain_draft.clone();
+        let chain_input_channels_for_select = chain_input_channels.clone();
+        let chain_output_channels_for_select = chain_output_channels.clone();
         window.on_select_chain_block(move |chain_index, block_index| {
             let Some(window) = weak_main_window.upgrade() else {
                 return;
@@ -3198,6 +3203,51 @@ pub fn run_desktop_app(
                 set_status_error(&window, &toast_timer, "Block inválido.");
                 return;
             };
+            // Handle I/O blocks — open device/channel editor instead of block editor
+            match &block.kind {
+                AudioBlockKind::Input(_) => {
+                    let draft = chain_draft_from_chain(chain_index as usize, chain);
+                    // Find which input group index this block corresponds to
+                    let input_idx = chain.input_blocks().iter()
+                        .position(|(i, _)| *i == block_index as usize)
+                        .unwrap_or(0);
+                    let mut draft = draft;
+                    draft.editing_input_index = Some(input_idx);
+                    if let Some(input_group) = draft.inputs.get(input_idx) {
+                        if let Some(iw) = weak_input_window_for_select.upgrade() {
+                            apply_chain_input_window_state(
+                                &iw, input_group, &draft, &session.project,
+                                &input_chain_devices, &chain_input_channels_for_select,
+                            );
+                            *chain_draft_for_select.borrow_mut() = Some(draft);
+                            drop(session_borrow);
+                            show_child_window(window.window(), iw.window());
+                        }
+                    }
+                    return;
+                }
+                AudioBlockKind::Output(_) => {
+                    let draft = chain_draft_from_chain(chain_index as usize, chain);
+                    let output_idx = chain.output_blocks().iter()
+                        .position(|(i, _)| *i == block_index as usize)
+                        .unwrap_or(0);
+                    let mut draft = draft;
+                    draft.editing_output_index = Some(output_idx);
+                    if let Some(output_group) = draft.outputs.get(output_idx) {
+                        if let Some(ow) = weak_output_window_for_select.upgrade() {
+                            apply_chain_output_window_state(
+                                &ow, output_group,
+                                &output_chain_devices, &chain_output_channels_for_select,
+                            );
+                            *chain_draft_for_select.borrow_mut() = Some(draft);
+                            drop(session_borrow);
+                            show_child_window(window.window(), ow.window());
+                        }
+                    }
+                    return;
+                }
+                _ => {}
+            }
             log::info!("[select_chain_block] block at index {}: id='{}', kind={:?}", block_index, block.id.0, block.model_ref().map(|m| format!("{}/{}", m.effect_type, m.model)));
             let Some(editor_data) = block_editor_data(block) else {
                 set_status_error(&window, &toast_timer, "Esse block ainda não pode ser editado pela GUI.");
@@ -3956,11 +4006,19 @@ pub fn run_desktop_app(
                     log::warn!("=== START_BLOCK_INSERT: no chain at index {}, defaulting to electric_guitar ===", chain_index);
                     block_core::DEFAULT_INSTRUMENT.to_string()
                 });
+            // Map UI before_index to real chain.blocks index (UI excludes hidden I/O blocks)
+            let real_before_index = {
+                let session_borrow = project_session.borrow();
+                session_borrow.as_ref()
+                    .and_then(|s| s.project.chains.get(chain_index as usize))
+                    .map(|chain| ui_index_to_real_block_index(chain, before_index as usize))
+                    .unwrap_or(before_index as usize)
+            };
             *selected_block.borrow_mut() = None;
             *block_editor_draft.borrow_mut() = Some(BlockEditorDraft {
                 chain_index: chain_index as usize,
                 block_index: None,
-                before_index: before_index as usize,
+                before_index: real_before_index,
                 instrument: instrument.clone(),
                 effect_type: String::new(),
                 model_id: String::new(),
@@ -6814,6 +6872,24 @@ fn load_thumbnail_image(effect_type: &str, model_id: &str) -> (slint::Image, boo
         None => (slint::Image::default(), false, 0.0, 0.0)
     }
 }
+/// Map a UI block index (which excludes hidden first Input and last Output) to the real chain.blocks index.
+fn ui_index_to_real_block_index(chain: &Chain, ui_index: usize) -> usize {
+    let first_input_idx = chain.blocks.iter().position(|b| matches!(&b.kind, AudioBlockKind::Input(_)));
+    let last_output_idx = chain.blocks.iter().rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_)));
+    let mut visible_count = 0;
+    for (real_idx, _) in chain.blocks.iter().enumerate() {
+        if Some(real_idx) == first_input_idx || Some(real_idx) == last_output_idx {
+            continue; // hidden
+        }
+        if visible_count == ui_index {
+            return real_idx;
+        }
+        visible_count += 1;
+    }
+    // If ui_index is past all visible blocks, return end (before last output)
+    last_output_idx.unwrap_or(chain.blocks.len())
+}
+
 fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
     let (kind, label) = match &block.kind {
         AudioBlockKind::Input(_) => ("input".to_string(), "input".to_string()),
