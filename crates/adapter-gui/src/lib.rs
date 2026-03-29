@@ -5045,8 +5045,10 @@ pub fn run_desktop_app(
 
             // Handle I/O block insert mode: insert a single InputBlock at the stored position
             let io_insert = io_block_insert_draft_for_input_save.borrow().clone();
+            log::info!("[input_window.on_save] io_insert={:?}", io_insert.as_ref().map(|d| format!("kind={}, chain={}, before={}", d.kind, d.chain_index, d.before_index)));
             if let Some(io_draft) = io_insert {
                 if io_draft.kind == "input" {
+                    log::info!("[input_window.on_save] INSERTING NEW InputBlock at chain={}, before={}", io_draft.chain_index, io_draft.before_index);
                     // Extract what we need from chain_draft, then drop the borrow
                     let input_group = {
                         let draft_borrow = chain_draft.borrow();
@@ -5113,15 +5115,18 @@ pub fn run_desktop_app(
                 }
             }
 
+            log::info!("[input_window.on_save] NORMAL FLOW — editing existing entry in InputBlock");
             let mut draft_borrow = chain_draft.borrow_mut();
             let Some(draft) = draft_borrow.as_mut() else {
                 let _ = input_window.hide();
                 return;
             };
             let Some(gi) = draft.editing_input_index else {
+                log::warn!("[input_window.on_save] no editing_input_index set!");
                 let _ = input_window.hide();
                 return;
             };
+            log::info!("[input_window.on_save] editing_input_index={}, draft.inputs.len={}", gi, draft.inputs.len());
             let Some(input_group) = draft.inputs.get(gi) else {
                 let _ = input_window.hide();
                 return;
