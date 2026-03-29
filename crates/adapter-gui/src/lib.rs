@@ -5003,18 +5003,25 @@ pub fn run_desktop_app(
             };
 
             // Handle I/O block insert mode: insert a single InputBlock at the stored position
-            if let Some(io_draft) = io_block_insert_draft_for_input_save.borrow().clone() {
+            let io_insert = io_block_insert_draft_for_input_save.borrow().clone();
+            if let Some(io_draft) = io_insert {
                 if io_draft.kind == "input" {
-                    let draft_borrow = chain_draft.borrow();
-                    let Some(draft) = draft_borrow.as_ref() else {
-                        let _ = input_window.hide();
-                        *io_block_insert_draft_for_input_save.borrow_mut() = None;
-                        return;
-                    };
-                    let Some(input_group) = draft.inputs.first().cloned() else {
-                        let _ = input_window.hide();
-                        *io_block_insert_draft_for_input_save.borrow_mut() = None;
-                        return;
+                    // Extract what we need from chain_draft, then drop the borrow
+                    let input_group = {
+                        let draft_borrow = chain_draft.borrow();
+                        let Some(draft) = draft_borrow.as_ref() else {
+                            let _ = input_window.hide();
+                            drop(draft_borrow);
+                            *io_block_insert_draft_for_input_save.borrow_mut() = None;
+                            return;
+                        };
+                        let Some(ig) = draft.inputs.first().cloned() else {
+                            let _ = input_window.hide();
+                            drop(draft_borrow);
+                            *io_block_insert_draft_for_input_save.borrow_mut() = None;
+                            return;
+                        };
+                        ig
                     };
                     if input_group.device_id.is_none() || input_group.channels.is_empty() {
                         input_window.set_status_message("Selecione dispositivo e canais.".into());
@@ -5022,16 +5029,16 @@ pub fn run_desktop_app(
                     }
                     let chain_index = io_draft.chain_index;
                     let before_index = io_draft.before_index;
-                    drop(draft_borrow);
+                    // Clear drafts BEFORE touching session to avoid borrow conflicts
+                    *io_block_insert_draft_for_input_save.borrow_mut() = None;
+                    *chain_draft.borrow_mut() = None;
                     let mut session_borrow = project_session.borrow_mut();
                     let Some(session) = session_borrow.as_mut() else {
                         let _ = input_window.hide();
-                        *io_block_insert_draft_for_input_save.borrow_mut() = None;
                         return;
                     };
                     let Some(chain) = session.project.chains.get_mut(chain_index) else {
                         let _ = input_window.hide();
-                        *io_block_insert_draft_for_input_save.borrow_mut() = None;
                         return;
                     };
                     let real_chain_id = chain.id.clone();
@@ -5057,9 +5064,6 @@ pub fn run_desktop_app(
                         &output_chain_devices,
                     );
                     sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-                    drop(session_borrow);
-                    *io_block_insert_draft_for_input_save.borrow_mut() = None;
-                    *chain_draft.borrow_mut() = None;
                     input_window.set_status_message("".into());
                     let _ = input_window.hide();
                     return;
@@ -5197,18 +5201,24 @@ pub fn run_desktop_app(
             };
 
             // Handle I/O block insert mode: insert a single OutputBlock at the stored position
-            if let Some(io_draft) = io_block_insert_draft_for_output_save.borrow().clone() {
+            let io_insert = io_block_insert_draft_for_output_save.borrow().clone();
+            if let Some(io_draft) = io_insert {
                 if io_draft.kind == "output" {
-                    let draft_borrow = chain_draft.borrow();
-                    let Some(draft) = draft_borrow.as_ref() else {
-                        let _ = output_window.hide();
-                        *io_block_insert_draft_for_output_save.borrow_mut() = None;
-                        return;
-                    };
-                    let Some(output_group) = draft.outputs.first().cloned() else {
-                        let _ = output_window.hide();
-                        *io_block_insert_draft_for_output_save.borrow_mut() = None;
-                        return;
+                    let output_group = {
+                        let draft_borrow = chain_draft.borrow();
+                        let Some(draft) = draft_borrow.as_ref() else {
+                            let _ = output_window.hide();
+                            drop(draft_borrow);
+                            *io_block_insert_draft_for_output_save.borrow_mut() = None;
+                            return;
+                        };
+                        let Some(og) = draft.outputs.first().cloned() else {
+                            let _ = output_window.hide();
+                            drop(draft_borrow);
+                            *io_block_insert_draft_for_output_save.borrow_mut() = None;
+                            return;
+                        };
+                        og
                     };
                     if output_group.device_id.is_none() || output_group.channels.is_empty() {
                         output_window.set_status_message("Selecione dispositivo e canais.".into());
@@ -5216,16 +5226,15 @@ pub fn run_desktop_app(
                     }
                     let chain_index = io_draft.chain_index;
                     let before_index = io_draft.before_index;
-                    drop(draft_borrow);
+                    *io_block_insert_draft_for_output_save.borrow_mut() = None;
+                    *chain_draft.borrow_mut() = None;
                     let mut session_borrow = project_session.borrow_mut();
                     let Some(session) = session_borrow.as_mut() else {
                         let _ = output_window.hide();
-                        *io_block_insert_draft_for_output_save.borrow_mut() = None;
                         return;
                     };
                     let Some(chain) = session.project.chains.get_mut(chain_index) else {
                         let _ = output_window.hide();
-                        *io_block_insert_draft_for_output_save.borrow_mut() = None;
                         return;
                     };
                     let real_chain_id = chain.id.clone();
@@ -5251,9 +5260,6 @@ pub fn run_desktop_app(
                         &output_chain_devices,
                     );
                     sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
-                    drop(session_borrow);
-                    *io_block_insert_draft_for_output_save.borrow_mut() = None;
-                    *chain_draft.borrow_mut() = None;
                     output_window.set_status_message("".into());
                     let _ = output_window.hide();
                     return;
