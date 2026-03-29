@@ -51,7 +51,6 @@ pub fn serialize_project(project: &Project) -> Result<String> {
 pub fn serialize_audio_blocks(blocks: &[project::block::AudioBlock]) -> Result<Vec<Value>> {
     blocks
         .iter()
-        .filter(|block| !matches!(&block.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
         .map(|block| {
             Ok(serde_yaml::to_value(AudioBlockYaml::from_audio_block(
                 block,
@@ -154,7 +153,6 @@ impl PresetYaml {
             blocks: preset
                 .blocks
                 .iter()
-                .filter(|block| !matches!(&block.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
                 .map(|block| {
                     Ok(serde_yaml::to_value(AudioBlockYaml::from_audio_block(
                         block,
@@ -257,10 +255,10 @@ struct ChainYaml {
     instrument: String,
     #[serde(default = "default_enabled", skip_serializing)]
     enabled: bool,
-    // New multi-input/output fields
-    #[serde(default)]
+    // Legacy multi-input/output fields — kept for backward-compatible deserialization, skipped on serialization
+    #[serde(default, skip_serializing)]
     inputs: Vec<ChainInputYaml>,
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     outputs: Vec<ChainOutputYaml>,
     // Legacy fields — kept for backward-compatible deserialization, skipped on serialization
     #[serde(default, skip_serializing)]
@@ -284,9 +282,34 @@ impl ChainYaml {
         let chain_id = generated_chain_id(index);
         log::debug!("deserializing chain index={}, description={:?}, instrument='{}'", index, self.description, self.instrument);
 
-        // Convert inputs to InputBlock entries
+        // Parse all blocks from the blocks array (new format may include input/output blocks inline)
+        let parsed_blocks: Vec<AudioBlock> = self
+            .blocks
+            .into_iter()
+            .enumerate()
+            .filter_map(|(block_index, block)| {
+                load_audio_block_value(block, &chain_id, block_index)
+            })
+            .collect();
+
+        // Check if blocks already contain Input/Output (new inline format)
+        let has_inline_inputs = parsed_blocks.iter().any(|b| matches!(&b.kind, AudioBlockKind::Input(_)));
+        let has_inline_outputs = parsed_blocks.iter().any(|b| matches!(&b.kind, AudioBlockKind::Output(_)));
+
+        if has_inline_inputs || has_inline_outputs {
+            // New format: blocks already contain I/O inline, use as-is
+            let chain = Chain {
+                id: chain_id.clone(),
+                description: self.description,
+                instrument: self.instrument,
+                enabled: false,
+                blocks: parsed_blocks,
+            };
+            return Ok(chain);
+        }
+
+        // Old format: convert separate inputs/outputs sections to blocks
         let mut input_blocks: Vec<AudioBlock> = self.inputs.into_iter().enumerate().map(|(i, inp)| {
-            // If entries are present (new format), use them; otherwise fall back to legacy fields
             let entries = if !inp.entries.is_empty() {
                 inp.entries.into_iter().map(|e| InputEntry {
                     device_id: DeviceId(e.device_id),
@@ -312,7 +335,6 @@ impl ChainYaml {
             }
         }).collect();
 
-        // Convert outputs to OutputBlock entries
         let mut output_blocks: Vec<AudioBlock> = self.outputs.into_iter().enumerate().map(|(i, out)| {
             let entries = if !out.entries.is_empty() {
                 out.entries.into_iter().map(|e| OutputEntry {
@@ -339,7 +361,7 @@ impl ChainYaml {
             }
         }).collect();
 
-        // Legacy migration: if no new-format inputs/outputs, create from legacy fields
+        // Oldest legacy format: single input_device_id/output_device_id fields
         if input_blocks.is_empty() {
             let legacy_device = self.input_device_id.unwrap_or_default();
             if !legacy_device.is_empty() {
@@ -382,25 +404,16 @@ impl ChainYaml {
         }
 
         // Build blocks: inputs first, then audio blocks, then outputs
-        let audio_blocks: Vec<AudioBlock> = self
-            .blocks
-            .into_iter()
-            .enumerate()
-            .filter_map(|(block_index, block)| {
-                load_audio_block_value(block, &chain_id, block_index)
-            })
-            .collect();
-
-        let mut all_blocks = Vec::with_capacity(input_blocks.len() + audio_blocks.len() + output_blocks.len());
+        let mut all_blocks = Vec::with_capacity(input_blocks.len() + parsed_blocks.len() + output_blocks.len());
         all_blocks.extend(input_blocks);
-        all_blocks.extend(audio_blocks);
+        all_blocks.extend(parsed_blocks);
         all_blocks.extend(output_blocks);
 
         let chain = Chain {
             id: chain_id.clone(),
             description: self.description,
             instrument: self.instrument,
-            enabled: false, // chains always start disabled on load
+            enabled: false,
             blocks: all_blocks,
         };
 
@@ -408,41 +421,10 @@ impl ChainYaml {
     }
 
     fn from_chain(chain: &Chain) -> Result<Self> {
-        // Extract inputs/outputs from InputBlock/OutputBlock in blocks
-        // One YAML item per InputBlock/OutputBlock, with entries inside
-        let inputs: Vec<ChainInputYaml> = chain.input_blocks().into_iter().map(|(_, ib)| {
-            ChainInputYaml {
-                name: ib.name.clone(),
-                entries: ib.entries.iter().map(|e| ChainInputEntryYaml {
-                    device_id: e.device_id.0.clone(),
-                    mode: e.mode,
-                    channels: e.channels.clone(),
-                }).collect(),
-                device_id: None,
-                mode: None,
-                channels: None,
-            }
-        }).collect();
-
-        let outputs: Vec<ChainOutputYaml> = chain.output_blocks().into_iter().map(|(_, ob)| {
-            ChainOutputYaml {
-                name: ob.name.clone(),
-                entries: ob.entries.iter().map(|e| ChainOutputEntryYaml {
-                    device_id: e.device_id.0.clone(),
-                    mode: e.mode,
-                    channels: e.channels.clone(),
-                }).collect(),
-                device_id: None,
-                mode: None,
-                channels: None,
-            }
-        }).collect();
-
-        // Serialize only non-I/O blocks to the blocks array
+        // All blocks (including I/O) go into the blocks array
         let audio_blocks: Vec<Value> = chain
             .blocks
             .iter()
-            .filter(|block| !matches!(&block.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
             .map(|block| {
                 Ok(serde_yaml::to_value(AudioBlockYaml::from_audio_block(
                     block,
@@ -454,9 +436,8 @@ impl ChainYaml {
             description: chain.description.clone(),
             instrument: chain.instrument.clone(),
             enabled: chain.enabled,
-            inputs,
-            outputs,
-            // Legacy fields are None when serializing new format
+            inputs: Vec::new(),
+            outputs: Vec::new(),
             input_device_id: None,
             input_channels: None,
             output_device_id: None,
@@ -609,6 +590,38 @@ enum AudioBlockYaml {
         selected: String,
         options: Vec<SelectOptionYaml>,
     },
+    #[serde(rename = "input")]
+    Input {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
+        #[serde(default)]
+        name: String,
+        #[serde(default)]
+        entries: Vec<ChainInputEntryYaml>,
+        // Legacy single-entry fields for backward compat
+        #[serde(default, skip_serializing)]
+        device_id: Option<String>,
+        #[serde(default, skip_serializing)]
+        mode: Option<ChainInputMode>,
+        #[serde(default, skip_serializing)]
+        channels: Option<Vec<usize>>,
+    },
+    #[serde(rename = "output")]
+    Output {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
+        #[serde(default)]
+        name: String,
+        #[serde(default)]
+        entries: Vec<ChainOutputEntryYaml>,
+        // Legacy single-entry fields for backward compat
+        #[serde(default, skip_serializing)]
+        device_id: Option<String>,
+        #[serde(default, skip_serializing)]
+        mode: Option<ChainOutputMode>,
+        #[serde(default, skip_serializing)]
+        channels: Option<Vec<usize>>,
+    },
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -658,6 +671,70 @@ impl AudioBlockYaml {
                     kind: AudioBlockKind::Select(SelectBlock {
                         selected_block_id,
                         options,
+                    }),
+                })
+            }
+            AudioBlockYaml::Input {
+                enabled,
+                name,
+                entries,
+                device_id,
+                mode,
+                channels,
+            } => {
+                let entries = if !entries.is_empty() {
+                    entries.into_iter().map(|e| InputEntry {
+                        device_id: DeviceId(e.device_id),
+                        mode: e.mode,
+                        channels: e.channels,
+                    }).collect()
+                } else if let Some(device_id) = device_id {
+                    vec![InputEntry {
+                        device_id: DeviceId(device_id),
+                        mode: mode.unwrap_or_default(),
+                        channels: channels.unwrap_or_default(),
+                    }]
+                } else {
+                    Vec::new()
+                };
+                Ok(AudioBlock {
+                    id: generated_id,
+                    enabled,
+                    kind: AudioBlockKind::Input(InputBlock {
+                        name: if name.is_empty() { "Input".to_string() } else { name },
+                        entries,
+                    }),
+                })
+            }
+            AudioBlockYaml::Output {
+                enabled,
+                name,
+                entries,
+                device_id,
+                mode,
+                channels,
+            } => {
+                let entries = if !entries.is_empty() {
+                    entries.into_iter().map(|e| OutputEntry {
+                        device_id: DeviceId(e.device_id),
+                        mode: e.mode,
+                        channels: e.channels,
+                    }).collect()
+                } else if let Some(device_id) = device_id {
+                    vec![OutputEntry {
+                        device_id: DeviceId(device_id),
+                        mode: mode.unwrap_or_default(),
+                        channels: channels.unwrap_or_default(),
+                    }]
+                } else {
+                    Vec::new()
+                };
+                Ok(AudioBlock {
+                    id: generated_id,
+                    enabled,
+                    kind: AudioBlockKind::Output(OutputBlock {
+                        name: if name.is_empty() { "Output".to_string() } else { name },
+                        entries,
                     }),
                 })
             }
@@ -743,10 +820,30 @@ impl AudioBlockYaml {
                     options,
                 })
             }
-            // Input/Output blocks are not serialized as YAML audio blocks
-            AudioBlockKind::Input(_) | AudioBlockKind::Output(_) => {
-                Err(anyhow!("Input/Output blocks should not be serialized as audio block YAML"))
-            }
+            AudioBlockKind::Input(input) => Ok(Self::Input {
+                enabled: block.enabled,
+                name: input.name.clone(),
+                entries: input.entries.iter().map(|e| ChainInputEntryYaml {
+                    device_id: e.device_id.0.clone(),
+                    mode: e.mode,
+                    channels: e.channels.clone(),
+                }).collect(),
+                device_id: None,
+                mode: None,
+                channels: None,
+            }),
+            AudioBlockKind::Output(output) => Ok(Self::Output {
+                enabled: block.enabled,
+                name: output.name.clone(),
+                entries: output.entries.iter().map(|e| ChainOutputEntryYaml {
+                    device_id: e.device_id.0.clone(),
+                    mode: e.mode,
+                    channels: e.channels.clone(),
+                }).collect(),
+                device_id: None,
+                mode: None,
+                channels: None,
+            }),
         }
     }
 }
@@ -810,6 +907,8 @@ fn extract_core_block_fields(yaml: AudioBlockYaml) -> (&'static str, bool, Strin
         AudioBlockYaml::Pitch { enabled, model, params } => (block_core::EFFECT_TYPE_PITCH, enabled, model, params),
         AudioBlockYaml::Nam { enabled, model, params } => (block_core::EFFECT_TYPE_NAM, enabled, model, params),
         AudioBlockYaml::Select { .. } => unreachable!("Select handled before extract_core_block_fields"),
+        AudioBlockYaml::Input { .. } => unreachable!("Input handled before extract_core_block_fields"),
+        AudioBlockYaml::Output { .. } => unreachable!("Output handled before extract_core_block_fields"),
     }
 }
 
@@ -1186,8 +1285,8 @@ chains:
         model: {valid_delay_model}
         params:
           time_ms: 200
-          feedback: 0.5
-          mix: 0.3
+          feedback: 50
+          mix: 30
 "#,
             ),
         )
@@ -1230,14 +1329,14 @@ blocks:
     model: deleted_model
     params:
       time_ms: 200
-      feedback: 0.5
-      mix: 0.3
+      feedback: 50
+      mix: 30
   - type: delay
     model: {valid_delay_model}
     params:
       time_ms: 210
-      feedback: 0.4
-      mix: 0.25
+      feedback: 40
+      mix: 25
 "#,
             ),
         )
@@ -1288,15 +1387,15 @@ chains:
             model: {first_model}
             params:
               time_ms: 120
-              feedback: 0.2
-              mix: 0.3
+              feedback: 20
+              mix: 30
           - id: delay_b
             type: delay
             model: {second_model}
             params:
               time_ms: 240
-              feedback: 0.4
-              mix: 0.25
+              feedback: 40
+              mix: 25
 "#,
             ),
         )
