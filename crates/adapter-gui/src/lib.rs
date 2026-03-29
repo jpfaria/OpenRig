@@ -2481,7 +2481,25 @@ pub fn run_desktop_app(
             let Some(chain) = session.project.chains.get(index as usize) else {
                 return;
             };
-            let draft = chain_draft_from_chain(index as usize, chain);
+            // Only show entries from the FIRST InputBlock (position 0 chip)
+            let first_input = chain.first_input();
+            let inputs: Vec<InputGroupDraft> = first_input
+                .map(|ib| {
+                    ib.entries.iter().map(|e| InputGroupDraft {
+                        name: e.name.clone(),
+                        device_id: if e.device_id.0.is_empty() { None } else { Some(e.device_id.0.clone()) },
+                        channels: e.channels.clone(),
+                        mode: e.mode,
+                    }).collect()
+                })
+                .unwrap_or_else(|| vec![InputGroupDraft {
+                    name: "Input 1".to_string(),
+                    device_id: None,
+                    channels: Vec::new(),
+                    mode: ChainInputMode::Mono,
+                }]);
+            let mut draft = chain_draft_from_chain(index as usize, chain);
+            draft.inputs = inputs;
             let (input_items, _) =
                 build_io_group_items(&draft, &input_chain_devices, &output_chain_devices);
             groups_window
@@ -2512,7 +2530,25 @@ pub fn run_desktop_app(
             let Some(chain) = session.project.chains.get(index as usize) else {
                 return;
             };
-            let draft = chain_draft_from_chain(index as usize, chain);
+            // Only show entries from the LAST OutputBlock (fixed output chip)
+            let last_output = chain.last_output();
+            let outputs: Vec<OutputGroupDraft> = last_output
+                .map(|ob| {
+                    ob.entries.iter().map(|e| OutputGroupDraft {
+                        name: e.name.clone(),
+                        device_id: if e.device_id.0.is_empty() { None } else { Some(e.device_id.0.clone()) },
+                        channels: e.channels.clone(),
+                        mode: e.mode,
+                    }).collect()
+                })
+                .unwrap_or_else(|| vec![OutputGroupDraft {
+                    name: "Output 1".to_string(),
+                    device_id: None,
+                    channels: Vec::new(),
+                    mode: ChainOutputMode::Stereo,
+                }]);
+            let mut draft = chain_draft_from_chain(index as usize, chain);
+            draft.outputs = outputs;
             let (_, output_items) =
                 build_io_group_items(&draft, &input_chain_devices, &output_chain_devices);
             groups_window
