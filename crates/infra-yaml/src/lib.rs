@@ -43,6 +43,11 @@ pub fn save_chain_preset_file(path: &Path, preset: &ChainBlocksPreset) -> Result
     Ok(())
 }
 
+pub fn serialize_project(project: &Project) -> Result<String> {
+    let dto = ProjectYaml::from_project(project)?;
+    Ok(serde_yaml::to_string(&dto)?)
+}
+
 pub fn serialize_audio_blocks(blocks: &[project::block::AudioBlock]) -> Result<Vec<Value>> {
     blocks
         .iter()

@@ -12,7 +12,7 @@ use infra_filesystem::{
     AppConfig, FilesystemStorage, GuiAudioDeviceSettings, GuiAudioSettings, RecentProjectEntry,
 };
 use infra_yaml::{
-    load_chain_preset_file, save_chain_preset_file, serialize_audio_blocks, ChainBlocksPreset,
+    load_chain_preset_file, save_chain_preset_file, ChainBlocksPreset,
     YamlProjectRepository,
 };
 use project::block::{
@@ -311,27 +311,6 @@ enum ChainEditorMode {
 enum AudioSettingsMode {
     Gui,
     Project,
-}
-#[derive(Debug, Serialize)]
-struct ProjectYaml {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    name: Option<String>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    device_settings: Vec<ProjectDeviceSettingsYaml>,
-    chains: Vec<ProjectChainYaml>,
-}
-#[derive(Debug, Serialize)]
-struct ProjectDeviceSettingsYaml {
-    device_id: String,
-    sample_rate: u32,
-    buffer_size_frames: u32,
-}
-#[derive(Debug, Serialize)]
-struct ProjectChainYaml {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
-    instrument: String,
-    blocks: Vec<serde_yaml::Value>,
 }
 #[derive(Debug, Serialize)]
 struct ConfigYaml {
@@ -6624,40 +6603,8 @@ fn build_project_device_rows(
     }
     rows
 }
-fn build_project_yaml(session: &ProjectSession) -> Result<ProjectYaml> {
-    Ok(ProjectYaml {
-        name: session
-            .project
-            .name
-            .as_ref()
-            .map(|name| name.trim().to_string())
-            .filter(|name| !name.is_empty()),
-        device_settings: session
-            .project
-            .device_settings
-            .iter()
-            .map(|setting| ProjectDeviceSettingsYaml {
-                device_id: setting.device_id.0.clone(),
-                sample_rate: setting.sample_rate,
-                buffer_size_frames: setting.buffer_size_frames,
-            })
-            .collect(),
-        chains: session
-            .project
-            .chains
-            .iter()
-            .map(|chain| -> Result<ProjectChainYaml> {
-                Ok(ProjectChainYaml {
-                    description: chain.description.clone(),
-                    instrument: chain.instrument.clone(),
-                    blocks: serialize_audio_blocks(&chain.blocks)?,
-                })
-            })
-            .collect::<Result<Vec<_>>>()?,
-    })
-}
 fn project_session_snapshot(session: &ProjectSession) -> Result<String> {
-    Ok(serde_yaml::to_string(&build_project_yaml(session)?)?)
+    infra_yaml::serialize_project(&session.project)
 }
 fn set_project_dirty(window: &AppWindow, project_dirty: &Rc<RefCell<bool>>, dirty: bool) {
     *project_dirty.borrow_mut() = dirty;
