@@ -5057,6 +5057,7 @@ pub fn run_desktop_app(
                         &output_chain_devices,
                     );
                     sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                    drop(session_borrow);
                     *io_block_insert_draft_for_input_save.borrow_mut() = None;
                     *chain_draft.borrow_mut() = None;
                     input_window.set_status_message("".into());
@@ -5250,6 +5251,7 @@ pub fn run_desktop_app(
                         &output_chain_devices,
                     );
                     sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                    drop(session_borrow);
                     *io_block_insert_draft_for_output_save.borrow_mut() = None;
                     *chain_draft.borrow_mut() = None;
                     output_window.set_status_message("".into());
