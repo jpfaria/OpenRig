@@ -2,7 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use domain::ids::{BlockId, DeviceId, ChainId};
 use domain::value_objects::ParameterValue;
 use project::block::{
-    normalize_block_params, AudioBlock, AudioBlockKind, CoreBlock, InputBlock, NamBlock, OutputBlock, SelectBlock,
+    normalize_block_params, AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, NamBlock, OutputBlock, OutputEntry, SelectBlock,
 };
 use project::device::DeviceSettings;
 use project::param::ParameterSet;
@@ -262,9 +262,11 @@ impl ChainYaml {
             enabled: true,
             kind: AudioBlockKind::Input(InputBlock {
                 name: inp.name,
-                device_id: DeviceId(inp.device_id),
-                mode: inp.mode,
-                channels: inp.channels,
+                entries: vec![InputEntry {
+                    device_id: DeviceId(inp.device_id),
+                    mode: inp.mode,
+                    channels: inp.channels,
+                }],
             }),
         }).collect();
 
@@ -274,9 +276,11 @@ impl ChainYaml {
             enabled: true,
             kind: AudioBlockKind::Output(OutputBlock {
                 name: out.name,
-                device_id: DeviceId(out.device_id),
-                mode: out.mode,
-                channels: out.channels,
+                entries: vec![OutputEntry {
+                    device_id: DeviceId(out.device_id),
+                    mode: out.mode,
+                    channels: out.channels,
+                }],
             }),
         }).collect();
 
@@ -289,9 +293,11 @@ impl ChainYaml {
                     enabled: true,
                     kind: AudioBlockKind::Input(InputBlock {
                         name: "Input 1".to_string(),
-                        device_id: DeviceId(legacy_device),
-                        mode: self.input_mode,
-                        channels: self.input_channels.unwrap_or_default(),
+                        entries: vec![InputEntry {
+                            device_id: DeviceId(legacy_device),
+                            mode: self.input_mode,
+                            channels: self.input_channels.unwrap_or_default(),
+                        }],
                     }),
                 });
             }
@@ -310,9 +316,11 @@ impl ChainYaml {
                     enabled: true,
                     kind: AudioBlockKind::Output(OutputBlock {
                         name: "Output 1".to_string(),
-                        device_id: DeviceId(legacy_device),
-                        mode,
-                        channels: legacy_channels,
+                        entries: vec![OutputEntry {
+                            device_id: DeviceId(legacy_device),
+                            mode,
+                            channels: legacy_channels,
+                        }],
                     }),
                 });
             }
@@ -346,18 +354,23 @@ impl ChainYaml {
 
     fn from_chain(chain: &Chain) -> Result<Self> {
         // Extract inputs/outputs from InputBlock/OutputBlock entries in blocks
-        let inputs: Vec<ChainInputYaml> = chain.input_blocks().into_iter().map(|(_, ib)| ChainInputYaml {
-            name: ib.name.clone(),
-            device_id: ib.device_id.0.clone(),
-            mode: ib.mode,
-            channels: ib.channels.clone(),
+        // Each InputBlock/OutputBlock may have multiple entries; serialize one YAML entry per entry
+        let inputs: Vec<ChainInputYaml> = chain.input_blocks().into_iter().flat_map(|(_, ib)| {
+            ib.entries.iter().enumerate().map(move |(ei, entry)| ChainInputYaml {
+                name: if ib.entries.len() == 1 { ib.name.clone() } else { format!("{} #{}", ib.name, ei + 1) },
+                device_id: entry.device_id.0.clone(),
+                mode: entry.mode,
+                channels: entry.channels.clone(),
+            })
         }).collect();
 
-        let outputs: Vec<ChainOutputYaml> = chain.output_blocks().into_iter().map(|(_, ob)| ChainOutputYaml {
-            name: ob.name.clone(),
-            device_id: ob.device_id.0.clone(),
-            mode: ob.mode,
-            channels: ob.channels.clone(),
+        let outputs: Vec<ChainOutputYaml> = chain.output_blocks().into_iter().flat_map(|(_, ob)| {
+            ob.entries.iter().enumerate().map(move |(ei, entry)| ChainOutputYaml {
+                name: if ob.entries.len() == 1 { ob.name.clone() } else { format!("{} #{}", ob.name, ei + 1) },
+                device_id: entry.device_id.0.clone(),
+                mode: entry.mode,
+                channels: entry.channels.clone(),
+            })
         }).collect();
 
         // Serialize only non-I/O blocks to the blocks array
@@ -971,7 +984,7 @@ mod tests {
     };
     use domain::ids::{BlockId, DeviceId, ChainId};
     use project::block::{
-        AudioBlock, AudioBlockKind, CoreBlock, InputBlock, OutputBlock, SelectBlock,
+        AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, OutputBlock, OutputEntry, SelectBlock,
     };
     use project::param::ParameterSet;
     use project::project::Project;
@@ -1001,9 +1014,11 @@ mod tests {
                         enabled: true,
                         kind: AudioBlockKind::Input(InputBlock {
                             name: "Input 1".to_string(),
-                            device_id: DeviceId("input-device".into()),
-                            mode: ChainInputMode::Mono,
-                            channels: vec![0],
+                            entries: vec![InputEntry {
+                                device_id: DeviceId("input-device".into()),
+                                mode: ChainInputMode::Mono,
+                                channels: vec![0],
+                            }],
                         }),
                     },
                     AudioBlock {
@@ -1011,9 +1026,11 @@ mod tests {
                         enabled: true,
                         kind: AudioBlockKind::Output(OutputBlock {
                             name: "Output 1".to_string(),
-                            device_id: DeviceId("output-device".into()),
-                            mode: ChainOutputMode::Stereo,
-                            channels: vec![0, 1],
+                            entries: vec![OutputEntry {
+                                device_id: DeviceId("output-device".into()),
+                                mode: ChainOutputMode::Stereo,
+                                channels: vec![0, 1],
+                            }],
                         }),
                     },
                 ],
@@ -1035,12 +1052,12 @@ mod tests {
         assert_eq!(loaded.chains[0].description, original.chains[0].description);
         let loaded_inputs = loaded.chains[0].input_blocks();
         assert_eq!(loaded_inputs.len(), 1);
-        assert_eq!(loaded_inputs[0].1.device_id, DeviceId("input-device".into()));
-        assert_eq!(loaded_inputs[0].1.channels, vec![0]);
+        assert_eq!(loaded_inputs[0].1.entries[0].device_id, DeviceId("input-device".into()));
+        assert_eq!(loaded_inputs[0].1.entries[0].channels, vec![0]);
         let loaded_outputs = loaded.chains[0].output_blocks();
         assert_eq!(loaded_outputs.len(), 1);
-        assert_eq!(loaded_outputs[0].1.device_id, DeviceId("output-device".into()));
-        assert_eq!(loaded_outputs[0].1.channels, vec![0, 1]);
+        assert_eq!(loaded_outputs[0].1.entries[0].device_id, DeviceId("output-device".into()));
+        assert_eq!(loaded_outputs[0].1.entries[0].channels, vec![0, 1]);
     }
 
     #[test]
@@ -1069,13 +1086,13 @@ chains:
         assert_eq!(project.chains.len(), 1);
         let inputs = project.chains[0].input_blocks();
         assert_eq!(inputs.len(), 1);
-        assert_eq!(inputs[0].1.device_id, DeviceId("legacy-input".into()));
-        assert_eq!(inputs[0].1.channels, vec![0]);
+        assert_eq!(inputs[0].1.entries[0].device_id, DeviceId("legacy-input".into()));
+        assert_eq!(inputs[0].1.entries[0].channels, vec![0]);
         let outputs = project.chains[0].output_blocks();
         assert_eq!(outputs.len(), 1);
-        assert_eq!(outputs[0].1.device_id, DeviceId("legacy-output".into()));
-        assert_eq!(outputs[0].1.channels, vec![0, 1]);
-        assert_eq!(outputs[0].1.mode, ChainOutputMode::Stereo);
+        assert_eq!(outputs[0].1.entries[0].device_id, DeviceId("legacy-output".into()));
+        assert_eq!(outputs[0].1.entries[0].channels, vec![0, 1]);
+        assert_eq!(outputs[0].1.entries[0].mode, ChainOutputMode::Stereo);
     }
 
     #[test]

@@ -22,7 +22,7 @@ use project::catalog::{supported_block_models, supported_block_type, supported_b
 use project::device::DeviceSettings;
 use project::param::{ParameterDomain, ParameterSet, ParameterUnit};
 use project::project::Project;
-use project::block::{InputBlock, OutputBlock};
+use project::block::{InputBlock, InputEntry, OutputBlock, OutputEntry};
 use project::chain::{Chain, ChainInputMode, ChainOutputMode};
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
@@ -5088,9 +5088,11 @@ pub fn run_desktop_app(
                         enabled: true,
                         kind: AudioBlockKind::Input(InputBlock {
                             name: input_group.name.clone(),
-                            device_id: DeviceId(input_group.device_id.clone().unwrap_or_default()),
-                            mode: input_group.mode,
-                            channels: input_group.channels.clone(),
+                            entries: vec![InputEntry {
+                                device_id: DeviceId(input_group.device_id.clone().unwrap_or_default()),
+                                mode: input_group.mode,
+                                channels: input_group.channels.clone(),
+                            }],
                         }),
                     };
                     let insert_pos = before_index.min(chain.blocks.len());
@@ -5142,9 +5144,11 @@ pub fn run_desktop_app(
                     enabled: true,
                     kind: AudioBlockKind::Input(InputBlock {
                         name: ig.name.clone(),
-                        device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
-                        mode: ig.mode,
-                        channels: ig.channels.clone(),
+                        entries: vec![InputEntry {
+                            device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
+                            mode: ig.mode,
+                            channels: ig.channels.clone(),
+                        }],
                     }),
                 }).collect();
                 // Keep non-input, non-output blocks and existing output blocks
@@ -5284,9 +5288,11 @@ pub fn run_desktop_app(
                         enabled: true,
                         kind: AudioBlockKind::Output(OutputBlock {
                             name: output_group.name.clone(),
-                            device_id: DeviceId(output_group.device_id.clone().unwrap_or_default()),
-                            mode: output_group.mode,
-                            channels: output_group.channels.clone(),
+                            entries: vec![OutputEntry {
+                                device_id: DeviceId(output_group.device_id.clone().unwrap_or_default()),
+                                mode: output_group.mode,
+                                channels: output_group.channels.clone(),
+                            }],
                         }),
                     };
                     let insert_pos = before_index.min(chain.blocks.len());
@@ -5338,9 +5344,11 @@ pub fn run_desktop_app(
                     enabled: true,
                     kind: AudioBlockKind::Output(OutputBlock {
                         name: og.name.clone(),
-                        device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
-                        mode: og.mode,
-                        channels: og.channels.clone(),
+                        entries: vec![OutputEntry {
+                            device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
+                            mode: og.mode,
+                            channels: og.channels.clone(),
+                        }],
                     }),
                 }).collect();
                 // Keep non-output blocks (inputs and audio blocks)
@@ -5478,8 +5486,13 @@ pub fn run_desktop_app(
                     if other.id != chain_id && other.enabled {
                         for (_, other_input) in other.input_blocks() {
                             for (_, our_input) in &our_inputs {
-                                if other_input.device_id == our_input.device_id
-                                    && other_input.channels.iter().any(|ch| our_input.channels.contains(ch))
+                                let other_entries_conflict = other_input.entries.iter().any(|oe|
+                                    our_input.entries.iter().any(|ue|
+                                        oe.device_id == ue.device_id
+                                        && oe.channels.iter().any(|ch| ue.channels.contains(ch))
+                                    )
+                                );
+                                if other_entries_conflict
                                 {
                                     let other_name = other.description.as_deref().unwrap_or("outra chain");
                                     set_status_error(&window, &toast_timer, &format!("Input channel já em uso por '{}'", other_name));
@@ -5741,12 +5754,16 @@ fn replace_project_chains(
         .iter()
         .enumerate()
         .map(|(index, chain)| {
-            let input_settings = chain.first_input().and_then(|ib| {
-                project.device_settings.iter().find(|s| s.device_id == ib.device_id)
-            });
-            let output_settings = chain.last_output().and_then(|ob| {
-                project.device_settings.iter().find(|s| s.device_id == ob.device_id)
-            });
+            let input_settings = chain.first_input()
+                .and_then(|ib| ib.entries.first())
+                .and_then(|entry| {
+                    project.device_settings.iter().find(|s| s.device_id == entry.device_id)
+                });
+            let output_settings = chain.last_output()
+                .and_then(|ob| ob.entries.first())
+                .and_then(|entry| {
+                    project.device_settings.iter().find(|s| s.device_id == entry.device_id)
+                });
             let input_buffer =
                 input_settings.map(|s| s.buffer_size_frames).unwrap_or(256) as f32;
             let output_buffer =
@@ -5774,14 +5791,14 @@ fn replace_project_chains(
                 },
                 input_label: {
                     let input_chs: Vec<usize> = chain.input_blocks().into_iter()
-                        .flat_map(|(_, ib)| ib.channels.iter().copied())
+                        .flat_map(|(_, ib)| ib.entries.iter().flat_map(|e| e.channels.iter().copied()))
                         .collect();
                     chain_endpoint_label("In", &input_chs).into()
                 },
                 input_tooltip: chain_inputs_tooltip(chain, project, input_devices).into(),
                 output_label: {
                     let output_chs: Vec<usize> = chain.output_blocks().into_iter()
-                        .flat_map(|(_, ob)| ob.channels.iter().copied())
+                        .flat_map(|(_, ob)| ob.entries.iter().flat_map(|e| e.channels.iter().copied()))
                         .collect();
                     chain_endpoint_label("Out", &output_chs).into()
                 },
@@ -5825,18 +5842,21 @@ fn chain_inputs_tooltip(
     if input_blocks.is_empty() {
         return "No input configured".to_string();
     }
-    input_blocks.iter().map(|(_, input)| {
-        let device_name = devices
-            .iter()
-            .find(|d| d.id == input.device_id.0)
-            .map(|d| d.name.as_str())
-            .unwrap_or(&input.device_id.0);
-        let mode = match input.mode {
-            ChainInputMode::Mono => "Mono",
-            ChainInputMode::Stereo => "Stereo",
-            ChainInputMode::DualMono => "Dual Mono",
-        };
-        format!("{}: {} · {} · Ch {}", input.name, device_name, mode, format_channel_list(&input.channels))
+    input_blocks.iter().flat_map(|(_, input)| {
+        input.entries.iter().enumerate().map(move |(ei, entry)| {
+            let device_name = devices
+                .iter()
+                .find(|d| d.id == entry.device_id.0)
+                .map(|d| d.name.as_str())
+                .unwrap_or(&entry.device_id.0);
+            let mode = match entry.mode {
+                ChainInputMode::Mono => "Mono",
+                ChainInputMode::Stereo => "Stereo",
+                ChainInputMode::DualMono => "Dual Mono",
+            };
+            let label = if input.entries.len() == 1 { input.name.clone() } else { format!("{} #{}", input.name, ei + 1) };
+            format!("{}: {} · {} · Ch {}", label, device_name, mode, format_channel_list(&entry.channels))
+        })
     }).collect::<Vec<_>>().join("\n")
 }
 fn chain_outputs_tooltip(
@@ -5848,17 +5868,20 @@ fn chain_outputs_tooltip(
     if output_blocks.is_empty() {
         return "No output configured".to_string();
     }
-    output_blocks.iter().map(|(_, output)| {
-        let device_name = devices
-            .iter()
-            .find(|d| d.id == output.device_id.0)
-            .map(|d| d.name.as_str())
-            .unwrap_or(&output.device_id.0);
-        let mode = match output.mode {
-            ChainOutputMode::Mono => "Mono",
-            ChainOutputMode::Stereo => "Stereo",
-        };
-        format!("{}: {} · {} · Ch {}", output.name, device_name, mode, format_channel_list(&output.channels))
+    output_blocks.iter().flat_map(|(_, output)| {
+        output.entries.iter().enumerate().map(move |(ei, entry)| {
+            let device_name = devices
+                .iter()
+                .find(|d| d.id == entry.device_id.0)
+                .map(|d| d.name.as_str())
+                .unwrap_or(&entry.device_id.0);
+            let mode = match entry.mode {
+                ChainOutputMode::Mono => "Mono",
+                ChainOutputMode::Stereo => "Stereo",
+            };
+            let label = if output.entries.len() == 1 { output.name.clone() } else { format!("{} #{}", output.name, ei + 1) };
+            format!("{}: {} · {} · Ch {}", label, device_name, mode, format_channel_list(&entry.channels))
+        })
     }).collect::<Vec<_>>().join("\n")
 }
 fn format_channel_list(channels: &[usize]) -> String {
@@ -6788,15 +6811,17 @@ fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
     } else {
         input_blocks
             .iter()
-            .map(|(_, input)| InputGroupDraft {
-                name: input.name.clone(),
-                device_id: if input.device_id.0.is_empty() {
-                    None
-                } else {
-                    Some(input.device_id.0.clone())
-                },
-                channels: input.channels.clone(),
-                mode: input.mode,
+            .map(|(_, input)| {
+                let first = input.entries.first();
+                InputGroupDraft {
+                    name: input.name.clone(),
+                    device_id: first
+                        .map(|e| &e.device_id.0)
+                        .filter(|id| !id.is_empty())
+                        .cloned(),
+                    channels: first.map(|e| e.channels.clone()).unwrap_or_default(),
+                    mode: first.map(|e| e.mode).unwrap_or_default(),
+                }
             })
             .collect()
     };
@@ -6811,15 +6836,17 @@ fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
     } else {
         output_blocks
             .iter()
-            .map(|(_, output)| OutputGroupDraft {
-                name: output.name.clone(),
-                device_id: if output.device_id.0.is_empty() {
-                    None
-                } else {
-                    Some(output.device_id.0.clone())
-                },
-                channels: output.channels.clone(),
-                mode: output.mode,
+            .map(|(_, output)| {
+                let first = output.entries.first();
+                OutputGroupDraft {
+                    name: output.name.clone(),
+                    device_id: first
+                        .map(|e| &e.device_id.0)
+                        .filter(|id| !id.is_empty())
+                        .cloned(),
+                    channels: first.map(|e| e.channels.clone()).unwrap_or_default(),
+                    mode: first.map(|e| e.mode).unwrap_or_default(),
+                }
             })
             .collect()
     };
@@ -6959,8 +6986,9 @@ fn build_input_channel_items(
         })
         .flat_map(|(_, chain)| {
             chain.input_blocks().into_iter()
-                .filter(|(_, inp)| inp.device_id.0 == *device_id)
-                .flat_map(|(_, inp)| inp.channels.iter().copied().collect::<Vec<_>>())
+                .flat_map(|(_, inp)| inp.entries.iter())
+                .filter(|entry| entry.device_id.0 == *device_id)
+                .flat_map(|entry| entry.channels.iter().copied().collect::<Vec<_>>())
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
@@ -7014,9 +7042,11 @@ fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain>) -> Chain
             enabled: true,
             kind: AudioBlockKind::Input(InputBlock {
                 name: ig.name.clone(),
-                device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
-                mode: ig.mode,
-                channels: ig.channels.clone(),
+                entries: vec![InputEntry {
+                    device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
+                    mode: ig.mode,
+                    channels: ig.channels.clone(),
+                }],
             }),
         })
         .collect();
@@ -7031,9 +7061,11 @@ fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain>) -> Chain
             enabled: true,
             kind: AudioBlockKind::Output(OutputBlock {
                 name: og.name.clone(),
-                device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
-                mode: og.mode,
-                channels: og.channels.clone(),
+                entries: vec![OutputEntry {
+                    device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
+                    mode: og.mode,
+                    channels: og.channels.clone(),
+                }],
             }),
         })
         .collect();
@@ -7525,7 +7557,7 @@ mod tests {
     // --- ui_index_to_real_block_index tests ---
 
     use super::ui_index_to_real_block_index;
-    use project::block::{InputBlock, OutputBlock};
+    use project::block::{InputBlock, InputEntry, OutputBlock, OutputEntry};
     use project::chain::{Chain, ChainInputMode, ChainOutputMode};
     use domain::ids::{ChainId, DeviceId};
 
@@ -7546,18 +7578,22 @@ mod tests {
     fn input_kind() -> AudioBlockKind {
         AudioBlockKind::Input(InputBlock {
             name: "In".into(),
-            device_id: DeviceId("dev".into()),
-            mode: ChainInputMode::Mono,
-            channels: vec![0],
+            entries: vec![InputEntry {
+                device_id: DeviceId("dev".into()),
+                mode: ChainInputMode::Mono,
+                channels: vec![0],
+            }],
         })
     }
 
     fn output_kind() -> AudioBlockKind {
         AudioBlockKind::Output(OutputBlock {
             name: "Out".into(),
-            device_id: DeviceId("dev".into()),
-            mode: ChainOutputMode::Stereo,
-            channels: vec![0, 1],
+            entries: vec![OutputEntry {
+                device_id: DeviceId("dev".into()),
+                mode: ChainOutputMode::Stereo,
+                channels: vec![0, 1],
+            }],
         })
     }
 

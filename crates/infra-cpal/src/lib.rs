@@ -8,7 +8,7 @@ use domain::ids::ChainId;
 use engine::runtime::{process_input_f32, process_output_f32, RuntimeGraph, ChainRuntimeState};
 use project::device::DeviceSettings;
 use project::project::Project;
-use project::block::{InputBlock, OutputBlock};
+use project::block::{InputEntry, OutputEntry};
 use project::chain::Chain;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -284,7 +284,7 @@ pub fn resolve_project_chain_sample_rates(project: &Project) -> Result<HashMap<C
 fn resolve_input_device_for_chain_input(
     host: &cpal::Host,
     project: &Project,
-    input: &InputBlock,
+    input: &InputEntry,
 ) -> Result<ResolvedInputDevice> {
     let settings = project
         .device_settings
@@ -337,7 +337,7 @@ fn resolve_input_device_for_chain_input(
 fn resolve_output_device_for_chain_output(
     host: &cpal::Host,
     project: &Project,
-    output: &OutputBlock,
+    output: &OutputEntry,
 ) -> Result<ResolvedOutputDevice> {
     let settings = project
         .device_settings
@@ -392,11 +392,14 @@ fn resolve_chain_inputs(
     project: &Project,
     chain: &Chain,
 ) -> Result<Vec<ResolvedInputDevice>> {
-    let input_blocks: Vec<&InputBlock> = chain.input_blocks().into_iter().map(|(_, ib)| ib).collect();
-    if input_blocks.is_empty() {
+    let input_entries: Vec<&InputEntry> = chain.input_blocks()
+        .into_iter()
+        .flat_map(|(_, ib)| ib.entries.iter())
+        .collect();
+    if input_entries.is_empty() {
         bail!("chain '{}' has no input blocks configured", chain.id.0);
     }
-    input_blocks
+    input_entries
         .iter()
         .map(|input| resolve_input_device_for_chain_input(host, project, input))
         .collect()
@@ -407,11 +410,14 @@ fn resolve_chain_outputs(
     project: &Project,
     chain: &Chain,
 ) -> Result<Vec<ResolvedOutputDevice>> {
-    let output_blocks: Vec<&OutputBlock> = chain.output_blocks().into_iter().map(|(_, ob)| ob).collect();
-    if output_blocks.is_empty() {
+    let output_entries: Vec<&OutputEntry> = chain.output_blocks()
+        .into_iter()
+        .flat_map(|(_, ob)| ob.entries.iter())
+        .collect();
+    if output_entries.is_empty() {
         bail!("chain '{}' has no output blocks configured", chain.id.0);
     }
-    output_blocks
+    output_entries
         .iter()
         .map(|output| resolve_output_device_for_chain_output(host, project, output))
         .collect()
@@ -489,11 +495,15 @@ fn validate_channels_against_devices(project: &Project, host: &cpal::Host) -> Re
 
 fn validate_chain_channels_against_devices(host: &cpal::Host, chain: &Chain) -> Result<()> {
     for (_, input) in chain.input_blocks() {
-        validate_input_channels_against_device(host, &chain.id.0, &input.device_id.0, &input.channels)?;
+        for entry in &input.entries {
+            validate_input_channels_against_device(host, &chain.id.0, &entry.device_id.0, &entry.channels)?;
+        }
     }
 
     for (_, output) in chain.output_blocks() {
-        validate_output_channels_against_device(host, &chain.id.0, &output.device_id.0, &output.channels)?;
+        for entry in &output.entries {
+            validate_output_channels_against_device(host, &chain.id.0, &entry.device_id.0, &entry.channels)?;
+        }
     }
 
     Ok(())
@@ -813,9 +823,12 @@ fn build_chain_stream_signature_multi(
     inputs: &[ResolvedInputDevice],
     outputs: &[ResolvedOutputDevice],
 ) -> ChainStreamSignature {
-    let chain_input_blocks: Vec<&InputBlock> = chain.input_blocks().into_iter().map(|(_, ib)| ib).collect();
-    let input_sigs: Vec<InputStreamSignature> = if !chain_input_blocks.is_empty() {
-        chain_input_blocks
+    let chain_input_entries: Vec<&InputEntry> = chain.input_blocks()
+        .into_iter()
+        .flat_map(|(_, ib)| ib.entries.iter())
+        .collect();
+    let input_sigs: Vec<InputStreamSignature> = if !chain_input_entries.is_empty() {
+        chain_input_entries
             .iter()
             .zip(inputs.iter())
             .map(|(ci, ri)| InputStreamSignature {
@@ -839,9 +852,12 @@ fn build_chain_stream_signature_multi(
             .collect()
     };
 
-    let chain_output_blocks: Vec<&OutputBlock> = chain.output_blocks().into_iter().map(|(_, ob)| ob).collect();
-    let output_sigs: Vec<OutputStreamSignature> = if !chain_output_blocks.is_empty() {
-        chain_output_blocks
+    let chain_output_entries: Vec<&OutputEntry> = chain.output_blocks()
+        .into_iter()
+        .flat_map(|(_, ob)| ob.entries.iter())
+        .collect();
+    let output_sigs: Vec<OutputStreamSignature> = if !chain_output_entries.is_empty() {
+        chain_output_entries
             .iter()
             .zip(outputs.iter())
             .map(|(co, ro)| OutputStreamSignature {

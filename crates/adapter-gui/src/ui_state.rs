@@ -114,10 +114,10 @@ pub fn insertion_slot_indices(block_count: usize) -> Vec<usize> {
 
 pub fn chain_routing_summary(chain: &Chain) -> String {
     let input_channels: Vec<usize> = chain.input_blocks().into_iter()
-        .flat_map(|(_, ib)| ib.channels.iter().copied())
+        .flat_map(|(_, ib)| ib.entries.iter().flat_map(|e| e.channels.iter().copied()))
         .collect();
     let output_channels: Vec<usize> = chain.output_blocks().into_iter()
-        .flat_map(|(_, ob)| ob.channels.iter().copied())
+        .flat_map(|(_, ob)| ob.entries.iter().flat_map(|e| e.channels.iter().copied()))
         .collect();
     format!(
         "Entrada {} -> Saida {}",
@@ -138,7 +138,7 @@ fn channels_label(channels: &[usize]) -> String {
 mod tests {
     use super::{insertion_slot_indices, block_drawer_state, chain_routing_summary, BlockDrawerMode};
     use domain::ids::{DeviceId, ChainId};
-    use project::block::{AudioBlock, AudioBlockKind, InputBlock, OutputBlock};
+    use project::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry};
     use project::chain::{Chain, ChainInputMode, ChainOutputMode};
 
     #[test]
@@ -179,9 +179,11 @@ mod tests {
                     enabled: true,
                     kind: AudioBlockKind::Input(InputBlock {
                         name: "Input 1".to_string(),
-                        device_id: DeviceId("in".to_string()),
-                        mode: ChainInputMode::Mono,
-                        channels: vec![0],
+                        entries: vec![InputEntry {
+                            device_id: DeviceId("in".to_string()),
+                            mode: ChainInputMode::Mono,
+                            channels: vec![0],
+                        }],
                     }),
                 },
                 AudioBlock {
@@ -189,9 +191,11 @@ mod tests {
                     enabled: true,
                     kind: AudioBlockKind::Output(OutputBlock {
                         name: "Output 1".to_string(),
-                        device_id: DeviceId("out".to_string()),
-                        mode: ChainOutputMode::Stereo,
-                        channels: vec![0, 1],
+                        entries: vec![OutputEntry {
+                            device_id: DeviceId("out".to_string()),
+                            mode: ChainOutputMode::Stereo,
+                            channels: vec![0, 1],
+                        }],
                     }),
                 },
             ],
