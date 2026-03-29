@@ -282,6 +282,13 @@ struct BlockEditorDraft {
     enabled: bool,
     is_select: bool,
 }
+/// Transient state for inserting an I/O block via the block type picker.
+#[derive(Debug, Clone)]
+struct IoBlockInsertDraft {
+    chain_index: usize,
+    before_index: usize,
+    kind: String, // "input" or "output"
+}
 struct BlockEditorData {
     effect_type: String,
     model_id: String,
@@ -376,6 +383,7 @@ pub fn run_desktop_app(
     let app_config = Rc::new(RefCell::new(load_and_sync_app_config()?));
     let project_session = Rc::new(RefCell::new(None::<ProjectSession>));
     let chain_draft = Rc::new(RefCell::new(None::<ChainDraft>));
+    let io_block_insert_draft = Rc::new(RefCell::new(None::<IoBlockInsertDraft>));
     let selected_block = Rc::new(RefCell::new(None::<SelectedBlock>));
     let block_editor_draft = Rc::new(RefCell::new(None::<BlockEditorDraft>));
     let project_runtime = Rc::new(RefCell::new(None::<ProjectRuntimeController>));
@@ -4000,6 +4008,15 @@ pub fn run_desktop_app(
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
+        let chain_draft_for_type = chain_draft.clone();
+        let io_block_insert_draft_for_type = io_block_insert_draft.clone();
+        let weak_input_window_for_type = chain_input_window.as_weak();
+        let weak_output_window_for_type = chain_output_window.as_weak();
+        let project_session_for_type = project_session.clone();
+        let input_chain_devices_for_type = input_chain_devices.clone();
+        let output_chain_devices_for_type = output_chain_devices.clone();
+        let chain_input_channels_for_type = chain_input_channels.clone();
+        let chain_output_channels_for_type = chain_output_channels.clone();
         window.on_choose_block_type(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -4012,6 +4029,85 @@ pub fn run_desktop_app(
                 return;
             };
             log::debug!("on_choose_block_type: index={}, type='{}', instrument='{}'", index, block_type.effect_type, instrument);
+
+            // Handle I/O block types: open the dedicated I/O window instead of the block editor
+            let effect_type_str = block_type.effect_type.as_str();
+            if effect_type_str == "input" || effect_type_str == "output" {
+                let (chain_index, before_index) = {
+                    let draft_borrow = block_editor_draft.borrow();
+                    let Some(draft) = draft_borrow.as_ref() else { return; };
+                    (draft.chain_index, draft.before_index)
+                };
+                // Store the I/O insert draft
+                *io_block_insert_draft_for_type.borrow_mut() = Some(IoBlockInsertDraft {
+                    chain_index,
+                    before_index,
+                    kind: effect_type_str.to_string(),
+                });
+                window.set_show_block_type_picker(false);
+
+                if effect_type_str == "input" {
+                    // Set up a temporary chain draft for the input window callbacks
+                    let input_group = InputGroupDraft {
+                        name: "Input".to_string(),
+                        device_id: None,
+                        channels: Vec::new(),
+                        mode: ChainInputMode::Mono,
+                    };
+                    *chain_draft_for_type.borrow_mut() = Some(ChainDraft {
+                        editing_index: Some(chain_index),
+                        name: String::new(),
+                        instrument: instrument.clone(),
+                        inputs: vec![input_group.clone()],
+                        outputs: Vec::new(),
+                        editing_input_index: Some(0),
+                        editing_output_index: None,
+                    });
+                    if let Some(input_window) = weak_input_window_for_type.upgrade() {
+                        let draft_borrow = chain_draft_for_type.borrow();
+                        let draft = draft_borrow.as_ref().unwrap();
+                        if let Some(session) = project_session_for_type.borrow().as_ref() {
+                            apply_chain_input_window_state(
+                                &input_window,
+                                &input_group,
+                                draft,
+                                &session.project,
+                                &input_chain_devices_for_type,
+                                &chain_input_channels_for_type,
+                            );
+                        }
+                        show_child_window(window.window(), input_window.window());
+                    }
+                } else {
+                    // Set up a temporary chain draft for the output window callbacks
+                    let output_group = OutputGroupDraft {
+                        name: "Output".to_string(),
+                        device_id: None,
+                        channels: Vec::new(),
+                        mode: ChainOutputMode::Stereo,
+                    };
+                    *chain_draft_for_type.borrow_mut() = Some(ChainDraft {
+                        editing_index: Some(chain_index),
+                        name: String::new(),
+                        instrument: instrument.clone(),
+                        inputs: Vec::new(),
+                        outputs: vec![output_group.clone()],
+                        editing_input_index: None,
+                        editing_output_index: Some(0),
+                    });
+                    if let Some(output_window) = weak_output_window_for_type.upgrade() {
+                        apply_chain_output_window_state(
+                            &output_window,
+                            &output_group,
+                            &output_chain_devices_for_type,
+                            &chain_output_channels_for_type,
+                        );
+                        show_child_window(window.window(), output_window.window());
+                    }
+                }
+                return;
+            }
+
             let models = block_model_picker_items(block_type.effect_type.as_str(), &instrument);
             let Some(model) = models.first() else {
                 return;
@@ -4890,6 +4986,7 @@ pub fn run_desktop_app(
         let weak_chain_window = chain_editor_window.as_weak();
         let weak_input_groups_window = chain_input_groups_window.as_weak();
         let chain_draft = chain_draft.clone();
+        let io_block_insert_draft_for_input_save = io_block_insert_draft.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
@@ -4904,6 +5001,70 @@ pub fn run_desktop_app(
             let Some(input_window) = weak_input_window.upgrade() else {
                 return;
             };
+
+            // Handle I/O block insert mode: insert a single InputBlock at the stored position
+            if let Some(io_draft) = io_block_insert_draft_for_input_save.borrow().clone() {
+                if io_draft.kind == "input" {
+                    let draft_borrow = chain_draft.borrow();
+                    let Some(draft) = draft_borrow.as_ref() else {
+                        let _ = input_window.hide();
+                        *io_block_insert_draft_for_input_save.borrow_mut() = None;
+                        return;
+                    };
+                    let Some(input_group) = draft.inputs.first().cloned() else {
+                        let _ = input_window.hide();
+                        *io_block_insert_draft_for_input_save.borrow_mut() = None;
+                        return;
+                    };
+                    if input_group.device_id.is_none() || input_group.channels.is_empty() {
+                        input_window.set_status_message("Selecione dispositivo e canais.".into());
+                        return;
+                    }
+                    let chain_index = io_draft.chain_index;
+                    let before_index = io_draft.before_index;
+                    drop(draft_borrow);
+                    let mut session_borrow = project_session.borrow_mut();
+                    let Some(session) = session_borrow.as_mut() else {
+                        let _ = input_window.hide();
+                        *io_block_insert_draft_for_input_save.borrow_mut() = None;
+                        return;
+                    };
+                    let Some(chain) = session.project.chains.get_mut(chain_index) else {
+                        let _ = input_window.hide();
+                        *io_block_insert_draft_for_input_save.borrow_mut() = None;
+                        return;
+                    };
+                    let real_chain_id = chain.id.clone();
+                    let input_block = AudioBlock {
+                        id: BlockId::generate_for_chain(&real_chain_id),
+                        enabled: true,
+                        kind: AudioBlockKind::Input(InputBlock {
+                            name: input_group.name.clone(),
+                            device_id: DeviceId(input_group.device_id.clone().unwrap_or_default()),
+                            mode: input_group.mode,
+                            channels: input_group.channels.clone(),
+                        }),
+                    };
+                    let insert_pos = before_index.min(chain.blocks.len());
+                    chain.blocks.insert(insert_pos, input_block);
+                    if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &real_chain_id) {
+                        eprintln!("io block insert error: {error}");
+                    }
+                    replace_project_chains(
+                        &project_chains,
+                        &session.project,
+                        &input_chain_devices,
+                        &output_chain_devices,
+                    );
+                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                    *io_block_insert_draft_for_input_save.borrow_mut() = None;
+                    *chain_draft.borrow_mut() = None;
+                    input_window.set_status_message("".into());
+                    let _ = input_window.hide();
+                    return;
+                }
+            }
+
             let mut draft_borrow = chain_draft.borrow_mut();
             let Some(draft) = draft_borrow.as_mut() else {
                 let _ = input_window.hide();
@@ -4984,19 +5145,31 @@ pub fn run_desktop_app(
     }
     {
         let weak_output_window = chain_output_window.as_weak();
+        let io_block_insert_draft_for_output_cancel = io_block_insert_draft.clone();
+        let chain_draft_for_output_cancel = chain_draft.clone();
         chain_output_window.on_cancel(move || {
             if let Some(output_window) = weak_output_window.upgrade() {
                 output_window.set_status_message("".into());
                 let _ = output_window.hide();
             }
+            if io_block_insert_draft_for_output_cancel.borrow().is_some() {
+                *io_block_insert_draft_for_output_cancel.borrow_mut() = None;
+                *chain_draft_for_output_cancel.borrow_mut() = None;
+            }
         });
     }
     {
         let weak_input_window = chain_input_window.as_weak();
+        let io_block_insert_draft_for_input_cancel = io_block_insert_draft.clone();
+        let chain_draft_for_input_cancel = chain_draft.clone();
         chain_input_window.on_cancel(move || {
             if let Some(input_window) = weak_input_window.upgrade() {
                 input_window.set_status_message("".into());
                 let _ = input_window.hide();
+            }
+            if io_block_insert_draft_for_input_cancel.borrow().is_some() {
+                *io_block_insert_draft_for_input_cancel.borrow_mut() = None;
+                *chain_draft_for_input_cancel.borrow_mut() = None;
             }
         });
     }
@@ -5006,6 +5179,7 @@ pub fn run_desktop_app(
         let weak_chain_window = chain_editor_window.as_weak();
         let weak_output_groups_window = chain_output_groups_window.as_weak();
         let chain_draft = chain_draft.clone();
+        let io_block_insert_draft_for_output_save = io_block_insert_draft.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
@@ -5020,6 +5194,70 @@ pub fn run_desktop_app(
             let Some(output_window) = weak_output_window.upgrade() else {
                 return;
             };
+
+            // Handle I/O block insert mode: insert a single OutputBlock at the stored position
+            if let Some(io_draft) = io_block_insert_draft_for_output_save.borrow().clone() {
+                if io_draft.kind == "output" {
+                    let draft_borrow = chain_draft.borrow();
+                    let Some(draft) = draft_borrow.as_ref() else {
+                        let _ = output_window.hide();
+                        *io_block_insert_draft_for_output_save.borrow_mut() = None;
+                        return;
+                    };
+                    let Some(output_group) = draft.outputs.first().cloned() else {
+                        let _ = output_window.hide();
+                        *io_block_insert_draft_for_output_save.borrow_mut() = None;
+                        return;
+                    };
+                    if output_group.device_id.is_none() || output_group.channels.is_empty() {
+                        output_window.set_status_message("Selecione dispositivo e canais.".into());
+                        return;
+                    }
+                    let chain_index = io_draft.chain_index;
+                    let before_index = io_draft.before_index;
+                    drop(draft_borrow);
+                    let mut session_borrow = project_session.borrow_mut();
+                    let Some(session) = session_borrow.as_mut() else {
+                        let _ = output_window.hide();
+                        *io_block_insert_draft_for_output_save.borrow_mut() = None;
+                        return;
+                    };
+                    let Some(chain) = session.project.chains.get_mut(chain_index) else {
+                        let _ = output_window.hide();
+                        *io_block_insert_draft_for_output_save.borrow_mut() = None;
+                        return;
+                    };
+                    let real_chain_id = chain.id.clone();
+                    let output_block = AudioBlock {
+                        id: BlockId::generate_for_chain(&real_chain_id),
+                        enabled: true,
+                        kind: AudioBlockKind::Output(OutputBlock {
+                            name: output_group.name.clone(),
+                            device_id: DeviceId(output_group.device_id.clone().unwrap_or_default()),
+                            mode: output_group.mode,
+                            channels: output_group.channels.clone(),
+                        }),
+                    };
+                    let insert_pos = before_index.min(chain.blocks.len());
+                    chain.blocks.insert(insert_pos, output_block);
+                    if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &real_chain_id) {
+                        eprintln!("io block insert error: {error}");
+                    }
+                    replace_project_chains(
+                        &project_chains,
+                        &session.project,
+                        &input_chain_devices,
+                        &output_chain_devices,
+                    );
+                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                    *io_block_insert_draft_for_output_save.borrow_mut() = None;
+                    *chain_draft.borrow_mut() = None;
+                    output_window.set_status_message("".into());
+                    let _ = output_window.hide();
+                    return;
+                }
+            }
+
             let mut draft_borrow = chain_draft.borrow_mut();
             let Some(draft) = draft_borrow.as_mut() else {
                 let _ = output_window.hide();
@@ -5580,7 +5818,7 @@ fn format_channel_list(channels: &[usize]) -> String {
 }
 fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerItem> {
     let mut seen = std::collections::BTreeSet::new();
-    supported_block_types()
+    let mut items: Vec<BlockTypePickerItem> = supported_block_types()
         .into_iter()
         .filter(|item| seen.insert(item.effect_type))
         .map(|item| BlockTypePickerItem {
@@ -5595,7 +5833,27 @@ fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerItem> {
         .filter(|item| {
             instrument == block_core::INST_GENERIC || !block_model_picker_items(item.effect_type.as_str(), instrument).is_empty()
         })
-        .collect()
+        .collect();
+    // Add I/O block types
+    items.push(BlockTypePickerItem {
+        effect_type: "input".into(),
+        label: "INPUT".into(),
+        subtitle: "".into(),
+        icon_kind: "input".into(),
+        use_panel_editor: false,
+        accent_color: crate::ui_state::accent_color_for_icon_kind("routing"),
+        icon_source: slint::Image::default(),
+    });
+    items.push(BlockTypePickerItem {
+        effect_type: "output".into(),
+        label: "OUTPUT".into(),
+        subtitle: "".into(),
+        icon_kind: "output".into(),
+        use_panel_editor: false,
+        accent_color: crate::ui_state::accent_color_for_icon_kind("routing"),
+        icon_source: slint::Image::default(),
+    });
+    items
 }
 fn block_model_picker_items(effect_type: &str, instrument: &str) -> Vec<BlockModelPickerItem> {
     let all_models = supported_block_models(effect_type).unwrap_or_default();
