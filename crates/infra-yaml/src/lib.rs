@@ -193,13 +193,27 @@ impl DeviceSettingsYaml {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct ChainInputYaml {
-    #[serde(default = "default_input_yaml_name")]
-    name: String,
+struct ChainInputEntryYaml {
     device_id: String,
     #[serde(default)]
     mode: ChainInputMode,
     channels: Vec<usize>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct ChainInputYaml {
+    #[serde(default = "default_input_yaml_name")]
+    name: String,
+    // New format: entries list
+    #[serde(default)]
+    entries: Vec<ChainInputEntryYaml>,
+    // Legacy format: single device_id/mode/channels (for backward compat)
+    #[serde(default, skip_serializing)]
+    device_id: Option<String>,
+    #[serde(default, skip_serializing)]
+    mode: Option<ChainInputMode>,
+    #[serde(default, skip_serializing)]
+    channels: Option<Vec<usize>>,
 }
 
 fn default_input_yaml_name() -> String {
@@ -207,13 +221,27 @@ fn default_input_yaml_name() -> String {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct ChainOutputYaml {
-    #[serde(default = "default_output_yaml_name")]
-    name: String,
+struct ChainOutputEntryYaml {
     device_id: String,
     #[serde(default)]
     mode: ChainOutputMode,
     channels: Vec<usize>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct ChainOutputYaml {
+    #[serde(default = "default_output_yaml_name")]
+    name: String,
+    // New format: entries list
+    #[serde(default)]
+    entries: Vec<ChainOutputEntryYaml>,
+    // Legacy format: single device_id/mode/channels (for backward compat)
+    #[serde(default, skip_serializing)]
+    device_id: Option<String>,
+    #[serde(default, skip_serializing)]
+    mode: Option<ChainOutputMode>,
+    #[serde(default, skip_serializing)]
+    channels: Option<Vec<usize>>,
 }
 
 fn default_output_yaml_name() -> String {
@@ -256,32 +284,59 @@ impl ChainYaml {
         let chain_id = generated_chain_id(index);
         log::debug!("deserializing chain index={}, description={:?}, instrument='{}'", index, self.description, self.instrument);
 
-        // Convert new-format inputs to InputBlock entries
-        let mut input_blocks: Vec<AudioBlock> = self.inputs.into_iter().enumerate().map(|(i, inp)| AudioBlock {
-            id: BlockId(format!("{}:input:{}", chain_id.0, i)),
-            enabled: true,
-            kind: AudioBlockKind::Input(InputBlock {
-                name: inp.name,
-                entries: vec![InputEntry {
-                    device_id: DeviceId(inp.device_id),
-                    mode: inp.mode,
-                    channels: inp.channels,
-                }],
-            }),
+        // Convert inputs to InputBlock entries
+        let mut input_blocks: Vec<AudioBlock> = self.inputs.into_iter().enumerate().map(|(i, inp)| {
+            // If entries are present (new format), use them; otherwise fall back to legacy fields
+            let entries = if !inp.entries.is_empty() {
+                inp.entries.into_iter().map(|e| InputEntry {
+                    device_id: DeviceId(e.device_id),
+                    mode: e.mode,
+                    channels: e.channels,
+                }).collect()
+            } else if let Some(device_id) = inp.device_id {
+                vec![InputEntry {
+                    device_id: DeviceId(device_id),
+                    mode: inp.mode.unwrap_or_default(),
+                    channels: inp.channels.unwrap_or_default(),
+                }]
+            } else {
+                Vec::new()
+            };
+            AudioBlock {
+                id: BlockId(format!("{}:input:{}", chain_id.0, i)),
+                enabled: true,
+                kind: AudioBlockKind::Input(InputBlock {
+                    name: inp.name,
+                    entries,
+                }),
+            }
         }).collect();
 
-        // Convert new-format outputs to OutputBlock entries
-        let mut output_blocks: Vec<AudioBlock> = self.outputs.into_iter().enumerate().map(|(i, out)| AudioBlock {
-            id: BlockId(format!("{}:output:{}", chain_id.0, i)),
-            enabled: true,
-            kind: AudioBlockKind::Output(OutputBlock {
-                name: out.name,
-                entries: vec![OutputEntry {
-                    device_id: DeviceId(out.device_id),
-                    mode: out.mode,
-                    channels: out.channels,
-                }],
-            }),
+        // Convert outputs to OutputBlock entries
+        let mut output_blocks: Vec<AudioBlock> = self.outputs.into_iter().enumerate().map(|(i, out)| {
+            let entries = if !out.entries.is_empty() {
+                out.entries.into_iter().map(|e| OutputEntry {
+                    device_id: DeviceId(e.device_id),
+                    mode: e.mode,
+                    channels: e.channels,
+                }).collect()
+            } else if let Some(device_id) = out.device_id {
+                vec![OutputEntry {
+                    device_id: DeviceId(device_id),
+                    mode: out.mode.unwrap_or_default(),
+                    channels: out.channels.unwrap_or_default(),
+                }]
+            } else {
+                Vec::new()
+            };
+            AudioBlock {
+                id: BlockId(format!("{}:output:{}", chain_id.0, i)),
+                enabled: true,
+                kind: AudioBlockKind::Output(OutputBlock {
+                    name: out.name,
+                    entries,
+                }),
+            }
         }).collect();
 
         // Legacy migration: if no new-format inputs/outputs, create from legacy fields
@@ -353,24 +408,34 @@ impl ChainYaml {
     }
 
     fn from_chain(chain: &Chain) -> Result<Self> {
-        // Extract inputs/outputs from InputBlock/OutputBlock entries in blocks
-        // Each InputBlock/OutputBlock may have multiple entries; serialize one YAML entry per entry
-        let inputs: Vec<ChainInputYaml> = chain.input_blocks().into_iter().flat_map(|(_, ib)| {
-            ib.entries.iter().enumerate().map(move |(ei, entry)| ChainInputYaml {
-                name: if ib.entries.len() == 1 { ib.name.clone() } else { format!("{} #{}", ib.name, ei + 1) },
-                device_id: entry.device_id.0.clone(),
-                mode: entry.mode,
-                channels: entry.channels.clone(),
-            })
+        // Extract inputs/outputs from InputBlock/OutputBlock in blocks
+        // One YAML item per InputBlock/OutputBlock, with entries inside
+        let inputs: Vec<ChainInputYaml> = chain.input_blocks().into_iter().map(|(_, ib)| {
+            ChainInputYaml {
+                name: ib.name.clone(),
+                entries: ib.entries.iter().map(|e| ChainInputEntryYaml {
+                    device_id: e.device_id.0.clone(),
+                    mode: e.mode,
+                    channels: e.channels.clone(),
+                }).collect(),
+                device_id: None,
+                mode: None,
+                channels: None,
+            }
         }).collect();
 
-        let outputs: Vec<ChainOutputYaml> = chain.output_blocks().into_iter().flat_map(|(_, ob)| {
-            ob.entries.iter().enumerate().map(move |(ei, entry)| ChainOutputYaml {
-                name: if ob.entries.len() == 1 { ob.name.clone() } else { format!("{} #{}", ob.name, ei + 1) },
-                device_id: entry.device_id.0.clone(),
-                mode: entry.mode,
-                channels: entry.channels.clone(),
-            })
+        let outputs: Vec<ChainOutputYaml> = chain.output_blocks().into_iter().map(|(_, ob)| {
+            ChainOutputYaml {
+                name: ob.name.clone(),
+                entries: ob.entries.iter().map(|e| ChainOutputEntryYaml {
+                    device_id: e.device_id.0.clone(),
+                    mode: e.mode,
+                    channels: e.channels.clone(),
+                }).collect(),
+                device_id: None,
+                mode: None,
+                channels: None,
+            }
         }).collect();
 
         // Serialize only non-I/O blocks to the blocks array
