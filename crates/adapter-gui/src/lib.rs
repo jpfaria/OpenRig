@@ -2912,7 +2912,6 @@ pub fn run_desktop_app(
     {
         let weak_window = window.as_weak();
         let weak_groups_window = chain_input_groups_window.as_weak();
-        let weak_chain_window = chain_editor_window.as_weak();
         let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
@@ -2921,7 +2920,6 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
-        let toast_timer = toast_timer.clone();
         chain_input_groups_window.on_save(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2960,21 +2958,32 @@ pub fn run_desktop_app(
                 }
             }
             let editing_index = draft.editing_index;
-            // If editing a specific I/O block in the middle (not the fixed chip), update ONLY that block
-            if let (Some(chain_idx), Some(block_idx)) = (editing_index, draft.editing_io_block_index) {
-                let new_entries: Vec<InputEntry> = draft.inputs.iter()
-                    .filter(|ig| ig.device_id.is_some() && !ig.channels.is_empty())
-                    .map(|ig| InputEntry {
-                        name: ig.name.clone(),
-                        device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
-                        mode: ig.mode,
-                        channels: ig.channels.clone(),
-                    }).collect();
+            let io_block_idx = draft.editing_io_block_index;
+
+            // Build new entries from draft
+            let new_entries: Vec<InputEntry> = draft.inputs.iter()
+                .filter(|ig| ig.device_id.is_some() && !ig.channels.is_empty())
+                .map(|ig| InputEntry {
+                    name: ig.name.clone(),
+                    device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
+                    mode: ig.mode,
+                    channels: ig.channels.clone(),
+                }).collect();
+
+            if let Some(chain_idx) = editing_index {
                 if let Some(chain) = session.project.chains.get_mut(chain_idx) {
-                    if let Some(block) = chain.blocks.get_mut(block_idx) {
+                    // Find target block: specific index or first InputBlock
+                    let target_idx = io_block_idx.unwrap_or_else(|| {
+                        chain.blocks.iter().position(|b| matches!(&b.kind, AudioBlockKind::Input(_))).unwrap_or(0)
+                    });
+                    if let Some(block) = chain.blocks.get_mut(target_idx) {
                         if let AudioBlockKind::Input(ref mut ib) = block.kind {
                             ib.entries = new_entries;
                         }
+                    }
+                    if let Err(msg) = chain.validate_channel_conflicts() {
+                        groups_window.set_status_message(msg.into());
+                        return;
                     }
                     let chain_id = chain.id.clone();
                     if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
@@ -2984,47 +2993,9 @@ pub fn run_desktop_app(
                     replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
                     sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
                 }
-                *chain_draft.borrow_mut() = None;
-                groups_window.set_status_message("".into());
-                let _ = groups_window.hide();
-                return;
-            }
-            let existing_chain =
-                editing_index.and_then(|index| session.project.chains.get(index).cloned());
-            let chain = chain_from_draft(&draft, existing_chain.as_ref());
-            if let Err(msg) = chain.validate_channel_conflicts() {
-                groups_window.set_status_message(msg.into());
-                return;
-            }
-            let chain_id = chain.id.clone();
-            if let Some(index) = editing_index {
-                if let Some(current) = session.project.chains.get_mut(index) {
-                    *current = chain;
-                }
-            }
-            if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                groups_window.set_status_message(error.to_string().into());
-                return;
-            }
-            replace_project_chains(
-                &project_chains,
-                &session.project,
-                &input_chain_devices,
-                &output_chain_devices,
-            );
-            if let Some(chain_window) = weak_chain_window.upgrade() {
-                apply_chain_io_groups(
-                    &window,
-                    &chain_window,
-                    &draft,
-                    &input_chain_devices,
-                    &output_chain_devices,
-                );
             }
             *chain_draft.borrow_mut() = None;
-            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             groups_window.set_status_message("".into());
-            clear_status(&window, &toast_timer);
             let _ = groups_window.hide();
         });
     }
@@ -3135,7 +3106,6 @@ pub fn run_desktop_app(
     {
         let weak_window = window.as_weak();
         let weak_groups_window = chain_output_groups_window.as_weak();
-        let weak_chain_window = chain_editor_window.as_weak();
         let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
@@ -3144,7 +3114,6 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
-        let toast_timer = toast_timer.clone();
         chain_output_groups_window.on_save(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -3183,21 +3152,32 @@ pub fn run_desktop_app(
                 }
             }
             let editing_index = draft.editing_index;
-            // If editing a specific output block in the middle, update ONLY that block
-            if let (Some(chain_idx), Some(block_idx)) = (editing_index, draft.editing_io_block_index) {
-                let new_entries: Vec<OutputEntry> = draft.outputs.iter()
-                    .filter(|og| og.device_id.is_some() && !og.channels.is_empty())
-                    .map(|og| OutputEntry {
-                        name: og.name.clone(),
-                        device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
-                        mode: og.mode,
-                        channels: og.channels.clone(),
-                    }).collect();
+            let io_block_idx = draft.editing_io_block_index;
+
+            // Build new entries from draft
+            let new_entries: Vec<OutputEntry> = draft.outputs.iter()
+                .filter(|og| og.device_id.is_some() && !og.channels.is_empty())
+                .map(|og| OutputEntry {
+                    name: og.name.clone(),
+                    device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
+                    mode: og.mode,
+                    channels: og.channels.clone(),
+                }).collect();
+
+            if let Some(chain_idx) = editing_index {
                 if let Some(chain) = session.project.chains.get_mut(chain_idx) {
-                    if let Some(block) = chain.blocks.get_mut(block_idx) {
+                    // Find target block: specific index or last OutputBlock
+                    let target_idx = io_block_idx.unwrap_or_else(|| {
+                        chain.blocks.iter().rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_))).unwrap_or(chain.blocks.len().saturating_sub(1))
+                    });
+                    if let Some(block) = chain.blocks.get_mut(target_idx) {
                         if let AudioBlockKind::Output(ref mut ob) = block.kind {
                             ob.entries = new_entries;
                         }
+                    }
+                    if let Err(msg) = chain.validate_channel_conflicts() {
+                        groups_window.set_status_message(msg.into());
+                        return;
                     }
                     let chain_id = chain.id.clone();
                     if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
@@ -3207,47 +3187,9 @@ pub fn run_desktop_app(
                     replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
                     sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
                 }
-                *chain_draft.borrow_mut() = None;
-                groups_window.set_status_message("".into());
-                let _ = groups_window.hide();
-                return;
-            }
-            let existing_chain =
-                editing_index.and_then(|index| session.project.chains.get(index).cloned());
-            let chain = chain_from_draft(&draft, existing_chain.as_ref());
-            if let Err(msg) = chain.validate_channel_conflicts() {
-                groups_window.set_status_message(msg.into());
-                return;
-            }
-            let chain_id = chain.id.clone();
-            if let Some(index) = editing_index {
-                if let Some(current) = session.project.chains.get_mut(index) {
-                    *current = chain;
-                }
-            }
-            if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                groups_window.set_status_message(error.to_string().into());
-                return;
-            }
-            replace_project_chains(
-                &project_chains,
-                &session.project,
-                &input_chain_devices,
-                &output_chain_devices,
-            );
-            if let Some(chain_window) = weak_chain_window.upgrade() {
-                apply_chain_io_groups(
-                    &window,
-                    &chain_window,
-                    &draft,
-                    &input_chain_devices,
-                    &output_chain_devices,
-                );
             }
             *chain_draft.borrow_mut() = None;
-            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             groups_window.set_status_message("".into());
-            clear_status(&window, &toast_timer);
             let _ = groups_window.hide();
         });
     }
@@ -7805,5 +7747,131 @@ mod tests {
         ]);
         // UI sees nothing, asking for 0 → before Output = real 1
         assert_eq!(ui_index_to_real_block_index(&chain, 0), 1);
+    }
+
+    #[test]
+    fn save_input_entries_does_not_move_middle_io_blocks() {
+        // Chain: [Input0, Gain, Input1, Delay, Output]
+        // Simulates what on_save does: update ONLY first InputBlock entries,
+        // verify middle InputBlock at position 2 is untouched.
+        let mut chain = test_chain(vec![
+            input_kind(),
+            effect_kind("gain"),
+            AudioBlockKind::Input(InputBlock {
+                model: "standard".into(),
+                entries: vec![InputEntry {
+                    name: "Middle In".into(),
+                    device_id: DeviceId("dev2".into()),
+                    mode: ChainInputMode::Mono,
+                    channels: vec![1],
+                }],
+            }),
+            effect_kind("delay"),
+            output_kind(),
+        ]);
+
+        // The save path with editing_io_block_index = None finds FIRST InputBlock
+        let target_idx = chain.blocks.iter()
+            .position(|b| matches!(&b.kind, AudioBlockKind::Input(_)))
+            .unwrap();
+        assert_eq!(target_idx, 0);
+
+        // Update first InputBlock entries (simulating save)
+        let new_entries = vec![InputEntry {
+            name: "Updated G1".into(),
+            device_id: DeviceId("dev_new".into()),
+            mode: ChainInputMode::Stereo,
+            channels: vec![2, 3],
+        }];
+        if let AudioBlockKind::Input(ref mut ib) = chain.blocks[target_idx].kind {
+            ib.entries = new_entries;
+        }
+
+        // Verify chain structure is unchanged
+        assert_eq!(chain.blocks.len(), 5);
+        assert!(matches!(&chain.blocks[0].kind, AudioBlockKind::Input(_)));
+        assert!(matches!(&chain.blocks[1].kind, AudioBlockKind::Core(_)));
+        assert!(matches!(&chain.blocks[2].kind, AudioBlockKind::Input(_)));
+        assert!(matches!(&chain.blocks[3].kind, AudioBlockKind::Core(_)));
+        assert!(matches!(&chain.blocks[4].kind, AudioBlockKind::Output(_)));
+
+        // Verify first InputBlock was updated
+        if let AudioBlockKind::Input(ref ib) = chain.blocks[0].kind {
+            assert_eq!(ib.entries.len(), 1);
+            assert_eq!(ib.entries[0].name, "Updated G1");
+            assert_eq!(ib.entries[0].device_id.0, "dev_new");
+        } else {
+            panic!("block 0 should be Input");
+        }
+
+        // Verify middle InputBlock at position 2 is UNTOUCHED
+        if let AudioBlockKind::Input(ref ib) = chain.blocks[2].kind {
+            assert_eq!(ib.entries.len(), 1);
+            assert_eq!(ib.entries[0].name, "Middle In");
+            assert_eq!(ib.entries[0].device_id.0, "dev2");
+            assert_eq!(ib.entries[0].channels, vec![1]);
+        } else {
+            panic!("block 2 should be Input");
+        }
+
+        // Verify block IDs haven't changed (no reconstruction)
+        assert_eq!(chain.blocks[0].id.0, "block:0");
+        assert_eq!(chain.blocks[1].id.0, "block:1");
+        assert_eq!(chain.blocks[2].id.0, "block:2");
+        assert_eq!(chain.blocks[3].id.0, "block:3");
+        assert_eq!(chain.blocks[4].id.0, "block:4");
+    }
+
+    #[test]
+    fn save_output_entries_finds_last_output_block() {
+        // Chain: [Input, Gain, Output_mid, Delay, Output_last]
+        // With editing_io_block_index = None, should find LAST OutputBlock
+        let mut chain = test_chain(vec![
+            input_kind(),
+            effect_kind("gain"),
+            AudioBlockKind::Output(OutputBlock {
+                model: "standard".into(),
+                entries: vec![OutputEntry {
+                    name: "Mid Out".into(),
+                    device_id: DeviceId("dev_mid".into()),
+                    mode: ChainOutputMode::Stereo,
+                    channels: vec![2, 3],
+                }],
+            }),
+            effect_kind("delay"),
+            output_kind(),
+        ]);
+
+        // The save path with editing_io_block_index = None finds LAST OutputBlock
+        let target_idx = chain.blocks.iter()
+            .rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_)))
+            .unwrap();
+        assert_eq!(target_idx, 4);
+
+        // Update last OutputBlock entries
+        let new_entries = vec![OutputEntry {
+            name: "Updated Out".into(),
+            device_id: DeviceId("dev_updated".into()),
+            mode: ChainOutputMode::Mono,
+            channels: vec![0],
+        }];
+        if let AudioBlockKind::Output(ref mut ob) = chain.blocks[target_idx].kind {
+            ob.entries = new_entries;
+        }
+
+        // Verify middle OutputBlock at position 2 is UNTOUCHED
+        if let AudioBlockKind::Output(ref ob) = chain.blocks[2].kind {
+            assert_eq!(ob.entries[0].name, "Mid Out");
+            assert_eq!(ob.entries[0].device_id.0, "dev_mid");
+        } else {
+            panic!("block 2 should be Output");
+        }
+
+        // Verify last OutputBlock was updated
+        if let AudioBlockKind::Output(ref ob) = chain.blocks[4].kind {
+            assert_eq!(ob.entries[0].name, "Updated Out");
+        } else {
+            panic!("block 4 should be Output");
+        }
     }
 }
