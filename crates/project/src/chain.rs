@@ -1,7 +1,7 @@
 use domain::ids::ChainId;
 use serde::{Deserialize, Serialize};
 
-use crate::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock};
+use crate::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry, InsertBlock, OutputBlock};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
@@ -98,6 +98,18 @@ impl Chain {
             .enumerate()
             .filter_map(|(i, b)| match &b.kind {
                 AudioBlockKind::Input(input) => Some((i, input)),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Returns all Insert blocks with their indices in the blocks vec.
+    pub fn insert_blocks(&self) -> Vec<(usize, &InsertBlock)> {
+        self.blocks
+            .iter()
+            .enumerate()
+            .filter_map(|(i, b)| match &b.kind {
+                AudioBlockKind::Insert(insert) => Some((i, insert)),
                 _ => None,
             })
             .collect()

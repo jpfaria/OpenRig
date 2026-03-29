@@ -92,9 +92,9 @@ pub fn validate_project(project: &Project) -> Result<()> {
             .ok_or_else(|| anyhow!("invalid project: chain '{}' output '{}' has no entries", chain.id.0, first_output.1.model))?;
         layout_from_channel_count("chain output", &chain.id.0, first_output_entry.channels.len())?;
 
-        // Validate only audio blocks (non-I/O)
+        // Validate only audio blocks (non-I/O, non-Insert)
         let audio_blocks: Vec<&AudioBlock> = chain.blocks.iter()
-            .filter(|b| !matches!(&b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
+            .filter(|b| !matches!(&b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_)))
             .collect();
         validate_chain_blocks(chain, &audio_blocks, input_layout)?;
     }
@@ -248,8 +248,8 @@ fn resolve_block_output_layout(
                 )
             })
         }
-        // Input/Output blocks don't affect audio processing layout
-        AudioBlockKind::Input(_) | AudioBlockKind::Output(_) => Ok(input_layout),
+        // Input/Output/Insert blocks don't affect audio processing layout
+        AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_) => Ok(input_layout),
     }
 }
 

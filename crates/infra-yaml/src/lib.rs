@@ -2,7 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use domain::ids::{BlockId, DeviceId, ChainId};
 use domain::value_objects::ParameterValue;
 use project::block::{
-    normalize_block_params, AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, NamBlock, OutputBlock, OutputEntry, SelectBlock,
+    normalize_block_params, AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, InsertBlock, InsertEndpoint, NamBlock, OutputBlock, OutputEntry, SelectBlock,
 };
 use project::device::DeviceSettings;
 use project::param::ParameterSet;
@@ -642,6 +642,26 @@ enum AudioBlockYaml {
         #[serde(default, skip_serializing)]
         channels: Option<Vec<usize>>,
     },
+    #[serde(rename = "insert")]
+    Insert {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
+        #[serde(default = "default_io_yaml_model")]
+        model: String,
+        send: InsertEndpointYaml,
+        #[serde(rename = "return")]
+        return_: InsertEndpointYaml,
+    },
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct InsertEndpointYaml {
+    #[serde(default)]
+    device_id: String,
+    #[serde(default)]
+    mode: ChainInputMode,
+    #[serde(default)]
+    channels: Vec<usize>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -766,6 +786,28 @@ impl AudioBlockYaml {
                     }),
                 })
             }
+            AudioBlockYaml::Insert {
+                enabled,
+                model,
+                send,
+                return_,
+            } => Ok(AudioBlock {
+                id: generated_id,
+                enabled,
+                kind: AudioBlockKind::Insert(InsertBlock {
+                    model,
+                    send: InsertEndpoint {
+                        device_id: DeviceId(send.device_id),
+                        mode: send.mode,
+                        channels: send.channels,
+                    },
+                    return_: InsertEndpoint {
+                        device_id: DeviceId(return_.device_id),
+                        mode: return_.mode,
+                        channels: return_.channels,
+                    },
+                }),
+            }),
             other => {
                 let (effect_type, enabled, model, params) = extract_core_block_fields(other);
                 Ok(AudioBlock {
@@ -876,6 +918,20 @@ impl AudioBlockYaml {
                 mode: None,
                 channels: None,
             }),
+            AudioBlockKind::Insert(insert) => Ok(Self::Insert {
+                enabled: block.enabled,
+                model: insert.model.clone(),
+                send: InsertEndpointYaml {
+                    device_id: insert.send.device_id.0.clone(),
+                    mode: insert.send.mode,
+                    channels: insert.send.channels.clone(),
+                },
+                return_: InsertEndpointYaml {
+                    device_id: insert.return_.device_id.0.clone(),
+                    mode: insert.return_.mode,
+                    channels: insert.return_.channels.clone(),
+                },
+            }),
         }
     }
 }
@@ -941,6 +997,7 @@ fn extract_core_block_fields(yaml: AudioBlockYaml) -> (&'static str, bool, Strin
         AudioBlockYaml::Select { .. } => unreachable!("Select handled before extract_core_block_fields"),
         AudioBlockYaml::Input { .. } => unreachable!("Input handled before extract_core_block_fields"),
         AudioBlockYaml::Output { .. } => unreachable!("Output handled before extract_core_block_fields"),
+        AudioBlockYaml::Insert { .. } => unreachable!("Insert handled before extract_core_block_fields"),
     }
 }
 
@@ -1510,5 +1567,66 @@ chains:
                 params,
             }),
         }
+    }
+
+    #[test]
+    fn insert_block_yaml_roundtrip() {
+        use project::block::{InsertBlock, InsertEndpoint};
+        let block = AudioBlock {
+            id: BlockId("chain:0:block:1".into()),
+            enabled: true,
+            kind: AudioBlockKind::Insert(InsertBlock {
+                model: "standard".to_string(),
+                send: InsertEndpoint {
+                    device_id: DeviceId("mk300-out".into()),
+                    mode: ChainInputMode::Stereo,
+                    channels: vec![0, 1],
+                },
+                return_: InsertEndpoint {
+                    device_id: DeviceId("mk300-in".into()),
+                    mode: ChainInputMode::Stereo,
+                    channels: vec![0, 1],
+                },
+            }),
+        };
+        let yaml = super::AudioBlockYaml::from_audio_block(&block).expect("to yaml");
+        let value = serde_yaml::to_value(&yaml).expect("serialize");
+        let parsed: super::AudioBlockYaml = serde_yaml::from_value(value).expect("deserialize");
+        let chain_id = ChainId("chain:0".to_string());
+        let restored = parsed.into_audio_block(&chain_id, 1).expect("into block");
+        assert!(matches!(&restored.kind, AudioBlockKind::Insert(ib) if ib.send.device_id.0 == "mk300-out"));
+        assert!(matches!(&restored.kind, AudioBlockKind::Insert(ib) if ib.return_.device_id.0 == "mk300-in"));
+        assert!(matches!(&restored.kind, AudioBlockKind::Insert(ib) if ib.send.channels == vec![0, 1]));
+        assert!(matches!(&restored.kind, AudioBlockKind::Insert(ib) if ib.return_.channels == vec![0, 1]));
+        assert!(matches!(&restored.kind, AudioBlockKind::Insert(ib) if ib.send.mode == ChainInputMode::Stereo));
+    }
+
+    #[test]
+    fn disabled_insert_block_yaml_roundtrip() {
+        use project::block::{InsertBlock, InsertEndpoint};
+        let block = AudioBlock {
+            id: BlockId("chain:0:block:2".into()),
+            enabled: false,
+            kind: AudioBlockKind::Insert(InsertBlock {
+                model: "standard".to_string(),
+                send: InsertEndpoint {
+                    device_id: DeviceId(String::new()),
+                    mode: ChainInputMode::Mono,
+                    channels: Vec::new(),
+                },
+                return_: InsertEndpoint {
+                    device_id: DeviceId(String::new()),
+                    mode: ChainInputMode::Mono,
+                    channels: Vec::new(),
+                },
+            }),
+        };
+        let yaml = super::AudioBlockYaml::from_audio_block(&block).expect("to yaml");
+        let value = serde_yaml::to_value(&yaml).expect("serialize");
+        let parsed: super::AudioBlockYaml = serde_yaml::from_value(value).expect("deserialize");
+        let chain_id = ChainId("chain:0".to_string());
+        let restored = parsed.into_audio_block(&chain_id, 2).expect("into block");
+        assert!(!restored.enabled);
+        assert!(matches!(&restored.kind, AudioBlockKind::Insert(_)));
     }
 }

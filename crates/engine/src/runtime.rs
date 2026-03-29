@@ -566,8 +566,8 @@ fn build_runtime_block_nodes(
             }
             continue;
         }
-        // Input/Output blocks are routing metadata; skip them in the processing chain
-        if matches!(&block.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)) {
+        // Input/Output/Insert blocks are routing metadata; skip them in the processing chain
+        if matches!(&block.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_)) {
             continue;
         }
         if let AudioBlockKind::Select(select) = &block.kind {
@@ -647,8 +647,8 @@ fn build_block_runtime_node(
         AudioBlockKind::Select(select) => {
             build_select_runtime_node(chain, block, select, input_layout, sample_rate, None)?
         }
-        // Input/Output blocks are routing-only; they don't process audio in the block chain
-        AudioBlockKind::Input(_) | AudioBlockKind::Output(_) => bypass_runtime_node(block, input_layout),
+        // Input/Output/Insert blocks are routing-only; they don't process audio in the block chain
+        AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_) => bypass_runtime_node(block, input_layout),
     })
 }
 

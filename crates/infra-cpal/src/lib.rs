@@ -8,7 +8,7 @@ use domain::ids::ChainId;
 use engine::runtime::{process_input_f32, process_output_f32, RuntimeGraph, ChainRuntimeState};
 use project::device::DeviceSettings;
 use project::project::Project;
-use project::block::{AudioBlockKind, InputEntry, OutputEntry};
+use project::block::{AudioBlockKind, InputEntry, InsertBlock, OutputEntry};
 use project::chain::Chain;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -392,7 +392,7 @@ fn resolve_chain_inputs(
     project: &Project,
     chain: &Chain,
 ) -> Result<Vec<ResolvedInputDevice>> {
-    let input_entries: Vec<&InputEntry> = chain.blocks.iter()
+    let mut input_entries: Vec<&InputEntry> = chain.blocks.iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Input(ib) => Some(ib),
@@ -400,6 +400,16 @@ fn resolve_chain_inputs(
         })
         .flat_map(|ib| ib.entries.iter())
         .collect();
+    // Include Insert block return endpoints as input streams
+    let insert_return_entries: Vec<InputEntry> = chain.blocks.iter()
+        .filter(|b| b.enabled)
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Insert(ib) => Some(insert_return_as_input_entry(ib)),
+            _ => None,
+        })
+        .collect();
+    let insert_refs: Vec<&InputEntry> = insert_return_entries.iter().collect();
+    input_entries.extend(insert_refs);
     if input_entries.is_empty() {
         bail!("chain '{}' has no input blocks configured", chain.id.0);
     }
@@ -414,7 +424,7 @@ fn resolve_chain_outputs(
     project: &Project,
     chain: &Chain,
 ) -> Result<Vec<ResolvedOutputDevice>> {
-    let output_entries: Vec<&OutputEntry> = chain.blocks.iter()
+    let mut output_entries: Vec<&OutputEntry> = chain.blocks.iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Output(ob) => Some(ob),
@@ -422,6 +432,16 @@ fn resolve_chain_outputs(
         })
         .flat_map(|ob| ob.entries.iter())
         .collect();
+    // Include Insert block send endpoints as output streams
+    let insert_send_entries: Vec<OutputEntry> = chain.blocks.iter()
+        .filter(|b| b.enabled)
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Insert(ib) => Some(insert_send_as_output_entry(ib)),
+            _ => None,
+        })
+        .collect();
+    let insert_refs: Vec<&OutputEntry> = insert_send_entries.iter().collect();
+    output_entries.extend(insert_refs);
     if output_entries.is_empty() {
         bail!("chain '{}' has no output blocks configured", chain.id.0);
     }
@@ -429,6 +449,30 @@ fn resolve_chain_outputs(
         .iter()
         .map(|output| resolve_output_device_for_chain_output(host, project, output))
         .collect()
+}
+
+/// Convert an InsertBlock's return endpoint to an InputEntry for stream resolution.
+fn insert_return_as_input_entry(insert: &InsertBlock) -> InputEntry {
+    InputEntry {
+        name: "Insert Return".to_string(),
+        device_id: insert.return_.device_id.clone(),
+        mode: insert.return_.mode,
+        channels: insert.return_.channels.clone(),
+    }
+}
+
+/// Convert an InsertBlock's send endpoint to an OutputEntry for stream resolution.
+fn insert_send_as_output_entry(insert: &InsertBlock) -> OutputEntry {
+    use project::chain::ChainOutputMode;
+    OutputEntry {
+        name: "Insert Send".to_string(),
+        device_id: insert.send.device_id.clone(),
+        mode: match insert.send.mode {
+            project::chain::ChainInputMode::Mono => ChainOutputMode::Mono,
+            _ => ChainOutputMode::Stereo,
+        },
+        channels: insert.send.channels.clone(),
+    }
 }
 
 fn resolve_enabled_chain_audio_configs(
@@ -511,6 +555,16 @@ fn validate_chain_channels_against_devices(host: &cpal::Host, chain: &Chain) -> 
     for (_, output) in chain.output_blocks() {
         for entry in &output.entries {
             validate_output_channels_against_device(host, &chain.id.0, &entry.device_id.0, &entry.channels)?;
+        }
+    }
+
+    // Validate Insert block endpoints
+    for (_, insert) in chain.insert_blocks() {
+        if !insert.send.device_id.0.is_empty() {
+            validate_output_channels_against_device(host, &chain.id.0, &insert.send.device_id.0, &insert.send.channels)?;
+        }
+        if !insert.return_.device_id.0.is_empty() {
+            validate_input_channels_against_device(host, &chain.id.0, &insert.return_.device_id.0, &insert.return_.channels)?;
         }
     }
 

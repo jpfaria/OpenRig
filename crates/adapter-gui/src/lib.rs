@@ -3559,6 +3559,11 @@ pub fn run_desktop_app(
                     }
                     return;
                 }
+                AudioBlockKind::Insert(_) => {
+                    log::info!("[select_chain_block] insert block at index {}: id='{}'", block_index, block.id.0);
+                    set_status_with_toast(&window, &toast_timer, "Insert block configuration not yet available in GUI.", "info");
+                    return;
+                }
                 _ => {}
             }
             log::info!("[select_chain_block] block at index {}: id='{}', kind={:?}", block_index, block.id.0, block.model_ref().map(|m| format!("{}/{}", m.effect_type, m.model)));
@@ -4384,8 +4389,44 @@ pub fn run_desktop_app(
             };
             log::debug!("on_choose_block_type: index={}, type='{}', instrument='{}'", index, block_type.effect_type, instrument);
 
-            // Handle I/O block types: open the dedicated I/O window instead of the block editor
+            // Handle I/O and Insert block types: open the dedicated window instead of the block editor
             let effect_type_str = block_type.effect_type.as_str();
+            if effect_type_str == "insert" {
+                // Insert block: create directly with empty endpoints
+                let (chain_index, before_index) = {
+                    let draft_borrow = block_editor_draft.borrow();
+                    let Some(draft) = draft_borrow.as_ref() else { return; };
+                    (draft.chain_index, draft.before_index)
+                };
+                let session_borrow = project_session_for_type.borrow();
+                let Some(session) = session_borrow.as_ref() else { return; };
+                let Some(chain) = session.project.chains.get(chain_index) else { return; };
+                let block_id = domain::ids::BlockId(format!("{}:insert:{}", chain.id.0, before_index));
+                drop(session_borrow);
+                let insert_block = project::block::AudioBlock {
+                    id: block_id,
+                    enabled: true,
+                    kind: AudioBlockKind::Insert(project::block::InsertBlock {
+                        model: "standard".to_string(),
+                        send: project::block::InsertEndpoint {
+                            device_id: domain::ids::DeviceId(String::new()),
+                            mode: ChainInputMode::Mono,
+                            channels: Vec::new(),
+                        },
+                        return_: project::block::InsertEndpoint {
+                            device_id: domain::ids::DeviceId(String::new()),
+                            mode: ChainInputMode::Mono,
+                            channels: Vec::new(),
+                        },
+                    }),
+                };
+                let mut session_borrow = project_session_for_type.borrow_mut();
+                let Some(session) = session_borrow.as_mut() else { return; };
+                let Some(chain) = session.project.chains.get_mut(chain_index) else { return; };
+                chain.blocks.insert(before_index, insert_block);
+                window.set_show_block_type_picker(false);
+                return;
+            }
             if effect_type_str == "input" || effect_type_str == "output" {
                 let (chain_index, before_index) = {
                     let draft_borrow = block_editor_draft.borrow();
@@ -6334,6 +6375,15 @@ fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerItem> {
         accent_color: crate::ui_state::accent_color_for_icon_kind("routing"),
         icon_source: slint::Image::default(),
     });
+    items.push(BlockTypePickerItem {
+        effect_type: "insert".into(),
+        label: "INSERT".into(),
+        subtitle: "".into(),
+        icon_kind: "insert".into(),
+        use_panel_editor: false,
+        accent_color: crate::ui_state::accent_color_for_icon_kind("insert"),
+        icon_source: slint::Image::default(),
+    });
     items
 }
 fn block_model_picker_items(effect_type: &str, instrument: &str) -> Vec<BlockModelPickerItem> {
@@ -7330,6 +7380,7 @@ fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
     let (kind, label) = match &block.kind {
         AudioBlockKind::Input(_) => ("input".to_string(), "input".to_string()),
         AudioBlockKind::Output(_) => ("output".to_string(), "output".to_string()),
+        AudioBlockKind::Insert(_) => ("insert".to_string(), "insert".to_string()),
         AudioBlockKind::Select(select) => select
             .selected_option()
             .and_then(|option| option.model_ref())
@@ -7344,8 +7395,8 @@ fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
     let block_type = supported_block_type(&kind);
     let (thumbnail, has_thumbnail, thumb_width, thumb_height) = load_thumbnail_image(&kind, &label);
 
-    // I/O blocks are not registered effect types, so resolve icon_kind/type_label directly
-    let is_io = matches!(block.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_));
+    // I/O and Insert blocks are not registered effect types, so resolve icon_kind/type_label directly
+    let is_io = matches!(block.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_));
     let resolved_icon_kind: String = if is_io {
         kind.clone()
     } else {
@@ -7355,6 +7406,7 @@ fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
         match &block.kind {
             AudioBlockKind::Input(_) => "INPUT",
             AudioBlockKind::Output(_) => "OUTPUT",
+            AudioBlockKind::Insert(_) => "INSERT",
             _ => "BLOCK",
         }
     } else {
