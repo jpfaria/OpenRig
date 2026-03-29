@@ -8,7 +8,7 @@ use domain::ids::ChainId;
 use engine::runtime::{process_input_f32, process_output_f32, RuntimeGraph, ChainRuntimeState};
 use project::device::DeviceSettings;
 use project::project::Project;
-use project::block::{InputEntry, OutputEntry};
+use project::block::{AudioBlockKind, InputEntry, OutputEntry};
 use project::chain::Chain;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -392,9 +392,13 @@ fn resolve_chain_inputs(
     project: &Project,
     chain: &Chain,
 ) -> Result<Vec<ResolvedInputDevice>> {
-    let input_entries: Vec<&InputEntry> = chain.input_blocks()
-        .into_iter()
-        .flat_map(|(_, ib)| ib.entries.iter())
+    let input_entries: Vec<&InputEntry> = chain.blocks.iter()
+        .filter(|b| b.enabled)
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Input(ib) => Some(ib),
+            _ => None,
+        })
+        .flat_map(|ib| ib.entries.iter())
         .collect();
     if input_entries.is_empty() {
         bail!("chain '{}' has no input blocks configured", chain.id.0);
@@ -410,9 +414,13 @@ fn resolve_chain_outputs(
     project: &Project,
     chain: &Chain,
 ) -> Result<Vec<ResolvedOutputDevice>> {
-    let output_entries: Vec<&OutputEntry> = chain.output_blocks()
-        .into_iter()
-        .flat_map(|(_, ob)| ob.entries.iter())
+    let output_entries: Vec<&OutputEntry> = chain.blocks.iter()
+        .filter(|b| b.enabled)
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Output(ob) => Some(ob),
+            _ => None,
+        })
+        .flat_map(|ob| ob.entries.iter())
         .collect();
     if output_entries.is_empty() {
         bail!("chain '{}' has no output blocks configured", chain.id.0);
