@@ -182,11 +182,15 @@ export component ChainInputGroupsWindow inherits Window {
     default-font-size: 13px;
     in property <[IoGroupItem]> groups;
     in-out property <string> status-message;
+    in property <bool> show-block-controls: false;
+    in property <bool> block-enabled: true;
     callback edit-group(int);
     callback remove-group(int);
     callback add-group();
     callback save();
     callback cancel();
+    callback toggle-enabled();
+    callback delete-block();
     title: "OpenRig \u{00B7} Entradas da chain";
     min-width: 720px;
     min-height: 620px;
@@ -201,11 +205,15 @@ export component ChainInputGroupsWindow inherits Window {
         add-label: "+ Adicionar entrada";
         groups: root.groups;
         status-message <=> root.status-message;
+        show-block-controls: root.show-block-controls;
+        block-enabled: root.block-enabled;
         edit-group(index) => { root.edit-group(index); }
         remove-group(index) => { root.remove-group(index); }
         add-group => { root.add-group(); }
         save => { root.save(); }
         cancel => { root.cancel(); }
+        toggle-enabled => { root.toggle-enabled(); }
+        delete-block => { root.delete-block(); }
     }
 }
 
@@ -215,11 +223,15 @@ export component ChainOutputGroupsWindow inherits Window {
     default-font-size: 13px;
     in property <[IoGroupItem]> groups;
     in-out property <string> status-message;
+    in property <bool> show-block-controls: false;
+    in property <bool> block-enabled: true;
     callback edit-group(int);
     callback remove-group(int);
     callback add-group();
     callback save();
     callback cancel();
+    callback toggle-enabled();
+    callback delete-block();
     title: "OpenRig \u{00B7} Sa\u{00ED}das da chain";
     min-width: 720px;
     min-height: 620px;
@@ -234,11 +246,15 @@ export component ChainOutputGroupsWindow inherits Window {
         add-label: "+ Adicionar sa\u{00ED}da";
         groups: root.groups;
         status-message <=> root.status-message;
+        show-block-controls: root.show-block-controls;
+        block-enabled: root.block-enabled;
         edit-group(index) => { root.edit-group(index); }
         remove-group(index) => { root.remove-group(index); }
         add-group => { root.add-group(); }
         save => { root.save(); }
         cancel => { root.cancel(); }
+        toggle-enabled => { root.toggle-enabled(); }
+        delete-block => { root.delete-block(); }
     }
 }
 
