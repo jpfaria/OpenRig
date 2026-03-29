@@ -21,6 +21,8 @@ export component EffectTypeIcon inherits Image {
         : root.icon-kind == "utility" ? @image-url("../assets/util.svg")
         : root.icon-kind == "nam" ? @image-url("../assets/nam.svg")
         : root.icon-kind == "pitch" ? @image-url("../assets/pitch.svg")
+        : root.icon-kind == "input" ? @image-url("../assets/input_arrow.svg")
+        : root.icon-kind == "output" ? @image-url("../assets/output_arrow.svg")
         : @image-url("../assets/gear.svg");
     image-fit: contain;
     colorize: root.tint;

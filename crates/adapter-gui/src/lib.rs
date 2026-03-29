@@ -6983,18 +6983,32 @@ fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
     let family = block_family_for_kind(&kind).to_string();
     let block_type = supported_block_type(&kind);
     let (thumbnail, has_thumbnail, thumb_width, thumb_height) = load_thumbnail_image(&kind, &label);
+
+    // I/O blocks are not registered effect types, so resolve icon_kind/type_label directly
+    let is_io = matches!(block.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_));
+    let resolved_icon_kind: String = if is_io {
+        kind.clone()
+    } else {
+        block_type.as_ref().map(|e| e.icon_kind).unwrap_or("core").to_string()
+    };
+    let resolved_type_label: &str = if is_io {
+        match &block.kind {
+            AudioBlockKind::Input(_) => "INPUT",
+            AudioBlockKind::Output(_) => "OUTPUT",
+            _ => "BLOCK",
+        }
+    } else {
+        block_type
+            .as_ref()
+            .map(|e| e.display_label)
+            .unwrap_or("BLOCK")
+    };
+
+    let accent_color = crate::ui_state::accent_color_for_icon_kind(&resolved_icon_kind);
     ChainBlockItem {
         kind: kind.into(),
-        icon_kind: block_type
-            .as_ref()
-            .map(|entry| entry.icon_kind)
-            .unwrap_or("core")
-            .into(),
-        type_label: block_type
-            .as_ref()
-            .map(|entry| entry.display_label)
-            .unwrap_or("BLOCK")
-            .into(),
+        icon_kind: resolved_icon_kind.into(),
+        type_label: resolved_type_label.into(),
         label: label.into(),
         family: family.into(),
         enabled: block.enabled,
@@ -7003,9 +7017,7 @@ fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
         has_thumbnail,
         thumb_width,
         thumb_height,
-        accent_color: crate::ui_state::accent_color_for_icon_kind(
-            block_type.as_ref().map(|e| e.icon_kind).unwrap_or("core"),
-        ),
+        accent_color,
         icon_source: slint::Image::default(),
     }
 }

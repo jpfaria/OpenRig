@@ -59,6 +59,8 @@ pub fn accent_color_for_icon_kind(icon_kind: &str) -> slint::Color {
         "utility" => slint::Color::from_argb_u8(255, 0x95, 0xa0, 0xb2),
         "nam" => slint::Color::from_argb_u8(255, 0xff, 0x7c, 0xd7),
         "pitch" => slint::Color::from_argb_u8(255, 0x8f, 0x8c, 0xff),
+        "input" => slint::Color::from_argb_u8(255, 0x45, 0xa7, 0xff),
+        "output" => slint::Color::from_argb_u8(255, 0x45, 0xa7, 0xff),
         _ => slint::Color::from_argb_u8(255, 0x7f, 0xb0, 0xff),
     }
 }
@@ -103,6 +105,7 @@ pub fn block_family_for_kind(kind: &str) -> &'static str {
         EFFECT_TYPE_MODULATION => "modulation",
         EFFECT_TYPE_DELAY | EFFECT_TYPE_REVERB => "space",
         EFFECT_TYPE_UTILITY => "utility",
+        "input" | "output" => "routing",
         _ => "utility",
     }
 }
