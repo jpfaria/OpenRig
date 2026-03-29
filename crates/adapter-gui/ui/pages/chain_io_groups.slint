@@ -78,21 +78,20 @@ component IoGroupRow inherits Rectangle {
     // Remove button
     Rectangle {
         x: parent.width - 52px;
-        y: 10px;
-        width: 24px;
-        height: 32px;
+        y: 12px;
+        width: 28px;
+        height: 28px;
         border-radius: 4px;
         background: remove-hover.has-hover ? #2a1015 : transparent;
 
-        Text {
-            width: parent.width;
-            height: parent.height;
-            text: "—";
-            color: remove-hover.has-hover ? #ff4455 : #5a6270;
-            font-size: 16px;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
+        Image {
+            x: 4px;
+            y: 4px;
+            width: 20px;
+            height: 20px;
+            source: @image-url("../assets/trash.svg");
+            colorize: remove-hover.has-hover ? #ff4455 : #5a6270;
+            image-fit: contain;
         }
 
         remove-hover := TouchArea {
