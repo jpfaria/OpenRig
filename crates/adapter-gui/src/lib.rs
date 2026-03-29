@@ -5747,19 +5747,26 @@ fn replace_project_chains(
                 output_tooltip: chain_outputs_tooltip(chain, project, output_devices)
                 .into(),
                 latency_ms,
-                blocks: ModelRc::from(Rc::new(VecModel::from(
-                    chain
-                        .blocks
-                        .iter()
-                        .enumerate()
-                        .filter(|(_, b)| !matches!(&b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
-                        .map(|(real_idx, b)| {
-                            let mut item = chain_block_item_from_block(b);
-                            item.real_index = real_idx as i32;
-                            item
-                        })
-                        .collect::<Vec<_>>(),
-                ))),
+                blocks: {
+                    let first_input_idx = chain.blocks.iter().position(|b| matches!(&b.kind, AudioBlockKind::Input(_)));
+                    let last_output_idx = chain.blocks.iter().rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_)));
+                    ModelRc::from(Rc::new(VecModel::from(
+                        chain
+                            .blocks
+                            .iter()
+                            .enumerate()
+                            .filter(|(i, _)| {
+                                // Hide only the first Input (fixed chip) and last Output (fixed chip)
+                                Some(*i) != first_input_idx && Some(*i) != last_output_idx
+                            })
+                            .map(|(real_idx, b)| {
+                                let mut item = chain_block_item_from_block(b);
+                                item.real_index = real_idx as i32;
+                                item
+                            })
+                            .collect::<Vec<_>>(),
+                    )))
+                },
             }
         })
         .collect::<Vec<_>>();
