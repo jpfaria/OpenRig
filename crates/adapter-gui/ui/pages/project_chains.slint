@@ -807,8 +807,9 @@ component BlockChip inherits Rectangle {
     property <float> drag-origin-x: 0;
     property <float> drag-origin-y: 0;
 
-    width: 84px;
-    height: 100px;
+    width: root.block.hidden ? 0px : 84px;
+    height: root.block.hidden ? 0px : 100px;
+    visible: !root.block.hidden;
     background: transparent;
     border-width: 0px;
     border-radius: 6px;

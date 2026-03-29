@@ -5505,7 +5505,6 @@ fn replace_project_chains(
                     chain
                         .blocks
                         .iter()
-                        .filter(|b| !matches!(&b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
                         .map(chain_block_item_from_block)
                         .collect::<Vec<_>>(),
                 ))),
@@ -6590,7 +6589,10 @@ fn load_thumbnail_image(effect_type: &str, model_id: &str) -> (slint::Image, boo
     }
 }
 fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
+    let is_io = matches!(&block.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_));
     let (kind, label) = match &block.kind {
+        AudioBlockKind::Input(_) => ("input".to_string(), "input".to_string()),
+        AudioBlockKind::Output(_) => ("output".to_string(), "output".to_string()),
         AudioBlockKind::Select(select) => select
             .selected_option()
             .and_then(|option| option.model_ref())
@@ -6619,6 +6621,7 @@ fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
         label: label.into(),
         family: family.into(),
         enabled: block.enabled,
+        hidden: is_io,
         thumbnail,
         has_thumbnail,
         thumb_width,
