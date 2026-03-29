@@ -38,56 +38,58 @@ pub fn validate_project(project: &Project) -> Result<()> {
         // Validate each input block's entries
         for (_, input) in &input_blocks {
             for entry in &input.entries {
+                let entry_label = if entry.name.is_empty() { &input.model } else { &entry.name };
                 if entry.device_id.0.trim().is_empty() {
                     bail!(
                         "invalid project: chain '{}' input '{}' missing device_id",
                         chain.id.0,
-                        input.name
+                        entry_label
                     );
                 }
                 if entry.channels.is_empty() {
                     bail!(
                         "invalid project: chain '{}' input '{}' has no channels",
                         chain.id.0,
-                        input.name
+                        entry_label
                     );
                 }
                 validate_unique_channels(&entry.channels)
-                    .map_err(|error| anyhow!("invalid project: chain '{}' input '{}': {}", chain.id.0, input.name, error))?;
+                    .map_err(|error| anyhow!("invalid project: chain '{}' input '{}': {}", chain.id.0, entry_label, error))?;
             }
         }
 
         // Validate each output block's entries
         for (_, output) in &output_blocks {
             for entry in &output.entries {
+                let entry_label = if entry.name.is_empty() { &output.model } else { &entry.name };
                 if entry.device_id.0.trim().is_empty() {
                     bail!(
                         "invalid project: chain '{}' output '{}' missing device_id",
                         chain.id.0,
-                        output.name
+                        entry_label
                     );
                 }
                 if entry.channels.is_empty() {
                     bail!(
                         "invalid project: chain '{}' output '{}' has no channels",
                         chain.id.0,
-                        output.name
+                        entry_label
                     );
                 }
                 validate_unique_channels(&entry.channels)
-                    .map_err(|error| anyhow!("invalid project: chain '{}' output '{}': {}", chain.id.0, output.name, error))?;
+                    .map_err(|error| anyhow!("invalid project: chain '{}' output '{}': {}", chain.id.0, entry_label, error))?;
             }
         }
 
         // Use first input entry's channel count for layout determination
         let first_input = input_blocks.first().expect("validated non-empty");
         let first_input_entry = first_input.1.entries.first()
-            .ok_or_else(|| anyhow!("invalid project: chain '{}' input '{}' has no entries", chain.id.0, first_input.1.name))?;
+            .ok_or_else(|| anyhow!("invalid project: chain '{}' input '{}' has no entries", chain.id.0, first_input.1.model))?;
         let input_layout =
             layout_from_channel_count("chain input", &chain.id.0, first_input_entry.channels.len())?;
         let first_output = output_blocks.first().expect("validated non-empty");
         let first_output_entry = first_output.1.entries.first()
-            .ok_or_else(|| anyhow!("invalid project: chain '{}' output '{}' has no entries", chain.id.0, first_output.1.name))?;
+            .ok_or_else(|| anyhow!("invalid project: chain '{}' output '{}' has no entries", chain.id.0, first_output.1.model))?;
         layout_from_channel_count("chain output", &chain.id.0, first_output_entry.channels.len())?;
 
         // Validate only audio blocks (non-I/O)

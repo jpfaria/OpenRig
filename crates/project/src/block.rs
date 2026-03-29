@@ -50,6 +50,8 @@ pub enum AudioBlockKind {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputEntry {
+    #[serde(default)]
+    pub name: String,
     pub device_id: DeviceId,
     #[serde(default)]
     pub mode: ChainInputMode,
@@ -58,21 +60,29 @@ pub struct InputEntry {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OutputEntry {
+    #[serde(default)]
+    pub name: String,
     pub device_id: DeviceId,
     #[serde(default)]
     pub mode: ChainOutputMode,
     pub channels: Vec<usize>,
 }
 
+fn default_io_model() -> String {
+    "standard".to_string()
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputBlock {
-    pub name: String,
+    #[serde(default = "default_io_model")]
+    pub model: String,
     pub entries: Vec<InputEntry>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OutputBlock {
-    pub name: String,
+    #[serde(default = "default_io_model")]
+    pub model: String,
     pub entries: Vec<OutputEntry>,
 }
 
@@ -592,14 +602,16 @@ mod tests {
     #[test]
     fn input_block_supports_multiple_entries() {
         let input = InputBlock {
-            name: "Guitars".to_string(),
+            model: "standard".to_string(),
             entries: vec![
                 InputEntry {
+                    name: "Guitar 1".to_string(),
                     device_id: DeviceId("scarlett".into()),
                     mode: ChainInputMode::Mono,
                     channels: vec![0],
                 },
                 InputEntry {
+                    name: "Guitar 2".to_string(),
                     device_id: DeviceId("scarlett".into()),
                     mode: ChainInputMode::Mono,
                     channels: vec![1],
@@ -614,14 +626,16 @@ mod tests {
     #[test]
     fn output_block_supports_multiple_entries() {
         let output = OutputBlock {
-            name: "Monitors".to_string(),
+            model: "standard".to_string(),
             entries: vec![
                 OutputEntry {
+                    name: "Monitors".to_string(),
                     device_id: DeviceId("scarlett".into()),
                     mode: ChainOutputMode::Stereo,
                     channels: vec![0, 1],
                 },
                 OutputEntry {
+                    name: "Headphones".to_string(),
                     device_id: DeviceId("macbook".into()),
                     mode: ChainOutputMode::Stereo,
                     channels: vec![0, 1],
@@ -636,8 +650,9 @@ mod tests {
     #[test]
     fn input_block_single_entry_works() {
         let input = InputBlock {
-            name: "Guitar".to_string(),
+            model: "standard".to_string(),
             entries: vec![InputEntry {
+                name: "Guitar".to_string(),
                 device_id: DeviceId("scarlett".into()),
                 mode: ChainInputMode::Mono,
                 channels: vec![0],
@@ -649,14 +664,16 @@ mod tests {
     #[test]
     fn input_block_validates_no_duplicate_device_channels() {
         let input = InputBlock {
-            name: "Bad".to_string(),
+            model: "standard".to_string(),
             entries: vec![
                 InputEntry {
+                    name: "Input A".to_string(),
                     device_id: DeviceId("scarlett".into()),
                     mode: ChainInputMode::Mono,
                     channels: vec![0],
                 },
                 InputEntry {
+                    name: "Input B".to_string(),
                     device_id: DeviceId("scarlett".into()),
                     mode: ChainInputMode::Mono,
                     channels: vec![0], // duplicate!
@@ -671,14 +688,16 @@ mod tests {
     #[test]
     fn input_block_allows_different_channels_same_device() {
         let input = InputBlock {
-            name: "OK".to_string(),
+            model: "standard".to_string(),
             entries: vec![
                 InputEntry {
+                    name: "Input A".to_string(),
                     device_id: DeviceId("scarlett".into()),
                     mode: ChainInputMode::Mono,
                     channels: vec![0],
                 },
                 InputEntry {
+                    name: "Input B".to_string(),
                     device_id: DeviceId("scarlett".into()),
                     mode: ChainInputMode::Mono,
                     channels: vec![1],
@@ -691,14 +710,16 @@ mod tests {
     #[test]
     fn input_block_allows_same_channel_different_devices() {
         let input = InputBlock {
-            name: "OK".to_string(),
+            model: "standard".to_string(),
             entries: vec![
                 InputEntry {
+                    name: "Input A".to_string(),
                     device_id: DeviceId("scarlett".into()),
                     mode: ChainInputMode::Mono,
                     channels: vec![0],
                 },
                 InputEntry {
+                    name: "Input B".to_string(),
                     device_id: DeviceId("macbook".into()),
                     mode: ChainInputMode::Mono,
                     channels: vec![0],

@@ -356,6 +356,7 @@ fn effective_inputs(chain: &Chain) -> Vec<InputEntry> {
     }
     // Fallback — no InputBlocks defined
     vec![InputEntry {
+        name: "Input".to_string(),
         device_id: domain::ids::DeviceId("".to_string()),
         mode: ChainInputMode::Mono,
         channels: vec![0],
@@ -374,6 +375,7 @@ fn effective_outputs(chain: &Chain) -> Vec<OutputEntry> {
     }
     // Fallback — no OutputBlocks defined
     vec![OutputEntry {
+        name: "Output".to_string(),
         device_id: domain::ids::DeviceId("".to_string()),
         mode: ChainOutputMode::Mono,
         channels: vec![0],
@@ -1635,8 +1637,9 @@ mod tests {
                     id: BlockId("chain:stereo:input:0".into()),
                     enabled: true,
                     kind: AudioBlockKind::Input(InputBlock {
-                        name: "Input 1".to_string(),
+                        model: "standard".to_string(),
                         entries: vec![InputEntry {
+                            name: "Input 1".to_string(),
                             device_id: DeviceId("input-device".into()),
                             mode: ChainInputMode::Mono,
                             channels: vec![0, 1],
@@ -1651,8 +1654,9 @@ mod tests {
                     id: BlockId("chain:stereo:output:0".into()),
                     enabled: true,
                     kind: AudioBlockKind::Output(OutputBlock {
-                        name: "Output 1".to_string(),
+                        model: "standard".to_string(),
                         entries: vec![OutputEntry {
+                            name: "Output 1".to_string(),
                             device_id: DeviceId("output-device".into()),
                             mode: ChainOutputMode::Stereo,
                             channels: vec![0, 1],
@@ -1696,8 +1700,9 @@ mod tests {
                     id: BlockId("chain:asset-backed:input:0".into()),
                     enabled: true,
                     kind: AudioBlockKind::Input(InputBlock {
-                        name: "Input 1".to_string(),
+                        model: "standard".to_string(),
                         entries: vec![InputEntry {
+                            name: "Input 1".to_string(),
                             device_id: DeviceId("input-device".into()),
                             mode: ChainInputMode::Mono,
                             channels: vec![0, 1],
@@ -1711,8 +1716,9 @@ mod tests {
                     id: BlockId("chain:asset-backed:output:0".into()),
                     enabled: true,
                     kind: AudioBlockKind::Output(OutputBlock {
-                        name: "Output 1".to_string(),
+                        model: "standard".to_string(),
                         entries: vec![OutputEntry {
+                            name: "Output 1".to_string(),
                             device_id: DeviceId("output-device".into()),
                             mode: ChainOutputMode::Stereo,
                             channels: vec![0, 1],
