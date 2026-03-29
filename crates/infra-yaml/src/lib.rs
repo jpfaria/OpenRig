@@ -46,6 +46,7 @@ pub fn save_chain_preset_file(path: &Path, preset: &ChainBlocksPreset) -> Result
 pub fn serialize_audio_blocks(blocks: &[project::block::AudioBlock]) -> Result<Vec<Value>> {
     blocks
         .iter()
+        .filter(|block| !matches!(&block.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
         .map(|block| {
             Ok(serde_yaml::to_value(AudioBlockYaml::from_audio_block(
                 block,
@@ -148,6 +149,7 @@ impl PresetYaml {
             blocks: preset
                 .blocks
                 .iter()
+                .filter(|block| !matches!(&block.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
                 .map(|block| {
                     Ok(serde_yaml::to_value(AudioBlockYaml::from_audio_block(
                         block,
