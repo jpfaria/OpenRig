@@ -5505,7 +5505,13 @@ fn replace_project_chains(
                     chain
                         .blocks
                         .iter()
-                        .map(chain_block_item_from_block)
+                        .enumerate()
+                        .filter(|(_, b)| !matches!(&b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
+                        .map(|(real_idx, b)| {
+                            let mut item = chain_block_item_from_block(b);
+                            item.real_index = real_idx as i32;
+                            item
+                        })
                         .collect::<Vec<_>>(),
                 ))),
             }
@@ -6589,7 +6595,6 @@ fn load_thumbnail_image(effect_type: &str, model_id: &str) -> (slint::Image, boo
     }
 }
 fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
-    let is_io = matches!(&block.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_));
     let (kind, label) = match &block.kind {
         AudioBlockKind::Input(_) => ("input".to_string(), "input".to_string()),
         AudioBlockKind::Output(_) => ("output".to_string(), "output".to_string()),
@@ -6621,7 +6626,7 @@ fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
         label: label.into(),
         family: family.into(),
         enabled: block.enabled,
-        hidden: is_io,
+        real_index: 0,
         thumbnail,
         has_thumbnail,
         thumb_width,
