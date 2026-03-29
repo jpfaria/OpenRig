@@ -2515,6 +2515,7 @@ pub fn run_desktop_app(
             groups_window
                 .set_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
             groups_window.set_status_message("".into());
+            groups_window.set_show_block_controls(false);
             *chain_draft.borrow_mut() = Some(draft);
             show_child_window(window.window(), groups_window.window());
         });
@@ -2564,6 +2565,7 @@ pub fn run_desktop_app(
             groups_window
                 .set_groups(ModelRc::from(Rc::new(VecModel::from(output_items))));
             groups_window.set_status_message("".into());
+            groups_window.set_show_block_controls(false);
             *chain_draft.borrow_mut() = Some(draft);
             show_child_window(window.window(), groups_window.window());
         });
@@ -3113,6 +3115,74 @@ pub fn run_desktop_app(
             let _ = groups_window.hide();
         });
     }
+    {
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        let project_runtime = project_runtime.clone();
+        let project_chains = project_chains.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let weak_window = window.as_weak();
+        let weak_groups_window = chain_input_groups_window.as_weak();
+        chain_input_groups_window.on_toggle_enabled(move || {
+            let Some(window) = weak_window.upgrade() else { return; };
+            let Some(gw) = weak_groups_window.upgrade() else { return; };
+            let draft_borrow = chain_draft.borrow();
+            let Some(draft) = draft_borrow.as_ref() else { return; };
+            let Some(chain_idx) = draft.editing_index else { return; };
+            let Some(block_idx) = draft.editing_io_block_index else { return; };
+            drop(draft_borrow);
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else { return; };
+            let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
+            let Some(block) = chain.blocks.get_mut(block_idx) else { return; };
+            block.enabled = !block.enabled;
+            gw.set_block_enabled(block.enabled);
+            let chain_id = chain.id.clone();
+            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                log::error!("toggle I/O block enabled: {e}");
+            }
+            replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+        });
+    }
+    {
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        let project_runtime = project_runtime.clone();
+        let project_chains = project_chains.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let weak_window = window.as_weak();
+        let weak_groups_window = chain_input_groups_window.as_weak();
+        chain_input_groups_window.on_delete_block(move || {
+            let Some(window) = weak_window.upgrade() else { return; };
+            let Some(gw) = weak_groups_window.upgrade() else { return; };
+            let draft_borrow = chain_draft.borrow();
+            let Some(draft) = draft_borrow.as_ref() else { return; };
+            let Some(chain_idx) = draft.editing_index else { return; };
+            let Some(block_idx) = draft.editing_io_block_index else { return; };
+            drop(draft_borrow);
+            *chain_draft.borrow_mut() = None;
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else { return; };
+            let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
+            if block_idx < chain.blocks.len() {
+                chain.blocks.remove(block_idx);
+            }
+            let chain_id = chain.id.clone();
+            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                log::error!("delete I/O block: {e}");
+            }
+            replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            let _ = gw.hide();
+        });
+    }
     // --- ChainOutputGroupsWindow callbacks ---
     {
         let weak_window = window.as_weak();
@@ -3339,6 +3409,74 @@ pub fn run_desktop_app(
         });
     }
     {
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        let project_runtime = project_runtime.clone();
+        let project_chains = project_chains.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let weak_window = window.as_weak();
+        let weak_groups_window = chain_output_groups_window.as_weak();
+        chain_output_groups_window.on_toggle_enabled(move || {
+            let Some(window) = weak_window.upgrade() else { return; };
+            let Some(gw) = weak_groups_window.upgrade() else { return; };
+            let draft_borrow = chain_draft.borrow();
+            let Some(draft) = draft_borrow.as_ref() else { return; };
+            let Some(chain_idx) = draft.editing_index else { return; };
+            let Some(block_idx) = draft.editing_io_block_index else { return; };
+            drop(draft_borrow);
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else { return; };
+            let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
+            let Some(block) = chain.blocks.get_mut(block_idx) else { return; };
+            block.enabled = !block.enabled;
+            gw.set_block_enabled(block.enabled);
+            let chain_id = chain.id.clone();
+            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                log::error!("toggle I/O block enabled: {e}");
+            }
+            replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+        });
+    }
+    {
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        let project_runtime = project_runtime.clone();
+        let project_chains = project_chains.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let weak_window = window.as_weak();
+        let weak_groups_window = chain_output_groups_window.as_weak();
+        chain_output_groups_window.on_delete_block(move || {
+            let Some(window) = weak_window.upgrade() else { return; };
+            let Some(gw) = weak_groups_window.upgrade() else { return; };
+            let draft_borrow = chain_draft.borrow();
+            let Some(draft) = draft_borrow.as_ref() else { return; };
+            let Some(chain_idx) = draft.editing_index else { return; };
+            let Some(block_idx) = draft.editing_io_block_index else { return; };
+            drop(draft_borrow);
+            *chain_draft.borrow_mut() = None;
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else { return; };
+            let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
+            if block_idx < chain.blocks.len() {
+                chain.blocks.remove(block_idx);
+            }
+            let chain_id = chain.id.clone();
+            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                log::error!("delete I/O block: {e}");
+            }
+            replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            let _ = gw.hide();
+        });
+    }
+    {
         let weak_main_window = window.as_weak();
         let selected_block = selected_block.clone();
         let block_editor_draft = block_editor_draft.clone();
@@ -3391,6 +3529,8 @@ pub fn run_desktop_app(
                     if let Some(gw) = weak_input_groups_for_select.upgrade() {
                         gw.set_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
                         gw.set_status_message("".into());
+                        gw.set_show_block_controls(true);
+                        gw.set_block_enabled(block.enabled);
                         *chain_draft_for_select.borrow_mut() = Some(draft);
                         drop(session_borrow);
                         show_child_window(window.window(), gw.window());
@@ -3411,6 +3551,8 @@ pub fn run_desktop_app(
                     if let Some(gw) = weak_output_groups_for_select.upgrade() {
                         gw.set_groups(ModelRc::from(Rc::new(VecModel::from(output_items))));
                         gw.set_status_message("".into());
+                        gw.set_show_block_controls(true);
+                        gw.set_block_enabled(block.enabled);
                         *chain_draft_for_select.borrow_mut() = Some(draft);
                         drop(session_borrow);
                         show_child_window(window.window(), gw.window());
