@@ -187,6 +187,25 @@ After writing code:
 - [ ] Removed something? → remove from CLAUDE.md too, no stale documentation
 - [ ] Documentation is part of the task — not a separate step. If you change code, you change docs in the same commit
 
+### 12. Mandatory Documentation on Every Feature/Change
+
+- [ ] **Every PR must include doc updates** — CLAUDE.md, AGENTS.md, issue description
+- [ ] **New block types** → add to "Tipos de bloco" table in CLAUDE.md, update YAML examples
+- [ ] **New data model structs** → document in CLAUDE.md architecture section and AGENTS.md
+- [ ] **New audio processing behavior** → document in CLAUDE.md "Configuração de áudio" section
+- [ ] **Issue closed** → update issue with final status, what was done, what's pending
+- [ ] **Specs and plans** → keep in `docs/superpowers/specs/` and `docs/superpowers/plans/`, update when design changes
+- [ ] **NEVER close a PR without updating docs** — undocumented features are technical debt
+
+### Anti-Pattern
+```
+❌ Merge PR with 54 commits and no doc updates
+   // WRONG: features become invisible, next developer has no context
+
+✅ Every PR updates CLAUDE.md, AGENTS.md, and closes the issue with summary
+   // RIGHT: docs always reflect current state
+```
+
 ## Living Document
 
 This skill is a LIVING DOCUMENT. Every time the user corrects a software engineering mistake:
