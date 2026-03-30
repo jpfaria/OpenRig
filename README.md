@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="crates/adapter-gui/ui/assets/openrig-logomark.svg" alt="OpenRig logomark" height="120">&nbsp;&nbsp;<img src="crates/adapter-gui/ui/assets/openrig-logotype.png" alt="OpenRig" height="120">
+  <img src="crates/adapter-gui/ui/assets/openrig-logomark.svg" alt="OpenRig logomark" height="120"><img src="crates/adapter-gui/ui/assets/openrig-logotype.png" alt="OpenRig" height="120">
 </p>
 
 <p align="center">
