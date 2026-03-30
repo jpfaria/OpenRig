@@ -316,18 +316,7 @@ pub fn build_runtime_graph(
 pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<ChainRuntimeState> {
     let eff_inputs = effective_inputs(chain);
     let eff_outputs = effective_outputs(chain);
-    log::info!("[build_chain_runtime] chain='{}' eff_inputs={} eff_outputs={}", chain.id.0, eff_inputs.len(), eff_outputs.len());
-    for (i, inp) in eff_inputs.iter().enumerate() {
-        log::info!("[build_chain_runtime]   input[{}]: name='{}' device='{}' channels={:?}", i, inp.name, inp.device_id.0, inp.channels);
-    }
-    for (i, out) in eff_outputs.iter().enumerate() {
-        log::info!("[build_chain_runtime]   output[{}]: name='{}' device='{}' channels={:?}", i, out.name, out.device_id.0, out.channels);
-    }
     let segments = split_chain_into_segments(chain, &eff_inputs, &eff_outputs);
-    log::info!("[build_chain_runtime] segments={}", segments.len());
-    for (i, seg) in segments.iter().enumerate() {
-        log::info!("[build_chain_runtime]   segment[{}]: input='{}' blocks={:?} output_routes={:?}", i, seg.input.name, seg.block_indices, seg.output_route_indices);
-    }
 
     let mut input_states = Vec::with_capacity(segments.len());
     for segment in &segments {
@@ -693,18 +682,7 @@ pub fn update_chain_runtime_state(
 ) -> Result<()> {
     let effective_ins = effective_inputs(chain);
     let effective_outs = effective_outputs(chain);
-    log::info!("[update_runtime] chain='{}' inputs={} outputs={}", chain.id.0, effective_ins.len(), effective_outs.len());
-    for (i, inp) in effective_ins.iter().enumerate() {
-        log::info!("[update_runtime]   in[{}]: '{}' dev='{}' ch={:?}", i, inp.name, inp.device_id.0, inp.channels);
-    }
-    for (i, out) in effective_outs.iter().enumerate() {
-        log::info!("[update_runtime]   out[{}]: '{}' dev='{}' ch={:?}", i, out.name, out.device_id.0, out.channels);
-    }
     let segments = split_chain_into_segments(chain, &effective_ins, &effective_outs);
-    log::info!("[update_runtime] segments={}", segments.len());
-    for (i, seg) in segments.iter().enumerate() {
-        log::info!("[update_runtime]   seg[{}]: in='{}' blocks={:?} out_routes={:?}", i, seg.input.name, seg.block_indices, seg.output_route_indices);
-    }
 
     // Step 1: Extract existing blocks from all input states (brief lock)
     let mut existing_per_input: Vec<Vec<BlockRuntimeNode>> = {
@@ -1422,28 +1400,13 @@ pub fn process_input_f32(
     // Collect processed frames and output routing info, then release processing lock
     let processed: Vec<AudioFrame> = input_state.frame_buffer.drain(..).collect();
     let segment_routes = input_state.output_route_indices.clone();
-    if input_index == 0 {
-        static INPUT0_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-        let c = INPUT0_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        if c % 1000 == 0 {
-            log::info!("[process_input] idx=0 frames={} routes={:?} (call #{})", processed.len(), segment_routes, c);
-        }
-    }
     drop(processing);
 
     // Mix processed frames into this segment's output routes only.
     // If the queue already has frames (from another input), sum them.
     // Otherwise, push new frames.
     match runtime.output.try_lock() {
-        Err(_) => {
-            if input_index == 0 {
-                static LOCK_FAIL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-                let c = LOCK_FAIL.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                if c % 100 == 0 {
-                    log::warn!("[process_input] idx=0 OUTPUT LOCK FAILED (#{}) — {} frames DROPPED", c, processed.len());
-                }
-            }
-        }
+        Err(_) => {}
         Ok(mut output) => {
         let route_indices = if segment_routes.is_empty() {
             // Legacy: push to all output routes
@@ -1585,16 +1548,6 @@ pub fn process_output_f32(
         }
     };
     let num_frames = out.len() / output_total_channels;
-    let queue_len = route.queue.len();
-    // Log ALL output calls for Insert send (output_index > 0)
-    if output_index > 0 {
-        static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-        let c = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        if c % 1000 == 0 {
-            log::warn!("[process_output] idx={} queue_len={} num_frames={} (call #{})", output_index, queue_len, num_frames, c);
-        }
-    }
-
     for frame in out.chunks_mut(output_total_channels).take(num_frames) {
         frame.fill(0.0);
         let processed = route
