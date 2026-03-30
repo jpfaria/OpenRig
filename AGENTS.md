@@ -54,6 +54,18 @@ These instructions apply to the entire repository unless a deeper `AGENTS.md` ov
 - Clean obvious unused imports or warnings introduced by your changes.
 - Tolerate temporary `dead_code` in broader domain modeling only when it supports the intended architecture.
 
+## I/O Blocks Architecture
+
+- `InputBlock`, `OutputBlock`, and `InsertBlock` are `AudioBlockKind` variants stored in `chain.blocks`.
+- The first block in a chain is always a fixed Input; the last block is always a fixed Output.
+- Extra I/O blocks (Input, Output, Insert) can be placed anywhere in the middle of the chain.
+- Each Input creates an isolated parallel audio stream (independent processing instance).
+- Output is a non-destructive tap — it copies the signal without interrupting the chain flow.
+- Insert splits the chain into segments — each segment has its own effect blocks and output routes. When disabled, the signal bypasses (passes through).
+- `InputBlock` and `OutputBlock` have a `model` field (default "standard") and `entries` (Vec of InputEntry/OutputEntry). The `name` lives on each entry, not on the block itself.
+- `InsertBlock` has `model`, `send: InsertEndpoint`, and `return_: InsertEndpoint`.
+- **Save behavior**: updating an I/O block only saves that specific block — it never reconstructs the entire chain.
+
 ## Task Execution Strategy
 
 Before implementing any issue, evaluate its complexity:
