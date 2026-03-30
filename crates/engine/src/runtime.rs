@@ -1445,12 +1445,8 @@ pub fn process_input_f32(
             }
         }
         Ok(mut output) => {
-        let route_indices = if segment_routes.is_empty() {
-            // Legacy: push to all output routes
-            (0..output.output_routes.len()).collect::<Vec<_>>()
-        } else {
-            segment_routes
-        };
+        // TEMP: always push to all routes to diagnose Insert issue
+        let route_indices: Vec<usize> = (0..output.output_routes.len()).collect();
         for &route_idx in &route_indices {
             if let Some(route) = output.output_routes.get_mut(route_idx) {
                 let existing_len = route.queue.len();
