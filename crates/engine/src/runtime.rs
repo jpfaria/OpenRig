@@ -316,7 +316,18 @@ pub fn build_runtime_graph(
 pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<ChainRuntimeState> {
     let eff_inputs = effective_inputs(chain);
     let eff_outputs = effective_outputs(chain);
+    log::info!("[build_chain_runtime] chain='{}' eff_inputs={} eff_outputs={}", chain.id.0, eff_inputs.len(), eff_outputs.len());
+    for (i, inp) in eff_inputs.iter().enumerate() {
+        log::info!("[build_chain_runtime]   input[{}]: name='{}' device='{}' channels={:?}", i, inp.name, inp.device_id.0, inp.channels);
+    }
+    for (i, out) in eff_outputs.iter().enumerate() {
+        log::info!("[build_chain_runtime]   output[{}]: name='{}' device='{}' channels={:?}", i, out.name, out.device_id.0, out.channels);
+    }
     let segments = split_chain_into_segments(chain, &eff_inputs, &eff_outputs);
+    log::info!("[build_chain_runtime] segments={}", segments.len());
+    for (i, seg) in segments.iter().enumerate() {
+        log::info!("[build_chain_runtime]   segment[{}]: input='{}' blocks={:?} output_routes={:?}", i, seg.input.name, seg.block_indices, seg.output_route_indices);
+    }
 
     let mut input_states = Vec::with_capacity(segments.len());
     for segment in &segments {
