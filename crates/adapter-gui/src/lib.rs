@@ -4372,6 +4372,10 @@ pub fn run_desktop_app(
         let weak_input_window_for_type = chain_input_window.as_weak();
         let weak_output_window_for_type = chain_output_window.as_weak();
         let project_session_for_type = project_session.clone();
+        let project_runtime_for_type = project_runtime.clone();
+        let project_chains_for_type = project_chains.clone();
+        let saved_project_snapshot_for_type = saved_project_snapshot.clone();
+        let project_dirty_for_type = project_dirty.clone();
         let input_chain_devices_for_type = input_chain_devices.clone();
         let output_chain_devices_for_type = output_chain_devices.clone();
         let chain_input_channels_for_type = chain_input_channels.clone();
@@ -4424,6 +4428,12 @@ pub fn run_desktop_app(
                 let Some(session) = session_borrow.as_mut() else { return; };
                 let Some(chain) = session.project.chains.get_mut(chain_index) else { return; };
                 chain.blocks.insert(before_index, insert_block);
+                let chain_id = chain.id.clone();
+                if let Err(e) = sync_live_chain_runtime(&project_runtime_for_type, session, &chain_id) {
+                    log::error!("insert block create error: {e}");
+                }
+                replace_project_chains(&project_chains_for_type, &session.project, &input_chain_devices_for_type, &output_chain_devices_for_type);
+                sync_project_dirty(&window, session, &saved_project_snapshot_for_type, &project_dirty_for_type);
                 window.set_show_block_type_picker(false);
                 return;
             }
