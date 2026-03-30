@@ -1,4 +1,6 @@
 <p align="center">
+  <img src="crates/adapter-gui/ui/assets/openrig-logomark.svg" alt="OpenRig" width="80">
+  <br>
   <img src="crates/adapter-gui/ui/assets/openrig-logotype.png" alt="OpenRig" width="400">
 </p>
 
