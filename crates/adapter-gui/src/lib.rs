@@ -733,16 +733,15 @@ pub fn run_desktop_app(
     // --- ChainInsertWindow callbacks ---
     {
         let insert_draft = insert_draft.clone();
-        let chain_output_device_options = chain_output_device_options.clone();
+        let output_chain_devices = output_chain_devices.clone();
         let insert_send_channels = insert_send_channels.clone();
         chain_insert_window.on_select_send_device(move |index| {
-            let fresh_output = refresh_output_devices(&chain_output_device_options);
-            let Some(device) = fresh_output.get(index as usize) else { return; };
+            let Some(device) = output_chain_devices.get(index as usize) else { return; };
             let mut draft_borrow = insert_draft.borrow_mut();
             let Some(draft) = draft_borrow.as_mut() else { return; };
             draft.send_device_id = Some(device.id.clone());
             draft.send_channels.clear();
-            let items = build_insert_send_channel_items(draft, &fresh_output);
+            let items = build_insert_send_channel_items(draft, &output_chain_devices);
             replace_channel_options(&insert_send_channels, items);
         });
     }
@@ -777,16 +776,15 @@ pub fn run_desktop_app(
     }
     {
         let insert_draft = insert_draft.clone();
-        let chain_input_device_options = chain_input_device_options.clone();
+        let input_chain_devices = input_chain_devices.clone();
         let insert_return_channels = insert_return_channels.clone();
         chain_insert_window.on_select_return_device(move |index| {
-            let fresh_input = refresh_input_devices(&chain_input_device_options);
-            let Some(device) = fresh_input.get(index as usize) else { return; };
+            let Some(device) = input_chain_devices.get(index as usize) else { return; };
             let mut draft_borrow = insert_draft.borrow_mut();
             let Some(draft) = draft_borrow.as_mut() else { return; };
             draft.return_device_id = Some(device.id.clone());
             draft.return_channels.clear();
-            let items = build_insert_return_channel_items(draft, &fresh_input);
+            let items = build_insert_return_channel_items(draft, &input_chain_devices);
             replace_channel_options(&insert_return_channels, items);
         });
     }
