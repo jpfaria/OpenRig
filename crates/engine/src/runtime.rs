@@ -1586,12 +1586,12 @@ pub fn process_output_f32(
     };
     let num_frames = out.len() / output_total_channels;
     let queue_len = route.queue.len();
-    if queue_len == 0 && output_index > 0 {
-        // Log only for non-primary outputs (Insert send) to avoid spam
+    // Log ALL output calls for Insert send (output_index > 0)
+    if output_index > 0 {
         static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let c = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         if c % 1000 == 0 {
-            log::warn!("[process_output] output_index={} queue EMPTY (call #{})", output_index, c);
+            log::warn!("[process_output] idx={} queue_len={} num_frames={} (call #{})", output_index, queue_len, num_frames, c);
         }
     }
 
