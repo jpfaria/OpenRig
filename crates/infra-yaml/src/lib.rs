@@ -2,12 +2,12 @@ use anyhow::{anyhow, Context, Result};
 use domain::ids::{BlockId, DeviceId, ChainId};
 use domain::value_objects::ParameterValue;
 use project::block::{
-    normalize_block_params, AudioBlock, AudioBlockKind, CoreBlock, NamBlock, SelectBlock,
+    normalize_block_params, AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, InsertBlock, InsertEndpoint, NamBlock, OutputBlock, OutputEntry, SelectBlock,
 };
 use project::device::DeviceSettings;
 use project::param::ParameterSet;
 use project::project::Project;
-use project::chain::{Chain, ChainInput, ChainInputMode, ChainOutput, ChainOutputMixdown, ChainOutputMode};
+use project::chain::{Chain, ChainInputMode, ChainOutputMixdown, ChainOutputMode};
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 use std::fs;
@@ -41,6 +41,11 @@ pub fn save_chain_preset_file(path: &Path, preset: &ChainBlocksPreset) -> Result
     }
     fs::write(path, serde_yaml::to_string(&dto)?)?;
     Ok(())
+}
+
+pub fn serialize_project(project: &Project) -> Result<String> {
+    let dto = ProjectYaml::from_project(project)?;
+    Ok(serde_yaml::to_string(&dto)?)
 }
 
 pub fn serialize_audio_blocks(blocks: &[project::block::AudioBlock]) -> Result<Vec<Value>> {
@@ -186,8 +191,8 @@ impl DeviceSettingsYaml {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct ChainInputYaml {
-    #[serde(default = "default_input_yaml_name")]
+struct ChainInputEntryYaml {
+    #[serde(default)]
     name: String,
     device_id: String,
     #[serde(default)]
@@ -195,13 +200,32 @@ struct ChainInputYaml {
     channels: Vec<usize>,
 }
 
-fn default_input_yaml_name() -> String {
-    "Input".to_string()
+#[derive(Debug, Deserialize, Serialize)]
+struct ChainInputYaml {
+    #[serde(default = "default_io_yaml_model")]
+    model: String,
+    // Legacy: name field migrated to entry-level
+    #[serde(default, skip_serializing)]
+    name: String,
+    // New format: entries list
+    #[serde(default)]
+    entries: Vec<ChainInputEntryYaml>,
+    // Legacy format: single device_id/mode/channels (for backward compat)
+    #[serde(default, skip_serializing)]
+    device_id: Option<String>,
+    #[serde(default, skip_serializing)]
+    mode: Option<ChainInputMode>,
+    #[serde(default, skip_serializing)]
+    channels: Option<Vec<usize>>,
+}
+
+fn default_io_yaml_model() -> String {
+    "standard".to_string()
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct ChainOutputYaml {
-    #[serde(default = "default_output_yaml_name")]
+struct ChainOutputEntryYaml {
+    #[serde(default)]
     name: String,
     device_id: String,
     #[serde(default)]
@@ -209,8 +233,23 @@ struct ChainOutputYaml {
     channels: Vec<usize>,
 }
 
-fn default_output_yaml_name() -> String {
-    "Output".to_string()
+#[derive(Debug, Deserialize, Serialize)]
+struct ChainOutputYaml {
+    #[serde(default = "default_io_yaml_model")]
+    model: String,
+    // Legacy: name field migrated to entry-level
+    #[serde(default, skip_serializing)]
+    name: String,
+    // New format: entries list
+    #[serde(default)]
+    entries: Vec<ChainOutputEntryYaml>,
+    // Legacy format: single device_id/mode/channels (for backward compat)
+    #[serde(default, skip_serializing)]
+    device_id: Option<String>,
+    #[serde(default, skip_serializing)]
+    mode: Option<ChainOutputMode>,
+    #[serde(default, skip_serializing)]
+    channels: Option<Vec<usize>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -222,10 +261,10 @@ struct ChainYaml {
     instrument: String,
     #[serde(default = "default_enabled", skip_serializing)]
     enabled: bool,
-    // New multi-input/output fields
-    #[serde(default)]
+    // Legacy multi-input/output fields — kept for backward-compatible deserialization, skipped on serialization
+    #[serde(default, skip_serializing)]
     inputs: Vec<ChainInputYaml>,
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     outputs: Vec<ChainOutputYaml>,
     // Legacy fields — kept for backward-compatible deserialization, skipped on serialization
     #[serde(default, skip_serializing)]
@@ -249,88 +288,177 @@ impl ChainYaml {
         let chain_id = generated_chain_id(index);
         log::debug!("deserializing chain index={}, description={:?}, instrument='{}'", index, self.description, self.instrument);
 
-        // Convert new-format inputs/outputs from YAML DTOs
-        let inputs: Vec<ChainInput> = self.inputs.into_iter().map(|i| ChainInput {
-            name: i.name,
-            device_id: DeviceId(i.device_id),
-            mode: i.mode,
-            channels: i.channels,
+        // Parse all blocks from the blocks array (new format may include input/output blocks inline)
+        let parsed_blocks: Vec<AudioBlock> = self
+            .blocks
+            .into_iter()
+            .enumerate()
+            .filter_map(|(block_index, block)| {
+                load_audio_block_value(block, &chain_id, block_index)
+            })
+            .collect();
+
+        // Check if blocks already contain Input/Output (new inline format)
+        let has_inline_inputs = parsed_blocks.iter().any(|b| matches!(&b.kind, AudioBlockKind::Input(_)));
+        let has_inline_outputs = parsed_blocks.iter().any(|b| matches!(&b.kind, AudioBlockKind::Output(_)));
+
+        if has_inline_inputs || has_inline_outputs {
+            // New format: blocks already contain I/O inline, use as-is
+            let chain = Chain {
+                id: chain_id.clone(),
+                description: self.description,
+                instrument: self.instrument,
+                enabled: false,
+                blocks: parsed_blocks,
+            };
+            return Ok(chain);
+        }
+
+        // Old format: convert separate inputs/outputs sections to blocks
+        let mut input_blocks: Vec<AudioBlock> = self.inputs.into_iter().enumerate().map(|(i, inp)| {
+            let legacy_name = if inp.name.is_empty() { format!("Input {}", i + 1) } else { inp.name };
+            let entries = if !inp.entries.is_empty() {
+                inp.entries.into_iter().map(|e| InputEntry {
+                    name: if e.name.is_empty() { legacy_name.clone() } else { e.name },
+                    device_id: DeviceId(e.device_id),
+                    mode: e.mode,
+                    channels: e.channels,
+                }).collect()
+            } else if let Some(device_id) = inp.device_id {
+                vec![InputEntry {
+                    name: legacy_name,
+                    device_id: DeviceId(device_id),
+                    mode: inp.mode.unwrap_or_default(),
+                    channels: inp.channels.unwrap_or_default(),
+                }]
+            } else {
+                Vec::new()
+            };
+            AudioBlock {
+                id: BlockId(format!("{}:input:{}", chain_id.0, i)),
+                enabled: true,
+                kind: AudioBlockKind::Input(InputBlock {
+                    model: inp.model,
+                    entries,
+                }),
+            }
         }).collect();
 
-        let outputs: Vec<ChainOutput> = self.outputs.into_iter().map(|o| ChainOutput {
-            name: o.name,
-            device_id: DeviceId(o.device_id),
-            mode: o.mode,
-            channels: o.channels,
+        let mut output_blocks: Vec<AudioBlock> = self.outputs.into_iter().enumerate().map(|(i, out)| {
+            let legacy_name = if out.name.is_empty() { format!("Output {}", i + 1) } else { out.name };
+            let entries = if !out.entries.is_empty() {
+                out.entries.into_iter().map(|e| OutputEntry {
+                    name: if e.name.is_empty() { legacy_name.clone() } else { e.name },
+                    device_id: DeviceId(e.device_id),
+                    mode: e.mode,
+                    channels: e.channels,
+                }).collect()
+            } else if let Some(device_id) = out.device_id {
+                vec![OutputEntry {
+                    name: legacy_name,
+                    device_id: DeviceId(device_id),
+                    mode: out.mode.unwrap_or_default(),
+                    channels: out.channels.unwrap_or_default(),
+                }]
+            } else {
+                Vec::new()
+            };
+            AudioBlock {
+                id: BlockId(format!("{}:output:{}", chain_id.0, i)),
+                enabled: true,
+                kind: AudioBlockKind::Output(OutputBlock {
+                    model: out.model,
+                    entries,
+                }),
+            }
         }).collect();
 
-        let mut chain = Chain {
+        // Oldest legacy format: single input_device_id/output_device_id fields
+        if input_blocks.is_empty() {
+            let legacy_device = self.input_device_id.unwrap_or_default();
+            if !legacy_device.is_empty() {
+                input_blocks.push(AudioBlock {
+                    id: BlockId(format!("{}:input:0", chain_id.0)),
+                    enabled: true,
+                    kind: AudioBlockKind::Input(InputBlock {
+                        model: "standard".to_string(),
+                        entries: vec![InputEntry {
+                            name: "Input 1".to_string(),
+                            device_id: DeviceId(legacy_device),
+                            mode: self.input_mode,
+                            channels: self.input_channels.unwrap_or_default(),
+                        }],
+                    }),
+                });
+            }
+        }
+        if output_blocks.is_empty() {
+            let legacy_device = self.output_device_id.unwrap_or_default();
+            if !legacy_device.is_empty() {
+                let legacy_channels = self.output_channels.unwrap_or_default();
+                let mode = if legacy_channels.len() >= 2 {
+                    ChainOutputMode::Stereo
+                } else {
+                    ChainOutputMode::Mono
+                };
+                output_blocks.push(AudioBlock {
+                    id: BlockId(format!("{}:output:0", chain_id.0)),
+                    enabled: true,
+                    kind: AudioBlockKind::Output(OutputBlock {
+                        model: "standard".to_string(),
+                        entries: vec![OutputEntry {
+                            name: "Output 1".to_string(),
+                            device_id: DeviceId(legacy_device),
+                            mode,
+                            channels: legacy_channels,
+                        }],
+                    }),
+                });
+            }
+        }
+
+        // Build blocks: inputs first, then audio blocks, then outputs
+        let mut all_blocks = Vec::with_capacity(input_blocks.len() + parsed_blocks.len() + output_blocks.len());
+        all_blocks.extend(input_blocks);
+        all_blocks.extend(parsed_blocks);
+        all_blocks.extend(output_blocks);
+
+        let chain = Chain {
             id: chain_id.clone(),
             description: self.description,
             instrument: self.instrument,
-            enabled: false, // chains always start disabled on load
-            inputs,
-            outputs,
-            input_device_id: DeviceId(self.input_device_id.unwrap_or_default()),
-            input_channels: self.input_channels.unwrap_or_default(),
-            output_device_id: DeviceId(self.output_device_id.unwrap_or_default()),
-            output_channels: self.output_channels.unwrap_or_default(),
-            blocks: self
-                .blocks
-                .into_iter()
-                .enumerate()
-                .filter_map(|(block_index, block)| {
-                    load_audio_block_value(block, &chain_id, block_index)
-                })
-                .collect(),
-            output_mixdown: self.output_mixdown,
-            input_mode: self.input_mode,
+            enabled: false,
+            blocks: all_blocks,
         };
-
-        // Migrate legacy single-input/output to multi-input/output if needed
-        chain.migrate_legacy_io();
 
         Ok(chain)
     }
 
     fn from_chain(chain: &Chain) -> Result<Self> {
-        // Serialize using new inputs/outputs format
-        let inputs = chain.inputs.iter().map(|i| ChainInputYaml {
-            name: i.name.clone(),
-            device_id: i.device_id.0.clone(),
-            mode: i.mode,
-            channels: i.channels.clone(),
-        }).collect();
-
-        let outputs = chain.outputs.iter().map(|o| ChainOutputYaml {
-            name: o.name.clone(),
-            device_id: o.device_id.0.clone(),
-            mode: o.mode,
-            channels: o.channels.clone(),
-        }).collect();
+        // All blocks (including I/O) go into the blocks array
+        let audio_blocks: Vec<Value> = chain
+            .blocks
+            .iter()
+            .map(|block| {
+                Ok(serde_yaml::to_value(AudioBlockYaml::from_audio_block(
+                    block,
+                )?)?)
+            })
+            .collect::<Result<Vec<_>>>()?;
 
         Ok(Self {
             description: chain.description.clone(),
             instrument: chain.instrument.clone(),
             enabled: chain.enabled,
-            inputs,
-            outputs,
-            // Legacy fields are None when serializing new format
+            inputs: Vec::new(),
+            outputs: Vec::new(),
             input_device_id: None,
             input_channels: None,
             output_device_id: None,
             output_channels: None,
-            blocks: chain
-                .blocks
-                .iter()
-                .map(|block| {
-                    Ok(serde_yaml::to_value(AudioBlockYaml::from_audio_block(
-                        block,
-                    )?)?)
-                })
-                .collect::<Result<Vec<_>>>()?,
-            output_mixdown: chain.output_mixdown,
-            input_mode: chain.input_mode,
+            blocks: audio_blocks,
+            output_mixdown: ChainOutputMixdown::Average,
+            input_mode: ChainInputMode::default(),
         })
     }
 }
@@ -476,6 +604,64 @@ enum AudioBlockYaml {
         selected: String,
         options: Vec<SelectOptionYaml>,
     },
+    #[serde(rename = "input")]
+    Input {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
+        #[serde(default = "default_io_yaml_model")]
+        model: String,
+        // Legacy: name field migrated to entry-level
+        #[serde(default, skip_serializing)]
+        name: String,
+        #[serde(default)]
+        entries: Vec<ChainInputEntryYaml>,
+        // Legacy single-entry fields for backward compat
+        #[serde(default, skip_serializing)]
+        device_id: Option<String>,
+        #[serde(default, skip_serializing)]
+        mode: Option<ChainInputMode>,
+        #[serde(default, skip_serializing)]
+        channels: Option<Vec<usize>>,
+    },
+    #[serde(rename = "output")]
+    Output {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
+        #[serde(default = "default_io_yaml_model")]
+        model: String,
+        // Legacy: name field migrated to entry-level
+        #[serde(default, skip_serializing)]
+        name: String,
+        #[serde(default)]
+        entries: Vec<ChainOutputEntryYaml>,
+        // Legacy single-entry fields for backward compat
+        #[serde(default, skip_serializing)]
+        device_id: Option<String>,
+        #[serde(default, skip_serializing)]
+        mode: Option<ChainOutputMode>,
+        #[serde(default, skip_serializing)]
+        channels: Option<Vec<usize>>,
+    },
+    #[serde(rename = "insert")]
+    Insert {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
+        #[serde(default = "default_io_yaml_model")]
+        model: String,
+        send: InsertEndpointYaml,
+        #[serde(rename = "return")]
+        return_: InsertEndpointYaml,
+    },
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct InsertEndpointYaml {
+    #[serde(default)]
+    device_id: String,
+    #[serde(default)]
+    mode: ChainInputMode,
+    #[serde(default)]
+    channels: Vec<usize>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -528,6 +714,100 @@ impl AudioBlockYaml {
                     }),
                 })
             }
+            AudioBlockYaml::Input {
+                enabled,
+                model,
+                name,
+                entries,
+                device_id,
+                mode,
+                channels,
+            } => {
+                let legacy_name = if name.is_empty() { "Input".to_string() } else { name };
+                let entries = if !entries.is_empty() {
+                    entries.into_iter().map(|e| InputEntry {
+                        name: if e.name.is_empty() { legacy_name.clone() } else { e.name },
+                        device_id: DeviceId(e.device_id),
+                        mode: e.mode,
+                        channels: e.channels,
+                    }).collect()
+                } else if let Some(device_id) = device_id {
+                    vec![InputEntry {
+                        name: legacy_name,
+                        device_id: DeviceId(device_id),
+                        mode: mode.unwrap_or_default(),
+                        channels: channels.unwrap_or_default(),
+                    }]
+                } else {
+                    Vec::new()
+                };
+                Ok(AudioBlock {
+                    id: generated_id,
+                    enabled,
+                    kind: AudioBlockKind::Input(InputBlock {
+                        model,
+                        entries,
+                    }),
+                })
+            }
+            AudioBlockYaml::Output {
+                enabled,
+                model,
+                name,
+                entries,
+                device_id,
+                mode,
+                channels,
+            } => {
+                let legacy_name = if name.is_empty() { "Output".to_string() } else { name };
+                let entries = if !entries.is_empty() {
+                    entries.into_iter().map(|e| OutputEntry {
+                        name: if e.name.is_empty() { legacy_name.clone() } else { e.name },
+                        device_id: DeviceId(e.device_id),
+                        mode: e.mode,
+                        channels: e.channels,
+                    }).collect()
+                } else if let Some(device_id) = device_id {
+                    vec![OutputEntry {
+                        name: legacy_name,
+                        device_id: DeviceId(device_id),
+                        mode: mode.unwrap_or_default(),
+                        channels: channels.unwrap_or_default(),
+                    }]
+                } else {
+                    Vec::new()
+                };
+                Ok(AudioBlock {
+                    id: generated_id,
+                    enabled,
+                    kind: AudioBlockKind::Output(OutputBlock {
+                        model,
+                        entries,
+                    }),
+                })
+            }
+            AudioBlockYaml::Insert {
+                enabled,
+                model,
+                send,
+                return_,
+            } => Ok(AudioBlock {
+                id: generated_id,
+                enabled,
+                kind: AudioBlockKind::Insert(InsertBlock {
+                    model,
+                    send: InsertEndpoint {
+                        device_id: DeviceId(send.device_id),
+                        mode: send.mode,
+                        channels: send.channels,
+                    },
+                    return_: InsertEndpoint {
+                        device_id: DeviceId(return_.device_id),
+                        mode: return_.mode,
+                        channels: return_.channels,
+                    },
+                }),
+            }),
             other => {
                 let (effect_type, enabled, model, params) = extract_core_block_fields(other);
                 Ok(AudioBlock {
@@ -610,6 +890,48 @@ impl AudioBlockYaml {
                     options,
                 })
             }
+            AudioBlockKind::Input(input) => Ok(Self::Input {
+                enabled: block.enabled,
+                model: input.model.clone(),
+                name: String::new(),
+                entries: input.entries.iter().map(|e| ChainInputEntryYaml {
+                    name: e.name.clone(),
+                    device_id: e.device_id.0.clone(),
+                    mode: e.mode,
+                    channels: e.channels.clone(),
+                }).collect(),
+                device_id: None,
+                mode: None,
+                channels: None,
+            }),
+            AudioBlockKind::Output(output) => Ok(Self::Output {
+                enabled: block.enabled,
+                model: output.model.clone(),
+                name: String::new(),
+                entries: output.entries.iter().map(|e| ChainOutputEntryYaml {
+                    name: e.name.clone(),
+                    device_id: e.device_id.0.clone(),
+                    mode: e.mode,
+                    channels: e.channels.clone(),
+                }).collect(),
+                device_id: None,
+                mode: None,
+                channels: None,
+            }),
+            AudioBlockKind::Insert(insert) => Ok(Self::Insert {
+                enabled: block.enabled,
+                model: insert.model.clone(),
+                send: InsertEndpointYaml {
+                    device_id: insert.send.device_id.0.clone(),
+                    mode: insert.send.mode,
+                    channels: insert.send.channels.clone(),
+                },
+                return_: InsertEndpointYaml {
+                    device_id: insert.return_.device_id.0.clone(),
+                    mode: insert.return_.mode,
+                    channels: insert.return_.channels.clone(),
+                },
+            }),
         }
     }
 }
@@ -673,6 +995,9 @@ fn extract_core_block_fields(yaml: AudioBlockYaml) -> (&'static str, bool, Strin
         AudioBlockYaml::Pitch { enabled, model, params } => (block_core::EFFECT_TYPE_PITCH, enabled, model, params),
         AudioBlockYaml::Nam { enabled, model, params } => (block_core::EFFECT_TYPE_NAM, enabled, model, params),
         AudioBlockYaml::Select { .. } => unreachable!("Select handled before extract_core_block_fields"),
+        AudioBlockYaml::Input { .. } => unreachable!("Input handled before extract_core_block_fields"),
+        AudioBlockYaml::Output { .. } => unreachable!("Output handled before extract_core_block_fields"),
+        AudioBlockYaml::Insert { .. } => unreachable!("Insert handled before extract_core_block_fields"),
     }
 }
 
@@ -912,11 +1237,11 @@ mod tests {
     };
     use domain::ids::{BlockId, DeviceId, ChainId};
     use project::block::{
-        AudioBlock, AudioBlockKind, CoreBlock, SelectBlock,
+        AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, OutputBlock, OutputEntry, SelectBlock,
     };
     use project::param::ParameterSet;
     use project::project::Project;
-    use project::chain::{Chain, ChainInput, ChainInputMode, ChainOutput, ChainOutputMixdown, ChainOutputMode};
+    use project::chain::{Chain, ChainInputMode, ChainOutputMode};
     use std::fs;
     use std::path::PathBuf;
     use tempfile::tempdir;
@@ -936,25 +1261,34 @@ mod tests {
                 description: Some("Guitar 1".into()),
                 instrument: "electric_guitar".to_string(),
                 enabled: true,
-                inputs: vec![ChainInput {
-                    name: "Input 1".to_string(),
-                    device_id: DeviceId("input-device".into()),
-                    mode: ChainInputMode::Mono,
-                    channels: vec![0],
-                }],
-                outputs: vec![ChainOutput {
-                    name: "Output 1".to_string(),
-                    device_id: DeviceId("output-device".into()),
-                    mode: ChainOutputMode::Stereo,
-                    channels: vec![0, 1],
-                }],
-                input_device_id: DeviceId("".into()),
-                input_channels: vec![],
-                output_device_id: DeviceId("".into()),
-                output_channels: vec![],
-                blocks: Vec::new(),
-                output_mixdown: ChainOutputMixdown::Average,
-                input_mode: ChainInputMode::Mono,
+                blocks: vec![
+                    AudioBlock {
+                        id: BlockId("chain:0:input:0".into()),
+                        enabled: true,
+                        kind: AudioBlockKind::Input(InputBlock {
+                            model: "standard".to_string(),
+                            entries: vec![InputEntry {
+                                name: "Input 1".to_string(),
+                                device_id: DeviceId("input-device".into()),
+                                mode: ChainInputMode::Mono,
+                                channels: vec![0],
+                            }],
+                        }),
+                    },
+                    AudioBlock {
+                        id: BlockId("chain:0:output:0".into()),
+                        enabled: true,
+                        kind: AudioBlockKind::Output(OutputBlock {
+                            model: "standard".to_string(),
+                            entries: vec![OutputEntry {
+                                name: "Output 1".to_string(),
+                                device_id: DeviceId("output-device".into()),
+                                mode: ChainOutputMode::Stereo,
+                                channels: vec![0, 1],
+                            }],
+                        }),
+                    },
+                ],
             }],
         };
 
@@ -971,12 +1305,14 @@ mod tests {
         assert_eq!(loaded.name, original.name);
         assert_eq!(loaded.chains.len(), 1);
         assert_eq!(loaded.chains[0].description, original.chains[0].description);
-        assert_eq!(loaded.chains[0].inputs.len(), 1);
-        assert_eq!(loaded.chains[0].inputs[0].device_id, DeviceId("input-device".into()));
-        assert_eq!(loaded.chains[0].inputs[0].channels, vec![0]);
-        assert_eq!(loaded.chains[0].outputs.len(), 1);
-        assert_eq!(loaded.chains[0].outputs[0].device_id, DeviceId("output-device".into()));
-        assert_eq!(loaded.chains[0].outputs[0].channels, vec![0, 1]);
+        let loaded_inputs = loaded.chains[0].input_blocks();
+        assert_eq!(loaded_inputs.len(), 1);
+        assert_eq!(loaded_inputs[0].1.entries[0].device_id, DeviceId("input-device".into()));
+        assert_eq!(loaded_inputs[0].1.entries[0].channels, vec![0]);
+        let loaded_outputs = loaded.chains[0].output_blocks();
+        assert_eq!(loaded_outputs.len(), 1);
+        assert_eq!(loaded_outputs[0].1.entries[0].device_id, DeviceId("output-device".into()));
+        assert_eq!(loaded_outputs[0].1.entries[0].channels, vec![0, 1]);
     }
 
     #[test]
@@ -1003,13 +1339,15 @@ chains:
             .expect("legacy project should load with migration");
 
         assert_eq!(project.chains.len(), 1);
-        assert_eq!(project.chains[0].inputs.len(), 1);
-        assert_eq!(project.chains[0].inputs[0].device_id, DeviceId("legacy-input".into()));
-        assert_eq!(project.chains[0].inputs[0].channels, vec![0]);
-        assert_eq!(project.chains[0].outputs.len(), 1);
-        assert_eq!(project.chains[0].outputs[0].device_id, DeviceId("legacy-output".into()));
-        assert_eq!(project.chains[0].outputs[0].channels, vec![0, 1]);
-        assert_eq!(project.chains[0].outputs[0].mode, ChainOutputMode::Stereo);
+        let inputs = project.chains[0].input_blocks();
+        assert_eq!(inputs.len(), 1);
+        assert_eq!(inputs[0].1.entries[0].device_id, DeviceId("legacy-input".into()));
+        assert_eq!(inputs[0].1.entries[0].channels, vec![0]);
+        let outputs = project.chains[0].output_blocks();
+        assert_eq!(outputs.len(), 1);
+        assert_eq!(outputs[0].1.entries[0].device_id, DeviceId("legacy-output".into()));
+        assert_eq!(outputs[0].1.entries[0].channels, vec![0, 1]);
+        assert_eq!(outputs[0].1.entries[0].mode, ChainOutputMode::Stereo);
     }
 
     #[test]
@@ -1038,8 +1376,8 @@ chains:
         model: {valid_delay_model}
         params:
           time_ms: 200
-          feedback: 0.5
-          mix: 0.3
+          feedback: 50
+          mix: 30
 "#,
             ),
         )
@@ -1051,9 +1389,13 @@ chains:
             .expect("project should load while skipping invalid blocks");
 
         assert_eq!(project.chains.len(), 1);
-        assert_eq!(project.chains[0].blocks.len(), 1);
+        // 1 InputBlock + 1 valid delay block + 1 OutputBlock = 3 total
+        let audio_blocks: Vec<_> = project.chains[0].blocks.iter()
+            .filter(|b| !matches!(&b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
+            .collect();
+        assert_eq!(audio_blocks.len(), 1);
         assert_eq!(
-            project.chains[0].blocks[0]
+            audio_blocks[0]
                 .model_ref()
                 .expect("remaining block should expose model")
                 .model,
@@ -1078,14 +1420,14 @@ blocks:
     model: deleted_model
     params:
       time_ms: 200
-      feedback: 0.5
-      mix: 0.3
+      feedback: 50
+      mix: 30
   - type: delay
     model: {valid_delay_model}
     params:
       time_ms: 210
-      feedback: 0.4
-      mix: 0.25
+      feedback: 40
+      mix: 25
 "#,
             ),
         )
@@ -1136,15 +1478,15 @@ chains:
             model: {first_model}
             params:
               time_ms: 120
-              feedback: 0.2
-              mix: 0.3
+              feedback: 20
+              mix: 30
           - id: delay_b
             type: delay
             model: {second_model}
             params:
               time_ms: 240
-              feedback: 0.4
-              mix: 0.25
+              feedback: 40
+              mix: 25
 "#,
             ),
         )
@@ -1155,7 +1497,11 @@ chains:
             .load_current_project()
             .expect("project should load generic select blocks");
 
-        let select = match &project.chains[0].blocks[0].kind {
+        // Find the first non-I/O block (should be the select block)
+        let audio_block = project.chains[0].blocks.iter()
+            .find(|b| !matches!(&b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
+            .expect("should have at least one audio block");
+        let select = match &audio_block.kind {
             AudioBlockKind::Select(select) => select,
             other => panic!("expected select block, got {:?}", other),
         };
@@ -1221,5 +1567,66 @@ chains:
                 params,
             }),
         }
+    }
+
+    #[test]
+    fn insert_block_yaml_roundtrip() {
+        use project::block::{InsertBlock, InsertEndpoint};
+        let block = AudioBlock {
+            id: BlockId("chain:0:block:1".into()),
+            enabled: true,
+            kind: AudioBlockKind::Insert(InsertBlock {
+                model: "standard".to_string(),
+                send: InsertEndpoint {
+                    device_id: DeviceId("mk300-out".into()),
+                    mode: ChainInputMode::Stereo,
+                    channels: vec![0, 1],
+                },
+                return_: InsertEndpoint {
+                    device_id: DeviceId("mk300-in".into()),
+                    mode: ChainInputMode::Stereo,
+                    channels: vec![0, 1],
+                },
+            }),
+        };
+        let yaml = super::AudioBlockYaml::from_audio_block(&block).expect("to yaml");
+        let value = serde_yaml::to_value(&yaml).expect("serialize");
+        let parsed: super::AudioBlockYaml = serde_yaml::from_value(value).expect("deserialize");
+        let chain_id = ChainId("chain:0".to_string());
+        let restored = parsed.into_audio_block(&chain_id, 1).expect("into block");
+        assert!(matches!(&restored.kind, AudioBlockKind::Insert(ib) if ib.send.device_id.0 == "mk300-out"));
+        assert!(matches!(&restored.kind, AudioBlockKind::Insert(ib) if ib.return_.device_id.0 == "mk300-in"));
+        assert!(matches!(&restored.kind, AudioBlockKind::Insert(ib) if ib.send.channels == vec![0, 1]));
+        assert!(matches!(&restored.kind, AudioBlockKind::Insert(ib) if ib.return_.channels == vec![0, 1]));
+        assert!(matches!(&restored.kind, AudioBlockKind::Insert(ib) if ib.send.mode == ChainInputMode::Stereo));
+    }
+
+    #[test]
+    fn disabled_insert_block_yaml_roundtrip() {
+        use project::block::{InsertBlock, InsertEndpoint};
+        let block = AudioBlock {
+            id: BlockId("chain:0:block:2".into()),
+            enabled: false,
+            kind: AudioBlockKind::Insert(InsertBlock {
+                model: "standard".to_string(),
+                send: InsertEndpoint {
+                    device_id: DeviceId(String::new()),
+                    mode: ChainInputMode::Mono,
+                    channels: Vec::new(),
+                },
+                return_: InsertEndpoint {
+                    device_id: DeviceId(String::new()),
+                    mode: ChainInputMode::Mono,
+                    channels: Vec::new(),
+                },
+            }),
+        };
+        let yaml = super::AudioBlockYaml::from_audio_block(&block).expect("to yaml");
+        let value = serde_yaml::to_value(&yaml).expect("serialize");
+        let parsed: super::AudioBlockYaml = serde_yaml::from_value(value).expect("deserialize");
+        let chain_id = ChainId("chain:0".to_string());
+        let restored = parsed.into_audio_block(&chain_id, 2).expect("into block");
+        assert!(!restored.enabled);
+        assert!(matches!(&restored.kind, AudioBlockKind::Insert(_)));
     }
 }

@@ -82,7 +82,7 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 - **Block Editor** — editar parâmetros de um bloco (knobs, sliders, switches)
 - **Compact Chain View** — visão compacta com power switches e troca rápida de modelo
 - **Settings** — dispositivos de áudio (input/output), sample rate, buffer size
-- **Chain Editor** — nome da chain, instrumento, endpoints de I/O
+- **Chain Editor** — nome da chain, instrumento, I/O blocks (Input/Output como blocos na cadeia)
 
 ### Tipos de bloco e para que servem
 
@@ -131,16 +131,22 @@ electric_guitar, acoustic_guitar, bass, voice, keys, drums, generic
 
 Cada chain tem um instrumento que filtra quais blocos podem ser adicionados.
 
-### Configuração de áudio
+### Configuração de áudio — I/O como blocos
 
-- **Multi-input/multi-output**: cada chain tem N inputs e M outputs
-  - Cada input tem: `name`, `device_id`, `mode` (mono/stereo/dual_mono), `channels`
-  - Cada output tem: `name`, `device_id`, `mode` (mono/stereo), `channels`
-  - Cada input roda sua propria instancia paralela da cadeia de blocos
+Input e Output são variantes de `AudioBlockKind` (`InputBlock`, `OutputBlock`) dentro de `chain.blocks`. Não existem listas separadas `Chain.inputs` / `Chain.outputs`.
+
+- **Primeiro bloco** da chain é sempre um Input (fixo, não removível)
+- **Último bloco** da chain é sempre um Output (fixo, não removível)
+- Blocos extras de Input/Output podem ser adicionados no meio da chain
+- Cada Input cria um stream paralelo isolado (instância independente da cadeia de blocos)
+- Output é um tap: copia o sinal sem interromper o fluxo
+- Cada InputBlock tem: `name`, `device_id`, `mode` (mono/stereo/dual_mono), `channels`
+- Cada OutputBlock tem: `name`, `device_id`, `mode` (mono/stereo), `channels`
 - Devices: input e output independentes (podem ser devices diferentes)
 - Sample rates: 44.1kHz, 48kHz, 88.2kHz, 96kHz
 - Buffer sizes: 32, 64, 128, 256, 512, 1024 samples
-- **Migração**: YAML antigo com `input_device_id`/`output_device_id` (campos únicos) é migrado automaticamente para o formato `inputs`/`outputs` ao carregar
+- **YAML**: serializa inputs/outputs como seções separadas (`inputs:` / `outputs:`) por legibilidade, mas internamente são blocos no vetor `blocks`
+- **Migração**: YAML antigo com `input_device_id`/`output_device_id` (campos únicos) é migrado automaticamente para o formato novo ao carregar
 
 ---
 
@@ -342,17 +348,17 @@ O campo `instrument` e salvo no YAML da chain. Valor padrao (retrocompatibilidad
 chains:
   - description: guitar 1
     instrument: electric_guitar
-    inputs:
+    inputs:                          # serialized separately for readability
       - name: Input 1
         device_id: "coreaudio:..."
         mode: mono
         channels: [0]
-    outputs:
+    outputs:                         # serialized separately for readability
       - name: Output 1
         device_id: "coreaudio:..."
         mode: stereo
         channels: [0, 1]
-    blocks:
+    blocks:                          # only effect blocks here (I/O blocks are in inputs/outputs)
       - type: preamp
         model: marshall_jcm_800_2203
         enabled: true
@@ -360,6 +366,13 @@ chains:
           volume: 70.0
           gain: 40.0
 ```
+
+Internamente, a Chain tem um único vetor `blocks: Vec<AudioBlock>` onde:
+- `blocks[0]` = InputBlock (fixo)
+- `blocks[1..N-1]` = blocos de efeito (Nam, Core, Select)
+- `blocks[N-1]` = OutputBlock (fixo)
+
+O YAML separa em `inputs:`, `outputs:` e `blocks:` apenas por legibilidade. Na deserialização, tudo é reunido no vetor `blocks`. Na serialização, InputBlock/OutputBlock são extraídos para as seções `inputs:`/`outputs:`.
 
 ---
 

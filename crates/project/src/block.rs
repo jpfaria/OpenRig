@@ -1,4 +1,4 @@
-use domain::ids::BlockId;
+use domain::ids::{BlockId, DeviceId};
 use domain::value_objects::ParameterValue;
 use serde::{Deserialize, Serialize};
 use block_amp::{amp_model_schema, validate_amp_params};
@@ -19,7 +19,25 @@ use block_reverb::reverb_model_schema;
 use block_util::utility_model_schema;
 use block_wah::{validate_wah_params, wah_model_schema};
 
+use crate::chain::{ChainInputMode, ChainOutputMode};
 use crate::param::{BlockParameterDescriptor, ModelParameterSchema, ParameterSet};
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InsertEndpoint {
+    pub device_id: DeviceId,
+    #[serde(default)]
+    pub mode: ChainInputMode,
+    pub channels: Vec<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InsertBlock {
+    #[serde(default = "default_io_model")]
+    pub model: String,
+    pub send: InsertEndpoint,
+    #[serde(rename = "return")]
+    pub return_: InsertEndpoint,
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AudioBlock {
@@ -43,6 +61,66 @@ pub enum AudioBlockKind {
     Nam(NamBlock),
     Core(CoreBlock),
     Select(SelectBlock),
+    Input(InputBlock),
+    Output(OutputBlock),
+    Insert(InsertBlock),
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputEntry {
+    #[serde(default)]
+    pub name: String,
+    pub device_id: DeviceId,
+    #[serde(default)]
+    pub mode: ChainInputMode,
+    pub channels: Vec<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OutputEntry {
+    #[serde(default)]
+    pub name: String,
+    pub device_id: DeviceId,
+    #[serde(default)]
+    pub mode: ChainOutputMode,
+    pub channels: Vec<usize>,
+}
+
+fn default_io_model() -> String {
+    "standard".to_string()
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct InputBlock {
+    #[serde(default = "default_io_model")]
+    pub model: String,
+    pub entries: Vec<InputEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct OutputBlock {
+    #[serde(default = "default_io_model")]
+    pub model: String,
+    pub entries: Vec<OutputEntry>,
+}
+
+impl InputBlock {
+    pub fn validate_channel_conflicts(&self) -> Result<(), String> {
+        let mut used: Vec<(String, usize)> = Vec::new();
+        for entry in &self.entries {
+            for &ch in &entry.channels {
+                let key = (entry.device_id.0.clone(), ch);
+                if used.contains(&key) {
+                    return Err(format!(
+                        "Channel {} on device '{}' is used by multiple entries",
+                        ch, entry.device_id.0
+                    ));
+                }
+                used.push(key);
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -91,6 +169,7 @@ impl AudioBlock {
                 }
                 Ok(())
             }
+            AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_) => Ok(()),
         }
     }
 
@@ -104,6 +183,7 @@ impl AudioBlock {
                 .selected_option()
                 .ok_or_else(|| "select block selected option does not exist".to_string())?
                 .parameter_descriptors(),
+            AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_) => Ok(Vec::new()),
         }
     }
 
@@ -120,6 +200,7 @@ impl AudioBlock {
                 .selected_option()
                 .ok_or_else(|| "select block selected option does not exist".to_string())?
                 .audio_descriptors(),
+            AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_) => Ok(Vec::new()),
         }
     }
 
@@ -131,7 +212,7 @@ impl AudioBlock {
                 params: &stage.params,
             }),
             AudioBlockKind::Core(core) => Some(core.model_ref()),
-            AudioBlockKind::Select(_) => None,
+            AudioBlockKind::Select(_) | AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_) => None,
         }
     }
 }
@@ -190,8 +271,8 @@ impl SelectBlock {
 
         let mut effect_type = None::<&str>;
         for option in &self.options {
-            if matches!(option.kind, AudioBlockKind::Select(_)) {
-                return Err("select block options cannot themselves be select blocks".to_string());
+            if matches!(option.kind, AudioBlockKind::Select(_) | AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_)) {
+                return Err("select block options cannot be select, input, output, or insert blocks".to_string());
             }
 
             let model = option.model_ref().ok_or_else(|| {
@@ -344,10 +425,11 @@ fn describe_block_audio(
 mod tests {
     use super::{
         normalize_block_params, schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock,
-        SelectBlock,
+        InputBlock, InputEntry, InsertBlock, InsertEndpoint, OutputBlock, OutputEntry, SelectBlock,
     };
+    use crate::chain::{ChainInputMode, ChainOutputMode};
     use crate::param::ParameterSet;
-    use domain::ids::BlockId;
+    use domain::ids::{BlockId, DeviceId};
 
     #[test]
     fn project_contract_exposes_family_schemas() {
@@ -532,4 +614,249 @@ mod tests {
             }),
         }
     }
+
+    // --- InputBlock/OutputBlock multi-entry tests ---
+
+    #[test]
+    fn input_block_supports_multiple_entries() {
+        let input = InputBlock {
+            model: "standard".to_string(),
+            entries: vec![
+                InputEntry {
+                    name: "Guitar 1".to_string(),
+                    device_id: DeviceId("scarlett".into()),
+                    mode: ChainInputMode::Mono,
+                    channels: vec![0],
+                },
+                InputEntry {
+                    name: "Guitar 2".to_string(),
+                    device_id: DeviceId("scarlett".into()),
+                    mode: ChainInputMode::Mono,
+                    channels: vec![1],
+                },
+            ],
+        };
+        assert_eq!(input.entries.len(), 2);
+        assert_eq!(input.entries[0].channels, vec![0]);
+        assert_eq!(input.entries[1].channels, vec![1]);
+    }
+
+    #[test]
+    fn output_block_supports_multiple_entries() {
+        let output = OutputBlock {
+            model: "standard".to_string(),
+            entries: vec![
+                OutputEntry {
+                    name: "Monitors".to_string(),
+                    device_id: DeviceId("scarlett".into()),
+                    mode: ChainOutputMode::Stereo,
+                    channels: vec![0, 1],
+                },
+                OutputEntry {
+                    name: "Headphones".to_string(),
+                    device_id: DeviceId("macbook".into()),
+                    mode: ChainOutputMode::Stereo,
+                    channels: vec![0, 1],
+                },
+            ],
+        };
+        assert_eq!(output.entries.len(), 2);
+        assert_eq!(output.entries[0].device_id.0, "scarlett");
+        assert_eq!(output.entries[1].device_id.0, "macbook");
+    }
+
+    #[test]
+    fn input_block_single_entry_works() {
+        let input = InputBlock {
+            model: "standard".to_string(),
+            entries: vec![InputEntry {
+                name: "Guitar".to_string(),
+                device_id: DeviceId("scarlett".into()),
+                mode: ChainInputMode::Mono,
+                channels: vec![0],
+            }],
+        };
+        assert_eq!(input.entries.len(), 1);
+    }
+
+    #[test]
+    fn input_block_validates_no_duplicate_device_channels() {
+        let input = InputBlock {
+            model: "standard".to_string(),
+            entries: vec![
+                InputEntry {
+                    name: "Input A".to_string(),
+                    device_id: DeviceId("scarlett".into()),
+                    mode: ChainInputMode::Mono,
+                    channels: vec![0],
+                },
+                InputEntry {
+                    name: "Input B".to_string(),
+                    device_id: DeviceId("scarlett".into()),
+                    mode: ChainInputMode::Mono,
+                    channels: vec![0], // duplicate!
+                },
+            ],
+        };
+        let result = input.validate_channel_conflicts();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Channel 0"));
+    }
+
+    #[test]
+    fn input_block_allows_different_channels_same_device() {
+        let input = InputBlock {
+            model: "standard".to_string(),
+            entries: vec![
+                InputEntry {
+                    name: "Input A".to_string(),
+                    device_id: DeviceId("scarlett".into()),
+                    mode: ChainInputMode::Mono,
+                    channels: vec![0],
+                },
+                InputEntry {
+                    name: "Input B".to_string(),
+                    device_id: DeviceId("scarlett".into()),
+                    mode: ChainInputMode::Mono,
+                    channels: vec![1],
+                },
+            ],
+        };
+        assert!(input.validate_channel_conflicts().is_ok());
+    }
+
+    #[test]
+    fn input_block_allows_same_channel_different_devices() {
+        let input = InputBlock {
+            model: "standard".to_string(),
+            entries: vec![
+                InputEntry {
+                    name: "Input A".to_string(),
+                    device_id: DeviceId("scarlett".into()),
+                    mode: ChainInputMode::Mono,
+                    channels: vec![0],
+                },
+                InputEntry {
+                    name: "Input B".to_string(),
+                    device_id: DeviceId("macbook".into()),
+                    mode: ChainInputMode::Mono,
+                    channels: vec![0],
+                },
+            ],
+        };
+        assert!(input.validate_channel_conflicts().is_ok());
+    }
+
+    // --- InsertBlock tests ---
+
+    #[test]
+    fn insert_block_clone_equality() {
+        let insert = InsertBlock {
+            model: "standard".to_string(),
+            send: InsertEndpoint {
+                device_id: DeviceId("mk300-out".into()),
+                mode: ChainInputMode::Stereo,
+                channels: vec![0, 1],
+            },
+            return_: InsertEndpoint {
+                device_id: DeviceId("mk300-in".into()),
+                mode: ChainInputMode::Stereo,
+                channels: vec![0, 1],
+            },
+        };
+        let block = AudioBlock {
+            id: BlockId("chain:0:insert:0".into()),
+            enabled: true,
+            kind: AudioBlockKind::Insert(insert.clone()),
+        };
+        let cloned = block.clone();
+        assert_eq!(block, cloned);
+        assert!(matches!(&block.kind, AudioBlockKind::Insert(ib) if ib.send.device_id.0 == "mk300-out"));
+        assert!(matches!(&block.kind, AudioBlockKind::Insert(ib) if ib.return_.device_id.0 == "mk300-in"));
+    }
+
+    #[test]
+    fn insert_block_in_chain_structure() {
+        let chain = crate::chain::Chain {
+            id: domain::ids::ChainId("chain:0".to_string()),
+            description: None,
+            instrument: "electric_guitar".to_string(),
+            enabled: true,
+            blocks: vec![
+                AudioBlock {
+                    id: BlockId("chain:0:input:0".into()),
+                    enabled: true,
+                    kind: AudioBlockKind::Input(InputBlock {
+                        model: "standard".to_string(),
+                        entries: vec![InputEntry {
+                            name: "Input 1".to_string(),
+                            device_id: DeviceId("scarlett".into()),
+                            mode: ChainInputMode::Mono,
+                            channels: vec![0],
+                        }],
+                    }),
+                },
+                AudioBlock {
+                    id: BlockId("chain:0:insert:0".into()),
+                    enabled: true,
+                    kind: AudioBlockKind::Insert(InsertBlock {
+                        model: "standard".to_string(),
+                        send: InsertEndpoint {
+                            device_id: DeviceId("mk300-out".into()),
+                            mode: ChainInputMode::Stereo,
+                            channels: vec![0, 1],
+                        },
+                        return_: InsertEndpoint {
+                            device_id: DeviceId("mk300-in".into()),
+                            mode: ChainInputMode::Stereo,
+                            channels: vec![0, 1],
+                        },
+                    }),
+                },
+                AudioBlock {
+                    id: BlockId("chain:0:output:0".into()),
+                    enabled: true,
+                    kind: AudioBlockKind::Output(OutputBlock {
+                        model: "standard".to_string(),
+                        entries: vec![OutputEntry {
+                            name: "Output 1".to_string(),
+                            device_id: DeviceId("scarlett".into()),
+                            mode: ChainOutputMode::Stereo,
+                            channels: vec![0, 1],
+                        }],
+                    }),
+                },
+            ],
+        };
+        let inserts = chain.insert_blocks();
+        assert_eq!(inserts.len(), 1);
+        assert_eq!(inserts[0].0, 1); // index 1
+        assert_eq!(inserts[0].1.send.device_id.0, "mk300-out");
+    }
+
+    #[test]
+    fn disabled_insert_block_validates_ok() {
+        let block = AudioBlock {
+            id: BlockId("chain:0:insert:0".into()),
+            enabled: false,
+            kind: AudioBlockKind::Insert(InsertBlock {
+                model: "standard".to_string(),
+                send: InsertEndpoint {
+                    device_id: DeviceId(String::new()),
+                    mode: ChainInputMode::Mono,
+                    channels: Vec::new(),
+                },
+                return_: InsertEndpoint {
+                    device_id: DeviceId(String::new()),
+                    mode: ChainInputMode::Mono,
+                    channels: Vec::new(),
+                },
+            }),
+        };
+        assert!(block.validate_params().is_ok());
+        assert_eq!(block.parameter_descriptors().unwrap(), Vec::new());
+        assert_eq!(block.audio_descriptors().unwrap(), Vec::new());
+        assert!(block.model_ref().is_none());
+    }
+
 }

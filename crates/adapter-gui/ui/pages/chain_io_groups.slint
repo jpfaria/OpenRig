@@ -78,22 +78,23 @@ component IoGroupRow inherits Rectangle {
     // Remove button
     Rectangle {
         x: parent.width - 52px;
-        y: 10px;
-        width: 24px;
-        height: 32px;
+        y: 12px;
+        width: 28px;
+        height: 28px;
         border-radius: 4px;
+        background: remove-hover.has-hover ? #2a1015 : transparent;
 
-        Text {
-            width: parent.width;
-            height: parent.height;
-            text: "\u{2715}";
-            color: #5a6270;
-            font-size: 13px;
-            horizontal-alignment: center;
-            vertical-alignment: center;
+        Image {
+            x: 4px;
+            y: 4px;
+            width: 20px;
+            height: 20px;
+            source: @image-url("../assets/trash.svg");
+            colorize: remove-hover.has-hover ? #ff4455 : #5a6270;
+            image-fit: contain;
         }
 
-        TouchArea {
+        remove-hover := TouchArea {
             width: parent.width;
             height: parent.height;
             mouse-cursor: pointer;
@@ -176,23 +177,87 @@ export component ChainIoGroupsPage inherits Rectangle {
     in property <string> add-label;
     in property <[IoGroupItem]> groups;
     in-out property <string> status-message;
+    in property <bool> show-block-controls: false;
+    in property <bool> block-enabled: true;
     callback edit-group(int);
     callback remove-group(int);
     callback add-group();
     callback save();
     callback cancel();
+    callback toggle-enabled();
+    callback delete-block();
 
     background: #171a1f;
 
     Text {
         x: 32px;
         y: 28px;
-        width: parent.width - 64px;
+        width: parent.width - 100px;
         height: 28px;
         text: root.title;
         color: #edf2f9;
         font-size: 20px;
         font-weight: 800;
+    }
+
+    // Block controls (enable/disable + delete) — only for middle I/O blocks
+    if root.show-block-controls : Rectangle {
+        x: parent.width - 96px;
+        y: 24px;
+        width: 64px;
+        height: 32px;
+        background: transparent;
+
+        Rectangle {
+            x: 0px;
+            y: 4px;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            background: toggle-hover.has-hover ? #1e2229 : transparent;
+
+            Rectangle {
+                x: 8px;
+                y: 8px;
+                width: 8px;
+                height: 8px;
+                border-radius: 4px;
+                background: root.block-enabled ? #29df85 : #697382;
+            }
+
+            toggle-hover := TouchArea {
+                width: parent.width;
+                height: parent.height;
+                mouse-cursor: pointer;
+                clicked => { root.toggle-enabled(); }
+            }
+        }
+
+        Rectangle {
+            x: 32px;
+            y: 4px;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            background: delete-hover.has-hover ? #2a1015 : transparent;
+
+            Image {
+                x: 2px;
+                y: 2px;
+                width: 20px;
+                height: 20px;
+                source: @image-url("../assets/trash.svg");
+                colorize: delete-hover.has-hover ? #ff4455 : #5a6270;
+                image-fit: contain;
+            }
+
+            delete-hover := TouchArea {
+                width: parent.width;
+                height: parent.height;
+                mouse-cursor: pointer;
+                clicked => { root.delete-block(); }
+            }
+        }
     }
 
     Rectangle {

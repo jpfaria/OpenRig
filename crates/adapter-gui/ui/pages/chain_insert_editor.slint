@@ -1,0 +1,480 @@
+import { ComboBox, ScrollView } from "std-widgets.slint";
+import { ChannelOptionItem } from "../models.slint";
+
+component FooterButton inherits Rectangle {
+    in property <string> label;
+    in property <bool> primary: false;
+    in property <bool> danger: false;
+    callback clicked();
+
+    width: primary ? 80px : 96px;
+    height: 36px;
+    background: root.danger ? #5a1520 : (root.primary ? #188cff : #2a2f38);
+    border-width: 1px;
+    border-color: root.danger ? #ff4455 : (root.primary ? #45a7ff : #41464f);
+    border-radius: 6px;
+
+    Text {
+        width: parent.width;
+        height: parent.height;
+        text: root.label;
+        color: root.danger ? #ff4455 : #f4f7fb;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    TouchArea {
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+component ChannelRow inherits Rectangle {
+    in property <ChannelOptionItem> channel;
+    callback toggled(bool);
+
+    height: 40px;
+    background: transparent;
+
+    Rectangle {
+        x: 0px;
+        y: parent.height - 1px;
+        width: parent.width;
+        height: 1px;
+        background: #252a33;
+    }
+
+    Rectangle {
+        x: 0px;
+        y: 10px;
+        width: 20px;
+        height: 20px;
+        background: root.channel.selected ? #188cff : #1e2229;
+        border-width: 1px;
+        border-color: root.channel.selected ? #45a7ff : (root.channel.available ? #3d4450 : #2a2f38);
+        border-radius: 4px;
+        opacity: root.channel.available ? 1 : 0.4;
+
+        if root.channel.selected : Text {
+            width: parent.width;
+            height: parent.height;
+            text: "\u{2713}";
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+
+    Text {
+        x: 32px;
+        y: 0px;
+        width: parent.width - 32px;
+        height: parent.height;
+        text: root.channel.label;
+        color: root.channel.available
+            ? (root.channel.selected ? #edf2f9 : #8a95a5)
+            : #4a5060;
+        font-size: 13px;
+        font-weight: root.channel.selected ? 600 : 400;
+        vertical-alignment: center;
+    }
+
+    if root.channel.available : TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+        mouse-cursor: pointer;
+        clicked => { root.toggled(!root.channel.selected); }
+    }
+}
+
+export component ChainInsertEditorPage inherits Rectangle {
+    in property <string> title: "Configurar Insert";
+    // Send (output devices)
+    in property <[string]> send-device-options;
+    in-out property <int> selected-send-device-index;
+    in property <[ChannelOptionItem]> send-channels;
+    in-out property <int> selected-send-mode-index: 0;
+    // Return (input devices)
+    in property <[string]> return-device-options;
+    in-out property <int> selected-return-device-index;
+    in property <[ChannelOptionItem]> return-channels;
+    in-out property <int> selected-return-mode-index: 0;
+    // Block controls
+    in property <bool> show-block-controls: false;
+    in property <bool> block-enabled: true;
+    in-out property <string> status-message;
+    // Callbacks
+    callback select-send-device(int);
+    callback toggle-send-channel(int, bool);
+    callback select-send-mode(int);
+    callback select-return-device(int);
+    callback toggle-return-channel(int, bool);
+    callback select-return-mode(int);
+    callback toggle-enabled();
+    callback delete-block();
+    callback save();
+    callback cancel();
+
+    background: #171a1f;
+
+    // Title
+    Text {
+        x: 32px;
+        y: 24px;
+        width: parent.width - 96px;
+        height: 28px;
+        text: root.title;
+        color: #edf2f9;
+        font-size: 20px;
+        font-weight: 800;
+    }
+
+    // Block controls (enable/disable + delete) — only for middle blocks
+    if root.show-block-controls : Rectangle {
+        x: parent.width - 96px;
+        y: 20px;
+        width: 64px;
+        height: 32px;
+        background: transparent;
+
+        Rectangle {
+            x: 0px;
+            y: 4px;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            background: toggle-hover.has-hover ? #1e2229 : transparent;
+
+            Rectangle {
+                x: 8px;
+                y: 8px;
+                width: 8px;
+                height: 8px;
+                border-radius: 4px;
+                background: root.block-enabled ? #29df85 : #697382;
+            }
+
+            toggle-hover := TouchArea {
+                width: parent.width;
+                height: parent.height;
+                mouse-cursor: pointer;
+                clicked => { root.toggle-enabled(); }
+            }
+        }
+
+        Rectangle {
+            x: 32px;
+            y: 4px;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            background: delete-hover.has-hover ? #2a1015 : transparent;
+
+            Image {
+                x: 2px;
+                y: 2px;
+                width: 20px;
+                height: 20px;
+                source: @image-url("../assets/trash.svg");
+                colorize: delete-hover.has-hover ? #ff4455 : #5a6270;
+                image-fit: contain;
+            }
+
+            delete-hover := TouchArea {
+                width: parent.width;
+                height: parent.height;
+                mouse-cursor: pointer;
+                clicked => { root.delete-block(); }
+            }
+        }
+    }
+
+    Rectangle {
+        x: 32px;
+        y: 60px;
+        width: parent.width - 64px;
+        height: 1px;
+        background: #2a2f38;
+    }
+
+    // ===== SEND SECTION =====
+    Text {
+        x: 32px;
+        y: 72px;
+        width: 200px;
+        height: 20px;
+        text: "Envio";
+        color: #edf2f9;
+        font-size: 15px;
+        font-weight: 700;
+    }
+
+    Text {
+        x: 32px;
+        y: 98px;
+        width: 120px;
+        height: 16px;
+        text: "Dispositivo";
+        color: #7a8694;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    ComboBox {
+        x: 32px;
+        y: 116px;
+        width: parent.width - 64px;
+        height: 36px;
+        model: root.send-device-options;
+        current-index <=> root.selected-send-device-index;
+        selected(value) => { root.select-send-device(self.current-index); }
+    }
+
+    // Send mode selector
+    Text {
+        x: 32px;
+        y: 162px;
+        width: 120px;
+        height: 16px;
+        text: "Modo";
+        color: #7a8694;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    Rectangle {
+        x: 32px;
+        y: 180px;
+        width: parent.width - 64px;
+        height: 36px;
+        background: transparent;
+
+        for label[index] in ["Mono", "Stereo"] : Rectangle {
+            x: index * 120px;
+            y: 0px;
+            width: 108px;
+            height: 36px;
+            background: index == root.selected-send-mode-index ? #2a5da8 : #1d2025;
+            border-width: 1px;
+            border-color: index == root.selected-send-mode-index ? #45a7ff : #41454e;
+            border-radius: 4px;
+
+            Text {
+                width: parent.width;
+                height: parent.height;
+                text: label;
+                color: index == root.selected-send-mode-index ? #f4f7fb : #8a94a2;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                font-size: 12px;
+                font-weight: 600;
+            }
+
+            TouchArea {
+                width: parent.width;
+                height: parent.height;
+                mouse-cursor: pointer;
+                clicked => {
+                    root.selected-send-mode-index = index;
+                    root.select-send-mode(index);
+                }
+            }
+        }
+    }
+
+    // Send channels
+    Text {
+        x: 32px;
+        y: 226px;
+        width: 120px;
+        height: 16px;
+        text: "Canais";
+        color: #7a8694;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    // Each section takes half the remaining vertical space (total - fixed header/footer)
+    // Fixed: title 72px + send header 172px + footer 56px + return header 192px = 492px
+    // Channel areas split the remainder equally
+    private property <length> channel-area-height: (root.height - 560px) / 2;
+
+    ScrollView {
+        x: 32px;
+        y: 244px;
+        width: parent.width - 64px;
+        height: root.channel-area-height;
+        viewport-width: self.width;
+        viewport-height: Math.max(self.height, root.send-channels.length * 40px);
+
+        for channel[index] in root.send-channels : ChannelRow {
+            x: 0px;
+            y: index * 40px;
+            width: parent.width - 8px;
+            channel: channel;
+            toggled(selected) => { root.toggle-send-channel(index, selected); }
+        }
+    }
+
+    // Separator between sections
+    private property <length> return-start: 244px + root.channel-area-height + 8px;
+
+    Rectangle {
+        x: 32px;
+        y: root.return-start;
+        width: parent.width - 64px;
+        height: 1px;
+        background: #2a2f38;
+    }
+
+    // ===== RETURN SECTION =====
+    Text {
+        x: 32px;
+        y: root.return-start + 12px;
+        width: 200px;
+        height: 20px;
+        text: "Retorno";
+        color: #edf2f9;
+        font-size: 15px;
+        font-weight: 700;
+    }
+
+    Text {
+        x: 32px;
+        y: root.return-start + 38px;
+        width: 120px;
+        height: 16px;
+        text: "Dispositivo";
+        color: #7a8694;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    ComboBox {
+        x: 32px;
+        y: root.return-start + 56px;
+        width: parent.width - 64px;
+        height: 36px;
+        model: root.return-device-options;
+        current-index <=> root.selected-return-device-index;
+        selected(value) => { root.select-return-device(self.current-index); }
+    }
+
+    // Return mode selector
+    Text {
+        x: 32px;
+        y: root.return-start + 102px;
+        width: 120px;
+        height: 16px;
+        text: "Modo";
+        color: #7a8694;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    Rectangle {
+        x: 32px;
+        y: root.return-start + 120px;
+        width: parent.width - 64px;
+        height: 36px;
+        background: transparent;
+
+        for label[index] in ["Mono", "Stereo"] : Rectangle {
+            x: index * 120px;
+            y: 0px;
+            width: 108px;
+            height: 36px;
+            background: index == root.selected-return-mode-index ? #2a5da8 : #1d2025;
+            border-width: 1px;
+            border-color: index == root.selected-return-mode-index ? #45a7ff : #41454e;
+            border-radius: 4px;
+
+            Text {
+                width: parent.width;
+                height: parent.height;
+                text: label;
+                color: index == root.selected-return-mode-index ? #f4f7fb : #8a94a2;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                font-size: 12px;
+                font-weight: 600;
+            }
+
+            TouchArea {
+                width: parent.width;
+                height: parent.height;
+                mouse-cursor: pointer;
+                clicked => {
+                    root.selected-return-mode-index = index;
+                    root.select-return-mode(index);
+                }
+            }
+        }
+    }
+
+    // Return channels
+    Text {
+        x: 32px;
+        y: root.return-start + 166px;
+        width: 120px;
+        height: 16px;
+        text: "Canais";
+        color: #7a8694;
+        font-size: 11px;
+        font-weight: 600;
+    }
+
+    ScrollView {
+        x: 32px;
+        y: root.return-start + 184px;
+        width: parent.width - 64px;
+        height: root.height - root.return-start - 184px - 56px;
+        viewport-width: self.width;
+        viewport-height: Math.max(self.height, root.return-channels.length * 40px);
+
+        for channel[index] in root.return-channels : ChannelRow {
+            x: 0px;
+            y: index * 40px;
+            width: parent.width - 8px;
+            channel: channel;
+            toggled(selected) => { root.toggle-return-channel(index, selected); }
+        }
+    }
+
+    // Status message
+    if root.status-message != "" : Text {
+        x: 32px;
+        y: parent.height - 48px;
+        width: parent.width - 220px;
+        height: 16px;
+        text: root.status-message;
+        color: #ff6b6b;
+        font-size: 12px;
+        font-weight: 500;
+        vertical-alignment: center;
+    }
+
+    // Footer buttons
+    FooterButton {
+        x: parent.width - 196px;
+        y: parent.height - 52px;
+        label: "Cancelar";
+        clicked => { root.cancel(); }
+    }
+
+    FooterButton {
+        x: parent.width - 92px;
+        y: parent.height - 52px;
+        label: "OK";
+        primary: true;
+        clicked => { root.save(); }
+    }
+}

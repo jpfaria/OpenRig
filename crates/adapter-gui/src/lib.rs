@@ -12,7 +12,7 @@ use infra_filesystem::{
     AppConfig, FilesystemStorage, GuiAudioDeviceSettings, GuiAudioSettings, RecentProjectEntry,
 };
 use infra_yaml::{
-    load_chain_preset_file, save_chain_preset_file, serialize_audio_blocks, ChainBlocksPreset,
+    load_chain_preset_file, save_chain_preset_file, ChainBlocksPreset,
     YamlProjectRepository,
 };
 use project::block::{
@@ -22,7 +22,8 @@ use project::catalog::{supported_block_models, supported_block_type, supported_b
 use project::device::DeviceSettings;
 use project::param::{ParameterDomain, ParameterSet, ParameterUnit};
 use project::project::Project;
-use project::chain::{Chain, ChainInput, ChainInputMode, ChainOutput, ChainOutputMixdown, ChainOutputMode};
+use project::block::{InputBlock, InputEntry, OutputBlock, OutputEntry};
+use project::chain::{Chain, ChainInputMode, ChainOutputMode};
 use rfd::FileDialog;
 use serde::{Deserialize, Serialize};
 use slint::{Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
@@ -264,6 +265,16 @@ struct ChainDraft {
     outputs: Vec<OutputGroupDraft>,
     editing_input_index: Option<usize>,
     editing_output_index: Option<usize>,
+    /// Which block in chain.blocks is being edited by the I/O groups window.
+    /// None = editing the fixed chip (first input / last output).
+    /// Some(idx) = editing a specific I/O block at chain.blocks[idx].
+    editing_io_block_index: Option<usize>,
+    /// True when a new input entry was added as placeholder and the input config
+    /// window is open. If the user cancels, the placeholder should be removed.
+    adding_new_input: bool,
+    /// True when a new output entry was added as placeholder and the output config
+    /// window is open. If the user cancels, the placeholder should be removed.
+    adding_new_output: bool,
 }
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct SelectedBlock {
@@ -280,6 +291,25 @@ struct BlockEditorDraft {
     model_id: String,
     enabled: bool,
     is_select: bool,
+}
+/// Transient state for inserting an I/O block via the block type picker.
+#[derive(Debug, Clone)]
+struct IoBlockInsertDraft {
+    chain_index: usize,
+    before_index: usize,
+    kind: String, // "input" or "output"
+}
+/// Transient state for editing an Insert block's send/return endpoints.
+#[derive(Debug, Clone)]
+struct InsertDraft {
+    chain_index: usize,
+    block_index: usize,
+    send_device_id: Option<String>,
+    send_channels: Vec<usize>,
+    send_mode: ChainInputMode,
+    return_device_id: Option<String>,
+    return_channels: Vec<usize>,
+    return_mode: ChainInputMode,
 }
 struct BlockEditorData {
     effect_type: String,
@@ -303,33 +333,6 @@ enum ChainEditorMode {
 enum AudioSettingsMode {
     Gui,
     Project,
-}
-#[derive(Debug, Serialize)]
-struct ProjectYaml {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    name: Option<String>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    device_settings: Vec<ProjectDeviceSettingsYaml>,
-    chains: Vec<ProjectChainYaml>,
-}
-#[derive(Debug, Serialize)]
-struct ProjectDeviceSettingsYaml {
-    device_id: String,
-    sample_rate: u32,
-    buffer_size_frames: u32,
-}
-#[derive(Debug, Serialize)]
-struct ProjectChainYaml {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
-    instrument: String,
-    input_device_id: String,
-    input_channels: Vec<usize>,
-    output_device_id: String,
-    output_channels: Vec<usize>,
-    blocks: Vec<serde_yaml::Value>,
-    output_mixdown: ChainOutputMixdown,
-    input_mode: ChainInputMode,
 }
 #[derive(Debug, Serialize)]
 struct ConfigYaml {
@@ -381,6 +384,8 @@ pub fn run_desktop_app(
     let app_config = Rc::new(RefCell::new(load_and_sync_app_config()?));
     let project_session = Rc::new(RefCell::new(None::<ProjectSession>));
     let chain_draft = Rc::new(RefCell::new(None::<ChainDraft>));
+    let io_block_insert_draft = Rc::new(RefCell::new(None::<IoBlockInsertDraft>));
+    let insert_draft = Rc::new(RefCell::new(None::<InsertDraft>));
     let selected_block = Rc::new(RefCell::new(None::<SelectedBlock>));
     let block_editor_draft = Rc::new(RefCell::new(None::<BlockEditorDraft>));
     let project_runtime = Rc::new(RefCell::new(None::<ProjectRuntimeController>));
@@ -404,6 +409,10 @@ pub fn run_desktop_app(
         ChainInputGroupsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     let chain_output_groups_window =
         ChainOutputGroupsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    let chain_insert_window =
+        ChainInsertWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    let insert_send_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
+    let insert_return_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
     let block_editor_window =
         BlockEditorWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     window.set_show_project_launcher(true);
@@ -692,6 +701,244 @@ pub fn run_desktop_app(
     chain_output_window.set_channels(ModelRc::from(chain_output_channels.clone()));
     chain_output_window.set_selected_device_index(-1);
     chain_output_window.set_status_message("".into());
+    chain_insert_window.set_send_device_options(ModelRc::from(chain_output_device_options.clone()));
+    chain_insert_window.set_return_device_options(ModelRc::from(chain_input_device_options.clone()));
+    chain_insert_window.set_send_channels(ModelRc::from(insert_send_channels.clone()));
+    chain_insert_window.set_return_channels(ModelRc::from(insert_return_channels.clone()));
+    chain_insert_window.set_selected_send_device_index(-1);
+    chain_insert_window.set_selected_return_device_index(-1);
+    chain_insert_window.set_status_message("".into());
+    // --- ChainInsertWindow callbacks ---
+    {
+        let insert_draft = insert_draft.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let insert_send_channels = insert_send_channels.clone();
+        chain_insert_window.on_select_send_device(move |index| {
+            let Some(device) = output_chain_devices.get(index as usize) else { return; };
+            let mut draft_borrow = insert_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else { return; };
+            draft.send_device_id = Some(device.id.clone());
+            draft.send_channels.clear();
+            let items = build_insert_send_channel_items(draft, &output_chain_devices);
+            replace_channel_options(&insert_send_channels, items);
+        });
+    }
+    {
+        let insert_draft = insert_draft.clone();
+        let insert_send_channels = insert_send_channels.clone();
+        chain_insert_window.on_toggle_send_channel(move |index, selected| {
+            let mut draft_borrow = insert_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else { return; };
+            let ch = index as usize;
+            if selected {
+                if !draft.send_channels.contains(&ch) {
+                    draft.send_channels.push(ch);
+                }
+            } else {
+                draft.send_channels.retain(|&c| c != ch);
+            }
+            if let Some(mut row) = insert_send_channels.row_data(index as usize) {
+                row.selected = selected;
+                insert_send_channels.set_row_data(index as usize, row);
+            }
+        });
+    }
+    {
+        let insert_draft = insert_draft.clone();
+        chain_insert_window.on_select_send_mode(move |index| {
+            let mut draft_borrow = insert_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else { return; };
+            draft.send_mode = insert_mode_from_index(index);
+            log::debug!("[select_send_mode] index={}, mode={:?}", index, draft.send_mode);
+        });
+    }
+    {
+        let insert_draft = insert_draft.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let insert_return_channels = insert_return_channels.clone();
+        chain_insert_window.on_select_return_device(move |index| {
+            let Some(device) = input_chain_devices.get(index as usize) else { return; };
+            let mut draft_borrow = insert_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else { return; };
+            draft.return_device_id = Some(device.id.clone());
+            draft.return_channels.clear();
+            let items = build_insert_return_channel_items(draft, &input_chain_devices);
+            replace_channel_options(&insert_return_channels, items);
+        });
+    }
+    {
+        let insert_draft = insert_draft.clone();
+        let insert_return_channels = insert_return_channels.clone();
+        chain_insert_window.on_toggle_return_channel(move |index, selected| {
+            let mut draft_borrow = insert_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else { return; };
+            let ch = index as usize;
+            if selected {
+                if !draft.return_channels.contains(&ch) {
+                    draft.return_channels.push(ch);
+                }
+            } else {
+                draft.return_channels.retain(|&c| c != ch);
+            }
+            if let Some(mut row) = insert_return_channels.row_data(index as usize) {
+                row.selected = selected;
+                insert_return_channels.set_row_data(index as usize, row);
+            }
+        });
+    }
+    {
+        let insert_draft = insert_draft.clone();
+        chain_insert_window.on_select_return_mode(move |index| {
+            let mut draft_borrow = insert_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else { return; };
+            draft.return_mode = insert_mode_from_index(index);
+            log::debug!("[select_return_mode] index={}, mode={:?}", index, draft.return_mode);
+        });
+    }
+    {
+        let insert_draft = insert_draft.clone();
+        let project_session = project_session.clone();
+        let project_runtime = project_runtime.clone();
+        let project_chains = project_chains.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let weak_window = window.as_weak();
+        let weak_insert_window = chain_insert_window.as_weak();
+        chain_insert_window.on_toggle_enabled(move || {
+            let Some(window) = weak_window.upgrade() else { return; };
+            let Some(iw) = weak_insert_window.upgrade() else { return; };
+            let draft_borrow = insert_draft.borrow();
+            let Some(draft) = draft_borrow.as_ref() else { return; };
+            let chain_idx = draft.chain_index;
+            let block_idx = draft.block_index;
+            drop(draft_borrow);
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else { return; };
+            let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
+            let Some(block) = chain.blocks.get_mut(block_idx) else { return; };
+            block.enabled = !block.enabled;
+            iw.set_block_enabled(block.enabled);
+            let chain_id = chain.id.clone();
+            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                log::error!("toggle insert block enabled: {e}");
+            }
+            replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+        });
+    }
+    {
+        let insert_draft = insert_draft.clone();
+        let project_session = project_session.clone();
+        let project_runtime = project_runtime.clone();
+        let project_chains = project_chains.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let weak_window = window.as_weak();
+        let weak_insert_window = chain_insert_window.as_weak();
+        chain_insert_window.on_delete_block(move || {
+            let Some(window) = weak_window.upgrade() else { return; };
+            let Some(iw) = weak_insert_window.upgrade() else { return; };
+            let draft_borrow = insert_draft.borrow();
+            let Some(draft) = draft_borrow.as_ref() else { return; };
+            let chain_idx = draft.chain_index;
+            let block_idx = draft.block_index;
+            drop(draft_borrow);
+            *insert_draft.borrow_mut() = None;
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else { return; };
+            let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
+            if block_idx < chain.blocks.len() {
+                chain.blocks.remove(block_idx);
+            }
+            let chain_id = chain.id.clone();
+            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                log::error!("delete insert block: {e}");
+            }
+            replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            let _ = iw.hide();
+        });
+    }
+    {
+        let insert_draft = insert_draft.clone();
+        let project_session = project_session.clone();
+        let project_runtime = project_runtime.clone();
+        let project_chains = project_chains.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let weak_window = window.as_weak();
+        let weak_insert_window = chain_insert_window.as_weak();
+        chain_insert_window.on_save(move || {
+            let Some(window) = weak_window.upgrade() else { return; };
+            let Some(iw) = weak_insert_window.upgrade() else { return; };
+            let draft_borrow = insert_draft.borrow();
+            let Some(draft) = draft_borrow.as_ref() else { return; };
+            if draft.send_device_id.is_none() || draft.send_channels.is_empty() {
+                iw.set_status_message("Selecione dispositivo e canais de envio.".into());
+                return;
+            }
+            if draft.return_device_id.is_none() || draft.return_channels.is_empty() {
+                iw.set_status_message("Selecione dispositivo e canais de retorno.".into());
+                return;
+            }
+            let chain_idx = draft.chain_index;
+            let block_idx = draft.block_index;
+            let send_endpoint = project::block::InsertEndpoint {
+                device_id: DeviceId(draft.send_device_id.clone().unwrap_or_default()),
+                mode: draft.send_mode,
+                channels: draft.send_channels.clone(),
+            };
+            let return_endpoint = project::block::InsertEndpoint {
+                device_id: DeviceId(draft.return_device_id.clone().unwrap_or_default()),
+                mode: draft.return_mode,
+                channels: draft.return_channels.clone(),
+            };
+            drop(draft_borrow);
+            *insert_draft.borrow_mut() = None;
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                let _ = iw.hide();
+                return;
+            };
+            let Some(chain) = session.project.chains.get_mut(chain_idx) else {
+                let _ = iw.hide();
+                return;
+            };
+            let Some(block) = chain.blocks.get_mut(block_idx) else {
+                let _ = iw.hide();
+                return;
+            };
+            if let AudioBlockKind::Insert(ref mut ib) = block.kind {
+                ib.send = send_endpoint;
+                ib.return_ = return_endpoint;
+            }
+            let chain_id = chain.id.clone();
+            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                log::error!("insert save error: {e}");
+            }
+            replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            iw.set_status_message("".into());
+            let _ = iw.hide();
+        });
+    }
+    {
+        let insert_draft = insert_draft.clone();
+        let weak_insert_window = chain_insert_window.as_weak();
+        chain_insert_window.on_cancel(move || {
+            *insert_draft.borrow_mut() = None;
+            if let Some(iw) = weak_insert_window.upgrade() {
+                iw.set_status_message("".into());
+                let _ = iw.hide();
+            }
+        });
+    }
     {
         let input_devices = input_devices.clone();
         window.on_toggle_input_device(move |index, selected| {
@@ -2499,12 +2746,31 @@ pub fn run_desktop_app(
             let Some(chain) = session.project.chains.get(index as usize) else {
                 return;
             };
-            let draft = chain_draft_from_chain(index as usize, chain);
+            // Only show entries from the FIRST InputBlock (position 0 chip)
+            let first_input = chain.first_input();
+            let inputs: Vec<InputGroupDraft> = first_input
+                .map(|ib| {
+                    ib.entries.iter().map(|e| InputGroupDraft {
+                        name: e.name.clone(),
+                        device_id: if e.device_id.0.is_empty() { None } else { Some(e.device_id.0.clone()) },
+                        channels: e.channels.clone(),
+                        mode: e.mode,
+                    }).collect()
+                })
+                .unwrap_or_else(|| vec![InputGroupDraft {
+                    name: "Input 1".to_string(),
+                    device_id: None,
+                    channels: Vec::new(),
+                    mode: ChainInputMode::Mono,
+                }]);
+            let mut draft = chain_draft_from_chain(index as usize, chain);
+            draft.inputs = inputs;
             let (input_items, _) =
                 build_io_group_items(&draft, &input_chain_devices, &output_chain_devices);
             groups_window
                 .set_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
             groups_window.set_status_message("".into());
+            groups_window.set_show_block_controls(false);
             *chain_draft.borrow_mut() = Some(draft);
             show_child_window(window.window(), groups_window.window());
         });
@@ -2530,12 +2796,31 @@ pub fn run_desktop_app(
             let Some(chain) = session.project.chains.get(index as usize) else {
                 return;
             };
-            let draft = chain_draft_from_chain(index as usize, chain);
+            // Only show entries from the LAST OutputBlock (fixed output chip)
+            let last_output = chain.last_output();
+            let outputs: Vec<OutputGroupDraft> = last_output
+                .map(|ob| {
+                    ob.entries.iter().map(|e| OutputGroupDraft {
+                        name: e.name.clone(),
+                        device_id: if e.device_id.0.is_empty() { None } else { Some(e.device_id.0.clone()) },
+                        channels: e.channels.clone(),
+                        mode: e.mode,
+                    }).collect()
+                })
+                .unwrap_or_else(|| vec![OutputGroupDraft {
+                    name: "Output 1".to_string(),
+                    device_id: None,
+                    channels: Vec::new(),
+                    mode: ChainOutputMode::Stereo,
+                }]);
+            let mut draft = chain_draft_from_chain(index as usize, chain);
+            draft.outputs = outputs;
             let (_, output_items) =
                 build_io_group_items(&draft, &input_chain_devices, &output_chain_devices);
             groups_window
                 .set_groups(ModelRc::from(Rc::new(VecModel::from(output_items))));
             groups_window.set_status_message("".into());
+            groups_window.set_show_block_controls(false);
             *chain_draft.borrow_mut() = Some(draft);
             show_child_window(window.window(), groups_window.window());
         });
@@ -2649,67 +2934,118 @@ pub fn run_desktop_app(
     {
         let weak_window = window.as_weak();
         let weak_chain_window = chain_editor_window.as_weak();
+        let weak_input_window = chain_input_window.as_weak();
         let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let chain_input_channels = chain_input_channels.clone();
         chain_editor_window.on_add_input(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let Some(chain_window) = weak_chain_window.upgrade() else {
+            let Some(input_window) = weak_input_window.upgrade() else {
                 return;
             };
-            let mut draft_borrow = chain_draft.borrow_mut();
-            let Some(draft) = draft_borrow.as_mut() else {
+            let new_idx = {
+                let mut draft_borrow = chain_draft.borrow_mut();
+                let Some(draft) = draft_borrow.as_mut() else {
+                    return;
+                };
+                let idx = draft.inputs.len();
+                draft.inputs.push(InputGroupDraft {
+                    name: format!("Input {}", idx + 1),
+                    device_id: input_chain_devices.first().map(|d| d.id.clone()),
+                    channels: Vec::new(),
+                    mode: ChainInputMode::Mono,
+                });
+                draft.editing_input_index = Some(idx);
+                draft.adding_new_input = true;
+                if let Some(chain_window) = weak_chain_window.upgrade() {
+                    apply_chain_io_groups(
+                        &window,
+                        &chain_window,
+                        draft,
+                        &input_chain_devices,
+                        &output_chain_devices,
+                    );
+                }
+                idx
+            };
+            let draft_borrow = chain_draft.borrow();
+            let Some(draft) = draft_borrow.as_ref() else {
                 return;
             };
-            let idx = draft.inputs.len() + 1;
-            draft.inputs.push(InputGroupDraft {
-                name: format!("Input {}", idx),
-                device_id: input_chain_devices.first().map(|d| d.id.clone()),
-                channels: Vec::new(),
-                mode: ChainInputMode::Mono,
-            });
-            apply_chain_io_groups(
-                &window,
-                &chain_window,
-                draft,
-                &input_chain_devices,
-                &output_chain_devices,
-            );
+            let session_borrow = project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else {
+                return;
+            };
+            if let Some(input_group) = draft.inputs.get(new_idx) {
+                apply_chain_input_window_state(
+                    &input_window,
+                    input_group,
+                    draft,
+                    &session.project,
+                    &input_chain_devices,
+                    &chain_input_channels,
+                );
+            }
+            show_child_window(window.window(), input_window.window());
         });
     }
     {
         let weak_window = window.as_weak();
         let weak_chain_window = chain_editor_window.as_weak();
+        let weak_output_window = chain_output_window.as_weak();
         let chain_draft = chain_draft.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let chain_output_channels = chain_output_channels.clone();
         chain_editor_window.on_add_output(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let Some(chain_window) = weak_chain_window.upgrade() else {
+            let Some(output_window) = weak_output_window.upgrade() else {
                 return;
             };
-            let mut draft_borrow = chain_draft.borrow_mut();
-            let Some(draft) = draft_borrow.as_mut() else {
+            let new_idx = {
+                let mut draft_borrow = chain_draft.borrow_mut();
+                let Some(draft) = draft_borrow.as_mut() else {
+                    return;
+                };
+                let idx = draft.outputs.len();
+                draft.outputs.push(OutputGroupDraft {
+                    name: format!("Output {}", idx + 1),
+                    device_id: output_chain_devices.first().map(|d| d.id.clone()),
+                    channels: Vec::new(),
+                    mode: ChainOutputMode::Stereo,
+                });
+                draft.editing_output_index = Some(idx);
+                draft.adding_new_output = true;
+                if let Some(chain_window) = weak_chain_window.upgrade() {
+                    apply_chain_io_groups(
+                        &window,
+                        &chain_window,
+                        draft,
+                        &input_chain_devices,
+                        &output_chain_devices,
+                    );
+                }
+                idx
+            };
+            let draft_borrow = chain_draft.borrow();
+            let Some(draft) = draft_borrow.as_ref() else {
                 return;
             };
-            let idx = draft.outputs.len() + 1;
-            draft.outputs.push(OutputGroupDraft {
-                name: format!("Output {}", idx),
-                device_id: output_chain_devices.first().map(|d| d.id.clone()),
-                channels: Vec::new(),
-                mode: ChainOutputMode::Stereo,
-            });
-            apply_chain_io_groups(
-                &window,
-                &chain_window,
-                draft,
-                &input_chain_devices,
-                &output_chain_devices,
-            );
+            if let Some(output_group) = draft.outputs.get(new_idx) {
+                apply_chain_output_window_state(
+                    &output_window,
+                    output_group,
+                    &output_chain_devices,
+                    &chain_output_channels,
+                );
+            }
+            show_child_window(window.window(), output_window.window());
         });
     }
     {
@@ -2729,6 +3065,10 @@ pub fn run_desktop_app(
             let Some(draft) = draft_borrow.as_mut() else {
                 return;
             };
+            // Fixed block (chip In/Out): must keep at least one entry
+            if draft.editing_io_block_index.is_none() && draft.inputs.len() <= 1 {
+                return;
+            }
             let gi = group_index as usize;
             if gi < draft.inputs.len() {
                 draft.inputs.remove(gi);
@@ -2767,6 +3107,10 @@ pub fn run_desktop_app(
             let Some(draft) = draft_borrow.as_mut() else {
                 return;
             };
+            // Fixed block (chip In/Out): must keep at least one entry
+            if draft.editing_io_block_index.is_none() && draft.outputs.len() <= 1 {
+                return;
+            }
             let gi = group_index as usize;
             if gi < draft.outputs.len() {
                 draft.outputs.remove(gi);
@@ -2844,6 +3188,11 @@ pub fn run_desktop_app(
             let Some(draft) = draft_borrow.as_mut() else {
                 return;
             };
+            // Fixed block (chip In/Out): must keep at least one entry
+            if draft.editing_io_block_index.is_none() && draft.inputs.len() <= 1 {
+                groups_window.set_status_message("É necessário pelo menos uma entrada.".into());
+                return;
+            }
             let gi = group_index as usize;
             if gi < draft.inputs.len() {
                 draft.inputs.remove(gi);
@@ -2862,35 +3211,67 @@ pub fn run_desktop_app(
         });
     }
     {
+        let weak_window = window.as_weak();
         let weak_groups_window = chain_input_groups_window.as_weak();
+        let weak_input_window = chain_input_window.as_weak();
         let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let chain_input_channels = chain_input_channels.clone();
         chain_input_groups_window.on_add_group(move || {
-            let Some(groups_window) = weak_groups_window.upgrade() else {
+            let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let mut draft_borrow = chain_draft.borrow_mut();
-            let Some(draft) = draft_borrow.as_mut() else {
+            let Some(input_window) = weak_input_window.upgrade() else {
                 return;
             };
-            let idx = draft.inputs.len() + 1;
-            draft.inputs.push(InputGroupDraft {
-                name: format!("Input {}", idx),
-                device_id: input_chain_devices.first().map(|d| d.id.clone()),
-                channels: Vec::new(),
-                mode: ChainInputMode::Mono,
-            });
-            let (input_items, _) =
-                build_io_group_items(draft, &input_chain_devices, &output_chain_devices);
-            groups_window
-                .set_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
+            let new_idx = {
+                let mut draft_borrow = chain_draft.borrow_mut();
+                let Some(draft) = draft_borrow.as_mut() else {
+                    return;
+                };
+                let idx = draft.inputs.len();
+                draft.inputs.push(InputGroupDraft {
+                    name: format!("Input {}", idx + 1),
+                    device_id: input_chain_devices.first().map(|d| d.id.clone()),
+                    channels: Vec::new(),
+                    mode: ChainInputMode::Mono,
+                });
+                draft.editing_input_index = Some(idx);
+                draft.adding_new_input = true;
+                if let Some(groups_window) = weak_groups_window.upgrade() {
+                    let (input_items, _) =
+                        build_io_group_items(draft, &input_chain_devices, &output_chain_devices);
+                    groups_window
+                        .set_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
+                }
+                idx
+            };
+            let draft_borrow = chain_draft.borrow();
+            let Some(draft) = draft_borrow.as_ref() else {
+                return;
+            };
+            let session_borrow = project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else {
+                return;
+            };
+            if let Some(input_group) = draft.inputs.get(new_idx) {
+                apply_chain_input_window_state(
+                    &input_window,
+                    input_group,
+                    draft,
+                    &session.project,
+                    &input_chain_devices,
+                    &chain_input_channels,
+                );
+            }
+            show_child_window(window.window(), input_window.window());
         });
     }
     {
         let weak_window = window.as_weak();
         let weak_groups_window = chain_input_groups_window.as_weak();
-        let weak_chain_window = chain_editor_window.as_weak();
         let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
@@ -2899,7 +3280,6 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
-        let toast_timer = toast_timer.clone();
         chain_input_groups_window.on_save(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2938,42 +3318,44 @@ pub fn run_desktop_app(
                 }
             }
             let editing_index = draft.editing_index;
-            let existing_chain =
-                editing_index.and_then(|index| session.project.chains.get(index).cloned());
-            let chain = chain_from_draft(&draft, existing_chain.as_ref());
-            if let Err(msg) = chain.validate_channel_conflicts() {
-                groups_window.set_status_message(msg.into());
-                return;
-            }
-            let chain_id = chain.id.clone();
-            if let Some(index) = editing_index {
-                if let Some(current) = session.project.chains.get_mut(index) {
-                    *current = chain;
+            let io_block_idx = draft.editing_io_block_index;
+
+            // Build new entries from draft
+            let new_entries: Vec<InputEntry> = draft.inputs.iter()
+                .filter(|ig| ig.device_id.is_some() && !ig.channels.is_empty())
+                .map(|ig| InputEntry {
+                    name: ig.name.clone(),
+                    device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
+                    mode: ig.mode,
+                    channels: ig.channels.clone(),
+                }).collect();
+
+            if let Some(chain_idx) = editing_index {
+                if let Some(chain) = session.project.chains.get_mut(chain_idx) {
+                    // Find target block: specific index or first InputBlock
+                    let target_idx = io_block_idx.unwrap_or_else(|| {
+                        chain.blocks.iter().position(|b| matches!(&b.kind, AudioBlockKind::Input(_))).unwrap_or(0)
+                    });
+                    if let Some(block) = chain.blocks.get_mut(target_idx) {
+                        if let AudioBlockKind::Input(ref mut ib) = block.kind {
+                            ib.entries = new_entries;
+                        }
+                    }
+                    if let Err(msg) = chain.validate_channel_conflicts() {
+                        groups_window.set_status_message(msg.into());
+                        return;
+                    }
+                    let chain_id = chain.id.clone();
+                    if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                        groups_window.set_status_message(error.to_string().into());
+                        return;
+                    }
+                    replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
                 }
             }
-            if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                groups_window.set_status_message(error.to_string().into());
-                return;
-            }
-            replace_project_chains(
-                &project_chains,
-                &session.project,
-                &input_chain_devices,
-                &output_chain_devices,
-            );
-            if let Some(chain_window) = weak_chain_window.upgrade() {
-                apply_chain_io_groups(
-                    &window,
-                    &chain_window,
-                    &draft,
-                    &input_chain_devices,
-                    &output_chain_devices,
-                );
-            }
             *chain_draft.borrow_mut() = None;
-            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             groups_window.set_status_message("".into());
-            clear_status(&window, &toast_timer);
             let _ = groups_window.hide();
         });
     }
@@ -2986,6 +3368,74 @@ pub fn run_desktop_app(
             };
             *chain_draft.borrow_mut() = None;
             let _ = groups_window.hide();
+        });
+    }
+    {
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        let project_runtime = project_runtime.clone();
+        let project_chains = project_chains.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let weak_window = window.as_weak();
+        let weak_groups_window = chain_input_groups_window.as_weak();
+        chain_input_groups_window.on_toggle_enabled(move || {
+            let Some(window) = weak_window.upgrade() else { return; };
+            let Some(gw) = weak_groups_window.upgrade() else { return; };
+            let draft_borrow = chain_draft.borrow();
+            let Some(draft) = draft_borrow.as_ref() else { return; };
+            let Some(chain_idx) = draft.editing_index else { return; };
+            let Some(block_idx) = draft.editing_io_block_index else { return; };
+            drop(draft_borrow);
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else { return; };
+            let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
+            let Some(block) = chain.blocks.get_mut(block_idx) else { return; };
+            block.enabled = !block.enabled;
+            gw.set_block_enabled(block.enabled);
+            let chain_id = chain.id.clone();
+            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                log::error!("toggle I/O block enabled: {e}");
+            }
+            replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+        });
+    }
+    {
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        let project_runtime = project_runtime.clone();
+        let project_chains = project_chains.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let weak_window = window.as_weak();
+        let weak_groups_window = chain_input_groups_window.as_weak();
+        chain_input_groups_window.on_delete_block(move || {
+            let Some(window) = weak_window.upgrade() else { return; };
+            let Some(gw) = weak_groups_window.upgrade() else { return; };
+            let draft_borrow = chain_draft.borrow();
+            let Some(draft) = draft_borrow.as_ref() else { return; };
+            let Some(chain_idx) = draft.editing_index else { return; };
+            let Some(block_idx) = draft.editing_io_block_index else { return; };
+            drop(draft_borrow);
+            *chain_draft.borrow_mut() = None;
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else { return; };
+            let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
+            if block_idx < chain.blocks.len() {
+                chain.blocks.remove(block_idx);
+            }
+            let chain_id = chain.id.clone();
+            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                log::error!("delete I/O block: {e}");
+            }
+            replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            let _ = gw.hide();
         });
     }
     // --- ChainOutputGroupsWindow callbacks ---
@@ -3038,6 +3488,11 @@ pub fn run_desktop_app(
             let Some(draft) = draft_borrow.as_mut() else {
                 return;
             };
+            // Fixed block (chip In/Out): must keep at least one entry
+            if draft.editing_io_block_index.is_none() && draft.outputs.len() <= 1 {
+                groups_window.set_status_message("É necessário pelo menos uma saída.".into());
+                return;
+            }
             let gi = group_index as usize;
             if gi < draft.outputs.len() {
                 draft.outputs.remove(gi);
@@ -3056,35 +3511,60 @@ pub fn run_desktop_app(
         });
     }
     {
+        let weak_window = window.as_weak();
         let weak_groups_window = chain_output_groups_window.as_weak();
+        let weak_output_window = chain_output_window.as_weak();
         let chain_draft = chain_draft.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
+        let chain_output_channels = chain_output_channels.clone();
         chain_output_groups_window.on_add_group(move || {
-            let Some(groups_window) = weak_groups_window.upgrade() else {
+            let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let mut draft_borrow = chain_draft.borrow_mut();
-            let Some(draft) = draft_borrow.as_mut() else {
+            let Some(output_window) = weak_output_window.upgrade() else {
                 return;
             };
-            let idx = draft.outputs.len() + 1;
-            draft.outputs.push(OutputGroupDraft {
-                name: format!("Output {}", idx),
-                device_id: output_chain_devices.first().map(|d| d.id.clone()),
-                channels: Vec::new(),
-                mode: ChainOutputMode::Stereo,
-            });
-            let (_, output_items) =
-                build_io_group_items(draft, &input_chain_devices, &output_chain_devices);
-            groups_window
-                .set_groups(ModelRc::from(Rc::new(VecModel::from(output_items))));
+            let new_idx = {
+                let mut draft_borrow = chain_draft.borrow_mut();
+                let Some(draft) = draft_borrow.as_mut() else {
+                    return;
+                };
+                let idx = draft.outputs.len();
+                draft.outputs.push(OutputGroupDraft {
+                    name: format!("Output {}", idx + 1),
+                    device_id: output_chain_devices.first().map(|d| d.id.clone()),
+                    channels: Vec::new(),
+                    mode: ChainOutputMode::Stereo,
+                });
+                draft.editing_output_index = Some(idx);
+                draft.adding_new_output = true;
+                if let Some(groups_window) = weak_groups_window.upgrade() {
+                    let (_, output_items) =
+                        build_io_group_items(draft, &input_chain_devices, &output_chain_devices);
+                    groups_window
+                        .set_groups(ModelRc::from(Rc::new(VecModel::from(output_items))));
+                }
+                idx
+            };
+            let draft_borrow = chain_draft.borrow();
+            let Some(draft) = draft_borrow.as_ref() else {
+                return;
+            };
+            if let Some(output_group) = draft.outputs.get(new_idx) {
+                apply_chain_output_window_state(
+                    &output_window,
+                    output_group,
+                    &output_chain_devices,
+                    &chain_output_channels,
+                );
+            }
+            show_child_window(window.window(), output_window.window());
         });
     }
     {
         let weak_window = window.as_weak();
         let weak_groups_window = chain_output_groups_window.as_weak();
-        let weak_chain_window = chain_editor_window.as_weak();
         let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
@@ -3093,7 +3573,6 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
-        let toast_timer = toast_timer.clone();
         chain_output_groups_window.on_save(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -3132,42 +3611,44 @@ pub fn run_desktop_app(
                 }
             }
             let editing_index = draft.editing_index;
-            let existing_chain =
-                editing_index.and_then(|index| session.project.chains.get(index).cloned());
-            let chain = chain_from_draft(&draft, existing_chain.as_ref());
-            if let Err(msg) = chain.validate_channel_conflicts() {
-                groups_window.set_status_message(msg.into());
-                return;
-            }
-            let chain_id = chain.id.clone();
-            if let Some(index) = editing_index {
-                if let Some(current) = session.project.chains.get_mut(index) {
-                    *current = chain;
+            let io_block_idx = draft.editing_io_block_index;
+
+            // Build new entries from draft
+            let new_entries: Vec<OutputEntry> = draft.outputs.iter()
+                .filter(|og| og.device_id.is_some() && !og.channels.is_empty())
+                .map(|og| OutputEntry {
+                    name: og.name.clone(),
+                    device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
+                    mode: og.mode,
+                    channels: og.channels.clone(),
+                }).collect();
+
+            if let Some(chain_idx) = editing_index {
+                if let Some(chain) = session.project.chains.get_mut(chain_idx) {
+                    // Find target block: specific index or last OutputBlock
+                    let target_idx = io_block_idx.unwrap_or_else(|| {
+                        chain.blocks.iter().rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_))).unwrap_or(chain.blocks.len().saturating_sub(1))
+                    });
+                    if let Some(block) = chain.blocks.get_mut(target_idx) {
+                        if let AudioBlockKind::Output(ref mut ob) = block.kind {
+                            ob.entries = new_entries;
+                        }
+                    }
+                    if let Err(msg) = chain.validate_channel_conflicts() {
+                        groups_window.set_status_message(msg.into());
+                        return;
+                    }
+                    let chain_id = chain.id.clone();
+                    if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                        groups_window.set_status_message(error.to_string().into());
+                        return;
+                    }
+                    replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
                 }
             }
-            if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                groups_window.set_status_message(error.to_string().into());
-                return;
-            }
-            replace_project_chains(
-                &project_chains,
-                &session.project,
-                &input_chain_devices,
-                &output_chain_devices,
-            );
-            if let Some(chain_window) = weak_chain_window.upgrade() {
-                apply_chain_io_groups(
-                    &window,
-                    &chain_window,
-                    &draft,
-                    &input_chain_devices,
-                    &output_chain_devices,
-                );
-            }
             *chain_draft.borrow_mut() = None;
-            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             groups_window.set_status_message("".into());
-            clear_status(&window, &toast_timer);
             let _ = groups_window.hide();
         });
     }
@@ -3180,6 +3661,74 @@ pub fn run_desktop_app(
             };
             *chain_draft.borrow_mut() = None;
             let _ = groups_window.hide();
+        });
+    }
+    {
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        let project_runtime = project_runtime.clone();
+        let project_chains = project_chains.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let weak_window = window.as_weak();
+        let weak_groups_window = chain_output_groups_window.as_weak();
+        chain_output_groups_window.on_toggle_enabled(move || {
+            let Some(window) = weak_window.upgrade() else { return; };
+            let Some(gw) = weak_groups_window.upgrade() else { return; };
+            let draft_borrow = chain_draft.borrow();
+            let Some(draft) = draft_borrow.as_ref() else { return; };
+            let Some(chain_idx) = draft.editing_index else { return; };
+            let Some(block_idx) = draft.editing_io_block_index else { return; };
+            drop(draft_borrow);
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else { return; };
+            let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
+            let Some(block) = chain.blocks.get_mut(block_idx) else { return; };
+            block.enabled = !block.enabled;
+            gw.set_block_enabled(block.enabled);
+            let chain_id = chain.id.clone();
+            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                log::error!("toggle I/O block enabled: {e}");
+            }
+            replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+        });
+    }
+    {
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        let project_runtime = project_runtime.clone();
+        let project_chains = project_chains.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let weak_window = window.as_weak();
+        let weak_groups_window = chain_output_groups_window.as_weak();
+        chain_output_groups_window.on_delete_block(move || {
+            let Some(window) = weak_window.upgrade() else { return; };
+            let Some(gw) = weak_groups_window.upgrade() else { return; };
+            let draft_borrow = chain_draft.borrow();
+            let Some(draft) = draft_borrow.as_ref() else { return; };
+            let Some(chain_idx) = draft.editing_index else { return; };
+            let Some(block_idx) = draft.editing_io_block_index else { return; };
+            drop(draft_borrow);
+            *chain_draft.borrow_mut() = None;
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else { return; };
+            let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
+            if block_idx < chain.blocks.len() {
+                chain.blocks.remove(block_idx);
+            }
+            let chain_id = chain.id.clone();
+            if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                log::error!("delete I/O block: {e}");
+            }
+            replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            let _ = gw.hide();
         });
     }
     {
@@ -3198,6 +3747,13 @@ pub fn run_desktop_app(
         let output_chain_devices = output_chain_devices.clone();
         let open_block_windows = open_block_windows.clone();
         let toast_timer = toast_timer.clone();
+        let weak_input_groups_for_select = chain_input_groups_window.as_weak();
+        let weak_output_groups_for_select = chain_output_groups_window.as_weak();
+        let chain_draft_for_select = chain_draft.clone();
+        let weak_insert_window_for_select = chain_insert_window.as_weak();
+        let insert_draft_for_select = insert_draft.clone();
+        let insert_send_channels_for_select = insert_send_channels.clone();
+        let insert_return_channels_for_select = insert_return_channels.clone();
         window.on_select_chain_block(move |chain_index, block_index| {
             let Some(window) = weak_main_window.upgrade() else {
                 return;
@@ -3216,6 +3772,91 @@ pub fn run_desktop_app(
                 set_status_error(&window, &toast_timer, "Block inválido.");
                 return;
             };
+            // Handle I/O blocks — open I/O groups window with entries of THIS specific block
+            match &block.kind {
+                AudioBlockKind::Input(ib) => {
+                    let inputs: Vec<InputGroupDraft> = ib.entries.iter().map(|e| InputGroupDraft {
+                        name: e.name.clone(),
+                        device_id: if e.device_id.0.is_empty() { None } else { Some(e.device_id.0.clone()) },
+                        channels: e.channels.clone(),
+                        mode: e.mode,
+                    }).collect();
+                    let mut draft = chain_draft_from_chain(chain_index as usize, chain);
+                    draft.inputs = inputs;
+                    draft.editing_io_block_index = Some(block_index as usize);
+                    let (input_items, _) = build_io_group_items(&draft, &input_chain_devices, &output_chain_devices);
+                    if let Some(gw) = weak_input_groups_for_select.upgrade() {
+                        gw.set_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
+                        gw.set_status_message("".into());
+                        gw.set_show_block_controls(true);
+                        gw.set_block_enabled(block.enabled);
+                        *chain_draft_for_select.borrow_mut() = Some(draft);
+                        drop(session_borrow);
+                        show_child_window(window.window(), gw.window());
+                    }
+                    return;
+                }
+                AudioBlockKind::Output(ob) => {
+                    let outputs: Vec<OutputGroupDraft> = ob.entries.iter().map(|e| OutputGroupDraft {
+                        name: e.name.clone(),
+                        device_id: if e.device_id.0.is_empty() { None } else { Some(e.device_id.0.clone()) },
+                        channels: e.channels.clone(),
+                        mode: e.mode,
+                    }).collect();
+                    let mut draft = chain_draft_from_chain(chain_index as usize, chain);
+                    draft.outputs = outputs;
+                    draft.editing_io_block_index = Some(block_index as usize);
+                    let (_, output_items) = build_io_group_items(&draft, &input_chain_devices, &output_chain_devices);
+                    if let Some(gw) = weak_output_groups_for_select.upgrade() {
+                        gw.set_groups(ModelRc::from(Rc::new(VecModel::from(output_items))));
+                        gw.set_status_message("".into());
+                        gw.set_show_block_controls(true);
+                        gw.set_block_enabled(block.enabled);
+                        *chain_draft_for_select.borrow_mut() = Some(draft);
+                        drop(session_borrow);
+                        show_child_window(window.window(), gw.window());
+                    }
+                    return;
+                }
+                AudioBlockKind::Insert(ib) => {
+                    log::info!("[select_chain_block] insert block at index {}: id='{}'", block_index, block.id.0);
+                    let draft = InsertDraft {
+                        chain_index: chain_index as usize,
+                        block_index: block_index as usize,
+                        send_device_id: if ib.send.device_id.0.is_empty() { None } else { Some(ib.send.device_id.0.clone()) },
+                        send_channels: ib.send.channels.clone(),
+                        send_mode: ib.send.mode,
+                        return_device_id: if ib.return_.device_id.0.is_empty() { None } else { Some(ib.return_.device_id.0.clone()) },
+                        return_channels: ib.return_.channels.clone(),
+                        return_mode: ib.return_.mode,
+                    };
+                    let is_middle = block_index > 0 && (block_index as usize) < chain.blocks.len() - 1;
+                    if let Some(iw) = weak_insert_window_for_select.upgrade() {
+                        let send_items = build_insert_send_channel_items(&draft, &output_chain_devices);
+                        let return_items = build_insert_return_channel_items(&draft, &input_chain_devices);
+                        replace_channel_options(&insert_send_channels_for_select, send_items);
+                        replace_channel_options(&insert_return_channels_for_select, return_items);
+                        iw.set_selected_send_device_index(selected_device_index(
+                            &output_chain_devices,
+                            draft.send_device_id.as_deref(),
+                        ));
+                        iw.set_selected_return_device_index(selected_device_index(
+                            &input_chain_devices,
+                            draft.return_device_id.as_deref(),
+                        ));
+                        iw.set_selected_send_mode_index(insert_mode_to_index(draft.send_mode));
+                        iw.set_selected_return_mode_index(insert_mode_to_index(draft.return_mode));
+                        iw.set_show_block_controls(is_middle);
+                        iw.set_block_enabled(block.enabled);
+                        iw.set_status_message("".into());
+                        *insert_draft_for_select.borrow_mut() = Some(draft);
+                        drop(session_borrow);
+                        show_child_window(window.window(), iw.window());
+                    }
+                    return;
+                }
+                _ => {}
+            }
             log::info!("[select_chain_block] block at index {}: id='{}', kind={:?}", block_index, block.id.0, block.model_ref().map(|m| format!("{}/{}", m.effect_type, m.model)));
             let Some(editor_data) = block_editor_data(block) else {
                 set_status_error(&window, &toast_timer, "Esse block ainda não pode ser editado pela GUI.");
@@ -3888,7 +4529,7 @@ pub fn run_desktop_app(
         let toast_timer = toast_timer.clone();
         let open_block_windows = open_block_windows.clone();
         window.on_reorder_chain_block(move |chain_index, from_index, before_index| {
-            log::info!("[reorder_chain_block] chain_index={}, from_index={}, before_index={}", chain_index, from_index, before_index);
+            log::info!("[reorder_chain_block] chain_index={}, from_index={} (real), before_index={} (UI)", chain_index, from_index, before_index);
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -3906,11 +4547,15 @@ pub fn run_desktop_app(
                 if from_index < 0 || from_index >= block_count {
                     return;
                 }
-                let mut normalized_before = before_index.clamp(0, block_count);
-                if normalized_before == from_index || normalized_before == from_index + 1 {
+                // before_index is in UI space (excludes hidden first Input and last Output).
+                // Convert to real block index before operating on chain.blocks.
+                let real_before = ui_index_to_real_block_index(chain, before_index as usize) as i32;
+                log::info!("[reorder_chain_block] real_before={}", real_before);
+                if real_before == from_index || real_before == from_index + 1 {
                     return;
                 }
                 let block = chain.blocks.remove(from_index as usize);
+                let mut normalized_before = real_before;
                 if normalized_before > from_index {
                     normalized_before -= 1;
                 }
@@ -3974,11 +4619,19 @@ pub fn run_desktop_app(
                     log::warn!("=== START_BLOCK_INSERT: no chain at index {}, defaulting to electric_guitar ===", chain_index);
                     block_core::DEFAULT_INSTRUMENT.to_string()
                 });
+            // Map UI before_index to real chain.blocks index (UI excludes hidden I/O blocks)
+            let real_before_index = {
+                let session_borrow = project_session.borrow();
+                session_borrow.as_ref()
+                    .and_then(|s| s.project.chains.get(chain_index as usize))
+                    .map(|chain| ui_index_to_real_block_index(chain, before_index as usize))
+                    .unwrap_or(before_index as usize)
+            };
             *selected_block.borrow_mut() = None;
             *block_editor_draft.borrow_mut() = Some(BlockEditorDraft {
                 chain_index: chain_index as usize,
                 block_index: None,
-                before_index: before_index as usize,
+                before_index: real_before_index,
                 instrument: instrument.clone(),
                 effect_type: String::new(),
                 model_id: String::new(),
@@ -4005,6 +4658,23 @@ pub fn run_desktop_app(
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
+        let chain_draft_for_type = chain_draft.clone();
+        let io_block_insert_draft_for_type = io_block_insert_draft.clone();
+        let weak_input_window_for_type = chain_input_window.as_weak();
+        let weak_output_window_for_type = chain_output_window.as_weak();
+        let project_session_for_type = project_session.clone();
+        let project_runtime_for_type = project_runtime.clone();
+        let project_chains_for_type = project_chains.clone();
+        let saved_project_snapshot_for_type = saved_project_snapshot.clone();
+        let project_dirty_for_type = project_dirty.clone();
+        let input_chain_devices_for_type = input_chain_devices.clone();
+        let output_chain_devices_for_type = output_chain_devices.clone();
+        let chain_input_channels_for_type = chain_input_channels.clone();
+        let chain_output_channels_for_type = chain_output_channels.clone();
+        let weak_insert_window_for_type = chain_insert_window.as_weak();
+        let insert_draft_for_type = insert_draft.clone();
+        let insert_send_channels_for_type = insert_send_channels.clone();
+        let insert_return_channels_for_type = insert_return_channels.clone();
         window.on_choose_block_type(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -4017,6 +4687,158 @@ pub fn run_desktop_app(
                 return;
             };
             log::debug!("on_choose_block_type: index={}, type='{}', instrument='{}'", index, block_type.effect_type, instrument);
+
+            // Handle I/O and Insert block types: open the dedicated window instead of the block editor
+            let effect_type_str = block_type.effect_type.as_str();
+            if effect_type_str == "insert" {
+                // Insert block: create directly with empty endpoints
+                let (chain_index, before_index) = {
+                    let draft_borrow = block_editor_draft.borrow();
+                    let Some(draft) = draft_borrow.as_ref() else { return; };
+                    (draft.chain_index, draft.before_index)
+                };
+                let session_borrow = project_session_for_type.borrow();
+                let Some(session) = session_borrow.as_ref() else { return; };
+                let Some(chain) = session.project.chains.get(chain_index) else { return; };
+                let block_id = domain::ids::BlockId(format!("{}:insert:{}", chain.id.0, before_index));
+                drop(session_borrow);
+                let insert_block = project::block::AudioBlock {
+                    id: block_id,
+                    enabled: true,
+                    kind: AudioBlockKind::Insert(project::block::InsertBlock {
+                        model: "standard".to_string(),
+                        send: project::block::InsertEndpoint {
+                            device_id: domain::ids::DeviceId(String::new()),
+                            mode: ChainInputMode::Mono,
+                            channels: Vec::new(),
+                        },
+                        return_: project::block::InsertEndpoint {
+                            device_id: domain::ids::DeviceId(String::new()),
+                            mode: ChainInputMode::Mono,
+                            channels: Vec::new(),
+                        },
+                    }),
+                };
+                let mut session_borrow = project_session_for_type.borrow_mut();
+                let Some(session) = session_borrow.as_mut() else { return; };
+                let Some(chain) = session.project.chains.get_mut(chain_index) else { return; };
+                chain.blocks.insert(before_index, insert_block);
+                let chain_id = chain.id.clone();
+                if let Err(e) = sync_live_chain_runtime(&project_runtime_for_type, session, &chain_id) {
+                    log::error!("insert block create error: {e}");
+                }
+                replace_project_chains(&project_chains_for_type, &session.project, &input_chain_devices_for_type, &output_chain_devices_for_type);
+                sync_project_dirty(&window, session, &saved_project_snapshot_for_type, &project_dirty_for_type);
+                window.set_show_block_type_picker(false);
+                // Open the insert window to configure the newly created block
+                drop(session_borrow);
+                let draft = InsertDraft {
+                    chain_index,
+                    block_index: before_index,
+                    send_device_id: None,
+                    send_channels: Vec::new(),
+                    send_mode: ChainInputMode::Mono,
+                    return_device_id: None,
+                    return_channels: Vec::new(),
+                    return_mode: ChainInputMode::Mono,
+                };
+                if let Some(iw) = weak_insert_window_for_type.upgrade() {
+                    replace_channel_options(&insert_send_channels_for_type, Vec::new());
+                    replace_channel_options(&insert_return_channels_for_type, Vec::new());
+                    iw.set_selected_send_device_index(-1);
+                    iw.set_selected_return_device_index(-1);
+                    iw.set_selected_send_mode_index(0);
+                    iw.set_selected_return_mode_index(0);
+                    iw.set_show_block_controls(true);
+                    iw.set_block_enabled(true);
+                    iw.set_status_message("".into());
+                    *insert_draft_for_type.borrow_mut() = Some(draft);
+                    show_child_window(window.window(), iw.window());
+                }
+                return;
+            }
+            if effect_type_str == "input" || effect_type_str == "output" {
+                let (chain_index, before_index) = {
+                    let draft_borrow = block_editor_draft.borrow();
+                    let Some(draft) = draft_borrow.as_ref() else { return; };
+                    (draft.chain_index, draft.before_index)
+                };
+                // Store the I/O insert draft
+                *io_block_insert_draft_for_type.borrow_mut() = Some(IoBlockInsertDraft {
+                    chain_index,
+                    before_index,
+                    kind: effect_type_str.to_string(),
+                });
+                window.set_show_block_type_picker(false);
+
+                if effect_type_str == "input" {
+                    // Set up a temporary chain draft for the input window callbacks
+                    let input_group = InputGroupDraft {
+                        name: "Input".to_string(),
+                        device_id: None,
+                        channels: Vec::new(),
+                        mode: ChainInputMode::Mono,
+                    };
+                    *chain_draft_for_type.borrow_mut() = Some(ChainDraft {
+                        editing_index: Some(chain_index),
+                        name: String::new(),
+                        instrument: instrument.clone(),
+                        inputs: vec![input_group.clone()],
+                        outputs: Vec::new(),
+                        editing_input_index: Some(0),
+                        editing_output_index: None,
+        editing_io_block_index: None,
+                        adding_new_input: false,
+                        adding_new_output: false,
+                    });
+                    if let Some(input_window) = weak_input_window_for_type.upgrade() {
+                        let draft_borrow = chain_draft_for_type.borrow();
+                        let draft = draft_borrow.as_ref().unwrap();
+                        if let Some(session) = project_session_for_type.borrow().as_ref() {
+                            apply_chain_input_window_state(
+                                &input_window,
+                                &input_group,
+                                draft,
+                                &session.project,
+                                &input_chain_devices_for_type,
+                                &chain_input_channels_for_type,
+                            );
+                        }
+                        show_child_window(window.window(), input_window.window());
+                    }
+                } else {
+                    // Set up a temporary chain draft for the output window callbacks
+                    let output_group = OutputGroupDraft {
+                        name: "Output".to_string(),
+                        device_id: None,
+                        channels: Vec::new(),
+                        mode: ChainOutputMode::Stereo,
+                    };
+                    *chain_draft_for_type.borrow_mut() = Some(ChainDraft {
+                        editing_index: Some(chain_index),
+                        name: String::new(),
+                        instrument: instrument.clone(),
+                        inputs: Vec::new(),
+                        outputs: vec![output_group.clone()],
+        editing_io_block_index: None,
+                        editing_input_index: None,
+                        editing_output_index: Some(0),
+                        adding_new_input: false,
+                        adding_new_output: false,
+                    });
+                    if let Some(output_window) = weak_output_window_for_type.upgrade() {
+                        apply_chain_output_window_state(
+                            &output_window,
+                            &output_group,
+                            &output_chain_devices_for_type,
+                            &chain_output_channels_for_type,
+                        );
+                        show_child_window(window.window(), output_window.window());
+                    }
+                }
+                return;
+            }
+
             let models = block_model_picker_items(block_type.effect_type.as_str(), &instrument);
             let Some(model) = models.first() else {
                 return;
@@ -4895,6 +5717,7 @@ pub fn run_desktop_app(
         let weak_chain_window = chain_editor_window.as_weak();
         let weak_input_groups_window = chain_input_groups_window.as_weak();
         let chain_draft = chain_draft.clone();
+        let io_block_insert_draft_for_input_save = io_block_insert_draft.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
@@ -4909,15 +5732,92 @@ pub fn run_desktop_app(
             let Some(input_window) = weak_input_window.upgrade() else {
                 return;
             };
+
+            // Handle I/O block insert mode: insert a single InputBlock at the stored position
+            let io_insert = io_block_insert_draft_for_input_save.borrow().clone();
+            log::info!("[input_window.on_save] io_insert={:?}", io_insert.as_ref().map(|d| format!("kind={}, chain={}, before={}", d.kind, d.chain_index, d.before_index)));
+            if let Some(io_draft) = io_insert {
+                if io_draft.kind == "input" {
+                    log::info!("[input_window.on_save] INSERTING NEW InputBlock at chain={}, before={}", io_draft.chain_index, io_draft.before_index);
+                    // Extract what we need from chain_draft, then drop the borrow
+                    let input_group = {
+                        let draft_borrow = chain_draft.borrow();
+                        let Some(draft) = draft_borrow.as_ref() else {
+                            let _ = input_window.hide();
+                            drop(draft_borrow);
+                            *io_block_insert_draft_for_input_save.borrow_mut() = None;
+                            return;
+                        };
+                        let Some(ig) = draft.inputs.first().cloned() else {
+                            let _ = input_window.hide();
+                            drop(draft_borrow);
+                            *io_block_insert_draft_for_input_save.borrow_mut() = None;
+                            return;
+                        };
+                        ig
+                    };
+                    if input_group.device_id.is_none() || input_group.channels.is_empty() {
+                        input_window.set_status_message("Selecione dispositivo e canais.".into());
+                        return;
+                    }
+                    let chain_index = io_draft.chain_index;
+                    let before_index = io_draft.before_index;
+                    // Clear drafts BEFORE touching session to avoid borrow conflicts
+                    *io_block_insert_draft_for_input_save.borrow_mut() = None;
+                    *chain_draft.borrow_mut() = None;
+                    let mut session_borrow = project_session.borrow_mut();
+                    let Some(session) = session_borrow.as_mut() else {
+                        let _ = input_window.hide();
+                        return;
+                    };
+                    let Some(chain) = session.project.chains.get_mut(chain_index) else {
+                        let _ = input_window.hide();
+                        return;
+                    };
+                    let real_chain_id = chain.id.clone();
+                    let input_block = AudioBlock {
+                        id: BlockId::generate_for_chain(&real_chain_id),
+                        enabled: true,
+                        kind: AudioBlockKind::Input(InputBlock {
+                            model: "standard".to_string(),
+                            entries: vec![InputEntry {
+                                name: input_group.name.clone(),
+                                device_id: DeviceId(input_group.device_id.clone().unwrap_or_default()),
+                                mode: input_group.mode,
+                                channels: input_group.channels.clone(),
+                            }],
+                        }),
+                    };
+                    let insert_pos = before_index.min(chain.blocks.len());
+                    chain.blocks.insert(insert_pos, input_block);
+                    if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &real_chain_id) {
+                        eprintln!("io block insert error: {error}");
+                    }
+                    replace_project_chains(
+                        &project_chains,
+                        &session.project,
+                        &input_chain_devices,
+                        &output_chain_devices,
+                    );
+                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                    input_window.set_status_message("".into());
+                    let _ = input_window.hide();
+                    return;
+                }
+            }
+
+            log::info!("[input_window.on_save] NORMAL FLOW — editing existing entry in InputBlock");
             let mut draft_borrow = chain_draft.borrow_mut();
             let Some(draft) = draft_borrow.as_mut() else {
                 let _ = input_window.hide();
                 return;
             };
             let Some(gi) = draft.editing_input_index else {
+                log::warn!("[input_window.on_save] no editing_input_index set!");
                 let _ = input_window.hide();
                 return;
             };
+            log::info!("[input_window.on_save] editing_input_index={}, draft.inputs.len={}", gi, draft.inputs.len());
             let Some(input_group) = draft.inputs.get(gi) else {
                 let _ = input_window.hide();
                 return;
@@ -4934,19 +5834,29 @@ pub fn run_desktop_app(
                 let Some(chain) = session.project.chains.get_mut(index) else {
                     return;
                 };
-                // Update the chain's inputs from draft
-                chain.inputs = draft.inputs.iter().map(|ig| ChainInput {
-                    name: ig.name.clone(),
-                    device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
-                    mode: ig.mode,
-                    channels: ig.channels.clone(),
+                // Rebuild chain blocks: replace all InputBlocks with new ones from draft
+                let new_input_blocks: Vec<AudioBlock> = draft.inputs.iter().enumerate().map(|(i, ig)| AudioBlock {
+                    id: BlockId(format!("{}:input:{}", chain.id.0, i)),
+                    enabled: true,
+                    kind: AudioBlockKind::Input(InputBlock {
+                        model: "standard".to_string(),
+                        entries: vec![InputEntry {
+                            name: ig.name.clone(),
+                            device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
+                            mode: ig.mode,
+                            channels: ig.channels.clone(),
+                        }],
+                    }),
                 }).collect();
-                // Also update legacy fields from first input for backward compat
-                if let Some(first) = draft.inputs.first() {
-                    chain.input_device_id = DeviceId(first.device_id.clone().unwrap_or_default());
-                    chain.input_channels = first.channels.clone();
-                    chain.input_mode = first.mode;
-                }
+                // Keep non-input, non-output blocks and existing output blocks
+                let non_input_blocks: Vec<AudioBlock> = chain.blocks.iter()
+                    .filter(|b| !matches!(&b.kind, AudioBlockKind::Input(_)))
+                    .cloned()
+                    .collect();
+                let mut all_blocks = Vec::with_capacity(new_input_blocks.len() + non_input_blocks.len());
+                all_blocks.extend(new_input_blocks);
+                all_blocks.extend(non_input_blocks);
+                chain.blocks = all_blocks;
                 let chain_id = chain.id.clone();
                 if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                     eprintln!("input editor save error: {error}");
@@ -4976,25 +5886,111 @@ pub fn run_desktop_app(
                 groups_window
                     .set_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
             }
+            // Clear the adding flag on successful save
+            draft.adding_new_input = false;
             input_window.set_status_message("".into());
             let _ = input_window.hide();
         });
     }
     {
         let weak_output_window = chain_output_window.as_weak();
+        let weak_chain_window_for_out_cancel = chain_editor_window.as_weak();
+        let weak_window_for_out_cancel = window.as_weak();
+        let weak_output_groups_for_cancel = chain_output_groups_window.as_weak();
+        let io_block_insert_draft_for_output_cancel = io_block_insert_draft.clone();
+        let chain_draft_for_output_cancel = chain_draft.clone();
+        let input_chain_devices_for_out_cancel = input_chain_devices.clone();
+        let output_chain_devices_for_out_cancel = output_chain_devices.clone();
         chain_output_window.on_cancel(move || {
             if let Some(output_window) = weak_output_window.upgrade() {
                 output_window.set_status_message("".into());
                 let _ = output_window.hide();
             }
+            if io_block_insert_draft_for_output_cancel.borrow().is_some() {
+                *io_block_insert_draft_for_output_cancel.borrow_mut() = None;
+                *chain_draft_for_output_cancel.borrow_mut() = None;
+                return;
+            }
+            // If we were adding a new entry, remove the placeholder
+            let mut draft_borrow = chain_draft_for_output_cancel.borrow_mut();
+            if let Some(draft) = draft_borrow.as_mut() {
+                if draft.adding_new_output {
+                    if let Some(idx) = draft.editing_output_index {
+                        if idx < draft.outputs.len() {
+                            draft.outputs.remove(idx);
+                        }
+                    }
+                    draft.adding_new_output = false;
+                    draft.editing_output_index = None;
+                    // Refresh chain editor window
+                    if let (Some(window), Some(chain_window)) = (weak_window_for_out_cancel.upgrade(), weak_chain_window_for_out_cancel.upgrade()) {
+                        apply_chain_io_groups(
+                            &window,
+                            &chain_window,
+                            draft,
+                            &input_chain_devices_for_out_cancel,
+                            &output_chain_devices_for_out_cancel,
+                        );
+                    }
+                    // Refresh groups window if open
+                    if let Some(groups_window) = weak_output_groups_for_cancel.upgrade() {
+                        let (_, output_items) =
+                            build_io_group_items(draft, &input_chain_devices_for_out_cancel, &output_chain_devices_for_out_cancel);
+                        groups_window
+                            .set_groups(ModelRc::from(Rc::new(VecModel::from(output_items))));
+                    }
+                }
+            }
         });
     }
     {
         let weak_input_window = chain_input_window.as_weak();
+        let weak_chain_window_for_cancel = chain_editor_window.as_weak();
+        let weak_window_for_cancel = window.as_weak();
+        let weak_input_groups_for_cancel = chain_input_groups_window.as_weak();
+        let io_block_insert_draft_for_input_cancel = io_block_insert_draft.clone();
+        let chain_draft_for_input_cancel = chain_draft.clone();
+        let input_chain_devices_for_cancel = input_chain_devices.clone();
+        let output_chain_devices_for_cancel = output_chain_devices.clone();
         chain_input_window.on_cancel(move || {
             if let Some(input_window) = weak_input_window.upgrade() {
                 input_window.set_status_message("".into());
                 let _ = input_window.hide();
+            }
+            if io_block_insert_draft_for_input_cancel.borrow().is_some() {
+                *io_block_insert_draft_for_input_cancel.borrow_mut() = None;
+                *chain_draft_for_input_cancel.borrow_mut() = None;
+                return;
+            }
+            // If we were adding a new entry, remove the placeholder
+            let mut draft_borrow = chain_draft_for_input_cancel.borrow_mut();
+            if let Some(draft) = draft_borrow.as_mut() {
+                if draft.adding_new_input {
+                    if let Some(idx) = draft.editing_input_index {
+                        if idx < draft.inputs.len() {
+                            draft.inputs.remove(idx);
+                        }
+                    }
+                    draft.adding_new_input = false;
+                    draft.editing_input_index = None;
+                    // Refresh chain editor window
+                    if let (Some(window), Some(chain_window)) = (weak_window_for_cancel.upgrade(), weak_chain_window_for_cancel.upgrade()) {
+                        apply_chain_io_groups(
+                            &window,
+                            &chain_window,
+                            draft,
+                            &input_chain_devices_for_cancel,
+                            &output_chain_devices_for_cancel,
+                        );
+                    }
+                    // Refresh groups window if open
+                    if let Some(groups_window) = weak_input_groups_for_cancel.upgrade() {
+                        let (input_items, _) =
+                            build_io_group_items(draft, &input_chain_devices_for_cancel, &output_chain_devices_for_cancel);
+                        groups_window
+                            .set_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
+                    }
+                }
             }
         });
     }
@@ -5004,6 +6000,7 @@ pub fn run_desktop_app(
         let weak_chain_window = chain_editor_window.as_weak();
         let weak_output_groups_window = chain_output_groups_window.as_weak();
         let chain_draft = chain_draft.clone();
+        let io_block_insert_draft_for_output_save = io_block_insert_draft.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
@@ -5018,6 +6015,76 @@ pub fn run_desktop_app(
             let Some(output_window) = weak_output_window.upgrade() else {
                 return;
             };
+
+            // Handle I/O block insert mode: insert a single OutputBlock at the stored position
+            let io_insert = io_block_insert_draft_for_output_save.borrow().clone();
+            if let Some(io_draft) = io_insert {
+                if io_draft.kind == "output" {
+                    let output_group = {
+                        let draft_borrow = chain_draft.borrow();
+                        let Some(draft) = draft_borrow.as_ref() else {
+                            let _ = output_window.hide();
+                            drop(draft_borrow);
+                            *io_block_insert_draft_for_output_save.borrow_mut() = None;
+                            return;
+                        };
+                        let Some(og) = draft.outputs.first().cloned() else {
+                            let _ = output_window.hide();
+                            drop(draft_borrow);
+                            *io_block_insert_draft_for_output_save.borrow_mut() = None;
+                            return;
+                        };
+                        og
+                    };
+                    if output_group.device_id.is_none() || output_group.channels.is_empty() {
+                        output_window.set_status_message("Selecione dispositivo e canais.".into());
+                        return;
+                    }
+                    let chain_index = io_draft.chain_index;
+                    let before_index = io_draft.before_index;
+                    *io_block_insert_draft_for_output_save.borrow_mut() = None;
+                    *chain_draft.borrow_mut() = None;
+                    let mut session_borrow = project_session.borrow_mut();
+                    let Some(session) = session_borrow.as_mut() else {
+                        let _ = output_window.hide();
+                        return;
+                    };
+                    let Some(chain) = session.project.chains.get_mut(chain_index) else {
+                        let _ = output_window.hide();
+                        return;
+                    };
+                    let real_chain_id = chain.id.clone();
+                    let output_block = AudioBlock {
+                        id: BlockId::generate_for_chain(&real_chain_id),
+                        enabled: true,
+                        kind: AudioBlockKind::Output(OutputBlock {
+                            model: "standard".to_string(),
+                            entries: vec![OutputEntry {
+                                name: output_group.name.clone(),
+                                device_id: DeviceId(output_group.device_id.clone().unwrap_or_default()),
+                                mode: output_group.mode,
+                                channels: output_group.channels.clone(),
+                            }],
+                        }),
+                    };
+                    let insert_pos = before_index.min(chain.blocks.len());
+                    chain.blocks.insert(insert_pos, output_block);
+                    if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &real_chain_id) {
+                        eprintln!("io block insert error: {error}");
+                    }
+                    replace_project_chains(
+                        &project_chains,
+                        &session.project,
+                        &input_chain_devices,
+                        &output_chain_devices,
+                    );
+                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                    output_window.set_status_message("".into());
+                    let _ = output_window.hide();
+                    return;
+                }
+            }
+
             let mut draft_borrow = chain_draft.borrow_mut();
             let Some(draft) = draft_borrow.as_mut() else {
                 let _ = output_window.hide();
@@ -5043,18 +6110,29 @@ pub fn run_desktop_app(
                 let Some(chain) = session.project.chains.get_mut(index) else {
                     return;
                 };
-                // Update the chain's outputs from draft
-                chain.outputs = draft.outputs.iter().map(|og| ChainOutput {
-                    name: og.name.clone(),
-                    device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
-                    mode: og.mode,
-                    channels: og.channels.clone(),
+                // Rebuild chain blocks: replace all OutputBlocks with new ones from draft
+                let new_output_blocks: Vec<AudioBlock> = draft.outputs.iter().enumerate().map(|(i, og)| AudioBlock {
+                    id: BlockId(format!("{}:output:{}", chain.id.0, i)),
+                    enabled: true,
+                    kind: AudioBlockKind::Output(OutputBlock {
+                        model: "standard".to_string(),
+                        entries: vec![OutputEntry {
+                            name: og.name.clone(),
+                            device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
+                            mode: og.mode,
+                            channels: og.channels.clone(),
+                        }],
+                    }),
                 }).collect();
-                // Also update legacy fields from first output for backward compat
-                if let Some(first) = draft.outputs.first() {
-                    chain.output_device_id = DeviceId(first.device_id.clone().unwrap_or_default());
-                    chain.output_channels = first.channels.clone();
-                }
+                // Keep non-output blocks (inputs and audio blocks)
+                let non_output_blocks: Vec<AudioBlock> = chain.blocks.iter()
+                    .filter(|b| !matches!(&b.kind, AudioBlockKind::Output(_)))
+                    .cloned()
+                    .collect();
+                let mut all_blocks = Vec::with_capacity(non_output_blocks.len() + new_output_blocks.len());
+                all_blocks.extend(non_output_blocks);
+                all_blocks.extend(new_output_blocks);
+                chain.blocks = all_blocks;
                 let chain_id = chain.id.clone();
                 if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                     eprintln!("output editor save error: {error}");
@@ -5084,6 +6162,8 @@ pub fn run_desktop_app(
                 groups_window
                     .set_groups(ModelRc::from(Rc::new(VecModel::from(output_items))));
             }
+            // Clear the adding flag on successful save
+            draft.adding_new_output = false;
             output_window.set_status_message("".into());
             let _ = output_window.hide();
         });
@@ -5174,18 +6254,32 @@ pub fn run_desktop_app(
             log::info!("on_toggle_chain_enabled: index={}, will_enable={}", index, will_enable);
             // Check channel conflict before enabling
             if will_enable {
-                let input_id = chain.input_device_id.clone();
-                let input_channels = chain.input_channels.clone();
                 let chain_id = chain.id.clone();
-                for other in &session.project.chains {
-                    if other.id != chain_id && other.enabled
-                        && other.input_device_id == input_id
-                        && other.input_channels.iter().any(|ch| input_channels.contains(ch))
-                    {
-                        let other_name = other.description.as_deref().unwrap_or("outra chain");
-                        set_status_error(&window, &toast_timer, &format!("Input channel já em uso por '{}'", other_name));
-                        return;
+                let our_inputs = chain.input_blocks();
+                let mut conflict = false;
+                'outer: for other in &session.project.chains {
+                    if other.id != chain_id && other.enabled {
+                        for (_, other_input) in other.input_blocks() {
+                            for (_, our_input) in &our_inputs {
+                                let other_entries_conflict = other_input.entries.iter().any(|oe|
+                                    our_input.entries.iter().any(|ue|
+                                        oe.device_id == ue.device_id
+                                        && oe.channels.iter().any(|ch| ue.channels.contains(ch))
+                                    )
+                                );
+                                if other_entries_conflict
+                                {
+                                    let other_name = other.description.as_deref().unwrap_or("outra chain");
+                                    set_status_error(&window, &toast_timer, &format!("Input channel já em uso por '{}'", other_name));
+                                    conflict = true;
+                                    break 'outer;
+                                }
+                            }
+                        }
                     }
+                }
+                if conflict {
+                    return;
                 }
             }
             let Some(chain) = session.project.chains.get_mut(index) else { return; };
@@ -5435,14 +6529,16 @@ fn replace_project_chains(
         .iter()
         .enumerate()
         .map(|(index, chain)| {
-            let input_settings = project
-                .device_settings
-                .iter()
-                .find(|s| s.device_id == chain.input_device_id);
-            let output_settings = project
-                .device_settings
-                .iter()
-                .find(|s| s.device_id == chain.output_device_id);
+            let input_settings = chain.first_input()
+                .and_then(|ib| ib.entries.first())
+                .and_then(|entry| {
+                    project.device_settings.iter().find(|s| s.device_id == entry.device_id)
+                });
+            let output_settings = chain.last_output()
+                .and_then(|ob| ob.entries.first())
+                .and_then(|entry| {
+                    project.device_settings.iter().find(|s| s.device_id == entry.device_id)
+                });
             let input_buffer =
                 input_settings.map(|s| s.buffer_size_frames).unwrap_or(256) as f32;
             let output_buffer =
@@ -5458,24 +6554,52 @@ fn replace_project_chains(
                     .into(),
                 subtitle: chain_routing_summary(chain).into(),
                 enabled: chain.enabled,
-                block_count_label: if chain.blocks.len() == 1 {
-                    "1 block".into()
-                } else {
-                    format!("{} blocks", chain.blocks.len()).into()
+                block_count_label: {
+                    let effect_block_count = chain.blocks.iter()
+                        .filter(|b| !matches!(&b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
+                        .count();
+                    if effect_block_count == 1 {
+                        "1 block".into()
+                    } else {
+                        format!("{} blocks", effect_block_count).into()
+                    }
                 },
-                input_label: chain_endpoint_label("In", &chain.input_channels).into(),
+                input_label: {
+                    let input_chs: Vec<usize> = chain.input_blocks().into_iter()
+                        .flat_map(|(_, ib)| ib.entries.iter().flat_map(|e| e.channels.iter().copied()))
+                        .collect();
+                    chain_endpoint_label("In", &input_chs).into()
+                },
                 input_tooltip: chain_inputs_tooltip(chain, project, input_devices).into(),
-                output_label: chain_endpoint_label("Out", &chain.output_channels).into(),
+                output_label: {
+                    let output_chs: Vec<usize> = chain.output_blocks().into_iter()
+                        .flat_map(|(_, ob)| ob.entries.iter().flat_map(|e| e.channels.iter().copied()))
+                        .collect();
+                    chain_endpoint_label("Out", &output_chs).into()
+                },
                 output_tooltip: chain_outputs_tooltip(chain, project, output_devices)
                 .into(),
                 latency_ms,
-                blocks: ModelRc::from(Rc::new(VecModel::from(
-                    chain
-                        .blocks
-                        .iter()
-                        .map(chain_block_item_from_block)
-                        .collect::<Vec<_>>(),
-                ))),
+                blocks: {
+                    let first_input_idx = chain.blocks.iter().position(|b| matches!(&b.kind, AudioBlockKind::Input(_)));
+                    let last_output_idx = chain.blocks.iter().rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_)));
+                    ModelRc::from(Rc::new(VecModel::from(
+                        chain
+                            .blocks
+                            .iter()
+                            .enumerate()
+                            .filter(|(i, _)| {
+                                // Hide only the first Input (fixed chip) and last Output (fixed chip)
+                                Some(*i) != first_input_idx && Some(*i) != last_output_idx
+                            })
+                            .map(|(real_idx, b)| {
+                                let mut item = chain_block_item_from_block(b);
+                                item.real_index = real_idx as i32;
+                                item
+                            })
+                            .collect::<Vec<_>>(),
+                    )))
+                },
             }
         })
         .collect::<Vec<_>>();
@@ -5484,74 +6608,53 @@ fn replace_project_chains(
 fn chain_endpoint_label(prefix: &str, _channels: &[usize]) -> String {
     prefix.to_string()
 }
-fn chain_endpoint_tooltip(
-    _title: &str,
-    device_id: &str,
-    channels: &[usize],
-    project: &Project,
-    devices: &[AudioDeviceDescriptor],
-) -> String {
-    let device_name = devices
-        .iter()
-        .find(|device| device.id == device_id)
-        .map(|device| device.name.as_str())
-        .unwrap_or(device_id);
-    let settings = project
-        .device_settings
-        .iter()
-        .find(|setting| setting.device_id.0 == device_id);
-    let sample_rate = settings
-        .map(|setting| setting.sample_rate.to_string())
-        .unwrap_or_else(|| "n/d".to_string());
-    let buffer = settings
-        .map(|setting| setting.buffer_size_frames.to_string())
-        .unwrap_or_else(|| "n/d".to_string());
-    format!(
-        "{device_name}\nConfiguração: {sample_rate} Hz · {buffer} frames\nCanais: {}",
-        format_channel_list(channels)
-    )
-}
 fn chain_inputs_tooltip(
     chain: &Chain,
-    project: &Project,
+    _project: &Project,
     devices: &[AudioDeviceDescriptor],
 ) -> String {
-    if chain.inputs.is_empty() {
-        return chain_endpoint_tooltip("Entrada", &chain.input_device_id.0, &chain.input_channels, project, devices);
-    }
-    chain.inputs.iter().map(|input| {
-        let device_name = devices
-            .iter()
-            .find(|d| d.id == input.device_id.0)
-            .map(|d| d.name.as_str())
-            .unwrap_or(&input.device_id.0);
-        let mode = match input.mode {
-            ChainInputMode::Mono => "Mono",
-            ChainInputMode::Stereo => "Stereo",
-            ChainInputMode::DualMono => "Dual Mono",
-        };
-        format!("{}: {} · {} · Ch {}", input.name, device_name, mode, format_channel_list(&input.channels))
+    // Show only entries from the FIRST InputBlock (chip In)
+    let first_input = chain.first_input();
+    let Some(input) = first_input else {
+        return "No input configured".to_string();
+    };
+    input.entries.iter().enumerate().map(|(ei, entry)| {
+            let device_name = devices
+                .iter()
+                .find(|d| d.id == entry.device_id.0)
+                .map(|d| d.name.as_str())
+                .unwrap_or(&entry.device_id.0);
+            let mode = match entry.mode {
+                ChainInputMode::Mono => "Mono",
+                ChainInputMode::Stereo => "Stereo",
+                ChainInputMode::DualMono => "Dual Mono",
+            };
+            let label = if entry.name.is_empty() { format!("Input #{}", ei + 1) } else { entry.name.clone() };
+            format!("{}: {} · {} · Ch {}", label, device_name, mode, format_channel_list(&entry.channels))
     }).collect::<Vec<_>>().join("\n")
 }
 fn chain_outputs_tooltip(
     chain: &Chain,
-    project: &Project,
+    _project: &Project,
     devices: &[AudioDeviceDescriptor],
 ) -> String {
-    if chain.outputs.is_empty() {
-        return chain_endpoint_tooltip("Saída", &chain.output_device_id.0, &chain.output_channels, project, devices);
-    }
-    chain.outputs.iter().map(|output| {
+    // Show only entries from the LAST OutputBlock (chip Out)
+    let last_output = chain.last_output();
+    let Some(output) = last_output else {
+        return "No output configured".to_string();
+    };
+    output.entries.iter().enumerate().map(|(ei, entry)| {
         let device_name = devices
             .iter()
-            .find(|d| d.id == output.device_id.0)
+            .find(|d| d.id == entry.device_id.0)
             .map(|d| d.name.as_str())
-            .unwrap_or(&output.device_id.0);
-        let mode = match output.mode {
+            .unwrap_or(&entry.device_id.0);
+        let mode = match entry.mode {
             ChainOutputMode::Mono => "Mono",
             ChainOutputMode::Stereo => "Stereo",
         };
-        format!("{}: {} · {} · Ch {}", output.name, device_name, mode, format_channel_list(&output.channels))
+        let label = if entry.name.is_empty() { format!("Output #{}", ei + 1) } else { entry.name.clone() };
+        format!("{}: {} · {} · Ch {}", label, device_name, mode, format_channel_list(&entry.channels))
     }).collect::<Vec<_>>().join("\n")
 }
 fn format_channel_list(channels: &[usize]) -> String {
@@ -5567,7 +6670,7 @@ fn format_channel_list(channels: &[usize]) -> String {
 }
 fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerItem> {
     let mut seen = std::collections::BTreeSet::new();
-    supported_block_types()
+    let mut items: Vec<BlockTypePickerItem> = supported_block_types()
         .into_iter()
         .filter(|item| seen.insert(item.effect_type))
         .map(|item| BlockTypePickerItem {
@@ -5582,7 +6685,36 @@ fn block_type_picker_items(instrument: &str) -> Vec<BlockTypePickerItem> {
         .filter(|item| {
             instrument == block_core::INST_GENERIC || !block_model_picker_items(item.effect_type.as_str(), instrument).is_empty()
         })
-        .collect()
+        .collect();
+    // Add I/O block types
+    items.push(BlockTypePickerItem {
+        effect_type: "input".into(),
+        label: "INPUT".into(),
+        subtitle: "".into(),
+        icon_kind: "input".into(),
+        use_panel_editor: false,
+        accent_color: crate::ui_state::accent_color_for_icon_kind("routing"),
+        icon_source: slint::Image::default(),
+    });
+    items.push(BlockTypePickerItem {
+        effect_type: "output".into(),
+        label: "OUTPUT".into(),
+        subtitle: "".into(),
+        icon_kind: "output".into(),
+        use_panel_editor: false,
+        accent_color: crate::ui_state::accent_color_for_icon_kind("routing"),
+        icon_source: slint::Image::default(),
+    });
+    items.push(BlockTypePickerItem {
+        effect_type: "insert".into(),
+        label: "INSERT".into(),
+        subtitle: "".into(),
+        icon_kind: "insert".into(),
+        use_panel_editor: false,
+        accent_color: crate::ui_state::accent_color_for_icon_kind("insert"),
+        icon_source: slint::Image::default(),
+    });
+    items
 }
 fn block_model_picker_items(effect_type: &str, instrument: &str) -> Vec<BlockModelPickerItem> {
     let all_models = supported_block_models(effect_type).unwrap_or_default();
@@ -6338,46 +7470,8 @@ fn build_project_device_rows(
     }
     rows
 }
-fn build_project_yaml(session: &ProjectSession) -> Result<ProjectYaml> {
-    Ok(ProjectYaml {
-        name: session
-            .project
-            .name
-            .as_ref()
-            .map(|name| name.trim().to_string())
-            .filter(|name| !name.is_empty()),
-        device_settings: session
-            .project
-            .device_settings
-            .iter()
-            .map(|setting| ProjectDeviceSettingsYaml {
-                device_id: setting.device_id.0.clone(),
-                sample_rate: setting.sample_rate,
-                buffer_size_frames: setting.buffer_size_frames,
-            })
-            .collect(),
-        chains: session
-            .project
-            .chains
-            .iter()
-            .map(|chain| -> Result<ProjectChainYaml> {
-                Ok(ProjectChainYaml {
-                    description: chain.description.clone(),
-                    instrument: chain.instrument.clone(),
-                    input_device_id: chain.input_device_id.0.clone(),
-                    input_channels: chain.input_channels.clone(),
-                    output_device_id: chain.output_device_id.0.clone(),
-                    output_channels: chain.output_channels.clone(),
-                    blocks: serialize_audio_blocks(&chain.blocks)?,
-                    output_mixdown: chain.output_mixdown,
-                    input_mode: chain.input_mode,
-                })
-            })
-            .collect::<Result<Vec<_>>>()?,
-    })
-}
 fn project_session_snapshot(session: &ProjectSession) -> Result<String> {
-    Ok(serde_yaml::to_string(&build_project_yaml(session)?)?)
+    infra_yaml::serialize_project(&session.project)
 }
 fn set_project_dirty(window: &AppWindow, project_dirty: &Rc<RefCell<bool>>, dirty: bool) {
     *project_dirty.borrow_mut() = dirty;
@@ -6483,68 +7577,58 @@ fn create_chain_draft(
         instrument: block_core::DEFAULT_INSTRUMENT.to_string(),
         inputs: vec![default_input],
         outputs: vec![default_output],
+        editing_io_block_index: None,
         editing_input_index: None,
         editing_output_index: None,
+        adding_new_input: false,
+        adding_new_output: false,
     }
 }
 fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
-    let inputs: Vec<InputGroupDraft> = if chain.inputs.is_empty() {
-        // Legacy single-input chain
+    let input_blocks = chain.input_blocks();
+    let inputs: Vec<InputGroupDraft> = if input_blocks.is_empty() {
         vec![InputGroupDraft {
             name: "Input 1".to_string(),
-            device_id: if chain.input_device_id.0.is_empty() {
-                None
-            } else {
-                Some(chain.input_device_id.0.clone())
-            },
-            channels: chain.input_channels.clone(),
-            mode: chain.input_mode,
+            device_id: None,
+            channels: Vec::new(),
+            mode: ChainInputMode::Mono,
         }]
     } else {
-        chain
-            .inputs
+        // Expand ALL entries from ALL InputBlocks into separate drafts
+        input_blocks
             .iter()
-            .map(|input| InputGroupDraft {
-                name: input.name.clone(),
-                device_id: if input.device_id.0.is_empty() {
-                    None
-                } else {
-                    Some(input.device_id.0.clone())
-                },
-                channels: input.channels.clone(),
-                mode: input.mode,
+            .flat_map(|(_, input)| {
+                input.entries.iter().map(move |entry| {
+                    InputGroupDraft {
+                        name: if entry.name.is_empty() { "Input".to_string() } else { entry.name.clone() },
+                        device_id: if entry.device_id.0.is_empty() { None } else { Some(entry.device_id.0.clone()) },
+                        channels: entry.channels.clone(),
+                        mode: entry.mode,
+                    }
+                })
             })
             .collect()
     };
-    let outputs: Vec<OutputGroupDraft> = if chain.outputs.is_empty() {
-        // Legacy single-output chain
+    let output_blocks = chain.output_blocks();
+    let outputs: Vec<OutputGroupDraft> = if output_blocks.is_empty() {
         vec![OutputGroupDraft {
             name: "Output 1".to_string(),
-            device_id: if chain.output_device_id.0.is_empty() {
-                None
-            } else {
-                Some(chain.output_device_id.0.clone())
-            },
-            channels: chain.output_channels.clone(),
-            mode: if chain.output_channels.len() >= 2 {
-                ChainOutputMode::Stereo
-            } else {
-                ChainOutputMode::Mono
-            },
+            device_id: None,
+            channels: Vec::new(),
+            mode: ChainOutputMode::Stereo,
         }]
     } else {
-        chain
-            .outputs
+        output_blocks
             .iter()
-            .map(|output| OutputGroupDraft {
-                name: output.name.clone(),
-                device_id: if output.device_id.0.is_empty() {
-                    None
-                } else {
-                    Some(output.device_id.0.clone())
-                },
-                channels: output.channels.clone(),
-                mode: output.mode,
+            .flat_map(|(_, output)| {
+                output.entries.iter().map(move |entry| {
+                    OutputGroupDraft {
+                        name: if entry.name.is_empty() { "Output".to_string() } else { entry.name.clone() },
+                        device_id: if entry.device_id.0.is_empty() { None } else { Some(entry.device_id.0.clone()) },
+                        channels: entry.channels.clone(),
+                        mode: entry.mode,
+                    }
+                })
             })
             .collect()
     };
@@ -6556,9 +7640,12 @@ fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
             .unwrap_or_else(|| format!("Chain {}", index + 1)),
         instrument: chain.instrument.clone(),
         inputs,
+        editing_io_block_index: None,
         outputs,
         editing_input_index: None,
         editing_output_index: None,
+        adding_new_input: false,
+        adding_new_output: false,
     }
 }
 fn load_thumbnail_image(effect_type: &str, model_id: &str) -> (slint::Image, bool, f32, f32) {
@@ -6601,8 +7688,29 @@ fn load_thumbnail_image(effect_type: &str, model_id: &str) -> (slint::Image, boo
         None => (slint::Image::default(), false, 0.0, 0.0)
     }
 }
+/// Map a UI block index (which excludes hidden first Input and last Output) to the real chain.blocks index.
+fn ui_index_to_real_block_index(chain: &Chain, ui_index: usize) -> usize {
+    let first_input_idx = chain.blocks.iter().position(|b| matches!(&b.kind, AudioBlockKind::Input(_)));
+    let last_output_idx = chain.blocks.iter().rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_)));
+    let mut visible_count = 0;
+    for (real_idx, _) in chain.blocks.iter().enumerate() {
+        if Some(real_idx) == first_input_idx || Some(real_idx) == last_output_idx {
+            continue; // hidden
+        }
+        if visible_count == ui_index {
+            return real_idx;
+        }
+        visible_count += 1;
+    }
+    // If ui_index is past all visible blocks, return end (before last output)
+    last_output_idx.unwrap_or(chain.blocks.len())
+}
+
 fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
     let (kind, label) = match &block.kind {
+        AudioBlockKind::Input(_) => ("input".to_string(), "input".to_string()),
+        AudioBlockKind::Output(_) => ("output".to_string(), "output".to_string()),
+        AudioBlockKind::Insert(_) => ("insert".to_string(), "insert".to_string()),
         AudioBlockKind::Select(select) => select
             .selected_option()
             .and_then(|option| option.model_ref())
@@ -6616,28 +7724,42 @@ fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
     let family = block_family_for_kind(&kind).to_string();
     let block_type = supported_block_type(&kind);
     let (thumbnail, has_thumbnail, thumb_width, thumb_height) = load_thumbnail_image(&kind, &label);
+
+    // I/O and Insert blocks are not registered effect types, so resolve icon_kind/type_label directly
+    let is_io = matches!(block.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_));
+    let resolved_icon_kind: String = if is_io {
+        kind.clone()
+    } else {
+        block_type.as_ref().map(|e| e.icon_kind).unwrap_or("core").to_string()
+    };
+    let resolved_type_label: &str = if is_io {
+        match &block.kind {
+            AudioBlockKind::Input(_) => "INPUT",
+            AudioBlockKind::Output(_) => "OUTPUT",
+            AudioBlockKind::Insert(_) => "INSERT",
+            _ => "BLOCK",
+        }
+    } else {
+        block_type
+            .as_ref()
+            .map(|e| e.display_label)
+            .unwrap_or("BLOCK")
+    };
+
+    let accent_color = crate::ui_state::accent_color_for_icon_kind(&resolved_icon_kind);
     ChainBlockItem {
         kind: kind.into(),
-        icon_kind: block_type
-            .as_ref()
-            .map(|entry| entry.icon_kind)
-            .unwrap_or("core")
-            .into(),
-        type_label: block_type
-            .as_ref()
-            .map(|entry| entry.display_label)
-            .unwrap_or("BLOCK")
-            .into(),
+        icon_kind: resolved_icon_kind.into(),
+        type_label: resolved_type_label.into(),
         label: label.into(),
         family: family.into(),
         enabled: block.enabled,
+        real_index: 0,
         thumbnail,
         has_thumbnail,
         thumb_width,
         thumb_height,
-        accent_color: crate::ui_state::accent_color_for_icon_kind(
-            block_type.as_ref().map(|e| e.icon_kind).unwrap_or("core"),
-        ),
+        accent_color,
         icon_source: slint::Image::default(),
     }
 }
@@ -6662,16 +7784,11 @@ fn build_input_channel_items(
                 && draft.editing_index != Some(*index)
         })
         .flat_map(|(_, chain)| {
-            chain.inputs.iter()
-                .filter(|inp| inp.device_id.0 == *device_id)
-                .flat_map(|inp| inp.channels.iter().copied())
-                .chain(
-                    if chain.input_device_id.0 == *device_id {
-                        chain.input_channels.clone()
-                    } else {
-                        Vec::new()
-                    }
-                )
+            chain.input_blocks().into_iter()
+                .flat_map(|(_, inp)| inp.entries.iter())
+                .filter(|entry| entry.device_id.0 == *device_id)
+                .flat_map(|entry| entry.channels.iter().copied().collect::<Vec<_>>())
+                .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>();
     (0..device.channels)
@@ -6705,6 +7822,57 @@ fn build_output_channel_items(
 fn replace_channel_options(model: &Rc<VecModel<ChannelOptionItem>>, items: Vec<ChannelOptionItem>) {
     model.set_vec(items);
 }
+fn build_insert_send_channel_items(
+    draft: &InsertDraft,
+    output_devices: &[AudioDeviceDescriptor],
+) -> Vec<ChannelOptionItem> {
+    let Some(device_id) = draft.send_device_id.as_ref() else {
+        return Vec::new();
+    };
+    let Some(device) = output_devices.iter().find(|d| &d.id == device_id) else {
+        return Vec::new();
+    };
+    (0..device.channels)
+        .map(|channel| ChannelOptionItem {
+            index: channel as i32,
+            label: format!("Canal {}", channel + 1).into(),
+            selected: draft.send_channels.contains(&channel),
+            available: true,
+        })
+        .collect()
+}
+fn build_insert_return_channel_items(
+    draft: &InsertDraft,
+    input_devices: &[AudioDeviceDescriptor],
+) -> Vec<ChannelOptionItem> {
+    let Some(device_id) = draft.return_device_id.as_ref() else {
+        return Vec::new();
+    };
+    let Some(device) = input_devices.iter().find(|d| &d.id == device_id) else {
+        return Vec::new();
+    };
+    (0..device.channels)
+        .map(|channel| ChannelOptionItem {
+            index: channel as i32,
+            label: format!("Canal {}", channel + 1).into(),
+            selected: draft.return_channels.contains(&channel),
+            available: true,
+        })
+        .collect()
+}
+fn insert_mode_to_index(mode: ChainInputMode) -> i32 {
+    match mode {
+        ChainInputMode::Mono => 0,
+        ChainInputMode::Stereo => 1,
+        ChainInputMode::DualMono => 0,
+    }
+}
+fn insert_mode_from_index(index: i32) -> ChainInputMode {
+    match index {
+        1 => ChainInputMode::Stereo,
+        _ => ChainInputMode::Mono,
+    }
+}
 fn normalized_chain_description(name: &str) -> Option<String> {
     let trimmed = name.trim();
     if trimmed.is_empty() {
@@ -6714,29 +7882,72 @@ fn normalized_chain_description(name: &str) -> Option<String> {
     }
 }
 fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain>) -> Chain {
-    let inputs: Vec<ChainInput> = draft
+    // All draft inputs become entries of a SINGLE fixed InputBlock
+    let input_entries: Vec<InputEntry> = draft
         .inputs
         .iter()
-        .map(|ig| ChainInput {
+        .filter(|ig| ig.device_id.is_some() && !ig.channels.is_empty())
+        .map(|ig| InputEntry {
             name: ig.name.clone(),
             device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
             mode: ig.mode,
             channels: ig.channels.clone(),
         })
         .collect();
-    let outputs: Vec<ChainOutput> = draft
+    let input_blocks: Vec<AudioBlock> = if input_entries.is_empty() {
+        Vec::new()
+    } else {
+        vec![AudioBlock {
+            id: BlockId("input:0".into()),
+            enabled: true,
+            kind: AudioBlockKind::Input(InputBlock {
+                model: "standard".to_string(),
+                entries: input_entries,
+            }),
+        }]
+    };
+
+    // All draft outputs become entries of a SINGLE fixed OutputBlock
+    let output_entries: Vec<OutputEntry> = draft
         .outputs
         .iter()
-        .map(|og| ChainOutput {
+        .filter(|og| og.device_id.is_some() && !og.channels.is_empty())
+        .map(|og| OutputEntry {
             name: og.name.clone(),
             device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
             mode: og.mode,
             channels: og.channels.clone(),
         })
         .collect();
-    // Legacy fields from first input/output for backward compat
-    let first_input = draft.inputs.first();
-    let first_output = draft.outputs.first();
+    let output_blocks: Vec<AudioBlock> = if output_entries.is_empty() {
+        Vec::new()
+    } else {
+        vec![AudioBlock {
+            id: BlockId("output:0".into()),
+            enabled: true,
+            kind: AudioBlockKind::Output(OutputBlock {
+                model: "standard".to_string(),
+                entries: output_entries,
+            }),
+        }]
+    };
+
+    // Get existing non-I/O blocks
+    let audio_blocks: Vec<AudioBlock> = existing_chain
+        .map(|c| {
+            c.blocks
+                .iter()
+                .filter(|b| !matches!(&b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
+                .cloned()
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let mut all_blocks = Vec::with_capacity(input_blocks.len() + audio_blocks.len() + output_blocks.len());
+    all_blocks.extend(input_blocks);
+    all_blocks.extend(audio_blocks);
+    all_blocks.extend(output_blocks);
+
     Chain {
         id: existing_chain
             .map(|c| c.id.clone())
@@ -6744,33 +7955,7 @@ fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain>) -> Chain
         description: normalized_chain_description(&draft.name),
         instrument: draft.instrument.clone(),
         enabled: existing_chain.map(|c| c.enabled).unwrap_or(false),
-        inputs,
-        outputs,
-        input_device_id: DeviceId(
-            first_input
-                .and_then(|i| i.device_id.clone())
-                .unwrap_or_default(),
-        ),
-        input_channels: first_input
-            .map(|i| i.channels.clone())
-            .unwrap_or_default(),
-        output_device_id: DeviceId(
-            first_output
-                .and_then(|o| o.device_id.clone())
-                .unwrap_or_default(),
-        ),
-        output_channels: first_output
-            .map(|o| o.channels.clone())
-            .unwrap_or_default(),
-        blocks: existing_chain
-            .map(|c| c.blocks.clone())
-            .unwrap_or_default(),
-        output_mixdown: existing_chain
-            .map(|c| c.output_mixdown)
-            .unwrap_or(ChainOutputMixdown::Average),
-        input_mode: first_input
-            .map(|i| i.mode)
-            .unwrap_or(ChainInputMode::Mono),
+        blocks: all_blocks,
     }
 }
 fn stop_project_runtime(project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>) {
@@ -7229,5 +8414,269 @@ mod tests {
             .into_iter()
             .map(|entry| entry.model_id)
             .collect()
+    }
+
+    // --- ui_index_to_real_block_index tests ---
+
+    use super::ui_index_to_real_block_index;
+    use project::block::{InputBlock, InputEntry, OutputBlock, OutputEntry};
+    use project::chain::{Chain, ChainInputMode, ChainOutputMode};
+    use domain::ids::{ChainId, DeviceId};
+
+    fn test_chain(block_kinds: Vec<AudioBlockKind>) -> Chain {
+        Chain {
+            id: ChainId("test".into()),
+            description: None,
+            instrument: "electric_guitar".into(),
+            enabled: true,
+            blocks: block_kinds.into_iter().enumerate().map(|(i, kind)| AudioBlock {
+                id: BlockId(format!("block:{}", i)),
+                enabled: true,
+                kind,
+            }).collect(),
+        }
+    }
+
+    fn input_kind() -> AudioBlockKind {
+        AudioBlockKind::Input(InputBlock {
+            model: "standard".into(),
+            entries: vec![InputEntry {
+                name: "In".into(),
+                device_id: DeviceId("dev".into()),
+                mode: ChainInputMode::Mono,
+                channels: vec![0],
+            }],
+        })
+    }
+
+    fn output_kind() -> AudioBlockKind {
+        AudioBlockKind::Output(OutputBlock {
+            model: "standard".into(),
+            entries: vec![OutputEntry {
+                name: "Out".into(),
+                device_id: DeviceId("dev".into()),
+                mode: ChainOutputMode::Stereo,
+                channels: vec![0, 1],
+            }],
+        })
+    }
+
+    fn effect_kind(effect_type: &str) -> AudioBlockKind {
+        AudioBlockKind::Core(CoreBlock {
+            effect_type: effect_type.into(),
+            model: "test".into(),
+            params: ParameterSet::default(),
+        })
+    }
+
+    #[test]
+    fn ui_index_maps_correctly_with_standard_chain() {
+        // [Input, Comp, Preamp, Delay, Output]
+        // UI sees: [Comp(0), Preamp(1), Delay(2)]
+        // Real:    [0=Input, 1=Comp, 2=Preamp, 3=Delay, 4=Output]
+        let chain = test_chain(vec![
+            input_kind(),
+            effect_kind("dynamics"),
+            effect_kind("preamp"),
+            effect_kind("delay"),
+            output_kind(),
+        ]);
+        assert_eq!(ui_index_to_real_block_index(&chain, 0), 1); // UI 0 = Comp = real 1
+        assert_eq!(ui_index_to_real_block_index(&chain, 1), 2); // UI 1 = Preamp = real 2
+        assert_eq!(ui_index_to_real_block_index(&chain, 2), 3); // UI 2 = Delay = real 3
+    }
+
+    #[test]
+    fn ui_index_past_end_returns_before_last_output() {
+        let chain = test_chain(vec![
+            input_kind(),
+            effect_kind("delay"),
+            output_kind(),
+        ]);
+        // UI sees [Delay(0)], asking for UI index 1 (past end) → before Output = real 2
+        assert_eq!(ui_index_to_real_block_index(&chain, 1), 2);
+    }
+
+    #[test]
+    fn ui_index_with_extra_input_in_middle() {
+        // [Input, Comp, Input2, Delay, Output]
+        // Hidden: first Input (0) and last Output (4)
+        // UI sees: [Comp(0), Input2(1), Delay(2)]
+        // Real:    [0=Input, 1=Comp, 2=Input2, 3=Delay, 4=Output]
+        let chain = test_chain(vec![
+            input_kind(),
+            effect_kind("dynamics"),
+            input_kind(),
+            effect_kind("delay"),
+            output_kind(),
+        ]);
+        assert_eq!(ui_index_to_real_block_index(&chain, 0), 1); // Comp
+        assert_eq!(ui_index_to_real_block_index(&chain, 1), 2); // Input2
+        assert_eq!(ui_index_to_real_block_index(&chain, 2), 3); // Delay
+    }
+
+    #[test]
+    fn ui_index_with_extra_output_in_middle() {
+        // [Input, Comp, Output_mid, Delay, Output]
+        // Hidden: first Input (0) and last Output (4)
+        // UI sees: [Comp(0), Output_mid(1), Delay(2)]
+        let chain = test_chain(vec![
+            input_kind(),
+            effect_kind("dynamics"),
+            output_kind(),
+            effect_kind("delay"),
+            output_kind(),
+        ]);
+        assert_eq!(ui_index_to_real_block_index(&chain, 0), 1); // Comp
+        assert_eq!(ui_index_to_real_block_index(&chain, 1), 2); // Output_mid (visible!)
+        assert_eq!(ui_index_to_real_block_index(&chain, 2), 3); // Delay
+    }
+
+    #[test]
+    fn ui_index_with_no_io_blocks() {
+        // [Comp, Delay] — no I/O blocks at all
+        let chain = test_chain(vec![
+            effect_kind("dynamics"),
+            effect_kind("delay"),
+        ]);
+        assert_eq!(ui_index_to_real_block_index(&chain, 0), 0);
+        assert_eq!(ui_index_to_real_block_index(&chain, 1), 1);
+    }
+
+    #[test]
+    fn ui_index_with_only_io_blocks() {
+        // [Input, Output] — no effect blocks
+        let chain = test_chain(vec![
+            input_kind(),
+            output_kind(),
+        ]);
+        // UI sees nothing, asking for 0 → before Output = real 1
+        assert_eq!(ui_index_to_real_block_index(&chain, 0), 1);
+    }
+
+    #[test]
+    fn save_input_entries_does_not_move_middle_io_blocks() {
+        // Chain: [Input0, Gain, Input1, Delay, Output]
+        // Simulates what on_save does: update ONLY first InputBlock entries,
+        // verify middle InputBlock at position 2 is untouched.
+        let mut chain = test_chain(vec![
+            input_kind(),
+            effect_kind("gain"),
+            AudioBlockKind::Input(InputBlock {
+                model: "standard".into(),
+                entries: vec![InputEntry {
+                    name: "Middle In".into(),
+                    device_id: DeviceId("dev2".into()),
+                    mode: ChainInputMode::Mono,
+                    channels: vec![1],
+                }],
+            }),
+            effect_kind("delay"),
+            output_kind(),
+        ]);
+
+        // The save path with editing_io_block_index = None finds FIRST InputBlock
+        let target_idx = chain.blocks.iter()
+            .position(|b| matches!(&b.kind, AudioBlockKind::Input(_)))
+            .unwrap();
+        assert_eq!(target_idx, 0);
+
+        // Update first InputBlock entries (simulating save)
+        let new_entries = vec![InputEntry {
+            name: "Updated G1".into(),
+            device_id: DeviceId("dev_new".into()),
+            mode: ChainInputMode::Stereo,
+            channels: vec![2, 3],
+        }];
+        if let AudioBlockKind::Input(ref mut ib) = chain.blocks[target_idx].kind {
+            ib.entries = new_entries;
+        }
+
+        // Verify chain structure is unchanged
+        assert_eq!(chain.blocks.len(), 5);
+        assert!(matches!(&chain.blocks[0].kind, AudioBlockKind::Input(_)));
+        assert!(matches!(&chain.blocks[1].kind, AudioBlockKind::Core(_)));
+        assert!(matches!(&chain.blocks[2].kind, AudioBlockKind::Input(_)));
+        assert!(matches!(&chain.blocks[3].kind, AudioBlockKind::Core(_)));
+        assert!(matches!(&chain.blocks[4].kind, AudioBlockKind::Output(_)));
+
+        // Verify first InputBlock was updated
+        if let AudioBlockKind::Input(ref ib) = chain.blocks[0].kind {
+            assert_eq!(ib.entries.len(), 1);
+            assert_eq!(ib.entries[0].name, "Updated G1");
+            assert_eq!(ib.entries[0].device_id.0, "dev_new");
+        } else {
+            panic!("block 0 should be Input");
+        }
+
+        // Verify middle InputBlock at position 2 is UNTOUCHED
+        if let AudioBlockKind::Input(ref ib) = chain.blocks[2].kind {
+            assert_eq!(ib.entries.len(), 1);
+            assert_eq!(ib.entries[0].name, "Middle In");
+            assert_eq!(ib.entries[0].device_id.0, "dev2");
+            assert_eq!(ib.entries[0].channels, vec![1]);
+        } else {
+            panic!("block 2 should be Input");
+        }
+
+        // Verify block IDs haven't changed (no reconstruction)
+        assert_eq!(chain.blocks[0].id.0, "block:0");
+        assert_eq!(chain.blocks[1].id.0, "block:1");
+        assert_eq!(chain.blocks[2].id.0, "block:2");
+        assert_eq!(chain.blocks[3].id.0, "block:3");
+        assert_eq!(chain.blocks[4].id.0, "block:4");
+    }
+
+    #[test]
+    fn save_output_entries_finds_last_output_block() {
+        // Chain: [Input, Gain, Output_mid, Delay, Output_last]
+        // With editing_io_block_index = None, should find LAST OutputBlock
+        let mut chain = test_chain(vec![
+            input_kind(),
+            effect_kind("gain"),
+            AudioBlockKind::Output(OutputBlock {
+                model: "standard".into(),
+                entries: vec![OutputEntry {
+                    name: "Mid Out".into(),
+                    device_id: DeviceId("dev_mid".into()),
+                    mode: ChainOutputMode::Stereo,
+                    channels: vec![2, 3],
+                }],
+            }),
+            effect_kind("delay"),
+            output_kind(),
+        ]);
+
+        // The save path with editing_io_block_index = None finds LAST OutputBlock
+        let target_idx = chain.blocks.iter()
+            .rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_)))
+            .unwrap();
+        assert_eq!(target_idx, 4);
+
+        // Update last OutputBlock entries
+        let new_entries = vec![OutputEntry {
+            name: "Updated Out".into(),
+            device_id: DeviceId("dev_updated".into()),
+            mode: ChainOutputMode::Mono,
+            channels: vec![0],
+        }];
+        if let AudioBlockKind::Output(ref mut ob) = chain.blocks[target_idx].kind {
+            ob.entries = new_entries;
+        }
+
+        // Verify middle OutputBlock at position 2 is UNTOUCHED
+        if let AudioBlockKind::Output(ref ob) = chain.blocks[2].kind {
+            assert_eq!(ob.entries[0].name, "Mid Out");
+            assert_eq!(ob.entries[0].device_id.0, "dev_mid");
+        } else {
+            panic!("block 2 should be Output");
+        }
+
+        // Verify last OutputBlock was updated
+        if let AudioBlockKind::Output(ref ob) = chain.blocks[4].kind {
+            assert_eq!(ob.entries[0].name, "Updated Out");
+        } else {
+            panic!("block 4 should be Output");
+        }
     }
 }

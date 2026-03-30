@@ -8,7 +8,8 @@ use domain::ids::ChainId;
 use engine::runtime::{process_input_f32, process_output_f32, RuntimeGraph, ChainRuntimeState};
 use project::device::DeviceSettings;
 use project::project::Project;
-use project::chain::{Chain, ChainInput, ChainOutput};
+use project::block::{AudioBlockKind, InputEntry, InsertBlock, OutputEntry};
+use project::chain::Chain;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -279,116 +280,11 @@ pub fn resolve_project_chain_sample_rates(project: &Project) -> Result<HashMap<C
     Ok(sample_rates)
 }
 
-fn resolve_input_device_for_chain(
-    host: &cpal::Host,
-    project: &Project,
-    chain: &Chain,
-) -> Result<ResolvedInputDevice> {
-    let settings = project
-        .device_settings
-        .iter()
-        .find(|settings| settings.device_id == chain.input_device_id)
-        .cloned();
-    let device = find_input_device_by_id(host, &chain.input_device_id.0)?.ok_or_else(|| {
-        anyhow!(
-            "input device '{}' not found by device_id",
-            chain.input_device_id.0
-        )
-    })?;
-    let default_config = device.default_input_config().with_context(|| {
-        format!(
-            "failed to get default input config for '{}'",
-            chain.input_device_id.0
-        )
-    })?;
-    let supported_ranges = device
-        .supported_input_configs()
-        .with_context(|| {
-            format!(
-                "failed to enumerate input configs for '{}'",
-                chain.input_device_id.0
-            )
-        })?
-        .collect::<Vec<_>>();
-    let required_channels = required_channel_count(&chain.input_channels);
-    let supported = select_supported_stream_config(
-        &default_config,
-        &supported_ranges,
-        settings.as_ref().map(|settings| settings.sample_rate),
-        required_channels,
-        &chain.input_device_id.0,
-    )?;
-    if let Some(settings) = &settings {
-        validate_buffer_size(
-            settings.buffer_size_frames,
-            supported.buffer_size(),
-            &settings.device_id.0,
-        )?;
-    }
-    Ok(ResolvedInputDevice {
-        settings,
-        device,
-        supported,
-    })
-}
-
-fn resolve_output_device_for_chain(
-    host: &cpal::Host,
-    project: &Project,
-    chain: &Chain,
-) -> Result<ResolvedOutputDevice> {
-    let settings = project
-        .device_settings
-        .iter()
-        .find(|settings| settings.device_id == chain.output_device_id)
-        .cloned();
-    let device = find_output_device_by_id(host, &chain.output_device_id.0)?.ok_or_else(|| {
-        anyhow!(
-            "output device '{}' not found by device_id",
-            chain.output_device_id.0
-        )
-    })?;
-    let default_config = device.default_output_config().with_context(|| {
-        format!(
-            "failed to get default output config for '{}'",
-            chain.output_device_id.0
-        )
-    })?;
-    let supported_ranges = device
-        .supported_output_configs()
-        .with_context(|| {
-            format!(
-                "failed to enumerate output configs for '{}'",
-                chain.output_device_id.0
-            )
-        })?
-        .collect::<Vec<_>>();
-    let required_channels = required_channel_count(&chain.output_channels);
-    let supported = select_supported_stream_config(
-        &default_config,
-        &supported_ranges,
-        settings.as_ref().map(|settings| settings.sample_rate),
-        required_channels,
-        &chain.output_device_id.0,
-    )?;
-    if let Some(settings) = &settings {
-        validate_buffer_size(
-            settings.buffer_size_frames,
-            supported.buffer_size(),
-            &settings.device_id.0,
-        )?;
-    }
-    Ok(ResolvedOutputDevice {
-        settings,
-        device,
-        supported,
-    })
-}
 
 fn resolve_input_device_for_chain_input(
     host: &cpal::Host,
     project: &Project,
-    input: &ChainInput,
+    input: &InputEntry,
 ) -> Result<ResolvedInputDevice> {
     let settings = project
         .device_settings
@@ -441,7 +337,7 @@ fn resolve_input_device_for_chain_input(
 fn resolve_output_device_for_chain_output(
     host: &cpal::Host,
     project: &Project,
-    output: &ChainOutput,
+    output: &OutputEntry,
 ) -> Result<ResolvedOutputDevice> {
     let settings = project
         .device_settings
@@ -496,16 +392,31 @@ fn resolve_chain_inputs(
     project: &Project,
     chain: &Chain,
 ) -> Result<Vec<ResolvedInputDevice>> {
-    if !chain.inputs.is_empty() {
-        chain
-            .inputs
-            .iter()
-            .map(|input| resolve_input_device_for_chain_input(host, project, input))
-            .collect()
-    } else {
-        // Legacy fallback: single input from chain.input_device_id
-        Ok(vec![resolve_input_device_for_chain(host, project, chain)?])
+    let mut input_entries: Vec<&InputEntry> = chain.blocks.iter()
+        .filter(|b| b.enabled)
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Input(ib) => Some(ib),
+            _ => None,
+        })
+        .flat_map(|ib| ib.entries.iter())
+        .collect();
+    // Include Insert block return endpoints as input streams
+    let insert_return_entries: Vec<InputEntry> = chain.blocks.iter()
+        .filter(|b| b.enabled)
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Insert(ib) => Some(insert_return_as_input_entry(ib)),
+            _ => None,
+        })
+        .collect();
+    let insert_refs: Vec<&InputEntry> = insert_return_entries.iter().collect();
+    input_entries.extend(insert_refs);
+    if input_entries.is_empty() {
+        bail!("chain '{}' has no input blocks configured", chain.id.0);
     }
+    input_entries
+        .iter()
+        .map(|input| resolve_input_device_for_chain_input(host, project, input))
+        .collect()
 }
 
 fn resolve_chain_outputs(
@@ -513,15 +424,54 @@ fn resolve_chain_outputs(
     project: &Project,
     chain: &Chain,
 ) -> Result<Vec<ResolvedOutputDevice>> {
-    if !chain.outputs.is_empty() {
-        chain
-            .outputs
-            .iter()
-            .map(|output| resolve_output_device_for_chain_output(host, project, output))
-            .collect()
-    } else {
-        // Legacy fallback: single output from chain.output_device_id
-        Ok(vec![resolve_output_device_for_chain(host, project, chain)?])
+    let mut output_entries: Vec<&OutputEntry> = chain.blocks.iter()
+        .filter(|b| b.enabled)
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Output(ob) => Some(ob),
+            _ => None,
+        })
+        .flat_map(|ob| ob.entries.iter())
+        .collect();
+    // Include Insert block send endpoints as output streams
+    let insert_send_entries: Vec<OutputEntry> = chain.blocks.iter()
+        .filter(|b| b.enabled)
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Insert(ib) => Some(insert_send_as_output_entry(ib)),
+            _ => None,
+        })
+        .collect();
+    let insert_refs: Vec<&OutputEntry> = insert_send_entries.iter().collect();
+    output_entries.extend(insert_refs);
+    if output_entries.is_empty() {
+        bail!("chain '{}' has no output blocks configured", chain.id.0);
+    }
+    output_entries
+        .iter()
+        .map(|output| resolve_output_device_for_chain_output(host, project, output))
+        .collect()
+}
+
+/// Convert an InsertBlock's return endpoint to an InputEntry for stream resolution.
+fn insert_return_as_input_entry(insert: &InsertBlock) -> InputEntry {
+    InputEntry {
+        name: "Insert Return".to_string(),
+        device_id: insert.return_.device_id.clone(),
+        mode: insert.return_.mode,
+        channels: insert.return_.channels.clone(),
+    }
+}
+
+/// Convert an InsertBlock's send endpoint to an OutputEntry for stream resolution.
+fn insert_send_as_output_entry(insert: &InsertBlock) -> OutputEntry {
+    use project::chain::ChainOutputMode;
+    OutputEntry {
+        name: "Insert Send".to_string(),
+        device_id: insert.send.device_id.clone(),
+        mode: match insert.send.mode {
+            project::chain::ChainInputMode::Mono => ChainOutputMode::Mono,
+            _ => ChainOutputMode::Stereo,
+        },
+        channels: insert.send.channels.clone(),
     }
 }
 
@@ -596,22 +546,26 @@ fn validate_channels_against_devices(project: &Project, host: &cpal::Host) -> Re
 }
 
 fn validate_chain_channels_against_devices(host: &cpal::Host, chain: &Chain) -> Result<()> {
-    if !chain.inputs.is_empty() {
-        for input in &chain.inputs {
-            validate_input_channels_against_device(host, &chain.id.0, &input.device_id.0, &input.channels)?;
+    for (_, input) in chain.input_blocks() {
+        for entry in &input.entries {
+            validate_input_channels_against_device(host, &chain.id.0, &entry.device_id.0, &entry.channels)?;
         }
-    } else {
-        // Legacy fallback
-        validate_input_channels_against_device(host, &chain.id.0, &chain.input_device_id.0, &chain.input_channels)?;
     }
 
-    if !chain.outputs.is_empty() {
-        for output in &chain.outputs {
-            validate_output_channels_against_device(host, &chain.id.0, &output.device_id.0, &output.channels)?;
+    for (_, output) in chain.output_blocks() {
+        for entry in &output.entries {
+            validate_output_channels_against_device(host, &chain.id.0, &entry.device_id.0, &entry.channels)?;
         }
-    } else {
-        // Legacy fallback
-        validate_output_channels_against_device(host, &chain.id.0, &chain.output_device_id.0, &chain.output_channels)?;
+    }
+
+    // Validate Insert block endpoints
+    for (_, insert) in chain.insert_blocks() {
+        if !insert.send.device_id.0.is_empty() {
+            validate_output_channels_against_device(host, &chain.id.0, &insert.send.device_id.0, &insert.send.channels)?;
+        }
+        if !insert.return_.device_id.0.is_empty() {
+            validate_input_channels_against_device(host, &chain.id.0, &insert.return_.device_id.0, &insert.return_.channels)?;
+        }
     }
 
     Ok(())
@@ -931,9 +885,12 @@ fn build_chain_stream_signature_multi(
     inputs: &[ResolvedInputDevice],
     outputs: &[ResolvedOutputDevice],
 ) -> ChainStreamSignature {
-    let input_sigs: Vec<InputStreamSignature> = if !chain.inputs.is_empty() {
-        chain
-            .inputs
+    let chain_input_entries: Vec<&InputEntry> = chain.input_blocks()
+        .into_iter()
+        .flat_map(|(_, ib)| ib.entries.iter())
+        .collect();
+    let input_sigs: Vec<InputStreamSignature> = if !chain_input_entries.is_empty() {
+        chain_input_entries
             .iter()
             .zip(inputs.iter())
             .map(|(ci, ri)| InputStreamSignature {
@@ -948,8 +905,8 @@ fn build_chain_stream_signature_multi(
         inputs
             .iter()
             .map(|ri| InputStreamSignature {
-                device_id: chain.input_device_id.0.clone(),
-                channels: chain.input_channels.clone(),
+                device_id: String::new(),
+                channels: Vec::new(),
                 stream_channels: ri.supported.channels(),
                 sample_rate: resolved_input_sample_rate(ri),
                 buffer_size_frames: resolved_input_buffer_size_frames(ri),
@@ -957,9 +914,12 @@ fn build_chain_stream_signature_multi(
             .collect()
     };
 
-    let output_sigs: Vec<OutputStreamSignature> = if !chain.outputs.is_empty() {
-        chain
-            .outputs
+    let chain_output_entries: Vec<&OutputEntry> = chain.output_blocks()
+        .into_iter()
+        .flat_map(|(_, ob)| ob.entries.iter())
+        .collect();
+    let output_sigs: Vec<OutputStreamSignature> = if !chain_output_entries.is_empty() {
+        chain_output_entries
             .iter()
             .zip(outputs.iter())
             .map(|(co, ro)| OutputStreamSignature {
@@ -974,8 +934,8 @@ fn build_chain_stream_signature_multi(
         outputs
             .iter()
             .map(|ro| OutputStreamSignature {
-                device_id: chain.output_device_id.0.clone(),
-                channels: chain.output_channels.clone(),
+                device_id: String::new(),
+                channels: Vec::new(),
                 stream_channels: ro.supported.channels(),
                 sample_rate: resolved_output_sample_rate(ro),
                 buffer_size_frames: resolved_output_buffer_size_frames(ro),
