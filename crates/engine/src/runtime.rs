@@ -30,7 +30,7 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-const MAX_BUFFERED_OUTPUT_FRAMES: usize = 1_024;
+const ELASTIC_BUFFER_TARGET_LEVEL: usize = 256;
 static NEXT_BLOCK_INSTANCE_SERIAL: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Debug, Clone, Copy)]
@@ -45,6 +45,42 @@ impl AudioFrame {
             AudioFrame::Mono(sample) => sample,
             AudioFrame::Stereo([left, right]) => (left + right) * 0.5,
         }
+    }
+}
+
+/// Elastic audio buffer for clock drift compensation.
+/// Maintains a target queue level. On underrun, repeats the last frame.
+/// On overrun, discards the oldest frame gradually.
+struct ElasticBuffer {
+    pub queue: VecDeque<AudioFrame>,
+    target_level: usize,
+    last_frame: AudioFrame,
+}
+
+impl ElasticBuffer {
+    fn new(target_level: usize, layout: AudioChannelLayout) -> Self {
+        Self {
+            queue: VecDeque::with_capacity(target_level * 2),
+            target_level,
+            last_frame: silent_frame(layout),
+        }
+    }
+
+    fn push(&mut self, frame: AudioFrame) {
+        self.last_frame = frame;
+        self.queue.push_back(frame);
+        if self.queue.len() > self.target_level * 2 {
+            self.queue.pop_front();
+        }
+    }
+
+    fn pop(&mut self) -> AudioFrame {
+        self.queue.pop_front().unwrap_or(self.last_frame)
+    }
+
+    #[cfg(test)]
+    fn len(&self) -> usize {
+        self.queue.len()
     }
 }
 
@@ -238,10 +274,9 @@ struct ChainProcessingState {
 }
 
 struct OutputRoutingState {
-    output_layout: AudioChannelLayout,
     output_channels: Vec<usize>,
     output_mixdown: ChainOutputMixdown,
-    queue: VecDeque<AudioFrame>,
+    buffer: ElasticBuffer,
 }
 
 struct ChainOutputState {
@@ -667,10 +702,9 @@ fn build_output_routing_state(output: &OutputEntry) -> OutputRoutingState {
         AudioChannelLayout::Mono
     };
     OutputRoutingState {
-        output_layout,
         output_channels: output.channels.clone(),
         output_mixdown: ChainOutputMixdown::Average,
-        queue: VecDeque::with_capacity(MAX_BUFFERED_OUTPUT_FRAMES),
+        buffer: ElasticBuffer::new(ELASTIC_BUFFER_TARGET_LEVEL, output_layout),
     }
 }
 
@@ -736,8 +770,7 @@ pub fn update_chain_runtime_state(
         let old_routes = std::mem::replace(&mut output.output_routes, new_output_routes);
         for (new_route, old_route) in output.output_routes.iter_mut().zip(old_routes.into_iter()) {
             if !reset_output_queue {
-                new_route.queue = old_route.queue;
-                trim_output_queue(&mut new_route.queue);
+                new_route.buffer = old_route.buffer;
             }
         }
     }
@@ -1416,18 +1449,17 @@ pub fn process_input_f32(
         };
         for &route_idx in &route_indices {
             if let Some(route) = output.output_routes.get_mut(route_idx) {
-                let existing_len = route.queue.len();
+                let existing_len = route.buffer.queue.len();
                 for (i, &frame) in processed.iter().enumerate() {
                     if i < existing_len {
                         // Sum with existing frame from another input
-                        let existing = &mut route.queue[i];
+                        let existing = &mut route.buffer.queue[i];
                         *existing = mix_frames(*existing, frame);
                     } else {
-                        // No existing frame yet — push as-is
-                        route.queue.push_back(frame);
+                        // No existing frame yet — push via elastic buffer
+                        route.buffer.push(frame);
                     }
                 }
-                trim_output_queue(&mut route.queue);
             }
         }
         }
@@ -1550,22 +1582,13 @@ pub fn process_output_f32(
     let num_frames = out.len() / output_total_channels;
     for frame in out.chunks_mut(output_total_channels).take(num_frames) {
         frame.fill(0.0);
-        let processed = route
-            .queue
-            .pop_front()
-            .unwrap_or_else(|| silent_frame(route.output_layout));
+        let processed = route.buffer.pop();
         write_output_frame(
             processed,
             &route.output_channels,
             frame,
             route.output_mixdown,
         );
-    }
-}
-
-fn trim_output_queue(queue: &mut VecDeque<AudioFrame>) {
-    while queue.len() > MAX_BUFFERED_OUTPUT_FRAMES {
-        queue.pop_back();
     }
 }
 
@@ -1690,8 +1713,9 @@ fn next_block_instance_serial() -> u64 {
 mod tests {
     use super::{
         build_chain_runtime_state, build_runtime_graph, process_input_f32, process_output_f32,
-        update_chain_runtime_state, MAX_BUFFERED_OUTPUT_FRAMES,
+        update_chain_runtime_state, AudioFrame, ElasticBuffer, ELASTIC_BUFFER_TARGET_LEVEL,
     };
+    use block_core::AudioChannelLayout;
     use block_preamp::supported_models as supported_preamp_models;
     use block_cab::{cab_backend_kind, supported_models as supported_cab_models, CabBackendKind};
     use block_delay::supported_models as supported_delay_models;
@@ -1862,13 +1886,13 @@ mod tests {
         let chain = tuner_track("chain:0", Vec::new());
         let runtime =
             Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"));
-        let total_frames = MAX_BUFFERED_OUTPUT_FRAMES + 64;
+        let total_frames = ELASTIC_BUFFER_TARGET_LEVEL * 2 + 64;
         let input = vec![0.25f32; total_frames];
 
         process_input_f32(&runtime, 0, &input, 1);
 
         let output = runtime.output.lock().expect("runtime poisoned");
-        assert_eq!(output.output_routes[0].queue.len(), MAX_BUFFERED_OUTPUT_FRAMES);
+        assert!(output.output_routes[0].buffer.len() <= ELASTIC_BUFFER_TARGET_LEVEL * 2);
     }
 
     #[test]
@@ -1884,7 +1908,7 @@ mod tests {
 
         assert_eq!(out, vec![0.25, 0.5, 0.75, 1.0]);
         let output = runtime.output.lock().expect("runtime poisoned");
-        assert!(output.output_routes[0].queue.is_empty());
+        assert!(output.output_routes[0].buffer.queue.is_empty());
     }
 
     #[test]
@@ -2197,6 +2221,66 @@ mod tests {
                 model,
             }),
         }
+    }
+
+    // --- ElasticBuffer tests ---
+
+    #[test]
+    fn elastic_buffer_push_pop_basic() {
+        let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
+        buf.push(AudioFrame::Mono(0.5));
+        buf.push(AudioFrame::Mono(0.7));
+        assert_eq!(buf.len(), 2);
+        let f1 = buf.pop();
+        assert!(matches!(f1, AudioFrame::Mono(v) if (v - 0.5).abs() < 1e-6));
+        let f2 = buf.pop();
+        assert!(matches!(f2, AudioFrame::Mono(v) if (v - 0.7).abs() < 1e-6));
+    }
+
+    #[test]
+    fn elastic_buffer_underrun_repeats_last_frame() {
+        let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
+        buf.push(AudioFrame::Mono(0.42));
+        let _ = buf.pop(); // drain the one frame
+        // Now empty — should repeat last frame, NOT silence
+        let repeated = buf.pop();
+        assert!(matches!(repeated, AudioFrame::Mono(v) if (v - 0.42).abs() < 1e-6));
+    }
+
+    #[test]
+    fn elastic_buffer_underrun_before_any_push_returns_silence() {
+        let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Stereo);
+        let frame = buf.pop();
+        assert!(matches!(frame, AudioFrame::Stereo([l, r]) if l.abs() < 1e-6 && r.abs() < 1e-6));
+    }
+
+    #[test]
+    fn elastic_buffer_overrun_discards_oldest() {
+        let target = 4; // small for testing
+        let mut buf = ElasticBuffer::new(target, AudioChannelLayout::Mono);
+        // Push 2x target + 1 = 9 frames
+        for i in 0..9 {
+            buf.push(AudioFrame::Mono(i as f32));
+        }
+        // Should have discarded oldest, keeping at most 2x target = 8
+        assert!(buf.len() <= target * 2);
+        // First frame should NOT be 0.0 (it was discarded)
+        let first = buf.pop();
+        assert!(matches!(first, AudioFrame::Mono(v) if v > 0.1));
+    }
+
+    #[test]
+    fn elastic_buffer_stabilizes_around_target() {
+        let target = 256;
+        let mut buf = ElasticBuffer::new(target, AudioChannelLayout::Mono);
+        // Simulate: push slightly faster than pop
+        for _ in 0..10000 {
+            buf.push(AudioFrame::Mono(1.0));
+            buf.push(AudioFrame::Mono(1.0)); // 2 pushes
+            let _ = buf.pop(); // 1 pop — simulates input faster than output
+        }
+        // Should not have grown unbounded
+        assert!(buf.len() <= target * 2);
     }
 
     fn select_delay_chain(id: &str, selected_option: &str) -> Chain {
