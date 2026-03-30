@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use domain::ids::{BlockId, ChainId};
 use project::block::{
-    schema_for_block_model, AudioBlockKind, CoreBlock, InputEntry, NamBlock, OutputEntry, SelectBlock,
+    schema_for_block_model, AudioBlockKind, CoreBlock, InputEntry, InsertBlock, NamBlock, OutputEntry, SelectBlock,
 };
 use project::param::ParameterSet;
 use project::project::Project;
@@ -225,6 +225,9 @@ struct InputProcessingState {
     frame_buffer: Vec<AudioFrame>,
     /// Remaining frames of fade-in after a rebuild (0 = no fade active).
     fade_in_remaining: usize,
+    /// Which output route indices this input/segment should push frames to.
+    /// Empty means push to ALL output routes (legacy behaviour).
+    output_route_indices: Vec<usize>,
 }
 
 struct ChainProcessingState {
@@ -311,24 +314,31 @@ pub fn build_runtime_graph(
 }
 
 pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<ChainRuntimeState> {
-    // Resolve effective inputs: use new multi-input if available, else legacy fallback
-    let effective_inputs = effective_inputs(chain);
-    let effective_outputs = effective_outputs(chain);
+    let eff_inputs = effective_inputs(chain);
+    let eff_outputs = effective_outputs(chain);
+    let segments = split_chain_into_segments(chain, &eff_inputs, &eff_outputs);
 
-    // Collect all output channels for processing layout determination
-    let all_output_channels: Vec<usize> = effective_outputs
-        .iter()
-        .flat_map(|e| e.channels.iter().copied())
-        .collect();
-
-    let mut input_states = Vec::with_capacity(effective_inputs.len());
-    for input in &effective_inputs {
-        let input_state = build_input_processing_state(chain, input, &all_output_channels, sample_rate, None)?;
+    let mut input_states = Vec::with_capacity(segments.len());
+    for segment in &segments {
+        // Determine output channels for this segment's outputs (for processing layout)
+        let segment_output_channels: Vec<usize> = segment.output_route_indices.iter()
+            .filter_map(|&idx| eff_outputs.get(idx))
+            .flat_map(|e| e.channels.iter().copied())
+            .collect();
+        let input_state = build_input_processing_state(
+            chain,
+            &segment.input,
+            &segment_output_channels,
+            sample_rate,
+            None,
+            Some(&segment.block_indices),
+            segment.output_route_indices.clone(),
+        )?;
         input_states.push(input_state);
     }
 
-    let mut output_routes = Vec::with_capacity(effective_outputs.len());
-    for output in &effective_outputs {
+    let mut output_routes = Vec::with_capacity(eff_outputs.len());
+    for output in &eff_outputs {
         output_routes.push(build_output_routing_state(output));
     }
 
@@ -344,10 +354,11 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
     })
 }
 
-/// Build effective input entries from chain's InputBlock entries.
-/// Falls back to a single mono input on channel 0 if no InputBlocks exist.
+/// Build effective input entries from chain's InputBlock entries, plus Insert return entries.
+/// Order: InputBlock entries first, then Insert return entries (matches CPAL stream order).
+/// Falls back to a single mono input on channel 0 if no InputBlocks exist and no Inserts.
 fn effective_inputs(chain: &Chain) -> Vec<InputEntry> {
-    let entries: Vec<InputEntry> = chain.blocks.iter()
+    let mut entries: Vec<InputEntry> = chain.blocks.iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Input(ib) => Some(ib),
@@ -355,6 +366,17 @@ fn effective_inputs(chain: &Chain) -> Vec<InputEntry> {
         })
         .flat_map(|ib| ib.entries.iter().cloned())
         .collect();
+
+    // Append Insert return entries (as inputs for segments after each Insert)
+    let insert_returns: Vec<InputEntry> = chain.blocks.iter()
+        .filter(|b| b.enabled)
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Insert(ib) => Some(insert_return_as_input_entry(ib)),
+            _ => None,
+        })
+        .collect();
+    entries.extend(insert_returns);
+
     if !entries.is_empty() {
         return entries;
     }
@@ -367,10 +389,11 @@ fn effective_inputs(chain: &Chain) -> Vec<InputEntry> {
     }]
 }
 
-/// Build effective output entries from chain's OutputBlock entries.
-/// Falls back to a single mono output on channel 0 if no OutputBlocks exist.
+/// Build effective output entries from chain's OutputBlock entries, plus Insert send entries.
+/// Order: OutputBlock entries first, then Insert send entries (matches CPAL stream order).
+/// Falls back to a single mono output on channel 0 if no OutputBlocks exist and no Inserts.
 fn effective_outputs(chain: &Chain) -> Vec<OutputEntry> {
-    let entries: Vec<OutputEntry> = chain.blocks.iter()
+    let mut entries: Vec<OutputEntry> = chain.blocks.iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Output(ob) => Some(ob),
@@ -378,6 +401,17 @@ fn effective_outputs(chain: &Chain) -> Vec<OutputEntry> {
         })
         .flat_map(|ob| ob.entries.iter().cloned())
         .collect();
+
+    // Append Insert send entries (as outputs for segments before each Insert)
+    let insert_sends: Vec<OutputEntry> = chain.blocks.iter()
+        .filter(|b| b.enabled)
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Insert(ib) => Some(insert_send_as_output_entry(ib)),
+            _ => None,
+        })
+        .collect();
+    entries.extend(insert_sends);
+
     if !entries.is_empty() {
         return entries;
     }
@@ -390,12 +424,201 @@ fn effective_outputs(chain: &Chain) -> Vec<OutputEntry> {
     }]
 }
 
+/// Convert an InsertBlock's return endpoint to an InputEntry.
+fn insert_return_as_input_entry(insert: &InsertBlock) -> InputEntry {
+    InputEntry {
+        name: "Insert Return".to_string(),
+        device_id: insert.return_.device_id.clone(),
+        mode: insert.return_.mode,
+        channels: insert.return_.channels.clone(),
+    }
+}
+
+/// Convert an InsertBlock's send endpoint to an OutputEntry.
+fn insert_send_as_output_entry(insert: &InsertBlock) -> OutputEntry {
+    OutputEntry {
+        name: "Insert Send".to_string(),
+        device_id: insert.send.device_id.clone(),
+        mode: match insert.send.mode {
+            ChainInputMode::Mono => ChainOutputMode::Mono,
+            _ => ChainOutputMode::Stereo,
+        },
+        channels: insert.send.channels.clone(),
+    }
+}
+
+/// Describes a chain segment: an input source, its effect blocks, and its output targets.
+struct ChainSegment {
+    input: InputEntry,
+    /// Indices of the AudioBlocks in chain.blocks that belong to this segment's effect chain.
+    block_indices: Vec<usize>,
+    /// Indices into the effective_outputs list that this segment pushes to.
+    output_route_indices: Vec<usize>,
+}
+
+/// Split a chain into segments at enabled Insert block boundaries.
+///
+/// Example: [Input, Comp, EQ, Insert, Delay, Reverb, Output]
+///   Segment 1: input=InputBlock entries, blocks=[Comp, EQ], outputs=[Insert send]
+///   Segment 2: input=Insert return,      blocks=[Delay, Reverb], outputs=[OutputBlock entries]
+///
+/// If no Insert blocks exist, a single segment covers the entire chain.
+fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], effective_outs: &[OutputEntry]) -> Vec<ChainSegment> {
+    // Count regular InputBlock entries and OutputBlock entries
+    let regular_input_count: usize = chain.blocks.iter()
+        .filter(|b| b.enabled)
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Input(ib) => Some(ib.entries.len()),
+            _ => None,
+        })
+        .sum();
+    let regular_output_count: usize = chain.blocks.iter()
+        .filter(|b| b.enabled)
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Output(ob) => Some(ob.entries.len()),
+            _ => None,
+        })
+        .sum();
+
+    // Find positions of enabled Insert blocks in chain.blocks
+    let insert_positions: Vec<usize> = chain.blocks.iter()
+        .enumerate()
+        .filter(|(_, b)| b.enabled && matches!(&b.kind, AudioBlockKind::Insert(_)))
+        .map(|(i, _)| i)
+        .collect();
+
+    if insert_positions.is_empty() {
+        // No inserts — single segment, all inputs push to all outputs
+        let block_indices: Vec<usize> = chain.blocks.iter()
+            .enumerate()
+            .filter(|(_, b)| !matches!(&b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_)))
+            .map(|(i, _)| i)
+            .collect();
+        let all_output_indices: Vec<usize> = (0..effective_outs.len()).collect();
+        // One segment per regular input entry
+        return effective_ins.iter().enumerate().map(|(_i, input)| {
+            ChainSegment {
+                input: input.clone(),
+                block_indices: block_indices.clone(),
+                output_route_indices: all_output_indices.clone(),
+            }
+        }).filter(|_| true) // keep type inference happy
+        .take(if regular_input_count > 0 { regular_input_count } else { effective_ins.len() })
+        .collect();
+    }
+
+    // With inserts: split into segments
+    let mut segments = Vec::new();
+    let mut insert_return_idx = regular_input_count; // Insert return entries start after regular inputs
+    let mut insert_send_idx = regular_output_count;  // Insert send entries start after regular outputs
+
+    // Segment boundaries: [start_of_chain .. first_insert, first_insert .. second_insert, ...]
+    let mut segment_start: usize = 0;
+    for (insert_order, &insert_pos) in insert_positions.iter().enumerate() {
+        // Effect blocks for this segment: blocks between segment_start and insert_pos
+        // (excluding Input, Output, Insert routing blocks)
+        let block_indices: Vec<usize> = (segment_start..insert_pos)
+            .filter(|&i| {
+                let b = &chain.blocks[i];
+                !matches!(&b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_))
+            })
+            .collect();
+
+        // Output routes for this segment: the Insert send entry
+        // Also include any OutputBlock entries that appear BEFORE this Insert
+        let mut output_indices = Vec::new();
+        // Regular OutputBlock entries that appear before this insert position
+        let mut regular_out_idx = 0;
+        for b in &chain.blocks[..insert_pos] {
+            if b.enabled {
+                if let AudioBlockKind::Output(ob) = &b.kind {
+                    for _ in 0..ob.entries.len() {
+                        output_indices.push(regular_out_idx);
+                        regular_out_idx += 1;
+                    }
+                } else {
+                    // still need to count outputs
+                }
+            }
+        }
+        // The Insert send for this segment
+        output_indices.push(insert_send_idx);
+
+        if insert_order == 0 {
+            // First segment: use regular InputBlock entries
+            let input_count = if regular_input_count > 0 { regular_input_count } else { 1 };
+            for i in 0..input_count {
+                segments.push(ChainSegment {
+                    input: effective_ins[i].clone(),
+                    block_indices: block_indices.clone(),
+                    output_route_indices: output_indices.clone(),
+                });
+            }
+        } else {
+            // Subsequent segments before an insert: use previous insert's return
+            let prev_return_idx = insert_return_idx - 1;
+            segments.push(ChainSegment {
+                input: effective_ins[prev_return_idx].clone(),
+                block_indices,
+                output_route_indices: output_indices,
+            });
+        }
+
+        insert_return_idx += 1;
+        insert_send_idx += 1;
+        segment_start = insert_pos + 1;
+    }
+
+    // Final segment: after the last Insert to end of chain
+    let block_indices: Vec<usize> = (segment_start..chain.blocks.len())
+        .filter(|&i| {
+            let b = &chain.blocks[i];
+            !matches!(&b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_))
+        })
+        .collect();
+
+    // Output routes: regular OutputBlock entries that appear AFTER the last Insert
+    let last_insert_pos = *insert_positions.last().unwrap();
+    let mut output_indices = Vec::new();
+    let mut regular_out_idx = 0;
+    for (bi, b) in chain.blocks.iter().enumerate() {
+        if b.enabled {
+            if let AudioBlockKind::Output(ob) = &b.kind {
+                if bi > last_insert_pos {
+                    for _ in 0..ob.entries.len() {
+                        output_indices.push(regular_out_idx);
+                        regular_out_idx += 1;
+                    }
+                } else {
+                    regular_out_idx += ob.entries.len();
+                }
+            }
+        }
+    }
+    // If no OutputBlocks after last insert, use all regular output indices
+    if output_indices.is_empty() {
+        output_indices = (0..regular_output_count).collect();
+    }
+
+    // Last insert's return is the input for this segment
+    let last_return_idx = insert_return_idx - 1;
+    segments.push(ChainSegment {
+        input: effective_ins[last_return_idx].clone(),
+        block_indices,
+        output_route_indices: output_indices,
+    });
+
+    segments
+}
+
 fn build_input_processing_state(
     chain: &Chain,
     input: &InputEntry,
     output_channels: &[usize],
     sample_rate: f32,
     existing_blocks: Option<Vec<BlockRuntimeNode>>,
+    block_indices: Option<&[usize]>,
+    output_route_indices: Vec<usize>,
 ) -> Result<InputProcessingState> {
     // Use both input and output channel info to determine processing layout
     // (matches legacy behavior: mono input + stereo output = stereo processing)
@@ -421,7 +644,7 @@ fn build_input_processing_state(
         input.mode,
     );
     let (blocks, _output_layout) =
-        build_runtime_block_nodes(chain, processing_layout_channel, sample_rate, existing_blocks)?;
+        build_runtime_block_nodes(chain, processing_layout_channel, sample_rate, existing_blocks, block_indices)?;
 
     Ok(InputProcessingState {
         input_read_layout,
@@ -430,6 +653,7 @@ fn build_input_processing_state(
         blocks,
         frame_buffer: Vec::with_capacity(1024),
         fade_in_remaining: FADE_IN_FRAMES,
+        output_route_indices,
     })
 }
 
@@ -458,10 +682,7 @@ pub fn update_chain_runtime_state(
 ) -> Result<()> {
     let effective_ins = effective_inputs(chain);
     let effective_outs = effective_outputs(chain);
-    let all_output_channels: Vec<usize> = effective_outs
-        .iter()
-        .flat_map(|o| o.channels.iter().copied())
-        .collect();
+    let segments = split_chain_into_segments(chain, &effective_ins, &effective_outs);
 
     // Step 1: Extract existing blocks from all input states (brief lock)
     let mut existing_per_input: Vec<Vec<BlockRuntimeNode>> = {
@@ -474,14 +695,26 @@ pub fn update_chain_runtime_state(
     };
 
     // Step 2: Build new input states OUTSIDE the lock (no audio interruption)
-    let mut new_input_states = Vec::with_capacity(effective_ins.len());
-    for (i, input) in effective_ins.iter().enumerate() {
+    let mut new_input_states = Vec::with_capacity(segments.len());
+    for (i, segment) in segments.iter().enumerate() {
         let existing = if i < existing_per_input.len() {
             Some(std::mem::take(&mut existing_per_input[i]))
         } else {
             None
         };
-        let input_state = build_input_processing_state(chain, input, &all_output_channels, sample_rate, existing)?;
+        let segment_output_channels: Vec<usize> = segment.output_route_indices.iter()
+            .filter_map(|&idx| effective_outs.get(idx))
+            .flat_map(|e| e.channels.iter().copied())
+            .collect();
+        let input_state = build_input_processing_state(
+            chain,
+            &segment.input,
+            &segment_output_channels,
+            sample_rate,
+            existing,
+            Some(&segment.block_indices),
+            segment.output_route_indices.clone(),
+        )?;
         new_input_states.push(input_state);
     }
 
@@ -544,6 +777,7 @@ fn build_runtime_block_nodes(
     input_layout: AudioChannelLayout,
     sample_rate: f32,
     existing: Option<Vec<BlockRuntimeNode>>,
+    block_indices: Option<&[usize]>,
 ) -> Result<(Vec<BlockRuntimeNode>, AudioChannelLayout)> {
     let mut blocks = Vec::new();
     let mut current_layout = input_layout;
@@ -553,7 +787,15 @@ fn build_runtime_block_nodes(
         .map(|node| (node.block_id.clone(), node))
         .collect::<HashMap<_, _>>();
 
-    for block in &chain.blocks {
+    // If block_indices is provided, iterate only those blocks; otherwise iterate all
+    let block_iter: Vec<&project::block::AudioBlock> = match block_indices {
+        Some(indices) => indices.iter()
+            .filter_map(|&i| chain.blocks.get(i))
+            .collect(),
+        None => chain.blocks.iter().collect(),
+    };
+
+    for block in block_iter {
         // Disabled blocks: try to reuse existing node (keeps processor alive
         // for instant re-enable), otherwise create a bypass node.
         if !block.enabled {
@@ -1086,6 +1328,7 @@ pub fn process_input_f32(
         blocks,
         frame_buffer,
         fade_in_remaining,
+        output_route_indices: _,
     } = input_state;
 
     let tuner_enabled = blocks.iter().any(block_has_active_tuner);
@@ -1154,27 +1397,36 @@ pub fn process_input_f32(
         }
     }
 
-    // Collect processed frames into a local vec, then release processing lock
+    // Collect processed frames and output routing info, then release processing lock
     let processed: Vec<AudioFrame> = input_state.frame_buffer.drain(..).collect();
+    let segment_routes = input_state.output_route_indices.clone();
     drop(processing);
 
-    // Mix processed frames into all output routes.
+    // Mix processed frames into this segment's output routes only.
     // If the queue already has frames (from another input), sum them.
     // Otherwise, push new frames.
     if let Ok(mut output) = runtime.output.try_lock() {
-        for route in output.output_routes.iter_mut() {
-            let existing_len = route.queue.len();
-            for (i, &frame) in processed.iter().enumerate() {
-                if i < existing_len {
-                    // Sum with existing frame from another input
-                    let existing = &mut route.queue[i];
-                    *existing = mix_frames(*existing, frame);
-                } else {
-                    // No existing frame yet — push as-is
-                    route.queue.push_back(frame);
+        let route_indices = if segment_routes.is_empty() {
+            // Legacy: push to all output routes
+            (0..output.output_routes.len()).collect::<Vec<_>>()
+        } else {
+            segment_routes
+        };
+        for &route_idx in &route_indices {
+            if let Some(route) = output.output_routes.get_mut(route_idx) {
+                let existing_len = route.queue.len();
+                for (i, &frame) in processed.iter().enumerate() {
+                    if i < existing_len {
+                        // Sum with existing frame from another input
+                        let existing = &mut route.queue[i];
+                        *existing = mix_frames(*existing, frame);
+                    } else {
+                        // No existing frame yet — push as-is
+                        route.queue.push_back(frame);
+                    }
                 }
+                trim_output_queue(&mut route.queue);
             }
-            trim_output_queue(&mut route.queue);
         }
     }
 }
