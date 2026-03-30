@@ -1,7 +1,7 @@
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
-import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage } from "pages/pages.slint";
+import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
 
 export component ProjectSettingsWindow inherits Window {
@@ -255,6 +255,71 @@ export component ChainOutputGroupsWindow inherits Window {
         cancel => { root.cancel(); }
         toggle-enabled => { root.toggle-enabled(); }
         delete-block => { root.delete-block(); }
+    }
+}
+
+export component ChainInsertWindow inherits Window {
+    icon: @image-url("assets/openrig-logomark.svg");
+    default-font-family: "Ek Mukta";
+    default-font-size: 13px;
+    // Send (output devices)
+    in property <[string]> send-device-options;
+    in-out property <int> selected-send-device-index;
+    in property <[ChannelOptionItem]> send-channels;
+    in-out property <int> selected-send-mode-index: 0;
+    // Return (input devices)
+    in property <[string]> return-device-options;
+    in-out property <int> selected-return-device-index;
+    in property <[ChannelOptionItem]> return-channels;
+    in-out property <int> selected-return-mode-index: 0;
+    // Block controls
+    in property <bool> show-block-controls: false;
+    in property <bool> block-enabled: true;
+    in-out property <string> status-message;
+    // Callbacks
+    callback select-send-device(int);
+    callback toggle-send-channel(int, bool);
+    callback select-send-mode(int);
+    callback select-return-device(int);
+    callback toggle-return-channel(int, bool);
+    callback select-return-mode(int);
+    callback toggle-enabled();
+    callback delete-block();
+    callback save();
+    callback cancel();
+
+    title: "OpenRig \u{00B7} Configurar Insert";
+    min-width: 720px;
+    min-height: 720px;
+    preferred-width: 860px;
+    preferred-height: 820px;
+    background: #040708;
+
+    ChainInsertEditorPage {
+        width: parent.width;
+        height: parent.height;
+        title: "Configurar Insert";
+        send-device-options: root.send-device-options;
+        selected-send-device-index <=> root.selected-send-device-index;
+        send-channels: root.send-channels;
+        selected-send-mode-index <=> root.selected-send-mode-index;
+        return-device-options: root.return-device-options;
+        selected-return-device-index <=> root.selected-return-device-index;
+        return-channels: root.return-channels;
+        selected-return-mode-index <=> root.selected-return-mode-index;
+        show-block-controls: root.show-block-controls;
+        block-enabled: root.block-enabled;
+        status-message: root.status-message;
+        select-send-device(index) => { root.select-send-device(index); }
+        toggle-send-channel(index, selected) => { root.toggle-send-channel(index, selected); }
+        select-send-mode(index) => { root.select-send-mode(index); }
+        select-return-device(index) => { root.select-return-device(index); }
+        toggle-return-channel(index, selected) => { root.toggle-return-channel(index, selected); }
+        select-return-mode(index) => { root.select-return-mode(index); }
+        toggle-enabled => { root.toggle-enabled(); }
+        delete-block => { root.delete-block(); }
+        save => { root.save(); }
+        cancel => { root.cancel(); }
     }
 }
 
