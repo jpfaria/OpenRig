@@ -1434,7 +1434,17 @@ pub fn process_input_f32(
     // Mix processed frames into this segment's output routes only.
     // If the queue already has frames (from another input), sum them.
     // Otherwise, push new frames.
-    if let Ok(mut output) = runtime.output.try_lock() {
+    match runtime.output.try_lock() {
+        Err(_) => {
+            if input_index == 0 {
+                static LOCK_FAIL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+                let c = LOCK_FAIL.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                if c % 100 == 0 {
+                    log::warn!("[process_input] idx=0 OUTPUT LOCK FAILED (#{}) — {} frames DROPPED", c, processed.len());
+                }
+            }
+        }
+        Ok(mut output) => {
         let route_indices = if segment_routes.is_empty() {
             // Legacy: push to all output routes
             (0..output.output_routes.len()).collect::<Vec<_>>()
@@ -1456,6 +1466,7 @@ pub fn process_input_f32(
                 }
                 trim_output_queue(&mut route.queue);
             }
+        }
         }
     }
 }
