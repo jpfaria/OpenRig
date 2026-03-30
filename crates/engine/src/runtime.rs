@@ -345,9 +345,10 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
 }
 
 /// Build effective input entries from chain's InputBlock entries.
+/// Also includes Insert block return endpoints as input streams.
 /// Falls back to a single mono input on channel 0 if no InputBlocks exist.
 fn effective_inputs(chain: &Chain) -> Vec<InputEntry> {
-    let entries: Vec<InputEntry> = chain.blocks.iter()
+    let mut entries: Vec<InputEntry> = chain.blocks.iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Input(ib) => Some(ib),
@@ -355,10 +356,34 @@ fn effective_inputs(chain: &Chain) -> Vec<InputEntry> {
         })
         .flat_map(|ib| ib.entries.iter().cloned())
         .collect();
+
+    // Include Insert block return endpoints as input streams
+    // (must match the order used in infra-cpal resolve_chain_inputs)
+    let insert_return_entries: Vec<InputEntry> = chain.blocks.iter()
+        .filter(|b| b.enabled)
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Insert(ib) => Some(InputEntry {
+                name: "Insert Return".to_string(),
+                device_id: ib.return_.device_id.clone(),
+                mode: ib.return_.mode,
+                channels: ib.return_.channels.clone(),
+            }),
+            _ => None,
+        })
+        .collect();
+    entries.extend(insert_return_entries);
+
     if !entries.is_empty() {
+        for (i, entry) in entries.iter().enumerate() {
+            log::info!(
+                "chain '{}' effective_input[{}]: name='{}', device='{}', mode={:?}, channels={:?}",
+                chain.id.0, i, entry.name, entry.device_id.0, entry.mode, entry.channels,
+            );
+        }
         return entries;
     }
     // Fallback — no InputBlocks defined
+    log::info!("chain '{}' effective_inputs: fallback to single mono input", chain.id.0);
     vec![InputEntry {
         name: "Input".to_string(),
         device_id: domain::ids::DeviceId("".to_string()),
@@ -368,9 +393,10 @@ fn effective_inputs(chain: &Chain) -> Vec<InputEntry> {
 }
 
 /// Build effective output entries from chain's OutputBlock entries.
+/// Also includes Insert block send endpoints as output streams.
 /// Falls back to a single mono output on channel 0 if no OutputBlocks exist.
 fn effective_outputs(chain: &Chain) -> Vec<OutputEntry> {
-    let entries: Vec<OutputEntry> = chain.blocks.iter()
+    let mut entries: Vec<OutputEntry> = chain.blocks.iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Output(ob) => Some(ob),
@@ -378,10 +404,37 @@ fn effective_outputs(chain: &Chain) -> Vec<OutputEntry> {
         })
         .flat_map(|ob| ob.entries.iter().cloned())
         .collect();
+
+    // Include Insert block send endpoints as output streams
+    // (must match the order used in infra-cpal resolve_chain_outputs)
+    let insert_send_entries: Vec<OutputEntry> = chain.blocks.iter()
+        .filter(|b| b.enabled)
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Insert(ib) => Some(OutputEntry {
+                name: "Insert Send".to_string(),
+                device_id: ib.send.device_id.clone(),
+                mode: match ib.send.mode {
+                    ChainInputMode::Mono => ChainOutputMode::Mono,
+                    _ => ChainOutputMode::Stereo,
+                },
+                channels: ib.send.channels.clone(),
+            }),
+            _ => None,
+        })
+        .collect();
+    entries.extend(insert_send_entries);
+
     if !entries.is_empty() {
+        for (i, entry) in entries.iter().enumerate() {
+            log::info!(
+                "chain '{}' effective_output[{}]: name='{}', device='{}', mode={:?}, channels={:?}",
+                chain.id.0, i, entry.name, entry.device_id.0, entry.mode, entry.channels,
+            );
+        }
         return entries;
     }
     // Fallback — no OutputBlocks defined
+    log::info!("chain '{}' effective_outputs: fallback to single mono output", chain.id.0);
     vec![OutputEntry {
         name: "Output".to_string(),
         device_id: domain::ids::DeviceId("".to_string()),
