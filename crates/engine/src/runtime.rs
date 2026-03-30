@@ -28,10 +28,20 @@ use block_util::{build_utility_processor, TunerProcessor};
 use block_wah::build_wah_processor_for_layout;
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::Instant;
 
 const ELASTIC_BUFFER_TARGET_LEVEL: usize = 256;
 static NEXT_BLOCK_INSTANCE_SERIAL: AtomicU64 = AtomicU64::new(1);
+
+static MONOTONIC_EPOCH: OnceLock<Instant> = OnceLock::new();
+
+/// Returns nanoseconds since a fixed epoch (first call). Efficient monotonic clock
+/// suitable for audio-thread timestamps.
+fn monotonic_nanos() -> u64 {
+    let epoch = MONOTONIC_EPOCH.get_or_init(Instant::now);
+    epoch.elapsed().as_nanos() as u64
+}
 
 #[derive(Debug, Clone, Copy)]
 enum AudioFrame {
@@ -202,6 +212,10 @@ pub struct ChainRuntimeState {
     tuner_shared_buffer: Mutex<Vec<f32>>,
     /// Tuner state owned by UI thread only (never touched by audio).
     pub tuner_reading: Mutex<block_util::TunerReading>,
+    /// Timestamp (nanos since epoch) of the last input callback.
+    pub last_input_nanos: AtomicU64,
+    /// Smoothed latency measurement (nanos), exponential moving average.
+    pub measured_latency_nanos: AtomicU64,
 }
 
 impl ChainRuntimeState {
@@ -247,6 +261,12 @@ impl ChainRuntimeState {
                 if r.frequency.is_some() { Some(r.clone()) } else { None }
             })
         }
+    }
+
+    /// Returns the smoothed measured latency in milliseconds.
+    pub fn measured_latency_ms(&self) -> f32 {
+        let nanos = self.measured_latency_nanos.load(Ordering::Relaxed);
+        nanos as f32 / 1_000_000.0
     }
 }
 
@@ -386,6 +406,8 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
         output: Mutex::new(ChainOutputState { output_routes }),
         tuner_shared_buffer: Mutex::new(Vec::with_capacity(8192)),
         tuner_reading: Mutex::new(block_util::TunerReading::default()),
+        last_input_nanos: AtomicU64::new(0),
+        measured_latency_nanos: AtomicU64::new(0),
     })
 }
 
@@ -1338,6 +1360,8 @@ pub fn process_input_f32(
     data: &[f32],
     input_total_channels: usize,
 ) {
+    runtime.last_input_nanos.store(monotonic_nanos(), Ordering::Relaxed);
+
     let num_frames = data.len() / input_total_channels;
     let mut processing = match runtime.processing.try_lock() {
         Ok(guard) => guard,
@@ -1589,6 +1613,16 @@ pub fn process_output_f32(
             frame,
             route.output_mixdown,
         );
+    }
+
+    // Measure real-time latency: delta between input and output callbacks.
+    let input_ts = runtime.last_input_nanos.load(Ordering::Relaxed);
+    if input_ts > 0 {
+        let now = monotonic_nanos();
+        let delta = now.saturating_sub(input_ts);
+        let old = runtime.measured_latency_nanos.load(Ordering::Relaxed);
+        let smoothed = if old == 0 { delta } else { (old * 95 + delta * 5) / 100 };
+        runtime.measured_latency_nanos.store(smoothed, Ordering::Relaxed);
     }
 }
 
@@ -2321,5 +2355,94 @@ mod tests {
                 params,
             }),
         }
+    }
+
+    fn latency_test_chain(id: &str) -> Chain {
+        Chain {
+            id: ChainId(id.into()),
+            description: Some("Latency test".into()),
+            instrument: "electric_guitar".to_string(),
+            enabled: true,
+            blocks: vec![
+                AudioBlock {
+                    id: BlockId(format!("{id}:input:0")),
+                    enabled: true,
+                    kind: AudioBlockKind::Input(InputBlock {
+                        model: "standard".to_string(),
+                        entries: vec![InputEntry {
+                            name: "Input 1".to_string(),
+                            device_id: DeviceId("latency-input-dev".into()),
+                            mode: ChainInputMode::Mono,
+                            channels: vec![0],
+                        }],
+                    }),
+                },
+                AudioBlock {
+                    id: BlockId(format!("{id}:output:0")),
+                    enabled: true,
+                    kind: AudioBlockKind::Output(OutputBlock {
+                        model: "standard".to_string(),
+                        entries: vec![OutputEntry {
+                            name: "Output 1".to_string(),
+                            device_id: DeviceId("latency-output-dev".into()),
+                            mode: ChainOutputMode::Stereo,
+                            channels: vec![0, 1],
+                        }],
+                    }),
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn latency_measurement_returns_zero_before_any_processing() {
+        let chain = latency_test_chain("chain:lat0");
+        let mut sample_rates = HashMap::new();
+        sample_rates.insert(chain.id.clone(), 48000.0_f32);
+        let project = Project {
+            name: None,
+            device_settings: Vec::new(),
+            chains: vec![chain],
+        };
+        let graph = build_runtime_graph(&project, &sample_rates).unwrap();
+        let runtime = graph.chains.values().next().unwrap();
+        assert_eq!(runtime.measured_latency_nanos.load(std::sync::atomic::Ordering::Relaxed), 0);
+        assert_eq!(runtime.measured_latency_ms(), 0.0);
+    }
+
+    #[test]
+    fn latency_measurement_smoothing_converges() {
+        use super::monotonic_nanos;
+
+        let chain = latency_test_chain("chain:lat1");
+        let mut sample_rates = HashMap::new();
+        sample_rates.insert(chain.id.clone(), 48000.0_f32);
+        let project = Project {
+            name: None,
+            device_settings: Vec::new(),
+            chains: vec![chain],
+        };
+        let graph = build_runtime_graph(&project, &sample_rates).unwrap();
+        let runtime = graph.chains.values().next().unwrap();
+
+        // Simulate several input->output cycles with a small spin to create measurable delta.
+        for _ in 0..50 {
+            runtime.last_input_nanos.store(monotonic_nanos(), std::sync::atomic::Ordering::Relaxed);
+            // Simulate some processing time (~10us spin)
+            let start = std::time::Instant::now();
+            while start.elapsed().as_micros() < 10 {}
+            // Simulate output callback latency measurement
+            let input_ts = runtime.last_input_nanos.load(std::sync::atomic::Ordering::Relaxed);
+            let now = monotonic_nanos();
+            let delta = now.saturating_sub(input_ts);
+            let old = runtime.measured_latency_nanos.load(std::sync::atomic::Ordering::Relaxed);
+            let smoothed = if old == 0 { delta } else { (old * 95 + delta * 5) / 100 };
+            runtime.measured_latency_nanos.store(smoothed, std::sync::atomic::Ordering::Relaxed);
+        }
+
+        let latency_ms = runtime.measured_latency_ms();
+        // Should be positive and reasonable (> 0, < 100ms)
+        assert!(latency_ms > 0.0, "latency should be positive, got {latency_ms}");
+        assert!(latency_ms < 100.0, "latency should be < 100ms, got {latency_ms}");
     }
 }

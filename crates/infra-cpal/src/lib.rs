@@ -239,6 +239,12 @@ impl ProjectRuntimeController {
         None
     }
 
+    /// Returns the measured real-time latency in milliseconds for a given chain.
+    pub fn measured_latency_ms(&self, chain_id: &ChainId) -> Option<f32> {
+        self.runtime_graph.chains.get(chain_id)
+            .map(|runtime| runtime.measured_latency_ms())
+    }
+
     fn upsert_chain_with_resolved(
         &mut self,
         chain: &Chain,
