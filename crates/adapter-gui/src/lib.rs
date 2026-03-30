@@ -6304,6 +6304,39 @@ pub fn run_desktop_app(
         let _ = slint::quit_event_loop();
         slint::CloseRequestResponse::HideWindow
     });
+
+    // Latency polling timer — reads measured latency from runtime and updates chain items
+    let latency_timer = Timer::default();
+    {
+        let weak_window = window.as_weak();
+        let project_runtime_lat = project_runtime.clone();
+        let project_session_lat = project_session.clone();
+        let project_chains_lat = project_chains.clone();
+        latency_timer.start(
+            slint::TimerMode::Repeated,
+            std::time::Duration::from_millis(500),
+            move || {
+                let Some(_win) = weak_window.upgrade() else { return; };
+                let session_borrow = project_session_lat.borrow();
+                let Some(session) = session_borrow.as_ref() else { return; };
+                let rt_borrow = project_runtime_lat.borrow();
+                let Some(rt) = rt_borrow.as_ref() else { return; };
+                for (i, chain) in session.project.chains.iter().enumerate() {
+                    if let Some(measured) = rt.measured_latency_ms(&chain.id) {
+                        if measured > 0.1 {
+                            if let Some(mut item) = project_chains_lat.row_data(i) {
+                                if (item.latency_ms - measured).abs() > 0.5 {
+                                    item.latency_ms = measured;
+                                    project_chains_lat.set_row_data(i, item);
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+        );
+    }
+
     window.run().map_err(|error| anyhow!(error.to_string()))
 }
 fn resolve_project_paths() -> ProjectPaths {
