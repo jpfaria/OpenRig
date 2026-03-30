@@ -693,7 +693,18 @@ pub fn update_chain_runtime_state(
 ) -> Result<()> {
     let effective_ins = effective_inputs(chain);
     let effective_outs = effective_outputs(chain);
+    log::info!("[update_runtime] chain='{}' inputs={} outputs={}", chain.id.0, effective_ins.len(), effective_outs.len());
+    for (i, inp) in effective_ins.iter().enumerate() {
+        log::info!("[update_runtime]   in[{}]: '{}' dev='{}' ch={:?}", i, inp.name, inp.device_id.0, inp.channels);
+    }
+    for (i, out) in effective_outs.iter().enumerate() {
+        log::info!("[update_runtime]   out[{}]: '{}' dev='{}' ch={:?}", i, out.name, out.device_id.0, out.channels);
+    }
     let segments = split_chain_into_segments(chain, &effective_ins, &effective_outs);
+    log::info!("[update_runtime] segments={}", segments.len());
+    for (i, seg) in segments.iter().enumerate() {
+        log::info!("[update_runtime]   seg[{}]: in='{}' blocks={:?} out_routes={:?}", i, seg.input.name, seg.block_indices, seg.output_route_indices);
+    }
 
     // Step 1: Extract existing blocks from all input states (brief lock)
     let mut existing_per_input: Vec<Vec<BlockRuntimeNode>> = {
