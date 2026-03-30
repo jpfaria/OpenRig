@@ -3559,9 +3559,35 @@ pub fn run_desktop_app(
                     }
                     return;
                 }
-                AudioBlockKind::Insert(_) => {
+                AudioBlockKind::Insert(ib) => {
                     log::info!("[select_chain_block] insert block at index {}: id='{}'", block_index, block.id.0);
-                    set_status_with_toast(&window, &toast_timer, "Insert block configuration not yet available in GUI.", "info");
+                    // Open input groups window with block controls (enable/disable + delete)
+                    // Send/Return config will be added later
+                    let send_summary = if ib.send.device_id.0.is_empty() {
+                        "Send: não configurado".to_string()
+                    } else {
+                        format!("Send: {} · Ch {}", ib.send.device_id.0.split(':').last().unwrap_or(&ib.send.device_id.0), ib.send.channels.iter().map(|c| (c+1).to_string()).collect::<Vec<_>>().join(", "))
+                    };
+                    let return_summary = if ib.return_.device_id.0.is_empty() {
+                        "Return: não configurado".to_string()
+                    } else {
+                        format!("Return: {} · Ch {}", ib.return_.device_id.0.split(':').last().unwrap_or(&ib.return_.device_id.0), ib.return_.channels.iter().map(|c| (c+1).to_string()).collect::<Vec<_>>().join(", "))
+                    };
+                    let items = vec![
+                        IoGroupItem { name: send_summary.into(), summary: "".into() },
+                        IoGroupItem { name: return_summary.into(), summary: "".into() },
+                    ];
+                    let mut draft = chain_draft_from_chain(chain_index as usize, chain);
+                    draft.editing_io_block_index = Some(block_index as usize);
+                    if let Some(gw) = weak_input_groups_for_select.upgrade() {
+                        gw.set_groups(ModelRc::from(Rc::new(VecModel::from(items))));
+                        gw.set_status_message("".into());
+                        gw.set_show_block_controls(true);
+                        gw.set_block_enabled(block.enabled);
+                        *chain_draft_for_select.borrow_mut() = Some(draft);
+                        drop(session_borrow);
+                        show_child_window(window.window(), gw.window());
+                    }
                     return;
                 }
                 _ => {}
