@@ -413,12 +413,6 @@ fn resolve_chain_inputs(
     if input_entries.is_empty() {
         bail!("chain '{}' has no input blocks configured", chain.id.0);
     }
-    for (i, entry) in input_entries.iter().enumerate() {
-        log::info!(
-            "resolve_chain_inputs: chain '{}' input[{}]: name='{}', device='{}', mode={:?}, channels={:?}",
-            chain.id.0, i, entry.name, entry.device_id.0, entry.mode, entry.channels,
-        );
-    }
     input_entries
         .iter()
         .map(|input| resolve_input_device_for_chain_input(host, project, input))
@@ -450,12 +444,6 @@ fn resolve_chain_outputs(
     output_entries.extend(insert_refs);
     if output_entries.is_empty() {
         bail!("chain '{}' has no output blocks configured", chain.id.0);
-    }
-    for (i, entry) in output_entries.iter().enumerate() {
-        log::info!(
-            "resolve_chain_outputs: chain '{}' output[{}]: name='{}', device='{}', mode={:?}, channels={:?}",
-            chain.id.0, i, entry.name, entry.device_id.0, entry.mode, entry.channels,
-        );
     }
     output_entries
         .iter()
@@ -848,17 +836,8 @@ fn build_chain_streams(
     resolved: ResolvedChainAudioConfig,
     runtime: Arc<ChainRuntimeState>,
 ) -> Result<(Vec<Stream>, Vec<Stream>)> {
-    log::info!(
-        "build_chain_streams: chain '{}' creating {} input stream(s) and {} output stream(s)",
-        chain_id.0, resolved.inputs.len(), resolved.outputs.len(),
-    );
     let mut input_streams = Vec::new();
     for (i, resolved_input) in resolved.inputs.into_iter().enumerate() {
-        log::info!(
-            "build_chain_streams: chain '{}' input_stream[{}] device='{}'",
-            chain_id.0, i,
-            resolved_input.settings.as_ref().map(|s| s.device_id.0.as_str()).unwrap_or("<default>"),
-        );
         let stream =
             build_input_stream_for_input(chain_id, i, resolved_input, runtime.clone())?;
         input_streams.push(stream);
@@ -866,11 +845,6 @@ fn build_chain_streams(
 
     let mut output_streams = Vec::new();
     for (j, resolved_output) in resolved.outputs.into_iter().enumerate() {
-        log::info!(
-            "build_chain_streams: chain '{}' output_stream[{}] device='{}'",
-            chain_id.0, j,
-            resolved_output.settings.as_ref().map(|s| s.device_id.0.as_str()).unwrap_or("<default>"),
-        );
         let stream =
             build_output_stream_for_output(chain_id, j, resolved_output, runtime.clone())?;
         output_streams.push(stream);
