@@ -1422,6 +1422,13 @@ pub fn process_input_f32(
     // Collect processed frames and output routing info, then release processing lock
     let processed: Vec<AudioFrame> = input_state.frame_buffer.drain(..).collect();
     let segment_routes = input_state.output_route_indices.clone();
+    if input_index == 0 {
+        static INPUT0_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let c = INPUT0_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        if c % 1000 == 0 {
+            log::info!("[process_input] idx=0 frames={} routes={:?} (call #{})", processed.len(), segment_routes, c);
+        }
+    }
     drop(processing);
 
     // Mix processed frames into this segment's output routes only.
