@@ -1567,6 +1567,15 @@ pub fn process_output_f32(
         }
     };
     let num_frames = out.len() / output_total_channels;
+    let queue_len = route.queue.len();
+    if queue_len == 0 && output_index > 0 {
+        // Log only for non-primary outputs (Insert send) to avoid spam
+        static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let c = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        if c % 1000 == 0 {
+            log::warn!("[process_output] output_index={} queue EMPTY (call #{})", output_index, c);
+        }
+    }
 
     for frame in out.chunks_mut(output_total_channels).take(num_frames) {
         frame.fill(0.0);
