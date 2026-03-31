@@ -1661,6 +1661,7 @@ dependencies = [
  "block-ir",
  "block-mod",
  "block-nam",
+ "block-pitch",
  "block-preamp",
  "block-reverb",
  "block-util",

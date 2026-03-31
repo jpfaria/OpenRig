@@ -23,6 +23,7 @@ use block_gain::build_gain_processor_for_layout;
 use block_ir::build_ir_processor_for_layout;
 use block_mod::build_modulation_processor_for_layout;
 use block_nam::build_nam_processor_for_layout;
+use block_pitch::build_pitch_processor_for_layout;
 use block_reverb::build_reverb_processor_for_layout;
 use block_util::{build_utility_processor, TunerProcessor};
 use block_wah::build_wah_processor_for_layout;
@@ -1059,7 +1060,13 @@ fn build_core_block_runtime_node(
                 build_modulation_processor_for_layout(model, params, sample_rate, layout)
             })?,
         )),
-        EFFECT_TYPE_PITCH => Ok(bypass_runtime_node(block, input_layout)),
+        EFFECT_TYPE_PITCH => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, EFFECT_TYPE_PITCH, model, input_layout, |layout| {
+                build_pitch_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
         other => Err(anyhow!("unsupported core block effect_type '{}'", other)),
     }
 }
