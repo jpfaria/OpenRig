@@ -87,15 +87,7 @@ impl ElasticBuffer {
     }
 
     fn pop(&mut self) -> AudioFrame {
-        // With pre-fill, queue should rarely be empty
-        // If it is (extreme drift), return silence — NOT last_frame (avoids robotic sound)
-        self.queue.pop_front().unwrap_or_else(|| silent_frame(
-            if matches!(self.last_frame, AudioFrame::Stereo(_)) {
-                AudioChannelLayout::Stereo
-            } else {
-                AudioChannelLayout::Mono
-            }
-        ))
+        self.queue.pop_front().unwrap_or(self.last_frame)
     }
 
     #[cfg(test)]
@@ -2276,13 +2268,13 @@ mod tests {
     }
 
     #[test]
-    fn elastic_buffer_underrun_returns_silence() {
+    fn elastic_buffer_underrun_repeats_last_frame() {
         let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
         buf.push(AudioFrame::Mono(0.42));
         let _ = buf.pop(); // drain
-        // Empty — returns silence
+        // Empty — repeats last frame
         let frame = buf.pop();
-        assert!(matches!(frame, AudioFrame::Mono(v) if v.abs() < 1e-6));
+        assert!(matches!(frame, AudioFrame::Mono(v) if (v - 0.42).abs() < 1e-6));
     }
 
     #[test]
