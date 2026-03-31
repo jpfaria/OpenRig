@@ -255,9 +255,9 @@ impl ChainRuntimeState {
             }
             Some(reading)
         } else {
-            // Allow ~500ms of silence before clearing (10 polls at 50ms)
+            // Allow ~5s of silence before clearing (100 polls at 50ms)
             let misses = self.tuner_miss_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
-            if misses >= 10 {
+            if misses >= 100 {
                 if let Ok(mut tr) = self.tuner_reading.try_lock() {
                     *tr = block_util::TunerReading::default();
                 }
@@ -1530,38 +1530,98 @@ fn block_has_active_tuner(block: &BlockRuntimeNode) -> bool {
     }
 }
 
-/// AMDF pitch detection — runs on UI thread, NOT audio thread.
+/// YIN pitch detection — runs on UI thread, NOT audio thread.
+/// Based on "YIN, a fundamental frequency estimator for speech and music"
+/// (de Cheveigné & Kawahara, 2002).
 fn detect_pitch(samples: &[f32], sample_rate: f32) -> block_util::TunerReading {
-    let rms = (samples.iter().map(|s| s * s).sum::<f32>() / samples.len() as f32).sqrt();
-    if rms < 0.01 || samples.len() < 512 {
-        return block_util::TunerReading::default();
-    }
-
-    let min_period = (sample_rate / 1000.0) as usize; // ~1000 Hz max
-    let max_period = (sample_rate / 65.0) as usize;   // ~65 Hz min (C2)
     let len = samples.len();
-    let mut best_period = 0;
-    let mut min_diff = f32::MAX;
-
-    for lag in min_period..max_period.min(len / 2) {
-        let window = len - lag;
-        let mut diff = 0.0_f32;
-        for i in 0..window {
-            diff += (samples[i] - samples[i + lag]).abs();
-        }
-        // Normalize by window length so short and long lags are comparable
-        let normalized = diff / window as f32;
-        if normalized < min_diff {
-            min_diff = normalized;
-            best_period = lag;
-        }
-    }
-
-    if best_period == 0 || min_diff > rms * 0.5 {
+    let rms = (samples.iter().map(|s| s * s).sum::<f32>() / len as f32).sqrt();
+    if rms < 0.005 || len < 512 {
         return block_util::TunerReading::default();
     }
 
-    let freq = sample_rate / best_period as f32;
+    let min_period = (sample_rate / 1200.0).max(2.0) as usize; // ~1200 Hz max (above high E)
+    let max_period = (sample_rate / 55.0) as usize;  // ~55 Hz min (below A1)
+    let half = len / 2;
+    let search_max = max_period.min(half);
+
+    if search_max <= min_period {
+        return block_util::TunerReading::default();
+    }
+
+    // Step 1-2: Difference function d(tau)
+    let mut d = vec![0.0_f32; search_max];
+    for tau in 1..search_max {
+        let mut sum = 0.0_f32;
+        for i in 0..half {
+            let diff = samples[i] - samples[i + tau];
+            sum += diff * diff;
+        }
+        d[tau] = sum;
+    }
+
+    // Step 3: Cumulative mean normalized difference d'(tau)
+    let mut d_prime = vec![0.0_f32; search_max];
+    d_prime[0] = 1.0;
+    let mut running_sum = 0.0_f32;
+    for tau in 1..search_max {
+        running_sum += d[tau];
+        d_prime[tau] = if running_sum > 0.0 {
+            d[tau] * tau as f32 / running_sum
+        } else {
+            1.0
+        };
+    }
+
+    // Step 4: Absolute threshold — find first tau where d'(tau) < threshold
+    let threshold = 0.15_f32;
+    let mut best_tau = 0;
+    for tau in min_period..search_max {
+        if d_prime[tau] < threshold {
+            // Find the local minimum after this dip
+            best_tau = tau;
+            while best_tau + 1 < search_max && d_prime[best_tau + 1] < d_prime[best_tau] {
+                best_tau += 1;
+            }
+            break;
+        }
+    }
+
+    // Fallback: if no dip below threshold, pick the global minimum
+    if best_tau == 0 {
+        let mut global_min = f32::MAX;
+        for tau in min_period..search_max {
+            if d_prime[tau] < global_min {
+                global_min = d_prime[tau];
+                best_tau = tau;
+            }
+        }
+        // Reject if global minimum is still high (no clear pitch)
+        if global_min > 0.4 {
+            return block_util::TunerReading::default();
+        }
+    }
+
+    if best_tau == 0 {
+        return block_util::TunerReading::default();
+    }
+
+    // Step 5: Parabolic interpolation for sub-sample accuracy
+    let freq = if best_tau > 0 && best_tau + 1 < search_max {
+        let alpha = d_prime[best_tau - 1];
+        let beta = d_prime[best_tau];
+        let gamma = d_prime[best_tau + 1];
+        let denom = 2.0 * (2.0 * beta - alpha - gamma);
+        let shift = if denom.abs() > 1e-10 {
+            (alpha - gamma) / denom
+        } else {
+            0.0
+        };
+        sample_rate / (best_tau as f32 + shift)
+    } else {
+        sample_rate / best_tau as f32
+    };
+
     block_util::TunerReading::from(Some(freq))
 }
 
