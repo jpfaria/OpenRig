@@ -203,6 +203,8 @@ pub struct ChainRuntimeState {
     tuner_shared_buffer: Mutex<Vec<f32>>,
     /// Tuner state owned by UI thread only (never touched by audio).
     pub tuner_reading: Mutex<block_util::TunerReading>,
+    /// Sample rate for pitch detection (Hz).
+    sample_rate: f32,
     #[allow(dead_code)]
     last_input_nanos: AtomicU64,
     measured_latency_nanos: AtomicU64,
@@ -227,10 +229,12 @@ impl ChainRuntimeState {
 
     /// Called from UI thread: run detection on accumulated samples.
     pub fn poll_tuner(&self) -> Option<block_util::TunerReading> {
+        // Need ~46ms of audio for reliable pitch detection
+        let min_samples = (self.sample_rate * 0.046) as usize;
         // Grab samples quickly
         let samples = {
             let mut buf = self.tuner_shared_buffer.try_lock().ok()?;
-            if buf.len() < 2048 {
+            if buf.len() < min_samples {
                 return self.tuner_reading.try_lock().ok().and_then(|r| {
                     if r.frequency.is_some() { Some(r.clone()) } else { None }
                 });
@@ -241,7 +245,7 @@ impl ChainRuntimeState {
         };
 
         // Run detection outside any lock (takes ~1ms, fine for UI thread)
-        let reading = detect_pitch(&samples);
+        let reading = detect_pitch(&samples, self.sample_rate);
 
         // Store for next poll if no detection
         if let Ok(mut tr) = self.tuner_reading.try_lock() {
@@ -416,6 +420,7 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
         output: Mutex::new(ChainOutputState { output_routes }),
         tuner_shared_buffer: Mutex::new(Vec::with_capacity(8192)),
         tuner_reading: Mutex::new(block_util::TunerReading::default()),
+        sample_rate,
         last_input_nanos: AtomicU64::new(0),
         measured_latency_nanos: AtomicU64::new(0),
     })
@@ -515,11 +520,11 @@ fn insert_send_as_output_entry(insert: &InsertBlock) -> OutputEntry {
 }
 
 /// Describes a chain segment: an input source, its effect blocks, and its output targets.
+#[allow(dead_code)]
 struct ChainSegment {
     input: InputEntry,
-    /// Indices of the AudioBlocks in chain.blocks that belong to this segment's effect chain.
+    cpal_input_index: usize,
     block_indices: Vec<usize>,
-    /// Indices into the effective_outputs list that this segment pushes to.
     output_route_indices: Vec<usize>,
 }
 
@@ -589,6 +594,7 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], _effec
             for in_idx in 0..input_count {
                 segments.push(ChainSegment {
                     input: effective_ins[in_idx].clone(),
+                    cpal_input_index: in_idx,
                     block_indices: block_indices.clone(),
                     output_route_indices: vec![out_entry_idx],
                 });
@@ -641,6 +647,7 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], _effec
             for i in 0..input_count {
                 segments.push(ChainSegment {
                     input: effective_ins[i].clone(),
+                    cpal_input_index: i,
                     block_indices: block_indices.clone(),
                     output_route_indices: output_indices.clone(),
                 });
@@ -650,6 +657,7 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], _effec
             let prev_return_idx = insert_return_idx - 1;
             segments.push(ChainSegment {
                 input: effective_ins[prev_return_idx].clone(),
+                cpal_input_index: prev_return_idx,
                 block_indices,
                 output_route_indices: output_indices,
             });
@@ -695,6 +703,7 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], _effec
     let last_return_idx = insert_return_idx - 1;
     segments.push(ChainSegment {
         input: effective_ins[last_return_idx].clone(),
+        cpal_input_index: last_return_idx,
         block_indices,
         output_route_indices: output_indices,
     });
@@ -1532,8 +1541,7 @@ fn block_has_active_tuner(block: &BlockRuntimeNode) -> bool {
 }
 
 /// Simple AMDF pitch detection — runs on UI thread, NOT audio thread.
-fn detect_pitch(samples: &[f32]) -> block_util::TunerReading {
-    let sample_rate = 44100.0_f32; // TODO: pass actual sample rate
+fn detect_pitch(samples: &[f32], sample_rate: f32) -> block_util::TunerReading {
     let rms = (samples.iter().map(|s| s * s).sum::<f32>() / samples.len() as f32).sqrt();
     if rms < 0.01 || samples.len() < 512 {
         return block_util::TunerReading::default();
