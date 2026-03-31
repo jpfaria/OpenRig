@@ -260,11 +260,11 @@ mod tests {
     #[test]
     fn integration_detuned_a_corrected_toward_440() {
         let sample_rate = 48000.0;
-        // Use 466Hz (Bb4, MIDI 70) — chromatic correction should snap to either
-        // A4 (440Hz, MIDI 69) or B4 (493.88Hz, MIDI 71)
-        let input_freq = 466.0;
+        // Use 453Hz — halfway between A4 (440Hz) and Bb4 (466.16Hz)
+        // Chromatic correction should snap toward A4 (closer in log scale)
+        let input_freq = 453.0;
         let a4 = 440.0;
-        let b4 = 493.88;
+        let b4 = 466.16; // Bb4
         // speed=0 for instant correction, mix=100%, no detune, low sensitivity threshold
         let mut proc = ChromaticAutotuneProcessor::new(0.0, 100.0, 0.0, 0.0, sample_rate);
 
