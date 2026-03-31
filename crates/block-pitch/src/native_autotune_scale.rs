@@ -48,7 +48,7 @@ fn model_schema() -> ModelParameterSchema {
                 -50.0,
                 50.0,
                 1.0,
-                ParameterUnit::Semitones,
+                ParameterUnit::None,
             ),
             float_parameter(
                 "sensitivity",
@@ -157,23 +157,26 @@ impl StereoProcessor for ScaleAutotuneProcessor {
                 (mono_input.iter().map(|s| s * s).sum::<f32>() / chunk as f32).sqrt();
             let threshold = self.sensitivity / 100.0 * 0.1;
 
-            let (active_freq, target_ratio) = if rms < threshold {
-                (None, 1.0)
+            let active_freq = if rms < threshold {
+                // Below threshold: freeze current_shift_ratio, pass through dry
+                None
             } else if let Some(freq) = detected_freq {
                 let target = core_scales::nearest_in_scale(freq, self.key, self.scale);
                 let target = core_scales::apply_detune(target, self.detune_cents);
-                (Some(freq), target / freq)
-            } else {
-                (None, 1.0)
-            };
+                let target_ratio = target / freq;
 
-            // Smooth shift ratio
-            let alpha = if self.speed_ms <= 0.0 {
-                1.0
+                // Smooth shift ratio
+                let alpha = if self.speed_ms <= 0.0 {
+                    1.0
+                } else {
+                    1.0 - (-1.0 / (self.speed_ms * 0.001 * self.sample_rate)).exp()
+                };
+                self.current_shift_ratio += alpha * (target_ratio - self.current_shift_ratio);
+
+                Some(freq)
             } else {
-                1.0 - (-1.0 / (self.speed_ms * 0.001 * self.sample_rate)).exp()
+                None
             };
-            self.current_shift_ratio += alpha * (target_ratio - self.current_shift_ratio);
 
             // PSOLA
             let mut mono_output = vec![0.0f32; chunk];
@@ -237,6 +240,8 @@ pub const MODEL_DEFINITION: PitchModelDefinition = PitchModelDefinition {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use block_core::StereoProcessor;
+    use std::f32::consts::TAU;
 
     #[test]
     fn schema_is_valid() {
@@ -251,5 +256,71 @@ mod tests {
         let schema = model_schema();
         let params = ParameterSet::default();
         params.normalized_against(&schema).expect("defaults should normalize");
+    }
+
+    #[test]
+    fn integration_fsharp_in_cmajor_corrected_toward_f_or_g() {
+        let sample_rate = 48000.0;
+        // F#4 ~ 369.99 Hz — not in C Major. Nearest: F4 (349.23) or G4 (392.00)
+        let f_sharp_freq = 440.0 * 2f32.powf((66.0 - 69.0) / 12.0); // MIDI 66
+        let f4_freq = 440.0 * 2f32.powf((65.0 - 69.0) / 12.0); // MIDI 65
+        let g4_freq = 440.0 * 2f32.powf((67.0 - 69.0) / 12.0); // MIDI 67
+
+        // speed=0, mix=100%, no detune, sensitivity=0 (always active), key=C(0), scale=Major(0)
+        let mut proc =
+            ScaleAutotuneProcessor::new(0.0, 100.0, 0.0, 0.0, 0, 0, sample_rate);
+
+        let block_size = 512;
+        let num_blocks = 40;
+        let total_samples = block_size * num_blocks;
+
+        // Process in multiple blocks to simulate real-time streaming
+        let mut all_output = Vec::with_capacity(total_samples);
+        for block_idx in 0..num_blocks {
+            let offset = block_idx * block_size;
+            let mut buffer: Vec<[f32; 2]> = (0..block_size)
+                .map(|i| {
+                    let t = (offset + i) as f32 / sample_rate;
+                    let s = 0.5 * (TAU * f_sharp_freq * t).sin();
+                    [s, s]
+                })
+                .collect();
+            proc.process_block(&mut buffer);
+            all_output.extend(buffer.iter().map(|f| f[0]));
+        }
+
+        // Measure output pitch via zero crossings on the last quarter
+        let start = total_samples * 3 / 4;
+        let output_mono = &all_output[start..];
+
+        let mut crossings = Vec::new();
+        for i in 1..output_mono.len() {
+            if output_mono[i - 1] <= 0.0 && output_mono[i] > 0.0 {
+                crossings.push(i);
+            }
+        }
+
+        if crossings.len() >= 3 {
+            let periods: Vec<f32> = crossings
+                .windows(2)
+                .map(|w| (w[1] - w[0]) as f32)
+                .collect();
+            let avg_period = periods.iter().sum::<f32>() / periods.len() as f32;
+            let output_freq = sample_rate / avg_period;
+
+            // Output should be closer to F4 or G4 than the input F#4
+            let input_dist_f = (f_sharp_freq - f4_freq).abs();
+            let input_dist_g = (f_sharp_freq - g4_freq).abs();
+            let input_min_dist = input_dist_f.min(input_dist_g);
+
+            let output_dist_f = (output_freq - f4_freq).abs();
+            let output_dist_g = (output_freq - g4_freq).abs();
+            let output_min_dist = output_dist_f.min(output_dist_g);
+
+            assert!(
+                output_min_dist < input_min_dist,
+                "output ({output_freq:.1}Hz) should be closer to F4/G4 than input ({f_sharp_freq:.1}Hz)"
+            );
+        }
     }
 }

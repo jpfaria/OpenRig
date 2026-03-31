@@ -17,11 +17,11 @@ pub struct PsolaShifter {
     input_buf: Box<[f32; IO_BUFFER_SIZE]>,
     /// Circular output (overlap-add) buffer
     output_buf: Box<[f32; IO_BUFFER_SIZE]>,
-    /// Write position in input buffer
+    /// Write position in input buffer (total samples written)
     in_write: usize,
     /// Read position in output buffer
     out_read: usize,
-    /// Write position in output buffer (where grains are placed)
+    /// Write position in output buffer (where next grain is placed)
     out_write: usize,
     /// Sample rate
     sample_rate: f32,
@@ -29,6 +29,12 @@ pub struct PsolaShifter {
     current_period: f32,
     /// Accumulated input samples since last grain placement
     input_since_grain: f32,
+    /// Fractional accumulator for output period advancement
+    out_write_frac: f32,
+    /// Input grain center position (advances by input period per grain)
+    in_grain_center: usize,
+    /// Fractional accumulator for input grain center advancement
+    in_grain_frac: f32,
 }
 
 impl PsolaShifter {
@@ -42,6 +48,9 @@ impl PsolaShifter {
             sample_rate,
             current_period: 0.0,
             input_since_grain: 0.0,
+            out_write_frac: 0.0,
+            in_grain_center: 0,
+            in_grain_frac: 0.0,
         }
     }
 
@@ -88,19 +97,13 @@ impl PsolaShifter {
             self.in_write = (self.in_write + 1) % IO_BUFFER_SIZE;
         }
 
-        // Clear output buffer region we'll write to
-        for i in 0..input.len() {
-            let idx = (self.out_read + i) % IO_BUFFER_SIZE;
-            self.output_buf[idx] = 0.0;
-        }
-
         // Place grains at output_period intervals
         self.input_since_grain += input.len() as f32;
         while self.input_since_grain >= output_period {
             self.input_since_grain -= output_period;
 
-            // Extract grain from input buffer centered on current position
-            let center = (self.in_write + IO_BUFFER_SIZE - input.len()) % IO_BUFFER_SIZE;
+            // Extract grain from input buffer centered on in_grain_center
+            let center = self.in_grain_center;
             let half_grain = grain_size / 2;
 
             for i in 0..grain_size {
@@ -110,12 +113,25 @@ impl PsolaShifter {
                 self.output_buf[dst_idx] += self.input_buf[src_idx] * window;
             }
 
-            self.out_write = (self.out_write + output_period as usize) % IO_BUFFER_SIZE;
+            // Advance input grain center by one input period (with fractional accumulation)
+            let in_int = period_samples as usize;
+            self.in_grain_frac += period_samples - in_int as f32;
+            let in_extra = self.in_grain_frac as usize;
+            self.in_grain_frac -= in_extra as f32;
+            self.in_grain_center = (self.in_grain_center + in_int + in_extra) % IO_BUFFER_SIZE;
+
+            // Advance output write by one output period (with fractional accumulation)
+            let out_int = output_period as usize;
+            self.out_write_frac += output_period - out_int as f32;
+            let out_extra = self.out_write_frac as usize;
+            self.out_write_frac -= out_extra as f32;
+            self.out_write = (self.out_write + out_int + out_extra) % IO_BUFFER_SIZE;
         }
 
-        // Read from output buffer
+        // Read from output buffer and clear after reading
         for sample in output.iter_mut().take(input.len()) {
             *sample = self.output_buf[self.out_read];
+            self.output_buf[self.out_read] = 0.0;
             self.out_read = (self.out_read + 1) % IO_BUFFER_SIZE;
         }
     }

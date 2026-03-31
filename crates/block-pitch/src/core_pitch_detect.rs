@@ -60,6 +60,9 @@ impl PitchDetector {
             return None;
         }
 
+        // Compute zero-lag energy for NAMDF normalization
+        let energy: f32 = linear.iter().map(|s| s.abs()).sum::<f32>() / linear.len() as f32;
+
         let mut best_period = 0usize;
         let mut min_diff = f32::MAX;
         let len = linear.len();
@@ -70,19 +73,20 @@ impl PitchDetector {
             for i in 0..count {
                 diff += (linear[i] - linear[i + lag]).abs();
             }
-            // Normalize by number of compared samples
-            let normalized = diff / count as f32;
+            // Normalize by count AND energy (NAMDF)
+            let normalized = diff / count as f32 / energy.max(1e-10);
             if normalized < min_diff {
                 min_diff = normalized;
                 best_period = lag;
             }
         }
 
-        if best_period > 0 {
-            Some(self.sample_rate / best_period as f32)
-        } else {
-            None
+        // Confidence gate: reject if minimum difference is too high
+        if best_period == 0 || min_diff > 0.3 {
+            return None;
         }
+
+        Some(self.sample_rate / best_period as f32)
     }
 }
 
