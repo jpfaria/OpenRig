@@ -3965,13 +3965,17 @@ pub fn run_desktop_app(
                 window.set_show_block_drawer(false);
                 let ci = chain_index as usize;
                 let bi = block_index as usize;
-                // Remove any stale window for this block position.
-                // After add/remove operations, the block at a given index may
-                // have changed, so we always close the old window and create
-                // a fresh one with the correct data.
-                open_block_windows.borrow_mut().retain(|bw| {
-                    !(bw.chain_index == ci && bw.block_index == bi)
-                });
+                // Check if a window for this block already exists
+                let existing = open_block_windows.borrow().iter()
+                    .find(|bw| bw.chain_index == ci && bw.block_index == bi)
+                    .map(|bw| bw.window.as_weak());
+                if let Some(weak_win) = existing {
+                    if let Some(win) = weak_win.upgrade() {
+                        // Just show — window already has its own independent state
+                        show_child_window(window.window(), win.window());
+                        return;
+                    }
+                }
                 // Create new isolated window
                 let win = match BlockEditorWindow::new() {
                     Ok(w) => w,
