@@ -69,23 +69,38 @@ struct ElasticBuffer {
 
 impl ElasticBuffer {
     fn new(target_level: usize, layout: AudioChannelLayout) -> Self {
+        let silent = silent_frame(layout);
+        let mut queue = VecDeque::with_capacity(target_level * 2);
+        // Pre-fill with silence to prevent underrun at startup
+        for _ in 0..target_level {
+            queue.push_back(silent);
+        }
         Self {
-            queue: VecDeque::with_capacity(target_level * 2),
+            queue,
             target_level,
-            last_frame: silent_frame(layout),
+            last_frame: silent,
         }
     }
 
     fn push(&mut self, frame: AudioFrame) {
         self.last_frame = frame;
         self.queue.push_back(frame);
+        // Gradually discard oldest if overrun
         if self.queue.len() > self.target_level * 2 {
             self.queue.pop_front();
         }
     }
 
     fn pop(&mut self) -> AudioFrame {
-        self.queue.pop_front().unwrap_or(self.last_frame)
+        // With pre-fill, queue should rarely be empty
+        // If it is (extreme drift), return silence — NOT last_frame (avoids robotic sound)
+        self.queue.pop_front().unwrap_or_else(|| silent_frame(
+            if matches!(self.last_frame, AudioFrame::Stereo(_)) {
+                AudioChannelLayout::Stereo
+            } else {
+                AudioChannelLayout::Mono
+            }
+        ))
     }
 
     #[cfg(test)]
@@ -2261,10 +2276,15 @@ mod tests {
 
     #[test]
     fn elastic_buffer_push_pop_basic() {
-        let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
+        let mut buf = ElasticBuffer::new(4, AudioChannelLayout::Mono); // small target for testing
+        // Pre-filled with 4 silent frames
+        assert_eq!(buf.len(), 4);
         buf.push(AudioFrame::Mono(0.5));
         buf.push(AudioFrame::Mono(0.7));
-        assert_eq!(buf.len(), 2);
+        assert_eq!(buf.len(), 6); // 4 prefill + 2 pushed
+        // Drain prefill silence
+        for _ in 0..4 { let _ = buf.pop(); }
+        // Now get our pushed frames
         let f1 = buf.pop();
         assert!(matches!(f1, AudioFrame::Mono(v) if (v - 0.5).abs() < 1e-6));
         let f2 = buf.pop();
@@ -2272,13 +2292,15 @@ mod tests {
     }
 
     #[test]
-    fn elastic_buffer_underrun_repeats_last_frame() {
-        let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
+    fn elastic_buffer_underrun_returns_silence_not_repeat() {
+        let mut buf = ElasticBuffer::new(2, AudioChannelLayout::Mono); // small target
+        // Drain prefill
+        for _ in 0..2 { let _ = buf.pop(); }
         buf.push(AudioFrame::Mono(0.42));
-        let _ = buf.pop(); // drain the one frame
-        // Now empty — should repeat last frame, NOT silence
-        let repeated = buf.pop();
-        assert!(matches!(repeated, AudioFrame::Mono(v) if (v - 0.42).abs() < 1e-6));
+        let _ = buf.pop(); // drain the pushed frame
+        // Now truly empty — should return silence, NOT repeat last frame
+        let frame = buf.pop();
+        assert!(matches!(frame, AudioFrame::Mono(v) if v.abs() < 1e-6));
     }
 
     #[test]
