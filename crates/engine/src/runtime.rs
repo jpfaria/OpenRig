@@ -202,6 +202,8 @@ pub struct ChainRuntimeState {
     tuner_shared_buffer: Mutex<Vec<f32>>,
     /// Tuner state owned by UI thread only (never touched by audio).
     pub tuner_reading: Mutex<block_util::TunerReading>,
+    /// Consecutive polls with no detection — clears reading after threshold.
+    tuner_miss_count: AtomicU64,
     /// Sample rate for pitch detection (Hz).
     sample_rate: f32,
     #[allow(dead_code)]
@@ -246,12 +248,26 @@ impl ChainRuntimeState {
         // Run detection outside any lock (takes ~1ms, fine for UI thread)
         let reading = detect_pitch(&samples, self.sample_rate);
 
-        // Update cached reading (clear on silence so UI doesn't show stale data)
-        if let Ok(mut tr) = self.tuner_reading.try_lock() {
-            *tr = reading.clone();
+        if reading.frequency.is_some() {
+            self.tuner_miss_count.store(0, std::sync::atomic::Ordering::Relaxed);
+            if let Ok(mut tr) = self.tuner_reading.try_lock() {
+                *tr = reading.clone();
+            }
+            Some(reading)
+        } else {
+            // Allow ~500ms of silence before clearing (10 polls at 50ms)
+            let misses = self.tuner_miss_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+            if misses >= 10 {
+                if let Ok(mut tr) = self.tuner_reading.try_lock() {
+                    *tr = block_util::TunerReading::default();
+                }
+                None
+            } else {
+                self.tuner_reading.try_lock().ok().and_then(|r| {
+                    if r.frequency.is_some() { Some(r.clone()) } else { None }
+                })
+            }
         }
-
-        if reading.frequency.is_some() { Some(reading) } else { None }
     }
 }
 
@@ -391,6 +407,7 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
         output: Mutex::new(ChainOutputState { output_routes }),
         tuner_shared_buffer: Mutex::new(Vec::with_capacity(8192)),
         tuner_reading: Mutex::new(block_util::TunerReading::default()),
+        tuner_miss_count: AtomicU64::new(0),
         sample_rate,
         last_input_nanos: AtomicU64::new(0),
         measured_latency_nanos: AtomicU64::new(0),
@@ -1513,7 +1530,7 @@ fn block_has_active_tuner(block: &BlockRuntimeNode) -> bool {
     }
 }
 
-/// Simple AMDF pitch detection — runs on UI thread, NOT audio thread.
+/// AMDF pitch detection — runs on UI thread, NOT audio thread.
 fn detect_pitch(samples: &[f32], sample_rate: f32) -> block_util::TunerReading {
     let rms = (samples.iter().map(|s| s * s).sum::<f32>() / samples.len() as f32).sqrt();
     if rms < 0.01 || samples.len() < 512 {
@@ -1527,17 +1544,20 @@ fn detect_pitch(samples: &[f32], sample_rate: f32) -> block_util::TunerReading {
     let mut min_diff = f32::MAX;
 
     for lag in min_period..max_period.min(len / 2) {
+        let window = len - lag;
         let mut diff = 0.0_f32;
-        for i in 0..(len - lag) {
+        for i in 0..window {
             diff += (samples[i] - samples[i + lag]).abs();
         }
-        if diff < min_diff {
-            min_diff = diff;
+        // Normalize by window length so short and long lags are comparable
+        let normalized = diff / window as f32;
+        if normalized < min_diff {
+            min_diff = normalized;
             best_period = lag;
         }
     }
 
-    if best_period == 0 {
+    if best_period == 0 || min_diff > rms * 0.5 {
         return block_util::TunerReading::default();
     }
 
