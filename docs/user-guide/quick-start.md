@@ -73,6 +73,8 @@ All changes are applied in real time. Play your instrument while adjusting param
 
 Your project auto-saves as you work. You can also export presets to share specific chain configurations with others.
 
+**Tip:** Pitch blocks (autotune) are also available for real-time vocal and instrument pitch correction. Add a Chromatic Autotune or Scale Autotune block to any chain that uses a monophonic source.
+
 ## What's Next?
 
 - [Blocks Reference](blocks-reference.md) -- Explore all 170+ available models across every block type.
