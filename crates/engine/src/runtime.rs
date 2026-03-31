@@ -203,6 +203,12 @@ pub struct ChainRuntimeState {
     tuner_shared_buffer: Mutex<Vec<f32>>,
     /// Tuner state owned by UI thread only (never touched by audio).
     pub tuner_reading: Mutex<block_util::TunerReading>,
+    /// Smoothed frequency for stable display (EMA filtered).
+    tuner_smoothed_freq: Mutex<Option<f32>>,
+    /// Consecutive polls with no detection — clears reading after threshold.
+    tuner_miss_count: AtomicU64,
+    /// Sample rate for pitch detection (Hz).
+    sample_rate: f32,
     #[allow(dead_code)]
     last_input_nanos: AtomicU64,
     measured_latency_nanos: AtomicU64,
@@ -227,10 +233,12 @@ impl ChainRuntimeState {
 
     /// Called from UI thread: run detection on accumulated samples.
     pub fn poll_tuner(&self) -> Option<block_util::TunerReading> {
+        // Need ~46ms of audio for reliable pitch detection
+        let min_samples = (self.sample_rate * 0.046) as usize;
         // Grab samples quickly
         let samples = {
             let mut buf = self.tuner_shared_buffer.try_lock().ok()?;
-            if buf.len() < 2048 {
+            if buf.len() < min_samples {
                 return self.tuner_reading.try_lock().ok().and_then(|r| {
                     if r.frequency.is_some() { Some(r.clone()) } else { None }
                 });
@@ -241,19 +249,48 @@ impl ChainRuntimeState {
         };
 
         // Run detection outside any lock (takes ~1ms, fine for UI thread)
-        let reading = detect_pitch(&samples);
+        let reading = detect_pitch(&samples, self.sample_rate);
 
-        // Store for next poll if no detection
-        if let Ok(mut tr) = self.tuner_reading.try_lock() {
-            if reading.frequency.is_some() {
-                *tr = reading.clone();
+        if let Some(raw_freq) = reading.frequency {
+            self.tuner_miss_count.store(0, std::sync::atomic::Ordering::Relaxed);
+
+            // EMA smoothing: blend with previous frequency for stable display.
+            // Snap to new value if pitch jumps >5% (new note).
+            let smoothed = if let Ok(mut prev) = self.tuner_smoothed_freq.try_lock() {
+                let freq = match *prev {
+                    Some(p) if (raw_freq - p).abs() / p < 0.05 => {
+                        // Same note — heavy smoothing (alpha=0.15)
+                        p * 0.85 + raw_freq * 0.15
+                    }
+                    _ => raw_freq, // New note or first reading — snap
+                };
+                *prev = Some(freq);
+                freq
+            } else {
+                raw_freq
+            };
+
+            let smoothed_reading = block_util::TunerReading::from(Some(smoothed));
+            if let Ok(mut tr) = self.tuner_reading.try_lock() {
+                *tr = smoothed_reading.clone();
             }
-        }
-
-        if reading.frequency.is_some() { Some(reading) } else {
-            self.tuner_reading.try_lock().ok().and_then(|r| {
-                if r.frequency.is_some() { Some(r.clone()) } else { None }
-            })
+            Some(smoothed_reading)
+        } else {
+            // Allow ~5s of silence before clearing (100 polls at 50ms)
+            let misses = self.tuner_miss_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+            if misses >= 100 {
+                if let Ok(mut tr) = self.tuner_reading.try_lock() {
+                    *tr = block_util::TunerReading::default();
+                }
+                if let Ok(mut sf) = self.tuner_smoothed_freq.try_lock() {
+                    *sf = None;
+                }
+                None
+            } else {
+                self.tuner_reading.try_lock().ok().and_then(|r| {
+                    if r.frequency.is_some() { Some(r.clone()) } else { None }
+                })
+            }
         }
     }
 }
@@ -428,6 +465,9 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
         output: Mutex::new(ChainOutputState { output_routes }),
         tuner_shared_buffer: Mutex::new(Vec::with_capacity(8192)),
         tuner_reading: Mutex::new(block_util::TunerReading::default()),
+        tuner_smoothed_freq: Mutex::new(None),
+        tuner_miss_count: AtomicU64::new(0),
+        sample_rate,
         last_input_nanos: AtomicU64::new(0),
         measured_latency_nanos: AtomicU64::new(0),
     })
@@ -1541,7 +1581,29 @@ fn process_single_segment(
 
     let processed: Vec<AudioFrame> = input_state.frame_buffer.drain(..).collect();
     let segment_routes = input_state.output_route_indices.clone();
-    Some((processed, segment_routes))
+    drop(processing);
+
+    // Mix processed frames into this segment's output routes only.
+    // If the queue already has frames (from another input), sum them.
+    // Otherwise, push new frames.
+    match runtime.output.try_lock() {
+        Err(_) => {}
+        Ok(mut output) => {
+        let route_indices = if segment_routes.is_empty() {
+            // Legacy: push to all output routes
+            (0..output.output_routes.len()).collect::<Vec<_>>()
+        } else {
+            segment_routes
+        };
+        for &route_idx in &route_indices {
+            if let Some(route) = output.output_routes.get_mut(route_idx) {
+                for &frame in &processed {
+                    route.buffer.push(frame);
+                }
+            }
+        }
+        }
+    }
 }
 
 fn block_has_active_tuner(block: &BlockRuntimeNode) -> bool {
@@ -1555,36 +1617,98 @@ fn block_has_active_tuner(block: &BlockRuntimeNode) -> bool {
     }
 }
 
-/// Simple AMDF pitch detection — runs on UI thread, NOT audio thread.
-fn detect_pitch(samples: &[f32]) -> block_util::TunerReading {
-    let sample_rate = 44100.0_f32; // TODO: pass actual sample rate
-    let rms = (samples.iter().map(|s| s * s).sum::<f32>() / samples.len() as f32).sqrt();
-    if rms < 0.01 || samples.len() < 512 {
-        return block_util::TunerReading::default();
-    }
-
-    let min_period = (sample_rate / 1000.0) as usize; // ~1000 Hz max
-    let max_period = (sample_rate / 65.0) as usize;   // ~65 Hz min (C2)
+/// YIN pitch detection — runs on UI thread, NOT audio thread.
+/// Based on "YIN, a fundamental frequency estimator for speech and music"
+/// (de Cheveigné & Kawahara, 2002).
+fn detect_pitch(samples: &[f32], sample_rate: f32) -> block_util::TunerReading {
     let len = samples.len();
-    let mut best_period = 0;
-    let mut min_diff = f32::MAX;
-
-    for lag in min_period..max_period.min(len / 2) {
-        let mut diff = 0.0_f32;
-        for i in 0..(len - lag) {
-            diff += (samples[i] - samples[i + lag]).abs();
-        }
-        if diff < min_diff {
-            min_diff = diff;
-            best_period = lag;
-        }
-    }
-
-    if best_period == 0 {
+    let rms = (samples.iter().map(|s| s * s).sum::<f32>() / len as f32).sqrt();
+    if rms < 0.005 || len < 512 {
         return block_util::TunerReading::default();
     }
 
-    let freq = sample_rate / best_period as f32;
+    let min_period = (sample_rate / 1200.0).max(2.0) as usize; // ~1200 Hz max (above high E)
+    let max_period = (sample_rate / 55.0) as usize;  // ~55 Hz min (below A1)
+    let half = len / 2;
+    let search_max = max_period.min(half);
+
+    if search_max <= min_period {
+        return block_util::TunerReading::default();
+    }
+
+    // Step 1-2: Difference function d(tau)
+    let mut d = vec![0.0_f32; search_max];
+    for tau in 1..search_max {
+        let mut sum = 0.0_f32;
+        for i in 0..half {
+            let diff = samples[i] - samples[i + tau];
+            sum += diff * diff;
+        }
+        d[tau] = sum;
+    }
+
+    // Step 3: Cumulative mean normalized difference d'(tau)
+    let mut d_prime = vec![0.0_f32; search_max];
+    d_prime[0] = 1.0;
+    let mut running_sum = 0.0_f32;
+    for tau in 1..search_max {
+        running_sum += d[tau];
+        d_prime[tau] = if running_sum > 0.0 {
+            d[tau] * tau as f32 / running_sum
+        } else {
+            1.0
+        };
+    }
+
+    // Step 4: Absolute threshold — find first tau where d'(tau) < threshold
+    let threshold = 0.15_f32;
+    let mut best_tau = 0;
+    for tau in min_period..search_max {
+        if d_prime[tau] < threshold {
+            // Find the local minimum after this dip
+            best_tau = tau;
+            while best_tau + 1 < search_max && d_prime[best_tau + 1] < d_prime[best_tau] {
+                best_tau += 1;
+            }
+            break;
+        }
+    }
+
+    // Fallback: if no dip below threshold, pick the global minimum
+    if best_tau == 0 {
+        let mut global_min = f32::MAX;
+        for tau in min_period..search_max {
+            if d_prime[tau] < global_min {
+                global_min = d_prime[tau];
+                best_tau = tau;
+            }
+        }
+        // Reject if global minimum is still high (no clear pitch)
+        if global_min > 0.4 {
+            return block_util::TunerReading::default();
+        }
+    }
+
+    if best_tau == 0 {
+        return block_util::TunerReading::default();
+    }
+
+    // Step 5: Parabolic interpolation for sub-sample accuracy
+    let freq = if best_tau > 0 && best_tau + 1 < search_max {
+        let alpha = d_prime[best_tau - 1];
+        let beta = d_prime[best_tau];
+        let gamma = d_prime[best_tau + 1];
+        let denom = 2.0 * (2.0 * beta - alpha - gamma);
+        let shift = if denom.abs() > 1e-10 {
+            (alpha - gamma) / denom
+        } else {
+            0.0
+        };
+        sample_rate / (best_tau as f32 + shift)
+    } else {
+        sample_rate / best_tau as f32
+    };
+
     block_util::TunerReading::from(Some(freq))
 }
 
