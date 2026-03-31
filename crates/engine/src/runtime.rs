@@ -359,7 +359,29 @@ pub fn build_runtime_graph(
 pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<ChainRuntimeState> {
     let eff_inputs = effective_inputs(chain);
     let eff_outputs = effective_outputs(chain);
+    log::info!("=== CHAIN '{}' RUNTIME BUILD ===", chain.id.0);
+    log::info!("  inputs: {}", eff_inputs.len());
+    for (i, inp) in eff_inputs.iter().enumerate() {
+        log::info!("    input[{}]: '{}' dev='{}' ch={:?}", i, inp.name, inp.device_id.0.split(':').last().unwrap_or("?"), inp.channels);
+    }
+    log::info!("  outputs: {}", eff_outputs.len());
+    for (i, out) in eff_outputs.iter().enumerate() {
+        log::info!("    output[{}]: '{}' dev='{}' ch={:?}", i, out.name, out.device_id.0.split(':').last().unwrap_or("?"), out.channels);
+    }
     let segments = split_chain_into_segments(chain, &eff_inputs, &eff_outputs);
+    log::info!("  segments: {}", segments.len());
+    for (i, seg) in segments.iter().enumerate() {
+        let block_names: Vec<String> = seg.block_indices.iter()
+            .filter_map(|&idx| chain.blocks.get(idx))
+            .map(|b| format!("{}({})", b.id.0, match &b.kind {
+                AudioBlockKind::Core(c) => c.effect_type.as_str(),
+                AudioBlockKind::Nam(_) => "nam",
+                _ => "?",
+            }))
+            .collect();
+        log::info!("    seg[{}]: input='{}' → blocks={:?} → output_routes={:?}", i, seg.input.name, block_names, seg.output_route_indices);
+    }
+    log::info!("=== END CHAIN '{}' ===", chain.id.0);
 
     let mut input_states = Vec::with_capacity(segments.len());
     for segment in &segments {
