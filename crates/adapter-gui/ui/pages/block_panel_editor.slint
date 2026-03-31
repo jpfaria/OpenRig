@@ -972,7 +972,7 @@ export component BlockPanelEditor inherits Rectangle {
         x: 0;
         y: 0;
         width: parent.width;
-        height: parent.height * 0.52;
+        height: parent.height * 0.40;
         background: #0a0c10;
 
         // Render entries in a centered layout
@@ -997,7 +997,7 @@ export component BlockPanelEditor inherits Rectangle {
             Text {
                 x: 0; y: 14px; width: parent.width; height: parent.height - 40px;
                 text: entry.text;
-                color: entry.value > 0.5 && entry.key == "in_tune" ? #29df85 : #f3f6fb;
+                color: entry.value > 0.5 ? #29df85 : #f3f6fb;
                 font-size: entry.text.character-count <= 3 ? 42px : 20px;
                 font-weight: 900;
                 horizontal-alignment: center;

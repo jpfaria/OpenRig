@@ -2414,7 +2414,6 @@ pub fn run_desktop_app(
             {
                 let weak_cw = compact_win.as_weak();
                 let project_runtime_poll = project_runtime.clone();
-                let project_session_poll = project_session.clone();
                 let tuner_timer = Timer::default();
                 tuner_timer.start(
                     slint::TimerMode::Repeated,
@@ -2424,21 +2423,19 @@ pub fn run_desktop_app(
                         let rt_borrow = project_runtime_poll.borrow();
                         let Some(rt) = rt_borrow.as_ref() else { return; };
                         let reading = rt.poll_tuner_reading();
-                        if let Some(reading) = reading {
-                            let session_borrow = project_session_poll.borrow();
-                            let Some(_session) = session_borrow.as_ref() else { return; };
-                            // Find tuner block index and update its stream data
-                            let compact_blocks = cw.get_compact_blocks();
-                            for i in 0..compact_blocks.row_count() {
-                                if let Some(mut item) = compact_blocks.row_data(i) {
-                                    if item.effect_type == "utility" {
+                        let compact_blocks = cw.get_compact_blocks();
+                        for i in 0..compact_blocks.row_count() {
+                            if let Some(mut item) = compact_blocks.row_data(i) {
+                                if item.effect_type == "utility" {
+                                    if let Some(ref reading) = reading {
+                                        let in_tune_f = if reading.in_tune { 1.0 } else { 0.0 };
                                         item.stream_data = BlockStreamData {
                                             active: true,
                                             stream_kind: "tuner".into(),
                                             entries: ModelRc::from(Rc::new(VecModel::from(vec![
                                                 BlockStreamEntry {
                                                     key: "note".into(),
-                                                    value: 0.0,
+                                                    value: in_tune_f,
                                                     text: reading.note.clone().unwrap_or_default().into(),
                                                 },
                                                 BlockStreamEntry {
@@ -2448,13 +2445,19 @@ pub fn run_desktop_app(
                                                 },
                                                 BlockStreamEntry {
                                                     key: "Hz".into(),
-                                                    value: reading.frequency.unwrap_or(0.0),
+                                                    value: in_tune_f,
                                                     text: format!("{:.0}", reading.frequency.unwrap_or(0.0)).into(),
                                                 },
                                             ]))),
                                         };
-                                        compact_blocks.set_row_data(i, item);
+                                    } else {
+                                        item.stream_data = BlockStreamData {
+                                            active: false,
+                                            stream_kind: "".into(),
+                                            entries: ModelRc::default(),
+                                        };
                                     }
+                                    compact_blocks.set_row_data(i, item);
                                 }
                             }
                         }
@@ -4044,10 +4047,11 @@ pub fn run_desktop_app(
                             };
                             if let Some(reading) = runtime.poll_tuner_reading() {
                                 log::trace!("[tuner-stream] note={:?} freq={:?} cents={:?}", reading.note, reading.frequency, reading.cents_off);
+                                let in_tune_f = if reading.in_tune { 1.0 } else { 0.0 };
                                 let entries = vec![
                                     BlockStreamEntry {
                                         key: "note".into(),
-                                        value: 0.0,
+                                        value: in_tune_f,
                                         text: reading.note.unwrap_or_default().into(),
                                     },
                                     BlockStreamEntry {
@@ -4057,19 +4061,20 @@ pub fn run_desktop_app(
                                     },
                                     BlockStreamEntry {
                                         key: "frequency".into(),
-                                        value: reading.frequency.unwrap_or(0.0),
+                                        value: in_tune_f,
                                         text: format!("{:.1} Hz", reading.frequency.unwrap_or(0.0)).into(),
-                                    },
-                                    BlockStreamEntry {
-                                        key: "in_tune".into(),
-                                        value: if reading.in_tune { 1.0 } else { 0.0 },
-                                        text: if reading.in_tune { "IN TUNE".into() } else { "".into() },
                                     },
                                 ];
                                 win.set_block_stream_data(BlockStreamData {
                                     active: true,
                                     stream_kind: "tuner".into(),
                                     entries: ModelRc::from(Rc::new(VecModel::from(entries))),
+                                });
+                            } else {
+                                win.set_block_stream_data(BlockStreamData {
+                                    active: false,
+                                    stream_kind: "".into(),
+                                    entries: ModelRc::default(),
                                 });
                             }
                         },
