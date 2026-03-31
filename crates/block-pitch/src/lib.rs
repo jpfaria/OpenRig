@@ -14,6 +14,7 @@ pub enum PitchBackendKind {
     Native,
     Nam,
     Ir,
+    Lv2,
 }
 
 pub fn supported_models() -> &'static [&'static str] {
@@ -28,6 +29,7 @@ pub fn pitch_model_visual(model_id: &str) -> Option<ModelVisualData> {
             PitchBackendKind::Native => "NATIVE",
             PitchBackendKind::Nam => "NAM",
             PitchBackendKind::Ir => "IR",
+            PitchBackendKind::Lv2 => "LV2",
         },
         supported_instruments: def.supported_instruments,
         knob_layout: def.knob_layout,
