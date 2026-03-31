@@ -874,6 +874,16 @@ pub fn update_chain_runtime_state(
     {
         let mut processing = runtime.processing.lock().expect("chain runtime poisoned");
         processing.input_states = new_input_states;
+
+        // Rebuild input_to_segments mapping from current segments
+        let max_input_idx = segments.iter().map(|s| s.cpal_input_index).max().unwrap_or(0);
+        let mut new_mapping: Vec<Vec<usize>> = vec![Vec::new(); max_input_idx + 1];
+        for (seg_idx, segment) in segments.iter().enumerate() {
+            if segment.cpal_input_index < new_mapping.len() {
+                new_mapping[segment.cpal_input_index].push(seg_idx);
+            }
+        }
+        processing.input_to_segments = new_mapping;
     }
 
     {
@@ -1581,29 +1591,8 @@ fn process_single_segment(
 
     let processed: Vec<AudioFrame> = input_state.frame_buffer.drain(..).collect();
     let segment_routes = input_state.output_route_indices.clone();
-    drop(processing);
 
-    // Mix processed frames into this segment's output routes only.
-    // If the queue already has frames (from another input), sum them.
-    // Otherwise, push new frames.
-    match runtime.output.try_lock() {
-        Err(_) => {}
-        Ok(mut output) => {
-        let route_indices = if segment_routes.is_empty() {
-            // Legacy: push to all output routes
-            (0..output.output_routes.len()).collect::<Vec<_>>()
-        } else {
-            segment_routes
-        };
-        for &route_idx in &route_indices {
-            if let Some(route) = output.output_routes.get_mut(route_idx) {
-                for &frame in &processed {
-                    route.buffer.push(frame);
-                }
-            }
-        }
-        }
-    }
+    Some((processed, segment_routes))
 }
 
 fn block_has_active_tuner(block: &BlockRuntimeNode) -> bool {
