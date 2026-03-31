@@ -21,6 +21,27 @@ const ALL_SCALES: [&[u8]; 8] = [
     SCALE_DORIAN,
 ];
 
+/// Convert a key string to its numeric index (0-11).
+pub fn key_from_str(s: &str) -> u8 {
+    match s {
+        "c" => 0, "cs" => 1, "d" => 2, "ds" => 3,
+        "e" => 4, "f" => 5, "fs" => 6, "g" => 7,
+        "gs" => 8, "a" => 9, "as" => 10, "b" => 11,
+        _ => 0,
+    }
+}
+
+/// Convert a scale string to its numeric index (0-7).
+pub fn scale_from_str(s: &str) -> u8 {
+    match s {
+        "major" => 0, "natural_minor" => 1,
+        "pentatonic_major" => 2, "pentatonic_minor" => 3,
+        "harmonic_minor" => 4, "melodic_minor" => 5,
+        "blues" => 6, "dorian" => 7,
+        _ => 0,
+    }
+}
+
 /// Convert frequency to continuous MIDI note number.
 fn freq_to_midi(freq: f32) -> f32 {
     12.0 * (freq / 440.0).log2() + 69.0

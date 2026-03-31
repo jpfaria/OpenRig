@@ -6,7 +6,8 @@ use crate::core_scales;
 use crate::registry::PitchModelDefinition;
 use crate::PitchBackendKind;
 use block_core::param::{
-    float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
+    enum_parameter, float_parameter, required_f32, required_string, ModelParameterSchema,
+    ParameterSet, ParameterUnit,
 };
 use block_core::{ModelAudioMode, StereoProcessor};
 
@@ -60,25 +61,32 @@ fn model_schema() -> ModelParameterSchema {
                 1.0,
                 ParameterUnit::Percent,
             ),
-            float_parameter(
+            enum_parameter(
                 "key",
                 "Key",
                 None,
-                Some(0.0),
-                0.0,
-                11.0,
-                1.0,
-                ParameterUnit::None,
+                Some("c"),
+                &[
+                    ("c", "C"), ("cs", "C#"), ("d", "D"), ("ds", "D#"),
+                    ("e", "E"), ("f", "F"), ("fs", "F#"), ("g", "G"),
+                    ("gs", "G#"), ("a", "A"), ("as", "A#"), ("b", "B"),
+                ],
             ),
-            float_parameter(
+            enum_parameter(
                 "scale",
                 "Scale",
                 None,
-                Some(0.0),
-                0.0,
-                7.0,
-                1.0,
-                ParameterUnit::None,
+                Some("major"),
+                &[
+                    ("major", "Major"),
+                    ("natural_minor", "Natural Minor"),
+                    ("pentatonic_major", "Pentatonic Major"),
+                    ("pentatonic_minor", "Pentatonic Minor"),
+                    ("harmonic_minor", "Harmonic Minor"),
+                    ("melodic_minor", "Melodic Minor"),
+                    ("blues", "Blues"),
+                    ("dorian", "Dorian"),
+                ],
             ),
         ],
     }
@@ -213,8 +221,8 @@ fn build(
     let mix = required_f32(params, "mix").map_err(Error::msg)?;
     let detune = required_f32(params, "detune").map_err(Error::msg)?;
     let sensitivity = required_f32(params, "sensitivity").map_err(Error::msg)?;
-    let key = required_f32(params, "key").map_err(Error::msg)? as u8;
-    let scale = required_f32(params, "scale").map_err(Error::msg)? as u8;
+    let key = core_scales::key_from_str(&required_string(params, "key").map_err(Error::msg)?);
+    let scale = core_scales::scale_from_str(&required_string(params, "scale").map_err(Error::msg)?);
 
     let processor =
         ScaleAutotuneProcessor::new(speed, mix, detune, sensitivity, key, scale, sample_rate);
