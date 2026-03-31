@@ -52,7 +52,7 @@ fn model_schema() -> ModelParameterSchema {
             enum_parameter(
                 "scale",
                 "Scale",
-                None,
+                Some("Pitch"),
                 Some("chromatic"),
                 &[
                     ("chromatic", "Chromatic"),
@@ -82,26 +82,46 @@ fn model_schema() -> ModelParameterSchema {
                     ("b_minor", "B Minor"),
                 ],
             ),
-            float_parameter(
-                "correction",
-                "Correction",
-                None,
-                Some(100.0),
-                0.0,
-                100.0,
-                1.0,
-                ParameterUnit::Percent,
-            ),
             enum_parameter(
                 "speed",
                 "Speed",
-                None,
+                Some("Pitch"),
                 Some("med"),
                 &[
                     ("fast", "Fast"),
                     ("med", "Medium"),
                     ("slow", "Slow"),
                 ],
+            ),
+            float_parameter(
+                "correction",
+                "Correction",
+                Some("Control"),
+                Some(100.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "offset",
+                "Offset",
+                Some("Control"),
+                Some(0.0),
+                -200.0,
+                200.0,
+                1.0,
+                ParameterUnit::None,
+            ),
+            float_parameter(
+                "bias",
+                "Bias",
+                Some("Control"),
+                Some(50.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
             ),
         ],
     }
@@ -262,10 +282,11 @@ fn build(
     let scale_str = required_string(params, "scale").map_err(anyhow::Error::msg)?;
     let scale = scale_str_to_float(&scale_str);
     let correction = required_f32(params, "correction").map_err(anyhow::Error::msg)? / 100.0;
-    let offset = 0.0; // No offset by default
+    let offset_cents = required_f32(params, "offset").map_err(anyhow::Error::msg)?;
+    let offset = offset_cents / 100.0; // Convert cents to semitones
     let speed_str = required_string(params, "speed").map_err(anyhow::Error::msg)?;
     let filter = speed_str_to_float(&speed_str);
-    let bias = 0.5; // Default bias
+    let bias = required_f32(params, "bias").map_err(anyhow::Error::msg)? / 100.0;
 
     match layout {
         AudioChannelLayout::Mono => {
