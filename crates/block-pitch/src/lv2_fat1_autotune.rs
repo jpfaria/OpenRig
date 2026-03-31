@@ -21,8 +21,8 @@ const PLUGIN_BINARY: &str = "fat1.so";
 #[cfg(target_os = "windows")]
 const PLUGIN_BINARY: &str = "fat1.dll";
 
-// LV2 port indices (from fat1.scales.ttl)
-// 0: MIDI In (atom, skip)
+// LV2 port indices (from fat1.scales.ttl — variant #scales)
+// 0: MIDI In (atom, skip — not connected, plugin handles NULL)
 const PORT_AUDIO_IN: usize = 1;
 const PORT_AUDIO_OUT: usize = 2;
 const PORT_MODE: usize = 3;
@@ -35,7 +35,12 @@ const PORT_OFFSET: usize = 9;
 const PORT_BEND_RANGE: usize = 10;
 const PORT_FAST_MODE: usize = 11;
 const PORT_SCALE: usize = 12;
-// 13-17: output ports (nmask, nset, bend, error, latency)
+// Output control ports — MUST be connected to valid buffers to avoid SIGSEGV
+const PORT_OUT_NMASK: usize = 13;
+const PORT_OUT_NSET: usize = 14;
+const PORT_OUT_BEND: usize = 15;
+const PORT_OUT_ERROR: usize = 16;
+const PORT_OUT_LATENCY: usize = 17;
 
 fn model_schema() -> ModelParameterSchema {
     ModelParameterSchema {
@@ -233,6 +238,12 @@ fn build_mono_processor(
             (PORT_BEND_RANGE, 2.0),
             (PORT_FAST_MODE, 1.0),        // Fast mode for live use
             (PORT_SCALE, scale),
+            // Output control ports — must be connected to avoid SIGSEGV
+            (PORT_OUT_NMASK, 0.0),
+            (PORT_OUT_NSET, 0.0),
+            (PORT_OUT_BEND, 0.0),
+            (PORT_OUT_ERROR, 0.0),
+            (PORT_OUT_LATENCY, 0.0),
         ],
     )
 }
