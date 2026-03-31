@@ -202,6 +202,8 @@ pub struct ChainRuntimeState {
     tuner_shared_buffer: Mutex<Vec<f32>>,
     /// Tuner state owned by UI thread only (never touched by audio).
     pub tuner_reading: Mutex<block_util::TunerReading>,
+    /// Smoothed frequency for stable display (EMA filtered).
+    tuner_smoothed_freq: Mutex<Option<f32>>,
     /// Consecutive polls with no detection — clears reading after threshold.
     tuner_miss_count: AtomicU64,
     /// Sample rate for pitch detection (Hz).
@@ -248,18 +250,39 @@ impl ChainRuntimeState {
         // Run detection outside any lock (takes ~1ms, fine for UI thread)
         let reading = detect_pitch(&samples, self.sample_rate);
 
-        if reading.frequency.is_some() {
+        if let Some(raw_freq) = reading.frequency {
             self.tuner_miss_count.store(0, std::sync::atomic::Ordering::Relaxed);
+
+            // EMA smoothing: blend with previous frequency for stable display.
+            // Snap to new value if pitch jumps >5% (new note).
+            let smoothed = if let Ok(mut prev) = self.tuner_smoothed_freq.try_lock() {
+                let freq = match *prev {
+                    Some(p) if (raw_freq - p).abs() / p < 0.05 => {
+                        // Same note — heavy smoothing (alpha=0.15)
+                        p * 0.85 + raw_freq * 0.15
+                    }
+                    _ => raw_freq, // New note or first reading — snap
+                };
+                *prev = Some(freq);
+                freq
+            } else {
+                raw_freq
+            };
+
+            let smoothed_reading = block_util::TunerReading::from(Some(smoothed));
             if let Ok(mut tr) = self.tuner_reading.try_lock() {
-                *tr = reading.clone();
+                *tr = smoothed_reading.clone();
             }
-            Some(reading)
+            Some(smoothed_reading)
         } else {
             // Allow ~5s of silence before clearing (100 polls at 50ms)
             let misses = self.tuner_miss_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
             if misses >= 100 {
                 if let Ok(mut tr) = self.tuner_reading.try_lock() {
                     *tr = block_util::TunerReading::default();
+                }
+                if let Ok(mut sf) = self.tuner_smoothed_freq.try_lock() {
+                    *sf = None;
                 }
                 None
             } else {
@@ -407,6 +430,7 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
         output: Mutex::new(ChainOutputState { output_routes }),
         tuner_shared_buffer: Mutex::new(Vec::with_capacity(8192)),
         tuner_reading: Mutex::new(block_util::TunerReading::default()),
+        tuner_smoothed_freq: Mutex::new(None),
         tuner_miss_count: AtomicU64::new(0),
         sample_rate,
         last_input_nanos: AtomicU64::new(0),
