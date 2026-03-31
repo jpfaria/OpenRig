@@ -970,7 +970,7 @@ export component BlockPanelEditor inherits Rectangle {
     // ── Realtime stream display (tuner, meter, analyzer — any block) ──
     if root.block-stream-data.active : Rectangle {
         x: 0;
-        y: 0;
+        y: root.header-height;
         width: parent.width;
         height: parent.height * 0.40;
         background: #0a0c10;
