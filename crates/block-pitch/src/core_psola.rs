@@ -1,67 +1,55 @@
-//! PSOLA (Pitch-Synchronous Overlap-Add) pitch shifting engine.
+//! Pitch shifter using variable-speed playback with overlap-add crossfading.
+//!
+//! The input audio is written into a ring buffer. A read head traverses
+//! the ring at a rate proportional to the desired pitch shift. When the
+//! read head drifts too far from the write head, it is snapped back and
+//! crossfaded to avoid clicks.
 
-use std::f32::consts::PI;
+const RING_SIZE: usize = 8192;
+const RING_MASK: usize = RING_SIZE - 1; // RING_SIZE must be power of 2
 
-const IO_BUFFER_SIZE: usize = 4096;
-
-/// Hanning window value at position `i` of `length` samples.
-fn hanning(i: usize, length: usize) -> f32 {
-    if length <= 1 {
-        return 1.0;
-    }
-    0.5 * (1.0 - (2.0 * PI * i as f32 / (length - 1) as f32).cos())
-}
+/// Crossfade length in samples when snapping the read head.
+const XFADE_LEN: usize = 256;
 
 pub struct PsolaShifter {
-    /// Circular input buffer
-    input_buf: Box<[f32; IO_BUFFER_SIZE]>,
-    /// Circular output (overlap-add) buffer
-    output_buf: Box<[f32; IO_BUFFER_SIZE]>,
-    /// Write position in input buffer (total samples written)
-    in_write: usize,
-    /// Read position in output buffer
-    out_read: usize,
-    /// Write position in output buffer (where next grain is placed)
-    out_write: usize,
-    /// Sample rate
-    sample_rate: f32,
-    /// Current detected period in samples (1/frequency)
-    current_period: f32,
-    /// Accumulated input samples since last grain placement
-    input_since_grain: f32,
-    /// Fractional accumulator for output period advancement
-    out_write_frac: f32,
-    /// Input grain center position (advances by input period per grain)
-    in_grain_center: usize,
-    /// Fractional accumulator for input grain center advancement
-    in_grain_frac: f32,
+    ring: Box<[f32; RING_SIZE]>,
+    write_pos: usize,
+    /// Fractional read position
+    read_pos: f64,
+    /// Whether a crossfade is in progress
+    xfading: bool,
+    /// Old read position during crossfade
+    xfade_old_pos: f64,
+    /// Progress through crossfade (0..XFADE_LEN)
+    xfade_count: usize,
+    /// Read rate for old position during crossfade
+    xfade_old_rate: f64,
+    total_written: usize,
 }
 
 impl PsolaShifter {
-    pub fn new(sample_rate: f32) -> Self {
+    pub fn new(_sample_rate: f32) -> Self {
         Self {
-            input_buf: Box::new([0.0; IO_BUFFER_SIZE]),
-            output_buf: Box::new([0.0; IO_BUFFER_SIZE]),
-            in_write: 0,
-            out_read: 0,
-            out_write: 0,
-            sample_rate,
-            current_period: 0.0,
-            input_since_grain: 0.0,
-            out_write_frac: 0.0,
-            in_grain_center: 0,
-            in_grain_frac: 0.0,
+            ring: Box::new([0.0; RING_SIZE]),
+            write_pos: 0,
+            read_pos: 0.0,
+            xfading: false,
+            xfade_old_pos: 0.0,
+            xfade_count: 0,
+            xfade_old_rate: 1.0,
+            total_written: 0,
         }
     }
 
-    /// Process a block of mono audio with the given pitch shift ratio.
-    ///
-    /// `shift_ratio` is target_freq / detected_freq.
-    /// - ratio > 1.0 = pitch up (grains placed closer)
-    /// - ratio < 1.0 = pitch down (grains placed farther)
-    /// - ratio == 1.0 = no change
-    ///
-    /// `detected_freq`: the detected fundamental frequency, or None for pass-through.
+    fn read_at(&self, pos: f64) -> f32 {
+        let p = pos.rem_euclid(RING_SIZE as f64);
+        let idx = p as usize;
+        let frac = (p - idx as f64) as f32;
+        let a = self.ring[idx & RING_MASK];
+        let b = self.ring[(idx + 1) & RING_MASK];
+        a + frac * (b - a)
+    }
+
     pub fn process_block(
         &mut self,
         input: &[f32],
@@ -69,70 +57,63 @@ impl PsolaShifter {
         detected_freq: Option<f32>,
         shift_ratio: f32,
     ) {
-        let Some(freq) = detected_freq else {
-            // No pitch detected: pass-through
-            output[..input.len()].copy_from_slice(input);
-            return;
-        };
-
-        if freq <= 0.0 || shift_ratio <= 0.0 {
+        // No pitch or trivial ratio: pass-through
+        if detected_freq.is_none() || shift_ratio <= 0.0 || shift_ratio > 4.0 {
             output[..input.len()].copy_from_slice(input);
             return;
         }
 
-        let period_samples = self.sample_rate / freq;
-        self.current_period = period_samples;
+        let rate = shift_ratio as f64;
 
-        // Grain size: 2x period for good overlap
-        let grain_size = (period_samples * 2.0) as usize;
-        let grain_size = grain_size.clamp(4, IO_BUFFER_SIZE / 2);
+        for (i, out) in output.iter_mut().take(input.len()).enumerate() {
+            // Write input sample
+            self.ring[self.write_pos] = input[i];
+            self.write_pos = (self.write_pos + 1) & RING_MASK;
+            self.total_written += 1;
 
-        // Output period: how far apart to place grains in the output
-        // To shift pitch up, place grains closer together
-        let output_period = (period_samples / shift_ratio).max(1.0);
+            // Read from main head
+            let main_sample = self.read_at(self.read_pos);
 
-        // Write input into circular buffer
-        for &sample in input {
-            self.input_buf[self.in_write] = sample;
-            self.in_write = (self.in_write + 1) % IO_BUFFER_SIZE;
-        }
+            // If crossfading, blend with old head
+            if self.xfading {
+                let old_sample = self.read_at(self.xfade_old_pos);
+                let t = self.xfade_count as f32 / XFADE_LEN as f32;
+                // Linear crossfade: old fades out, new fades in
+                *out = old_sample * (1.0 - t) + main_sample * t;
 
-        // Place grains at output_period intervals
-        self.input_since_grain += input.len() as f32;
-        while self.input_since_grain >= output_period {
-            self.input_since_grain -= output_period;
-
-            // Extract grain from input buffer centered on in_grain_center
-            let center = self.in_grain_center;
-            let half_grain = grain_size / 2;
-
-            for i in 0..grain_size {
-                let src_idx = (center + IO_BUFFER_SIZE - half_grain + i) % IO_BUFFER_SIZE;
-                let dst_idx = (self.out_write + i) % IO_BUFFER_SIZE;
-                let window = hanning(i, grain_size);
-                self.output_buf[dst_idx] += self.input_buf[src_idx] * window;
+                self.xfade_old_pos += self.xfade_old_rate;
+                self.xfade_count += 1;
+                if self.xfade_count >= XFADE_LEN {
+                    self.xfading = false;
+                }
+            } else {
+                *out = main_sample;
             }
 
-            // Advance input grain center by one input period (with fractional accumulation)
-            let in_int = period_samples as usize;
-            self.in_grain_frac += period_samples - in_int as f32;
-            let in_extra = self.in_grain_frac as usize;
-            self.in_grain_frac -= in_extra as f32;
-            self.in_grain_center = (self.in_grain_center + in_int + in_extra) % IO_BUFFER_SIZE;
+            // Advance read position at shifted rate
+            self.read_pos += rate;
 
-            // Advance output write by one output period (with fractional accumulation)
-            let out_int = output_period as usize;
-            self.out_write_frac += output_period - out_int as f32;
-            let out_extra = self.out_write_frac as usize;
-            self.out_write_frac -= out_extra as f32;
-            self.out_write = (self.out_write + out_int + out_extra) % IO_BUFFER_SIZE;
-        }
+            // Check distance between write and read.
+            // We want read to stay about RING_SIZE/4 behind write.
+            // If it drifts too far or too close, snap back with crossfade.
+            let target_delay = RING_SIZE as f64 / 4.0;
+            let min_delay = RING_SIZE as f64 / 8.0;
+            let max_delay = RING_SIZE as f64 * 3.0 / 8.0;
 
-        // Read from output buffer and clear after reading
-        for sample in output.iter_mut().take(input.len()) {
-            *sample = self.output_buf[self.out_read];
-            self.output_buf[self.out_read] = 0.0;
-            self.out_read = (self.out_read + 1) % IO_BUFFER_SIZE;
+            let write_f = self.write_pos as f64;
+            let delay = (write_f - self.read_pos).rem_euclid(RING_SIZE as f64);
+
+            if delay < min_delay || delay > max_delay {
+                if !self.xfading {
+                    // Start crossfade: old head continues from current pos
+                    self.xfading = true;
+                    self.xfade_old_pos = self.read_pos;
+                    self.xfade_old_rate = rate;
+                    self.xfade_count = 0;
+                    // Snap read to target delay behind write
+                    self.read_pos = write_f - target_delay;
+                }
+            }
         }
     }
 }
@@ -150,11 +131,82 @@ mod tests {
 
         shifter.process_block(&input, &mut output, None, 1.0);
 
-        // Should be pass-through
         for (i, (&inp, &out)) in input.iter().zip(output.iter()).enumerate() {
             assert!(
                 (inp - out).abs() < 1e-6,
                 "sample {i}: input={inp}, output={out}"
+            );
+        }
+    }
+
+    #[test]
+    fn produces_nonzero_output() {
+        let sample_rate = 48000.0;
+        let mut shifter = PsolaShifter::new(sample_rate);
+        let freq = 440.0;
+        let total = 8192;
+
+        let input: Vec<f32> = (0..total)
+            .map(|i| {
+                let t = i as f32 / sample_rate;
+                0.5 * (2.0 * std::f32::consts::PI * freq * t).sin()
+            })
+            .collect();
+
+        let mut output = vec![0.0f32; total];
+        for start in (0..total).step_by(256) {
+            let end = (start + 256).min(total);
+            shifter.process_block(&input[start..end], &mut output[start..end], Some(freq), 1.0);
+        }
+
+        let last = &output[total * 3 / 4..];
+        let rms = (last.iter().map(|s| s * s).sum::<f32>() / last.len() as f32).sqrt();
+        assert!(rms > 0.05, "output should not be silent, rms={rms}");
+    }
+
+    #[test]
+    fn pitch_up_increases_frequency() {
+        let sample_rate = 48000.0;
+        let mut shifter = PsolaShifter::new(sample_rate);
+        let freq = 440.0;
+        let ratio = 1.1; // ~1.7 semitones up
+        let total = 16384;
+
+        let input: Vec<f32> = (0..total)
+            .map(|i| {
+                let t = i as f32 / sample_rate;
+                0.5 * (2.0 * std::f32::consts::PI * freq * t).sin()
+            })
+            .collect();
+
+        let mut output = vec![0.0f32; total];
+        for start in (0..total).step_by(256) {
+            let end = (start + 256).min(total);
+            shifter.process_block(
+                &input[start..end],
+                &mut output[start..end],
+                Some(freq),
+                ratio as f32,
+            );
+        }
+
+        // Zero-crossing freq on last quarter
+        let last = &output[total * 3 / 4..];
+        let mut crossings = Vec::new();
+        for i in 1..last.len() {
+            if last[i - 1] <= 0.0 && last[i] > 0.0 {
+                crossings.push(i);
+            }
+        }
+
+        if crossings.len() >= 3 {
+            let periods: Vec<f32> = crossings.windows(2).map(|w| (w[1] - w[0]) as f32).collect();
+            let avg = periods.iter().sum::<f32>() / periods.len() as f32;
+            let out_freq = sample_rate / avg;
+            // Output should be higher than input
+            assert!(
+                out_freq > freq,
+                "pitch up: output {out_freq:.1}Hz should be > input {freq}Hz"
             );
         }
     }
