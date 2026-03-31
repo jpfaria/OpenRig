@@ -276,6 +276,8 @@ struct InputProcessingState {
 
 struct ChainProcessingState {
     input_states: Vec<InputProcessingState>,
+    /// Maps CPAL input_index → Vec of input_states indices to process.
+    input_to_segments: Vec<Vec<usize>>,
     tuner_samples: Vec<f32>,
     #[allow(dead_code)]
     mixed_buffer: Vec<AudioFrame>,
@@ -402,6 +404,15 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
         input_states.push(input_state);
     }
 
+    // Build input_to_segments: CPAL input_index → which segments to process
+    let max_input_idx = segments.iter().map(|s| s.cpal_input_index).max().unwrap_or(0);
+    let mut input_to_segments: Vec<Vec<usize>> = vec![Vec::new(); max_input_idx + 1];
+    for (seg_idx, segment) in segments.iter().enumerate() {
+        if segment.cpal_input_index < input_to_segments.len() {
+            input_to_segments[segment.cpal_input_index].push(seg_idx);
+        }
+    }
+
     let mut output_routes = Vec::with_capacity(eff_outputs.len());
     for output in &eff_outputs {
         output_routes.push(build_output_routing_state(output));
@@ -410,6 +421,7 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
     Ok(ChainRuntimeState {
         processing: Mutex::new(ChainProcessingState {
             input_states,
+            input_to_segments,
             tuner_samples: Vec::new(),
             mixed_buffer: Vec::with_capacity(1024),
         }),
@@ -1405,19 +1417,64 @@ pub fn process_input_f32(
     input_total_channels: usize,
 ) {
     let num_frames = data.len() / input_total_channels;
-    let mut processing = match runtime.processing.try_lock() {
-        Ok(guard) => guard,
-        Err(_) => return,
+
+    // Get which segments this CPAL input feeds
+    let segment_indices: Vec<usize> = {
+        let processing = match runtime.processing.try_lock() {
+            Ok(guard) => guard,
+            Err(_) => return,
+        };
+        processing.input_to_segments
+            .get(input_index)
+            .cloned()
+            .unwrap_or_else(|| {
+                if input_index < processing.input_states.len() { vec![input_index] } else { vec![] }
+            })
     };
+
+    // Process each segment independently
+    for &seg_idx in &segment_indices {
+        // Lock processing, process this segment, collect frames, unlock
+        let result = {
+            let mut processing = match runtime.processing.try_lock() {
+                Ok(guard) => guard,
+                Err(_) => continue,
+            };
+            process_single_segment(&mut processing, seg_idx, data, input_total_channels, num_frames, runtime)
+        };
+        // Push to output (processing lock already released)
+        if let Some((processed, route_indices)) = result {
+            if let Ok(mut output) = runtime.output.try_lock() {
+                for &route_idx in &route_indices {
+                    if let Some(route) = output.output_routes.get_mut(route_idx) {
+                        for &frame in &processed {
+                            route.buffer.push(frame);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn process_single_segment(
+    processing: &mut ChainProcessingState,
+    seg_idx: usize,
+    data: &[f32],
+    input_total_channels: usize,
+    num_frames: usize,
+    runtime: &Arc<ChainRuntimeState>,
+) -> Option<(Vec<AudioFrame>, Vec<usize>)> {
     let ChainProcessingState {
         input_states,
+        input_to_segments: _,
         tuner_samples,
         mixed_buffer: _,
-    } = &mut *processing;
+    } = processing;
 
-    let input_state = match input_states.get_mut(input_index) {
+    let input_state = match input_states.get_mut(seg_idx) {
         Some(s) => s,
-        None => return,
+        None => return None,
     };
 
     let InputProcessingState {
@@ -1433,32 +1490,26 @@ pub fn process_input_f32(
     let tuner_enabled = blocks.iter().any(block_has_active_tuner);
 
     frame_buffer.clear();
-    let frame_buffer_additional = num_frames.saturating_sub(frame_buffer.capacity());
-    if frame_buffer_additional > 0 {
-        frame_buffer.reserve(frame_buffer_additional);
+    if num_frames > frame_buffer.capacity() {
+        frame_buffer.reserve(num_frames - frame_buffer.capacity());
     }
 
     tuner_samples.clear();
-    if tuner_enabled {
-        let tuner_samples_additional = num_frames.saturating_sub(tuner_samples.capacity());
-        if tuner_samples_additional > 0 {
-            tuner_samples.reserve(tuner_samples_additional);
-        }
+    if tuner_enabled && num_frames > tuner_samples.capacity() {
+        tuner_samples.reserve(num_frames - tuner_samples.capacity());
     }
 
     for frame in data.chunks(input_total_channels).take(num_frames) {
         let raw_frame = read_input_frame(*input_read_layout, input_channels, frame);
-        // Adapt to processing layout
         let chain_frame = match (*input_read_layout, *processing_layout) {
             (AudioChannelLayout::Mono, AudioChannelLayout::Stereo) => {
-                // Mono input -> duplicate to stereo for processing
                 let sample = match raw_frame {
                     AudioFrame::Mono(s) => s,
                     _ => unreachable!(),
                 };
                 AudioFrame::Stereo([sample, sample])
             }
-            _ => raw_frame, // layout matches, use as-is
+            _ => raw_frame,
         };
         if tuner_enabled {
             tuner_samples.push(chain_frame.mono_mix());
@@ -1467,7 +1518,6 @@ pub fn process_input_f32(
     }
 
     if tuner_enabled && !tuner_samples.is_empty() {
-        // Push samples to shared buffer — UI thread does the detection
         runtime.push_tuner_samples(tuner_samples);
     }
 
@@ -1475,53 +1525,23 @@ pub fn process_input_f32(
         process_audio_block(block, frame_buffer.as_mut_slice());
     }
 
-    // Apply fade-in after chain rebuild to avoid clicks/pops
     if *fade_in_remaining > 0 {
         let fade_total = FADE_IN_FRAMES as f32;
         for frame in frame_buffer.iter_mut() {
-            if *fade_in_remaining == 0 {
-                break;
-            }
+            if *fade_in_remaining == 0 { break; }
             let progress = 1.0 - (*fade_in_remaining as f32 / fade_total);
-            // Cosine fade for smooth transition
             let gain = 0.5 * (1.0 - (std::f32::consts::PI * progress).cos());
             match frame {
                 AudioFrame::Mono(s) => *s *= gain,
-                AudioFrame::Stereo([l, r]) => {
-                    *l *= gain;
-                    *r *= gain;
-                }
+                AudioFrame::Stereo([l, r]) => { *l *= gain; *r *= gain; }
             }
             *fade_in_remaining -= 1;
         }
     }
 
-    // Collect processed frames and output routing info, then release processing lock
     let processed: Vec<AudioFrame> = input_state.frame_buffer.drain(..).collect();
     let segment_routes = input_state.output_route_indices.clone();
-    drop(processing);
-
-    // Mix processed frames into this segment's output routes only.
-    // If the queue already has frames (from another input), sum them.
-    // Otherwise, push new frames.
-    match runtime.output.try_lock() {
-        Err(_) => {}
-        Ok(mut output) => {
-        let route_indices = if segment_routes.is_empty() {
-            // Legacy: push to all output routes
-            (0..output.output_routes.len()).collect::<Vec<_>>()
-        } else {
-            segment_routes
-        };
-        for &route_idx in &route_indices {
-            if let Some(route) = output.output_routes.get_mut(route_idx) {
-                for &frame in &processed {
-                    route.buffer.push(frame);
-                }
-            }
-        }
-        }
-    }
+    Some((processed, segment_routes))
 }
 
 fn block_has_active_tuner(block: &BlockRuntimeNode) -> bool {
