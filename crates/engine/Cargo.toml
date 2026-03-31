@@ -20,6 +20,7 @@ block-cab = { path = "../block-cab" }
 block-body = { path = "../block-body" }
 block-ir = { path = "../block-ir" }
 block-wah = { path = "../block-wah" }
+block-pitch = { path = "../block-pitch" }
 block-reverb = { path = "../block-reverb" }
 block-util = { path = "../block-util" }
 project = { path = "../project" }

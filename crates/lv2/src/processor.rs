@@ -2,17 +2,28 @@ use crate::host::Lv2Plugin;
 use block_core::MonoProcessor;
 use std::ffi::c_void;
 
+/// Maximum block size for LV2 processing.
+const MAX_BLOCK_SIZE: usize = 4096;
+
+/// Size of the dummy atom buffer for MIDI/atom sidechain ports.
+/// Must be large enough for an empty LV2_Atom_Sequence header (16 bytes min).
+const ATOM_BUF_SIZE: usize = 256;
+
 /// Audio processor wrapping a loaded LV2 plugin instance.
 ///
-/// Ports are connected once at construction; `process_sample` simply writes
-/// the input, calls `run(1)` and reads the output.
+/// Uses block-based processing: `run(N)` is called with the full buffer
+/// size, which is required for plugins that use FFT or other windowed
+/// analysis (e.g., pitch correction, spectral effects).
 pub struct Lv2Processor {
     plugin: Lv2Plugin,
-    // Scratch buffers — kept alive so the pointers stay valid.
-    in_buf: Box<[f32; 1]>,
-    out_buf: Box<[f32; 1]>,
-    // Control port values — kept alive and connected.
+    /// Audio input buffer — connected to the plugin's audio input port.
+    in_buf: Box<[f32; MAX_BLOCK_SIZE]>,
+    /// Audio output buffer — connected to the plugin's audio output port.
+    out_buf: Box<[f32; MAX_BLOCK_SIZE]>,
+    /// Control port values — kept alive and connected.
     control_values: Vec<f32>,
+    /// Dummy atom buffer for MIDI/atom sidechain ports.
+    _atom_buf: Box<[u8; ATOM_BUF_SIZE]>,
 }
 
 impl Lv2Processor {
@@ -31,9 +42,45 @@ impl Lv2Processor {
         audio_out_ports: &[usize],
         control_ports: &[(usize, f32)],
     ) -> Self {
-        let mut in_buf = Box::new([0.0f32; 1]);
-        let mut out_buf = Box::new([0.0f32; 1]);
+        Self::with_atom_ports(plugin, audio_in_ports, audio_out_ports, control_ports, &[])
+    }
+
+    /// Create a processor with additional atom/MIDI sidechain ports.
+    ///
+    /// Atom ports are connected to an empty atom sequence buffer so plugins
+    /// that require a MIDI input port (even if unused) don't crash.
+    pub fn with_atom_ports(
+        plugin: Lv2Plugin,
+        audio_in_ports: &[usize],
+        audio_out_ports: &[usize],
+        control_ports: &[(usize, f32)],
+        atom_ports: &[usize],
+    ) -> Self {
+        let mut in_buf = Box::new([0.0f32; MAX_BLOCK_SIZE]);
+        let mut out_buf = Box::new([0.0f32; MAX_BLOCK_SIZE]);
         let mut control_values: Vec<f32> = control_ports.iter().map(|(_, v)| *v).collect();
+
+        // Create an empty LV2_Atom_Sequence buffer.
+        // Layout: [size:u32=8, type:u32=sequence_urid, unit:u32=0, pad:u32=0]
+        // We use type=0 which most plugins accept as "no events".
+        let mut atom_buf = Box::new([0u8; ATOM_BUF_SIZE]);
+        // Set atom.size = 8 (body size: unit + pad)
+        atom_buf[0] = 8;
+        atom_buf[1] = 0;
+        atom_buf[2] = 0;
+        atom_buf[3] = 0;
+        // atom.type = 0 (plugins typically check for empty sequence by size)
+        // body.unit = 0, body.pad = 0 (already zeroed)
+
+        // Connect atom/MIDI sidechain ports
+        for &port_idx in atom_ports {
+            unsafe {
+                plugin.connect_port(
+                    port_idx as u32,
+                    atom_buf.as_mut_ptr() as *mut c_void,
+                );
+            }
+        }
 
         // Connect audio input ports
         for &port_idx in audio_in_ports {
@@ -70,6 +117,7 @@ impl Lv2Processor {
             in_buf,
             out_buf,
             control_values,
+            _atom_buf: atom_buf,
         }
     }
 
@@ -90,11 +138,15 @@ impl MonoProcessor for Lv2Processor {
     }
 
     fn process_block(&mut self, buffer: &mut [f32]) {
-        // Sample-by-sample for v1; block optimization can come later.
-        for sample in buffer.iter_mut() {
-            self.in_buf[0] = *sample;
-            self.plugin.run(1);
-            *sample = self.out_buf[0];
-        }
+        let len = buffer.len().min(MAX_BLOCK_SIZE);
+
+        // Copy input into the connected buffer
+        self.in_buf[..len].copy_from_slice(&buffer[..len]);
+
+        // Run the plugin on the full block at once
+        self.plugin.run(len as u32);
+
+        // Copy output back
+        buffer[..len].copy_from_slice(&self.out_buf[..len]);
     }
 }

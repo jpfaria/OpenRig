@@ -23,6 +23,7 @@ use block_gain::build_gain_processor_for_layout;
 use block_ir::build_ir_processor_for_layout;
 use block_mod::build_modulation_processor_for_layout;
 use block_nam::build_nam_processor_for_layout;
+use block_pitch::build_pitch_processor_for_layout;
 use block_reverb::build_reverb_processor_for_layout;
 use block_util::{build_utility_processor, TunerProcessor};
 use block_wah::build_wah_processor_for_layout;
@@ -395,7 +396,29 @@ pub fn build_runtime_graph(
 pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<ChainRuntimeState> {
     let eff_inputs = effective_inputs(chain);
     let eff_outputs = effective_outputs(chain);
+    log::info!("=== CHAIN '{}' RUNTIME BUILD ===", chain.id.0);
+    log::info!("  inputs: {}", eff_inputs.len());
+    for (i, inp) in eff_inputs.iter().enumerate() {
+        log::info!("    input[{}]: '{}' dev='{}' ch={:?}", i, inp.name, inp.device_id.0.split(':').last().unwrap_or("?"), inp.channels);
+    }
+    log::info!("  outputs: {}", eff_outputs.len());
+    for (i, out) in eff_outputs.iter().enumerate() {
+        log::info!("    output[{}]: '{}' dev='{}' ch={:?}", i, out.name, out.device_id.0.split(':').last().unwrap_or("?"), out.channels);
+    }
     let segments = split_chain_into_segments(chain, &eff_inputs, &eff_outputs);
+    log::info!("  segments: {}", segments.len());
+    for (i, seg) in segments.iter().enumerate() {
+        let block_names: Vec<String> = seg.block_indices.iter()
+            .filter_map(|&idx| chain.blocks.get(idx))
+            .map(|b| format!("{}({})", b.id.0, match &b.kind {
+                AudioBlockKind::Core(c) => c.effect_type.as_str(),
+                AudioBlockKind::Nam(_) => "nam",
+                _ => "?",
+            }))
+            .collect();
+        log::info!("    seg[{}]: input='{}' → blocks={:?} → output_routes={:?}", i, seg.input.name, block_names, seg.output_route_indices);
+    }
+    log::info!("=== END CHAIN '{}' ===", chain.id.0);
 
     let mut input_states = Vec::with_capacity(segments.len());
     for segment in &segments {
@@ -1121,7 +1144,13 @@ fn build_core_block_runtime_node(
                 build_modulation_processor_for_layout(model, params, sample_rate, layout)
             })?,
         )),
-        EFFECT_TYPE_PITCH => Ok(bypass_runtime_node(block, input_layout)),
+        EFFECT_TYPE_PITCH => Ok(audio_block_runtime_node(
+            block,
+            input_layout,
+            build_audio_processor_for_model(chain, EFFECT_TYPE_PITCH, model, input_layout, |layout| {
+                build_pitch_processor_for_layout(model, params, sample_rate, layout)
+            })?,
+        )),
         other => Err(anyhow!("unsupported core block effect_type '{}'", other)),
     }
 }
@@ -1526,16 +1555,8 @@ pub fn process_input_f32(
         };
         for &route_idx in &route_indices {
             if let Some(route) = output.output_routes.get_mut(route_idx) {
-                let existing_len = route.buffer.queue.len();
-                for (i, &frame) in processed.iter().enumerate() {
-                    if i < existing_len {
-                        // Sum with existing frame from another input
-                        let existing = &mut route.buffer.queue[i];
-                        *existing = mix_frames(*existing, frame);
-                    } else {
-                        // No existing frame yet — push via elastic buffer
-                        route.buffer.push(frame);
-                    }
+                for &frame in &processed {
+                    route.buffer.push(frame);
                 }
             }
         }
@@ -1757,6 +1778,7 @@ fn silent_frame(layout: AudioChannelLayout) -> AudioFrame {
 }
 
 /// Sum two audio frames together (for mixing multiple input streams).
+#[allow(dead_code)]
 fn mix_frames(a: AudioFrame, b: AudioFrame) -> AudioFrame {
     match (a, b) {
         (AudioFrame::Mono(l), AudioFrame::Mono(r)) => AudioFrame::Mono(l + r),
