@@ -1,7 +1,4 @@
 //! Pitch correction block implementations.
-mod core_pitch_detect;
-mod core_psola;
-mod core_scales;
 mod registry;
 
 use anyhow::Result;
@@ -71,43 +68,25 @@ mod tests {
     use block_core::param::ParameterSet;
 
     #[test]
-    fn exposes_autotune_models() {
+    fn exposes_x42_autotune() {
         let models = supported_models();
         assert!(
-            models.contains(&"native_autotune_chromatic"),
-            "should contain chromatic autotune"
-        );
-        assert!(
-            models.contains(&"native_autotune_scale"),
-            "should contain scale autotune"
+            models.contains(&"lv2_fat1_autotune"),
+            "should contain x42 autotune"
         );
     }
 
     #[test]
-    fn chromatic_schema_is_pitch() {
-        let schema = pitch_model_schema("native_autotune_chromatic").expect("schema");
+    fn x42_schema_is_pitch() {
+        let schema = pitch_model_schema("lv2_fat1_autotune").expect("schema");
         assert_eq!(schema.effect_type, "pitch");
-        assert_eq!(schema.model, "native_autotune_chromatic");
+        assert_eq!(schema.model, "lv2_fat1_autotune");
     }
 
     #[test]
-    fn scale_schema_is_pitch() {
-        let schema = pitch_model_schema("native_autotune_scale").expect("schema");
-        assert_eq!(schema.effect_type, "pitch");
-        assert_eq!(schema.model, "native_autotune_scale");
-    }
-
-    #[test]
-    fn defaults_normalize_chromatic() {
+    fn defaults_normalize_x42() {
         let params = ParameterSet::default();
-        validate_pitch_params("native_autotune_chromatic", &params)
-            .expect("defaults should normalize");
-    }
-
-    #[test]
-    fn defaults_normalize_scale() {
-        let params = ParameterSet::default();
-        validate_pitch_params("native_autotune_scale", &params)
+        validate_pitch_params("lv2_fat1_autotune", &params)
             .expect("defaults should normalize");
     }
 }
