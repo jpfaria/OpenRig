@@ -330,7 +330,7 @@ export component BlockPanelEditor inherits Rectangle {
         root.selected-type-label == "" ? 0px : 56px;
     private property <length> header-height: 48px;
     private property <length> brand-strip-height: 0px;
-    private property <length> panel-height: root.width / 4;
+    private property <length> panel-height: root.block-stream-data.active ? root.width / 2.2 : root.width / 4;
     private property <length> footer-height: root.block-drawer-edit-mode ? 0px : 52px;
 
     background: #0a0a0e;
