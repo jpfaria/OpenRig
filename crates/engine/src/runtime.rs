@@ -209,7 +209,7 @@ impl AudioProcessor {
 
 pub struct ChainRuntimeState {
     processing: Mutex<ChainProcessingState>,
-    output: Mutex<ChainOutputState>,
+    output_routes: ChainOutputRoutes,
     /// Tuner samples written by audio thread, read+cleared by UI thread.
     tuner_shared_buffer: Mutex<Vec<f32>>,
     /// Tuner state owned by UI thread only (never touched by audio).
@@ -301,9 +301,8 @@ struct OutputRoutingState {
     buffer: ElasticBuffer,
 }
 
-struct ChainOutputState {
-    output_routes: Vec<OutputRoutingState>,
-}
+// Each output route has its own mutex — no contention between output threads
+type ChainOutputRoutes = Vec<Mutex<OutputRoutingState>>;
 
 enum RuntimeProcessor {
     Audio(AudioProcessor),
@@ -405,7 +404,7 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
             tuner_samples: Vec::new(),
             mixed_buffer: Vec::with_capacity(1024),
         }),
-        output: Mutex::new(ChainOutputState { output_routes }),
+        output_routes: output_routes.into_iter().map(Mutex::new).collect(),
         tuner_shared_buffer: Mutex::new(Vec::with_capacity(8192)),
         tuner_reading: Mutex::new(block_util::TunerReading::default()),
         last_input_nanos: AtomicU64::new(0),
@@ -788,15 +787,19 @@ pub fn update_chain_runtime_state(
         processing.input_states = new_input_states;
     }
 
-    {
-        let mut output = runtime.output.lock().expect("chain runtime poisoned");
-        // Preserve existing queues where possible
-        let old_routes = std::mem::replace(&mut output.output_routes, new_output_routes);
-        for (new_route, old_route) in output.output_routes.iter_mut().zip(old_routes.into_iter()) {
+    // Update each output route individually, preserving queues where possible
+    for (idx, new_route) in new_output_routes.into_iter().enumerate() {
+        if let Some(route_mutex) = runtime.output_routes.get(idx) {
+            let mut existing = route_mutex.lock().expect("chain runtime poisoned");
+            let old_buffer = std::mem::replace(&mut existing.buffer, new_route.buffer);
+            existing.output_channels = new_route.output_channels;
+            existing.output_mixdown = new_route.output_mixdown;
             if !reset_output_queue {
-                new_route.buffer = old_route.buffer;
+                existing.buffer = old_buffer;
             }
         }
+        // Note: if new_output_routes has more entries than current, those extra routes
+        // are dropped — output_routes Vec is only built at chain creation time.
     }
 
     Ok(())
@@ -1464,22 +1467,19 @@ pub fn process_input_f32(
     // Mix processed frames into this segment's output routes only.
     // If the queue already has frames (from another input), sum them.
     // Otherwise, push new frames.
-    match runtime.output.try_lock() {
-        Err(_) => {}
-        Ok(mut output) => {
-        let route_indices = if segment_routes.is_empty() {
-            // Legacy: push to all output routes
-            (0..output.output_routes.len()).collect::<Vec<_>>()
-        } else {
-            segment_routes
-        };
-        for &route_idx in &route_indices {
-            if let Some(route) = output.output_routes.get_mut(route_idx) {
+    let route_indices = if segment_routes.is_empty() {
+        // Legacy: push to all output routes
+        (0..runtime.output_routes.len()).collect::<Vec<_>>()
+    } else {
+        segment_routes
+    };
+    for &route_idx in &route_indices {
+        if let Some(route_mutex) = runtime.output_routes.get(route_idx) {
+            if let Ok(mut route) = route_mutex.try_lock() {
                 for &frame in &processed {
                     route.buffer.push(frame);
                 }
             }
-        }
         }
     }
 }
@@ -1583,19 +1583,13 @@ pub fn process_output_f32(
     out: &mut [f32],
     output_total_channels: usize,
 ) {
-    let mut output_state = match runtime.output.try_lock() {
-        Ok(guard) => guard,
-        Err(_) => {
-            out.fill(0.0);
-            return;
-        }
+    let route_mutex = match runtime.output_routes.get(output_index) {
+        Some(m) => m,
+        None => { out.fill(0.0); return; }
     };
-    let route = match output_state.output_routes.get_mut(output_index) {
-        Some(r) => r,
-        None => {
-            out.fill(0.0);
-            return;
-        }
+    let mut route = match route_mutex.try_lock() {
+        Ok(guard) => guard,
+        Err(_) => { out.fill(0.0); return; }
     };
     let num_frames = out.len() / output_total_channels;
     for frame in out.chunks_mut(output_total_channels).take(num_frames) {
@@ -1920,8 +1914,8 @@ mod tests {
 
         process_input_f32(&runtime, 0, &input, 1);
 
-        let output = runtime.output.lock().expect("runtime poisoned");
-        assert!(output.output_routes[0].buffer.len() <= ELASTIC_BUFFER_TARGET_LEVEL * 2);
+        let route = runtime.output_routes[0].lock().expect("runtime poisoned");
+        assert!(route.buffer.len() <= ELASTIC_BUFFER_TARGET_LEVEL * 2);
     }
 
     #[test]
@@ -1936,8 +1930,8 @@ mod tests {
         process_output_f32(&runtime, 0, &mut out, 1);
 
         assert_eq!(out, vec![0.25, 0.5, 0.75, 1.0]);
-        let output = runtime.output.lock().expect("runtime poisoned");
-        assert!(output.output_routes[0].buffer.queue.is_empty());
+        let route = runtime.output_routes[0].lock().expect("runtime poisoned");
+        assert!(route.buffer.queue.is_empty());
     }
 
     #[test]
