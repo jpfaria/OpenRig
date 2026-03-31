@@ -35,6 +35,30 @@ pub fn build_lv2_processor(
     ))
 }
 
+/// Build a mono LV2 processor with atom/MIDI sidechain ports connected.
+///
+/// Use this for plugins that have MIDI atom input ports (like pitch correction
+/// plugins) that need a valid buffer even when unused.
+pub fn build_lv2_processor_with_atoms(
+    lib_path: &str,
+    uri: &str,
+    sample_rate: f64,
+    bundle_path: &str,
+    audio_in_ports: &[usize],
+    audio_out_ports: &[usize],
+    control_ports: &[(usize, f32)],
+    atom_ports: &[usize],
+) -> Result<Lv2Processor> {
+    let plugin = Lv2Plugin::load(lib_path, uri, sample_rate, bundle_path)?;
+    Ok(Lv2Processor::with_atom_ports(
+        plugin,
+        audio_in_ports,
+        audio_out_ports,
+        control_ports,
+        atom_ports,
+    ))
+}
+
 /// Build a ready-to-use stereo LV2 processor (2-in / 2-out).
 pub fn build_stereo_lv2_processor(
     lib_path: &str,

@@ -5,6 +5,10 @@ use std::ffi::c_void;
 /// Maximum block size for LV2 processing.
 const MAX_BLOCK_SIZE: usize = 4096;
 
+/// Size of the dummy atom buffer for MIDI/atom sidechain ports.
+/// Must be large enough for an empty LV2_Atom_Sequence header (16 bytes min).
+const ATOM_BUF_SIZE: usize = 256;
+
 /// Audio processor wrapping a loaded LV2 plugin instance.
 ///
 /// Uses block-based processing: `run(N)` is called with the full buffer
@@ -18,10 +22,8 @@ pub struct Lv2Processor {
     out_buf: Box<[f32; MAX_BLOCK_SIZE]>,
     /// Control port values — kept alive and connected.
     control_values: Vec<f32>,
-    /// Audio input port indices (stored for potential future reconnection).
-    _audio_in_ports: Vec<usize>,
-    /// Audio output port indices (stored for potential future reconnection).
-    _audio_out_ports: Vec<usize>,
+    /// Dummy atom buffer for MIDI/atom sidechain ports.
+    _atom_buf: Box<[u8; ATOM_BUF_SIZE]>,
 }
 
 impl Lv2Processor {
@@ -40,9 +42,45 @@ impl Lv2Processor {
         audio_out_ports: &[usize],
         control_ports: &[(usize, f32)],
     ) -> Self {
+        Self::with_atom_ports(plugin, audio_in_ports, audio_out_ports, control_ports, &[])
+    }
+
+    /// Create a processor with additional atom/MIDI sidechain ports.
+    ///
+    /// Atom ports are connected to an empty atom sequence buffer so plugins
+    /// that require a MIDI input port (even if unused) don't crash.
+    pub fn with_atom_ports(
+        plugin: Lv2Plugin,
+        audio_in_ports: &[usize],
+        audio_out_ports: &[usize],
+        control_ports: &[(usize, f32)],
+        atom_ports: &[usize],
+    ) -> Self {
         let mut in_buf = Box::new([0.0f32; MAX_BLOCK_SIZE]);
         let mut out_buf = Box::new([0.0f32; MAX_BLOCK_SIZE]);
         let mut control_values: Vec<f32> = control_ports.iter().map(|(_, v)| *v).collect();
+
+        // Create an empty LV2_Atom_Sequence buffer.
+        // Layout: [size:u32=8, type:u32=sequence_urid, unit:u32=0, pad:u32=0]
+        // We use type=0 which most plugins accept as "no events".
+        let mut atom_buf = Box::new([0u8; ATOM_BUF_SIZE]);
+        // Set atom.size = 8 (body size: unit + pad)
+        atom_buf[0] = 8;
+        atom_buf[1] = 0;
+        atom_buf[2] = 0;
+        atom_buf[3] = 0;
+        // atom.type = 0 (plugins typically check for empty sequence by size)
+        // body.unit = 0, body.pad = 0 (already zeroed)
+
+        // Connect atom/MIDI sidechain ports
+        for &port_idx in atom_ports {
+            unsafe {
+                plugin.connect_port(
+                    port_idx as u32,
+                    atom_buf.as_mut_ptr() as *mut c_void,
+                );
+            }
+        }
 
         // Connect audio input ports
         for &port_idx in audio_in_ports {
@@ -79,8 +117,7 @@ impl Lv2Processor {
             in_buf,
             out_buf,
             control_values,
-            _audio_in_ports: audio_in_ports.to_vec(),
-            _audio_out_ports: audio_out_ports.to_vec(),
+            _atom_buf: atom_buf,
         }
     }
 

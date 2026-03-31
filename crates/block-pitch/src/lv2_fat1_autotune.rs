@@ -22,7 +22,7 @@ const PLUGIN_BINARY: &str = "fat1.so";
 const PLUGIN_BINARY: &str = "fat1.dll";
 
 // LV2 port indices (from fat1.scales.ttl — variant #scales)
-// 0: MIDI In (atom, skip — not connected, plugin handles NULL)
+const PORT_MIDI_IN: usize = 0; // Atom port — must be connected to empty sequence
 const PORT_AUDIO_IN: usize = 1;
 const PORT_AUDIO_OUT: usize = 2;
 const PORT_MODE: usize = 3;
@@ -239,7 +239,7 @@ fn build_mono_processor(
     let lib_path = resolve_lib_path()?;
     let bundle_path = resolve_bundle_path()?;
 
-    lv2::build_lv2_processor(
+    lv2::build_lv2_processor_with_atoms(
         &lib_path,
         PLUGIN_URI,
         sample_rate as f64,
@@ -264,6 +264,7 @@ fn build_mono_processor(
             (PORT_OUT_ERROR, 0.0),
             (PORT_OUT_LATENCY, 0.0),
         ],
+        &[PORT_MIDI_IN],  // Atom sidechain port — empty sequence
     )
 }
 
