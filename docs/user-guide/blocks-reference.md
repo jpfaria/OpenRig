@@ -1,6 +1,6 @@
 # Blocks Reference
 
-OpenRig ships with **174 models** across **14 block types**, powered by four distinct audio backends. This document provides a complete reference for every block type and model available in the system.
+OpenRig ships with **176 models** across **15 block types**, powered by four distinct audio backends. This document provides a complete reference for every block type and model available in the system.
 
 ## Audio Backends
 
@@ -350,6 +350,45 @@ Utility blocks provide non-audio-processing tools that support the signal chain 
 
 ---
 
+## Pitch
+
+Pitch blocks provide real-time pitch correction (autotune) for monophonic audio sources such as vocals and solo instruments.
+
+### Models
+
+| Model Name         | Brand | Backend | Description                                      |
+|--------------------|-------|---------|--------------------------------------------------|
+| Chromatic Autotune | --    | Native  | Corrects pitch to nearest chromatic note         |
+| Scale Autotune     | --    | Native  | Corrects pitch to nearest note in selected key/scale |
+
+### Parameters -- Chromatic Autotune
+
+| Parameter   | Range          | Default | Description                                         |
+|-------------|----------------|---------|-----------------------------------------------------|
+| speed       | 0--100 ms      | 20 ms   | Correction speed. 0 = instant/robotic, 100 = natural/smooth |
+| mix         | 0--100%        | 100%    | Dry/wet blend                                       |
+| detune      | -50--+50 cents | 0       | Fine offset from target note                        |
+| sensitivity | 0--100%        | 50%     | Minimum signal level to activate correction         |
+
+### Parameters -- Scale Autotune
+
+Scale Autotune shares all Chromatic Autotune parameters plus two additional controls:
+
+| Parameter   | Range          | Default | Description                                         |
+|-------------|----------------|---------|-----------------------------------------------------|
+| speed       | 0--100 ms      | 20 ms   | Correction speed. 0 = instant/robotic, 100 = natural/smooth |
+| mix         | 0--100%        | 100%    | Dry/wet blend                                       |
+| detune      | -50--+50 cents | 0       | Fine offset from target note                        |
+| sensitivity | 0--100%        | 50%     | Minimum signal level to activate correction         |
+| key         | C through B    | C       | Root note of the scale                              |
+| scale       | 8 options      | Major   | Scale type (see table below)                        |
+
+### Available Scales
+
+Major, Natural Minor, Pentatonic Major, Pentatonic Minor, Harmonic Minor, Melodic Minor, Blues, Dorian
+
+---
+
 ## Body
 
 Body blocks simulate the acoustic resonance of a guitar body using impulse responses. They are designed for use with piezo or magnetic pickups to produce a convincing acoustic tone. OpenRig includes **114 body models** spanning a wide range of acoustic guitar brands and body types.
@@ -397,6 +436,7 @@ A full rig block combines the entire signal chain -- preamp, power amp, cabinet,
 | Filter      | 1      | Native                   |
 | Wah         | 1      | Native                   |
 | Utility     | 1      | Native                   |
+| Pitch       | 2      | Native                   |
 | Body        | 114    | IR                       |
 | Full Rig    | 1      | NAM                      |
-| **Total**   | **174**|                          |
+| **Total**   | **176**|                          |

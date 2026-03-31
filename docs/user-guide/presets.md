@@ -170,6 +170,23 @@ Input -> Body (Cab, e.g. Taylor or Martin model) -> Three Band EQ (Filter) -> Pl
 
 This chain is useful for unplugged tones through an electric guitar or for shaping the sound of an acoustic-electric instrument.
 
+### 5. Vocal with Autotune
+
+A pitch-corrected vocal chain with dynamics control and spatial effects.
+
+```
+Input -> Scale Autotune (Pitch) -> Studio Clean Compressor (Dynamics) -> Three Band EQ (Filter) -> Plate Foundation (Reverb) -> Output
+```
+
+**Key settings:**
+- Scale Autotune speed at 15ms for natural correction without robotic artifacts
+- Key set to C, scale set to Major -- adjust to match the song
+- Sensitivity at 40% to avoid correcting silence or breath noise
+- Compressor for even vocal dynamics, taming peaks while preserving expression
+- Reverb mix around 20% for presence without washing out the vocal
+
+This chain works well for live vocal processing and recording monitoring. For a more pronounced autotune effect, lower the speed toward 0ms.
+
 ## Sharing Presets
 
 Presets are plain YAML files, which makes sharing straightforward:

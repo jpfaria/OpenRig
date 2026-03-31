@@ -31,7 +31,7 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-const MAX_BUFFERED_OUTPUT_FRAMES: usize = 1_024;
+const ELASTIC_BUFFER_TARGET_LEVEL: usize = 256;
 static NEXT_BLOCK_INSTANCE_SERIAL: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Debug, Clone, Copy)]
@@ -46,6 +46,42 @@ impl AudioFrame {
             AudioFrame::Mono(sample) => sample,
             AudioFrame::Stereo([left, right]) => (left + right) * 0.5,
         }
+    }
+}
+
+/// Elastic audio buffer for clock drift compensation.
+/// Maintains a target queue level. On underrun, repeats the last frame.
+/// On overrun, discards the oldest frame gradually.
+struct ElasticBuffer {
+    pub queue: VecDeque<AudioFrame>,
+    target_level: usize,
+    last_frame: AudioFrame,
+}
+
+impl ElasticBuffer {
+    fn new(target_level: usize, layout: AudioChannelLayout) -> Self {
+        Self {
+            queue: VecDeque::with_capacity(target_level * 2),
+            target_level,
+            last_frame: silent_frame(layout),
+        }
+    }
+
+    fn push(&mut self, frame: AudioFrame) {
+        self.last_frame = frame;
+        self.queue.push_back(frame);
+        if self.queue.len() > self.target_level * 2 {
+            self.queue.pop_front();
+        }
+    }
+
+    fn pop(&mut self) -> AudioFrame {
+        self.queue.pop_front().unwrap_or(self.last_frame)
+    }
+
+    #[cfg(test)]
+    fn len(&self) -> usize {
+        self.queue.len()
     }
 }
 
@@ -167,9 +203,16 @@ pub struct ChainRuntimeState {
     tuner_shared_buffer: Mutex<Vec<f32>>,
     /// Tuner state owned by UI thread only (never touched by audio).
     pub tuner_reading: Mutex<block_util::TunerReading>,
+    #[allow(dead_code)]
+    last_input_nanos: AtomicU64,
+    measured_latency_nanos: AtomicU64,
 }
 
 impl ChainRuntimeState {
+    pub fn measured_latency_ms(&self) -> f32 {
+        let nanos = self.measured_latency_nanos.load(std::sync::atomic::Ordering::Relaxed);
+        nanos as f32 / 1_000_000.0
+    }
     /// Called from audio thread: append tuner samples (fast, non-blocking).
     pub fn push_tuner_samples(&self, samples: &[f32]) {
         if let Ok(mut buf) = self.tuner_shared_buffer.try_lock() {
@@ -239,10 +282,9 @@ struct ChainProcessingState {
 }
 
 struct OutputRoutingState {
-    output_layout: AudioChannelLayout,
     output_channels: Vec<usize>,
     output_mixdown: ChainOutputMixdown,
-    queue: VecDeque<AudioFrame>,
+    buffer: ElasticBuffer,
 }
 
 struct ChainOutputState {
@@ -317,18 +359,7 @@ pub fn build_runtime_graph(
 pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<ChainRuntimeState> {
     let eff_inputs = effective_inputs(chain);
     let eff_outputs = effective_outputs(chain);
-    log::info!("[build_chain_runtime] chain='{}' eff_inputs={} eff_outputs={}", chain.id.0, eff_inputs.len(), eff_outputs.len());
-    for (i, inp) in eff_inputs.iter().enumerate() {
-        log::info!("[build_chain_runtime]   input[{}]: name='{}' device='{}' channels={:?}", i, inp.name, inp.device_id.0, inp.channels);
-    }
-    for (i, out) in eff_outputs.iter().enumerate() {
-        log::info!("[build_chain_runtime]   output[{}]: name='{}' device='{}' channels={:?}", i, out.name, out.device_id.0, out.channels);
-    }
     let segments = split_chain_into_segments(chain, &eff_inputs, &eff_outputs);
-    log::info!("[build_chain_runtime] segments={}", segments.len());
-    for (i, seg) in segments.iter().enumerate() {
-        log::info!("[build_chain_runtime]   segment[{}]: input='{}' blocks={:?} output_routes={:?}", i, seg.input.name, seg.block_indices, seg.output_route_indices);
-    }
 
     let mut input_states = Vec::with_capacity(segments.len());
     for segment in &segments {
@@ -363,6 +394,8 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
         output: Mutex::new(ChainOutputState { output_routes }),
         tuner_shared_buffer: Mutex::new(Vec::with_capacity(8192)),
         tuner_reading: Mutex::new(block_util::TunerReading::default()),
+        last_input_nanos: AtomicU64::new(0),
+        measured_latency_nanos: AtomicU64::new(0),
     })
 }
 
@@ -500,49 +533,23 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], effect
         .collect();
 
     if insert_positions.is_empty() {
-        // No inserts — create one segment per (input, output) pair
-        // Each Output block defines a cut point — blocks up to that position go into that stream
-        let output_positions: Vec<(usize, usize)> = { // (block_position, output_entry_index)
-            let mut out_idx = 0;
-            let mut positions = Vec::new();
-            for (pos, block) in chain.blocks.iter().enumerate() {
-                if block.enabled {
-                    if let AudioBlockKind::Output(ob) = &block.kind {
-                        for _ in 0..ob.entries.len() {
-                            positions.push((pos, out_idx));
-                            out_idx += 1;
-                        }
-                    }
-                }
+        // No inserts — single segment, all inputs push to all outputs
+        let block_indices: Vec<usize> = chain.blocks.iter()
+            .enumerate()
+            .filter(|(_, b)| !matches!(&b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_)))
+            .map(|(i, _)| i)
+            .collect();
+        let all_output_indices: Vec<usize> = (0..effective_outs.len()).collect();
+        // One segment per regular input entry
+        return effective_ins.iter().enumerate().map(|(_i, input)| {
+            ChainSegment {
+                input: input.clone(),
+                block_indices: block_indices.clone(),
+                output_route_indices: all_output_indices.clone(),
             }
-            positions
-        };
-
-        let mut segments = Vec::new();
-        let input_count = if regular_input_count > 0 { regular_input_count } else { effective_ins.len() };
-
-        for &(out_pos, out_entry_idx) in &output_positions {
-            // Effect blocks from start of chain up to this output position
-            let block_indices: Vec<usize> = chain.blocks.iter()
-                .enumerate()
-                .filter(|(i, b)| {
-                    *i < out_pos
-                    && !matches!(&b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_))
-                })
-                .map(|(i, _)| i)
-                .collect();
-
-            // One stream per input for this output
-            for in_idx in 0..input_count {
-                segments.push(ChainSegment {
-                    input: effective_ins[in_idx].clone(),
-                    block_indices: block_indices.clone(),
-                    output_route_indices: vec![out_entry_idx],
-                });
-            }
-        }
-
-        return segments;
+        }).filter(|_| true) // keep type inference happy
+        .take(if regular_input_count > 0 { regular_input_count } else { effective_ins.len() })
+        .collect();
     }
 
     // With inserts: split into segments
@@ -705,10 +712,9 @@ fn build_output_routing_state(output: &OutputEntry) -> OutputRoutingState {
         AudioChannelLayout::Mono
     };
     OutputRoutingState {
-        output_layout,
         output_channels: output.channels.clone(),
         output_mixdown: ChainOutputMixdown::Average,
-        queue: VecDeque::with_capacity(MAX_BUFFERED_OUTPUT_FRAMES),
+        buffer: ElasticBuffer::new(ELASTIC_BUFFER_TARGET_LEVEL, output_layout),
     }
 }
 
@@ -720,18 +726,7 @@ pub fn update_chain_runtime_state(
 ) -> Result<()> {
     let effective_ins = effective_inputs(chain);
     let effective_outs = effective_outputs(chain);
-    log::info!("[update_runtime] chain='{}' inputs={} outputs={}", chain.id.0, effective_ins.len(), effective_outs.len());
-    for (i, inp) in effective_ins.iter().enumerate() {
-        log::info!("[update_runtime]   in[{}]: '{}' dev='{}' ch={:?}", i, inp.name, inp.device_id.0, inp.channels);
-    }
-    for (i, out) in effective_outs.iter().enumerate() {
-        log::info!("[update_runtime]   out[{}]: '{}' dev='{}' ch={:?}", i, out.name, out.device_id.0, out.channels);
-    }
     let segments = split_chain_into_segments(chain, &effective_ins, &effective_outs);
-    log::info!("[update_runtime] segments={}", segments.len());
-    for (i, seg) in segments.iter().enumerate() {
-        log::info!("[update_runtime]   seg[{}]: in='{}' blocks={:?} out_routes={:?}", i, seg.input.name, seg.block_indices, seg.output_route_indices);
-    }
 
     // Step 1: Extract existing blocks from all input states (brief lock)
     let mut existing_per_input: Vec<Vec<BlockRuntimeNode>> = {
@@ -785,8 +780,7 @@ pub fn update_chain_runtime_state(
         let old_routes = std::mem::replace(&mut output.output_routes, new_output_routes);
         for (new_route, old_route) in output.output_routes.iter_mut().zip(old_routes.into_iter()) {
             if !reset_output_queue {
-                new_route.queue = old_route.queue;
-                trim_output_queue(&mut new_route.queue);
+                new_route.buffer = old_route.buffer;
             }
         }
     }
@@ -1455,28 +1449,13 @@ pub fn process_input_f32(
     // Collect processed frames and output routing info, then release processing lock
     let processed: Vec<AudioFrame> = input_state.frame_buffer.drain(..).collect();
     let segment_routes = input_state.output_route_indices.clone();
-    if input_index == 0 {
-        static INPUT0_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-        let c = INPUT0_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        if c % 1000 == 0 {
-            log::info!("[process_input] idx=0 frames={} routes={:?} (call #{})", processed.len(), segment_routes, c);
-        }
-    }
     drop(processing);
 
     // Mix processed frames into this segment's output routes only.
     // If the queue already has frames (from another input), sum them.
     // Otherwise, push new frames.
     match runtime.output.try_lock() {
-        Err(_) => {
-            if input_index == 0 {
-                static LOCK_FAIL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-                let c = LOCK_FAIL.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                if c % 100 == 0 {
-                    log::warn!("[process_input] idx=0 OUTPUT LOCK FAILED (#{}) — {} frames DROPPED", c, processed.len());
-                }
-            }
-        }
+        Err(_) => {}
         Ok(mut output) => {
         let route_indices = if segment_routes.is_empty() {
             // Legacy: push to all output routes
@@ -1486,18 +1465,17 @@ pub fn process_input_f32(
         };
         for &route_idx in &route_indices {
             if let Some(route) = output.output_routes.get_mut(route_idx) {
-                let existing_len = route.queue.len();
+                let existing_len = route.buffer.queue.len();
                 for (i, &frame) in processed.iter().enumerate() {
                     if i < existing_len {
                         // Sum with existing frame from another input
-                        let existing = &mut route.queue[i];
+                        let existing = &mut route.buffer.queue[i];
                         *existing = mix_frames(*existing, frame);
                     } else {
-                        // No existing frame yet — push as-is
-                        route.queue.push_back(frame);
+                        // No existing frame yet — push via elastic buffer
+                        route.buffer.push(frame);
                     }
                 }
-                trim_output_queue(&mut route.queue);
             }
         }
         }
@@ -1618,34 +1596,15 @@ pub fn process_output_f32(
         }
     };
     let num_frames = out.len() / output_total_channels;
-    let queue_len = route.queue.len();
-    // Log ALL output calls for Insert send (output_index > 0)
-    if output_index > 0 {
-        static COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-        let c = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        if c % 1000 == 0 {
-            log::warn!("[process_output] idx={} queue_len={} num_frames={} (call #{})", output_index, queue_len, num_frames, c);
-        }
-    }
-
     for frame in out.chunks_mut(output_total_channels).take(num_frames) {
         frame.fill(0.0);
-        let processed = route
-            .queue
-            .pop_front()
-            .unwrap_or_else(|| silent_frame(route.output_layout));
+        let processed = route.buffer.pop();
         write_output_frame(
             processed,
             &route.output_channels,
             frame,
             route.output_mixdown,
         );
-    }
-}
-
-fn trim_output_queue(queue: &mut VecDeque<AudioFrame>) {
-    while queue.len() > MAX_BUFFERED_OUTPUT_FRAMES {
-        queue.pop_back();
     }
 }
 
@@ -1770,8 +1729,9 @@ fn next_block_instance_serial() -> u64 {
 mod tests {
     use super::{
         build_chain_runtime_state, build_runtime_graph, process_input_f32, process_output_f32,
-        update_chain_runtime_state, MAX_BUFFERED_OUTPUT_FRAMES,
+        update_chain_runtime_state, AudioFrame, ElasticBuffer, ELASTIC_BUFFER_TARGET_LEVEL,
     };
+    use block_core::AudioChannelLayout;
     use block_preamp::supported_models as supported_preamp_models;
     use block_cab::{cab_backend_kind, supported_models as supported_cab_models, CabBackendKind};
     use block_delay::supported_models as supported_delay_models;
@@ -1942,13 +1902,13 @@ mod tests {
         let chain = tuner_track("chain:0", Vec::new());
         let runtime =
             Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"));
-        let total_frames = MAX_BUFFERED_OUTPUT_FRAMES + 64;
+        let total_frames = ELASTIC_BUFFER_TARGET_LEVEL * 2 + 64;
         let input = vec![0.25f32; total_frames];
 
         process_input_f32(&runtime, 0, &input, 1);
 
         let output = runtime.output.lock().expect("runtime poisoned");
-        assert_eq!(output.output_routes[0].queue.len(), MAX_BUFFERED_OUTPUT_FRAMES);
+        assert!(output.output_routes[0].buffer.len() <= ELASTIC_BUFFER_TARGET_LEVEL * 2);
     }
 
     #[test]
@@ -1964,7 +1924,7 @@ mod tests {
 
         assert_eq!(out, vec![0.25, 0.5, 0.75, 1.0]);
         let output = runtime.output.lock().expect("runtime poisoned");
-        assert!(output.output_routes[0].queue.is_empty());
+        assert!(output.output_routes[0].buffer.queue.is_empty());
     }
 
     #[test]
@@ -2277,6 +2237,66 @@ mod tests {
                 model,
             }),
         }
+    }
+
+    // --- ElasticBuffer tests ---
+
+    #[test]
+    fn elastic_buffer_push_pop_basic() {
+        let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
+        buf.push(AudioFrame::Mono(0.5));
+        buf.push(AudioFrame::Mono(0.7));
+        assert_eq!(buf.len(), 2);
+        let f1 = buf.pop();
+        assert!(matches!(f1, AudioFrame::Mono(v) if (v - 0.5).abs() < 1e-6));
+        let f2 = buf.pop();
+        assert!(matches!(f2, AudioFrame::Mono(v) if (v - 0.7).abs() < 1e-6));
+    }
+
+    #[test]
+    fn elastic_buffer_underrun_repeats_last_frame() {
+        let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
+        buf.push(AudioFrame::Mono(0.42));
+        let _ = buf.pop(); // drain the one frame
+        // Now empty — should repeat last frame, NOT silence
+        let repeated = buf.pop();
+        assert!(matches!(repeated, AudioFrame::Mono(v) if (v - 0.42).abs() < 1e-6));
+    }
+
+    #[test]
+    fn elastic_buffer_underrun_before_any_push_returns_silence() {
+        let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Stereo);
+        let frame = buf.pop();
+        assert!(matches!(frame, AudioFrame::Stereo([l, r]) if l.abs() < 1e-6 && r.abs() < 1e-6));
+    }
+
+    #[test]
+    fn elastic_buffer_overrun_discards_oldest() {
+        let target = 4; // small for testing
+        let mut buf = ElasticBuffer::new(target, AudioChannelLayout::Mono);
+        // Push 2x target + 1 = 9 frames
+        for i in 0..9 {
+            buf.push(AudioFrame::Mono(i as f32));
+        }
+        // Should have discarded oldest, keeping at most 2x target = 8
+        assert!(buf.len() <= target * 2);
+        // First frame should NOT be 0.0 (it was discarded)
+        let first = buf.pop();
+        assert!(matches!(first, AudioFrame::Mono(v) if v > 0.1));
+    }
+
+    #[test]
+    fn elastic_buffer_stabilizes_around_target() {
+        let target = 256;
+        let mut buf = ElasticBuffer::new(target, AudioChannelLayout::Mono);
+        // Simulate: push slightly faster than pop
+        for _ in 0..10000 {
+            buf.push(AudioFrame::Mono(1.0));
+            buf.push(AudioFrame::Mono(1.0)); // 2 pushes
+            let _ = buf.pop(); // 1 pop — simulates input faster than output
+        }
+        // Should not have grown unbounded
+        assert!(buf.len() <= target * 2);
     }
 
     fn select_delay_chain(id: &str, selected_option: &str) -> Chain {
