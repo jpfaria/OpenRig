@@ -515,11 +515,11 @@ fn insert_send_as_output_entry(insert: &InsertBlock) -> OutputEntry {
 }
 
 /// Describes a chain segment: an input source, its effect blocks, and its output targets.
+#[allow(dead_code)]
 struct ChainSegment {
     input: InputEntry,
-    /// Indices of the AudioBlocks in chain.blocks that belong to this segment's effect chain.
+    cpal_input_index: usize,
     block_indices: Vec<usize>,
-    /// Indices into the effective_outputs list that this segment pushes to.
     output_route_indices: Vec<usize>,
 }
 
@@ -589,6 +589,7 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], _effec
             for in_idx in 0..input_count {
                 segments.push(ChainSegment {
                     input: effective_ins[in_idx].clone(),
+                    cpal_input_index: in_idx,
                     block_indices: block_indices.clone(),
                     output_route_indices: vec![out_entry_idx],
                 });
@@ -641,6 +642,7 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], _effec
             for i in 0..input_count {
                 segments.push(ChainSegment {
                     input: effective_ins[i].clone(),
+                    cpal_input_index: i,
                     block_indices: block_indices.clone(),
                     output_route_indices: output_indices.clone(),
                 });
@@ -650,6 +652,7 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], _effec
             let prev_return_idx = insert_return_idx - 1;
             segments.push(ChainSegment {
                 input: effective_ins[prev_return_idx].clone(),
+                cpal_input_index: prev_return_idx,
                 block_indices,
                 output_route_indices: output_indices,
             });
@@ -695,6 +698,7 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], _effec
     let last_return_idx = insert_return_idx - 1;
     segments.push(ChainSegment {
         input: effective_ins[last_return_idx].clone(),
+        cpal_input_index: last_return_idx,
         block_indices,
         output_route_indices: output_indices,
     });
