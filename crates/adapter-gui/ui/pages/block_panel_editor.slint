@@ -967,24 +967,21 @@ export component BlockPanelEditor inherits Rectangle {
         }
     }
 
-    // ── Realtime stream display (tuner, meter, analyzer — any block) ──
+    // ── Realtime stream display (tuner, meter, analyzer — inside panel area) ──
     if root.block-stream-data.active : Rectangle {
         x: 0;
-        y: root.header-height;
+        y: root.header-height + root.brand-strip-height;
         width: parent.width;
-        height: parent.height * 0.40;
-        background: #0a0c10;
+        height: root.panel-height * 0.50;
 
-        // Render entries in a centered layout
         for entry[ei] in root.block-stream-data.entries : Rectangle {
             property <length> slot-w: parent.width / root.block-stream-data.entries.length;
             x: ei * slot-w;
-            y: 10px;
+            y: 4px;
             width: slot-w;
-            height: parent.height - 20px;
+            height: parent.height - 8px;
             background: transparent;
 
-            // Label
             Text {
                 x: 0; y: 0; width: parent.width; height: 14px;
                 text: entry.key;
@@ -993,20 +990,18 @@ export component BlockPanelEditor inherits Rectangle {
                 horizontal-alignment: center;
             }
 
-            // Main text value
             Text {
-                x: 0; y: 14px; width: parent.width; height: parent.height - 40px;
+                x: 0; y: 14px; width: parent.width; height: parent.height - 30px;
                 text: entry.text;
                 color: entry.value > 0.5 ? #29df85 : #f3f6fb;
-                font-size: entry.text.character-count <= 3 ? 42px : 20px;
+                font-size: entry.text.character-count <= 3 ? 36px : 18px;
                 font-weight: 900;
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }
 
-            // Bar indicator (cents-like values)
             if entry.key == "cents" : Rectangle {
-                x: 10px; y: parent.height - 20px;
+                x: 10px; y: parent.height - 14px;
                 width: parent.width - 20px; height: 8px;
                 background: #1a1e28;
                 border-radius: 4px;
