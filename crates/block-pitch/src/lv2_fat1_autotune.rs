@@ -92,16 +92,6 @@ fn model_schema() -> ModelParameterSchema {
                 1.0,
                 ParameterUnit::Percent,
             ),
-            float_parameter(
-                "offset",
-                "Offset",
-                None,
-                Some(0.0),
-                -200.0,
-                200.0,
-                1.0,
-                ParameterUnit::None,
-            ),
             enum_parameter(
                 "speed",
                 "Speed",
@@ -112,16 +102,6 @@ fn model_schema() -> ModelParameterSchema {
                     ("med", "Medium"),
                     ("slow", "Slow"),
                 ],
-            ),
-            float_parameter(
-                "bias",
-                "Bias",
-                None,
-                Some(50.0),
-                0.0,
-                100.0,
-                1.0,
-                ParameterUnit::Percent,
             ),
         ],
     }
@@ -195,9 +175,13 @@ fn resolve_bundle_path() -> Result<String> {
     anyhow::bail!("LV2 bundle '{}' not found in plugins/", PLUGIN_DIR)
 }
 
+const MAX_BLOCK: usize = 4096;
+
 struct DualMonoLv2 {
     left: lv2::Lv2Processor,
     right: lv2::Lv2Processor,
+    left_buf: Box<[f32; MAX_BLOCK]>,
+    right_buf: Box<[f32; MAX_BLOCK]>,
 }
 
 impl StereoProcessor for DualMonoLv2 {
@@ -209,21 +193,19 @@ impl StereoProcessor for DualMonoLv2 {
     }
 
     fn process_block(&mut self, buffer: &mut [[f32; 2]]) {
-        let len = buffer.len();
-        // Split stereo into two mono buffers
-        let mut left_buf = vec![0.0f32; len];
-        let mut right_buf = vec![0.0f32; len];
-        for (i, frame) in buffer.iter().enumerate() {
-            left_buf[i] = frame[0];
-            right_buf[i] = frame[1];
+        let len = buffer.len().min(MAX_BLOCK);
+        // Split stereo into pre-allocated mono buffers (no heap alloc)
+        for (i, frame) in buffer[..len].iter().enumerate() {
+            self.left_buf[i] = frame[0];
+            self.right_buf[i] = frame[1];
         }
         // Process each channel as a full block (calls run(N))
-        self.left.process_block(&mut left_buf);
-        self.right.process_block(&mut right_buf);
+        self.left.process_block(&mut self.left_buf[..len]);
+        self.right.process_block(&mut self.right_buf[..len]);
         // Merge back to stereo
-        for (i, frame) in buffer.iter_mut().enumerate() {
-            frame[0] = left_buf[i];
-            frame[1] = right_buf[i];
+        for (i, frame) in buffer[..len].iter_mut().enumerate() {
+            frame[0] = self.left_buf[i];
+            frame[1] = self.right_buf[i];
         }
     }
 }
@@ -280,11 +262,10 @@ fn build(
     let scale_str = required_string(params, "scale").map_err(anyhow::Error::msg)?;
     let scale = scale_str_to_float(&scale_str);
     let correction = required_f32(params, "correction").map_err(anyhow::Error::msg)? / 100.0;
-    let offset_cents = required_f32(params, "offset").map_err(anyhow::Error::msg)?;
-    let offset = offset_cents / 100.0; // Convert cents to semitones (fat1 uses semitones)
+    let offset = 0.0; // No offset by default
     let speed_str = required_string(params, "speed").map_err(anyhow::Error::msg)?;
     let filter = speed_str_to_float(&speed_str);
-    let bias = required_f32(params, "bias").map_err(anyhow::Error::msg)? / 100.0;
+    let bias = 0.5; // Default bias
 
     match layout {
         AudioChannelLayout::Mono => {
@@ -297,7 +278,12 @@ fn build(
                 build_mono_processor(sample_rate, scale, correction, offset, filter, bias)?;
             let right =
                 build_mono_processor(sample_rate, scale, correction, offset, filter, bias)?;
-            Ok(BlockProcessor::Stereo(Box::new(DualMonoLv2 { left, right })))
+            Ok(BlockProcessor::Stereo(Box::new(DualMonoLv2 {
+                left,
+                right,
+                left_buf: Box::new([0.0; MAX_BLOCK]),
+                right_buf: Box::new([0.0; MAX_BLOCK]),
+            })))
         }
     }
 }
