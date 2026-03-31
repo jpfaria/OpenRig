@@ -507,7 +507,7 @@ struct ChainSegment {
 ///   Segment 2: input=Insert return,      blocks=[Delay, Reverb], outputs=[OutputBlock entries]
 ///
 /// If no Insert blocks exist, a single segment covers the entire chain.
-fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], effective_outs: &[OutputEntry]) -> Vec<ChainSegment> {
+fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], _effective_outs: &[OutputEntry]) -> Vec<ChainSegment> {
     // Count regular InputBlock entries and OutputBlock entries
     let regular_input_count: usize = chain.blocks.iter()
         .filter(|b| b.enabled)
@@ -532,23 +532,47 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], effect
         .collect();
 
     if insert_positions.is_empty() {
-        // No inserts — single segment, all inputs push to all outputs
-        let block_indices: Vec<usize> = chain.blocks.iter()
-            .enumerate()
-            .filter(|(_, b)| !matches!(&b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_)))
-            .map(|(i, _)| i)
-            .collect();
-        let all_output_indices: Vec<usize> = (0..effective_outs.len()).collect();
-        // One segment per regular input entry
-        return effective_ins.iter().enumerate().map(|(_i, input)| {
-            ChainSegment {
-                input: input.clone(),
-                block_indices: block_indices.clone(),
-                output_route_indices: all_output_indices.clone(),
+        // No inserts — one segment per (input, output) pair.
+        // Each output block defines a cut point: only effect blocks BEFORE that output position.
+
+        // Find position of each enabled output block and its entry index
+        let mut output_positions: Vec<(usize, usize)> = Vec::new(); // (block_pos, output_entry_idx)
+        let mut out_entry_idx = 0;
+        for (pos, block) in chain.blocks.iter().enumerate() {
+            if block.enabled {
+                if let AudioBlockKind::Output(ob) = &block.kind {
+                    for _ in 0..ob.entries.len() {
+                        output_positions.push((pos, out_entry_idx));
+                        out_entry_idx += 1;
+                    }
+                }
             }
-        }).filter(|_| true) // keep type inference happy
-        .take(if regular_input_count > 0 { regular_input_count } else { effective_ins.len() })
-        .collect();
+        }
+
+        let input_count = if regular_input_count > 0 { regular_input_count } else { effective_ins.len() };
+        let mut segments = Vec::new();
+
+        for &(out_pos, out_entry_idx) in &output_positions {
+            // Effect blocks from start up to this output position (not including I/O blocks)
+            let block_indices: Vec<usize> = chain.blocks.iter()
+                .enumerate()
+                .filter(|(i, b)| {
+                    *i < out_pos
+                    && !matches!(&b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_) | AudioBlockKind::Insert(_))
+                })
+                .map(|(i, _)| i)
+                .collect();
+
+            for in_idx in 0..input_count {
+                segments.push(ChainSegment {
+                    input: effective_ins[in_idx].clone(),
+                    block_indices: block_indices.clone(),
+                    output_route_indices: vec![out_entry_idx],
+                });
+            }
+        }
+
+        return segments;
     }
 
     // With inserts: split into segments
@@ -1722,7 +1746,8 @@ fn next_block_instance_serial() -> u64 {
 mod tests {
     use super::{
         build_chain_runtime_state, build_runtime_graph, process_input_f32, process_output_f32,
-        update_chain_runtime_state, AudioFrame, ElasticBuffer, ELASTIC_BUFFER_TARGET_LEVEL,
+        update_chain_runtime_state, split_chain_into_segments, effective_inputs, effective_outputs,
+        AudioFrame, ElasticBuffer, ELASTIC_BUFFER_TARGET_LEVEL,
     };
     use block_core::AudioChannelLayout;
     use block_preamp::supported_models as supported_preamp_models;
@@ -2330,5 +2355,56 @@ mod tests {
                 params,
             }),
         }
+    }
+
+    #[test]
+    fn segments_split_by_output_position() {
+        // Chain: [Input, TS9(1), Amp(2), Volume(3), Output_MIXER(4), Delay(5), Reverb(6), Output_Scarlett(7)]
+        let chain = Chain {
+            id: ChainId("test".into()),
+            description: None,
+            instrument: "electric_guitar".into(),
+            enabled: true,
+            blocks: vec![
+                AudioBlock { id: BlockId("input:0".into()), enabled: true,
+                    kind: AudioBlockKind::Input(InputBlock { model: "standard".into(),
+                        entries: vec![InputEntry { name: "In".into(), device_id: DeviceId("scarlett".into()), mode: ChainInputMode::Mono, channels: vec![0] }] }) },
+                AudioBlock { id: BlockId("ts9".into()), enabled: true,
+                    kind: AudioBlockKind::Core(CoreBlock { effect_type: "gain".into(), model: "volume".into(), params: ParameterSet::default() }) },
+                AudioBlock { id: BlockId("amp".into()), enabled: true,
+                    kind: AudioBlockKind::Core(CoreBlock { effect_type: "gain".into(), model: "volume".into(), params: ParameterSet::default() }) },
+                AudioBlock { id: BlockId("volume".into()), enabled: true,
+                    kind: AudioBlockKind::Core(CoreBlock { effect_type: "gain".into(), model: "volume".into(), params: ParameterSet::default() }) },
+                AudioBlock { id: BlockId("out_mixer".into()), enabled: true,
+                    kind: AudioBlockKind::Output(OutputBlock { model: "standard".into(),
+                        entries: vec![OutputEntry { name: "Mixer".into(), device_id: DeviceId("mixer".into()), mode: ChainOutputMode::Stereo, channels: vec![0, 1] }] }) },
+                AudioBlock { id: BlockId("delay".into()), enabled: true,
+                    kind: AudioBlockKind::Core(CoreBlock { effect_type: "delay".into(), model: "digital_clean".into(), params: ParameterSet::default() }) },
+                AudioBlock { id: BlockId("reverb".into()), enabled: true,
+                    kind: AudioBlockKind::Core(CoreBlock { effect_type: "reverb".into(), model: "plate_foundation".into(), params: ParameterSet::default() }) },
+                AudioBlock { id: BlockId("out_scarlett".into()), enabled: true,
+                    kind: AudioBlockKind::Output(OutputBlock { model: "standard".into(),
+                        entries: vec![OutputEntry { name: "Scarlett".into(), device_id: DeviceId("scarlett".into()), mode: ChainOutputMode::Stereo, channels: vec![0, 1] }] }) },
+            ],
+        };
+
+        let eff_inputs = effective_inputs(&chain);
+        let eff_outputs = effective_outputs(&chain);
+        let segments = split_chain_into_segments(&chain, &eff_inputs, &eff_outputs);
+
+        // Should have 2 segments (1 input × 2 outputs)
+        assert_eq!(segments.len(), 2, "expected 2 segments, got {}", segments.len());
+
+        // Segment 0: blocks before Output_MIXER (pos 4) → [TS9(1), Amp(2), Volume(3)]
+        assert_eq!(segments[0].block_indices, vec![1, 2, 3],
+            "segment 0 should have blocks [1,2,3], got {:?}", segments[0].block_indices);
+        assert_eq!(segments[0].output_route_indices, vec![0],
+            "segment 0 should push to output 0 only");
+
+        // Segment 1: blocks before Output_Scarlett (pos 7) → [TS9(1), Amp(2), Volume(3), Delay(5), Reverb(6)]
+        assert_eq!(segments[1].block_indices, vec![1, 2, 3, 5, 6],
+            "segment 1 should have blocks [1,2,3,5,6], got {:?}", segments[1].block_indices);
+        assert_eq!(segments[1].output_route_indices, vec![1],
+            "segment 1 should push to output 1 only");
     }
 }
