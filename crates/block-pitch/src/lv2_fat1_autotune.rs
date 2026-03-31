@@ -207,6 +207,25 @@ impl StereoProcessor for DualMonoLv2 {
             self.right.process_sample(input[1]),
         ]
     }
+
+    fn process_block(&mut self, buffer: &mut [[f32; 2]]) {
+        let len = buffer.len();
+        // Split stereo into two mono buffers
+        let mut left_buf = vec![0.0f32; len];
+        let mut right_buf = vec![0.0f32; len];
+        for (i, frame) in buffer.iter().enumerate() {
+            left_buf[i] = frame[0];
+            right_buf[i] = frame[1];
+        }
+        // Process each channel as a full block (calls run(N))
+        self.left.process_block(&mut left_buf);
+        self.right.process_block(&mut right_buf);
+        // Merge back to stereo
+        for (i, frame) in buffer.iter_mut().enumerate() {
+            frame[0] = left_buf[i];
+            frame[1] = right_buf[i];
+        }
+    }
 }
 
 fn build_mono_processor(
