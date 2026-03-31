@@ -70,13 +70,8 @@ struct ElasticBuffer {
 impl ElasticBuffer {
     fn new(target_level: usize, layout: AudioChannelLayout) -> Self {
         let silent = silent_frame(layout);
-        let mut queue = VecDeque::with_capacity(target_level * 2);
-        // Pre-fill with silence to prevent underrun at startup
-        for _ in 0..target_level {
-            queue.push_back(silent);
-        }
         Self {
-            queue,
+            queue: VecDeque::with_capacity(target_level * 2),
             target_level,
             last_frame: silent,
         }
@@ -1488,16 +1483,8 @@ pub fn process_input_f32(
         };
         for &route_idx in &route_indices {
             if let Some(route) = output.output_routes.get_mut(route_idx) {
-                let existing_len = route.buffer.queue.len();
-                for (i, &frame) in processed.iter().enumerate() {
-                    if i < existing_len {
-                        // Sum with existing frame from another input
-                        let existing = &mut route.buffer.queue[i];
-                        *existing = mix_frames(*existing, frame);
-                    } else {
-                        // No existing frame yet — push via elastic buffer
-                        route.buffer.push(frame);
-                    }
+                for &frame in &processed {
+                    route.buffer.push(frame);
                 }
             }
         }
@@ -1667,6 +1654,7 @@ fn silent_frame(layout: AudioChannelLayout) -> AudioFrame {
 }
 
 /// Sum two audio frames together (for mixing multiple input streams).
+#[allow(dead_code)]
 fn mix_frames(a: AudioFrame, b: AudioFrame) -> AudioFrame {
     match (a, b) {
         (AudioFrame::Mono(l), AudioFrame::Mono(r)) => AudioFrame::Mono(l + r),
@@ -2276,15 +2264,11 @@ mod tests {
 
     #[test]
     fn elastic_buffer_push_pop_basic() {
-        let mut buf = ElasticBuffer::new(4, AudioChannelLayout::Mono); // small target for testing
-        // Pre-filled with 4 silent frames
-        assert_eq!(buf.len(), 4);
+        let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
+        assert_eq!(buf.len(), 0); // starts empty
         buf.push(AudioFrame::Mono(0.5));
         buf.push(AudioFrame::Mono(0.7));
-        assert_eq!(buf.len(), 6); // 4 prefill + 2 pushed
-        // Drain prefill silence
-        for _ in 0..4 { let _ = buf.pop(); }
-        // Now get our pushed frames
+        assert_eq!(buf.len(), 2);
         let f1 = buf.pop();
         assert!(matches!(f1, AudioFrame::Mono(v) if (v - 0.5).abs() < 1e-6));
         let f2 = buf.pop();
@@ -2292,13 +2276,11 @@ mod tests {
     }
 
     #[test]
-    fn elastic_buffer_underrun_returns_silence_not_repeat() {
-        let mut buf = ElasticBuffer::new(2, AudioChannelLayout::Mono); // small target
-        // Drain prefill
-        for _ in 0..2 { let _ = buf.pop(); }
+    fn elastic_buffer_underrun_returns_silence() {
+        let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
         buf.push(AudioFrame::Mono(0.42));
-        let _ = buf.pop(); // drain the pushed frame
-        // Now truly empty — should return silence, NOT repeat last frame
+        let _ = buf.pop(); // drain
+        // Empty — returns silence
         let frame = buf.pop();
         assert!(matches!(frame, AudioFrame::Mono(v) if v.abs() < 1e-6));
     }
