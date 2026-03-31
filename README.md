@@ -23,7 +23,7 @@ Built in Rust for performance and reliability, OpenRig combines four audio backe
 
 ## Features
 
-- **174 amp and effect models** across 14 block types — preamps, amps, cabinets, gain pedals, delays, reverbs, modulation, dynamics, filters, wah, tuner, acoustic body resonance, and full rigs
+- **176 amp and effect models** across 15 block types — preamps, amps, cabinets, gain pedals, delays, reverbs, modulation, dynamics, filters, wah, tuner, pitch correction (autotune), acoustic body resonance, and full rigs
 - **4 audio backends** — Native Rust DSP, Neural Amp Modeler (NAM), Impulse Response (IR), and LV2 open-source plugins
 - **Chain-based signal routing** — build your signal path visually by adding, removing, and reordering blocks
 - **Real-time parameter control** — adjust knobs, sliders, and switches with instant audio feedback
@@ -47,11 +47,12 @@ Built in Rust for performance and reliability, OpenRig combines four audio backe
 | **Filter** | 1 | Native | EQ and tonal shaping |
 | **Wah** | 1 | Native | Wah-wah pedal |
 | **Utility** | 1 | Native | Chromatic tuner |
+| **Pitch** | 2 | Native | Real-time pitch correction (autotune) |
 | **Body** | 114 | IR | Acoustic body resonance (Taylor, Martin, Gibson, and more) |
 | **Full Rig** | 1 | NAM | All-in-one amp with effects |
 | **I/O** | — | — | Input and output routing blocks |
 
-See the complete [Blocks Reference](docs/user-guide/blocks-reference.md) for all 174 models with parameters and ranges.
+See the complete [Blocks Reference](docs/user-guide/blocks-reference.md) for all 176 models with parameters and ranges.
 
 ## Installation
 
@@ -110,7 +111,7 @@ See [Architecture](docs/development/architecture.md) for the full crate map, aud
 
 - [Installation Guide](docs/user-guide/installation.md) — download, build, and set up OpenRig
 - [Quick Start](docs/user-guide/quick-start.md) — create your first project and signal chain
-- [Blocks Reference](docs/user-guide/blocks-reference.md) — all 174 models with parameters
+- [Blocks Reference](docs/user-guide/blocks-reference.md) — all 176 models with parameters
 - [Presets](docs/user-guide/presets.md) — create, save, and share chain configurations
 
 ### For Developers
