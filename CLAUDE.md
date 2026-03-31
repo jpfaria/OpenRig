@@ -35,28 +35,30 @@ Issue → Branch (from develop) → Commits → PR → Review/Merge
    - **Bugfix/Hotfix**: merge imediato apos criar o PR
    - **Feature/Enhancement**: PR aguarda review antes de merge
 
-### Agents paralelos com Git Worktrees
+### Agents paralelos com workspace isolado (.solvers/)
 
-Multiplos agents trabalham em issues diferentes usando worktrees isoladas:
+**NUNCA implementar código diretamente no workspace principal.** Cada agent trabalha numa cópia isolada do repo dentro de `.solvers/`:
 
 ```
-OpenRig/                              ← develop (workspace principal)
-OpenRig-worktrees/
-  issue-{N}-nome/                     ← branch da issue
+OpenRig/                              ← workspace principal (NÃO editar código aqui)
+  .solvers/
+    issue-{N}/                        ← cópia isolada do repo para o agent
 ```
 
 Regras:
-- **Um agent por worktree** — nunca compartilhar
+- **Um agent por cópia** — nunca compartilhar `.solvers/issue-{N}/`
 - **Uma branch por issue** — nunca misturar issues
 - **Sempre a partir de develop** — criar branch do develop atualizado
-- **PR quando terminar** — push + PR para develop + remover worktree
-- **Documentacao vai direto na main** — CONTRIBUTING.md, CLAUDE.md, AGENTS.md, README.md
+- **PR quando terminar** — push + PR para develop
+- **Documentacao vai direto na main** — CONTRIBUTING.md, CLAUDE.md, AGENTS.md, README.md, docs/
+- **Leitura/exploração no workspace principal é OK** — só não editar código
 
-Criar worktree:
+Criar workspace isolado:
 ```bash
+cp -r . .solvers/issue-{N}
+cd .solvers/issue-{N}
 git checkout develop && git pull origin develop
 git checkout -b feature/issue-{N}-descricao
-git worktree add ../OpenRig-worktrees/issue-{N}-descricao feature/issue-{N}-descricao
 ```
 
 ### Regras de codigo
@@ -100,12 +102,13 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 | **Wah** | Pedal wah-wah | Cry Classic (native) |
 | **Utility** | Ferramentas | Chromatic Tuner (native) |
 | **Body** | Ressonância de corpo acústico | 114 modelos IR (Taylor, Martin, Gibson, Takamine, Guild, etc.) |
+| **Pitch** | Correção de pitch (autotune) | Chromatic Autotune, Scale Autotune (native) |
 | **Full Rig** | Amp completo all-in-one | Roland JC-120B Jazz Chorus (NAM) |
 | **Input** | Entrada de áudio (device + channels) | standard |
 | **Output** | Saída de áudio (device + channels) | standard |
 | **Insert** | Loop de efeito externo (send/return) | external_loop |
 
-**Total: 170+ modelos em 17 tipos de bloco.**
+**Total: 176+ modelos em 18 tipos de bloco.**
 
 ### Parâmetros comuns
 
@@ -120,6 +123,8 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 - **Volume**: volume (0-100%), mute (on/off)
 - **Tuner**: reference_hz (400-480Hz, default 440)
 - **Vibrato**: rate_hz (0.1-8.0Hz), depth (0-100%) — 100% wet, no dry signal
+- **Autotune Chromatic**: speed (0-100ms), mix (0-100%), detune (±50 cents), sensitivity (0-100%)
+- **Autotune Scale**: speed, mix, detune, sensitivity + key (C-B), scale (Major, Minor, Pentatonic Maj/Min, Harmonic Minor, Melodic Minor, Blues, Dorian)
 
 ### Backends de áudio
 
