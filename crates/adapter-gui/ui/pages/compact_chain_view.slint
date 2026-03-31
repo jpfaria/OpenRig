@@ -515,7 +515,7 @@ component CompactBlockRow inherits Rectangle {
             Text {
                 x: 0; y: 14px; width: parent.width; height: parent.height - 32px;
                 text: entry.text;
-                color: entry.value > 0.5 && entry.key == "in_tune" ? #29df85 : root.block-data.panel-text;
+                color: entry.value > 0.5 ? #29df85 : root.block-data.panel-text;
                 font-size: entry.text.character-count <= 3 ? 28px : 14px;
                 font-weight: 900;
                 horizontal-alignment: center;

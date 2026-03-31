@@ -246,18 +246,12 @@ impl ChainRuntimeState {
         // Run detection outside any lock (takes ~1ms, fine for UI thread)
         let reading = detect_pitch(&samples, self.sample_rate);
 
-        // Store for next poll if no detection
+        // Update cached reading (clear on silence so UI doesn't show stale data)
         if let Ok(mut tr) = self.tuner_reading.try_lock() {
-            if reading.frequency.is_some() {
-                *tr = reading.clone();
-            }
+            *tr = reading.clone();
         }
 
-        if reading.frequency.is_some() { Some(reading) } else {
-            self.tuner_reading.try_lock().ok().and_then(|r| {
-                if r.frequency.is_some() { Some(r.clone()) } else { None }
-            })
-        }
+        if reading.frequency.is_some() { Some(reading) } else { None }
     }
 }
 
