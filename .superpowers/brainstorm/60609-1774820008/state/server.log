@@ -1,0 +1,5 @@
+{"type":"server-started","port":64669,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:64669","screen_dir":"/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/.superpowers/brainstorm/60609-1774820008/content","state_dir":"/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/.superpowers/brainstorm/60609-1774820008/state"}
+{"type":"screen-added","file":"/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/.superpowers/brainstorm/60609-1774820008/content/readme-structure.html"}
+{"type":"screen-added","file":"/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/.superpowers/brainstorm/60609-1774820008/content/docs-structure.html"}
+{"type":"screen-added","file":"/Users/joao.faria/Projetos/github.com/jpfaria/OpenRig/.superpowers/brainstorm/60609-1774820008/content/waiting.html"}
+{"type":"server-stopped","reason":"idle timeout"}

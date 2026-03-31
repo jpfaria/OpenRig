@@ -1,0 +1,72 @@
+<h2>docs/ — Estrutura dos Spokes</h2>
+<p class="subtitle">Documentos detalhados organizados por público. Clique para aprovar.</p>
+
+<h3>📖 User Guide (para músicos e usuários finais)</h3>
+<div class="options" data-multiselect>
+  <div class="option" data-choice="installation" onclick="toggleSelect(this)">
+    <div class="letter">1</div>
+    <div class="content">
+      <h3>docs/user-guide/installation.md</h3>
+      <p><strong>Requisitos de sistema</strong> por plataforma. <strong>Download de binários</strong> (tabela com links por OS/arch). <strong>Build from source</strong> detalhado: instalar Rust, dependências do sistema (cmake, pkg-config, ALSA headers no Linux, etc.), clone, cargo build. Seção de troubleshooting com erros comuns.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="quickstart" onclick="toggleSelect(this)">
+    <div class="letter">2</div>
+    <div class="content">
+      <h3>docs/user-guide/quick-start.md</h3>
+      <p><strong>Conceitos</strong>: project, chain, block, model, parameter. <strong>Passo a passo</strong>: criar projeto → configurar áudio (input/output device) → adicionar blocos na chain → ajustar parâmetros → salvar. <strong>Instrumentos</strong>: como o instrumento da chain filtra blocos disponíveis.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="blocks-ref" onclick="toggleSelect(this)">
+    <div class="letter">3</div>
+    <div class="content">
+      <h3>docs/user-guide/blocks-reference.md</h3>
+      <p>Referência completa dos 14 tipos de bloco e 170 modelos. Para cada tipo: descrição, tabela de modelos (nome, brand, backend), parâmetros com ranges. Organizado por categoria: amps, effects, utility.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="presets" onclick="toggleSelect(this)">
+    <div class="letter">4</div>
+    <div class="content">
+      <h3>docs/user-guide/presets.md</h3>
+      <p>Como criar, salvar e carregar presets. Formato do YAML. Exemplos de chains populares (clean, crunch, high gain, acoustic).</p>
+    </div>
+  </div>
+</div>
+
+<h3 style="margin-top: 2rem;">🔧 Development (para contribuidores e devs)</h3>
+<div class="options" data-multiselect>
+  <div class="option" data-choice="architecture" onclick="toggleSelect(this)">
+    <div class="letter">5</div>
+    <div class="content">
+      <h3>docs/development/architecture.md</h3>
+      <p><strong>Visão geral</strong>: clean architecture (domain → application → engine → adapters). <strong>38 crates</strong> em 5 grupos com diagrama de dependências. <strong>Fluxo de áudio</strong>: como o sinal passa do input até o output. <strong>Padrões</strong>: registry pattern, adapter pattern, asset pipeline.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="building" onclick="toggleSelect(this)">
+    <div class="letter">6</div>
+    <div class="content">
+      <h3>docs/development/building.md</h3>
+      <p><strong>Ambiente de dev</strong>: Rust toolchain, dependências por plataforma. <strong>Build completo</strong>: NAM engine (C++/CMake), prebuilt libs, Docker cross-compilation. <strong>CI/CD</strong>: como o GitHub Actions funciona. <strong>Targets</strong>: GUI, console, server, VST3.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="creating-blocks" onclick="toggleSelect(this)">
+    <div class="letter">7</div>
+    <div class="content">
+      <h3>docs/development/creating-blocks.md</h3>
+      <p>Guia para criar novos blocos/modelos. <strong>Build.rs auto-registry</strong>: como funciona a descoberta automática. <strong>Template</strong>: struct MODEL_DEFINITION, schema, validate, build. <strong>Assets</strong>: controls.svg, component.yaml, naming conventions.</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="backends" onclick="toggleSelect(this)">
+    <div class="letter">8</div>
+    <div class="content">
+      <h3>docs/development/audio-backends.md</h3>
+      <p>Os 4 backends: <strong>Native</strong> (DSP em Rust), <strong>NAM</strong> (Neural Amp Modeler), <strong>IR</strong> (Impulse Response/convolução), <strong>LV2</strong> (plugins externos). Como cada um funciona, trade-offs (CPU, latência, realismo), como adicionar novos captures/IRs.</p>
+    </div>
+  </div>
+</div>
