@@ -2,17 +2,26 @@ use crate::host::Lv2Plugin;
 use block_core::MonoProcessor;
 use std::ffi::c_void;
 
+/// Maximum block size for LV2 processing.
+const MAX_BLOCK_SIZE: usize = 4096;
+
 /// Audio processor wrapping a loaded LV2 plugin instance.
 ///
-/// Ports are connected once at construction; `process_sample` simply writes
-/// the input, calls `run(1)` and reads the output.
+/// Uses block-based processing: `run(N)` is called with the full buffer
+/// size, which is required for plugins that use FFT or other windowed
+/// analysis (e.g., pitch correction, spectral effects).
 pub struct Lv2Processor {
     plugin: Lv2Plugin,
-    // Scratch buffers — kept alive so the pointers stay valid.
-    in_buf: Box<[f32; 1]>,
-    out_buf: Box<[f32; 1]>,
-    // Control port values — kept alive and connected.
+    /// Audio input buffer — connected to the plugin's audio input port.
+    in_buf: Box<[f32; MAX_BLOCK_SIZE]>,
+    /// Audio output buffer — connected to the plugin's audio output port.
+    out_buf: Box<[f32; MAX_BLOCK_SIZE]>,
+    /// Control port values — kept alive and connected.
     control_values: Vec<f32>,
+    /// Audio input port indices (stored for potential future reconnection).
+    _audio_in_ports: Vec<usize>,
+    /// Audio output port indices (stored for potential future reconnection).
+    _audio_out_ports: Vec<usize>,
 }
 
 impl Lv2Processor {
@@ -31,8 +40,8 @@ impl Lv2Processor {
         audio_out_ports: &[usize],
         control_ports: &[(usize, f32)],
     ) -> Self {
-        let mut in_buf = Box::new([0.0f32; 1]);
-        let mut out_buf = Box::new([0.0f32; 1]);
+        let mut in_buf = Box::new([0.0f32; MAX_BLOCK_SIZE]);
+        let mut out_buf = Box::new([0.0f32; MAX_BLOCK_SIZE]);
         let mut control_values: Vec<f32> = control_ports.iter().map(|(_, v)| *v).collect();
 
         // Connect audio input ports
@@ -70,6 +79,8 @@ impl Lv2Processor {
             in_buf,
             out_buf,
             control_values,
+            _audio_in_ports: audio_in_ports.to_vec(),
+            _audio_out_ports: audio_out_ports.to_vec(),
         }
     }
 
@@ -90,11 +101,15 @@ impl MonoProcessor for Lv2Processor {
     }
 
     fn process_block(&mut self, buffer: &mut [f32]) {
-        // Sample-by-sample for v1; block optimization can come later.
-        for sample in buffer.iter_mut() {
-            self.in_buf[0] = *sample;
-            self.plugin.run(1);
-            *sample = self.out_buf[0];
-        }
+        let len = buffer.len().min(MAX_BLOCK_SIZE);
+
+        // Copy input into the connected buffer
+        self.in_buf[..len].copy_from_slice(&buffer[..len]);
+
+        // Run the plugin on the full block at once
+        self.plugin.run(len as u32);
+
+        // Copy output back
+        buffer[..len].copy_from_slice(&self.out_buf[..len]);
     }
 }
