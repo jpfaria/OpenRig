@@ -1489,16 +1489,8 @@ pub fn process_input_f32(
         };
         for &route_idx in &route_indices {
             if let Some(route) = output.output_routes.get_mut(route_idx) {
-                let existing_len = route.buffer.queue.len();
-                for (i, &frame) in processed.iter().enumerate() {
-                    if i < existing_len {
-                        // Sum with existing frame from another input
-                        let existing = &mut route.buffer.queue[i];
-                        *existing = mix_frames(*existing, frame);
-                    } else {
-                        // No existing frame yet — push via elastic buffer
-                        route.buffer.push(frame);
-                    }
+                for &frame in &processed {
+                    route.buffer.push(frame);
                 }
             }
         }
@@ -1658,6 +1650,7 @@ fn silent_frame(layout: AudioChannelLayout) -> AudioFrame {
 }
 
 /// Sum two audio frames together (for mixing multiple input streams).
+#[allow(dead_code)]
 fn mix_frames(a: AudioFrame, b: AudioFrame) -> AudioFrame {
     match (a, b) {
         (AudioFrame::Mono(l), AudioFrame::Mono(r)) => AudioFrame::Mono(l + r),
