@@ -197,7 +197,7 @@ component PanelKnob inherits Rectangle {
                 ? Math.round(root.value) + ""
                 : Math.round(root.value * 10) / 10 + "");
         color: ta.pressed ? #ffffff : ta.has-hover ? #ddeeff : #ccdde8;
-        font-size: 14px;
+        font-size: root.knob-size < 44px ? 10px : 14px;
         font-weight: 700;
         horizontal-alignment: center;
         vertical-alignment: center;
@@ -879,11 +879,11 @@ export component BlockPanelEditor inherits Rectangle {
         for param[pi] in root.block-parameter-items : Rectangle {
             visible: param.widget_kind != "enum" && param.widget_kind != "" && root.block-knob-overlays.length == 0;
             property <int> param-count: root.block-parameter-items.length;
-            property <length> available-w: parent.width - 56px;
-            property <length> slot-w: param-count > 0 ? Math.min(90px, available-w / param-count) : 90px;
-            x: 28px + pi * slot-w;
+            property <length> available-w: parent.width - 16px;
+            property <length> slot-w: param-count > 0 ? Math.min(82px, available-w / param-count) : 82px;
+            x: 8px + pi * slot-w;
             y: parent.height * 0.54;
-            width: slot-w - 4px;
+            width: slot-w - 2px;
             height: 60px;
 
             // Label
