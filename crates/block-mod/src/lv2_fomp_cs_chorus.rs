@@ -73,7 +73,7 @@ pub fn model_schema() -> ModelParameterSchema {
                 Some(0.125),
                 0.01,
                 30.0,
-                0.01,
+                0.001,
                 ParameterUnit::Hertz,
             ),
             float_parameter(
