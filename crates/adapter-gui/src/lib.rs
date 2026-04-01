@@ -7679,52 +7679,45 @@ fn create_chain_draft(
     }
 }
 fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
-    let input_blocks = chain.input_blocks();
-    let inputs: Vec<InputGroupDraft> = if input_blocks.is_empty() {
-        vec![InputGroupDraft {
+    // Only show the first InputBlock (fixed, position 0) in the chain editor
+    let first_input = chain.input_blocks().into_iter().next();
+    let inputs: Vec<InputGroupDraft> = match first_input {
+        Some((_, input)) => input
+            .entries
+            .iter()
+            .map(|entry| InputGroupDraft {
+                name: if entry.name.is_empty() { "Input".to_string() } else { entry.name.clone() },
+                device_id: if entry.device_id.0.is_empty() { None } else { Some(entry.device_id.0.clone()) },
+                channels: entry.channels.clone(),
+                mode: entry.mode,
+            })
+            .collect(),
+        None => vec![InputGroupDraft {
             name: "Input 1".to_string(),
             device_id: None,
             channels: Vec::new(),
             mode: ChainInputMode::Mono,
-        }]
-    } else {
-        // Expand ALL entries from ALL InputBlocks into separate drafts
-        input_blocks
-            .iter()
-            .flat_map(|(_, input)| {
-                input.entries.iter().map(move |entry| {
-                    InputGroupDraft {
-                        name: if entry.name.is_empty() { "Input".to_string() } else { entry.name.clone() },
-                        device_id: if entry.device_id.0.is_empty() { None } else { Some(entry.device_id.0.clone()) },
-                        channels: entry.channels.clone(),
-                        mode: entry.mode,
-                    }
-                })
-            })
-            .collect()
+        }],
     };
-    let output_blocks = chain.output_blocks();
-    let outputs: Vec<OutputGroupDraft> = if output_blocks.is_empty() {
-        vec![OutputGroupDraft {
+    // Only show the last OutputBlock (fixed, last position) in the chain editor
+    let last_output = chain.output_blocks().into_iter().last();
+    let outputs: Vec<OutputGroupDraft> = match last_output {
+        Some((_, output)) => output
+            .entries
+            .iter()
+            .map(|entry| OutputGroupDraft {
+                name: if entry.name.is_empty() { "Output".to_string() } else { entry.name.clone() },
+                device_id: if entry.device_id.0.is_empty() { None } else { Some(entry.device_id.0.clone()) },
+                channels: entry.channels.clone(),
+                mode: entry.mode,
+            })
+            .collect(),
+        None => vec![OutputGroupDraft {
             name: "Output 1".to_string(),
             device_id: None,
             channels: Vec::new(),
             mode: ChainOutputMode::Stereo,
-        }]
-    } else {
-        output_blocks
-            .iter()
-            .flat_map(|(_, output)| {
-                output.entries.iter().map(move |entry| {
-                    OutputGroupDraft {
-                        name: if entry.name.is_empty() { "Output".to_string() } else { entry.name.clone() },
-                        device_id: if entry.device_id.0.is_empty() { None } else { Some(entry.device_id.0.clone()) },
-                        channels: entry.channels.clone(),
-                        mode: entry.mode,
-                    }
-                })
-            })
-            .collect()
+        }],
     };
     ChainDraft {
         editing_index: Some(index),
