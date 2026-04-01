@@ -23,7 +23,7 @@ const PLUGIN_BINARY: &str = "Shiroverb_dsp.dll";
 // LV2 port indices (from TTL) — mono in, stereo out
 const PORT_AUDIO_IN: usize = 0;
 const PORT_AUDIO_OUT_L: usize = 1;
-// PORT 2 = Audio Out R (unused in DualMono mode)
+const PORT_AUDIO_OUT_R: usize = 2;
 const PORT_SHIMMER: usize = 3;
 const PORT_DECAY: usize = 4;
 const PORT_DAMPING: usize = 5;
@@ -113,7 +113,7 @@ fn build_mono_processor(
     let lib_path = resolve_lib_path()?;
     let bundle_path = resolve_bundle_path()?;
 
-    lv2::build_lv2_processor(
+    lv2::build_lv2_processor_with_extras(
         &lib_path,
         PLUGIN_URI,
         sample_rate as f64,
@@ -130,6 +130,7 @@ fn build_mono_processor(
             (PORT_BANDWIDTH, bandwidth),
             (PORT_TONE, tone),
         ],
+        &[PORT_AUDIO_OUT_R],
     )
 }
 

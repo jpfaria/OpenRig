@@ -29,7 +29,7 @@ const PORT_BLEND: usize = 4;
 const PORT_TUNE: usize = 5;
 const PORT_AUDIO_IN: usize = 6;
 const PORT_AUDIO_OUT_L: usize = 7;
-// PORT 8 = Audio Out R (unused in DualMono mode)
+const PORT_AUDIO_OUT_R: usize = 8;
 
 pub fn model_schema() -> ModelParameterSchema {
     ModelParameterSchema {
@@ -84,10 +84,11 @@ impl StereoProcessor for DualMonoScape {
 fn build_mono_processor(sample_rate: f32, bpm: f32, feedback: f32, dry: f32, blend: f32) -> Result<lv2::Lv2Processor> {
     let lib_path = resolve_lib_path()?;
     let bundle_path = resolve_bundle_path()?;
-    lv2::build_lv2_processor(
+    lv2::build_lv2_processor_with_extras(
         &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
         &[PORT_AUDIO_IN], &[PORT_AUDIO_OUT_L],
         &[(PORT_BPM, bpm), (PORT_DIVIDER, 2.0), (PORT_FEEDBACK, feedback), (PORT_DRY, dry), (PORT_BLEND, blend), (PORT_TUNE, 440.0)],
+        &[PORT_AUDIO_OUT_R],
     )
 }
 
