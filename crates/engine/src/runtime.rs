@@ -1506,12 +1506,13 @@ pub fn process_input_f32(
                     continue;
                 }
             };
-            // Lock each route individually — no contention with output threads
+            // Lock each route individually — brief wait is acceptable since
+            // output pop is fast (VecDeque pop). Dropping frames with try_lock
+            // causes audible clicks on the affected output.
             for route_arc in &route_arcs {
-                if let Ok(mut route) = route_arc.try_lock() {
-                    for &frame in &processed {
-                        route.buffer.push(frame);
-                    }
+                let mut route = route_arc.lock().expect("route poisoned");
+                for &frame in &processed {
+                    route.buffer.push(frame);
                 }
             }
         }
