@@ -46,6 +46,7 @@ pub struct LV2UridMap {
 
 const LV2_URID_MAP_URI: &str = "http://lv2plug.in/ns/ext/urid#map";
 const LV2_BUF_SIZE_BOUNDED_URI: &str = "http://lv2plug.in/ns/ext/buf-size#boundedBlockLength";
+const LV2_OPTIONS_URI: &str = "http://lv2plug.in/ns/ext/options#options";
 
 struct UridMap {
     uris: Vec<String>,
@@ -109,6 +110,7 @@ pub struct Lv2Plugin {
     // Keep CStrings alive for the lifetime of the plugin
     _urid_map_uri_cstr: CString,
     _buf_size_uri_cstr: CString,
+    _options_uri_cstr: CString,
     _bundle_path_cstr: CString,
 }
 
@@ -169,6 +171,7 @@ impl Lv2Plugin {
 
         let urid_map_uri_cstr = CString::new(LV2_URID_MAP_URI).unwrap();
         let buf_size_uri_cstr = CString::new(LV2_BUF_SIZE_BOUNDED_URI).unwrap();
+        let options_uri_cstr = CString::new(LV2_OPTIONS_URI).unwrap();
 
         // 5. Build features array
         let features = vec![
@@ -178,6 +181,10 @@ impl Lv2Plugin {
             },
             LV2Feature {
                 uri: buf_size_uri_cstr.as_ptr(),
+                data: ptr::null_mut(),
+            },
+            LV2Feature {
+                uri: options_uri_cstr.as_ptr(),
                 data: ptr::null_mut(),
             },
         ];
@@ -224,6 +231,7 @@ impl Lv2Plugin {
             _feature_ptrs: feature_ptrs,
             _urid_map_uri_cstr: urid_map_uri_cstr,
             _buf_size_uri_cstr: buf_size_uri_cstr,
+            _options_uri_cstr: options_uri_cstr,
             _bundle_path_cstr: bundle_path_cstr,
         })
     }
