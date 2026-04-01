@@ -41,12 +41,12 @@ pub fn model_schema() -> ModelParameterSchema {
         display_name: DISPLAY_NAME.into(),
         audio_mode: ModelAudioMode::DualMono,
         parameters: vec![
-            float_parameter("dry", "Dry", None, Some(0.0), -96.0, 26.4, 0.5, ParameterUnit::Decibels),
-            float_parameter("wet", "Wet", None, Some(-24.1), -96.0, 26.4, 0.5, ParameterUnit::Decibels),
+            float_parameter("dry", "Dry", None, Some(0.0), -96.0, 26.0, 0.5, ParameterUnit::Decibels),
+            float_parameter("wet", "Wet", None, Some(-24.0), -96.0, 26.0, 0.5, ParameterUnit::Decibels),
             float_parameter("room_size", "Room Size", None, Some(75.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
             float_parameter("pre_delay", "Pre Delay", None, Some(37.0), 0.0, 1000.0, 1.0, ParameterUnit::Milliseconds),
-            float_parameter("low_shelf_freq", "Low Freq", None, Some(257.0), 100.0, 10000.0, 10.0, ParameterUnit::Hertz),
-            float_parameter("high_shelf_freq", "High Freq", None, Some(3039.0), 100.0, 10000.0, 10.0, ParameterUnit::Hertz),
+            float_parameter("low_shelf_freq", "Low Freq", None, Some(260.0), 100.0, 10000.0, 10.0, ParameterUnit::Hertz),
+            float_parameter("high_shelf_freq", "High Freq", None, Some(3040.0), 100.0, 10000.0, 10.0, ParameterUnit::Hertz),
             float_parameter("stereo_width", "Stereo Width", None, Some(100.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
         ],
     }
