@@ -48,6 +48,18 @@ const LV2_URID_MAP_URI: &str = "http://lv2plug.in/ns/ext/urid#map";
 const LV2_BUF_SIZE_BOUNDED_URI: &str = "http://lv2plug.in/ns/ext/buf-size#boundedBlockLength";
 const LV2_OPTIONS_URI: &str = "http://lv2plug.in/ns/ext/options#options";
 
+/// LV2 Options Option struct (from lv2/options/options.h).
+/// A null-terminated array of these is passed as the options feature data.
+#[repr(C)]
+struct LV2OptionsOption {
+    context: u32,
+    subject: u32,
+    key: u32,
+    size: u32,
+    type_: u32,
+    value: *const c_void,
+}
+
 struct UridMap {
     uris: Vec<String>,
 }
@@ -111,6 +123,7 @@ pub struct Lv2Plugin {
     _urid_map_uri_cstr: CString,
     _buf_size_uri_cstr: CString,
     _options_uri_cstr: CString,
+    _options_array: Box<[LV2OptionsOption]>,
     _bundle_path_cstr: CString,
 }
 
@@ -173,6 +186,16 @@ impl Lv2Plugin {
         let buf_size_uri_cstr = CString::new(LV2_BUF_SIZE_BOUNDED_URI).unwrap();
         let options_uri_cstr = CString::new(LV2_OPTIONS_URI).unwrap();
 
+        // Empty options array (null-terminated sentinel)
+        let options_array: Box<[LV2OptionsOption]> = Box::new([LV2OptionsOption {
+            context: 0,
+            subject: 0,
+            key: 0,
+            size: 0,
+            type_: 0,
+            value: ptr::null(),
+        }]);
+
         // 5. Build features array
         let features = vec![
             LV2Feature {
@@ -185,7 +208,7 @@ impl Lv2Plugin {
             },
             LV2Feature {
                 uri: options_uri_cstr.as_ptr(),
-                data: ptr::null_mut(),
+                data: options_array.as_ptr() as *mut c_void,
             },
         ];
 
@@ -194,9 +217,14 @@ impl Lv2Plugin {
             features.iter().map(|f| f as *const LV2Feature).collect();
         feature_ptrs.push(ptr::null());
 
-        // 6. Instantiate
+        // 6. Instantiate — LV2 spec requires bundle_path to end with '/'
+        let bundle_with_slash = if bundle_path.ends_with('/') {
+            bundle_path.to_string()
+        } else {
+            format!("{}/", bundle_path)
+        };
         let bundle_path_cstr =
-            CString::new(bundle_path).context("invalid bundle_path for C string")?;
+            CString::new(bundle_with_slash).context("invalid bundle_path for C string")?;
 
         let instantiate = unsafe { (*descriptor).instantiate }
             .context("LV2 descriptor has no instantiate function")?;
@@ -232,6 +260,7 @@ impl Lv2Plugin {
             _urid_map_uri_cstr: urid_map_uri_cstr,
             _buf_size_uri_cstr: buf_size_uri_cstr,
             _options_uri_cstr: options_uri_cstr,
+            _options_array: options_array,
             _bundle_path_cstr: bundle_path_cstr,
         })
     }
