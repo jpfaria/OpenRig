@@ -39,7 +39,7 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: block_core::EFFECT_TYPE_REVERB.into(),
         model: MODEL_ID.into(),
         display_name: DISPLAY_NAME.into(),
-        audio_mode: ModelAudioMode::TrueStereo,
+        audio_mode: ModelAudioMode::DualMono,
         parameters: vec![
             float_parameter("dry", "Dry", None, Some(0.0), -96.0, 26.4, 0.5, ParameterUnit::Decibels),
             float_parameter("wet", "Wet", None, Some(-24.1), -96.0, 26.4, 0.5, ParameterUnit::Decibels),

@@ -35,7 +35,7 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: block_core::EFFECT_TYPE_REVERB.into(),
         model: MODEL_ID.into(),
         display_name: DISPLAY_NAME.into(),
-        audio_mode: ModelAudioMode::TrueStereo,
+        audio_mode: ModelAudioMode::DualMono,
         parameters: vec![
             float_parameter("bandwidth", "Bandwidth", None, Some(100.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
             float_parameter("tail", "Tail", None, Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
@@ -81,9 +81,10 @@ fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) ->
 
     match layout {
         AudioChannelLayout::Mono => {
-            let processor = lv2::build_lv2_processor(
+            let processor = lv2::build_lv2_processor_with_extras(
                 &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
                 &[PORT_AUDIO_IN_L], &[PORT_AUDIO_OUT_L], control_ports,
+                &[PORT_AUDIO_IN_R, PORT_AUDIO_OUT_R],
             )?;
             Ok(BlockProcessor::Mono(Box::new(processor)))
         }
