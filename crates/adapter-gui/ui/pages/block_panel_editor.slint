@@ -703,12 +703,9 @@ export component BlockPanelEditor inherits Rectangle {
         for param[pi] in root.block-parameter-items : Rectangle {
             visible: param.widget_kind == "enum" && param.option_labels.length <= 4;
             property <length> seg-width: Math.max(120px, param.option_labels.length * 72px);
-            property <length> available: parent.width - 60px - 28px;
-            property <int> enum-count: root.block-parameter-items.length;
-            property <length> slot-width: enum-count > 0 ? available / enum-count : 290px;
-            x: 60px + pi * slot-width;
-            y: parent.height * 0.54;
-            width: Math.min(self.seg-width, slot-width - 8px);
+            x: (parent.width - seg-width) / 2;
+            y: parent.height * 0.32;
+            width: seg-width;
             height: 60px;
 
             Text {
@@ -759,12 +756,9 @@ export component BlockPanelEditor inherits Rectangle {
         // ── Enum parameters with 5+ options (dropdown select) ──
         for param[pi] in root.block-parameter-items : Rectangle {
             visible: param.widget_kind == "enum" && param.option_labels.length > 4;
-            property <length> available: parent.width - 60px - 28px;
-            property <int> enum-count: root.block-parameter-items.length;
-            property <length> slot-width: enum-count > 0 ? available / enum-count : 290px;
-            x: 60px + pi * slot-width;
-            y: parent.height * 0.54;
-            width: Math.min(260px, slot-width - 8px);
+            x: (parent.width - 260px) / 2;
+            y: parent.height * 0.32;
+            width: 260px;
             height: 60px;
 
             Text {
@@ -880,8 +874,8 @@ export component BlockPanelEditor inherits Rectangle {
             visible: param.widget_kind != "enum" && param.widget_kind != "" && root.block-knob-overlays.length == 0;
             property <int> param-count: root.block-parameter-items.length;
             property <length> available-w: parent.width - 16px;
-            property <length> slot-w: param-count > 0 ? Math.min(82px, available-w / param-count) : 82px;
-            x: 8px + pi * slot-w;
+            property <length> slot-w: param-count > 0 ? Math.min(72px, available-w / param-count) : 72px;
+            x: parent.width - 8px - (param-count - pi) * slot-w;
             y: parent.height * 0.54;
             width: slot-w - 2px;
             height: 60px;

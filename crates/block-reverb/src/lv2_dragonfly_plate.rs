@@ -8,7 +8,7 @@ use block_core::param::{
 use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode};
 
 pub const MODEL_ID: &str = "lv2_dragonfly_plate";
-pub const DISPLAY_NAME: &str = "Dragonfly Plate";
+pub const DISPLAY_NAME: &str = "Dragonfly Plate Reverb";
 const BRAND: &str = "dragonfly";
 
 const PLUGIN_URI: &str = "urn:dragonfly:plate";

@@ -7,7 +7,7 @@ use block_core::param::{
 use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode};
 
 pub const MODEL_ID: &str = "lv2_dragonfly_room";
-pub const DISPLAY_NAME: &str = "Dragonfly Room";
+pub const DISPLAY_NAME: &str = "Dragonfly Room Reverb";
 const BRAND: &str = "dragonfly";
 
 const PLUGIN_URI: &str = "urn:dragonfly:room";
