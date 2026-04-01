@@ -364,7 +364,7 @@ export component BlockEditorWindow inherits Window {
     // Dynamic width: each knob=56px, gap=8px, margins=80px (power btn + right padding)
     property <int> param-count: root.block-parameter-items.length;
     property <length> needed-width: param-count > 0 ? param-count * 64px + 80px : 520px;
-    property <length> panel-width: root.use-panel-editor ? Math.max(520px, needed-width) : 520px;
+    property <length> panel-width: root.use-panel-editor ? Math.max(900px, needed-width) : 520px;
 
     title: root.block-window-title;
     min-width: panel-width;
