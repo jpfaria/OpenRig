@@ -703,10 +703,10 @@ export component BlockPanelEditor inherits Rectangle {
         for param[pi] in root.block-parameter-items : Rectangle {
             visible: param.widget_kind == "enum" && param.option_labels.length <= 4;
             property <int> param-count: root.block-parameter-items.length;
-            property <length> available-w: parent.width - 16px;
-            property <length> slot-w: param-count > 0 ? Math.min(72px, available-w / param-count) : 72px;
-            property <length> seg-width: Math.max(slot-w - 2px, param.option_labels.length * 56px);
-            x: parent.width - 8px - (param-count - pi) * slot-w;
+            property <length> knob-w: 56px;
+            property <length> gap: 8px;
+            property <length> seg-width: Math.max(knob-w, param.option_labels.length * 56px);
+            x: parent.width - 8px - (param-count - pi) * (knob-w + gap);
             y: parent.height * 0.54;
             width: seg-width;
             height: 60px;
@@ -760,11 +760,11 @@ export component BlockPanelEditor inherits Rectangle {
         for param[pi] in root.block-parameter-items : Rectangle {
             visible: param.widget_kind == "enum" && param.option_labels.length > 4;
             property <int> param-count: root.block-parameter-items.length;
-            property <length> available-w: parent.width - 16px;
-            property <length> slot-w: param-count > 0 ? Math.min(72px, available-w / param-count) : 72px;
-            x: parent.width - 8px - (param-count - pi) * slot-w;
+            property <length> knob-w: 56px;
+            property <length> gap: 8px;
+            x: parent.width - 8px - (param-count - pi) * (knob-w + gap);
             y: parent.height * 0.54;
-            width: Math.min(260px, slot-w * 2);
+            width: 200px;
             height: 60px;
 
             Text {
@@ -879,23 +879,23 @@ export component BlockPanelEditor inherits Rectangle {
         for param[pi] in root.block-parameter-items : Rectangle {
             visible: param.widget_kind != "enum" && param.widget_kind != "" && root.block-knob-overlays.length == 0;
             property <int> param-count: root.block-parameter-items.length;
-            property <length> available-w: parent.width - 16px;
-            property <length> slot-w: param-count > 0 ? Math.min(72px, available-w / param-count) : 72px;
-            x: parent.width - 8px - (param-count - pi) * slot-w;
+            property <length> knob-w: 56px;
+            property <length> gap: 8px;
+            x: parent.width - 8px - (param-count - pi) * (knob-w + gap);
             y: parent.height * 0.54;
-            width: slot-w - 2px;
+            width: knob-w;
             height: 60px;
 
             // Label
             Text {
                 x: 0; y: 0;
                 width: parent.width;
-                height: 16px;
+                height: 14px;
                 text: param.label;
                 color: root.panel-text;
-                font-size: parent.width < 60px ? 7px : 9px;
+                font-size: 8px;
                 font-weight: 800;
-                letter-spacing: parent.width < 60px ? 0.5px : 1px;
+                letter-spacing: 0.5px;
                 horizontal-alignment: center;
                 overflow: elide;
             }
@@ -931,9 +931,9 @@ export component BlockPanelEditor inherits Rectangle {
 
             // Numeric stepper (widget_kind == "stepper" or "slider" or "knob")
             if param.widget_kind == "stepper" || param.widget_kind == "slider" || param.widget_kind == "knob" : PanelKnob {
-                property <length> knob-sz: Math.min(48px, parent.width - 4px);
+                property <length> knob-sz: 48px;
                 x: (parent.width - knob-sz) / 2;
-                y: 18px;
+                y: 16px;
                 width: knob-sz;
                 height: knob-sz;
                 value: param.numeric_value;
