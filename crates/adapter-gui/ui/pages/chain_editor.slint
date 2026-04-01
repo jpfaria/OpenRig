@@ -45,13 +45,12 @@ component FieldBox inherits Rectangle {
         x: 12px;
         width: parent.width - 24px;
         height: parent.height;
-        text: root.text;
+        text <=> root.text;
         color: #f3f6fb;
         single-line: true;
         vertical-alignment: center;
         font-size: 13px;
         edited => {
-            root.text = self.text;
             root.changed(self.text);
         }
     }

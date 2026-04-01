@@ -1858,7 +1858,6 @@ pub fn run_desktop_app(
             let Some(editor_window) = chain_editor_window.upgrade() else {
                 return;
             };
-            let _ = editor_window.hide();
             let borrow = project_session.borrow();
             let Some(session) = borrow.as_ref() else {
                 set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
@@ -1927,10 +1926,6 @@ pub fn run_desktop_app(
             let Some(editor_window) = chain_editor_window.upgrade() else {
                 return;
             };
-            // Always hide before re-populating to ensure Slint refreshes all
-            // properties. Without this, the window shows stale data from the
-            // previously edited chain.
-            let _ = editor_window.hide();
             let session_borrow = project_session.borrow();
             let Some(session) = session_borrow.as_ref() else {
                 set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
