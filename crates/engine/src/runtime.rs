@@ -327,7 +327,7 @@ struct OutputRoutingState {
 }
 
 struct ChainOutputState {
-    output_routes: Vec<OutputRoutingState>,
+    output_routes: Vec<Arc<Mutex<OutputRoutingState>>>,
 }
 
 enum RuntimeProcessor {
@@ -452,7 +452,7 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
 
     let mut output_routes = Vec::with_capacity(eff_outputs.len());
     for output in &eff_outputs {
-        output_routes.push(build_output_routing_state(output));
+        output_routes.push(Arc::new(Mutex::new(build_output_routing_state(output))));
     }
 
     Ok(ChainRuntimeState {
@@ -864,10 +864,10 @@ pub fn update_chain_runtime_state(
         new_input_states.push(input_state);
     }
 
-    // Build new output routes
-    let new_output_routes: Vec<OutputRoutingState> = effective_outs
+    // Build new output routes wrapped in per-route mutexes
+    let new_output_routes: Vec<Arc<Mutex<OutputRoutingState>>> = effective_outs
         .iter()
-        .map(|o| build_output_routing_state(o))
+        .map(|o| Arc::new(Mutex::new(build_output_routing_state(o))))
         .collect();
 
     // Step 3: Swap in new state (brief lock)
@@ -888,11 +888,13 @@ pub fn update_chain_runtime_state(
 
     {
         let mut output = runtime.output.lock().expect("chain runtime poisoned");
-        // Preserve existing queues where possible
+        // Preserve existing buffers where possible
         let old_routes = std::mem::replace(&mut output.output_routes, new_output_routes);
-        for (new_route, old_route) in output.output_routes.iter_mut().zip(old_routes.into_iter()) {
+        for (new_route_arc, old_route_arc) in output.output_routes.iter().zip(old_routes.into_iter()) {
             if !reset_output_queue {
-                new_route.buffer = old_route.buffer;
+                let mut old_route = old_route_arc.lock().expect("old route poisoned");
+                let mut new_route = new_route_arc.lock().expect("new route poisoned");
+                std::mem::swap(&mut new_route.buffer, &mut old_route.buffer);
             }
         }
     }
@@ -1494,12 +1496,21 @@ pub fn process_input_f32(
         };
         // Push to output (processing lock already released)
         if let Some((processed, route_indices)) = result {
-            if let Ok(mut output) = runtime.output.try_lock() {
-                for &route_idx in &route_indices {
-                    if let Some(route) = output.output_routes.get_mut(route_idx) {
-                        for &frame in &processed {
-                            route.buffer.push(frame);
-                        }
+            // Collect Arc refs with a brief lock on output state
+            let route_arcs: Vec<Arc<Mutex<OutputRoutingState>>> = {
+                if let Ok(output) = runtime.output.try_lock() {
+                    route_indices.iter()
+                        .filter_map(|&idx| output.output_routes.get(idx).map(Arc::clone))
+                        .collect()
+                } else {
+                    continue;
+                }
+            };
+            // Lock each route individually — no contention with output threads
+            for route_arc in &route_arcs {
+                if let Ok(mut route) = route_arc.try_lock() {
+                    for &frame in &processed {
+                        route.buffer.push(frame);
                     }
                 }
             }
@@ -1756,16 +1767,27 @@ pub fn process_output_f32(
     out: &mut [f32],
     output_total_channels: usize,
 ) {
-    let mut output_state = match runtime.output.try_lock() {
-        Ok(guard) => guard,
-        Err(_) => {
-            out.fill(0.0);
-            return;
+    // Get the Arc for this specific route (brief lock on output state)
+    let route_arc = {
+        let output_state = match runtime.output.try_lock() {
+            Ok(guard) => guard,
+            Err(_) => {
+                out.fill(0.0);
+                return;
+            }
+        };
+        match output_state.output_routes.get(output_index) {
+            Some(r) => Arc::clone(r),
+            None => {
+                out.fill(0.0);
+                return;
+            }
         }
     };
-    let route = match output_state.output_routes.get_mut(output_index) {
-        Some(r) => r,
-        None => {
+    // Lock only this route — other output threads lock their own routes without contention
+    let mut route = match route_arc.try_lock() {
+        Ok(guard) => guard,
+        Err(_) => {
             out.fill(0.0);
             return;
         }
@@ -2085,7 +2107,8 @@ mod tests {
         process_input_f32(&runtime, 0, &input, 1);
 
         let output = runtime.output.lock().expect("runtime poisoned");
-        assert!(output.output_routes[0].buffer.len() <= ELASTIC_BUFFER_TARGET_LEVEL * 2);
+        let route = output.output_routes[0].lock().expect("route poisoned");
+        assert!(route.buffer.len() <= ELASTIC_BUFFER_TARGET_LEVEL * 2);
     }
 
     #[test]
@@ -2101,7 +2124,8 @@ mod tests {
 
         assert_eq!(out, vec![0.25, 0.5, 0.75, 1.0]);
         let output = runtime.output.lock().expect("runtime poisoned");
-        assert!(output.output_routes[0].buffer.queue.is_empty());
+        let route = output.output_routes[0].lock().expect("route poisoned");
+        assert!(route.buffer.queue.is_empty());
     }
 
     #[test]
