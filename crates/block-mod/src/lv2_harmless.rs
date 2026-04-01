@@ -5,7 +5,7 @@ use anyhow::Result;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, StereoProcessor};
+use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode};
 
 pub const MODEL_ID: &str = "lv2_harmless";
 pub const DISPLAY_NAME: &str = "Harmless";
