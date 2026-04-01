@@ -7976,80 +7976,69 @@ fn normalized_chain_description(name: &str) -> Option<String> {
     }
 }
 fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain>) -> Chain {
-    // All draft inputs become entries of a SINGLE fixed InputBlock
-    let input_entries: Vec<InputEntry> = draft
-        .inputs
-        .iter()
-        .filter(|ig| ig.device_id.is_some() && !ig.channels.is_empty())
-        .map(|ig| InputEntry {
-            name: ig.name.clone(),
-            device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
-            mode: ig.mode,
-            channels: ig.channels.clone(),
-        })
-        .collect();
-    let input_blocks: Vec<AudioBlock> = if input_entries.is_empty() {
-        Vec::new()
+    if let Some(existing) = existing_chain {
+        // Edit mode: only update name and instrument, preserve all blocks as-is
+        Chain {
+            id: existing.id.clone(),
+            description: normalized_chain_description(&draft.name),
+            instrument: draft.instrument.clone(),
+            enabled: existing.enabled,
+            blocks: existing.blocks.clone(),
+        }
     } else {
-        vec![AudioBlock {
-            id: BlockId("input:0".into()),
-            enabled: true,
-            kind: AudioBlockKind::Input(InputBlock {
-                model: "standard".to_string(),
-                entries: input_entries,
-            }),
-        }]
-    };
+        // Create mode: build initial I/O blocks from draft
+        let input_entries: Vec<InputEntry> = draft
+            .inputs
+            .iter()
+            .filter(|ig| ig.device_id.is_some() && !ig.channels.is_empty())
+            .map(|ig| InputEntry {
+                name: ig.name.clone(),
+                device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
+                mode: ig.mode,
+                channels: ig.channels.clone(),
+            })
+            .collect();
+        let output_entries: Vec<OutputEntry> = draft
+            .outputs
+            .iter()
+            .filter(|og| og.device_id.is_some() && !og.channels.is_empty())
+            .map(|og| OutputEntry {
+                name: og.name.clone(),
+                device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
+                mode: og.mode,
+                channels: og.channels.clone(),
+            })
+            .collect();
 
-    // All draft outputs become entries of a SINGLE fixed OutputBlock
-    let output_entries: Vec<OutputEntry> = draft
-        .outputs
-        .iter()
-        .filter(|og| og.device_id.is_some() && !og.channels.is_empty())
-        .map(|og| OutputEntry {
-            name: og.name.clone(),
-            device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
-            mode: og.mode,
-            channels: og.channels.clone(),
-        })
-        .collect();
-    let output_blocks: Vec<AudioBlock> = if output_entries.is_empty() {
-        Vec::new()
-    } else {
-        vec![AudioBlock {
-            id: BlockId("output:0".into()),
-            enabled: true,
-            kind: AudioBlockKind::Output(OutputBlock {
-                model: "standard".to_string(),
-                entries: output_entries,
-            }),
-        }]
-    };
+        let mut blocks = Vec::new();
+        if !input_entries.is_empty() {
+            blocks.push(AudioBlock {
+                id: BlockId("input:0".into()),
+                enabled: true,
+                kind: AudioBlockKind::Input(InputBlock {
+                    model: "standard".to_string(),
+                    entries: input_entries,
+                }),
+            });
+        }
+        if !output_entries.is_empty() {
+            blocks.push(AudioBlock {
+                id: BlockId("output:0".into()),
+                enabled: true,
+                kind: AudioBlockKind::Output(OutputBlock {
+                    model: "standard".to_string(),
+                    entries: output_entries,
+                }),
+            });
+        }
 
-    // Get existing non-I/O blocks
-    let audio_blocks: Vec<AudioBlock> = existing_chain
-        .map(|c| {
-            c.blocks
-                .iter()
-                .filter(|b| !matches!(&b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
-                .cloned()
-                .collect()
-        })
-        .unwrap_or_default();
-
-    let mut all_blocks = Vec::with_capacity(input_blocks.len() + audio_blocks.len() + output_blocks.len());
-    all_blocks.extend(input_blocks);
-    all_blocks.extend(audio_blocks);
-    all_blocks.extend(output_blocks);
-
-    Chain {
-        id: existing_chain
-            .map(|c| c.id.clone())
-            .unwrap_or_else(ChainId::generate),
-        description: normalized_chain_description(&draft.name),
-        instrument: draft.instrument.clone(),
-        enabled: existing_chain.map(|c| c.enabled).unwrap_or(false),
-        blocks: all_blocks,
+        Chain {
+            id: ChainId::generate(),
+            description: normalized_chain_description(&draft.name),
+            instrument: draft.instrument.clone(),
+            enabled: false,
+            blocks,
+        }
     }
 }
 fn stop_project_runtime(project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>) {
