@@ -878,9 +878,12 @@ export component BlockPanelEditor inherits Rectangle {
         // ── Non-enum parameters (only when no knob overlays — avoids duplicates) ──
         for param[pi] in root.block-parameter-items : Rectangle {
             visible: param.widget_kind != "enum" && param.widget_kind != "" && root.block-knob-overlays.length == 0;
-            x: parent.width - 28px - (root.block-parameter-items.length - pi) * 90px;
+            property <int> param-count: root.block-parameter-items.length;
+            property <length> available-w: parent.width - 56px;
+            property <length> slot-w: param-count > 0 ? Math.min(90px, available-w / param-count) : 90px;
+            x: 28px + pi * slot-w;
             y: parent.height * 0.54;
-            width: 82px;
+            width: slot-w - 4px;
             height: 60px;
 
             // Label
@@ -890,10 +893,11 @@ export component BlockPanelEditor inherits Rectangle {
                 height: 16px;
                 text: param.label;
                 color: root.panel-text;
-                font-size: 9px;
+                font-size: parent.width < 60px ? 7px : 9px;
                 font-weight: 800;
-                letter-spacing: 1px;
+                letter-spacing: parent.width < 60px ? 0.5px : 1px;
                 horizontal-alignment: center;
+                overflow: elide;
             }
 
             // File picker (widget_kind == "path")
@@ -927,10 +931,11 @@ export component BlockPanelEditor inherits Rectangle {
 
             // Numeric stepper (widget_kind == "stepper" or "slider" or "knob")
             if param.widget_kind == "stepper" || param.widget_kind == "slider" || param.widget_kind == "knob" : PanelKnob {
-                x: (parent.width - 48px) / 2;
+                property <length> knob-sz: Math.min(48px, parent.width - 4px);
+                x: (parent.width - knob-sz) / 2;
                 y: 18px;
-                width: 48px;
-                height: 48px;
+                width: knob-sz;
+                height: knob-sz;
                 value: param.numeric_value;
                 min-val: param.numeric_min;
                 max-val: param.numeric_max;
