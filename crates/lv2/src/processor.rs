@@ -20,6 +20,8 @@ pub struct Lv2Processor {
     in_buf: Box<[f32; MAX_BLOCK_SIZE]>,
     /// Audio output buffer — connected to the plugin's audio output port.
     out_buf: Box<[f32; MAX_BLOCK_SIZE]>,
+    /// Dummy output buffer for extra output ports that must be connected but aren't read.
+    _dummy_out_buf: Box<[f32; MAX_BLOCK_SIZE]>,
     /// Control port values — kept alive and connected.
     control_values: Vec<f32>,
     /// Dummy atom buffer for MIDI/atom sidechain ports.
@@ -56,8 +58,25 @@ impl Lv2Processor {
         control_ports: &[(usize, f32)],
         atom_ports: &[usize],
     ) -> Self {
+        Self::with_extra_ports(plugin, audio_in_ports, audio_out_ports, control_ports, atom_ports, &[])
+    }
+
+    /// Create a processor with atom ports and extra (dummy) output ports.
+    ///
+    /// `extra_out_ports` are connected to a scratch buffer so plugins with
+    /// more outputs than we read (e.g., mono-in/stereo-out used as mono)
+    /// don't write to unconnected memory.
+    pub fn with_extra_ports(
+        plugin: Lv2Plugin,
+        audio_in_ports: &[usize],
+        audio_out_ports: &[usize],
+        control_ports: &[(usize, f32)],
+        atom_ports: &[usize],
+        extra_out_ports: &[usize],
+    ) -> Self {
         let mut in_buf = Box::new([0.0f32; MAX_BLOCK_SIZE]);
         let mut out_buf = Box::new([0.0f32; MAX_BLOCK_SIZE]);
+        let mut dummy_out_buf = Box::new([0.0f32; MAX_BLOCK_SIZE]);
         let mut control_values: Vec<f32> = control_ports.iter().map(|(_, v)| *v).collect();
 
         // Create an empty LV2_Atom_Sequence buffer.
@@ -102,6 +121,16 @@ impl Lv2Processor {
             }
         }
 
+        // Connect extra output ports to dummy buffer (prevents writes to unconnected memory)
+        for &port_idx in extra_out_ports {
+            unsafe {
+                plugin.connect_port(
+                    port_idx as u32,
+                    dummy_out_buf.as_mut_ptr() as *mut c_void,
+                );
+            }
+        }
+
         // Connect control ports
         for (i, (port_idx, _)) in control_ports.iter().enumerate() {
             unsafe {
@@ -116,6 +145,7 @@ impl Lv2Processor {
             plugin,
             in_buf,
             out_buf,
+            _dummy_out_buf: dummy_out_buf,
             control_values,
             _atom_buf: atom_buf,
         }

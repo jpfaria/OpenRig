@@ -35,6 +35,31 @@ pub fn build_lv2_processor(
     ))
 }
 
+/// Build a mono LV2 processor with extra (dummy) output ports connected.
+///
+/// Use for plugins with more outputs than you read (e.g., mono-in/stereo-out
+/// used as mono). The extra ports are connected to a scratch buffer.
+pub fn build_lv2_processor_with_extras(
+    lib_path: &str,
+    uri: &str,
+    sample_rate: f64,
+    bundle_path: &str,
+    audio_in_ports: &[usize],
+    audio_out_ports: &[usize],
+    control_ports: &[(usize, f32)],
+    extra_out_ports: &[usize],
+) -> Result<Lv2Processor> {
+    let plugin = Lv2Plugin::load(lib_path, uri, sample_rate, bundle_path)?;
+    Ok(Lv2Processor::with_extra_ports(
+        plugin,
+        audio_in_ports,
+        audio_out_ports,
+        control_ports,
+        &[],
+        extra_out_ports,
+    ))
+}
+
 /// Build a mono LV2 processor with atom/MIDI sidechain ports connected.
 ///
 /// Use this for plugins that have MIDI atom input ports (like pitch correction

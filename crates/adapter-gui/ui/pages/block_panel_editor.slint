@@ -53,7 +53,7 @@ component ModelSelector inherits Rectangle {
     }
 
     popup := PopupWindow {
-        property <length> list-height: Math.min(root.labels.length * 36px + 8px, 320px);
+        property <length> list-height: Math.min(root.labels.length * 28px + 8px, 220px);
         x: 0;
         y: root.height + 4px;
         width: root.width;
@@ -76,13 +76,13 @@ component ModelSelector inherits Rectangle {
                 x: 0; y: 0;
                 width: parent.width;
                 height: parent.height;
-                viewport-height: root.labels.length * 36px + 8px;
+                viewport-height: root.labels.length * 28px + 8px;
 
             for label[i] in root.labels : Rectangle {
                 x: 4px;
-                y: 4px + i * 36px;
+                y: 4px + i * 28px;
                 width: parent.width - 8px;
-                height: 36px;
+                height: 28px;
                 border-radius: 5px;
                 background: i == root.current-index ? #14142a : transparent;
 
@@ -92,7 +92,7 @@ component ModelSelector inherits Rectangle {
                     height: parent.height;
                     text: label;
                     color: i == root.current-index ? #7788ff : #b0bce0;
-                    font-size: 13px;
+                    font-size: 11px;
                     font-weight: i == root.current-index ? 700 : 400;
                     vertical-alignment: center;
                     overflow: elide;
@@ -197,7 +197,7 @@ component PanelKnob inherits Rectangle {
                 ? Math.round(root.value) + ""
                 : Math.round(root.value * 10) / 10 + "");
         color: ta.pressed ? #ffffff : ta.has-hover ? #ddeeff : #ccdde8;
-        font-size: 14px;
+        font-size: root.knob-size < 36px ? 8px : root.knob-size < 44px ? 10px : 11px;
         font-weight: 700;
         horizontal-alignment: center;
         vertical-alignment: center;
@@ -699,16 +699,13 @@ export component BlockPanelEditor inherits Rectangle {
             changed(p, v) => { root.update-block-parameter-number(p, v); }
         }
 
-        // ── Enum parameters (segmented for ≤4 options) ──
+        // ── Enum parameters (segmented for ≤4 options) — separate row above knobs ──
         for param[pi] in root.block-parameter-items : Rectangle {
             visible: param.widget_kind == "enum" && param.option_labels.length <= 4;
             property <length> seg-width: Math.max(120px, param.option_labels.length * 72px);
-            property <length> available: parent.width - 60px - 28px;
-            property <int> enum-count: root.block-parameter-items.length;
-            property <length> slot-width: enum-count > 0 ? available / enum-count : 290px;
-            x: 60px + pi * slot-width;
-            y: parent.height * 0.54;
-            width: Math.min(self.seg-width, slot-width - 8px);
+            x: parent.width - 8px - seg-width;
+            y: parent.height * 0.38;
+            width: seg-width;
             height: 60px;
 
             Text {
@@ -756,15 +753,12 @@ export component BlockPanelEditor inherits Rectangle {
             }
         }
 
-        // ── Enum parameters with 5+ options (dropdown select) ──
+        // ── Enum parameters with 5+ options (dropdown select) — separate row above knobs ──
         for param[pi] in root.block-parameter-items : Rectangle {
             visible: param.widget_kind == "enum" && param.option_labels.length > 4;
-            property <length> available: parent.width - 60px - 28px;
-            property <int> enum-count: root.block-parameter-items.length;
-            property <length> slot-width: enum-count > 0 ? available / enum-count : 290px;
-            x: 60px + pi * slot-width;
-            y: parent.height * 0.54;
-            width: Math.min(260px, slot-width - 8px);
+            x: parent.width - 8px - 220px;
+            y: parent.height * 0.38;
+            width: 220px;
             height: 60px;
 
             Text {
@@ -878,22 +872,26 @@ export component BlockPanelEditor inherits Rectangle {
         // ── Non-enum parameters (only when no knob overlays — avoids duplicates) ──
         for param[pi] in root.block-parameter-items : Rectangle {
             visible: param.widget_kind != "enum" && param.widget_kind != "" && root.block-knob-overlays.length == 0;
-            x: parent.width - 28px - (root.block-parameter-items.length - pi) * 90px;
+            property <int> param-count: root.block-parameter-items.length;
+            property <length> knob-w: 56px;
+            property <length> gap: 8px;
+            x: parent.width - 8px - (param-count - pi) * (knob-w + gap);
             y: parent.height * 0.54;
-            width: 82px;
+            width: knob-w;
             height: 60px;
 
             // Label
             Text {
                 x: 0; y: 0;
                 width: parent.width;
-                height: 16px;
+                height: 14px;
                 text: param.label;
                 color: root.panel-text;
-                font-size: 9px;
+                font-size: 8px;
                 font-weight: 800;
-                letter-spacing: 1px;
+                letter-spacing: 0.5px;
                 horizontal-alignment: center;
+                overflow: elide;
             }
 
             // File picker (widget_kind == "path")
@@ -927,10 +925,11 @@ export component BlockPanelEditor inherits Rectangle {
 
             // Numeric stepper (widget_kind == "stepper" or "slider" or "knob")
             if param.widget_kind == "stepper" || param.widget_kind == "slider" || param.widget_kind == "knob" : PanelKnob {
-                x: (parent.width - 48px) / 2;
-                y: 18px;
-                width: 48px;
-                height: 48px;
+                property <length> knob-sz: 48px;
+                x: (parent.width - knob-sz) / 2;
+                y: 16px;
+                width: knob-sz;
+                height: knob-sz;
                 value: param.numeric_value;
                 min-val: param.numeric_min;
                 max-val: param.numeric_max;
