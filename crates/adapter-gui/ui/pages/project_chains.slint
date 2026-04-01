@@ -1055,22 +1055,15 @@ component ChainRow inherits Rectangle {
         background: #00000030;
     }
 
-    // Main card with wood texture
+    // Main card - Carbon Studio gradient
     Rectangle {
         x: 0px; y: 0px;
         width: parent.width;
         height: parent.height;
         border-radius: 6px;
-        clip: true;
-
-        Image {
-            x: 0px;
-            y: 0px;
-            width: parent.width;
-            height: parent.height;
-            source: @image-url("../../../../assets/backgrounds/pedalboard_wood.jpg");
-            image-fit: cover;
-        }
+        background: @linear-gradient(180deg, #1c2333 0%, #111720 100%);
+        border-color: #1e2d42;
+        border-width: 1px;
     }
 
     Rectangle {
@@ -1789,24 +1782,7 @@ export component ProjectChainsPage inherits Rectangle {
         y: 0px;
         width: parent.width;
         height: parent.height;
-        background: #1b1d22;
-
-        Image {
-            x: 0px;
-            y: 0px;
-            width: parent.width;
-            height: parent.height;
-            source: @image-url("../../../../assets/backgrounds/pedalboard_wood.jpg");
-            image-fit: cover;
-        }
-
-        Rectangle {
-            x: 0px;
-            y: 0px;
-            width: parent.width;
-            height: parent.height;
-            background: #000000aa;
-        }
+        background: @linear-gradient(135deg, #0d1a2e 0%, #08090d 65%);
 
         TouchArea {
             x: 0px;
