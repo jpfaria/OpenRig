@@ -27,7 +27,7 @@ const PORT_DAMPING: usize = 2;
 const PORT_BLEND: usize = 3;
 const PORT_AUDIO_IN: usize = 4;
 const PORT_AUDIO_OUT_L: usize = 5;
-const PORT_AUDIO_OUT_R: usize = 6;
+// PORT 6 = Audio Out R (unused in DualMono mode)
 
 pub fn model_schema() -> ModelParameterSchema {
     ModelParameterSchema {
