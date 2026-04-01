@@ -29,14 +29,16 @@ const PORT_CONTOUR: usize = 4;
 const PORT_DRY_LEVEL: usize = 5;
 const PORT_WET_LEVEL: usize = 6;
 const PORT_AUDIO_IN_L: usize = 7;
+const PORT_AUDIO_IN_R: usize = 8;
 const PORT_AUDIO_OUT_L: usize = 9;
+const PORT_AUDIO_OUT_R: usize = 10;
 
 pub fn model_schema() -> ModelParameterSchema {
     ModelParameterSchema {
         effect_type: block_core::EFFECT_TYPE_MODULATION.into(),
         model: MODEL_ID.into(),
         display_name: DISPLAY_NAME.into(),
-        audio_mode: ModelAudioMode::DualMono,
+        audio_mode: ModelAudioMode::MonoToStereo,
         parameters: vec![
             float_parameter(
                 "frequency",
@@ -158,42 +160,10 @@ fn resolve_bundle_path() -> Result<String> {
     anyhow::bail!("LV2 bundle '{}' not found in plugins/", PLUGIN_DIR)
 }
 
-fn build_mono_processor(
-    sample_rate: f32,
-    frequency: f32,
-    lr_phase_shift: f32,
-    depth: f32,
-    delay: f32,
-    contour: f32,
-    dry_level: f32,
-    wet_level: f32,
-) -> Result<lv2::Lv2Processor> {
-    let lib_path = resolve_lib_path()?;
-    let bundle_path = resolve_bundle_path()?;
-
-    lv2::build_lv2_processor(
-        &lib_path,
-        PLUGIN_URI,
-        sample_rate as f64,
-        &bundle_path,
-        &[PORT_AUDIO_IN_L],
-        &[PORT_AUDIO_OUT_L],
-        &[
-            (PORT_FREQUENCY, frequency),
-            (PORT_LR_PHASE_SHIFT, lr_phase_shift),
-            (PORT_DEPTH, depth),
-            (PORT_DELAY, delay),
-            (PORT_CONTOUR, contour),
-            (PORT_DRY_LEVEL, dry_level),
-            (PORT_WET_LEVEL, wet_level),
-        ],
-    )
-}
-
 fn build(
     params: &ParameterSet,
     sample_rate: f32,
-    layout: AudioChannelLayout,
+    _layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
     let frequency = required_f32(params, "frequency").map_err(anyhow::Error::msg)?;
     let lr_phase_shift = required_f32(params, "lr_phase_shift").map_err(anyhow::Error::msg)?;
@@ -203,18 +173,26 @@ fn build(
     let dry_level = required_f32(params, "dry_level").map_err(anyhow::Error::msg)?;
     let wet_level = required_f32(params, "wet_level").map_err(anyhow::Error::msg)?;
 
-    let _ = layout; // DualMono: engine always calls builder with Mono
-    let processor = build_mono_processor(
-        sample_rate,
-        frequency,
-        lr_phase_shift,
-        depth,
-        delay,
-        contour,
-        dry_level,
-        wet_level,
+    let lib_path = resolve_lib_path()?;
+    let bundle_path = resolve_bundle_path()?;
+    let processor = lv2::build_stereo_lv2_processor(
+        &lib_path,
+        PLUGIN_URI,
+        sample_rate as f64,
+        &bundle_path,
+        &[PORT_AUDIO_IN_L, PORT_AUDIO_IN_R],
+        &[PORT_AUDIO_OUT_L, PORT_AUDIO_OUT_R],
+        &[
+            (PORT_FREQUENCY, frequency),
+            (PORT_LR_PHASE_SHIFT, lr_phase_shift),
+            (PORT_DEPTH, depth),
+            (PORT_DELAY, delay),
+            (PORT_CONTOUR, contour),
+            (PORT_DRY_LEVEL, dry_level),
+            (PORT_WET_LEVEL, wet_level),
+        ],
     )?;
-    Ok(BlockProcessor::Mono(Box::new(processor)))
+    Ok(BlockProcessor::Stereo(Box::new(processor)))
 }
 
 fn schema() -> Result<ModelParameterSchema> {

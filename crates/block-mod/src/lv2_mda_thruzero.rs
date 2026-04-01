@@ -27,14 +27,16 @@ const PORT_MIX: usize = 2;
 const PORT_FEEDBACK: usize = 3;
 const PORT_DEPTH_MOD: usize = 4;
 const PORT_LEFT_IN: usize = 5;
+const PORT_RIGHT_IN: usize = 6;
 const PORT_LEFT_OUT: usize = 7;
+const PORT_RIGHT_OUT: usize = 8;
 
 pub fn model_schema() -> ModelParameterSchema {
     ModelParameterSchema {
         effect_type: block_core::EFFECT_TYPE_MODULATION.into(),
         model: MODEL_ID.into(),
         display_name: DISPLAY_NAME.into(),
-        audio_mode: ModelAudioMode::DualMono,
+        audio_mode: ModelAudioMode::MonoToStereo,
         parameters: vec![
             float_parameter(
                 "rate",
@@ -136,17 +138,17 @@ fn build(
     let mix = required_f32(params, "mix").map_err(anyhow::Error::msg)?;
     let feedback = required_f32(params, "feedback").map_err(anyhow::Error::msg)?;
 
-    let _ = layout; // DualMono: engine always calls builder with Mono
+    let _ = layout;
     let lib_path = resolve_lib_path()?;
     let bundle_path = resolve_bundle_path()?;
 
-    let processor = lv2::build_lv2_processor(
+    let processor = lv2::build_stereo_lv2_processor(
         &lib_path,
         PLUGIN_URI,
         sample_rate as f64,
         &bundle_path,
-        &[PORT_LEFT_IN],
-        &[PORT_LEFT_OUT],
+        &[PORT_LEFT_IN, PORT_RIGHT_IN],
+        &[PORT_LEFT_OUT, PORT_RIGHT_OUT],
         &[
             (PORT_RATE, rate),
             (PORT_DEPTH, depth),
@@ -155,7 +157,7 @@ fn build(
             (PORT_DEPTH_MOD, 1.0),
         ],
     )?;
-    Ok(BlockProcessor::Mono(Box::new(processor)))
+    Ok(BlockProcessor::Stereo(Box::new(processor)))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
