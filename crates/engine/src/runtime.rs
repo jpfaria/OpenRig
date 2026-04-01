@@ -1770,13 +1770,7 @@ pub fn process_output_f32(
 ) {
     // Get the Arc for this specific route (brief lock on output state)
     let route_arc = {
-        let output_state = match runtime.output.try_lock() {
-            Ok(guard) => guard,
-            Err(_) => {
-                out.fill(0.0);
-                return;
-            }
-        };
+        let output_state = runtime.output.lock().expect("output state poisoned");
         match output_state.output_routes.get(output_index) {
             Some(r) => Arc::clone(r),
             None => {
@@ -1785,14 +1779,9 @@ pub fn process_output_f32(
             }
         }
     };
-    // Lock only this route — other output threads lock their own routes without contention
-    let mut route = match route_arc.try_lock() {
-        Ok(guard) => guard,
-        Err(_) => {
-            out.fill(0.0);
-            return;
-        }
-    };
+    // Lock this route — brief wait while input pushes is acceptable,
+    // filling with silence on try_lock failure causes audible clicks.
+    let mut route = route_arc.lock().expect("route poisoned");
     let num_frames = out.len() / output_total_channels;
     for frame in out.chunks_mut(output_total_channels).take(num_frames) {
         frame.fill(0.0);
