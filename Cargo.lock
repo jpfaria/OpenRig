@@ -857,6 +857,7 @@ dependencies = [
  "anyhow",
  "block-core",
  "domain",
+ "lv2",
 ]
 
 [[package]]

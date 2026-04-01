@@ -52,6 +52,7 @@ Regras:
 - **PR quando terminar** — push + PR para develop
 - **Documentacao vai direto na main** — CONTRIBUTING.md, CLAUDE.md, AGENTS.md, README.md, docs/
 - **Leitura/exploração no workspace principal é OK** — só não editar código
+- **Sempre enviar comando de checkout** — ao finalizar trabalho numa branch, incluir o comando `git checkout <branch> && git pull` na resposta para o usuário copiar e testar
 
 Criar workspace isolado:
 ```bash
