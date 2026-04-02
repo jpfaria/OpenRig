@@ -163,3 +163,57 @@ pub fn default_lv2_lib_dir() -> &'static str {
         "libs/lv2/windows-arm64"
     }
 }
+
+/// Resolve the full filesystem path to an LV2 shared library binary.
+///
+/// Searches relative to the executable (`../../<lv2_libs>/<binary>`) first,
+/// then falls back to treating `lv2_libs` as a standalone path.
+pub fn resolve_lv2_lib(binary_name: &str) -> Result<String> {
+    let paths = infra_filesystem::asset_paths();
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+    let candidates = [
+        exe_dir
+            .as_ref()
+            .map(|d| d.join("../../").join(&paths.lv2_libs).join(binary_name)),
+        Some(std::path::PathBuf::from(&paths.lv2_libs).join(binary_name)),
+    ];
+    for candidate in candidates.iter().flatten() {
+        if candidate.exists() {
+            return Ok(candidate.to_string_lossy().to_string());
+        }
+    }
+    anyhow::bail!(
+        "LV2 binary '{}' not found in '{}'",
+        binary_name,
+        paths.lv2_libs
+    )
+}
+
+/// Resolve the full filesystem path to an LV2 bundle directory.
+///
+/// Searches relative to the executable (`../../<lv2_plugins>/<bundle>`)
+/// first, then falls back to treating `lv2_plugins` as a standalone path.
+pub fn resolve_lv2_bundle(bundle_dir: &str) -> Result<String> {
+    let paths = infra_filesystem::asset_paths();
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+    let candidates = [
+        exe_dir
+            .as_ref()
+            .map(|d| d.join("../../").join(&paths.lv2_plugins).join(bundle_dir)),
+        Some(std::path::PathBuf::from(&paths.lv2_plugins).join(bundle_dir)),
+    ];
+    for candidate in candidates.iter().flatten() {
+        if candidate.exists() {
+            return Ok(candidate.to_string_lossy().to_string());
+        }
+    }
+    anyhow::bail!(
+        "LV2 bundle '{}' not found in '{}'",
+        bundle_dir,
+        paths.lv2_plugins
+    )
+}
