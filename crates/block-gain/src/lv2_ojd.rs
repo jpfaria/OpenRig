@@ -62,7 +62,7 @@ pub fn model_schema() -> ModelParameterSchema {
                 "volume",
                 "Volume",
                 None,
-                Some(83.5),
+                Some(84.0),
                 0.0,
                 100.0,
                 1.0,

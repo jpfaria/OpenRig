@@ -330,7 +330,7 @@ impl Lv2Plugin {
         });
 
         // Buffer size values that must outlive the options array
-        let buf_size_values: Box<[i32; 2]> = Box::new([4096i32, 1i32]); // [max, min]
+        let buf_size_values: Box<[i32; 2]> = Box::new([128i32, 1i32]); // [max, min]
 
         // Map URIs for options
         let max_block_urid = urid_map.map(LV2_BUF_SIZE_MAX_URI);

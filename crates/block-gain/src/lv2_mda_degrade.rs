@@ -11,7 +11,7 @@ pub const MODEL_ID: &str = "lv2_mda_degrade";
 pub const DISPLAY_NAME: &str = "MDA Degrade";
 const BRAND: &str = "mda";
 
-const PLUGIN_URI: &str = "http://moddevices.com/plugins/mda/Degrade";
+const PLUGIN_URI: &str = "http://drobilla.net/plugins/mda/Degrade";
 const PLUGIN_DIR: &str = "mod-mda-Degrade";
 
 #[cfg(target_os = "macos")]
