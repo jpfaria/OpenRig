@@ -11,6 +11,7 @@ pub enum DelayBackendKind {
     Native,
     Nam,
     Ir,
+    Lv2,
 }
 
 pub fn supported_models() -> &'static [&'static str] {
@@ -25,6 +26,7 @@ pub fn delay_model_visual(model_id: &str) -> Option<ModelVisualData> {
             DelayBackendKind::Native => "NATIVE",
             DelayBackendKind::Nam => "NAM",
             DelayBackendKind::Ir => "IR",
+            DelayBackendKind::Lv2 => "LV2",
         },
         supported_instruments: def.supported_instruments,
         knob_layout: def.knob_layout,
