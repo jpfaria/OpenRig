@@ -12,7 +12,7 @@ pub const DISPLAY_NAME: &str = "Harmless";
 const BRAND: &str = "shiro";
 
 const PLUGIN_URI: &str = "https://github.com/ninodewit/SHIRO-Plugins/plugins/harmless";
-const PLUGIN_DIR: &str = "Harmless.lv2";
+const PLUGIN_DIR: &str = "Harmless";
 const PLUGIN_BINARY: &str = "Harmless_dsp.dylib";
 
 // LV2 port indices (from Harmless_dsp.ttl)

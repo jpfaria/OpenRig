@@ -12,7 +12,7 @@ pub const DISPLAY_NAME: &str = "Larynx";
 const BRAND: &str = "shiro";
 
 const PLUGIN_URI: &str = "https://github.com/ninodewit/SHIRO-Plugins/plugins/larynx";
-const PLUGIN_DIR: &str = "Larynx.lv2";
+const PLUGIN_DIR: &str = "Larynx";
 const PLUGIN_BINARY: &str = "Larynx_dsp.dylib";
 
 // LV2 port indices (from Larynx_dsp.ttl)

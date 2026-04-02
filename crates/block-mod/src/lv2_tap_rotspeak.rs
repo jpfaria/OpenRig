@@ -12,7 +12,7 @@ pub const DISPLAY_NAME: &str = "TAP Rotary Speaker";
 const BRAND: &str = "tap";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/tap/rotspeak";
-const PLUGIN_DIR: &str = "tap-rotspeak.lv2";
+const PLUGIN_DIR: &str = "tap-rotspeak";
 const PLUGIN_BINARY: &str = "tap_rotspeak.so";
 
 // LV2 port indices (from tap_rotspeak.ttl)

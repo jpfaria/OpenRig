@@ -12,7 +12,7 @@ pub const DISPLAY_NAME: &str = "MDA RingMod";
 const BRAND: &str = "mda";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/mda/RingMod";
-const PLUGIN_DIR: &str = "mod-mda-RingMod.lv2";
+const PLUGIN_DIR: &str = "mod-mda-RingMod";
 const PLUGIN_BINARY: &str = "RingMod.so";
 
 // LV2 port indices (from RingMod.ttl)
