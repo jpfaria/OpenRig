@@ -42,7 +42,7 @@ pub fn model_schema() -> ModelParameterSchema {
                 "drive",
                 "Drive",
                 None,
-                Some(16.5),
+                Some(17.0),
                 0.0,
                 100.0,
                 1.0,

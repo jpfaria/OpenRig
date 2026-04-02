@@ -37,7 +37,7 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: block_core::EFFECT_TYPE_GAIN.into(),
         model: MODEL_ID.into(),
         display_name: DISPLAY_NAME.into(),
-        audio_mode: ModelAudioMode::TrueStereo,
+        audio_mode: ModelAudioMode::DualMono,
         parameters: vec![
             float_parameter(
                 "pregain",
@@ -139,7 +139,7 @@ fn build_mono_processor(
     let lib_path = resolve_lib_path()?;
     let bundle_path = resolve_bundle_path()?;
 
-    lv2::build_lv2_processor(
+    lv2::build_lv2_processor_with_extras(
         &lib_path,
         PLUGIN_URI,
         sample_rate as f64,
@@ -153,6 +153,7 @@ fn build_mono_processor(
             (PORT_REMOVEDC, 1.0),
             (PORT_OVERSAMPLE, 0.0),
         ],
+        &[PORT_AUDIO_IN_R, PORT_AUDIO_OUT_R],
     )
 }
 

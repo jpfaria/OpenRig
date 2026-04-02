@@ -5,6 +5,9 @@ use std::ffi::c_void;
 /// Stereo audio processor wrapping a loaded LV2 plugin with 2-in/2-out audio.
 ///
 /// Unlike `Lv2Processor` (mono), this connects separate L/R buffers.
+/// Size of the dummy atom buffer for MIDI/atom sidechain ports.
+const ATOM_BUF_SIZE: usize = 256;
+
 pub struct StereoLv2Processor {
     plugin: Lv2Plugin,
     in_buf_l: Box<[f32; 1]>,
@@ -12,6 +15,7 @@ pub struct StereoLv2Processor {
     out_buf_l: Box<[f32; 1]>,
     out_buf_r: Box<[f32; 1]>,
     control_values: Vec<f32>,
+    _atom_buf: Box<[u8; ATOM_BUF_SIZE]>,
 }
 
 impl StereoLv2Processor {
@@ -26,6 +30,16 @@ impl StereoLv2Processor {
         audio_out_ports: &[usize],
         control_ports: &[(usize, f32)],
     ) -> Self {
+        Self::with_atom_ports(plugin, audio_in_ports, audio_out_ports, control_ports, &[])
+    }
+
+    pub fn with_atom_ports(
+        plugin: Lv2Plugin,
+        audio_in_ports: &[usize],
+        audio_out_ports: &[usize],
+        control_ports: &[(usize, f32)],
+        atom_ports: &[usize],
+    ) -> Self {
         assert!(audio_in_ports.len() == 2, "stereo requires 2 audio inputs");
         assert!(audio_out_ports.len() == 2, "stereo requires 2 audio outputs");
 
@@ -34,6 +48,15 @@ impl StereoLv2Processor {
         let mut out_buf_l = Box::new([0.0f32; 1]);
         let mut out_buf_r = Box::new([0.0f32; 1]);
         let mut control_values: Vec<f32> = control_ports.iter().map(|(_, v)| *v).collect();
+
+        let mut atom_buf = Box::new([0u8; ATOM_BUF_SIZE]);
+        atom_buf[0] = 8; // atom.size = 8
+
+        for &port_idx in atom_ports {
+            unsafe {
+                plugin.connect_port(port_idx as u32, atom_buf.as_mut_ptr() as *mut c_void);
+            }
+        }
 
         unsafe {
             plugin.connect_port(audio_in_ports[0] as u32, in_buf_l.as_mut_ptr() as *mut c_void);
@@ -58,6 +81,7 @@ impl StereoLv2Processor {
             out_buf_l,
             out_buf_r,
             control_values,
+            _atom_buf: atom_buf,
         }
     }
 

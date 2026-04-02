@@ -46,6 +46,86 @@ pub struct LV2UridMap {
 
 const LV2_URID_MAP_URI: &str = "http://lv2plug.in/ns/ext/urid#map";
 const LV2_BUF_SIZE_BOUNDED_URI: &str = "http://lv2plug.in/ns/ext/buf-size#boundedBlockLength";
+const LV2_OPTIONS_URI: &str = "http://lv2plug.in/ns/ext/options#options";
+const LV2_BUF_SIZE_MAX_URI: &str = "http://lv2plug.in/ns/ext/buf-size#maxBlockLength";
+const LV2_BUF_SIZE_MIN_URI: &str = "http://lv2plug.in/ns/ext/buf-size#minBlockLength";
+const LV2_ATOM_INT_URI: &str = "http://lv2plug.in/ns/ext/atom#Int";
+
+const LV2_WORKER_SCHEDULE_URI: &str = "http://lv2plug.in/ns/ext/worker#schedule";
+
+/// LV2 Options context: instance-level option
+const LV2_OPTIONS_INSTANCE: u32 = 0;
+
+// ---------------------------------------------------------------------------
+// LV2 Worker implementation (synchronous — executes work inline)
+// ---------------------------------------------------------------------------
+
+const LV2_WORKER_INTERFACE_URI: &str = "http://lv2plug.in/ns/ext/worker#interface";
+
+/// LV2_Worker_Schedule — passed to plugin as a feature.
+#[repr(C)]
+struct LV2WorkerSchedule {
+    handle: *mut c_void,
+    schedule_work: Option<unsafe extern "C" fn(handle: *mut c_void, size: u32, data: *const c_void) -> i32>,
+}
+
+/// LV2_Worker_Interface — retrieved from plugin via extension_data.
+#[repr(C)]
+struct LV2WorkerInterface {
+    work: Option<unsafe extern "C" fn(
+        instance: LV2Handle,
+        respond: Option<unsafe extern "C" fn(handle: LV2Handle, size: u32, data: *const c_void) -> i32>,
+        respond_handle: LV2Handle,
+        size: u32,
+        data: *const c_void,
+    ) -> i32>,
+    work_response: Option<unsafe extern "C" fn(instance: LV2Handle, size: u32, body: *const c_void) -> i32>,
+    end_run: Option<unsafe extern "C" fn(instance: LV2Handle) -> i32>,
+}
+
+/// State shared between the schedule callback and the plugin instance.
+struct WorkerState {
+    handle: LV2Handle,
+    worker_interface: *const LV2WorkerInterface,
+}
+
+/// Called by the plugin during run() to schedule work.
+/// Executes synchronously: work() → respond() → work_response().
+unsafe extern "C" fn worker_schedule_callback(ws_handle: *mut c_void, size: u32, data: *const c_void) -> i32 {
+    if ws_handle.is_null() { return 0; }
+    let state = unsafe { &*(ws_handle as *const WorkerState) };
+    let iface = unsafe { &*state.worker_interface };
+
+    if let Some(work_fn) = iface.work {
+        // work() calls respond_fn which calls work_response() immediately
+        unsafe { work_fn(state.handle, Some(worker_respond_callback), ws_handle, size, data) };
+    }
+    0 // LV2_WORKER_SUCCESS
+}
+
+/// Called by work() to send response back — delivers it immediately via work_response().
+unsafe extern "C" fn worker_respond_callback(ws_handle: LV2Handle, size: u32, data: *const c_void) -> i32 {
+    if ws_handle.is_null() { return 0; }
+    let state = unsafe { &*(ws_handle as *const WorkerState) };
+    let iface = unsafe { &*state.worker_interface };
+
+    if let Some(work_response_fn) = iface.work_response {
+        unsafe { work_response_fn(state.handle, size, data) };
+    }
+    0
+}
+
+/// LV2 Options Option struct (from lv2/options/options.h).
+/// A null-terminated array of these is passed as the options feature data.
+#[repr(C)]
+struct LV2OptionsOption {
+    context: u32,
+    subject: u32,
+    key: u32,
+    size: u32,
+    type_: u32,
+    value: *const c_void,
+}
 
 struct UridMap {
     uris: Vec<String>,
@@ -109,6 +189,12 @@ pub struct Lv2Plugin {
     // Keep CStrings alive for the lifetime of the plugin
     _urid_map_uri_cstr: CString,
     _buf_size_uri_cstr: CString,
+    _options_uri_cstr: CString,
+    _worker_uri_cstr: CString,
+    _worker_schedule: Box<LV2WorkerSchedule>,
+    _worker_state: Option<Box<WorkerState>>,
+    _options_array: Box<[LV2OptionsOption]>,
+    _buf_size_values: Box<[i32; 2]>,
     _bundle_path_cstr: CString,
 }
 
@@ -169,6 +255,51 @@ impl Lv2Plugin {
 
         let urid_map_uri_cstr = CString::new(LV2_URID_MAP_URI).unwrap();
         let buf_size_uri_cstr = CString::new(LV2_BUF_SIZE_BOUNDED_URI).unwrap();
+        let options_uri_cstr = CString::new(LV2_OPTIONS_URI).unwrap();
+        let worker_uri_cstr = CString::new(LV2_WORKER_SCHEDULE_URI).unwrap();
+
+        // Worker schedule (no-op stub satisfying the feature requirement)
+        let mut worker_schedule = Box::new(LV2WorkerSchedule {
+            handle: ptr::null_mut(),
+            schedule_work: Some(worker_schedule_callback),
+        });
+
+        // Buffer size values that must outlive the options array
+        let buf_size_values: Box<[i32; 2]> = Box::new([4096i32, 1i32]); // [max, min]
+
+        // Map URIs for options
+        let max_block_urid = urid_map.map(LV2_BUF_SIZE_MAX_URI);
+        let min_block_urid = urid_map.map(LV2_BUF_SIZE_MIN_URI);
+        let atom_int_urid = urid_map.map(LV2_ATOM_INT_URI);
+
+        // Options array with buffer size info (null-terminated)
+        let options_array: Box<[LV2OptionsOption]> = Box::new([
+            LV2OptionsOption {
+                context: LV2_OPTIONS_INSTANCE,
+                subject: 0,
+                key: max_block_urid,
+                size: 4, // sizeof(int32_t)
+                type_: atom_int_urid,
+                value: buf_size_values.as_ptr() as *const c_void, // points to [0] = 4096
+            },
+            LV2OptionsOption {
+                context: LV2_OPTIONS_INSTANCE,
+                subject: 0,
+                key: min_block_urid,
+                size: 4,
+                type_: atom_int_urid,
+                value: unsafe { buf_size_values.as_ptr().add(1) as *const c_void }, // points to [1] = 1
+            },
+            // Null terminator
+            LV2OptionsOption {
+                context: 0,
+                subject: 0,
+                key: 0,
+                size: 0,
+                type_: 0,
+                value: ptr::null(),
+            },
+        ]);
 
         // 5. Build features array
         let features = vec![
@@ -180,6 +311,14 @@ impl Lv2Plugin {
                 uri: buf_size_uri_cstr.as_ptr(),
                 data: ptr::null_mut(),
             },
+            LV2Feature {
+                uri: options_uri_cstr.as_ptr(),
+                data: options_array.as_ptr() as *mut c_void,
+            },
+            LV2Feature {
+                uri: worker_uri_cstr.as_ptr(),
+                data: worker_schedule.as_mut() as *mut LV2WorkerSchedule as *mut c_void,
+            },
         ];
 
         // Null-terminated array of pointers
@@ -187,9 +326,14 @@ impl Lv2Plugin {
             features.iter().map(|f| f as *const LV2Feature).collect();
         feature_ptrs.push(ptr::null());
 
-        // 6. Instantiate
+        // 6. Instantiate — LV2 spec requires bundle_path to end with '/'
+        let bundle_with_slash = if bundle_path.ends_with('/') {
+            bundle_path.to_string()
+        } else {
+            format!("{}/", bundle_path)
+        };
         let bundle_path_cstr =
-            CString::new(bundle_path).context("invalid bundle_path for C string")?;
+            CString::new(bundle_with_slash).context("invalid bundle_path for C string")?;
 
         let instantiate = unsafe { (*descriptor).instantiate }
             .context("LV2 descriptor has no instantiate function")?;
@@ -207,7 +351,24 @@ impl Lv2Plugin {
             bail!("LV2 plugin instantiate returned null for URI '{uri}'");
         }
 
-        // 7. Activate
+        // 7. Set up worker if plugin supports it
+        let worker_iface_uri = CString::new(LV2_WORKER_INTERFACE_URI).unwrap();
+        let mut worker_state: Option<Box<WorkerState>> = None;
+        if let Some(ext_data) = unsafe { (*descriptor).extension_data } {
+            let iface_ptr = unsafe { ext_data(worker_iface_uri.as_ptr()) };
+            if !iface_ptr.is_null() {
+                let mut ws = Box::new(WorkerState {
+                    handle,
+                    worker_interface: iface_ptr as *const LV2WorkerInterface,
+                });
+                // Point the schedule handle to the worker state
+                worker_schedule.handle = ws.as_mut() as *mut WorkerState as *mut c_void;
+                worker_state = Some(ws);
+                log::debug!("LV2 worker interface found for '{uri}'");
+            }
+        }
+
+        // 8. Activate
         if let Some(activate) = unsafe { (*descriptor).activate } {
             unsafe { activate(handle) };
         }
@@ -224,6 +385,12 @@ impl Lv2Plugin {
             _feature_ptrs: feature_ptrs,
             _urid_map_uri_cstr: urid_map_uri_cstr,
             _buf_size_uri_cstr: buf_size_uri_cstr,
+            _options_uri_cstr: options_uri_cstr,
+            _worker_uri_cstr: worker_uri_cstr,
+            _worker_schedule: worker_schedule,
+            _worker_state: worker_state,
+            _options_array: options_array,
+            _buf_size_values: buf_size_values,
             _bundle_path_cstr: bundle_path_cstr,
         })
     }

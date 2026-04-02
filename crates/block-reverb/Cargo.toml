@@ -5,3 +5,5 @@ edition.workspace = true
 [dependencies]
 anyhow.workspace = true
 block-core = { path = "../block-core" }
+lv2 = { path = "../lv2" }
+log.workspace = true

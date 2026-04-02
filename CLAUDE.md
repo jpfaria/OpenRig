@@ -68,6 +68,7 @@ Regras:
 - **PR quando terminar** — push + PR para develop
 - **Documentacao vai direto na main** — usar `.solvers/doc/` na branch main
 - **Leitura/exploração no workspace principal é OK** — só não editar código
+- **Sempre enviar comando de checkout** — ao finalizar trabalho numa branch, incluir o comando `git checkout <branch> && git pull` na resposta para o usuário copiar e testar
 
 Criar workspace isolado:
 ```bash
@@ -94,6 +95,22 @@ git checkout main && git pull origin main
 - **Separacao de concerns** — crates de business logic nao tem config visual/UI
 
 Ver `CONTRIBUTING.md` para detalhes completos.
+
+### Regras de git
+
+- **NUNCA rebase** — sempre usar `git merge`, nunca `git rebase` ou `git pull --rebase`
+- **NUNCA fechar issues** — so fechar quando o usuario pedir explicitamente
+- **NUNCA editar workspace principal** — todo codigo vai em `.solvers/issue-{N}/`, a pasta principal e so leitura
+
+### Premissa de distribuicao (OBRIGATORIO)
+
+OpenRig e um produto para distribuir em **macOS, Windows e Linux**. Toda decisao deve considerar isso:
+
+- **NUNCA hardcodar paths** — nenhum path absoluto ou relativo hardcoded no codigo
+- **NUNCA assumir ambiente de dev** — o codigo roda na maquina do usuario final, nao na do desenvolvedor
+- **Paths de assets via config central** — LV2 libs, LV2 bundles, NAM captures, IR captures, tudo vem de config
+- **Paths por plataforma** — macOS (`~/Library/Application Support/OpenRig/`), Windows (`%APPDATA%\OpenRig\`), Linux (`~/.local/share/openrig/`)
+- **Teste mental obrigatorio** — antes de qualquer decisao, pergunte: "isso funciona se o usuario instalar no Windows?" Se nao, nao faca
 
 ---
 
