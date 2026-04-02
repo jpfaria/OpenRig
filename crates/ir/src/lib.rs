@@ -1,6 +1,7 @@
 use anyhow::{bail, Context, Result};
 use realfft::{num_complex::Complex32, ComplexToReal, RealFftPlanner, RealToComplex};
 use block_core::{AudioChannelLayout, MonoProcessor, StereoProcessor};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -447,6 +448,38 @@ impl StereoProcessor for StereoIrProcessor {
             *frame = [left_sample, right_sample];
         }
     }
+}
+
+/// Resolve an IR capture path relative to the configured `ir_captures` root.
+///
+/// `relative_path` is the portion after `captures/ir/`, e.g.
+/// `"cabs/marshall_4x12_v30/ev_mix_b.wav"`.  Searches relative to the
+/// executable first, then falls back to the config path directly.
+///
+/// Currently all curated IR captures are embedded via `asset_runtime`, so
+/// this function is provided for future use when IR captures may be loaded
+/// from the filesystem (user-supplied IRs, distribution packages, etc.).
+pub fn resolve_ir_capture(relative_path: &str) -> Result<String> {
+    let paths = infra_filesystem::asset_paths();
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+    let candidates = [
+        exe_dir
+            .as_ref()
+            .map(|d| d.join("../../").join(&paths.ir_captures).join(relative_path)),
+        Some(PathBuf::from(&paths.ir_captures).join(relative_path)),
+    ];
+    for candidate in candidates.iter().flatten() {
+        if candidate.exists() {
+            return Ok(candidate.to_string_lossy().to_string());
+        }
+    }
+    bail!(
+        "IR capture '{}' not found in '{}'",
+        relative_path,
+        paths.ir_captures
+    )
 }
 
 #[cfg(test)]

@@ -1,0 +1,21 @@
+@prefix lv2:   <http://lv2plug.in/ns/lv2core#> .
+@prefix pset:  <http://lv2plug.in/ns/ext/presets#> .
+@prefix state: <http://lv2plug.in/ns/ext/state#> .
+
+<default-preset>
+	a pset:Preset ;
+	lv2:appliesTo <http://guitarix.sourceforge.net/plugins/gx_cabinet#CABINET> ;
+	lv2:port [
+		lv2:symbol "CBass" ;
+		pset:value 0.0
+	] , [
+		lv2:symbol "CLevel" ;
+		pset:value 1.0
+	] , [
+		lv2:symbol "CTreble" ;
+		pset:value 0.0
+	] , [
+		lv2:symbol "c_model" ;
+		pset:value 0.0
+	] .
+

@@ -20,6 +20,7 @@ fn main() -> Result<()> {
     let project_path = parse_project_path();
     let config_path = parse_config_path();
     let _config = load_app_config(&config_path)?;
+    infra_filesystem::init_asset_paths(infra_filesystem::AssetPaths::default());
     let project_repo = YamlProjectRepository { path: project_path };
     let project = project_repo.load_current_project()?;
     validate_project(&project)?;

@@ -1,0 +1,116 @@
+@prefix atom: <http://lv2plug.in/ns/ext/atom#> .
+@prefix doap: <http://usefulinc.com/ns/doap#> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix lv2:  <http://lv2plug.in/ns/lv2core#> .
+@prefix mod:  <http://moddevices.com/ns/mod#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+<https://github.com/JanosGit/Schrammel_OJD>
+    a lv2:Plugin , lv2:DistortionPlugin ;
+    lv2:requiredFeature <http://lv2plug.in/ns/ext/buf-size#boundedBlockLength> ,
+                        <http://lv2plug.in/ns/ext/urid#map> ;
+    lv2:extensionData <http://lv2plug.in/ns/ext/options#interface> ,
+                      <http://kxstudio.sf.net/ns/lv2ext/programs#Interface> ;
+
+    lv2:microVersion 9 ;
+    lv2:minorVersion 8 ;
+
+    lv2:port [
+        a lv2:InputPort, lv2:ControlPort ;
+        lv2:index 0 ;
+        lv2:symbol "lv2_freewheel" ;
+        lv2:name "Freewheel" ;
+        lv2:default 0.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+        lv2:designation <http://lv2plug.in/ns/lv2core#freeWheeling> ;
+        lv2:portProperty lv2:toggled, <http://lv2plug.in/ns/ext/port-props#notOnGUI> ;
+    ] ;
+
+    lv2:port [
+        a lv2:InputPort, lv2:AudioPort ;
+        lv2:index 1 ;
+        lv2:symbol "lv2_audio_in" ;
+        lv2:name "Audio Input" ;
+    ] ;
+
+    lv2:port [
+        a lv2:OutputPort, lv2:AudioPort ;
+        lv2:index 2 ;
+        lv2:symbol "lv2_audio_out" ;
+        lv2:name "Audio Output" ;
+    ] ;
+
+    lv2:port [
+        a lv2:InputPort, lv2:ControlPort ;
+        lv2:index 3 ;
+        lv2:symbol "drive" ;
+        lv2:name "Drive" ;
+        lv2:default 0.165 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+    ] ,
+    [
+        a lv2:InputPort, lv2:ControlPort ;
+        lv2:index 4 ;
+        lv2:symbol "tone" ;
+        lv2:name "Tone" ;
+        lv2:default 0.5 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+    ] ,
+    [
+        a lv2:InputPort, lv2:ControlPort ;
+        lv2:index 5 ;
+        lv2:symbol "volume" ;
+        lv2:name "Volume" ;
+        lv2:default 0.835 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+    ] ,
+    [
+        a lv2:InputPort, lv2:ControlPort ;
+        lv2:index 6 ;
+        lv2:symbol "hp_lp" ;
+        lv2:name "HP / LP" ;
+        lv2:default 0.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+        lv2:portProperty lv2:integer , lv2:enumeration ;
+        lv2:scalePoint [ rdf:value 0 ; rdfs:label "LP"] ;
+        lv2:scalePoint [ rdf:value 1 ; rdfs:label "HP" ] ;
+    ] ,
+    [
+        a lv2:InputPort, lv2:ControlPort ;
+        lv2:index 7 ;
+        lv2:symbol "lv2_enabled" ;
+        lv2:name "Enabled" ;
+        lv2:default 0.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+        lv2:designation lv2:enabled ;
+        lv2:portProperty lv2:toggled ;
+    ] ;
+
+    mod:brand "Schrammel" ;
+    mod:label "OJD" ;
+
+rdfs:comment """
+The Schrammel OJD is heavily inspired by the schematics of a modern classic analog pedal.
+
+For best sounding results put this somewhere before your guitar amp (plugin) and before reverb, delay and modulation plugins, just as you would place a real pedal on your pedal board.
+Being creative and using it somewhere else in your chain is possible too but be prepared that this may cause a lot of sharp high frequencies.
+
+There are two basic sound characteristics you can select with the upper mid slide switch.
+The LP mode gives you a warmer tone with slightly less gain, the HP mode boost some higher frequencies, leading to a more aggressive distortion with some more gain.
+
+Features:
+Modeled by Janos Buttgereit
+""";
+
+    doap:name "Schrammel OJD" ;
+    doap:maintainer [
+        foaf:name "Janos Buttgereit" ;
+        foaf:homepage <https://schrammel.io/> ;
+    ] .
