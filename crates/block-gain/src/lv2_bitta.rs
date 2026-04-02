@@ -26,6 +26,7 @@ const PORT_AUDIO_OUT: usize = 1;
 const PORT_CRUSH: usize = 2;
 const PORT_DRYWET: usize = 3;
 const PORT_ACTIVE: usize = 4;
+const PORT_CONTROL: usize = 5;
 
 pub fn model_schema() -> ModelParameterSchema {
     ModelParameterSchema {
@@ -101,6 +102,7 @@ fn build_mono_processor(
             (PORT_CRUSH, crush),
             (PORT_DRYWET, drywet),
             (PORT_ACTIVE, 1.0),
+            (PORT_CONTROL, 0.0),
         ],
     )
 }

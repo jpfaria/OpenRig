@@ -25,7 +25,8 @@ const PORT_AUDIO_IN_L: usize = 0;
 const PORT_AUDIO_IN_R: usize = 1;
 const PORT_AUDIO_OUT_L: usize = 2;
 const PORT_AUDIO_OUT_R: usize = 3;
-// 4 = events in (atom), 5 = events out (atom) — skipped
+const PORT_ATOM_IN: usize = 4;
+const PORT_ATOM_OUT: usize = 5;
 const PORT_PREGAIN: usize = 6;
 const PORT_WET: usize = 7;
 const PORT_POSTGAIN: usize = 8;
@@ -93,7 +94,7 @@ fn build_mono_processor(
     let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
     let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
 
-    lv2::build_lv2_processor_with_extras(
+    lv2::build_lv2_processor_full(
         &lib_path,
         PLUGIN_URI,
         sample_rate as f64,
@@ -107,6 +108,7 @@ fn build_mono_processor(
             (PORT_REMOVEDC, 1.0),
             (PORT_OVERSAMPLE, 0.0),
         ],
+        &[PORT_ATOM_IN, PORT_ATOM_OUT],
         &[PORT_AUDIO_IN_R, PORT_AUDIO_OUT_R],
     )
 }
@@ -129,7 +131,7 @@ fn build(
         AudioChannelLayout::Stereo => {
             let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
             let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
-            let processor = lv2::build_stereo_lv2_processor(
+            let processor = lv2::build_stereo_lv2_processor_with_atoms(
                 &lib_path,
                 PLUGIN_URI,
                 sample_rate as f64,
@@ -143,6 +145,7 @@ fn build(
                     (PORT_REMOVEDC, 1.0),
                     (PORT_OVERSAMPLE, 0.0),
                 ],
+                &[PORT_ATOM_IN, PORT_ATOM_OUT],
             )?;
             Ok(BlockProcessor::Stereo(Box::new(processor)))
         }
