@@ -49,13 +49,28 @@ pub fn build_lv2_processor_with_extras(
     control_ports: &[(usize, f32)],
     extra_out_ports: &[usize],
 ) -> Result<Lv2Processor> {
+    build_lv2_processor_full(lib_path, uri, sample_rate, bundle_path, audio_in_ports, audio_out_ports, control_ports, &[], extra_out_ports)
+}
+
+/// Build a mono LV2 processor with atom ports AND extra output ports.
+pub fn build_lv2_processor_full(
+    lib_path: &str,
+    uri: &str,
+    sample_rate: f64,
+    bundle_path: &str,
+    audio_in_ports: &[usize],
+    audio_out_ports: &[usize],
+    control_ports: &[(usize, f32)],
+    atom_ports: &[usize],
+    extra_out_ports: &[usize],
+) -> Result<Lv2Processor> {
     let plugin = Lv2Plugin::load(lib_path, uri, sample_rate, bundle_path)?;
     Ok(Lv2Processor::with_extra_ports(
         plugin,
         audio_in_ports,
         audio_out_ports,
         control_ports,
-        &[],
+        atom_ports,
         extra_out_ports,
     ))
 }
@@ -100,6 +115,27 @@ pub fn build_stereo_lv2_processor(
         audio_in_ports,
         audio_out_ports,
         control_ports,
+    ))
+}
+
+/// Build a stereo LV2 processor with atom/MIDI ports connected.
+pub fn build_stereo_lv2_processor_with_atoms(
+    lib_path: &str,
+    uri: &str,
+    sample_rate: f64,
+    bundle_path: &str,
+    audio_in_ports: &[usize],
+    audio_out_ports: &[usize],
+    control_ports: &[(usize, f32)],
+    atom_ports: &[usize],
+) -> Result<StereoLv2Processor> {
+    let plugin = Lv2Plugin::load(lib_path, uri, sample_rate, bundle_path)?;
+    Ok(StereoLv2Processor::with_atom_ports(
+        plugin,
+        audio_in_ports,
+        audio_out_ports,
+        control_ports,
+        atom_ports,
     ))
 }
 

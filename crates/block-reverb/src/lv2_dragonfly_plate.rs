@@ -26,7 +26,8 @@ const PORT_AUDIO_IN_L: usize = 0;
 const PORT_AUDIO_IN_R: usize = 1;
 const PORT_AUDIO_OUT_L: usize = 2;
 const PORT_AUDIO_OUT_R: usize = 3;
-// 4 = atom in, 5 = atom out — not used for DSP
+const PORT_ATOM_IN: usize = 4;
+const PORT_ATOM_OUT: usize = 5;
 const PORT_DRY_LEVEL: usize = 6;
 const PORT_WET_LEVEL: usize = 7;
 const PORT_ALGORITHM: usize = 8;
