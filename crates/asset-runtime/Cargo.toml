@@ -1,8 +1,0 @@
-[package]
-name = "asset-runtime"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]
-anyhow.workspace = true
-dirs.workspace = true

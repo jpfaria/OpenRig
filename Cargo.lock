@@ -421,14 +421,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "asset-runtime"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "dirs",
-]
-
-[[package]]
 name = "async-broadcast"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -767,7 +759,6 @@ name = "block-body"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "asset-runtime",
  "block-core",
  "domain",
  "ir",
@@ -779,7 +770,6 @@ name = "block-cab"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "asset-runtime",
  "block-core",
  "domain",
  "ir",
@@ -832,7 +822,6 @@ name = "block-gain"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "asset-runtime",
  "block-core",
  "domain",
  "log",
@@ -883,7 +872,6 @@ name = "block-preamp"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "asset-runtime",
  "block-core",
  "nam",
 ]
