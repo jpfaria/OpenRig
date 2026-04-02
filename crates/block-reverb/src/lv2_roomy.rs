@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "Roomy";
 const BRAND: &str = "openav";
 
 const PLUGIN_URI: &str = "http://www.openavproductions.com/artyfx#roomy";
-const PLUGIN_DIR: &str = "artyfx.lv2";
+const PLUGIN_DIR: &str = "artyfx";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "artyfx.dylib";

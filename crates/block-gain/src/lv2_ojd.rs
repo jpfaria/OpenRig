@@ -12,7 +12,7 @@ pub const DISPLAY_NAME: &str = "OJD";
 const BRAND: &str = "schrammel";
 
 const PLUGIN_URI: &str = "https://github.com/JanosGit/Schrammel_OJD";
-const PLUGIN_DIR: &str = "OJD.lv2";
+const PLUGIN_DIR: &str = "OJD";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "OJD.dylib";

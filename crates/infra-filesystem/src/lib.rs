@@ -16,9 +16,9 @@ pub struct AssetPaths {
     /// Directory containing prebuilt LV2 shared libraries (.dylib/.so/.dll).
     #[serde(default = "default_lv2_libs")]
     pub lv2_libs: String,
-    /// Directory containing LV2 plugin bundles (.lv2 directories with TTL).
-    #[serde(default = "default_lv2_plugins")]
-    pub lv2_plugins: String,
+    /// Directory containing LV2 plugin data (TTL metadata, presets).
+    #[serde(default = "default_lv2_data")]
+    pub lv2_data: String,
     /// Root directory for NAM capture files (.nam).
     #[serde(default = "default_nam_captures")]
     pub nam_captures: String,
@@ -31,7 +31,7 @@ impl Default for AssetPaths {
     fn default() -> Self {
         Self {
             lv2_libs: default_lv2_libs(),
-            lv2_plugins: default_lv2_plugins(),
+            lv2_data: default_lv2_data(),
             nam_captures: default_nam_captures(),
             ir_captures: default_ir_captures(),
         }
@@ -51,8 +51,8 @@ fn default_lv2_libs() -> String {
     { "libs/lv2/windows-arm64".to_string() }
 }
 
-fn default_lv2_plugins() -> String {
-    "plugins".to_string()
+fn default_lv2_data() -> String {
+    "data/lv2".to_string()
 }
 
 fn default_nam_captures() -> String {

@@ -12,7 +12,7 @@ pub const DISPLAY_NAME: &str = "x42 Autotune";
 const BRAND: &str = "x42";
 
 const PLUGIN_URI: &str = "http://gareus.org/oss/lv2/fat1#scales";
-const PLUGIN_DIR: &str = "fat1.lv2";
+const PLUGIN_DIR: &str = "fat1";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "fat1.dylib";

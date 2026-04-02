@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "Dragonfly Hall Reverb";
 const BRAND: &str = "dragonfly";
 
 const PLUGIN_URI: &str = "https://github.com/michaelwillis/dragonfly-reverb";
-const PLUGIN_DIR: &str = "DragonflyHallReverb.lv2";
+const PLUGIN_DIR: &str = "DragonflyHallReverb";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "DragonflyHallReverb_dsp.dylib";

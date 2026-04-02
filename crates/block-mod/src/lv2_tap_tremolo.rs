@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "TAP Tremolo";
 const BRAND: &str = "tap";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/tap/tremolo";
-const PLUGIN_DIR: &str = "tap-tremolo.lv2";
+const PLUGIN_DIR: &str = "tap-tremolo";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "tap_tremolo.dylib";

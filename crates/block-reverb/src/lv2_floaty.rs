@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "Floaty";
 const BRAND: &str = "remaincalm";
 
 const PLUGIN_URI: &str = "http://remaincalm.org/plugins/floaty";
-const PLUGIN_DIR: &str = "floaty.lv2";
+const PLUGIN_DIR: &str = "floaty";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "floaty_dsp.dylib";

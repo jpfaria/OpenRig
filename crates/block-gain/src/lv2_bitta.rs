@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "Bitta";
 const BRAND: &str = "artyfx";
 
 const PLUGIN_URI: &str = "http://www.openavproductions.com/artyfx#bitta";
-const PLUGIN_DIR: &str = "artyfx-bitta.lv2";
+const PLUGIN_DIR: &str = "artyfx-bitta";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "artyfx.dylib";

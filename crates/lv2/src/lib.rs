@@ -191,10 +191,10 @@ pub fn resolve_lv2_lib(binary_name: &str) -> Result<String> {
     )
 }
 
-/// Resolve the full filesystem path to an LV2 bundle directory.
+/// Resolve the full filesystem path to an LV2 data directory.
 ///
-/// Searches relative to the executable (`../../<lv2_plugins>/<bundle>`)
-/// first, then falls back to treating `lv2_plugins` as a standalone path.
+/// Searches relative to the executable (`../../<lv2_data>/<dir>`)
+/// first, then falls back to treating `lv2_data` as a standalone path.
 pub fn resolve_lv2_bundle(bundle_dir: &str) -> Result<String> {
     let paths = infra_filesystem::asset_paths();
     let exe_dir = std::env::current_exe()
@@ -203,8 +203,8 @@ pub fn resolve_lv2_bundle(bundle_dir: &str) -> Result<String> {
     let candidates = [
         exe_dir
             .as_ref()
-            .map(|d| d.join("../../").join(&paths.lv2_plugins).join(bundle_dir)),
-        Some(std::path::PathBuf::from(&paths.lv2_plugins).join(bundle_dir)),
+            .map(|d| d.join("../../").join(&paths.lv2_data).join(bundle_dir)),
+        Some(std::path::PathBuf::from(&paths.lv2_data).join(bundle_dir)),
     ];
     for candidate in candidates.iter().flatten() {
         if candidate.exists() {
@@ -212,8 +212,8 @@ pub fn resolve_lv2_bundle(bundle_dir: &str) -> Result<String> {
         }
     }
     anyhow::bail!(
-        "LV2 bundle '{}' not found in '{}'",
+        "LV2 data '{}' not found in '{}'",
         bundle_dir,
-        paths.lv2_plugins
+        paths.lv2_data
     )
 }

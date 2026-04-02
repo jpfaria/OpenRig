@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "MDA Overdrive";
 const BRAND: &str = "mda";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/mda/Overdrive";
-const PLUGIN_DIR: &str = "mod-mda-Overdrive.lv2";
+const PLUGIN_DIR: &str = "mod-mda-Overdrive";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "Overdrive.dylib";

@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "Paranoia";
 const BRAND: &str = "remaincalm";
 
 const PLUGIN_URI: &str = "http://remaincalm.org/plugins/paranoia";
-const PLUGIN_DIR: &str = "paranoia.lv2";
+const PLUGIN_DIR: &str = "paranoia";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "paranoia_dsp.dylib";

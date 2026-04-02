@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "Shiroverb";
 const BRAND: &str = "shiro";
 
 const PLUGIN_URI: &str = "https://github.com/ninodewit/SHIRO-Plugins/plugins/shiroverb";
-const PLUGIN_DIR: &str = "Shiroverb.lv2";
+const PLUGIN_DIR: &str = "Shiroverb";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "Shiroverb_dsp.dylib";

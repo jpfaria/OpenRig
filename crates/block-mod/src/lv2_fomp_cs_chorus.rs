@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "CS Chorus";
 const BRAND: &str = "fomp";
 
 const PLUGIN_URI: &str = "http://drobilla.net/plugins/fomp/cs_chorus1";
-const PLUGIN_DIR: &str = "fomp.lv2";
+const PLUGIN_DIR: &str = "fomp";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "cs_chorus.dylib";

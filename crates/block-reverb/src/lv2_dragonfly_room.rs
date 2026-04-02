@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "Dragonfly Room Reverb";
 const BRAND: &str = "dragonfly";
 
 const PLUGIN_URI: &str = "urn:dragonfly:room";
-const PLUGIN_DIR: &str = "DragonflyRoomReverb.lv2";
+const PLUGIN_DIR: &str = "DragonflyRoomReverb";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "DragonflyRoomReverb_dsp.dylib";

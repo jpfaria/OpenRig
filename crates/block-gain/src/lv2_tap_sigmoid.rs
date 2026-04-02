@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "TAP Sigmoid Booster";
 const BRAND: &str = "tap";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/tap/sigmoid";
-const PLUGIN_DIR: &str = "tap-sigmoid.lv2";
+const PLUGIN_DIR: &str = "tap-sigmoid";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "tap_sigmoid.dylib";

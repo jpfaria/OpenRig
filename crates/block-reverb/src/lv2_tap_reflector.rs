@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "TAP Reflector";
 const BRAND: &str = "tap";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/tap/reflector";
-const PLUGIN_DIR: &str = "tap-reflector.lv2";
+const PLUGIN_DIR: &str = "tap-reflector";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "tap_reflector.dylib";

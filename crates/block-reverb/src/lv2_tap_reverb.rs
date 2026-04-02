@@ -12,7 +12,7 @@ pub const DISPLAY_NAME: &str = "TAP Reverberator";
 const BRAND: &str = "tap";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/tap/reverb";
-const PLUGIN_DIR: &str = "tap-reverb.lv2";
+const PLUGIN_DIR: &str = "tap-reverb";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "tap_reverb.dylib";

@@ -12,7 +12,7 @@ pub const DISPLAY_NAME: &str = "Harmonizer";
 const BRAND: &str = "infamous";
 
 const PLUGIN_URI: &str = "http://ssj71.github.io/infamousPlugins/plugs.html#ewham";
-const PLUGIN_DIR: &str = "ewham.lv2";
+const PLUGIN_DIR: &str = "ewham";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "ewham.dylib";

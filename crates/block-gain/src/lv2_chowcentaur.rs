@@ -12,7 +12,7 @@ pub const DISPLAY_NAME: &str = "Centaur";
 const BRAND: &str = "chowdsp";
 
 const PLUGIN_URI: &str = "https://github.com/jatinchowdhury18/KlonCentaur";
-const PLUGIN_DIR: &str = "ChowCentaur.lv2";
+const PLUGIN_DIR: &str = "ChowCentaur";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "ChowCentaur.dylib";

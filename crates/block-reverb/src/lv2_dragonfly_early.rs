@@ -12,7 +12,7 @@ pub const DISPLAY_NAME: &str = "Dragonfly Early Reflections";
 const BRAND: &str = "dragonfly";
 
 const PLUGIN_URI: &str = "urn:dragonfly:early";
-const PLUGIN_DIR: &str = "DragonflyEarlyReflections.lv2";
+const PLUGIN_DIR: &str = "DragonflyEarlyReflections";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "DragonflyEarlyReflections_dsp.dylib";

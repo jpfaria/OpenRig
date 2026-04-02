@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "TAP Chorus/Flanger";
 const BRAND: &str = "tap";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/tap/chorusflanger";
-const PLUGIN_DIR: &str = "tap-chorusflanger.lv2";
+const PLUGIN_DIR: &str = "tap-chorusflanger";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "tap_chorusflanger.dylib";

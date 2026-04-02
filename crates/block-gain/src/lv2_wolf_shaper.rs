@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "Wolf Shaper";
 const BRAND: &str = "wolf";
 
 const PLUGIN_URI: &str = "https://github.com/pdesaulniers/wolf-shaper";
-const PLUGIN_DIR: &str = "wolf-shaper.lv2";
+const PLUGIN_DIR: &str = "wolf-shaper";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "wolf-shaper_dsp.dylib";

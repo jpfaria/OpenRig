@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "MDA Ambience";
 const BRAND: &str = "mda";
 
 const PLUGIN_URI: &str = "http://drobilla.net/plugins/mda/Ambience";
-const PLUGIN_DIR: &str = "mod-mda-Ambience.lv2";
+const PLUGIN_DIR: &str = "mod-mda-Ambience";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "Ambience.dylib";

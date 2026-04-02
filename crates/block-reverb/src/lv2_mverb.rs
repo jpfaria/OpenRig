@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "MVerb";
 const BRAND: &str = "distrho";
 
 const PLUGIN_URI: &str = "http://distrho.sf.net/plugins/MVerb";
-const PLUGIN_DIR: &str = "MVerb.lv2";
+const PLUGIN_DIR: &str = "MVerb";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "MVerb_dsp.dylib";

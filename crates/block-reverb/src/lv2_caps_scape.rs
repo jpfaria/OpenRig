@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "CAPS Scape";
 const BRAND: &str = "caps";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/caps/Scape";
-const PLUGIN_DIR: &str = "mod-caps-Scape.lv2";
+const PLUGIN_DIR: &str = "mod-caps-Scape";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "Scape.dylib";

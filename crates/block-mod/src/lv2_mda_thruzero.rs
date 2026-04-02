@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "MDA ThruZero";
 const BRAND: &str = "mda";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/mda/ThruZero";
-const PLUGIN_DIR: &str = "mod-mda-ThruZero.lv2";
+const PLUGIN_DIR: &str = "mod-mda-ThruZero";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "ThruZero.dylib";

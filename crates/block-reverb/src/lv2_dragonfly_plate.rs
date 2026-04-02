@@ -12,7 +12,7 @@ pub const DISPLAY_NAME: &str = "Dragonfly Plate Reverb";
 const BRAND: &str = "dragonfly";
 
 const PLUGIN_URI: &str = "urn:dragonfly:plate";
-const PLUGIN_DIR: &str = "DragonflyPlateReverb.lv2";
+const PLUGIN_DIR: &str = "DragonflyPlateReverb";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "DragonflyPlateReverb_dsp.dylib";

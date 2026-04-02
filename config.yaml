@@ -2,6 +2,6 @@ presets_path: ./
 
 paths:
   lv2_libs: "libs/lv2/macos-universal"
-  lv2_plugins: "plugins"
+  lv2_data: "data/lv2"
   nam_captures: "captures/nam"
   ir_captures: "captures/ir"

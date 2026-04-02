@@ -116,6 +116,7 @@ dependencies = [
  "cpal",
  "engine",
  "infra-cpal",
+ "infra-filesystem",
  "infra-yaml",
  "project",
  "serde",
@@ -2963,6 +2964,7 @@ dependencies = [
  "anyhow",
  "block-core",
  "hound",
+ "infra-filesystem",
  "log",
  "realfft",
 ]
@@ -3240,6 +3242,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "block-core",
+ "infra-filesystem",
  "libloading",
  "log",
 ]
@@ -3381,6 +3384,7 @@ dependencies = [
  "block-core",
  "cmake",
  "domain",
+ "infra-filesystem",
  "log",
 ]
 

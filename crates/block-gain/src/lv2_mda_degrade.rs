@@ -12,7 +12,7 @@ pub const DISPLAY_NAME: &str = "MDA Degrade";
 const BRAND: &str = "mda";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/mda/Degrade";
-const PLUGIN_DIR: &str = "mod-mda-Degrade.lv2";
+const PLUGIN_DIR: &str = "mod-mda-Degrade";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "Degrade.dylib";

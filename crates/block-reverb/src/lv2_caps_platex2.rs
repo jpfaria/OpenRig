@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "CAPS Plate X2";
 const BRAND: &str = "caps";
 
 const PLUGIN_URI: &str = "http://moddevices.com/plugins/caps/PlateX2";
-const PLUGIN_DIR: &str = "mod-caps-PlateX2.lv2";
+const PLUGIN_DIR: &str = "mod-caps-PlateX2";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "PlateX2.dylib";
