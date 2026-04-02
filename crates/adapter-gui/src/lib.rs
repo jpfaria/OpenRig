@@ -1,3 +1,5 @@
+mod thumbnails;
+
 use anyhow::{anyhow, Result};
 
 const SELECT_PATH_PREFIX: &str = "__select.";
@@ -7362,7 +7364,7 @@ fn load_thumbnail_image(effect_type: &str, model_id: &str) -> (slint::Image, boo
         return (img, true, w, h);
     }
 
-    match block_thumbnails::thumbnail_png(effect_type, model_id) {
+    match thumbnails::thumbnail_png(effect_type, model_id) {
         Some(png_bytes) => {
             match image::load_from_memory_with_format(png_bytes, image::ImageFormat::Png) {
                 Ok(img) => {
