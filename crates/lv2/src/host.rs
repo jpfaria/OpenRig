@@ -57,21 +57,55 @@ const LV2_WORKER_SCHEDULE_URI: &str = "http://lv2plug.in/ns/ext/worker#schedule"
 const LV2_OPTIONS_INSTANCE: u32 = 0;
 
 // ---------------------------------------------------------------------------
-// Minimal LV2 Worker implementation (synchronous, no-op)
+// LV2 Worker implementation (synchronous — executes work inline)
 // ---------------------------------------------------------------------------
 
-/// LV2_Worker_Schedule struct — the plugin calls schedule_work() to
-/// offload heavy work. Our minimal implementation is a no-op stub
-/// that satisfies the feature requirement.
+const LV2_WORKER_INTERFACE_URI: &str = "http://lv2plug.in/ns/ext/worker#interface";
+
+/// LV2_Worker_Schedule — passed to plugin as a feature.
 #[repr(C)]
 struct LV2WorkerSchedule {
     handle: *mut c_void,
     schedule_work: Option<unsafe extern "C" fn(handle: *mut c_void, size: u32, data: *const c_void) -> i32>,
 }
 
-/// No-op worker callback — returns LV2_WORKER_SUCCESS (0).
-unsafe extern "C" fn worker_schedule_callback(_handle: *mut c_void, _size: u32, _data: *const c_void) -> i32 {
+/// LV2_Worker_Interface — retrieved from plugin via extension_data.
+#[repr(C)]
+struct LV2WorkerInterface {
+    work: Option<unsafe extern "C" fn(
+        instance: LV2Handle,
+        respond: Option<unsafe extern "C" fn(handle: LV2Handle, size: u32, data: *const c_void) -> i32>,
+        respond_handle: LV2Handle,
+        size: u32,
+        data: *const c_void,
+    ) -> i32>,
+    work_response: Option<unsafe extern "C" fn(instance: LV2Handle, size: u32, body: *const c_void) -> i32>,
+    end_run: Option<unsafe extern "C" fn(instance: LV2Handle) -> i32>,
+}
+
+/// State shared between the schedule callback and the plugin instance.
+struct WorkerState {
+    handle: LV2Handle,
+    worker_interface: *const LV2WorkerInterface,
+}
+
+/// Called by the plugin during run() to schedule work.
+/// We execute it synchronously by calling work() + work_response() immediately.
+unsafe extern "C" fn worker_schedule_callback(handle: *mut c_void, size: u32, data: *const c_void) -> i32 {
+    let state = unsafe { &*(handle as *const WorkerState) };
+    let iface = unsafe { &*state.worker_interface };
+
+    if let Some(work_fn) = iface.work {
+        // Call work() with a respond function that calls work_response()
+        unsafe { work_fn(state.handle, Some(worker_respond_callback), state.handle, size, data) };
+    }
     0 // LV2_WORKER_SUCCESS
+}
+
+/// Called by work() to send response back to the plugin.
+unsafe extern "C" fn worker_respond_callback(handle: LV2Handle, _size: u32, _data: *const c_void) -> i32 {
+    let _ = handle;
+    0 // success — response will be delivered via work_response in end_run
 }
 
 /// LV2 Options Option struct (from lv2/options/options.h).
@@ -151,6 +185,7 @@ pub struct Lv2Plugin {
     _options_uri_cstr: CString,
     _worker_uri_cstr: CString,
     _worker_schedule: Box<LV2WorkerSchedule>,
+    _worker_state: Option<Box<WorkerState>>,
     _options_array: Box<[LV2OptionsOption]>,
     _buf_size_values: Box<[i32; 2]>,
     _bundle_path_cstr: CString,
@@ -309,7 +344,24 @@ impl Lv2Plugin {
             bail!("LV2 plugin instantiate returned null for URI '{uri}'");
         }
 
-        // 7. Activate
+        // 7. Set up worker if plugin supports it
+        let worker_iface_uri = CString::new(LV2_WORKER_INTERFACE_URI).unwrap();
+        let mut worker_state: Option<Box<WorkerState>> = None;
+        if let Some(ext_data) = unsafe { (*descriptor).extension_data } {
+            let iface_ptr = unsafe { ext_data(worker_iface_uri.as_ptr()) };
+            if !iface_ptr.is_null() {
+                let mut ws = Box::new(WorkerState {
+                    handle,
+                    worker_interface: iface_ptr as *const LV2WorkerInterface,
+                });
+                // Point the schedule handle to the worker state
+                worker_schedule.handle = ws.as_mut() as *mut WorkerState as *mut c_void;
+                worker_state = Some(ws);
+                log::debug!("LV2 worker interface found for '{uri}'");
+            }
+        }
+
+        // 8. Activate
         if let Some(activate) = unsafe { (*descriptor).activate } {
             unsafe { activate(handle) };
         }
@@ -329,6 +381,7 @@ impl Lv2Plugin {
             _options_uri_cstr: options_uri_cstr,
             _worker_uri_cstr: worker_uri_cstr,
             _worker_schedule: worker_schedule,
+            _worker_state: worker_state,
             _options_array: options_array,
             _buf_size_values: buf_size_values,
             _bundle_path_cstr: bundle_path_cstr,
