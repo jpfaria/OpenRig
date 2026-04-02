@@ -90,22 +90,29 @@ struct WorkerState {
 }
 
 /// Called by the plugin during run() to schedule work.
-/// We execute it synchronously by calling work() + work_response() immediately.
-unsafe extern "C" fn worker_schedule_callback(handle: *mut c_void, size: u32, data: *const c_void) -> i32 {
-    let state = unsafe { &*(handle as *const WorkerState) };
+/// Executes synchronously: work() → respond() → work_response().
+unsafe extern "C" fn worker_schedule_callback(ws_handle: *mut c_void, size: u32, data: *const c_void) -> i32 {
+    if ws_handle.is_null() { return 0; }
+    let state = unsafe { &*(ws_handle as *const WorkerState) };
     let iface = unsafe { &*state.worker_interface };
 
     if let Some(work_fn) = iface.work {
-        // Call work() with a respond function that calls work_response()
-        unsafe { work_fn(state.handle, Some(worker_respond_callback), state.handle, size, data) };
+        // work() calls respond_fn which calls work_response() immediately
+        unsafe { work_fn(state.handle, Some(worker_respond_callback), ws_handle, size, data) };
     }
     0 // LV2_WORKER_SUCCESS
 }
 
-/// Called by work() to send response back to the plugin.
-unsafe extern "C" fn worker_respond_callback(handle: LV2Handle, _size: u32, _data: *const c_void) -> i32 {
-    let _ = handle;
-    0 // success — response will be delivered via work_response in end_run
+/// Called by work() to send response back — delivers it immediately via work_response().
+unsafe extern "C" fn worker_respond_callback(ws_handle: LV2Handle, size: u32, data: *const c_void) -> i32 {
+    if ws_handle.is_null() { return 0; }
+    let state = unsafe { &*(ws_handle as *const WorkerState) };
+    let iface = unsafe { &*state.worker_interface };
+
+    if let Some(work_response_fn) = iface.work_response {
+        unsafe { work_response_fn(state.handle, size, data) };
+    }
+    0
 }
 
 /// LV2 Options Option struct (from lv2/options/options.h).
