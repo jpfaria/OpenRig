@@ -443,10 +443,6 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
         }
     }
 
-    for (cpal_idx, seg_list) in input_to_segments.iter().enumerate() {
-        log::info!("  input_to_segments[{}] = {:?}", cpal_idx, seg_list);
-    }
-
     let mut output_routes = Vec::with_capacity(eff_outputs.len());
     for output in &eff_outputs {
         output_routes.push(Arc::new(Mutex::new(build_output_routing_state(output))));
