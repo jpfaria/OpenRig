@@ -3,6 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 
 fn main() {
+    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("manifest dir"));
     let src_dir = manifest_dir.join("src");
     let mut model_modules = Vec::new();
@@ -20,6 +21,17 @@ fn main() {
         if contents.contains("MODEL_DEFINITION") {
             model_modules.push(stem.to_string());
         }
+
+        // Check for platform marker: `// @platform: <os>` restricts a file to
+        // a specific OS. Files without this marker are included on all platforms.
+        if let Some(line) = contents.lines().find(|l| l.trim().starts_with("// @platform:")) {
+            let platform = line.trim().trim_start_matches("// @platform:").trim();
+            if platform != target_os {
+                continue;
+            }
+        }
+
+        model_modules.push((stem.to_string(), path.to_path_buf()));
     }
 
     model_modules.sort();
