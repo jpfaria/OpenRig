@@ -51,8 +51,28 @@ const LV2_BUF_SIZE_MAX_URI: &str = "http://lv2plug.in/ns/ext/buf-size#maxBlockLe
 const LV2_BUF_SIZE_MIN_URI: &str = "http://lv2plug.in/ns/ext/buf-size#minBlockLength";
 const LV2_ATOM_INT_URI: &str = "http://lv2plug.in/ns/ext/atom#Int";
 
+const LV2_WORKER_SCHEDULE_URI: &str = "http://lv2plug.in/ns/ext/worker#schedule";
+
 /// LV2 Options context: instance-level option
 const LV2_OPTIONS_INSTANCE: u32 = 0;
+
+// ---------------------------------------------------------------------------
+// Minimal LV2 Worker implementation (synchronous, no-op)
+// ---------------------------------------------------------------------------
+
+/// LV2_Worker_Schedule struct — the plugin calls schedule_work() to
+/// offload heavy work. Our minimal implementation is a no-op stub
+/// that satisfies the feature requirement.
+#[repr(C)]
+struct LV2WorkerSchedule {
+    handle: *mut c_void,
+    schedule_work: Option<unsafe extern "C" fn(handle: *mut c_void, size: u32, data: *const c_void) -> i32>,
+}
+
+/// No-op worker callback — returns LV2_WORKER_SUCCESS (0).
+unsafe extern "C" fn worker_schedule_callback(_handle: *mut c_void, _size: u32, _data: *const c_void) -> i32 {
+    0 // LV2_WORKER_SUCCESS
+}
 
 /// LV2 Options Option struct (from lv2/options/options.h).
 /// A null-terminated array of these is passed as the options feature data.
@@ -129,8 +149,10 @@ pub struct Lv2Plugin {
     _urid_map_uri_cstr: CString,
     _buf_size_uri_cstr: CString,
     _options_uri_cstr: CString,
+    _worker_uri_cstr: CString,
+    _worker_schedule: Box<LV2WorkerSchedule>,
     _options_array: Box<[LV2OptionsOption]>,
-    _buf_size_values: Box<[i32; 2]>, // [max_block_length, min_block_length]
+    _buf_size_values: Box<[i32; 2]>,
     _bundle_path_cstr: CString,
 }
 
@@ -192,6 +214,13 @@ impl Lv2Plugin {
         let urid_map_uri_cstr = CString::new(LV2_URID_MAP_URI).unwrap();
         let buf_size_uri_cstr = CString::new(LV2_BUF_SIZE_BOUNDED_URI).unwrap();
         let options_uri_cstr = CString::new(LV2_OPTIONS_URI).unwrap();
+        let worker_uri_cstr = CString::new(LV2_WORKER_SCHEDULE_URI).unwrap();
+
+        // Worker schedule (no-op stub satisfying the feature requirement)
+        let mut worker_schedule = Box::new(LV2WorkerSchedule {
+            handle: ptr::null_mut(),
+            schedule_work: Some(worker_schedule_callback),
+        });
 
         // Buffer size values that must outlive the options array
         let buf_size_values: Box<[i32; 2]> = Box::new([4096i32, 1i32]); // [max, min]
@@ -244,6 +273,10 @@ impl Lv2Plugin {
                 uri: options_uri_cstr.as_ptr(),
                 data: options_array.as_ptr() as *mut c_void,
             },
+            LV2Feature {
+                uri: worker_uri_cstr.as_ptr(),
+                data: worker_schedule.as_mut() as *mut LV2WorkerSchedule as *mut c_void,
+            },
         ];
 
         // Null-terminated array of pointers
@@ -294,6 +327,8 @@ impl Lv2Plugin {
             _urid_map_uri_cstr: urid_map_uri_cstr,
             _buf_size_uri_cstr: buf_size_uri_cstr,
             _options_uri_cstr: options_uri_cstr,
+            _worker_uri_cstr: worker_uri_cstr,
+            _worker_schedule: worker_schedule,
             _options_array: options_array,
             _buf_size_values: buf_size_values,
             _bundle_path_cstr: bundle_path_cstr,
