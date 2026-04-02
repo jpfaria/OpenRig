@@ -103,23 +103,22 @@ enum ProcessorScratch {
 }
 
 impl AudioProcessor {
+    /// Process a buffer of audio frames.
+    ///
+    /// Bus between blocks is ALWAYS stereo. Mono processors receive the left
+    /// channel (or mono mix), process it, and output stereo (duplicated).
     fn process_buffer(&mut self, frames: &mut [AudioFrame], scratch: &mut ProcessorScratch) {
         match (self, scratch) {
             (AudioProcessor::Mono(processor), ProcessorScratch::Mono(mono)) => {
                 mono.clear();
                 mono.reserve(frames.len().saturating_sub(mono.capacity()));
                 for frame in frames.iter() {
-                    match frame {
-                        AudioFrame::Mono(sample) => mono.push(*sample),
-                        AudioFrame::Stereo(_) => {
-                            debug_assert!(false, "mono processor received stereo frames");
-                            return;
-                        }
-                    }
+                    mono.push(frame.mono_mix());
                 }
                 processor.process_block(mono);
+                // Always output stereo — mono processors duplicate to both channels
                 for (frame, sample) in frames.iter_mut().zip(mono.iter().copied()) {
-                    *frame = AudioFrame::Mono(sample);
+                    *frame = AudioFrame::Stereo([sample, sample]);
                 }
             }
             (
@@ -135,13 +134,13 @@ impl AudioProcessor {
                 right_buffer.reserve(frames.len().saturating_sub(right_buffer.capacity()));
                 for frame in frames.iter() {
                     match frame {
-                        AudioFrame::Stereo([left_sample, right_sample]) => {
-                            left_buffer.push(*left_sample);
-                            right_buffer.push(*right_sample);
+                        AudioFrame::Stereo([l, r]) => {
+                            left_buffer.push(*l);
+                            right_buffer.push(*r);
                         }
-                        AudioFrame::Mono(_) => {
-                            debug_assert!(false, "dual-mono processor received mono frames");
-                            return;
+                        AudioFrame::Mono(s) => {
+                            left_buffer.push(*s);
+                            right_buffer.push(*s);
                         }
                     }
                 }
@@ -160,11 +159,8 @@ impl AudioProcessor {
                 stereo.reserve(frames.len().saturating_sub(stereo.capacity()));
                 for frame in frames.iter() {
                     match frame {
-                        AudioFrame::Stereo(stereo_frame) => stereo.push(*stereo_frame),
-                        AudioFrame::Mono(_) => {
-                            debug_assert!(false, "stereo processor received mono frames");
-                            return;
-                        }
+                        AudioFrame::Stereo(sf) => stereo.push(*sf),
+                        AudioFrame::Mono(s) => stereo.push([*s, *s]),
                     }
                 }
                 processor.process_block(stereo);
@@ -177,11 +173,8 @@ impl AudioProcessor {
                 stereo.reserve(frames.len().saturating_sub(stereo.capacity()));
                 for frame in frames.iter() {
                     match frame {
-                        AudioFrame::Mono(sample) => stereo.push([*sample, *sample]),
-                        AudioFrame::Stereo(_) => {
-                            debug_assert!(false, "mono-to-stereo processor received stereo frames");
-                            return;
-                        }
+                        AudioFrame::Mono(s) => stereo.push([*s, *s]),
+                        AudioFrame::Stereo(sf) => stereo.push(*sf),
                     }
                 }
                 processor.process_block(stereo);
