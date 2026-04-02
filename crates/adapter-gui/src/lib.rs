@@ -3690,10 +3690,28 @@ pub fn run_desktop_app(
                 window.set_show_block_drawer(false);
                 let ci = chain_index as usize;
                 let bi = block_index as usize;
+                // If a window for this block is already open, bring it to front.
+                {
+                    let borrow = open_block_windows.borrow();
+                    if let Some(bw) = borrow.iter().find(|bw| bw.chain_index == ci && bw.block_index == bi) {
+                        let _ = bw.window.window().show();
+                        return;
+                    }
+                }
                 // Remove any stale window for this block position.
                 // After add/remove operations, the block at a given index may
                 // have changed, so we always close the old window and create
                 // a fresh one with the correct data.
+                // Explicitly hide before dropping: Slint keeps shown windows
+                // alive internally, so dropping the handle alone does not close them.
+                {
+                    let borrow = open_block_windows.borrow();
+                    for bw in borrow.iter() {
+                        if bw.chain_index == ci && bw.block_index == bi {
+                            let _ = bw.window.hide();
+                        }
+                    }
+                }
                 open_block_windows.borrow_mut().retain(|bw| {
                     !(bw.chain_index == ci && bw.block_index == bi)
                 });
