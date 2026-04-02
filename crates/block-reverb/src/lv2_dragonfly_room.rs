@@ -50,7 +50,7 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: block_core::EFFECT_TYPE_REVERB.into(),
         model: MODEL_ID.into(),
         display_name: DISPLAY_NAME.into(),
-        audio_mode: ModelAudioMode::DualMono,
+        audio_mode: ModelAudioMode::TrueStereo,
         parameters: vec![
             float_parameter("dry_level", "Dry Level", None, Some(80.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
             float_parameter("early_level", "Early Level", None, Some(10.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
