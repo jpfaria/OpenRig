@@ -18,8 +18,8 @@ fn main() {
             continue;
         }
         let contents = fs::read_to_string(&path).expect("read source");
-        if contents.contains("MODEL_DEFINITION") {
-            model_modules.push(stem.to_string());
+        if !contents.contains("MODEL_DEFINITION") {
+            continue;
         }
 
         // Check for platform marker: `// @platform: <os>` restricts a file to
@@ -31,7 +31,7 @@ fn main() {
             }
         }
 
-        model_modules.push((stem.to_string(), path.to_path_buf()));
+        model_modules.push(stem.to_string());
     }
 
     model_modules.sort();
