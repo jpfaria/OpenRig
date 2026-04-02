@@ -10,7 +10,7 @@ pub const MODEL_ID: &str = "lv2_mda_overdrive";
 pub const DISPLAY_NAME: &str = "MDA Overdrive";
 const BRAND: &str = "mda";
 
-const PLUGIN_URI: &str = "http://moddevices.com/plugins/mda/Overdrive";
+const PLUGIN_URI: &str = "http://drobilla.net/plugins/mda/Overdrive";
 const PLUGIN_DIR: &str = "mod-mda-Overdrive";
 
 #[cfg(target_os = "macos")]
