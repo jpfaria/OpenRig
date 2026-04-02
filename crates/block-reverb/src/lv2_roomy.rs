@@ -34,7 +34,7 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: block_core::EFFECT_TYPE_REVERB.into(),
         model: MODEL_ID.into(),
         display_name: DISPLAY_NAME.into(),
-        audio_mode: ModelAudioMode::TrueStereo,
+        audio_mode: ModelAudioMode::MonoToStereo,
         parameters: vec![
             float_parameter("time", "Decay", None, Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
             float_parameter("damping", "Damping", None, Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
