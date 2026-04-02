@@ -1,5 +1,4 @@
 use anyhow::{anyhow, bail, Result};
-use asset_runtime::{materialize, EmbeddedAsset};
 use ir::{build_mono_ir_processor_from_wav, IrAsset};
 use crate::registry::BodyModelDefinition;
 use crate::BodyBackendKind;
@@ -11,21 +10,21 @@ pub const DISPLAY_NAME: &str = "Graciliano Perez Carrizosa 2003";
 const BRAND: &str = "";
 
 macro_rules! capture {
-    ($voicing:literal, $asset_id:literal, $relative_path:literal) => {
+    ($p1:literal, $ir_file:literal) => {
         GracilianoPerezCarrizosa2003Capture {
-            voicing: $voicing,
-            asset: EmbeddedAsset::new($asset_id, $relative_path, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../", $relative_path))),
+            voicing: $p1,
+            ir_file: $ir_file,
         }
     };
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct GracilianoPerezCarrizosa2003Capture { pub voicing: &'static str, pub asset: EmbeddedAsset }
+pub struct GracilianoPerezCarrizosa2003Capture { pub voicing: &'static str, pub ir_file: &'static str }
 
 pub const CAPTURES: &[GracilianoPerezCarrizosa2003Capture] = &[
-    capture!("ir_graciliano_perez_48k", "body.graciliano_perez_carrizosa_2003.ir_graciliano_perez_48k", "captures/ir/body/graciliano_perez_carrizosa_2003/ir_graciliano_perez_48k.wav"),
-    capture!("ir_graciliano_perez_48k_m", "body.graciliano_perez_carrizosa_2003.ir_graciliano_perez_48k_m", "captures/ir/body/graciliano_perez_carrizosa_2003/ir_graciliano_perez_48k_m.wav"),
-    capture!("ir_graciliano_perez_48k_mffqn", "body.graciliano_perez_carrizosa_2003.ir_graciliano_perez_48k_mffqn", "captures/ir/body/graciliano_perez_carrizosa_2003/ir_graciliano_perez_48k_mffqn.wav"),
+    capture!("ir_graciliano_perez_48k", "body/graciliano_perez_carrizosa_2003/ir_graciliano_perez_48k.wav"),
+    capture!("ir_graciliano_perez_48k_m", "body/graciliano_perez_carrizosa_2003/ir_graciliano_perez_48k_m.wav"),
+    capture!("ir_graciliano_perez_48k_mffqn", "body/graciliano_perez_carrizosa_2003/ir_graciliano_perez_48k_mffqn.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -42,11 +41,11 @@ pub fn build_processor_for_model(params: &ParameterSet, sample_rate: f32, layout
     match layout {
         AudioChannelLayout::Mono => {
             let capture = resolve_capture(params)?;
-            let materialized_path = materialize(&capture.asset)?;
-            let materialized_path_str = materialized_path.to_string_lossy();
-            let ir = IrAsset::load_from_wav(&materialized_path_str)?;
+            let wav_path = ir::resolve_ir_capture(capture.ir_file)?;
+            
+            let ir = IrAsset::load_from_wav(&wav_path)?;
             if ir.channel_count() != 1 { bail!("body model '{}' capture must be mono, got {} channels", MODEL_ID, ir.channel_count()); }
-            let processor = build_mono_ir_processor_from_wav(&materialized_path_str, sample_rate)?;
+            let processor = build_mono_ir_processor_from_wav(&wav_path, sample_rate)?;
             Ok(BlockProcessor::Mono(processor))
         }
         AudioChannelLayout::Stereo => bail!("body model '{}' currently expects mono processor layout", MODEL_ID),
@@ -63,7 +62,7 @@ pub const MODEL_DEFINITION: BodyModelDefinition = BodyModelDefinition {
 };
 
 pub fn validate_params(params: &ParameterSet) -> Result<()> { resolve_capture(params).map(|_| ()) }
-pub fn asset_summary(params: &ParameterSet) -> Result<String> { let capture = resolve_capture(params)?; Ok(format!("asset_id='{}'", capture.asset.id)) }
+pub fn asset_summary(params: &ParameterSet) -> Result<String> { let capture = resolve_capture(params)?; Ok(format!("asset_id='{}'", capture.ir_file)) }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static GracilianoPerezCarrizosa2003Capture> {
     let requested = required_string(params, "voicing").map_err(anyhow::Error::msg)?;

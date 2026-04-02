@@ -7380,7 +7380,7 @@ fn load_thumbnail_image(effect_type: &str, model_id: &str) -> (slint::Image, boo
 
     match thumbnails::thumbnail_png(effect_type, model_id) {
         Some(png_bytes) => {
-            match image::load_from_memory_with_format(png_bytes, image::ImageFormat::Png) {
+            match image::load_from_memory_with_format(&png_bytes, image::ImageFormat::Png) {
                 Ok(img) => {
                     let rgba = img.to_rgba8();
                     let w = rgba.width() as f32;

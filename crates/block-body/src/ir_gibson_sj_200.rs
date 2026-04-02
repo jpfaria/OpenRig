@@ -1,5 +1,4 @@
 use anyhow::{anyhow, bail, Result};
-use asset_runtime::{materialize, EmbeddedAsset};
 use ir::{build_mono_ir_processor_from_wav, IrAsset};
 use crate::registry::BodyModelDefinition;
 use crate::BodyBackendKind;
@@ -11,19 +10,11 @@ pub const DISPLAY_NAME: &str = "SJ-200";
 const BRAND: &str = "gibson";
 
 macro_rules! capture {
-    ($position:literal, $flavor:literal, $asset_id:literal, $relative_path:literal) => {
+    ($position:literal, $flavor:literal, $ir_file:literal) => {
         GibsonSj200Capture {
             position: $position,
             flavor: $flavor,
-            asset: EmbeddedAsset::new(
-                $asset_id,
-                $relative_path,
-                include_bytes!(concat!(
-                    env!("CARGO_MANIFEST_DIR"),
-                    "/../../",
-                    $relative_path
-                )),
-            ),
+            ir_file: $ir_file,
         }
     };
 }
@@ -32,24 +23,24 @@ macro_rules! capture {
 pub struct GibsonSj200Capture {
     pub position: &'static str,
     pub flavor: &'static str,
-    pub asset: EmbeddedAsset,
+    pub ir_file: &'static str,
 }
 
 pub const CAPTURES: &[GibsonSj200Capture] = &[
     // Position 1
-    capture!("1", "standard", "body.gibson_sj_200.1_standard", "captures/ir/body/gibson_sj_200/position_1.wav"),
-    capture!("1", "blend", "body.gibson_sj_200.1_blend", "captures/ir/body/gibson_sj_200/position_1_blend.wav"),
-    capture!("1", "match", "body.gibson_sj_200.1_match", "captures/ir/body/gibson_sj_200/position_1_match.wav"),
-    capture!("1", "jf", "body.gibson_sj_200.1_jf", "captures/ir/body/gibson_sj_200/position_1_jf.wav"),
+    capture!("1", "standard", "body/gibson_sj_200/position_1.wav"),
+    capture!("1", "blend", "body/gibson_sj_200/position_1_blend.wav"),
+    capture!("1", "match", "body/gibson_sj_200/position_1_match.wav"),
+    capture!("1", "jf", "body/gibson_sj_200/position_1_jf.wav"),
     // Position 2
-    capture!("2", "standard", "body.gibson_sj_200.2_standard", "captures/ir/body/gibson_sj_200/position_2.wav"),
-    capture!("2", "blend", "body.gibson_sj_200.2_blend", "captures/ir/body/gibson_sj_200/position_2_blend.wav"),
-    capture!("2", "match", "body.gibson_sj_200.2_match", "captures/ir/body/gibson_sj_200/position_2_match.wav"),
-    capture!("2", "jf", "body.gibson_sj_200.2_jf", "captures/ir/body/gibson_sj_200/position_2_jf.wav"),
+    capture!("2", "standard", "body/gibson_sj_200/position_2.wav"),
+    capture!("2", "blend", "body/gibson_sj_200/position_2_blend.wav"),
+    capture!("2", "match", "body/gibson_sj_200/position_2_match.wav"),
+    capture!("2", "jf", "body/gibson_sj_200/position_2_jf.wav"),
     // Position 3
-    capture!("3", "standard", "body.gibson_sj_200.3_standard", "captures/ir/body/gibson_sj_200/position_3.wav"),
-    capture!("3", "blend", "body.gibson_sj_200.3_blend", "captures/ir/body/gibson_sj_200/position_3_blend.wav"),
-    capture!("3", "jf", "body.gibson_sj_200.3_jf", "captures/ir/body/gibson_sj_200/position_3_jf.wav"),
+    capture!("3", "standard", "body/gibson_sj_200/position_3.wav"),
+    capture!("3", "blend", "body/gibson_sj_200/position_3_blend.wav"),
+    capture!("3", "jf", "body/gibson_sj_200/position_3_jf.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -85,9 +76,9 @@ pub fn build_processor_for_model(
     match layout {
         AudioChannelLayout::Mono => {
             let capture = resolve_capture(params)?;
-            let materialized_path = materialize(&capture.asset)?;
-            let materialized_path_str = materialized_path.to_string_lossy();
-            let ir = IrAsset::load_from_wav(&materialized_path_str)?;
+            let wav_path = ir::resolve_ir_capture(capture.ir_file)?;
+            
+            let ir = IrAsset::load_from_wav(&wav_path)?;
             if ir.channel_count() != 1 {
                 bail!(
                     "body model '{}' capture must be mono, got {} channels",
@@ -95,7 +86,7 @@ pub fn build_processor_for_model(
                     ir.channel_count()
                 );
             }
-            let processor = build_mono_ir_processor_from_wav(&materialized_path_str, sample_rate)?;
+            let processor = build_mono_ir_processor_from_wav(&wav_path, sample_rate)?;
             Ok(BlockProcessor::Mono(processor))
         }
         AudioChannelLayout::Stereo => bail!(
@@ -136,7 +127,7 @@ pub fn validate_params(params: &ParameterSet) -> Result<()> {
 
 pub fn asset_summary(params: &ParameterSet) -> Result<String> {
     let capture = resolve_capture(params)?;
-    Ok(format!("asset_id='{}'", capture.asset.id))
+    Ok(format!("asset_id='{}'", capture.ir_file))
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static GibsonSj200Capture> {

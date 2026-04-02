@@ -25,6 +25,9 @@ pub struct AssetPaths {
     /// Root directory for IR capture files (.wav).
     #[serde(default = "default_ir_captures")]
     pub ir_captures: String,
+    /// Root directory for block thumbnails (PNG images).
+    #[serde(default = "default_thumbnails")]
+    pub thumbnails: String,
 }
 
 impl Default for AssetPaths {
@@ -34,6 +37,7 @@ impl Default for AssetPaths {
             lv2_data: default_lv2_data(),
             nam_captures: default_nam_captures(),
             ir_captures: default_ir_captures(),
+            thumbnails: default_thumbnails(),
         }
     }
 }
@@ -61,6 +65,10 @@ fn default_nam_captures() -> String {
 
 fn default_ir_captures() -> String {
     "captures/ir".to_string()
+}
+
+fn default_thumbnails() -> String {
+    "assets/blocks/thumbnails".to_string()
 }
 
 static ASSET_PATHS: OnceLock<AssetPaths> = OnceLock::new();

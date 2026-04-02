@@ -1,5 +1,4 @@
 use anyhow::{anyhow, bail, Result};
-use asset_runtime::{materialize, EmbeddedAsset};
 use ir::{build_mono_ir_processor_from_wav, IrAsset};
 use crate::registry::BodyModelDefinition;
 use crate::BodyBackendKind;
@@ -11,38 +10,34 @@ pub const DISPLAY_NAME: &str = "HD-28 Pre-2018 HFN Pickup";
 const BRAND: &str = "martin";
 
 macro_rules! capture {
-    ($voicing:literal, $asset_id:literal, $relative_path:literal) => {
+    ($voicing:literal, $ir_file:literal) => {
         Capture {
             voicing: $voicing,
-            asset: EmbeddedAsset::new(
-                $asset_id,
-                $relative_path,
-                include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../", $relative_path)),
-            ),
+            ir_file: $ir_file,
         }
     };
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Capture { pub voicing: &'static str, pub asset: EmbeddedAsset }
+pub struct Capture { pub voicing: &'static str, pub ir_file: &'static str }
 
 pub const CAPTURES: &[Capture] = &[
-    capture!("martinhd28_hfn1_44100", "body.martin_hd_28_pre2018_hfn_pickup.martinhd28_hfn1_44100", "captures/ir/body/martin_hd_28_pre2018_hfn_pickup/martinhd28_hfn1_44100.wav"),
-    capture!("martinhd28_hfn1_44100_bld", "body.martin_hd_28_pre2018_hfn_pickup.martinhd28_hfn1_44100_bld", "captures/ir/body/martin_hd_28_pre2018_hfn_pickup/martinhd28_hfn1_44100_bld.wav"),
-    capture!("martinhd28_hfn1_44100_match", "body.martin_hd_28_pre2018_hfn_pickup.martinhd28_hfn1_44100_match", "captures/ir/body/martin_hd_28_pre2018_hfn_pickup/martinhd28_hfn1_44100_match.wav"),
-    capture!("martinhd28_hfn1_44100_jf_flavor", "body.martin_hd_28_pre2018_hfn_pickup.martinhd28_hfn1_44100_jf_flavor", "captures/ir/body/martin_hd_28_pre2018_hfn_pickup/martinhd28_hfn1_44100_jf_flavor.wav"),
-    capture!("martinhd28_hfn2_44100", "body.martin_hd_28_pre2018_hfn_pickup.martinhd28_hfn2_44100", "captures/ir/body/martin_hd_28_pre2018_hfn_pickup/martinhd28_hfn2_44100.wav"),
-    capture!("martinhd28_hfn2_44100_bld", "body.martin_hd_28_pre2018_hfn_pickup.martinhd28_hfn2_44100_bld", "captures/ir/body/martin_hd_28_pre2018_hfn_pickup/martinhd28_hfn2_44100_bld.wav"),
-    capture!("martinhd28_hfn2_44100_match", "body.martin_hd_28_pre2018_hfn_pickup.martinhd28_hfn2_44100_match", "captures/ir/body/martin_hd_28_pre2018_hfn_pickup/martinhd28_hfn2_44100_match.wav"),
-    capture!("martinhd28_hfn2_44100_jf_flavor", "body.martin_hd_28_pre2018_hfn_pickup.martinhd28_hfn2_44100_jf_flavor", "captures/ir/body/martin_hd_28_pre2018_hfn_pickup/martinhd28_hfn2_44100_jf_flavor.wav"),
-    capture!("ir_martin_hd28_8096st_matcheq", "body.martin_hd_28_pre2018_hfn_pickup.ir_martin_hd28_8096st_matcheq", "captures/ir/body/martin_hd_28_pre2018_hfn_pickup/ir_martin_hd28_8096st_matcheq.wav"),
-    capture!("ir_martin_hd28_8096l_matcheq", "body.martin_hd_28_pre2018_hfn_pickup.ir_martin_hd28_8096l_matcheq", "captures/ir/body/martin_hd_28_pre2018_hfn_pickup/ir_martin_hd28_8096l_matcheq.wav"),
-    capture!("ir_martin_hd28_8096r_matcheq", "body.martin_hd_28_pre2018_hfn_pickup.ir_martin_hd28_8096r_matcheq", "captures/ir/body/martin_hd_28_pre2018_hfn_pickup/ir_martin_hd28_8096r_matcheq.wav"),
-    capture!("ir_martin_hd28_2048st_matcheq", "body.martin_hd_28_pre2018_hfn_pickup.ir_martin_hd28_2048st_matcheq", "captures/ir/body/martin_hd_28_pre2018_hfn_pickup/ir_martin_hd28_2048st_matcheq.wav"),
-    capture!("ir_martin_hd28_2048l_matcheq", "body.martin_hd_28_pre2018_hfn_pickup.ir_martin_hd28_2048l_matcheq", "captures/ir/body/martin_hd_28_pre2018_hfn_pickup/ir_martin_hd28_2048l_matcheq.wav"),
-    capture!("ir_martin_hd28_2048r_matcheq", "body.martin_hd_28_pre2018_hfn_pickup.ir_martin_hd28_2048r_matcheq", "captures/ir/body/martin_hd_28_pre2018_hfn_pickup/ir_martin_hd28_2048r_matcheq.wav"),
-    capture!("irzrec1db65s4ss17", "body.martin_hd_28_pre2018_hfn_pickup.irzrec1db65s4ss17", "captures/ir/body/martin_hd_28_pre2018_hfn_pickup/irzrec1db65s4ss17.wav"),
-    capture!("irzrec2db65s4ss17", "body.martin_hd_28_pre2018_hfn_pickup.irzrec2db65s4ss17", "captures/ir/body/martin_hd_28_pre2018_hfn_pickup/irzrec2db65s4ss17.wav"),
+    capture!("martinhd28_hfn1_44100", "body/martin_hd_28_pre2018_hfn_pickup/martinhd28_hfn1_44100.wav"),
+    capture!("martinhd28_hfn1_44100_bld", "body/martin_hd_28_pre2018_hfn_pickup/martinhd28_hfn1_44100_bld.wav"),
+    capture!("martinhd28_hfn1_44100_match", "body/martin_hd_28_pre2018_hfn_pickup/martinhd28_hfn1_44100_match.wav"),
+    capture!("martinhd28_hfn1_44100_jf_flavor", "body/martin_hd_28_pre2018_hfn_pickup/martinhd28_hfn1_44100_jf_flavor.wav"),
+    capture!("martinhd28_hfn2_44100", "body/martin_hd_28_pre2018_hfn_pickup/martinhd28_hfn2_44100.wav"),
+    capture!("martinhd28_hfn2_44100_bld", "body/martin_hd_28_pre2018_hfn_pickup/martinhd28_hfn2_44100_bld.wav"),
+    capture!("martinhd28_hfn2_44100_match", "body/martin_hd_28_pre2018_hfn_pickup/martinhd28_hfn2_44100_match.wav"),
+    capture!("martinhd28_hfn2_44100_jf_flavor", "body/martin_hd_28_pre2018_hfn_pickup/martinhd28_hfn2_44100_jf_flavor.wav"),
+    capture!("ir_martin_hd28_8096st_matcheq", "body/martin_hd_28_pre2018_hfn_pickup/ir_martin_hd28_8096st_matcheq.wav"),
+    capture!("ir_martin_hd28_8096l_matcheq", "body/martin_hd_28_pre2018_hfn_pickup/ir_martin_hd28_8096l_matcheq.wav"),
+    capture!("ir_martin_hd28_8096r_matcheq", "body/martin_hd_28_pre2018_hfn_pickup/ir_martin_hd28_8096r_matcheq.wav"),
+    capture!("ir_martin_hd28_2048st_matcheq", "body/martin_hd_28_pre2018_hfn_pickup/ir_martin_hd28_2048st_matcheq.wav"),
+    capture!("ir_martin_hd28_2048l_matcheq", "body/martin_hd_28_pre2018_hfn_pickup/ir_martin_hd28_2048l_matcheq.wav"),
+    capture!("ir_martin_hd28_2048r_matcheq", "body/martin_hd_28_pre2018_hfn_pickup/ir_martin_hd28_2048r_matcheq.wav"),
+    capture!("irzrec1db65s4ss17", "body/martin_hd_28_pre2018_hfn_pickup/irzrec1db65s4ss17.wav"),
+    capture!("irzrec2db65s4ss17", "body/martin_hd_28_pre2018_hfn_pickup/irzrec2db65s4ss17.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -79,11 +74,10 @@ pub fn build_processor_for_model(params: &ParameterSet, sample_rate: f32, layout
     match layout {
         AudioChannelLayout::Mono => {
             let capture = resolve_capture(params)?;
-            let materialized_path = materialize(&capture.asset)?;
-            let materialized_path_str = materialized_path.to_string_lossy();
-            let ir = IrAsset::load_from_wav(&materialized_path_str)?;
+            let wav_path = ir::resolve_ir_capture(capture.ir_file)?;
+            let ir = IrAsset::load_from_wav(&wav_path)?;
             if ir.channel_count() != 1 { bail!("body model '{}' capture must be mono, got {} channels", MODEL_ID, ir.channel_count()); }
-            let processor = build_mono_ir_processor_from_wav(&materialized_path_str, sample_rate)?;
+            let processor = build_mono_ir_processor_from_wav(&wav_path, sample_rate)?;
             Ok(BlockProcessor::Mono(processor))
         }
         AudioChannelLayout::Stereo => bail!("body model '{}' currently expects mono processor layout", MODEL_ID),
@@ -100,7 +94,7 @@ pub const MODEL_DEFINITION: BodyModelDefinition = BodyModelDefinition {
 };
 
 pub fn validate_params(params: &ParameterSet) -> Result<()> { resolve_capture(params).map(|_| ()) }
-pub fn asset_summary(params: &ParameterSet) -> Result<String> { let c = resolve_capture(params)?; Ok(format!("asset_id='{}'", c.asset.id)) }
+pub fn asset_summary(params: &ParameterSet) -> Result<String> { let c = resolve_capture(params)?; Ok(format!("asset_id='{}'", c.ir_file)) }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static Capture> {
     let requested = required_string(params, "voicing").map_err(anyhow::Error::msg)?;
