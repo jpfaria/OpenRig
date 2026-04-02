@@ -30,15 +30,15 @@ pub struct BluesOverdriveCapture {
 pub const CAPTURES: &[BluesOverdriveCapture] = &[
     capture(
         25,
-        "captures/nam/pedals/boss_blues_driver_bd_2/Boss Blues Driver BD-2 Gain 25percent.nam",
+        "pedals/boss_blues_driver_bd_2/Boss Blues Driver BD-2 Gain 25percent.nam",
     ),
     capture(
         50,
-        "captures/nam/pedals/boss_blues_driver_bd_2/Boss Blues Driver BD-2 Gain 50percent.nam",
+        "pedals/boss_blues_driver_bd_2/Boss Blues Driver BD-2 Gain 50percent.nam",
     ),
     capture(
         75,
-        "captures/nam/pedals/boss_blues_driver_bd_2/Boss Blues Driver BD-2 Gain 75percent.nam",
+        "pedals/boss_blues_driver_bd_2/Boss Blues Driver BD-2 Gain 75percent.nam",
     ),
 ];
 
@@ -64,7 +64,7 @@ pub fn build_processor_for_model(
 ) -> Result<BlockProcessor> {
     let capture = resolve_capture(params)?;
     build_processor_with_assets_for_layout(
-        capture.model_path,
+        &nam::resolve_nam_capture(capture.model_path)?,
         None,
         NAM_PLUGIN_FIXED_PARAMS,
         sample_rate,
