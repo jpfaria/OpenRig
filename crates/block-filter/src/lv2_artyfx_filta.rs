@@ -33,7 +33,7 @@ fn schema() -> Result<ModelParameterSchema> {
         effect_type: block_core::EFFECT_TYPE_FILTER.into(),
         model: MODEL_ID.into(),
         display_name: DISPLAY_NAME.into(),
-        audio_mode: ModelAudioMode::TrueStereo,
+        audio_mode: ModelAudioMode::DualMono,
         parameters: vec![
             float_parameter("frequency", "Frequency", None, Some(0.5), 0.0, 1.0, 0.01, ParameterUnit::None),
         ],
