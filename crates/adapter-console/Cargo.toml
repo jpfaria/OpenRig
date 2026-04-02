@@ -10,5 +10,6 @@ serde_yaml.workspace = true
 application = { path = "../application" }
 engine = { path = "../engine" }
 infra-cpal = { path = "../infra-cpal" }
+infra-filesystem = { path = "../infra-filesystem" }
 infra-yaml = { path = "../infra-yaml" }
 project = { path = "../project" }

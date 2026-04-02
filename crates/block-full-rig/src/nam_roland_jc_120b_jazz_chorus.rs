@@ -41,37 +41,37 @@ pub const CAPTURES: &[RolandCapture] = &[
         false,
         true,
         false,
-        "captures/nam/full_rigs/roland_jc_120b_jazz_chorus/roland_jc_120b_jazz_chorus_bright_off_royer_101.nam",
+        "full_rigs/roland_jc_120b_jazz_chorus/roland_jc_120b_jazz_chorus_bright_off_royer_101.nam",
     ),
     capture(
         false,
         false,
         true,
-        "captures/nam/full_rigs/roland_jc_120b_jazz_chorus/roland_jc_120b_jazz_chorus_bright_off_sm57.nam",
+        "full_rigs/roland_jc_120b_jazz_chorus/roland_jc_120b_jazz_chorus_bright_off_sm57.nam",
     ),
     capture(
         false,
         true,
         true,
-        "captures/nam/full_rigs/roland_jc_120b_jazz_chorus/roland_jc_120b_jazz_chorus_bright_off_sm57_and_royer_101.nam",
+        "full_rigs/roland_jc_120b_jazz_chorus/roland_jc_120b_jazz_chorus_bright_off_sm57_and_royer_101.nam",
     ),
     capture(
         true,
         true,
         false,
-        "captures/nam/full_rigs/roland_jc_120b_jazz_chorus/roland_jc_120b_jazz_chorus_bright_on_royer_r_101.nam",
+        "full_rigs/roland_jc_120b_jazz_chorus/roland_jc_120b_jazz_chorus_bright_on_royer_r_101.nam",
     ),
     capture(
         true,
         false,
         true,
-        "captures/nam/full_rigs/roland_jc_120b_jazz_chorus/roland_jc_120b_jazz_chorus_bright_on_sm57.nam",
+        "full_rigs/roland_jc_120b_jazz_chorus/roland_jc_120b_jazz_chorus_bright_on_sm57.nam",
     ),
     capture(
         true,
         true,
         true,
-        "captures/nam/full_rigs/roland_jc_120b_jazz_chorus/roland_jc_120b_jazz_chorus_bright_on_royer_r_101_and_sm57.nam",
+        "full_rigs/roland_jc_120b_jazz_chorus/roland_jc_120b_jazz_chorus_bright_on_royer_r_101_and_sm57.nam",
     ),
 ];
 
@@ -92,7 +92,7 @@ pub fn build_processor_for_model(
 ) -> Result<BlockProcessor> {
     let capture = resolve_capture(params)?;
     let plugin_params = plugin_params_from_set_with_defaults(params, NAM_PLUGIN_DEFAULTS)?;
-    build_processor_with_assets_for_layout(capture.model_path, None, plugin_params, sample_rate, layout)
+    build_processor_with_assets_for_layout(&nam::resolve_nam_capture(capture.model_path)?, None, plugin_params, sample_rate, layout)
 }
 
 pub fn validate_params(params: &ParameterSet) -> Result<()> {

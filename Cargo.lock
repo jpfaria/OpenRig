@@ -116,6 +116,7 @@ dependencies = [
  "cpal",
  "engine",
  "infra-cpal",
+ "infra-filesystem",
  "infra-yaml",
  "project",
  "serde",
@@ -417,14 +418,6 @@ dependencies = [
  "wayland-client",
  "wayland-protocols",
  "zbus",
-]
-
-[[package]]
-name = "asset-runtime"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "dirs",
 ]
 
 [[package]]
@@ -766,7 +759,6 @@ name = "block-body"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "asset-runtime",
  "block-core",
  "domain",
  "ir",
@@ -778,7 +770,6 @@ name = "block-cab"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "asset-runtime",
  "block-core",
  "domain",
  "ir",
@@ -831,7 +822,6 @@ name = "block-gain"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "asset-runtime",
  "block-core",
  "domain",
  "log",
@@ -882,7 +872,6 @@ name = "block-preamp"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "asset-runtime",
  "block-core",
  "nam",
 ]
@@ -2963,6 +2952,7 @@ dependencies = [
  "anyhow",
  "block-core",
  "hound",
+ "infra-filesystem",
  "log",
  "realfft",
 ]
@@ -3240,6 +3230,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "block-core",
+ "infra-filesystem",
  "libloading",
  "log",
 ]
@@ -3381,6 +3372,7 @@ dependencies = [
  "block-core",
  "cmake",
  "domain",
+ "infra-filesystem",
  "log",
 ]
 

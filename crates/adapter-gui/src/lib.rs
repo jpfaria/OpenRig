@@ -405,7 +405,9 @@ pub fn run_desktop_app(
     let needs_audio_settings =
         context.capabilities.can_select_audio_device && !settings.is_complete();
     let project_paths = resolve_project_paths();
-    let app_config = Rc::new(RefCell::new(load_and_sync_app_config()?));
+    let loaded_config = load_and_sync_app_config()?;
+    infra_filesystem::init_asset_paths(loaded_config.paths.clone());
+    let app_config = Rc::new(RefCell::new(loaded_config));
     let project_session = Rc::new(RefCell::new(None::<ProjectSession>));
     let chain_draft = Rc::new(RefCell::new(None::<ChainDraft>));
     let io_block_insert_draft = Rc::new(RefCell::new(None::<IoBlockInsertDraft>));
@@ -7378,7 +7380,7 @@ fn load_thumbnail_image(effect_type: &str, model_id: &str) -> (slint::Image, boo
 
     match thumbnails::thumbnail_png(effect_type, model_id) {
         Some(png_bytes) => {
-            match image::load_from_memory_with_format(png_bytes, image::ImageFormat::Png) {
+            match image::load_from_memory_with_format(&png_bytes, image::ImageFormat::Png) {
                 Ok(img) => {
                     let rgba = img.to_rgba8();
                     let w = rgba.width() as f32;

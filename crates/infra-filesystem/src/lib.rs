@@ -2,6 +2,93 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use std::sync::OnceLock;
+
+/// Central configuration for all asset directories.
+///
+/// Each field holds a path (absolute or relative to the executable) where the
+/// corresponding asset category lives.  When the app starts it loads these
+/// values from `config.yaml` (falling back to sensible per-platform defaults)
+/// and stores them in a global `OnceLock` so every crate can access them
+/// without passing config around.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AssetPaths {
+    /// Directory containing prebuilt LV2 shared libraries (.dylib/.so/.dll).
+    #[serde(default = "default_lv2_libs")]
+    pub lv2_libs: String,
+    /// Directory containing LV2 plugin data (TTL metadata, presets).
+    #[serde(default = "default_lv2_data")]
+    pub lv2_data: String,
+    /// Root directory for NAM capture files (.nam).
+    #[serde(default = "default_nam_captures")]
+    pub nam_captures: String,
+    /// Root directory for IR capture files (.wav).
+    #[serde(default = "default_ir_captures")]
+    pub ir_captures: String,
+    /// Root directory for block thumbnails (PNG images).
+    #[serde(default = "default_thumbnails")]
+    pub thumbnails: String,
+}
+
+impl Default for AssetPaths {
+    fn default() -> Self {
+        Self {
+            lv2_libs: default_lv2_libs(),
+            lv2_data: default_lv2_data(),
+            nam_captures: default_nam_captures(),
+            ir_captures: default_ir_captures(),
+            thumbnails: default_thumbnails(),
+        }
+    }
+}
+
+fn default_lv2_libs() -> String {
+    #[cfg(target_os = "macos")]
+    { "libs/lv2/macos-universal".to_string() }
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    { "libs/lv2/linux-x86_64".to_string() }
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    { "libs/lv2/linux-aarch64".to_string() }
+    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+    { "libs/lv2/windows-x64".to_string() }
+    #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
+    { "libs/lv2/windows-arm64".to_string() }
+}
+
+fn default_lv2_data() -> String {
+    "data/lv2".to_string()
+}
+
+fn default_nam_captures() -> String {
+    "captures/nam".to_string()
+}
+
+fn default_ir_captures() -> String {
+    "captures/ir".to_string()
+}
+
+fn default_thumbnails() -> String {
+    "assets/blocks/thumbnails".to_string()
+}
+
+static ASSET_PATHS: OnceLock<AssetPaths> = OnceLock::new();
+
+/// Store the resolved asset paths for the lifetime of the process.
+///
+/// Must be called once during app startup (after loading config).  Subsequent
+/// calls are silently ignored so that tests that initialise multiple times do
+/// not panic.
+pub fn init_asset_paths(paths: AssetPaths) {
+    ASSET_PATHS.set(paths).ok();
+}
+
+/// Retrieve the global asset paths.
+///
+/// # Panics
+/// Panics if `init_asset_paths` has not been called yet.
+pub fn asset_paths() -> &'static AssetPaths {
+    ASSET_PATHS.get().expect("asset_paths not initialized — call init_asset_paths() during startup")
+}
 
 pub struct FilesystemStorage;
 
@@ -19,6 +106,8 @@ pub struct RecentProjectEntry {
 pub struct AppConfig {
     #[serde(default)]
     pub recent_projects: Vec<RecentProjectEntry>,
+    #[serde(default)]
+    pub paths: AssetPaths,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -214,6 +303,7 @@ mod tests {
                     invalid_reason: None,
                 },
             ],
+            ..Default::default()
         };
 
         insert_recent_project(

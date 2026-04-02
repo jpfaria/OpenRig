@@ -1,0 +1,127 @@
+@prefix atom: <http://lv2plug.in/ns/ext/atom#> .
+@prefix doap: <http://usefulinc.com/ns/doap#> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix lv2:  <http://lv2plug.in/ns/lv2core#> .
+@prefix mod:  <http://moddevices.com/ns/mod#> .
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+<https://github.com/jatinchowdhury18/KlonCentaur>
+    a lv2:Plugin , lv2:DistortionPlugin ;
+    lv2:requiredFeature <http://lv2plug.in/ns/ext/buf-size#boundedBlockLength> ,
+                        <http://lv2plug.in/ns/ext/urid#map> ;
+    lv2:extensionData <http://lv2plug.in/ns/ext/options#interface> ,
+                      <http://kxstudio.sf.net/ns/lv2ext/programs#Interface> ;
+
+    lv2:microVersion 4 ;
+    lv2:minorVersion 2 ;
+
+    lv2:port [
+        a lv2:InputPort, lv2:ControlPort ;
+        lv2:index 0 ;
+        lv2:symbol "lv2_freewheel" ;
+        lv2:name "Freewheel" ;
+        lv2:default 0.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+        lv2:designation <http://lv2plug.in/ns/lv2core#freeWheeling> ;
+        lv2:portProperty lv2:toggled, <http://lv2plug.in/ns/ext/port-props#notOnGUI> ;
+    ] ;
+
+    lv2:port [
+        a lv2:InputPort, lv2:AudioPort ;
+        lv2:index 1 ;
+        lv2:symbol "lv2_audio_in" ;
+        lv2:name "Audio Input" ;
+    ] ;
+
+    lv2:port [
+        a lv2:OutputPort, lv2:AudioPort ;
+        lv2:index 2 ;
+        lv2:symbol "lv2_audio_out" ;
+        lv2:name "Audio Output" ;
+    ] ;
+
+    lv2:port [
+        a lv2:InputPort, lv2:ControlPort ;
+        lv2:index 3 ;
+        lv2:symbol "gain" ;
+        lv2:name "Gain" ;
+        lv2:default 0.5 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+    ] ,
+    [
+        a lv2:InputPort, lv2:ControlPort ;
+        lv2:index 4 ;
+        lv2:symbol "treble" ;
+        lv2:name "Treble" ;
+        lv2:default 0.5 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+    ] ,
+    [
+        a lv2:InputPort, lv2:ControlPort ;
+        lv2:index 5 ;
+        lv2:symbol "level" ;
+        lv2:name "Level" ;
+        lv2:default 0.5 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+    ] ,
+    [
+        a lv2:InputPort, lv2:ControlPort ;
+        lv2:index 6 ;
+        lv2:symbol "mode" ;
+        lv2:name "Mode" ;
+        lv2:default 0 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        lv2:portProperty lv2:integer , lv2:enumeration ;
+        lv2:scalePoint [ rdf:value 0 ; rdfs:label "Traditional"] ;
+        lv2:scalePoint [ rdf:value 1 ; rdfs:label "Neural" ] ;
+    ] ,
+    [
+        a lv2:InputPort, lv2:ControlPort ;
+        lv2:index 7 ;
+        lv2:symbol "lv2_enabled" ;
+        lv2:name "Enabled" ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+        lv2:default 1.0 ;
+        lv2:designation lv2:enabled ;
+        lv2:portProperty lv2:toggled ;
+    ] ,
+    [
+        a lv2:InputPort, lv2:ControlPort ;
+        lv2:index 8 ;
+        lv2:symbol "mono" ;
+        lv2:name "Mono" ;
+        lv2:default 1.0 ;
+        lv2:minimum 0.0 ;
+        lv2:maximum 1.0 ;
+        lv2:portProperty lv2:toggled , <http://lv2plug.in/ns/ext/port-props#notOnGUI> ;
+    ] ;
+
+    mod:brand "chowdsp" ;
+    mod:label "ChowCentaur" ;
+
+rdfs:comment """
+Chow Centaur is a digital emulation of the Klon Centaur guitar pedal (*)
+
+The plugin contains two modes:
+- "Traditional" uses traditional circuit modelling techniques
+- "Neural" uses a recurrent neural network to model the gain stage from the original circuit
+
+Features:
+Modeled by Jatin Chowdhury
+
+(*) 'Product names and trademarks are the property of their respective holders that do not endorse and are not associated or affiliated with MOD Audio or Klon Centaur; they were used merely to identify the product whose sound was incorporated in the creation of this plugin.'
+""";
+
+    doap:name "ChowCentaur" ;
+    doap:maintainer [
+        foaf:name "Jatin Chowdhury" ;
+        foaf:homepage <https://chowdsp.com/products.html#centaur> ;
+        foaf:mbox <mailto:chowdsp@gmail.com> ;
+    ] .

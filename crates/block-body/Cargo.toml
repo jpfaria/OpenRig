@@ -7,6 +7,5 @@ edition.workspace = true
 anyhow.workspace = true
 log.workspace = true
 domain = { path = "../domain" }
-asset-runtime = { path = "../asset-runtime" }
 ir = { path = "../ir" }
 block-core = { path = "../block-core" }
