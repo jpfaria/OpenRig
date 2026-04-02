@@ -27,7 +27,7 @@ fn schema() -> Result<ModelParameterSchema> {
         effect_type: block_core::EFFECT_TYPE_MODULATION.into(),
         model: MODEL_ID.into(),
         display_name: DISPLAY_NAME.into(),
-        audio_mode: ModelAudioMode::MonoToStereo,
+        audio_mode: ModelAudioMode::MonoOnly,
         parameters: vec![
             float_parameter("rate_hz", "Rate", None, Some(5.0), 0.1, 10.0, 0.1, ParameterUnit::Hertz),
             float_parameter("depth_ms", "Depth", None, Some(1.0), 0.1, 5.0, 0.1, ParameterUnit::Milliseconds),
