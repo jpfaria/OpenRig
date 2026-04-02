@@ -3690,10 +3690,22 @@ pub fn run_desktop_app(
                 window.set_show_block_drawer(false);
                 let ci = chain_index as usize;
                 let bi = block_index as usize;
-                // Remove any stale window for this block position.
-                // After add/remove operations, the block at a given index may
-                // have changed, so we always close the old window and create
-                // a fresh one with the correct data.
+                // If this block already has an open editor, bring it to front.
+                {
+                    let borrow = open_block_windows.borrow();
+                    if let Some(bw) = borrow.iter().find(|bw| bw.chain_index == ci && bw.block_index == bi) {
+                        show_child_window(window.window(), bw.window.window());
+                        return;
+                    }
+                }
+                // Close any stale window for this block position before creating a fresh one.
+                // After add/remove operations the block at a given index may have changed.
+                {
+                    let borrow = open_block_windows.borrow();
+                    for bw in borrow.iter().filter(|bw| bw.chain_index == ci && bw.block_index == bi) {
+                        let _ = bw.window.hide();
+                    }
+                }
                 open_block_windows.borrow_mut().retain(|bw| {
                     !(bw.chain_index == ci && bw.block_index == bi)
                 });
