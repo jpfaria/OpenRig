@@ -6,7 +6,7 @@ use project::block::{
 use project::param::ParameterSet;
 use project::project::Project;
 use project::chain::{
-    Chain, ChainInputMode, ChainOutputMixdown, ChainOutputMode, ProcessingLayout,
+    Chain, ChainInputMode, ChainOutputMixdown, ChainOutputMode,
 };
 use block_amp::build_amp_processor_for_layout;
 use block_preamp::build_preamp_processor_for_layout;
@@ -767,10 +767,10 @@ fn build_input_processing_state(
         output_channels,
         input.mode,
     );
-    let processing_layout_channel = match proc_layout {
-        ProcessingLayout::Mono | ProcessingLayout::DualMono => AudioChannelLayout::Mono,
-        ProcessingLayout::Stereo => AudioChannelLayout::Stereo,
-    };
+    // Chain processing bus is ALWAYS stereo. Mono blocks convert
+    // stereo→mono on input and mono→stereo on output transparently.
+    let _ = proc_layout;
+    let processing_layout_channel = AudioChannelLayout::Stereo;
     let input_read_layout = match input.mode {
         ChainInputMode::Mono => AudioChannelLayout::Mono,
         ChainInputMode::Stereo | ChainInputMode::DualMono => AudioChannelLayout::Stereo,
@@ -1320,7 +1320,8 @@ where
         })?;
 
     let processor = match (schema.audio_mode, input_layout) {
-        (ModelAudioMode::MonoOnly, AudioChannelLayout::Mono) => {
+        // MonoOnly: build mono processor — process_buffer handles stereo↔mono conversion
+        (ModelAudioMode::MonoOnly, _) => {
             AudioProcessor::Mono(expect_mono_processor(
                 builder(AudioChannelLayout::Mono)?,
                 chain,
