@@ -55,7 +55,7 @@ component ModelSelector inherits Rectangle {
     popup := PopupWindow {
         property <length> list-height: Math.min(root.labels.length * 28px + 8px, 500px);
         x: 0;
-        y: -self.list-height - 4px;
+        y: root.height + 4px;
         width: root.width;
         height: self.list-height;
 
@@ -830,7 +830,7 @@ export component BlockPanelEditor inherits Rectangle {
                     param-popup := PopupWindow {
                         property <length> list-height: Math.min(param.option_labels.length * 36px + 8px, 260px);
                         x: 0;
-                        y: -self.list-height - 4px;
+                        y: root.height + 4px;
                         width: parent.width;
                         height: self.list-height;
 
