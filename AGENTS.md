@@ -1,4 +1,17 @@
 These instructions apply to the entire repository unless a deeper `AGENTS.md` overrides them.
+
+## Branch Naming (MANDATORY — read before creating ANY branch)
+
+**Format: `feature/issue-{N}` or `bugfix/issue-{N}` — NOTHING ELSE.**
+
+- NEVER add timestamps: ~~`feature/issue-99-20260402-0549`~~ → `feature/issue-99`
+- NEVER add descriptions: ~~`feature/issue-99-harmonizer`~~ → `feature/issue-99`
+- NEVER add suffixes: ~~`feature/issue-99-v2`~~ → `feature/issue-99`
+- Before creating a branch, ALWAYS check if one already exists:
+  ```bash
+  git fetch origin && git branch -a | grep "issue-{N}"
+  ```
+- If a branch exists, use it. NEVER create a second branch for the same issue.
 - This repo is a Rust workspace with multiple crates under `crates/`; do not describe it or treat it as a single-crate project.
 - Keep changes aligned with the current workspace layout unless the user explicitly asks for a structural migration.
 - Current crate families are:
@@ -84,7 +97,7 @@ Before implementing any issue, evaluate its complexity:
 - Work on ONE sub-task at a time
 - After each sub-task: `cargo build` must pass with zero warnings
 - Commit after each sub-task with a clear message
-- Use a SINGLE branch for the entire issue: `feature/issue-{N}-description` or `bugfix/issue-{N}-description`
+- Use a SINGLE branch for the entire issue: `feature/issue-{N}` or `bugfix/issue-{N}` — NO suffixes, NO timestamps, NO descriptions after the number
 
 ### Step 4 — Deliver
 - When all sub-tasks are done, create a single PR to `develop`
