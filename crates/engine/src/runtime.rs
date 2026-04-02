@@ -389,18 +389,18 @@ pub fn build_runtime_graph(
 }
 
 pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<ChainRuntimeState> {
-    let eff_inputs = effective_inputs(chain);
+    let (eff_inputs, eff_input_cpal_indices) = effective_inputs(chain);
     let eff_outputs = effective_outputs(chain);
     log::info!("=== CHAIN '{}' RUNTIME BUILD ===", chain.id.0);
     log::info!("  inputs: {}", eff_inputs.len());
     for (i, inp) in eff_inputs.iter().enumerate() {
-        log::info!("    input[{}]: '{}' dev='{}' ch={:?}", i, inp.name, inp.device_id.0.split(':').last().unwrap_or("?"), inp.channels);
+        log::info!("    input[{}]: '{}' dev='{}' ch={:?} cpal_stream={}", i, inp.name, inp.device_id.0.split(':').last().unwrap_or("?"), inp.channels, eff_input_cpal_indices[i]);
     }
     log::info!("  outputs: {}", eff_outputs.len());
     for (i, out) in eff_outputs.iter().enumerate() {
         log::info!("    output[{}]: '{}' dev='{}' ch={:?}", i, out.name, out.device_id.0.split(':').last().unwrap_or("?"), out.channels);
     }
-    let segments = split_chain_into_segments(chain, &eff_inputs, &eff_outputs);
+    let segments = split_chain_into_segments(chain, &eff_inputs, &eff_input_cpal_indices, &eff_outputs);
     log::info!("  segments: {}", segments.len());
     for (i, seg) in segments.iter().enumerate() {
         let block_names: Vec<String> = seg.block_indices.iter()
@@ -469,7 +469,11 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
 /// Build effective input entries from chain's InputBlock entries, plus Insert return entries.
 /// Order: InputBlock entries first, then Insert return entries (matches CPAL stream order).
 /// Falls back to a single mono input on channel 0 if no InputBlocks exist and no Inserts.
-fn effective_inputs(chain: &Chain) -> Vec<InputEntry> {
+/// Returns (effective_entries, cpal_stream_index_per_entry).
+/// cpal_stream_index maps each effective entry back to the CPAL stream
+/// that provides its audio data. Entries split from the same original
+/// entry share the same CPAL stream index.
+fn effective_inputs(chain: &Chain) -> (Vec<InputEntry>, Vec<usize>) {
     let raw_entries: Vec<InputEntry> = chain.blocks.iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
@@ -482,7 +486,8 @@ fn effective_inputs(chain: &Chain) -> Vec<InputEntry> {
     // Mono entries with multiple channels: split into one entry per channel
     // so each channel gets its own isolated processing stream.
     let mut entries: Vec<InputEntry> = Vec::new();
-    for entry in raw_entries {
+    let mut cpal_indices: Vec<usize> = Vec::new();
+    for (raw_idx, entry) in raw_entries.iter().enumerate() {
         if matches!(entry.mode, ChainInputMode::Mono) && entry.channels.len() > 1 {
             for (i, &ch) in entry.channels.iter().enumerate() {
                 entries.push(InputEntry {
@@ -491,13 +496,16 @@ fn effective_inputs(chain: &Chain) -> Vec<InputEntry> {
                     mode: ChainInputMode::Mono,
                     channels: vec![ch],
                 });
+                cpal_indices.push(raw_idx);
             }
         } else {
-            entries.push(entry);
+            entries.push(entry.clone());
+            cpal_indices.push(raw_idx);
         }
     }
 
     // Append Insert return entries (as inputs for segments after each Insert)
+    let insert_return_base = raw_entries.len();
     let insert_returns: Vec<InputEntry> = chain.blocks.iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
@@ -505,18 +513,21 @@ fn effective_inputs(chain: &Chain) -> Vec<InputEntry> {
             _ => None,
         })
         .collect();
-    entries.extend(insert_returns);
+    for (i, ret) in insert_returns.into_iter().enumerate() {
+        cpal_indices.push(insert_return_base + i);
+        entries.push(ret);
+    }
 
     if !entries.is_empty() {
-        return entries;
+        return (entries, cpal_indices);
     }
     // Fallback — no InputBlocks defined
-    vec![InputEntry {
+    (vec![InputEntry {
         name: "Input".to_string(),
         device_id: domain::ids::DeviceId("".to_string()),
         mode: ChainInputMode::Mono,
         channels: vec![0],
-    }]
+    }], vec![0])
 }
 
 /// Build effective output entries from chain's OutputBlock entries, plus Insert send entries.
@@ -593,7 +604,7 @@ struct ChainSegment {
 ///   Segment 2: input=Insert return,      blocks=[Delay, Reverb], outputs=[OutputBlock entries]
 ///
 /// If no Insert blocks exist, a single segment covers the entire chain.
-fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], _effective_outs: &[OutputEntry]) -> Vec<ChainSegment> {
+fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], cpal_indices: &[usize], _effective_outs: &[OutputEntry]) -> Vec<ChainSegment> {
     // Count regular InputBlock entries and OutputBlock entries
     let regular_input_count: usize = chain.blocks.iter()
         .filter(|b| b.enabled)
@@ -652,7 +663,7 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], _effec
             for in_idx in 0..input_count {
                 segments.push(ChainSegment {
                     input: effective_ins[in_idx].clone(),
-                    cpal_input_index: in_idx,
+                    cpal_input_index: cpal_indices.get(in_idx).copied().unwrap_or(in_idx),
                     block_indices: block_indices.clone(),
                     output_route_indices: vec![out_entry_idx],
                 });
@@ -837,9 +848,9 @@ pub fn update_chain_runtime_state(
     sample_rate: f32,
     reset_output_queue: bool,
 ) -> Result<()> {
-    let effective_ins = effective_inputs(chain);
+    let (effective_ins, eff_input_cpal_indices) = effective_inputs(chain);
     let effective_outs = effective_outputs(chain);
-    let segments = split_chain_into_segments(chain, &effective_ins, &effective_outs);
+    let segments = split_chain_into_segments(chain, &effective_ins, &eff_input_cpal_indices, &effective_outs);
 
     // Step 1: Extract existing blocks from all input states (brief lock)
     let mut existing_per_input: Vec<Vec<BlockRuntimeNode>> = {
@@ -2573,9 +2584,9 @@ mod tests {
             ],
         };
 
-        let eff_inputs = effective_inputs(&chain);
+        let (eff_inputs, eff_cpal_indices) = effective_inputs(&chain);
         let eff_outputs = effective_outputs(&chain);
-        let segments = split_chain_into_segments(&chain, &eff_inputs, &eff_outputs);
+        let segments = split_chain_into_segments(&chain, &eff_inputs, &eff_cpal_indices, &eff_outputs);
 
         // Should have 2 segments (1 input × 2 outputs)
         assert_eq!(segments.len(), 2, "expected 2 segments, got {}", segments.len());
