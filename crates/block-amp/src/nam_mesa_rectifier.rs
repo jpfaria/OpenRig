@@ -29,32 +29,32 @@ pub const CAPTURES: &[MesaRectifierCapture] = &[
     capture(
         "crunch_orange",
         "4x12_v30",
-        "captures/nam/amps/mesa_rectifier/rectifier_crunch_orange_4x12_v30.nam",
+        "amps/mesa_rectifier/rectifier_crunch_orange_4x12_v30.nam",
     ),
     capture(
         "crunch_orange",
         "4x12_greenback",
-        "captures/nam/amps/mesa_rectifier/rectifier_crunch_orange_4x12_greenback.nam",
+        "amps/mesa_rectifier/rectifier_crunch_orange_4x12_greenback.nam",
     ),
     capture(
         "crunch_orange",
         "4x12_g12t",
-        "captures/nam/amps/mesa_rectifier/rectifier_crunch_orange_4x12_g12t.nam",
+        "amps/mesa_rectifier/rectifier_crunch_orange_4x12_g12t.nam",
     ),
     capture(
         "drive_red",
         "4x12_v30",
-        "captures/nam/amps/mesa_rectifier/rectifier_drive_red_4x12_v30.nam",
+        "amps/mesa_rectifier/rectifier_drive_red_4x12_v30.nam",
     ),
     capture(
         "drive_red",
         "4x12_greenback",
-        "captures/nam/amps/mesa_rectifier/rectifier_drive_red_4x12_greenback.nam",
+        "amps/mesa_rectifier/rectifier_drive_red_4x12_greenback.nam",
     ),
     capture(
         "drive_red",
         "4x12_g12t",
-        "captures/nam/amps/mesa_rectifier/rectifier_drive_red_4x12_g12t.nam",
+        "amps/mesa_rectifier/rectifier_drive_red_4x12_g12t.nam",
     ),
 ];
 
@@ -90,7 +90,7 @@ pub fn build_processor_for_model(
 ) -> Result<BlockProcessor> {
     let capture = resolve_capture(params)?;
     build_processor_with_assets_for_layout(
-        capture.model_path,
+        &nam::resolve_nam_capture(capture.model_path)?,
         None,
         NAM_PLUGIN_FIXED_PARAMS,
         sample_rate,

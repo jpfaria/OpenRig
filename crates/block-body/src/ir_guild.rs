@@ -1,5 +1,4 @@
 use anyhow::{anyhow, bail, Result};
-use asset_runtime::{materialize, EmbeddedAsset};
 use ir::{build_mono_ir_processor_from_wav, IrAsset};
 use crate::registry::BodyModelDefinition;
 use crate::BodyBackendKind;
@@ -11,31 +10,34 @@ pub const DISPLAY_NAME: &str = "Guild";
 const BRAND: &str = "guild";
 
 macro_rules! capture {
-    ($voicing:literal, $asset_id:literal, $relative_path:literal) => {
-        Capture { voicing: $voicing, asset: EmbeddedAsset::new($asset_id, $relative_path, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../", $relative_path))) }
+    ($voicing:literal, $ir_file:literal) => {
+        Capture {
+            voicing: $voicing,
+            ir_file: $ir_file,
+        }
     };
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Capture { pub voicing: &'static str, pub asset: EmbeddedAsset }
+pub struct Capture { pub voicing: &'static str, pub ir_file: &'static str }
 
 pub const CAPTURES: &[Capture] = &[
-    capture!("001_dtar_parlor", "body.guild.001_dtar_parlor", "captures/ir/body/guild/001_dtar_parlor.wav"),
-    capture!("002_dtar_finger", "body.guild.002_dtar_finger", "captures/ir/body/guild/002_dtar_finger.wav"),
-    capture!("003_dtar_blues", "body.guild.003_dtar_blues", "captures/ir/body/guild/003_dtar_blues.wav"),
-    capture!("004_dtar_mag", "body.guild.004_dtar_mag", "captures/ir/body/guild/004_dtar_mag.wav"),
-    capture!("005_dtar_ros", "body.guild.005_dtar_ros", "captures/ir/body/guild/005_dtar_ros.wav"),
-    capture!("006_dtar_btq_finger", "body.guild.006_dtar_btq_finger", "captures/ir/body/guild/006_dtar_btq_finger.wav"),
-    capture!("007_dtar_dread", "body.guild.007_dtar_dread", "captures/ir/body/guild/007_dtar_dread.wav"),
-    capture!("008_dtar_graud", "body.guild.008_dtar_graud", "captures/ir/body/guild/008_dtar_graud.wav"),
-    capture!("009_dtar_slope_jumbo", "body.guild.009_dtar_slope_jumbo", "captures/ir/body/guild/009_dtar_slope_jumbo.wav"),
-    capture!("010_dtar_mah_dread", "body.guild.010_dtar_mah_dread", "captures/ir/body/guild/010_dtar_mah_dread.wav"),
-    capture!("011_dtar_ros_dread", "body.guild.011_dtar_ros_dread", "captures/ir/body/guild/011_dtar_ros_dread.wav"),
-    capture!("012_dtar_sup_jumbo", "body.guild.012_dtar_sup_jumbo", "captures/ir/body/guild/012_dtar_sup_jumbo.wav"),
-    capture!("013_dtar_hollow_arch_jazz", "body.guild.013_dtar_hollow_arch_jazz", "captures/ir/body/guild/013_dtar_hollow_arch_jazz.wav"),
-    capture!("014_dtar_gypsy_jazz", "body.guild.014_dtar_gypsy_jazz", "captures/ir/body/guild/014_dtar_gypsy_jazz.wav"),
-    capture!("015_dtar_blues_res", "body.guild.015_dtar_blues_res", "captures/ir/body/guild/015_dtar_blues_res.wav"),
-    capture!("016_dtar_tricone_res", "body.guild.016_dtar_tricone_res", "captures/ir/body/guild/016_dtar_tricone_res.wav"),
+    capture!("001_dtar_parlor", "body/guild/001_dtar_parlor.wav"),
+    capture!("002_dtar_finger", "body/guild/002_dtar_finger.wav"),
+    capture!("003_dtar_blues", "body/guild/003_dtar_blues.wav"),
+    capture!("004_dtar_mag", "body/guild/004_dtar_mag.wav"),
+    capture!("005_dtar_ros", "body/guild/005_dtar_ros.wav"),
+    capture!("006_dtar_btq_finger", "body/guild/006_dtar_btq_finger.wav"),
+    capture!("007_dtar_dread", "body/guild/007_dtar_dread.wav"),
+    capture!("008_dtar_graud", "body/guild/008_dtar_graud.wav"),
+    capture!("009_dtar_slope_jumbo", "body/guild/009_dtar_slope_jumbo.wav"),
+    capture!("010_dtar_mah_dread", "body/guild/010_dtar_mah_dread.wav"),
+    capture!("011_dtar_ros_dread", "body/guild/011_dtar_ros_dread.wav"),
+    capture!("012_dtar_sup_jumbo", "body/guild/012_dtar_sup_jumbo.wav"),
+    capture!("013_dtar_hollow_arch_jazz", "body/guild/013_dtar_hollow_arch_jazz.wav"),
+    capture!("014_dtar_gypsy_jazz", "body/guild/014_dtar_gypsy_jazz.wav"),
+    capture!("015_dtar_blues_res", "body/guild/015_dtar_blues_res.wav"),
+    capture!("016_dtar_tricone_res", "body/guild/016_dtar_tricone_res.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -72,11 +74,10 @@ pub fn build_processor_for_model(params: &ParameterSet, sample_rate: f32, layout
     match layout {
         AudioChannelLayout::Mono => {
             let capture = resolve_capture(params)?;
-            let materialized_path = materialize(&capture.asset)?;
-            let materialized_path_str = materialized_path.to_string_lossy();
-            let ir = IrAsset::load_from_wav(&materialized_path_str)?;
+            let wav_path = ir::resolve_ir_capture(capture.ir_file)?;
+            let ir = IrAsset::load_from_wav(&wav_path)?;
             if ir.channel_count() != 1 { bail!("body model '{}' capture must be mono, got {} channels", MODEL_ID, ir.channel_count()); }
-            let processor = build_mono_ir_processor_from_wav(&materialized_path_str, sample_rate)?;
+            let processor = build_mono_ir_processor_from_wav(&wav_path, sample_rate)?;
             Ok(BlockProcessor::Mono(processor))
         }
         AudioChannelLayout::Stereo => bail!("body model '{}' currently expects mono processor layout", MODEL_ID),
@@ -93,7 +94,7 @@ pub const MODEL_DEFINITION: BodyModelDefinition = BodyModelDefinition {
 };
 
 pub fn validate_params(params: &ParameterSet) -> Result<()> { resolve_capture(params).map(|_| ()) }
-pub fn asset_summary(params: &ParameterSet) -> Result<String> { let c = resolve_capture(params)?; Ok(format!("asset_id='{}'", c.asset.id)) }
+pub fn asset_summary(params: &ParameterSet) -> Result<String> { let c = resolve_capture(params)?; Ok(format!("asset_id='{}'", c.ir_file)) }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static Capture> {
     let requested = required_string(params, "voicing").map_err(anyhow::Error::msg)?;

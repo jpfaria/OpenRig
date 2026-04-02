@@ -842,8 +842,17 @@ fn build_chain_streams(
     resolved: ResolvedChainAudioConfig,
     runtime: Arc<ChainRuntimeState>,
 ) -> Result<(Vec<Stream>, Vec<Stream>)> {
+    // Deduplicate input streams by device: one CPAL stream per unique device.
+    // Multiple entries on the same device share the stream — the engine
+    // reads each entry's channels from the same raw data buffer.
     let mut input_streams = Vec::new();
+    let mut seen_devices: std::collections::HashSet<String> = std::collections::HashSet::new();
     for (i, resolved_input) in resolved.inputs.into_iter().enumerate() {
+        let device_key = resolved_input.device.id().map(|id| id.to_string()).unwrap_or_default();
+        if !seen_devices.insert(device_key.clone()) {
+            log::info!("input[{}] shares device '{}', reusing existing CPAL stream", i, device_key);
+            continue;
+        }
         let stream =
             build_input_stream_for_input(chain_id, i, resolved_input, runtime.clone())?;
         input_streams.push(stream);

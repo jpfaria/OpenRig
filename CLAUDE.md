@@ -35,6 +35,21 @@ Issue → Branch (from develop) → Commits → PR → Review/Merge
    - **Bugfix/Hotfix**: merge imediato apos criar o PR
    - **Feature/Enhancement**: PR aguarda review antes de merge
 
+### UMA branch por issue (OBRIGATORIO)
+
+**NUNCA criar uma segunda branch para a mesma issue.** Antes de criar qualquer branch:
+
+```bash
+# SEMPRE verificar se ja existe branch para a issue
+git fetch origin
+git branch -a | grep "issue-{N}"
+```
+
+- Se **ja existe** → usar a branch existente (`git checkout feature/issue-{N}`)
+- Se **nao existe** → criar a branch (`git checkout -b feature/issue-{N}-descricao`)
+- **NUNCA** adicionar sufixos como `-20260401-1742`, `-v2`, `-fix` etc.
+- Se precisar recomecar, resetar a branch existente em vez de criar outra
+
 ### Agents paralelos com workspace isolado (.solvers/)
 
 **NUNCA implementar código diretamente no workspace principal.** Cada agent trabalha numa cópia isolada do repo dentro de `.solvers/`:
@@ -43,23 +58,33 @@ Issue → Branch (from develop) → Commits → PR → Review/Merge
 OpenRig/                              ← workspace principal (NÃO editar código aqui)
   .solvers/
     issue-{N}/                        ← cópia isolada do repo para o agent
+    doc/                              ← cópia para documentacao (branch main)
 ```
 
 Regras:
 - **Um agent por cópia** — nunca compartilhar `.solvers/issue-{N}/`
-- **Uma branch por issue** — nunca misturar issues
+- **Uma branch por issue** — nunca misturar issues, nunca criar segunda branch
 - **Sempre a partir de develop** — criar branch do develop atualizado
 - **PR quando terminar** — push + PR para develop
-- **Documentacao vai direto na main** — CONTRIBUTING.md, CLAUDE.md, AGENTS.md, README.md, docs/
+- **Documentacao vai direto na main** — usar `.solvers/doc/` na branch main
 - **Leitura/exploração no workspace principal é OK** — só não editar código
 - **Sempre enviar comando de checkout** — ao finalizar trabalho numa branch, incluir o comando `git checkout <branch> && git pull` na resposta para o usuário copiar e testar
 
 Criar workspace isolado:
 ```bash
-cp -r . .solvers/issue-{N}
+# Para codigo (issues)
+rsync -a --exclude='target' --exclude='.solvers' . .solvers/issue-{N}/
 cd .solvers/issue-{N}
-git checkout develop && git pull origin develop
-git checkout -b feature/issue-{N}-descricao
+git fetch origin
+# Verificar se branch ja existe:
+git branch -a | grep "issue-{N}"
+# Se existe: git checkout feature/issue-{N}
+# Se nao existe: git checkout develop && git pull origin develop && git checkout -b feature/issue-{N}-descricao
+
+# Para documentacao
+rsync -a --exclude='target' --exclude='.solvers' . .solvers/doc/
+cd .solvers/doc
+git checkout main && git pull origin main
 ```
 
 ### Regras de codigo

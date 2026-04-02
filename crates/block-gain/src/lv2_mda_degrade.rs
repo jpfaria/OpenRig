@@ -11,8 +11,8 @@ pub const MODEL_ID: &str = "lv2_mda_degrade";
 pub const DISPLAY_NAME: &str = "MDA Degrade";
 const BRAND: &str = "mda";
 
-const PLUGIN_URI: &str = "http://moddevices.com/plugins/mda/Degrade";
-const PLUGIN_DIR: &str = "mod-mda-Degrade.lv2";
+const PLUGIN_URI: &str = "http://drobilla.net/plugins/mda/Degrade";
+const PLUGIN_DIR: &str = "mod-mda-Degrade";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "Degrade.dylib";
@@ -40,7 +40,7 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: block_core::EFFECT_TYPE_GAIN.into(),
         model: MODEL_ID.into(),
         display_name: DISPLAY_NAME.into(),
-        audio_mode: ModelAudioMode::DualMono,
+        audio_mode: ModelAudioMode::MonoToStereo,
         parameters: vec![
             float_parameter(
                 "headroom",
@@ -125,79 +125,25 @@ fn asset_summary(_params: &ParameterSet) -> Result<String> {
     Ok(format!("lv2='{}'", MODEL_ID))
 }
 
-fn resolve_lib_path() -> Result<String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
-    let candidates = [
-        exe_dir
-            .as_ref()
-            .map(|d| d.join("../../").join(lv2::default_lv2_lib_dir()).join(PLUGIN_BINARY)),
-        Some(std::path::PathBuf::from(lv2::default_lv2_lib_dir()).join(PLUGIN_BINARY)),
-    ];
-
-    for candidate in candidates.iter().flatten() {
-        if candidate.exists() {
-            return Ok(candidate.to_string_lossy().to_string());
-        }
-    }
-
-    anyhow::bail!(
-        "LV2 binary '{}' not found in '{}'",
-        PLUGIN_BINARY,
-        lv2::default_lv2_lib_dir()
-    )
-}
-
-fn resolve_bundle_path() -> Result<String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
-    let candidates = [
-        exe_dir
-            .as_ref()
-            .map(|d| d.join("../../plugins").join(PLUGIN_DIR)),
-        Some(std::path::PathBuf::from("plugins").join(PLUGIN_DIR)),
-    ];
-
-    for candidate in candidates.iter().flatten() {
-        if candidate.exists() {
-            return Ok(candidate.to_string_lossy().to_string());
-        }
-    }
-
-    anyhow::bail!("LV2 bundle '{}' not found in plugins/", PLUGIN_DIR)
-}
-
 fn build(
     params: &ParameterSet,
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    // Headroom: 0-100% maps to -30..0 dB
-    let headroom_pct = required_f32(params, "headroom").map_err(anyhow::Error::msg)?;
-    let headroom = -30.0 + (headroom_pct / 100.0) * 30.0;
-    // Quant: 0-100% maps to 4-16 bits
-    let quant_pct = required_f32(params, "quant").map_err(anyhow::Error::msg)?;
-    let quant = 4.0 + (quant_pct / 100.0) * 12.0;
-    // Rate: 0-100% maps to 4800-48000 Hz (logarithmic)
-    let rate_pct = required_f32(params, "rate").map_err(anyhow::Error::msg)?;
-    let rate = 4800.0 * (48000.0_f32 / 4800.0).powf(rate_pct / 100.0);
+    // lvz wrapper normalizes all params to 0-1
+    let headroom = required_f32(params, "headroom").map_err(anyhow::Error::msg)? / 100.0;
+    let quant = required_f32(params, "quant").map_err(anyhow::Error::msg)? / 100.0;
+    let rate = required_f32(params, "rate").map_err(anyhow::Error::msg)? / 100.0;
     let non_lin = required_f32(params, "non_lin").map_err(anyhow::Error::msg)? / 100.0;
-    // Output: 0-100% maps to -20..+20 dB
-    let output_pct = required_f32(params, "output").map_err(anyhow::Error::msg)?;
-    let output = -20.0 + (output_pct / 100.0) * 40.0;
+    let output = required_f32(params, "output").map_err(anyhow::Error::msg)? / 100.0;
     let integrator_str = required_string(params, "integrator").map_err(anyhow::Error::msg)?;
     let integrator: f32 = if integrator_str == "on" { 1.0 } else { 0.0 };
     let even_odd_str = required_string(params, "even_odd").map_err(anyhow::Error::msg)?;
     let even_odd: f32 = if even_odd_str == "even" { 0.0 } else { 1.0 };
-    // Post filter fixed at 15000 Hz
-    let post_filter = 15000.0_f32;
+    let post_filter = 1.0_f32; // lvz normalized: 1.0 = max (15kHz)
 
-    let lib_path = resolve_lib_path()?;
-    let bundle_path = resolve_bundle_path()?;
+    let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
+    let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
 
     let control_ports = &[
         (PORT_HEADROOM, headroom),

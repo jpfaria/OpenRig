@@ -12,7 +12,7 @@ pub const DISPLAY_NAME: &str = "Dragonfly Plate Reverb";
 const BRAND: &str = "dragonfly";
 
 const PLUGIN_URI: &str = "urn:dragonfly:plate";
-const PLUGIN_DIR: &str = "DragonflyPlateReverb.lv2";
+const PLUGIN_DIR: &str = "DragonflyPlateReverb";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "DragonflyPlateReverb_dsp.dylib";
@@ -43,7 +43,7 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: block_core::EFFECT_TYPE_REVERB.into(),
         model: MODEL_ID.into(),
         display_name: DISPLAY_NAME.into(),
-        audio_mode: ModelAudioMode::DualMono,
+        audio_mode: ModelAudioMode::MonoToStereo,
         parameters: vec![
             float_parameter("dry_level", "Dry Level", None, Some(80.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
             float_parameter("wet_level", "Wet Level", None, Some(20.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
@@ -60,44 +60,6 @@ pub fn model_schema() -> ModelParameterSchema {
             float_parameter("dampen", "Dampen", None, Some(13000.0), 1000.0, 16000.0, 100.0, ParameterUnit::Hertz),
         ],
     }
-}
-
-fn resolve_lib_path() -> Result<String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
-    let candidates = [
-        exe_dir.as_ref().map(|d| d.join("../../").join(lv2::default_lv2_lib_dir()).join(PLUGIN_BINARY)),
-        Some(std::path::PathBuf::from(lv2::default_lv2_lib_dir()).join(PLUGIN_BINARY)),
-    ];
-
-    for candidate in candidates.iter().flatten() {
-        if candidate.exists() {
-            return Ok(candidate.to_string_lossy().to_string());
-        }
-    }
-
-    anyhow::bail!("LV2 binary '{}' not found in '{}'", PLUGIN_BINARY, lv2::default_lv2_lib_dir())
-}
-
-fn resolve_bundle_path() -> Result<String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
-    let candidates = [
-        exe_dir.as_ref().map(|d| d.join("../../plugins").join(PLUGIN_DIR)),
-        Some(std::path::PathBuf::from("plugins").join(PLUGIN_DIR)),
-    ];
-
-    for candidate in candidates.iter().flatten() {
-        if candidate.exists() {
-            return Ok(candidate.to_string_lossy().to_string());
-        }
-    }
-
-    anyhow::bail!("LV2 bundle '{}' not found in plugins/", PLUGIN_DIR)
 }
 
 fn build(
@@ -120,8 +82,8 @@ fn build(
     let high_cut = required_f32(params, "high_cut").map_err(anyhow::Error::msg)?;
     let dampen = required_f32(params, "dampen").map_err(anyhow::Error::msg)?;
 
-    let lib_path = resolve_lib_path()?;
-    let bundle_path = resolve_bundle_path()?;
+    let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
+    let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
 
     let control_ports = &[
         (PORT_DRY_LEVEL, dry_level),
@@ -149,8 +111,8 @@ fn build(
 struct StereoAsMono(lv2::StereoLv2Processor);
 impl MonoProcessor for StereoAsMono {
     fn process_sample(&mut self, input: f32) -> f32 {
-        let [l, _] = block_core::StereoProcessor::process_frame(&mut self.0, [input, input]);
-        l
+        let [l, r] = block_core::StereoProcessor::process_frame(&mut self.0, [input, input]);
+        (l + r) * 0.5
     }
 }
 

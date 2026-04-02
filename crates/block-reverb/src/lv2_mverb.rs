@@ -4,14 +4,14 @@ use anyhow::Result;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode};
+use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor};
 
 pub const MODEL_ID: &str = "lv2_mverb";
 pub const DISPLAY_NAME: &str = "MVerb";
 const BRAND: &str = "distrho";
 
 const PLUGIN_URI: &str = "http://distrho.sf.net/plugins/MVerb";
-const PLUGIN_DIR: &str = "MVerb.lv2";
+const PLUGIN_DIR: &str = "MVerb";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "MVerb_dsp.dylib";
@@ -40,7 +40,7 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: block_core::EFFECT_TYPE_REVERB.into(),
         model: MODEL_ID.into(),
         display_name: DISPLAY_NAME.into(),
-        audio_mode: ModelAudioMode::DualMono,
+        audio_mode: ModelAudioMode::MonoToStereo,
         parameters: vec![
             float_parameter("damping", "Damping", None, Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
             float_parameter("density", "Density", None, Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
@@ -53,38 +53,6 @@ pub fn model_schema() -> ModelParameterSchema {
             float_parameter("early_mix", "Early/Late Mix", None, Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
         ],
     }
-}
-
-fn resolve_lib_path() -> Result<String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-    let candidates = [
-        exe_dir.as_ref().map(|d| d.join("../../").join(lv2::default_lv2_lib_dir()).join(PLUGIN_BINARY)),
-        Some(std::path::PathBuf::from(lv2::default_lv2_lib_dir()).join(PLUGIN_BINARY)),
-    ];
-    for candidate in candidates.iter().flatten() {
-        if candidate.exists() {
-            return Ok(candidate.to_string_lossy().to_string());
-        }
-    }
-    anyhow::bail!("LV2 binary '{}' not found in '{}'", PLUGIN_BINARY, lv2::default_lv2_lib_dir())
-}
-
-fn resolve_bundle_path() -> Result<String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-    let candidates = [
-        exe_dir.as_ref().map(|d| d.join("../../plugins").join(PLUGIN_DIR)),
-        Some(std::path::PathBuf::from("plugins").join(PLUGIN_DIR)),
-    ];
-    for candidate in candidates.iter().flatten() {
-        if candidate.exists() {
-            return Ok(candidate.to_string_lossy().to_string());
-        }
-    }
-    anyhow::bail!("LV2 bundle '{}' not found in plugins/", PLUGIN_DIR)
 }
 
 fn build(
@@ -102,8 +70,8 @@ fn build(
     let mix = required_f32(params, "mix").map_err(anyhow::Error::msg)? / 100.0;
     let early_mix = required_f32(params, "early_mix").map_err(anyhow::Error::msg)? / 100.0;
 
-    let lib_path = resolve_lib_path()?;
-    let bundle_path = resolve_bundle_path()?;
+    let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
+    let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
 
     let control_ports = &[
         (PORT_DAMPING, damping),
@@ -117,23 +85,23 @@ fn build(
         (PORT_EARLY_MIX, early_mix),
     ];
 
+    // Always single stereo instance — DPF reverb needs stereo processing
+    let processor = lv2::build_stereo_lv2_processor(
+        &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
+        &[PORT_AUDIO_IN_L, PORT_AUDIO_IN_R], &[PORT_AUDIO_OUT_L, PORT_AUDIO_OUT_R],
+        control_ports,
+    )?;
     match layout {
-        AudioChannelLayout::Mono => {
-            let processor = lv2::build_lv2_processor_with_extras(
-                &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
-                &[PORT_AUDIO_IN_L], &[PORT_AUDIO_OUT_L], control_ports,
-                &[PORT_AUDIO_IN_R, PORT_AUDIO_OUT_R],
-            )?;
-            Ok(BlockProcessor::Mono(Box::new(processor)))
-        }
-        AudioChannelLayout::Stereo => {
-            let processor = lv2::build_stereo_lv2_processor(
-                &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
-                &[PORT_AUDIO_IN_L, PORT_AUDIO_IN_R], &[PORT_AUDIO_OUT_L, PORT_AUDIO_OUT_R],
-                control_ports,
-            )?;
-            Ok(BlockProcessor::Stereo(Box::new(processor)))
-        }
+        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(StereoAsMono(processor)))),
+        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(processor))),
+    }
+}
+
+struct StereoAsMono(lv2::StereoLv2Processor);
+impl MonoProcessor for StereoAsMono {
+    fn process_sample(&mut self, input: f32) -> f32 {
+        let [l, r] = block_core::StereoProcessor::process_frame(&mut self.0, [input, input]);
+        (l + r) * 0.5
     }
 }
 

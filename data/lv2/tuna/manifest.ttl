@@ -1,0 +1,28 @@
+@prefix kx:   <http://kxstudio.sf.net/ns/lv2ext/external-ui#> .
+@prefix lv2:  <http://lv2plug.in/ns/lv2core#> .
+@prefix modgui: <http://moddevices.com/ns/modgui#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix ui:   <http://lv2plug.in/ns/extensions/ui#> .
+
+@prefix tuna: <http://gareus.org/oss/lv2/tuna#> .
+
+
+tuna:mod
+  a lv2:Plugin ;
+  lv2:binary <tuna.dylib>  ;
+  rdfs:seeAlso <tuna.ttl> .
+
+
+tuna:mod
+    modgui:gui [
+        modgui:resourcesDirectory <modgui> ;
+        modgui:iconTemplate <modgui/icon-tuna.html> ;
+        modgui:stylesheet <modgui/stylesheet-tuna.css> ;
+        modgui:screenshot <modgui/screenshot-tuna.png> ;
+        modgui:thumbnail <modgui/thumbnail-tuna.png> ;
+        modgui:javascript <modgui/script-tuna.js> ;
+        modgui:monitoredOutputs [ lv2:symbol "octave" ] , [ lv2:symbol "note" ] , [ lv2:symbol "cent" ] , [ lv2:symbol "freq_out" ] ;
+#       modgui:monitoredOutputs [ lv2:symbol "rms" ] , [ lv2:symbol "freq_out" ] , [ lv2:symbol "octave" ] , [ lv2:symbol "note" ] , [ lv2:symbol "cent" ] , [ lv2:symbol "accuracy" ] , [ lv2:symbol "strobetoui" ] ;
+        modgui:brand "x42" ;
+        modgui:label "x42-tuner" ;
+    ] .

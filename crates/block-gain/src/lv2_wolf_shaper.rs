@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "Wolf Shaper";
 const BRAND: &str = "wolf";
 
 const PLUGIN_URI: &str = "https://github.com/pdesaulniers/wolf-shaper";
-const PLUGIN_DIR: &str = "wolf-shaper.lv2";
+const PLUGIN_DIR: &str = "wolf-shaper";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "wolf-shaper_dsp.dylib";
@@ -25,7 +25,8 @@ const PORT_AUDIO_IN_L: usize = 0;
 const PORT_AUDIO_IN_R: usize = 1;
 const PORT_AUDIO_OUT_L: usize = 2;
 const PORT_AUDIO_OUT_R: usize = 3;
-// 4 = events in (atom), 5 = events out (atom) — skipped
+const PORT_ATOM_IN: usize = 4;
+const PORT_ATOM_OUT: usize = 5;
 const PORT_PREGAIN: usize = 6;
 const PORT_WET: usize = 7;
 const PORT_POSTGAIN: usize = 8;
@@ -37,7 +38,7 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: block_core::EFFECT_TYPE_GAIN.into(),
         model: MODEL_ID.into(),
         display_name: DISPLAY_NAME.into(),
-        audio_mode: ModelAudioMode::DualMono,
+        audio_mode: ModelAudioMode::MonoToStereo,
         parameters: vec![
             float_parameter(
                 "pregain",
@@ -84,62 +85,16 @@ fn asset_summary(_params: &ParameterSet) -> Result<String> {
     Ok(format!("lv2='{}'", MODEL_ID))
 }
 
-fn resolve_lib_path() -> Result<String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
-    let candidates = [
-        exe_dir
-            .as_ref()
-            .map(|d| d.join("../../").join(lv2::default_lv2_lib_dir()).join(PLUGIN_BINARY)),
-        Some(std::path::PathBuf::from(lv2::default_lv2_lib_dir()).join(PLUGIN_BINARY)),
-    ];
-
-    for candidate in candidates.iter().flatten() {
-        if candidate.exists() {
-            return Ok(candidate.to_string_lossy().to_string());
-        }
-    }
-
-    anyhow::bail!(
-        "LV2 binary '{}' not found in '{}'",
-        PLUGIN_BINARY,
-        lv2::default_lv2_lib_dir()
-    )
-}
-
-fn resolve_bundle_path() -> Result<String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
-    let candidates = [
-        exe_dir
-            .as_ref()
-            .map(|d| d.join("../../plugins").join(PLUGIN_DIR)),
-        Some(std::path::PathBuf::from("plugins").join(PLUGIN_DIR)),
-    ];
-
-    for candidate in candidates.iter().flatten() {
-        if candidate.exists() {
-            return Ok(candidate.to_string_lossy().to_string());
-        }
-    }
-
-    anyhow::bail!("LV2 bundle '{}' not found in plugins/", PLUGIN_DIR)
-}
-
 fn build_mono_processor(
     sample_rate: f32,
     pregain: f32,
     wet: f32,
     postgain: f32,
 ) -> Result<lv2::Lv2Processor> {
-    let lib_path = resolve_lib_path()?;
-    let bundle_path = resolve_bundle_path()?;
+    let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
+    let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
 
-    lv2::build_lv2_processor_with_extras(
+    lv2::build_lv2_processor_full(
         &lib_path,
         PLUGIN_URI,
         sample_rate as f64,
@@ -153,6 +108,7 @@ fn build_mono_processor(
             (PORT_REMOVEDC, 1.0),
             (PORT_OVERSAMPLE, 0.0),
         ],
+        &[PORT_ATOM_IN, PORT_ATOM_OUT],
         &[PORT_AUDIO_IN_R, PORT_AUDIO_OUT_R],
     )
 }
@@ -173,9 +129,9 @@ fn build(
             Ok(BlockProcessor::Mono(Box::new(processor)))
         }
         AudioChannelLayout::Stereo => {
-            let lib_path = resolve_lib_path()?;
-            let bundle_path = resolve_bundle_path()?;
-            let processor = lv2::build_stereo_lv2_processor(
+            let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
+            let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
+            let processor = lv2::build_stereo_lv2_processor_with_atoms(
                 &lib_path,
                 PLUGIN_URI,
                 sample_rate as f64,
@@ -189,6 +145,7 @@ fn build(
                     (PORT_REMOVEDC, 1.0),
                     (PORT_OVERSAMPLE, 0.0),
                 ],
+                &[PORT_ATOM_IN, PORT_ATOM_OUT],
             )?;
             Ok(BlockProcessor::Stereo(Box::new(processor)))
         }

@@ -1,5 +1,4 @@
 use anyhow::{anyhow, bail, Result};
-use asset_runtime::{materialize, EmbeddedAsset};
 use ir::{build_mono_ir_processor_from_wav, IrAsset};
 use crate::registry::BodyModelDefinition;
 use crate::BodyBackendKind;
@@ -11,18 +10,10 @@ pub const DISPLAY_NAME: &str = "AW84CE WK";
 const BRAND: &str = "ibanez";
 
 macro_rules! capture {
-    ($voicing:literal, $asset_id:literal, $relative_path:literal) => {
+    ($p1:literal, $ir_file:literal) => {
         IbanezAw84ceWkCapture {
-            voicing: $voicing,
-            asset: EmbeddedAsset::new(
-                $asset_id,
-                $relative_path,
-                include_bytes!(concat!(
-                    env!("CARGO_MANIFEST_DIR"),
-                    "/../../",
-                    $relative_path
-                )),
-            ),
+            voicing: $p1,
+            ir_file: $ir_file,
         }
     };
 }
@@ -30,14 +21,14 @@ macro_rules! capture {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IbanezAw84ceWkCapture {
     pub voicing: &'static str,
-    pub asset: EmbeddedAsset,
+    pub ir_file: &'static str,
 }
 
 pub const CAPTURES: &[IbanezAw84ceWkCapture] = &[
-    capture!("ibanez_aw84ce_wk_48000", "body.ibanez_aw84ce_wk.ibanez_aw84ce_wk_48000", "captures/ir/body/ibanez_aw84ce_wk/ibanez_aw84ce_wk_48000.wav"),
-    capture!("ibanez_aw84ce_wk_48000_bld", "body.ibanez_aw84ce_wk.ibanez_aw84ce_wk_48000_bld", "captures/ir/body/ibanez_aw84ce_wk/ibanez_aw84ce_wk_48000_bld.wav"),
-    capture!("ibanez_aw84ce_wk_48000_jf_flavor", "body.ibanez_aw84ce_wk.ibanez_aw84ce_wk_48000_jf_flavor", "captures/ir/body/ibanez_aw84ce_wk/ibanez_aw84ce_wk_48000_jf_flavor.wav"),
-    capture!("ibanez_aw84ce_wk_48000_match", "body.ibanez_aw84ce_wk.ibanez_aw84ce_wk_48000_match", "captures/ir/body/ibanez_aw84ce_wk/ibanez_aw84ce_wk_48000_match.wav"),
+    capture!("ibanez_aw84ce_wk_48000", "body/ibanez_aw84ce_wk/ibanez_aw84ce_wk_48000.wav"),
+    capture!("ibanez_aw84ce_wk_48000_bld", "body/ibanez_aw84ce_wk/ibanez_aw84ce_wk_48000_bld.wav"),
+    capture!("ibanez_aw84ce_wk_48000_jf_flavor", "body/ibanez_aw84ce_wk/ibanez_aw84ce_wk_48000_jf_flavor.wav"),
+    capture!("ibanez_aw84ce_wk_48000_match", "body/ibanez_aw84ce_wk/ibanez_aw84ce_wk_48000_match.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -69,9 +60,9 @@ pub fn build_processor_for_model(
     match layout {
         AudioChannelLayout::Mono => {
             let capture = resolve_capture(params)?;
-            let materialized_path = materialize(&capture.asset)?;
-            let materialized_path_str = materialized_path.to_string_lossy();
-            let ir = IrAsset::load_from_wav(&materialized_path_str)?;
+            let wav_path = ir::resolve_ir_capture(capture.ir_file)?;
+            
+            let ir = IrAsset::load_from_wav(&wav_path)?;
             if ir.channel_count() != 1 {
                 bail!(
                     "body model '{}' capture must be mono, got {} channels",
@@ -79,7 +70,7 @@ pub fn build_processor_for_model(
                     ir.channel_count()
                 );
             }
-            let processor = build_mono_ir_processor_from_wav(&materialized_path_str, sample_rate)?;
+            let processor = build_mono_ir_processor_from_wav(&wav_path, sample_rate)?;
             Ok(BlockProcessor::Mono(processor))
         }
         AudioChannelLayout::Stereo => bail!(
@@ -120,7 +111,7 @@ pub fn validate_params(params: &ParameterSet) -> Result<()> {
 
 pub fn asset_summary(params: &ParameterSet) -> Result<String> {
     let capture = resolve_capture(params)?;
-    Ok(format!("asset_id='{}'", capture.asset.id))
+    Ok(format!("asset_id='{}'", capture.ir_file))
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static IbanezAw84ceWkCapture> {

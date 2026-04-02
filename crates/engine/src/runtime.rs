@@ -6,7 +6,7 @@ use project::block::{
 use project::param::ParameterSet;
 use project::project::Project;
 use project::chain::{
-    Chain, ChainInputMode, ChainOutputMixdown, ChainOutputMode, ProcessingLayout,
+    Chain, ChainInputMode, ChainOutputMixdown, ChainOutputMode,
 };
 use block_amp::build_amp_processor_for_layout;
 use block_preamp::build_preamp_processor_for_layout;
@@ -103,23 +103,22 @@ enum ProcessorScratch {
 }
 
 impl AudioProcessor {
+    /// Process a buffer of audio frames.
+    ///
+    /// Bus between blocks is ALWAYS stereo. Mono processors receive the left
+    /// channel (or mono mix), process it, and output stereo (duplicated).
     fn process_buffer(&mut self, frames: &mut [AudioFrame], scratch: &mut ProcessorScratch) {
         match (self, scratch) {
             (AudioProcessor::Mono(processor), ProcessorScratch::Mono(mono)) => {
                 mono.clear();
                 mono.reserve(frames.len().saturating_sub(mono.capacity()));
                 for frame in frames.iter() {
-                    match frame {
-                        AudioFrame::Mono(sample) => mono.push(*sample),
-                        AudioFrame::Stereo(_) => {
-                            debug_assert!(false, "mono processor received stereo frames");
-                            return;
-                        }
-                    }
+                    mono.push(frame.mono_mix());
                 }
                 processor.process_block(mono);
+                // Always output stereo — mono processors duplicate to both channels
                 for (frame, sample) in frames.iter_mut().zip(mono.iter().copied()) {
-                    *frame = AudioFrame::Mono(sample);
+                    *frame = AudioFrame::Stereo([sample, sample]);
                 }
             }
             (
@@ -135,13 +134,13 @@ impl AudioProcessor {
                 right_buffer.reserve(frames.len().saturating_sub(right_buffer.capacity()));
                 for frame in frames.iter() {
                     match frame {
-                        AudioFrame::Stereo([left_sample, right_sample]) => {
-                            left_buffer.push(*left_sample);
-                            right_buffer.push(*right_sample);
+                        AudioFrame::Stereo([l, r]) => {
+                            left_buffer.push(*l);
+                            right_buffer.push(*r);
                         }
-                        AudioFrame::Mono(_) => {
-                            debug_assert!(false, "dual-mono processor received mono frames");
-                            return;
+                        AudioFrame::Mono(s) => {
+                            left_buffer.push(*s);
+                            right_buffer.push(*s);
                         }
                     }
                 }
@@ -160,11 +159,8 @@ impl AudioProcessor {
                 stereo.reserve(frames.len().saturating_sub(stereo.capacity()));
                 for frame in frames.iter() {
                     match frame {
-                        AudioFrame::Stereo(stereo_frame) => stereo.push(*stereo_frame),
-                        AudioFrame::Mono(_) => {
-                            debug_assert!(false, "stereo processor received mono frames");
-                            return;
-                        }
+                        AudioFrame::Stereo(sf) => stereo.push(*sf),
+                        AudioFrame::Mono(s) => stereo.push([*s, *s]),
                     }
                 }
                 processor.process_block(stereo);
@@ -177,11 +173,8 @@ impl AudioProcessor {
                 stereo.reserve(frames.len().saturating_sub(stereo.capacity()));
                 for frame in frames.iter() {
                     match frame {
-                        AudioFrame::Mono(sample) => stereo.push([*sample, *sample]),
-                        AudioFrame::Stereo(_) => {
-                            debug_assert!(false, "mono-to-stereo processor received stereo frames");
-                            return;
-                        }
+                        AudioFrame::Mono(s) => stereo.push([*s, *s]),
+                        AudioFrame::Stereo(sf) => stereo.push(*sf),
                     }
                 }
                 processor.process_block(stereo);
@@ -396,18 +389,18 @@ pub fn build_runtime_graph(
 }
 
 pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<ChainRuntimeState> {
-    let eff_inputs = effective_inputs(chain);
+    let (eff_inputs, eff_input_cpal_indices) = effective_inputs(chain);
     let eff_outputs = effective_outputs(chain);
     log::info!("=== CHAIN '{}' RUNTIME BUILD ===", chain.id.0);
     log::info!("  inputs: {}", eff_inputs.len());
     for (i, inp) in eff_inputs.iter().enumerate() {
-        log::info!("    input[{}]: '{}' dev='{}' ch={:?}", i, inp.name, inp.device_id.0.split(':').last().unwrap_or("?"), inp.channels);
+        log::info!("    input[{}]: '{}' dev='{}' ch={:?} cpal_stream={}", i, inp.name, inp.device_id.0.split(':').last().unwrap_or("?"), inp.channels, eff_input_cpal_indices[i]);
     }
     log::info!("  outputs: {}", eff_outputs.len());
     for (i, out) in eff_outputs.iter().enumerate() {
         log::info!("    output[{}]: '{}' dev='{}' ch={:?}", i, out.name, out.device_id.0.split(':').last().unwrap_or("?"), out.channels);
     }
-    let segments = split_chain_into_segments(chain, &eff_inputs, &eff_outputs);
+    let segments = split_chain_into_segments(chain, &eff_inputs, &eff_input_cpal_indices, &eff_outputs);
     log::info!("  segments: {}", segments.len());
     for (i, seg) in segments.iter().enumerate() {
         let block_names: Vec<String> = seg.block_indices.iter()
@@ -476,8 +469,12 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
 /// Build effective input entries from chain's InputBlock entries, plus Insert return entries.
 /// Order: InputBlock entries first, then Insert return entries (matches CPAL stream order).
 /// Falls back to a single mono input on channel 0 if no InputBlocks exist and no Inserts.
-fn effective_inputs(chain: &Chain) -> Vec<InputEntry> {
-    let mut entries: Vec<InputEntry> = chain.blocks.iter()
+/// Returns (effective_entries, cpal_stream_index_per_entry).
+/// cpal_stream_index maps each effective entry back to the CPAL stream
+/// that provides its audio data. Entries split from the same original
+/// entry share the same CPAL stream index.
+fn effective_inputs(chain: &Chain) -> (Vec<InputEntry>, Vec<usize>) {
+    let raw_entries: Vec<InputEntry> = chain.blocks.iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Input(ib) => Some(ib),
@@ -486,7 +483,43 @@ fn effective_inputs(chain: &Chain) -> Vec<InputEntry> {
         .flat_map(|ib| ib.entries.iter().cloned())
         .collect();
 
+    // Mono entries with multiple channels: split into one entry per channel
+    // so each channel gets its own isolated processing stream.
+    //
+    // cpal_indices maps each effective entry to the CPAL stream index.
+    // Entries sharing the same device get the same CPAL stream index
+    // (infra-cpal deduplicates streams by device).
+    let mut entries: Vec<InputEntry> = Vec::new();
+    let mut cpal_indices: Vec<usize> = Vec::new();
+    let mut device_to_cpal: HashMap<String, usize> = HashMap::new();
+    let mut next_cpal_idx: usize = 0;
+
+    for entry in raw_entries.iter() {
+        let device_key = entry.device_id.0.clone();
+        let cpal_idx = *device_to_cpal.entry(device_key).or_insert_with(|| {
+            let idx = next_cpal_idx;
+            next_cpal_idx += 1;
+            idx
+        });
+
+        if matches!(entry.mode, ChainInputMode::Mono) && entry.channels.len() > 1 {
+            for (i, &ch) in entry.channels.iter().enumerate() {
+                entries.push(InputEntry {
+                    name: format!("{} ch{}", entry.name, i + 1),
+                    device_id: entry.device_id.clone(),
+                    mode: ChainInputMode::Mono,
+                    channels: vec![ch],
+                });
+                cpal_indices.push(cpal_idx);
+            }
+        } else {
+            entries.push(entry.clone());
+            cpal_indices.push(cpal_idx);
+        }
+    }
+
     // Append Insert return entries (as inputs for segments after each Insert)
+    let insert_return_base = raw_entries.len();
     let insert_returns: Vec<InputEntry> = chain.blocks.iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
@@ -494,18 +527,21 @@ fn effective_inputs(chain: &Chain) -> Vec<InputEntry> {
             _ => None,
         })
         .collect();
-    entries.extend(insert_returns);
+    for (i, ret) in insert_returns.into_iter().enumerate() {
+        cpal_indices.push(insert_return_base + i);
+        entries.push(ret);
+    }
 
     if !entries.is_empty() {
-        return entries;
+        return (entries, cpal_indices);
     }
     // Fallback — no InputBlocks defined
-    vec![InputEntry {
+    (vec![InputEntry {
         name: "Input".to_string(),
         device_id: domain::ids::DeviceId("".to_string()),
         mode: ChainInputMode::Mono,
         channels: vec![0],
-    }]
+    }], vec![0])
 }
 
 /// Build effective output entries from chain's OutputBlock entries, plus Insert send entries.
@@ -582,7 +618,7 @@ struct ChainSegment {
 ///   Segment 2: input=Insert return,      blocks=[Delay, Reverb], outputs=[OutputBlock entries]
 ///
 /// If no Insert blocks exist, a single segment covers the entire chain.
-fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], _effective_outs: &[OutputEntry]) -> Vec<ChainSegment> {
+fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], cpal_indices: &[usize], _effective_outs: &[OutputEntry]) -> Vec<ChainSegment> {
     // Count regular InputBlock entries and OutputBlock entries
     let regular_input_count: usize = chain.blocks.iter()
         .filter(|b| b.enabled)
@@ -624,7 +660,7 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], _effec
             }
         }
 
-        let input_count = if regular_input_count > 0 { regular_input_count } else { effective_ins.len() };
+        let input_count = effective_ins.len();
         let mut segments = Vec::new();
 
         for &(out_pos, out_entry_idx) in &output_positions {
@@ -641,7 +677,7 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], _effec
             for in_idx in 0..input_count {
                 segments.push(ChainSegment {
                     input: effective_ins[in_idx].clone(),
-                    cpal_input_index: in_idx,
+                    cpal_input_index: cpal_indices.get(in_idx).copied().unwrap_or(in_idx),
                     block_indices: block_indices.clone(),
                     output_route_indices: vec![out_entry_idx],
                 });
@@ -774,10 +810,10 @@ fn build_input_processing_state(
         output_channels,
         input.mode,
     );
-    let processing_layout_channel = match proc_layout {
-        ProcessingLayout::Mono | ProcessingLayout::DualMono => AudioChannelLayout::Mono,
-        ProcessingLayout::Stereo => AudioChannelLayout::Stereo,
-    };
+    // Chain processing bus is ALWAYS stereo. Mono blocks convert
+    // stereo→mono on input and mono→stereo on output transparently.
+    let _ = proc_layout;
+    let processing_layout_channel = AudioChannelLayout::Stereo;
     let input_read_layout = match input.mode {
         ChainInputMode::Mono => AudioChannelLayout::Mono,
         ChainInputMode::Stereo | ChainInputMode::DualMono => AudioChannelLayout::Stereo,
@@ -826,9 +862,9 @@ pub fn update_chain_runtime_state(
     sample_rate: f32,
     reset_output_queue: bool,
 ) -> Result<()> {
-    let effective_ins = effective_inputs(chain);
+    let (effective_ins, eff_input_cpal_indices) = effective_inputs(chain);
     let effective_outs = effective_outputs(chain);
-    let segments = split_chain_into_segments(chain, &effective_ins, &effective_outs);
+    let segments = split_chain_into_segments(chain, &effective_ins, &eff_input_cpal_indices, &effective_outs);
 
     // Step 1: Extract existing blocks from all input states (brief lock)
     let mut existing_per_input: Vec<Vec<BlockRuntimeNode>> = {
@@ -1327,7 +1363,8 @@ where
         })?;
 
     let processor = match (schema.audio_mode, input_layout) {
-        (ModelAudioMode::MonoOnly, AudioChannelLayout::Mono) => {
+        // MonoOnly: build mono processor — process_buffer handles stereo↔mono conversion
+        (ModelAudioMode::MonoOnly, _) => {
             AudioProcessor::Mono(expect_mono_processor(
                 builder(AudioChannelLayout::Mono)?,
                 chain,
@@ -1484,9 +1521,9 @@ pub fn process_input_f32(
             })
     };
 
-    // Process each segment independently
+    // Process each segment, collect results keyed by output route
+    let mut mixed_per_route: HashMap<usize, Vec<AudioFrame>> = HashMap::new();
     for &seg_idx in &segment_indices {
-        // Lock processing, process this segment, collect frames, unlock
         let result = {
             let mut processing = match runtime.processing.try_lock() {
                 Ok(guard) => guard,
@@ -1494,26 +1531,48 @@ pub fn process_input_f32(
             };
             process_single_segment(&mut processing, seg_idx, data, input_total_channels, num_frames, runtime)
         };
-        // Push to output (processing lock already released)
         if let Some((processed, route_indices)) = result {
-            // Collect Arc refs with a brief lock on output state
-            let route_arcs: Vec<Arc<Mutex<OutputRoutingState>>> = {
-                if let Ok(output) = runtime.output.try_lock() {
-                    route_indices.iter()
-                        .filter_map(|&idx| output.output_routes.get(idx).map(Arc::clone))
-                        .collect()
+            for &route_idx in &route_indices {
+                let buf = mixed_per_route.entry(route_idx).or_insert_with(Vec::new);
+                if buf.is_empty() {
+                    // First segment for this route — just copy
+                    *buf = processed.clone();
                 } else {
-                    continue;
+                    // Sum with existing frames
+                    for (i, &frame) in processed.iter().enumerate() {
+                        if i < buf.len() {
+                            buf[i] = match (buf[i], frame) {
+                                (AudioFrame::Stereo([l1, r1]), AudioFrame::Stereo([l2, r2])) =>
+                                    AudioFrame::Stereo([l1 + l2, r1 + r2]),
+                                (AudioFrame::Mono(a), AudioFrame::Mono(b)) =>
+                                    AudioFrame::Mono(a + b),
+                                (AudioFrame::Stereo([l, r]), AudioFrame::Mono(m)) =>
+                                    AudioFrame::Stereo([l + m, r + m]),
+                                (AudioFrame::Mono(m), AudioFrame::Stereo([l, r])) =>
+                                    AudioFrame::Stereo([m + l, m + r]),
+                            };
+                        }
+                    }
                 }
-            };
-            // Lock each route individually — brief wait is acceptable since
-            // output pop is fast (VecDeque pop). Dropping frames with try_lock
-            // causes audible clicks on the affected output.
-            for route_arc in &route_arcs {
-                let mut route = route_arc.lock().expect("route poisoned");
-                for &frame in &processed {
-                    route.buffer.push(frame);
-                }
+            }
+        }
+    }
+
+    // Push mixed frames to output routes
+    let route_arcs: Vec<(usize, Arc<Mutex<OutputRoutingState>>)> = {
+        if let Ok(output) = runtime.output.try_lock() {
+            mixed_per_route.keys()
+                .filter_map(|&idx| output.output_routes.get(idx).map(|arc| (idx, Arc::clone(arc))))
+                .collect()
+        } else {
+            return;
+        }
+    };
+    for (route_idx, route_arc) in &route_arcs {
+        if let Some(frames) = mixed_per_route.get(route_idx) {
+            let mut route = route_arc.lock().expect("route poisoned");
+            for &frame in frames {
+                route.buffer.push(frame);
             }
         }
     }
@@ -2561,9 +2620,9 @@ mod tests {
             ],
         };
 
-        let eff_inputs = effective_inputs(&chain);
+        let (eff_inputs, eff_cpal_indices) = effective_inputs(&chain);
         let eff_outputs = effective_outputs(&chain);
-        let segments = split_chain_into_segments(&chain, &eff_inputs, &eff_outputs);
+        let segments = split_chain_into_segments(&chain, &eff_inputs, &eff_cpal_indices, &eff_outputs);
 
         // Should have 2 segments (1 input × 2 outputs)
         assert_eq!(segments.len(), 2, "expected 2 segments, got {}", segments.len());
