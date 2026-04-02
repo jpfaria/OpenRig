@@ -485,9 +485,23 @@ fn effective_inputs(chain: &Chain) -> (Vec<InputEntry>, Vec<usize>) {
 
     // Mono entries with multiple channels: split into one entry per channel
     // so each channel gets its own isolated processing stream.
+    //
+    // cpal_indices maps each effective entry to the CPAL stream index.
+    // Entries sharing the same device get the same CPAL stream index
+    // (infra-cpal deduplicates streams by device).
     let mut entries: Vec<InputEntry> = Vec::new();
     let mut cpal_indices: Vec<usize> = Vec::new();
-    for (raw_idx, entry) in raw_entries.iter().enumerate() {
+    let mut device_to_cpal: HashMap<String, usize> = HashMap::new();
+    let mut next_cpal_idx: usize = 0;
+
+    for entry in raw_entries.iter() {
+        let device_key = entry.device_id.0.clone();
+        let cpal_idx = *device_to_cpal.entry(device_key).or_insert_with(|| {
+            let idx = next_cpal_idx;
+            next_cpal_idx += 1;
+            idx
+        });
+
         if matches!(entry.mode, ChainInputMode::Mono) && entry.channels.len() > 1 {
             for (i, &ch) in entry.channels.iter().enumerate() {
                 entries.push(InputEntry {
@@ -496,11 +510,11 @@ fn effective_inputs(chain: &Chain) -> (Vec<InputEntry>, Vec<usize>) {
                     mode: ChainInputMode::Mono,
                     channels: vec![ch],
                 });
-                cpal_indices.push(raw_idx);
+                cpal_indices.push(cpal_idx);
             }
         } else {
             entries.push(entry.clone());
-            cpal_indices.push(raw_idx);
+            cpal_indices.push(cpal_idx);
         }
     }
 
