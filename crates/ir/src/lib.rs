@@ -456,9 +456,7 @@ impl StereoProcessor for StereoIrProcessor {
 /// `"cabs/marshall_4x12_v30/ev_mix_b.wav"`.  Searches relative to the
 /// executable first, then falls back to the config path directly.
 ///
-/// Currently all curated IR captures are embedded via `asset_runtime`, so
-/// this function is provided for future use when IR captures may be loaded
-/// from the filesystem (user-supplied IRs, distribution packages, etc.).
+/// All curated IR captures are loaded from the filesystem at runtime.
 pub fn resolve_ir_capture(relative_path: &str) -> Result<String> {
     let paths = infra_filesystem::asset_paths();
     let exe_dir = std::env::current_exe()

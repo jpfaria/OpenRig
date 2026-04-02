@@ -1,5 +1,4 @@
 use anyhow::{anyhow, bail, Result};
-use asset_runtime::{materialize, EmbeddedAsset};
 use ir::{build_mono_ir_processor_from_wav, IrAsset};
 use crate::registry::BodyModelDefinition;
 use crate::BodyBackendKind;
@@ -11,18 +10,10 @@ pub const DISPLAY_NAME: &str = "P2DC";
 const BRAND: &str = "takamine";
 
 macro_rules! capture {
-    ($voicing:literal, $asset_id:literal, $relative_path:literal) => {
+    ($p1:literal, $ir_file:literal) => {
         TakamineP2dcCapture {
-            voicing: $voicing,
-            asset: EmbeddedAsset::new(
-                $asset_id,
-                $relative_path,
-                include_bytes!(concat!(
-                    env!("CARGO_MANIFEST_DIR"),
-                    "/../../",
-                    $relative_path
-                )),
-            ),
+            voicing: $p1,
+            ir_file: $ir_file,
         }
     };
 }
@@ -30,40 +21,40 @@ macro_rules! capture {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TakamineP2dcCapture {
     pub voicing: &'static str,
-    pub asset: EmbeddedAsset,
+    pub ir_file: &'static str,
 }
 
 pub const CAPTURES: &[TakamineP2dcCapture] = &[
-    capture!("piezo_taka_pdc_piezo_1a", "body.takamine_p2dc.piezo_taka_pdc_piezo_1a", "captures/ir/body/takamine_p2dc/piezo_taka_pdc_piezo_1a.wav"),
-    capture!("piezo_taka_pdc_piezo_1b", "body.takamine_p2dc.piezo_taka_pdc_piezo_1b", "captures/ir/body/takamine_p2dc/piezo_taka_pdc_piezo_1b.wav"),
-    capture!("piezo_taka_pdc_piezo_1c", "body.takamine_p2dc.piezo_taka_pdc_piezo_1c", "captures/ir/body/takamine_p2dc/piezo_taka_pdc_piezo_1c.wav"),
-    capture!("piezo_taka_pdc_piezo_2a", "body.takamine_p2dc.piezo_taka_pdc_piezo_2a", "captures/ir/body/takamine_p2dc/piezo_taka_pdc_piezo_2a.wav"),
-    capture!("piezo_taka_pdc_piezo_2b", "body.takamine_p2dc.piezo_taka_pdc_piezo_2b", "captures/ir/body/takamine_p2dc/piezo_taka_pdc_piezo_2b.wav"),
-    capture!("piezo_taka_pdc_piezo_2c", "body.takamine_p2dc.piezo_taka_pdc_piezo_2c", "captures/ir/body/takamine_p2dc/piezo_taka_pdc_piezo_2c.wav"),
-    capture!("piezo_taka_pdc_piezo_3a", "body.takamine_p2dc.piezo_taka_pdc_piezo_3a", "captures/ir/body/takamine_p2dc/piezo_taka_pdc_piezo_3a.wav"),
-    capture!("piezo_taka_pdc_piezo_3b", "body.takamine_p2dc.piezo_taka_pdc_piezo_3b", "captures/ir/body/takamine_p2dc/piezo_taka_pdc_piezo_3b.wav"),
-    capture!("piezo_taka_pdc_piezo_3c", "body.takamine_p2dc.piezo_taka_pdc_piezo_3c", "captures/ir/body/takamine_p2dc/piezo_taka_pdc_piezo_3c.wav"),
-    capture!("piezo_taka_pdc_piezo_4a", "body.takamine_p2dc.piezo_taka_pdc_piezo_4a", "captures/ir/body/takamine_p2dc/piezo_taka_pdc_piezo_4a.wav"),
-    capture!("piezo_taka_pdc_piezo_4b", "body.takamine_p2dc.piezo_taka_pdc_piezo_4b", "captures/ir/body/takamine_p2dc/piezo_taka_pdc_piezo_4b.wav"),
-    capture!("piezo_taka_pdc_piezo_4c", "body.takamine_p2dc.piezo_taka_pdc_piezo_4c", "captures/ir/body/takamine_p2dc/piezo_taka_pdc_piezo_4c.wav"),
-    capture!("piezo_taka_pdc_piezo_5a", "body.takamine_p2dc.piezo_taka_pdc_piezo_5a", "captures/ir/body/takamine_p2dc/piezo_taka_pdc_piezo_5a.wav"),
-    capture!("piezo_taka_pdc_piezo_5b", "body.takamine_p2dc.piezo_taka_pdc_piezo_5b", "captures/ir/body/takamine_p2dc/piezo_taka_pdc_piezo_5b.wav"),
-    capture!("piezo_taka_pdc_piezo_5c", "body.takamine_p2dc.piezo_taka_pdc_piezo_5c", "captures/ir/body/takamine_p2dc/piezo_taka_pdc_piezo_5c.wav"),
-    capture!("soundhole_taka_pdc_soundhole_1a", "body.takamine_p2dc.soundhole_taka_pdc_soundhole_1a", "captures/ir/body/takamine_p2dc/soundhole_taka_pdc_soundhole_1a.wav"),
-    capture!("soundhole_taka_pdc_soundhole_1b", "body.takamine_p2dc.soundhole_taka_pdc_soundhole_1b", "captures/ir/body/takamine_p2dc/soundhole_taka_pdc_soundhole_1b.wav"),
-    capture!("soundhole_taka_pdc_soundhole_1c", "body.takamine_p2dc.soundhole_taka_pdc_soundhole_1c", "captures/ir/body/takamine_p2dc/soundhole_taka_pdc_soundhole_1c.wav"),
-    capture!("soundhole_taka_pdc_soundhole_2a", "body.takamine_p2dc.soundhole_taka_pdc_soundhole_2a", "captures/ir/body/takamine_p2dc/soundhole_taka_pdc_soundhole_2a.wav"),
-    capture!("soundhole_taka_pdc_soundhole_2b", "body.takamine_p2dc.soundhole_taka_pdc_soundhole_2b", "captures/ir/body/takamine_p2dc/soundhole_taka_pdc_soundhole_2b.wav"),
-    capture!("soundhole_taka_pdc_soundhole_2c", "body.takamine_p2dc.soundhole_taka_pdc_soundhole_2c", "captures/ir/body/takamine_p2dc/soundhole_taka_pdc_soundhole_2c.wav"),
-    capture!("soundhole_taka_pdc_soundhole_3a", "body.takamine_p2dc.soundhole_taka_pdc_soundhole_3a", "captures/ir/body/takamine_p2dc/soundhole_taka_pdc_soundhole_3a.wav"),
-    capture!("soundhole_taka_pdc_soundhole_3b", "body.takamine_p2dc.soundhole_taka_pdc_soundhole_3b", "captures/ir/body/takamine_p2dc/soundhole_taka_pdc_soundhole_3b.wav"),
-    capture!("soundhole_taka_pdc_soundhole_3c", "body.takamine_p2dc.soundhole_taka_pdc_soundhole_3c", "captures/ir/body/takamine_p2dc/soundhole_taka_pdc_soundhole_3c.wav"),
-    capture!("soundhole_taka_pdc_soundhole_4a", "body.takamine_p2dc.soundhole_taka_pdc_soundhole_4a", "captures/ir/body/takamine_p2dc/soundhole_taka_pdc_soundhole_4a.wav"),
-    capture!("soundhole_taka_pdc_soundhole_4b", "body.takamine_p2dc.soundhole_taka_pdc_soundhole_4b", "captures/ir/body/takamine_p2dc/soundhole_taka_pdc_soundhole_4b.wav"),
-    capture!("soundhole_taka_pdc_soundhole_4c", "body.takamine_p2dc.soundhole_taka_pdc_soundhole_4c", "captures/ir/body/takamine_p2dc/soundhole_taka_pdc_soundhole_4c.wav"),
-    capture!("soundhole_taka_pdc_soundhole_5a", "body.takamine_p2dc.soundhole_taka_pdc_soundhole_5a", "captures/ir/body/takamine_p2dc/soundhole_taka_pdc_soundhole_5a.wav"),
-    capture!("soundhole_taka_pdc_soundhole_5b", "body.takamine_p2dc.soundhole_taka_pdc_soundhole_5b", "captures/ir/body/takamine_p2dc/soundhole_taka_pdc_soundhole_5b.wav"),
-    capture!("soundhole_taka_pdc_soundhole_5c", "body.takamine_p2dc.soundhole_taka_pdc_soundhole_5c", "captures/ir/body/takamine_p2dc/soundhole_taka_pdc_soundhole_5c.wav"),
+    capture!("piezo_taka_pdc_piezo_1a", "body/takamine_p2dc/piezo_taka_pdc_piezo_1a.wav"),
+    capture!("piezo_taka_pdc_piezo_1b", "body/takamine_p2dc/piezo_taka_pdc_piezo_1b.wav"),
+    capture!("piezo_taka_pdc_piezo_1c", "body/takamine_p2dc/piezo_taka_pdc_piezo_1c.wav"),
+    capture!("piezo_taka_pdc_piezo_2a", "body/takamine_p2dc/piezo_taka_pdc_piezo_2a.wav"),
+    capture!("piezo_taka_pdc_piezo_2b", "body/takamine_p2dc/piezo_taka_pdc_piezo_2b.wav"),
+    capture!("piezo_taka_pdc_piezo_2c", "body/takamine_p2dc/piezo_taka_pdc_piezo_2c.wav"),
+    capture!("piezo_taka_pdc_piezo_3a", "body/takamine_p2dc/piezo_taka_pdc_piezo_3a.wav"),
+    capture!("piezo_taka_pdc_piezo_3b", "body/takamine_p2dc/piezo_taka_pdc_piezo_3b.wav"),
+    capture!("piezo_taka_pdc_piezo_3c", "body/takamine_p2dc/piezo_taka_pdc_piezo_3c.wav"),
+    capture!("piezo_taka_pdc_piezo_4a", "body/takamine_p2dc/piezo_taka_pdc_piezo_4a.wav"),
+    capture!("piezo_taka_pdc_piezo_4b", "body/takamine_p2dc/piezo_taka_pdc_piezo_4b.wav"),
+    capture!("piezo_taka_pdc_piezo_4c", "body/takamine_p2dc/piezo_taka_pdc_piezo_4c.wav"),
+    capture!("piezo_taka_pdc_piezo_5a", "body/takamine_p2dc/piezo_taka_pdc_piezo_5a.wav"),
+    capture!("piezo_taka_pdc_piezo_5b", "body/takamine_p2dc/piezo_taka_pdc_piezo_5b.wav"),
+    capture!("piezo_taka_pdc_piezo_5c", "body/takamine_p2dc/piezo_taka_pdc_piezo_5c.wav"),
+    capture!("soundhole_taka_pdc_soundhole_1a", "body/takamine_p2dc/soundhole_taka_pdc_soundhole_1a.wav"),
+    capture!("soundhole_taka_pdc_soundhole_1b", "body/takamine_p2dc/soundhole_taka_pdc_soundhole_1b.wav"),
+    capture!("soundhole_taka_pdc_soundhole_1c", "body/takamine_p2dc/soundhole_taka_pdc_soundhole_1c.wav"),
+    capture!("soundhole_taka_pdc_soundhole_2a", "body/takamine_p2dc/soundhole_taka_pdc_soundhole_2a.wav"),
+    capture!("soundhole_taka_pdc_soundhole_2b", "body/takamine_p2dc/soundhole_taka_pdc_soundhole_2b.wav"),
+    capture!("soundhole_taka_pdc_soundhole_2c", "body/takamine_p2dc/soundhole_taka_pdc_soundhole_2c.wav"),
+    capture!("soundhole_taka_pdc_soundhole_3a", "body/takamine_p2dc/soundhole_taka_pdc_soundhole_3a.wav"),
+    capture!("soundhole_taka_pdc_soundhole_3b", "body/takamine_p2dc/soundhole_taka_pdc_soundhole_3b.wav"),
+    capture!("soundhole_taka_pdc_soundhole_3c", "body/takamine_p2dc/soundhole_taka_pdc_soundhole_3c.wav"),
+    capture!("soundhole_taka_pdc_soundhole_4a", "body/takamine_p2dc/soundhole_taka_pdc_soundhole_4a.wav"),
+    capture!("soundhole_taka_pdc_soundhole_4b", "body/takamine_p2dc/soundhole_taka_pdc_soundhole_4b.wav"),
+    capture!("soundhole_taka_pdc_soundhole_4c", "body/takamine_p2dc/soundhole_taka_pdc_soundhole_4c.wav"),
+    capture!("soundhole_taka_pdc_soundhole_5a", "body/takamine_p2dc/soundhole_taka_pdc_soundhole_5a.wav"),
+    capture!("soundhole_taka_pdc_soundhole_5b", "body/takamine_p2dc/soundhole_taka_pdc_soundhole_5b.wav"),
+    capture!("soundhole_taka_pdc_soundhole_5c", "body/takamine_p2dc/soundhole_taka_pdc_soundhole_5c.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -121,9 +112,9 @@ pub fn build_processor_for_model(
     match layout {
         AudioChannelLayout::Mono => {
             let capture = resolve_capture(params)?;
-            let materialized_path = materialize(&capture.asset)?;
-            let materialized_path_str = materialized_path.to_string_lossy();
-            let ir = IrAsset::load_from_wav(&materialized_path_str)?;
+            let wav_path = ir::resolve_ir_capture(capture.ir_file)?;
+            
+            let ir = IrAsset::load_from_wav(&wav_path)?;
             if ir.channel_count() != 1 {
                 bail!(
                     "body model '{}' capture must be mono, got {} channels",
@@ -131,7 +122,7 @@ pub fn build_processor_for_model(
                     ir.channel_count()
                 );
             }
-            let processor = build_mono_ir_processor_from_wav(&materialized_path_str, sample_rate)?;
+            let processor = build_mono_ir_processor_from_wav(&wav_path, sample_rate)?;
             Ok(BlockProcessor::Mono(processor))
         }
         AudioChannelLayout::Stereo => bail!(
@@ -172,7 +163,7 @@ pub fn validate_params(params: &ParameterSet) -> Result<()> {
 
 pub fn asset_summary(params: &ParameterSet) -> Result<String> {
     let capture = resolve_capture(params)?;
-    Ok(format!("asset_id='{}'", capture.asset.id))
+    Ok(format!("asset_id='{}'", capture.ir_file))
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static TakamineP2dcCapture> {
