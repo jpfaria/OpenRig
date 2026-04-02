@@ -1507,9 +1507,9 @@ pub fn process_input_f32(
             })
     };
 
-    // Process each segment independently
+    // Process each segment, collect results keyed by output route
+    let mut mixed_per_route: HashMap<usize, Vec<AudioFrame>> = HashMap::new();
     for &seg_idx in &segment_indices {
-        // Lock processing, process this segment, collect frames, unlock
         let result = {
             let mut processing = match runtime.processing.try_lock() {
                 Ok(guard) => guard,
@@ -1517,26 +1517,48 @@ pub fn process_input_f32(
             };
             process_single_segment(&mut processing, seg_idx, data, input_total_channels, num_frames, runtime)
         };
-        // Push to output (processing lock already released)
         if let Some((processed, route_indices)) = result {
-            // Collect Arc refs with a brief lock on output state
-            let route_arcs: Vec<Arc<Mutex<OutputRoutingState>>> = {
-                if let Ok(output) = runtime.output.try_lock() {
-                    route_indices.iter()
-                        .filter_map(|&idx| output.output_routes.get(idx).map(Arc::clone))
-                        .collect()
+            for &route_idx in &route_indices {
+                let buf = mixed_per_route.entry(route_idx).or_insert_with(Vec::new);
+                if buf.is_empty() {
+                    // First segment for this route — just copy
+                    *buf = processed.clone();
                 } else {
-                    continue;
+                    // Sum with existing frames
+                    for (i, &frame) in processed.iter().enumerate() {
+                        if i < buf.len() {
+                            buf[i] = match (buf[i], frame) {
+                                (AudioFrame::Stereo([l1, r1]), AudioFrame::Stereo([l2, r2])) =>
+                                    AudioFrame::Stereo([l1 + l2, r1 + r2]),
+                                (AudioFrame::Mono(a), AudioFrame::Mono(b)) =>
+                                    AudioFrame::Mono(a + b),
+                                (AudioFrame::Stereo([l, r]), AudioFrame::Mono(m)) =>
+                                    AudioFrame::Stereo([l + m, r + m]),
+                                (AudioFrame::Mono(m), AudioFrame::Stereo([l, r])) =>
+                                    AudioFrame::Stereo([m + l, m + r]),
+                            };
+                        }
+                    }
                 }
-            };
-            // Lock each route individually — brief wait is acceptable since
-            // output pop is fast (VecDeque pop). Dropping frames with try_lock
-            // causes audible clicks on the affected output.
-            for route_arc in &route_arcs {
-                let mut route = route_arc.lock().expect("route poisoned");
-                for &frame in &processed {
-                    route.buffer.push(frame);
-                }
+            }
+        }
+    }
+
+    // Push mixed frames to output routes
+    let route_arcs: Vec<(usize, Arc<Mutex<OutputRoutingState>>)> = {
+        if let Ok(output) = runtime.output.try_lock() {
+            mixed_per_route.keys()
+                .filter_map(|&idx| output.output_routes.get(idx).map(|arc| (idx, Arc::clone(arc))))
+                .collect()
+        } else {
+            return;
+        }
+    };
+    for (route_idx, route_arc) in &route_arcs {
+        if let Some(frames) = mixed_per_route.get(route_idx) {
+            let mut route = route_arc.lock().expect("route poisoned");
+            for &frame in frames {
+                route.buffer.push(frame);
             }
         }
     }
