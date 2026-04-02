@@ -34,7 +34,7 @@ fn schema() -> Result<ModelParameterSchema> {
         effect_type: block_core::EFFECT_TYPE_MODULATION.into(),
         model: MODEL_ID.into(),
         display_name: DISPLAY_NAME.into(),
-        audio_mode: ModelAudioMode::TrueStereo,
+        audio_mode: ModelAudioMode::MonoToStereo,
         parameters: vec![
             float_parameter("horn_hz", "Horn Freq", None, Some(0.0), 0.0, 30.0, 0.1, ParameterUnit::Hertz),
             float_parameter("rotor_hz", "Rotor Freq", None, Some(0.0), 0.0, 30.0, 0.1, ParameterUnit::Hertz),
