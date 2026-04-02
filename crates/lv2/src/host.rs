@@ -154,6 +154,21 @@ unsafe extern "C" fn urid_map_callback(handle: *mut c_void, uri: *const c_char) 
 }
 
 // ---------------------------------------------------------------------------
+// LV2 Options extension types
+// ---------------------------------------------------------------------------
+
+/// Corresponds to LV2_Options_Option in C.
+#[repr(C)]
+struct LV2OptionsOption {
+    context: u32,
+    subject: u32,
+    key: u32,
+    size: u32,
+    type_: u32,
+    value: *const c_void,
+}
+
+// ---------------------------------------------------------------------------
 // Port metadata (filled by the caller)
 // ---------------------------------------------------------------------------
 
@@ -196,6 +211,11 @@ pub struct Lv2Plugin {
     _options_array: Box<[LV2OptionsOption]>,
     _buf_size_values: Box<[i32; 2]>,
     _bundle_path_cstr: CString,
+    // Options feature data — stable heap addresses pointed to by _options_array
+    _options_min_block: Box<i32>,
+    _options_max_block: Box<i32>,
+    _options_sample_rate: Box<f32>,
+    _options_array: Vec<LV2OptionsOption>,
 }
 
 // The processor runs on a single audio thread; the plugin pointer is not
@@ -246,12 +266,57 @@ impl Lv2Plugin {
             bail!("LV2 plugin URI '{uri}' not found in {lib_path}");
         }
 
-        // 4. Set up URID map
+        // 4. Set up URID map and pre-map option URIDs
         let mut urid_map = Box::new(UridMap::new());
+
+        // Pre-map URIDs used by the Options feature. These must be mapped
+        // before the features array is built so that plugins querying the map
+        // for these URIs get the same IDs as the values we embed in the options.
+        let urid_atom_int = urid_map.map(LV2_ATOM_INT_URI);
+        let urid_atom_float = urid_map.map(LV2_ATOM_FLOAT_URI);
+        let urid_sample_rate_key = urid_map.map(LV2_PARAM_SAMPLE_RATE_URI);
+        let urid_min_block_key = urid_map.map(LV2_BUFSZ_MIN_BLOCK_URI);
+        let urid_max_block_key = urid_map.map(LV2_BUFSZ_MAX_BLOCK_URI);
+
         let mut lv2_urid_map_struct = Box::new(LV2UridMap {
             handle: urid_map.as_mut() as *mut UridMap as *mut c_void,
             map: Some(urid_map_callback),
         });
+
+        // 5. Build options data with stable heap addresses
+        let options_min_block = Box::new(1i32);
+        let options_max_block = Box::new(4096i32);
+        let options_sample_rate = Box::new(sample_rate as f32);
+
+        // Null-terminated array of LV2_Options_Option (context=0 means Instance)
+        let options_array: Vec<LV2OptionsOption> = vec![
+            LV2OptionsOption {
+                context: 0,
+                subject: 0,
+                key: urid_sample_rate_key,
+                size: 4,
+                type_: urid_atom_float,
+                value: options_sample_rate.as_ref() as *const f32 as *const c_void,
+            },
+            LV2OptionsOption {
+                context: 0,
+                subject: 0,
+                key: urid_min_block_key,
+                size: 4,
+                type_: urid_atom_int,
+                value: options_min_block.as_ref() as *const i32 as *const c_void,
+            },
+            LV2OptionsOption {
+                context: 0,
+                subject: 0,
+                key: urid_max_block_key,
+                size: 4,
+                type_: urid_atom_int,
+                value: options_max_block.as_ref() as *const i32 as *const c_void,
+            },
+            // Terminator
+            LV2OptionsOption { context: 0, subject: 0, key: 0, size: 0, type_: 0, value: ptr::null() },
+        ];
 
         let urid_map_uri_cstr = CString::new(LV2_URID_MAP_URI).unwrap();
         let buf_size_uri_cstr = CString::new(LV2_BUF_SIZE_BOUNDED_URI).unwrap();
@@ -392,6 +457,10 @@ impl Lv2Plugin {
             _options_array: options_array,
             _buf_size_values: buf_size_values,
             _bundle_path_cstr: bundle_path_cstr,
+            _options_min_block: options_min_block,
+            _options_max_block: options_max_block,
+            _options_sample_rate: options_sample_rate,
+            _options_array: options_array,
         })
     }
 
