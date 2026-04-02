@@ -53,7 +53,7 @@ component ModelSelector inherits Rectangle {
     }
 
     popup := PopupWindow {
-        property <length> list-height: Math.min(root.labels.length * 28px + 8px, 500px);
+        property <length> list-height: Math.min(root.labels.length * 36px + 8px, 320px);
         x: 0;
         y: root.height + 4px;
         width: root.width;
@@ -76,13 +76,13 @@ component ModelSelector inherits Rectangle {
                 x: 0; y: 0;
                 width: parent.width;
                 height: parent.height;
-                viewport-height: root.labels.length * 28px + 8px;
+                viewport-height: root.labels.length * 36px + 8px;
 
             for label[i] in root.labels : Rectangle {
                 x: 4px;
-                y: 4px + i * 28px;
+                y: 4px + i * 36px;
                 width: parent.width - 8px;
-                height: 28px;
+                height: 36px;
                 border-radius: 5px;
                 background: i == root.current-index ? #14142a : transparent;
 
