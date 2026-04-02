@@ -4,7 +4,7 @@ use anyhow::Result;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode};
+use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor};
 
 pub const MODEL_ID: &str = "lv2_dragonfly_room";
 pub const DISPLAY_NAME: &str = "Dragonfly Room Reverb";
@@ -25,7 +25,8 @@ const PORT_AUDIO_IN_L: usize = 0;
 const PORT_AUDIO_IN_R: usize = 1;
 const PORT_AUDIO_OUT_L: usize = 2;
 const PORT_AUDIO_OUT_R: usize = 3;
-// 4 = atom in, 5 = atom out
+const PORT_ATOM_IN: usize = 4;
+const PORT_ATOM_OUT: usize = 5;
 const PORT_DRY_LEVEL: usize = 6;
 const PORT_EARLY_LEVEL: usize = 7;
 const PORT_EARLY_SEND: usize = 8;
@@ -105,22 +106,25 @@ fn build(
     ];
 
     match layout {
-        AudioChannelLayout::Mono => {
-            let processor = lv2::build_lv2_processor_with_extras(
-                &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
-                &[PORT_AUDIO_IN_L], &[PORT_AUDIO_OUT_L], control_ports,
-                &[PORT_AUDIO_IN_R, PORT_AUDIO_OUT_R],
-            )?;
-            Ok(BlockProcessor::Mono(Box::new(processor)))
-        }
-        AudioChannelLayout::Stereo => {
-            let processor = lv2::build_stereo_lv2_processor(
+        AudioChannelLayout::Mono | AudioChannelLayout::Stereo => {
+            let processor = lv2::build_stereo_lv2_processor_with_atoms(
                 &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
                 &[PORT_AUDIO_IN_L, PORT_AUDIO_IN_R], &[PORT_AUDIO_OUT_L, PORT_AUDIO_OUT_R],
-                control_ports,
+                control_ports, &[PORT_ATOM_IN, PORT_ATOM_OUT],
             )?;
-            Ok(BlockProcessor::Stereo(Box::new(processor)))
+            match layout {
+                AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(StereoAsMono(processor)))),
+                AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(processor))),
+            }
         }
+    }
+}
+
+struct StereoAsMono(lv2::StereoLv2Processor);
+impl MonoProcessor for StereoAsMono {
+    fn process_sample(&mut self, input: f32) -> f32 {
+        let [l, _] = block_core::StereoProcessor::process_frame(&mut self.0, [input, input]);
+        l
     }
 }
 

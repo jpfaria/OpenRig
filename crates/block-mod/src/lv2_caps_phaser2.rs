@@ -4,7 +4,7 @@ use anyhow::Result;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
+use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode};
 
 pub const MODEL_ID: &str = "lv2_caps_phaser2";
 pub const DISPLAY_NAME: &str = "CAPS Phaser II";
@@ -34,7 +34,7 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: block_core::EFFECT_TYPE_MODULATION.into(),
         model: MODEL_ID.into(),
         display_name: DISPLAY_NAME.into(),
-        audio_mode: ModelAudioMode::DualMono,
+        audio_mode: ModelAudioMode::MonoToStereo,
         parameters: vec![
             float_parameter(
                 "rate",
@@ -80,18 +80,50 @@ pub fn model_schema() -> ModelParameterSchema {
     }
 }
 
-struct DualMonoLv2 {
-    left: lv2::Lv2Processor,
-    right: lv2::Lv2Processor,
+fn resolve_lib_path() -> Result<String> {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+
+    let candidates = [
+        exe_dir
+            .as_ref()
+            .map(|d| d.join("../../").join(lv2::default_lv2_lib_dir()).join(PLUGIN_BINARY)),
+        Some(std::path::PathBuf::from(lv2::default_lv2_lib_dir()).join(PLUGIN_BINARY)),
+    ];
+
+    for candidate in candidates.iter().flatten() {
+        if candidate.exists() {
+            return Ok(candidate.to_string_lossy().to_string());
+        }
+    }
+
+    anyhow::bail!(
+        "LV2 binary '{}' not found in '{}'",
+        PLUGIN_BINARY,
+        lv2::default_lv2_lib_dir()
+    )
 }
 
-impl StereoProcessor for DualMonoLv2 {
-    fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
-        [
-            self.left.process_sample(input[0]),
-            self.right.process_sample(input[1]),
-        ]
+fn resolve_bundle_path() -> Result<String> {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+
+    let candidates = [
+        exe_dir
+            .as_ref()
+            .map(|d| d.join("../../plugins").join(PLUGIN_DIR)),
+        Some(std::path::PathBuf::from("plugins").join(PLUGIN_DIR)),
+    ];
+
+    for candidate in candidates.iter().flatten() {
+        if candidate.exists() {
+            return Ok(candidate.to_string_lossy().to_string());
+        }
     }
+
+    anyhow::bail!("LV2 bundle '{}' not found in plugins/", PLUGIN_DIR)
 }
 
 fn build_mono_processor(
@@ -131,17 +163,11 @@ fn build(
     let spread = required_f32(params, "spread").map_err(anyhow::Error::msg)?;
     let resonance = required_f32(params, "resonance").map_err(anyhow::Error::msg)?;
 
-    match layout {
-        AudioChannelLayout::Mono => {
-            let processor = build_mono_processor(sample_rate, rate, depth, spread, resonance)?;
-            Ok(BlockProcessor::Mono(Box::new(processor)))
-        }
-        AudioChannelLayout::Stereo => {
-            let left = build_mono_processor(sample_rate, rate, depth, spread, resonance)?;
-            let right = build_mono_processor(sample_rate, rate, depth, spread, resonance)?;
-            Ok(BlockProcessor::Stereo(Box::new(DualMonoLv2 { left, right })))
-        }
-    }
+    // Single mono instance — MonoToStereo duplicates output to both channels.
+    // CAPS plugins use global state and crash (SIGSEGV) with multiple instances.
+    let _ = layout;
+    let processor = build_mono_processor(sample_rate, rate, depth, spread, resonance)?;
+    Ok(BlockProcessor::Mono(Box::new(processor)))
 }
 
 fn schema() -> Result<ModelParameterSchema> {

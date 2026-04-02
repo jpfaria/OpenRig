@@ -71,6 +71,22 @@ git checkout -b feature/issue-{N}-descricao
 
 Ver `CONTRIBUTING.md` para detalhes completos.
 
+### Regras de git
+
+- **NUNCA rebase** — sempre usar `git merge`, nunca `git rebase` ou `git pull --rebase`
+- **NUNCA fechar issues** — so fechar quando o usuario pedir explicitamente
+- **NUNCA editar workspace principal** — todo codigo vai em `.solvers/issue-{N}/`, a pasta principal e so leitura
+
+### Premissa de distribuicao (OBRIGATORIO)
+
+OpenRig e um produto para distribuir em **macOS, Windows e Linux**. Toda decisao deve considerar isso:
+
+- **NUNCA hardcodar paths** — nenhum path absoluto ou relativo hardcoded no codigo
+- **NUNCA assumir ambiente de dev** — o codigo roda na maquina do usuario final, nao na do desenvolvedor
+- **Paths de assets via config central** — LV2 libs, LV2 bundles, NAM captures, IR captures, tudo vem de config
+- **Paths por plataforma** — macOS (`~/Library/Application Support/OpenRig/`), Windows (`%APPDATA%\OpenRig\`), Linux (`~/.local/share/openrig/`)
+- **Teste mental obrigatorio** — antes de qualquer decisao, pergunte: "isso funciona se o usuario instalar no Windows?" Se nao, nao faca
+
 ---
 
 ## O Produto (visão do usuário)
