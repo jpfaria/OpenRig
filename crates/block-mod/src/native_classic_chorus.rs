@@ -18,7 +18,7 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: "modulation".to_string(),
         model: MODEL_ID.to_string(),
         display_name: DISPLAY_NAME.to_string(),
-        audio_mode: ModelAudioMode::DualMono,
+        audio_mode: ModelAudioMode::TrueStereo,
         parameters: vec![
             float_parameter(
                 "rate_hz",
