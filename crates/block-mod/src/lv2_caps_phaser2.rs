@@ -4,7 +4,7 @@ use anyhow::Result;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
+use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode};
 
 pub const MODEL_ID: &str = "lv2_caps_phaser2";
 pub const DISPLAY_NAME: &str = "CAPS Phaser II";
@@ -34,7 +34,7 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: block_core::EFFECT_TYPE_MODULATION.into(),
         model: MODEL_ID.into(),
         display_name: DISPLAY_NAME.into(),
-        audio_mode: ModelAudioMode::DualMono,
+        audio_mode: ModelAudioMode::MonoToStereo,
         parameters: vec![
             float_parameter(
                 "rate",
@@ -126,20 +126,6 @@ fn resolve_bundle_path() -> Result<String> {
     anyhow::bail!("LV2 bundle '{}' not found in plugins/", PLUGIN_DIR)
 }
 
-struct DualMonoLv2 {
-    left: lv2::Lv2Processor,
-    right: lv2::Lv2Processor,
-}
-
-impl StereoProcessor for DualMonoLv2 {
-    fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
-        [
-            self.left.process_sample(input[0]),
-            self.right.process_sample(input[1]),
-        ]
-    }
-}
-
 fn build_mono_processor(
     sample_rate: f32,
     rate: f32,
@@ -177,17 +163,11 @@ fn build(
     let spread = required_f32(params, "spread").map_err(anyhow::Error::msg)?;
     let resonance = required_f32(params, "resonance").map_err(anyhow::Error::msg)?;
 
-    match layout {
-        AudioChannelLayout::Mono => {
-            let processor = build_mono_processor(sample_rate, rate, depth, spread, resonance)?;
-            Ok(BlockProcessor::Mono(Box::new(processor)))
-        }
-        AudioChannelLayout::Stereo => {
-            let left = build_mono_processor(sample_rate, rate, depth, spread, resonance)?;
-            let right = build_mono_processor(sample_rate, rate, depth, spread, resonance)?;
-            Ok(BlockProcessor::Stereo(Box::new(DualMonoLv2 { left, right })))
-        }
-    }
+    // Single mono instance — MonoToStereo duplicates output to both channels.
+    // CAPS plugins use global state and crash (SIGSEGV) with multiple instances.
+    let _ = layout;
+    let processor = build_mono_processor(sample_rate, rate, depth, spread, resonance)?;
+    Ok(BlockProcessor::Mono(Box::new(processor)))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
