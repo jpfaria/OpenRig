@@ -4,7 +4,7 @@ use anyhow::Result;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode};
+use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor};
 
 pub const MODEL_ID: &str = "lv2_mverb";
 pub const DISPLAY_NAME: &str = "MVerb";
@@ -85,23 +85,23 @@ fn build(
         (PORT_EARLY_MIX, early_mix),
     ];
 
+    // Always single stereo instance — DPF reverb needs stereo processing
+    let processor = lv2::build_stereo_lv2_processor(
+        &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
+        &[PORT_AUDIO_IN_L, PORT_AUDIO_IN_R], &[PORT_AUDIO_OUT_L, PORT_AUDIO_OUT_R],
+        control_ports,
+    )?;
     match layout {
-        AudioChannelLayout::Mono => {
-            let processor = lv2::build_lv2_processor_with_extras(
-                &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
-                &[PORT_AUDIO_IN_L], &[PORT_AUDIO_OUT_L], control_ports,
-                &[PORT_AUDIO_IN_R, PORT_AUDIO_OUT_R],
-            )?;
-            Ok(BlockProcessor::Mono(Box::new(processor)))
-        }
-        AudioChannelLayout::Stereo => {
-            let processor = lv2::build_stereo_lv2_processor(
-                &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
-                &[PORT_AUDIO_IN_L, PORT_AUDIO_IN_R], &[PORT_AUDIO_OUT_L, PORT_AUDIO_OUT_R],
-                control_ports,
-            )?;
-            Ok(BlockProcessor::Stereo(Box::new(processor)))
-        }
+        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(StereoAsMono(processor)))),
+        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(processor))),
+    }
+}
+
+struct StereoAsMono(lv2::StereoLv2Processor);
+impl MonoProcessor for StereoAsMono {
+    fn process_sample(&mut self, input: f32) -> f32 {
+        let [l, _] = block_core::StereoProcessor::process_frame(&mut self.0, [input, input]);
+        l
     }
 }
 

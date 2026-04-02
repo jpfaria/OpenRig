@@ -86,11 +86,11 @@ fn build(
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    let drive = required_f32(params, "drive").map_err(anyhow::Error::msg)?;
-    let muffle = required_f32(params, "muffle").map_err(anyhow::Error::msg)?;
-    // Level: 0-100% maps to -20..+20 dB
+    // lvz wrapper normalizes all params to 0-1
+    let drive = required_f32(params, "drive").map_err(anyhow::Error::msg)? / 100.0;
+    let muffle = required_f32(params, "muffle").map_err(anyhow::Error::msg)? / 100.0;
     let level_pct = required_f32(params, "level").map_err(anyhow::Error::msg)?;
-    let output = -20.0 + (level_pct / 100.0) * 40.0;
+    let output = level_pct / 100.0;
 
     let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
     let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;

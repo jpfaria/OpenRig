@@ -130,25 +130,17 @@ fn build(
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    // Headroom: 0-100% maps to -30..0 dB
-    let headroom_pct = required_f32(params, "headroom").map_err(anyhow::Error::msg)?;
-    let headroom = -30.0 + (headroom_pct / 100.0) * 30.0;
-    // Quant: 0-100% maps to 4-16 bits
-    let quant_pct = required_f32(params, "quant").map_err(anyhow::Error::msg)?;
-    let quant = 4.0 + (quant_pct / 100.0) * 12.0;
-    // Rate: 0-100% maps to 4800-48000 Hz (logarithmic)
-    let rate_pct = required_f32(params, "rate").map_err(anyhow::Error::msg)?;
-    let rate = 4800.0 * (48000.0_f32 / 4800.0).powf(rate_pct / 100.0);
+    // lvz wrapper normalizes all params to 0-1
+    let headroom = required_f32(params, "headroom").map_err(anyhow::Error::msg)? / 100.0;
+    let quant = required_f32(params, "quant").map_err(anyhow::Error::msg)? / 100.0;
+    let rate = required_f32(params, "rate").map_err(anyhow::Error::msg)? / 100.0;
     let non_lin = required_f32(params, "non_lin").map_err(anyhow::Error::msg)? / 100.0;
-    // Output: 0-100% maps to -20..+20 dB
-    let output_pct = required_f32(params, "output").map_err(anyhow::Error::msg)?;
-    let output = -20.0 + (output_pct / 100.0) * 40.0;
+    let output = required_f32(params, "output").map_err(anyhow::Error::msg)? / 100.0;
     let integrator_str = required_string(params, "integrator").map_err(anyhow::Error::msg)?;
     let integrator: f32 = if integrator_str == "on" { 1.0 } else { 0.0 };
     let even_odd_str = required_string(params, "even_odd").map_err(anyhow::Error::msg)?;
     let even_odd: f32 = if even_odd_str == "even" { 0.0 } else { 1.0 };
-    // Post filter fixed at 15000 Hz
-    let post_filter = 15000.0_f32;
+    let post_filter = 1.0_f32; // lvz normalized: 1.0 = max (15kHz)
 
     let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
     let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
