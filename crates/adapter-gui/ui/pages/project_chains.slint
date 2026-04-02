@@ -1039,33 +1039,6 @@ component ChainRow inherits Rectangle {
     border-radius: 6px;
     height: 74px + (root.block-row-count * 108px);
 
-    // Drop shadow layers
-    Rectangle {
-        x: 2px; y: 4px;
-        width: parent.width - 4px;
-        height: parent.height;
-        border-radius: 10px;
-        background: #00000040;
-    }
-    Rectangle {
-        x: 1px; y: 2px;
-        width: parent.width - 2px;
-        height: parent.height;
-        border-radius: 8px;
-        background: #00000030;
-    }
-
-    // Main card - Carbon Studio gradient
-    Rectangle {
-        x: 0px; y: 0px;
-        width: parent.width;
-        height: parent.height;
-        border-radius: 6px;
-        background: @linear-gradient(180deg, #1c2333 0%, #111720 100%);
-        border-color: #1e2d42;
-        border-width: 1px;
-    }
-
     Rectangle {
         x: 0px;
         y: 0px;
