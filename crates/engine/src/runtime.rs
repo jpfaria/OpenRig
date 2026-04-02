@@ -772,7 +772,9 @@ fn build_input_processing_state(
     let _ = proc_layout;
     let processing_layout_channel = AudioChannelLayout::Stereo;
     let input_read_layout = match input.mode {
-        ChainInputMode::Mono => AudioChannelLayout::Mono,
+        ChainInputMode::Mono if input.channels.len() <= 1 => AudioChannelLayout::Mono,
+        // Mono with 2+ channels: read as stereo (both channels into L/R)
+        ChainInputMode::Mono => AudioChannelLayout::Stereo,
         ChainInputMode::Stereo | ChainInputMode::DualMono => AudioChannelLayout::Stereo,
     };
     log::info!(
