@@ -646,7 +646,7 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], cpal_i
             }
         }
 
-        let input_count = if regular_input_count > 0 { regular_input_count } else { effective_ins.len() };
+        let input_count = effective_ins.len();
         let mut segments = Vec::new();
 
         for &(out_pos, out_entry_idx) in &output_positions {
