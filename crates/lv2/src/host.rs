@@ -47,6 +47,12 @@ pub struct LV2UridMap {
 const LV2_URID_MAP_URI: &str = "http://lv2plug.in/ns/ext/urid#map";
 const LV2_BUF_SIZE_BOUNDED_URI: &str = "http://lv2plug.in/ns/ext/buf-size#boundedBlockLength";
 const LV2_OPTIONS_URI: &str = "http://lv2plug.in/ns/ext/options#options";
+const LV2_BUF_SIZE_MAX_URI: &str = "http://lv2plug.in/ns/ext/buf-size#maxBlockLength";
+const LV2_BUF_SIZE_MIN_URI: &str = "http://lv2plug.in/ns/ext/buf-size#minBlockLength";
+const LV2_ATOM_INT_URI: &str = "http://lv2plug.in/ns/ext/atom#Int";
+
+/// LV2 Options context: instance-level option
+const LV2_OPTIONS_INSTANCE: u32 = 0;
 
 /// LV2 Options Option struct (from lv2/options/options.h).
 /// A null-terminated array of these is passed as the options feature data.
@@ -124,6 +130,7 @@ pub struct Lv2Plugin {
     _buf_size_uri_cstr: CString,
     _options_uri_cstr: CString,
     _options_array: Box<[LV2OptionsOption]>,
+    _buf_size_values: Box<[i32; 2]>, // [max_block_length, min_block_length]
     _bundle_path_cstr: CString,
 }
 
@@ -186,15 +193,42 @@ impl Lv2Plugin {
         let buf_size_uri_cstr = CString::new(LV2_BUF_SIZE_BOUNDED_URI).unwrap();
         let options_uri_cstr = CString::new(LV2_OPTIONS_URI).unwrap();
 
-        // Empty options array (null-terminated sentinel)
-        let options_array: Box<[LV2OptionsOption]> = Box::new([LV2OptionsOption {
-            context: 0,
-            subject: 0,
-            key: 0,
-            size: 0,
-            type_: 0,
-            value: ptr::null(),
-        }]);
+        // Buffer size values that must outlive the options array
+        let buf_size_values: Box<[i32; 2]> = Box::new([4096i32, 1i32]); // [max, min]
+
+        // Map URIs for options
+        let max_block_urid = urid_map.map(LV2_BUF_SIZE_MAX_URI);
+        let min_block_urid = urid_map.map(LV2_BUF_SIZE_MIN_URI);
+        let atom_int_urid = urid_map.map(LV2_ATOM_INT_URI);
+
+        // Options array with buffer size info (null-terminated)
+        let options_array: Box<[LV2OptionsOption]> = Box::new([
+            LV2OptionsOption {
+                context: LV2_OPTIONS_INSTANCE,
+                subject: 0,
+                key: max_block_urid,
+                size: 4, // sizeof(int32_t)
+                type_: atom_int_urid,
+                value: buf_size_values.as_ptr() as *const c_void, // points to [0] = 4096
+            },
+            LV2OptionsOption {
+                context: LV2_OPTIONS_INSTANCE,
+                subject: 0,
+                key: min_block_urid,
+                size: 4,
+                type_: atom_int_urid,
+                value: unsafe { buf_size_values.as_ptr().add(1) as *const c_void }, // points to [1] = 1
+            },
+            // Null terminator
+            LV2OptionsOption {
+                context: 0,
+                subject: 0,
+                key: 0,
+                size: 0,
+                type_: 0,
+                value: ptr::null(),
+            },
+        ]);
 
         // 5. Build features array
         let features = vec![
@@ -261,6 +295,7 @@ impl Lv2Plugin {
             _buf_size_uri_cstr: buf_size_uri_cstr,
             _options_uri_cstr: options_uri_cstr,
             _options_array: options_array,
+            _buf_size_values: buf_size_values,
             _bundle_path_cstr: bundle_path_cstr,
         })
     }
