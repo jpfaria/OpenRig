@@ -144,17 +144,9 @@ fn build(
     match layout {
         AudioChannelLayout::Mono => {
             let processor = lv2::build_lv2_processor_with_extras(
-                &lib_path,
-                PLUGIN_URI,
-                sample_rate as f64,
-                &bundle_path,
-                &[PORT_LEFT_IN],
-                &[PORT_LEFT_OUT],
-                &[
-                    (PORT_DRIVE, drive),
-                    (PORT_MUFFLE, muffle),
-                    (PORT_OUTPUT, output),
-                ],
+                &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
+                &[PORT_LEFT_IN], &[PORT_LEFT_OUT],
+                &[(PORT_DRIVE, drive), (PORT_MUFFLE, muffle), (PORT_OUTPUT, output)],
                 &[PORT_RIGHT_IN, PORT_RIGHT_OUT],
             )?;
             Ok(BlockProcessor::Mono(Box::new(processor)))
