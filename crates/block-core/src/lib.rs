@@ -35,10 +35,10 @@ impl ModelAudioMode {
 
     pub const fn output_layout(self, input: AudioChannelLayout) -> Option<AudioChannelLayout> {
         match self {
-            Self::MonoOnly => match input {
-                AudioChannelLayout::Mono => Some(AudioChannelLayout::Mono),
-                AudioChannelLayout::Stereo => None,
-            },
+            Self::MonoOnly => Some(match input {
+                AudioChannelLayout::Mono => AudioChannelLayout::Mono,
+                AudioChannelLayout::Stereo => AudioChannelLayout::Stereo,
+            }),
             Self::DualMono => Some(input),
             Self::TrueStereo => match input {
                 AudioChannelLayout::Stereo => Some(AudioChannelLayout::Stereo),
