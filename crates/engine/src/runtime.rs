@@ -470,7 +470,7 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
 /// Order: InputBlock entries first, then Insert return entries (matches CPAL stream order).
 /// Falls back to a single mono input on channel 0 if no InputBlocks exist and no Inserts.
 fn effective_inputs(chain: &Chain) -> Vec<InputEntry> {
-    let mut entries: Vec<InputEntry> = chain.blocks.iter()
+    let raw_entries: Vec<InputEntry> = chain.blocks.iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Input(ib) => Some(ib),
@@ -478,6 +478,24 @@ fn effective_inputs(chain: &Chain) -> Vec<InputEntry> {
         })
         .flat_map(|ib| ib.entries.iter().cloned())
         .collect();
+
+    // Mono entries with multiple channels: split into one entry per channel
+    // so each channel gets its own isolated processing stream.
+    let mut entries: Vec<InputEntry> = Vec::new();
+    for entry in raw_entries {
+        if matches!(entry.mode, ChainInputMode::Mono) && entry.channels.len() > 1 {
+            for (i, &ch) in entry.channels.iter().enumerate() {
+                entries.push(InputEntry {
+                    name: format!("{} ch{}", entry.name, i + 1),
+                    device_id: entry.device_id.clone(),
+                    mode: ChainInputMode::Mono,
+                    channels: vec![ch],
+                });
+            }
+        } else {
+            entries.push(entry);
+        }
+    }
 
     // Append Insert return entries (as inputs for segments after each Insert)
     let insert_returns: Vec<InputEntry> = chain.blocks.iter()
@@ -772,9 +790,7 @@ fn build_input_processing_state(
     let _ = proc_layout;
     let processing_layout_channel = AudioChannelLayout::Stereo;
     let input_read_layout = match input.mode {
-        ChainInputMode::Mono if input.channels.len() <= 1 => AudioChannelLayout::Mono,
-        // Mono with 2+ channels: read as stereo (both channels into L/R)
-        ChainInputMode::Mono => AudioChannelLayout::Stereo,
+        ChainInputMode::Mono => AudioChannelLayout::Mono,
         ChainInputMode::Stereo | ChainInputMode::DualMono => AudioChannelLayout::Stereo,
     };
     log::info!(
