@@ -685,283 +685,273 @@ export component BlockPanelEditor inherits Rectangle {
             horizontal-alignment: center;
         }
 
-        // ── Knob overlays (alinhados à direita, espaçamento fixo 70px) ──
-        for knob[ki] in root.block-knob-overlays : PanelKnob {
-            x: parent.width - 28px - (root.block-knob-overlays.length - ki) * 70px - 3px;
+        // ── Knob overlays (HorizontalLayout, right-aligned) ──
+        HorizontalLayout {
+            visible: root.block-knob-overlays.length > 0;
+            alignment: end;
+            spacing: 4px;
+            padding-right: 8px;
+            x: 0;
             y: parent.height * 0.62;
-            width: 56px;
+            width: parent.width;
             height: 56px;
-            value: knob.value;
-            min-val: knob.min_val;
-            max-val: knob.max_val;
-            step: knob.step;
-            path: knob.path;
-            changed(p, v) => { root.update-block-parameter-number(p, v); }
+
+            for knob[ki] in root.block-knob-overlays : Rectangle {
+                min-width: 56px;
+                preferred-width: 56px;
+                height: 56px;
+
+                PanelKnob {
+                    x: 0; y: 0;
+                    width: parent.width;
+                    height: parent.height;
+                    value: knob.value;
+                    min-val: knob.min_val;
+                    max-val: knob.max_val;
+                    step: knob.step;
+                    path: knob.path;
+                    changed(p, v) => { root.update-block-parameter-number(p, v); }
+                }
+            }
         }
 
-        // ── Enum parameters (segmented for ≤4 options) ──
-        for param[pi] in root.block-parameter-items : Rectangle {
-            visible: param.widget_kind == "enum" && param.option_labels.length <= 4;
-            property <length> seg-width: Math.max(120px, param.option_labels.length * 72px);
-            property <length> available: parent.width - 60px - 28px;
-            property <int> enum-count: root.block-parameter-items.length;
-            property <length> slot-width: enum-count > 0 ? available / enum-count : 290px;
-            x: 60px + pi * slot-width;
+        // ── All parameters (HorizontalLayout, right-aligned, when no knob overlays) ──
+        HorizontalLayout {
+            visible: root.block-knob-overlays.length == 0;
+            alignment: end;
+            spacing: 4px;
+            padding-right: 8px;
+            x: 0;
             y: parent.height * 0.54;
-            width: Math.min(self.seg-width, slot-width - 8px);
+            width: parent.width;
             height: 60px;
 
-            Text {
-                x: 0; y: 0; width: parent.width; height: 16px;
-                text: param.label;
-                color: root.panel-text;
-                font-family: "Bebas Neue";
-                font-size: 13px;
-                letter-spacing: 2px;
-                horizontal-alignment: center;
-            }
+            for param[pi] in root.block-parameter-items : Rectangle {
+                visible: param.widget_kind != "";
+                min-width: param.widget_kind == "enum" && param.option_labels.length <= 4 ? 120px
+                    : param.widget_kind == "enum" && param.option_labels.length > 4 ? 140px
+                    : param.widget_kind == "bool" ? 48px
+                    : param.widget_kind == "path" ? 60px
+                    : 56px;
+                preferred-width: param.widget_kind == "enum" && param.option_labels.length <= 4 ? Math.max(120px, param.option_labels.length * 72px)
+                    : param.widget_kind == "enum" && param.option_labels.length > 4 ? 220px
+                    : param.widget_kind == "bool" ? 60px
+                    : param.widget_kind == "path" ? 82px
+                    : 82px;
+                height: 60px;
 
-            Rectangle {
-                x: 4px; y: 20px;
-                width: parent.width - 8px; height: 32px;
-                border-radius: 6px;
-                background: #00000030;
-                border-width: 1px; border-color: #ffffff10;
+                // Label (shared by all widget types)
+                Text {
+                    x: 0; y: 0; width: parent.width; height: 16px;
+                    text: param.label;
+                    color: root.panel-text;
+                    font-family: param.widget_kind == "enum" ? "Bebas Neue" : "";
+                    font-size: param.widget_kind == "enum" ? 13px : 9px;
+                    font-weight: param.widget_kind == "enum" ? 700 : 800;
+                    letter-spacing: param.widget_kind == "enum" ? 2px : 1px;
+                    horizontal-alignment: center;
+                }
 
-                for option[oi] in param.option_labels : Rectangle {
-                    x: oi * (parent.width / param.option_labels.length);
-                    y: 0;
-                    width: parent.width / param.option_labels.length;
-                    height: parent.height;
-                    border-radius: 5px;
-                    background: oi == param.selected_option_index ? #3366cc : (seg-ta.has-hover ? #ffffff10 : transparent);
+                // ── Enum ≤4 options (segmented control) ──
+                if param.widget_kind == "enum" && param.option_labels.length <= 4 : Rectangle {
+                    x: 4px; y: 20px;
+                    width: parent.width - 8px; height: 32px;
+                    border-radius: 6px;
+                    background: #00000030;
+                    border-width: 1px; border-color: #ffffff10;
+
+                    for option[oi] in param.option_labels : Rectangle {
+                        x: oi * (parent.width / param.option_labels.length);
+                        y: 0;
+                        width: parent.width / param.option_labels.length;
+                        height: parent.height;
+                        border-radius: 5px;
+                        background: oi == param.selected_option_index ? #3366cc : (seg-ta.has-hover ? #ffffff10 : transparent);
+
+                        Text {
+                            x: 4px; width: parent.width - 8px; height: parent.height;
+                            text: option;
+                            color: oi == param.selected_option_index ? #ffffff : #8090a0;
+                            font-size: 9px;
+                            font-weight: oi == param.selected_option_index ? 800 : 500;
+                            letter-spacing: 0.5px;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                            overflow: elide;
+                        }
+
+                        seg-ta := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.select-block-parameter-option(param.path, oi); }
+                        }
+                    }
+                }
+
+                // ── Enum 5+ options (dropdown select) ──
+                if param.widget_kind == "enum" && param.option_labels.length > 4 : Rectangle {
+                    x: 0; y: 22px;
+                    width: parent.width;
+                    height: 34px;
+                    background: #060610;
+                    border-width: 1px;
+                    border-color: #252538;
+                    border-radius: 6px;
 
                     Text {
-                        x: 4px; width: parent.width - 8px; height: parent.height;
-                        text: option;
-                        color: oi == param.selected_option_index ? #ffffff : #8090a0;
-                        font-size: 9px;
-                        font-weight: oi == param.selected_option_index ? 800 : 500;
-                        letter-spacing: 0.5px;
-                        horizontal-alignment: center;
+                        x: 12px; y: 0;
+                        width: parent.width - 34px;
+                        height: parent.height;
+                        text: param.selected_option_index >= 0 && param.selected_option_index < param.option_labels.length
+                            ? param.option_labels[param.selected_option_index]
+                            : "";
+                        color: #d8e0ff;
+                        font-size: 13px;
+                        font-weight: 700;
                         vertical-alignment: center;
                         overflow: elide;
                     }
 
-                    seg-ta := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => { root.select-block-parameter-option(param.path, oi); }
+                    Text {
+                        x: parent.width - 22px; y: 0;
+                        width: 18px;
+                        height: parent.height;
+                        text: "\u{25BC}";
+                        color: #ffffff;
+                        font-size: 11px;
+                        vertical-alignment: center;
+                        horizontal-alignment: center;
                     }
-                }
-            }
-        }
 
-        // ── Enum parameters with 5+ options (dropdown select) ──
-        for param[pi] in root.block-parameter-items : Rectangle {
-            visible: param.widget_kind == "enum" && param.option_labels.length > 4;
-            property <length> available: parent.width - 60px - 28px;
-            property <int> enum-count: root.block-parameter-items.length;
-            property <length> slot-width: enum-count > 0 ? available / enum-count : 290px;
-            x: 60px + pi * slot-width;
-            y: parent.height * 0.54;
-            width: Math.min(260px, slot-width - 8px);
-            height: 60px;
+                    param-open := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { param-popup.show(); }
+                    }
 
-            Text {
-                x: 0; y: 0; width: parent.width; height: 16px;
-                text: param.label;
-                color: root.panel-text;
-                font-family: "Bebas Neue";
-                font-size: 13px;
-                letter-spacing: 2px;
-                horizontal-alignment: center;
-            }
+                    param-popup := PopupWindow {
+                        property <length> list-height: Math.min(param.option_labels.length * 36px + 8px, 260px);
+                        x: 0;
+                        y: -self.list-height - 4px;
+                        width: parent.width;
+                        height: self.list-height;
 
-            // Select box (same style as model selector)
-            Rectangle {
-                x: 0; y: 22px;
-                width: parent.width;
-                height: 34px;
-                background: #060610;
-                border-width: 1px;
-                border-color: #252538;
-                border-radius: 6px;
+                        Rectangle {
+                            width: 100%;
+                            height: 100%;
+                            background: #08080e;
+                            border-width: 1px;
+                            border-color: #2a2a40;
+                            border-radius: 6px;
+                            drop-shadow-blur: 20px;
+                            drop-shadow-color: #000000c0;
+                            drop-shadow-offset-x: 0px;
+                            drop-shadow-offset-y: 6px;
+                            clip: true;
 
-                Text {
-                    x: 12px; y: 0;
-                    width: parent.width - 34px;
-                    height: parent.height;
-                    text: param.selected_option_index >= 0 && param.selected_option_index < param.option_labels.length
-                        ? param.option_labels[param.selected_option_index]
-                        : "";
-                    color: #d8e0ff;
-                    font-size: 13px;
-                    font-weight: 700;
-                    vertical-alignment: center;
-                    overflow: elide;
-                }
+                            Flickable {
+                                x: 0; y: 0;
+                                width: parent.width;
+                                height: parent.height;
+                                viewport-height: param.option_labels.length * 36px + 8px;
 
-                Text {
-                    x: parent.width - 22px; y: 0;
-                    width: 18px;
-                    height: parent.height;
-                    text: "\u{25BC}";
-                    color: #ffffff;
-                    font-size: 11px;
-                    vertical-alignment: center;
-                    horizontal-alignment: center;
-                }
+                                for option[oi] in param.option_labels : Rectangle {
+                                    x: 4px;
+                                    y: 4px + oi * 36px;
+                                    width: parent.width - 8px;
+                                    height: 36px;
+                                    border-radius: 5px;
+                                    background: oi == param.selected_option_index ? #14142a : (opt-ta.has-hover ? #ffffff08 : transparent);
 
-                param-open := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { param-popup.show(); }
-                }
+                                    Text {
+                                        x: 12px; y: 0;
+                                        width: parent.width - 24px;
+                                        height: parent.height;
+                                        text: option;
+                                        color: oi == param.selected_option_index ? #7788ff : #b0bce0;
+                                        font-size: 13px;
+                                        font-weight: oi == param.selected_option_index ? 700 : 400;
+                                        vertical-alignment: center;
+                                        overflow: elide;
+                                    }
 
-                param-popup := PopupWindow {
-                    property <length> list-height: Math.min(param.option_labels.length * 36px + 8px, 260px);
-                    x: 0;
-                    y: -self.list-height - 4px;
-                    width: parent.width;
-                    height: self.list-height;
-
-                    Rectangle {
-                        width: 100%;
-                        height: 100%;
-                        background: #08080e;
-                        border-width: 1px;
-                        border-color: #2a2a40;
-                        border-radius: 6px;
-                        drop-shadow-blur: 20px;
-                        drop-shadow-color: #000000c0;
-                        drop-shadow-offset-x: 0px;
-                        drop-shadow-offset-y: 6px;
-                        clip: true;
-
-                        Flickable {
-                            x: 0; y: 0;
-                            width: parent.width;
-                            height: parent.height;
-                            viewport-height: param.option_labels.length * 36px + 8px;
-
-                            for option[oi] in param.option_labels : Rectangle {
-                                x: 4px;
-                                y: 4px + oi * 36px;
-                                width: parent.width - 8px;
-                                height: 36px;
-                                border-radius: 5px;
-                                background: oi == param.selected_option_index ? #14142a : (opt-ta.has-hover ? #ffffff08 : transparent);
-
-                                Text {
-                                    x: 12px; y: 0;
-                                    width: parent.width - 24px;
-                                    height: parent.height;
-                                    text: option;
-                                    color: oi == param.selected_option_index ? #7788ff : #b0bce0;
-                                    font-size: 13px;
-                                    font-weight: oi == param.selected_option_index ? 700 : 400;
-                                    vertical-alignment: center;
-                                    overflow: elide;
-                                }
-
-                                opt-ta := TouchArea {
-                                    mouse-cursor: pointer;
-                                    clicked => {
-                                        root.select-block-parameter-option(param.path, oi);
+                                    opt-ta := TouchArea {
+                                        mouse-cursor: pointer;
+                                        clicked => {
+                                            root.select-block-parameter-option(param.path, oi);
+                                        }
                                     }
                                 }
                             }
                         }
                     }
                 }
-            }
-        }
-        // ── Non-enum parameters (only when no knob overlays — avoids duplicates) ──
-        for param[pi] in root.block-parameter-items : Rectangle {
-            visible: param.widget_kind != "enum" && param.widget_kind != "" && root.block-knob-overlays.length == 0;
-            x: parent.width - 28px - (root.block-parameter-items.length - pi) * 90px;
-            y: parent.height * 0.54;
-            width: 82px;
-            height: 60px;
 
-            // Label
-            Text {
-                x: 0; y: 0;
-                width: parent.width;
-                height: 16px;
-                text: param.label;
-                color: root.panel-text;
-                font-size: 9px;
-                font-weight: 800;
-                letter-spacing: 1px;
-                horizontal-alignment: center;
-            }
-
-            // File picker (widget_kind == "path")
-            if param.widget_kind == "path" : Rectangle {
-                x: 4px; y: 20px;
-                width: parent.width - 8px;
-                height: 32px;
-                border-radius: 6px;
-                background: file-ta.has-hover ? #ffffff18 : #00000030;
-                border-width: 1px;
-                border-color: #ffffff10;
-
-                Text {
-                    x: 4px;
+                // ── File picker (widget_kind == "path") ──
+                if param.widget_kind == "path" : Rectangle {
+                    x: 4px; y: 20px;
                     width: parent.width - 8px;
-                    height: parent.height;
-                    text: param.value_text != "" ? param.value_text : "Load";
-                    color: param.value_text != "" ? #8090a0 : #4488cc;
-                    font-size: 8px;
-                    font-weight: 600;
-                    overflow: elide;
-                    horizontal-alignment: center;
-                    vertical-alignment: center;
+                    height: 32px;
+                    border-radius: 6px;
+                    background: file-ta.has-hover ? #ffffff18 : #00000030;
+                    border-width: 1px;
+                    border-color: #ffffff10;
+
+                    Text {
+                        x: 4px;
+                        width: parent.width - 8px;
+                        height: parent.height;
+                        text: param.value_text != "" ? param.value_text : "Load";
+                        color: param.value_text != "" ? #8090a0 : #4488cc;
+                        font-size: 8px;
+                        font-weight: 600;
+                        overflow: elide;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+
+                    file-ta := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.pick-block-parameter-file(param.path); }
+                    }
                 }
 
-                file-ta := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { root.pick-block-parameter-file(param.path); }
-                }
-            }
-
-            // Numeric stepper (widget_kind == "stepper" or "slider" or "knob")
-            if param.widget_kind == "stepper" || param.widget_kind == "slider" || param.widget_kind == "knob" : PanelKnob {
-                x: (parent.width - 48px) / 2;
-                y: 18px;
-                width: 48px;
-                height: 48px;
-                value: param.numeric_value;
-                min-val: param.numeric_min;
-                max-val: param.numeric_max;
-                step: param.numeric_step;
-                path: param.path;
-                changed(p, v) => { root.update-block-parameter-number(p, v); }
-            }
-
-            // Boolean toggle (widget_kind == "bool")
-            if param.widget_kind == "bool" : Rectangle {
-                x: (parent.width - 48px) / 2;
-                y: 24px;
-                width: 48px;
-                height: 24px;
-                border-radius: 12px;
-                background: param.bool_value ? #3366cc : #333;
-                border-width: 1px;
-                border-color: param.bool_value ? #4488dd : #555;
-
-                Rectangle {
-                    x: param.bool_value ? parent.width - 22px : 2px;
-                    y: 2px;
-                    width: 20px;
-                    height: 20px;
-                    border-radius: 10px;
-                    background: #ffffff;
+                // ── Numeric knob/stepper/slider ──
+                if param.widget_kind == "stepper" || param.widget_kind == "slider" || param.widget_kind == "knob" : PanelKnob {
+                    x: (parent.width - 48px) / 2;
+                    y: 18px;
+                    width: 48px;
+                    height: 48px;
+                    value: param.numeric_value;
+                    min-val: param.numeric_min;
+                    max-val: param.numeric_max;
+                    step: param.numeric_step;
+                    path: param.path;
+                    changed(p, v) => { root.update-block-parameter-number(p, v); }
                 }
 
-                TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { root.update-block-parameter-bool(param.path, !param.bool_value); }
+                // ── Boolean toggle ──
+                if param.widget_kind == "bool" : Rectangle {
+                    x: (parent.width - 48px) / 2;
+                    y: 24px;
+                    width: 48px;
+                    height: 24px;
+                    border-radius: 12px;
+                    background: param.bool_value ? #3366cc : #333;
+                    border-width: 1px;
+                    border-color: param.bool_value ? #4488dd : #555;
+
+                    Rectangle {
+                        x: param.bool_value ? parent.width - 22px : 2px;
+                        y: 2px;
+                        width: 20px;
+                        height: 20px;
+                        border-radius: 10px;
+                        background: #ffffff;
+                    }
+
+                    TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.update-block-parameter-bool(param.path, !param.bool_value); }
+                    }
                 }
             }
         }
