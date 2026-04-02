@@ -6,3 +6,4 @@ edition.workspace = true
 anyhow.workspace = true
 lv2 = { path = "../lv2" }
 block-core = { path = "../block-core" }
+lv2 = { path = "../lv2" }

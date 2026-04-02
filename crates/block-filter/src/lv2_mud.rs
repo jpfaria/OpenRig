@@ -1,9 +1,7 @@
 use crate::registry::FilterModelDefinition;
 use crate::FilterBackendKind;
 use anyhow::Result;
-use block_core::param::{
-    float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
-};
+use block_core::param::{float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit};
 use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
 
 pub const MODEL_ID: &str = "lv2_mud";
@@ -20,52 +18,25 @@ const PLUGIN_BINARY: &str = "mud_dsp.so";
 #[cfg(target_os = "windows")]
 const PLUGIN_BINARY: &str = "mud_dsp.dll";
 
-// LV2 port indices (from TTL)
+// LV2 port indices (from mud_dsp.ttl)
 const PORT_AUDIO_IN: usize = 0;
 const PORT_AUDIO_OUT: usize = 1;
 const PORT_MIX: usize = 2;
 const PORT_FILTER: usize = 3;
 const PORT_LFO: usize = 4;
 
-pub fn model_schema() -> ModelParameterSchema {
-    ModelParameterSchema {
+fn schema() -> Result<ModelParameterSchema> {
+    Ok(ModelParameterSchema {
         effect_type: block_core::EFFECT_TYPE_FILTER.into(),
         model: MODEL_ID.into(),
         display_name: DISPLAY_NAME.into(),
         audio_mode: ModelAudioMode::DualMono,
         parameters: vec![
-            float_parameter(
-                "mix",
-                "Mix",
-                None,
-                Some(50.0),
-                0.0,
-                100.0,
-                1.0,
-                ParameterUnit::Percent,
-            ),
-            float_parameter(
-                "filter",
-                "Filter",
-                None,
-                Some(50.0),
-                0.0,
-                100.0,
-                1.0,
-                ParameterUnit::Percent,
-            ),
-            float_parameter(
-                "lfo",
-                "LFO",
-                None,
-                Some(0.0),
-                -100.0,
-                100.0,
-                1.0,
-                ParameterUnit::None,
-            ),
+            float_parameter("mix", "Mix", None, Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
+            float_parameter("filter", "Filter", None, Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
+            float_parameter("lfo", "LFO", None, Some(0.0), -100.0, 100.0, 1.0, ParameterUnit::Percent),
         ],
-    }
+    })
 }
 
 fn resolve_lib_path() -> Result<String> {
@@ -74,9 +45,7 @@ fn resolve_lib_path() -> Result<String> {
         .and_then(|p| p.parent().map(|p| p.to_path_buf()));
 
     let candidates = [
-        exe_dir
-            .as_ref()
-            .map(|d| d.join("../../").join(lv2::default_lv2_lib_dir()).join(PLUGIN_BINARY)),
+        exe_dir.as_ref().map(|d| d.join("../../").join(lv2::default_lv2_lib_dir()).join(PLUGIN_BINARY)),
         Some(std::path::PathBuf::from(lv2::default_lv2_lib_dir()).join(PLUGIN_BINARY)),
     ];
 
@@ -86,11 +55,7 @@ fn resolve_lib_path() -> Result<String> {
         }
     }
 
-    anyhow::bail!(
-        "LV2 binary '{}' not found in '{}'",
-        PLUGIN_BINARY,
-        lv2::default_lv2_lib_dir()
-    )
+    anyhow::bail!("LV2 binary '{}' not found in '{}'", PLUGIN_BINARY, lv2::default_lv2_lib_dir())
 }
 
 fn resolve_bundle_path() -> Result<String> {
@@ -99,9 +64,7 @@ fn resolve_bundle_path() -> Result<String> {
         .and_then(|p| p.parent().map(|p| p.to_path_buf()));
 
     let candidates = [
-        exe_dir
-            .as_ref()
-            .map(|d| d.join("../../plugins").join(PLUGIN_DIR)),
+        exe_dir.as_ref().map(|d| d.join("../../plugins").join(PLUGIN_DIR)),
         Some(std::path::PathBuf::from("plugins").join(PLUGIN_DIR)),
     ];
 
@@ -121,22 +84,13 @@ struct DualMonoLv2 {
 
 impl StereoProcessor for DualMonoLv2 {
     fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
-        [
-            self.left.process_sample(input[0]),
-            self.right.process_sample(input[1]),
-        ]
+        [self.left.process_sample(input[0]), self.right.process_sample(input[1])]
     }
 }
 
-fn build_mono_processor(
-    sample_rate: f32,
-    mix: f32,
-    filter: f32,
-    lfo: f32,
-) -> Result<lv2::Lv2Processor> {
+fn build_mono_processor(sample_rate: f32, mix: f32, filter: f32, lfo: f32) -> Result<lv2::Lv2Processor> {
     let lib_path = resolve_lib_path()?;
     let bundle_path = resolve_bundle_path()?;
-
     lv2::build_lv2_processor(
         &lib_path,
         PLUGIN_URI,
@@ -152,19 +106,14 @@ fn build_mono_processor(
     )
 }
 
-fn build(
-    params: &ParameterSet,
-    sample_rate: f32,
-    layout: AudioChannelLayout,
-) -> Result<BlockProcessor> {
+fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) -> Result<BlockProcessor> {
     let mix = required_f32(params, "mix").map_err(anyhow::Error::msg)?;
     let filter = required_f32(params, "filter").map_err(anyhow::Error::msg)?;
     let lfo = required_f32(params, "lfo").map_err(anyhow::Error::msg)?;
 
     match layout {
         AudioChannelLayout::Mono => {
-            let processor = build_mono_processor(sample_rate, mix, filter, lfo)?;
-            Ok(BlockProcessor::Mono(Box::new(processor)))
+            Ok(BlockProcessor::Mono(Box::new(build_mono_processor(sample_rate, mix, filter, lfo)?)))
         }
         AudioChannelLayout::Stereo => {
             let left = build_mono_processor(sample_rate, mix, filter, lfo)?;
@@ -172,10 +121,6 @@ fn build(
             Ok(BlockProcessor::Stereo(Box::new(DualMonoLv2 { left, right })))
         }
     }
-}
-
-fn schema() -> Result<ModelParameterSchema> {
-    Ok(model_schema())
 }
 
 pub const MODEL_DEFINITION: FilterModelDefinition = FilterModelDefinition {

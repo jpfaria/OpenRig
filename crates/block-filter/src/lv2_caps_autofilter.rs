@@ -1,70 +1,51 @@
 use crate::registry::FilterModelDefinition;
 use crate::FilterBackendKind;
 use anyhow::Result;
-use block_core::param::{float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit};
+use block_core::param::{enum_parameter, float_parameter, required_f32, required_string, ModelParameterSchema, ParameterSet, ParameterUnit};
 use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
 
-pub const MODEL_ID: &str = "lv2_tap_equalizer";
-pub const DISPLAY_NAME: &str = "TAP Equalizer";
-const BRAND: &str = "tap";
+pub const MODEL_ID: &str = "lv2_caps_autofilter";
+pub const DISPLAY_NAME: &str = "AutoFilter";
+const BRAND: &str = "caps";
 
-const PLUGIN_URI: &str = "http://moddevices.com/plugins/tap/eq";
-const PLUGIN_DIR: &str = "tap-eq.lv2";
+const PLUGIN_URI: &str = "http://moddevices.com/plugins/caps/AutoFilter";
+const PLUGIN_DIR: &str = "mod-caps-AutoFilter.lv2";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "tap_eq.dylib";
+const PLUGIN_BINARY: &str = "AutoFilter.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "tap_eq.so";
+const PLUGIN_BINARY: &str = "AutoFilter.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "tap_eq.dll";
+const PLUGIN_BINARY: &str = "AutoFilter.dll";
 
-// LV2 port indices (from tap_eq.ttl)
-// Ports 0-7: Band1-8 Gain [dB]
-// Ports 8-15: Band1-8 Freq [Hz]
-// Port 16: Audio Input
-// Port 17: Audio Output
-const PORT_AUDIO_IN: usize = 16;
-const PORT_AUDIO_OUT: usize = 17;
-
-// Default frequency centers for each band
-const BAND_FREQ_DEFAULTS: [f32; 8] = [100.0, 200.0, 400.0, 1000.0, 3000.0, 6000.0, 12000.0, 15000.0];
-const BAND_FREQ_MINS: [f32; 8] = [40.0, 100.0, 200.0, 400.0, 1000.0, 3000.0, 6000.0, 10000.0];
-const BAND_FREQ_MAXS: [f32; 8] = [280.0, 500.0, 1000.0, 2800.0, 5000.0, 9000.0, 18000.0, 20000.0];
+// LV2 port indices (from AutoFilter.ttl)
+// 0: Mode (0=LP, 1=HP, default 0)
+// 1: Filter (0-1, default 1)
+// 2: Frequency (20-3400, default 2500)
+// 3: Q (0-1, default 0.27)
+// 4: Depth (0-1, default 0.81)
+// 5: LFO/Envelope (0-1, default 0.16)
+// 6: Rate (0-1, default 0.26)
+// 7: X/Z (0-1, default 0.35)
+// 8: Audio In
+// 9: Audio Out
+const PORT_AUDIO_IN: usize = 8;
+const PORT_AUDIO_OUT: usize = 9;
 
 fn schema() -> Result<ModelParameterSchema> {
-    let mut parameters = Vec::new();
-
-    for i in 1..=8usize {
-        parameters.push(float_parameter(
-            &format!("band{i}_gain"),
-            &format!("Band {i} Gain"),
-            None,
-            Some(0.0),
-            -50.0,
-            20.0,
-            0.1,
-            ParameterUnit::Decibels,
-        ));
-    }
-    for i in 1..=8usize {
-        parameters.push(float_parameter(
-            &format!("band{i}_freq"),
-            &format!("Band {i} Freq"),
-            None,
-            Some(BAND_FREQ_DEFAULTS[i - 1]),
-            BAND_FREQ_MINS[i - 1],
-            BAND_FREQ_MAXS[i - 1],
-            1.0,
-            ParameterUnit::Hertz,
-        ));
-    }
-
     Ok(ModelParameterSchema {
         effect_type: block_core::EFFECT_TYPE_FILTER.into(),
         model: MODEL_ID.into(),
         display_name: DISPLAY_NAME.into(),
         audio_mode: ModelAudioMode::DualMono,
-        parameters,
+        parameters: vec![
+            enum_parameter("mode", "Mode", None, Some("lp"), &[("lp", "Low Pass"), ("hp", "High Pass")]),
+            float_parameter("frequency", "Frequency", None, Some(2500.0), 20.0, 3400.0, 1.0, ParameterUnit::Hertz),
+            float_parameter("q", "Q", None, Some(0.27), 0.0, 1.0, 0.01, ParameterUnit::None),
+            float_parameter("depth", "Depth", None, Some(0.81), 0.0, 1.0, 0.01, ParameterUnit::None),
+            float_parameter("lfoenv", "LFO/Env", None, Some(0.16), 0.0, 1.0, 0.01, ParameterUnit::None),
+            float_parameter("rate", "Rate", None, Some(0.26), 0.0, 1.0, 0.01, ParameterUnit::None),
+        ],
     })
 }
 
@@ -119,17 +100,15 @@ impl StereoProcessor for DualMonoLv2 {
 
 fn build_mono_processor(
     sample_rate: f32,
-    gains: &[f32; 8],
-    freqs: &[f32; 8],
+    mode: f32,
+    frequency: f32,
+    q: f32,
+    depth: f32,
+    lfoenv: f32,
+    rate: f32,
 ) -> Result<lv2::Lv2Processor> {
     let lib_path = resolve_lib_path()?;
     let bundle_path = resolve_bundle_path()?;
-
-    let control_ports: Vec<(usize, f32)> = (0..8)
-        .map(|i| (i, gains[i]))
-        .chain((8..16).map(|i| (i, freqs[i - 8])))
-        .collect();
-
     lv2::build_lv2_processor(
         &lib_path,
         PLUGIN_URI,
@@ -137,25 +116,35 @@ fn build_mono_processor(
         &bundle_path,
         &[PORT_AUDIO_IN],
         &[PORT_AUDIO_OUT],
-        &control_ports,
+        &[
+            (0, mode),
+            (1, 1.0), // filter on
+            (2, frequency),
+            (3, q),
+            (4, depth),
+            (5, lfoenv),
+            (6, rate),
+            (7, 0.35), // x_z default
+        ],
     )
 }
 
 fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) -> Result<BlockProcessor> {
-    let mut gains = [0.0f32; 8];
-    let mut freqs = [0.0f32; 8];
-    for i in 1..=8usize {
-        gains[i - 1] = required_f32(params, &format!("band{i}_gain")).map_err(anyhow::Error::msg)?;
-        freqs[i - 1] = required_f32(params, &format!("band{i}_freq")).map_err(anyhow::Error::msg)?;
-    }
+    let mode_str = required_string(params, "mode").map_err(anyhow::Error::msg)?;
+    let mode: f32 = if mode_str == "hp" { 1.0 } else { 0.0 };
+    let frequency = required_f32(params, "frequency").map_err(anyhow::Error::msg)?;
+    let q        = required_f32(params, "q").map_err(anyhow::Error::msg)?;
+    let depth    = required_f32(params, "depth").map_err(anyhow::Error::msg)?;
+    let lfoenv   = required_f32(params, "lfoenv").map_err(anyhow::Error::msg)?;
+    let rate     = required_f32(params, "rate").map_err(anyhow::Error::msg)?;
 
     match layout {
         AudioChannelLayout::Mono => {
-            Ok(BlockProcessor::Mono(Box::new(build_mono_processor(sample_rate, &gains, &freqs)?)))
+            Ok(BlockProcessor::Mono(Box::new(build_mono_processor(sample_rate, mode, frequency, q, depth, lfoenv, rate)?)))
         }
         AudioChannelLayout::Stereo => {
-            let left = build_mono_processor(sample_rate, &gains, &freqs)?;
-            let right = build_mono_processor(sample_rate, &gains, &freqs)?;
+            let left = build_mono_processor(sample_rate, mode, frequency, q, depth, lfoenv, rate)?;
+            let right = build_mono_processor(sample_rate, mode, frequency, q, depth, lfoenv, rate)?;
             Ok(BlockProcessor::Stereo(Box::new(DualMonoLv2 { left, right })))
         }
     }

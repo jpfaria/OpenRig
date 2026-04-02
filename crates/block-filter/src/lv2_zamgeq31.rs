@@ -4,70 +4,49 @@ use anyhow::Result;
 use block_core::param::{float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit};
 use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
 
-pub const MODEL_ID: &str = "lv2_tap_equalizer_bw";
-pub const DISPLAY_NAME: &str = "TAP Equalizer/BW";
-const BRAND: &str = "tap";
+pub const MODEL_ID: &str = "lv2_zamgeq31";
+pub const DISPLAY_NAME: &str = "ZamGEQ31";
+const BRAND: &str = "zam";
 
-const PLUGIN_URI: &str = "http://moddevices.com/plugins/tap/eqbw";
-const PLUGIN_DIR: &str = "tap-eqbw.lv2";
+const PLUGIN_URI: &str = "urn:zamaudio:ZamGEQ31";
+const PLUGIN_DIR: &str = "ZamGEQ31.lv2";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "tap_eqbw.dylib";
+const PLUGIN_BINARY: &str = "ZamGEQ31_dsp.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "tap_eqbw.so";
+const PLUGIN_BINARY: &str = "ZamGEQ31_dsp.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "tap_eqbw.dll";
+const PLUGIN_BINARY: &str = "ZamGEQ31_dsp.dll";
 
-// LV2 port indices (from tap_eqbw.ttl)
-// Ports 0-7:   Band1-8 Gain [dB]   (-50 to 20, default 0)
-// Ports 8-15:  Band1-8 Freq [Hz]
-// Ports 16-23: Band1-8 Bandwidth [octaves] (0.1 to 5, default 1)
-// Port 24: Audio Input
-// Port 25: Audio Output
-const PORT_AUDIO_IN: usize = 24;
-const PORT_AUDIO_OUT: usize = 25;
+// LV2 port indices (from ZamGEQ31_dsp.ttl)
+// 0: Audio In, 1: Audio Out
+// 2: Master Gain (-30 to 30, default 0)
+// 3-33: Band 1-31 gains (-12 to 12, default 0)
+const PORT_AUDIO_IN: usize = 0;
+const PORT_AUDIO_OUT: usize = 1;
 
-const BAND_FREQ_DEFAULTS: [f32; 8] = [100.0, 200.0, 400.0, 1000.0, 3000.0, 6000.0, 12000.0, 15000.0];
-const BAND_FREQ_MINS: [f32; 8] = [40.0, 100.0, 200.0, 400.0, 1000.0, 3000.0, 6000.0, 10000.0];
-const BAND_FREQ_MAXS: [f32; 8] = [280.0, 500.0, 1000.0, 2800.0, 5000.0, 9000.0, 18000.0, 20000.0];
+const BAND_NAMES: [&str; 31] = [
+    "32Hz", "40Hz", "50Hz", "63Hz", "79Hz", "100Hz", "126Hz", "158Hz", "200Hz", "251Hz",
+    "316Hz", "398Hz", "501Hz", "631Hz", "794Hz", "1kHz", "1.3kHz", "1.6kHz", "2kHz", "2.5kHz",
+    "3.2kHz", "4kHz", "5kHz", "6.3kHz", "8kHz", "10kHz", "12.7kHz", "16.1kHz", "20.8kHz",
+    "Band30", "Band31",
+];
 
 fn schema() -> Result<ModelParameterSchema> {
-    let mut parameters = Vec::new();
+    let mut parameters = vec![
+        float_parameter("master", "Master Gain", None, Some(0.0), -30.0, 30.0, 0.1, ParameterUnit::Decibels),
+    ];
 
-    for i in 1..=8usize {
+    for i in 1..=31usize {
         parameters.push(float_parameter(
-            &format!("band{i}_gain"),
-            &format!("Band {i} Gain"),
+            &format!("band{i}"),
+            BAND_NAMES[i - 1],
             None,
             Some(0.0),
-            -50.0,
-            20.0,
+            -12.0,
+            12.0,
             0.1,
             ParameterUnit::Decibels,
-        ));
-    }
-    for i in 1..=8usize {
-        parameters.push(float_parameter(
-            &format!("band{i}_freq"),
-            &format!("Band {i} Freq"),
-            None,
-            Some(BAND_FREQ_DEFAULTS[i - 1]),
-            BAND_FREQ_MINS[i - 1],
-            BAND_FREQ_MAXS[i - 1],
-            1.0,
-            ParameterUnit::Hertz,
-        ));
-    }
-    for i in 1..=8usize {
-        parameters.push(float_parameter(
-            &format!("band{i}_bw"),
-            &format!("Band {i} BW"),
-            None,
-            Some(1.0),
-            0.1,
-            5.0,
-            0.01,
-            ParameterUnit::None,
         ));
     }
 
@@ -129,20 +108,14 @@ impl StereoProcessor for DualMonoLv2 {
     }
 }
 
-fn build_mono_processor(
-    sample_rate: f32,
-    gains: &[f32; 8],
-    freqs: &[f32; 8],
-    bws: &[f32; 8],
-) -> Result<lv2::Lv2Processor> {
+fn build_mono_processor(sample_rate: f32, master: f32, bands: &[f32; 31]) -> Result<lv2::Lv2Processor> {
     let lib_path = resolve_lib_path()?;
     let bundle_path = resolve_bundle_path()?;
 
-    let control_ports: Vec<(usize, f32)> = (0..8)
-        .map(|i| (i, gains[i]))
-        .chain((8..16).map(|i| (i, freqs[i - 8])))
-        .chain((16..24).map(|i| (i, bws[i - 16])))
-        .collect();
+    let mut control_ports: Vec<(usize, f32)> = vec![(2, master)];
+    for i in 0..31 {
+        control_ports.push((3 + i, bands[i]));
+    }
 
     lv2::build_lv2_processor(
         &lib_path,
@@ -156,22 +129,19 @@ fn build_mono_processor(
 }
 
 fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) -> Result<BlockProcessor> {
-    let mut gains = [0.0f32; 8];
-    let mut freqs = [0.0f32; 8];
-    let mut bws = [1.0f32; 8];
-    for i in 1..=8usize {
-        gains[i - 1] = required_f32(params, &format!("band{i}_gain")).map_err(anyhow::Error::msg)?;
-        freqs[i - 1] = required_f32(params, &format!("band{i}_freq")).map_err(anyhow::Error::msg)?;
-        bws[i - 1] = required_f32(params, &format!("band{i}_bw")).map_err(anyhow::Error::msg)?;
+    let master = required_f32(params, "master").map_err(anyhow::Error::msg)?;
+    let mut bands = [0.0f32; 31];
+    for i in 1..=31usize {
+        bands[i - 1] = required_f32(params, &format!("band{i}")).map_err(anyhow::Error::msg)?;
     }
 
     match layout {
         AudioChannelLayout::Mono => {
-            Ok(BlockProcessor::Mono(Box::new(build_mono_processor(sample_rate, &gains, &freqs, &bws)?)))
+            Ok(BlockProcessor::Mono(Box::new(build_mono_processor(sample_rate, master, &bands)?)))
         }
         AudioChannelLayout::Stereo => {
-            let left = build_mono_processor(sample_rate, &gains, &freqs, &bws)?;
-            let right = build_mono_processor(sample_rate, &gains, &freqs, &bws)?;
+            let left = build_mono_processor(sample_rate, master, &bands)?;
+            let right = build_mono_processor(sample_rate, master, &bands)?;
             Ok(BlockProcessor::Stereo(Box::new(DualMonoLv2 { left, right })))
         }
     }

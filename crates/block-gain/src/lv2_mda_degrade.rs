@@ -40,7 +40,7 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: block_core::EFFECT_TYPE_GAIN.into(),
         model: MODEL_ID.into(),
         display_name: DISPLAY_NAME.into(),
-        audio_mode: ModelAudioMode::TrueStereo,
+        audio_mode: ModelAudioMode::DualMono,
         parameters: vec![
             float_parameter(
                 "headroom",
@@ -199,46 +199,31 @@ fn build(
     let lib_path = resolve_lib_path()?;
     let bundle_path = resolve_bundle_path()?;
 
+    let control_ports = &[
+        (PORT_HEADROOM, headroom),
+        (PORT_QUANT, quant),
+        (PORT_RATE, rate),
+        (PORT_INTEGRATOR, integrator),
+        (PORT_POST_FILTER, post_filter),
+        (PORT_NON_LIN, non_lin),
+        (PORT_EVEN_ODD, even_odd),
+        (PORT_OUTPUT, output),
+    ];
+
     match layout {
         AudioChannelLayout::Mono => {
-            let processor = lv2::build_lv2_processor(
-                &lib_path,
-                PLUGIN_URI,
-                sample_rate as f64,
-                &bundle_path,
-                &[PORT_LEFT_IN],
-                &[PORT_LEFT_OUT],
-                &[
-                    (PORT_HEADROOM, headroom),
-                    (PORT_QUANT, quant),
-                    (PORT_RATE, rate),
-                    (PORT_INTEGRATOR, integrator),
-                    (PORT_POST_FILTER, post_filter),
-                    (PORT_NON_LIN, non_lin),
-                    (PORT_EVEN_ODD, even_odd),
-                    (PORT_OUTPUT, output),
-                ],
+            let processor = lv2::build_lv2_processor_with_extras(
+                &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
+                &[PORT_LEFT_IN], &[PORT_LEFT_OUT], control_ports,
+                &[PORT_RIGHT_IN, PORT_RIGHT_OUT],
             )?;
             Ok(BlockProcessor::Mono(Box::new(processor)))
         }
         AudioChannelLayout::Stereo => {
             let processor = lv2::build_stereo_lv2_processor(
-                &lib_path,
-                PLUGIN_URI,
-                sample_rate as f64,
-                &bundle_path,
-                &[PORT_LEFT_IN, PORT_RIGHT_IN],
-                &[PORT_LEFT_OUT, PORT_RIGHT_OUT],
-                &[
-                    (PORT_HEADROOM, headroom),
-                    (PORT_QUANT, quant),
-                    (PORT_RATE, rate),
-                    (PORT_INTEGRATOR, integrator),
-                    (PORT_POST_FILTER, post_filter),
-                    (PORT_NON_LIN, non_lin),
-                    (PORT_EVEN_ODD, even_odd),
-                    (PORT_OUTPUT, output),
-                ],
+                &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
+                &[PORT_LEFT_IN, PORT_RIGHT_IN], &[PORT_LEFT_OUT, PORT_RIGHT_OUT],
+                control_ports,
             )?;
             Ok(BlockProcessor::Stereo(Box::new(processor)))
         }
