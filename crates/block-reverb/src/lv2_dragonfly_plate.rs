@@ -137,18 +137,18 @@ fn build(
 
     match layout {
         AudioChannelLayout::Mono => {
-            let processor = lv2::build_lv2_processor_with_extras(
+            let processor = lv2::build_lv2_processor_full(
                 &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
                 &[PORT_AUDIO_IN_L], &[PORT_AUDIO_OUT_L], control_ports,
-                &[PORT_AUDIO_IN_R, PORT_AUDIO_OUT_R],
+                &[PORT_ATOM_IN, PORT_ATOM_OUT], &[PORT_AUDIO_IN_R, PORT_AUDIO_OUT_R],
             )?;
             Ok(BlockProcessor::Mono(Box::new(processor)))
         }
         AudioChannelLayout::Stereo => {
-            let processor = lv2::build_stereo_lv2_processor(
+            let processor = lv2::build_stereo_lv2_processor_with_atoms(
                 &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
                 &[PORT_AUDIO_IN_L, PORT_AUDIO_IN_R], &[PORT_AUDIO_OUT_L, PORT_AUDIO_OUT_R],
-                control_ports,
+                control_ports, &[PORT_ATOM_IN, PORT_ATOM_OUT],
             )?;
             Ok(BlockProcessor::Stereo(Box::new(processor)))
         }
