@@ -361,12 +361,17 @@ export component BlockEditorWindow inherits Window {
         && root.block-drawer-selected-type-index < root.block-type-options.length
         && root.block-type-options[root.block-drawer-selected-type-index].use_panel_editor;
 
+    // Dynamic width: each knob=56px, gap=8px, margins=80px (power btn + right padding)
+    property <int> param-count: root.block-parameter-items.length;
+    property <length> needed-width: param-count > 0 ? param-count * 64px + 80px : 520px;
+    property <length> panel-width: root.use-panel-editor ? Math.max(900px, needed-width) : 520px;
+
     title: root.block-window-title;
-    min-width: root.use-panel-editor ? 900px : 520px;
+    min-width: panel-width;
     min-height: root.use-panel-editor ? 275px : 760px;
-    max-width: root.use-panel-editor ? 900px : 520px;
+    max-width: panel-width;
     max-height: root.use-panel-editor ? 275px : 760px;
-    preferred-width: root.use-panel-editor ? 900px : 520px;
+    preferred-width: panel-width;
     preferred-height: root.use-panel-editor ? 275px : 760px;
     background: #040708;
 

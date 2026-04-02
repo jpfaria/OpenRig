@@ -1,3 +1,5 @@
+mod thumbnails;
+
 use anyhow::{anyhow, Result};
 
 const SELECT_PATH_PREFIX: &str = "__select.";
@@ -3688,10 +3690,22 @@ pub fn run_desktop_app(
                 window.set_show_block_drawer(false);
                 let ci = chain_index as usize;
                 let bi = block_index as usize;
-                // Remove any stale window for this block position.
-                // After add/remove operations, the block at a given index may
-                // have changed, so we always close the old window and create
-                // a fresh one with the correct data.
+                // If this block already has an open editor, bring it to front.
+                {
+                    let borrow = open_block_windows.borrow();
+                    if let Some(bw) = borrow.iter().find(|bw| bw.chain_index == ci && bw.block_index == bi) {
+                        show_child_window(window.window(), bw.window.window());
+                        return;
+                    }
+                }
+                // Close any stale window for this block position before creating a fresh one.
+                // After add/remove operations the block at a given index may have changed.
+                {
+                    let borrow = open_block_windows.borrow();
+                    for bw in borrow.iter().filter(|bw| bw.chain_index == ci && bw.block_index == bi) {
+                        let _ = bw.window.hide();
+                    }
+                }
                 open_block_windows.borrow_mut().retain(|bw| {
                     !(bw.chain_index == ci && bw.block_index == bi)
                 });
@@ -7362,7 +7376,7 @@ fn load_thumbnail_image(effect_type: &str, model_id: &str) -> (slint::Image, boo
         return (img, true, w, h);
     }
 
-    match block_thumbnails::thumbnail_png(effect_type, model_id) {
+    match thumbnails::thumbnail_png(effect_type, model_id) {
         Some(png_bytes) => {
             match image::load_from_memory_with_format(png_bytes, image::ImageFormat::Png) {
                 Ok(img) => {

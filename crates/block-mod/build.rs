@@ -18,8 +18,8 @@ fn main() {
             continue;
         }
         let contents = fs::read_to_string(&path).expect("read source");
-        if !contents.contains("MODEL_DEFINITION") {
-            continue;
+        if contents.contains("MODEL_DEFINITION") {
+            model_modules.push(stem.to_string());
         }
 
         // Check for platform marker: `// @platform: <os>` restricts a file to
@@ -34,17 +34,17 @@ fn main() {
         model_modules.push((stem.to_string(), path.to_path_buf()));
     }
 
-    model_modules.sort_by(|a, b| a.0.cmp(&b.0));
+    model_modules.sort();
     let mut generated = String::new();
-    for (module_name, module_path) in &model_modules {
-        generated.push_str(&format!("#[path = {:?}]\nmod {};\n", module_path.to_string_lossy().to_string(), module_name));
+    for module_name in &model_modules {
+        generated.push_str(&format!("#[path = \"{}/{}.rs\"]\nmod {};\n", src_dir.to_string_lossy(), module_name, module_name));
     }
     generated.push_str("\npub const SUPPORTED_MODELS: &[&str] = &[\n");
-    for (module_name, _) in &model_modules {
+    for module_name in &model_modules {
         generated.push_str(&format!("    {}::MODEL_DEFINITION.id,\n", module_name));
     }
     generated.push_str("];\n\nconst MODEL_DEFINITIONS: &[ModModelDefinition] = &[\n");
-    for (module_name, _) in &model_modules {
+    for module_name in &model_modules {
         generated.push_str(&format!("    {}::MODEL_DEFINITION,\n", module_name));
     }
     generated.push_str("];\n");
