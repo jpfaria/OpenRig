@@ -100,8 +100,8 @@ fn build(
 struct StereoAsMono(lv2::StereoLv2Processor);
 impl MonoProcessor for StereoAsMono {
     fn process_sample(&mut self, input: f32) -> f32 {
-        let [l, _] = block_core::StereoProcessor::process_frame(&mut self.0, [input, input]);
-        l
+        let [l, r] = block_core::StereoProcessor::process_frame(&mut self.0, [input, input]);
+        (l + r) * 0.5
     }
 }
 
