@@ -11,6 +11,7 @@ pub enum ReverbBackendKind {
     Native,
     Nam,
     Ir,
+    Lv2,
 }
 
 pub fn supported_models() -> &'static [&'static str] {
@@ -25,6 +26,7 @@ pub fn reverb_model_visual(model_id: &str) -> Option<ModelVisualData> {
             ReverbBackendKind::Native => "NATIVE",
             ReverbBackendKind::Nam => "NAM",
             ReverbBackendKind::Ir => "IR",
+            ReverbBackendKind::Lv2 => "LV2",
         },
         supported_instruments: def.supported_instruments,
         knob_layout: def.knob_layout,
