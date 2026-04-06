@@ -96,6 +96,42 @@ export struct BlockParameterItem {
     allow_empty: bool,
 }
 
+// Point in a MultiSlider widget (one vertical slider per point)
+export struct MultiSliderPoint {
+    path: string,
+    label: string,
+    value: float,
+    min_val: float,
+    max_val: float,
+    step: float,
+}
+
+// Point in a CurveEditor widget (draggable on 2D plane)
+export struct CurveEditorPoint {
+    group: string,
+    band_color: color,
+    // Y axis (gain)
+    y_path: string,
+    y_value: float,
+    y_min: float,
+    y_max: float,
+    y_step: float,
+    // X axis (frequency) — optional, 0 if not present
+    has_x: bool,
+    x_path: string,
+    x_value: float,
+    x_min: float,
+    x_max: float,
+    x_step: float,
+    // Width (Q/BW) — optional, 0 if not present
+    has_width: bool,
+    width_path: string,
+    width_value: float,
+    width_min: float,
+    width_max: float,
+    width_step: float,
+}
+
 // Key-value entry for realtime data streams
 export struct BlockStreamEntry {
     key: string,

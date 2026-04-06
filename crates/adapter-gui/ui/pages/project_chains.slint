@@ -1,5 +1,5 @@
 import { ComboBox, ScrollView, VerticalBox } from "std-widgets.slint";
-import { ProjectChainItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, ChainBlockItem } from "../models.slint";
+import { ProjectChainItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, ChainBlockItem, MultiSliderPoint, CurveEditorPoint } from "../models.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 
 component ToolbarButton inherits Rectangle {
@@ -1507,6 +1507,8 @@ export component BlockEditorPanel inherits Rectangle {
     in-out property <int> block-drawer-selected-model-index;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
+    in property <[MultiSliderPoint]> multi-slider-points;
+    in property <[CurveEditorPoint]> curve-editor-points;
     callback choose-block-model(int);
     callback close-block-drawer();
     callback save-block-drawer();
@@ -1713,6 +1715,8 @@ export component ProjectChainsPage inherits Rectangle {
     in-out property <int> block-drawer-selected-model-index;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
+    in property <[MultiSliderPoint]> multi-slider-points;
+    in property <[CurveEditorPoint]> curve-editor-points;
     in-out property <string> status-message;
     property <int> dragging-chain-index: -1;
     property <int> dragging-block-index: -1;
@@ -1923,6 +1927,8 @@ export component ProjectChainsPage inherits Rectangle {
             block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
             block-drawer-enabled: root.block-drawer-enabled;
             block-parameter-items: root.block-parameter-items;
+            multi-slider-points: root.multi-slider-points;
+            curve-editor-points: root.curve-editor-points;
             choose-block-model(index) => { root.choose-block-model(index); }
             close-block-drawer => { root.close-block-drawer(); }
             save-block-drawer => { root.save-block-drawer(); }

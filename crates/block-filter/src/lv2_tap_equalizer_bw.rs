@@ -1,7 +1,7 @@
 use crate::registry::FilterModelDefinition;
 use crate::FilterBackendKind;
 use anyhow::Result;
-use block_core::param::{float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit};
+use block_core::param::{curve_editor_parameter, CurveEditorRole, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit};
 use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
 
 pub const MODEL_ID: &str = "lv2_tap_equalizer_bw";
@@ -35,34 +35,34 @@ fn schema() -> Result<ModelParameterSchema> {
     let mut parameters = Vec::new();
 
     for i in 1..=8usize {
-        parameters.push(float_parameter(
+        let group = format!("Band {i}");
+        parameters.push(curve_editor_parameter(
             &format!("band{i}_gain"),
-            &format!("Band {i} Gain"),
-            None,
+            "Gain",
+            Some(&group),
+            CurveEditorRole::Y,
             Some(0.0),
             -50.0,
             20.0,
             0.1,
             ParameterUnit::Decibels,
         ));
-    }
-    for i in 1..=8usize {
-        parameters.push(float_parameter(
+        parameters.push(curve_editor_parameter(
             &format!("band{i}_freq"),
-            &format!("Band {i} Freq"),
-            None,
+            "Freq",
+            Some(&group),
+            CurveEditorRole::X,
             Some(BAND_FREQ_DEFAULTS[i - 1]),
             BAND_FREQ_MINS[i - 1],
             BAND_FREQ_MAXS[i - 1],
             1.0,
             ParameterUnit::Hertz,
         ));
-    }
-    for i in 1..=8usize {
-        parameters.push(float_parameter(
+        parameters.push(curve_editor_parameter(
             &format!("band{i}_bw"),
-            &format!("Band {i} BW"),
-            None,
+            "BW",
+            Some(&group),
+            CurveEditorRole::Width,
             Some(1.0),
             0.1,
             5.0,

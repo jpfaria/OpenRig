@@ -22,7 +22,7 @@ use project::block::{
 };
 use project::catalog::{supported_block_models, supported_block_type, supported_block_types};
 use project::device::DeviceSettings;
-use project::param::{ParameterDomain, ParameterSet, ParameterUnit};
+use project::param::{CurveEditorRole, ParameterDomain, ParameterSet, ParameterUnit, ParameterWidget};
 use project::project::Project;
 use project::block::{InputBlock, InputEntry, OutputBlock, OutputEntry};
 use project::chain::{Chain, ChainInputMode, ChainOutputMode};
@@ -561,6 +561,8 @@ pub fn run_desktop_app(
     let block_model_options = Rc::new(VecModel::from(Vec::<BlockModelPickerItem>::new()));
     let block_model_option_labels = Rc::new(VecModel::from(Vec::<SharedString>::new()));
     let block_parameter_items = Rc::new(VecModel::from(Vec::<BlockParameterItem>::new()));
+    let multi_slider_points = Rc::new(VecModel::from(Vec::<MultiSliderPoint>::new()));
+    let curve_editor_points = Rc::new(VecModel::from(Vec::<CurveEditorPoint>::new()));
     let block_editor_persist_timer = Rc::new(Timer::default());
     let toast_timer = Rc::new(Timer::default());
     window.set_toast_message("".into());
@@ -569,11 +571,15 @@ pub fn run_desktop_app(
     window.set_block_model_options(ModelRc::from(block_model_options.clone()));
     window.set_block_model_option_labels(ModelRc::from(block_model_option_labels.clone()));
     window.set_block_parameter_items(ModelRc::from(block_parameter_items.clone()));
+    window.set_multi_slider_points(ModelRc::from(multi_slider_points.clone()));
+    window.set_curve_editor_points(ModelRc::from(curve_editor_points.clone()));
     block_editor_window.set_block_type_options(ModelRc::from(block_type_options.clone()));
     block_editor_window.set_block_model_options(ModelRc::from(block_model_options.clone()));
     block_editor_window
         .set_block_model_option_labels(ModelRc::from(block_model_option_labels.clone()));
     block_editor_window.set_block_parameter_items(ModelRc::from(block_parameter_items.clone()));
+    block_editor_window.set_multi_slider_points(ModelRc::from(multi_slider_points.clone()));
+    block_editor_window.set_curve_editor_points(ModelRc::from(curve_editor_points.clone()));
     block_editor_window.set_block_drawer_title("".into());
     block_editor_window.set_block_drawer_confirm_label("Adicionar".into());
     block_editor_window.set_block_drawer_status_message("".into());
@@ -3514,6 +3520,8 @@ pub fn run_desktop_app(
         let block_model_options = block_model_options.clone();
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
+        let multi_slider_points = multi_slider_points.clone();
+        let curve_editor_points = curve_editor_points.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
@@ -3673,6 +3681,8 @@ pub fn run_desktop_app(
             block_model_option_labels.set_vec(block_model_picker_labels(&items));
             block_model_options.set_vec(items);
             block_parameter_items.set_vec(block_parameter_items_for_editor(&editor_data));
+            multi_slider_points.set_vec(build_multi_slider_points(&editor_data.effect_type, &editor_data.model_id, &editor_data.params));
+            curve_editor_points.set_vec(build_curve_editor_points(&editor_data.effect_type, &editor_data.model_id, &editor_data.params));
             set_selected_block(&window, selected_block.borrow().as_ref());
             let drawer_state =
                 block_drawer_state(Some(block_index as usize), &effect_type, Some(&model_id));
@@ -4239,6 +4249,8 @@ pub fn run_desktop_app(
         let block_model_options = block_model_options.clone();
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
+        let multi_slider_points = multi_slider_points.clone();
+        let curve_editor_points = curve_editor_points.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
         window.on_clear_chain_block(move || {
             let Some(window) = weak_window.upgrade() else {
@@ -4249,6 +4261,8 @@ pub fn run_desktop_app(
             block_model_options.set_vec(Vec::new());
             block_model_option_labels.set_vec(Vec::new());
             block_parameter_items.set_vec(Vec::new());
+            multi_slider_points.set_vec(Vec::new());
+            curve_editor_points.set_vec(Vec::new());
             set_selected_block(&window, None);
             window.set_show_block_drawer(false);
             window.set_show_block_type_picker(false);
@@ -4396,6 +4410,8 @@ pub fn run_desktop_app(
         let block_model_options = block_model_options.clone();
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
+        let multi_slider_points = multi_slider_points.clone();
+        let curve_editor_points = curve_editor_points.clone();
         let project_session = project_session.clone();
         window.on_start_block_insert(move |chain_index, before_index| {
             log::debug!("on_start_block_insert: chain_index={}, before_index={}", chain_index, before_index);
@@ -4436,6 +4452,8 @@ pub fn run_desktop_app(
             block_model_options.set_vec(Vec::new());
             block_model_option_labels.set_vec(Vec::new());
             block_parameter_items.set_vec(Vec::new());
+            multi_slider_points.set_vec(Vec::new());
+            curve_editor_points.set_vec(Vec::new());
             set_selected_block(&window, None);
             window.set_block_drawer_edit_mode(false);
             window.set_block_drawer_selected_type_index(-1);
@@ -4451,6 +4469,8 @@ pub fn run_desktop_app(
         let block_model_options = block_model_options.clone();
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
+        let multi_slider_points = multi_slider_points.clone();
+        let curve_editor_points = curve_editor_points.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
         let chain_draft_for_type = chain_draft.clone();
         let io_block_insert_draft_for_type = io_block_insert_draft.clone();
@@ -4657,6 +4677,8 @@ pub fn run_desktop_app(
             );
             let overlays = build_knob_overlays(project::catalog::model_knob_layout(&model.effect_type, &model.model_id), &new_params);
             block_parameter_items.set_vec(new_params);
+            multi_slider_points.set_vec(build_multi_slider_points(&model.effect_type, &model.model_id, &ParameterSet::default()));
+            curve_editor_points.set_vec(build_curve_editor_points(&model.effect_type, &model.model_id, &ParameterSet::default()));
             let drawer_state =
                 block_drawer_state(None, &model.effect_type, Some(&model.model_id));
             window.set_block_drawer_title(drawer_state.title.into());
@@ -4682,6 +4704,8 @@ pub fn run_desktop_app(
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
         let block_parameter_items = block_parameter_items.clone();
+        let multi_slider_points = multi_slider_points.clone();
+        let curve_editor_points = curve_editor_points.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
@@ -4713,6 +4737,8 @@ pub fn run_desktop_app(
             );
             let overlays = build_knob_overlays(project::catalog::model_knob_layout(&model.effect_type, &model.model_id), &new_params);
             block_parameter_items.set_vec(new_params);
+            multi_slider_points.set_vec(build_multi_slider_points(&model.effect_type, &model.model_id, &ParameterSet::default()));
+            curve_editor_points.set_vec(build_curve_editor_points(&model.effect_type, &model.model_id, &ParameterSet::default()));
             window.set_block_drawer_selected_model_index(index);
             window.set_block_drawer_status_message("".into());
             if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
@@ -4743,6 +4769,8 @@ pub fn run_desktop_app(
         let block_model_options = block_model_options.clone();
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
+        let multi_slider_points = multi_slider_points.clone();
+        let curve_editor_points = curve_editor_points.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
         window.on_cancel_block_picker(move || {
@@ -4754,6 +4782,8 @@ pub fn run_desktop_app(
             block_model_options.set_vec(Vec::new());
             block_model_option_labels.set_vec(Vec::new());
             block_parameter_items.set_vec(Vec::new());
+            multi_slider_points.set_vec(Vec::new());
+            curve_editor_points.set_vec(Vec::new());
             window.set_block_drawer_selected_model_index(-1);
             window.set_block_drawer_selected_type_index(-1);
             window.set_show_block_type_picker(false);
@@ -4771,6 +4801,8 @@ pub fn run_desktop_app(
         let block_model_options = block_model_options.clone();
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
+        let multi_slider_points = multi_slider_points.clone();
+        let curve_editor_points = curve_editor_points.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
         window.on_close_block_drawer(move || {
@@ -4783,6 +4815,8 @@ pub fn run_desktop_app(
             block_model_options.set_vec(Vec::new());
             block_model_option_labels.set_vec(Vec::new());
             block_parameter_items.set_vec(Vec::new());
+            multi_slider_points.set_vec(Vec::new());
+            curve_editor_points.set_vec(Vec::new());
             window.set_block_drawer_selected_model_index(-1);
             window.set_block_drawer_selected_type_index(-1);
             set_selected_block(&window, None);
@@ -5156,6 +5190,8 @@ pub fn run_desktop_app(
         let block_model_options = block_model_options.clone();
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
+        let multi_slider_points = multi_slider_points.clone();
+        let curve_editor_points = curve_editor_points.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
@@ -5198,6 +5234,8 @@ pub fn run_desktop_app(
             block_model_options.set_vec(Vec::new());
             block_model_option_labels.set_vec(Vec::new());
             block_parameter_items.set_vec(Vec::new());
+            multi_slider_points.set_vec(Vec::new());
+            curve_editor_points.set_vec(Vec::new());
             if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
                 let _ = block_editor_window.hide();
             }
@@ -5220,6 +5258,8 @@ pub fn run_desktop_app(
         let block_model_options = block_model_options.clone();
         let block_model_option_labels = block_model_option_labels.clone();
         let block_parameter_items = block_parameter_items.clone();
+        let multi_slider_points = multi_slider_points.clone();
+        let curve_editor_points = curve_editor_points.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
@@ -5283,6 +5323,8 @@ pub fn run_desktop_app(
             block_model_options.set_vec(Vec::new());
             block_model_option_labels.set_vec(Vec::new());
             block_parameter_items.set_vec(Vec::new());
+            multi_slider_points.set_vec(Vec::new());
+            curve_editor_points.set_vec(Vec::new());
             set_selected_block(&window, None);
             window.set_show_block_drawer(false);
             window.set_block_drawer_status_message("".into());
@@ -6812,17 +6854,20 @@ fn block_parameter_items_for_model(
                 path: spec.path.clone().into(),
                 label: spec.label.clone().into(),
                 group: spec.group.clone().unwrap_or_default().into(),
-                widget_kind: match &spec.domain {
-                    ParameterDomain::Bool => "bool",
-                    ParameterDomain::IntRange { min, max, step } => {
-                        numeric_widget_kind(*min as f32, *max as f32, *step as f32, true)
-                    }
-                    ParameterDomain::FloatRange { min, max, step } => {
-                        numeric_widget_kind(*min, *max, *step, false)
-                    }
-                    ParameterDomain::Enum { .. } => "enum",
-                    ParameterDomain::Text => "text",
-                    ParameterDomain::FilePath { .. } => "path",
+                widget_kind: match &spec.widget {
+                    ParameterWidget::MultiSlider | ParameterWidget::CurveEditor { .. } => "",
+                    _ => match &spec.domain {
+                        ParameterDomain::Bool => "bool",
+                        ParameterDomain::IntRange { min, max, step } => {
+                            numeric_widget_kind(*min as f32, *max as f32, *step as f32, true)
+                        }
+                        ParameterDomain::FloatRange { min, max, step } => {
+                            numeric_widget_kind(*min, *max, *step, false)
+                        }
+                        ParameterDomain::Enum { .. } => "enum",
+                        ParameterDomain::Text => "text",
+                        ParameterDomain::FilePath { .. } => "path",
+                    },
                 }
                 .into(),
                 unit_text: unit_label(&spec.unit).into(),
@@ -7043,6 +7088,146 @@ fn numeric_widget_kind(min: f32, max: f32, step: f32, integer: bool) -> &'static
     let _ = integer;
     "slider"
 }
+const BAND_COLORS: &[slint::Color] = &[
+    slint::Color::from_argb_u8(255, 232, 77, 77),    // red
+    slint::Color::from_argb_u8(255, 77, 184, 232),   // cyan
+    slint::Color::from_argb_u8(255, 119, 232, 77),   // green
+    slint::Color::from_argb_u8(255, 232, 184, 77),   // orange
+    slint::Color::from_argb_u8(255, 184, 77, 232),   // purple
+    slint::Color::from_argb_u8(255, 77, 232, 184),   // teal
+    slint::Color::from_argb_u8(255, 232, 77, 184),   // pink
+    slint::Color::from_argb_u8(255, 184, 232, 77),   // lime
+];
+
+fn build_multi_slider_points(
+    effect_type: &str,
+    model_id: &str,
+    params: &ParameterSet,
+) -> Vec<MultiSliderPoint> {
+    let Ok(schema) = schema_for_block_model(effect_type, model_id) else {
+        return Vec::new();
+    };
+    schema
+        .parameters
+        .iter()
+        .filter(|spec| matches!(spec.widget, ParameterWidget::MultiSlider))
+        .map(|spec| {
+            let current = params
+                .get(&spec.path)
+                .and_then(|v| v.as_f32())
+                .or_else(|| spec.default_value.as_ref().and_then(|v| v.as_f32()))
+                .unwrap_or(0.0);
+            let (min, max, step) = match &spec.domain {
+                ParameterDomain::FloatRange { min, max, step } => (*min, *max, *step),
+                _ => (0.0, 1.0, 0.0),
+            };
+            MultiSliderPoint {
+                path: spec.path.clone().into(),
+                label: spec.label.clone().into(),
+                value: current,
+                min_val: min,
+                max_val: max,
+                step,
+            }
+        })
+        .collect()
+}
+
+fn build_curve_editor_points(
+    effect_type: &str,
+    model_id: &str,
+    params: &ParameterSet,
+) -> Vec<CurveEditorPoint> {
+    let Ok(schema) = schema_for_block_model(effect_type, model_id) else {
+        return Vec::new();
+    };
+
+    // Group CurveEditor params by group name
+    let mut groups: Vec<String> = Vec::new();
+    for spec in &schema.parameters {
+        if let ParameterWidget::CurveEditor { .. } = &spec.widget {
+            let group = spec.group.clone().unwrap_or_default();
+            if !groups.contains(&group) {
+                groups.push(group);
+            }
+        }
+    }
+
+    groups
+        .iter()
+        .enumerate()
+        .map(|(i, group)| {
+            let band_color = BAND_COLORS[i % BAND_COLORS.len()];
+            let mut point = CurveEditorPoint {
+                group: group.clone().into(),
+                band_color,
+                y_path: "".into(),
+                y_value: 0.0,
+                y_min: 0.0,
+                y_max: 0.0,
+                y_step: 0.0,
+                has_x: false,
+                x_path: "".into(),
+                x_value: 0.0,
+                x_min: 0.0,
+                x_max: 0.0,
+                x_step: 0.0,
+                has_width: false,
+                width_path: "".into(),
+                width_value: 0.0,
+                width_min: 0.0,
+                width_max: 0.0,
+                width_step: 0.0,
+            };
+
+            for spec in &schema.parameters {
+                let spec_group = spec.group.as_deref().unwrap_or("");
+                if spec_group != group {
+                    continue;
+                }
+                let ParameterWidget::CurveEditor { role } = &spec.widget else {
+                    continue;
+                };
+                let current = params
+                    .get(&spec.path)
+                    .and_then(|v| v.as_f32())
+                    .or_else(|| spec.default_value.as_ref().and_then(|v| v.as_f32()))
+                    .unwrap_or(0.0);
+                let (min, max, step) = match &spec.domain {
+                    ParameterDomain::FloatRange { min, max, step } => (*min, *max, *step),
+                    _ => (0.0, 1.0, 0.0),
+                };
+                match role {
+                    CurveEditorRole::Y => {
+                        point.y_path = spec.path.clone().into();
+                        point.y_value = current;
+                        point.y_min = min;
+                        point.y_max = max;
+                        point.y_step = step;
+                    }
+                    CurveEditorRole::X => {
+                        point.has_x = true;
+                        point.x_path = spec.path.clone().into();
+                        point.x_value = current;
+                        point.x_min = min;
+                        point.x_max = max;
+                        point.x_step = step;
+                    }
+                    CurveEditorRole::Width => {
+                        point.has_width = true;
+                        point.width_path = spec.path.clone().into();
+                        point.width_value = current;
+                        point.width_min = min;
+                        point.width_max = max;
+                        point.width_step = step;
+                    }
+                }
+            }
+            point
+        })
+        .collect()
+}
+
 fn set_block_parameter_option(
     model: &Rc<VecModel<BlockParameterItem>>,
     path: &str,

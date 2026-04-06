@@ -723,7 +723,9 @@ export component BlockPanelEditor inherits Rectangle {
 
         // ── All parameters (HorizontalLayout, right-aligned, when no knob overlays) ──
         HorizontalLayout {
-            visible: root.block-knob-overlays.length == 0;
+            visible: root.block-knob-overlays.length == 0
+                && root.curve-editor-points.length == 0
+                && root.multi-slider-points.length == 0;
             alignment: end;
             spacing: 4px;
             padding-right: 8px;

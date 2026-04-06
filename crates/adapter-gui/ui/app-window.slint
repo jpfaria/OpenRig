@@ -1,4 +1,4 @@
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem, MultiSliderPoint, CurveEditorPoint } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
 import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage } from "pages/pages.slint";
@@ -338,6 +338,8 @@ export component BlockEditorWindow inherits Window {
     in-out property <int> block-drawer-selected-model-index;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
+    in property <[MultiSliderPoint]> multi-slider-points;
+    in property <[CurveEditorPoint]> curve-editor-points;
     in property <[BlockKnobOverlay]> block-knob-overlays;
     in property <string> block-window-title: "OpenRig · Block";
     callback choose-block-model(int);
@@ -388,6 +390,8 @@ export component BlockEditorWindow inherits Window {
         block-drawer-enabled: root.block-drawer-enabled;
         block-knob-overlays: root.block-knob-overlays;
         block-parameter-items: root.block-parameter-items;
+        multi-slider-points: root.multi-slider-points;
+        curve-editor-points: root.curve-editor-points;
         block-drawer-confirm-label: root.block-drawer-confirm-label;
         block-stream-data: root.block-stream-data;
         choose-block-model(i) => { root.choose-block-model(i); }
@@ -416,6 +420,8 @@ export component BlockEditorWindow inherits Window {
         block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
         block-drawer-enabled: root.block-drawer-enabled;
         block-parameter-items: root.block-parameter-items;
+        multi-slider-points: root.multi-slider-points;
+        curve-editor-points: root.curve-editor-points;
         choose-block-model(index) => { root.choose-block-model(index); }
         close-block-drawer => { root.close-block-drawer(); }
         save-block-drawer => { root.save-block-drawer(); }
@@ -539,6 +545,8 @@ export component AppWindow inherits Window {
     in-out property <int> block-drawer-selected-model-index;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
+    in property <[MultiSliderPoint]> multi-slider-points;
+    in property <[CurveEditorPoint]> curve-editor-points;
     in property <[ChannelOptionItem]> chain-input-channels;
     in property <[ChannelOptionItem]> chain-output-channels;
     in-out property <string> status-message;
@@ -653,6 +661,8 @@ export component AppWindow inherits Window {
         block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
         block-drawer-enabled: root.block-drawer-enabled;
         block-parameter-items: root.block-parameter-items;
+        multi-slider-points: root.multi-slider-points;
+        curve-editor-points: root.curve-editor-points;
         chain-input-channels: root.chain-input-channels;
         chain-output-channels: root.chain-output-channels;
         status-message: root.status-message;
@@ -762,6 +772,8 @@ export component AppWindow inherits Window {
         block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
         block-drawer-enabled: root.block-drawer-enabled;
         block-parameter-items: root.block-parameter-items;
+        multi-slider-points: root.multi-slider-points;
+        curve-editor-points: root.curve-editor-points;
         chain-input-channels: root.chain-input-channels;
         chain-output-channels: root.chain-output-channels;
         status-message: root.status-message;
