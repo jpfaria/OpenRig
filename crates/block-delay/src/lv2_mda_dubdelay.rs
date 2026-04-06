@@ -67,10 +67,15 @@ fn build(
     let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
     let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
 
+    // MDA lvz wrapper expects all params normalized 0-1
     let control_ports = &[
-        (PORT_DELAY, delay), (PORT_FEEDBACK, feedback), (PORT_FB_TONE, fb_tone),
-        (PORT_LFO_DEPTH, lfo_depth), (PORT_LFO_RATE, lfo_rate), (PORT_MIX, mix),
-        (PORT_OUTPUT, output),
+        (PORT_DELAY, (delay - 1.0) / (7500.0 - 1.0)),
+        (PORT_FEEDBACK, (feedback + 110.0) / 220.0),
+        (PORT_FB_TONE, (fb_tone + 100.0) / 200.0),
+        (PORT_LFO_DEPTH, lfo_depth / 100.0),
+        (PORT_LFO_RATE, (lfo_rate - 0.01) / (10.0 - 0.01)),
+        (PORT_MIX, mix / 100.0),
+        (PORT_OUTPUT, (output + 12.0) / 18.0),
     ];
 
     let processor = lv2::build_stereo_lv2_processor(

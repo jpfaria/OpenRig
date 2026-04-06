@@ -81,6 +81,8 @@ fn build(
         (PORT_HIGH_ON, 0.0), (PORT_HIGH_F, 7500.0), (PORT_HIGH_Q, 1.0),
         // Division ports — fixed defaults
         (PORT_DIV_L, 0.0), (PORT_DIV_R, 0.0),
+        // Output control port — dummy buffer so plugin doesn't write to unallocated memory
+        (19, 120.0),
     ];
 
     let processor = lv2::build_stereo_lv2_processor(
