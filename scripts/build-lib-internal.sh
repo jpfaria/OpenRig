@@ -242,11 +242,13 @@ build_gxplugins() {
             fi
 
             if c++ -std=c++11 \
+                -arch arm64 -arch x86_64 \
+                -mmacosx-version-min=11.0 \
                 -I"$plugin_dir" -I"$plugin_dir/dsp" -I"$plugin_dir/plugin" \
                 $extra_include $lv2_cflags \
                 -fPIC -DPIC -O2 \
                 -Wno-duplicate-decl-specifier -Wno-macro-redefined \
-                -shared -o "$OUTPUT_DIR/${name}.$LIB_EXT" \
+                -bundle -o "$OUTPUT_DIR/${name}.$LIB_EXT" \
                 "$patched" -lm 2>/dev/null; then
                 echo "  OK: $name"
             else
