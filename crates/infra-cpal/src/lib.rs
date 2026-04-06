@@ -229,11 +229,11 @@ impl ProjectRuntimeController {
         !self.active_chains.is_empty()
     }
 
-    /// Returns the first active tuner reading from any running chain.
-    pub fn poll_tuner_reading(&self) -> Option<block_util::TunerReading> {
+    /// Returns stream data for a block in any running chain.
+    pub fn poll_stream(&self, block_id: &domain::ids::BlockId) -> Option<Vec<block_core::StreamEntry>> {
         for (_, runtime) in &self.runtime_graph.chains {
-            if let Some(reading) = runtime.poll_tuner() {
-                return Some(reading);
+            if let Some(entries) = runtime.poll_stream(block_id) {
+                return Some(entries);
             }
         }
         None
