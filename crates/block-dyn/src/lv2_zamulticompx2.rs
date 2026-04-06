@@ -4,7 +4,7 @@ use anyhow::Result;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor};
+use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
 
 pub const MODEL_ID: &str = "lv2_zamulticompx2";
 pub const DISPLAY_NAME: &str = "ZaMultiComp X2";
@@ -19,11 +19,9 @@ const PLUGIN_BINARY: &str = "ZaMultiCompX2_dsp.so";
 #[cfg(target_os = "windows")]
 const PLUGIN_BINARY: &str = "ZaMultiCompX2_dsp.dll";
 
-// Stereo: 0=InL, 1=InR, 2=OutL, 3=OutR, 4+=control
+// Stereo: 0=InL, 1=InR, 2=OutL, 3=OutR, 4+=control (3 bands × 6 params + xover + master + link)
 const PORT_AUDIO_IN_L: usize = 0;
-const PORT_AUDIO_IN_R: usize = 1;
 const PORT_AUDIO_OUT_L: usize = 2;
-const PORT_AUDIO_OUT_R: usize = 3;
 const PORT_ATTACK1: usize = 4;
 const PORT_RELEASE1: usize = 5;
 const PORT_KNEE1: usize = 6;
@@ -52,12 +50,30 @@ fn schema() -> Result<ModelParameterSchema> {
     })
 }
 
-struct StereoAsMono(lv2::StereoLv2Processor);
-impl MonoProcessor for StereoAsMono {
-    fn process_sample(&mut self, input: f32) -> f32 {
-        let [l, r] = block_core::StereoProcessor::process_frame(&mut self.0, [input, input]);
-        (l + r) * 0.5
+struct DualMonoLv2 { left: lv2::Lv2Processor, right: lv2::Lv2Processor }
+impl StereoProcessor for DualMonoLv2 {
+    fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
+        [self.left.process_sample(input[0]), self.right.process_sample(input[1])]
     }
+}
+
+fn build_mono(sample_rate: f32, threshold: f32, ratio: f32, attack: f32, release: f32, makeup: f32, master: f32) -> Result<lv2::Lv2Processor> {
+    let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
+    let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
+    // Apply same settings to all 3 bands, connect unused stereo ports as extras
+    lv2::build_lv2_processor_with_extras(
+        &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
+        &[PORT_AUDIO_IN_L], &[PORT_AUDIO_OUT_L],
+        &[
+            (PORT_ATTACK1, attack), (PORT_RELEASE1, release), (PORT_KNEE1, 0.0),
+            (PORT_RATIO1, ratio), (PORT_THRESHOLD1, threshold), (PORT_MAKEUP1, makeup),
+            (10, attack), (11, release), (12, 0.0), (13, ratio), (14, threshold), (15, makeup),
+            (16, attack), (17, release), (18, 0.0), (19, ratio), (20, threshold), (21, makeup),
+            (PORT_XOVER1, 250.0), (PORT_XOVER2, 1400.0), (PORT_MASTER, master),
+            (PORT_STEREO_LINK, 1.0),
+        ],
+        &[1, 3], // InR, OutR
+    )
 }
 
 fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) -> Result<BlockProcessor> {
@@ -67,26 +83,13 @@ fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) ->
     let release = required_f32(params, "release").map_err(anyhow::Error::msg)?;
     let makeup = required_f32(params, "makeup").map_err(anyhow::Error::msg)?;
     let master = required_f32(params, "master").map_err(anyhow::Error::msg)?;
-
-    let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
-    let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
-    let control_ports = &[
-        (PORT_ATTACK1, attack), (PORT_RELEASE1, release), (PORT_KNEE1, 0.0),
-        (PORT_RATIO1, ratio), (PORT_THRESHOLD1, threshold), (PORT_MAKEUP1, makeup),
-        (10, attack), (11, release), (12, 0.0), (13, ratio), (14, threshold), (15, makeup),
-        (16, attack), (17, release), (18, 0.0), (19, ratio), (20, threshold), (21, makeup),
-        (PORT_XOVER1, 250.0), (PORT_XOVER2, 1400.0), (PORT_MASTER, master),
-        (PORT_STEREO_LINK, 1.0),
-    ];
-
-    let processor = lv2::build_stereo_lv2_processor(
-        &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
-        &[PORT_AUDIO_IN_L, PORT_AUDIO_IN_R], &[PORT_AUDIO_OUT_L, PORT_AUDIO_OUT_R],
-        control_ports,
-    )?;
     match layout {
-        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(StereoAsMono(processor)))),
-        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(processor))),
+        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(build_mono(sample_rate, threshold, ratio, attack, release, makeup, master)?))),
+        AudioChannelLayout::Stereo => {
+            let left = build_mono(sample_rate, threshold, ratio, attack, release, makeup, master)?;
+            let right = build_mono(sample_rate, threshold, ratio, attack, release, makeup, master)?;
+            Ok(BlockProcessor::Stereo(Box::new(DualMonoLv2 { left, right })))
+        }
     }
 }
 

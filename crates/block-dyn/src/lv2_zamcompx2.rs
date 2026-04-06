@@ -4,7 +4,7 @@ use anyhow::Result;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor};
+use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
 
 pub const MODEL_ID: &str = "lv2_zamcompx2";
 pub const DISPLAY_NAME: &str = "ZamComp X2";
@@ -19,13 +19,9 @@ const PLUGIN_BINARY: &str = "ZamCompX2_dsp.so";
 #[cfg(target_os = "windows")]
 const PLUGIN_BINARY: &str = "ZamCompX2_dsp.dll";
 
-// Stereo: 0=InL, 1=InR, 2=SidechainL, 3=SidechainR, 4=OutL, 5=OutR, 6+=control
+// Ports: 0=InL, 1=InR, 2=SidechainL, 3=SidechainR, 4=OutL, 5=OutR, 6+=control
 const PORT_AUDIO_IN_L: usize = 0;
-const PORT_AUDIO_IN_R: usize = 1;
-// port 2 = sidechain L (not connected)
-// port 3 = sidechain R (not connected)
 const PORT_AUDIO_OUT_L: usize = 4;
-const PORT_AUDIO_OUT_R: usize = 5;
 const PORT_ATTACK: usize = 6;
 const PORT_RELEASE: usize = 7;
 const PORT_KNEE: usize = 8;
@@ -52,13 +48,25 @@ fn schema() -> Result<ModelParameterSchema> {
     })
 }
 
-/// Wraps stereo ZamCompX2 as mono
-struct StereoAsMono(lv2::StereoLv2Processor);
-impl MonoProcessor for StereoAsMono {
-    fn process_sample(&mut self, input: f32) -> f32 {
-        let [l, r] = block_core::StereoProcessor::process_frame(&mut self.0, [input, input]);
-        (l + r) * 0.5
+struct DualMonoLv2 { left: lv2::Lv2Processor, right: lv2::Lv2Processor }
+impl StereoProcessor for DualMonoLv2 {
+    fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
+        [self.left.process_sample(input[0]), self.right.process_sample(input[1])]
     }
+}
+
+fn build_mono(sample_rate: f32, attack: f32, release: f32, threshold: f32, ratio: f32, knee: f32, makeup: f32) -> Result<lv2::Lv2Processor> {
+    let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
+    let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
+    // Connect sidechain + unused stereo ports as extras
+    lv2::build_lv2_processor_with_extras(
+        &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
+        &[PORT_AUDIO_IN_L], &[PORT_AUDIO_OUT_L],
+        &[(PORT_ATTACK, attack), (PORT_RELEASE, release), (PORT_KNEE, knee),
+          (PORT_RATIO, ratio), (PORT_THRESHOLD, threshold), (PORT_MAKEUP, makeup),
+          (PORT_SLEW, 1.0), (PORT_STEREO_LINK, 1.0)],
+        &[1, 2, 3, 5], // InR, SidechainL, SidechainR, OutR
+    )
 }
 
 fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) -> Result<BlockProcessor> {
@@ -68,23 +76,13 @@ fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) ->
     let ratio = required_f32(params, "ratio").map_err(anyhow::Error::msg)?;
     let knee = required_f32(params, "knee").map_err(anyhow::Error::msg)?;
     let makeup = required_f32(params, "makeup").map_err(anyhow::Error::msg)?;
-
-    let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
-    let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
-    let control_ports = &[
-        (PORT_ATTACK, attack), (PORT_RELEASE, release), (PORT_KNEE, knee),
-        (PORT_RATIO, ratio), (PORT_THRESHOLD, threshold), (PORT_MAKEUP, makeup),
-        (PORT_SLEW, 1.0), (PORT_STEREO_LINK, 1.0),
-    ];
-
-    let processor = lv2::build_stereo_lv2_processor(
-        &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
-        &[PORT_AUDIO_IN_L, PORT_AUDIO_IN_R], &[PORT_AUDIO_OUT_L, PORT_AUDIO_OUT_R],
-        control_ports,
-    )?;
     match layout {
-        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(StereoAsMono(processor)))),
-        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(processor))),
+        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(build_mono(sample_rate, attack, release, threshold, ratio, knee, makeup)?))),
+        AudioChannelLayout::Stereo => {
+            let left = build_mono(sample_rate, attack, release, threshold, ratio, knee, makeup)?;
+            let right = build_mono(sample_rate, attack, release, threshold, ratio, knee, makeup)?;
+            Ok(BlockProcessor::Stereo(Box::new(DualMonoLv2 { left, right })))
+        }
     }
 }
 

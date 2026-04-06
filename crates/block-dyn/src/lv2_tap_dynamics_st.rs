@@ -5,7 +5,7 @@ use block_core::param::{
     enum_parameter, float_parameter, required_f32, required_string,
     ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor};
+use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
 
 pub const MODEL_ID: &str = "lv2_tap_dynamics_st";
 pub const DISPLAY_NAME: &str = "TAP Dynamics Stereo";
@@ -56,11 +56,10 @@ fn schema() -> Result<ModelParameterSchema> {
     })
 }
 
-struct StereoAsMono(lv2::StereoLv2Processor);
-impl MonoProcessor for StereoAsMono {
-    fn process_sample(&mut self, input: f32) -> f32 {
-        let [l, r] = block_core::StereoProcessor::process_frame(&mut self.0, [input, input]);
-        (l + r) * 0.5
+struct DualMonoLv2 { left: lv2::Lv2Processor, right: lv2::Lv2Processor }
+impl StereoProcessor for DualMonoLv2 {
+    fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
+        [self.left.process_sample(input[0]), self.right.process_sample(input[1])]
     }
 }
 
@@ -80,14 +79,23 @@ fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) ->
         (PORT_STEREO_MODE, 0.0),
     ];
 
-    let processor = lv2::build_stereo_lv2_processor(
-        &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
-        &[PORT_AUDIO_IN_L, PORT_AUDIO_IN_R], &[PORT_AUDIO_OUT_L, PORT_AUDIO_OUT_R],
-        control_ports,
-    )?;
     match layout {
-        AudioChannelLayout::Mono => Ok(BlockProcessor::Mono(Box::new(StereoAsMono(processor)))),
-        AudioChannelLayout::Stereo => Ok(BlockProcessor::Stereo(Box::new(processor))),
+        AudioChannelLayout::Mono => {
+            let processor = lv2::build_lv2_processor_with_extras(
+                &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
+                &[PORT_AUDIO_IN_L], &[PORT_AUDIO_OUT_L], control_ports,
+                &[PORT_AUDIO_IN_R, PORT_AUDIO_OUT_R],
+            )?;
+            Ok(BlockProcessor::Mono(Box::new(processor)))
+        }
+        AudioChannelLayout::Stereo => {
+            let processor = lv2::build_stereo_lv2_processor(
+                &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
+                &[PORT_AUDIO_IN_L, PORT_AUDIO_IN_R], &[PORT_AUDIO_OUT_L, PORT_AUDIO_OUT_R],
+                control_ports,
+            )?;
+            Ok(BlockProcessor::Stereo(Box::new(processor)))
+        }
     }
 }
 
