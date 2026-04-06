@@ -107,6 +107,19 @@ impl StereoProcessor for DualMonoLv2 {
             self.right.process_sample(input[1]),
         ]
     }
+
+    fn process_block(&mut self, buffer: &mut [[f32; 2]]) {
+        // JUCE-based plugins (ChowCentaur) buffer internally and produce
+        // silence when called with run(1). Override to use block processing.
+        let len = buffer.len();
+        let mut left_buf: Vec<f32> = buffer.iter().map(|f| f[0]).collect();
+        let mut right_buf: Vec<f32> = buffer.iter().map(|f| f[1]).collect();
+        self.left.process_block(&mut left_buf);
+        self.right.process_block(&mut right_buf);
+        for i in 0..len {
+            buffer[i] = [left_buf[i], right_buf[i]];
+        }
+    }
 }
 
 fn build_mono_processor(

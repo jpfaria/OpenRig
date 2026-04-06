@@ -46,51 +46,61 @@ pub fn model_schema() -> ModelParameterSchema {
                 "headroom",
                 "Headroom",
                 None,
-                Some(80.0),
+                Some(-6.0),
+                -30.0,
                 0.0,
-                100.0,
                 1.0,
-                ParameterUnit::Percent,
+                ParameterUnit::Decibels,
             ),
             float_parameter(
                 "quant",
                 "Quant",
                 None,
-                Some(50.0),
-                0.0,
-                100.0,
+                Some(10.0),
+                4.0,
+                16.0,
                 1.0,
-                ParameterUnit::Percent,
+                ParameterUnit::None,
             ),
             float_parameter(
                 "rate",
                 "Rate",
                 None,
-                Some(100.0),
-                0.0,
-                100.0,
+                Some(48000.0),
+                4800.0,
+                48000.0,
                 1.0,
-                ParameterUnit::Percent,
+                ParameterUnit::Hertz,
+            ),
+            float_parameter(
+                "post_filter",
+                "Post Filter",
+                None,
+                Some(15000.0),
+                200.0,
+                20000.0,
+                1.0,
+                ParameterUnit::Hertz,
             ),
             float_parameter(
                 "non_lin",
                 "Non-Lin",
                 None,
-                Some(16.0),
+                Some(0.16),
                 0.0,
-                100.0,
                 1.0,
-                ParameterUnit::Percent,
+                0.01,
+                ParameterUnit::None,
             ),
             float_parameter(
                 "output",
                 "Output",
                 None,
-                Some(50.0),
-                0.0,
-                100.0,
+                Some(0.0),
+                -20.0,
+                20.0,
                 1.0,
-                ParameterUnit::Percent,
+                ParameterUnit::Decibels,
             ),
             enum_parameter(
                 "integrator",
@@ -114,6 +124,7 @@ fn validate_params(params: &ParameterSet) -> Result<()> {
     let _ = required_f32(params, "headroom").map_err(anyhow::Error::msg)?;
     let _ = required_f32(params, "quant").map_err(anyhow::Error::msg)?;
     let _ = required_f32(params, "rate").map_err(anyhow::Error::msg)?;
+    let _ = required_f32(params, "post_filter").map_err(anyhow::Error::msg)?;
     let _ = required_f32(params, "non_lin").map_err(anyhow::Error::msg)?;
     let _ = required_f32(params, "output").map_err(anyhow::Error::msg)?;
     let _ = required_string(params, "integrator").map_err(anyhow::Error::msg)?;
@@ -130,17 +141,17 @@ fn build(
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    // lvz wrapper normalizes all params to 0-1
-    let headroom = required_f32(params, "headroom").map_err(anyhow::Error::msg)? / 100.0;
-    let quant = required_f32(params, "quant").map_err(anyhow::Error::msg)? / 100.0;
-    let rate = required_f32(params, "rate").map_err(anyhow::Error::msg)? / 100.0;
-    let non_lin = required_f32(params, "non_lin").map_err(anyhow::Error::msg)? / 100.0;
-    let output = required_f32(params, "output").map_err(anyhow::Error::msg)? / 100.0;
+    // All params use native LV2 ranges — pass directly without normalization
+    let headroom = required_f32(params, "headroom").map_err(anyhow::Error::msg)?;
+    let quant = required_f32(params, "quant").map_err(anyhow::Error::msg)?;
+    let rate = required_f32(params, "rate").map_err(anyhow::Error::msg)?;
+    let post_filter = required_f32(params, "post_filter").map_err(anyhow::Error::msg)?;
+    let non_lin = required_f32(params, "non_lin").map_err(anyhow::Error::msg)?;
+    let output = required_f32(params, "output").map_err(anyhow::Error::msg)?;
     let integrator_str = required_string(params, "integrator").map_err(anyhow::Error::msg)?;
     let integrator: f32 = if integrator_str == "on" { 1.0 } else { 0.0 };
     let even_odd_str = required_string(params, "even_odd").map_err(anyhow::Error::msg)?;
     let even_odd: f32 = if even_odd_str == "even" { 0.0 } else { 1.0 };
-    let post_filter = 1.0_f32; // lvz normalized: 1.0 = max (15kHz)
 
     let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
     let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
