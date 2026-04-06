@@ -2,8 +2,7 @@ use crate::registry::GainModelDefinition;
 use crate::GainBackendKind;
 use anyhow::Result;
 use block_core::param::{
-    enum_parameter, float_parameter, required_f32, required_string, ModelParameterSchema,
-    ParameterSet, ParameterUnit,
+    float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
 use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode};
 
@@ -21,19 +20,19 @@ const PLUGIN_BINARY: &str = "Degrade.so";
 #[cfg(target_os = "windows")]
 const PLUGIN_BINARY: &str = "Degrade.dll";
 
-// LV2 port indices (from TTL)
+// LV2 port indices — binary has 6 control params, NOT 8.
+// The internal effect (mdaDegrade) has 6 params: clip, bits, rate, postfilt, nonlin, level.
+// Audio ports follow immediately after.
 const PORT_HEADROOM: usize = 0;
 const PORT_QUANT: usize = 1;
 const PORT_RATE: usize = 2;
-const PORT_INTEGRATOR: usize = 3;
-const PORT_POST_FILTER: usize = 4;
-const PORT_NON_LIN: usize = 5;
-const PORT_EVEN_ODD: usize = 6;
-const PORT_OUTPUT: usize = 7;
-const PORT_LEFT_IN: usize = 8;
-const PORT_RIGHT_IN: usize = 9;
-const PORT_LEFT_OUT: usize = 10;
-const PORT_RIGHT_OUT: usize = 11;
+const PORT_POST_FILTER: usize = 3;
+const PORT_NON_LIN: usize = 4;
+const PORT_OUTPUT: usize = 5;
+const PORT_LEFT_IN: usize = 6;
+const PORT_RIGHT_IN: usize = 7;
+const PORT_LEFT_OUT: usize = 8;
+const PORT_RIGHT_OUT: usize = 9;
 
 pub fn model_schema() -> ModelParameterSchema {
     ModelParameterSchema {
@@ -46,75 +45,61 @@ pub fn model_schema() -> ModelParameterSchema {
                 "headroom",
                 "Headroom",
                 None,
-                Some(-6.0),
-                -30.0,
+                Some(80.0),
                 0.0,
+                100.0,
                 1.0,
-                ParameterUnit::Decibels,
+                ParameterUnit::Percent,
             ),
             float_parameter(
                 "quant",
                 "Quant",
                 None,
-                Some(10.0),
-                4.0,
-                16.0,
+                Some(50.0),
+                0.0,
+                100.0,
                 1.0,
-                ParameterUnit::None,
+                ParameterUnit::Percent,
             ),
             float_parameter(
                 "rate",
                 "Rate",
                 None,
-                Some(48000.0),
-                4800.0,
-                48000.0,
+                Some(65.0),
+                0.0,
+                100.0,
                 1.0,
-                ParameterUnit::Hertz,
+                ParameterUnit::Percent,
             ),
             float_parameter(
                 "post_filter",
                 "Post Filter",
                 None,
-                Some(15000.0),
-                200.0,
-                20000.0,
+                Some(90.0),
+                0.0,
+                100.0,
                 1.0,
-                ParameterUnit::Hertz,
+                ParameterUnit::Percent,
             ),
             float_parameter(
                 "non_lin",
                 "Non-Lin",
                 None,
-                Some(0.16),
+                Some(58.0),
                 0.0,
+                100.0,
                 1.0,
-                0.01,
-                ParameterUnit::None,
+                ParameterUnit::Percent,
             ),
             float_parameter(
                 "output",
                 "Output",
                 None,
-                Some(0.0),
-                -20.0,
-                20.0,
+                Some(50.0),
+                0.0,
+                100.0,
                 1.0,
-                ParameterUnit::Decibels,
-            ),
-            enum_parameter(
-                "integrator",
-                "Integrator",
-                None,
-                Some("off"),
-                &[("off", "Off"), ("on", "On")],
-            ),
-            enum_parameter(
-                "even_odd",
-                "Even/Odd",
-                None,
-                Some("odd"),
-                &[("even", "Even"), ("odd", "Odd")],
+                ParameterUnit::Percent,
             ),
         ],
     }
@@ -127,8 +112,6 @@ fn validate_params(params: &ParameterSet) -> Result<()> {
     let _ = required_f32(params, "post_filter").map_err(anyhow::Error::msg)?;
     let _ = required_f32(params, "non_lin").map_err(anyhow::Error::msg)?;
     let _ = required_f32(params, "output").map_err(anyhow::Error::msg)?;
-    let _ = required_string(params, "integrator").map_err(anyhow::Error::msg)?;
-    let _ = required_string(params, "even_odd").map_err(anyhow::Error::msg)?;
     Ok(())
 }
 
@@ -141,17 +124,13 @@ fn build(
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    // All params use native LV2 ranges — pass directly without normalization
-    let headroom = required_f32(params, "headroom").map_err(anyhow::Error::msg)?;
-    let quant = required_f32(params, "quant").map_err(anyhow::Error::msg)?;
-    let rate = required_f32(params, "rate").map_err(anyhow::Error::msg)?;
-    let post_filter = required_f32(params, "post_filter").map_err(anyhow::Error::msg)?;
-    let non_lin = required_f32(params, "non_lin").map_err(anyhow::Error::msg)?;
-    let output = required_f32(params, "output").map_err(anyhow::Error::msg)?;
-    let integrator_str = required_string(params, "integrator").map_err(anyhow::Error::msg)?;
-    let integrator: f32 = if integrator_str == "on" { 1.0 } else { 0.0 };
-    let even_odd_str = required_string(params, "even_odd").map_err(anyhow::Error::msg)?;
-    let even_odd: f32 = if even_odd_str == "even" { 0.0 } else { 1.0 };
+    // LVZ wrapper uses 0-1 normalized params internally
+    let headroom = required_f32(params, "headroom").map_err(anyhow::Error::msg)? / 100.0;
+    let quant = required_f32(params, "quant").map_err(anyhow::Error::msg)? / 100.0;
+    let rate = required_f32(params, "rate").map_err(anyhow::Error::msg)? / 100.0;
+    let post_filter = required_f32(params, "post_filter").map_err(anyhow::Error::msg)? / 100.0;
+    let non_lin = required_f32(params, "non_lin").map_err(anyhow::Error::msg)? / 100.0;
+    let output = required_f32(params, "output").map_err(anyhow::Error::msg)? / 100.0;
 
     let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
     let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
@@ -160,10 +139,8 @@ fn build(
         (PORT_HEADROOM, headroom),
         (PORT_QUANT, quant),
         (PORT_RATE, rate),
-        (PORT_INTEGRATOR, integrator),
         (PORT_POST_FILTER, post_filter),
         (PORT_NON_LIN, non_lin),
-        (PORT_EVEN_ODD, even_odd),
         (PORT_OUTPUT, output),
     ];
 
