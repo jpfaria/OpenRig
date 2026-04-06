@@ -338,4 +338,19 @@ impl BiquadFilter {
         self.y1 = output;
         output
     }
+
+    /// Magnitude response in dB at the given frequency.
+    pub fn magnitude_db(&self, freq_hz: f32, sample_rate: f32) -> f32 {
+        let w = 2.0 * PI * freq_hz / sample_rate;
+        let cos_w = w.cos();
+        let sin_w = w.sin();
+        let cos_2w = (2.0 * w).cos();
+        let sin_2w = (2.0 * w).sin();
+        let nr = self.b0 + self.b1 * cos_w + self.b2 * cos_2w;
+        let ni = -(self.b1 * sin_w + self.b2 * sin_2w);
+        let dr = 1.0 + self.a1 * cos_w + self.a2 * cos_2w;
+        let di = -(self.a1 * sin_w + self.a2 * sin_2w);
+        let mag_sq = (nr * nr + ni * ni) / (dr * dr + di * di).max(1e-30);
+        10.0 * mag_sq.max(1e-30_f32).log10()
+    }
 }
