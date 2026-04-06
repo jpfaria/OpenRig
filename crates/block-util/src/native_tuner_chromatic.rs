@@ -65,7 +65,8 @@ fn freq_to_note(frequency: f32, reference_hz: f32) -> (&'static str, i32, f32) {
     let note_number = semitones_from_a4.round() as i32;
     let cents = (semitones_from_a4 - note_number as f32) * 100.0;
     let note_index = note_number.rem_euclid(12) as usize;
-    let octave = 4 + (note_number + 9) / 12;
+    // div_euclid gives floor division for negative numbers (e.g. A2=-24: (-15).div_euclid(12)=-2)
+    let octave = 4 + (note_number + 9).div_euclid(12);
     (NOTES[note_index], octave, cents)
 }
 
@@ -180,7 +181,7 @@ impl ChromaticTuner {
         if denom.abs() < 1e-12 {
             tau as f32
         } else {
-            tau as f32 + (s0 - s2) / (2.0 * denom)
+            tau as f32 + (s2 - s0) / (2.0 * denom)
         }
     }
 
@@ -319,11 +320,9 @@ impl ChromaticTuner {
                 let note_str = format!("{note_name}{octave}");
                 self.debounce_note(&note_str);
 
-                if let Some(ref displayed) = self.current_note {
+                if let Some(ref current) = self.current_note {
                     // Publish the displayed (debounced) note with current smoothed freq/cents
-                    let (dn, do_, dc) = freq_to_note(freq, self.reference_hz);
-                    let displayed_str = format!("{dn}{do_}");
-                    self.publish_stream(freq, &displayed_str, dc);
+                    self.publish_stream(freq, current, cents);
                 }
             }
             None => {
