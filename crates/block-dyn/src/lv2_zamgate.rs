@@ -59,7 +59,7 @@ fn build_mono(sample_rate: f32, attack: f32, release: f32, threshold: f32, makeu
         &[PORT_AUDIO_IN], &[PORT_AUDIO_OUT],
         &[(PORT_ATTACK, attack), (PORT_RELEASE, release), (PORT_THRESHOLD, threshold),
           (PORT_MAKEUP, makeup), (PORT_MAX_GATE_CLOSE, -50.0)],
-        &[PORT_SIDECHAIN_IN],
+        &[PORT_SIDECHAIN_IN, 9, 10], // sidechain + meters
     )
 }
 

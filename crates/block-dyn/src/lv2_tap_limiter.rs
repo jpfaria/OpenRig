@@ -48,10 +48,11 @@ impl StereoProcessor for DualMonoLv2 {
 fn build_mono(sample_rate: f32, limit_level: f32, out_volume: f32) -> Result<lv2::Lv2Processor> {
     let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
     let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
-    lv2::build_lv2_processor(
+    lv2::build_lv2_processor_with_extras(
         &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
         &[PORT_AUDIO_IN], &[PORT_AUDIO_OUT],
         &[(PORT_LIMIT_LEVEL, limit_level), (PORT_OUT_VOLUME, out_volume)],
+        &[2], // latency meter output
     )
 }
 

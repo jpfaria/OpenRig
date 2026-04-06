@@ -50,11 +50,12 @@ impl StereoProcessor for DualMonoLv2 {
 fn build_mono(sample_rate: f32, threshold: f32, frequency: f32) -> Result<lv2::Lv2Processor> {
     let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
     let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
-    lv2::build_lv2_processor(
+    lv2::build_lv2_processor_with_extras(
         &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
         &[PORT_AUDIO_IN], &[PORT_AUDIO_OUT],
         &[(PORT_THRESHOLD, threshold), (PORT_FREQUENCY, frequency),
           (PORT_SIDECHAIN, 0.0), (PORT_MONITOR, 0.0)],
+        &[4], // attenuation meter output
     )
 }
 

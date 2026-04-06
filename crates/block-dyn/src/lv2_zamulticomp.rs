@@ -60,7 +60,7 @@ fn build_mono(sample_rate: f32, threshold: f32, ratio: f32, attack: f32, release
     let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
     let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
     // Apply same settings to all 3 bands for simplicity
-    lv2::build_lv2_processor(
+    lv2::build_lv2_processor_with_extras(
         &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
         &[PORT_AUDIO_IN], &[PORT_AUDIO_OUT],
         &[
@@ -70,6 +70,7 @@ fn build_mono(sample_rate: f32, threshold: f32, ratio: f32, attack: f32, release
             (14, attack), (15, release), (16, 0.0), (17, ratio), (18, threshold), (19, makeup),
             (PORT_XOVER1, 250.0), (PORT_XOVER2, 1400.0), (PORT_MASTER, master),
         ],
+        &[23, 24, 25, 26, 27, 28], // gain reduction + output level meters
     )
 }
 

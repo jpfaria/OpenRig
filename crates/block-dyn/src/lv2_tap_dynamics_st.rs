@@ -69,7 +69,7 @@ fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) ->
     let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
     let control_ports = &[
         (PORT_ATTACK, attack), (PORT_RELEASE, release), (PORT_OFFSET_GAIN, offset),
-        (PORT_MAKEUP_GAIN, makeup), (4, 0.0), (5, 0.0), (PORT_FUNCTION, function),
+        (PORT_MAKEUP_GAIN, makeup), (PORT_FUNCTION, function),
         (PORT_STEREO_MODE, 0.0),
     ];
 
@@ -78,7 +78,7 @@ fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) ->
             let processor = lv2::build_lv2_processor_with_extras(
                 &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
                 &[PORT_AUDIO_IN_L], &[PORT_AUDIO_OUT_L], control_ports,
-                &[PORT_AUDIO_IN_R, PORT_AUDIO_OUT_R],
+                &[PORT_AUDIO_IN_R, PORT_AUDIO_OUT_R, 4, 5, 6, 7], // stereo + meters
             )?;
             Ok(BlockProcessor::Mono(Box::new(processor)))
         }

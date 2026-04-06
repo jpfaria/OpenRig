@@ -63,11 +63,12 @@ impl StereoProcessor for DualMonoLv2 {
 fn build_mono(sample_rate: f32, attack: f32, release: f32, offset: f32, makeup: f32, function: f32) -> Result<lv2::Lv2Processor> {
     let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
     let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
-    lv2::build_lv2_processor(
+    lv2::build_lv2_processor_with_extras(
         &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
         &[PORT_AUDIO_IN], &[PORT_AUDIO_OUT],
         &[(PORT_ATTACK, attack), (PORT_RELEASE, release), (PORT_OFFSET_GAIN, offset),
-          (PORT_MAKEUP_GAIN, makeup), (4, 0.0), (5, 0.0), (PORT_FUNCTION, function)],
+          (PORT_MAKEUP_GAIN, makeup), (PORT_FUNCTION, function)],
+        &[4, 5], // envelope + adjustment output meters
     )
 }
 
