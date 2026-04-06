@@ -5,7 +5,7 @@ use block_core::param::{
     enum_parameter, float_parameter, required_f32, required_string,
     ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
+use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode};
 
 pub const MODEL_ID: &str = "lv2_tap_dynamics_st";
 pub const DISPLAY_NAME: &str = "TAP Dynamics Stereo";
@@ -56,12 +56,6 @@ fn schema() -> Result<ModelParameterSchema> {
     })
 }
 
-struct DualMonoLv2 { left: lv2::Lv2Processor, right: lv2::Lv2Processor }
-impl StereoProcessor for DualMonoLv2 {
-    fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
-        [self.left.process_sample(input[0]), self.right.process_sample(input[1])]
-    }
-}
 
 fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) -> Result<BlockProcessor> {
     let attack = required_f32(params, "attack").map_err(anyhow::Error::msg)?;
