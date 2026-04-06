@@ -774,6 +774,7 @@ dependencies = [
  "block-core",
  "domain",
  "ir",
+ "lv2",
 ]
 
 [[package]]

@@ -8,3 +8,4 @@ anyhow.workspace = true
 domain = { path = "../domain" }
 ir = { path = "../ir" }
 block-core = { path = "../block-core" }
+lv2 = { path = "../lv2" }
