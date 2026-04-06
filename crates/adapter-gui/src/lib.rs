@@ -2480,53 +2480,48 @@ pub fn run_desktop_app(
                 });
             }
 
-            // Tuner stream polling timer — updates stream_data for tuner blocks
+            // Stream polling timer — updates stream_data for enabled utility blocks
             {
                 let weak_cw = compact_win.as_weak();
                 let project_runtime_poll = project_runtime.clone();
-                let tuner_timer = Timer::default();
-                tuner_timer.start(
+                let project_session_poll = project_session.clone();
+                let stream_timer = Timer::default();
+                stream_timer.start(
                     slint::TimerMode::Repeated,
                     std::time::Duration::from_millis(80),
                     move || {
                         let Some(cw) = weak_cw.upgrade() else { return; };
                         let rt_borrow = project_runtime_poll.borrow();
                         let Some(rt) = rt_borrow.as_ref() else { return; };
-                        let reading = rt.poll_tuner_reading();
+                        let session_borrow = project_session_poll.borrow();
+                        let Some(session) = session_borrow.as_ref() else { return; };
                         let compact_blocks = cw.get_compact_blocks();
                         for i in 0..compact_blocks.row_count() {
                             if let Some(mut item) = compact_blocks.row_data(i) {
-                                if item.effect_type == "utility" {
-                                    if let Some(ref reading) = reading {
-                                        let in_tune_f = if reading.in_tune { 1.0 } else { 0.0 };
-                                        item.stream_data = BlockStreamData {
-                                            active: true,
-                                            stream_kind: "tuner".into(),
-                                            entries: ModelRc::from(Rc::new(VecModel::from(vec![
-                                                BlockStreamEntry {
-                                                    key: "note".into(),
-                                                    value: in_tune_f,
-                                                    text: reading.note.clone().unwrap_or_default().into(),
-                                                },
-                                                BlockStreamEntry {
-                                                    key: "cents".into(),
-                                                    value: reading.cents_off.unwrap_or(0.0),
-                                                    text: format!("{:+.0}", reading.cents_off.unwrap_or(0.0)).into(),
-                                                },
-                                                BlockStreamEntry {
-                                                    key: "Hz".into(),
-                                                    value: in_tune_f,
-                                                    text: format!("{:.0}", reading.frequency.unwrap_or(0.0)).into(),
-                                                },
-                                            ]))),
-                                        };
+                                if item.effect_type == "utility" && item.enabled {
+                                    let block_id = session.project.chains
+                                        .get(item.chain_index as usize)
+                                        .and_then(|c| c.blocks.get(item.block_index as usize))
+                                        .map(|b| b.id.clone());
+                                    let stream_data = if let Some(ref bid) = block_id {
+                                        if let Some(entries) = rt.poll_stream(bid) {
+                                            let slint_entries: Vec<BlockStreamEntry> = entries.iter().map(|e| BlockStreamEntry {
+                                                key: e.key.clone().into(),
+                                                value: e.value,
+                                                text: e.text.clone().into(),
+                                            }).collect();
+                                            BlockStreamData {
+                                                active: true,
+                                                stream_kind: "stream".into(),
+                                                entries: ModelRc::from(Rc::new(VecModel::from(slint_entries))),
+                                            }
+                                        } else {
+                                            BlockStreamData { active: false, stream_kind: "".into(), entries: ModelRc::default() }
+                                        }
                                     } else {
-                                        item.stream_data = BlockStreamData {
-                                            active: false,
-                                            stream_kind: "".into(),
-                                            entries: ModelRc::default(),
-                                        };
-                                    }
+                                        BlockStreamData { active: false, stream_kind: "".into(), entries: ModelRc::default() }
+                                    };
+                                    item.stream_data = stream_data;
                                     compact_blocks.set_row_data(i, item);
                                 }
                             }
@@ -2534,7 +2529,7 @@ pub fn run_desktop_app(
                     },
                 );
                 // Timer lives as long as compact_win (dropped when window closes)
-                std::mem::forget(tuner_timer);
+                std::mem::forget(stream_timer);
             }
 
             show_child_window(window.window(), compact_win.window());
@@ -3685,6 +3680,8 @@ pub fn run_desktop_app(
             window.set_block_drawer_enabled(enabled);
             window.set_block_drawer_status_message("".into());
             window.set_show_block_type_picker(false);
+            // Clone block_id before dropping session_borrow (needed by window editor stream timer)
+            let block_id_for_editor = block.id.clone();
             drop(session_borrow);
             if use_inline_block_editor(&window) {
                 window.set_show_block_drawer(true);
@@ -3762,48 +3759,30 @@ pub fn run_desktop_app(
                     .unwrap_or_else(|| "Block".to_string());
                 win.set_block_window_title(format!("OpenRig · {}", title_label).into());
 
-                // Stream data timer — polls tuner/meter readings when block produces them
+                // Stream data timer — polls stream data when block produces it (e.g. tuner)
                 let mut block_stream_timer: Option<Rc<Timer>> = None;
-                if effect_type == block_core::EFFECT_TYPE_UTILITY {
+                if effect_type == block_core::EFFECT_TYPE_UTILITY && enabled {
                     let stream_timer = Rc::new(Timer::default());
                     let weak_win_stream = win.as_weak();
                     let project_runtime_stream = project_runtime.clone();
+                    let block_id_for_stream = block_id_for_editor.clone();
                     stream_timer.start(
                         slint::TimerMode::Repeated,
                         std::time::Duration::from_millis(50),
                         move || {
-                            let Some(win) = weak_win_stream.upgrade() else {
-                                return;
-                            };
+                            let Some(win) = weak_win_stream.upgrade() else { return; };
                             let runtime_borrow = project_runtime_stream.borrow();
-                            let Some(runtime) = runtime_borrow.as_ref() else {
-                                log::trace!("[tuner-stream] no runtime");
-                                return;
-                            };
-                            if let Some(reading) = runtime.poll_tuner_reading() {
-                                log::trace!("[tuner-stream] note={:?} freq={:?} cents={:?}", reading.note, reading.frequency, reading.cents_off);
-                                let in_tune_f = if reading.in_tune { 1.0 } else { 0.0 };
-                                let entries = vec![
-                                    BlockStreamEntry {
-                                        key: "note".into(),
-                                        value: in_tune_f,
-                                        text: reading.note.unwrap_or_default().into(),
-                                    },
-                                    BlockStreamEntry {
-                                        key: "cents".into(),
-                                        value: reading.cents_off.unwrap_or(0.0),
-                                        text: format!("{:+.0}", reading.cents_off.unwrap_or(0.0)).into(),
-                                    },
-                                    BlockStreamEntry {
-                                        key: "frequency".into(),
-                                        value: in_tune_f,
-                                        text: format!("{:.1} Hz", reading.frequency.unwrap_or(0.0)).into(),
-                                    },
-                                ];
+                            let Some(runtime) = runtime_borrow.as_ref() else { return; };
+                            if let Some(entries) = runtime.poll_stream(&block_id_for_stream) {
+                                let slint_entries: Vec<BlockStreamEntry> = entries.iter().map(|e| BlockStreamEntry {
+                                    key: e.key.clone().into(),
+                                    value: e.value,
+                                    text: e.text.clone().into(),
+                                }).collect();
                                 win.set_block_stream_data(BlockStreamData {
                                     active: true,
-                                    stream_kind: "tuner".into(),
-                                    entries: ModelRc::from(Rc::new(VecModel::from(entries))),
+                                    stream_kind: "stream".into(),
+                                    entries: ModelRc::from(Rc::new(VecModel::from(slint_entries))),
                                 });
                             } else {
                                 win.set_block_stream_data(BlockStreamData {
