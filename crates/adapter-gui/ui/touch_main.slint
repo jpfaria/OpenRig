@@ -48,6 +48,8 @@ export component TouchMain inherits Rectangle {
     in property <[BlockParameterItem]> block-parameter-items;
     in property <[MultiSliderPoint]> multi-slider-points;
     in property <[CurveEditorPoint]> curve-editor-points;
+    in property <string> eq-total-curve;
+    in property <[string]> eq-band-curves;
     in property <[ChannelOptionItem]> chain-input-channels;
     in property <[ChannelOptionItem]> chain-output-channels;
     in-out property <string> status-message;
@@ -165,6 +167,8 @@ export component TouchMain inherits Rectangle {
             block-parameter-items: root.block-parameter-items;
             multi-slider-points: root.multi-slider-points;
             curve-editor-points: root.curve-editor-points;
+            eq-total-curve: root.eq-total-curve;
+            eq-band-curves: root.eq-band-curves;
             status-message: root.status-message;
             back-to-launcher => { root.back-to-launcher(); }
             add-chain => { root.add-chain(); }

@@ -340,6 +340,8 @@ export component BlockEditorWindow inherits Window {
     in property <[BlockParameterItem]> block-parameter-items;
     in property <[MultiSliderPoint]> multi-slider-points;
     in property <[CurveEditorPoint]> curve-editor-points;
+    in property <string> eq-total-curve;
+    in property <[string]> eq-band-curves;
     in property <[BlockKnobOverlay]> block-knob-overlays;
     in property <string> block-window-title: "OpenRig · Block";
     callback choose-block-model(int);
@@ -392,6 +394,8 @@ export component BlockEditorWindow inherits Window {
         block-parameter-items: root.block-parameter-items;
         multi-slider-points: root.multi-slider-points;
         curve-editor-points: root.curve-editor-points;
+        eq-total-curve: root.eq-total-curve;
+        eq-band-curves: root.eq-band-curves;
         block-drawer-confirm-label: root.block-drawer-confirm-label;
         block-stream-data: root.block-stream-data;
         choose-block-model(i) => { root.choose-block-model(i); }
@@ -547,6 +551,8 @@ export component AppWindow inherits Window {
     in property <[BlockParameterItem]> block-parameter-items;
     in property <[MultiSliderPoint]> multi-slider-points;
     in property <[CurveEditorPoint]> curve-editor-points;
+    in property <string> eq-total-curve;
+    in property <[string]> eq-band-curves;
     in property <[ChannelOptionItem]> chain-input-channels;
     in property <[ChannelOptionItem]> chain-output-channels;
     in-out property <string> status-message;
@@ -663,6 +669,8 @@ export component AppWindow inherits Window {
         block-parameter-items: root.block-parameter-items;
         multi-slider-points: root.multi-slider-points;
         curve-editor-points: root.curve-editor-points;
+        eq-total-curve: root.eq-total-curve;
+        eq-band-curves: root.eq-band-curves;
         chain-input-channels: root.chain-input-channels;
         chain-output-channels: root.chain-output-channels;
         status-message: root.status-message;
@@ -774,6 +782,8 @@ export component AppWindow inherits Window {
         block-parameter-items: root.block-parameter-items;
         multi-slider-points: root.multi-slider-points;
         curve-editor-points: root.curve-editor-points;
+        eq-total-curve: root.eq-total-curve;
+        eq-band-curves: root.eq-band-curves;
         chain-input-channels: root.chain-input-channels;
         chain-output-channels: root.chain-output-channels;
         status-message: root.status-message;
