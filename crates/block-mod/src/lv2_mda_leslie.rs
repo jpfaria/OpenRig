@@ -1,4 +1,5 @@
-use crate::registry::{AmpBackendKind, AmpModelDefinition};
+use crate::registry::ModModelDefinition;
+use crate::ModBackendKind;
 use anyhow::Result;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
@@ -36,7 +37,7 @@ const PORT_AUDIO_OUT_R: usize = 12;
 
 pub fn model_schema() -> ModelParameterSchema {
     ModelParameterSchema {
-        effect_type: block_core::EFFECT_TYPE_AMP.into(),
+        effect_type: block_core::EFFECT_TYPE_MODULATION.into(),
         model: MODEL_ID.into(),
         display_name: DISPLAY_NAME.into(),
         audio_mode: ModelAudioMode::MonoToStereo,
@@ -67,16 +68,6 @@ pub fn model_schema() -> ModelParameterSchema {
             ),
         ],
     }
-}
-
-fn validate(params: &ParameterSet) -> Result<()> {
-    let _ = params;
-    Ok(())
-}
-
-fn asset_summary(params: &ParameterSet) -> Result<String> {
-    let _ = params;
-    Ok(String::new())
 }
 
 fn build(
@@ -131,15 +122,13 @@ fn schema() -> Result<ModelParameterSchema> {
     Ok(model_schema())
 }
 
-pub const MODEL_DEFINITION: AmpModelDefinition = AmpModelDefinition {
+pub const MODEL_DEFINITION: ModModelDefinition = ModModelDefinition {
     id: MODEL_ID,
     display_name: DISPLAY_NAME,
     brand: BRAND,
-    backend_kind: AmpBackendKind::Lv2,
+    backend_kind: ModBackendKind::Lv2,
     schema,
-    validate,
-    asset_summary,
     build,
-    supported_instruments: block_core::GUITAR_ACOUSTIC_BASS,
+    supported_instruments: block_core::ALL_INSTRUMENTS,
     knob_layout: &[],
 };
