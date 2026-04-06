@@ -22,42 +22,53 @@ fn main() {
             continue;
         }
         let name = stem.to_string();
-        if stem.contains("compressor") {
-            compressor_modules.push(name);
-        } else if stem.contains("gate") {
+        if stem.contains("gate") {
             gate_modules.push(name);
+        } else {
+            compressor_modules.push(name);
         }
     }
 
     compressor_modules.sort();
     gate_modules.sort();
 
+    let all_modules: Vec<&String> = compressor_modules.iter().chain(gate_modules.iter()).collect();
+
     let mut generated = String::new();
-    for module_name in compressor_modules.iter().chain(gate_modules.iter()) {
-        generated.push_str(&format!("#[path = \"{}/{}.rs\"]\nmod {};\n", src_dir.to_string_lossy(), module_name, module_name));
+    for module_name in &all_modules {
+        generated.push_str(&format!(
+            "#[path = \"{}/{}.rs\"]\nmod {};\n",
+            src_dir.to_string_lossy(), module_name, module_name
+        ));
     }
-    generated.push_str("\npub const COMPRESSOR_SUPPORTED_MODELS: &[&str] = &[\n");
+
+    generated.push_str("\npub const SUPPORTED_MODELS: &[&str] = &[\n");
+    for module_name in &all_modules {
+        generated.push_str(&format!("    {}::MODEL_DEFINITION.id,\n", module_name));
+    }
+
+    generated.push_str("];\n\npub const COMPRESSOR_SUPPORTED_MODELS: &[&str] = &[\n");
     for module_name in &compressor_modules {
         generated.push_str(&format!("    {}::MODEL_DEFINITION.id,\n", module_name));
     }
+
     generated.push_str("];\n\npub const GATE_SUPPORTED_MODELS: &[&str] = &[\n");
     for module_name in &gate_modules {
         generated.push_str(&format!("    {}::MODEL_DEFINITION.id,\n", module_name));
     }
-    generated.push_str("];\n\npub const SUPPORTED_MODELS: &[&str] = &[\n");
-    for module_name in compressor_modules.iter().chain(gate_modules.iter()) {
-        generated.push_str(&format!("    {}::MODEL_DEFINITION.id,\n", module_name));
+
+    generated.push_str("];\n\nconst MODEL_DEFINITIONS: &[DynModelDefinition] = &[\n");
+    for module_name in &all_modules {
+        generated.push_str(&format!("    {}::MODEL_DEFINITION,\n", module_name));
     }
+
     generated.push_str("];\n\nconst COMPRESSOR_MODEL_DEFINITIONS: &[DynModelDefinition] = &[\n");
     for module_name in &compressor_modules {
         generated.push_str(&format!("    {}::MODEL_DEFINITION,\n", module_name));
     }
+
     generated.push_str("];\n\nconst GATE_MODEL_DEFINITIONS: &[DynModelDefinition] = &[\n");
     for module_name in &gate_modules {
-        generated.push_str(&format!("    {}::MODEL_DEFINITION,\n", module_name));
-    }
-    generated.push_str("];\n\nconst MODEL_DEFINITIONS: &[DynModelDefinition] = &[\n");
-    for module_name in compressor_modules.iter().chain(gate_modules.iter()) {
         generated.push_str(&format!("    {}::MODEL_DEFINITION,\n", module_name));
     }
     generated.push_str("];\n");
