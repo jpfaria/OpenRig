@@ -205,7 +205,7 @@ export component CurveEditorControl inherits Rectangle {
 
     // Pure helper functions
     pure function freq-to-norm(freq: float) -> float {
-        Math.log(1000.0, Math.max(20.0, freq) / 20.0)
+        Math.log(Math.max(20.0, freq) / 20.0, 1000.0)
     }
 
     pure function norm-to-freq(norm: float) -> float {
