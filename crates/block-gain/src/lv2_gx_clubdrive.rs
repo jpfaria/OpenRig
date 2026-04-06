@@ -28,6 +28,7 @@ const PORT_AUDIO_IN: usize = 1;
 const PORT_BYPASS: usize = 2;
 const PORT_DRIVE: usize = 3;
 const PORT_VOLUME: usize = 4;
+const PORT_V1: usize = 5; // bargraph output — must be connected to avoid SIGSEGV
 
 pub fn model_schema() -> ModelParameterSchema {
     ModelParameterSchema {
@@ -92,7 +93,7 @@ fn build_mono_processor(
     let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
     let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
 
-    lv2::build_lv2_processor(
+    lv2::build_lv2_processor_with_extras(
         &lib_path,
         PLUGIN_URI,
         sample_rate as f64,
@@ -104,6 +105,7 @@ fn build_mono_processor(
             (PORT_DRIVE, drive),
             (PORT_VOLUME, volume),
         ],
+        &[PORT_V1],
     )
 }
 
