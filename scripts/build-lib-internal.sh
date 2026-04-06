@@ -211,8 +211,55 @@ build_setbfree() {
 
 build_gxplugins() {
     local src="$DEPS_DIR/GxPlugins.lv2"
-    do_make "$src"
-    collect_libs "$src"
+    local os=$(uname -s)
+
+    if [ "$os" = "Darwin" ]; then
+        # macOS: GxPlugins use __attribute__((section(".rt.text"))) which is
+        # Linux-only (ELF). On macOS (Mach-O) we strip it via sed and compile
+        # each plugin individually, adding zita-resampler includes as needed.
+        local lv2_cflags
+        lv2_cflags=$(pkg-config --cflags lv2 2>/dev/null || echo "-I/opt/homebrew/include")
+
+        for plugin_dir in "$src"/Gx*.lv2; do
+            [ -d "$plugin_dir" ] || continue
+            local name
+            name=$(grep "^	NAME" "$plugin_dir/Makefile" 2>/dev/null | head -1 | sed 's/.*= *//')
+            [ -n "$name" ] || continue
+
+            local cpp_file
+            cpp_file=$(ls "$plugin_dir/plugin/"*.cpp 2>/dev/null | head -1)
+            [ -n "$cpp_file" ] && [ -f "$cpp_file" ] || continue
+
+            local patched="/tmp/gxplugins_${name}_patched.cpp"
+            sed 's/__attribute__((section("[^"]*")))//g' "$cpp_file" > "$patched"
+
+            # Some plugins include zita-resampler from a subdirectory
+            local extra_include=""
+            local zita_dir
+            zita_dir=$(find "$plugin_dir/dsp" -name "resampler.cc" -exec dirname {} \; 2>/dev/null | head -1)
+            if [ -n "$zita_dir" ]; then
+                extra_include="-I$zita_dir"
+            fi
+
+            if c++ -std=c++11 \
+                -I"$plugin_dir" -I"$plugin_dir/dsp" -I"$plugin_dir/plugin" \
+                $extra_include $lv2_cflags \
+                -fPIC -DPIC -O2 \
+                -Wno-duplicate-decl-specifier -Wno-macro-redefined \
+                -shared -o "$OUTPUT_DIR/${name}.$LIB_EXT" \
+                "$patched" -lm 2>/dev/null; then
+                echo "  OK: $name"
+            else
+                echo "  FAIL: $name"
+            fi
+
+            rm -f "$patched"
+        done
+    else
+        # Linux/Windows: standard Makefile build works
+        do_make "$src"
+        collect_libs "$src"
+    fi
 }
 
 build_chowcentaur() {
