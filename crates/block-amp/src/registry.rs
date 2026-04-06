@@ -4,7 +4,7 @@ use block_core::{AudioChannelLayout, BlockProcessor};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(dead_code)]
-pub enum AmpBackendKind { Native, Nam, Ir }
+pub enum AmpBackendKind { Native, Nam, Ir, Lv2 }
 
 #[derive(Clone, Copy)]
 #[allow(dead_code)]

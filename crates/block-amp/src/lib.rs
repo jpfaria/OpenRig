@@ -46,6 +46,7 @@ pub fn amp_model_visual(model_id: &str) -> Option<ModelVisualData> {
             registry::AmpBackendKind::Native => "NATIVE",
             registry::AmpBackendKind::Nam => "NAM",
             registry::AmpBackendKind::Ir => "IR",
+            registry::AmpBackendKind::Lv2 => "LV2",
         },
         supported_instruments: def.supported_instruments,
         knob_layout: def.knob_layout,
@@ -61,6 +62,7 @@ pub fn amp_type_label(model: &str) -> Result<&'static str> {
         registry::AmpBackendKind::Native => Ok("NATIVE"),
         registry::AmpBackendKind::Nam => Ok("NAM"),
         registry::AmpBackendKind::Ir => Ok("IR"),
+        registry::AmpBackendKind::Lv2 => Ok("LV2"),
     }
 }
 

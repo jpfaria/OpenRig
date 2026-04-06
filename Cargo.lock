@@ -751,6 +751,7 @@ dependencies = [
  "block-cab",
  "block-core",
  "block-preamp",
+ "lv2",
  "nam",
 ]
 
