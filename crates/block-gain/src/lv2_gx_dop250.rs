@@ -13,14 +13,14 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str =
     "http://guitarix.sourceforge.net/plugins/gx_DOP250_#_DOP250_";
-const PLUGIN_DIR: &str = "GxDOP250";
+const PLUGIN_DIR: &str = "gx_DOP250";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "GxDOP250.dylib";
+const PLUGIN_BINARY: &str = "gx_DOP250.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "GxDOP250.so";
+const PLUGIN_BINARY: &str = "gx_DOP250.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "GxDOP250.dll";
+const PLUGIN_BINARY: &str = "gx_DOP250.dll";
 
 // LV2 port indices (from TTL) — GxPlugins: AUDIO_OUT=0, AUDIO_IN=1
 const PORT_AUDIO_OUT: usize = 0;

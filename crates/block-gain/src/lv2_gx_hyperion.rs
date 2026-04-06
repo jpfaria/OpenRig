@@ -13,14 +13,14 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str =
     "http://guitarix.sourceforge.net/plugins/gx_hyperion_#_hyperion_";
-const PLUGIN_DIR: &str = "GxHyperion";
+const PLUGIN_DIR: &str = "gx_hyperion";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "GxHyperion.dylib";
+const PLUGIN_BINARY: &str = "gx_hyperion.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "GxHyperion.so";
+const PLUGIN_BINARY: &str = "gx_hyperion.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "GxHyperion.dll";
+const PLUGIN_BINARY: &str = "gx_hyperion.dll";
 
 // LV2 port indices (from TTL) — GxPlugins: AUDIO_OUT=0, AUDIO_IN=1
 const PORT_AUDIO_OUT: usize = 0;

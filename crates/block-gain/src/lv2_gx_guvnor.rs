@@ -13,14 +13,14 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str =
     "http://guitarix.sourceforge.net/plugins/gx_guvnor_#_guvnor_";
-const PLUGIN_DIR: &str = "GxGuvnor";
+const PLUGIN_DIR: &str = "gx_guvnor";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "GxGuvnor.dylib";
+const PLUGIN_BINARY: &str = "gx_guvnor.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "GxGuvnor.so";
+const PLUGIN_BINARY: &str = "gx_guvnor.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "GxGuvnor.dll";
+const PLUGIN_BINARY: &str = "gx_guvnor.dll";
 
 // LV2 port indices (from TTL) — GxPlugins: AUDIO_OUT=0, AUDIO_IN=1
 const PORT_AUDIO_OUT: usize = 0;

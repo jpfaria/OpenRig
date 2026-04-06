@@ -13,14 +13,14 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str =
     "http://guitarix.sourceforge.net/plugins/gx_clubdrive_#_clubdrive_";
-const PLUGIN_DIR: &str = "GxClubDrive";
+const PLUGIN_DIR: &str = "gx_clubdrive";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "GxClubDrive.dylib";
+const PLUGIN_BINARY: &str = "gx_clubdrive.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "GxClubDrive.so";
+const PLUGIN_BINARY: &str = "gx_clubdrive.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "GxClubDrive.dll";
+const PLUGIN_BINARY: &str = "gx_clubdrive.dll";
 
 // LV2 port indices (from TTL) — GxPlugins: AUDIO_OUT=0, AUDIO_IN=1
 const PORT_AUDIO_OUT: usize = 0;

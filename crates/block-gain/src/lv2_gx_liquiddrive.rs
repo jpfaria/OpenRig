@@ -13,14 +13,14 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str =
     "http://guitarix.sourceforge.net/plugins/gx_liquiddrive_#_liquiddrive_";
-const PLUGIN_DIR: &str = "GxLiquidDrive";
+const PLUGIN_DIR: &str = "gx_liquiddrive";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "GxLiquidDrive.dylib";
+const PLUGIN_BINARY: &str = "gx_liquiddrive.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "GxLiquidDrive.so";
+const PLUGIN_BINARY: &str = "gx_liquiddrive.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "GxLiquidDrive.dll";
+const PLUGIN_BINARY: &str = "gx_liquiddrive.dll";
 
 // LV2 port indices (from TTL) — GxPlugins: AUDIO_OUT=0, AUDIO_IN=1
 const PORT_AUDIO_OUT: usize = 0;

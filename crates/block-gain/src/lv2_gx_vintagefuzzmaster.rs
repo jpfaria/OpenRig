@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "Vintage Fuzz Master";
 const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gx_vfm_#_vfm_";
-const PLUGIN_DIR: &str = "GxVintageFuzzMaster";
+const PLUGIN_DIR: &str = "gx_vfm";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "gx_vfm.dylib";

@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "Knight Fuzz";
 const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gx_KnightFuzz_#_KnightFuzz_";
-const PLUGIN_DIR: &str = "GxKnightFuzz";
+const PLUGIN_DIR: &str = "gx_KnightFuzz";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "gx_KnightFuzz.dylib";

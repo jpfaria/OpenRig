@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "Maestro FZ-1S";
 const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gx_maestro_fz1s_#_maestro_fz1s_";
-const PLUGIN_DIR: &str = "GxFz1s";
+const PLUGIN_DIR: &str = "gx_maestro_fz1s";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "gx_maestro_fz1s.dylib";

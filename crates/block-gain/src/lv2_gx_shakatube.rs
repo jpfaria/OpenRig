@@ -13,14 +13,14 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str =
     "http://guitarix.sourceforge.net/plugins/gx_shakatube_#_shakatube_";
-const PLUGIN_DIR: &str = "GxShakaTube";
+const PLUGIN_DIR: &str = "gx_shakatube";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "GxShakaTube.dylib";
+const PLUGIN_BINARY: &str = "gx_shakatube.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "GxShakaTube.so";
+const PLUGIN_BINARY: &str = "gx_shakatube.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "GxShakaTube.dll";
+const PLUGIN_BINARY: &str = "gx_shakatube.dll";
 
 // LV2 port indices (from TTL) — GxPlugins: AUDIO_OUT=0, AUDIO_IN=1
 const PORT_AUDIO_OUT: usize = 0;

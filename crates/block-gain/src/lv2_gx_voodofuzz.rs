@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "Voodo Fuzz";
 const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gx_voodoo_#_voodoo_";
-const PLUGIN_DIR: &str = "GxVoodoFuzz";
+const PLUGIN_DIR: &str = "gx_voodoo";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "gx_voodoo.dylib";

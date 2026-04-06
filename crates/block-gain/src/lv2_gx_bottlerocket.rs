@@ -13,14 +13,14 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str =
     "http://guitarix.sourceforge.net/plugins/gx_bottlerocket_#_bottlerocket_";
-const PLUGIN_DIR: &str = "GxBottleRocket";
+const PLUGIN_DIR: &str = "gx_bottlerocket";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "GxBottleRocket.dylib";
+const PLUGIN_BINARY: &str = "gx_bottlerocket.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "GxBottleRocket.so";
+const PLUGIN_BINARY: &str = "gx_bottlerocket.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "GxBottleRocket.dll";
+const PLUGIN_BINARY: &str = "gx_bottlerocket.dll";
 
 // LV2 port indices (from TTL) — GxPlugins: AUDIO_OUT=0, AUDIO_IN=1
 const PORT_AUDIO_OUT: usize = 0;

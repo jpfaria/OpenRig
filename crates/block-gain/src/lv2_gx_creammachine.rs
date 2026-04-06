@@ -13,14 +13,14 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str =
     "http://guitarix.sourceforge.net/plugins/gx_CreamMachine_#_CreamMachine_";
-const PLUGIN_DIR: &str = "GxCreamMachine";
+const PLUGIN_DIR: &str = "gx_CreamMachine";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "GxCreamMachine.dylib";
+const PLUGIN_BINARY: &str = "gx_CreamMachine.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "GxCreamMachine.so";
+const PLUGIN_BINARY: &str = "gx_CreamMachine.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "GxCreamMachine.dll";
+const PLUGIN_BINARY: &str = "gx_CreamMachine.dll";
 
 // LV2 port indices (from TTL) — GxPlugins: AUDIO_OUT=0, AUDIO_IN=1
 const PORT_AUDIO_OUT: usize = 0;

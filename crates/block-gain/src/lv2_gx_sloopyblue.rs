@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "Sloopy Blue";
 const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gx_sloopyblue_#_sloopyblue_";
-const PLUGIN_DIR: &str = "GxSloopyBlue";
+const PLUGIN_DIR: &str = "gx_sloopyblue";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "gx_sloopyblue.dylib";

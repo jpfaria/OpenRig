@@ -13,14 +13,14 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str =
     "http://guitarix.sourceforge.net/plugins/gx_saturate_#_saturate_";
-const PLUGIN_DIR: &str = "GxSaturator";
+const PLUGIN_DIR: &str = "gx_saturate";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "GxSaturator.dylib";
+const PLUGIN_BINARY: &str = "gx_saturate.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "GxSaturator.so";
+const PLUGIN_BINARY: &str = "gx_saturate.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "GxSaturator.dll";
+const PLUGIN_BINARY: &str = "gx_saturate.dll";
 
 // LV2 port indices (from TTL) — GxPlugins: AUDIO_OUT=0, AUDIO_IN=1
 const PORT_AUDIO_OUT: usize = 0;

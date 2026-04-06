@@ -13,14 +13,14 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str =
     "http://guitarix.sourceforge.net/plugins/gx_bajatubedriver_#_bajatubedriver_";
-const PLUGIN_DIR: &str = "GxBaJaTubeDriver";
+const PLUGIN_DIR: &str = "gx_bajatubedriver";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "GxBaJaTubeDriver.dylib";
+const PLUGIN_BINARY: &str = "gx_bajatubedriver.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "GxBaJaTubeDriver.so";
+const PLUGIN_BINARY: &str = "gx_bajatubedriver.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "GxBaJaTubeDriver.dll";
+const PLUGIN_BINARY: &str = "gx_bajatubedriver.dll";
 
 // LV2 port indices (from TTL) — GxPlugins: AUDIO_OUT=0, AUDIO_IN=1
 const PORT_AUDIO_OUT: usize = 0;

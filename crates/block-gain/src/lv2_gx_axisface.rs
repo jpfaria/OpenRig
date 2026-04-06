@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "Axis Face";
 const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gx_AxisFace_#_AxisFace_";
-const PLUGIN_DIR: &str = "GxAxisFace";
+const PLUGIN_DIR: &str = "gx_AxisFace";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "gx_AxisFace.dylib";

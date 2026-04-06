@@ -11,14 +11,14 @@ pub const DISPLAY_NAME: &str = "Micro Amp";
 const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gx_MicroAmp_#_MicroAmp_";
-const PLUGIN_DIR: &str = "GxMicroAmp";
+const PLUGIN_DIR: &str = "gx_MicroAmp";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "GxMicroAmp.dylib";
+const PLUGIN_BINARY: &str = "gx_MicroAmp.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "GxMicroAmp.so";
+const PLUGIN_BINARY: &str = "gx_MicroAmp.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "GxMicroAmp.dll";
+const PLUGIN_BINARY: &str = "gx_MicroAmp.dll";
 
 // LV2 port indices (from TTL)
 const PORT_AUDIO_OUT: usize = 0;

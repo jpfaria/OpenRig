@@ -13,14 +13,14 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str =
     "http://guitarix.sourceforge.net/plugins/gx_luna_#_luna_";
-const PLUGIN_DIR: &str = "GxLuna";
+const PLUGIN_DIR: &str = "gx_luna";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "GxLuna.dylib";
+const PLUGIN_BINARY: &str = "gx_luna.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "GxLuna.so";
+const PLUGIN_BINARY: &str = "gx_luna.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "GxLuna.dll";
+const PLUGIN_BINARY: &str = "gx_luna.dll";
 
 // LV2 port indices (from TTL) — GxPlugins: AUDIO_OUT=0, AUDIO_IN=1
 const PORT_AUDIO_OUT: usize = 0;

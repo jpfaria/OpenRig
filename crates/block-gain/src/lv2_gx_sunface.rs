@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "Sun Face";
 const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gx_SunFace_#_SunFace_";
-const PLUGIN_DIR: &str = "GxSunFace";
+const PLUGIN_DIR: &str = "gx_SunFace";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "gx_SunFace.dylib";

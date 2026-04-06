@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "Tone Machine";
 const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gx_tonemachine_#_tonemachine_";
-const PLUGIN_DIR: &str = "GxToneMachine";
+const PLUGIN_DIR: &str = "gx_tonemachine";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "gx_tonemachine.dylib";

@@ -13,14 +13,14 @@ const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str =
     "http://guitarix.sourceforge.net/plugins/gx_sd2lead_#_sd2lead_";
-const PLUGIN_DIR: &str = "GxSD2Lead";
+const PLUGIN_DIR: &str = "gx_sd2lead";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "GxSD2Lead.dylib";
+const PLUGIN_BINARY: &str = "gx_sd2lead.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "GxSD2Lead.so";
+const PLUGIN_BINARY: &str = "gx_sd2lead.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "GxSD2Lead.dll";
+const PLUGIN_BINARY: &str = "gx_sd2lead.dll";
 
 // LV2 port indices (from TTL) — GxPlugins: AUDIO_OUT=0, AUDIO_IN=1
 const PORT_AUDIO_OUT: usize = 0;

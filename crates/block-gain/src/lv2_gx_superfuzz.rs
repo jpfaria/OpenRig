@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "Super Fuzz";
 const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gx_sfp_#_sfp_";
-const PLUGIN_DIR: &str = "GxSuperFuzz";
+const PLUGIN_DIR: &str = "gx_sfp";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "gx_sfp.dylib";

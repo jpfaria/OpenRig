@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "Satma";
 const BRAND: &str = "artyfx";
 
 const PLUGIN_URI: &str = "http://www.openavproductions.com/artyfx#satma";
-const PLUGIN_DIR: &str = "artyfx";
+const PLUGIN_DIR: &str = "artyfx-bad";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "artyfx.dylib";

@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "Suppa Tone Bender";
 const BRAND: &str = "guitarix";
 
 const PLUGIN_URI: &str = "http://guitarix.sourceforge.net/plugins/gx_vstb_#_vstb_";
-const PLUGIN_DIR: &str = "GxSuppaToneBender";
+const PLUGIN_DIR: &str = "gx_vstb";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "gx_vstb.dylib";
