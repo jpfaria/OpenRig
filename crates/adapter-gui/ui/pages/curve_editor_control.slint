@@ -110,7 +110,6 @@ export component CurveEditorControl inherits Rectangle {
     for point[i] in root.points : Rectangle {
         property <float> start-x-val: 0.0;
         property <float> start-y-val: 0.0;
-        property <float> start-w-val: 0.0;
 
         private property <float> cx: point.has-x
             ? root.freq-to-norm(point.x-value)
@@ -130,18 +129,17 @@ export component CurveEditorControl inherits Rectangle {
             pressed => {
                 parent.start-x-val = point.x-value;
                 parent.start-y-val = point.y-value;
-                parent.start-w-val = point.width-value;
             }
             moved => {
-                if (point.has-x) {
-                    let dx = (self.mouse-x - self.pressed-x) / parent.parent.width;
+                if point.has-x {
+                    let dx = (self.mouse-x - self.pressed-x) / root.width;
                     let new-norm-x = Math.clamp(root.freq-to-norm(parent.start-x-val) + dx, 0.0, 1.0);
                     let new-freq = Math.clamp(
                         root.norm-to-freq(new-norm-x),
                         point.x-min, point.x-max);
                     root.update-parameter(point.x-path, new-freq);
                 }
-                let dy = (self.mouse-y - self.pressed-y) / parent.parent.height;
+                let dy = (self.mouse-y - self.pressed-y) / root.height;
                 let new-norm-y = Math.clamp(root.gain-to-norm(parent.start-y-val, point.y-min, point.y-max) + dy, 0.0, 1.0);
                 let new-gain = Math.clamp(
                     root.norm-to-gain(new-norm-y, point.y-min, point.y-max),
@@ -165,7 +163,7 @@ export component CurveEditorControl inherits Rectangle {
             TouchArea {
                 mouse-cursor: ew-resize;
                 moved => {
-                    let dx = (self.mouse-x - self.pressed-x) / parent.parent.parent.width;
+                    let dx = (self.mouse-x - self.pressed-x) / root.width;
                     let new-hnx = Math.clamp(parent.hnx - dx, 0.02, 0.98);
                     let offset = root.freq-to-norm(point.x-value) - new-hnx;
                     let new-bw = Math.clamp(
@@ -191,7 +189,7 @@ export component CurveEditorControl inherits Rectangle {
             TouchArea {
                 mouse-cursor: ew-resize;
                 moved => {
-                    let dx = (self.mouse-x - self.pressed-x) / parent.parent.parent.width;
+                    let dx = (self.mouse-x - self.pressed-x) / root.width;
                     let new-hnx = Math.clamp(parent.hnx + dx, 0.02, 0.98);
                     let offset = new-hnx - root.freq-to-norm(point.x-value);
                     let new-bw = Math.clamp(
