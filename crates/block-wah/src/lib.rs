@@ -10,6 +10,7 @@ pub enum WahBackendKind {
     Native,
     Nam,
     Ir,
+    Lv2,
 }
 
 pub fn supported_models() -> &'static [&'static str] {
@@ -24,6 +25,7 @@ pub fn wah_model_visual(model_id: &str) -> Option<ModelVisualData> {
             WahBackendKind::Native => "NATIVE",
             WahBackendKind::Nam => "NAM",
             WahBackendKind::Ir => "IR",
+            WahBackendKind::Lv2 => "LV2",
         },
         supported_instruments: def.supported_instruments,
         knob_layout: def.knob_layout,
