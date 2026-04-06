@@ -40,7 +40,7 @@ pub fn model_schema() -> ModelParameterSchema {
         display_name: DISPLAY_NAME.into(),
         audio_mode: ModelAudioMode::MonoToStereo,
         parameters: vec![
-            float_parameter("gain", "Gain", None, Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
+            float_parameter("gain", "Level", None, Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
             float_parameter("mids", "Mids", None, Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
             float_parameter("punch", "Punch", None, Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
             float_parameter("resonance", "Resonance", None, Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
