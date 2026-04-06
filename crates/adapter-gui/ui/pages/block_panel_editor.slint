@@ -1,6 +1,8 @@
-import { BlockTypePickerItem, BlockModelPickerItem, BlockKnobOverlay, BlockParameterItem, BlockStreamData } from "../models.slint";
+import { BlockTypePickerItem, BlockModelPickerItem, BlockKnobOverlay, BlockParameterItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint } from "../models.slint";
 import { BrandLogo } from "../components/brand_logo.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
+import { CurveEditorControl } from "curve_editor_control.slint";
+import { MultiSliderControl } from "multi_slider_control.slint";
 
 import "../fonts/Inter.ttf";
 import "../fonts/BebasNeue.ttf";
@@ -245,6 +247,10 @@ export component BlockPanelEditor inherits Rectangle {
     in property <bool> block-drawer-enabled: true;
     in property <[BlockKnobOverlay]> block-knob-overlays;
     in property <[BlockParameterItem]> block-parameter-items;
+    in property <[MultiSliderPoint]> multi-slider-points;
+    in property <[CurveEditorPoint]> curve-editor-points;
+    in property <string> eq-total-curve;
+    in property <[string]> eq-band-curves;
     in property <string> block-drawer-confirm-label: "Adicionar";
     in property <BlockStreamData> block-stream-data;
 
@@ -955,6 +961,26 @@ export component BlockPanelEditor inherits Rectangle {
                 }
             }
         }
+    }
+
+    // ── Curve Editor (parametric EQ) ──
+    if root.curve-editor-points.length > 0 : CurveEditorControl {
+        x: 8px;
+        y: root.header-height + root.brand-strip-height + root.panel-height + 8px;
+        width: root.width - 16px;
+        points: root.curve-editor-points;
+        total-curve: root.eq-total-curve;
+        band-curves: root.eq-band-curves;
+        update-parameter(path, value) => { root.update-block-parameter-number(path, value); }
+    }
+
+    // ── Multi Slider (graphic EQ) ──
+    if root.multi-slider-points.length > 0 && root.curve-editor-points.length == 0 : MultiSliderControl {
+        x: 8px;
+        y: root.header-height + root.brand-strip-height + root.panel-height + 8px;
+        width: root.width - 16px;
+        points: root.multi-slider-points;
+        update-parameter(path, value) => { root.update-block-parameter-number(path, value); }
     }
 
     // ── Realtime stream display — positioned between POWER (left) and Reference (right) ──

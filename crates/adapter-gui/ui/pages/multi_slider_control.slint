@@ -51,6 +51,7 @@ export component MultiSliderControl inherits Rectangle {
 
         // Thumb
         thumb := Rectangle {
+            property <float> current-norm: (point.value - point.min-val) / Math.max(0.001, point.max-val - point.min-val);
             x: 2px;
             y: (1.0 - parent.norm) * (parent.height - 8px) + 4px - 2px;
             width: parent.width - 4px;
@@ -62,7 +63,7 @@ export component MultiSliderControl inherits Rectangle {
                 mouse-cursor: ns-resize;
                 moved => {
                     let dy = (self.mouse-y - self.pressed-y) / root.height;
-                    let new-norm = Math.clamp(parent.parent.norm - dy, 0.0, 1.0);
+                    let new-norm = Math.clamp(parent.current-norm - dy, 0.0, 1.0);
                     let new-val = Math.clamp(
                         point.min-val + new-norm * (point.max-val - point.min-val),
                         point.min-val, point.max-val);

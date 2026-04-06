@@ -126,9 +126,11 @@ export component CurveEditorControl inherits Rectangle {
 
         ta := TouchArea {
             mouse-cursor: move;
-            pressed => {
-                parent.start-x-val = point.x-value;
-                parent.start-y-val = point.y-value;
+            pointer-event(event) => {
+                if event.kind == PointerEventKind.down {
+                    parent.start-x-val = point.x-value;
+                    parent.start-y-val = point.y-value;
+                }
             }
             moved => {
                 if point.has-x {
@@ -153,7 +155,7 @@ export component CurveEditorControl inherits Rectangle {
             property <float> handle-offset: 0.08 / Math.max(0.1, point.width-value);
             property <float> hnx: Math.clamp(root.freq-to-norm(point.x-value) - self.handle-offset, 0.02, 0.98);
 
-            x: self.hnx * parent.parent.width - 5px - parent.x;
+            x: self.hnx * 1px * (root.width / 1px) - 5px - parent.x;
             y: 3px;
             width: 10px; height: 10px;
             border-radius: 5px;
@@ -179,7 +181,7 @@ export component CurveEditorControl inherits Rectangle {
             property <float> handle-offset: 0.08 / Math.max(0.1, point.width-value);
             property <float> hnx: Math.clamp(root.freq-to-norm(point.x-value) + self.handle-offset, 0.02, 0.98);
 
-            x: self.hnx * parent.parent.width - 5px - parent.x;
+            x: self.hnx * 1px * (root.width / 1px) - 5px - parent.x;
             y: 3px;
             width: 10px; height: 10px;
             border-radius: 5px;
@@ -203,7 +205,7 @@ export component CurveEditorControl inherits Rectangle {
 
     // Pure helper functions
     pure function freq-to-norm(freq: float) -> float {
-        Math.log(Math.max(20.0, freq) / 20.0) / Math.log(1000.0)
+        Math.log(1000.0, Math.max(20.0, freq) / 20.0)
     }
 
     pure function norm-to-freq(norm: float) -> float {
