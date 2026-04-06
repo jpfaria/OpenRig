@@ -1,0 +1,74 @@
+import { MultiSliderPoint } from "../models.slint";
+
+export component MultiSliderControl inherits Rectangle {
+    in property <[MultiSliderPoint]> points;
+
+    callback update-parameter(string, float);
+
+    height: 180px;
+    background: #06060e;
+    border-radius: 6px;
+    clip: true;
+
+    // 0 dB center line
+    Rectangle {
+        x: 0; y: parent.height / 2;
+        width: parent.width; height: 1px;
+        background: #ffffff30;
+    }
+
+    // Sliders — one per point
+    for point[i] in root.points : Rectangle {
+        property <float> norm: (point.value - point.min-val) / Math.max(0.001, point.max-val - point.min-val);
+
+        property <length> slider-w: Math.max(4px, (root.width - 2px) / Math.max(1, root.points.length) - 1px);
+        x: i * (self.slider-w + 1px);
+        y: 0;
+        width: self.slider-w;
+        height: parent.height;
+
+        // Track (thin vertical line)
+        Rectangle {
+            x: parent.width / 2 - 1px;
+            y: 4px;
+            width: 2px;
+            height: parent.height - 8px;
+            background: #ffffff15;
+        }
+
+        // Fill: colored bar from zero to current value
+        Rectangle {
+            property <float> center-norm: (0.0 - point.min-val) / Math.max(0.001, point.max-val - point.min-val);
+            property <length> center-y: (1.0 - parent.norm) * (parent.height - 8px) + 4px;
+            property <length> zero-y: (1.0 - self.center-norm) * (parent.height - 8px) + 4px;
+
+            x: parent.width / 2 - 2px;
+            y: Math.min(self.center-y, self.zero-y);
+            width: 4px;
+            height: Math.abs(self.center-y - self.zero-y);
+            background: #4488ff80;
+        }
+
+        // Thumb
+        thumb := Rectangle {
+            x: 2px;
+            y: (1.0 - parent.norm) * (parent.height - 8px) + 4px - 2px;
+            width: parent.width - 4px;
+            height: 4px;
+            border-radius: 2px;
+            background: #88aaff;
+
+            TouchArea {
+                mouse-cursor: ns-resize;
+                moved => {
+                    let dy = (self.mouse-y - self.pressed-y) / root.height;
+                    let new-norm = Math.clamp(parent.parent.norm - dy, 0.0, 1.0);
+                    let new-val = Math.clamp(
+                        point.min-val + new-norm * (point.max-val - point.min-val),
+                        point.min-val, point.max-val);
+                    root.update-parameter(point.path, new-val);
+                }
+            }
+        }
+    }
+}
