@@ -2,35 +2,34 @@ use crate::registry::GainModelDefinition;
 use crate::GainBackendKind;
 use anyhow::Result;
 use block_core::param::{
-    enum_parameter, float_parameter, required_f32, required_string,
-    ModelParameterSchema, ParameterSet, ParameterUnit,
+    float_parameter, required_f32, ModelParameterSchema,
+    ParameterSet, ParameterUnit,
 };
 use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
 
-pub const MODEL_ID: &str = "lv2_chowcentaur";
-pub const DISPLAY_NAME: &str = "Centaur";
-const BRAND: &str = "chowdsp";
+pub const MODEL_ID: &str = "lv2_gx_boobtube";
+pub const DISPLAY_NAME: &str = "Boob Tube";
+const BRAND: &str = "guitarix";
 
-const PLUGIN_URI: &str = "https://github.com/jatinchowdhury18/KlonCentaur";
-const PLUGIN_DIR: &str = "ChowCentaur";
+const PLUGIN_URI: &str =
+    "http://guitarix.sourceforge.net/plugins/gx_boobtube_#_boobtube_";
+const PLUGIN_DIR: &str = "gx_boobtube";
 
 #[cfg(target_os = "macos")]
-const PLUGIN_BINARY: &str = "ChowCentaur.dylib";
+const PLUGIN_BINARY: &str = "gx_boobtube.dylib";
 #[cfg(target_os = "linux")]
-const PLUGIN_BINARY: &str = "ChowCentaur.so";
+const PLUGIN_BINARY: &str = "gx_boobtube.so";
 #[cfg(target_os = "windows")]
-const PLUGIN_BINARY: &str = "ChowCentaur.dll";
+const PLUGIN_BINARY: &str = "gx_boobtube.dll";
 
-// LV2 port indices (from TTL)
-const PORT_FREEWHEEL: usize = 0;
+// LV2 port indices (from TTL) — GxPlugins: AUDIO_OUT=0, AUDIO_IN=1
+const PORT_AUDIO_OUT: usize = 0;
 const PORT_AUDIO_IN: usize = 1;
-const PORT_AUDIO_OUT: usize = 2;
+const PORT_BYPASS: usize = 2;
 const PORT_GAIN: usize = 3;
-const PORT_TREBLE: usize = 4;
-const PORT_LEVEL: usize = 5;
-const PORT_MODE: usize = 6;
-const PORT_ENABLED: usize = 7;
-const PORT_MONO: usize = 8;
+const PORT_TONE: usize = 4;
+const PORT_VOLUME: usize = 5;
+const PORT_VOLTAGE: usize = 6;
 
 pub fn model_schema() -> ModelParameterSchema {
     ModelParameterSchema {
@@ -43,6 +42,16 @@ pub fn model_schema() -> ModelParameterSchema {
                 "gain",
                 "Gain",
                 None,
+                Some(15.0),
+                0.0,
+                100.0,
+                1.0,
+                ParameterUnit::Percent,
+            ),
+            float_parameter(
+                "tone",
+                "Tone",
+                None,
                 Some(50.0),
                 0.0,
                 100.0,
@@ -50,8 +59,8 @@ pub fn model_schema() -> ModelParameterSchema {
                 ParameterUnit::Percent,
             ),
             float_parameter(
-                "treble",
-                "Treble",
+                "volume",
+                "Volume",
                 None,
                 Some(50.0),
                 0.0,
@@ -60,24 +69,14 @@ pub fn model_schema() -> ModelParameterSchema {
                 ParameterUnit::Percent,
             ),
             float_parameter(
-                "level",
-                "Level",
+                "voltage",
+                "Voltage",
                 None,
-                Some(50.0),
+                Some(0.0),
                 0.0,
                 100.0,
                 1.0,
                 ParameterUnit::Percent,
-            ),
-            enum_parameter(
-                "mode",
-                "Mode",
-                None,
-                Some("traditional"),
-                &[
-                    ("traditional", "Traditional"),
-                    ("neural", "Neural"),
-                ],
             ),
         ],
     }
@@ -85,9 +84,9 @@ pub fn model_schema() -> ModelParameterSchema {
 
 fn validate_params(params: &ParameterSet) -> Result<()> {
     let _ = required_f32(params, "gain").map_err(anyhow::Error::msg)?;
-    let _ = required_f32(params, "treble").map_err(anyhow::Error::msg)?;
-    let _ = required_f32(params, "level").map_err(anyhow::Error::msg)?;
-    let _ = required_string(params, "mode").map_err(anyhow::Error::msg)?;
+    let _ = required_f32(params, "tone").map_err(anyhow::Error::msg)?;
+    let _ = required_f32(params, "volume").map_err(anyhow::Error::msg)?;
+    let _ = required_f32(params, "voltage").map_err(anyhow::Error::msg)?;
     Ok(())
 }
 
@@ -112,9 +111,9 @@ impl StereoProcessor for DualMonoLv2 {
 fn build_mono_processor(
     sample_rate: f32,
     gain: f32,
-    treble: f32,
-    level: f32,
-    mode: f32,
+    tone: f32,
+    volume: f32,
+    voltage: f32,
 ) -> Result<lv2::Lv2Processor> {
     let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
     let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
@@ -127,13 +126,11 @@ fn build_mono_processor(
         &[PORT_AUDIO_IN],
         &[PORT_AUDIO_OUT],
         &[
-            (PORT_FREEWHEEL, 0.0),
+            (PORT_BYPASS, 1.0),
             (PORT_GAIN, gain),
-            (PORT_TREBLE, treble),
-            (PORT_LEVEL, level),
-            (PORT_MODE, mode),
-            (PORT_ENABLED, 1.0),
-            (PORT_MONO, 1.0),
+            (PORT_TONE, tone),
+            (PORT_VOLUME, volume),
+            (PORT_VOLTAGE, voltage),
         ],
     )
 }
@@ -144,19 +141,18 @@ fn build(
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
     let gain = required_f32(params, "gain").map_err(anyhow::Error::msg)? / 100.0;
-    let treble = required_f32(params, "treble").map_err(anyhow::Error::msg)? / 100.0;
-    let level = required_f32(params, "level").map_err(anyhow::Error::msg)? / 100.0;
-    let mode_str = required_string(params, "mode").map_err(anyhow::Error::msg)?;
-    let mode: f32 = if mode_str == "neural" { 1.0 } else { 0.0 };
+    let tone = required_f32(params, "tone").map_err(anyhow::Error::msg)? / 100.0;
+    let volume = required_f32(params, "volume").map_err(anyhow::Error::msg)? / 100.0;
+    let voltage = required_f32(params, "voltage").map_err(anyhow::Error::msg)? / 100.0;
 
     match layout {
         AudioChannelLayout::Mono => {
-            let processor = build_mono_processor(sample_rate, gain, treble, level, mode)?;
+            let processor = build_mono_processor(sample_rate, gain, tone, volume, voltage)?;
             Ok(BlockProcessor::Mono(Box::new(processor)))
         }
         AudioChannelLayout::Stereo => {
-            let left = build_mono_processor(sample_rate, gain, treble, level, mode)?;
-            let right = build_mono_processor(sample_rate, gain, treble, level, mode)?;
+            let left = build_mono_processor(sample_rate, gain, tone, volume, voltage)?;
+            let right = build_mono_processor(sample_rate, gain, tone, volume, voltage)?;
             Ok(BlockProcessor::Stereo(Box::new(DualMonoLv2 { left, right })))
         }
     }
