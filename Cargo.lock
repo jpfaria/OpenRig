@@ -799,6 +799,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "block-core",
+ "log",
+ "lv2",
 ]
 
 [[package]]
