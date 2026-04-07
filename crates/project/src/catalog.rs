@@ -271,6 +271,79 @@ pub fn model_stream_kind(effect_type: &str, model_id: &str) -> &'static str {
     }
 }
 
+/// Returns the display name for a model, or empty string if not found.
+pub fn model_display_name(effect_type: &str, model_id: &str) -> &'static str {
+    use block_core::*;
+    match effect_type {
+        EFFECT_TYPE_UTILITY => block_util::util_display_name(model_id),
+        EFFECT_TYPE_GAIN => block_gain::gain_display_name(model_id),
+        EFFECT_TYPE_AMP => block_amp::amp_display_name(model_id),
+        EFFECT_TYPE_PREAMP => block_preamp::preamp_display_name(model_id).unwrap_or(""),
+        EFFECT_TYPE_CAB => block_cab::cab_display_name(model_id),
+        EFFECT_TYPE_DELAY => block_delay::delay_display_name(model_id),
+        EFFECT_TYPE_REVERB => block_reverb::reverb_display_name(model_id),
+        EFFECT_TYPE_MODULATION => block_mod::mod_display_name(model_id),
+        EFFECT_TYPE_DYNAMICS => block_dyn::dyn_display_name(model_id),
+        EFFECT_TYPE_FILTER => block_filter::filter_display_name(model_id),
+        EFFECT_TYPE_WAH => block_wah::wah_display_name(model_id),
+        EFFECT_TYPE_PITCH => block_pitch::pitch_display_name(model_id),
+        EFFECT_TYPE_BODY => block_body::body_display_name(model_id),
+        EFFECT_TYPE_FULL_RIG => block_full_rig::full_rig_display_name(model_id),
+        EFFECT_TYPE_NAM => block_nam::nam_display_name(model_id),
+        EFFECT_TYPE_IR => block_ir::ir_display_name(model_id),
+        _ => "",
+    }
+}
+
+/// Returns the brand for a model, or empty string if not found.
+pub fn model_brand(effect_type: &str, model_id: &str) -> &'static str {
+    use block_core::*;
+    match effect_type {
+        EFFECT_TYPE_UTILITY => block_util::util_brand(model_id),
+        EFFECT_TYPE_GAIN => block_gain::gain_brand(model_id),
+        EFFECT_TYPE_AMP => block_amp::amp_model_visual(model_id).map(|v| v.brand).unwrap_or(""),
+        EFFECT_TYPE_PREAMP => block_preamp::preamp_brand(model_id).unwrap_or(""),
+        EFFECT_TYPE_CAB => block_cab::cab_brand(model_id),
+        EFFECT_TYPE_DELAY => block_delay::delay_brand(model_id),
+        EFFECT_TYPE_REVERB => block_reverb::reverb_brand(model_id),
+        EFFECT_TYPE_MODULATION => block_mod::mod_brand(model_id),
+        EFFECT_TYPE_DYNAMICS => block_dyn::dyn_brand(model_id),
+        EFFECT_TYPE_FILTER => block_filter::filter_brand(model_id),
+        EFFECT_TYPE_WAH => block_wah::wah_brand(model_id),
+        EFFECT_TYPE_PITCH => block_pitch::pitch_brand(model_id),
+        EFFECT_TYPE_BODY => block_body::body_brand(model_id),
+        EFFECT_TYPE_FULL_RIG => block_full_rig::full_rig_brand(model_id),
+        EFFECT_TYPE_NAM => block_nam::nam_brand(model_id),
+        EFFECT_TYPE_IR => block_ir::ir_brand(model_id),
+        _ => "",
+    }
+}
+
+/// Returns the type label for a model (e.g. "NATIVE", "NAM", "LV2", "IR"),
+/// or empty string if not found.
+pub fn model_type_label(effect_type: &str, model_id: &str) -> &'static str {
+    use block_core::*;
+    match effect_type {
+        EFFECT_TYPE_UTILITY => block_util::util_type_label(model_id),
+        EFFECT_TYPE_GAIN => block_gain::gain_type_label(model_id),
+        EFFECT_TYPE_AMP => block_amp::amp_model_visual(model_id).map(|v| v.type_label).unwrap_or(""),
+        EFFECT_TYPE_PREAMP => block_preamp::preamp_type_label(model_id).unwrap_or(""),
+        EFFECT_TYPE_CAB => block_cab::cab_type_label(model_id),
+        EFFECT_TYPE_DELAY => block_delay::delay_type_label(model_id),
+        EFFECT_TYPE_REVERB => block_reverb::reverb_type_label(model_id),
+        EFFECT_TYPE_MODULATION => block_mod::mod_type_label(model_id),
+        EFFECT_TYPE_DYNAMICS => block_dyn::dyn_type_label(model_id),
+        EFFECT_TYPE_FILTER => block_filter::filter_type_label(model_id),
+        EFFECT_TYPE_WAH => block_wah::wah_type_label(model_id),
+        EFFECT_TYPE_PITCH => block_pitch::pitch_type_label(model_id),
+        EFFECT_TYPE_BODY => block_body::body_type_label(model_id),
+        EFFECT_TYPE_FULL_RIG => block_full_rig::full_rig_type_label(model_id),
+        EFFECT_TYPE_NAM => block_nam::nam_type_label(model_id),
+        EFFECT_TYPE_IR => block_ir::ir_type_label(model_id),
+        _ => "",
+    }
+}
+
 pub fn model_knob_layout(effect_type: &str, model_id: &str) -> &'static [block_core::KnobLayoutEntry] {
     let entry = block_registry()
         .into_iter()

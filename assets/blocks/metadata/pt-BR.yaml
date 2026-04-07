@@ -1,0 +1,360 @@
+plugins:
+  # ── Native ──────────────────────────────────────────────────────────────────
+  plate_foundation:
+    description: "Reverb de placa com controles de tamanho, amortecimento e mix."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  hall:
+    description: "Simulação de reverb em grande salão."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  room:
+    description: "Simulação de reverb em sala pequena."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  spring:
+    description: "Simulação clássica de reverb a mola (spring reverb)."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  analog_warm:
+    description: "Delay analógico quente com filtragem nas repetições."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  digital_clean:
+    description: "Delay digital limpo sem coloração do sinal."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  tape_vintage:
+    description: "Eco de fita vintage com características de wow e flutter."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  slapback:
+    description: "Echo slapback curto, usado em rockabilly e country."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  reverse:
+    description: "Delay reverso — o sinal é reproduzido ao contrário nas repetições."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  modulated_delay:
+    description: "Delay com modulação de pitch nas repetições."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  compressor_studio_clean:
+    description: "Compressor de estúdio transparente com threshold, ratio, ataque, release, makeup gain e mix paralelo."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  gate_basic:
+    description: "Gate de ruído simples com threshold, ataque e release."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  limiter_brickwall:
+    description: "Limitador brick wall para proteção de saída."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  eq_three_band_basic:
+    description: "EQ de três bandas com controles de grave, médio e agudo (±24 dB)."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  ibanez_ts9:
+    description: "Tube Screamer clássico da Ibanez com controles de drive, tone e level."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  volume:
+    description: "Controle simples de volume e mute."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  tuner_chromatic:
+    description: "Afinador cromático com pitch de referência configurável (400–480 Hz)."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  spectrum_analyzer:
+    description: "Analisador de espectro de frequências em tempo real com escala dB e peak hold."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  cry_classic:
+    description: "Simulação clássica de pedal wah com controles de posição, Q, mix e saída."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  stereo_chorus:
+    description: "Chorus estéreo largo."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  classic_chorus:
+    description: "Chorus tradicional."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  ensemble_chorus:
+    description: "Chorus de ensemble com modulação rica e densa."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  tremolo_sine:
+    description: "Tremolo clássico em onda senoidal com controles de rate e depth."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  vibrato:
+    description: "Vibrato de pitch — 100% molhado, sem sinal seco."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  blackface_clean:
+    description: "Amplificador americano clean inspirado nos circuitos Fender Blackface."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  tweed_breakup:
+    description: "Amp tweed com breakup vintage e caráter quente."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  chime:
+    description: "Tom britânico com campanadas características."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  american_clean:
+    description: "Preamp clean de estilo americano."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  brit_crunch:
+    description: "Preamp britânico com crunch médio característico."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  modern_high_gain:
+    description: "Preamp high gain moderno com baixo firme."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+
+  # ── NAM ─────────────────────────────────────────────────────────────────────
+  nam_marshall_jcm_800:
+    description: "Captura neural do Marshall JCM 800 — o amp britânico definitivo do rock."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_diezel_vh4:
+    description: "Captura neural do Diezel VH4 — amp high gain alemão moderno."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_dumble:
+    description: "Captura neural do lendário Dumble ODS — o santo graal do overdrive limpo."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_evh_5150:
+    description: "Captura neural do EVH 5150 — o amp icônico de Eddie Van Halen."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  metal_zone:
+    description: "Captura neural do pedal Boss Metal Zone MT-2."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  klon_centaur:
+    description: "Captura neural do lendário pedal Klon Centaur Silver."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  roland_jc_120b_jazz_chorus:
+    description: "Captura neural do Roland JC-120B Jazz Chorus — o amp clean definitivo."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+
+  # ── LV2 ─────────────────────────────────────────────────────────────────────
+  lv2_zamcomp:
+    description: "ZamComp — compressor mono profissional com suporte a sidechain."
+    license: "GPL-2.0"
+    homepage: "https://github.com/zamaudio/zam-plugins"
+  lv2_tap_equalizer:
+    description: "TAP Equalizer — equalizador paramétrico com 8 bandas configuráveis."
+    license: "GPL-2.0"
+    homepage: "http://tap-plugins.sourceforge.net"
+  lv2_tap_chorus_flanger:
+    description: "TAP Chorus/Flanger — efeito clássico de chorus e flanger."
+    license: "GPL-2.0"
+    homepage: "http://tap-plugins.sourceforge.net"
+  lv2_tap_reverb:
+    description: "TAP Reverberator — reverb algorítmico com múltiplos modos."
+    license: "GPL-2.0"
+    homepage: "http://tap-plugins.sourceforge.net"
+  lv2_ojd:
+    description: "OJD — overdrive open source estilo OCD por Schrammel."
+    license: "GPL-3.0"
+    homepage: "https://github.com/JohannesSchramm/OJD"
+  lv2_wolf_shaper:
+    description: "Wolf Shaper — distorção waveshaper com editor visual de curva."
+    license: "GPL-3.0"
+    homepage: "https://github.com/wolf-plugins/wolf-shaper"
+  lv2_dragonfly_hall:
+    description: "Dragonfly Hall — reverb de salão algorítmico com profundidade espacial."
+    license: "GPL-3.0"
+    homepage: "https://github.com/michaelwillis/dragonfly-reverb"
+  lv2_mverb:
+    description: "MVerb — reverb de qualidade estúdio baseado no algoritmo de Dattorro."
+    license: "GPL-2.0"
+    homepage: "https://github.com/DISTRHO/MVerb"
+  lv2_ewham_harmonizer:
+    description: "Harmonizer — harmonizador de pitch pelos Infamous Plugins."
+    license: "GPL-3.0"
+    homepage: "https://github.com/ssj71/infamousPlugins"
+  lv2_fat1_autotune:
+    description: "x42 Autotune — correção de pitch cromática."
+    license: "GPL-2.0"
+    homepage: "https://github.com/x42/fat1.lv2"
+  lv2_gx_axisface:
+    description: "Axis Face — fuzz de silício pelo projeto Guitarix."
+    license: "GPL-2.0"
+    homepage: "https://guitarix.org"
+  lv2_caps_plate:
+    description: "CAPS Plate — reverb de placa com cauda densa e quente."
+    license: "GPL-2.0"
+    homepage: "http://quitte.de/dsp/caps.html"
+  lv2_caps_spice:
+    description: "CAPS Spice — overdrive/distorção para guitarra."
+    license: "GPL-2.0"
+    homepage: "http://quitte.de/dsp/caps.html"
+  lv2_mda_overdrive:
+    description: "MDA Overdrive — overdrive clássico soft-clip."
+    license: "MIT"
+    homepage: "https://github.com/rncbc/mda-lv2"
+  lv2_mda_ambience:
+    description: "MDA Ambience — plugin de reverb/ambiente simples."
+    license: "MIT"
+    homepage: "https://github.com/rncbc/mda-lv2"
+  lv2_fomp_cs_chorus:
+    description: "FOMP CS Chorus — efeito de chorus limpo."
+    license: "GPL-3.0"
+    homepage: "https://drobilla.net/software/fomp"
+  lv2_bitta:
+    description: "Bitta — bit crusher / distorção lo-fi pelo ArtyFX."
+    license: "GPL-3.0"
+    homepage: "https://github.com/openAVproductions/openAV-ArtyFX"
+  lv2_invada_tube:
+    description: "Invada Tube — saturação e calor de válvula."
+    license: "GPL-2.0"
+    homepage: "https://launchpad.net/invada-studio-plugins-lv2"
+
+  # ── VST3 ─────────────────────────────────────────────────────────────────────
+  vst3_cocoa_delay:
+    description: "Cocoa Delay — delay com caráter analógico e modulação nas repetições."
+    license: "GPL-3.0"
+    homepage: "https://github.com/tesselode/cocoa-delay"
+  vst3_squeezer:
+    description: "Squeezer — compressor/limitador flexível com modos vintage e moderno."
+    license: "GPL-3.0"
+    homepage: "https://github.com/mzuther/Squeezer"
+  vst3_modeq:
+    description: "modEQ — equalizador paramétrico moderno com som transparente e limpo."
+    license: "GPL-3.0"
+    homepage: "https://github.com/jatinchowdhury18/modEQ"
+  vst3_chow_tape:
+    description: "CHOW Tape Model — modelo físico de gravador de fita com wow, flutter e saturação realistas."
+    license: "GPL-3.0"
+    homepage: "https://github.com/jatinchowdhury18/AnalogTapeModel"
+  vst3_stone_mistress:
+    description: "Stone Mistress — flanger/chorus inspirado no clássico pedal EHX Stone Mistress."
+    license: "GPL-3.0"
+    homepage: "https://github.com/jpcima/stone-mistress"
+  vst3_cloud_seed:
+    description: "Cloud Seed — reverb algorítmico com caudas longas e ambientes etéreos."
+    license: "MIT"
+    homepage: "https://github.com/ValdemarOrn/CloudSeed"
+
+  # ── Novos Preamps NAM ─────────────────────────────────────────────────────────
+  nam_engl_thunder_50:
+    description: "Captura neural do ENGL Thunder 50 — cabeçote high-gain alemão versátil."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_fender_57_champ:
+    description: "Captura neural do Fender '57 Custom Champ — amp tweed de baixa potência com breakup quente."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_fender_57_deluxe:
+    description: "Captura neural do Fender '57 Custom Deluxe — amp tweed com caráter harmônico rico."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_fender_frontman_15g:
+    description: "Captura neural do Fender Frontman 15G — amp de prática Fender de entrada."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_fender_pa100:
+    description: "Captura neural do Fender PA100 — cabeçote PA vintage reaproveitado como amp de guitarra."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_joyo_bantamp_meteor:
+    description: "Captura neural do Joyo Bantamp Meteor — amp compacto de alta distorção moderna."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_marshall_avt50h:
+    description: "Captura neural do Marshall AVT50H — cabeçote híbrido Marshall sólido/válvulado."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_marshall_yjm100:
+    description: "Captura neural do Marshall YJM100 — amp assinatura Yngwie Malmsteen com pré-amp de alta distorção."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_mesa_mark_iii:
+    description: "Captura neural do Mesa/Boogie Mark III — amp americano versátil com canais clean, crunch e lead."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_orange_micro_terror:
+    description: "Captura neural do Orange Micro Terror — cabeçote híbrido compacto com o tom clássico Orange."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_panama_shaman:
+    description: "Captura neural do Panama Shaman — amp boutique de alta distorção com múltiplas voicings."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_peavey_classic_30:
+    description: "Captura neural do Peavey Classic 30 — combo americano versátil com timbres clean e crunch."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_sovtek_mig100:
+    description: "Captura neural do Sovtek MIG-100 KT88 — cabeçote de plena potência de origem russa com tom cru e pontudo."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_victory_vx_kraken:
+    description: "Captura neural do Victory VX Kraken — amp britânico de alta distorção com grave massivo."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_ehx_mig50:
+    description: "Captura neural do Electro-Harmonix MIG-50 — cabeçote de 50W com sonoridade russa."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_ehx_22_caliber:
+    description: "Captura neural do Electro-Harmonix 22 Caliber — power amp compacto com caráter único."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_award_session_blues_baby_22:
+    description: "Captura neural do Award-Session Blues Baby 22 — combo de baixa potência com voz britânica."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_blackstar_fly:
+    description: "Captura neural do Blackstar Fly — amp ultra-compacto a bateria com controle de tom ISF."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_koch_multitone_50:
+    description: "Captura neural do Koch Multitone 50 — amplificador boutique holandês com flexibilidade multi-canal."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_lab_series_l2:
+    description: "Captura neural do Lab Series L2 — amp solid-state clean conhecido pelos jogadores de jazz."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_zt_lunchbox_jr:
+    description: "Captura neural do ZT Lunchbox Jr — amp solid-state ultra-compacto com som surpreendentemente completo."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+
+  # ── Novos Cabs IR ─────────────────────────────────────────────────────────────
+  evil_chug_blackstar_prs:
+    description: "Resposta ao impulso de um cabinet high-gain com falantes Blackstar e PRS para sons pesados."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  g12m_greenback_multi_mic:
+    description: "Resposta ao impulso de um cabinet Celestion G12M Greenback capturado com múltiplas posições de microfone."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  mesa_standard_4x12_v30:
+    description: "Resposta ao impulso de um cabinet Mesa/Boogie Standard 4x12 com falantes Celestion V30."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  roland_jc_120_cab:
+    description: "Resposta ao impulso do cabinet Roland JC-120 Jazz Chorus com dois falantes de 12 polegadas."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  vox_ac50_2x12:
+    description: "Resposta ao impulso de um cabinet Vox AC50 2x12 com falantes Goodmans."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"

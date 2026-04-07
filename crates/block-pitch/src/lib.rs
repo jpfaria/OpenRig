@@ -33,6 +33,18 @@ pub fn pitch_model_visual(model_id: &str) -> Option<ModelVisualData> {
     })
 }
 
+pub fn pitch_display_name(model: &str) -> &'static str {
+    registry::find_model_definition(model).map(|d| d.display_name).unwrap_or("")
+}
+
+pub fn pitch_brand(model: &str) -> &'static str {
+    registry::find_model_definition(model).map(|d| d.brand).unwrap_or("")
+}
+
+pub fn pitch_type_label(model: &str) -> &'static str {
+    pitch_model_visual(model).map(|v| v.type_label).unwrap_or("")
+}
+
 pub fn pitch_model_schema(model: &str) -> Result<ModelParameterSchema> {
     (registry::find_model_definition(model)?.schema)()
 }
