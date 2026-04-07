@@ -21,7 +21,10 @@ use infra_yaml::{
 use project::block::{
     build_audio_block_kind, schema_for_block_model, AudioBlock, AudioBlockKind,
 };
-use project::catalog::{supported_block_models, supported_block_type, supported_block_types};
+use project::catalog::{
+    model_brand, model_display_name, model_type_label, supported_block_models,
+    supported_block_type, supported_block_types,
+};
 use project::device::DeviceSettings;
 use project::param::{CurveEditorRole, ParameterDomain, ParameterSet, ParameterUnit, ParameterWidget};
 use project::project::Project;
@@ -644,6 +647,61 @@ pub fn run_desktop_app(
             if let Some(window) = weak_window.upgrade() {
                 window.invoke_delete_block_drawer();
             }
+        });
+    }
+    {
+        let weak_window = window.as_weak();
+        block_editor_window.on_show_plugin_info(move |effect_type, model_id| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            let effect_type = effect_type.to_string();
+            let model_id = model_id.to_string();
+
+            let display_name = model_display_name(&effect_type, &model_id);
+            let brand = model_brand(&effect_type, &model_id);
+            let type_label = model_type_label(&effect_type, &model_id);
+
+            let lang = system_language();
+            let meta = plugin_info::plugin_metadata(&lang, &model_id);
+
+            let (screenshot_img, has_screenshot) = load_screenshot_image(&effect_type, &model_id);
+
+            let info_win = match PluginInfoWindow::new() {
+                Ok(w) => w,
+                Err(e) => {
+                    log::error!("Failed to create PluginInfoWindow: {}", e);
+                    return;
+                }
+            };
+
+            info_win.set_plugin_name(display_name.into());
+            info_win.set_brand(brand.into());
+            info_win.set_type_label(type_label.into());
+            info_win.set_description(meta.description.into());
+            info_win.set_license(meta.license.into());
+            info_win.set_has_homepage(!meta.homepage.is_empty());
+            info_win.set_homepage(meta.homepage.clone().into());
+            info_win.set_screenshot(screenshot_img);
+            info_win.set_has_screenshot(has_screenshot);
+
+            {
+                let homepage = meta.homepage.clone();
+                info_win.on_open_homepage(move || {
+                    plugin_info::open_homepage(&homepage);
+                });
+            }
+
+            {
+                let win_weak = info_win.as_weak();
+                info_win.on_close_window(move || {
+                    if let Some(w) = win_weak.upgrade() {
+                        let _ = w.window().hide();
+                    }
+                });
+            }
+
+            show_child_window(window.window(), info_win.window());
         });
     }
     {
@@ -7879,6 +7937,44 @@ fn load_thumbnail_image(effect_type: &str, model_id: &str) -> (slint::Image, boo
         None => (slint::Image::default(), false, 0.0, 0.0)
     }
 }
+
+fn load_screenshot_image(effect_type: &str, model_id: &str) -> (slint::Image, bool) {
+    match plugin_info::screenshot_png(effect_type, model_id) {
+        Some(png_bytes) => {
+            match image::load_from_memory_with_format(&png_bytes, image::ImageFormat::Png) {
+                Ok(img) => {
+                    let rgba = img.to_rgba8();
+                    let buffer = slint::SharedPixelBuffer::<slint::Rgba8Pixel>::clone_from_slice(
+                        rgba.as_raw(),
+                        rgba.width(),
+                        rgba.height(),
+                    );
+                    (slint::Image::from_rgba8(buffer), true)
+                }
+                Err(e) => {
+                    log::warn!(
+                        "Failed to decode screenshot for {}/{}: {}",
+                        effect_type,
+                        model_id,
+                        e
+                    );
+                    (slint::Image::default(), false)
+                }
+            }
+        }
+        None => (slint::Image::default(), false),
+    }
+}
+
+fn system_language() -> String {
+    std::env::var("LANG")
+        .unwrap_or_default()
+        .split('.')
+        .next()
+        .unwrap_or("en-US")
+        .replace('_', "-")
+}
+
 /// Map a UI block index (which excludes hidden first Input and last Output) to the real chain.blocks index.
 fn ui_index_to_real_block_index(chain: &Chain, ui_index: usize) -> usize {
     let first_input_idx = chain.blocks.iter().position(|b| matches!(&b.kind, AudioBlockKind::Input(_)));

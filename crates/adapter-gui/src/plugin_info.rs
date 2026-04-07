@@ -1,6 +1,3 @@
-// TODO(issue-125): remove once plugin_info functions are wired in Task 11
-#![allow(dead_code)]
-
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};

@@ -33,6 +33,18 @@ pub fn mod_model_visual(model_id: &str) -> Option<ModelVisualData> {
     })
 }
 
+pub fn mod_display_name(model: &str) -> &'static str {
+    registry::find_model_definition(model).map(|d| d.display_name).unwrap_or("")
+}
+
+pub fn mod_brand(model: &str) -> &'static str {
+    registry::find_model_definition(model).map(|d| d.brand).unwrap_or("")
+}
+
+pub fn mod_type_label(model: &str) -> &'static str {
+    mod_model_visual(model).map(|v| v.type_label).unwrap_or("")
+}
+
 pub fn modulation_model_schema(model: &str) -> Result<ModelParameterSchema> {
     (registry::find_model_definition(model)?.schema)()
 }
