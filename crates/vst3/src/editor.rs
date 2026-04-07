@@ -30,9 +30,10 @@ pub struct Vst3EditorHandle {
     /// Keeps the controller alive so `view.removed()` can call back into it.
     _controller: ComPtr<vst3::Steinberg::Vst::IEditController>,
     /// Keep the ComponentHandler alive for as long as the editor is open.
-    /// The plugin holds a raw pointer to this; dropping it before the plugin
-    /// is done would cause a use-after-free.
     _component_handler: Option<vst3::ComWrapper<ComponentHandler>>,
+    /// In standalone mode (no engine running) the entire plugin instance must
+    /// stay alive because the component must remain active for the view to work.
+    _standalone_plugin: Option<Box<Vst3Plugin>>,
     #[cfg(target_os = "macos")]
     _ns_window: macos::OwnedNsWindow,
 }
@@ -117,6 +118,7 @@ pub fn open_vst3_editor_window(
             _library: library,
             _controller: controller,
             _component_handler: component_handler,
+            _standalone_plugin: None,
             _ns_window: ns_window,
         });
     }
@@ -148,23 +150,68 @@ pub fn open_vst3_editor_window_standalone(
             if let Some(ctrl_cp) = plugin.controller().cast::<IConnectionPoint>() {
                 let _ = comp_cp.connect(ctrl_cp.as_ptr());
                 let _ = ctrl_cp.connect(comp_cp.as_ptr());
+                log::debug!("VST3 standalone editor: IConnectionPoint connected");
             }
         }
     }
 
-    // No param channel — engine not running, so no audio-thread communication.
     let library = plugin.library_arc();
     let controller = plugin.controller_clone();
-    // Keep the plugin alive via the library Arc and controller clone.
-    // The Vst3Plugin itself is not needed beyond this point.
-    drop(plugin);
 
-    let ctx = Vst3GuiContext {
-        param_channel: crate::param_channel::vst3_param_channel(),
-        controller,
-        library,
+    // No param channel — engine not running.
+    let component_handler = {
+        let wrapper = ComponentHandler::new(crate::param_channel::vst3_param_channel()).into_com_ptr();
+        unsafe {
+            use vst3::Steinberg::Vst::IComponentHandler;
+            if let Some(com_ref) = wrapper.as_com_ref::<IComponentHandler>() {
+                let _ = controller.setComponentHandler(com_ref.as_ptr());
+            }
+        }
+        Some(wrapper)
     };
-    open_vst3_editor_window(plugin_name, ctx)
+
+    let view_ptr = unsafe { controller.createView(ViewType::kEditor) };
+    if view_ptr.is_null() {
+        bail!("plugin '{}' returned null IPlugView (no GUI)", plugin_name);
+    }
+    let view: ComPtr<vst3::Steinberg::IPlugView> =
+        unsafe { ComPtr::from_raw_unchecked(view_ptr) };
+
+    #[cfg(target_os = "macos")]
+    {
+        use vst3::Steinberg::kPlatformTypeNSView;
+        let res = unsafe { view.isPlatformTypeSupported(kPlatformTypeNSView) };
+        if res != kResultOk {
+            bail!("plugin '{}' does not support NSView GUI (result={})", plugin_name, res);
+        }
+
+        let mut rect = ViewRect { left: 0, top: 0, right: 800, bottom: 600 };
+        unsafe { view.getSize(&mut rect) };
+        let width = (rect.right - rect.left).max(200) as f64;
+        let height = (rect.bottom - rect.top).max(100) as f64;
+
+        let ns_window = macos::create_editor_window(plugin_name, width, height)?;
+        let ns_view = ns_window.content_view();
+
+        let res = unsafe { view.attached(ns_view, kPlatformTypeNSView) };
+        if res != kResultOk {
+            bail!("IPlugView::attached failed (result={})", res);
+        }
+
+        ns_window.show(plugin_name);
+
+        return Ok(Vst3EditorHandle {
+            view,
+            _library: library,
+            _controller: controller,
+            _component_handler: component_handler,
+            _standalone_plugin: Some(Box::new(plugin)),
+            _ns_window: ns_window,
+        });
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    bail!("VST3 editor window not yet supported on this platform")
 }
 
 // ---------------------------------------------------------------------------
