@@ -422,6 +422,16 @@ pub fn run_desktop_app(
     let project_paths = resolve_project_paths();
     let loaded_config = load_and_sync_app_config()?;
     infra_filesystem::init_asset_paths(loaded_config.paths.clone());
+    // Scan system VST3 paths in a background thread so startup isn't blocked.
+    // The catalog is available before any project is opened.
+    let vst3_sample_rate = settings
+        .input_devices
+        .first()
+        .map(|d| d.sample_rate)
+        .unwrap_or(48_000) as f64;
+    std::thread::spawn(move || {
+        vst3_host::init_vst3_catalog(vst3_sample_rate);
+    });
     let app_config = Rc::new(RefCell::new(loaded_config));
     let project_session = Rc::new(RefCell::new(None::<ProjectSession>));
     let chain_draft = Rc::new(RefCell::new(None::<ChainDraft>));

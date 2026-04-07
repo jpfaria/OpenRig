@@ -1165,6 +1165,20 @@ fn build_core_block_runtime_node(
                 build_pitch_processor_for_layout(model, params, sample_rate, layout)
             })?,
         )),
+        "vst3" => {
+            let entry = vst3_host::find_vst3_plugin(model)
+                .ok_or_else(|| anyhow!("VST3 plugin '{}' not found in catalog", model))?;
+            let bundle_path = entry.info.bundle_path.clone();
+            let uid = entry.info.uid;
+            Ok(audio_block_runtime_node(
+                block,
+                input_layout,
+                build_audio_processor_for_model(chain, "vst3", model, input_layout, |layout| {
+                    vst3_host::build_vst3_processor(&bundle_path, &uid, sample_rate as f64, layout, &[])
+                        .map_err(|e| anyhow!("{}", e))
+                })?,
+            ))
+        }
         other => Err(anyhow!("unsupported core block effect_type '{}'", other)),
     }
 }

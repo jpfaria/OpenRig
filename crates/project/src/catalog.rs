@@ -171,7 +171,7 @@ fn block_registry() -> [BlockRegistryEntry; 16] {
 }
 
 pub fn supported_block_types() -> Vec<BlockTypeCatalogEntry> {
-    let types: Vec<_> = block_registry()
+    let mut types: Vec<_> = block_registry()
         .into_iter()
         .filter(|entry| !(entry.supported_models)().is_empty())
         .map(|entry| BlockTypeCatalogEntry {
@@ -181,6 +181,15 @@ pub fn supported_block_types() -> Vec<BlockTypeCatalogEntry> {
             use_panel_editor: entry.use_panel_editor,
         })
         .collect();
+    // Include the VST3 dynamic type only if plugins have been discovered.
+    if !vst3_host::vst3_catalog().is_empty() {
+        types.push(BlockTypeCatalogEntry {
+            effect_type: "vst3",
+            display_label: "VST3",
+            icon_kind: "vst3",
+            use_panel_editor: true,
+        });
+    }
     log::trace!("supported_block_types: {} types registered", types.len());
     types
 }
@@ -199,6 +208,26 @@ pub fn supported_block_type(effect_type: &str) -> Option<BlockTypeCatalogEntry> 
 
 pub fn supported_block_models(effect_type: &str) -> Result<Vec<BlockModelCatalogEntry>, String> {
     log::trace!("looking up models for effect_type='{}'", effect_type);
+
+    // Dynamic VST3 catalog — bypass the static block_registry.
+    if effect_type == "vst3" {
+        return Ok(vst3_host::vst3_catalog()
+            .iter()
+            .map(|entry| BlockModelCatalogEntry {
+                effect_type: "vst3".to_string(),
+                model_id: entry.model_id.to_string(),
+                display_name: entry.display_name.to_string(),
+                brand: entry.brand.to_string(),
+                type_label: "VST3".to_string(),
+                supported_instruments: block_core::ALL_INSTRUMENTS
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
+                knob_layout: &[],
+            })
+            .collect());
+    }
+
     let entry = block_registry()
         .into_iter()
         .find(|entry| entry.effect_type == effect_type)
