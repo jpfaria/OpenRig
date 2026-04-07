@@ -3778,12 +3778,13 @@ pub fn run_desktop_app(
             let block_id_for_editor = block.id.clone();
             let is_vst3_block = effect_type == block_core::EFFECT_TYPE_VST3;
             drop(session_borrow);
-            // VST3 blocks: open the native plugin GUI automatically on selection.
+            // VST3 blocks: open the native plugin GUI directly — no Slint editor popup.
             if is_vst3_block && !model_id.is_empty() {
                 match project::vst3_editor::open_vst3_editor(&model_id, vst3_sr_for_select) {
                     Ok(handle) => { vst3_handles_for_select.borrow_mut().push(handle); }
-                    Err(e) => log::error!("[select_chain_block] failed to open VST3 editor: {}", e),
+                    Err(e) => set_status_error(&window, &toast_timer, &format!("Erro ao abrir plugin VST3: {}", e)),
                 }
+                return;
             }
             if use_inline_block_editor(&window) {
                 window.set_show_block_drawer(true);

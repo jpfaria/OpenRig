@@ -346,7 +346,7 @@ component CompactBlockRow inherits Rectangle {
 
     // ── All parameters (HorizontalLayout, right-aligned, when no knob overlays and no stream data) ──
     HorizontalLayout {
-        visible: root.block-data.knob-overlays.length == 0 && !root.block-data.stream-data.active;
+        visible: root.block-data.knob-overlays.length == 0 && !root.block-data.stream-data.active && root.block-data.icon-kind != "vst3";
         alignment: end;
         spacing: 4px;
         padding-right: 8px;
