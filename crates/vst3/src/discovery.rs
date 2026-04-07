@@ -161,6 +161,35 @@ pub fn scan_vst3_bundle(bundle_path: &Path, sample_rate: f64) -> Result<Vec<Vst3
     Ok(results)
 }
 
+/// Resolve the full path to a `.vst3` bundle by its directory name.
+///
+/// Searches the standard system VST3 paths (user-level first, then system) for
+/// a bundle whose directory name equals `bundle_name` (e.g. `"CloudSeed.vst3"`).
+///
+/// Returns an error if the bundle is not found in any search path.
+pub fn resolve_vst3_bundle(bundle_name: &str) -> Result<PathBuf> {
+    for root in system_vst3_paths() {
+        let candidate = root.join(bundle_name);
+        if candidate.exists() {
+            return Ok(candidate);
+        }
+        // Also search one level deep (some installers create a sub-directory).
+        if let Ok(entries) = std::fs::read_dir(&root) {
+            for entry in entries.flatten() {
+                let sub = entry.path().join(bundle_name);
+                if sub.exists() {
+                    return Ok(sub);
+                }
+            }
+        }
+    }
+    anyhow::bail!(
+        "VST3 bundle '{}' not found in system VST3 paths: {:?}",
+        bundle_name,
+        system_vst3_paths()
+    )
+}
+
 /// Scan all standard system VST3 paths and return discovered plugins.
 ///
 /// Bundles that fail to load are silently skipped (errors are logged).

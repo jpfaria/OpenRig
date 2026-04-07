@@ -19,7 +19,7 @@ pub mod discovery;
 pub use host::{Vst3Plugin, Vst3ParamInfo, Vst3PluginClass};
 pub use processor::Vst3Processor;
 pub use stereo::StereoVst3Processor;
-pub use discovery::{Vst3PluginInfo, scan_vst3_bundle, scan_system_vst3, system_vst3_paths};
+pub use discovery::{Vst3PluginInfo, scan_vst3_bundle, scan_system_vst3, system_vst3_paths, resolve_vst3_bundle};
 
 use anyhow::Result;
 use std::path::Path;
