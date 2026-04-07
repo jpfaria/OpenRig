@@ -1192,7 +1192,9 @@ fn build_core_block_runtime_node(
             let entry = vst3_host::find_vst3_plugin(model)
                 .ok_or_else(|| anyhow!("VST3 plugin '{}' not found in catalog", model))?;
             let bundle_path = entry.info.bundle_path.clone();
-            let uid = entry.info.uid;
+            // Resolve UID lazily if not available from moduleinfo.json.
+            let uid = vst3_host::resolve_uid_for_model(model)
+                .map_err(|e| anyhow!("VST3 UID resolution failed for '{}': {}", model, e))?;
             // Convert stored params (path="p{id}", value=0–100%) to VST3 normalized pairs.
             let vst3_params: Vec<(u32, f64)> = params
                 .values

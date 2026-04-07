@@ -10,8 +10,11 @@
 //! `class_name` is the plugin's display name with spaces replaced by `_`.
 //! This scheme is stable as long as the plugin is installed at the same path.
 
-use std::sync::OnceLock;
+use std::collections::HashMap;
+use std::path::PathBuf;
+use std::sync::{Mutex, OnceLock};
 use crate::discovery::{scan_system_vst3, Vst3PluginInfo};
+use crate::host::Vst3Plugin;
 use block_core::ModelVisualData;
 
 /// A discovered VST3 plugin with its stable runtime model ID.
@@ -30,6 +33,13 @@ pub struct Vst3CatalogEntry {
 }
 
 static CATALOG: OnceLock<Vec<Vst3CatalogEntry>> = OnceLock::new();
+
+/// Cache for lazily-resolved UIDs: bundle_path → class_name → uid.
+static UID_CACHE: OnceLock<Mutex<HashMap<PathBuf, HashMap<String, [u8; 16]>>>> = OnceLock::new();
+
+fn uid_cache() -> &'static Mutex<HashMap<PathBuf, HashMap<String, [u8; 16]>>> {
+    UID_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
 
 /// Leak a `String` into a `&'static str`.
 ///
@@ -102,4 +112,60 @@ pub fn vst3_model_visual(model_id: &str) -> Option<ModelVisualData> {
         supported_instruments: block_core::ALL_INSTRUMENTS,
         knob_layout: &[],
     })
+}
+
+/// Resolve the UID for a catalog entry.
+///
+/// If the UID was already known from `moduleinfo.json` (uid != [0;16]), returns it
+/// immediately. Otherwise, performs a lazy `enumerate_classes()` call to discover
+/// the UID from the plugin factory, caches the result, and returns it.
+///
+/// **Warning**: For plugins without `moduleinfo.json` (e.g. ValhallaSupermassive,
+/// Guitar Rig 7) this will call `dlopen()` on the plugin dylib. Most plugins are
+/// safe, but some complex commercial plugins may deadlock or crash the process.
+pub fn resolve_uid_for_model(model_id: &str) -> anyhow::Result<[u8; 16]> {
+    let entry = find_vst3_plugin(model_id)
+        .ok_or_else(|| anyhow::anyhow!("VST3 plugin '{}' not found in catalog", model_id))?;
+
+    // Fast path: UID already known from moduleinfo.json.
+    if entry.info.uid != [0u8; 16] {
+        return Ok(entry.info.uid);
+    }
+
+    let bundle_path = &entry.info.bundle_path;
+    let class_name = entry.display_name;
+
+    // Check cache first.
+    {
+        let cache = uid_cache().lock().unwrap();
+        if let Some(by_class) = cache.get(bundle_path) {
+            if let Some(&uid) = by_class.get(class_name) {
+                return Ok(uid);
+            }
+        }
+    }
+
+    // Lazy resolution via enumerate_classes (performs dlopen).
+    log::info!("VST3: lazy UID resolution for '{}' in {}", class_name, bundle_path.display());
+    let (_lib, classes) = Vst3Plugin::enumerate_classes(bundle_path)
+        .map_err(|e| anyhow::anyhow!("failed to enumerate classes in {}: {}", bundle_path.display(), e))?;
+
+    // Cache all classes from this bundle.
+    let mut cache = uid_cache().lock().unwrap();
+    let by_class = cache.entry(bundle_path.clone()).or_default();
+    for cls in &classes {
+        by_class.insert(cls.name.clone(), cls.uid);
+    }
+
+    // Find the matching class.
+    classes
+        .iter()
+        .find(|c| c.name == class_name)
+        .map(|c| c.uid)
+        .ok_or_else(|| anyhow::anyhow!(
+            "class '{}' not found in bundle {} (found: {})",
+            class_name,
+            bundle_path.display(),
+            classes.iter().map(|c| c.name.as_str()).collect::<Vec<_>>().join(", ")
+        ))
 }
