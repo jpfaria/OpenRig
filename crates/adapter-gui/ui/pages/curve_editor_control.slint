@@ -68,12 +68,13 @@ export component CurveEditorControl inherits Rectangle {
             opacity: 0.5;
         }
 
-        // Thumb
+        // Thumb (capped width so it looks like a vertical slider even with few bands)
         Rectangle {
             property <float> current-norm: (point.y-value - point.y-min) / Math.max(0.001, point.y-max - point.y-min);
-            x: 4px;
+            property <length> thumb-w: Math.min(parent.width - 8px, 48px);
+            x: (parent.width - self.thumb-w) / 2;
             y: (1.0 - parent.norm) * (root.chart-h - 8px) + 4px - 4px;
-            width: parent.width - 8px;
+            width: self.thumb-w;
             height: 8px;
             border-radius: 4px;
             background: point.band-color;

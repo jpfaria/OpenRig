@@ -52,12 +52,13 @@ export component MultiSliderControl inherits Rectangle {
             background: #4488ff80;
         }
 
-        // Thumb
+        // Thumb (capped width so it looks like a vertical slider even with few bands)
         thumb := Rectangle {
             property <float> current-norm: (point.value - point.min-val) / Math.max(0.001, point.max-val - point.min-val);
-            x: 2px;
+            property <length> thumb-w: Math.min(parent.width - 4px, 48px);
+            x: (parent.width - self.thumb-w) / 2;
             y: (1.0 - parent.norm) * (root.chart-h - 8px) + 4px - 2px;
-            width: parent.width - 4px;
+            width: self.thumb-w;
             height: 4px;
             border-radius: 2px;
             background: #88aaff;
