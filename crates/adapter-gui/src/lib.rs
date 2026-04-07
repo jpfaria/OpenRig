@@ -3778,7 +3778,7 @@ pub fn run_desktop_app(
                     win_eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>()
                 ));
                 win.set_multi_slider_points(ModelRc::from(win_multi_slider_pts));
-                win.set_curve_editor_points(ModelRc::from(win_curve_editor_pts));
+                win.set_curve_editor_points(ModelRc::from(win_curve_editor_pts.clone()));
                 win.set_eq_total_curve(win_eq_total.into());
                 win.set_eq_band_curves(ModelRc::from(win_eq_band_curves.clone()));
                 win.set_block_drawer_selected_type_index(type_index);
@@ -3853,6 +3853,8 @@ pub fn run_desktop_app(
                     let win_draft = win_draft.clone();
                     let win_param_items = win_param_items.clone();
                     let win_knob_overlays = win_knob_overlays.clone();
+                    let win_curve_editor_pts = win_curve_editor_pts.clone();
+                    let win_eq_band_curves = win_eq_band_curves.clone();
                     let win_timer = win_timer.clone();
                     let project_session = project_session.clone();
                     let project_chains = project_chains.clone();
@@ -3864,7 +3866,7 @@ pub fn run_desktop_app(
                     let weak_main = weak_main_window.clone();
                     let weak_win = win.as_weak();
                     win.on_choose_block_model(move |index| {
-                        let Some(_win) = weak_win.upgrade() else { return; };
+                        let Some(win) = weak_win.upgrade() else { return; };
                         let mut draft_borrow = win_draft.borrow_mut();
                         let Some(draft) = draft_borrow.as_mut() else { return; };
                         let models = block_model_picker_items(&draft.effect_type, &draft.instrument);
@@ -3877,6 +3879,12 @@ pub fn run_desktop_app(
                         let overlays = build_knob_overlays(project::catalog::model_knob_layout(&model.effect_type, &model.model_id), &new_params);
                         win_knob_overlays.set_vec(overlays);
                         win_param_items.set_vec(new_params);
+                        // Update EQ widgets for the new model
+                        let default_params = build_params_from_items(&win_param_items);
+                        win_curve_editor_pts.set_vec(build_curve_editor_points(&model.effect_type, &model.model_id, &default_params));
+                        let (eq_total, eq_bands) = compute_eq_curves(&model.effect_type, &model.model_id, &default_params);
+                        win_eq_band_curves.set_vec(eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>());
+                        win.set_eq_total_curve(eq_total.into());
                         drop(draft_borrow);
                         if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
                             schedule_block_editor_persist_for_block_win(
@@ -7526,6 +7534,9 @@ fn block_parameter_values(
                     domain::value_objects::ParameterValue::String(value)
                 }
             }
+            // CurveEditor / MultiSlider params use widget_kind="" and store their
+            // value in numeric_value — persist as Float.
+            "" => domain::value_objects::ParameterValue::Float(row.numeric_value),
             _ => domain::value_objects::ParameterValue::Null,
         };
         params.insert(row.path.as_str(), value);
