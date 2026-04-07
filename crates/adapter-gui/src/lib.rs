@@ -1,4 +1,5 @@
 mod thumbnails;
+mod plugin_info;
 
 use anyhow::{anyhow, Result};
 
