@@ -58,7 +58,7 @@ fn params_from_set(params: &ParameterSet) -> Result<Params> {
     })
 }
 
-pub struct HallReverb {
+struct HallReverb {
     params: Params,
     sample_rate: f32,
     pre_delay: DelayLine,

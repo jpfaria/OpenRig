@@ -122,7 +122,7 @@ impl SpringChannel {
         }
     }
 
-    /// `feedback` = tension-derived coefficient (0.70–0.95).
+    // `feedback` = tension-derived coefficient (0.70–0.95).
     fn process(&mut self, input: f32, feedback: f32) -> f32 {
         // Diffuse input through the allpass chain (spring coil).
         let mut diffused = input;
@@ -142,7 +142,7 @@ impl SpringChannel {
     }
 }
 
-pub struct SpringReverb {
+struct SpringReverb {
     params: Params,
     channel_l: SpringChannel,
     channel_r: SpringChannel,

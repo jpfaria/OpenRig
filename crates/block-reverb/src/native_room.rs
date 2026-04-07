@@ -54,7 +54,7 @@ fn params_from_set(params: &ParameterSet) -> Result<Params> {
     })
 }
 
-pub struct RoomReverb {
+struct RoomReverb {
     params: Params,
     combs_l: Vec<CombFilter>,
     combs_r: Vec<CombFilter>,
