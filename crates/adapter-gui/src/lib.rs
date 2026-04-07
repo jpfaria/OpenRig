@@ -6224,10 +6224,14 @@ fn sync_recent_projects(config: &mut AppConfig) -> bool {
     let mut synced = Vec::new();
     for recent in &config.recent_projects {
         let path = PathBuf::from(&recent.project_path);
-        if !path.exists() {
-            continue;
-        }
-        let canonical_path = canonical_project_path(&path).unwrap_or(path.clone());
+        // Skip path.exists() check here — it can block indefinitely on
+        // disconnected network volumes or external drives (macOS stat hang).
+        // Validity is checked lazily when the user tries to open the project.
+        let canonical_path = if path.is_absolute() {
+            path.clone()
+        } else {
+            env::current_dir().map(|d| d.join(&path)).unwrap_or(path.clone())
+        };
         let canonical_path_string = canonical_path.to_string_lossy().to_string();
         if synced
             .iter()
@@ -6235,7 +6239,6 @@ fn sync_recent_projects(config: &mut AppConfig) -> bool {
         {
             continue;
         }
-        // File exists — trust the stored name. Full validation happens when user opens it.
         synced.push(RecentProjectEntry {
             project_path: canonical_path_string,
             project_name: if recent.project_name.trim().is_empty() {
@@ -6251,8 +6254,12 @@ fn sync_recent_projects(config: &mut AppConfig) -> bool {
     *config != original
 }
 fn canonical_project_path(path: &PathBuf) -> Result<PathBuf> {
-    if path.exists() {
-        return Ok(fs::canonicalize(path)?);
+    // Do NOT call path.exists() here — blocks on disconnected network volumes.
+    // fs::canonicalize resolves symlinks and normalises the path without blocking
+    // for paths that exist on local storage; for paths that don't exist it errors
+    // and we fall back to the raw path.
+    if let Ok(c) = fs::canonicalize(path) {
+        return Ok(c);
     }
     if path.is_absolute() {
         return Ok(path.clone());
