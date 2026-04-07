@@ -1,6 +1,6 @@
 # Blocks Reference
 
-OpenRig ships with **229 models** across **15 block types**, powered by four distinct audio backends. This document provides a complete reference for every block type and model available in the system.
+OpenRig ships with **329 models** across **16 block types**, powered by four distinct audio backends. This document provides a complete reference for every block type and model available in the system.
 
 ## Audio Backends
 
@@ -9,7 +9,7 @@ OpenRig ships with **229 models** across **15 block types**, powered by four dis
 | **Native** | Pure Rust DSP. Lowest latency, lowest CPU usage. Parameters are fully controllable in real time. |
 | **NAM**    | Neural Amp Modeler. Capture-based modeling that reproduces realistic amp and pedal tones. Higher CPU usage than Native. |
 | **IR**     | Impulse Response. Convolution-based speaker and body simulation. Produces a fixed frequency response shaped by the loaded impulse. |
-| **LV2**    | Open-source audio plugins. Extends the effects library with community-developed processors.  |
+| **LV2**    | Open-source audio plugins. The largest backend with 105 bundled plugins, extending the effects library with community-developed processors across all block types. |
 
 ---
 
@@ -82,6 +82,9 @@ An amp block models a complete amplifier, including preamp and power amp stages 
 | Mesa Mark V               | Mesa      | NAM     | Tight focused high-gain            |
 | Mesa Rectifier            | Mesa      | NAM     | Aggressive modern high-gain        |
 | Peavey 5150               | Peavey    | NAM     | Heavy metal workhorse              |
+| GxBlueAmp                 | Guitarix  | LV2     | Guitarix blue amp simulation       |
+| GxSupersonic              | Guitarix  | LV2     | Guitarix supersonic amp            |
+| MDA Combo                 | MDA       | LV2     | Amp combo simulation               |
 
 ### Parameters -- Native Amps
 
@@ -116,19 +119,20 @@ A cab (cabinet) block simulates the speaker cabinet and microphone capture. It a
 
 ### Models
 
-| Model Name                      | Brand   | Backend | Description                      |
-|---------------------------------|---------|---------|----------------------------------|
-| American 2x12                   | --      | Native  | Open-back American cab           |
-| Brit 4x12                       | --      | Native  | Closed-back British cab          |
-| Vintage 1x12                    | --      | Native  | Small vintage combo cab          |
-| Marshall 4x12 V30               | Marshall| IR      | Classic Marshall with Vintage 30s|
-| G12M Greenback 2x12             | --      | IR      | Warm vintage speakers            |
-| G12T-75 4x12                    | --      | IR      | Bright articulate speakers       |
-| V30 4x12                        | --      | IR      | Modern rock/metal standard       |
-| Fender Deluxe Reverb Oxford     | Fender  | IR      | Classic American clean           |
-| Celestion Cream 4x12            | --      | IR      | Smooth alnico speakers           |
-| Mesa Oversized 4x12 V30         | Mesa    | IR      | Deep tight low-end               |
-| Vox AC30 Blue                   | Vox     | IR      | Chimey British jangle            |
+| Model Name                      | Brand    | Backend | Description                      |
+|---------------------------------|----------|---------|----------------------------------|
+| American 2x12                   | --       | Native  | Open-back American cab           |
+| Brit 4x12                       | --       | Native  | Closed-back British cab          |
+| Vintage 1x12                    | --       | Native  | Small vintage combo cab          |
+| Marshall 4x12 V30               | Marshall | IR      | Classic Marshall with Vintage 30s|
+| G12M Greenback 2x12             | --       | IR      | Warm vintage speakers            |
+| G12T-75 4x12                    | --       | IR      | Bright articulate speakers       |
+| V30 4x12                        | --       | IR      | Modern rock/metal standard       |
+| Fender Deluxe Reverb Oxford     | Fender   | IR      | Classic American clean           |
+| Celestion Cream 4x12            | --       | IR      | Smooth alnico speakers           |
+| Mesa Oversized 4x12 V30         | Mesa     | IR      | Deep tight low-end               |
+| Vox AC30 Blue                   | Vox      | IR      | Chimey British jangle            |
+| GxUltraCab                      | Guitarix | LV2     | Guitarix ultra cab simulation    |
 
 ### Parameters
 
@@ -200,13 +204,58 @@ NAM-based gain models capture real hardware with specific parameter snapshots (t
 | Velvet Katana                 | Velvet        | NAM     | Dumble-like tones, 6 characters                                |
 | Vemuram Jan Ray               | Vemuram       | NAM     | Mateus Asato signature overdrive                               |
 | Bitta                         | --            | LV2     | Bitcrusher distortion                                          |
-| Chow Centaur                  | --            | LV2     | Klon Centaur clone                                             |
-| MDA Degrade                   | --            | LV2     | Lo-fi degradation effect                                       |
-| MDA Overdrive                 | --            | LV2     | Soft-clip overdrive                                            |
+| MDA Degrade                   | MDA           | LV2     | Lo-fi degradation effect                                       |
+| MDA Overdrive                 | MDA           | LV2     | Soft-clip overdrive                                            |
 | OJD                           | --            | LV2     | OCD-style overdrive                                            |
 | Paranoia                      | --            | LV2     | Fuzz/distortion                                                |
-| TAP Sigmoid                   | --            | LV2     | Waveshaper distortion                                          |
+| TAP Sigmoid                   | TAP           | LV2     | Waveshaper distortion                                          |
 | Wolf Shaper                   | --            | LV2     | Waveshaper with visual editor                                  |
+| CAPS Spice                    | CAPS          | LV2     | Overdrive/distortion                                           |
+| CAPS Spice X2                 | CAPS          | LV2     | Overdrive/distortion (stereo)                                  |
+| Driva                         | Artyfx        | LV2     | Drive/distortion                                               |
+| Satma                         | Artyfx        | LV2     | Saturation effect                                              |
+| Invada Tube                   | Invada        | LV2     | Tube saturation/warmth                                         |
+| TAP Tubewarmth                | TAP           | LV2     | Tube warmth simulator                                          |
+
+#### Guitarix LV2 Gain Plugins (40 models)
+
+The following 40 overdrive, distortion, and fuzz plugins are provided by the Guitarix project via LV2:
+
+| Model Name            | Brand    | Backend | Description                     |
+|-----------------------|----------|---------|---------------------------------|
+| Axis Face             | Guitarix | LV2     | Fuzz                            |
+| BaJa Tube Driver      | Guitarix | LV2     | Tube driver                     |
+| Boob Tube             | Guitarix | LV2     | Tube overdrive                  |
+| Bottle Rocket         | Guitarix | LV2     | Overdrive                       |
+| Club Drive            | Guitarix | LV2     | Drive pedal                     |
+| Cream Machine         | Guitarix | LV2     | Overdrive/distortion            |
+| DOP 250               | Guitarix | LV2     | DOD 250 clone                   |
+| Epic                  | Guitarix | LV2     | High-gain distortion            |
+| Eternity              | Guitarix | LV2     | Eternity overdrive clone        |
+| Maestro FZ-1B         | Guitarix | LV2     | Maestro Fuzz-Tone clone (bass)  |
+| Maestro FZ-1S         | Guitarix | LV2     | Maestro Fuzz-Tone clone         |
+| Guvnor                | Guitarix | LV2     | Marshall Guvnor clone           |
+| Hot Box               | Guitarix | LV2     | Overdrive                       |
+| Hyperion              | Guitarix | LV2     | Distortion                      |
+| Knight Fuzz           | Guitarix | LV2     | Fuzz                            |
+| Liquid Drive          | Guitarix | LV2     | Smooth overdrive                |
+| Luna                  | Guitarix | LV2     | Overdrive                       |
+| Micro Amp             | Guitarix | LV2     | Clean boost                     |
+| Saturator             | Guitarix | LV2     | Saturation/clipping             |
+| SD-1                  | Guitarix | LV2     | Boss SD-1 clone                 |
+| SD-2 Lead             | Guitarix | LV2     | Boss SD-2 lead channel clone    |
+| Shaka Tube            | Guitarix | LV2     | Tube overdrive                  |
+| Sloopy Blue           | Guitarix | LV2     | Blues overdrive                 |
+| Sun Face              | Guitarix | LV2     | Fuzz Face clone                 |
+| Super Fuzz            | Guitarix | LV2     | Uni-Vibe era fuzz               |
+| Suppa Tone Bender     | Guitarix | LV2     | Tone Bender clone               |
+| Tim Ray               | Guitarix | LV2     | Overdrive                       |
+| Tone Machine          | Guitarix | LV2     | Octave fuzz                     |
+| Tube Distortion       | Guitarix | LV2     | Tube-style distortion           |
+| Valve Caster          | Guitarix | LV2     | Tube valve overdrive            |
+| Vintage Fuzz Master   | Guitarix | LV2     | Vintage fuzz                    |
+| Vmk2                  | Guitarix | LV2     | Distortion                      |
+| Voodo Fuzz            | Guitarix | LV2     | Voodoo fuzz                     |
 
 ### Parameters -- Native TS9
 
@@ -456,18 +505,24 @@ A delay block produces echo and repetition effects by playing back a copy of the
 
 ### Models
 
-All models use the **Native** backend.
+| Model Name       | Brand        | Backend | Description                              |
+|------------------|--------------|---------|------------------------------------------|
+| Digital Clean    | --           | Native  | Clean digital delay                      |
+| Analog Warm      | --           | Native  | Warm analog-style delay with filtering   |
+| Slapback         | --           | Native  | Short slapback echo                      |
+| Reverse          | --           | Native  | Reversed delay tails                     |
+| Modulated Delay  | --           | Native  | Delay with modulation                    |
+| Tape Vintage     | --           | Native  | Vintage tape echo simulation             |
+| Bollie Delay     | Bollie       | LV2     | Delay effect                             |
+| Avocado          | Remaincalm   | LV2     | Delay effect                             |
+| Floaty           | Remaincalm   | LV2     | Delay effect                             |
+| Modulay          | Shiro        | LV2     | Modulated delay                          |
+| MDA DubDelay     | MDA          | LV2     | Dub-style delay                          |
+| TAP Doubler      | TAP          | LV2     | Stereo doubler delay                     |
+| TAP Stereo Echo  | TAP          | LV2     | Stereo echo                              |
+| TAP Reflector    | TAP          | LV2     | Reflective delay                         |
 
-| Model Name       | Description                                    |
-|------------------|------------------------------------------------|
-| Digital Clean    | Clean digital delay                            |
-| Analog Warm      | Warm analog-style delay with filtering         |
-| Slapback         | Short slapback echo                            |
-| Reverse          | Reversed delay tails                           |
-| Modulated Delay  | Delay with modulation                          |
-| Tape Vintage     | Vintage tape echo simulation                   |
-
-### Parameters
+### Parameters -- Native Delays
 
 | Parameter | Range       | Description                      |
 |-----------|-------------|----------------------------------|
@@ -483,11 +538,29 @@ A reverb block simulates the natural reflections of an acoustic space or mechani
 
 ### Models
 
-| Model Name        | Brand | Backend | Description           |
-|-------------------|-------|---------|-----------------------|
-| Plate Foundation  | --    | Native  | Studio plate reverb   |
+| Model Name                    | Brand     | Backend | Description                            |
+|-------------------------------|-----------|---------|----------------------------------------|
+| Plate Foundation              | --        | Native  | Studio plate reverb                    |
+| Hall                          | --        | Native  | Large hall reverb                      |
+| Room                          | --        | Native  | Small room reverb                      |
+| Spring                        | --        | Native  | Spring reverb simulation               |
+| Dragonfly Early Reflections   | Dragonfly | LV2     | Early reflections simulator            |
+| Dragonfly Hall Reverb         | Dragonfly | LV2     | Algorithmic hall reverb                |
+| Dragonfly Plate Reverb        | Dragonfly | LV2     | Algorithmic plate reverb               |
+| Dragonfly Room Reverb         | Dragonfly | LV2     | Algorithmic room reverb                |
+| CAPS Plate                    | CAPS      | LV2     | Plate reverb                           |
+| CAPS Plate X2                 | CAPS      | LV2     | Stereo plate reverb                    |
+| CAPS Scape                    | CAPS      | LV2     | Ambient reverb/soundscape              |
+| TAP Reflector                 | TAP       | LV2     | Reflective reverb                      |
+| TAP Reverberator              | TAP       | LV2     | General-purpose reverberator           |
+| MDA Ambience                  | MDA       | LV2     | Ambience reverb                        |
+| MVerb                         | Distrho   | LV2     | High-quality algorithmic reverb        |
+| B Reverb                      | SetBfree  | LV2     | Reverb effect                          |
+| Roomy                         | OpenAV    | LV2     | Room reverb                            |
+| Shiroverb                     | Shiro     | LV2     | Reverb effect                          |
+| Floaty                        | Remaincalm| LV2     | Ambient reverb                         |
 
-### Parameters
+### Parameters -- Native Reverbs
 
 | Parameter | Range   | Description                           |
 |-----------|---------|---------------------------------------|
@@ -499,19 +572,28 @@ A reverb block simulates the natural reflections of an acoustic space or mechani
 
 ## Modulation
 
-Modulation blocks alter the signal with periodic variation in amplitude, pitch, or time, producing effects like tremolo, vibrato, and chorus.
+Modulation blocks alter the signal with periodic variation in amplitude, pitch, or time, producing effects like tremolo, vibrato, chorus, phaser, and rotary speaker.
 
 ### Models
 
-All models use the **Native** backend.
-
-| Model Name     | Description                              |
-|----------------|------------------------------------------|
-| Sine Tremolo   | Classic sine-wave tremolo                |
-| Vibrato        | Pitch vibrato (100% wet, no dry signal)  |
-| Classic Chorus | Traditional chorus effect                |
-| Ensemble Chorus| Rich ensemble-style chorus               |
-| Stereo Chorus  | Wide stereo chorus                       |
+| Model Name          | Brand | Backend | Description                              |
+|---------------------|-------|---------|------------------------------------------|
+| Sine Tremolo        | --    | Native  | Classic sine-wave tremolo                |
+| Vibrato             | --    | Native  | Pitch vibrato (100% wet, no dry signal)  |
+| Classic Chorus      | --    | Native  | Traditional chorus effect                |
+| Ensemble Chorus     | --    | Native  | Rich ensemble-style chorus               |
+| Stereo Chorus       | --    | Native  | Wide stereo chorus                       |
+| TAP Chorus/Flanger  | TAP   | LV2     | Combined chorus and flanger              |
+| TAP Tremolo         | TAP   | LV2     | Tremolo effect                           |
+| TAP Rotary Speaker  | TAP   | LV2     | Rotary speaker (Leslie) simulation       |
+| MDA Leslie          | MDA   | LV2     | Leslie cabinet simulator                 |
+| MDA RingMod         | MDA   | LV2     | Ring modulator                           |
+| MDA ThruZero        | MDA   | LV2     | Through-zero flanger                     |
+| FOMP CS Chorus      | FOMP  | LV2     | CS-style chorus                          |
+| FOMP CS Phaser      | FOMP  | LV2     | CS-style phaser                          |
+| CAPS Phaser II      | CAPS  | LV2     | Phaser effect                            |
+| Harmless            | Shiro | LV2     | Harmonic modulation                      |
+| Larynx              | Shiro | LV2     | Vocal-style modulation                   |
 
 ### Parameters -- Tremolo
 
@@ -539,16 +621,21 @@ All models use the **Native** backend.
 
 ## Dynamics
 
-Dynamics blocks control the dynamic range of the signal, either compressing loud peaks or gating unwanted noise.
+Dynamics blocks control the dynamic range of the signal, either compressing loud peaks, gating unwanted noise, or hard-limiting output.
 
 ### Models
 
-All models use the **Native** backend.
-
-| Model Name                | Description                      |
-|---------------------------|----------------------------------|
-| Studio Clean Compressor   | Transparent studio compressor    |
-| Noise Gate                | Simple noise gate                |
+| Model Name                | Brand | Backend | Description                          |
+|---------------------------|-------|---------|--------------------------------------|
+| Studio Clean Compressor   | --    | Native  | Transparent studio compressor        |
+| Noise Gate                | --    | Native  | Simple noise gate                    |
+| Brick Wall Limiter        | --    | Native  | Hard limiter                         |
+| TAP DeEsser               | TAP   | LV2     | De-esser                             |
+| TAP Dynamics              | TAP   | LV2     | Dynamic processor                    |
+| TAP Scaling Limiter       | TAP   | LV2     | Limiter                              |
+| ZamComp                   | ZAM   | LV2     | Compressor                           |
+| ZamGate                   | ZAM   | LV2     | Gate                                 |
+| ZaMultiComp               | ZAM   | LV2     | Multiband compressor                 |
 
 ### Parameters -- Studio Clean Compressor
 
@@ -573,15 +660,25 @@ All models use the **Native** backend.
 
 ## Filter
 
-Filter blocks shape the frequency spectrum of the signal using equalization.
+Filter blocks shape the frequency spectrum of the signal using equalization and dynamic filtering.
 
 ### Models
 
-| Model Name    | Brand | Backend | Description          |
-|---------------|-------|---------|-----------------------|
-| Three Band EQ | --    | Native  | 3-band parametric EQ |
+| Model Name        | Brand | Backend | Description                    |
+|-------------------|-------|---------|--------------------------------|
+| Three Band EQ     | --    | Native  | 3-band parametric EQ           |
+| TAP Equalizer     | TAP   | LV2     | Parametric EQ                  |
+| TAP Equalizer/BW  | TAP   | LV2     | Butterworth EQ                 |
+| ZamEQ2            | ZAM   | LV2     | 2-band parametric EQ           |
+| ZamGEQ31          | ZAM   | LV2     | 31-band graphic EQ             |
+| CAPS AutoFilter   | CAPS  | LV2     | Auto filter                    |
+| FOMP Auto-Wah     | FOMP  | LV2     | Auto-wah filter                |
+| MOD High Pass     | MOD   | LV2     | High-pass filter               |
+| MOD Low Pass      | MOD   | LV2     | Low-pass filter                |
+| Filta             | OpenAV| LV2     | Filter effect                  |
+| Mud               | Remaincalm | LV2 | Mud filter                    |
 
-### Parameters
+### Parameters -- Three Band EQ
 
 | Parameter | Range   | Mapped Range       | Description        |
 |-----------|---------|--------------------|--------------------|
@@ -597,11 +694,12 @@ A wah block produces a resonant bandpass filter sweep, controlled by a position 
 
 ### Models
 
-| Model Name   | Brand | Backend | Description            |
-|--------------|-------|---------|-----------------------|
-| Cry Classic  | --    | Native  | Classic wah-wah pedal |
+| Model Name   | Brand    | Backend | Description            |
+|--------------|----------|---------|-----------------------|
+| Cry Classic  | --       | Native  | Classic wah-wah pedal |
+| GxQuack      | Guitarix | LV2     | Wah effect            |
 
-### Parameters
+### Parameters -- Cry Classic
 
 | Parameter | Description                        |
 |-----------|------------------------------------|
@@ -618,54 +716,33 @@ Utility blocks provide non-audio-processing tools that support the signal chain 
 
 ### Models
 
-| Model Name       | Brand | Backend | Description      |
-|------------------|-------|---------|--------------------|
-| Chromatic Tuner  | --    | Native  | Reference tuner  |
+| Model Name         | Brand | Backend | Description                                    |
+|--------------------|-------|---------|------------------------------------------------|
+| Chromatic Tuner    | --    | Native  | Reference tuner                                |
+| Spectrum Analyzer  | --    | Native  | Real-time frequency spectrum display           |
 
-### Parameters
+### Parameters -- Chromatic Tuner
 
 | Parameter    | Range        | Default | Description                       |
 |--------------|--------------|---------|-----------------------------------|
 | reference_hz | 400--480 Hz  | 440 Hz  | Reference pitch for A4 tuning     |
 
+Spectrum Analyzer is a display-only block with no user-adjustable parameters.
+
 ---
 
 ## Pitch
 
-Pitch blocks provide real-time pitch correction (autotune) for monophonic audio sources such as vocals and solo instruments.
+Pitch blocks provide real-time pitch shifting, correction, and harmonization for monophonic audio sources.
 
 ### Models
 
-| Model Name         | Brand | Backend | Description                                      |
-|--------------------|-------|---------|--------------------------------------------------|
-| Chromatic Autotune | --    | Native  | Corrects pitch to nearest chromatic note         |
-| Scale Autotune     | --    | Native  | Corrects pitch to nearest note in selected key/scale |
-
-### Parameters -- Chromatic Autotune
-
-| Parameter   | Range          | Default | Description                                         |
-|-------------|----------------|---------|-----------------------------------------------------|
-| speed       | 0--100 ms      | 20 ms   | Correction speed. 0 = instant/robotic, 100 = natural/smooth |
-| mix         | 0--100%        | 100%    | Dry/wet blend                                       |
-| detune      | -50--+50 cents | 0       | Fine offset from target note                        |
-| sensitivity | 0--100%        | 50%     | Minimum signal level to activate correction         |
-
-### Parameters -- Scale Autotune
-
-Scale Autotune shares all Chromatic Autotune parameters plus two additional controls:
-
-| Parameter   | Range          | Default | Description                                         |
-|-------------|----------------|---------|-----------------------------------------------------|
-| speed       | 0--100 ms      | 20 ms   | Correction speed. 0 = instant/robotic, 100 = natural/smooth |
-| mix         | 0--100%        | 100%    | Dry/wet blend                                       |
-| detune      | -50--+50 cents | 0       | Fine offset from target note                        |
-| sensitivity | 0--100%        | 50%     | Minimum signal level to activate correction         |
-| key         | C through B    | C       | Root note of the scale                              |
-| scale       | 8 options      | Major   | Scale type (see table below)                        |
-
-### Available Scales
-
-Major, Natural Minor, Pentatonic Major, Pentatonic Minor, Harmonic Minor, Melodic Minor, Blues, Dorian
+| Model Name      | Brand   | Backend | Description                          |
+|-----------------|---------|---------|--------------------------------------|
+| Harmonizer      | Infamous| LV2     | Pitch harmonizer                     |
+| x42 Autotune    | x42     | LV2     | Chromatic pitch correction           |
+| MDA Detune      | MDA     | LV2     | Subtle pitch detune/doubler          |
+| MDA RePsycho!   | MDA     | LV2     | Pitch shifting effect                |
 
 ---
 
@@ -780,24 +857,50 @@ No user-adjustable parameters. Single capture.
 
 ---
 
+## IR Loader
+
+The IR Loader block is a generic impulse response loader that allows users to load their own IR files from disk. Unlike the fixed cab and body IR models bundled with OpenRig, this block accepts any standard WAV-format IR file.
+
+### Models
+
+| Model Name  | Brand | Backend | Description               |
+|-------------|-------|---------|---------------------------|
+| generic_ir  | --    | Native  | User-supplied IR file     |
+
+---
+
+## NAM Loader
+
+The NAM Loader block is a generic Neural Amp Modeler capture loader that allows users to load their own `.nam` capture files from disk. Unlike the fixed NAM amp and pedal models bundled with OpenRig, this block accepts any compatible NAM capture.
+
+### Models
+
+| Model Name   | Brand | Backend | Description                   |
+|--------------|-------|---------|-------------------------------|
+| generic_nam  | --    | NAM     | User-supplied NAM capture     |
+
+---
+
 ## Summary
 
-| Block Type  | Models | Backends Available       |
-|-------------|--------|--------------------------|
-| Preamp      | 5      | Native, NAM              |
-| Amp         | 14     | Native, NAM              |
-| Cab         | 11     | Native, IR               |
-| Gain        | 53     | Native, NAM, LV2         |
-| Delay       | 6      | Native                   |
-| Reverb      | 1      | Native                   |
-| Modulation  | 5      | Native                   |
-| Dynamics    | 2      | Native                   |
-| Filter      | 1      | Native                   |
-| Wah         | 1      | Native                   |
-| Utility     | 1      | Native                   |
-| Pitch       | 2      | Native                   |
-| Body        | 114    | IR                       |
-| Full Rig    | 12     | NAM                      |
-| **Total**   | **229**|                          |
+| Block Type  | Models  | Backends Available       |
+|-------------|---------|--------------------------|
+| Preamp      | 5       | Native, NAM              |
+| Amp         | 17      | Native, NAM, LV2         |
+| Cab         | 12      | Native, IR, LV2          |
+| Gain        | 91      | Native, NAM, LV2         |
+| Delay       | 14      | Native, LV2              |
+| Reverb      | 19      | Native, LV2              |
+| Modulation  | 16      | Native, LV2              |
+| Dynamics    | 9       | Native, LV2              |
+| Filter      | 11      | Native, LV2              |
+| Wah         | 2       | Native, LV2              |
+| Utility     | 2       | Native                   |
+| Pitch       | 4       | LV2                      |
+| Body        | 114     | IR                       |
+| Full Rig    | 12      | NAM                      |
+| IR Loader   | 1       | Native                   |
+| NAM Loader  | 1       | NAM                      |
+| **Total**   | **329** |                          |
 
-> Gain includes 2 Native models, 43 NAM captures, and 8 LV2 plugins. NAM captures reproduce specific hardware settings at capture time; parameters are fixed per capture variant rather than continuously variable.
+> Gain includes 2 Native models, 43 NAM captures, and 46 LV2 plugins (including 33 Guitarix models). NAM captures reproduce specific hardware settings at capture time; parameters are fixed per capture variant rather than continuously variable.
