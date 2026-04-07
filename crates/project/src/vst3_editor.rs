@@ -16,27 +16,25 @@ pub fn init_vst3_catalog(sample_rate: f64) {
 
 /// Open the native editor window for the VST3 plugin identified by `model_id`.
 ///
-/// Loads a separate plugin instance dedicated to the GUI. Resolves the UID
-/// lazily if the plugin lacks `moduleinfo.json`. Returns a handle that keeps
-/// the window alive; drop it to close.
+/// Reuses the `IEditController` from the audio processor (via the registered
+/// `Vst3GuiContext`) instead of loading a second plugin instance. This avoids
+/// failures with plugins like ValhallaSupermassive that reject multiple instances.
+///
+/// Returns an error if the plugin has not been loaded by the audio engine yet
+/// (i.e. there is no registered GUI context for `model_id`).
 ///
 /// Must be called on the main/UI thread (macOS AppKit requirement).
-pub fn open_vst3_editor(model_id: &str, sample_rate: f64) -> Result<Box<dyn PluginEditorHandle>> {
-    let uid = vst3_host::resolve_uid_for_model(model_id)?;
+pub fn open_vst3_editor(model_id: &str, _sample_rate: f64) -> Result<Box<dyn PluginEditorHandle>> {
     let entry = vst3_host::find_vst3_plugin(model_id)
         .ok_or_else(|| anyhow::anyhow!("VST3 plugin '{}' not found in catalog", model_id))?;
 
-    // Look up the param channel registered by the audio processor (if any).
-    // This connects GUI knob movements → audio thread via the lock-free queue.
-    let param_channel = vst3_host::lookup_vst3_channel(model_id);
+    let gui_context = vst3_host::lookup_vst3_gui_context(model_id)
+        .ok_or_else(|| anyhow::anyhow!(
+            "VST3 plugin '{}' is not loaded in the audio engine yet — \
+             add it to a chain first",
+            model_id
+        ))?;
 
-    let handle = vst3_host::open_vst3_editor_window(
-        &entry.info.bundle_path,
-        &uid,
-        entry.display_name,
-        sample_rate,
-        param_channel,
-    )?;
-
+    let handle = vst3_host::open_vst3_editor_window(entry.display_name, gui_context)?;
     Ok(Box::new(handle))
 }

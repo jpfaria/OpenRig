@@ -6,6 +6,7 @@ use anyhow::{bail, Context, Result};
 use std::ffi::{c_char, c_void, CStr};
 use std::path::Path;
 use std::ptr;
+use std::sync::Arc;
 
 use vst3::Steinberg::Vst::{
     AudioBusBuffers, AudioBusBuffers__type0, BusDirections_, BusInfo, IAudioProcessor,
@@ -168,7 +169,7 @@ pub fn bundle_binary_path(bundle_path: &Path) -> Result<std::path::PathBuf> {
 /// ensure the plugin is used only on the audio thread.
 pub struct Vst3Plugin {
     /// Keep the library alive for the lifetime of the plugin.
-    _library: libloading::Library,
+    _library: Arc<libloading::Library>,
 
     /// `IComponent` interface — controls bus routing, activation, state.
     component: ComPtr<IComponent>,
@@ -225,14 +226,14 @@ impl Vst3Plugin {
         // 2. dlopen the binary.
         // Safety: libloading loads a shared library. The returned library is
         // kept alive for the entire lifetime of `Vst3Plugin`.
-        let library = unsafe { libloading::Library::new(&binary_path) }
-            .with_context(|| format!("failed to dlopen VST3 binary: {}", binary_path.display()))?;
+        let library = Arc::new(unsafe { libloading::Library::new(&binary_path) }
+            .with_context(|| format!("failed to dlopen VST3 binary: {}", binary_path.display()))?);
 
         // 3. Get the GetPluginFactory symbol.
         // Safety: the symbol must exist and have the correct signature. This is
         // mandated by the VST3 spec for all conforming plugins.
         let get_factory: libloading::Symbol<unsafe extern "C" fn() -> *mut IPluginFactory> =
-            unsafe { library.get(b"GetPluginFactory\0") }
+            unsafe { library.as_ref().get(b"GetPluginFactory\0") }
                 .context("symbol 'GetPluginFactory' not found — not a VST3 plugin")?;
 
         let factory_raw = unsafe { get_factory() };
@@ -525,11 +526,6 @@ impl Vst3Plugin {
             .map(|r| r.as_ptr())
             .unwrap_or(ptr::null_mut());
 
-        // Also sync the controller display state (for plugins that query it).
-        for &(id, normalized) in pending_params {
-            let _ = unsafe { self.controller.setParamNormalized(id, normalized) };
-        }
-
         let mut process_data = ProcessData {
             processMode: 0i32, // kRealtime
             symbolicSampleSize: SymbolicSampleSizes_::kSample32 as i32,
@@ -597,6 +593,19 @@ impl Vst3Plugin {
     /// Access the `IComponent` interface (needed for GUI host setup: IConnectionPoint).
     pub fn component(&self) -> &ComPtr<IComponent> {
         &self.component
+    }
+
+    /// Clone the `Arc` wrapping the shared library so the GUI can keep the
+    /// dylib alive independently of the audio-thread plugin instance.
+    pub fn library_arc(&self) -> Arc<libloading::Library> {
+        self._library.clone()
+    }
+
+    /// Clone the `IEditController` COM pointer (reference-counted) so the GUI
+    /// can reuse the controller from the audio processor without creating a
+    /// second plugin instance.
+    pub fn controller_clone(&self) -> ComPtr<vst3::Steinberg::Vst::IEditController> {
+        self.controller.clone()
     }
 
     /// Enumerate all plugin classes in a bundle without fully initialising them.

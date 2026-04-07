@@ -32,7 +32,7 @@ pub use catalog::{
     vst3_model_ids, vst3_model_visual, make_model_id, resolve_uid_for_model,
 };
 pub use param_channel::{Vst3ParamChannel, Vst3ParamUpdate, vst3_param_channel};
-pub use param_registry::{register_vst3_channel, lookup_vst3_channel};
+pub use param_registry::{Vst3GuiContext, register_vst3_gui_context, lookup_vst3_gui_context, lookup_vst3_channel};
 
 use anyhow::Result;
 use std::path::Path;
@@ -84,7 +84,7 @@ pub fn build_vst3_processor(
 /// knob movements in the native plugin GUI are applied to the audio processor.
 ///
 /// - `param_channel`: the `Vst3ParamChannel` previously registered via
-///   `register_vst3_channel`.  The GUI editor will push updates onto the same
+///   `register_vst3_gui_context`.  The GUI editor will push updates onto the same
 ///   `Arc`; the processor drains them before each processing block.
 pub fn build_vst3_processor_with_channel(
     bundle_path: &Path,
@@ -118,6 +118,27 @@ pub fn build_vst3_processor_with_channel(
                 params,
             )?;
             Ok(BlockProcessor::Stereo(Box::new(StereoVst3Processor::new(plugin, Some(param_channel)))))
+        }
+    }
+}
+
+/// Build a VST3 `BlockProcessor` from an already-loaded `Vst3Plugin` and a
+/// param channel.
+///
+/// Used by the engine when it needs to register the GUI context (controller +
+/// library) before constructing the processor, so the GUI can later reuse the
+/// controller without creating a second plugin instance.
+pub fn build_vst3_processor_from_plugin(
+    plugin: Vst3Plugin,
+    layout: AudioChannelLayout,
+    param_channel: Vst3ParamChannel,
+) -> BlockProcessor {
+    match layout {
+        AudioChannelLayout::Mono => {
+            BlockProcessor::Mono(Box::new(Vst3Processor::new(plugin, Some(param_channel))))
+        }
+        AudioChannelLayout::Stereo => {
+            BlockProcessor::Stereo(Box::new(StereoVst3Processor::new(plugin, Some(param_channel))))
         }
     }
 }
