@@ -423,7 +423,7 @@ pub fn run_desktop_app(
     let loaded_config = load_and_sync_app_config()?;
     infra_filesystem::init_asset_paths(loaded_config.paths.clone());
     // Open VST3 editor handles (kept alive so the OS window stays open).
-    let vst3_editor_handles: Rc<RefCell<Vec<vst3_host::Vst3EditorHandle>>> =
+    let vst3_editor_handles: Rc<RefCell<Vec<Box<dyn project::vst3_editor::PluginEditorHandle>>>> =
         Rc::new(RefCell::new(Vec::new()));
     let vst3_editor_handles_for_on_open = vst3_editor_handles.clone();
     // Scan system VST3 paths in a background thread so startup isn't blocked.
@@ -434,7 +434,7 @@ pub fn run_desktop_app(
         .map(|d| d.sample_rate)
         .unwrap_or(48_000) as f64;
     std::thread::spawn(move || {
-        vst3_host::init_vst3_catalog(vst3_sample_rate);
+        project::vst3_editor::init_vst3_catalog(vst3_sample_rate);
     });
     let app_config = Rc::new(RefCell::new(loaded_config));
     let project_session = Rc::new(RefCell::new(None::<ProjectSession>));
@@ -4236,24 +4236,7 @@ pub fn run_desktop_app(
                     let vst3_handles = vst3_editor_handles.clone();
                     let vst3_sr = vst3_sample_rate;
                     win.on_open_vst3_editor(move |model_id| {
-                        let model_id = model_id.to_string();
-                        let uid = match vst3_host::resolve_uid_for_model(&model_id) {
-                            Ok(uid) => uid,
-                            Err(e) => {
-                                log::error!("VST3 editor (block-win): UID failed '{}': {}", model_id, e);
-                                return;
-                            }
-                        };
-                        let entry = match vst3_host::find_vst3_plugin(&model_id) {
-                            Some(e) => e,
-                            None => return,
-                        };
-                        match vst3_host::open_vst3_editor_window(
-                            &entry.info.bundle_path,
-                            &uid,
-                            entry.display_name,
-                            vst3_sr,
-                        ) {
+                        match project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr) {
                             Ok(handle) => { vst3_handles.borrow_mut().push(handle); }
                             Err(e) => { log::error!("VST3 editor: failed '{}': {}", model_id, e); }
                         }
@@ -5350,34 +5333,9 @@ pub fn run_desktop_app(
         let vst3_handles = vst3_editor_handles_for_on_open.clone();
         let vst3_sr = vst3_sample_rate;
         window.on_open_vst3_editor(move |model_id| {
-            let model_id = model_id.to_string();
-            // Resolve bundle + uid from catalog.
-            let uid = match vst3_host::resolve_uid_for_model(&model_id) {
-                Ok(uid) => uid,
-                Err(e) => {
-                    log::error!("VST3 editor: UID resolution failed for '{}': {}", model_id, e);
-                    return;
-                }
-            };
-            let entry = match vst3_host::find_vst3_plugin(&model_id) {
-                Some(e) => e,
-                None => {
-                    log::error!("VST3 editor: plugin '{}' not in catalog", model_id);
-                    return;
-                }
-            };
-            match vst3_host::open_vst3_editor_window(
-                &entry.info.bundle_path,
-                &uid,
-                entry.display_name,
-                vst3_sr,
-            ) {
-                Ok(handle) => {
-                    vst3_handles.borrow_mut().push(handle);
-                }
-                Err(e) => {
-                    log::error!("VST3 editor: failed to open '{}': {}", model_id, e);
-                }
+            match project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr) {
+                Ok(handle) => { vst3_handles.borrow_mut().push(handle); }
+                Err(e) => { log::error!("VST3 editor: failed to open '{}': {}", model_id, e); }
             }
         });
     }

@@ -13,6 +13,8 @@ use vst3::ComPtr;
 
 use crate::host::Vst3Plugin;
 
+impl block_core::PluginEditorHandle for Vst3EditorHandle {}
+
 /// Handle to an open VST3 editor window.
 ///
 /// Closing/dropping this handle calls `IPlugView::removed()` and releases

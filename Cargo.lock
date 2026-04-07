@@ -146,7 +146,6 @@ dependencies = [
  "slint",
  "slint-build",
  "ui-openrig",
- "vst3-host",
 ]
 
 [[package]]
@@ -4284,6 +4283,7 @@ dependencies = [
 name = "project"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "block-amp",
  "block-body",
  "block-cab",

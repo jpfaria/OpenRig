@@ -22,7 +22,6 @@ log.workspace = true
 env_logger.workspace = true
 project = { path = "../project" }
 ui-openrig = { path = "../ui-openrig" }
-vst3-host = { path = "../vst3" }
 
 [build-dependencies]
 slint-build.workspace = true

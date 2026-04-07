@@ -165,6 +165,12 @@ pub trait NamedModel {
     fn model_key(&self) -> &'static str;
     fn display_name(&self) -> &'static str;
 }
+
+/// Opaque handle to an open plugin editor window.
+///
+/// Dropping the handle closes the window and releases all resources.
+/// The concrete type is an implementation detail of the plugin host crate.
+pub trait PluginEditorHandle: Send {}
 /// Capitalize the first character of a string, leaving the rest unchanged.
 pub fn capitalize_first(s: &str) -> String {
     let mut chars = s.chars();
