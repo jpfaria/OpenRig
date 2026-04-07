@@ -2125,6 +2125,7 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let toast_timer = toast_timer.clone();
         let open_compact_window = open_compact_window.clone();
+        let vst3_editor_handles_for_compact = vst3_editor_handles.clone();
         window.on_open_compact_chain_view(move |chain_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2596,6 +2597,17 @@ pub fn run_desktop_app(
                 );
                 // Timer lives as long as compact_win (dropped when window closes)
                 std::mem::forget(stream_timer);
+            }
+
+            {
+                let vst3_handles = vst3_editor_handles_for_compact.clone();
+                let vst3_sr = vst3_sample_rate;
+                compact_win.on_open_plugin(move |model_id| {
+                    match project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr) {
+                        Ok(handle) => { vst3_handles.borrow_mut().push(handle); }
+                        Err(e) => log::error!("[compact] failed to open VST3 editor '{}': {}", model_id, e),
+                    }
+                });
             }
 
             show_child_window(window.window(), compact_win.window());
@@ -3601,6 +3613,8 @@ pub fn run_desktop_app(
         let insert_send_channels_for_select = insert_send_channels.clone();
         let insert_return_channels_for_select = insert_return_channels.clone();
         let block_type_options_for_select = block_type_options.clone();
+        let vst3_handles_for_select = vst3_editor_handles.clone();
+        let vst3_sr_for_select = vst3_sample_rate;
         window.on_select_chain_block(move |chain_index, block_index| {
             let Some(window) = weak_main_window.upgrade() else {
                 return;
@@ -3762,7 +3776,15 @@ pub fn run_desktop_app(
             window.set_show_block_type_picker(false);
             // Clone block_id before dropping session_borrow (needed by window editor stream timer)
             let block_id_for_editor = block.id.clone();
+            let is_vst3_block = effect_type == block_core::EFFECT_TYPE_VST3;
             drop(session_borrow);
+            // VST3 blocks: open the native plugin GUI automatically on selection.
+            if is_vst3_block && !model_id.is_empty() {
+                match project::vst3_editor::open_vst3_editor(&model_id, vst3_sr_for_select) {
+                    Ok(handle) => { vst3_handles_for_select.borrow_mut().push(handle); }
+                    Err(e) => log::error!("[select_chain_block] failed to open VST3 editor: {}", e),
+                }
+            }
             if use_inline_block_editor(&window) {
                 window.set_show_block_drawer(true);
             } else {

@@ -1671,36 +1671,9 @@ export component BlockEditorPanel inherits Rectangle {
             font-size: 11px;
         }
 
-        if root.is-vst3 && root.selected-model-id != "" : TouchArea {
-            x: 20px;
-            y: 142px;
-            width: parent.width - 40px;
-            height: 36px;
-            mouse-cursor: pointer;
-            clicked => { root.open-vst3-editor(root.selected-model-id); }
-            Rectangle {
-                width: parent.width;
-                height: parent.height;
-                border-radius: 6px;
-                background: #2563eb;
-                HorizontalLayout {
-                    spacing: 8px;
-                    padding-left: 12px;
-                    alignment: center;
-                    Text {
-                        text: "Abrir Plugin";
-                        color: #ffffff;
-                        font-size: 13px;
-                        font-weight: 600;
-                        vertical-alignment: center;
-                    }
-                }
-            }
-        }
-
         if !root.is-preamp && root.curve-editor-points.length > 0 : CurveEditorControl {
             x: 8px;
-            y: root.is-vst3 ? 192px : 142px;
+            y: 142px;
             width: parent.width - 16px;
             points: root.curve-editor-points;
             total-curve: root.eq-total-curve;
@@ -1710,7 +1683,7 @@ export component BlockEditorPanel inherits Rectangle {
 
         if !root.is-preamp && root.multi-slider-points.length > 0 && root.curve-editor-points.length == 0 : MultiSliderControl {
             x: 8px;
-            y: root.is-vst3 ? 192px : 142px;
+            y: 142px;
             width: parent.width - 16px;
             points: root.multi-slider-points;
             update-parameter(path, val) => { root.update-block-parameter-number(path, val); }
@@ -1718,9 +1691,9 @@ export component BlockEditorPanel inherits Rectangle {
 
         if !root.is-preamp && root.curve-editor-points.length == 0 && root.multi-slider-points.length == 0 : ScrollView {
             x: 20px;
-            y: root.is-vst3 ? 192px : 138px;
+            y: 138px;
             width: parent.width - 40px;
-            height: root.is-vst3 ? parent.height - 212px : parent.height - 158px;
+            height: parent.height - 158px;
             viewport-width: self.width;
             viewport-height: root.block-parameter-items.length * 96px;
 

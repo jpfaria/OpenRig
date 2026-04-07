@@ -501,6 +501,7 @@ export component CompactChainViewWindow inherits Window {
     callback close-compact-view();
     callback choose-block-type(int, int, int);
     callback remove-block(int, int);
+    callback open-plugin(string); // model-id, for VST3 blocks
 
     CompactChainViewPage {
         width: parent.width; height: parent.height;
@@ -520,6 +521,7 @@ export component CompactChainViewWindow inherits Window {
         close-compact-view => { root.close-compact-view(); }
         choose-block-type(ci, before, ti) => { root.choose-block-type(ci, before, ti); }
         remove-block(ci, bi) => { root.remove-block(ci, bi); }
+        open-plugin(model-id) => { root.open-plugin(model-id); }
     }
 }
 

@@ -367,7 +367,7 @@ pub fn schema_for_block_model(
                 effect_type: block_core::EFFECT_TYPE_VST3.to_string(),
                 model: model.to_string(),
                 display_name: entry.display_name.to_string(),
-                audio_mode: ModelAudioMode::TrueStereo,
+                audio_mode: ModelAudioMode::MonoToStereo,
                 parameters,
             })
         }
