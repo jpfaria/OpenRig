@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+anyhow.workspace = true
 log.workspace = true
 serde.workspace = true
 domain = { path = "../domain" }
@@ -24,3 +25,4 @@ block-body = { path = "../block-body" }
 block-ir = { path = "../block-ir" }
 block-wah = { path = "../block-wah" }
 block-pitch = { path = "../block-pitch" }
+vst3-host = { path = "../vst3" }

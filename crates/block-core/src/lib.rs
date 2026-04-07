@@ -103,6 +103,7 @@ pub const EFFECT_TYPE_WAH: &str = "wah";
 pub const EFFECT_TYPE_PITCH: &str = "pitch";
 pub const EFFECT_TYPE_MODULATION: &str = "modulation";
 pub const EFFECT_TYPE_BODY: &str = "body";
+pub const EFFECT_TYPE_VST3: &str = "vst3";
 
 // Default instrument (used as fallback)
 pub const DEFAULT_INSTRUMENT: &str = INST_ELECTRIC_GUITAR;
@@ -167,6 +168,12 @@ pub trait NamedModel {
     fn model_key(&self) -> &'static str;
     fn display_name(&self) -> &'static str;
 }
+
+/// Opaque handle to an open plugin editor window.
+///
+/// Dropping the handle closes the window and releases all resources.
+/// The concrete type is an implementation detail of the plugin host crate.
+pub trait PluginEditorHandle: Send {}
 /// Capitalize the first character of a string, leaving the rest unchanged.
 pub fn capitalize_first(s: &str) -> String {
     let mut chars = s.chars();

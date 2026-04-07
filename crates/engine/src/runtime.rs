@@ -1188,6 +1188,36 @@ fn build_core_block_runtime_node(
                 build_pitch_processor_for_layout(model, params, sample_rate, layout)
             })?,
         )),
+        x if x == block_core::EFFECT_TYPE_VST3 => {
+            let entry = vst3_host::find_vst3_plugin(model)
+                .ok_or_else(|| anyhow!("VST3 plugin '{}' not found in catalog", model))?;
+            let bundle_path = entry.info.bundle_path.clone();
+            // Resolve UID lazily if not available from moduleinfo.json.
+            let uid = vst3_host::resolve_uid_for_model(model)
+                .map_err(|e| anyhow!("VST3 UID resolution failed for '{}': {}", model, e))?;
+            // Convert stored params (path="p{id}", value=0–100%) to VST3 normalized pairs.
+            let vst3_params: Vec<(u32, f64)> = params
+                .values
+                .iter()
+                .filter_map(|(path, value)| {
+                    let id_str = path.strip_prefix('p')?;
+                    let id: u32 = id_str.parse().ok()?;
+                    let pct = value.as_f32()?;
+                    Some((id, (pct / 100.0).clamp(0.0, 1.0) as f64))
+                })
+                .collect();
+            // Register a param channel so the GUI can push knob changes to this processor.
+            let param_channel = vst3_host::register_vst3_channel(model);
+            Ok(audio_block_runtime_node(
+                block,
+                input_layout,
+                build_audio_processor_for_model(chain, block_core::EFFECT_TYPE_VST3, model, input_layout, |layout| {
+                    vst3_host::build_vst3_processor_with_channel(
+                        &bundle_path, &uid, sample_rate as f64, layout, &vst3_params, param_channel.clone(),
+                    ).map_err(|e| anyhow!("{}", e))
+                })?,
+            ))
+        }
         other => Err(anyhow!("unsupported core block effect_type '{}'", other)),
     }
 }
