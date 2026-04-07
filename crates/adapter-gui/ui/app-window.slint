@@ -369,14 +369,21 @@ export component BlockEditorWindow inherits Window {
     property <int> param-count: root.block-parameter-items.length;
     property <length> needed-width: param-count > 0 ? param-count * 64px + 80px : 520px;
     property <length> panel-width: root.use-panel-editor ? Math.max(900px, needed-width) : 520px;
+    // EQ widgets (CurveEditor / MultiSlider) render below the panel image area.
+    // panel-height = panel-width / 4 (matches BlockPanelEditor's formula).
+    // CurveEditorControl y = header(48) + panel-height + 8; height = 200; bottom margin = 8.
+    private property <bool> has-eq-widget:
+        root.curve-editor-points.length > 0 || root.multi-slider-points.length > 0;
+    private property <length> eq-extra-height:
+        has-eq-widget ? (48px + panel-width / 4 + 8px + 200px + 8px) : 275px;
 
     title: root.block-window-title;
     min-width: panel-width;
-    min-height: root.use-panel-editor ? 275px : 760px;
+    min-height: root.use-panel-editor ? eq-extra-height : 760px;
     max-width: panel-width;
-    max-height: root.use-panel-editor ? 275px : 760px;
+    max-height: root.use-panel-editor ? eq-extra-height : 760px;
     preferred-width: panel-width;
-    preferred-height: root.use-panel-editor ? 275px : 760px;
+    preferred-height: root.use-panel-editor ? eq-extra-height : 760px;
     background: #040708;
 
     // Amp head: visual panel editor
