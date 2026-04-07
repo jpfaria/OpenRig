@@ -12,79 +12,82 @@ export component CurveEditorControl inherits Rectangle {
     border-radius: 6px;
     clip: true;
 
+    // Chart area height (bottom 20px reserved for frequency labels)
+    private property <length> chart-h: root.height - 20px;
+
     // 0 dB center line (brightest)
     Rectangle {
-        x: 0; y: parent.height / 2;
+        x: 0; y: root.chart-h / 2;
         width: parent.width; height: 1px;
         background: #ffffff30;
     }
     // +6 dB
     Rectangle {
         x: 0;
-        y: parent.height / 2 - parent.height * (6.0 / 36.0);
+        y: root.chart-h / 2 - root.chart-h * (6.0 / 36.0);
         width: parent.width; height: 1px;
         background: #ffffff10;
     }
     // -6 dB
     Rectangle {
         x: 0;
-        y: parent.height / 2 + parent.height * (6.0 / 36.0);
+        y: root.chart-h / 2 + root.chart-h * (6.0 / 36.0);
         width: parent.width; height: 1px;
         background: #ffffff10;
     }
     // +12 dB
     Rectangle {
         x: 0;
-        y: parent.height / 2 - parent.height * (12.0 / 36.0);
+        y: root.chart-h / 2 - root.chart-h * (12.0 / 36.0);
         width: parent.width; height: 1px;
         background: #ffffff08;
     }
     // -12 dB
     Rectangle {
         x: 0;
-        y: parent.height / 2 + parent.height * (12.0 / 36.0);
+        y: root.chart-h / 2 + root.chart-h * (12.0 / 36.0);
         width: parent.width; height: 1px;
         background: #ffffff08;
     }
     // 100 Hz vertical
     Rectangle {
         x: root.freq-to-norm(100.0) * parent.width;
-        y: 0; width: 1px; height: parent.height;
+        y: 0; width: 1px; height: root.chart-h;
         background: #ffffff08;
     }
     // 1 kHz vertical
     Rectangle {
         x: root.freq-to-norm(1000.0) * parent.width;
-        y: 0; width: 1px; height: parent.height;
+        y: 0; width: 1px; height: root.chart-h;
         background: #ffffff10;
     }
     // 10 kHz vertical
     Rectangle {
         x: root.freq-to-norm(10000.0) * parent.width;
-        y: 0; width: 1px; height: parent.height;
+        y: 0; width: 1px; height: root.chart-h;
         background: #ffffff08;
     }
 
     // Frequency axis labels
     Text {
         x: root.freq-to-norm(100.0) * parent.width + 2px;
-        y: parent.height - 14px;
+        y: root.chart-h + 4px;
         text: "100"; color: #ffffff30; font-size: 9px;
     }
     Text {
         x: root.freq-to-norm(1000.0) * parent.width + 2px;
-        y: parent.height - 14px;
+        y: root.chart-h + 4px;
         text: "1k"; color: #ffffff40; font-size: 9px;
     }
     Text {
         x: root.freq-to-norm(10000.0) * parent.width + 2px;
-        y: parent.height - 14px;
+        y: root.chart-h + 4px;
         text: "10k"; color: #ffffff30; font-size: 9px;
     }
 
     // Per-band curves (semi-transparent)
     for curve[i] in root.band-curves : Path {
-        width: parent.width; height: parent.height;
+        width: parent.width; height: root.chart-h;
         viewbox-x: 0; viewbox-y: 0;
         viewbox-width: 1000; viewbox-height: 200;
         commands: curve;
@@ -97,7 +100,7 @@ export component CurveEditorControl inherits Rectangle {
     // Total response curve (white)
     Path {
         visible: root.total-curve != "";
-        width: parent.width; height: parent.height;
+        width: parent.width; height: root.chart-h;
         viewbox-x: 0; viewbox-y: 0;
         viewbox-width: 1000; viewbox-height: 200;
         commands: root.total-curve;
@@ -106,71 +109,101 @@ export component CurveEditorControl inherits Rectangle {
         stroke-width: 2px;
     }
 
-    // Control points (one per CurveEditorPoint)
+    // Per-band overlays: vertical freq line + horizontal gain thumb
     for point[i] in root.points : Rectangle {
-        property <float> start-x-val: 0.0;
-        property <float> start-y-val: 0.0;
-
         private property <float> cx: point.has-x
             ? root.freq-to-norm(point.x-value)
             : 0.5;
         private property <float> cy: root.gain-to-norm(point.y-value, point.y-min, point.y-max);
 
-        x: self.cx * parent.width - 8px;
-        y: self.cy * parent.height - 8px;
-        width: 16px; height: 16px;
-        border-radius: 8px;
-        background: point.band-color;
-        border-width: 1.5px;
-        border-color: #ffffff60;
+        x: 0; y: 0;
+        width: parent.width; height: parent.height;
+        background: transparent;
 
-        ta := TouchArea {
-            mouse-cursor: move;
-            pointer-event(event) => {
-                if event.kind == PointerEventKind.down {
-                    parent.start-x-val = point.x-value;
-                    parent.start-y-val = point.y-value;
+        // Vertical frequency line
+        Rectangle {
+            x: parent.cx * root.width - 1px;
+            y: 0;
+            width: 2px;
+            height: root.chart-h;
+            background: point.band-color;
+            opacity: 0.45;
+        }
+
+        // Horizontal gain thumb — drag up/down for gain, left/right for freq
+        // start-x-val and start-y-val live here so TouchArea can use parent.*
+        Rectangle {
+            property <float> start-x-val: 0.0;
+            property <float> start-y-val: 0.0;
+
+            x: parent.cx * root.width - 22px;
+            y: parent.cy * root.chart-h - 5px;
+            width: 44px;
+            height: 10px;
+            border-radius: 5px;
+            background: point.band-color;
+
+            TouchArea {
+                mouse-cursor: move;
+                pointer-event(event) => {
+                    if event.kind == PointerEventKind.down {
+                        parent.start-x-val = point.x-value;
+                        parent.start-y-val = point.y-value;
+                    }
+                }
+                moved => {
+                    if point.has-x {
+                        let dx = (self.mouse-x - self.pressed-x) / root.width;
+                        let new-norm-x = Math.clamp(root.freq-to-norm(parent.start-x-val) + dx, 0.0, 1.0);
+                        let new-freq = Math.clamp(root.norm-to-freq(new-norm-x), point.x-min, point.x-max);
+                        root.update-parameter(point.x-path, new-freq);
+                    }
+                    let dy = (self.mouse-y - self.pressed-y) / root.height;
+                    let new-norm-y = Math.clamp(root.gain-to-norm(parent.start-y-val, point.y-min, point.y-max) + dy, 0.0, 1.0);
+                    let new-gain = Math.clamp(root.norm-to-gain(new-norm-y, point.y-min, point.y-max), point.y-min, point.y-max);
+                    root.update-parameter(point.y-path, new-gain);
                 }
             }
-            moved => {
-                if point.has-x {
-                    let dx = (self.mouse-x - self.pressed-x) / root.width;
-                    let new-norm-x = Math.clamp(root.freq-to-norm(parent.start-x-val) + dx, 0.0, 1.0);
-                    let new-freq = Math.clamp(
-                        root.norm-to-freq(new-norm-x),
-                        point.x-min, point.x-max);
-                    root.update-parameter(point.x-path, new-freq);
-                }
-                let dy = (self.mouse-y - self.pressed-y) / root.height;
-                let new-norm-y = Math.clamp(root.gain-to-norm(parent.start-y-val, point.y-min, point.y-max) + dy, 0.0, 1.0);
-                let new-gain = Math.clamp(
-                    root.norm-to-gain(new-norm-y, point.y-min, point.y-max),
-                    point.y-min, point.y-max);
-                root.update-parameter(point.y-path, new-gain);
-            }
+        }
+
+        // Frequency label below chart area
+        Text {
+            x: parent.cx * root.width - 20px;
+            y: root.chart-h + 4px;
+            width: 40px;
+            text: point.x-label;
+            color: point.band-color;
+            font-size: 8px;
+            horizontal-alignment: center;
+        }
+
+        // Gain label above the thumb
+        Text {
+            x: parent.cx * root.width + 5px;
+            y: parent.cy * root.chart-h - 15px;
+            text: point.y-label;
+            color: point.band-color;
+            font-size: 8px;
         }
 
         // Left Q wing handle (only for bands with width)
         if point.has-width : Rectangle {
-            property <float> handle-offset: 0.08 / Math.max(0.1, point.width-value);
-            property <float> hnx: Math.clamp(root.freq-to-norm(point.x-value) - self.handle-offset, 0.02, 0.98);
-
-            x: self.hnx * 1px * (root.width / 1px) - 5px - parent.x;
-            y: 3px;
+            x: Math.clamp(root.freq-to-norm(point.x-value) - (0.08 / Math.max(0.1, point.width-value)), 0.02, 0.98) * root.width - 5px;
+            y: root.gain-to-norm(point.y-value, point.y-min, point.y-max) * root.chart-h - 5px;
             width: 10px; height: 10px;
             border-radius: 5px;
             background: point.band-color;
-            opacity: 0.7;
+            opacity: 0.65;
 
             TouchArea {
                 mouse-cursor: ew-resize;
                 moved => {
+                    let handle-offset = 0.08 / Math.max(0.1, point.width-value);
+                    let hnx = Math.clamp(root.freq-to-norm(point.x-value) - handle-offset, 0.02, 0.98);
                     let dx = (self.mouse-x - self.pressed-x) / root.width;
-                    let new-hnx = Math.clamp(parent.hnx - dx, 0.02, 0.98);
+                    let new-hnx = Math.clamp(hnx - dx, 0.02, 0.98);
                     let offset = root.freq-to-norm(point.x-value) - new-hnx;
-                    let new-bw = Math.clamp(
-                        0.08 / Math.max(0.001, offset),
-                        point.width-min, point.width-max);
+                    let new-bw = Math.clamp(0.08 / Math.max(0.001, offset), point.width-min, point.width-max);
                     root.update-parameter(point.width-path, new-bw);
                 }
             }
@@ -178,25 +211,22 @@ export component CurveEditorControl inherits Rectangle {
 
         // Right Q wing handle
         if point.has-width : Rectangle {
-            property <float> handle-offset: 0.08 / Math.max(0.1, point.width-value);
-            property <float> hnx: Math.clamp(root.freq-to-norm(point.x-value) + self.handle-offset, 0.02, 0.98);
-
-            x: self.hnx * 1px * (root.width / 1px) - 5px - parent.x;
-            y: 3px;
+            x: Math.clamp(root.freq-to-norm(point.x-value) + (0.08 / Math.max(0.1, point.width-value)), 0.02, 0.98) * root.width - 5px;
+            y: root.gain-to-norm(point.y-value, point.y-min, point.y-max) * root.chart-h - 5px;
             width: 10px; height: 10px;
             border-radius: 5px;
             background: point.band-color;
-            opacity: 0.7;
+            opacity: 0.65;
 
             TouchArea {
                 mouse-cursor: ew-resize;
                 moved => {
+                    let handle-offset = 0.08 / Math.max(0.1, point.width-value);
+                    let hnx = Math.clamp(root.freq-to-norm(point.x-value) + handle-offset, 0.02, 0.98);
                     let dx = (self.mouse-x - self.pressed-x) / root.width;
-                    let new-hnx = Math.clamp(parent.hnx + dx, 0.02, 0.98);
+                    let new-hnx = Math.clamp(hnx + dx, 0.02, 0.98);
                     let offset = new-hnx - root.freq-to-norm(point.x-value);
-                    let new-bw = Math.clamp(
-                        0.08 / Math.max(0.001, offset),
-                        point.width-min, point.width-max);
+                    let new-bw = Math.clamp(0.08 / Math.max(0.001, offset), point.width-min, point.width-max);
                     root.update-parameter(point.width-path, new-bw);
                 }
             }

@@ -3964,6 +3964,7 @@ pub fn run_desktop_app(
                     let win_param_items = win_param_items.clone();
                     let win_knob_overlays = win_knob_overlays.clone();
                     let win_eq_band_curves = win_eq_band_curves.clone();
+                    let win_curve_editor_pts = win_curve_editor_pts.clone();
                     let win_timer = win_timer.clone();
                     let project_session = project_session.clone();
                     let project_chains = project_chains.clone();
@@ -3987,12 +3988,13 @@ pub fn run_desktop_app(
                                 }
                             }
                         }
-                        // Recompute EQ curves
+                        // Recompute EQ curves and update curve editor point labels
                         if let Some(draft) = win_draft.borrow().as_ref() {
                             let params = build_params_from_items(&win_param_items);
                             let (eq_total, eq_bands) = compute_eq_curves(&draft.effect_type, &draft.model_id, &params);
                             win_eq_band_curves.set_vec(eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>());
                             win.set_eq_total_curve(eq_total.into());
+                            win_curve_editor_pts.set_vec(build_curve_editor_points(&draft.effect_type, &draft.model_id, &params));
                         }
                         if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
                             schedule_block_editor_persist_for_block_win(
@@ -7236,12 +7238,14 @@ fn build_curve_editor_points(
                 y_min: 0.0,
                 y_max: 0.0,
                 y_step: 0.0,
+                y_label: "".into(),
                 has_x: false,
                 x_path: "".into(),
                 x_value: 0.0,
                 x_min: 0.0,
                 x_max: 0.0,
                 x_step: 0.0,
+                x_label: "".into(),
                 has_width: false,
                 width_path: "".into(),
                 width_value: 0.0,
@@ -7293,6 +7297,21 @@ fn build_curve_editor_points(
                     }
                 }
             }
+            // Compute display labels
+            point.y_label = if point.y_value >= 0.0 {
+                format!("+{:.1}", point.y_value).into()
+            } else {
+                format!("{:.1}", point.y_value).into()
+            };
+            point.x_label = if point.has_x {
+                if point.x_value >= 1000.0 {
+                    format!("{:.1}k", point.x_value / 1000.0).into()
+                } else {
+                    format!("{}Hz", point.x_value as i32).into()
+                }
+            } else {
+                "".into()
+            };
             point
         })
         .collect()

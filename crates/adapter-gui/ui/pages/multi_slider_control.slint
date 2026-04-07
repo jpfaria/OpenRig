@@ -10,9 +10,12 @@ export component MultiSliderControl inherits Rectangle {
     border-radius: 6px;
     clip: true;
 
+    // Chart area height (bottom 16px reserved for band labels)
+    private property <length> chart-h: root.height - 16px;
+
     // 0 dB center line
     Rectangle {
-        x: 0; y: parent.height / 2;
+        x: 0; y: root.chart-h / 2;
         width: parent.width; height: 1px;
         background: #ffffff30;
     }
@@ -32,15 +35,15 @@ export component MultiSliderControl inherits Rectangle {
             x: parent.width / 2 - 1px;
             y: 4px;
             width: 2px;
-            height: parent.height - 8px;
+            height: root.chart-h - 8px;
             background: #ffffff15;
         }
 
         // Fill: colored bar from zero to current value
         Rectangle {
             property <float> center-norm: (0.0 - point.min-val) / Math.max(0.001, point.max-val - point.min-val);
-            property <length> center-y: (1.0 - parent.norm) * (parent.height - 8px) + 4px;
-            property <length> zero-y: (1.0 - self.center-norm) * (parent.height - 8px) + 4px;
+            property <length> center-y: (1.0 - parent.norm) * (root.chart-h - 8px) + 4px;
+            property <length> zero-y: (1.0 - self.center-norm) * (root.chart-h - 8px) + 4px;
 
             x: parent.width / 2 - 2px;
             y: Math.min(self.center-y, self.zero-y);
@@ -53,7 +56,7 @@ export component MultiSliderControl inherits Rectangle {
         thumb := Rectangle {
             property <float> current-norm: (point.value - point.min-val) / Math.max(0.001, point.max-val - point.min-val);
             x: 2px;
-            y: (1.0 - parent.norm) * (parent.height - 8px) + 4px - 2px;
+            y: (1.0 - parent.norm) * (root.chart-h - 8px) + 4px - 2px;
             width: parent.width - 4px;
             height: 4px;
             border-radius: 2px;
@@ -62,7 +65,7 @@ export component MultiSliderControl inherits Rectangle {
             TouchArea {
                 mouse-cursor: ns-resize;
                 moved => {
-                    let dy = (self.mouse-y - self.pressed-y) / root.height;
+                    let dy = (self.mouse-y - self.pressed-y) / root.chart-h;
                     let new-norm = Math.clamp(parent.current-norm - dy, 0.0, 1.0);
                     let new-val = Math.clamp(
                         point.min-val + new-norm * (point.max-val - point.min-val),
@@ -70,6 +73,18 @@ export component MultiSliderControl inherits Rectangle {
                     root.update-parameter(point.path, new-val);
                 }
             }
+        }
+
+        // Band frequency label at the bottom
+        Text {
+            x: 0;
+            y: root.chart-h + 2px;
+            width: parent.width;
+            text: point.label;
+            color: #ffffff55;
+            font-size: 7px;
+            horizontal-alignment: center;
+            overflow: elide;
         }
     }
 }

@@ -116,6 +116,7 @@ export struct CurveEditorPoint {
     y_min: float,
     y_max: float,
     y_step: float,
+    y_label: string,  // formatted gain, e.g. "+3.5", "0.0"
     // X axis (frequency) — optional, 0 if not present
     has_x: bool,
     x_path: string,
@@ -123,6 +124,7 @@ export struct CurveEditorPoint {
     x_min: float,
     x_max: float,
     x_step: float,
+    x_label: string,  // formatted frequency, e.g. "200Hz", "1.0k"
     // Width (Q/BW) — optional, 0 if not present
     has_width: bool,
     width_path: string,
