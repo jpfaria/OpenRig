@@ -23,7 +23,7 @@ pub mod catalog;
 pub mod editor;
 
 pub use host::{Vst3Plugin, Vst3ParamInfo, Vst3PluginClass};
-pub use editor::{Vst3EditorHandle, open_vst3_editor_window};
+pub use editor::{Vst3EditorHandle, open_vst3_editor_window, open_vst3_editor_window_standalone};
 pub use processor::Vst3Processor;
 pub use stereo::StereoVst3Processor;
 pub use discovery::{Vst3PluginInfo, scan_vst3_bundle, scan_vst3_bundle_light, scan_system_vst3, system_vst3_paths, resolve_vst3_bundle};

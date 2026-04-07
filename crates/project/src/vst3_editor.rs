@@ -16,25 +16,34 @@ pub fn init_vst3_catalog(sample_rate: f64) {
 
 /// Open the native editor window for the VST3 plugin identified by `model_id`.
 ///
-/// Reuses the `IEditController` from the audio processor (via the registered
-/// `Vst3GuiContext`) instead of loading a second plugin instance. This avoids
-/// failures with plugins like ValhallaSupermassive that reject multiple instances.
-///
-/// Returns an error if the plugin has not been loaded by the audio engine yet
-/// (i.e. there is no registered GUI context for `model_id`).
+/// Strategy:
+/// 1. If the audio engine has already built this plugin (registered a
+///    `Vst3GuiContext`), reuse its `IEditController`. This avoids creating a
+///    second plugin instance, which fails for plugins like ValhallaSupermassive.
+/// 2. Otherwise fall back to loading a fresh instance. This works for plugins
+///    that allow multiple instances (Cloud Seed, Cocoa Delay, …) and lets the
+///    user open the GUI before the engine has started.
 ///
 /// Must be called on the main/UI thread (macOS AppKit requirement).
-pub fn open_vst3_editor(model_id: &str, _sample_rate: f64) -> Result<Box<dyn PluginEditorHandle>> {
+pub fn open_vst3_editor(model_id: &str, sample_rate: f64) -> Result<Box<dyn PluginEditorHandle>> {
     let entry = vst3_host::find_vst3_plugin(model_id)
         .ok_or_else(|| anyhow::anyhow!("VST3 plugin '{}' not found in catalog", model_id))?;
 
-    let gui_context = vst3_host::lookup_vst3_gui_context(model_id)
-        .ok_or_else(|| anyhow::anyhow!(
-            "VST3 plugin '{}' is not loaded in the audio engine yet — \
-             add it to a chain first",
-            model_id
-        ))?;
+    if let Some(gui_context) = vst3_host::lookup_vst3_gui_context(model_id) {
+        // Engine already loaded this plugin — reuse the existing controller.
+        log::debug!("VST3 editor: reusing engine controller for '{}'", model_id);
+        let handle = vst3_host::open_vst3_editor_window(entry.display_name, gui_context)?;
+        return Ok(Box::new(handle));
+    }
 
-    let handle = vst3_host::open_vst3_editor_window(entry.display_name, gui_context)?;
+    // Fallback: load a standalone instance (no param-channel communication).
+    log::debug!("VST3 editor: no engine context for '{}', loading standalone instance", model_id);
+    let uid = vst3_host::resolve_uid_for_model(model_id)?;
+    let handle = vst3_host::open_vst3_editor_window_standalone(
+        &entry.info.bundle_path,
+        &uid,
+        entry.display_name,
+        sample_rate,
+    )?;
     Ok(Box::new(handle))
 }

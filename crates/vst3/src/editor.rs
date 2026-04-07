@@ -7,12 +7,14 @@
 //! Must be called on the main/UI thread (macOS AppKit requirement).
 
 use anyhow::{bail, Result};
+use std::path::Path;
 use std::sync::Arc;
 use vst3::Steinberg::Vst::{IEditControllerTrait, ViewType};
 use vst3::Steinberg::{IPlugViewTrait, ViewRect, kResultOk};
 use vst3::ComPtr;
 
 use crate::component_handler::ComponentHandler;
+use crate::host::Vst3Plugin;
 use crate::param_registry::Vst3GuiContext;
 
 impl block_core::PluginEditorHandle for Vst3EditorHandle {}
@@ -121,6 +123,48 @@ pub fn open_vst3_editor_window(
 
     #[cfg(not(target_os = "macos"))]
     bail!("VST3 editor window not yet supported on this platform")
+}
+
+/// Open the editor by loading a **fresh** plugin instance.
+///
+/// Used as a fallback when no `Vst3GuiContext` exists in the registry (i.e.
+/// the audio engine has not yet built the chain). Plugins that reject multiple
+/// simultaneous instances will fail here if an audio instance is already
+/// running, but single-instance plugins (Cloud Seed, Cocoa Delay, …) work
+/// fine before the engine starts.
+pub fn open_vst3_editor_window_standalone(
+    bundle_path: &Path,
+    uid: &[u8; 16],
+    plugin_name: &str,
+    sample_rate: f64,
+) -> Result<Vst3EditorHandle> {
+    let plugin = Vst3Plugin::load(bundle_path, uid, sample_rate, 2, 512, &[])?;
+
+    // Connect component ↔ controller so createView works (many plugins require it).
+    unsafe {
+        use vst3::Steinberg::Vst::IConnectionPoint;
+        use vst3::Steinberg::Vst::IConnectionPointTrait;
+        if let Some(comp_cp) = plugin.component().cast::<IConnectionPoint>() {
+            if let Some(ctrl_cp) = plugin.controller().cast::<IConnectionPoint>() {
+                let _ = comp_cp.connect(ctrl_cp.as_ptr());
+                let _ = ctrl_cp.connect(comp_cp.as_ptr());
+            }
+        }
+    }
+
+    // No param channel — engine not running, so no audio-thread communication.
+    let library = plugin.library_arc();
+    let controller = plugin.controller_clone();
+    // Keep the plugin alive via the library Arc and controller clone.
+    // The Vst3Plugin itself is not needed beyond this point.
+    drop(plugin);
+
+    let ctx = Vst3GuiContext {
+        param_channel: crate::param_channel::vst3_param_channel(),
+        controller,
+        library,
+    };
+    open_vst3_editor_window(plugin_name, ctx)
 }
 
 // ---------------------------------------------------------------------------
