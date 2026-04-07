@@ -379,7 +379,7 @@ export component BlockPanelEditor inherits Rectangle {
         ModelSelector {
             x: 100px;
             y: (parent.height - 34px) / 2;
-            width: parent.width - 100px - root.badge-width - 48px;
+            width: parent.width - 100px - root.badge-width - (root.block-drawer-edit-mode ? 80px : 48px);
             labels: root.block-model-option-labels;
             models: root.block-model-options;
             current-index <=> root.block-drawer-selected-model-index;
@@ -388,7 +388,7 @@ export component BlockPanelEditor inherits Rectangle {
 
         // Type badge
         if root.selected-type-label != "" : Rectangle {
-            x: parent.width - root.badge-width - 40px;
+            x: parent.width - root.badge-width - (root.block-drawer-edit-mode ? 72px : 40px);
             y: (parent.height - 22px) / 2;
             width: root.badge-width;
             height: 22px;
