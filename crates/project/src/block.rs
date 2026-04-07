@@ -350,7 +350,7 @@ pub fn schema_for_block_model(
         EFFECT_TYPE_WAH => wah_model_schema(model).map_err(|error| error.to_string()),
         EFFECT_TYPE_PITCH => pitch_model_schema(model).map_err(|error| error.to_string()),
         EFFECT_TYPE_MODULATION => modulation_model_schema(model).map_err(|error| error.to_string()),
-        "vst3" => {
+        x if x == block_core::EFFECT_TYPE_VST3 => {
             let entry = vst3_host::find_vst3_plugin(model)
                 .ok_or_else(|| format!("VST3 plugin '{}' not found in catalog", model))?;
             // Build a float parameter for each discovered VST3 parameter (normalized 0–100%).
@@ -364,7 +364,7 @@ pub fn schema_for_block_model(
                 )
             }).collect();
             Ok(ModelParameterSchema {
-                effect_type: "vst3".to_string(),
+                effect_type: block_core::EFFECT_TYPE_VST3.to_string(),
                 model: model.to_string(),
                 display_name: entry.display_name.to_string(),
                 audio_mode: ModelAudioMode::TrueStereo,
@@ -394,8 +394,8 @@ pub fn build_audio_block_kind(
             })
         }
         EFFECT_TYPE_NAM => AudioBlockKind::Nam(NamBlock { model, params }),
-        "vst3" => AudioBlockKind::Core(CoreBlock {
-            effect_type: "vst3".to_string(),
+        x if x == EFFECT_TYPE_VST3 => AudioBlockKind::Core(CoreBlock {
+            effect_type: EFFECT_TYPE_VST3.to_string(),
             model,
             params,
         }),

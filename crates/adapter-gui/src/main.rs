@@ -7,7 +7,7 @@ fn main() -> anyhow::Result<()> {
     let runtime_mode = match std::env::var("OPENRIG_APP_MODE").ok().as_deref() {
         Some("pedalboard") => AppRuntimeMode::Pedalboard,
         Some("controller") => AppRuntimeMode::Controller,
-        Some("vst3") => AppRuntimeMode::Vst3Plugin,
+        Some(x) if x == block_core::EFFECT_TYPE_VST3 => AppRuntimeMode::Vst3Plugin,
         _ => AppRuntimeMode::Standalone,
     };
 

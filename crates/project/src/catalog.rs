@@ -184,9 +184,9 @@ pub fn supported_block_types() -> Vec<BlockTypeCatalogEntry> {
     // Include the VST3 dynamic type only if plugins have been discovered.
     if !vst3_host::vst3_catalog().is_empty() {
         types.push(BlockTypeCatalogEntry {
-            effect_type: "vst3",
+            effect_type: block_core::EFFECT_TYPE_VST3,
             display_label: "VST3",
-            icon_kind: "vst3",
+            icon_kind: block_core::EFFECT_TYPE_VST3,
             use_panel_editor: true,
         });
     }
@@ -195,11 +195,11 @@ pub fn supported_block_types() -> Vec<BlockTypeCatalogEntry> {
 }
 
 pub fn supported_block_type(effect_type: &str) -> Option<BlockTypeCatalogEntry> {
-    if effect_type == "vst3" {
+    if effect_type == block_core::EFFECT_TYPE_VST3 {
         return Some(BlockTypeCatalogEntry {
-            effect_type: "vst3",
+            effect_type: block_core::EFFECT_TYPE_VST3,
             display_label: "VST3",
-            icon_kind: "vst3",
+            icon_kind: block_core::EFFECT_TYPE_VST3,
             use_panel_editor: true,
         });
     }
@@ -218,11 +218,11 @@ pub fn supported_block_models(effect_type: &str) -> Result<Vec<BlockModelCatalog
     log::trace!("looking up models for effect_type='{}'", effect_type);
 
     // Dynamic VST3 catalog — bypass the static block_registry.
-    if effect_type == "vst3" {
+    if effect_type == block_core::EFFECT_TYPE_VST3 {
         return Ok(vst3_host::vst3_catalog()
             .iter()
             .map(|entry| BlockModelCatalogEntry {
-                effect_type: "vst3".to_string(),
+                effect_type: block_core::EFFECT_TYPE_VST3.to_string(),
                 model_id: entry.model_id.to_string(),
                 display_name: entry.display_name.to_string(),
                 brand: entry.brand.to_string(),

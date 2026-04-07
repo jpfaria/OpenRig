@@ -103,6 +103,7 @@ pub const EFFECT_TYPE_WAH: &str = "wah";
 pub const EFFECT_TYPE_PITCH: &str = "pitch";
 pub const EFFECT_TYPE_MODULATION: &str = "modulation";
 pub const EFFECT_TYPE_BODY: &str = "body";
+pub const EFFECT_TYPE_VST3: &str = "vst3";
 
 // Default instrument (used as fallback)
 pub const DEFAULT_INSTRUMENT: &str = INST_ELECTRIC_GUITAR;
