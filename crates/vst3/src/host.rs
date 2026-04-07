@@ -6,17 +6,21 @@ use anyhow::{bail, Context, Result};
 use std::ffi::{c_char, c_void, CStr};
 use std::path::Path;
 use std::ptr;
+use std::sync::Arc;
 
 use vst3::Steinberg::Vst::{
     AudioBusBuffers, AudioBusBuffers__type0, BusDirections_, BusInfo, IAudioProcessor,
     IAudioProcessorTrait, IComponent, IComponentTrait, IEditController, IEditControllerTrait,
-    MediaTypes_, ParameterInfo, ProcessData, ProcessSetup, SpeakerArr, SymbolicSampleSizes_,
+    IParameterChanges, MediaTypes_, ParameterInfo, ProcessData, ProcessSetup, SpeakerArr,
+    SymbolicSampleSizes_,
 };
 use vst3::Steinberg::{
     IPluginBaseTrait, IPluginFactory, IPluginFactoryTrait, PClassInfo, TBool, TUID,
     kResultOk,
 };
-use vst3::{ComPtr, Interface};
+use vst3::{ComPtr, ComWrapper, Interface};
+
+use crate::param_changes::HostParameterChanges;
 
 // ---------------------------------------------------------------------------
 // Public data types
@@ -165,7 +169,7 @@ pub fn bundle_binary_path(bundle_path: &Path) -> Result<std::path::PathBuf> {
 /// ensure the plugin is used only on the audio thread.
 pub struct Vst3Plugin {
     /// Keep the library alive for the lifetime of the plugin.
-    _library: libloading::Library,
+    _library: Arc<libloading::Library>,
 
     /// `IComponent` interface — controls bus routing, activation, state.
     component: ComPtr<IComponent>,
@@ -222,14 +226,14 @@ impl Vst3Plugin {
         // 2. dlopen the binary.
         // Safety: libloading loads a shared library. The returned library is
         // kept alive for the entire lifetime of `Vst3Plugin`.
-        let library = unsafe { libloading::Library::new(&binary_path) }
-            .with_context(|| format!("failed to dlopen VST3 binary: {}", binary_path.display()))?;
+        let library = Arc::new(unsafe { libloading::Library::new(&binary_path) }
+            .with_context(|| format!("failed to dlopen VST3 binary: {}", binary_path.display()))?);
 
         // 3. Get the GetPluginFactory symbol.
         // Safety: the symbol must exist and have the correct signature. This is
         // mandated by the VST3 spec for all conforming plugins.
         let get_factory: libloading::Symbol<unsafe extern "C" fn() -> *mut IPluginFactory> =
-            unsafe { library.get(b"GetPluginFactory\0") }
+            unsafe { library.as_ref().get(b"GetPluginFactory\0") }
                 .context("symbol 'GetPluginFactory' not found — not a VST3 plugin")?;
 
         let factory_raw = unsafe { get_factory() };
@@ -421,7 +425,23 @@ impl Vst3Plugin {
                 (ctrl, true)
             };
 
-        // 14. Apply initial parameters.
+        // 14. Connect component ↔ controller via IConnectionPoint.
+        // Required by the VST3 spec so the controller can query component
+        // state before createView is called. Many plugins return null from
+        // createView if this step is skipped.
+        unsafe {
+            use vst3::Steinberg::Vst::IConnectionPoint;
+            use vst3::Steinberg::Vst::IConnectionPointTrait;
+            if let Some(comp_cp) = component.cast::<IConnectionPoint>() {
+                if let Some(ctrl_cp) = controller.cast::<IConnectionPoint>() {
+                    let _ = comp_cp.connect(ctrl_cp.as_ptr());
+                    let _ = ctrl_cp.connect(comp_cp.as_ptr());
+                    log::debug!("VST3: IConnectionPoint connected");
+                }
+            }
+        }
+
+        // 15. Apply initial parameters.
         for &(id, normalized) in initial_params {
             let res = unsafe { controller.setParamNormalized(id, normalized) };
             if res != kResultOk {
@@ -460,6 +480,12 @@ impl Vst3Plugin {
     ///
     /// All slices must have length >= `n_samples`. The raw pointers in
     /// `ProcessData` are only valid for the duration of this call.
+    /// Process audio, optionally applying parameter changes to the DSP.
+    ///
+    /// `pending_params` — `(param_id, normalized_value)` pairs collected from
+    /// the GUI since the last block.  They are delivered via
+    /// `ProcessData::inputParameterChanges` so the plugin's DSP reads them
+    /// regardless of whether its controller and component share state.
     pub fn process_audio(
         &mut self,
         input_l: &mut [f32],
@@ -467,6 +493,7 @@ impl Vst3Plugin {
         output_l: &mut [f32],
         output_r: &mut [f32],
         n_samples: usize,
+        pending_params: &[(u32, f64)],
     ) {
         debug_assert!(input_l.len() >= n_samples);
         debug_assert!(input_r.len() >= n_samples);
@@ -476,12 +503,6 @@ impl Vst3Plugin {
         let n = n_samples.min(self.block_size) as i32;
 
         // Build planar channel pointer arrays.
-        // The VST3 spec requires *mut *mut f32 (array of pointers, one per channel).
-        //
-        // Safety: the channel buffers are valid for the duration of this call.
-        // We construct local arrays pointing into the provided slices and pass
-        // their addresses to the plugin. No aliasing occurs because input and
-        // output use separate arrays.
         let mut input_channels: [*mut f32; 2] =
             [input_l.as_mut_ptr(), input_r.as_mut_ptr()];
         let mut output_channels: [*mut f32; 2] =
@@ -494,9 +515,6 @@ impl Vst3Plugin {
             numChannels: num_in as i32,
             silenceFlags: 0,
             __field0: AudioBusBuffers__type0 {
-                // Safety: channelBuffers32 points to a stack-allocated array of
-                // valid f32 pointers. The plugin must not store these beyond the
-                // process() call per the VST3 spec.
                 channelBuffers32: input_channels.as_mut_ptr(),
             },
         };
@@ -508,6 +526,22 @@ impl Vst3Plugin {
             },
         };
 
+        // Build IParameterChanges COM object for any pending GUI-driven changes.
+        // Keeping this alive until after process() ensures the plugin can
+        // safely dereference the pointer during the call.
+        let param_changes_wrapper: Option<ComWrapper<HostParameterChanges>> =
+            if !pending_params.is_empty() {
+                Some(ComWrapper::new(HostParameterChanges::new(pending_params)))
+            } else {
+                None
+            };
+
+        let input_param_changes_ptr: *mut IParameterChanges = param_changes_wrapper
+            .as_ref()
+            .and_then(|w| w.as_com_ref::<IParameterChanges>())
+            .map(|r| r.as_ptr())
+            .unwrap_or(ptr::null_mut());
+
         let mut process_data = ProcessData {
             processMode: 0i32, // kRealtime
             symbolicSampleSize: SymbolicSampleSizes_::kSample32 as i32,
@@ -516,7 +550,7 @@ impl Vst3Plugin {
             numOutputs: 1,
             inputs: &mut input_bus,
             outputs: &mut output_bus,
-            inputParameterChanges: ptr::null_mut(),
+            inputParameterChanges: input_param_changes_ptr,
             outputParameterChanges: ptr::null_mut(),
             inputEvents: ptr::null_mut(),
             outputEvents: ptr::null_mut(),
@@ -575,6 +609,19 @@ impl Vst3Plugin {
     /// Access the `IComponent` interface (needed for GUI host setup: IConnectionPoint).
     pub fn component(&self) -> &ComPtr<IComponent> {
         &self.component
+    }
+
+    /// Clone the `Arc` wrapping the shared library so the GUI can keep the
+    /// dylib alive independently of the audio-thread plugin instance.
+    pub fn library_arc(&self) -> Arc<libloading::Library> {
+        self._library.clone()
+    }
+
+    /// Clone the `IEditController` COM pointer (reference-counted) so the GUI
+    /// can reuse the controller from the audio processor without creating a
+    /// second plugin instance.
+    pub fn controller_clone(&self) -> ComPtr<vst3::Steinberg::Vst::IEditController> {
+        self.controller.clone()
     }
 
     /// Enumerate all plugin classes in a bundle without fully initialising them.
