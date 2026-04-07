@@ -1525,12 +1525,18 @@ export component BlockEditorPanel inherits Rectangle {
     callback update-block-parameter-bool(string, bool);
     callback select-block-parameter-option(string, int);
     callback pick-block-parameter-file(string);
+    callback open-vst3-editor(string); // model-id
 
     // Computed helpers
     property <bool> is-preamp:
         root.block-drawer-selected-type-index >= 0
         && root.block-drawer-selected-type-index < root.block-type-options.length
         && root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "preamp";
+
+    property <bool> is-vst3:
+        root.block-drawer-selected-type-index >= 0
+        && root.block-drawer-selected-type-index < root.block-type-options.length
+        && root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "vst3";
 
     property <string> selected-model-id:
         root.block-drawer-selected-model-index >= 0
@@ -1777,6 +1783,7 @@ export component ProjectChainsPage inherits Rectangle {
     callback update-block-parameter-bool(string, bool);
     callback select-block-parameter-option(string, int);
     callback pick-block-parameter-file(string);
+    callback open-vst3-editor(string); // model-id
 
     background: #1f2023;
 
@@ -1969,6 +1976,7 @@ export component ProjectChainsPage inherits Rectangle {
             update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
             select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
             pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
+            open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
         }
     }
 

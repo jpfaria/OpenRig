@@ -1188,6 +1188,52 @@ fn build_core_block_runtime_node(
                 build_pitch_processor_for_layout(model, params, sample_rate, layout)
             })?,
         )),
+        x if x == block_core::EFFECT_TYPE_VST3 => {
+            let entry = vst3_host::find_vst3_plugin(model)
+                .ok_or_else(|| anyhow!("VST3 plugin '{}' not found in catalog", model))?;
+            let bundle_path = entry.info.bundle_path.clone();
+            // Resolve UID lazily if not available from moduleinfo.json.
+            let uid = vst3_host::resolve_uid_for_model(model)
+                .map_err(|e| anyhow!("VST3 UID resolution failed for '{}': {}", model, e))?;
+            // Convert stored params (path="p{id}", value=0–100%) to VST3 normalized pairs.
+            let vst3_params: Vec<(u32, f64)> = params
+                .values
+                .iter()
+                .filter_map(|(path, value)| {
+                    let id_str = path.strip_prefix('p')?;
+                    let id: u32 = id_str.parse().ok()?;
+                    let pct = value.as_f32()?;
+                    Some((id, (pct / 100.0).clamp(0.0, 1.0) as f64))
+                })
+                .collect();
+            // Load the plugin once so we can extract the controller and library
+            // Arc before building the processor. This allows the GUI to reuse
+            // the same IEditController instead of creating a second instance
+            // (which fails for plugins like ValhallaSupermassive).
+            const VST3_BLOCK_SIZE: usize = 512;
+            let plugin = vst3_host::Vst3Plugin::load(
+                &bundle_path, &uid, sample_rate as f64, 2, VST3_BLOCK_SIZE, &vst3_params,
+            ).map_err(|e| anyhow!("VST3 load failed for '{}': {}", model, e))?;
+            // Register GUI context: shared controller + library Arc + param channel.
+            let param_channel = vst3_host::register_vst3_gui_context(
+                model,
+                plugin.controller_clone(),
+                plugin.library_arc(),
+            );
+            // Wrap in Option so we can move the plugin out of the FnMut closure
+            // (VST3 MonoToStereo schema guarantees the closure is called exactly once).
+            let mut plugin_opt = Some(plugin);
+            Ok(audio_block_runtime_node(
+                block,
+                input_layout,
+                build_audio_processor_for_model(chain, block_core::EFFECT_TYPE_VST3, model, input_layout, |layout| {
+                    let p = plugin_opt.take().ok_or_else(|| anyhow!("VST3 plugin consumed twice"))?;
+                    Ok(vst3_host::build_vst3_processor_from_plugin(
+                        p, layout, param_channel.clone(),
+                    ))
+                })?,
+            ))
+        }
         other => Err(anyhow!("unsupported core block effect_type '{}'", other)),
     }
 }

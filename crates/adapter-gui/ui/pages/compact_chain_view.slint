@@ -107,6 +107,7 @@ component CompactBlockRow inherits Rectangle {
     callback choose-model(int, int, int); // chain_index, block_index, model_index
     callback open-block-detail(int, int);
     callback remove-block(int, int);
+    callback open-plugin(string); // model-id, for VST3 blocks
 
     height: 100px;
     background: root.block-data.panel-bg;
@@ -345,7 +346,7 @@ component CompactBlockRow inherits Rectangle {
 
     // ── All parameters (HorizontalLayout, right-aligned, when no knob overlays and no stream data) ──
     HorizontalLayout {
-        visible: root.block-data.knob-overlays.length == 0 && !root.block-data.stream-data.active;
+        visible: root.block-data.knob-overlays.length == 0 && !root.block-data.stream-data.active && !root.block-data.has-external-gui;
         alignment: end;
         spacing: 4px;
         padding-right: 8px;
@@ -572,6 +573,30 @@ component CompactBlockRow inherits Rectangle {
         }
     }
 
+    // ── "Abrir Plugin" button (VST3 only, center-right) ──
+    if root.block-data.has-external-gui : TouchArea {
+        x: parent.width - 148px;
+        y: (parent.height - 30px) / 2;
+        width: 110px;
+        height: 30px;
+        mouse-cursor: pointer;
+        clicked => { root.open-plugin(root.block-data.model-id); }
+        Rectangle {
+            width: parent.width; height: parent.height;
+            border-radius: 5px;
+            background: #2563eb;
+            Text {
+                width: 100%; height: 100%;
+                text: "Abrir Plugin";
+                color: #ffffff;
+                font-size: 11px;
+                font-weight: 700;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+    }
+
     // ── Delete button (top-right corner, visible on hover) ──
     Rectangle {
         x: parent.width - 28px;
@@ -614,6 +639,7 @@ export component CompactChainViewPage inherits Rectangle {
     callback close-compact-view();
     callback choose-block-type(int, int, int); // chain_index, before_index, type_index
     callback remove-block(int, int); // chain_index, block_index
+    callback open-plugin(string); // model-id, for VST3 blocks
 
     // Type picker state
     in property <[BlockTypePickerItem]> block-type-options;
@@ -727,6 +753,7 @@ export component CompactChainViewPage inherits Rectangle {
                 choose-model(ci, bi2, mi) => { root.choose-block-model(ci, bi2, mi); }
                 open-block-detail(ci, bi2) => { root.open-block-detail(ci, bi2); }
                 remove-block(ci, bi2) => { root.remove-block(ci, bi2); }
+                open-plugin(model-id) => { root.open-plugin(model-id); }
             }
 
             // Drag handle — visible grip on left edge
