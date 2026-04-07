@@ -28,6 +28,7 @@ use block_reverb::build_reverb_processor_for_layout;
 use block_util::build_utility_processor_for_layout;
 use block_core::StreamHandle;
 use block_wah::build_wah_processor_for_layout;
+use std::any::Any;
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -190,11 +191,20 @@ impl AudioProcessor {
     }
 }
 
+/// An error produced by a block processor during audio processing.
+#[derive(Debug, Clone)]
+pub struct BlockError {
+    pub block_id: BlockId,
+    pub message: String,
+}
+
 pub struct ChainRuntimeState {
     processing: Mutex<ChainProcessingState>,
     output: Mutex<ChainOutputState>,
     /// Stream handles published by block processors, polled by UI thread.
     stream_handles: Mutex<HashMap<BlockId, StreamHandle>>,
+    /// Errors posted by the audio thread, drained by the UI thread.
+    error_queue: Mutex<Vec<BlockError>>,
     #[allow(dead_code)]
     last_input_nanos: AtomicU64,
     measured_latency_nanos: AtomicU64,
@@ -212,6 +222,14 @@ impl ChainRuntimeState {
         let handle = handles.get(block_id)?;
         let entries = handle.lock().ok()?;
         if entries.is_empty() { None } else { Some(entries.clone()) }
+    }
+
+    /// Drains and returns all block errors posted since the last call.
+    pub fn poll_errors(&self) -> Vec<BlockError> {
+        match self.error_queue.lock() {
+            Ok(mut q) => std::mem::take(&mut *q),
+            Err(_) => vec![],
+        }
     }
 }
 
@@ -278,6 +296,9 @@ struct BlockRuntimeNode {
     processor: RuntimeProcessor,
     stream_handle: Option<StreamHandle>,
     fade_state: FadeState,
+    /// Set to true if this block panicked during audio processing.
+    /// Once faulted, the block is permanently bypassed to prevent repeated crashes.
+    faulted: bool,
 }
 
 struct SelectRuntimeState {
@@ -399,6 +420,7 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
         }),
         output: Mutex::new(ChainOutputState { output_routes }),
         stream_handles: Mutex::new(stream_handles_map),
+        error_queue: Mutex::new(Vec::new()),
         last_input_nanos: AtomicU64::new(0),
         measured_latency_nanos: AtomicU64::new(0),
     })
@@ -1310,6 +1332,7 @@ fn build_select_runtime_node(
         } else {
             FadeState::Active
         },
+        faulted: false,
     })
 }
 
@@ -1327,6 +1350,7 @@ fn bypass_runtime_node(
         processor: RuntimeProcessor::Bypass,
         stream_handle: None,
         fade_state: FadeState::Bypassed,
+        faulted: false,
     }
 }
 
@@ -1346,6 +1370,7 @@ fn audio_block_runtime_node(
         processor: RuntimeProcessor::Audio(outcome.processor),
         stream_handle: outcome.stream_handle,
         fade_state: FadeState::FadingIn { frames_remaining: FADE_IN_FRAMES },
+        faulted: false,
     }
 }
 
@@ -1564,7 +1589,7 @@ pub fn process_input_f32(
                 Ok(guard) => guard,
                 Err(_) => continue,
             };
-            process_single_segment(&mut processing, seg_idx, data, input_total_channels, num_frames)
+            process_single_segment(&mut processing, seg_idx, data, input_total_channels, num_frames, &runtime.error_queue)
         };
         if let Some((processed, route_indices)) = result {
             for &route_idx in &route_indices {
@@ -1605,7 +1630,10 @@ pub fn process_input_f32(
     };
     for (route_idx, route_arc) in &route_arcs {
         if let Some(frames) = mixed_per_route.get(route_idx) {
-            let mut route = route_arc.lock().expect("route poisoned");
+            let mut route = match route_arc.lock() {
+                Ok(g) => g,
+                Err(e) => e.into_inner(),
+            };
             for &frame in frames {
                 route.buffer.push(frame);
             }
@@ -1619,6 +1647,7 @@ fn process_single_segment(
     data: &[f32],
     input_total_channels: usize,
     num_frames: usize,
+    error_queue: &Mutex<Vec<BlockError>>,
 ) -> Option<(Vec<AudioFrame>, Vec<usize>)> {
     let ChainProcessingState {
         input_states,
@@ -1662,7 +1691,7 @@ fn process_single_segment(
     }
 
     for block in blocks.iter_mut() {
-        process_audio_block(block, frame_buffer.as_mut_slice());
+        process_audio_block(block, frame_buffer.as_mut_slice(), error_queue);
     }
 
     if *fade_in_remaining > 0 {
@@ -1685,7 +1714,7 @@ fn process_single_segment(
     Some((processed, segment_routes))
 }
 
-fn process_audio_block(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame]) {
+fn process_audio_block(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame], error_queue: &Mutex<Vec<BlockError>>) {
     // Copy the fade state (it's Copy) so we can call apply_block_processor without
     // holding a borrow into block.fade_state at the same time.
     match block.fade_state {
@@ -1693,12 +1722,12 @@ fn process_audio_block(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame]) 
             // Fully bypassed — no processing, no fade. Hard skip.
         }
         FadeState::Active => {
-            apply_block_processor(block, frames);
+            apply_block_processor(block, frames, error_queue);
         }
         FadeState::FadingIn { frames_remaining } => {
             // Crossfade: dry → wet (block fading in)
             let dry: Vec<AudioFrame> = frames.to_vec();
-            apply_block_processor(block, frames);
+            apply_block_processor(block, frames, error_queue);
             let fade_total = FADE_IN_FRAMES as f32;
             for (i, frame) in frames.iter_mut().enumerate() {
                 if frames_remaining <= i {
@@ -1722,7 +1751,7 @@ fn process_audio_block(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame]) 
             // Crossfade: wet → dry (block fading out / being disabled)
             // We still process audio so we can fade out smoothly
             let dry: Vec<AudioFrame> = frames.to_vec();
-            apply_block_processor(block, frames);
+            apply_block_processor(block, frames, error_queue);
             let fade_total = FADE_IN_FRAMES as f32;
             for (i, frame) in frames.iter_mut().enumerate() {
                 if frames_remaining <= i {
@@ -1746,17 +1775,43 @@ fn process_audio_block(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame]) 
     }
 }
 
-fn apply_block_processor(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame]) {
+fn apply_block_processor(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame], error_queue: &Mutex<Vec<BlockError>>) {
+    if block.faulted {
+        return;
+    }
     match &mut block.processor {
         RuntimeProcessor::Audio(processor) => {
-            processor.process_buffer(frames, &mut block.scratch);
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                processor.process_buffer(frames, &mut block.scratch);
+            }));
+            if let Err(payload) = result {
+                block.faulted = true;
+                for frame in frames.iter_mut() {
+                    *frame = AudioFrame::Stereo([0.0, 0.0]);
+                }
+                let msg = downcast_panic_message(payload);
+                log::error!("block '{}' panicked — permanently bypassed: {}", block.block_id.0, msg);
+                if let Ok(mut q) = error_queue.try_lock() {
+                    q.push(BlockError { block_id: block.block_id.clone(), message: msg });
+                }
+            }
         }
         RuntimeProcessor::Select(select) => {
             if let Some(selected) = select.selected_node_mut() {
-                process_audio_block(selected, frames);
+                process_audio_block(selected, frames, error_queue);
             }
         }
         RuntimeProcessor::Bypass => {}
+    }
+}
+
+fn downcast_panic_message(payload: Box<dyn Any + Send>) -> String {
+    if let Some(s) = payload.downcast_ref::<&str>() {
+        s.to_string()
+    } else if let Some(s) = payload.downcast_ref::<String>() {
+        s.clone()
+    } else {
+        "unknown panic".to_string()
     }
 }
 
@@ -1785,7 +1840,10 @@ pub fn process_output_f32(
 ) {
     // Get the Arc for this specific route (brief lock on output state)
     let route_arc = {
-        let output_state = runtime.output.lock().expect("output state poisoned");
+        let output_state = match runtime.output.lock() {
+            Ok(g) => g,
+            Err(e) => e.into_inner(),
+        };
         match output_state.output_routes.get(output_index) {
             Some(r) => Arc::clone(r),
             None => {
@@ -1796,7 +1854,10 @@ pub fn process_output_f32(
     };
     // Lock this route — brief wait while input pushes is acceptable,
     // filling with silence on try_lock failure causes audible clicks.
-    let mut route = route_arc.lock().expect("route poisoned");
+    let mut route = match route_arc.lock() {
+        Ok(g) => g,
+        Err(e) => e.into_inner(),
+    };
     let num_frames = out.len() / output_total_channels;
     for frame in out.chunks_mut(output_total_channels).take(num_frames) {
         frame.fill(0.0);

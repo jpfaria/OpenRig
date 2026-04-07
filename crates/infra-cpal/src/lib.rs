@@ -6,6 +6,7 @@ use cpal::{
 };
 use domain::ids::ChainId;
 use engine::runtime::{process_input_f32, process_output_f32, RuntimeGraph, ChainRuntimeState};
+use engine;
 use project::device::DeviceSettings;
 use project::project::Project;
 use project::block::{AudioBlockKind, InputEntry, InsertBlock, OutputEntry};
@@ -237,6 +238,13 @@ impl ProjectRuntimeController {
             }
         }
         None
+    }
+
+    /// Drains and returns all block errors that occurred since the last call.
+    pub fn poll_errors(&self) -> Vec<engine::runtime::BlockError> {
+        self.runtime_graph.chains.values()
+            .flat_map(|runtime| runtime.poll_errors())
+            .collect()
     }
 
     /// Returns the measured real-time latency in milliseconds for a given chain.
@@ -688,7 +696,9 @@ fn build_input_stream_for_input(
             device.build_input_stream(
                 &stream_config,
                 move |data: &[f32], _| {
-                    process_input_f32(&runtime_for_data, input_index, data, channels);
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        process_input_f32(&runtime_for_data, input_index, data, channels);
+                    }));
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
@@ -706,7 +716,9 @@ fn build_input_stream_for_input(
                     for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
                         *dst = src as f32 / i16::MAX as f32;
                     }
-                    process_input_f32(&runtime_for_data, input_index, &converted, channels);
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        process_input_f32(&runtime_for_data, input_index, &converted, channels);
+                    }));
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
@@ -724,7 +736,9 @@ fn build_input_stream_for_input(
                     for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
                         *dst = (src as f32 / u16::MAX as f32) * 2.0 - 1.0;
                     }
-                    process_input_f32(&runtime_for_data, input_index, &converted, channels);
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        process_input_f32(&runtime_for_data, input_index, &converted, channels);
+                    }));
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
@@ -773,7 +787,9 @@ fn build_output_stream_for_output(
             device.build_output_stream(
                 &stream_config,
                 move |out: &mut [f32], _| {
-                    process_output_f32(&runtime_for_data, output_index, out, channels);
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        process_output_f32(&runtime_for_data, output_index, out, channels);
+                    }));
                 },
                 move |err| log::error!("[{}] output stream error: {}", error_chain_id, err),
                 None,
@@ -788,7 +804,9 @@ fn build_output_stream_for_output(
                 &stream_config,
                 move |out: &mut [i16], _| {
                     temp.resize(out.len(), 0.0);
-                    process_output_f32(&runtime_for_data, output_index, &mut temp, channels);
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        process_output_f32(&runtime_for_data, output_index, &mut temp, channels);
+                    }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         *dst =
                             (*src * i16::MAX as f32).clamp(i16::MIN as f32, i16::MAX as f32) as i16;
@@ -807,7 +825,9 @@ fn build_output_stream_for_output(
                 &stream_config,
                 move |out: &mut [u16], _| {
                     temp.resize(out.len(), 0.0);
-                    process_output_f32(&runtime_for_data, output_index, &mut temp, channels);
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        process_output_f32(&runtime_for_data, output_index, &mut temp, channels);
+                    }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         let normalized =
                             ((*src + 1.0) * 0.5 * u16::MAX as f32).clamp(0.0, u16::MAX as f32);
