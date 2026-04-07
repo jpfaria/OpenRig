@@ -86,6 +86,6 @@ pub const MODEL_DEFINITION: FullRigModelDefinition = FullRigModelDefinition {
     validate: validate_params,
     asset_summary,
     build,
-    supported_instruments: block_core::ALL_INSTRUMENTS,
+    supported_instruments: block_core::GUITAR_ACOUSTIC_BASS,
     knob_layout: &[],
 };

@@ -75,5 +75,5 @@ fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) ->
 pub const MODEL_DEFINITION: DynModelDefinition = DynModelDefinition {
     id: MODEL_ID, display_name: DISPLAY_NAME, brand: BRAND,
     backend_kind: DynBackendKind::Lv2, schema, build,
-    supported_instruments: block_core::ALL_INSTRUMENTS, knob_layout: &[],
+    supported_instruments: &[block_core::INST_VOICE, block_core::INST_ACOUSTIC_GUITAR], knob_layout: &[],
 };
