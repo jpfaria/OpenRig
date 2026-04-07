@@ -3,6 +3,20 @@ pub mod param;
 
 use serde::{Deserialize, Serialize};
 use std::f32::consts::PI;
+use std::sync::{Arc, Mutex};
+
+/// A single key-value entry in a real-time data stream.
+/// Any block can publish stream entries for the GUI to display.
+#[derive(Debug, Clone)]
+pub struct StreamEntry {
+    pub key: String,
+    pub value: f32,
+    pub text: String,
+}
+
+/// Shared handle for publishing stream data from a processor to the GUI.
+/// The processor writes entries during `process_block`; the GUI reads them via polling.
+pub type StreamHandle = Arc<Mutex<Vec<StreamEntry>>>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

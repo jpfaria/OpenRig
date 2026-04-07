@@ -9,4 +9,5 @@ cpal.workspace = true
 domain = { path = "../domain" }
 engine = { path = "../engine" }
 block-util = { path = "../block-util" }
+block-core = { path = "../block-core" }
 project = { path = "../project" }

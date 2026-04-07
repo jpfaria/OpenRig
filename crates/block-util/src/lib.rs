@@ -4,9 +4,7 @@ mod registry;
 
 use anyhow::Result;
 use block_core::param::{ModelParameterSchema, ParameterSet};
-use block_core::ModelVisualData;
-
-pub use processor::{TunerProcessor, TunerReading};
+use block_core::{AudioChannelLayout, BlockProcessor, ModelVisualData, StreamHandle};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(dead_code)]
@@ -38,10 +36,11 @@ pub fn utility_model_schema(model: &str) -> Result<ModelParameterSchema> {
     (registry::find_model_definition(model)?.schema)()
 }
 
-pub fn build_utility_processor(
+pub fn build_utility_processor_for_layout(
     model: &str,
     params: &ParameterSet,
     sample_rate: usize,
-) -> Result<Box<dyn TunerProcessor>> {
-    (registry::find_model_definition(model)?.build)(params, sample_rate)
+    layout: AudioChannelLayout,
+) -> Result<(BlockProcessor, Option<StreamHandle>)> {
+    (registry::find_model_definition(model)?.build)(params, sample_rate, layout)
 }
