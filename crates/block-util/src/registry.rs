@@ -15,6 +15,9 @@ pub struct UtilModelDefinition {
     pub build: fn(&ParameterSet, usize, AudioChannelLayout) -> Result<(BlockProcessor, Option<StreamHandle>)>,
     pub supported_instruments: &'static [&'static str],
     pub knob_layout: &'static [block_core::KnobLayoutEntry],
+    /// Stream kind produced by this model's StreamHandle. Empty string if no stream.
+    /// Values: "stream" (key/value entries, e.g. tuner), "spectrum" (frequency band levels).
+    pub stream_kind: &'static str,
 }
 
 include!(concat!(env!("OUT_DIR"), "/generated_registry.rs"));
@@ -24,4 +27,13 @@ pub fn find_model_definition(model: &str) -> Result<&'static UtilModelDefinition
         .iter()
         .find(|definition| definition.id == model)
         .ok_or_else(|| anyhow!("unsupported utility model '{}'", model))
+}
+
+/// Returns the stream kind for a utility model, or empty string if none.
+pub fn util_stream_kind(model_id: &str) -> &'static str {
+    MODEL_DEFINITIONS
+        .iter()
+        .find(|d| d.id == model_id)
+        .map(|d| d.stream_kind)
+        .unwrap_or("")
 }

@@ -12,6 +12,7 @@ pub enum GainBackendKind {
     Nam,
     Ir,
     Lv2,
+    Vst3,
 }
 
 pub fn supported_models() -> &'static [&'static str] {
@@ -27,6 +28,7 @@ pub fn gain_model_visual(model_id: &str) -> Option<ModelVisualData> {
             GainBackendKind::Nam => "NAM",
             GainBackendKind::Ir => "IR",
             GainBackendKind::Lv2 => "LV2",
+            GainBackendKind::Vst3 => "VST3",
         },
         supported_instruments: def.supported_instruments,
         knob_layout: def.knob_layout,

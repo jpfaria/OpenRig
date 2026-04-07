@@ -1,0 +1,12 @@
+[package]
+name = "vst3-host"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+log = { workspace = true }
+block-core = { path = "../block-core" }
+vst3 = "0.3.0"
+libloading = "0.8"
+crossbeam-queue = "0.3"

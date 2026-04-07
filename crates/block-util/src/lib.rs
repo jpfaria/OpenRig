@@ -36,6 +36,10 @@ pub fn utility_model_schema(model: &str) -> Result<ModelParameterSchema> {
     (registry::find_model_definition(model)?.schema)()
 }
 
+pub fn util_stream_kind(model_id: &str) -> &'static str {
+    registry::util_stream_kind(model_id)
+}
+
 pub fn build_utility_processor_for_layout(
     model: &str,
     params: &ParameterSet,

@@ -793,6 +793,7 @@ dependencies = [
  "anyhow",
  "block-core",
  "lv2",
+ "vst3-host",
 ]
 
 [[package]]
@@ -803,6 +804,7 @@ dependencies = [
  "block-core",
  "log",
  "lv2",
+ "vst3-host",
 ]
 
 [[package]]
@@ -813,6 +815,7 @@ dependencies = [
  "block-core",
  "log",
  "lv2",
+ "vst3-host",
 ]
 
 [[package]]
@@ -834,6 +837,7 @@ dependencies = [
  "log",
  "lv2",
  "nam",
+ "vst3-host",
 ]
 
 [[package]]
@@ -854,6 +858,7 @@ dependencies = [
  "block-core",
  "domain",
  "lv2",
+ "vst3-host",
 ]
 
 [[package]]
@@ -891,6 +896,7 @@ dependencies = [
  "block-core",
  "log",
  "lv2",
+ "vst3-host",
 ]
 
 [[package]]
@@ -904,6 +910,7 @@ dependencies = [
  "anyhow",
  "arc-swap",
  "block-core",
+ "rustfft",
 ]
 
 [[package]]
@@ -1175,6 +1182,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
 
 [[package]]
+name = "com-scrape-types"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ce183b975b8fc736a20919c4002717255fbd867df575c792aeefa9a56a73ad0"
+
+[[package]]
 name = "combine"
 version = "4.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1439,6 +1452,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "crossbeam-queue"
+version = "0.3.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f58bbc28f91df819d0aa2a2c00cd19754769c2fad90579b3592b1c9ba7a3115"
+dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
 name = "crossbeam-utils"
 version = "0.8.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1665,6 +1687,7 @@ dependencies = [
  "domain",
  "log",
  "project",
+ "vst3-host",
 ]
 
 [[package]]
@@ -4270,6 +4293,7 @@ dependencies = [
 name = "project"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "block-amp",
  "block-body",
  "block-cab",
@@ -4290,6 +4314,7 @@ dependencies = [
  "domain",
  "log",
  "serde",
+ "vst3-host",
 ]
 
 [[package]]
@@ -5771,6 +5796,27 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "vst3"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e31e3fe7a6f028ded8c5a9984cf283319e6dc63572c9b71da1d4ee9d71d3b6bf"
+dependencies = [
+ "com-scrape-types",
+]
+
+[[package]]
+name = "vst3-host"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "block-core",
+ "crossbeam-queue",
+ "libloading",
+ "log",
+ "vst3",
+]
 
 [[package]]
 name = "vtable"

@@ -12,6 +12,7 @@ pub enum FilterBackendKind {
     Nam,
     Ir,
     Lv2,
+    Vst3,
 }
 
 pub fn supported_models() -> &'static [&'static str] {
@@ -27,6 +28,7 @@ pub fn filter_model_visual(model_id: &str) -> Option<ModelVisualData> {
             FilterBackendKind::Nam => "NAM",
             FilterBackendKind::Ir => "IR",
             FilterBackendKind::Lv2 => "LV2",
+            FilterBackendKind::Vst3 => "VST3",
         },
         supported_instruments: def.supported_instruments,
         knob_layout: def.knob_layout,

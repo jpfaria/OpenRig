@@ -422,6 +422,20 @@ pub fn run_desktop_app(
     let project_paths = resolve_project_paths();
     let loaded_config = load_and_sync_app_config()?;
     infra_filesystem::init_asset_paths(loaded_config.paths.clone());
+    // Open VST3 editor handles (kept alive so the OS window stays open).
+    let vst3_editor_handles: Rc<RefCell<Vec<Box<dyn project::vst3_editor::PluginEditorHandle>>>> =
+        Rc::new(RefCell::new(Vec::new()));
+    let vst3_editor_handles_for_on_open = vst3_editor_handles.clone();
+    // Scan system VST3 paths in a background thread so startup isn't blocked.
+    // The catalog is available before any project is opened.
+    let vst3_sample_rate = settings
+        .input_devices
+        .first()
+        .map(|d| d.sample_rate)
+        .unwrap_or(48_000) as f64;
+    std::thread::spawn(move || {
+        project::vst3_editor::init_vst3_catalog(vst3_sample_rate);
+    });
     let app_config = Rc::new(RefCell::new(loaded_config));
     let project_session = Rc::new(RefCell::new(None::<ProjectSession>));
     let chain_draft = Rc::new(RefCell::new(None::<ChainDraft>));
@@ -698,6 +712,14 @@ pub fn run_desktop_app(
         block_editor_window.on_pick_block_parameter_file(move |path| {
             if let Some(window) = weak_window.upgrade() {
                 window.invoke_pick_block_parameter_file(path);
+            }
+        });
+    }
+    {
+        let weak_window = window.as_weak();
+        block_editor_window.on_open_vst3_editor(move |model_id| {
+            if let Some(window) = weak_window.upgrade() {
+                window.invoke_open_vst3_editor(model_id);
             }
         });
     }
@@ -2103,6 +2125,7 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let toast_timer = toast_timer.clone();
         let open_compact_window = open_compact_window.clone();
+        let vst3_editor_handles_for_compact = vst3_editor_handles.clone();
         window.on_open_compact_chain_view(move |chain_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2552,10 +2575,11 @@ pub fn run_desktop_app(
                                                 key: e.key.clone().into(),
                                                 value: e.value,
                                                 text: e.text.clone().into(),
+                                                peak: e.peak,
                                             }).collect();
                                             BlockStreamData {
                                                 active: true,
-                                                stream_kind: "stream".into(),
+                                                stream_kind: project::catalog::model_stream_kind(item.effect_type.as_str(), item.model_id.as_str()).into(),
                                                 entries: ModelRc::from(Rc::new(VecModel::from(slint_entries))),
                                             }
                                         } else {
@@ -2573,6 +2597,17 @@ pub fn run_desktop_app(
                 );
                 // Timer lives as long as compact_win (dropped when window closes)
                 std::mem::forget(stream_timer);
+            }
+
+            {
+                let vst3_handles = vst3_editor_handles_for_compact.clone();
+                let vst3_sr = vst3_sample_rate;
+                compact_win.on_open_plugin(move |model_id| {
+                    match project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr) {
+                        Ok(handle) => { vst3_handles.borrow_mut().push(handle); }
+                        Err(e) => log::error!("[compact] failed to open VST3 editor '{}': {}", model_id, e),
+                    }
+                });
             }
 
             show_child_window(window.window(), compact_win.window());
@@ -3577,6 +3612,9 @@ pub fn run_desktop_app(
         let insert_draft_for_select = insert_draft.clone();
         let insert_send_channels_for_select = insert_send_channels.clone();
         let insert_return_channels_for_select = insert_return_channels.clone();
+        let block_type_options_for_select = block_type_options.clone();
+        let vst3_handles_for_select = vst3_editor_handles.clone();
+        let vst3_sr_for_select = vst3_sample_rate;
         window.on_select_chain_block(move |chain_index, block_index| {
             let Some(window) = weak_main_window.upgrade() else {
                 return;
@@ -3729,6 +3767,7 @@ pub fn run_desktop_app(
             window.set_block_drawer_title(drawer_state.title.into());
             window.set_block_drawer_confirm_label(drawer_state.confirm_label.into());
             window.set_block_drawer_edit_mode(true);
+            block_type_options_for_select.set_vec(block_type_picker_items(&instrument));
             window.set_block_drawer_selected_type_index(block_type_index(&effect_type, &instrument));
             window
                 .set_block_drawer_selected_model_index(block_model_index(&effect_type, &model_id, &instrument));
@@ -3737,7 +3776,16 @@ pub fn run_desktop_app(
             window.set_show_block_type_picker(false);
             // Clone block_id before dropping session_borrow (needed by window editor stream timer)
             let block_id_for_editor = block.id.clone();
+            let is_vst3_block = effect_type == block_core::EFFECT_TYPE_VST3;
             drop(session_borrow);
+            // VST3 blocks: open the native plugin GUI directly — no Slint editor popup.
+            if is_vst3_block && !model_id.is_empty() {
+                match project::vst3_editor::open_vst3_editor(&model_id, vst3_sr_for_select) {
+                    Ok(handle) => { vst3_handles_for_select.borrow_mut().push(handle); }
+                    Err(e) => set_status_error(&window, &toast_timer, &format!("Erro ao abrir plugin VST3: {}", e)),
+                }
+                return;
+            }
             if use_inline_block_editor(&window) {
                 window.set_show_block_drawer(true);
             } else {
@@ -3835,6 +3883,7 @@ pub fn run_desktop_app(
                     let weak_win_stream = win.as_weak();
                     let project_runtime_stream = project_runtime.clone();
                     let block_id_for_stream = block_id_for_editor.clone();
+                    let stream_model_id = model_id.clone();
                     stream_timer.start(
                         slint::TimerMode::Repeated,
                         std::time::Duration::from_millis(50),
@@ -3842,15 +3891,21 @@ pub fn run_desktop_app(
                             let Some(win) = weak_win_stream.upgrade() else { return; };
                             let runtime_borrow = project_runtime_stream.borrow();
                             let Some(runtime) = runtime_borrow.as_ref() else { return; };
+                            let kind: slint::SharedString = if stream_model_id == "spectrum_analyzer" {
+                                "spectrum".into()
+                            } else {
+                                "stream".into()
+                            };
                             if let Some(entries) = runtime.poll_stream(&block_id_for_stream) {
                                 let slint_entries: Vec<BlockStreamEntry> = entries.iter().map(|e| BlockStreamEntry {
                                     key: e.key.clone().into(),
                                     value: e.value,
                                     text: e.text.clone().into(),
+                                    peak: e.peak,
                                 }).collect();
                                 win.set_block_stream_data(BlockStreamData {
                                     active: true,
-                                    stream_kind: "stream".into(),
+                                    stream_kind: kind,
                                     entries: ModelRc::from(Rc::new(VecModel::from(slint_entries))),
                                 });
                             } else {
@@ -4206,6 +4261,17 @@ pub fn run_desktop_app(
                                 input_chain_devices.clone(), output_chain_devices.clone(),
                                 "block-window.file",
                             );
+                        }
+                    });
+                }
+                // on_open_vst3_editor (opens native plugin GUI window)
+                {
+                    let vst3_handles = vst3_editor_handles.clone();
+                    let vst3_sr = vst3_sample_rate;
+                    win.on_open_vst3_editor(move |model_id| {
+                        match project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr) {
+                            Ok(handle) => { vst3_handles.borrow_mut().push(handle); }
+                            Err(e) => { log::error!("VST3 editor: failed '{}': {}", model_id, e); }
                         }
                     });
                 }
@@ -5297,6 +5363,16 @@ pub fn run_desktop_app(
         });
     }
     {
+        let vst3_handles = vst3_editor_handles_for_on_open.clone();
+        let vst3_sr = vst3_sample_rate;
+        window.on_open_vst3_editor(move |model_id| {
+            match project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr) {
+                Ok(handle) => { vst3_handles.borrow_mut().push(handle); }
+                Err(e) => { log::error!("VST3 editor: failed to open '{}': {}", model_id, e); }
+            }
+        });
+    }
+    {
         let weak_window = window.as_weak();
         let selected_block = selected_block.clone();
         let block_editor_draft = block_editor_draft.clone();
@@ -6214,10 +6290,14 @@ fn sync_recent_projects(config: &mut AppConfig) -> bool {
     let mut synced = Vec::new();
     for recent in &config.recent_projects {
         let path = PathBuf::from(&recent.project_path);
-        if !path.exists() {
-            continue;
-        }
-        let canonical_path = canonical_project_path(&path).unwrap_or(path.clone());
+        // Skip path.exists() check here — it can block indefinitely on
+        // disconnected network volumes or external drives (macOS stat hang).
+        // Validity is checked lazily when the user tries to open the project.
+        let canonical_path = if path.is_absolute() {
+            path.clone()
+        } else {
+            env::current_dir().map(|d| d.join(&path)).unwrap_or(path.clone())
+        };
         let canonical_path_string = canonical_path.to_string_lossy().to_string();
         if synced
             .iter()
@@ -6225,7 +6305,6 @@ fn sync_recent_projects(config: &mut AppConfig) -> bool {
         {
             continue;
         }
-        // File exists — trust the stored name. Full validation happens when user opens it.
         synced.push(RecentProjectEntry {
             project_path: canonical_path_string,
             project_name: if recent.project_name.trim().is_empty() {
@@ -6241,8 +6320,12 @@ fn sync_recent_projects(config: &mut AppConfig) -> bool {
     *config != original
 }
 fn canonical_project_path(path: &PathBuf) -> Result<PathBuf> {
-    if path.exists() {
-        return Ok(fs::canonicalize(path)?);
+    // Do NOT call path.exists() here — blocks on disconnected network volumes.
+    // fs::canonicalize resolves symlinks and normalises the path without blocking
+    // for paths that exist on local storage; for paths that don't exist it errors
+    // and we fall back to the raw path.
+    if let Ok(c) = fs::canonicalize(path) {
+        return Ok(c);
     }
     if path.is_absolute() {
         return Ok(path.clone());
@@ -6764,6 +6847,7 @@ fn build_compact_blocks(
                     items.iter().position(|i| i.model_id.as_str() == model_id).map(|i| i as i32).unwrap_or(-1)
                 },
                 stream_data: Default::default(),
+                has_external_gui: project::catalog::block_has_external_gui(&effect_type),
             })
         })
         .collect()

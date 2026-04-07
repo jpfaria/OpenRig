@@ -350,6 +350,27 @@ pub fn schema_for_block_model(
         EFFECT_TYPE_WAH => wah_model_schema(model).map_err(|error| error.to_string()),
         EFFECT_TYPE_PITCH => pitch_model_schema(model).map_err(|error| error.to_string()),
         EFFECT_TYPE_MODULATION => modulation_model_schema(model).map_err(|error| error.to_string()),
+        x if x == block_core::EFFECT_TYPE_VST3 => {
+            let entry = vst3_host::find_vst3_plugin(model)
+                .ok_or_else(|| format!("VST3 plugin '{}' not found in catalog", model))?;
+            // Build a float parameter for each discovered VST3 parameter (normalized 0–100%).
+            let parameters = entry.info.params.iter().map(|p| {
+                let path = format!("p{}", p.id);
+                let label = if p.title.is_empty() { p.short_title.clone() } else { p.title.clone() };
+                let default_pct = (p.default_normalized * 100.0) as f32;
+                block_core::param::float_parameter(
+                    &path, &label, None, Some(default_pct), 0.0, 100.0, 1.0,
+                    block_core::param::ParameterUnit::Percent,
+                )
+            }).collect();
+            Ok(ModelParameterSchema {
+                effect_type: block_core::EFFECT_TYPE_VST3.to_string(),
+                model: model.to_string(),
+                display_name: entry.display_name.to_string(),
+                audio_mode: ModelAudioMode::MonoToStereo,
+                parameters,
+            })
+        }
         other => Err(format!("unsupported block type '{}'", other)),
     }
 }
@@ -373,6 +394,11 @@ pub fn build_audio_block_kind(
             })
         }
         EFFECT_TYPE_NAM => AudioBlockKind::Nam(NamBlock { model, params }),
+        x if x == EFFECT_TYPE_VST3 => AudioBlockKind::Core(CoreBlock {
+            effect_type: EFFECT_TYPE_VST3.to_string(),
+            model,
+            params,
+        }),
         other => return Err(format!("unsupported block type '{}'", other)),
     };
     Ok(kind)
