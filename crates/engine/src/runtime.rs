@@ -1108,26 +1108,29 @@ fn build_core_block_runtime_node(
             })?,
         )),
         EFFECT_TYPE_UTILITY => {
-            let (block_processor, stream_handle) = build_utility_processor_for_layout(
+            // Capture the StreamHandle from the first builder call (DualMono calls builder
+            // twice; we keep the first stream and discard the second — both channels
+            // detect from the same mono signal anyway).
+            let mut captured_stream: Option<StreamHandle> = None;
+            let mut outcome = build_audio_processor_for_model(
+                chain,
+                EFFECT_TYPE_UTILITY,
                 model,
-                params,
-                sample_rate.round() as usize,
                 input_layout,
+                |layout| {
+                    let (bp, sh) = build_utility_processor_for_layout(
+                        model,
+                        params,
+                        sample_rate.round() as usize,
+                        layout,
+                    )?;
+                    if captured_stream.is_none() {
+                        captured_stream = sh;
+                    }
+                    Ok(bp)
+                },
             )?;
-            let schema = schema_for_block_model(EFFECT_TYPE_UTILITY, model).map_err(|e| {
-                anyhow!("chain '{}' utility model '{}': {}", chain.id.0, model, e)
-            })?;
-            let output_layout = schema.audio_mode.output_layout(input_layout).ok_or_else(|| {
-                anyhow!(
-                    "chain '{}' utility model '{}' with audio mode '{}' does not accept {} input",
-                    chain.id.0, model, schema.audio_mode.as_str(), layout_label(input_layout)
-                )
-            })?;
-            let processor = match block_processor {
-                BlockProcessor::Mono(m) => AudioProcessor::Mono(m),
-                BlockProcessor::Stereo(s) => AudioProcessor::Stereo(s),
-            };
-            let outcome = ProcessorBuildOutcome { processor, output_layout, stream_handle };
+            outcome.stream_handle = captured_stream;
             Ok(audio_block_runtime_node(block, input_layout, outcome))
         },
         EFFECT_TYPE_DYNAMICS => Ok(audio_block_runtime_node(
