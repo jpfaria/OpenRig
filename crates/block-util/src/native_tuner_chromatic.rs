@@ -29,7 +29,8 @@ const SNAP_RATIO: f32 = 1.06; // one semitone
 const DEBOUNCE_COUNT: u32 = 3;
 
 // --- Silence timeout (samples with no detection before clearing) ---
-const SILENCE_TIMEOUT_SAMPLES: usize = 8192;
+// At 48kHz, 48000 samples ≈ 1 second of sustained silence before clearing the display.
+const SILENCE_TIMEOUT_SAMPLES: usize = 48_000;
 
 const DEFAULT_REFERENCE_HZ: f32 = 440.0;
 

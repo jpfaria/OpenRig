@@ -831,6 +831,20 @@ pub fn update_chain_runtime_state(
         .map(|o| Arc::new(Mutex::new(build_output_routing_state(o))))
         .collect();
 
+    // Step 2.5: Refresh stream_handles — picks up new handles from rebuilt blocks
+    // (e.g. block param changed → new processor → new Arc; old Arc in map would be stale)
+    {
+        let mut handles = runtime.stream_handles.lock().expect("stream_handles poisoned");
+        handles.clear();
+        for input_state in &new_input_states {
+            for block in &input_state.blocks {
+                if let Some(ref handle) = block.stream_handle {
+                    handles.insert(block.block_id.clone(), Arc::clone(handle));
+                }
+            }
+        }
+    }
+
     // Step 3: Swap in new state (brief lock)
     {
         let mut processing = runtime.processing.lock().expect("chain runtime poisoned");
@@ -980,10 +994,15 @@ fn try_reuse_block_node(
     if node.block_snapshot == *block {
         return Some(node);
     }
-    // Only enabled changed — reuse processor, update snapshot
+    // Only enabled changed — reuse processor, update snapshot.
+    // Exception: if the node is a Bypass (block was built while disabled and has no real
+    // processor or stream_handle), enabling it requires a full rebuild.
     let mut snapshot_without_enabled = node.block_snapshot.clone();
     snapshot_without_enabled.enabled = block.enabled;
     if snapshot_without_enabled == *block {
+        if matches!(node.processor, RuntimeProcessor::Bypass) && block.enabled {
+            return None; // force rebuild so we get a real processor + stream_handle
+        }
         node.block_snapshot = block.clone();
         return Some(node);
     }
