@@ -133,8 +133,8 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 | Tipo | O que faz | Total | Modelos (resumo) |
 |------|-----------|-------|-----------------|
 | **Preamp** | Pré-amplificação, gain e EQ do amp | 26 | American Clean, Brit Crunch, Modern High Gain (native); JCM 800 2203, Diezel VH4, Thunder 50 (ENGL), '57 Custom Champ/'57 Custom Deluxe/Frontman 15G/PA100 (Fender), Bantamp Meteor (Joyo), AVT50H/YJM100 (Marshall), Mark III (Mesa), Micro Terror (Orange), Shaman (Panama), Classic 30 (Peavey), MIG-100 KT88 (Sovtek), VX Kraken (Victory), MIG-50/22 Caliber (Electro-Harmonix), Blues Baby 22 (Award-Session), Fly (Blackstar), Multitone 50 (Koch), L2 (Lab Series), Lunchbox Jr (ZT) (NAM) |
-| **Amp** | Amplificador completo (preamp + power amp + cab) | 17 | Blackface Clean, Tweed Breakup, Chime (native); Bogner Ecstasy/Shiva, Dumble ODS, EVH 5150, Friedman BE100, Marshall JCM800/JVM/JMP-1, Mesa Mark V/Rectifier, Peavey 5150 (NAM); GxBlueAmp, GxSupersonic, MDA Combo (LV2) |
-| **Cab** | Simulação de caixa/falante | 12 | American 2x12, Brit 4x12, Vintage 1x12 (native); Marshall 4x12 V30, Mesa OS 4x12 V30, Fender Deluxe, Vox AC30 Blue, Celestion Cream/G12M/G12T-75/V30 4x12 (IR); GxUltraCab (LV2) |
+| **Amp** | Amplificador completo (preamp + power amp + cab) | 29 | Blackface Clean, Tweed Breakup, Chime (native); Bogner Ecstasy/Shiva, Dumble ODS, EVH 5150, Friedman BE100 Deluxe, Marshall JCM800/JVM/JMP-1 Head/JMP-1, Mesa Mark V/Rectifier, Peavey 5150, Ampeg SVT Classic, Dover DA-50+Mesa, Fender Bassman 1971/Deluxe Reverb '65/Super Reverb 1977, Marshall Super 100 1966, Peavey 5150+Mesa 4x12, Roland JC-120B, Synergy DRECT+Mesa, Vox AC30/'61 Fawn (NAM); GxBlueAmp, GxSupersonic, MDA Combo (LV2) |
+| **Cab** | Simulação de caixa/falante | 17 | American 2x12, Brit 4x12, Vintage 1x12 (native); Celestion Cream 4x12, Evil Chug (Blackstar+PRS), Fender Deluxe Reverb Oxford, G12M Greenback 2x12, G12M Greenback Multi-Mic, G12T-75 4x12, Marshall 4x12 V30, Mesa OS 4x12 V30, Mesa Standard 4x12 V30, Roland JC-120, V30 4x12, Vox AC30 Blue, Vox AC50 2x12 Goodmans (IR); GxUltraCab (LV2) |
 | **Gain** | Overdrive, distorção, fuzz, boost | 91 | TS9 (native); Boss DS-1/HM-2/FZ-1W/MT-2/BD-2, Klon Centaur, RAT/RAT2, OCD, OD808, TS808, Darkglass Alpha Omega/B7K, JHS Bonsai, Bluesbreaker, Vemuram Jan Ray + 34 outros (NAM); Guitarix ×40, CAPS Spice/X2, OJD, Wolf Shaper, MDA + outros (LV2) |
 | **Delay** | Eco e repetição temporal | 14 | Analog Warm, Digital Clean, Slapback, Reverse, Modulated, Tape Vintage (native); MDA DubDelay, TAP Doubler/Echo/Reflector, Bollie, Avocado, Floaty, Modulay (LV2) |
 | **Reverb** | Ambiência e simulação de espaço | 19 | Hall, Plate Foundation, Room, Spring (native); Dragonfly Hall/Room/Plate/Early, CAPS Plate/X2/Scape, TAP Reflector/Reverberator, MDA Ambience, MVerb, B Reverb, Roomy, Shiroverb, Floaty (LV2) |
@@ -145,14 +145,14 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 | **Utility** | Ferramentas | 2 | Chromatic Tuner, Spectrum Analyzer (native) |
 | **Body** | Ressonância de corpo acústico | 114 | Martin (45), Taylor (30), Gibson (10), Yamaha (5), Guild (4), Takamine (4), Cort (4), Emerald (2), Rainsong (2), Lowden (2) + outros boutique (IR) |
 | **Pitch** | Pitch shifting e harmonização | 4 | Harmonizer, x42 Autotune, MDA Detune, MDA RePsycho (LV2) |
-| **Full Rig** | Amp completo all-in-one | 12 | Roland JC-120B, Vox AC30/'61 Fawn, Marshall JMP-1/Super 100, Fender Bassman/Deluxe/Super Reverb, Peavey 5150+Mesa, Ampeg SVT, Dover DA-50, Synergy DRECT (NAM) |
+| **Full Rig** | Rig completo com pedais + amp + cab | 0 | (reservado para capturas com cadeia completa incluindo pedais) |
 | **IR** | Loader genérico de IR | 1 | generic_ir |
 | **NAM** | Loader genérico de NAM | 1 | generic_nam |
 | **Input** | Entrada de áudio (device + channels) | — | standard |
 | **Output** | Saída de áudio (device + channels) | — | standard |
 | **Insert** | Loop de efeito externo (send/return) | — | external_loop |
 
-**Total: 356+ modelos em 16 tipos de bloco processadores (5 backends: Native 34, NAM 89, IR 122, LV2 105, VST3 6).**
+**Total: 361+ modelos em 16 tipos de bloco processadores (5 backends: Native 34, NAM 89, IR 127, LV2 105, VST3 6).**
 
 ### Parâmetros comuns
 

@@ -138,6 +138,18 @@ An amp block models a complete amplifier, including preamp and power amp stages 
 | Mesa Mark V               | Mesa      | NAM     | Tight focused high-gain            |
 | Mesa Rectifier            | Mesa      | NAM     | Aggressive modern high-gain        |
 | Peavey 5150               | Peavey    | NAM     | Heavy metal workhorse              |
+| Ampeg SVT Classic         | Ampeg     | NAM     | Classic bass amp + 6x10 cab        |
+| Dover DA-50 + Mesa 4x12   | Dover     | NAM     | Boutique amp + Mesa OS 4x12        |
+| Fender Bassman 1971       | Fender    | NAM     | 1971 Bassman, 9 tone presets       |
+| Fender Deluxe Reverb '65  | Fender    | NAM     | Clean single-channel combo         |
+| Fender Super Reverb 1977  | Fender    | NAM     | Clean multi-mic combo              |
+| Marshall JMP-1 Full Rig   | Marshall  | NAM     | JMP-1 OD2 + V30 cab                |
+| Marshall Super 100 1966   | Marshall  | NAM     | Vintage SA100 full stack           |
+| Peavey 5150 + Mesa 4x12   | Peavey    | NAM     | High-gain with boost/mic options   |
+| Roland JC-120B Jazz Chorus| Roland    | NAM     | All-in-one clean + built-in chorus |
+| Synergy DRECT Mesa        | Synergy   | NAM     | Metal rig with boost options       |
+| Vox AC30                  | Vox       | NAM     | Full rig with character variants   |
+| Vox AC30 '61 Fawn EF86    | Vox       | NAM     | Vintage 1961 Vox combo             |
 | GxBlueAmp                 | Guitarix  | LV2     | Guitarix blue amp simulation       |
 | GxSupersonic              | Guitarix  | LV2     | Guitarix supersonic amp            |
 | MDA Combo                 | MDA       | LV2     | Amp combo simulation               |
@@ -186,8 +198,13 @@ A cab (cabinet) block simulates the speaker cabinet and microphone capture. It a
 | V30 4x12                        | --       | IR      | Modern rock/metal standard       |
 | Fender Deluxe Reverb Oxford     | Fender   | IR      | Classic American clean           |
 | Celestion Cream 4x12            | --       | IR      | Smooth alnico speakers           |
-| Mesa Oversized 4x12 V30         | Mesa     | IR      | Deep tight low-end               |
+| Mesa Oversized 4x12 V30         | Mesa     | IR      | Deep tight low-end, 9 mic/position options |
+| Mesa Standard 4x12 V30          | Mesa     | IR      | Standard OS 4x12, SM57 and SM58  |
 | Vox AC30 Blue                   | Vox      | IR      | Chimey British jangle            |
+| Vox AC50 2x12 Goodmans          | Vox      | IR      | Vintage AC50 with Goodmans 241   |
+| Evil Chug (Blackstar + PRS)     | Blackstar| IR      | High-gain Blackbird 50 + PRS cab |
+| G12M Greenback Multi-Mic        | --       | IR      | 6 mic options: SM57/LCT441/MC834/M160/OC818/CC8 |
+| Roland JC-120 Cab               | Roland   | IR      | JC-120 cab, SM57+MD421 mix       |
 | GxUltraCab                      | Guitarix | LV2     | Guitarix ultra cab simulation    |
 
 ### Parameters
@@ -824,92 +841,9 @@ All models use the **IR** backend.
 
 ## Full Rig
 
-A full rig block combines the entire signal chain -- preamp, power amp, cabinet, and built-in effects -- into a single unit. This is useful for recalling a complete amp tone with one block.
+A full rig block is reserved for NAM captures that include the complete signal chain — preamp, power amp, cabinet, **and** effects pedals baked in. Currently no models are bundled.
 
-### Models
-
-| Model Name                      | Brand    | Backend | Description                                      |
-|---------------------------------|----------|---------|--------------------------------------------------|
-| Roland JC-120B Jazz Chorus      | Roland   | NAM     | All-in-one clean amp with built-in chorus        |
-| Ampeg SVT Classic               | Ampeg    | NAM     | Classic bass amp with 6x10 cab                   |
-| Dover DA-50 + Mesa 4x12         | Dover    | NAM     | Full rig with Mesa OS 4x12 cab                   |
-| Fender Bassman 1971             | Fender   | NAM     | 1971 Bassman full rig, 9 tone presets            |
-| Fender Deluxe Reverb '65        | Fender   | NAM     | Clean single-channel with mic variants           |
-| Fender Super Reverb 1977        | Fender   | NAM     | Clean amp with mic variants                      |
-| Marshall JMP-1 Full Rig         | Marshall | NAM     | JMP-1 OD2 + V30 full rig                         |
-| Marshall Super 100 1966         | Marshall | NAM     | Vintage Marshall SA100 full rig                  |
-| Peavey 5150 + Mesa 4x12         | Peavey   | NAM     | High-gain full rig with boost and mic options    |
-| Synergy DRECT Mesa              | Synergy  | NAM     | Metal full rig with boost options                |
-| Vox AC30                        | Vox      | NAM     | Full rig with character variants                 |
-| Vox AC30 '61 Fawn EF86          | Vox      | NAM     | Vintage 1961 Vox full rig                        |
-
-### Parameters
-
-#### Roland JC-120B Jazz Chorus
-
-No user-adjustable parameters. Single capture.
-
-#### Ampeg SVT Classic
-
-| Parameter | Options                    | Default  |
-|-----------|----------------------------|----------|
-| tone      | standard, ultra_hi, ultra_lo | standard |
-| mic       | md421, sm57                | md421    |
-
-#### Dover DA-50 + Mesa 4x12
-
-| Parameter | Options             | Default |
-|-----------|---------------------|---------|
-| boost     | clean, boosted      | clean   |
-
-#### Fender Bassman 1971
-
-| Parameter | Options                                                                                    | Default     |
-|-----------|--------------------------------------------------------------------------------------------|-------------|
-| tone      | clean, bright_clean, warm_clean, sweet_spot, warm_sweet_spot, cranked, 80s_clean, big_clean, warm_fuzz | sweet_spot |
-
-#### Fender Deluxe Reverb '65
-
-| Parameter | Options                              | Default     |
-|-----------|--------------------------------------|-------------|
-| mic       | sm57_royer, sm57_royer_room, room    | sm57_royer  |
-
-#### Fender Super Reverb 1977
-
-| Parameter | Options                     | Default |
-|-----------|-----------------------------|---------|
-| mic       | sm57, akg414, sm57_akg414   | sm57    |
-
-#### Marshall JMP-1 Full Rig
-
-No user-adjustable parameters. Single capture of the JMP-1 OD2 channel with V30 cab.
-
-#### Marshall Super 100 1966
-
-No user-adjustable parameters. Single capture.
-
-#### Peavey 5150 + Mesa 4x12
-
-| Parameter | Options                    | Default  |
-|-----------|----------------------------|----------|
-| boost     | no_boost, maxon, mxr       | no_boost |
-| mic       | sm57, sm58                 | sm57     |
-
-#### Synergy DRECT Mesa
-
-| Parameter | Options                    | Default   |
-|-----------|----------------------------|-----------|
-| boost     | unboosted, od808, sd1      | unboosted |
-
-#### Vox AC30
-
-| Parameter | Options                          | Default  |
-|-----------|----------------------------------|----------|
-| character | standard, clean_65prince         | standard |
-
-#### Vox AC30 '61 Fawn EF86
-
-No user-adjustable parameters. Single capture.
+> **Note:** Models previously listed here (Ampeg SVT, Fender Bassman, Vox AC30, etc.) were reclassified as **Amp** blocks (issue #208), since they are amp+cab captures without pedals.
 
 ---
 
