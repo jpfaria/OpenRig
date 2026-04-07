@@ -598,6 +598,14 @@ enum AudioBlockYaml {
         #[serde(default)]
         params: Value,
     },
+    #[serde(rename = "vst3")]
+    Vst3 {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
+        model: String,
+        #[serde(default)]
+        params: Value,
+    },
     Select {
         #[serde(default = "default_enabled")]
         enabled: bool,
@@ -850,6 +858,7 @@ impl AudioBlockYaml {
                     block_core::EFFECT_TYPE_WAH => Ok(Self::Wah { enabled, model, params }),
                     block_core::EFFECT_TYPE_MODULATION => Ok(Self::Modulation { enabled, model, params }),
                     block_core::EFFECT_TYPE_PITCH => Ok(Self::Pitch { enabled, model, params }),
+                    "vst3" => Ok(Self::Vst3 { enabled, model, params }),
                     other => Err(anyhow!("unsupported core block effect_type '{}'", other)),
                 }
             }
@@ -993,6 +1002,7 @@ fn extract_core_block_fields(yaml: AudioBlockYaml) -> (&'static str, bool, Strin
         AudioBlockYaml::Wah { enabled, model, params } => (block_core::EFFECT_TYPE_WAH, enabled, model, params),
         AudioBlockYaml::Modulation { enabled, model, params } => (block_core::EFFECT_TYPE_MODULATION, enabled, model, params),
         AudioBlockYaml::Pitch { enabled, model, params } => (block_core::EFFECT_TYPE_PITCH, enabled, model, params),
+        AudioBlockYaml::Vst3 { enabled, model, params } => ("vst3", enabled, model, params),
         AudioBlockYaml::Nam { enabled, model, params } => (block_core::EFFECT_TYPE_NAM, enabled, model, params),
         AudioBlockYaml::Select { .. } => unreachable!("Select handled before extract_core_block_fields"),
         AudioBlockYaml::Input { .. } => unreachable!("Input handled before extract_core_block_fields"),

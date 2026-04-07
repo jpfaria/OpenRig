@@ -195,6 +195,14 @@ pub fn supported_block_types() -> Vec<BlockTypeCatalogEntry> {
 }
 
 pub fn supported_block_type(effect_type: &str) -> Option<BlockTypeCatalogEntry> {
+    if effect_type == "vst3" {
+        return Some(BlockTypeCatalogEntry {
+            effect_type: "vst3",
+            display_label: "VST3",
+            icon_kind: "vst3",
+            use_panel_editor: true,
+        });
+    }
     block_registry()
         .into_iter()
         .find(|entry| entry.effect_type == effect_type)
