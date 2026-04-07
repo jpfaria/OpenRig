@@ -652,46 +652,6 @@ export component BlockPanelEditor inherits Rectangle {
             horizontal-alignment: center;
         }
 
-        // ── Power switch ──
-        Rectangle {
-            x: 10px;
-            y: root.has-eq-widget ? 4px : parent.height * 0.62;
-            width: 32px;
-            height: 40px;
-            border-radius: 3px;
-            background: #0a0a0a;
-            border-width: 1.5px;
-            border-color: #404040;
-
-            Rectangle {
-                x: 6px;
-                y: root.block-drawer-enabled ? 4px : 20px;
-                width: 20px;
-                height: 16px;
-                border-radius: 2px;
-                background: root.block-drawer-enabled ? #cc2222 : #1a0808;
-                border-width: 1px;
-                border-color: root.block-drawer-enabled ? #ee4444 : #331111;
-            }
-
-            ta-power := TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.toggle-block-drawer-enabled(); }
-            }
-        }
-
-        Text {
-            x: 8px;
-            y: root.has-eq-widget ? 48px : parent.height * 0.62 + 44px;
-            width: 36px;
-            height: 12px;
-            text: "POWER";
-            color: root.panel-text;
-            font-size: 7px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            horizontal-alignment: center;
-        }
 
         // ── Knob overlays (HorizontalLayout, right-aligned) ──
         HorizontalLayout {
@@ -988,7 +948,7 @@ export component BlockPanelEditor inherits Rectangle {
     }
 
     // ── Realtime stream display — positioned between POWER (left) and Reference (right) ──
-    if root.block-stream-data.active : Rectangle {
+    if root.block-stream-data.active && root.block-stream-data.stream-kind != "spectrum" : Rectangle {
         x: 56px;
         y: root.header-height + root.brand-strip-height + root.panel-height * 0.52;
         width: parent.width - 56px - 100px;
@@ -1041,5 +1001,140 @@ export component BlockPanelEditor inherits Rectangle {
                 }
             }
         }
+    }
+
+    // ── Spectrum analyzer bars — shown when stream_kind == "spectrum" ──
+    if root.block-stream-data.active && root.block-stream-data.stream-kind == "spectrum" : Rectangle {
+        x: 8px;
+        y: root.header-height + root.brand-strip-height + 4px;
+        width: parent.width - 16px;
+        height: root.panel-height - 28px;
+        background: #06060e;
+        border-radius: 4px;
+        clip: true;
+
+        // dB grid lines: 0, -20, -40, -60 dBFS
+        // normalization: value = (db + 80) / 80  →  grid-y = (parent.height - 14px) * (1 - norm)
+        for db-label[gi] in [
+            { label: "0", norm: 1.0 },
+            { label: "-20", norm: 0.75 },
+            { label: "-40", norm: 0.5 },
+            { label: "-60", norm: 0.25 },
+        ] : Rectangle {
+            x: 0;
+            y: (parent.height - 14px) * (1.0 - db-label.norm);
+            width: parent.width;
+            height: 1px;
+            background: #ffffff18;
+
+            Text {
+                x: 2px;
+                y: -9px;
+                width: 26px;
+                height: 9px;
+                text: db-label.label;
+                color: #ffffff40;
+                font-size: 7px;
+                horizontal-alignment: left;
+            }
+        }
+
+        for entry[ei] in root.block-stream-data.entries : Rectangle {
+            property <length> bar-slot-w: parent.width / root.block-stream-data.entries.length;
+            // usable-h: bar area above frequency labels
+            property <length> usable-h: parent.height - 14px;
+            x: ei * self.bar-slot-w;
+            y: 0;
+            width: self.bar-slot-w;
+            height: parent.height;
+            background: transparent;
+
+            // Bar (bottom-aligned, grows upward)
+            Rectangle {
+                property <length> bar-h: Math.max(1px, entry.value * parent.usable-h);
+                x: 1px;
+                y: parent.usable-h - self.bar-h;
+                width: parent.width - 2px;
+                height: self.bar-h;
+                background: entry.value > 0.85 ? #ff4433
+                    : entry.value > 0.65 ? #ffaa22
+                    : entry.value > 0.3 ? #44cc88
+                    : #4488ff;
+                border-radius: 1px;
+            }
+
+            // Peak hold line
+            Rectangle {
+                x: 1px;
+                y: Math.max(0px, parent.usable-h - entry.peak * parent.usable-h - 1px);
+                width: parent.width - 2px;
+                height: 2px;
+                background: entry.peak > 0.85 ? #ff8877
+                    : entry.peak > 0.65 ? #ffcc66
+                    : entry.peak > 0.3 ? #88ffcc
+                    : #88bbff;
+                opacity: entry.peak > 0.01 ? 1.0 : 0.0;
+            }
+
+            // Frequency label at bottom
+            Text {
+                x: 0;
+                y: parent.height - 13px;
+                width: parent.width;
+                height: 13px;
+                text: entry.text;
+                color: #ffffff55;
+                font-size: 7px;
+                horizontal-alignment: center;
+                overflow: elide;
+            }
+        }
+    }
+
+    // ── Power switch — root level so it always renders above panel content ──
+    // Pinned to top (4px) when there are no knob overlays or eq widget — those blocks
+    // (e.g. utility) use the full panel area for stream display, so the button goes top-left.
+    // Falls to 62% when knob overlays are present so it sits alongside the knobs.
+    private property <length> power-y: root.header-height + root.brand-strip-height
+        + (root.has-eq-widget || root.block-knob-overlays.length == 0 ? 4px : root.panel-height * 0.62);
+
+    Rectangle {
+        x: 10px;
+        y: root.power-y;
+        width: 32px;
+        height: 40px;
+        border-radius: 3px;
+        background: #0a0a0a;
+        border-width: 1.5px;
+        border-color: #404040;
+
+        Rectangle {
+            x: 6px;
+            y: root.block-drawer-enabled ? 4px : 20px;
+            width: 20px;
+            height: 16px;
+            border-radius: 2px;
+            background: root.block-drawer-enabled ? #cc2222 : #1a0808;
+            border-width: 1px;
+            border-color: root.block-drawer-enabled ? #ee4444 : #331111;
+        }
+
+        ta-power := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.toggle-block-drawer-enabled(); }
+        }
+    }
+
+    Text {
+        x: 8px;
+        y: root.power-y + 44px;
+        width: 36px;
+        height: 12px;
+        text: "POWER";
+        color: root.panel-text;
+        font-size: 7px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        horizontal-alignment: center;
     }
 }

@@ -253,6 +253,16 @@ pub fn supported_block_models(effect_type: &str) -> Result<Vec<BlockModelCatalog
         .collect()
 }
 
+/// Returns the stream kind produced by a model's StreamHandle.
+/// Empty string if the model produces no stream.
+pub fn model_stream_kind(effect_type: &str, model_id: &str) -> &'static str {
+    if effect_type == block_core::EFFECT_TYPE_UTILITY {
+        block_util::util_stream_kind(model_id)
+    } else {
+        ""
+    }
+}
+
 pub fn model_knob_layout(effect_type: &str, model_id: &str) -> &'static [block_core::KnobLayoutEntry] {
     let entry = block_registry()
         .into_iter()
