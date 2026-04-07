@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+<rect x="16" y="16" width="224" height="224" rx="28" fill="#121212" stroke="#2F2F2F" stroke-width="4"/>
+
+<!-- Plug body -->
+<rect x="104" y="120" width="48" height="52" rx="10" stroke="#E8E8E8" stroke-width="8"/>
+
+<!-- Plug prongs -->
+<line x1="116" y1="120" x2="116" y2="92" stroke="#E8E8E8" stroke-width="8" stroke-linecap="round"/>
+<line x1="140" y1="120" x2="140" y2="92" stroke="#E8E8E8" stroke-width="8" stroke-linecap="round"/>
+
+<!-- Cable going down -->
+<line x1="128" y1="172" x2="128" y2="192" stroke="#E8E8E8" stroke-width="8" stroke-linecap="round"/>
+
+<!-- VST3 label -->
+<text x="128" y="214" fill="#8E8E8E" font-size="20" font-family="Arial" font-weight="bold" text-anchor="middle">VST3</text>
+</svg>
