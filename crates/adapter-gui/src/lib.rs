@@ -3578,6 +3578,7 @@ pub fn run_desktop_app(
         let insert_draft_for_select = insert_draft.clone();
         let insert_send_channels_for_select = insert_send_channels.clone();
         let insert_return_channels_for_select = insert_return_channels.clone();
+        let block_type_options_for_select = block_type_options.clone();
         window.on_select_chain_block(move |chain_index, block_index| {
             let Some(window) = weak_main_window.upgrade() else {
                 return;
@@ -3730,6 +3731,7 @@ pub fn run_desktop_app(
             window.set_block_drawer_title(drawer_state.title.into());
             window.set_block_drawer_confirm_label(drawer_state.confirm_label.into());
             window.set_block_drawer_edit_mode(true);
+            block_type_options_for_select.set_vec(block_type_picker_items(&instrument));
             window.set_block_drawer_selected_type_index(block_type_index(&effect_type, &instrument));
             window
                 .set_block_drawer_selected_model_index(block_model_index(&effect_type, &model_id, &instrument));
