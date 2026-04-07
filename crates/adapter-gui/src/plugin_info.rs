@@ -76,11 +76,11 @@ fn load_metadata_file(lang: &str) -> Option<HashMap<String, PluginMetadata>> {
 }
 
 /// Returns the raw PNG bytes for a plugin screenshot.
-/// Fallback chain: exact (effect_type, model_id) → (effect_type, "_default") → ("", "_default") → None
+/// Tries: exact (effect_type, model_id) → (effect_type, "_default") → None
+/// No global fallback — callers display the OpenRig logo placeholder when None.
 pub fn screenshot_png(effect_type: &str, model_id: &str) -> Option<Vec<u8>> {
     read_screenshot_cached(effect_type, model_id)
         .or_else(|| read_screenshot_cached(effect_type, "_default"))
-        .or_else(|| read_screenshot_cached("", "_default"))
 }
 
 fn read_screenshot_cached(effect_type: &str, model_id: &str) -> Option<Vec<u8>> {
