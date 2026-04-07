@@ -25,7 +25,8 @@ use block_mod::build_modulation_processor_for_layout;
 use block_nam::build_nam_processor_for_layout;
 use block_pitch::build_pitch_processor_for_layout;
 use block_reverb::build_reverb_processor_for_layout;
-use block_util::{build_utility_processor, TunerProcessor};
+use block_util::build_utility_processor_for_layout;
+use block_core::StreamHandle;
 use block_wah::build_wah_processor_for_layout;
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -192,16 +193,8 @@ impl AudioProcessor {
 pub struct ChainRuntimeState {
     processing: Mutex<ChainProcessingState>,
     output: Mutex<ChainOutputState>,
-    /// Tuner samples written by audio thread, read+cleared by UI thread.
-    tuner_shared_buffer: Mutex<Vec<f32>>,
-    /// Tuner state owned by UI thread only (never touched by audio).
-    pub tuner_reading: Mutex<block_util::TunerReading>,
-    /// Smoothed frequency for stable display (EMA filtered).
-    tuner_smoothed_freq: Mutex<Option<f32>>,
-    /// Consecutive polls with no detection — clears reading after threshold.
-    tuner_miss_count: AtomicU64,
-    /// Sample rate for pitch detection (Hz).
-    sample_rate: f32,
+    /// Stream handles published by block processors, polled by UI thread.
+    stream_handles: Mutex<HashMap<BlockId, StreamHandle>>,
     #[allow(dead_code)]
     last_input_nanos: AtomicU64,
     measured_latency_nanos: AtomicU64,
@@ -212,79 +205,13 @@ impl ChainRuntimeState {
         let nanos = self.measured_latency_nanos.load(std::sync::atomic::Ordering::Relaxed);
         nanos as f32 / 1_000_000.0
     }
-    /// Called from audio thread: append tuner samples (fast, non-blocking).
-    pub fn push_tuner_samples(&self, samples: &[f32]) {
-        if let Ok(mut buf) = self.tuner_shared_buffer.try_lock() {
-            buf.extend_from_slice(samples);
-            // Cap at 8192 to prevent unbounded growth
-            if buf.len() > 8192 {
-                let start = buf.len() - 4096;
-                buf.drain(..start);
-            }
-        }
-    }
 
-    /// Called from UI thread: run detection on accumulated samples.
-    pub fn poll_tuner(&self) -> Option<block_util::TunerReading> {
-        // Need ~46ms of audio for reliable pitch detection
-        let min_samples = (self.sample_rate * 0.046) as usize;
-        // Grab samples quickly
-        let samples = {
-            let mut buf = self.tuner_shared_buffer.try_lock().ok()?;
-            if buf.len() < min_samples {
-                return self.tuner_reading.try_lock().ok().and_then(|r| {
-                    if r.frequency.is_some() { Some(r.clone()) } else { None }
-                });
-            }
-            let s = buf.clone();
-            buf.clear();
-            s
-        };
-
-        // Run detection outside any lock (takes ~1ms, fine for UI thread)
-        let reading = detect_pitch(&samples, self.sample_rate);
-
-        if let Some(raw_freq) = reading.frequency {
-            self.tuner_miss_count.store(0, std::sync::atomic::Ordering::Relaxed);
-
-            // EMA smoothing: blend with previous frequency for stable display.
-            // Snap to new value if pitch jumps >5% (new note).
-            let smoothed = if let Ok(mut prev) = self.tuner_smoothed_freq.try_lock() {
-                let freq = match *prev {
-                    Some(p) if (raw_freq - p).abs() / p < 0.05 => {
-                        // Same note — heavy smoothing (alpha=0.15)
-                        p * 0.85 + raw_freq * 0.15
-                    }
-                    _ => raw_freq, // New note or first reading — snap
-                };
-                *prev = Some(freq);
-                freq
-            } else {
-                raw_freq
-            };
-
-            let smoothed_reading = block_util::TunerReading::from(Some(smoothed));
-            if let Ok(mut tr) = self.tuner_reading.try_lock() {
-                *tr = smoothed_reading.clone();
-            }
-            Some(smoothed_reading)
-        } else {
-            // Allow ~5s of silence before clearing (100 polls at 50ms)
-            let misses = self.tuner_miss_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
-            if misses >= 100 {
-                if let Ok(mut tr) = self.tuner_reading.try_lock() {
-                    *tr = block_util::TunerReading::default();
-                }
-                if let Ok(mut sf) = self.tuner_smoothed_freq.try_lock() {
-                    *sf = None;
-                }
-                None
-            } else {
-                self.tuner_reading.try_lock().ok().and_then(|r| {
-                    if r.frequency.is_some() { Some(r.clone()) } else { None }
-                })
-            }
-        }
+    /// Returns stream data for a block by ID, or None if not found or empty.
+    pub fn poll_stream(&self, block_id: &BlockId) -> Option<Vec<block_core::StreamEntry>> {
+        let handles = self.stream_handles.lock().ok()?;
+        let handle = handles.get(block_id)?;
+        let entries = handle.lock().ok()?;
+        if entries.is_empty() { None } else { Some(entries.clone()) }
     }
 }
 
@@ -308,7 +235,6 @@ struct ChainProcessingState {
     input_states: Vec<InputProcessingState>,
     /// Maps CPAL input_index → Vec of input_states indices to process.
     input_to_segments: Vec<Vec<usize>>,
-    tuner_samples: Vec<f32>,
     #[allow(dead_code)]
     mixed_buffer: Vec<AudioFrame>,
 }
@@ -325,8 +251,6 @@ struct ChainOutputState {
 
 enum RuntimeProcessor {
     Audio(AudioProcessor),
-    #[allow(dead_code)]
-    Tuner(Box<dyn TunerProcessor>),
     Select(SelectRuntimeState),
     Bypass,
 }
@@ -340,6 +264,7 @@ struct BlockRuntimeNode {
     output_layout: AudioChannelLayout,
     scratch: ProcessorScratch,
     processor: RuntimeProcessor,
+    stream_handle: Option<StreamHandle>,
 }
 
 struct SelectRuntimeState {
@@ -350,15 +275,10 @@ struct SelectRuntimeState {
 struct ProcessorBuildOutcome {
     processor: AudioProcessor,
     output_layout: AudioChannelLayout,
+    stream_handle: Option<StreamHandle>,
 }
 
 impl SelectRuntimeState {
-    fn selected_node(&self) -> Option<&BlockRuntimeNode> {
-        self.options
-            .iter()
-            .find(|option| option.block_id == self.selected_block_id)
-    }
-
     fn selected_node_mut(&mut self) -> Option<&mut BlockRuntimeNode> {
         self.options
             .iter_mut()
@@ -448,19 +368,24 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
         output_routes.push(Arc::new(Mutex::new(build_output_routing_state(output))));
     }
 
+    // Collect stream handles from all blocks across all input states
+    let mut stream_handles_map: HashMap<BlockId, StreamHandle> = HashMap::new();
+    for input_state in &input_states {
+        for block in &input_state.blocks {
+            if let Some(ref handle) = block.stream_handle {
+                stream_handles_map.insert(block.block_id.clone(), Arc::clone(handle));
+            }
+        }
+    }
+
     Ok(ChainRuntimeState {
         processing: Mutex::new(ChainProcessingState {
             input_states,
             input_to_segments,
-            tuner_samples: Vec::new(),
             mixed_buffer: Vec::with_capacity(1024),
         }),
         output: Mutex::new(ChainOutputState { output_routes }),
-        tuner_shared_buffer: Mutex::new(Vec::with_capacity(8192)),
-        tuner_reading: Mutex::new(block_util::TunerReading::default()),
-        tuner_smoothed_freq: Mutex::new(None),
-        tuner_miss_count: AtomicU64::new(0),
-        sample_rate,
+        stream_handles: Mutex::new(stream_handles_map),
         last_input_nanos: AtomicU64::new(0),
         measured_latency_nanos: AtomicU64::new(0),
     })
@@ -906,6 +831,20 @@ pub fn update_chain_runtime_state(
         .map(|o| Arc::new(Mutex::new(build_output_routing_state(o))))
         .collect();
 
+    // Step 2.5: Refresh stream_handles — picks up new handles from rebuilt blocks
+    // (e.g. block param changed → new processor → new Arc; old Arc in map would be stale)
+    {
+        let mut handles = runtime.stream_handles.lock().expect("stream_handles poisoned");
+        handles.clear();
+        for input_state in &new_input_states {
+            for block in &input_state.blocks {
+                if let Some(ref handle) = block.stream_handle {
+                    handles.insert(block.block_id.clone(), Arc::clone(handle));
+                }
+            }
+        }
+    }
+
     // Step 3: Swap in new state (brief lock)
     {
         let mut processing = runtime.processing.lock().expect("chain runtime poisoned");
@@ -1055,10 +994,15 @@ fn try_reuse_block_node(
     if node.block_snapshot == *block {
         return Some(node);
     }
-    // Only enabled changed — reuse processor, update snapshot
+    // Only enabled changed — reuse processor, update snapshot.
+    // Exception: if the node is a Bypass (block was built while disabled and has no real
+    // processor or stream_handle), enabling it requires a full rebuild.
     let mut snapshot_without_enabled = node.block_snapshot.clone();
     snapshot_without_enabled.enabled = block.enabled;
     if snapshot_without_enabled == *block {
+        if matches!(node.processor, RuntimeProcessor::Bypass) && block.enabled {
+            return None; // force rebuild so we get a real processor + stream_handle
+        }
         node.block_snapshot = block.clone();
         return Some(node);
     }
@@ -1163,19 +1107,29 @@ fn build_core_block_runtime_node(
                 build_reverb_processor_for_layout(model, params, sample_rate, layout)
             })?,
         )),
-        EFFECT_TYPE_UTILITY => Ok(BlockRuntimeNode {
-            instance_serial: next_block_instance_serial(),
-            block_id: block.id.clone(),
-            block_snapshot: block.clone(),
-            input_layout,
-            output_layout: input_layout,
-            scratch: ProcessorScratch::Mono(Vec::new()),
-            processor: RuntimeProcessor::Tuner(build_utility_processor(
+        EFFECT_TYPE_UTILITY => {
+            let mut captured_stream: Option<StreamHandle> = None;
+            let mut outcome = build_audio_processor_for_model(
+                chain,
+                EFFECT_TYPE_UTILITY,
                 model,
-                params,
-                sample_rate.round() as usize,
-            )?),
-        }),
+                input_layout,
+                |layout| {
+                    let (bp, sh) = build_utility_processor_for_layout(
+                        model,
+                        params,
+                        sample_rate.round() as usize,
+                        layout,
+                    )?;
+                    if captured_stream.is_none() {
+                        captured_stream = sh;
+                    }
+                    Ok(bp)
+                },
+            )?;
+            outcome.stream_handle = captured_stream;
+            Ok(audio_block_runtime_node(block, input_layout, outcome))
+        },
         EFFECT_TYPE_DYNAMICS => Ok(audio_block_runtime_node(
             block,
             input_layout,
@@ -1280,6 +1234,7 @@ fn build_select_runtime_node(
             selected_block_id: select.selected_block_id.clone(),
             options: option_nodes,
         }),
+        stream_handle: None,
     })
 }
 
@@ -1295,6 +1250,7 @@ fn bypass_runtime_node(
         output_layout: input_layout,
         scratch: ProcessorScratch::None,
         processor: RuntimeProcessor::Bypass,
+        stream_handle: None,
     }
 }
 
@@ -1312,6 +1268,7 @@ fn audio_block_runtime_node(
         output_layout: outcome.output_layout,
         scratch,
         processor: RuntimeProcessor::Audio(outcome.processor),
+        stream_handle: outcome.stream_handle,
     }
 }
 
@@ -1433,6 +1390,7 @@ where
     Ok(ProcessorBuildOutcome {
         processor,
         output_layout,
+        stream_handle: None,
     })
 }
 
@@ -1529,7 +1487,7 @@ pub fn process_input_f32(
                 Ok(guard) => guard,
                 Err(_) => continue,
             };
-            process_single_segment(&mut processing, seg_idx, data, input_total_channels, num_frames, runtime)
+            process_single_segment(&mut processing, seg_idx, data, input_total_channels, num_frames)
         };
         if let Some((processed, route_indices)) = result {
             for &route_idx in &route_indices {
@@ -1584,12 +1542,10 @@ fn process_single_segment(
     data: &[f32],
     input_total_channels: usize,
     num_frames: usize,
-    runtime: &Arc<ChainRuntimeState>,
 ) -> Option<(Vec<AudioFrame>, Vec<usize>)> {
     let ChainProcessingState {
         input_states,
         input_to_segments: _,
-        tuner_samples,
         mixed_buffer: _,
     } = processing;
 
@@ -1608,16 +1564,9 @@ fn process_single_segment(
         output_route_indices: _,
     } = input_state;
 
-    let tuner_enabled = blocks.iter().any(block_has_active_tuner);
-
     frame_buffer.clear();
     if num_frames > frame_buffer.capacity() {
         frame_buffer.reserve(num_frames - frame_buffer.capacity());
-    }
-
-    tuner_samples.clear();
-    if tuner_enabled && num_frames > tuner_samples.capacity() {
-        tuner_samples.reserve(num_frames - tuner_samples.capacity());
     }
 
     for frame in data.chunks(input_total_channels).take(num_frames) {
@@ -1632,14 +1581,7 @@ fn process_single_segment(
             }
             _ => raw_frame,
         };
-        if tuner_enabled {
-            tuner_samples.push(chain_frame.mono_mix());
-        }
         frame_buffer.push(chain_frame);
-    }
-
-    if tuner_enabled && !tuner_samples.is_empty() {
-        runtime.push_tuner_samples(tuner_samples);
     }
 
     for block in blocks.iter_mut() {
@@ -1666,143 +1608,6 @@ fn process_single_segment(
     Some((processed, segment_routes))
 }
 
-fn block_has_active_tuner(block: &BlockRuntimeNode) -> bool {
-    match &block.processor {
-        RuntimeProcessor::Tuner(_) => true,
-        RuntimeProcessor::Select(select) => select
-            .selected_node()
-            .map(block_has_active_tuner)
-            .unwrap_or(false),
-        RuntimeProcessor::Audio(_) | RuntimeProcessor::Bypass => false,
-    }
-}
-
-/// YIN pitch detection — runs on UI thread, NOT audio thread.
-/// Based on "YIN, a fundamental frequency estimator for speech and music"
-/// (de Cheveigné & Kawahara, 2002).
-fn detect_pitch(samples: &[f32], sample_rate: f32) -> block_util::TunerReading {
-    let len = samples.len();
-    let rms = (samples.iter().map(|s| s * s).sum::<f32>() / len as f32).sqrt();
-    if rms < 0.005 || len < 512 {
-        return block_util::TunerReading::default();
-    }
-
-    let min_period = (sample_rate / 1200.0).max(2.0) as usize; // ~1200 Hz max (above high E)
-    let max_period = (sample_rate / 55.0) as usize;  // ~55 Hz min (below A1)
-    let half = len / 2;
-    let search_max = max_period.min(half);
-
-    if search_max <= min_period {
-        return block_util::TunerReading::default();
-    }
-
-    // Step 1-2: Difference function d(tau)
-    let mut d = vec![0.0_f32; search_max];
-    for tau in 1..search_max {
-        let mut sum = 0.0_f32;
-        for i in 0..half {
-            let diff = samples[i] - samples[i + tau];
-            sum += diff * diff;
-        }
-        d[tau] = sum;
-    }
-
-    // Step 3: Cumulative mean normalized difference d'(tau)
-    let mut d_prime = vec![0.0_f32; search_max];
-    d_prime[0] = 1.0;
-    let mut running_sum = 0.0_f32;
-    for tau in 1..search_max {
-        running_sum += d[tau];
-        d_prime[tau] = if running_sum > 0.0 {
-            d[tau] * tau as f32 / running_sum
-        } else {
-            1.0
-        };
-    }
-
-    // Step 4: Absolute threshold — find first tau where d'(tau) < threshold
-    let threshold = 0.15_f32;
-    let mut best_tau = 0;
-    for tau in min_period..search_max {
-        if d_prime[tau] < threshold {
-            // Find the local minimum after this dip
-            best_tau = tau;
-            while best_tau + 1 < search_max && d_prime[best_tau + 1] < d_prime[best_tau] {
-                best_tau += 1;
-            }
-            break;
-        }
-    }
-
-    // Fallback: if no dip below threshold, pick the global minimum
-    if best_tau == 0 {
-        let mut global_min = f32::MAX;
-        for tau in min_period..search_max {
-            if d_prime[tau] < global_min {
-                global_min = d_prime[tau];
-                best_tau = tau;
-            }
-        }
-        // Reject if global minimum is still high (no clear pitch)
-        if global_min > 0.4 {
-            return block_util::TunerReading::default();
-        }
-    }
-
-    if best_tau == 0 {
-        return block_util::TunerReading::default();
-    }
-
-    // Step 5: Parabolic interpolation for sub-sample accuracy
-    let freq = if best_tau > 0 && best_tau + 1 < search_max {
-        let alpha = d_prime[best_tau - 1];
-        let beta = d_prime[best_tau];
-        let gamma = d_prime[best_tau + 1];
-        let denom = 2.0 * (2.0 * beta - alpha - gamma);
-        let shift = if denom.abs() > 1e-10 {
-            (alpha - gamma) / denom
-        } else {
-            0.0
-        };
-        sample_rate / (best_tau as f32 + shift)
-    } else {
-        sample_rate / best_tau as f32
-    };
-
-    block_util::TunerReading::from(Some(freq))
-}
-
-#[allow(dead_code)]
-fn extract_tuner_reading(block: &mut BlockRuntimeNode) -> Option<block_util::TunerReading> {
-    match &mut block.processor {
-        RuntimeProcessor::Tuner(tuner) => {
-            let r = tuner.latest_reading();
-            if r.frequency.is_some() { Some(r.clone()) } else { None }
-        }
-        RuntimeProcessor::Select(select) => {
-            select.selected_node_mut().and_then(extract_tuner_reading)
-        }
-        _ => None,
-    }
-}
-
-#[allow(dead_code)]
-fn process_tuners(block: &mut BlockRuntimeNode, tuner_samples: &[f32]) {
-    match &mut block.processor {
-        RuntimeProcessor::Tuner(tuner) => {
-            if !tuner_samples.is_empty() {
-                tuner.process(tuner_samples);
-            }
-        }
-        RuntimeProcessor::Select(select) => {
-            if let Some(selected) = select.selected_node_mut() {
-                process_tuners(selected, tuner_samples);
-            }
-        }
-        RuntimeProcessor::Audio(_) | RuntimeProcessor::Bypass => {}
-    }
-}
-
 fn process_audio_block(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame]) {
     // Skip disabled blocks (processor is kept alive for instant re-enable)
     if !block.block_snapshot.enabled {
@@ -1817,7 +1622,7 @@ fn process_audio_block(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame]) 
                 process_audio_block(selected, frames);
             }
         }
-        RuntimeProcessor::Tuner(_) | RuntimeProcessor::Bypass => {}
+        RuntimeProcessor::Bypass => {}
     }
 }
 
