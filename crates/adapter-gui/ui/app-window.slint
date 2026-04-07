@@ -368,14 +368,25 @@ export component BlockEditorWindow inherits Window {
     // Dynamic width: each knob=56px, gap=8px, margins=80px (power btn + right padding)
     property <int> param-count: root.block-parameter-items.length;
     property <length> needed-width: param-count > 0 ? param-count * 64px + 80px : 520px;
-    property <length> panel-width: root.use-panel-editor ? Math.max(900px, needed-width) : 520px;
-    // EQ widgets (CurveEditor / MultiSlider) render below the panel image area.
-    // panel-height = panel-width / 4 (matches BlockPanelEditor's formula).
-    // CurveEditorControl y = header(48) + panel-height + 8; height = 200; bottom margin = 8.
     private property <bool> has-eq-widget:
         root.curve-editor-points.length > 0 || root.multi-slider-points.length > 0;
+    // EQ width: for MultiSlider give ~20px per band; for CurveEditor use 600px minimum.
+    // (panel-height = panel-width/4; minimum 600px keeps the power-button label visible.)
+    private property <length> eq-panel-width:
+        multi-slider-points.length > 0 ?
+            Math.max(600px, Math.min(1200px, multi-slider-points.length * 20px + 80px)) :
+            600px;
+    property <length> panel-width:
+        root.use-panel-editor ?
+            (has-eq-widget ? eq-panel-width : Math.max(900px, needed-width)) :
+            520px;
+    // EQ widget heights: CurveEditor = 200px, MultiSlider = 180px.
+    // Total = header(48) + panel-height(width/4) + gap(8) + widget-height + margin(8).
+    private property <length> eq-widget-height:
+        root.curve-editor-points.length > 0 ? 200px :
+        root.multi-slider-points.length > 0 ? 180px : 0px;
     private property <length> eq-extra-height:
-        has-eq-widget ? (48px + panel-width / 4 + 8px + 200px + 8px) : 275px;
+        has-eq-widget ? (48px + panel-width / 4 + 8px + eq-widget-height + 8px) : 275px;
 
     title: root.block-window-title;
     min-width: panel-width;

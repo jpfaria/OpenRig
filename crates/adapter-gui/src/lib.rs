@@ -3777,7 +3777,7 @@ pub fn run_desktop_app(
                 let win_eq_band_curves = Rc::new(VecModel::from(
                     win_eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>()
                 ));
-                win.set_multi_slider_points(ModelRc::from(win_multi_slider_pts));
+                win.set_multi_slider_points(ModelRc::from(win_multi_slider_pts.clone()));
                 win.set_curve_editor_points(ModelRc::from(win_curve_editor_pts.clone()));
                 win.set_eq_total_curve(win_eq_total.into());
                 win.set_eq_band_curves(ModelRc::from(win_eq_band_curves.clone()));
@@ -3853,6 +3853,7 @@ pub fn run_desktop_app(
                     let win_draft = win_draft.clone();
                     let win_param_items = win_param_items.clone();
                     let win_knob_overlays = win_knob_overlays.clone();
+                    let win_multi_slider_pts = win_multi_slider_pts.clone();
                     let win_curve_editor_pts = win_curve_editor_pts.clone();
                     let win_eq_band_curves = win_eq_band_curves.clone();
                     let win_timer = win_timer.clone();
@@ -3881,6 +3882,7 @@ pub fn run_desktop_app(
                         win_param_items.set_vec(new_params);
                         // Update EQ widgets for the new model
                         let default_params = build_params_from_items(&win_param_items);
+                        win_multi_slider_pts.set_vec(build_multi_slider_points(&model.effect_type, &model.model_id, &default_params));
                         win_curve_editor_pts.set_vec(build_curve_editor_points(&model.effect_type, &model.model_id, &default_params));
                         let (eq_total, eq_bands) = compute_eq_curves(&model.effect_type, &model.model_id, &default_params);
                         win_eq_band_curves.set_vec(eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>());
