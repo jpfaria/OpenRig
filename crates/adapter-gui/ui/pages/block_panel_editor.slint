@@ -258,6 +258,7 @@ export component BlockPanelEditor inherits Rectangle {
     callback close-block-drawer();
     callback save-block-drawer();
     callback delete-block-drawer();
+    callback show-plugin-info(string, string);  // effect_type, model_id
     callback toggle-block-drawer-enabled();
     callback update-block-parameter-number(string, float);
     callback select-block-parameter-option(string, int);
@@ -413,6 +414,31 @@ export component BlockPanelEditor inherits Rectangle {
                 letter-spacing: 0.8px;
                 vertical-alignment: center;
                 horizontal-alignment: center;
+            }
+        }
+
+        // Info button (edit mode, ao lado do delete)
+        if root.block-drawer-edit-mode : Rectangle {
+            x: parent.width - 64px;
+            y: (parent.height - 24px) / 2;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            background: ta-info.has-hover ? #001a1a : transparent;
+
+            Image {
+                x: 3px; y: 3px;
+                width: 18px; height: 18px;
+                source: @image-url("../assets/info.svg");
+                image-fit: contain;
+                colorize: ta-info.has-hover ? #22C55E : #336655;
+            }
+
+            ta-info := TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.show-plugin-info(root.selected-icon-kind, root.selected-model-id);
+                }
             }
         }
 
