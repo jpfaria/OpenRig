@@ -353,12 +353,22 @@ pub fn schema_for_block_model(
         "vst3" => {
             let entry = vst3_host::find_vst3_plugin(model)
                 .ok_or_else(|| format!("VST3 plugin '{}' not found in catalog", model))?;
+            // Build a float parameter for each discovered VST3 parameter (normalized 0–100%).
+            let parameters = entry.info.params.iter().map(|p| {
+                let path = format!("p{}", p.id);
+                let label = if p.title.is_empty() { p.short_title.clone() } else { p.title.clone() };
+                let default_pct = (p.default_normalized * 100.0) as f32;
+                block_core::param::float_parameter(
+                    &path, &label, None, Some(default_pct), 0.0, 100.0, 1.0,
+                    block_core::param::ParameterUnit::Percent,
+                )
+            }).collect();
             Ok(ModelParameterSchema {
                 effect_type: "vst3".to_string(),
                 model: model.to_string(),
                 display_name: entry.display_name.to_string(),
                 audio_mode: ModelAudioMode::TrueStereo,
-                parameters: vec![],
+                parameters,
             })
         }
         other => Err(format!("unsupported block type '{}'", other)),

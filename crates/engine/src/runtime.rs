@@ -1170,11 +1170,22 @@ fn build_core_block_runtime_node(
                 .ok_or_else(|| anyhow!("VST3 plugin '{}' not found in catalog", model))?;
             let bundle_path = entry.info.bundle_path.clone();
             let uid = entry.info.uid;
+            // Convert stored params (path="p{id}", value=0–100%) to VST3 normalized pairs.
+            let vst3_params: Vec<(u32, f64)> = params
+                .values
+                .iter()
+                .filter_map(|(path, value)| {
+                    let id_str = path.strip_prefix('p')?;
+                    let id: u32 = id_str.parse().ok()?;
+                    let pct = value.as_f32()?;
+                    Some((id, (pct / 100.0).clamp(0.0, 1.0) as f64))
+                })
+                .collect();
             Ok(audio_block_runtime_node(
                 block,
                 input_layout,
                 build_audio_processor_for_model(chain, "vst3", model, input_layout, |layout| {
-                    vst3_host::build_vst3_processor(&bundle_path, &uid, sample_rate as f64, layout, &[])
+                    vst3_host::build_vst3_processor(&bundle_path, &uid, sample_rate as f64, layout, &vst3_params)
                         .map_err(|e| anyhow!("{}", e))
                 })?,
             ))
