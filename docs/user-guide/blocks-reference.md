@@ -1,6 +1,6 @@
 # Blocks Reference
 
-OpenRig ships with **176 models** across **15 block types**, powered by four distinct audio backends. This document provides a complete reference for every block type and model available in the system.
+OpenRig ships with **229 models** across **15 block types**, powered by four distinct audio backends. This document provides a complete reference for every block type and model available in the system.
 
 ## Audio Backends
 
@@ -66,22 +66,24 @@ An amp block models a complete amplifier, including preamp and power amp stages 
 
 ### Models
 
-| Model Name        | Brand   | Backend | Description                        |
-|-------------------|---------|---------|------------------------------------|
-| Blackface Clean   | --      | Native  | Clean American amp                 |
-| Tweed Breakup     | --      | Native  | Warm breakup amp                   |
-| Chime             | --      | Native  | Chimey British-style amp           |
-| Bogner Ecstasy    | Bogner  | NAM     | Versatile high-gain amp            |
-| Bogner Shiva      | Bogner  | NAM     | Dynamic clean-to-gain amp          |
-| Dumble ODS        | Dumble  | NAM     | Legendary smooth overdrive         |
-| EVH 5150          | EVH     | NAM     | Iconic high-gain metal amp         |
-| Marshall JCM 800  | Marshall| NAM     | Classic British rock amp           |
-| Marshall JVM      | Marshall| NAM     | Modern versatile Marshall          |
-| Mesa Mark V       | Mesa    | NAM     | Tight focused high-gain            |
-| Mesa Rectifier    | Mesa    | NAM     | Aggressive modern high-gain        |
-| Peavey 5150       | Peavey  | NAM     | Heavy metal workhorse              |
+| Model Name                | Brand     | Backend | Description                        |
+|---------------------------|-----------|---------|------------------------------------|
+| Blackface Clean           | --        | Native  | Clean American amp                 |
+| Tweed Breakup             | --        | Native  | Warm breakup amp                   |
+| Chime                     | --        | Native  | Chimey British-style amp           |
+| Bogner Ecstasy            | Bogner    | NAM     | Versatile high-gain amp            |
+| Bogner Shiva              | Bogner    | NAM     | Dynamic clean-to-gain amp          |
+| Dumble ODS                | Dumble    | NAM     | Legendary smooth overdrive         |
+| EVH 5150                  | EVH       | NAM     | Iconic high-gain metal amp         |
+| Friedman BE100 Deluxe     | Friedman  | NAM     | EL34-powered, 5 channels, 3 mic positions |
+| Marshall JCM 800          | Marshall  | NAM     | Classic British rock amp           |
+| Marshall JMP-1 Head       | Marshall  | NAM     | JMP-1 OD2 head, no cab             |
+| Marshall JVM              | Marshall  | NAM     | Modern versatile Marshall          |
+| Mesa Mark V               | Mesa      | NAM     | Tight focused high-gain            |
+| Mesa Rectifier            | Mesa      | NAM     | Aggressive modern high-gain        |
+| Peavey 5150               | Peavey    | NAM     | Heavy metal workhorse              |
 
-### Parameters
+### Parameters -- Native Amps
 
 | Parameter | Range   | Step | Description              |
 |-----------|---------|------|--------------------------|
@@ -94,6 +96,17 @@ An amp block models a complete amplifier, including preamp and power amp stages 
 | sag       | 0--100% | 1.0  | Power supply sag         |
 | master    | 0--100% | 1.0  | Master output level      |
 | room_mix  | 0--100% | 1.0  | Room ambience mix        |
+
+### Parameters -- Friedman BE100 Deluxe
+
+| Parameter | Options                                                                 | Default      |
+|-----------|-------------------------------------------------------------------------|--------------|
+| channel   | cln_tender (Clean Tender), cln_rock (Clean Rock), be (BE Eddie), hbe_tallica (HBE Tallica), hbe_mammoth (HBE Mammoth) | cln_tender |
+| mic       | sm57, sm58, blend                                                       | sm57         |
+
+### Parameters -- Marshall JMP-1 Head
+
+No user-adjustable parameters. Single capture of the JMP-1 OD2 channel.
 
 ---
 
@@ -135,23 +148,65 @@ A cab (cabinet) block simulates the speaker cabinet and microphone capture. It a
 
 A gain block covers overdrive, distortion, fuzz, and volume control pedals. These blocks add harmonic saturation or shape the signal level before or after the amp.
 
+NAM-based gain models capture real hardware with specific parameter snapshots (tone, drive, and boost settings fixed at capture time). They reproduce the character of a particular pedal setting rather than offering continuously variable parameters.
+
 ### Models
 
-| Model Name           | Brand   | Backend | Description                          |
-|----------------------|---------|---------|--------------------------------------|
-| Volume               | --      | Native  | Simple volume/mute control           |
-| Ibanez TS9           | --      | Native  | Classic tube screamer overdrive      |
-| Blues Overdrive BD-2  | Ibanez  | NAM     | Smooth blues overdrive               |
-| Ibanez TS9           | Ibanez  | NAM     | NAM-captured tube screamer           |
-| JHS Andy Timmons     | JHS     | NAM     | Signature artist overdrive           |
-| Bitta                | --      | LV2     | Bitcrusher distortion                |
-| Chow Centaur         | --      | LV2     | Klon Centaur clone                   |
-| MDA Degrade          | --      | LV2     | Lo-fi degradation effect             |
-| MDA Overdrive        | --      | LV2     | Soft-clip overdrive                  |
-| OJD                  | --      | LV2     | OCD-style overdrive                  |
-| Paranoia             | --      | LV2     | Fuzz/distortion                      |
-| TAP Sigmoid          | --      | LV2     | Waveshaper distortion                |
-| Wolf Shaper          | --      | LV2     | Waveshaper with visual editor        |
+| Model Name                    | Brand         | Backend | Description                                                    |
+|-------------------------------|---------------|---------|----------------------------------------------------------------|
+| Volume                        | --            | Native  | Simple volume/mute control                                     |
+| Ibanez TS9                    | --            | Native  | Classic tube screamer overdrive                                |
+| Blues Overdrive BD-2          | Ibanez        | NAM     | Smooth blues overdrive                                         |
+| Ibanez TS9                    | Ibanez        | NAM     | NAM-captured tube screamer                                     |
+| JHS Andy Timmons              | JHS           | NAM     | Signature artist overdrive                                     |
+| Ampeg SCR-DI                  | Ampeg         | NAM     | Bass DI/preamp with tone and scrambler variants                |
+| Behringer SF300 Super Fuzz    | Behringer     | NAM     | Fuzz pedal with fuzz1/fuzz2 variants                           |
+| BluesBreaker                  | Marshall      | NAM     | Marshall BluesBreaker clone                                    |
+| Boss DS-1 Distortion          | Boss          | NAM     | Classic distortion, tone x dist grid                           |
+| Boss DS-1 Wampler JCM Mod     | Boss          | NAM     | JCM-modded DS-1, tone x dist grid                              |
+| Boss FZ-1W Fuzz               | Boss          | NAM     | Modern/vintage fuzz modes                                      |
+| Boss HM-2 Heavy Metal '86     | Boss          | NAM     | 1986 HM-2, chainsaw and variants                               |
+| Boss HM-2 Heavy Metal MiJ     | Boss          | NAM     | Made-in-Japan HM-2, SWEDE/Godflesh/ATG tones                   |
+| CC Boost                      | Custom        | NAM     | Clean boost                                                    |
+| Darkglass Alpha Omega Ultra   | Darkglass     | NAM     | Bass overdrive, alpha/omega channels                           |
+| Darkglass B7K Ultra           | Darkglass     | NAM     | Bass preamp/drive, 5 tones                                     |
+| Demonfx BE-OD Clone           | Demonfx       | NAM     | Friedman BE-OD clone, gain variants                            |
+| Fulltone OCD v1.2             | Fulltone      | NAM     | Overdrive, LP/HP modes                                         |
+| Fulltone OCD v1.5             | Fulltone      | NAM     | Anti-aliased overdrive, LP/HP modes                            |
+| Grind                         | TC Electronic | NAM     | Distortion                                                     |
+| HM-2                          | Boss          | NAM     | HM-2 single capture                                            |
+| Ibanez TS808                  | Ibanez        | NAM     | Tube Screamer 808, standard/driven                             |
+| JHS Bonsai                    | JHS           | NAM     | 9 Tube Screamer modes + boost                                  |
+| Klon Centaur Silver           | Klon          | NAM     | Legendary overdrive, 6 settings                                |
+| Klone                         | Custom        | NAM     | Klon clone, single capture                                     |
+| Lokajaudio Der Blend          | Lokajaudio    | NAM     | Fuzz/sustain, 5 character settings                             |
+| Lokajaudio Doom Machine V3    | Lokajaudio    | NAM     | Fuzz/octave                                                    |
+| Maxon OD808                   | Maxon         | NAM     | OD808 overdrive, drive 0--100%                                 |
+| Metal Zone MT-2               | Boss          | NAM     | Metal distortion                                               |
+| MXR GT-OD (Zakk Wylde)        | MXR           | NAM     | Overdrive with hq/v2 versions                                  |
+| PoT Boost                     | PoT           | NAM     | Clean boost                                                    |
+| PoT OD                        | PoT           | NAM     | Overdrive                                                      |
+| ProCo RAT                     | ProCo         | NAM     | Classic RAT distortion                                         |
+| ProCo RAT 2                   | ProCo         | NAM     | RAT 2, dist/filter variants                                    |
+| ROD-10 DS1                    | Custom        | NAM     | ROD-10 into DS-1                                               |
+| ROD-10 SD1                    | Custom        | NAM     | ROD-10 into SD-1                                               |
+| RR Golden Clone               | RR            | NAM     | Klon-style overdrive, 3 settings                               |
+| SansAmp DI-2112               | Tech21        | NAM     | Bass preamp, 9 artist presets (Geddy Lee, Jack Bruce, etc.)    |
+| Slammin Clean Booster         | Slammin       | NAM     | 10 clean boost voicings                                        |
+| Tascam 424 Preamp             | Tascam        | NAM     | Cassette preamp pedal, gain 7--max                             |
+| TC Spark                      | TC Electronic | NAM     | Clean boost, clean/mid                                         |
+| TCIP                          | TC Electronic | NAM     | Boost                                                          |
+| Tech21 Steve Harris SH-1      | Tech21        | NAM     | Iron Maiden bass preamp                                        |
+| Velvet Katana                 | Velvet        | NAM     | Dumble-like tones, 6 characters                                |
+| Vemuram Jan Ray               | Vemuram       | NAM     | Mateus Asato signature overdrive                               |
+| Bitta                         | --            | LV2     | Bitcrusher distortion                                          |
+| Chow Centaur                  | --            | LV2     | Klon Centaur clone                                             |
+| MDA Degrade                   | --            | LV2     | Lo-fi degradation effect                                       |
+| MDA Overdrive                 | --            | LV2     | Soft-clip overdrive                                            |
+| OJD                           | --            | LV2     | OCD-style overdrive                                            |
+| Paranoia                      | --            | LV2     | Fuzz/distortion                                                |
+| TAP Sigmoid                   | --            | LV2     | Waveshaper distortion                                          |
+| Wolf Shaper                   | --            | LV2     | Waveshaper with visual editor                                  |
 
 ### Parameters -- Native TS9
 
@@ -167,6 +222,231 @@ A gain block covers overdrive, distortion, fuzz, and volume control pedals. Thes
 |-----------|---------|--------------------------|
 | volume    | 0--100% | Volume level             |
 | mute      | on/off  | Mute switch              |
+
+### Parameters -- NAM Gain Models
+
+NAM gain models expose discrete capture variants rather than continuous knobs. Each model section below lists the selectable options per parameter.
+
+#### Ampeg SCR-DI
+
+| Parameter | Options                                                             | Default  |
+|-----------|---------------------------------------------------------------------|----------|
+| tone      | standard, ultra_lo, ultra_hi, ultra_lo_hi, scrambler_med, scrambler_max | standard |
+
+#### Behringer SF300 Super Fuzz
+
+| Parameter | Options                            | Default    |
+|-----------|------------------------------------|------------|
+| tone      | fuzz1, fuzz2_low, fuzz2_high, fuzz2_max | fuzz2_high |
+
+#### BluesBreaker
+
+No user-adjustable parameters. Single capture.
+
+#### Boss DS-1 Distortion
+
+| Parameter | Options                  | Default |
+|-----------|--------------------------|---------|
+| tone      | 4 (Dark), 7 (Neutral), 10 (Bright) | 7 |
+| dist      | 5 (Low), 8 (Medium), 10 (High)     | 8 |
+
+#### Boss DS-1 Wampler JCM Mod
+
+| Parameter | Options                              | Default |
+|-----------|--------------------------------------|---------|
+| tone      | 2 (Dark), 6 (Neutral), 8 (Bright)   | 6       |
+| dist      | 0 (Clean), 5 (Medium), 10 (High)    | 5       |
+
+#### Boss FZ-1W Fuzz
+
+| Parameter | Options        | Default |
+|-----------|----------------|---------|
+| mode      | modern, vintage | modern  |
+| fuzz      | 2, 5, 7, 11    | 5       |
+
+#### Boss HM-2 '86
+
+| Parameter | Options                                              | Default  |
+|-----------|------------------------------------------------------|----------|
+| tone      | chainsaw_0gain, chainsaw, medium, warm, bright, high_gain, full | chainsaw |
+
+#### Boss HM-2 MiJ
+
+| Parameter | Options                                        | Default |
+|-----------|------------------------------------------------|---------|
+| tone      | swede, godflesh, atg, boost_sharp, boost_blunt, boost_che | swede |
+
+#### CC Boost
+
+No user-adjustable parameters. Single capture.
+
+#### Darkglass Alpha Omega Ultra
+
+| Parameter | Options         | Default |
+|-----------|-----------------|---------|
+| channel   | alpha, omega    | omega   |
+| gain      | 2, 5, 8, 10     | 5       |
+
+#### Darkglass B7K Ultra
+
+| Parameter | Options                                        | Default |
+|-----------|------------------------------------------------|---------|
+| tone      | clean, hard_rock, heavy, djent, distortion     | heavy   |
+
+#### Demonfx BE-OD Clone
+
+| Parameter | Options                                            | Default |
+|-----------|----------------------------------------------------|---------|
+| gain      | 50 (Low), 75 (Medium), 100 (High), 100_tight (High Tight) | 75 |
+
+#### Fulltone OCD v1.2
+
+| Parameter | Options                    | Default |
+|-----------|----------------------------|---------|
+| mode      | lp (LP), hp (HP)           | lp      |
+| drive     | 0 (Low), 4 (Medium), 7 (High) | 4    |
+
+#### Fulltone OCD v1.5
+
+| Parameter | Options                         | Default |
+|-----------|---------------------------------|---------|
+| mode      | lp (LP), hp (HP)                | lp      |
+| drive     | 3 (Low), 9 (Medium), 12 (High)  | 9       |
+
+#### Grind
+
+No user-adjustable parameters. Single capture.
+
+#### HM-2
+
+No user-adjustable parameters. Single capture.
+
+#### Ibanez TS808
+
+| Parameter | Options                | Default  |
+|-----------|------------------------|----------|
+| character | standard, driven       | standard |
+
+#### JHS Bonsai (9 TS)
+
+| Parameter | Options                          | Default |
+|-----------|----------------------------------|---------|
+| mode      | 808, ts9, od1, jhs, keeley       | 808     |
+| boost     | on, off                          | off     |
+
+#### Klon Centaur Silver
+
+| Parameter | Options                                    | Default |
+|-----------|--------------------------------------------|---------|
+| setting   | 255, 277, 468, 555, 668, john_mayer        | 555     |
+
+#### Klone
+
+No user-adjustable parameters. Single capture.
+
+#### Lokajaudio Der Blend
+
+| Parameter | Options                                | Default |
+|-----------|----------------------------------------|---------|
+| character | off, mid, high, high_boost, max        | high    |
+
+#### Lokajaudio Doom Machine V3
+
+No user-adjustable parameters. Single capture.
+
+#### Maxon OD808
+
+| Parameter     | Options                      | Default |
+|---------------|------------------------------|---------|
+| drive_percent | 0, 25, 50, 75, 100%          | 50%     |
+
+#### Metal Zone MT-2
+
+No user-adjustable parameters. Single capture.
+
+#### MXR GT-OD (Zakk Wylde)
+
+| Parameter | Options    | Default |
+|-----------|------------|---------|
+| version   | hq, v2     | hq      |
+
+#### PoT Boost
+
+No user-adjustable parameters. Single capture.
+
+#### PoT OD
+
+No user-adjustable parameters. Single capture.
+
+#### ProCo RAT
+
+No user-adjustable parameters. Single capture.
+
+#### ProCo RAT 2
+
+| Parameter | Options                          | Default |
+|-----------|----------------------------------|---------|
+| tone      | light, medium, heavy, max        | medium  |
+
+#### ROD-10 DS1
+
+No user-adjustable parameters. Single capture.
+
+#### ROD-10 SD1
+
+No user-adjustable parameters. Single capture.
+
+#### RR Golden Clone
+
+| Parameter | Options                          | Default |
+|-----------|----------------------------------|---------|
+| setting   | 5_4 (5/4), 6_6 (6/6), 2_7 (2/7) | 6_6     |
+
+#### SansAmp DI-2112
+
+| Parameter | Options                                                                              | Default        |
+|-----------|--------------------------------------------------------------------------------------|----------------|
+| preset    | geddy_standard, geddy_roundabout, yyz, jack_bruce, jpj, les_claypool, entwistle, radiohead, deep_sat | geddy_standard |
+
+#### Slammin Clean Booster
+
+| Parameter | Options                                                                                                               | Default   |
+|-----------|-----------------------------------------------------------------------------------------------------------------------|-----------|
+| character | od808_t5 (OD808 T5), od808_t7 (OD808 T7), ocd_lp_t5 (OCD LP), ocd_hp_t5 (OCD HP), sd1_t5 (SD1 T5), sd1_t7 (SD1 T7), goldenpearl_t5 (Golden Pearl), echopre_bright (EchoPre Bright), echopre_mid (EchoPre Mid), echopre_dark (EchoPre Dark) | od808_t5 |
+
+#### Tascam 424 Preamp
+
+| Parameter | Options                          | Default |
+|-----------|----------------------------------|---------|
+| gain      | 7 (Low), 8 (Medium), 9 (High), max (Max) | 8 |
+
+#### TC Spark
+
+| Parameter | Options       | Default |
+|-----------|---------------|---------|
+| character | clean, mid    | clean   |
+
+#### TCIP
+
+No user-adjustable parameters. Single capture.
+
+#### Tech21 Steve Harris SH-1
+
+| Parameter | Options                    | Default  |
+|-----------|----------------------------|----------|
+| character | standard, less_highs       | standard |
+
+#### Velvet Katana
+
+| Parameter | Options                                                                                       | Default |
+|-----------|-----------------------------------------------------------------------------------------------|---------|
+| character | country (Country), blues_bright (Blues Bright), larry (Larry Carlton), brad (Brad), drive (Drive), drive_plus (Drive ++) | larry |
+
+#### Vemuram Jan Ray
+
+| Parameter | Options                    | Default  |
+|-----------|----------------------------|----------|
+| character | mid_gain, high_gain        | mid_gain |
 
 ---
 
@@ -415,9 +695,88 @@ A full rig block combines the entire signal chain -- preamp, power amp, cabinet,
 
 ### Models
 
-| Model Name                      | Brand  | Backend | Description                                    |
-|---------------------------------|--------|---------|-------------------------------------------------|
-| Roland JC-120B Jazz Chorus      | Roland | NAM     | All-in-one clean amp with built-in chorus       |
+| Model Name                      | Brand    | Backend | Description                                      |
+|---------------------------------|----------|---------|--------------------------------------------------|
+| Roland JC-120B Jazz Chorus      | Roland   | NAM     | All-in-one clean amp with built-in chorus        |
+| Ampeg SVT Classic               | Ampeg    | NAM     | Classic bass amp with 6x10 cab                   |
+| Dover DA-50 + Mesa 4x12         | Dover    | NAM     | Full rig with Mesa OS 4x12 cab                   |
+| Fender Bassman 1971             | Fender   | NAM     | 1971 Bassman full rig, 9 tone presets            |
+| Fender Deluxe Reverb '65        | Fender   | NAM     | Clean single-channel with mic variants           |
+| Fender Super Reverb 1977        | Fender   | NAM     | Clean amp with mic variants                      |
+| Marshall JMP-1 Full Rig         | Marshall | NAM     | JMP-1 OD2 + V30 full rig                         |
+| Marshall Super 100 1966         | Marshall | NAM     | Vintage Marshall SA100 full rig                  |
+| Peavey 5150 + Mesa 4x12         | Peavey   | NAM     | High-gain full rig with boost and mic options    |
+| Synergy DRECT Mesa              | Synergy  | NAM     | Metal full rig with boost options                |
+| Vox AC30                        | Vox      | NAM     | Full rig with character variants                 |
+| Vox AC30 '61 Fawn EF86          | Vox      | NAM     | Vintage 1961 Vox full rig                        |
+
+### Parameters
+
+#### Roland JC-120B Jazz Chorus
+
+No user-adjustable parameters. Single capture.
+
+#### Ampeg SVT Classic
+
+| Parameter | Options                    | Default  |
+|-----------|----------------------------|----------|
+| tone      | standard, ultra_hi, ultra_lo | standard |
+| mic       | md421, sm57                | md421    |
+
+#### Dover DA-50 + Mesa 4x12
+
+| Parameter | Options             | Default |
+|-----------|---------------------|---------|
+| boost     | clean, boosted      | clean   |
+
+#### Fender Bassman 1971
+
+| Parameter | Options                                                                                    | Default     |
+|-----------|--------------------------------------------------------------------------------------------|-------------|
+| tone      | clean, bright_clean, warm_clean, sweet_spot, warm_sweet_spot, cranked, 80s_clean, big_clean, warm_fuzz | sweet_spot |
+
+#### Fender Deluxe Reverb '65
+
+| Parameter | Options                              | Default     |
+|-----------|--------------------------------------|-------------|
+| mic       | sm57_royer, sm57_royer_room, room    | sm57_royer  |
+
+#### Fender Super Reverb 1977
+
+| Parameter | Options                     | Default |
+|-----------|-----------------------------|---------|
+| mic       | sm57, akg414, sm57_akg414   | sm57    |
+
+#### Marshall JMP-1 Full Rig
+
+No user-adjustable parameters. Single capture of the JMP-1 OD2 channel with V30 cab.
+
+#### Marshall Super 100 1966
+
+No user-adjustable parameters. Single capture.
+
+#### Peavey 5150 + Mesa 4x12
+
+| Parameter | Options                    | Default  |
+|-----------|----------------------------|----------|
+| boost     | no_boost, maxon, mxr       | no_boost |
+| mic       | sm57, sm58                 | sm57     |
+
+#### Synergy DRECT Mesa
+
+| Parameter | Options                    | Default   |
+|-----------|----------------------------|-----------|
+| boost     | unboosted, od808, sd1      | unboosted |
+
+#### Vox AC30
+
+| Parameter | Options                          | Default  |
+|-----------|----------------------------------|----------|
+| character | standard, clean_65prince         | standard |
+
+#### Vox AC30 '61 Fawn EF86
+
+No user-adjustable parameters. Single capture.
 
 ---
 
@@ -426,9 +785,9 @@ A full rig block combines the entire signal chain -- preamp, power amp, cabinet,
 | Block Type  | Models | Backends Available       |
 |-------------|--------|--------------------------|
 | Preamp      | 5      | Native, NAM              |
-| Amp         | 12     | Native, NAM              |
+| Amp         | 14     | Native, NAM              |
 | Cab         | 11     | Native, IR               |
-| Gain        | 13     | Native, NAM, LV2         |
+| Gain        | 53     | Native, NAM, LV2         |
 | Delay       | 6      | Native                   |
 | Reverb      | 1      | Native                   |
 | Modulation  | 5      | Native                   |
@@ -438,5 +797,7 @@ A full rig block combines the entire signal chain -- preamp, power amp, cabinet,
 | Utility     | 1      | Native                   |
 | Pitch       | 2      | Native                   |
 | Body        | 114    | IR                       |
-| Full Rig    | 1      | NAM                      |
-| **Total**   | **176**|                          |
+| Full Rig    | 12     | NAM                      |
+| **Total**   | **229**|                          |
+
+> Gain includes 2 Native models, 43 NAM captures, and 8 LV2 plugins. NAM captures reproduce specific hardware settings at capture time; parameters are fixed per capture variant rather than continuously variable.
