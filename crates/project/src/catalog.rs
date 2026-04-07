@@ -283,6 +283,13 @@ pub fn model_knob_layout(effect_type: &str, model_id: &str) -> &'static [block_c
     }
 }
 
+/// Returns true when a block type opens its own native editor window,
+/// meaning the compact view should show an "open editor" action instead
+/// of rendering inline parameter controls.
+pub fn block_has_external_gui(effect_type: &str) -> bool {
+    effect_type == block_core::EFFECT_TYPE_VST3
+}
+
 pub fn build_block_kind(
     effect_type: &str,
     model_id: &str,

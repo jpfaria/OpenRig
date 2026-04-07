@@ -6847,6 +6847,7 @@ fn build_compact_blocks(
                     items.iter().position(|i| i.model_id.as_str() == model_id).map(|i| i as i32).unwrap_or(-1)
                 },
                 stream_data: Default::default(),
+                has_external_gui: project::catalog::block_has_external_gui(&effect_type),
             })
         })
         .collect()
