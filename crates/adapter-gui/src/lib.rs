@@ -680,7 +680,6 @@ pub fn run_desktop_app(
 
             let lang = system_language();
             let meta = plugin_info::plugin_metadata(&lang, &model_id);
-            eprintln!("[plugin-info] lang={lang:?} model_id={model_id:?} effect_type={effect_type:?} desc_len={}", meta.description.len());
 
             let (screenshot_img, has_screenshot) = load_screenshot_image(&effect_type, &model_id);
 
@@ -4451,8 +4450,7 @@ pub fn run_desktop_app(
 
                         let lang = system_language();
                         let meta = plugin_info::plugin_metadata(&lang, &model_id);
-                        eprintln!("[plugin-info] lang={lang:?} model_id={model_id:?} effect_type={effect_type:?} desc_len={}", meta.description.len());
-
+            
                         let (screenshot_img, has_screenshot) = load_screenshot_image(&effect_type, &model_id);
 
                         let info_win = match PluginInfoWindow::new() {
@@ -8110,7 +8108,8 @@ fn load_screenshot_image(effect_type: &str, model_id: &str) -> (slint::Image, bo
 fn system_language() -> String {
     let lang = std::env::var("LANG").unwrap_or_default();
     let base = lang.split('.').next().unwrap_or("");
-    if base.is_empty() {
+    // "C", "POSIX", empty, or too short = not a real locale → fall back to English
+    if base.is_empty() || base.len() < 2 || matches!(base, "C" | "POSIX") {
         return "en-US".to_string();
     }
     base.replace('_', "-")
