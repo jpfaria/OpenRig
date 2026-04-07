@@ -41,19 +41,23 @@ impl StereoVst3Processor {
         self.plugin.set_param(id, normalized)
     }
 
-    /// Apply any pending parameter updates from the GUI before processing.
-    fn apply_pending_params(&self) {
+    /// Drain pending GUI parameter updates, returning them as a Vec.
+    fn drain_pending_params(&self) -> Vec<(u32, f64)> {
         if let Some(rx) = &self.param_rx {
+            let mut out = Vec::new();
             while let Some(update) = rx.pop() {
-                let _ = self.plugin.set_param(update.id, update.normalized);
+                out.push((update.id, update.normalized));
             }
+            out
+        } else {
+            Vec::new()
         }
     }
 }
 
 impl StereoProcessor for StereoVst3Processor {
     fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
-        self.apply_pending_params();
+        let pending = self.drain_pending_params();
         self.buf_in_l[0] = input[0];
         self.buf_in_r[0] = input[1];
         self.plugin.process_audio(
@@ -62,12 +66,13 @@ impl StereoProcessor for StereoVst3Processor {
             &mut self.buf_out_l[..1],
             &mut self.buf_out_r[..1],
             1,
+            &pending,
         );
         [self.buf_out_l[0], self.buf_out_r[0]]
     }
 
     fn process_block(&mut self, frames: &mut [[f32; 2]]) {
-        self.apply_pending_params();
+        let pending = self.drain_pending_params();
         let mut offset = 0;
         while offset < frames.len() {
             let chunk = (frames.len() - offset).min(BLOCK_SIZE);
@@ -77,12 +82,15 @@ impl StereoProcessor for StereoVst3Processor {
                 self.buf_in_r[i] = frames[offset + i][1];
             }
 
+            let params_for_chunk: &[(u32, f64)] = if offset == 0 { &pending } else { &[] };
+
             self.plugin.process_audio(
                 &mut self.buf_in_l[..chunk],
                 &mut self.buf_in_r[..chunk],
                 &mut self.buf_out_l[..chunk],
                 &mut self.buf_out_r[..chunk],
                 chunk,
+                params_for_chunk,
             );
 
             for i in 0..chunk {

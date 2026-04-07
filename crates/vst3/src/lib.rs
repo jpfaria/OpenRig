@@ -14,6 +14,7 @@
 mod host;
 mod processor;
 mod stereo;
+mod param_changes;
 pub mod param_channel;
 pub mod param_registry;
 pub mod component_handler;

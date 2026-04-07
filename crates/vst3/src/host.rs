@@ -10,13 +10,16 @@ use std::ptr;
 use vst3::Steinberg::Vst::{
     AudioBusBuffers, AudioBusBuffers__type0, BusDirections_, BusInfo, IAudioProcessor,
     IAudioProcessorTrait, IComponent, IComponentTrait, IEditController, IEditControllerTrait,
-    MediaTypes_, ParameterInfo, ProcessData, ProcessSetup, SpeakerArr, SymbolicSampleSizes_,
+    IParameterChanges, MediaTypes_, ParameterInfo, ProcessData, ProcessSetup, SpeakerArr,
+    SymbolicSampleSizes_,
 };
 use vst3::Steinberg::{
     IPluginBaseTrait, IPluginFactory, IPluginFactoryTrait, PClassInfo, TBool, TUID,
     kResultOk,
 };
-use vst3::{ComPtr, Interface};
+use vst3::{ComPtr, ComWrapper, Interface};
+
+use crate::param_changes::HostParameterChanges;
 
 // ---------------------------------------------------------------------------
 // Public data types
@@ -460,6 +463,12 @@ impl Vst3Plugin {
     ///
     /// All slices must have length >= `n_samples`. The raw pointers in
     /// `ProcessData` are only valid for the duration of this call.
+    /// Process audio, optionally applying parameter changes to the DSP.
+    ///
+    /// `pending_params` — `(param_id, normalized_value)` pairs collected from
+    /// the GUI since the last block.  They are delivered via
+    /// `ProcessData::inputParameterChanges` so the plugin's DSP reads them
+    /// regardless of whether its controller and component share state.
     pub fn process_audio(
         &mut self,
         input_l: &mut [f32],
@@ -467,6 +476,7 @@ impl Vst3Plugin {
         output_l: &mut [f32],
         output_r: &mut [f32],
         n_samples: usize,
+        pending_params: &[(u32, f64)],
     ) {
         debug_assert!(input_l.len() >= n_samples);
         debug_assert!(input_r.len() >= n_samples);
@@ -476,12 +486,6 @@ impl Vst3Plugin {
         let n = n_samples.min(self.block_size) as i32;
 
         // Build planar channel pointer arrays.
-        // The VST3 spec requires *mut *mut f32 (array of pointers, one per channel).
-        //
-        // Safety: the channel buffers are valid for the duration of this call.
-        // We construct local arrays pointing into the provided slices and pass
-        // their addresses to the plugin. No aliasing occurs because input and
-        // output use separate arrays.
         let mut input_channels: [*mut f32; 2] =
             [input_l.as_mut_ptr(), input_r.as_mut_ptr()];
         let mut output_channels: [*mut f32; 2] =
@@ -494,9 +498,6 @@ impl Vst3Plugin {
             numChannels: num_in as i32,
             silenceFlags: 0,
             __field0: AudioBusBuffers__type0 {
-                // Safety: channelBuffers32 points to a stack-allocated array of
-                // valid f32 pointers. The plugin must not store these beyond the
-                // process() call per the VST3 spec.
                 channelBuffers32: input_channels.as_mut_ptr(),
             },
         };
@@ -508,6 +509,27 @@ impl Vst3Plugin {
             },
         };
 
+        // Build IParameterChanges COM object for any pending GUI-driven changes.
+        // Keeping this alive until after process() ensures the plugin can
+        // safely dereference the pointer during the call.
+        let param_changes_wrapper: Option<ComWrapper<HostParameterChanges>> =
+            if !pending_params.is_empty() {
+                Some(ComWrapper::new(HostParameterChanges::new(pending_params)))
+            } else {
+                None
+            };
+
+        let input_param_changes_ptr: *mut IParameterChanges = param_changes_wrapper
+            .as_ref()
+            .and_then(|w| w.as_com_ref::<IParameterChanges>())
+            .map(|r| r.as_ptr())
+            .unwrap_or(ptr::null_mut());
+
+        // Also sync the controller display state (for plugins that query it).
+        for &(id, normalized) in pending_params {
+            let _ = unsafe { self.controller.setParamNormalized(id, normalized) };
+        }
+
         let mut process_data = ProcessData {
             processMode: 0i32, // kRealtime
             symbolicSampleSize: SymbolicSampleSizes_::kSample32 as i32,
@@ -516,7 +538,7 @@ impl Vst3Plugin {
             numOutputs: 1,
             inputs: &mut input_bus,
             outputs: &mut output_bus,
-            inputParameterChanges: ptr::null_mut(),
+            inputParameterChanges: input_param_changes_ptr,
             outputParameterChanges: ptr::null_mut(),
             inputEvents: ptr::null_mut(),
             outputEvents: ptr::null_mut(),
