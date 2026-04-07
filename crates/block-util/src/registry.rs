@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use block_core::param::ModelParameterSchema;
 use block_core::param::ParameterSet;
-use block_core::{AudioChannelLayout, BlockProcessor, StreamHandle};
+use crate::processor::TunerProcessor;
 use crate::UtilBackendKind;
 
 #[derive(Clone, Copy)]
@@ -12,7 +12,7 @@ pub struct UtilModelDefinition {
     pub brand: &'static str,
     pub backend_kind: UtilBackendKind,
     pub schema: fn() -> Result<ModelParameterSchema>,
-    pub build: fn(&ParameterSet, usize, AudioChannelLayout) -> Result<(BlockProcessor, Option<StreamHandle>)>,
+    pub build: fn(&ParameterSet, usize) -> Result<Box<dyn TunerProcessor>>,
     pub supported_instruments: &'static [&'static str],
     pub knob_layout: &'static [block_core::KnobLayoutEntry],
 }
@@ -23,5 +23,5 @@ pub fn find_model_definition(model: &str) -> Result<&'static UtilModelDefinition
     MODEL_DEFINITIONS
         .iter()
         .find(|definition| definition.id == model)
-        .ok_or_else(|| anyhow!("unsupported utility model '{}'", model))
+        .ok_or_else(|| anyhow!("unsupported tuner model '{}'", model))
 }

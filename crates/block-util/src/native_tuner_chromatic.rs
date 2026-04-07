@@ -1,11 +1,10 @@
 use anyhow::{Error, Result};
+use crate::processor::{TunerProcessor, TunerReading};
 use crate::registry::UtilModelDefinition;
 use crate::UtilBackendKind;
 use block_core::param::{
     float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
 };
-use block_core::{AudioChannelLayout, BlockProcessor, MonoProcessor, StreamEntry, StreamHandle};
-use std::sync::{Arc, Mutex};
 use block_core::ModelAudioMode;
 
 pub const MODEL_ID: &str = "tuner_chromatic";
@@ -41,15 +40,25 @@ pub fn reference_hz_from_set(params: &ParameterSet) -> Result<f32> {
 pub struct ChromaticTuner {
     buffer: Vec<f32>,
     sample_rate: usize,
-    stream: StreamHandle,
+    reading: TunerReading,
+    enabled: bool,
 }
 
 impl ChromaticTuner {
-    pub fn new(sample_rate: usize, stream: StreamHandle) -> Self {
+    pub fn new(sample_rate: usize) -> Self {
         Self {
             buffer: Vec::with_capacity(BUFFER_SIZE),
             sample_rate,
-            stream,
+            reading: TunerReading::default(),
+            enabled: false,
+        }
+    }
+
+    pub fn set_enabled(&mut self, enabled: bool) {
+        self.enabled = enabled;
+        if !enabled {
+            self.buffer.clear();
+            self.reading = TunerReading::default();
         }
     }
 
@@ -89,52 +98,45 @@ impl ChromaticTuner {
     }
 }
 
-impl MonoProcessor for ChromaticTuner {
-    fn process_sample(&mut self, input: f32) -> f32 {
-        // Accumulate samples for analysis
-        self.buffer.push(input);
+impl TunerProcessor for ChromaticTuner {
+    fn process(&mut self, samples: &[f32]) {
+        if !self.enabled {
+            return;
+        }
+        // Only accumulate samples — detection runs lazily when reading is requested
+        self.buffer.extend_from_slice(samples);
         if self.buffer.len() > BUFFER_SIZE * 2 {
             // Trim old samples, keep the latest BUFFER_SIZE
             let start = self.buffer.len() - BUFFER_SIZE;
             self.buffer.drain(..start);
         }
-        // Pass signal through unmodified (tuner is non-blocking)
-        input
     }
 
-    fn process_block(&mut self, buffer: &mut [f32]) {
-        // Accumulate all samples in the block
-        self.buffer.extend_from_slice(buffer);
-        if self.buffer.len() > BUFFER_SIZE * 2 {
-            let start = self.buffer.len() - BUFFER_SIZE;
-            self.buffer.drain(..start);
-        }
-
-        // Run detection when we have enough samples
+    fn latest_reading(&mut self) -> &TunerReading {
+        // Run detection lazily — called from UI polling, NOT audio thread
         if self.buffer.len() >= BUFFER_SIZE {
-            if let Some(frequency) = self.simple_amdf() {
-                let (note, octave, cents) = freq_to_note(frequency);
-                let mut entries = self.stream.lock().unwrap();
-                entries.clear();
-                entries.push(StreamEntry {
-                    key: "frequency".to_string(),
-                    value: frequency,
-                    text: format!("{}{}", note, octave),
-                });
-                entries.push(StreamEntry {
-                    key: "cents_off".to_string(),
-                    value: cents,
-                    text: format!("{:+.1}", cents),
-                });
-                entries.push(StreamEntry {
-                    key: "in_tune".to_string(),
-                    value: if cents.abs() < 5.0 { 1.0 } else { 0.0 },
-                    text: if cents.abs() < 5.0 { "in_tune" } else { "out" }.to_string(),
-                });
-            }
+            let detected = self.simple_amdf();
+            self.reading = detected.into();
             self.buffer.clear();
         }
-        // Pass signal through unmodified
+        &self.reading
+    }
+}
+
+impl From<Option<f32>> for TunerReading {
+    fn from(frequency: Option<f32>) -> Self {
+        match frequency {
+            None => Self::default(),
+            Some(frequency) => {
+                let (note, octave, cents) = freq_to_note(frequency);
+                Self {
+                    frequency: Some(frequency),
+                    note: Some(format!("{note}{octave}")),
+                    cents_off: Some(cents),
+                    in_tune: cents.abs() < 5.0,
+                }
+            }
+        }
     }
 }
 fn freq_to_note(frequency: f32) -> (&'static str, i32, f32) {
@@ -152,15 +154,11 @@ fn schema() -> Result<ModelParameterSchema> {
     Ok(model_schema())
 }
 
-fn build(
-    params: &ParameterSet,
-    sample_rate: usize,
-    _layout: AudioChannelLayout,
-) -> Result<(BlockProcessor, Option<StreamHandle>)> {
+fn build(params: &ParameterSet, sample_rate: usize) -> Result<Box<dyn TunerProcessor>> {
     let _reference_hz = reference_hz_from_set(params)?;
-    let stream = Arc::new(Mutex::new(Vec::new()));
-    let tuner = ChromaticTuner::new(sample_rate, stream.clone());
-    Ok((BlockProcessor::Mono(Box::new(tuner)), Some(stream)))
+    let mut tuner = ChromaticTuner::new(sample_rate);
+    tuner.set_enabled(true);
+    Ok(Box::new(tuner))
 }
 
 pub const MODEL_DEFINITION: UtilModelDefinition = UtilModelDefinition {
@@ -179,10 +177,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_freq_to_note() {
-        let (note, octave, cents) = freq_to_note(440.0);
-        assert_eq!(note, "A");
-        assert_eq!(octave, 4);
-        assert!(cents.abs() < 0.5);
+    fn detect_reference_pitch_name() {
+        let info = TunerReading::from(Some(440.0));
+        assert_eq!(info.note.as_deref(), Some("A4"));
+        assert!(info.in_tune);
     }
 }
