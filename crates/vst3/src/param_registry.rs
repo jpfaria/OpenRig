@@ -57,7 +57,7 @@ pub fn register_vst3_gui_context(
             controller,
             library,
         });
-    log::info!("VST3 registry: registered context for '{}'", model_id);
+    log::debug!("VST3 registry: registered context for '{}'", model_id);
     channel
 }
 
@@ -67,18 +67,12 @@ pub fn register_vst3_gui_context(
 /// The returned context clones the COM pointer and `Arc` (cheap ref-count bumps).
 pub fn lookup_vst3_gui_context(model_id: &str) -> Option<Vst3GuiContext> {
     let guard = registry().read().expect("vst3 param registry poisoned");
-    let keys: Vec<&str> = guard.keys().map(|s| s.as_str()).collect();
-    if let Some(ctx) = guard.get(model_id) {
-        log::info!("VST3 registry: found context for '{}'", model_id);
-        Some(Vst3GuiContext {
-            param_channel: ctx.param_channel.clone(),
-            controller: ctx.controller.clone(),
-            library: ctx.library.clone(),
-        })
-    } else {
-        log::info!("VST3 registry: no context for '{}' (registered: {:?})", model_id, keys);
-        None
-    }
+    let ctx = guard.get(model_id)?;
+    Some(Vst3GuiContext {
+        param_channel: ctx.param_channel.clone(),
+        controller: ctx.controller.clone(),
+        library: ctx.library.clone(),
+    })
 }
 
 /// Backward-compatible alias: look up only the param channel.
