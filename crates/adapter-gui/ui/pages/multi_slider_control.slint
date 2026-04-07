@@ -10,8 +10,8 @@ export component MultiSliderControl inherits Rectangle {
     border-radius: 6px;
     clip: true;
 
-    // Chart area height (bottom 16px reserved for band labels)
-    private property <length> chart-h: root.height - 16px;
+    // Chart area height (bottom 20px reserved for band labels)
+    private property <length> chart-h: root.height - 20px;
 
     // 0 dB center line
     Rectangle {
@@ -78,11 +78,11 @@ export component MultiSliderControl inherits Rectangle {
         // Band frequency label at the bottom
         Text {
             x: 0;
-            y: root.chart-h + 2px;
+            y: root.chart-h + 4px;
             width: parent.width;
             text: point.label;
-            color: #ffffff55;
-            font-size: 7px;
+            color: #ffffff80;
+            font-size: 9px;
             horizontal-alignment: center;
             overflow: elide;
         }
