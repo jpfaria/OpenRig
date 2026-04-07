@@ -1992,9 +1992,11 @@ fn next_block_instance_serial() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::{
+        apply_block_processor, process_audio_block,
         build_chain_runtime_state, build_runtime_graph, process_input_f32, process_output_f32,
         update_chain_runtime_state, split_chain_into_segments, effective_inputs, effective_outputs,
-        AudioFrame, ElasticBuffer, ELASTIC_BUFFER_TARGET_LEVEL,
+        AudioFrame, AudioProcessor, BlockError, BlockRuntimeNode, FadeState, ProcessorScratch, RuntimeProcessor,
+        ElasticBuffer, ELASTIC_BUFFER_TARGET_LEVEL, FADE_IN_FRAMES,
     };
     use block_core::AudioChannelLayout;
     use block_preamp::supported_models as supported_preamp_models;
@@ -2655,5 +2657,185 @@ mod tests {
             "segment 1 should have blocks [1,2,3,5,6], got {:?}", segments[1].block_indices);
         assert_eq!(segments[1].output_route_indices, vec![1],
             "segment 1 should push to output 1 only");
+    }
+
+    // ── Panic recovery tests ──────────────────────────────────────────────────
+
+    struct PanickingProcessor;
+    impl block_core::MonoProcessor for PanickingProcessor {
+        fn process_sample(&mut self, _: f32) -> f32 {
+            panic!("simulated plugin crash");
+        }
+    }
+
+    struct CountingProcessor {
+        call_count: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    }
+    impl block_core::MonoProcessor for CountingProcessor {
+        fn process_sample(&mut self, input: f32) -> f32 {
+            self.call_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            input
+        }
+    }
+
+    fn panicking_block_node() -> BlockRuntimeNode {
+        BlockRuntimeNode {
+            instance_serial: 0,
+            block_id: domain::ids::BlockId("test:panicking".into()),
+            block_snapshot: project::block::AudioBlock {
+                id: domain::ids::BlockId("test:panicking".into()),
+                enabled: true,
+                kind: project::block::AudioBlockKind::Core(project::block::CoreBlock {
+                    effect_type: "gain".into(),
+                    model: "volume".into(),
+                    params: project::param::ParameterSet::default(),
+                }),
+            },
+            input_layout: block_core::AudioChannelLayout::Mono,
+            output_layout: block_core::AudioChannelLayout::Mono,
+            scratch: ProcessorScratch::Mono(Vec::new()),
+            processor: RuntimeProcessor::Audio(AudioProcessor::Mono(Box::new(PanickingProcessor))),
+            stream_handle: None,
+            fade_state: FadeState::Active,
+            faulted: false,
+        }
+    }
+
+    fn counting_block_node(counter: std::sync::Arc<std::sync::atomic::AtomicUsize>) -> BlockRuntimeNode {
+        BlockRuntimeNode {
+            instance_serial: 0,
+            block_id: domain::ids::BlockId("test:counting".into()),
+            block_snapshot: project::block::AudioBlock {
+                id: domain::ids::BlockId("test:counting".into()),
+                enabled: true,
+                kind: project::block::AudioBlockKind::Core(project::block::CoreBlock {
+                    effect_type: "gain".into(),
+                    model: "volume".into(),
+                    params: project::param::ParameterSet::default(),
+                }),
+            },
+            input_layout: block_core::AudioChannelLayout::Mono,
+            output_layout: block_core::AudioChannelLayout::Mono,
+            scratch: ProcessorScratch::Mono(Vec::new()),
+            processor: RuntimeProcessor::Audio(AudioProcessor::Mono(Box::new(CountingProcessor { call_count: counter }))),
+            stream_handle: None,
+            fade_state: FadeState::Active,
+            faulted: false,
+        }
+    }
+
+    #[test]
+    fn panicking_processor_does_not_crash_the_caller() {
+        let mut block = panicking_block_node();
+        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
+
+        // Must not panic
+        apply_block_processor(&mut block, &mut frames, &error_queue);
+    }
+
+    #[test]
+    fn panicking_processor_marks_block_as_faulted() {
+        let mut block = panicking_block_node();
+        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
+
+        apply_block_processor(&mut block, &mut frames, &error_queue);
+
+        assert!(block.faulted, "block should be marked faulted after a panic");
+    }
+
+    #[test]
+    fn panicking_processor_zeroes_output_frames() {
+        let mut block = panicking_block_node();
+        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
+
+        apply_block_processor(&mut block, &mut frames, &error_queue);
+
+        for frame in &frames {
+            match frame {
+                AudioFrame::Stereo([l, r]) => {
+                    assert_eq!(*l, 0.0, "left channel should be silent after panic");
+                    assert_eq!(*r, 0.0, "right channel should be silent after panic");
+                }
+                AudioFrame::Mono(s) => assert_eq!(*s, 0.0, "mono channel should be silent after panic"),
+            }
+        }
+    }
+
+    #[test]
+    fn panicking_processor_posts_error_to_queue() {
+        let mut block = panicking_block_node();
+        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
+
+        apply_block_processor(&mut block, &mut frames, &error_queue);
+
+        let errors = error_queue.lock().unwrap();
+        assert_eq!(errors.len(), 1, "exactly one error should be posted");
+        assert_eq!(errors[0].block_id.0, "test:panicking");
+        assert!(errors[0].message.contains("simulated plugin crash"), "error message should contain panic message");
+    }
+
+    #[test]
+    fn faulted_block_is_permanently_bypassed() {
+        let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let mut block = counting_block_node(counter.clone());
+        block.faulted = true; // pre-fault the block
+
+        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
+
+        apply_block_processor(&mut block, &mut frames, &error_queue);
+
+        assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 0,
+            "process_sample should never be called on a faulted block");
+    }
+
+    #[test]
+    fn second_call_after_panic_does_not_process_or_post_error() {
+        let mut block = panicking_block_node();
+        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
+
+        // First call: panics, marks faulted, posts error
+        apply_block_processor(&mut block, &mut frames, &error_queue);
+        assert_eq!(error_queue.lock().unwrap().len(), 1);
+
+        // Second call: faulted — must not post another error
+        apply_block_processor(&mut block, &mut frames, &error_queue);
+        assert_eq!(error_queue.lock().unwrap().len(), 1,
+            "no additional error should be posted for an already-faulted block");
+    }
+
+    #[test]
+    fn process_audio_block_bypassed_state_skips_processing() {
+        let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let mut block = counting_block_node(counter.clone());
+        block.fade_state = FadeState::Bypassed;
+
+        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
+
+        process_audio_block(&mut block, &mut frames, &error_queue);
+
+        assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 0,
+            "bypassed block should not call process_sample");
+    }
+
+    #[test]
+    fn process_audio_block_fading_in_applies_processing() {
+        let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let mut block = counting_block_node(counter.clone());
+        block.fade_state = FadeState::FadingIn { frames_remaining: FADE_IN_FRAMES };
+
+        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
+
+        process_audio_block(&mut block, &mut frames, &error_queue);
+
+        assert!(counter.load(std::sync::atomic::Ordering::SeqCst) > 0,
+            "fading-in block should call process_sample");
     }
 }
