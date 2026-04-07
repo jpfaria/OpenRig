@@ -139,6 +139,7 @@ export struct BlockStreamEntry {
     key: string,
     value: float,
     text: string,
+    peak: float,
 }
 
 // Realtime data stream for blocks that produce live readings (tuner, meter, analyzer).
@@ -169,6 +170,7 @@ export struct CompactBlockItem {
     model_labels: [string],
     model_selected_index: int,
     stream_data: BlockStreamData,
+    has_external_gui: bool,
 }
 
 export struct RecentProjectItem {

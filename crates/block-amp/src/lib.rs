@@ -53,6 +53,10 @@ pub fn amp_model_visual(model_id: &str) -> Option<ModelVisualData> {
     })
 }
 
+pub fn amp_display_name(model: &str) -> &'static str {
+    registry::find_model_definition(model).map(|d| d.display_name).unwrap_or("")
+}
+
 pub fn amp_brand(model: &str) -> Result<&'static str> {
     Ok(registry::find_model_definition(model)?.brand)
 }

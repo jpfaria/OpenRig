@@ -107,6 +107,6 @@ pub const MODEL_DEFINITION: WahModelDefinition = WahModelDefinition {
     schema,
     validate,
     build,
-    supported_instruments: block_core::GUITAR_ACOUSTIC_BASS,
+    supported_instruments: block_core::GUITAR_BASS,
     knob_layout: &[],
 };

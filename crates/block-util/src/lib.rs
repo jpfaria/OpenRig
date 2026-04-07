@@ -32,8 +32,24 @@ pub fn util_model_visual(model_id: &str) -> Option<ModelVisualData> {
     })
 }
 
+pub fn util_display_name(model: &str) -> &'static str {
+    registry::find_model_definition(model).map(|d| d.display_name).unwrap_or("")
+}
+
+pub fn util_brand(model: &str) -> &'static str {
+    registry::find_model_definition(model).map(|d| d.brand).unwrap_or("")
+}
+
+pub fn util_type_label(model: &str) -> &'static str {
+    util_model_visual(model).map(|v| v.type_label).unwrap_or("")
+}
+
 pub fn utility_model_schema(model: &str) -> Result<ModelParameterSchema> {
     (registry::find_model_definition(model)?.schema)()
+}
+
+pub fn util_stream_kind(model_id: &str) -> &'static str {
+    registry::util_stream_kind(model_id)
 }
 
 pub fn build_utility_processor_for_layout(

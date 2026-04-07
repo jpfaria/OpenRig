@@ -33,6 +33,7 @@ members = [
   "crates/adapter-server",
   "crates/adapter-gui",
   "crates/adapter-vst3",
+  "crates/vst3",
 ]
 resolver = "2"
 
@@ -57,3 +58,5 @@ slint = "1.14"
 slint-build = "1.14"
 log = "0.4"
 env_logger = "0.11"
+rustfft = "6"
+webbrowser = "1.0"

@@ -130,27 +130,29 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 
 ### Tipos de bloco e para que servem
 
-| Tipo | O que faz | Modelos |
-|------|-----------|---------|
-| **Preamp** | Pré-amplificação, gain e EQ do amp | American Clean, Brit Crunch, Modern High Gain (native), JCM 800 2203, Diezel VH4 (NAM) |
-| **Amp** | Amplificador completo (preamp + power amp + cab) | Blackface Clean, Tweed Breakup, Chime (native), Bogner Ecstasy/Shiva, Dumble ODS, EVH 5150, Marshall JCM 800/JVM, Mesa Mark V/Rectifier, Peavey 5150 (NAM) |
-| **Cab** | Simulação de caixa/falante | American 2x12, Brit 4x12, Vintage 1x12 (native), Marshall 4x12 V30, Fender Deluxe, Vox AC30 Blue + 5 outros (IR) |
-| **Gain** | Overdrive, distorção, fuzz, boost | Volume, TS9 Tube Screamer (native), TS9, BD-2, JHS Andy Timmons (NAM), Chow Centaur, OJD, Wolf Shaper + 4 outros (LV2) |
-| **Delay** | Eco e repetição temporal | Digital Clean, Analog Warm, Slapback, Reverse, Modulated, Tape Vintage (native) |
-| **Reverb** | Ambiência e simulação de espaço | Plate Foundation (native) |
-| **Modulation** | Chorus, flanger, tremolo, vibrato | Sine Tremolo, Vibrato (native) |
-| **Dynamics** | Compressor e gate | Studio Clean Compressor, Noise Gate (native) |
-| **Filter** | EQ e moldagem tonal | Three Band EQ (native) |
-| **Wah** | Pedal wah-wah | Cry Classic (native) |
-| **Utility** | Ferramentas | Chromatic Tuner (native) |
-| **Body** | Ressonância de corpo acústico | 114 modelos IR (Taylor, Martin, Gibson, Takamine, Guild, etc.) |
-| **Pitch** | Correção de pitch (autotune) | Chromatic Autotune, Scale Autotune (native) |
-| **Full Rig** | Amp completo all-in-one | Roland JC-120B Jazz Chorus (NAM) |
-| **Input** | Entrada de áudio (device + channels) | standard |
-| **Output** | Saída de áudio (device + channels) | standard |
-| **Insert** | Loop de efeito externo (send/return) | external_loop |
+| Tipo | O que faz | Total | Modelos (resumo) |
+|------|-----------|-------|-----------------|
+| **Preamp** | Pré-amplificação, gain e EQ do amp | 26 | American Clean, Brit Crunch, Modern High Gain (native); JCM 800 2203, Diezel VH4, Thunder 50 (ENGL), '57 Custom Champ/'57 Custom Deluxe/Frontman 15G/PA100 (Fender), Bantamp Meteor (Joyo), AVT50H/YJM100 (Marshall), Mark III (Mesa), Micro Terror (Orange), Shaman (Panama), Classic 30 (Peavey), MIG-100 KT88 (Sovtek), VX Kraken (Victory), MIG-50/22 Caliber (Electro-Harmonix), Blues Baby 22 (Award-Session), Fly (Blackstar), Multitone 50 (Koch), L2 (Lab Series), Lunchbox Jr (ZT) (NAM) |
+| **Amp** | Amplificador completo (preamp + power amp + cab) | 29 | Blackface Clean, Tweed Breakup, Chime (native); Bogner Ecstasy/Shiva, Dumble ODS, EVH 5150, Friedman BE100 Deluxe, Marshall JCM800/JVM/JMP-1 Head/JMP-1, Mesa Mark V/Rectifier, Peavey 5150, Ampeg SVT Classic, Dover DA-50+Mesa, Fender Bassman 1971/Deluxe Reverb '65/Super Reverb 1977, Marshall Super 100 1966, Peavey 5150+Mesa 4x12, Roland JC-120B, Synergy DRECT+Mesa, Vox AC30/'61 Fawn (NAM); GxBlueAmp, GxSupersonic, MDA Combo (LV2) |
+| **Cab** | Simulação de caixa/falante | 17 | American 2x12, Brit 4x12, Vintage 1x12 (native); Celestion Cream 4x12, Evil Chug (Blackstar+PRS), Fender Deluxe Reverb Oxford, G12M Greenback 2x12, G12M Greenback Multi-Mic, G12T-75 4x12, Marshall 4x12 V30, Mesa OS 4x12 V30, Mesa Standard 4x12 V30, Roland JC-120, V30 4x12, Vox AC30 Blue, Vox AC50 2x12 Goodmans (IR); GxUltraCab (LV2) |
+| **Gain** | Overdrive, distorção, fuzz, boost | 91 | TS9 (native); Boss DS-1/HM-2/FZ-1W/MT-2/BD-2, Klon Centaur, RAT/RAT2, OCD, OD808, TS808, Darkglass Alpha Omega/B7K, JHS Bonsai, Bluesbreaker, Vemuram Jan Ray + 34 outros (NAM); Guitarix ×40, CAPS Spice/X2, OJD, Wolf Shaper, MDA + outros (LV2) |
+| **Delay** | Eco e repetição temporal | 14 | Analog Warm, Digital Clean, Slapback, Reverse, Modulated, Tape Vintage (native); MDA DubDelay, TAP Doubler/Echo/Reflector, Bollie, Avocado, Floaty, Modulay (LV2) |
+| **Reverb** | Ambiência e simulação de espaço | 19 | Hall, Plate Foundation, Room, Spring (native); Dragonfly Hall/Room/Plate/Early, CAPS Plate/X2/Scape, TAP Reflector/Reverberator, MDA Ambience, MVerb, B Reverb, Roomy, Shiroverb, Floaty (LV2) |
+| **Modulation** | Chorus, flanger, tremolo, vibrato | 16 | Classic/Stereo/Ensemble Chorus, Sine Tremolo, Vibrato (native); TAP Chorus/Flanger/Tremolo/Rotary, MDA Leslie/RingMod/ThruZero, FOMP CS Chorus/Phaser, CAPS Phaser II, Harmless, Larynx (LV2) |
+| **Dynamics** | Compressor e gate | 9 | Studio Clean Compressor, Noise Gate, Brick Wall Limiter (native); TAP DeEsser/Dynamics/Limiter, ZamComp, ZamGate, ZaMultiComp (LV2) |
+| **Filter** | EQ e moldagem tonal | 11 | Three Band EQ (native); TAP Equalizer/BW, ZamEQ2, ZamGEQ31, CAPS AutoFilter, FOMP Auto-Wah, MOD HPF/LPF, Filta, Mud (LV2) |
+| **Wah** | Pedal wah-wah | 2 | Cry Classic (native); GxQuack (LV2) |
+| **Utility** | Ferramentas | 2 | Chromatic Tuner, Spectrum Analyzer (native) |
+| **Body** | Ressonância de corpo acústico | 114 | Martin (45), Taylor (30), Gibson (10), Yamaha (5), Guild (4), Takamine (4), Cort (4), Emerald (2), Rainsong (2), Lowden (2) + outros boutique (IR) |
+| **Pitch** | Pitch shifting e harmonização | 4 | Harmonizer, x42 Autotune, MDA Detune, MDA RePsycho (LV2) |
+| **Full Rig** | Rig completo com pedais + amp + cab | 0 | (reservado para capturas com cadeia completa incluindo pedais) |
+| **IR** | Loader genérico de IR | 1 | generic_ir |
+| **NAM** | Loader genérico de NAM | 1 | generic_nam |
+| **Input** | Entrada de áudio (device + channels) | — | standard |
+| **Output** | Saída de áudio (device + channels) | — | standard |
+| **Insert** | Loop de efeito externo (send/return) | — | external_loop |
 
-**Total: 176+ modelos em 18 tipos de bloco.**
+**Total: 361+ modelos em 16 tipos de bloco processadores (5 backends: Native 34, NAM 89, IR 127, LV2 105, VST3 6).**
 
 ### Parâmetros comuns
 
@@ -317,10 +319,31 @@ Controles editaveis -> tem `id="ctrl-xxx"` para overlay futuro.
 | `brit_crunch` | Brit Crunch | native | Native |
 | `modern_high_gain` | Modern High Gain | native | Native |
 | `marshall_jcm_800_2203` | Marshall JCM 800 2203 | marshall | NAM |
+| `nam_engl_thunder_50` | Thunder 50 | engl | NAM |
+| `nam_fender_57_champ` | '57 Custom Champ | fender | NAM |
+| `nam_fender_57_deluxe` | '57 Custom Deluxe | fender | NAM |
+| `nam_fender_frontman_15g` | Frontman 15G | fender | NAM |
+| `nam_joyo_bantamp_meteor` | Bantamp Meteor | joyo | NAM |
+| `nam_marshall_avt50h` | AVT50H | marshall | NAM |
+| `nam_marshall_yjm100` | YJM100 | marshall | NAM |
+| `nam_mesa_mark_iii` | Mark III | mesa | NAM |
+| `nam_orange_micro_terror` | Micro Terror | orange | NAM |
+| `nam_panama_shaman` | Shaman | panama | NAM |
+| `nam_peavey_classic_30` | Classic 30 | peavey | NAM |
+| `nam_sovtek_mig100` | MIG-100 KT88 | sovtek | NAM |
+| `nam_victory_vx_kraken` | VX Kraken | victory | NAM |
+| `nam_ehx_mig50` | MIG-50 | electro-harmonix | NAM |
+| `nam_ehx_22_caliber` | 22 Caliber | electro-harmonix | NAM |
+| `nam_award_session_blues_baby_22` | Blues Baby 22 | award-session | NAM |
+| `nam_blackstar_fly` | Fly | blackstar | NAM |
+| `nam_fender_pa100` | PA100 | fender | NAM |
+| `nam_koch_multitone_50` | Multitone 50 | koch | NAM |
+| `nam_lab_series_l2` | L2 | lab-series | NAM |
+| `nam_zt_lunchbox_jr` | Lunchbox Jr | zt | NAM |
 
 Os 3 nativos usam `native_core::model_schema()` -> mesmos parametros: gain, bass, middle, treble, presence, depth, sag, master, bright.
 
-Marshall NAM -> parametros: volume (50-70%), gain (10-100%), em steps de 10 (mapeado para captures .nam).
+Marshall NAM e todos os NAM novos -> parametros: volume (50-70%), gain (10-100%), em steps de 10 (mapeado para captures .nam).
 
 ---
 
