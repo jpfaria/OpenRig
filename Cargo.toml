@@ -33,6 +33,7 @@ members = [
   "crates/adapter-server",
   "crates/adapter-gui",
   "crates/adapter-vst3",
+  "crates/vst3",
 ]
 resolver = "2"
 
