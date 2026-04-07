@@ -1,4 +1,4 @@
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem, MultiSliderPoint, CurveEditorPoint } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
 import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage } from "pages/pages.slint";
@@ -338,6 +338,10 @@ export component BlockEditorWindow inherits Window {
     in-out property <int> block-drawer-selected-model-index;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
+    in property <[MultiSliderPoint]> multi-slider-points;
+    in property <[CurveEditorPoint]> curve-editor-points;
+    in property <string> eq-total-curve;
+    in property <[string]> eq-band-curves;
     in property <[BlockKnobOverlay]> block-knob-overlays;
     in property <string> block-window-title: "OpenRig · Block";
     callback choose-block-model(int);
@@ -364,15 +368,36 @@ export component BlockEditorWindow inherits Window {
     // Dynamic width: each knob=56px, gap=8px, margins=80px (power btn + right padding)
     property <int> param-count: root.block-parameter-items.length;
     property <length> needed-width: param-count > 0 ? param-count * 64px + 80px : 520px;
-    property <length> panel-width: root.use-panel-editor ? Math.max(900px, needed-width) : 520px;
+    private property <bool> has-eq-widget:
+        root.curve-editor-points.length > 0 || root.multi-slider-points.length > 0;
+    // EQ width: ~35px per band for MultiSlider, ~200px per band for CurveEditor (few bands).
+    // (panel-height = panel-width/4; minimum 600px keeps the power-button label visible.)
+    private property <length> eq-panel-width:
+        multi-slider-points.length > 0 ?
+            Math.max(600px, Math.min(1400px, multi-slider-points.length * 35px + 80px)) :
+        curve-editor-points.length > 0 ?
+            Math.max(600px, Math.min(1200px, curve-editor-points.length * 200px + 80px)) :
+            600px;
+    property <length> panel-width:
+        root.use-panel-editor ?
+            (has-eq-widget ? eq-panel-width : Math.max(900px, needed-width)) :
+            520px;
+    // EQ widget heights: CurveEditor = 200px, MultiSlider = 180px.
+    // Total = header(48) + panel-height(width/4) + gap(8) + widget-height + margin(8).
+    private property <length> eq-widget-height:
+        root.curve-editor-points.length > 0 ? 200px :
+        root.multi-slider-points.length > 0 ? 180px : 0px;
+    // EQ blocks: compact 60px panel (just POWER button, no brand strip).
+    private property <length> eq-extra-height:
+        has-eq-widget ? (48px + 60px + 8px + eq-widget-height + 8px) : 275px;
 
     title: root.block-window-title;
     min-width: panel-width;
-    min-height: root.use-panel-editor ? 275px : 760px;
+    min-height: root.use-panel-editor ? eq-extra-height : 760px;
     max-width: panel-width;
-    max-height: root.use-panel-editor ? 275px : 760px;
+    max-height: root.use-panel-editor ? eq-extra-height : 760px;
     preferred-width: panel-width;
-    preferred-height: root.use-panel-editor ? 275px : 760px;
+    preferred-height: root.use-panel-editor ? eq-extra-height : 760px;
     background: #040708;
 
     // Amp head: visual panel editor
@@ -388,6 +413,10 @@ export component BlockEditorWindow inherits Window {
         block-drawer-enabled: root.block-drawer-enabled;
         block-knob-overlays: root.block-knob-overlays;
         block-parameter-items: root.block-parameter-items;
+        multi-slider-points: root.multi-slider-points;
+        curve-editor-points: root.curve-editor-points;
+        eq-total-curve: root.eq-total-curve;
+        eq-band-curves: root.eq-band-curves;
         block-drawer-confirm-label: root.block-drawer-confirm-label;
         block-stream-data: root.block-stream-data;
         choose-block-model(i) => { root.choose-block-model(i); }
@@ -416,6 +445,8 @@ export component BlockEditorWindow inherits Window {
         block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
         block-drawer-enabled: root.block-drawer-enabled;
         block-parameter-items: root.block-parameter-items;
+        multi-slider-points: root.multi-slider-points;
+        curve-editor-points: root.curve-editor-points;
         choose-block-model(index) => { root.choose-block-model(index); }
         close-block-drawer => { root.close-block-drawer(); }
         save-block-drawer => { root.save-block-drawer(); }
@@ -539,6 +570,10 @@ export component AppWindow inherits Window {
     in-out property <int> block-drawer-selected-model-index;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
+    in property <[MultiSliderPoint]> multi-slider-points;
+    in property <[CurveEditorPoint]> curve-editor-points;
+    in property <string> eq-total-curve;
+    in property <[string]> eq-band-curves;
     in property <[ChannelOptionItem]> chain-input-channels;
     in property <[ChannelOptionItem]> chain-output-channels;
     in-out property <string> status-message;
@@ -653,6 +688,10 @@ export component AppWindow inherits Window {
         block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
         block-drawer-enabled: root.block-drawer-enabled;
         block-parameter-items: root.block-parameter-items;
+        multi-slider-points: root.multi-slider-points;
+        curve-editor-points: root.curve-editor-points;
+        eq-total-curve: root.eq-total-curve;
+        eq-band-curves: root.eq-band-curves;
         chain-input-channels: root.chain-input-channels;
         chain-output-channels: root.chain-output-channels;
         status-message: root.status-message;
@@ -762,6 +801,10 @@ export component AppWindow inherits Window {
         block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
         block-drawer-enabled: root.block-drawer-enabled;
         block-parameter-items: root.block-parameter-items;
+        multi-slider-points: root.multi-slider-points;
+        curve-editor-points: root.curve-editor-points;
+        eq-total-curve: root.eq-total-curve;
+        eq-band-curves: root.eq-band-curves;
         chain-input-channels: root.chain-input-channels;
         chain-output-channels: root.chain-output-channels;
         status-message: root.status-message;

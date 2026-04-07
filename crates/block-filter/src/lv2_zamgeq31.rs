@@ -1,7 +1,7 @@
 use crate::registry::FilterModelDefinition;
 use crate::FilterBackendKind;
 use anyhow::Result;
-use block_core::param::{float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit};
+use block_core::param::{float_parameter, multi_slider_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit};
 use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
 
 pub const MODEL_ID: &str = "lv2_zamgeq31";
@@ -38,7 +38,7 @@ fn schema() -> Result<ModelParameterSchema> {
     ];
 
     for i in 1..=31usize {
-        parameters.push(float_parameter(
+        parameters.push(multi_slider_parameter(
             &format!("band{i}"),
             BAND_NAMES[i - 1],
             None,
