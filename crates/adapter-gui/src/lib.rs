@@ -81,6 +81,17 @@ fn refresh_output_devices(
     device_options_model.set_vec(names);
     devices
 }
+fn ensure_devices_loaded(
+    input: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
+    output: &Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
+) {
+    if input.borrow().is_empty() {
+        *input.borrow_mut() = list_input_device_descriptors().unwrap_or_default();
+    }
+    if output.borrow().is_empty() {
+        *output.borrow_mut() = list_output_device_descriptors().unwrap_or_default();
+    }
+}
 fn use_inline_block_editor(window: &AppWindow) -> bool {
     window.get_touch_optimized()
         && window
@@ -168,8 +179,8 @@ fn schedule_block_editor_persist(
     project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     saved_project_snapshot: Rc<RefCell<Option<String>>>,
     project_dirty: Rc<RefCell<bool>>,
-    input_chain_devices: Rc<Vec<AudioDeviceDescriptor>>,
-    output_chain_devices: Rc<Vec<AudioDeviceDescriptor>>,
+    input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
+    output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     context: &'static str,
 ) {
     timer.stop();
@@ -183,6 +194,8 @@ fn schedule_block_editor_persist(
         if draft.block_index.is_none() {
             return;
         }
+        let devs_in = input_chain_devices.borrow();
+        let devs_out = output_chain_devices.borrow();
         if let Err(error) = persist_block_editor_draft(
             &window,
             &draft,
@@ -192,8 +205,8 @@ fn schedule_block_editor_persist(
             &project_runtime,
             &saved_project_snapshot,
             &project_dirty,
-            &input_chain_devices,
-            &output_chain_devices,
+            &*devs_in,
+            &*devs_out,
             false,
         ) {
             log::error!("[adapter-gui] {context}: {error}");
@@ -213,8 +226,8 @@ fn schedule_block_editor_persist_for_block_win(
     project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     saved_project_snapshot: Rc<RefCell<Option<String>>>,
     project_dirty: Rc<RefCell<bool>>,
-    input_chain_devices: Rc<Vec<AudioDeviceDescriptor>>,
-    output_chain_devices: Rc<Vec<AudioDeviceDescriptor>>,
+    input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
+    output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     context: &'static str,
 ) {
     timer.stop();
@@ -232,6 +245,8 @@ fn schedule_block_editor_persist_for_block_win(
         if draft.block_index.is_none() {
             return;
         }
+        let devs_in = input_chain_devices.borrow();
+        let devs_out = output_chain_devices.borrow();
         if let Err(error) = persist_block_editor_draft(
             &main_window,
             &draft,
@@ -241,8 +256,8 @@ fn schedule_block_editor_persist_for_block_win(
             &project_runtime,
             &saved_project_snapshot,
             &project_dirty,
-            &input_chain_devices,
-            &output_chain_devices,
+            &*devs_in,
+            &*devs_out,
             false,
         ) {
             log::error!("[adapter-gui] {context}: {error}");
@@ -420,8 +435,12 @@ pub fn run_desktop_app(
     let open_block_windows: Rc<RefCell<Vec<BlockWindow>>> = Rc::new(RefCell::new(Vec::new()));
     let open_compact_window: Rc<RefCell<Option<(usize, slint::Weak<CompactChainViewWindow>)>>> = Rc::new(RefCell::new(None));
     let audio_settings_mode = Rc::new(RefCell::new(AudioSettingsMode::Gui));
-    let input_chain_devices = Rc::new(list_input_device_descriptors()?);
-    let output_chain_devices = Rc::new(list_output_device_descriptors()?);
+    let input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>> = Rc::new(RefCell::new(
+        if needs_audio_settings { list_input_device_descriptors().unwrap_or_default() } else { Vec::new() }
+    ));
+    let output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>> = Rc::new(RefCell::new(
+        if needs_audio_settings { list_output_device_descriptors().unwrap_or_default() } else { Vec::new() }
+    ));
     let window = AppWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     let project_settings_window =
         ProjectSettingsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
@@ -460,11 +479,12 @@ pub fn run_desktop_app(
     window.set_wizard_step(if settings.is_complete() { 1 } else { 0 });
     window.set_status_message("".into());
     let input_devices = Rc::new(VecModel::from(
-        list_input_device_descriptors()?
-            .into_iter()
+        input_chain_devices
+            .borrow()
+            .iter()
             .map(|device| {
-                let device_id = device.id;
-                let name = device.name;
+                let device_id = device.id.clone();
+                let name = device.name.clone();
                 let config = settings
                     .input_devices
                     .iter()
@@ -484,11 +504,12 @@ pub fn run_desktop_app(
     ));
     mark_unselected_devices(&input_devices, &settings.input_devices);
     let output_devices = Rc::new(VecModel::from(
-        list_output_device_descriptors()?
-            .into_iter()
+        output_chain_devices
+            .borrow()
+            .iter()
             .map(|device| {
-                let device_id = device.id;
-                let name = device.name;
+                let device_id = device.id.clone();
+                let name = device.name.clone();
                 let config = settings
                     .output_devices
                     .iter()
@@ -508,8 +529,8 @@ pub fn run_desktop_app(
     ));
     mark_unselected_devices(&output_devices, &settings.output_devices);
     let project_devices = Rc::new(VecModel::from(build_project_device_rows(
-        input_chain_devices.as_ref(),
-        output_chain_devices.as_ref(),
+        &*input_chain_devices.borrow(),
+        &*output_chain_devices.borrow(),
         &[],
     )));
     window.set_input_devices(ModelRc::from(input_devices.clone()));
@@ -523,12 +544,14 @@ pub fn run_desktop_app(
     window.set_recent_projects(ModelRc::from(recent_projects.clone()));
     let chain_input_device_options = Rc::new(VecModel::from(
         input_chain_devices
+            .borrow()
             .iter()
             .map(|device| SharedString::from(device.name.clone()))
             .collect::<Vec<_>>(),
     ));
     let chain_output_device_options = Rc::new(VecModel::from(
         output_chain_devices
+            .borrow()
             .iter()
             .map(|device| SharedString::from(device.name.clone()))
             .collect::<Vec<_>>(),
@@ -747,12 +770,13 @@ pub fn run_desktop_app(
         let output_chain_devices = output_chain_devices.clone();
         let insert_send_channels = insert_send_channels.clone();
         chain_insert_window.on_select_send_device(move |index| {
-            let Some(device) = output_chain_devices.get(index as usize) else { return; };
+            let devs_out = output_chain_devices.borrow();
+            let Some(device) = devs_out.get(index as usize) else { return; };
             let mut draft_borrow = insert_draft.borrow_mut();
             let Some(draft) = draft_borrow.as_mut() else { return; };
             draft.send_device_id = Some(device.id.clone());
             draft.send_channels.clear();
-            let items = build_insert_send_channel_items(draft, &output_chain_devices);
+            let items = build_insert_send_channel_items(draft, &*devs_out);
             replace_channel_options(&insert_send_channels, items);
         });
     }
@@ -790,12 +814,13 @@ pub fn run_desktop_app(
         let input_chain_devices = input_chain_devices.clone();
         let insert_return_channels = insert_return_channels.clone();
         chain_insert_window.on_select_return_device(move |index| {
-            let Some(device) = input_chain_devices.get(index as usize) else { return; };
+            let devs_in = input_chain_devices.borrow();
+            let Some(device) = devs_in.get(index as usize) else { return; };
             let mut draft_borrow = insert_draft.borrow_mut();
             let Some(draft) = draft_borrow.as_mut() else { return; };
             draft.return_device_id = Some(device.id.clone());
             draft.return_channels.clear();
-            let items = build_insert_return_channel_items(draft, &input_chain_devices);
+            let items = build_insert_return_channel_items(draft, &*devs_in);
             replace_channel_options(&insert_return_channels, items);
         });
     }
@@ -857,7 +882,7 @@ pub fn run_desktop_app(
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("toggle insert block enabled: {e}");
             }
-            replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+            replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
         });
     }
@@ -891,7 +916,7 @@ pub fn run_desktop_app(
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("delete insert block: {e}");
             }
-            replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+            replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             let _ = iw.hide();
         });
@@ -955,7 +980,7 @@ pub fn run_desktop_app(
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("insert save error: {e}");
             }
-            replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+            replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             iw.set_status_message("".into());
             let _ = iw.hide();
@@ -1131,8 +1156,8 @@ pub fn run_desktop_app(
                     replace_project_chains(
                         &project_chains,
                         &session.project,
-                        &input_chain_devices,
-                        &output_chain_devices,
+                        &*input_chain_devices.borrow(),
+                        &*output_chain_devices.borrow(),
                     );
                     window.set_project_title(
                         project_title_for_path(session.project_path.as_ref(), &session.project)
@@ -1234,8 +1259,8 @@ pub fn run_desktop_app(
                     replace_project_chains(
                         &project_chains,
                         &session.project,
-                        &input_chain_devices,
-                        &output_chain_devices,
+                        &*input_chain_devices.borrow(),
+                        &*output_chain_devices.borrow(),
                     );
                     window.set_project_title(
                         project_title_for_path(session.project_path.as_ref(), &session.project)
@@ -1267,6 +1292,7 @@ pub fn run_desktop_app(
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            ensure_devices_loaded(&input_chain_devices, &output_chain_devices);
             let Some(path) = FileDialog::new()
                 .add_filter("OpenRig Project", &["yaml", "yml"])
                 .set_title("Abrir projeto")
@@ -1284,8 +1310,8 @@ pub fn run_desktop_app(
                     replace_project_chains(
                         &project_chains,
                         &session.project,
-                        &input_chain_devices,
-                        &output_chain_devices,
+                        &*input_chain_devices.borrow(),
+                        &*output_chain_devices.borrow(),
                     );
                     let snapshot = project_session_snapshot(&session).ok();
                     *project_session.borrow_mut() = Some(session);
@@ -1362,14 +1388,15 @@ pub fn run_desktop_app(
                 set_status_error(&window, &toast_timer, "O nome do projeto é obrigatório.");
                 return;
             }
+            ensure_devices_loaded(&input_chain_devices, &output_chain_devices);
             stop_project_runtime(&project_runtime);
             let mut session = create_new_project_session(&project_paths.default_config_path);
             session.project.name = Some(name.clone());
             replace_project_chains(
                 &project_chains,
                 &session.project,
-                &input_chain_devices,
-                &output_chain_devices,
+                &*input_chain_devices.borrow(),
+                &*output_chain_devices.borrow(),
             );
             *project_session.borrow_mut() = Some(session);
             *saved_project_snapshot.borrow_mut() = None;
@@ -1498,6 +1525,7 @@ pub fn run_desktop_app(
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            ensure_devices_loaded(&input_chain_devices, &output_chain_devices);
             let Some(recent) = app_config
                 .borrow()
                 .recent_projects
@@ -1521,8 +1549,8 @@ pub fn run_desktop_app(
                     replace_project_chains(
                         &project_chains,
                         &session.project,
-                        &input_chain_devices,
-                        &output_chain_devices,
+                        &*input_chain_devices.borrow(),
+                        &*output_chain_devices.borrow(),
                     );
                     let snapshot = project_session_snapshot(&session).ok();
                     *project_session.borrow_mut() = Some(session);
@@ -1784,8 +1812,8 @@ pub fn run_desktop_app(
                         replace_project_chains(
                             &project_chains,
                             &session.project,
-                            &input_chain_devices,
-                            &output_chain_devices,
+                            &*input_chain_devices.borrow(),
+                            &*output_chain_devices.borrow(),
                         );
                         sync_project_dirty(
                             &window,
@@ -1836,8 +1864,8 @@ pub fn run_desktop_app(
                     device_settings: Vec::new(),
                     chains: Vec::new(),
                 },
-                &input_chain_devices,
-                &output_chain_devices,
+                &*input_chain_devices.borrow(),
+                &*output_chain_devices.borrow(),
             );
             clear_status(&window, &toast_timer);
             set_project_dirty(&window, &project_dirty, false);
@@ -1874,6 +1902,7 @@ pub fn run_desktop_app(
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            ensure_devices_loaded(&input_chain_devices, &output_chain_devices);
             let editor_window = match ChainEditorWindow::new() {
                 Ok(w) => w,
                 Err(e) => {
@@ -1908,10 +1937,12 @@ pub fn run_desktop_app(
                 set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
+            let devs_in = input_chain_devices.borrow();
+            let devs_out = output_chain_devices.borrow();
             let draft = create_chain_draft(
                 &session.project,
-                &input_chain_devices,
-                &output_chain_devices,
+                &*devs_in,
+                &*devs_out,
             );
             *chain_draft.borrow_mut() = Some(draft.clone());
             apply_chain_editor_labels(&window, &draft);
@@ -1919,19 +1950,19 @@ pub fn run_desktop_app(
                 &window,
                 &editor_window,
                 &draft,
-                &input_chain_devices,
-                &output_chain_devices,
+                &*devs_in,
+                &*devs_out,
             );
             if let Some(input_group) = draft.inputs.first() {
                 replace_channel_options(
                     &chain_input_channels,
-                    build_input_channel_items(input_group, &draft, &session.project, &input_chain_devices),
+                    build_input_channel_items(input_group, &draft, &session.project, &*devs_in),
                 );
             }
             if let Some(output_group) = draft.outputs.first() {
                 replace_channel_options(
                     &chain_output_channels,
-                    build_output_channel_items(output_group, &output_chain_devices),
+                    build_output_channel_items(output_group, &*devs_out),
                 );
             }
             window.set_chain_draft_name(draft.name.clone().into());
@@ -1941,11 +1972,11 @@ pub fn run_desktop_app(
             editor_window.set_is_create_mode(true);
             editor_window.set_selected_instrument_index(instrument_string_to_index(&draft.instrument));
             window.set_selected_chain_input_device_index(selected_device_index(
-                &input_chain_devices,
+                &*devs_in,
                 draft.inputs.first().and_then(|i| i.device_id.as_deref()),
             ));
             window.set_selected_chain_output_device_index(selected_device_index(
-                &output_chain_devices,
+                &*devs_out,
                 draft.outputs.first().and_then(|o| o.device_id.as_deref()),
             ));
             editor_window.set_status_message("".into());
@@ -1976,6 +2007,7 @@ pub fn run_desktop_app(
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            ensure_devices_loaded(&input_chain_devices, &output_chain_devices);
             let editor_window = match ChainEditorWindow::new() {
                 Ok(w) => w,
                 Err(e) => {
@@ -2014,27 +2046,29 @@ pub fn run_desktop_app(
                 set_status_error(&window, &toast_timer, "Chain inválida.");
                 return;
             };
+            let devs_in = input_chain_devices.borrow();
+            let devs_out = output_chain_devices.borrow();
             let draft = chain_draft_from_chain(index as usize, chain);
             if let Some(input_group) = draft.inputs.first() {
                 replace_channel_options(
                     &chain_input_channels,
-                    build_input_channel_items(input_group, &draft, &session.project, &input_chain_devices),
+                    build_input_channel_items(input_group, &draft, &session.project, &*devs_in),
                 );
             }
             if let Some(output_group) = draft.outputs.first() {
                 replace_channel_options(
                     &chain_output_channels,
-                    build_output_channel_items(output_group, &output_chain_devices),
+                    build_output_channel_items(output_group, &*devs_out),
                 );
             }
             window.set_chain_draft_name(draft.name.clone().into());
             editor_window.set_chain_name(draft.name.clone().into());
             window.set_selected_chain_input_device_index(selected_device_index(
-                &input_chain_devices,
+                &*devs_in,
                 draft.inputs.first().and_then(|i| i.device_id.as_deref()),
             ));
             window.set_selected_chain_output_device_index(selected_device_index(
-                &output_chain_devices,
+                &*devs_out,
                 draft.outputs.first().and_then(|o| o.device_id.as_deref()),
             ));
             *chain_draft.borrow_mut() = Some(draft);
@@ -2044,8 +2078,8 @@ pub fn run_desktop_app(
                     &window,
                     &editor_window,
                     draft,
-                    &input_chain_devices,
-                    &output_chain_devices,
+                    &*devs_in,
+                    &*devs_out,
                 );
                 editor_window.set_editor_title(window.get_chain_editor_title());
                 editor_window.set_editor_save_label(window.get_chain_editor_save_label());
@@ -2150,8 +2184,8 @@ pub fn run_desktop_app(
                     replace_project_chains(
                         &project_chains,
                         &session.project,
-                        &input_chain_devices,
-                        &output_chain_devices,
+                        &*input_chain_devices.borrow(),
+                        &*output_chain_devices.borrow(),
                     );
                     // Refresh compact blocks
                     let blocks = build_compact_blocks(&session.project, chain_idx);
@@ -2199,7 +2233,7 @@ pub fn run_desktop_app(
                         set_status_error(&main_win, &toast_timer, &error.to_string());
                         return;
                     }
-                    replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+                    replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
                     cw.set_chain_enabled(will_enable);
                 });
             }
@@ -2286,7 +2320,7 @@ pub fn run_desktop_app(
                         set_status_error(&main_win, &toast_timer, &error.to_string());
                         return;
                     }
-                    replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+                    replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
                     let blocks = build_compact_blocks(&session.project, chain_idx);
                     cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
                     sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty);
@@ -2333,7 +2367,7 @@ pub fn run_desktop_app(
                     if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                         log::error!("[compact] remove-block runtime sync: {}", e);
                     }
-                    replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+                    replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
                     let blocks = build_compact_blocks(&session.project, chain_idx);
                     cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
                     sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty);
@@ -2405,7 +2439,7 @@ pub fn run_desktop_app(
                         set_status_error(&main_win, &toast_timer, &e.to_string());
                         return;
                     }
-                    replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+                    replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
                     let blocks = build_compact_blocks(&session.project, chain_idx);
                     cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
                     sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty);
@@ -2472,7 +2506,7 @@ pub fn run_desktop_app(
                         set_status_error(&main_win, &toast_timer, &e.to_string());
                         return;
                     }
-                    replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+                    replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
                     let blocks = build_compact_blocks(&session.project, chain_idx);
                     cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
                     sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty);
@@ -2731,11 +2765,13 @@ pub fn run_desktop_app(
                     input_group.channels.retain(|current| *current != channel);
                 }
             }
+            let devs_in = input_chain_devices.borrow();
+            let devs_out = output_chain_devices.borrow();
             if let Some(session) = project_session.borrow().as_ref() {
                 if let Some(input_group) = draft.inputs.get(gi) {
                     replace_channel_options(
                         &chain_input_channels,
-                        build_input_channel_items(input_group, draft, &session.project, &input_chain_devices),
+                        build_input_channel_items(input_group, draft, &session.project, &*devs_in),
                     );
                 }
                 if let Some(chain_window) = chain_editor_window_ref.borrow().as_ref() {
@@ -2743,8 +2779,8 @@ pub fn run_desktop_app(
                         &window,
                         chain_window,
                         draft,
-                        &input_chain_devices,
-                        &output_chain_devices,
+                        &*devs_in,
+                        &*devs_out,
                     );
                 }
             }
@@ -2781,10 +2817,12 @@ pub fn run_desktop_app(
                 }
             }
             if project_session.borrow().as_ref().is_some() {
+                let devs_in = input_chain_devices.borrow();
+                let devs_out = output_chain_devices.borrow();
                 if let Some(output_group) = draft.outputs.get(gi) {
                     replace_channel_options(
                         &chain_output_channels,
-                        build_output_channel_items(output_group, &output_chain_devices),
+                        build_output_channel_items(output_group, &*devs_out),
                     );
                 }
                 if let Some(window) = weak_window.upgrade() {
@@ -2793,8 +2831,8 @@ pub fn run_desktop_app(
                             &window,
                             chain_window,
                             draft,
-                            &input_chain_devices,
-                            &output_chain_devices,
+                            &*devs_in,
+                            &*devs_out,
                         );
                     }
                 }
@@ -2980,7 +3018,7 @@ pub fn run_desktop_app(
                 }
             }
             let (input_items, _) =
-                build_io_group_items(draft, &input_chain_devices, &output_chain_devices);
+                build_io_group_items(draft, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
             groups_window
                 .set_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
         });
@@ -3127,7 +3165,7 @@ pub fn run_desktop_app(
                         groups_window.set_status_message(error.to_string().into());
                         return;
                     }
-                    replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+                    replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
                     sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
                 }
             }
@@ -3176,7 +3214,7 @@ pub fn run_desktop_app(
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("toggle I/O block enabled: {e}");
             }
-            replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+            replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
         });
     }
@@ -3210,7 +3248,7 @@ pub fn run_desktop_app(
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("delete I/O block: {e}");
             }
-            replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+            replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             let _ = gw.hide();
         });
@@ -3283,7 +3321,7 @@ pub fn run_desktop_app(
                 }
             }
             let (_, output_items) =
-                build_io_group_items(draft, &input_chain_devices, &output_chain_devices);
+                build_io_group_items(draft, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
             groups_window
                 .set_groups(ModelRc::from(Rc::new(VecModel::from(output_items))));
         });
@@ -3423,7 +3461,7 @@ pub fn run_desktop_app(
                         groups_window.set_status_message(error.to_string().into());
                         return;
                     }
-                    replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+                    replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
                     sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
                 }
             }
@@ -3472,7 +3510,7 @@ pub fn run_desktop_app(
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("toggle I/O block enabled: {e}");
             }
-            replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+            replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
         });
     }
@@ -3506,7 +3544,7 @@ pub fn run_desktop_app(
             if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 log::error!("delete I/O block: {e}");
             }
-            replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+            replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             let _ = gw.hide();
         });
@@ -3931,7 +3969,7 @@ pub fn run_desktop_app(
                             }
                             return;
                         }
-                        replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+                        replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
                         sync_project_dirty(&main, session, &saved_project_snapshot, &project_dirty);
                         drop(session_borrow);
                         win.set_block_drawer_enabled(new_enabled);
@@ -4166,7 +4204,7 @@ pub fn run_desktop_app(
                             &main, &draft, &win_param_items,
                             &project_session, &project_chains, &project_runtime,
                             &saved_project_snapshot, &project_dirty,
-                            &input_chain_devices, &output_chain_devices, true,
+                            &*input_chain_devices.borrow(), &*output_chain_devices.borrow(), true,
                         ) {
                             log::error!("[adapter-gui] block-window.save: {e}");
                             main.set_block_drawer_status_message(e.to_string().into());
@@ -4224,7 +4262,7 @@ pub fn run_desktop_app(
                             }
                             return;
                         }
-                        replace_project_chains(&project_chains, &session.project, &input_chain_devices, &output_chain_devices);
+                        replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
                         sync_project_dirty(&main, session, &saved_project_snapshot, &project_dirty);
                         drop(session_borrow);
                         *selected_block.borrow_mut() = None;
@@ -4333,8 +4371,8 @@ pub fn run_desktop_app(
             replace_project_chains(
                 &project_chains,
                 &session.project,
-                &input_chain_devices,
-                &output_chain_devices,
+                &*input_chain_devices.borrow(),
+                &*output_chain_devices.borrow(),
             );
             *selected_block.borrow_mut() = Some(SelectedBlock {
                 chain_index: chain_index as usize,
@@ -4401,8 +4439,8 @@ pub fn run_desktop_app(
             replace_project_chains(
                 &project_chains,
                 &session.project,
-                &input_chain_devices,
-                &output_chain_devices,
+                &*input_chain_devices.borrow(),
+                &*output_chain_devices.borrow(),
             );
             // Close editor and clear all state — avoids stale index references
             block_editor_persist_timer.stop();
@@ -4570,7 +4608,7 @@ pub fn run_desktop_app(
                 if let Err(e) = sync_live_chain_runtime(&project_runtime_for_type, session, &chain_id) {
                     log::error!("insert block create error: {e}");
                 }
-                replace_project_chains(&project_chains_for_type, &session.project, &input_chain_devices_for_type, &output_chain_devices_for_type);
+                replace_project_chains(&project_chains_for_type, &session.project, &*input_chain_devices_for_type.borrow(), &*output_chain_devices_for_type.borrow());
                 sync_project_dirty(&window, session, &saved_project_snapshot_for_type, &project_dirty_for_type);
                 window.set_show_block_type_picker(false);
                 // Open the insert window to configure the newly created block
@@ -5266,8 +5304,8 @@ pub fn run_desktop_app(
                 &project_runtime,
                 &saved_project_snapshot,
                 &project_dirty,
-                &input_chain_devices,
-                &output_chain_devices,
+                &*input_chain_devices.borrow(),
+                &*output_chain_devices.borrow(),
                 true,
             ) {
                 log::error!("[adapter-gui] block-drawer.save: {error}");
@@ -5363,8 +5401,8 @@ pub fn run_desktop_app(
             replace_project_chains(
                 &project_chains,
                 &session.project,
-                &input_chain_devices,
-                &output_chain_devices,
+                &*input_chain_devices.borrow(),
+                &*output_chain_devices.borrow(),
             );
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             *selected_block.borrow_mut() = None;
@@ -5467,8 +5505,8 @@ pub fn run_desktop_app(
             replace_project_chains(
                 &project_chains,
                 &session.project,
-                &input_chain_devices,
-                &output_chain_devices,
+                &*input_chain_devices.borrow(),
+                &*output_chain_devices.borrow(),
             );
             *chain_draft.borrow_mut() = None;
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
@@ -5574,8 +5612,8 @@ pub fn run_desktop_app(
                     replace_project_chains(
                         &project_chains,
                         &session.project,
-                        &input_chain_devices,
-                        &output_chain_devices,
+                        &*input_chain_devices.borrow(),
+                        &*output_chain_devices.borrow(),
                     );
                     sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
                     input_window.set_status_message("".into());
@@ -5643,8 +5681,8 @@ pub fn run_desktop_app(
                 replace_project_chains(
                     &project_chains,
                     &session.project,
-                    &input_chain_devices,
-                    &output_chain_devices,
+                    &*input_chain_devices.borrow(),
+                    &*output_chain_devices.borrow(),
                 );
                 sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             }
@@ -5653,14 +5691,14 @@ pub fn run_desktop_app(
                     &window,
                     chain_window,
                     draft,
-                    &input_chain_devices,
-                    &output_chain_devices,
+                    &*input_chain_devices.borrow(),
+                    &*output_chain_devices.borrow(),
                 );
             }
             // Refresh input groups window if open
             if let Some(groups_window) = weak_input_groups_window.upgrade() {
                 let (input_items, _) =
-                    build_io_group_items(draft, &input_chain_devices, &output_chain_devices);
+                    build_io_group_items(draft, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
                 groups_window
                     .set_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
             }
@@ -5707,15 +5745,15 @@ pub fn run_desktop_app(
                                 &window,
                                 chain_window,
                                 draft,
-                                &input_chain_devices_for_out_cancel,
-                                &output_chain_devices_for_out_cancel,
+                                &*input_chain_devices_for_out_cancel.borrow(),
+                                &*output_chain_devices_for_out_cancel.borrow(),
                             );
                         }
                     }
                     // Refresh groups window if open
                     if let Some(groups_window) = weak_output_groups_for_cancel.upgrade() {
                         let (_, output_items) =
-                            build_io_group_items(draft, &input_chain_devices_for_out_cancel, &output_chain_devices_for_out_cancel);
+                            build_io_group_items(draft, &*input_chain_devices_for_out_cancel.borrow(), &*output_chain_devices_for_out_cancel.borrow());
                         groups_window
                             .set_groups(ModelRc::from(Rc::new(VecModel::from(output_items))));
                     }
@@ -5760,15 +5798,15 @@ pub fn run_desktop_app(
                                 &window,
                                 chain_window,
                                 draft,
-                                &input_chain_devices_for_cancel,
-                                &output_chain_devices_for_cancel,
+                                &*input_chain_devices_for_cancel.borrow(),
+                                &*output_chain_devices_for_cancel.borrow(),
                             );
                         }
                     }
                     // Refresh groups window if open
                     if let Some(groups_window) = weak_input_groups_for_cancel.upgrade() {
                         let (input_items, _) =
-                            build_io_group_items(draft, &input_chain_devices_for_cancel, &output_chain_devices_for_cancel);
+                            build_io_group_items(draft, &*input_chain_devices_for_cancel.borrow(), &*output_chain_devices_for_cancel.borrow());
                         groups_window
                             .set_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
                     }
@@ -5857,8 +5895,8 @@ pub fn run_desktop_app(
                     replace_project_chains(
                         &project_chains,
                         &session.project,
-                        &input_chain_devices,
-                        &output_chain_devices,
+                        &*input_chain_devices.borrow(),
+                        &*output_chain_devices.borrow(),
                     );
                     sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
                     output_window.set_status_message("".into());
@@ -5923,8 +5961,8 @@ pub fn run_desktop_app(
                 replace_project_chains(
                     &project_chains,
                     &session.project,
-                    &input_chain_devices,
-                    &output_chain_devices,
+                    &*input_chain_devices.borrow(),
+                    &*output_chain_devices.borrow(),
                 );
                 sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             }
@@ -5933,14 +5971,14 @@ pub fn run_desktop_app(
                     &window,
                     chain_window,
                     draft,
-                    &input_chain_devices,
-                    &output_chain_devices,
+                    &*input_chain_devices.borrow(),
+                    &*output_chain_devices.borrow(),
                 );
             }
             // Refresh output groups window if open
             if let Some(groups_window) = weak_output_groups_window.upgrade() {
                 let (_, output_items) =
-                    build_io_group_items(draft, &input_chain_devices, &output_chain_devices);
+                    build_io_group_items(draft, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
                 groups_window
                     .set_groups(ModelRc::from(Rc::new(VecModel::from(output_items))));
             }
@@ -6003,8 +6041,8 @@ pub fn run_desktop_app(
             replace_project_chains(
                 &project_chains,
                 &session.project,
-                &input_chain_devices,
-                &output_chain_devices,
+                &*input_chain_devices.borrow(),
+                &*output_chain_devices.borrow(),
             );
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
             clear_status(&window, &toast_timer);
@@ -6074,8 +6112,8 @@ pub fn run_desktop_app(
             replace_project_chains(
                 &project_chains,
                 &session.project,
-                &input_chain_devices,
-                &output_chain_devices,
+                &*input_chain_devices.borrow(),
+                &*output_chain_devices.borrow(),
             );
             // enabled is runtime-only state — do NOT mark project as dirty
             clear_status(&window, &toast_timer);
@@ -6157,28 +6195,17 @@ fn sync_recent_projects(config: &mut AppConfig) -> bool {
         {
             continue;
         }
-        match (YamlProjectRepository {
-            path: canonical_path.clone(),
-        })
-        .load_current_project()
-        {
-            Ok(project) => synced.push(RecentProjectEntry {
-                project_path: canonical_path_string,
-                project_name: project_display_name(&project),
-                is_valid: true,
-                invalid_reason: None,
-            }),
-            Err(_) => synced.push(RecentProjectEntry {
-                project_path: canonical_path_string,
-                project_name: if recent.project_name.trim().is_empty() {
-                    UNTITLED_PROJECT_NAME.to_string()
-                } else {
-                    recent.project_name.clone()
-                },
-                is_valid: false,
-                invalid_reason: Some("Projeto inválido".to_string()),
-            }),
-        }
+        // File exists — trust the stored name. Full validation happens when user opens it.
+        synced.push(RecentProjectEntry {
+            project_path: canonical_path_string,
+            project_name: if recent.project_name.trim().is_empty() {
+                UNTITLED_PROJECT_NAME.to_string()
+            } else {
+                recent.project_name.clone()
+            },
+            is_valid: true,
+            invalid_reason: None,
+        });
     }
     config.recent_projects = synced;
     *config != original
@@ -8243,8 +8270,8 @@ fn setup_chain_editor_callbacks(
     project_runtime: Rc<RefCell<Option<ProjectRuntimeController>>>,
     saved_project_snapshot: Rc<RefCell<Option<String>>>,
     project_dirty: Rc<RefCell<bool>>,
-    input_chain_devices: Rc<Vec<AudioDeviceDescriptor>>,
-    output_chain_devices: Rc<Vec<AudioDeviceDescriptor>>,
+    input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
+    output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     chain_input_device_options: Rc<VecModel<SharedString>>,
     chain_output_device_options: Rc<VecModel<SharedString>>,
     chain_input_channels: Rc<VecModel<ChannelOptionItem>>,
@@ -8559,8 +8586,8 @@ fn setup_chain_editor_callbacks(
                 &window,
                 &chain_window,
                 draft,
-                &input_chain_devices,
-                &output_chain_devices,
+                &*input_chain_devices.borrow(),
+                &*output_chain_devices.borrow(),
             );
         });
     }
@@ -8601,8 +8628,8 @@ fn setup_chain_editor_callbacks(
                 &window,
                 &chain_window,
                 draft,
-                &input_chain_devices,
-                &output_chain_devices,
+                &*input_chain_devices.borrow(),
+                &*output_chain_devices.borrow(),
             );
         });
     }
@@ -8692,8 +8719,8 @@ fn setup_chain_editor_callbacks(
             replace_project_chains(
                 &project_chains,
                 &session.project,
-                &input_chain_devices,
-                &output_chain_devices,
+                &*input_chain_devices.borrow(),
+                &*output_chain_devices.borrow(),
             );
             *chain_draft.borrow_mut() = None;
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
