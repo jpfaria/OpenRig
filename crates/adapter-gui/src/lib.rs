@@ -3835,6 +3835,7 @@ pub fn run_desktop_app(
                     let weak_win_stream = win.as_weak();
                     let project_runtime_stream = project_runtime.clone();
                     let block_id_for_stream = block_id_for_editor.clone();
+                    let stream_model_id = model_id.clone();
                     stream_timer.start(
                         slint::TimerMode::Repeated,
                         std::time::Duration::from_millis(50),
@@ -3842,6 +3843,11 @@ pub fn run_desktop_app(
                             let Some(win) = weak_win_stream.upgrade() else { return; };
                             let runtime_borrow = project_runtime_stream.borrow();
                             let Some(runtime) = runtime_borrow.as_ref() else { return; };
+                            let kind: slint::SharedString = if stream_model_id == "spectrum_analyzer" {
+                                "spectrum".into()
+                            } else {
+                                "stream".into()
+                            };
                             if let Some(entries) = runtime.poll_stream(&block_id_for_stream) {
                                 let slint_entries: Vec<BlockStreamEntry> = entries.iter().map(|e| BlockStreamEntry {
                                     key: e.key.clone().into(),
@@ -3850,7 +3856,7 @@ pub fn run_desktop_app(
                                 }).collect();
                                 win.set_block_stream_data(BlockStreamData {
                                     active: true,
-                                    stream_kind: "stream".into(),
+                                    stream_kind: kind,
                                     entries: ModelRc::from(Rc::new(VecModel::from(slint_entries))),
                                 });
                             } else {

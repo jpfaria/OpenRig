@@ -904,6 +904,7 @@ dependencies = [
  "anyhow",
  "arc-swap",
  "block-core",
+ "rustfft",
 ]
 
 [[package]]
