@@ -387,9 +387,9 @@ export component BlockEditorWindow inherits Window {
     private property <length> eq-widget-height:
         root.curve-editor-points.length > 0 ? 200px :
         root.multi-slider-points.length > 0 ? 180px : 0px;
-    // EQ blocks: use 90px fixed panel section (no preamp image)
+    // EQ blocks: use 150px fixed panel section (no preamp image, but POWER button needs ~150px)
     private property <length> eq-extra-height:
-        has-eq-widget ? (48px + 90px + 8px + eq-widget-height + 8px) : 275px;
+        has-eq-widget ? (48px + 150px + 8px + eq-widget-height + 8px) : 275px;
 
     title: root.block-window-title;
     min-width: panel-width;

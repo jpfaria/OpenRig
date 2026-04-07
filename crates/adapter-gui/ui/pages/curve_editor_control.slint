@@ -38,8 +38,6 @@ export component CurveEditorControl inherits Rectangle {
 
     // Per-band vertical sliders
     for point[i] in root.points : Rectangle {
-        // Stored at press time so drag computes correctly from a stable anchor
-        property <float> start-norm: 0.0;
         private property <float> norm: (point.y-value - point.y-min) / Math.max(0.001, point.y-max - point.y-min);
 
         property <length> slider-w: Math.max(4px, (root.width - 2px) / Math.max(1, root.points.length) - 1px);
@@ -48,19 +46,25 @@ export component CurveEditorControl inherits Rectangle {
         width: self.slider-w;
         height: parent.height;
 
-        // Full-column touch area — drag anywhere in the band column
+        // Full-column touch area — uses absolute mouse position so set_vec during drag
+        // doesn't corrupt the interaction (no start-norm that can be wiped by model updates)
         TouchArea {
             mouse-cursor: ns-resize;
-            pointer-event(event) => {
-                if event.kind == PointerEventKind.down {
-                    parent.start-norm = parent.norm;
-                }
-            }
             moved => {
-                let dy = (self.mouse-y - self.pressed-y) / root.chart-h;
-                let new-norm = Math.clamp(parent.start-norm - dy, 0.0, 1.0);
+                let track-top = 4.0;
+                let track-h = root.chart-h / 1px - 8.0;
+                let norm = Math.clamp(1.0 - (self.mouse-y / 1px - track-top) / track-h, 0.0, 1.0);
                 let new-gain = Math.clamp(
-                    point.y-min + new-norm * (point.y-max - point.y-min),
+                    point.y-min + norm * (point.y-max - point.y-min),
+                    point.y-min, point.y-max);
+                root.update-parameter(point.y-path, new-gain);
+            }
+            clicked => {
+                let track-top = 4.0;
+                let track-h = root.chart-h / 1px - 8.0;
+                let norm = Math.clamp(1.0 - (self.mouse-y / 1px - track-top) / track-h, 0.0, 1.0);
+                let new-gain = Math.clamp(
+                    point.y-min + norm * (point.y-max - point.y-min),
                     point.y-min, point.y-max);
                 root.update-parameter(point.y-path, new-gain);
             }
