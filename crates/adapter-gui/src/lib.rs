@@ -666,6 +666,7 @@ pub fn run_desktop_app(
 
             let lang = system_language();
             let meta = plugin_info::plugin_metadata(&lang, &model_id);
+            eprintln!("[plugin-info] lang={lang:?} model_id={model_id:?} effect_type={effect_type:?} desc_len={}", meta.description.len());
 
             let (screenshot_img, has_screenshot) = load_screenshot_image(&effect_type, &model_id);
 
@@ -4394,6 +4395,7 @@ pub fn run_desktop_app(
 
                         let lang = system_language();
                         let meta = plugin_info::plugin_metadata(&lang, &model_id);
+                        eprintln!("[plugin-info] lang={lang:?} model_id={model_id:?} effect_type={effect_type:?} desc_len={}", meta.description.len());
 
                         let (screenshot_img, has_screenshot) = load_screenshot_image(&effect_type, &model_id);
 
