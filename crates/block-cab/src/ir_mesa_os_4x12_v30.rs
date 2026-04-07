@@ -25,14 +25,15 @@ pub struct MesaOs4x12V30Capture {
 }
 
 pub const CAPTURES: &[MesaOs4x12V30Capture] = &[
-    capture!("at2020_1", "cabs/mesa_os_4x12_v30/at2020_1.wav"),
-    capture!("at2020_2", "cabs/mesa_os_4x12_v30/at2020_2.wav"),
+    capture!("at2020_1",         "cabs/mesa_os_4x12_v30/at2020_1.wav"),
+    capture!("at2020_2",         "cabs/mesa_os_4x12_v30/at2020_2.wav"),
     capture!("room_left_at2020", "cabs/mesa_os_4x12_v30/room_left_at2020.wav"),
-    capture!("room_right_at2020", "cabs/mesa_os_4x12_v30/room_right_at2020.wav"),
-    capture!("sm57_1", "cabs/mesa_os_4x12_v30/sm57_1.wav"),
-    capture!("sm57_2", "cabs/mesa_os_4x12_v30/sm57_2.wav"),
-    capture!("sm58_1", "cabs/mesa_os_4x12_v30/sm58_1.wav"),
-    capture!("sm58_2", "cabs/mesa_os_4x12_v30/sm58_2.wav"),
+    capture!("room_right_at2020","cabs/mesa_os_4x12_v30/room_right_at2020.wav"),
+    capture!("sm57_1",           "cabs/mesa_os_4x12_v30/sm57_1.wav"),
+    capture!("sm57_2",           "cabs/mesa_os_4x12_v30/sm57_2.wav"),
+    capture!("sm57_m160_mix",    "cabs/mesa_os_4x12_v30/sm57_m160_mix.wav"),
+    capture!("sm58_1",           "cabs/mesa_os_4x12_v30/sm58_1.wav"),
+    capture!("sm58_2",           "cabs/mesa_os_4x12_v30/sm58_2.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -47,14 +48,15 @@ pub fn model_schema() -> ModelParameterSchema {
             Some("Cab"),
             Some("at2020_1"),
             &[
-                ("at2020_1", "AT2020 1"),
-                ("at2020_2", "AT2020 2"),
+                ("at2020_1",         "AT2020 1"),
+                ("at2020_2",         "AT2020 2"),
                 ("room_left_at2020", "Room Left AT2020"),
-                ("room_right_at2020", "Room Right AT2020"),
-                ("sm57_1", "SM57 1"),
-                ("sm57_2", "SM57 2"),
-                ("sm58_1", "SM58 1"),
-                ("sm58_2", "SM58 2"),
+                ("room_right_at2020","Room Right AT2020"),
+                ("sm57_1",           "SM57 1"),
+                ("sm57_2",           "SM57 2"),
+                ("sm57_m160_mix",    "SM57 + M160 Mix"),
+                ("sm58_1",           "SM58 1"),
+                ("sm58_2",           "SM58 2"),
             ],
         )],
     }
