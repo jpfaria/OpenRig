@@ -425,7 +425,23 @@ impl Vst3Plugin {
                 (ctrl, true)
             };
 
-        // 14. Apply initial parameters.
+        // 14. Connect component ↔ controller via IConnectionPoint.
+        // Required by the VST3 spec so the controller can query component
+        // state before createView is called. Many plugins return null from
+        // createView if this step is skipped.
+        unsafe {
+            use vst3::Steinberg::Vst::IConnectionPoint;
+            use vst3::Steinberg::Vst::IConnectionPointTrait;
+            if let Some(comp_cp) = component.cast::<IConnectionPoint>() {
+                if let Some(ctrl_cp) = controller.cast::<IConnectionPoint>() {
+                    let _ = comp_cp.connect(ctrl_cp.as_ptr());
+                    let _ = ctrl_cp.connect(comp_cp.as_ptr());
+                    log::debug!("VST3: IConnectionPoint connected");
+                }
+            }
+        }
+
+        // 15. Apply initial parameters.
         for &(id, normalized) in initial_params {
             let res = unsafe { controller.setParamNormalized(id, normalized) };
             if res != kResultOk {
