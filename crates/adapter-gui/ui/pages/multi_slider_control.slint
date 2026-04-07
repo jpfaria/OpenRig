@@ -30,17 +30,20 @@ export component MultiSliderControl inherits Rectangle {
         width: self.slider-w;
         height: parent.height;
 
-        // Full-column touch area — absolute mouse-y → value, no start-norm
+        // Full-column touch area — absolute mouse-y → value.
+        // Guard moved with self.pressed: in Slint 1.x moved fires on hover too.
         TouchArea {
             mouse-cursor: ns-resize;
             moved => {
-                let track-top = 4.0;
-                let track-h = root.chart-h / 1px - 8.0;
-                let norm = Math.clamp(1.0 - (self.mouse-y / 1px - track-top) / track-h, 0.0, 1.0);
-                let new-val = Math.clamp(
-                    point.min-val + norm * (point.max-val - point.min-val),
-                    point.min-val, point.max-val);
-                root.update-parameter(point.path, new-val);
+                if (self.pressed) {
+                    let track-top = 4.0;
+                    let track-h = root.chart-h / 1px - 8.0;
+                    let norm = Math.clamp(1.0 - (self.mouse-y / 1px - track-top) / track-h, 0.0, 1.0);
+                    let new-val = Math.clamp(
+                        point.min-val + norm * (point.max-val - point.min-val),
+                        point.min-val, point.max-val);
+                    root.update-parameter(point.path, new-val);
+                }
             }
             clicked => {
                 let track-top = 4.0;

@@ -46,18 +46,20 @@ export component CurveEditorControl inherits Rectangle {
         width: self.slider-w;
         height: parent.height;
 
-        // Full-column touch area — uses absolute mouse position so set_vec during drag
-        // doesn't corrupt the interaction (no start-norm that can be wiped by model updates)
+        // Full-column touch area — absolute mouse-y → value.
+        // Guard moved with self.pressed: in Slint 1.x moved fires on hover too.
         TouchArea {
             mouse-cursor: ns-resize;
             moved => {
-                let track-top = 4.0;
-                let track-h = root.chart-h / 1px - 8.0;
-                let norm = Math.clamp(1.0 - (self.mouse-y / 1px - track-top) / track-h, 0.0, 1.0);
-                let new-gain = Math.clamp(
-                    point.y-min + norm * (point.y-max - point.y-min),
-                    point.y-min, point.y-max);
-                root.update-parameter(point.y-path, new-gain);
+                if (self.pressed) {
+                    let track-top = 4.0;
+                    let track-h = root.chart-h / 1px - 8.0;
+                    let norm = Math.clamp(1.0 - (self.mouse-y / 1px - track-top) / track-h, 0.0, 1.0);
+                    let new-gain = Math.clamp(
+                        point.y-min + norm * (point.y-max - point.y-min),
+                        point.y-min, point.y-max);
+                    root.update-parameter(point.y-path, new-gain);
+                }
             }
             clicked => {
                 let track-top = 4.0;

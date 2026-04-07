@@ -4005,13 +4005,43 @@ pub fn run_desktop_app(
                                 }
                             }
                         }
-                        // Recompute EQ curves and update curve editor point labels
+                        // Recompute EQ curves and update curve editor point values in-place.
+                        // Use set_row_data instead of set_vec to avoid recreating elements (which
+                        // would reset the TouchArea pressed state and break drag interactions).
                         if let Some(draft) = win_draft.borrow().as_ref() {
                             let params = build_params_from_items(&win_param_items);
                             let (eq_total, eq_bands) = compute_eq_curves(&draft.effect_type, &draft.model_id, &params);
                             win_eq_band_curves.set_vec(eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>());
                             win.set_eq_total_curve(eq_total.into());
-                            win_curve_editor_pts.set_vec(build_curve_editor_points(&draft.effect_type, &draft.model_id, &params));
+                            // Update matching curve editor point in-place by path
+                            let path_str = path.as_str();
+                            for idx in 0..win_curve_editor_pts.row_count() {
+                                if let Some(mut pt) = win_curve_editor_pts.row_data(idx) {
+                                    if pt.y_path.as_str() == path_str {
+                                        pt.y_value = value;
+                                        pt.y_label = if value >= 0.0 {
+                                            format!("+{:.1}", value).into()
+                                        } else {
+                                            format!("{:.1}", value).into()
+                                        };
+                                        win_curve_editor_pts.set_row_data(idx, pt);
+                                        break;
+                                    } else if pt.has_x && pt.x_path.as_str() == path_str {
+                                        pt.x_value = value;
+                                        pt.x_label = if value >= 1000.0 {
+                                            format!("{:.1}k", value / 1000.0).into()
+                                        } else {
+                                            format!("{}Hz", value as i32).into()
+                                        };
+                                        win_curve_editor_pts.set_row_data(idx, pt);
+                                        break;
+                                    } else if pt.has_width && pt.width_path.as_str() == path_str {
+                                        pt.width_value = value;
+                                        win_curve_editor_pts.set_row_data(idx, pt);
+                                        break;
+                                    }
+                                }
+                            }
                         }
                         if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
                             schedule_block_editor_persist_for_block_win(

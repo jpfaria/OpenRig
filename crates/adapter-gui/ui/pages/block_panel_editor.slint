@@ -336,10 +336,9 @@ export component BlockPanelEditor inherits Rectangle {
         root.selected-type-label == "" ? 0px : 56px;
     private property <length> header-height: 48px;
     private property <length> brand-strip-height: 0px;
-    // EQ blocks have no panel image — use a fixed compact height instead of width/4.
-    // 150px is the minimum to fit the POWER button (y = height*0.62, height 40px, label below).
+    // EQ blocks: compact panel (no brand strip, just POWER button pinned to top).
     private property <bool> has-eq-widget: root.curve-editor-points.length > 0 || root.multi-slider-points.length > 0;
-    private property <length> panel-height: self.has-eq-widget ? 150px : root.width / 4;
+    private property <length> panel-height: self.has-eq-widget ? 60px : root.width / 4;
     private property <length> footer-height: root.block-drawer-edit-mode ? 0px : 52px;
 
     background: #0a0a0e;
@@ -495,9 +494,9 @@ export component BlockPanelEditor inherits Rectangle {
         clip: true;
         background: root.panel-bg;
 
-        // ── Brand strip (marca + modelo) ──
+        // ── Brand strip (marca + modelo) — hidden for EQ blocks ──
         // Com marca real (marshall, vox, etc)
-        if root.selected-brand != "native" && root.selected-brand != "" : Rectangle {
+        if !root.has-eq-widget && root.selected-brand != "native" && root.selected-brand != "" : Rectangle {
             x: 0;
             y: 0;
             width: parent.width;
@@ -580,8 +579,8 @@ export component BlockPanelEditor inherits Rectangle {
             }
         }
 
-        // Nativos: fundo escuro com ilustração do modelo + nome
-        if root.selected-brand == "native" || root.selected-brand == "" : Rectangle {
+        // Nativos: fundo escuro com ilustração do modelo + nome — hidden for EQ blocks
+        if !root.has-eq-widget && (root.selected-brand == "native" || root.selected-brand == "") : Rectangle {
             x: 0;
             y: 0;
             width: parent.width;
@@ -656,7 +655,7 @@ export component BlockPanelEditor inherits Rectangle {
         // ── Power switch ──
         Rectangle {
             x: 10px;
-            y: parent.height * 0.62;
+            y: root.has-eq-widget ? 4px : parent.height * 0.62;
             width: 32px;
             height: 40px;
             border-radius: 3px;
@@ -683,7 +682,7 @@ export component BlockPanelEditor inherits Rectangle {
 
         Text {
             x: 8px;
-            y: parent.height * 0.62 + 44px;
+            y: root.has-eq-widget ? 48px : parent.height * 0.62 + 44px;
             width: 36px;
             height: 12px;
             text: "POWER";
