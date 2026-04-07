@@ -15,8 +15,9 @@ pub const MODEL_ID: &str = "tuner_chromatic";
 pub const DISPLAY_NAME: &str = "Chromatic Tuner";
 
 // --- YIN constants ---
-const BUFFER_SIZE: usize = 4096;
-const MIN_DETECTION: usize = 2048;
+// 2048 samples ≈ 42ms at 48kHz; enough for ~2.3 periods of 55Hz (lowest string).
+const BUFFER_SIZE: usize = 2048;
+const MIN_DETECTION: usize = 1024;
 const MIN_FREQ: f32 = 55.0; // A1
 const MAX_FREQ: f32 = 1200.0;
 const RMS_SILENCE_THRESHOLD: f32 = 0.005;
@@ -24,9 +25,11 @@ const YIN_ABSOLUTE_THRESHOLD: f32 = 0.15;
 const YIN_REJECT_THRESHOLD: f32 = 0.4;
 
 // --- Smoothing / debounce ---
-const EMA_ALPHA: f32 = 0.10;
-const SNAP_RATIO: f32 = 1.06; // one semitone
-const DEBOUNCE_COUNT: u32 = 3;
+// α=0.25 → 90% convergence in ~8 windows (≈336ms at 48kHz). Fast enough for live tuning.
+const EMA_ALPHA: f32 = 0.25;
+const SNAP_RATIO: f32 = 1.06; // one semitone — snap immediately on large jumps
+// 2 consecutive same-note detections before displaying (≈84ms at 48kHz).
+const DEBOUNCE_COUNT: u32 = 2;
 
 // --- Silence timeout (samples with no detection before clearing) ---
 // At 48kHz, 48000 samples ≈ 1 second of sustained silence before clearing the display.
@@ -317,12 +320,12 @@ impl ChromaticTuner {
             Some(raw_freq) => {
                 self.silent_samples = 0;
                 let freq = self.smooth_frequency(raw_freq);
-                let (note_name, octave, cents) = freq_to_note(freq, self.reference_hz);
-                let note_str = format!("{note_name}{octave}");
-                self.debounce_note(&note_str);
+                let (note_name, _octave, cents) = freq_to_note(freq, self.reference_hz);
+                // Debounce on note name only — octave estimation can fluctuate for the
+                // same string, which would cause the debounce to reset constantly.
+                self.debounce_note(note_name);
 
                 if let Some(ref current) = self.current_note {
-                    // Publish the displayed (debounced) note with current smoothed freq/cents
                     self.publish_stream(freq, current, cents);
                 }
             }
@@ -431,21 +434,21 @@ mod tests {
     fn detect_a4_440hz() {
         let (entries, _) = run_tuner(440.0, 44100, 440.0, true);
         let note = find_entry(&entries, "note").expect("should have note entry");
-        assert_eq!(note.text, "A4", "Expected A4, got {}", note.text);
+        assert_eq!(note.text, "A", "Expected A, got {}", note.text);
     }
 
     #[test]
     fn detect_e2_82hz() {
         let (entries, _) = run_tuner(82.41, 44100, 440.0, true);
         let note = find_entry(&entries, "note").expect("should have note entry");
-        assert_eq!(note.text, "E2", "Expected E2, got {}", note.text);
+        assert_eq!(note.text, "E", "Expected E, got {}", note.text);
     }
 
     #[test]
     fn detect_high_e4_330hz() {
         let (entries, _) = run_tuner(329.63, 44100, 440.0, true);
         let note = find_entry(&entries, "note").expect("should have note entry");
-        assert_eq!(note.text, "E4", "Expected E4, got {}", note.text);
+        assert_eq!(note.text, "E", "Expected E, got {}", note.text);
     }
 
     #[test]
@@ -482,14 +485,15 @@ mod tests {
     fn reference_hz_shifts_detection() {
         let (entries, _) = run_tuner(432.0, 44100, 432.0, true);
         let note = find_entry(&entries, "note").expect("should have note entry");
-        assert_eq!(note.text, "A4", "432Hz with 432Hz ref should be A4, got {}", note.text);
+        assert_eq!(note.text, "A", "432Hz with 432Hz ref should be A, got {}", note.text);
     }
 
     #[test]
     fn octave_stability_no_jump() {
+        // 110Hz is A — debounce on note name only so octave ambiguity doesn't prevent display.
         let (entries, _) = run_tuner(110.0, 44100, 440.0, true);
         let note = find_entry(&entries, "note").expect("should have note entry");
-        assert_eq!(note.text, "A2", "110Hz should be A2, got {}", note.text);
+        assert_eq!(note.text, "A", "110Hz should be A, got {}", note.text);
     }
 
     #[test]
