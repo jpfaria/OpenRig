@@ -4,7 +4,7 @@ use block_core::param::{
     ParameterSet, ParameterUnit,
 };
 use block_core::{
-    AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StreamEntry, StreamHandle,
+    AudioChannelLayout, BlockProcessor, ModelAudioMode, StereoProcessor, StreamEntry, StreamHandle,
 };
 use std::sync::{Arc, Mutex};
 
@@ -46,7 +46,7 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: "utility".to_string(),
         model: MODEL_ID.to_string(),
         display_name: DISPLAY_NAME.to_string(),
-        audio_mode: ModelAudioMode::DualMono,
+        audio_mode: ModelAudioMode::TrueStereo,
         parameters: vec![
             float_parameter(
                 "reference_hz",
@@ -344,19 +344,19 @@ impl ChromaticTuner {
     }
 }
 
-impl MonoProcessor for ChromaticTuner {
-    fn process_sample(&mut self, input: f32) -> f32 {
-        self.buffer.push(input);
-
-        // Run detection when buffer is full
+impl StereoProcessor for ChromaticTuner {
+    fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
+        let [left, right] = input;
+        // Detect pitch from the left channel only — one YIN run per buffer,
+        // no doubling of CPU cost, correct for both mono and stereo signals.
+        self.buffer.push(left);
         if self.buffer.len() >= BUFFER_SIZE {
             self.run_detection();
         }
-
         if self.mute_signal {
-            0.0
+            [0.0, 0.0]
         } else {
-            input
+            [left, right]
         }
     }
 }
@@ -375,7 +375,7 @@ fn build(
 
     let stream: StreamHandle = Arc::new(Mutex::new(Vec::new()));
     let tuner = ChromaticTuner::new(sample_rate, reference_hz, mute_signal, Arc::clone(&stream));
-    let processor = BlockProcessor::Mono(Box::new(tuner));
+    let processor = BlockProcessor::Stereo(Box::new(tuner));
 
     Ok((processor, Some(stream)))
 }
@@ -411,19 +411,17 @@ mod tests {
         sample_rate: usize,
         reference_hz: f32,
         mute: bool,
-    ) -> (Vec<StreamEntry>, Vec<f32>) {
+    ) -> (Vec<StreamEntry>, Vec<[f32; 2]>) {
         let stream: StreamHandle = Arc::new(Mutex::new(Vec::new()));
         let mut tuner = ChromaticTuner::new(sample_rate, reference_hz, mute, Arc::clone(&stream));
 
-        // Generate enough samples for reliable detection (multiple buffers)
+        // Feed as stereo frames (L=R=sample, simulating a mono guitar signal)
         let samples = sine_wave(freq, sample_rate, BUFFER_SIZE * 3);
-        let mut outputs = Vec::with_capacity(samples.len());
-        for s in &samples {
-            outputs.push(tuner.process_sample(*s));
-        }
+        let mut frames: Vec<[f32; 2]> = samples.iter().map(|&s| [s, s]).collect();
+        tuner.process_block(&mut frames);
 
         let entries = stream.lock().unwrap().clone();
-        (entries, outputs)
+        (entries, frames)
     }
 
     fn find_entry<'a>(entries: &'a [StreamEntry], key: &str) -> Option<&'a StreamEntry> {
@@ -457,9 +455,8 @@ mod tests {
         let mut tuner = ChromaticTuner::new(44100, 440.0, true, Arc::clone(&stream));
 
         // Feed silence (zeros)
-        for _ in 0..(BUFFER_SIZE * 3) {
-            tuner.process_sample(0.0);
-        }
+        let mut silent_frames: Vec<[f32; 2]> = vec![[0.0, 0.0]; BUFFER_SIZE * 3];
+        tuner.process_block(&mut silent_frames);
 
         let entries = stream.lock().unwrap();
         assert!(entries.is_empty(), "Silence should produce no stream entries");
@@ -469,16 +466,16 @@ mod tests {
     fn mute_zeroes_output() {
         let stream: StreamHandle = Arc::new(Mutex::new(Vec::new()));
         let mut tuner = ChromaticTuner::new(44100, 440.0, true, Arc::clone(&stream));
-        let output = tuner.process_sample(0.5);
-        assert_eq!(output, 0.0, "Muted tuner should output 0.0");
+        let output = tuner.process_frame([0.5, 0.3]);
+        assert_eq!(output, [0.0, 0.0], "Muted tuner should zero both channels");
     }
 
     #[test]
     fn passthrough_preserves_signal() {
         let stream: StreamHandle = Arc::new(Mutex::new(Vec::new()));
         let mut tuner = ChromaticTuner::new(44100, 440.0, false, Arc::clone(&stream));
-        let output = tuner.process_sample(0.5);
-        assert_eq!(output, 0.5, "Passthrough tuner should preserve signal");
+        let output = tuner.process_frame([0.5, 0.3]);
+        assert_eq!(output, [0.5, 0.3], "Passthrough tuner should preserve both channels");
     }
 
     #[test]

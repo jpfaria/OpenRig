@@ -86,13 +86,6 @@ impl ElasticBuffer {
     }
 }
 
-/// Zero-overhead mono passthrough — used as the right-channel placeholder in
-/// utility DualMono blocks so pitch detection only runs on the left channel.
-struct MonoPassthrough;
-impl MonoProcessor for MonoPassthrough {
-    fn process_sample(&mut self, input: f32) -> f32 { input }
-}
-
 enum AudioProcessor {
     Mono(Box<dyn MonoProcessor>),
     DualMono {
@@ -1115,36 +1108,26 @@ fn build_core_block_runtime_node(
             })?,
         )),
         EFFECT_TYPE_UTILITY => {
-            let schema = schema_for_block_model(EFFECT_TYPE_UTILITY, model).map_err(|e| {
-                anyhow!("chain '{}' utility model '{}': {}", chain.id.0, model, e)
-            })?;
-            let output_layout = schema.audio_mode.output_layout(input_layout).ok_or_else(|| {
-                anyhow!(
-                    "chain '{}' utility model '{}' with audio mode '{}' does not accept {} input",
-                    chain.id.0, model, schema.audio_mode.as_str(), layout_label(input_layout)
-                )
-            })?;
-            // Always build one mono instance for analysis.
-            // For DualMono+Stereo we use MonoPassthrough on the right channel so pitch
-            // detection only runs once per buffer — running YIN twice in the same audio
-            // callback causes CPU spikes that produce audio dropouts.
-            let (block_processor, stream_handle) = build_utility_processor_for_layout(
+            let mut captured_stream: Option<StreamHandle> = None;
+            let mut outcome = build_audio_processor_for_model(
+                chain,
+                EFFECT_TYPE_UTILITY,
                 model,
-                params,
-                sample_rate.round() as usize,
-                AudioChannelLayout::Mono,
-            )?;
-            let processor = match (schema.audio_mode, input_layout) {
-                (ModelAudioMode::DualMono, AudioChannelLayout::Stereo) => {
-                    let left = expect_mono_processor(block_processor, chain, EFFECT_TYPE_UTILITY, model)?;
-                    AudioProcessor::DualMono { left, right: Box::new(MonoPassthrough) }
-                }
-                _ => match block_processor {
-                    BlockProcessor::Mono(m) => AudioProcessor::Mono(m),
-                    BlockProcessor::Stereo(s) => AudioProcessor::Stereo(s),
+                input_layout,
+                |layout| {
+                    let (bp, sh) = build_utility_processor_for_layout(
+                        model,
+                        params,
+                        sample_rate.round() as usize,
+                        layout,
+                    )?;
+                    if captured_stream.is_none() {
+                        captured_stream = sh;
+                    }
+                    Ok(bp)
                 },
-            };
-            let outcome = ProcessorBuildOutcome { processor, output_layout, stream_handle };
+            )?;
+            outcome.stream_handle = captured_stream;
             Ok(audio_block_runtime_node(block, input_layout, outcome))
         },
         EFFECT_TYPE_DYNAMICS => Ok(audio_block_runtime_node(
