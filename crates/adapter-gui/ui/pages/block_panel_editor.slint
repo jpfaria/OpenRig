@@ -1044,10 +1044,11 @@ export component BlockPanelEditor inherits Rectangle {
     }
 
     // ── Spectrum analyzer bars — shown when stream_kind == "spectrum" ──
+    // Left margin of 54px leaves room for the POWER button (x=10px, width=32px + gap).
     if root.block-stream-data.active && root.block-stream-data.stream-kind == "spectrum" : Rectangle {
-        x: 8px;
+        x: 54px;
         y: root.header-height + root.brand-strip-height + 4px;
-        width: parent.width - 16px;
+        width: parent.width - 62px;
         height: root.panel-height - 28px;
         background: #06060e;
         border-radius: 4px;
