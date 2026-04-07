@@ -255,6 +255,18 @@ enum RuntimeProcessor {
     Bypass,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum FadeState {
+    /// Fully active — no fade in progress.
+    Active,
+    /// Transitioning from bypass → active. frames_remaining counts down.
+    FadingIn { frames_remaining: usize },
+    /// Transitioning from active → bypass. frames_remaining counts down.
+    FadingOut { frames_remaining: usize },
+    /// Fully bypassed — no audio processing needed.
+    Bypassed,
+}
+
 struct BlockRuntimeNode {
     #[cfg_attr(not(test), allow(dead_code))]
     instance_serial: u64,
@@ -265,6 +277,7 @@ struct BlockRuntimeNode {
     scratch: ProcessorScratch,
     processor: RuntimeProcessor,
     stream_handle: Option<StreamHandle>,
+    fade_state: FadeState,
 }
 
 struct SelectRuntimeState {
@@ -751,6 +764,7 @@ fn build_input_processing_state(
         input.channels,
         input.mode,
     );
+    let had_existing = existing_blocks.is_some();
     let (blocks, _output_layout) =
         build_runtime_block_nodes(chain, processing_layout_channel, sample_rate, existing_blocks, block_indices)?;
 
@@ -760,7 +774,7 @@ fn build_input_processing_state(
         input_channels: input.channels.clone(),
         blocks,
         frame_buffer: Vec::with_capacity(1024),
-        fade_in_remaining: FADE_IN_FRAMES,
+        fade_in_remaining: if had_existing { 0 } else { FADE_IN_FRAMES },
         output_route_indices,
     })
 }
@@ -932,8 +946,12 @@ fn build_runtime_block_nodes(
         // for instant re-enable), otherwise create a bypass node.
         if !block.enabled {
             if let Some(mut node) = reusable_nodes.remove(&block.id) {
+                let was_enabled = node.block_snapshot.enabled;
                 node.block_snapshot = block.clone();
-                // Keep the processor alive but don't change layout
+                // If block was just disabled, start a fade-out instead of hard-cutting
+                if was_enabled && !matches!(node.processor, RuntimeProcessor::Bypass) {
+                    node.fade_state = FadeState::FadingOut { frames_remaining: FADE_IN_FRAMES };
+                }
                 blocks.push(node);
             } else {
                 blocks.push(bypass_runtime_node(block, current_layout));
@@ -1003,7 +1021,12 @@ fn try_reuse_block_node(
         if matches!(node.processor, RuntimeProcessor::Bypass) && block.enabled {
             return None; // force rebuild so we get a real processor + stream_handle
         }
+        let was_disabled = !node.block_snapshot.enabled;
         node.block_snapshot = block.clone();
+        // If block was just enabled, start a fade-in
+        if was_disabled && block.enabled {
+            node.fade_state = FadeState::FadingIn { frames_remaining: FADE_IN_FRAMES };
+        }
         return Some(node);
     }
     None
@@ -1177,6 +1200,7 @@ fn build_select_runtime_node(
     sample_rate: f32,
     existing: Option<BlockRuntimeNode>,
 ) -> Result<BlockRuntimeNode> {
+    let is_new = existing.is_none();
     let (instance_serial, mut reusable_option_nodes) = match existing {
         Some(node) => {
             let instance_serial = node.instance_serial;
@@ -1235,6 +1259,11 @@ fn build_select_runtime_node(
             options: option_nodes,
         }),
         stream_handle: None,
+        fade_state: if is_new {
+            FadeState::FadingIn { frames_remaining: FADE_IN_FRAMES }
+        } else {
+            FadeState::Active
+        },
     })
 }
 
@@ -1251,6 +1280,7 @@ fn bypass_runtime_node(
         scratch: ProcessorScratch::None,
         processor: RuntimeProcessor::Bypass,
         stream_handle: None,
+        fade_state: FadeState::Bypassed,
     }
 }
 
@@ -1269,6 +1299,7 @@ fn audio_block_runtime_node(
         scratch,
         processor: RuntimeProcessor::Audio(outcome.processor),
         stream_handle: outcome.stream_handle,
+        fade_state: FadeState::FadingIn { frames_remaining: FADE_IN_FRAMES },
     }
 }
 
@@ -1609,10 +1640,67 @@ fn process_single_segment(
 }
 
 fn process_audio_block(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame]) {
-    // Skip disabled blocks (processor is kept alive for instant re-enable)
-    if !block.block_snapshot.enabled {
-        return;
+    // Copy the fade state (it's Copy) so we can call apply_block_processor without
+    // holding a borrow into block.fade_state at the same time.
+    match block.fade_state {
+        FadeState::Bypassed => {
+            // Fully bypassed — no processing, no fade. Hard skip.
+        }
+        FadeState::Active => {
+            apply_block_processor(block, frames);
+        }
+        FadeState::FadingIn { frames_remaining } => {
+            // Crossfade: dry → wet (block fading in)
+            let dry: Vec<AudioFrame> = frames.to_vec();
+            apply_block_processor(block, frames);
+            let fade_total = FADE_IN_FRAMES as f32;
+            for (i, frame) in frames.iter_mut().enumerate() {
+                if frames_remaining <= i {
+                    break;
+                }
+                let remaining = frames_remaining - i;
+                // progress: 0.0 at start of fade, 1.0 at end
+                let progress = 1.0 - (remaining as f32 / fade_total);
+                let wet_gain = 0.5 * (1.0 - (std::f32::consts::PI * progress).cos());
+                let dry_gain = 1.0 - wet_gain;
+                blend_frame(frame, dry[i], dry_gain, wet_gain);
+            }
+            let new_remaining = frames_remaining.saturating_sub(frames.len());
+            block.fade_state = if new_remaining == 0 {
+                FadeState::Active
+            } else {
+                FadeState::FadingIn { frames_remaining: new_remaining }
+            };
+        }
+        FadeState::FadingOut { frames_remaining } => {
+            // Crossfade: wet → dry (block fading out / being disabled)
+            // We still process audio so we can fade out smoothly
+            let dry: Vec<AudioFrame> = frames.to_vec();
+            apply_block_processor(block, frames);
+            let fade_total = FADE_IN_FRAMES as f32;
+            for (i, frame) in frames.iter_mut().enumerate() {
+                if frames_remaining <= i {
+                    break;
+                }
+                let remaining = frames_remaining - i;
+                // progress: 0.0 at start of fade-out, 1.0 at end
+                let progress = 1.0 - (remaining as f32 / fade_total);
+                // wet_gain: 1.0 at start, 0.0 at end (cosine fade-out)
+                let wet_gain = 0.5 * (1.0 + (std::f32::consts::PI * progress).cos());
+                let dry_gain = 1.0 - wet_gain;
+                blend_frame(frame, dry[i], dry_gain, wet_gain);
+            }
+            let new_remaining = frames_remaining.saturating_sub(frames.len());
+            block.fade_state = if new_remaining == 0 {
+                FadeState::Bypassed
+            } else {
+                FadeState::FadingOut { frames_remaining: new_remaining }
+            };
+        }
     }
+}
+
+fn apply_block_processor(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame]) {
     match &mut block.processor {
         RuntimeProcessor::Audio(processor) => {
             processor.process_buffer(frames, &mut block.scratch);
@@ -1623,6 +1711,23 @@ fn process_audio_block(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame]) 
             }
         }
         RuntimeProcessor::Bypass => {}
+    }
+}
+
+#[inline]
+fn blend_frame(frame: &mut AudioFrame, dry: AudioFrame, dry_gain: f32, wet_gain: f32) {
+    match (frame, dry) {
+        (AudioFrame::Mono(w), AudioFrame::Mono(d)) => {
+            *w = d * dry_gain + *w * wet_gain;
+        }
+        (AudioFrame::Stereo([wl, wr]), AudioFrame::Stereo([dl, dr])) => {
+            *wl = dl * dry_gain + *wl * wet_gain;
+            *wr = dr * dry_gain + *wr * wet_gain;
+        }
+        // Layout mismatch shouldn't happen in practice; pass dry through
+        (frame, dry) => {
+            *frame = dry;
+        }
     }
 }
 
