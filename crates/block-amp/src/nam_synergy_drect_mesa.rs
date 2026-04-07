@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
-use crate::registry::FullRigModelDefinition;
-use crate::FullRigBackendKind;
+use crate::registry::{AmpBackendKind, AmpModelDefinition};
+
 use nam::{
     build_processor_with_assets_for_layout, model_schema_for,
     processor::{NamPluginParams, DEFAULT_PLUGIN_PARAMS},
@@ -8,27 +8,27 @@ use nam::{
 use block_core::param::{enum_parameter, required_string, ModelParameterSchema, ParameterSet};
 use block_core::{AudioChannelLayout, BlockProcessor};
 
-pub const MODEL_ID: &str = "fender_super_reverb_1977";
-pub const DISPLAY_NAME: &str = "Super Reverb 1977";
-const BRAND: &str = "fender";
+pub const MODEL_ID: &str = "synergy_drect_mesa";
+pub const DISPLAY_NAME: &str = "DRECT Mesa";
+const BRAND: &str = "synergy";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
-const CAPTURE_SM57: &str = "full_rigs/fender_super_reverb_1977/fender_super_reverb_sm57.nam";
-const CAPTURE_AKG414: &str = "full_rigs/fender_super_reverb_1977/fender_super_reverb_akg414.nam";
-const CAPTURE_SM57_AKG414: &str = "full_rigs/fender_super_reverb_1977/fender_super_reverb_sm57_akg414.nam";
+const CAPTURE_UNBOOSTED: &str = "full_rigs/synergy_drect_mesa/synergy_drect_unboosted.nam";
+const CAPTURE_OD808_SM57: &str = "full_rigs/synergy_drect_mesa/synergy_drect_od808_sm57.nam";
+const CAPTURE_SD1_SM58: &str = "full_rigs/synergy_drect_mesa/synergy_drect_sd1_sm58.nam";
 
 pub fn model_schema() -> ModelParameterSchema {
-    let mut schema = model_schema_for("full_rig", MODEL_ID, DISPLAY_NAME, false);
+    let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
-        "mic",
-        "Mic",
-        Some("Cab"),
-        Some("sm57"),
+        "boost",
+        "Boost",
+        Some("Amp"),
+        Some("unboosted"),
         &[
-            ("sm57", "SM57"),
-            ("akg414", "AKG 414"),
-            ("sm57_akg414", "SM57 + AKG 414"),
+            ("unboosted", "Unboosted"),
+            ("od808", "OD808"),
+            ("sd1", "SD-1"),
         ],
     )];
     schema
@@ -59,13 +59,13 @@ pub fn asset_summary(params: &ParameterSet) -> Result<String> {
 }
 
 fn resolve_capture_path(params: &ParameterSet) -> Result<&'static str> {
-    let mic = required_string(params, "mic").map_err(anyhow::Error::msg)?;
-    match mic.as_str() {
-        "sm57" => Ok(CAPTURE_SM57),
-        "akg414" => Ok(CAPTURE_AKG414),
-        "sm57_akg414" => Ok(CAPTURE_SM57_AKG414),
+    let boost = required_string(params, "boost").map_err(anyhow::Error::msg)?;
+    match boost.as_str() {
+        "unboosted" => Ok(CAPTURE_UNBOOSTED),
+        "od808" => Ok(CAPTURE_OD808_SM57),
+        "sd1" => Ok(CAPTURE_SD1_SM58),
         other => Err(anyhow!(
-            "full-rig model '{}' does not support mic='{}'",
+            "amp model '{}' does not support boost='{}'",
             MODEL_ID,
             other
         )),
@@ -80,15 +80,15 @@ fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) ->
     build_processor_for_model(params, sample_rate, layout)
 }
 
-pub const MODEL_DEFINITION: FullRigModelDefinition = FullRigModelDefinition {
+pub const MODEL_DEFINITION: AmpModelDefinition = AmpModelDefinition {
     id: MODEL_ID,
     display_name: DISPLAY_NAME,
     brand: BRAND,
-    backend_kind: FullRigBackendKind::Nam,
+    backend_kind: AmpBackendKind::Nam,
     schema,
     validate: validate_params,
     asset_summary,
     build,
-    supported_instruments: block_core::GUITAR_ACOUSTIC_BASS,
+    supported_instruments: block_core::GUITAR_BASS,
     knob_layout: &[],
 };

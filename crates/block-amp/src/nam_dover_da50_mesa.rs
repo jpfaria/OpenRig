@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
-use crate::registry::FullRigModelDefinition;
-use crate::FullRigBackendKind;
+use crate::registry::{AmpBackendKind, AmpModelDefinition};
+
 use nam::{
     build_processor_with_assets_for_layout, model_schema_for,
     processor::{NamPluginParams, DEFAULT_PLUGIN_PARAMS},
@@ -25,7 +25,7 @@ const CAPTURES: &[DoverCapture] = &[
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
-    let mut schema = model_schema_for("full_rig", MODEL_ID, DISPLAY_NAME, false);
+    let mut schema = model_schema_for("amp", MODEL_ID, DISPLAY_NAME, false);
     schema.parameters = vec![enum_parameter(
         "boost",
         "Boost",
@@ -68,7 +68,7 @@ fn resolve_capture(params: &ParameterSet) -> Result<&'static DoverCapture> {
     CAPTURES
         .iter()
         .find(|c| c.boost == boost)
-        .ok_or_else(|| anyhow!("full-rig model '{}' does not support boost='{}'", MODEL_ID, boost))
+        .ok_or_else(|| anyhow!("amp model '{}' does not support boost='{}'", MODEL_ID, boost))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
@@ -79,11 +79,11 @@ fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) ->
     build_processor_for_model(params, sample_rate, layout)
 }
 
-pub const MODEL_DEFINITION: FullRigModelDefinition = FullRigModelDefinition {
+pub const MODEL_DEFINITION: AmpModelDefinition = AmpModelDefinition {
     id: MODEL_ID,
     display_name: DISPLAY_NAME,
     brand: BRAND,
-    backend_kind: FullRigBackendKind::Nam,
+    backend_kind: AmpBackendKind::Nam,
     schema,
     validate: validate_params,
     asset_summary,
