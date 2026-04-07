@@ -1206,12 +1206,15 @@ fn build_core_block_runtime_node(
                     Some((id, (pct / 100.0).clamp(0.0, 1.0) as f64))
                 })
                 .collect();
+            // Register a param channel so the GUI can push knob changes to this processor.
+            let param_channel = vst3_host::register_vst3_channel(model);
             Ok(audio_block_runtime_node(
                 block,
                 input_layout,
                 build_audio_processor_for_model(chain, block_core::EFFECT_TYPE_VST3, model, input_layout, |layout| {
-                    vst3_host::build_vst3_processor(&bundle_path, &uid, sample_rate as f64, layout, &vst3_params)
-                        .map_err(|e| anyhow!("{}", e))
+                    vst3_host::build_vst3_processor_with_channel(
+                        &bundle_path, &uid, sample_rate as f64, layout, &vst3_params, param_channel.clone(),
+                    ).map_err(|e| anyhow!("{}", e))
                 })?,
             ))
         }

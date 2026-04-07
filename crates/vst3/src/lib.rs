@@ -14,6 +14,9 @@
 mod host;
 mod processor;
 mod stereo;
+pub mod param_channel;
+pub mod param_registry;
+pub mod component_handler;
 pub mod discovery;
 pub mod catalog;
 pub mod editor;
@@ -27,6 +30,8 @@ pub use catalog::{
     Vst3CatalogEntry, init_vst3_catalog, vst3_catalog, find_vst3_plugin,
     vst3_model_ids, vst3_model_visual, make_model_id, resolve_uid_for_model,
 };
+pub use param_channel::{Vst3ParamChannel, Vst3ParamUpdate, vst3_param_channel};
+pub use param_registry::{register_vst3_channel, lookup_vst3_channel};
 
 use anyhow::Result;
 use std::path::Path;
@@ -39,23 +44,6 @@ use block_core::{AudioChannelLayout, BlockProcessor};
 /// - `sample_rate`: audio sample rate in Hz
 /// - `layout`:      `Mono` or `Stereo`
 /// - `params`:      `(param_id, normalized_value)` pairs to set initially
-///
-/// # Example
-///
-/// ```no_run
-/// use std::path::Path;
-/// use block_core::AudioChannelLayout;
-/// use vst3_host::build_vst3_processor;
-///
-/// let uid = [0u8; 16]; // fill with real UID from discovery
-/// let processor = build_vst3_processor(
-///     Path::new("/Library/Audio/Plug-Ins/VST3/MyPlugin.vst3"),
-///     &uid,
-///     44100.0,
-///     AudioChannelLayout::Stereo,
-///     &[(0, 0.5)],
-/// ).unwrap();
-/// ```
 pub fn build_vst3_processor(
     bundle_path: &Path,
     plugin_uid: &[u8; 16],
@@ -71,11 +59,11 @@ pub fn build_vst3_processor(
                 bundle_path,
                 plugin_uid,
                 sample_rate,
-                2, // load as stereo even for mono (most VST3 plugins are stereo-only)
+                2,
                 BLOCK_SIZE,
                 params,
             )?;
-            Ok(BlockProcessor::Mono(Box::new(Vst3Processor::new(plugin))))
+            Ok(BlockProcessor::Mono(Box::new(Vst3Processor::new(plugin, None))))
         }
         AudioChannelLayout::Stereo => {
             let plugin = Vst3Plugin::load(
@@ -86,7 +74,49 @@ pub fn build_vst3_processor(
                 BLOCK_SIZE,
                 params,
             )?;
-            Ok(BlockProcessor::Stereo(Box::new(StereoVst3Processor::new(plugin))))
+            Ok(BlockProcessor::Stereo(Box::new(StereoVst3Processor::new(plugin, None))))
+        }
+    }
+}
+
+/// Build a VST3 `BlockProcessor` connected to a parameter channel so that
+/// knob movements in the native plugin GUI are applied to the audio processor.
+///
+/// - `param_channel`: the `Vst3ParamChannel` previously registered via
+///   `register_vst3_channel`.  The GUI editor will push updates onto the same
+///   `Arc`; the processor drains them before each processing block.
+pub fn build_vst3_processor_with_channel(
+    bundle_path: &Path,
+    plugin_uid: &[u8; 16],
+    sample_rate: f64,
+    layout: AudioChannelLayout,
+    params: &[(u32, f64)],
+    param_channel: Vst3ParamChannel,
+) -> Result<BlockProcessor> {
+    const BLOCK_SIZE: usize = 512;
+
+    match layout {
+        AudioChannelLayout::Mono => {
+            let plugin = Vst3Plugin::load(
+                bundle_path,
+                plugin_uid,
+                sample_rate,
+                2,
+                BLOCK_SIZE,
+                params,
+            )?;
+            Ok(BlockProcessor::Mono(Box::new(Vst3Processor::new(plugin, Some(param_channel)))))
+        }
+        AudioChannelLayout::Stereo => {
+            let plugin = Vst3Plugin::load(
+                bundle_path,
+                plugin_uid,
+                sample_rate,
+                2,
+                BLOCK_SIZE,
+                params,
+            )?;
+            Ok(BlockProcessor::Stereo(Box::new(StereoVst3Processor::new(plugin, Some(param_channel)))))
         }
     }
 }

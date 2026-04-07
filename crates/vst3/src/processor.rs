@@ -5,6 +5,7 @@
 //! output as the mono result.
 
 use crate::host::Vst3Plugin;
+use crate::param_channel::Vst3ParamChannel;
 use block_core::MonoProcessor;
 
 /// Internal processing block size for VST3 plugins (matches OpenRig default).
@@ -17,6 +18,7 @@ const BLOCK_SIZE: usize = 512;
 /// that only process one channel.
 pub struct Vst3Processor {
     plugin: Vst3Plugin,
+    param_rx: Option<Vst3ParamChannel>,
     buf_in_l: Vec<f32>,
     buf_in_r: Vec<f32>,
     buf_out_l: Vec<f32>,
@@ -25,9 +27,13 @@ pub struct Vst3Processor {
 
 impl Vst3Processor {
     /// Create a new mono VST3 processor from an already-loaded plugin.
-    pub fn new(plugin: Vst3Plugin) -> Self {
+    ///
+    /// `param_rx` — optional channel for parameter updates pushed by the
+    /// plugin's native GUI via `IComponentHandler::performEdit`.
+    pub fn new(plugin: Vst3Plugin, param_rx: Option<Vst3ParamChannel>) -> Self {
         Self {
             plugin,
+            param_rx,
             buf_in_l: vec![0.0f32; BLOCK_SIZE],
             buf_in_r: vec![0.0f32; BLOCK_SIZE],
             buf_out_l: vec![0.0f32; BLOCK_SIZE],
@@ -39,11 +45,20 @@ impl Vst3Processor {
     pub fn set_param(&self, id: u32, normalized: f64) -> anyhow::Result<()> {
         self.plugin.set_param(id, normalized)
     }
+
+    /// Apply any pending parameter updates from the GUI before processing.
+    fn apply_pending_params(&self) {
+        if let Some(rx) = &self.param_rx {
+            while let Some(update) = rx.pop() {
+                let _ = self.plugin.set_param(update.id, update.normalized);
+            }
+        }
+    }
 }
 
 impl MonoProcessor for Vst3Processor {
     fn process_sample(&mut self, input: f32) -> f32 {
-        // Single-sample processing: fill one slot and run.
+        self.apply_pending_params();
         self.buf_in_l[0] = input;
         self.buf_in_r[0] = input;
         self.plugin.process_audio(
@@ -57,11 +72,11 @@ impl MonoProcessor for Vst3Processor {
     }
 
     fn process_block(&mut self, samples: &mut [f32]) {
+        self.apply_pending_params();
         let mut offset = 0;
         while offset < samples.len() {
             let chunk = (samples.len() - offset).min(BLOCK_SIZE);
 
-            // Copy input to both channels (mono → stereo duplication).
             for i in 0..chunk {
                 let v = samples[offset + i];
                 self.buf_in_l[i] = v;
@@ -76,7 +91,6 @@ impl MonoProcessor for Vst3Processor {
                 chunk,
             );
 
-            // Take left channel output as mono result.
             for i in 0..chunk {
                 samples[offset + i] = self.buf_out_l[i];
             }

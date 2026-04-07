@@ -11,7 +11,9 @@ use vst3::Steinberg::Vst::{IConnectionPointTrait, IEditControllerTrait, ViewType
 use vst3::Steinberg::{IPlugViewTrait, ViewRect, kResultOk};
 use vst3::ComPtr;
 
+use crate::component_handler::ComponentHandler;
 use crate::host::Vst3Plugin;
+use crate::param_channel::Vst3ParamChannel;
 
 impl block_core::PluginEditorHandle for Vst3EditorHandle {}
 
@@ -22,6 +24,10 @@ impl block_core::PluginEditorHandle for Vst3EditorHandle {}
 pub struct Vst3EditorHandle {
     view: ComPtr<vst3::Steinberg::IPlugView>,
     _plugin: Box<Vst3Plugin>,
+    /// Keep the ComponentHandler alive for as long as the editor is open.
+    /// The plugin holds a raw pointer to this; dropping it before the plugin
+    /// is done would cause a use-after-free.
+    _component_handler: Option<vst3::ComWrapper<ComponentHandler>>,
     #[cfg(target_os = "macos")]
     _ns_window: macos::OwnedNsWindow,
 }
@@ -46,6 +52,7 @@ pub fn open_vst3_editor_window(
     uid: &[u8; 16],
     plugin_name: &str,
     sample_rate: f64,
+    param_channel: Option<Vst3ParamChannel>,
 ) -> Result<Vst3EditorHandle> {
     // Load a lightweight plugin instance (2ch, small block) just for the GUI.
     let plugin = Vst3Plugin::load(bundle_path, uid, sample_rate, 2, 512, &[])?;
@@ -63,6 +70,20 @@ pub fn open_vst3_editor_window(
             }
         }
     }
+
+    // Register the component handler so parameter changes from the native GUI
+    // reach the audio processor via the param channel.
+    let component_handler = param_channel.map(|ch| {
+        let wrapper = ComponentHandler::new(ch).into_com_ptr();
+        unsafe {
+            use vst3::Steinberg::Vst::IComponentHandler;
+            if let Some(com_ref) = wrapper.as_com_ref::<IComponentHandler>() {
+                let _ = plugin.controller().setComponentHandler(com_ref.as_ptr());
+                log::debug!("VST3 editor: IComponentHandler registered");
+            }
+        }
+        wrapper
+    });
 
     // Get IPlugView from the controller.
     let view_ptr = unsafe { plugin.controller().createView(ViewType::kEditor) };
@@ -105,6 +126,7 @@ pub fn open_vst3_editor_window(
         return Ok(Vst3EditorHandle {
             view,
             _plugin: Box::new(plugin),
+            _component_handler: component_handler,
             _ns_window: ns_window,
         });
     }

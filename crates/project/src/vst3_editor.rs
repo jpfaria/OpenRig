@@ -26,11 +26,16 @@ pub fn open_vst3_editor(model_id: &str, sample_rate: f64) -> Result<Box<dyn Plug
     let entry = vst3_host::find_vst3_plugin(model_id)
         .ok_or_else(|| anyhow::anyhow!("VST3 plugin '{}' not found in catalog", model_id))?;
 
+    // Look up the param channel registered by the audio processor (if any).
+    // This connects GUI knob movements → audio thread via the lock-free queue.
+    let param_channel = vst3_host::lookup_vst3_channel(model_id);
+
     let handle = vst3_host::open_vst3_editor_window(
         &entry.info.bundle_path,
         &uid,
         entry.display_name,
         sample_rate,
+        param_channel,
     )?;
 
     Ok(Box::new(handle))
