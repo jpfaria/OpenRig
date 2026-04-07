@@ -365,6 +365,7 @@ pub const MODEL_DEFINITION: UtilModelDefinition = UtilModelDefinition {
     build,
     supported_instruments: block_core::ALL_INSTRUMENTS,
     knob_layout: &[],
+    stream_kind: "stream",
 };
 
 #[cfg(test)]

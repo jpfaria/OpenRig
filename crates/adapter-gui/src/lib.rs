@@ -2555,7 +2555,7 @@ pub fn run_desktop_app(
                                             }).collect();
                                             BlockStreamData {
                                                 active: true,
-                                                stream_kind: "stream".into(),
+                                                stream_kind: project::catalog::model_stream_kind(item.effect_type.as_str(), item.model_id.as_str()).into(),
                                                 entries: ModelRc::from(Rc::new(VecModel::from(slint_entries))),
                                             }
                                         } else {
