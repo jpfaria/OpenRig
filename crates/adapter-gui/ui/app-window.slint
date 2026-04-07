@@ -351,6 +351,7 @@ export component BlockEditorWindow inherits Window {
     callback close-block-drawer();
     callback save-block-drawer();
     callback delete-block-drawer();
+    callback show-plugin-info(string, string);
     callback toggle-block-drawer-enabled();
     callback update-block-parameter-text(string, string);
     callback update-block-parameter-number(string, float);
@@ -426,6 +427,7 @@ export component BlockEditorWindow inherits Window {
         close-block-drawer => { root.close-block-drawer(); }
         save-block-drawer => { root.save-block-drawer(); }
         delete-block-drawer => { root.delete-block-drawer(); }
+        show-plugin-info(effect_type, model_id) => { root.show-plugin-info(effect_type, model_id); }
         toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
         update-block-parameter-number(path, val) => { root.update-block-parameter-number(path, val); }
         select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
@@ -454,6 +456,7 @@ export component BlockEditorWindow inherits Window {
         close-block-drawer => { root.close-block-drawer(); }
         save-block-drawer => { root.save-block-drawer(); }
         delete-block-drawer => { root.delete-block-drawer(); }
+        show-plugin-info(effect_type, model_id) => { root.show-plugin-info(effect_type, model_id); }
         toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
         update-block-parameter-text(path, value) => { root.update-block-parameter-text(path, value); }
         update-block-parameter-number(path, value) => { root.update-block-parameter-number(path, value); }
@@ -631,6 +634,7 @@ export component AppWindow inherits Window {
     callback close-block-drawer();
     callback save-block-drawer();
     callback delete-block-drawer();
+    callback show-plugin-info(string, string);  // effect_type, model_id
     callback toggle-block-drawer-enabled();
     callback update-block-parameter-text(string, string);
     callback update-block-parameter-number(string, float);
@@ -747,6 +751,7 @@ export component AppWindow inherits Window {
         close-block-drawer => { root.close-block-drawer(); }
         save-block-drawer => { root.save-block-drawer(); }
         delete-block-drawer => { root.delete-block-drawer(); }
+        show-plugin-info(effect_type, model_id) => { root.show-plugin-info(effect_type, model_id); }
         toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
         update-block-parameter-text(path, value) => { root.update-block-parameter-text(path, value); }
         update-block-parameter-number(path, value) => { root.update-block-parameter-number(path, value); }
@@ -860,6 +865,7 @@ export component AppWindow inherits Window {
         close-block-drawer => { root.close-block-drawer(); }
         save-block-drawer => { root.save-block-drawer(); }
         delete-block-drawer => { root.delete-block-drawer(); }
+        show-plugin-info(effect_type, model_id) => { root.show-plugin-info(effect_type, model_id); }
         toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
         update-block-parameter-text(path, value) => { root.update-block-parameter-text(path, value); }
         update-block-parameter-number(path, value) => { root.update-block-parameter-number(path, value); }
