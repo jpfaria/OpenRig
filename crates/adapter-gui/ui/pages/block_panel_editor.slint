@@ -1052,8 +1052,11 @@ export component BlockPanelEditor inherits Rectangle {
     }
 
     // ── Power switch — root level so it always renders above panel content ──
+    // Pinned to top (4px) when there are no knob overlays or eq widget — those blocks
+    // (e.g. utility) use the full panel area for stream display, so the button goes top-left.
+    // Falls to 62% when knob overlays are present so it sits alongside the knobs.
     private property <length> power-y: root.header-height + root.brand-strip-height
-        + (root.has-eq-widget ? 4px : root.panel-height * 0.62);
+        + (root.has-eq-widget || root.block-knob-overlays.length == 0 ? 4px : root.panel-height * 0.62);
 
     Rectangle {
         x: 10px;
