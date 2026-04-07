@@ -1,19 +1,21 @@
 //! VST3 editor window: opens the plugin's native GUI in a separate OS window.
 //!
-//! Calls `IEditController::createView("editor")` to get an `IPlugView`, then
-//! creates a native window and embeds the view in it.
+//! Reuses the `IEditController` from the audio processor (via `Vst3GuiContext`)
+//! instead of loading a second plugin instance. This avoids failures with
+//! plugins like ValhallaSupermassive that reject multiple instances.
 //!
 //! Must be called on the main/UI thread (macOS AppKit requirement).
 
 use anyhow::{bail, Result};
 use std::path::Path;
-use vst3::Steinberg::Vst::{IConnectionPointTrait, IEditControllerTrait, ViewType};
+use std::sync::Arc;
+use vst3::Steinberg::Vst::{IEditControllerTrait, ViewType};
 use vst3::Steinberg::{IPlugViewTrait, ViewRect, kResultOk};
 use vst3::ComPtr;
 
 use crate::component_handler::ComponentHandler;
 use crate::host::Vst3Plugin;
-use crate::param_channel::Vst3ParamChannel;
+use crate::param_registry::Vst3GuiContext;
 
 impl block_core::PluginEditorHandle for Vst3EditorHandle {}
 
@@ -23,11 +25,15 @@ impl block_core::PluginEditorHandle for Vst3EditorHandle {}
 /// all resources. On macOS it also releases the NSWindow.
 pub struct Vst3EditorHandle {
     view: ComPtr<vst3::Steinberg::IPlugView>,
-    _plugin: Box<Vst3Plugin>,
+    /// Keeps the plugin dylib alive while the editor is open.
+    _library: Arc<libloading::Library>,
+    /// Keeps the controller alive so `view.removed()` can call back into it.
+    _controller: ComPtr<vst3::Steinberg::Vst::IEditController>,
     /// Keep the ComponentHandler alive for as long as the editor is open.
-    /// The plugin holds a raw pointer to this; dropping it before the plugin
-    /// is done would cause a use-after-free.
     _component_handler: Option<vst3::ComWrapper<ComponentHandler>>,
+    /// In standalone mode (no engine running) the entire plugin instance must
+    /// stay alive because the component must remain active for the view to work.
+    _standalone_plugin: Option<Box<Vst3Plugin>>,
     #[cfg(target_os = "macos")]
     _ns_window: macos::OwnedNsWindow,
 }
@@ -40,53 +46,37 @@ impl Drop for Vst3EditorHandle {
     }
 }
 
-/// Open the native editor window for the VST3 plugin identified by
-/// `bundle_path` + `uid`.
+/// Open the native editor window for the VST3 plugin, reusing the existing
+/// `IEditController` from the audio processor.
 ///
-/// Loads a separate plugin instance dedicated to the GUI (not the audio
-/// processor). The audio processor is unaffected.
+/// `plugin_name` is used only for the window title.
+/// `gui_context` carries the shared controller, library handle, and param channel.
 ///
 /// Returns a `Vst3EditorHandle` that keeps the window alive. Drop it to close.
 pub fn open_vst3_editor_window(
-    bundle_path: &Path,
-    uid: &[u8; 16],
     plugin_name: &str,
-    sample_rate: f64,
-    param_channel: Option<Vst3ParamChannel>,
+    gui_context: Vst3GuiContext,
 ) -> Result<Vst3EditorHandle> {
-    // Load a lightweight plugin instance (2ch, small block) just for the GUI.
-    let plugin = Vst3Plugin::load(bundle_path, uid, sample_rate, 2, 512, &[])?;
-
-    // Standard VST3 host requirement: connect component ↔ controller via
-    // IConnectionPoint so the controller can query component state before
-    // creating its view. Many plugins return null from createView otherwise.
-    unsafe {
-        use vst3::Steinberg::Vst::IConnectionPoint;
-        if let Some(comp_cp) = plugin.component().cast::<IConnectionPoint>() {
-            if let Some(ctrl_cp) = plugin.controller().cast::<IConnectionPoint>() {
-                let _ = comp_cp.connect(ctrl_cp.as_ptr());
-                let _ = ctrl_cp.connect(comp_cp.as_ptr());
-                log::debug!("VST3 editor: IConnectionPoint connected");
-            }
-        }
-    }
+    let controller = gui_context.controller;
+    let library = gui_context.library;
+    let param_channel = gui_context.param_channel;
 
     // Register the component handler so parameter changes from the native GUI
     // reach the audio processor via the param channel.
-    let component_handler = param_channel.map(|ch| {
-        let wrapper = ComponentHandler::new(ch).into_com_ptr();
+    let component_handler = {
+        let wrapper = ComponentHandler::new(param_channel).into_com_ptr();
         unsafe {
             use vst3::Steinberg::Vst::IComponentHandler;
             if let Some(com_ref) = wrapper.as_com_ref::<IComponentHandler>() {
-                let _ = plugin.controller().setComponentHandler(com_ref.as_ptr());
+                let _ = controller.setComponentHandler(com_ref.as_ptr());
                 log::debug!("VST3 editor: IComponentHandler registered");
             }
         }
-        wrapper
-    });
+        Some(wrapper)
+    };
 
     // Get IPlugView from the controller.
-    let view_ptr = unsafe { plugin.controller().createView(ViewType::kEditor) };
+    let view_ptr = unsafe { controller.createView(ViewType::kEditor) };
     if view_ptr.is_null() {
         bail!("plugin '{}' returned null IPlugView (no GUI)", plugin_name);
     }
@@ -125,8 +115,97 @@ pub fn open_vst3_editor_window(
 
         return Ok(Vst3EditorHandle {
             view,
-            _plugin: Box::new(plugin),
+            _library: library,
+            _controller: controller,
             _component_handler: component_handler,
+            _standalone_plugin: None,
+            _ns_window: ns_window,
+        });
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    bail!("VST3 editor window not yet supported on this platform")
+}
+
+/// Open the editor by loading a **fresh** plugin instance.
+///
+/// Used as a fallback when no `Vst3GuiContext` exists in the registry (i.e.
+/// the audio engine has not yet built the chain). Plugins that reject multiple
+/// simultaneous instances will fail here if an audio instance is already
+/// running, but single-instance plugins (Cloud Seed, Cocoa Delay, …) work
+/// fine before the engine starts.
+pub fn open_vst3_editor_window_standalone(
+    bundle_path: &Path,
+    uid: &[u8; 16],
+    plugin_name: &str,
+    sample_rate: f64,
+) -> Result<Vst3EditorHandle> {
+    let plugin = Vst3Plugin::load(bundle_path, uid, sample_rate, 2, 512, &[])?;
+
+    // Connect component ↔ controller so createView works (many plugins require it).
+    unsafe {
+        use vst3::Steinberg::Vst::IConnectionPoint;
+        use vst3::Steinberg::Vst::IConnectionPointTrait;
+        if let Some(comp_cp) = plugin.component().cast::<IConnectionPoint>() {
+            if let Some(ctrl_cp) = plugin.controller().cast::<IConnectionPoint>() {
+                let _ = comp_cp.connect(ctrl_cp.as_ptr());
+                let _ = ctrl_cp.connect(comp_cp.as_ptr());
+                log::debug!("VST3 standalone editor: IConnectionPoint connected");
+            }
+        }
+    }
+
+    let library = plugin.library_arc();
+    let controller = plugin.controller_clone();
+
+    // No param channel — engine not running.
+    let component_handler = {
+        let wrapper = ComponentHandler::new(crate::param_channel::vst3_param_channel()).into_com_ptr();
+        unsafe {
+            use vst3::Steinberg::Vst::IComponentHandler;
+            if let Some(com_ref) = wrapper.as_com_ref::<IComponentHandler>() {
+                let _ = controller.setComponentHandler(com_ref.as_ptr());
+            }
+        }
+        Some(wrapper)
+    };
+
+    let view_ptr = unsafe { controller.createView(ViewType::kEditor) };
+    if view_ptr.is_null() {
+        bail!("plugin '{}' returned null IPlugView (no GUI)", plugin_name);
+    }
+    let view: ComPtr<vst3::Steinberg::IPlugView> =
+        unsafe { ComPtr::from_raw_unchecked(view_ptr) };
+
+    #[cfg(target_os = "macos")]
+    {
+        use vst3::Steinberg::kPlatformTypeNSView;
+        let res = unsafe { view.isPlatformTypeSupported(kPlatformTypeNSView) };
+        if res != kResultOk {
+            bail!("plugin '{}' does not support NSView GUI (result={})", plugin_name, res);
+        }
+
+        let mut rect = ViewRect { left: 0, top: 0, right: 800, bottom: 600 };
+        unsafe { view.getSize(&mut rect) };
+        let width = (rect.right - rect.left).max(200) as f64;
+        let height = (rect.bottom - rect.top).max(100) as f64;
+
+        let ns_window = macos::create_editor_window(plugin_name, width, height)?;
+        let ns_view = ns_window.content_view();
+
+        let res = unsafe { view.attached(ns_view, kPlatformTypeNSView) };
+        if res != kResultOk {
+            bail!("IPlugView::attached failed (result={})", res);
+        }
+
+        ns_window.show(plugin_name);
+
+        return Ok(Vst3EditorHandle {
+            view,
+            _library: library,
+            _controller: controller,
+            _component_handler: component_handler,
+            _standalone_plugin: Some(Box::new(plugin)),
             _ns_window: ns_window,
         });
     }

@@ -1206,15 +1206,31 @@ fn build_core_block_runtime_node(
                     Some((id, (pct / 100.0).clamp(0.0, 1.0) as f64))
                 })
                 .collect();
-            // Register a param channel so the GUI can push knob changes to this processor.
-            let param_channel = vst3_host::register_vst3_channel(model);
+            // Load the plugin once so we can extract the controller and library
+            // Arc before building the processor. This allows the GUI to reuse
+            // the same IEditController instead of creating a second instance
+            // (which fails for plugins like ValhallaSupermassive).
+            const VST3_BLOCK_SIZE: usize = 512;
+            let plugin = vst3_host::Vst3Plugin::load(
+                &bundle_path, &uid, sample_rate as f64, 2, VST3_BLOCK_SIZE, &vst3_params,
+            ).map_err(|e| anyhow!("VST3 load failed for '{}': {}", model, e))?;
+            // Register GUI context: shared controller + library Arc + param channel.
+            let param_channel = vst3_host::register_vst3_gui_context(
+                model,
+                plugin.controller_clone(),
+                plugin.library_arc(),
+            );
+            // Wrap in Option so we can move the plugin out of the FnMut closure
+            // (VST3 MonoToStereo schema guarantees the closure is called exactly once).
+            let mut plugin_opt = Some(plugin);
             Ok(audio_block_runtime_node(
                 block,
                 input_layout,
                 build_audio_processor_for_model(chain, block_core::EFFECT_TYPE_VST3, model, input_layout, |layout| {
-                    vst3_host::build_vst3_processor_with_channel(
-                        &bundle_path, &uid, sample_rate as f64, layout, &vst3_params, param_channel.clone(),
-                    ).map_err(|e| anyhow!("{}", e))
+                    let p = plugin_opt.take().ok_or_else(|| anyhow!("VST3 plugin consumed twice"))?;
+                    Ok(vst3_host::build_vst3_processor_from_plugin(
+                        p, layout, param_channel.clone(),
+                    ))
                 })?,
             ))
         }

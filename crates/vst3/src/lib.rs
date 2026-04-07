@@ -14,6 +14,7 @@
 mod host;
 mod processor;
 mod stereo;
+mod param_changes;
 pub mod param_channel;
 pub mod param_registry;
 pub mod component_handler;
@@ -22,7 +23,7 @@ pub mod catalog;
 pub mod editor;
 
 pub use host::{Vst3Plugin, Vst3ParamInfo, Vst3PluginClass};
-pub use editor::{Vst3EditorHandle, open_vst3_editor_window};
+pub use editor::{Vst3EditorHandle, open_vst3_editor_window, open_vst3_editor_window_standalone};
 pub use processor::Vst3Processor;
 pub use stereo::StereoVst3Processor;
 pub use discovery::{Vst3PluginInfo, scan_vst3_bundle, scan_vst3_bundle_light, scan_system_vst3, system_vst3_paths, resolve_vst3_bundle};
@@ -31,7 +32,7 @@ pub use catalog::{
     vst3_model_ids, vst3_model_visual, make_model_id, resolve_uid_for_model,
 };
 pub use param_channel::{Vst3ParamChannel, Vst3ParamUpdate, vst3_param_channel};
-pub use param_registry::{register_vst3_channel, lookup_vst3_channel};
+pub use param_registry::{Vst3GuiContext, register_vst3_gui_context, lookup_vst3_gui_context, lookup_vst3_channel};
 
 use anyhow::Result;
 use std::path::Path;
@@ -83,7 +84,7 @@ pub fn build_vst3_processor(
 /// knob movements in the native plugin GUI are applied to the audio processor.
 ///
 /// - `param_channel`: the `Vst3ParamChannel` previously registered via
-///   `register_vst3_channel`.  The GUI editor will push updates onto the same
+///   `register_vst3_gui_context`.  The GUI editor will push updates onto the same
 ///   `Arc`; the processor drains them before each processing block.
 pub fn build_vst3_processor_with_channel(
     bundle_path: &Path,
@@ -117,6 +118,27 @@ pub fn build_vst3_processor_with_channel(
                 params,
             )?;
             Ok(BlockProcessor::Stereo(Box::new(StereoVst3Processor::new(plugin, Some(param_channel)))))
+        }
+    }
+}
+
+/// Build a VST3 `BlockProcessor` from an already-loaded `Vst3Plugin` and a
+/// param channel.
+///
+/// Used by the engine when it needs to register the GUI context (controller +
+/// library) before constructing the processor, so the GUI can later reuse the
+/// controller without creating a second plugin instance.
+pub fn build_vst3_processor_from_plugin(
+    plugin: Vst3Plugin,
+    layout: AudioChannelLayout,
+    param_channel: Vst3ParamChannel,
+) -> BlockProcessor {
+    match layout {
+        AudioChannelLayout::Mono => {
+            BlockProcessor::Mono(Box::new(Vst3Processor::new(plugin, Some(param_channel))))
+        }
+        AudioChannelLayout::Stereo => {
+            BlockProcessor::Stereo(Box::new(StereoVst3Processor::new(plugin, Some(param_channel))))
         }
     }
 }

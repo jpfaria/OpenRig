@@ -46,19 +46,23 @@ impl Vst3Processor {
         self.plugin.set_param(id, normalized)
     }
 
-    /// Apply any pending parameter updates from the GUI before processing.
-    fn apply_pending_params(&self) {
+    /// Drain pending GUI parameter updates, returning them as a Vec.
+    fn drain_pending_params(&self) -> Vec<(u32, f64)> {
         if let Some(rx) = &self.param_rx {
+            let mut out = Vec::new();
             while let Some(update) = rx.pop() {
-                let _ = self.plugin.set_param(update.id, update.normalized);
+                out.push((update.id, update.normalized));
             }
+            out
+        } else {
+            Vec::new()
         }
     }
 }
 
 impl MonoProcessor for Vst3Processor {
     fn process_sample(&mut self, input: f32) -> f32 {
-        self.apply_pending_params();
+        let pending = self.drain_pending_params();
         self.buf_in_l[0] = input;
         self.buf_in_r[0] = input;
         self.plugin.process_audio(
@@ -67,12 +71,13 @@ impl MonoProcessor for Vst3Processor {
             &mut self.buf_out_l[..1],
             &mut self.buf_out_r[..1],
             1,
+            &pending,
         );
         self.buf_out_l[0]
     }
 
     fn process_block(&mut self, samples: &mut [f32]) {
-        self.apply_pending_params();
+        let pending = self.drain_pending_params();
         let mut offset = 0;
         while offset < samples.len() {
             let chunk = (samples.len() - offset).min(BLOCK_SIZE);
@@ -83,12 +88,17 @@ impl MonoProcessor for Vst3Processor {
                 self.buf_in_r[i] = v;
             }
 
+            // Pass pending params only on the first chunk; subsequent chunks
+            // get an empty slice (changes already applied by the plugin).
+            let params_for_chunk: &[(u32, f64)] = if offset == 0 { &pending } else { &[] };
+
             self.plugin.process_audio(
                 &mut self.buf_in_l[..chunk],
                 &mut self.buf_in_r[..chunk],
                 &mut self.buf_out_l[..chunk],
                 &mut self.buf_out_r[..chunk],
                 chunk,
+                params_for_chunk,
             );
 
             for i in 0..chunk {
