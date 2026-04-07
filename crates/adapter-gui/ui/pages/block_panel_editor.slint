@@ -652,46 +652,6 @@ export component BlockPanelEditor inherits Rectangle {
             horizontal-alignment: center;
         }
 
-        // ── Power switch ──
-        Rectangle {
-            x: 10px;
-            y: root.has-eq-widget ? 4px : parent.height * 0.62;
-            width: 32px;
-            height: 40px;
-            border-radius: 3px;
-            background: #0a0a0a;
-            border-width: 1.5px;
-            border-color: #404040;
-
-            Rectangle {
-                x: 6px;
-                y: root.block-drawer-enabled ? 4px : 20px;
-                width: 20px;
-                height: 16px;
-                border-radius: 2px;
-                background: root.block-drawer-enabled ? #cc2222 : #1a0808;
-                border-width: 1px;
-                border-color: root.block-drawer-enabled ? #ee4444 : #331111;
-            }
-
-            ta-power := TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.toggle-block-drawer-enabled(); }
-            }
-        }
-
-        Text {
-            x: 8px;
-            y: root.has-eq-widget ? 48px : parent.height * 0.62 + 44px;
-            width: 36px;
-            height: 12px;
-            text: "POWER";
-            color: root.panel-text;
-            font-size: 7px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            horizontal-alignment: center;
-        }
 
         // ── Knob overlays (HorizontalLayout, right-aligned) ──
         HorizontalLayout {
@@ -1044,11 +1004,10 @@ export component BlockPanelEditor inherits Rectangle {
     }
 
     // ── Spectrum analyzer bars — shown when stream_kind == "spectrum" ──
-    // Left margin of 54px leaves room for the POWER button (x=10px, width=32px + gap).
     if root.block-stream-data.active && root.block-stream-data.stream-kind == "spectrum" : Rectangle {
-        x: 54px;
+        x: 8px;
         y: root.header-height + root.brand-strip-height + 4px;
-        width: parent.width - 62px;
+        width: parent.width - 16px;
         height: root.panel-height - 28px;
         background: #06060e;
         border-radius: 4px;
@@ -1090,5 +1049,49 @@ export component BlockPanelEditor inherits Rectangle {
                 overflow: elide;
             }
         }
+    }
+
+    // ── Power switch — root level so it always renders above panel content ──
+    private property <length> power-y: root.header-height + root.brand-strip-height
+        + (root.has-eq-widget ? 4px : root.panel-height * 0.62);
+
+    Rectangle {
+        x: 10px;
+        y: root.power-y;
+        width: 32px;
+        height: 40px;
+        border-radius: 3px;
+        background: #0a0a0a;
+        border-width: 1.5px;
+        border-color: #404040;
+
+        Rectangle {
+            x: 6px;
+            y: root.block-drawer-enabled ? 4px : 20px;
+            width: 20px;
+            height: 16px;
+            border-radius: 2px;
+            background: root.block-drawer-enabled ? #cc2222 : #1a0808;
+            border-width: 1px;
+            border-color: root.block-drawer-enabled ? #ee4444 : #331111;
+        }
+
+        ta-power := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.toggle-block-drawer-enabled(); }
+        }
+    }
+
+    Text {
+        x: 8px;
+        y: root.power-y + 44px;
+        width: 36px;
+        height: 12px;
+        text: "POWER";
+        color: root.panel-text;
+        font-size: 7px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        horizontal-alignment: center;
     }
 }
