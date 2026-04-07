@@ -6064,28 +6064,17 @@ fn sync_recent_projects(config: &mut AppConfig) -> bool {
         {
             continue;
         }
-        match (YamlProjectRepository {
-            path: canonical_path.clone(),
-        })
-        .load_current_project()
-        {
-            Ok(project) => synced.push(RecentProjectEntry {
-                project_path: canonical_path_string,
-                project_name: project_display_name(&project),
-                is_valid: true,
-                invalid_reason: None,
-            }),
-            Err(_) => synced.push(RecentProjectEntry {
-                project_path: canonical_path_string,
-                project_name: if recent.project_name.trim().is_empty() {
-                    UNTITLED_PROJECT_NAME.to_string()
-                } else {
-                    recent.project_name.clone()
-                },
-                is_valid: false,
-                invalid_reason: Some("Projeto inválido".to_string()),
-            }),
-        }
+        // File exists — trust the stored name. Full validation happens when user opens it.
+        synced.push(RecentProjectEntry {
+            project_path: canonical_path_string,
+            project_name: if recent.project_name.trim().is_empty() {
+                UNTITLED_PROJECT_NAME.to_string()
+            } else {
+                recent.project_name.clone()
+            },
+            is_valid: true,
+            invalid_reason: None,
+        });
     }
     config.recent_projects = synced;
     *config != original
