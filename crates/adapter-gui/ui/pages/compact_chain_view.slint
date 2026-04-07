@@ -343,9 +343,9 @@ component CompactBlockRow inherits Rectangle {
         }
     }
 
-    // ── All parameters (HorizontalLayout, right-aligned, when no knob overlays) ──
+    // ── All parameters (HorizontalLayout, right-aligned, when no knob overlays and no stream data) ──
     HorizontalLayout {
-        visible: root.block-data.knob-overlays.length == 0;
+        visible: root.block-data.knob-overlays.length == 0 && !root.block-data.stream-data.active;
         alignment: end;
         spacing: 4px;
         padding-right: 8px;
@@ -472,9 +472,9 @@ component CompactBlockRow inherits Rectangle {
 
     // ── Stream data display (tuner readings, meter, etc.) ──
     if root.block-data.stream-data.active : Rectangle {
-        x: 500px;
+        x: 470px;
         y: 4px;
-        width: parent.width - 540px;
+        width: parent.width - 510px;
         height: parent.height - 8px;
         background: transparent;
 
