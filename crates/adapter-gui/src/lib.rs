@@ -460,11 +460,11 @@ pub fn run_desktop_app(
     window.set_wizard_step(if settings.is_complete() { 1 } else { 0 });
     window.set_status_message("".into());
     let input_devices = Rc::new(VecModel::from(
-        list_input_device_descriptors()?
-            .into_iter()
+        input_chain_devices
+            .iter()
             .map(|device| {
-                let device_id = device.id;
-                let name = device.name;
+                let device_id = device.id.clone();
+                let name = device.name.clone();
                 let config = settings
                     .input_devices
                     .iter()
@@ -484,11 +484,11 @@ pub fn run_desktop_app(
     ));
     mark_unselected_devices(&input_devices, &settings.input_devices);
     let output_devices = Rc::new(VecModel::from(
-        list_output_device_descriptors()?
-            .into_iter()
+        output_chain_devices
+            .iter()
             .map(|device| {
-                let device_id = device.id;
-                let name = device.name;
+                let device_id = device.id.clone();
+                let name = device.name.clone();
                 let config = settings
                     .output_devices
                     .iter()
