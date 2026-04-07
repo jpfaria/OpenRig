@@ -5,6 +5,111 @@ use std::path::{Path, PathBuf};
 
 use crate::host::{Vst3ParamInfo, Vst3Plugin, Vst3PluginClass};
 
+// ---------------------------------------------------------------------------
+// moduleinfo.json helpers (VST3 SDK 3.7+)
+// ---------------------------------------------------------------------------
+
+/// Parse `Contents/Resources/moduleinfo.json` without loading the plugin dylib.
+///
+/// Returns `None` if the file doesn't exist or can't be parsed.
+fn read_moduleinfo(bundle_path: &Path) -> Option<Vec<Vst3PluginInfo>> {
+    let json_path = bundle_path
+        .join("Contents")
+        .join("Resources")
+        .join("moduleinfo.json");
+
+    let raw = std::fs::read_to_string(&json_path).ok()?;
+
+    // Parse vendor from Factory Info
+    let vendor = extract_json_string(&raw, "Vendor").unwrap_or_default();
+
+    // Find all "Audio Module Class" entries in the Classes array.
+    let mut results = Vec::new();
+    let mut pos = 0;
+    while let Some(class_start) = raw[pos..].find("\"CID\"") {
+        let base = pos + class_start;
+        let chunk_end = raw[base..].find('}').map(|i| base + i + 1).unwrap_or(raw.len());
+        let chunk = &raw[base..chunk_end];
+
+        let category = extract_json_string(chunk, "Category").unwrap_or_default();
+        if !category.contains("Audio Module Class") {
+            pos = chunk_end;
+            continue;
+        }
+
+        let cid_hex = extract_json_string(chunk, "CID").unwrap_or_default();
+        let uid = parse_cid_hex(&cid_hex);
+        let name = extract_json_string(chunk, "Name").unwrap_or_else(|| "Unknown".to_string());
+
+        if let Some(uid) = uid {
+            results.push(Vst3PluginInfo {
+                uid,
+                name,
+                vendor: vendor.clone(),
+                category,
+                bundle_path: bundle_path.to_path_buf(),
+                params: Vec::new(),
+                num_audio_inputs: 2,
+                num_audio_outputs: 2,
+            });
+        }
+        pos = chunk_end;
+    }
+
+    if results.is_empty() { None } else { Some(results) }
+}
+
+/// Extract a JSON string value for a given key (simple, no full parser needed).
+fn extract_json_string(json: &str, key: &str) -> Option<String> {
+    let needle = format!("\"{}\"", key);
+    let start = json.find(&needle)?;
+    let after_key = &json[start + needle.len()..];
+    let colon = after_key.find(':')? + 1;
+    let after_colon = after_key[colon..].trim_start();
+    if !after_colon.starts_with('"') {
+        return None;
+    }
+    let inner = &after_colon[1..];
+    let end = inner.find('"')?;
+    Some(inner[..end].to_string())
+}
+
+/// Parse a 32-hex-char CID string (e.g. "ABCDEF019182FAEB476E617547637332") into
+/// a 16-byte array.
+fn parse_cid_hex(hex: &str) -> Option<[u8; 16]> {
+    let hex = hex.trim();
+    if hex.len() != 32 {
+        return None;
+    }
+    let mut uid = [0u8; 16];
+    for (i, chunk) in hex.as_bytes().chunks(2).enumerate() {
+        let s = std::str::from_utf8(chunk).ok()?;
+        uid[i] = u8::from_str_radix(s, 16).ok()?;
+    }
+    Some(uid)
+}
+
+/// Read vendor from `Contents/Info.plist` (fallback for bundles without moduleinfo.json).
+fn read_info_plist_vendor(bundle_path: &Path) -> String {
+    let plist_path = bundle_path.join("Contents").join("Info.plist");
+    let raw = match std::fs::read_to_string(&plist_path) {
+        Ok(s) => s,
+        Err(_) => return String::new(),
+    };
+    // Look for CFBundleName or NSHumanReadableCopyright as vendor hint.
+    extract_plist_string(&raw, "CFBundleName").unwrap_or_default()
+}
+
+/// Extract a string value from an Apple plist (XML format) without a full parser.
+fn extract_plist_string(plist: &str, key: &str) -> Option<String> {
+    let needle = format!("<key>{}</key>", key);
+    let start = plist.find(&needle)? + needle.len();
+    let after = &plist[start..];
+    let str_start = after.find("<string>")? + "<string>".len();
+    let str_end = after[str_start..].find("</string>")?;
+    Some(after[str_start..str_start + str_end].to_string())
+}
+
 /// Information about a discovered VST3 plugin.
 #[derive(Debug, Clone)]
 pub struct Vst3PluginInfo {
@@ -92,34 +197,42 @@ fn dirs_home() -> Option<PathBuf> {
         })
 }
 
-/// Scan a single `.vst3` bundle directory — **light mode**: only reads factory
-/// class info without fully instantiating any plugin.
+/// Scan a single `.vst3` bundle directory — **safe mode**: zero dylib loading.
 ///
-/// This is safe for all plugins (including complex commercial ones that may crash
-/// on full initialisation). The returned `Vst3PluginInfo` entries will have
-/// `params` empty and `num_audio_inputs/outputs` defaulted to 2.
+/// Strategy (in order):
+/// 1. Try `Contents/Resources/moduleinfo.json` — present in VST3 SDK 3.7+ plugins.
+///    Gives full class info (UID, name, vendor, category) with no `dlopen()`.
+/// 2. Fall back to `Contents/Info.plist` for name/vendor only (UID unknown).
+///    The plugin will be shown in the catalog but cannot be instantiated until
+///    the user explicitly loads it.
 ///
-/// Returns an error only if the factory cannot be opened at all.
+/// Never calls `dlopen()` / `libloading::Library::new()`, so it is safe for
+/// all plugins including those that deadlock or crash on load (e.g. Guitar Rig 7).
 pub fn scan_vst3_bundle_light(bundle_path: &Path) -> Result<Vec<Vst3PluginInfo>> {
-    let vendor = Vst3Plugin::factory_vendor(bundle_path);
-    let (_lib, classes) = Vst3Plugin::enumerate_classes(bundle_path)?;
+    // Strategy 1: moduleinfo.json (no dylib load, full UID).
+    if let Some(infos) = read_moduleinfo(bundle_path) {
+        log::debug!("VST3 scan (moduleinfo): {} classes in {}", infos.len(), bundle_path.display());
+        return Ok(infos);
+    }
 
-    let results = classes
-        .into_iter()
-        .filter(|c| c.category.contains("Audio Module Class") || c.category.contains("Audio"))
-        .map(|class| Vst3PluginInfo {
-            uid: class.uid,
-            name: class.name,
-            vendor: vendor.clone(),
-            category: class.category,
-            bundle_path: bundle_path.to_path_buf(),
-            params: Vec::new(),
-            num_audio_inputs: 2,
-            num_audio_outputs: 2,
-        })
-        .collect();
-
-    Ok(results)
+    // Strategy 2: Info.plist — no UID, plugin name only.
+    // We still add it to the catalog so the user can see it, but mark it as
+    // "needs dylib load" by leaving uid = [0; 16].
+    let name = read_info_plist_vendor(bundle_path);
+    if name.is_empty() {
+        anyhow::bail!("no moduleinfo.json and no CFBundleName in {}", bundle_path.display());
+    }
+    log::debug!("VST3 scan (Info.plist fallback): '{}' in {}", name, bundle_path.display());
+    Ok(vec![Vst3PluginInfo {
+        uid: [0u8; 16], // unknown until user loads it
+        name,
+        vendor: String::new(),
+        category: "Audio Module Class".to_string(),
+        bundle_path: bundle_path.to_path_buf(),
+        params: Vec::new(),
+        num_audio_inputs: 2,
+        num_audio_outputs: 2,
+    }])
 }
 
 /// Scan a single `.vst3` bundle directory — **full mode**: fully instantiates
