@@ -1,6 +1,6 @@
 # Blocks Reference
 
-OpenRig ships with **329 models** across **16 block types**, powered by four distinct audio backends. This document provides a complete reference for every block type and model available in the system.
+OpenRig ships with **350 models** across **16 block types**, powered by four distinct audio backends. This document provides a complete reference for every block type and model available in the system.
 
 ## Audio Backends
 
@@ -24,8 +24,29 @@ A preamp block shapes the guitar signal before it reaches the power amp stage. I
 | American Clean          | --       | Native  | Clean American-style preamp     |
 | Brit Crunch             | --       | Native  | British crunch preamp           |
 | Modern High Gain        | --       | Native  | Modern high-gain preamp         |
-| Marshall JCM 800 2203   | Marshall | NAM     | Classic British crunch/gain     |
-| Diezel VH4              | Diezel   | NAM     | Modern high-gain German amp     |
+| Marshall JCM 800 2203   | Marshall          | NAM     | Classic British crunch/gain                            |
+| Diezel VH4              | Diezel            | NAM     | Modern high-gain German amp                            |
+| Thunder 50              | ENGL              | NAM     | Tight German high-gain lead amp                        |
+| '57 Custom Champ        | Fender            | NAM     | Small vintage tweed combo, clean to light breakup      |
+| '57 Custom Deluxe       | Fender            | NAM     | Vintage tweed combo with warm, full breakup character  |
+| Frontman 15G            | Fender            | NAM     | Solid-state practice amp, clean and gain channels      |
+| PA100                   | Fender            | NAM     | Vintage PA head repurposed as a clean guitar amp       |
+| Bantamp Meteor          | Joyo              | NAM     | Compact mini-head with a wide range of gain voicings   |
+| AVT50H                  | Marshall          | NAM     | Hybrid head, modern high-gain focused                  |
+| YJM100                  | Marshall          | NAM     | Yngwie signature, classic JCM800 character with boost  |
+| Mark III                | Mesa/Boogie       | NAM     | Tight, percussive Mesa with multiple EQ modes          |
+| Micro Terror            | Orange            | NAM     | Tiny all-valve head, warm Orange crunch and saturation |
+| Shaman                  | Panama            | NAM     | Versatile amp spanning clean through high-gain         |
+| Classic 30              | Peavey            | NAM     | EL84-based combo, clean and slightly pushed tones      |
+| MIG-100 KT88            | Sovtek            | NAM     | Russian power-amp character, raw and punchy            |
+| VX Kraken               | Victory           | NAM     | Aggressive high-gain head, shred-oriented voicing      |
+| MIG-50                  | Electro-Harmonix  | NAM     | Boutique 50W head, clean through overdrive range       |
+| 22 Caliber              | Electro-Harmonix  | NAM     | Low-wattage head with clean and crunch tones           |
+| Blues Baby 22           | Award-Session     | NAM     | British-influenced 22W combo, clean to overdrive       |
+| Fly                     | Blackstar         | NAM     | Ultra-compact amp, clean and crunch tones              |
+| Multitone 50            | Koch              | NAM     | Dutch 50W amp with clean, crunch, and OD channels      |
+| L2                      | Lab Series        | NAM     | Solid-state Lab Series, clean with unique filtering    |
+| Lunchbox Jr             | ZT                | NAM     | Compact 35W solid-state, clean through overdrive       |
 
 ### Parameters -- Native Preamp
 
@@ -58,6 +79,41 @@ A preamp block shapes the guitar signal before it reaches the power amp stage. I
 | gain_level  | Gain level               |
 | boost       | Boost switch             |
 
+### Parameters -- NAM models (standard, issue #204)
+
+All 21 new NAM preamp models added in issue #204 share the same two-parameter interface:
+
+| Parameter | Range                | Description        |
+|-----------|----------------------|--------------------|
+| volume    | 50--70%              | Output volume      |
+| gain      | 10--100% (10% steps) | Gain level         |
+
+Each model selects a capture file based on the `gain` value (mapped to steps of 10). The available voicings per model are:
+
+| Model ID | Available Voicings / Captures |
+|----------|-------------------------------|
+| `nam_engl_thunder_50` | lead |
+| `nam_fender_57_champ` | clean, crunch, od × in1, in2 |
+| `nam_fender_57_deluxe` | clean, crunch, od × in1, in2 |
+| `nam_fender_frontman_15g` | clean, clean_boost, high_gain |
+| `nam_joyo_bantamp_meteor` | clean, clean_gain, low_crunch, crunch, high_gain, high_gain_808, maxed |
+| `nam_marshall_avt50h` | hg_bass_cut, hg_dimed, hg_mid_cut, hg_mid_forward, hg_treb_cut |
+| `nam_marshall_yjm100` | standard, jcm800_mode, boost_bright, modern |
+| `nam_mesa_mark_iii` | eq (lohi / lomed / medhi) × gain (cranked / pushed) |
+| `nam_orange_micro_terror` | modified DI |
+| `nam_panama_shaman` | clean, crunch, hg, od × gain g1--g9 |
+| `nam_peavey_classic_30` | clean, clean_boost |
+| `nam_sovtek_mig100` | v1, v2, v3 |
+| `nam_victory_vx_kraken` | shred_di, shred_full |
+| `nam_ehx_mig50` | clean, crunch, od |
+| `nam_ehx_22_caliber` | clean, crunch |
+| `nam_award_session_blues_baby_22` | clean, crunch, od |
+| `nam_blackstar_fly` | clean, crunch, od |
+| `nam_fender_pa100` | clean |
+| `nam_koch_multitone_50` | clean, crunch, od × variant 1, 2, 3 |
+| `nam_lab_series_l2` | clean, crunch, od |
+| `nam_zt_lunchbox_jr` | clean, crunch, od |
+
 ---
 
 ## Amp
@@ -82,6 +138,18 @@ An amp block models a complete amplifier, including preamp and power amp stages 
 | Mesa Mark V               | Mesa      | NAM     | Tight focused high-gain            |
 | Mesa Rectifier            | Mesa      | NAM     | Aggressive modern high-gain        |
 | Peavey 5150               | Peavey    | NAM     | Heavy metal workhorse              |
+| Ampeg SVT Classic         | Ampeg     | NAM     | Classic bass amp + 6x10 cab        |
+| Dover DA-50 + Mesa 4x12   | Dover     | NAM     | Boutique amp + Mesa OS 4x12        |
+| Fender Bassman 1971       | Fender    | NAM     | 1971 Bassman, 9 tone presets       |
+| Fender Deluxe Reverb '65  | Fender    | NAM     | Clean single-channel combo         |
+| Fender Super Reverb 1977  | Fender    | NAM     | Clean multi-mic combo              |
+| Marshall JMP-1 Full Rig   | Marshall  | NAM     | JMP-1 OD2 + V30 cab                |
+| Marshall Super 100 1966   | Marshall  | NAM     | Vintage SA100 full stack           |
+| Peavey 5150 + Mesa 4x12   | Peavey    | NAM     | High-gain with boost/mic options   |
+| Roland JC-120B Jazz Chorus| Roland    | NAM     | All-in-one clean + built-in chorus |
+| Synergy DRECT Mesa        | Synergy   | NAM     | Metal rig with boost options       |
+| Vox AC30                  | Vox       | NAM     | Full rig with character variants   |
+| Vox AC30 '61 Fawn EF86    | Vox       | NAM     | Vintage 1961 Vox combo             |
 | GxBlueAmp                 | Guitarix  | LV2     | Guitarix blue amp simulation       |
 | GxSupersonic              | Guitarix  | LV2     | Guitarix supersonic amp            |
 | MDA Combo                 | MDA       | LV2     | Amp combo simulation               |
@@ -130,8 +198,13 @@ A cab (cabinet) block simulates the speaker cabinet and microphone capture. It a
 | V30 4x12                        | --       | IR      | Modern rock/metal standard       |
 | Fender Deluxe Reverb Oxford     | Fender   | IR      | Classic American clean           |
 | Celestion Cream 4x12            | --       | IR      | Smooth alnico speakers           |
-| Mesa Oversized 4x12 V30         | Mesa     | IR      | Deep tight low-end               |
+| Mesa Oversized 4x12 V30         | Mesa     | IR      | Deep tight low-end, 9 mic/position options |
+| Mesa Standard 4x12 V30          | Mesa     | IR      | Standard OS 4x12, SM57 and SM58  |
 | Vox AC30 Blue                   | Vox      | IR      | Chimey British jangle            |
+| Vox AC50 2x12 Goodmans          | Vox      | IR      | Vintage AC50 with Goodmans 241   |
+| Evil Chug (Blackstar + PRS)     | Blackstar| IR      | High-gain Blackbird 50 + PRS cab |
+| G12M Greenback Multi-Mic        | --       | IR      | 6 mic options: SM57/LCT441/MC834/M160/OC818/CC8 |
+| Roland JC-120 Cab               | Roland   | IR      | JC-120 cab, SM57+MD421 mix       |
 | GxUltraCab                      | Guitarix | LV2     | Guitarix ultra cab simulation    |
 
 ### Parameters
@@ -768,92 +841,9 @@ All models use the **IR** backend.
 
 ## Full Rig
 
-A full rig block combines the entire signal chain -- preamp, power amp, cabinet, and built-in effects -- into a single unit. This is useful for recalling a complete amp tone with one block.
+A full rig block is reserved for NAM captures that include the complete signal chain — preamp, power amp, cabinet, **and** effects pedals baked in. Currently no models are bundled.
 
-### Models
-
-| Model Name                      | Brand    | Backend | Description                                      |
-|---------------------------------|----------|---------|--------------------------------------------------|
-| Roland JC-120B Jazz Chorus      | Roland   | NAM     | All-in-one clean amp with built-in chorus        |
-| Ampeg SVT Classic               | Ampeg    | NAM     | Classic bass amp with 6x10 cab                   |
-| Dover DA-50 + Mesa 4x12         | Dover    | NAM     | Full rig with Mesa OS 4x12 cab                   |
-| Fender Bassman 1971             | Fender   | NAM     | 1971 Bassman full rig, 9 tone presets            |
-| Fender Deluxe Reverb '65        | Fender   | NAM     | Clean single-channel with mic variants           |
-| Fender Super Reverb 1977        | Fender   | NAM     | Clean amp with mic variants                      |
-| Marshall JMP-1 Full Rig         | Marshall | NAM     | JMP-1 OD2 + V30 full rig                         |
-| Marshall Super 100 1966         | Marshall | NAM     | Vintage Marshall SA100 full rig                  |
-| Peavey 5150 + Mesa 4x12         | Peavey   | NAM     | High-gain full rig with boost and mic options    |
-| Synergy DRECT Mesa              | Synergy  | NAM     | Metal full rig with boost options                |
-| Vox AC30                        | Vox      | NAM     | Full rig with character variants                 |
-| Vox AC30 '61 Fawn EF86          | Vox      | NAM     | Vintage 1961 Vox full rig                        |
-
-### Parameters
-
-#### Roland JC-120B Jazz Chorus
-
-No user-adjustable parameters. Single capture.
-
-#### Ampeg SVT Classic
-
-| Parameter | Options                    | Default  |
-|-----------|----------------------------|----------|
-| tone      | standard, ultra_hi, ultra_lo | standard |
-| mic       | md421, sm57                | md421    |
-
-#### Dover DA-50 + Mesa 4x12
-
-| Parameter | Options             | Default |
-|-----------|---------------------|---------|
-| boost     | clean, boosted      | clean   |
-
-#### Fender Bassman 1971
-
-| Parameter | Options                                                                                    | Default     |
-|-----------|--------------------------------------------------------------------------------------------|-------------|
-| tone      | clean, bright_clean, warm_clean, sweet_spot, warm_sweet_spot, cranked, 80s_clean, big_clean, warm_fuzz | sweet_spot |
-
-#### Fender Deluxe Reverb '65
-
-| Parameter | Options                              | Default     |
-|-----------|--------------------------------------|-------------|
-| mic       | sm57_royer, sm57_royer_room, room    | sm57_royer  |
-
-#### Fender Super Reverb 1977
-
-| Parameter | Options                     | Default |
-|-----------|-----------------------------|---------|
-| mic       | sm57, akg414, sm57_akg414   | sm57    |
-
-#### Marshall JMP-1 Full Rig
-
-No user-adjustable parameters. Single capture of the JMP-1 OD2 channel with V30 cab.
-
-#### Marshall Super 100 1966
-
-No user-adjustable parameters. Single capture.
-
-#### Peavey 5150 + Mesa 4x12
-
-| Parameter | Options                    | Default  |
-|-----------|----------------------------|----------|
-| boost     | no_boost, maxon, mxr       | no_boost |
-| mic       | sm57, sm58                 | sm57     |
-
-#### Synergy DRECT Mesa
-
-| Parameter | Options                    | Default   |
-|-----------|----------------------------|-----------|
-| boost     | unboosted, od808, sd1      | unboosted |
-
-#### Vox AC30
-
-| Parameter | Options                          | Default  |
-|-----------|----------------------------------|----------|
-| character | standard, clean_65prince         | standard |
-
-#### Vox AC30 '61 Fawn EF86
-
-No user-adjustable parameters. Single capture.
+> **Note:** Models previously listed here (Ampeg SVT, Fender Bassman, Vox AC30, etc.) were reclassified as **Amp** blocks (issue #208), since they are amp+cab captures without pedals.
 
 ---
 
