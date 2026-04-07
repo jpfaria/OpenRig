@@ -1,6 +1,8 @@
 import { ComboBox, ScrollView, VerticalBox } from "std-widgets.slint";
-import { ProjectChainItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, ChainBlockItem } from "../models.slint";
+import { ProjectChainItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, ChainBlockItem, MultiSliderPoint, CurveEditorPoint } from "../models.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
+import { CurveEditorControl } from "curve_editor_control.slint";
+import { MultiSliderControl } from "multi_slider_control.slint";
 
 component ToolbarButton inherits Rectangle {
     in property <string> label;
@@ -1507,6 +1509,10 @@ export component BlockEditorPanel inherits Rectangle {
     in-out property <int> block-drawer-selected-model-index;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
+    in property <[MultiSliderPoint]> multi-slider-points;
+    in property <[CurveEditorPoint]> curve-editor-points;
+    in property <string> eq-total-curve;
+    in property <[string]> eq-band-curves;
     callback choose-block-model(int);
     callback close-block-drawer();
     callback save-block-drawer();
@@ -1639,37 +1645,55 @@ export component BlockEditorPanel inherits Rectangle {
         }
 
         // ── OUTROS TIPOS: layout original ───────────────────────
-        if !root.is-preamp : ScrollView {
+        if !root.is-preamp : ComboBox {
             x: 20px;
             y: 78px;
             width: parent.width - 40px;
-            height: parent.height - 98px;
+            height: 34px;
+            model: root.block-model-option-labels;
+            current-index <=> root.block-drawer-selected-model-index;
+            selected(_) => { root.choose-block-model(self.current-index); }
+        }
+
+        if !root.is-preamp && root.block-drawer-selected-model-index >= 0 && root.block-drawer-selected-model-index < root.block-model-options.length : Text {
+            x: 20px;
+            y: 118px;
+            width: parent.width - 40px;
+            height: 16px;
+            text: root.block-model-options[root.block-drawer-selected-model-index].subtitle;
+            color: #94a0b0;
+            font-size: 11px;
+        }
+
+        if !root.is-preamp && root.curve-editor-points.length > 0 : CurveEditorControl {
+            x: 8px;
+            y: 142px;
+            width: parent.width - 16px;
+            points: root.curve-editor-points;
+            total-curve: root.eq-total-curve;
+            band-curves: root.eq-band-curves;
+            update-parameter(path, val) => { root.update-block-parameter-number(path, val); }
+        }
+
+        if !root.is-preamp && root.multi-slider-points.length > 0 && root.curve-editor-points.length == 0 : MultiSliderControl {
+            x: 8px;
+            y: 142px;
+            width: parent.width - 16px;
+            points: root.multi-slider-points;
+            update-parameter(path, val) => { root.update-block-parameter-number(path, val); }
+        }
+
+        if !root.is-preamp && root.curve-editor-points.length == 0 && root.multi-slider-points.length == 0 : ScrollView {
+            x: 20px;
+            y: 138px;
+            width: parent.width - 40px;
+            height: parent.height - 158px;
             viewport-width: self.width;
-            viewport-height: 92px + (root.block-parameter-items.length * 96px);
-
-            ComboBox {
-                x: 0px;
-                y: 0px;
-                width: parent.width - 24px;
-                height: 34px;
-                model: root.block-model-option-labels;
-                current-index <=> root.block-drawer-selected-model-index;
-                selected(_) => { root.choose-block-model(self.current-index); }
-            }
-
-            if root.block-drawer-selected-model-index >= 0 && root.block-drawer-selected-model-index < root.block-model-options.length : Text {
-                x: 0px;
-                y: 40px;
-                width: parent.width - 24px;
-                height: 16px;
-                text: root.block-model-options[root.block-drawer-selected-model-index].subtitle;
-                color: #94a0b0;
-                font-size: 11px;
-            }
+            viewport-height: root.block-parameter-items.length * 96px;
 
             for param-item[index] in root.block-parameter-items : BlockParameterRow {
                 x: 0px;
-                y: 72px + (index * 96px);
+                y: index * 96px;
                 width: parent.width - 24px;
                 item: param-item;
                 text-changed(path, value) => { root.update-block-parameter-text(path, value); }
@@ -1713,6 +1737,10 @@ export component ProjectChainsPage inherits Rectangle {
     in-out property <int> block-drawer-selected-model-index;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
+    in property <[MultiSliderPoint]> multi-slider-points;
+    in property <[CurveEditorPoint]> curve-editor-points;
+    in property <string> eq-total-curve;
+    in property <[string]> eq-band-curves;
     in-out property <string> status-message;
     property <int> dragging-chain-index: -1;
     property <int> dragging-block-index: -1;
@@ -1923,6 +1951,10 @@ export component ProjectChainsPage inherits Rectangle {
             block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
             block-drawer-enabled: root.block-drawer-enabled;
             block-parameter-items: root.block-parameter-items;
+            multi-slider-points: root.multi-slider-points;
+            curve-editor-points: root.curve-editor-points;
+            eq-total-curve: root.eq-total-curve;
+            eq-band-curves: root.eq-band-curves;
             choose-block-model(index) => { root.choose-block-model(index); }
             close-block-drawer => { root.close-block-drawer(); }
             save-block-drawer => { root.save-block-drawer(); }

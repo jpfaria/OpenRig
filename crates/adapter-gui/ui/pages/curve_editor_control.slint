@@ -1,0 +1,129 @@
+import { CurveEditorPoint } from "../models.slint";
+
+export component CurveEditorControl inherits Rectangle {
+    in property <[CurveEditorPoint]> points;
+    in property <string> total-curve;
+    in property <[string]> band-curves;
+
+    callback update-parameter(string, float);
+
+    height: 200px;
+    background: #06060e;
+    border-radius: 6px;
+    clip: true;
+
+    // Bottom 20px reserved for frequency labels
+    private property <length> chart-h: root.height - 20px;
+
+    // 0 dB center line
+    Rectangle {
+        x: 0; y: root.chart-h / 2;
+        width: parent.width; height: 1px;
+        background: #ffffff30;
+    }
+    // +6 dB
+    Rectangle {
+        x: 0;
+        y: root.chart-h / 2 - root.chart-h * (6.0 / 36.0);
+        width: parent.width; height: 1px;
+        background: #ffffff10;
+    }
+    // -6 dB
+    Rectangle {
+        x: 0;
+        y: root.chart-h / 2 + root.chart-h * (6.0 / 36.0);
+        width: parent.width; height: 1px;
+        background: #ffffff10;
+    }
+
+    // Per-band vertical sliders
+    for point[i] in root.points : Rectangle {
+        private property <float> norm: (point.y-value - point.y-min) / Math.max(0.001, point.y-max - point.y-min);
+
+        property <length> slider-w: Math.max(4px, (root.width - 2px) / Math.max(1, root.points.length) - 1px);
+        x: i * (self.slider-w + 1px);
+        y: 0;
+        width: self.slider-w;
+        height: parent.height;
+
+        // Full-column touch area — absolute mouse-y → value.
+        // Guard moved with self.pressed: in Slint 1.x moved fires on hover too.
+        TouchArea {
+            mouse-cursor: ns-resize;
+            moved => {
+                if (self.pressed) {
+                    let track-top = 4.0;
+                    let track-h = root.chart-h / 1px - 8.0;
+                    let norm = Math.clamp(1.0 - (self.mouse-y / 1px - track-top) / track-h, 0.0, 1.0);
+                    let new-gain = Math.clamp(
+                        point.y-min + norm * (point.y-max - point.y-min),
+                        point.y-min, point.y-max);
+                    root.update-parameter(point.y-path, new-gain);
+                }
+            }
+            clicked => {
+                let track-top = 4.0;
+                let track-h = root.chart-h / 1px - 8.0;
+                let norm = Math.clamp(1.0 - (self.mouse-y / 1px - track-top) / track-h, 0.0, 1.0);
+                let new-gain = Math.clamp(
+                    point.y-min + norm * (point.y-max - point.y-min),
+                    point.y-min, point.y-max);
+                root.update-parameter(point.y-path, new-gain);
+            }
+        }
+
+        // Track
+        Rectangle {
+            x: parent.width / 2 - 1px;
+            y: 4px;
+            width: 2px;
+            height: root.chart-h - 8px;
+            background: #ffffff15;
+        }
+
+        // Fill from 0 dB to current gain
+        Rectangle {
+            property <float> center-norm: (0.0 - point.y-min) / Math.max(0.001, point.y-max - point.y-min);
+            property <length> center-y: (1.0 - parent.norm) * (root.chart-h - 8px) + 4px;
+            property <length> zero-y: (1.0 - self.center-norm) * (root.chart-h - 8px) + 4px;
+            x: parent.width / 2 - 2px;
+            y: Math.min(self.center-y, self.zero-y);
+            width: 4px;
+            height: Math.abs(self.center-y - self.zero-y);
+            background: #4488ff80;
+        }
+
+        // Thumb (visual only — interaction is on TouchArea above)
+        Rectangle {
+            property <length> thumb-w: Math.min(parent.width - 8px, 48px);
+            x: (parent.width - self.thumb-w) / 2;
+            y: (1.0 - parent.norm) * (root.chart-h - 8px) + 4px - 4px;
+            width: self.thumb-w;
+            height: 8px;
+            border-radius: 4px;
+            background: #88aaff;
+        }
+
+        // Gain label above thumb
+        Text {
+            x: 0;
+            y: (1.0 - parent.norm) * (root.chart-h - 8px) + 4px - 16px;
+            width: parent.width;
+            text: point.y-label;
+            color: #ffffffa0;
+            font-size: 9px;
+            horizontal-alignment: center;
+        }
+
+        // Frequency label at bottom
+        Text {
+            x: 0;
+            y: root.chart-h + 4px;
+            width: parent.width;
+            text: point.x-label;
+            color: #ffffff80;
+            font-size: 10px;
+            horizontal-alignment: center;
+        }
+    }
+}
