@@ -224,3 +224,137 @@ plugins:
     description: "Invada Tube — saturação e calor de válvula."
     license: "GPL-2.0"
     homepage: "https://launchpad.net/invada-studio-plugins-lv2"
+
+  # ── VST3 ─────────────────────────────────────────────────────────────────────
+  vst3_cocoa_delay:
+    description: "Cocoa Delay — delay com caráter analógico e modulação nas repetições."
+    license: "GPL-3.0"
+    homepage: "https://github.com/tesselode/cocoa-delay"
+  vst3_squeezer:
+    description: "Squeezer — compressor/limitador flexível com modos vintage e moderno."
+    license: "GPL-3.0"
+    homepage: "https://github.com/mzuther/Squeezer"
+  vst3_modeq:
+    description: "modEQ — equalizador paramétrico moderno com som transparente e limpo."
+    license: "GPL-3.0"
+    homepage: "https://github.com/jatinchowdhury18/modEQ"
+  vst3_chow_tape:
+    description: "CHOW Tape Model — modelo físico de gravador de fita com wow, flutter e saturação realistas."
+    license: "GPL-3.0"
+    homepage: "https://github.com/jatinchowdhury18/AnalogTapeModel"
+  vst3_stone_mistress:
+    description: "Stone Mistress — flanger/chorus inspirado no clássico pedal EHX Stone Mistress."
+    license: "GPL-3.0"
+    homepage: "https://github.com/jpcima/stone-mistress"
+  vst3_cloud_seed:
+    description: "Cloud Seed — reverb algorítmico com caudas longas e ambientes etéreos."
+    license: "MIT"
+    homepage: "https://github.com/ValdemarOrn/CloudSeed"
+
+  # ── Novos Preamps NAM ─────────────────────────────────────────────────────────
+  nam_engl_thunder_50:
+    description: "Captura neural do ENGL Thunder 50 — cabeçote high-gain alemão versátil."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_fender_57_champ:
+    description: "Captura neural do Fender '57 Custom Champ — amp tweed de baixa potência com breakup quente."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_fender_57_deluxe:
+    description: "Captura neural do Fender '57 Custom Deluxe — amp tweed com caráter harmônico rico."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_fender_frontman_15g:
+    description: "Captura neural do Fender Frontman 15G — amp de prática Fender de entrada."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_fender_pa100:
+    description: "Captura neural do Fender PA100 — cabeçote PA vintage reaproveitado como amp de guitarra."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_joyo_bantamp_meteor:
+    description: "Captura neural do Joyo Bantamp Meteor — amp compacto de alta distorção moderna."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_marshall_avt50h:
+    description: "Captura neural do Marshall AVT50H — cabeçote híbrido Marshall sólido/válvulado."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_marshall_yjm100:
+    description: "Captura neural do Marshall YJM100 — amp assinatura Yngwie Malmsteen com pré-amp de alta distorção."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_mesa_mark_iii:
+    description: "Captura neural do Mesa/Boogie Mark III — amp americano versátil com canais clean, crunch e lead."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_orange_micro_terror:
+    description: "Captura neural do Orange Micro Terror — cabeçote híbrido compacto com o tom clássico Orange."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_panama_shaman:
+    description: "Captura neural do Panama Shaman — amp boutique de alta distorção com múltiplas voicings."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_peavey_classic_30:
+    description: "Captura neural do Peavey Classic 30 — combo americano versátil com timbres clean e crunch."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_sovtek_mig100:
+    description: "Captura neural do Sovtek MIG-100 KT88 — cabeçote de plena potência de origem russa com tom cru e pontudo."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_victory_vx_kraken:
+    description: "Captura neural do Victory VX Kraken — amp britânico de alta distorção com grave massivo."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_ehx_mig50:
+    description: "Captura neural do Electro-Harmonix MIG-50 — cabeçote de 50W com sonoridade russa."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_ehx_22_caliber:
+    description: "Captura neural do Electro-Harmonix 22 Caliber — power amp compacto com caráter único."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_award_session_blues_baby_22:
+    description: "Captura neural do Award-Session Blues Baby 22 — combo de baixa potência com voz britânica."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_blackstar_fly:
+    description: "Captura neural do Blackstar Fly — amp ultra-compacto a bateria com controle de tom ISF."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_koch_multitone_50:
+    description: "Captura neural do Koch Multitone 50 — amplificador boutique holandês com flexibilidade multi-canal."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_lab_series_l2:
+    description: "Captura neural do Lab Series L2 — amp solid-state clean conhecido pelos jogadores de jazz."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+  nam_zt_lunchbox_jr:
+    description: "Captura neural do ZT Lunchbox Jr — amp solid-state ultra-compacto com som surpreendentemente completo."
+    license: "MIT"
+    homepage: "https://github.com/sdatkinson/neural-amp-modeler"
+
+  # ── Novos Cabs IR ─────────────────────────────────────────────────────────────
+  evil_chug_blackstar_prs:
+    description: "Resposta ao impulso de um cabinet high-gain com falantes Blackstar e PRS para sons pesados."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  g12m_greenback_multi_mic:
+    description: "Resposta ao impulso de um cabinet Celestion G12M Greenback capturado com múltiplas posições de microfone."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  mesa_standard_4x12_v30:
+    description: "Resposta ao impulso de um cabinet Mesa/Boogie Standard 4x12 com falantes Celestion V30."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  roland_jc_120_cab:
+    description: "Resposta ao impulso do cabinet Roland JC-120 Jazz Chorus com dois falantes de 12 polegadas."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
+  vox_ac50_2x12:
+    description: "Resposta ao impulso de um cabinet Vox AC50 2x12 com falantes Goodmans."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
