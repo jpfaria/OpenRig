@@ -1,0 +1,222 @@
+import { ScrollView } from "std-widgets.slint";
+
+export component PluginInfoWindow inherits Window {
+    title: "Plugin Info";
+    width: 480px;
+    min-height: 500px;
+    background: #111118;
+
+    in property <image> screenshot;
+    in property <bool> has-screenshot: false;
+    in property <string> plugin-name: "";
+    in property <string> brand: "";
+    in property <string> type-label: "";
+    in property <string> description: "";
+    in property <string> license: "";
+    in property <string> homepage: "";
+    in property <bool> has-homepage: false;
+
+    callback open-homepage();
+    callback close-window();
+
+    // ── Close button ─────────────────────────────────────────────────────────
+    close-btn := Rectangle {
+        x: root.width - 36px;
+        y: 8px;
+        width: 28px; height: 28px;
+        border-radius: 14px;
+        background: close-ta.has-hover ? #2a2a3a : transparent;
+        Text {
+            text: "×";
+            font-size: 18px;
+            color: #888899;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+        close-ta := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.close-window(); }
+        }
+    }
+
+    // ── Screenshot area ───────────────────────────────────────────────────────
+    screenshot-area := Rectangle {
+        x: 0; y: 0;
+        width: root.width;
+        height: 200px;
+        background: #0a0a14;
+        clip: true;
+
+        if root.has-screenshot : Image {
+            width: parent.width;
+            height: parent.height;
+            source: root.screenshot;
+            image-fit: cover;
+        }
+
+        if !root.has-screenshot : Rectangle {
+            width: parent.width; height: parent.height;
+            background: #0d0d1a;
+            Image {
+                x: (parent.width - 80px) / 2;
+                y: (parent.height - 80px) / 2;
+                width: 80px; height: 80px;
+                source: @image-url("../assets/openrig-logomark.svg");
+                image-fit: contain;
+                opacity: 0.15;
+            }
+        }
+
+        // Gradient overlay at bottom of screenshot
+        Rectangle {
+            y: parent.height - 60px;
+            width: parent.width; height: 60px;
+            background: @linear-gradient(180deg, transparent 0%, #111118 100%);
+        }
+    }
+
+    // ── Content ───────────────────────────────────────────────────────────────
+    content := Rectangle {
+        x: 0; y: 200px;
+        width: root.width;
+        height: root.height - 200px;
+
+        ScrollView {
+            x: 0; y: 0;
+            width: parent.width;
+            height: parent.height;
+
+            VerticalLayout {
+                padding: 20px;
+                spacing: 12px;
+
+                // Plugin name
+                Text {
+                    text: root.plugin-name;
+                    font-size: 20px;
+                    font-weight: 700;
+                    color: #f0f0f8;
+                    wrap: word-wrap;
+                }
+
+                // Brand + type badge row
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+
+                    if root.brand != "" : Text {
+                        text: root.brand;
+                        font-size: 12px;
+                        color: #8888aa;
+                        vertical-alignment: center;
+                    }
+
+                    if root.brand != "" && root.type-label != "" : Text {
+                        text: "·";
+                        font-size: 12px;
+                        color: #555566;
+                        vertical-alignment: center;
+                    }
+
+                    if root.type-label != "" : Rectangle {
+                        height: 20px;
+                        width: type-badge-text.preferred-width + 12px;
+                        border-radius: 4px;
+                        background: root.type-label == "LV2" ? #1a2a1a
+                            : root.type-label == "NAM" ? #1a1a2a
+                            : root.type-label == "IR" ? #2a1a1a
+                            : #1e1e2a;
+
+                        type-badge-text := Text {
+                            x: 6px;
+                            text: root.type-label;
+                            font-size: 10px;
+                            font-weight: 600;
+                            color: root.type-label == "LV2" ? #44cc44
+                                : root.type-label == "NAM" ? #4488ff
+                                : root.type-label == "IR" ? #ff8844
+                                : #aaaacc;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                // Divider
+                Rectangle { height: 1px; background: #222230; }
+
+                // Description
+                if root.description != "" : VerticalLayout {
+                    spacing: 4px;
+                    Text {
+                        text: "Description";
+                        font-size: 10px;
+                        font-weight: 600;
+                        color: #555566;
+                        letter-spacing: 1px;
+                    }
+                    Text {
+                        text: root.description;
+                        font-size: 13px;
+                        color: #a0a0b8;
+                        wrap: word-wrap;
+                        line-height: 1.6;
+                    }
+                }
+
+                // License
+                if root.license != "" : HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+                    Text {
+                        text: "License:";
+                        font-size: 12px;
+                        color: #555566;
+                        vertical-alignment: center;
+                    }
+                    Text {
+                        text: root.license;
+                        font-size: 12px;
+                        color: #7a7a9a;
+                        vertical-alignment: center;
+                    }
+                }
+
+                // Homepage button
+                if root.has-homepage : Rectangle {
+                    height: 36px;
+                    border-radius: 6px;
+                    background: hp-ta.has-hover ? #1a3a20 : #162a1a;
+                    border-width: 1px;
+                    border-color: hp-ta.has-hover ? #22C55E : #1e401e;
+
+                    HorizontalLayout {
+                        alignment: center;
+                        spacing: 8px;
+                        padding: 0px;
+
+                        Text {
+                            text: "↗";
+                            font-size: 14px;
+                            color: #22C55E;
+                            vertical-alignment: center;
+                        }
+                        Text {
+                            text: "Open Homepage";
+                            font-size: 13px;
+                            color: #22C55E;
+                            vertical-alignment: center;
+                        }
+                    }
+
+                    hp-ta := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.open-homepage(); }
+                    }
+
+                    animate background { duration: 150ms; }
+                    animate border-color { duration: 150ms; }
+                }
+            }
+        }
+    }
+}
