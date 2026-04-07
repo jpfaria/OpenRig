@@ -1,7 +1,7 @@
 use crate::registry::FilterModelDefinition;
 use crate::FilterBackendKind;
 use anyhow::Result;
-use block_core::param::{float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit};
+use block_core::param::{curve_editor_parameter, float_parameter, CurveEditorRole, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit};
 use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StereoProcessor};
 
 pub const MODEL_ID: &str = "lv2_zameq2";
@@ -42,16 +42,16 @@ fn schema() -> Result<ModelParameterSchema> {
         display_name: DISPLAY_NAME.into(),
         audio_mode: ModelAudioMode::DualMono,
         parameters: vec![
-            float_parameter("boost1", "Peak 1 Gain", None, Some(0.0), -50.0, 20.0, 0.1, ParameterUnit::Decibels),
-            float_parameter("bw1", "Peak 1 BW", None, Some(1.0), 0.1, 6.0, 0.01, ParameterUnit::None),
-            float_parameter("freq1", "Peak 1 Freq", None, Some(500.0), 20.0, 14000.0, 1.0, ParameterUnit::Hertz),
-            float_parameter("boost2", "Peak 2 Gain", None, Some(0.0), -50.0, 20.0, 0.1, ParameterUnit::Decibels),
-            float_parameter("bw2", "Peak 2 BW", None, Some(1.0), 0.1, 6.0, 0.01, ParameterUnit::None),
-            float_parameter("freq2", "Peak 2 Freq", None, Some(3000.0), 20.0, 14000.0, 1.0, ParameterUnit::Hertz),
-            float_parameter("boostl", "Low Shelf Gain", None, Some(0.0), -50.0, 20.0, 0.1, ParameterUnit::Decibels),
-            float_parameter("freql", "Low Shelf Freq", None, Some(250.0), 20.0, 14000.0, 1.0, ParameterUnit::Hertz),
-            float_parameter("boosth", "High Shelf Gain", None, Some(0.0), -50.0, 20.0, 0.1, ParameterUnit::Decibels),
-            float_parameter("freqh", "High Shelf Freq", None, Some(8000.0), 20.0, 14000.0, 1.0, ParameterUnit::Hertz),
+            curve_editor_parameter("boost1", "Gain", Some("Peak 1"), CurveEditorRole::Y, Some(0.0), -50.0, 20.0, 0.1, ParameterUnit::Decibels),
+            curve_editor_parameter("freq1", "Freq", Some("Peak 1"), CurveEditorRole::X, Some(500.0), 20.0, 14000.0, 1.0, ParameterUnit::Hertz),
+            curve_editor_parameter("bw1", "BW", Some("Peak 1"), CurveEditorRole::Width, Some(1.0), 0.1, 6.0, 0.01, ParameterUnit::None),
+            curve_editor_parameter("boost2", "Gain", Some("Peak 2"), CurveEditorRole::Y, Some(0.0), -50.0, 20.0, 0.1, ParameterUnit::Decibels),
+            curve_editor_parameter("freq2", "Freq", Some("Peak 2"), CurveEditorRole::X, Some(3000.0), 20.0, 14000.0, 1.0, ParameterUnit::Hertz),
+            curve_editor_parameter("bw2", "BW", Some("Peak 2"), CurveEditorRole::Width, Some(1.0), 0.1, 6.0, 0.01, ParameterUnit::None),
+            curve_editor_parameter("boostl", "Gain", Some("Low Shelf"), CurveEditorRole::Y, Some(0.0), -50.0, 20.0, 0.1, ParameterUnit::Decibels),
+            curve_editor_parameter("freql", "Freq", Some("Low Shelf"), CurveEditorRole::X, Some(250.0), 20.0, 14000.0, 1.0, ParameterUnit::Hertz),
+            curve_editor_parameter("boosth", "Gain", Some("High Shelf"), CurveEditorRole::Y, Some(0.0), -50.0, 20.0, 0.1, ParameterUnit::Decibels),
+            curve_editor_parameter("freqh", "Freq", Some("High Shelf"), CurveEditorRole::X, Some(8000.0), 20.0, 14000.0, 1.0, ParameterUnit::Hertz),
             float_parameter("master", "Master Gain", None, Some(0.0), -12.0, 12.0, 0.1, ParameterUnit::Decibels),
         ],
     })
