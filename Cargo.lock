@@ -146,6 +146,7 @@ dependencies = [
  "slint",
  "slint-build",
  "ui-openrig",
+ "vst3-host",
 ]
 
 [[package]]
@@ -793,6 +794,7 @@ dependencies = [
  "anyhow",
  "block-core",
  "lv2",
+ "vst3-host",
 ]
 
 [[package]]
@@ -803,6 +805,7 @@ dependencies = [
  "block-core",
  "log",
  "lv2",
+ "vst3-host",
 ]
 
 [[package]]
@@ -813,6 +816,7 @@ dependencies = [
  "block-core",
  "log",
  "lv2",
+ "vst3-host",
 ]
 
 [[package]]
@@ -834,6 +838,7 @@ dependencies = [
  "log",
  "lv2",
  "nam",
+ "vst3-host",
 ]
 
 [[package]]
@@ -854,6 +859,7 @@ dependencies = [
  "block-core",
  "domain",
  "lv2",
+ "vst3-host",
 ]
 
 [[package]]
@@ -891,6 +897,7 @@ dependencies = [
  "block-core",
  "log",
  "lv2",
+ "vst3-host",
 ]
 
 [[package]]
@@ -1671,6 +1678,7 @@ dependencies = [
  "domain",
  "log",
  "project",
+ "vst3-host",
 ]
 
 [[package]]
@@ -4296,6 +4304,7 @@ dependencies = [
  "domain",
  "log",
  "serde",
+ "vst3-host",
 ]
 
 [[package]]
