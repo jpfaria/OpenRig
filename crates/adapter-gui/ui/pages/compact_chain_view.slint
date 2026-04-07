@@ -471,7 +471,7 @@ component CompactBlockRow inherits Rectangle {
     }
 
     // ── Stream data display (tuner readings, meter, etc.) ──
-    if root.block-data.stream-data.active : Rectangle {
+    if root.block-data.stream-data.active && root.block-data.stream-data.stream-kind != "spectrum" : Rectangle {
         x: 470px;
         y: 4px;
         width: parent.width - 510px;
@@ -522,6 +522,39 @@ component CompactBlockRow inherits Rectangle {
                     background: self.norm > -0.1 && self.norm < 0.1 ? #29df85 : #ff6a57;
                     border-radius: 3px;
                 }
+            }
+        }
+    }
+
+    // ── Spectrum analyzer mini bars in compact view ──
+    if root.block-data.stream-data.active && root.block-data.stream-data.stream-kind == "spectrum" : Rectangle {
+        x: 470px;
+        y: 6px;
+        width: parent.width - 510px;
+        height: parent.height - 12px;
+        background: #06060e;
+        border-radius: 3px;
+        clip: true;
+
+        for entry[ei] in root.block-data.stream-data.entries : Rectangle {
+            property <length> bar-slot-w: parent.width / root.block-data.stream-data.entries.length;
+            x: ei * self.bar-slot-w;
+            y: 0;
+            width: self.bar-slot-w;
+            height: parent.height;
+            background: transparent;
+
+            Rectangle {
+                property <length> bar-h: Math.max(1px, entry.value * parent.height);
+                x: 1px;
+                y: parent.height - self.bar-h;
+                width: parent.width - 2px;
+                height: self.bar-h;
+                background: entry.value > 0.85 ? #ff4433
+                    : entry.value > 0.65 ? #ffaa22
+                    : entry.value > 0.3 ? #44cc88
+                    : #4488ff;
+                border-radius: 1px;
             }
         }
     }
