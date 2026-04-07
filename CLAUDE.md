@@ -132,7 +132,7 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 
 | Tipo | O que faz | Total | Modelos (resumo) |
 |------|-----------|-------|-----------------|
-| **Preamp** | Pré-amplificação, gain e EQ do amp | 5 | American Clean, Brit Crunch, Modern High Gain (native); JCM 800 2203, Diezel VH4 (NAM) |
+| **Preamp** | Pré-amplificação, gain e EQ do amp | 26 | American Clean, Brit Crunch, Modern High Gain (native); JCM 800 2203, Diezel VH4, Thunder 50 (ENGL), '57 Custom Champ/'57 Custom Deluxe/Frontman 15G/PA100 (Fender), Bantamp Meteor (Joyo), AVT50H/YJM100 (Marshall), Mark III (Mesa), Micro Terror (Orange), Shaman (Panama), Classic 30 (Peavey), MIG-100 KT88 (Sovtek), VX Kraken (Victory), MIG-50/22 Caliber (Electro-Harmonix), Blues Baby 22 (Award-Session), Fly (Blackstar), Multitone 50 (Koch), L2 (Lab Series), Lunchbox Jr (ZT) (NAM) |
 | **Amp** | Amplificador completo (preamp + power amp + cab) | 17 | Blackface Clean, Tweed Breakup, Chime (native); Bogner Ecstasy/Shiva, Dumble ODS, EVH 5150, Friedman BE100, Marshall JCM800/JVM/JMP-1, Mesa Mark V/Rectifier, Peavey 5150 (NAM); GxBlueAmp, GxSupersonic, MDA Combo (LV2) |
 | **Cab** | Simulação de caixa/falante | 12 | American 2x12, Brit 4x12, Vintage 1x12 (native); Marshall 4x12 V30, Mesa OS 4x12 V30, Fender Deluxe, Vox AC30 Blue, Celestion Cream/G12M/G12T-75/V30 4x12 (IR); GxUltraCab (LV2) |
 | **Gain** | Overdrive, distorção, fuzz, boost | 92 | TS9 (native); Boss DS-1/HM-2/FZ-1W/MT-2/BD-2, Klon Centaur, RAT/RAT2, OCD, OD808, TS808, Darkglass Alpha Omega/B7K, JHS Bonsai, Bluesbreaker, Vemuram Jan Ray + 34 outros (NAM); Guitarix ×40, CAPS Spice/X2, OJD, Wolf Shaper, MDA + outros (LV2); CHOW Tape (VST3) |
@@ -152,7 +152,7 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 | **Output** | Saída de áudio (device + channels) | — | standard |
 | **Insert** | Loop de efeito externo (send/return) | — | external_loop |
 
-**Total: 335+ modelos em 16 tipos de bloco processadores (5 backends: Native 34, NAM 68, IR 122, LV2 105, VST3 6).**
+**Total: 356+ modelos em 16 tipos de bloco processadores (5 backends: Native 34, NAM 89, IR 122, LV2 105, VST3 6).**
 
 ### Parâmetros comuns
 
@@ -319,10 +319,31 @@ Controles editaveis -> tem `id="ctrl-xxx"` para overlay futuro.
 | `brit_crunch` | Brit Crunch | native | Native |
 | `modern_high_gain` | Modern High Gain | native | Native |
 | `marshall_jcm_800_2203` | Marshall JCM 800 2203 | marshall | NAM |
+| `nam_engl_thunder_50` | Thunder 50 | engl | NAM |
+| `nam_fender_57_champ` | '57 Custom Champ | fender | NAM |
+| `nam_fender_57_deluxe` | '57 Custom Deluxe | fender | NAM |
+| `nam_fender_frontman_15g` | Frontman 15G | fender | NAM |
+| `nam_joyo_bantamp_meteor` | Bantamp Meteor | joyo | NAM |
+| `nam_marshall_avt50h` | AVT50H | marshall | NAM |
+| `nam_marshall_yjm100` | YJM100 | marshall | NAM |
+| `nam_mesa_mark_iii` | Mark III | mesa | NAM |
+| `nam_orange_micro_terror` | Micro Terror | orange | NAM |
+| `nam_panama_shaman` | Shaman | panama | NAM |
+| `nam_peavey_classic_30` | Classic 30 | peavey | NAM |
+| `nam_sovtek_mig100` | MIG-100 KT88 | sovtek | NAM |
+| `nam_victory_vx_kraken` | VX Kraken | victory | NAM |
+| `nam_ehx_mig50` | MIG-50 | electro-harmonix | NAM |
+| `nam_ehx_22_caliber` | 22 Caliber | electro-harmonix | NAM |
+| `nam_award_session_blues_baby_22` | Blues Baby 22 | award-session | NAM |
+| `nam_blackstar_fly` | Fly | blackstar | NAM |
+| `nam_fender_pa100` | PA100 | fender | NAM |
+| `nam_koch_multitone_50` | Multitone 50 | koch | NAM |
+| `nam_lab_series_l2` | L2 | lab-series | NAM |
+| `nam_zt_lunchbox_jr` | Lunchbox Jr | zt | NAM |
 
 Os 3 nativos usam `native_core::model_schema()` -> mesmos parametros: gain, bass, middle, treble, presence, depth, sag, master, bright.
 
-Marshall NAM -> parametros: volume (50-70%), gain (10-100%), em steps de 10 (mapeado para captures .nam).
+Marshall NAM e todos os NAM novos -> parametros: volume (50-70%), gain (10-100%), em steps de 10 (mapeado para captures .nam).
 
 ---
 

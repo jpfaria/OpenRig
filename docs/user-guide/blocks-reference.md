@@ -1,6 +1,6 @@
 # Blocks Reference
 
-OpenRig ships with **329 models** across **16 block types**, powered by four distinct audio backends. This document provides a complete reference for every block type and model available in the system.
+OpenRig ships with **350 models** across **16 block types**, powered by four distinct audio backends. This document provides a complete reference for every block type and model available in the system.
 
 ## Audio Backends
 
@@ -24,8 +24,29 @@ A preamp block shapes the guitar signal before it reaches the power amp stage. I
 | American Clean          | --       | Native  | Clean American-style preamp     |
 | Brit Crunch             | --       | Native  | British crunch preamp           |
 | Modern High Gain        | --       | Native  | Modern high-gain preamp         |
-| Marshall JCM 800 2203   | Marshall | NAM     | Classic British crunch/gain     |
-| Diezel VH4              | Diezel   | NAM     | Modern high-gain German amp     |
+| Marshall JCM 800 2203   | Marshall          | NAM     | Classic British crunch/gain                            |
+| Diezel VH4              | Diezel            | NAM     | Modern high-gain German amp                            |
+| Thunder 50              | ENGL              | NAM     | Tight German high-gain lead amp                        |
+| '57 Custom Champ        | Fender            | NAM     | Small vintage tweed combo, clean to light breakup      |
+| '57 Custom Deluxe       | Fender            | NAM     | Vintage tweed combo with warm, full breakup character  |
+| Frontman 15G            | Fender            | NAM     | Solid-state practice amp, clean and gain channels      |
+| PA100                   | Fender            | NAM     | Vintage PA head repurposed as a clean guitar amp       |
+| Bantamp Meteor          | Joyo              | NAM     | Compact mini-head with a wide range of gain voicings   |
+| AVT50H                  | Marshall          | NAM     | Hybrid head, modern high-gain focused                  |
+| YJM100                  | Marshall          | NAM     | Yngwie signature, classic JCM800 character with boost  |
+| Mark III                | Mesa/Boogie       | NAM     | Tight, percussive Mesa with multiple EQ modes          |
+| Micro Terror            | Orange            | NAM     | Tiny all-valve head, warm Orange crunch and saturation |
+| Shaman                  | Panama            | NAM     | Versatile amp spanning clean through high-gain         |
+| Classic 30              | Peavey            | NAM     | EL84-based combo, clean and slightly pushed tones      |
+| MIG-100 KT88            | Sovtek            | NAM     | Russian power-amp character, raw and punchy            |
+| VX Kraken               | Victory           | NAM     | Aggressive high-gain head, shred-oriented voicing      |
+| MIG-50                  | Electro-Harmonix  | NAM     | Boutique 50W head, clean through overdrive range       |
+| 22 Caliber              | Electro-Harmonix  | NAM     | Low-wattage head with clean and crunch tones           |
+| Blues Baby 22           | Award-Session     | NAM     | British-influenced 22W combo, clean to overdrive       |
+| Fly                     | Blackstar         | NAM     | Ultra-compact amp, clean and crunch tones              |
+| Multitone 50            | Koch              | NAM     | Dutch 50W amp with clean, crunch, and OD channels      |
+| L2                      | Lab Series        | NAM     | Solid-state Lab Series, clean with unique filtering    |
+| Lunchbox Jr             | ZT                | NAM     | Compact 35W solid-state, clean through overdrive       |
 
 ### Parameters -- Native Preamp
 
@@ -57,6 +78,41 @@ A preamp block shapes the guitar signal before it reaches the power amp stage. I
 | voicing     | Voicing mode             |
 | gain_level  | Gain level               |
 | boost       | Boost switch             |
+
+### Parameters -- NAM models (standard, issue #204)
+
+All 21 new NAM preamp models added in issue #204 share the same two-parameter interface:
+
+| Parameter | Range                | Description        |
+|-----------|----------------------|--------------------|
+| volume    | 50--70%              | Output volume      |
+| gain      | 10--100% (10% steps) | Gain level         |
+
+Each model selects a capture file based on the `gain` value (mapped to steps of 10). The available voicings per model are:
+
+| Model ID | Available Voicings / Captures |
+|----------|-------------------------------|
+| `nam_engl_thunder_50` | lead |
+| `nam_fender_57_champ` | clean, crunch, od × in1, in2 |
+| `nam_fender_57_deluxe` | clean, crunch, od × in1, in2 |
+| `nam_fender_frontman_15g` | clean, clean_boost, high_gain |
+| `nam_joyo_bantamp_meteor` | clean, clean_gain, low_crunch, crunch, high_gain, high_gain_808, maxed |
+| `nam_marshall_avt50h` | hg_bass_cut, hg_dimed, hg_mid_cut, hg_mid_forward, hg_treb_cut |
+| `nam_marshall_yjm100` | standard, jcm800_mode, boost_bright, modern |
+| `nam_mesa_mark_iii` | eq (lohi / lomed / medhi) × gain (cranked / pushed) |
+| `nam_orange_micro_terror` | modified DI |
+| `nam_panama_shaman` | clean, crunch, hg, od × gain g1--g9 |
+| `nam_peavey_classic_30` | clean, clean_boost |
+| `nam_sovtek_mig100` | v1, v2, v3 |
+| `nam_victory_vx_kraken` | shred_di, shred_full |
+| `nam_ehx_mig50` | clean, crunch, od |
+| `nam_ehx_22_caliber` | clean, crunch |
+| `nam_award_session_blues_baby_22` | clean, crunch, od |
+| `nam_blackstar_fly` | clean, crunch, od |
+| `nam_fender_pa100` | clean |
+| `nam_koch_multitone_50` | clean, crunch, od × variant 1, 2, 3 |
+| `nam_lab_series_l2` | clean, crunch, od |
+| `nam_zt_lunchbox_jr` | clean, crunch, od |
 
 ---
 
