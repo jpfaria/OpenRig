@@ -81,7 +81,10 @@ pub fn params_from_set(params: &ParameterSet) -> Result<GateParams> {
 
 pub struct BasicNoiseGate {
     threshold: f32,
+    /// Tracks signal level for threshold comparison.
     envelope: EnvelopeFollower,
+    /// Smooths the gate gain (0.0 → 1.0) to avoid clicks on threshold crossings.
+    gain_follower: EnvelopeFollower,
 }
 
 impl BasicNoiseGate {
@@ -89,6 +92,7 @@ impl BasicNoiseGate {
         Self {
             threshold: db_to_lin(threshold_db),
             envelope: EnvelopeFollower::from_ms(attack_ms, release_ms, sample_rate),
+            gain_follower: EnvelopeFollower::from_ms(attack_ms, release_ms, sample_rate),
         }
     }
 }
@@ -96,11 +100,11 @@ impl BasicNoiseGate {
 impl MonoProcessor for BasicNoiseGate {
     fn process_sample(&mut self, input: f32) -> f32 {
         let env = self.envelope.process(input.abs());
-        if env >= self.threshold {
-            input
-        } else {
-            0.0
-        }
+        // Target gain: fully open when above threshold, fully closed below.
+        let target = if env >= self.threshold { 1.0_f32 } else { 0.0_f32 };
+        // Smooth the gain transition — eliminates clicks on threshold crossings.
+        let gain = self.gain_follower.process(target);
+        input * gain
     }
 }
 
