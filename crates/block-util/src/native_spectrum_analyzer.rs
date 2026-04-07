@@ -32,7 +32,7 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: "utility".to_string(),
         model: MODEL_ID.to_string(),
         display_name: DISPLAY_NAME.to_string(),
-        audio_mode: ModelAudioMode::MonoOnly,
+        audio_mode: ModelAudioMode::DualMono,
         parameters: vec![],
     }
 }
@@ -219,7 +219,7 @@ fn build(
             Ok((BlockProcessor::Mono(Box::new(processor)), Some(stream)))
         }
         AudioChannelLayout::Stereo => anyhow::bail!(
-            "spectrum_analyzer is mono-only (ModelAudioMode::MonoOnly); stereo chains are not supported"
+            "spectrum_analyzer uses DualMono; engine should never call build with Stereo layout"
         ),
     }
 }
