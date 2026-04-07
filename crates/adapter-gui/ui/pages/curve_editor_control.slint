@@ -36,8 +36,10 @@ export component CurveEditorControl inherits Rectangle {
         background: #ffffff10;
     }
 
-    // Per-band vertical sliders — identical look to MultiSlider
+    // Per-band vertical sliders
     for point[i] in root.points : Rectangle {
+        // Stored at press time so drag computes correctly from a stable anchor
+        property <float> start-norm: 0.0;
         private property <float> norm: (point.y-value - point.y-min) / Math.max(0.001, point.y-max - point.y-min);
 
         property <length> slider-w: Math.max(4px, (root.width - 2px) / Math.max(1, root.points.length) - 1px);
@@ -45,6 +47,24 @@ export component CurveEditorControl inherits Rectangle {
         y: 0;
         width: self.slider-w;
         height: parent.height;
+
+        // Full-column touch area — drag anywhere in the band column
+        TouchArea {
+            mouse-cursor: ns-resize;
+            pointer-event(event) => {
+                if event.kind == PointerEventKind.down {
+                    parent.start-norm = parent.norm;
+                }
+            }
+            moved => {
+                let dy = (self.mouse-y - self.pressed-y) / root.chart-h;
+                let new-norm = Math.clamp(parent.start-norm - dy, 0.0, 1.0);
+                let new-gain = Math.clamp(
+                    point.y-min + new-norm * (point.y-max - point.y-min),
+                    point.y-min, point.y-max);
+                root.update-parameter(point.y-path, new-gain);
+            }
+        }
 
         // Track
         Rectangle {
@@ -67,9 +87,8 @@ export component CurveEditorControl inherits Rectangle {
             background: #4488ff80;
         }
 
-        // Thumb
+        // Thumb (visual only — interaction is on TouchArea above)
         Rectangle {
-            property <float> current-norm: (point.y-value - point.y-min) / Math.max(0.001, point.y-max - point.y-min);
             property <length> thumb-w: Math.min(parent.width - 8px, 48px);
             x: (parent.width - self.thumb-w) / 2;
             y: (1.0 - parent.norm) * (root.chart-h - 8px) + 4px - 4px;
@@ -77,18 +96,6 @@ export component CurveEditorControl inherits Rectangle {
             height: 8px;
             border-radius: 4px;
             background: #88aaff;
-
-            TouchArea {
-                mouse-cursor: ns-resize;
-                moved => {
-                    let dy = (self.mouse-y - self.pressed-y) / root.chart-h;
-                    let new-norm = Math.clamp(parent.current-norm - dy, 0.0, 1.0);
-                    let new-gain = Math.clamp(
-                        point.y-min + new-norm * (point.y-max - point.y-min),
-                        point.y-min, point.y-max);
-                    root.update-parameter(point.y-path, new-gain);
-                }
-            }
         }
 
         // Gain label above thumb

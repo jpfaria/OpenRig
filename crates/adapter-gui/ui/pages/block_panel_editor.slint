@@ -336,7 +336,9 @@ export component BlockPanelEditor inherits Rectangle {
         root.selected-type-label == "" ? 0px : 56px;
     private property <length> header-height: 48px;
     private property <length> brand-strip-height: 0px;
-    private property <length> panel-height: root.width / 4;
+    // EQ blocks have no panel image — use a fixed compact height instead of width/4
+    private property <bool> has-eq-widget: root.curve-editor-points.length > 0 || root.multi-slider-points.length > 0;
+    private property <length> panel-height: self.has-eq-widget ? 90px : root.width / 4;
     private property <length> footer-height: root.block-drawer-edit-mode ? 0px : 52px;
 
     background: #0a0a0e;

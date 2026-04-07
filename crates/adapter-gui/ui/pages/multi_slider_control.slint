@@ -10,7 +10,7 @@ export component MultiSliderControl inherits Rectangle {
     border-radius: 6px;
     clip: true;
 
-    // Chart area height (bottom 20px reserved for band labels)
+    // Bottom 20px reserved for band labels
     private property <length> chart-h: root.height - 20px;
 
     // 0 dB center line
@@ -22,7 +22,9 @@ export component MultiSliderControl inherits Rectangle {
 
     // Sliders — one per point
     for point[i] in root.points : Rectangle {
-        property <float> norm: (point.value - point.min-val) / Math.max(0.001, point.max-val - point.min-val);
+        // Stored at press time so drag is anchored to the click position
+        property <float> start-norm: 0.0;
+        private property <float> norm: (point.value - point.min-val) / Math.max(0.001, point.max-val - point.min-val);
 
         property <length> slider-w: Math.max(4px, (root.width - 2px) / Math.max(1, root.points.length) - 1px);
         x: i * (self.slider-w + 1px);
@@ -30,7 +32,25 @@ export component MultiSliderControl inherits Rectangle {
         width: self.slider-w;
         height: parent.height;
 
-        // Track (thin vertical line)
+        // Full-column touch area — drag anywhere in the band column
+        TouchArea {
+            mouse-cursor: ns-resize;
+            pointer-event(event) => {
+                if event.kind == PointerEventKind.down {
+                    parent.start-norm = parent.norm;
+                }
+            }
+            moved => {
+                let dy = (self.mouse-y - self.pressed-y) / root.chart-h;
+                let new-norm = Math.clamp(parent.start-norm - dy, 0.0, 1.0);
+                let new-val = Math.clamp(
+                    point.min-val + new-norm * (point.max-val - point.min-val),
+                    point.min-val, point.max-val);
+                root.update-parameter(point.path, new-val);
+            }
+        }
+
+        // Track
         Rectangle {
             x: parent.width / 2 - 1px;
             y: 4px;
@@ -39,12 +59,11 @@ export component MultiSliderControl inherits Rectangle {
             background: #ffffff15;
         }
 
-        // Fill: colored bar from zero to current value
+        // Fill from 0 dB to current value
         Rectangle {
             property <float> center-norm: (0.0 - point.min-val) / Math.max(0.001, point.max-val - point.min-val);
             property <length> center-y: (1.0 - parent.norm) * (root.chart-h - 8px) + 4px;
             property <length> zero-y: (1.0 - self.center-norm) * (root.chart-h - 8px) + 4px;
-
             x: parent.width / 2 - 2px;
             y: Math.min(self.center-y, self.zero-y);
             width: 4px;
@@ -52,9 +71,8 @@ export component MultiSliderControl inherits Rectangle {
             background: #4488ff80;
         }
 
-        // Thumb (capped width so it looks like a vertical slider even with few bands)
-        thumb := Rectangle {
-            property <float> current-norm: (point.value - point.min-val) / Math.max(0.001, point.max-val - point.min-val);
+        // Thumb (visual only — interaction is on TouchArea above)
+        Rectangle {
             property <length> thumb-w: Math.min(parent.width - 4px, 48px);
             x: (parent.width - self.thumb-w) / 2;
             y: (1.0 - parent.norm) * (root.chart-h - 8px) + 4px - 2px;
@@ -62,18 +80,6 @@ export component MultiSliderControl inherits Rectangle {
             height: 4px;
             border-radius: 2px;
             background: #88aaff;
-
-            TouchArea {
-                mouse-cursor: ns-resize;
-                moved => {
-                    let dy = (self.mouse-y - self.pressed-y) / root.chart-h;
-                    let new-norm = Math.clamp(parent.current-norm - dy, 0.0, 1.0);
-                    let new-val = Math.clamp(
-                        point.min-val + new-norm * (point.max-val - point.min-val),
-                        point.min-val, point.max-val);
-                    root.update-parameter(point.path, new-val);
-                }
-            }
         }
 
         // Band frequency label at the bottom
