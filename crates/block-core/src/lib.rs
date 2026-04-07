@@ -12,6 +12,8 @@ pub struct StreamEntry {
     pub key: String,
     pub value: f32,
     pub text: String,
+    /// Peak hold level (0.0–1.0). Used by spectrum-type streams; 0.0 for others.
+    pub peak: f32,
 }
 
 /// Shared handle for publishing stream data from a processor to the GUI.

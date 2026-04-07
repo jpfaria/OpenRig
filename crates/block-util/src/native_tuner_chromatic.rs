@@ -258,9 +258,9 @@ impl DetectionEngine {
                 if let Some(ref current) = self.current_note {
                     if let Ok(mut entries) = stream.lock() {
                         entries.clear();
-                        entries.push(StreamEntry { key: "note".to_string(), value: 0.0, text: current.clone() });
-                        entries.push(StreamEntry { key: "cents".to_string(), value: cents, text: format!("{cents:+.1}") });
-                        entries.push(StreamEntry { key: "frequency".to_string(), value: freq, text: format!("{freq:.1} Hz") });
+                        entries.push(StreamEntry { key: "note".to_string(), value: 0.0, text: current.clone(), peak: 0.0 });
+                        entries.push(StreamEntry { key: "cents".to_string(), value: cents, text: format!("{cents:+.1}"), peak: 0.0 });
+                        entries.push(StreamEntry { key: "frequency".to_string(), value: freq, text: format!("{freq:.1} Hz"), peak: 0.0 });
                     }
                 }
             }

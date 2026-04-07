@@ -556,6 +556,19 @@ component CompactBlockRow inherits Rectangle {
                     : #4488ff;
                 border-radius: 1px;
             }
+
+            // Peak hold line
+            Rectangle {
+                x: 1px;
+                y: Math.max(0px, parent.height - entry.peak * parent.height - 1px);
+                width: parent.width - 2px;
+                height: 2px;
+                background: entry.peak > 0.85 ? #ff8877
+                    : entry.peak > 0.65 ? #ffcc66
+                    : entry.peak > 0.3 ? #88ffcc
+                    : #88bbff;
+                opacity: entry.peak > 0.01 ? 1.0 : 0.0;
+            }
         }
     }
 

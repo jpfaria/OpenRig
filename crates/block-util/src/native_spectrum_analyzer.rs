@@ -94,11 +94,41 @@ impl BandSmoother {
     }
 }
 
+// Peak hold: decays from peak to 0 over ~2.5s
+const PEAK_DECAY_TAU: f32 = 2.5;
+
+/// Per-band peak hold: jumps instantly to new peak, then decays exponentially.
+struct PeakHolder {
+    peaks: [f32; N_BANDS],
+    decay_factor: f32,
+}
+
+impl PeakHolder {
+    fn new(sample_rate: f32) -> Self {
+        let dt = FFT_SIZE as f32 / sample_rate;
+        Self {
+            peaks: [0.0; N_BANDS],
+            decay_factor: (-dt / PEAK_DECAY_TAU).exp(),
+        }
+    }
+
+    fn update(&mut self, levels: &[f32; N_BANDS]) {
+        for i in 0..N_BANDS {
+            if levels[i] >= self.peaks[i] {
+                self.peaks[i] = levels[i];
+            } else {
+                self.peaks[i] *= self.decay_factor;
+            }
+        }
+    }
+}
+
 struct SpectrumWorker {
     fft: Arc<dyn rustfft::Fft<f32>>,
     hann: Vec<f32>,
     bin_ranges: [(usize, usize); N_BANDS],
     smoother: BandSmoother,
+    peaks: PeakHolder,
     stream: StreamHandle,
 }
 
@@ -125,6 +155,7 @@ impl SpectrumWorker {
             hann,
             bin_ranges,
             smoother: BandSmoother::new(sample_rate),
+            peaks: PeakHolder::new(sample_rate),
             stream,
         }
     }
@@ -139,21 +170,22 @@ impl SpectrumWorker {
 
         self.fft.process(&mut input);
 
-        // Compute magnitude for each band (max bin in range, normalized)
+        // Compute magnitude for each band (max bin in range, normalized to 0.0-1.0)
         let scale = 2.0 / FFT_SIZE as f32;
         let mut new_levels = [0.0f32; N_BANDS];
         for (i, &(lo, hi)) in self.bin_ranges.iter().enumerate() {
-            let peak = input[lo..hi.min(FFT_SIZE / 2)]
+            let mag = input[lo..hi.min(FFT_SIZE / 2)]
                 .iter()
                 .map(|c| c.norm() * scale)
                 .fold(0.0f32, f32::max);
 
-            // Convert to dB then normalize: range is -80dB to 0dB -> 0.0 to 1.0
-            let db = 20.0 * peak.max(1e-10).log10();
+            // Convert to dB then normalize: -80dBFS..0dBFS → 0.0..1.0
+            let db = 20.0 * mag.max(1e-10).log10();
             new_levels[i] = ((db + 80.0) / 80.0).clamp(0.0, 1.0);
         }
 
         self.smoother.update(&new_levels);
+        self.peaks.update(&self.smoother.levels);
 
         // Write to stream handle
         if let Ok(mut entries) = self.stream.lock() {
@@ -163,6 +195,7 @@ impl SpectrumWorker {
                     key: format!("band_{i}"),
                     value: level,
                     text: BAND_LABELS[i].to_string(),
+                    peak: self.peaks.peaks[i],
                 });
             }
         }

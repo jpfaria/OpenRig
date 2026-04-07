@@ -2552,6 +2552,7 @@ pub fn run_desktop_app(
                                                 key: e.key.clone().into(),
                                                 value: e.value,
                                                 text: e.text.clone().into(),
+                                                peak: e.peak,
                                             }).collect();
                                             BlockStreamData {
                                                 active: true,
@@ -3853,6 +3854,7 @@ pub fn run_desktop_app(
                                     key: e.key.clone().into(),
                                     value: e.value,
                                     text: e.text.clone().into(),
+                                    peak: e.peak,
                                 }).collect();
                                 win.set_block_stream_data(BlockStreamData {
                                     active: true,
