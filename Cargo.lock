@@ -2854,6 +2854,7 @@ name = "infra-cpal"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "block-core",
  "block-util",
  "cpal",
  "domain",
