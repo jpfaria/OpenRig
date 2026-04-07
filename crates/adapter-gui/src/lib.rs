@@ -450,6 +450,7 @@ pub fn run_desktop_app(
         ProjectSettingsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     let chain_editor_window: Rc<RefCell<Option<ChainEditorWindow>>> =
         Rc::new(RefCell::new(None));
+    let plugin_info_window: Rc<RefCell<Option<PluginInfoWindow>>> = Rc::new(RefCell::new(None));
     let chain_input_window =
         ChainInputWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     let chain_output_window =
@@ -651,6 +652,7 @@ pub fn run_desktop_app(
     }
     {
         let weak_window = window.as_weak();
+        let plugin_info_window = plugin_info_window.clone();
         block_editor_window.on_show_plugin_info(move |effect_type, model_id| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -701,7 +703,10 @@ pub fn run_desktop_app(
                 });
             }
 
-            show_child_window(window.window(), info_win.window());
+            *plugin_info_window.borrow_mut() = Some(info_win);
+            if let Some(w) = plugin_info_window.borrow().as_ref() {
+                show_child_window(window.window(), w.window());
+            }
         });
     }
     {
@@ -7967,12 +7972,12 @@ fn load_screenshot_image(effect_type: &str, model_id: &str) -> (slint::Image, bo
 }
 
 fn system_language() -> String {
-    std::env::var("LANG")
-        .unwrap_or_default()
-        .split('.')
-        .next()
-        .unwrap_or("en-US")
-        .replace('_', "-")
+    let lang = std::env::var("LANG").unwrap_or_default();
+    let base = lang.split('.').next().unwrap_or("");
+    if base.is_empty() {
+        return "en-US".to_string();
+    }
+    base.replace('_', "-")
 }
 
 /// Map a UI block index (which excludes hidden first Input and last Output) to the real chain.blocks index.
