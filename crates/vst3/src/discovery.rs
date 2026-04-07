@@ -92,11 +92,46 @@ fn dirs_home() -> Option<PathBuf> {
         })
 }
 
-/// Scan a single `.vst3` bundle directory and return info for each plugin class.
+/// Scan a single `.vst3` bundle directory — **light mode**: only reads factory
+/// class info without fully instantiating any plugin.
+///
+/// This is safe for all plugins (including complex commercial ones that may crash
+/// on full initialisation). The returned `Vst3PluginInfo` entries will have
+/// `params` empty and `num_audio_inputs/outputs` defaulted to 2.
+///
+/// Returns an error only if the factory cannot be opened at all.
+pub fn scan_vst3_bundle_light(bundle_path: &Path) -> Result<Vec<Vst3PluginInfo>> {
+    let vendor = Vst3Plugin::factory_vendor(bundle_path);
+    let (_lib, classes) = Vst3Plugin::enumerate_classes(bundle_path)?;
+
+    let results = classes
+        .into_iter()
+        .filter(|c| c.category.contains("Audio Module Class") || c.category.contains("Audio"))
+        .map(|class| Vst3PluginInfo {
+            uid: class.uid,
+            name: class.name,
+            vendor: vendor.clone(),
+            category: class.category,
+            bundle_path: bundle_path.to_path_buf(),
+            params: Vec::new(),
+            num_audio_inputs: 2,
+            num_audio_outputs: 2,
+        })
+        .collect();
+
+    Ok(results)
+}
+
+/// Scan a single `.vst3` bundle directory — **full mode**: fully instantiates
+/// each plugin class to enumerate its parameters and bus layout.
 ///
 /// `sample_rate` is needed to initialise the plugin for parameter enumeration.
 /// Returns an error only if the bundle cannot be loaded at all; individual class
 /// failures are logged and skipped.
+///
+/// **Warning**: some complex commercial plugins (e.g. Guitar Rig, Kontakt) may
+/// crash the process during full initialisation. Prefer `scan_vst3_bundle_light`
+/// for system-wide discovery and reserve this for known-safe plugins only.
 pub fn scan_vst3_bundle(bundle_path: &Path, sample_rate: f64) -> Result<Vec<Vst3PluginInfo>> {
     let vendor = Vst3Plugin::factory_vendor(bundle_path);
 
@@ -190,10 +225,14 @@ pub fn resolve_vst3_bundle(bundle_name: &str) -> Result<PathBuf> {
     )
 }
 
-/// Scan all standard system VST3 paths and return discovered plugins.
+/// Scan all standard system VST3 paths and return discovered plugins (light mode).
 ///
-/// Bundles that fail to load are silently skipped (errors are logged).
-pub fn scan_system_vst3(sample_rate: f64) -> Vec<Vst3PluginInfo> {
+/// Uses `scan_vst3_bundle_light` — only reads factory class info, never fully
+/// instantiates plugins. This is safe for all plugins including complex commercial
+/// ones that may crash on full initialisation.
+///
+/// Bundles that fail to open are silently skipped (errors are logged).
+pub fn scan_system_vst3(_sample_rate: f64) -> Vec<Vst3PluginInfo> {
     let search_paths = system_vst3_paths();
     let mut results = Vec::new();
 
@@ -201,14 +240,14 @@ pub fn scan_system_vst3(sample_rate: f64) -> Vec<Vst3PluginInfo> {
         if !root.exists() {
             continue;
         }
-        scan_directory(root, sample_rate, &mut results);
+        scan_directory_light(root, &mut results);
     }
 
     results
 }
 
-/// Recursively walk `dir` looking for `.vst3` bundle directories.
-fn scan_directory(dir: &Path, sample_rate: f64, results: &mut Vec<Vst3PluginInfo>) {
+/// Recursively walk `dir` looking for `.vst3` bundle directories (light scan).
+fn scan_directory_light(dir: &Path, results: &mut Vec<Vst3PluginInfo>) {
     let entries = match std::fs::read_dir(dir) {
         Ok(e) => e,
         Err(e) => {
@@ -221,20 +260,14 @@ fn scan_directory(dir: &Path, sample_rate: f64, results: &mut Vec<Vst3PluginInfo
         let path = entry.path();
         if path.is_dir() {
             if path.extension().and_then(|e| e.to_str()) == Some("vst3") {
-                // This is a VST3 bundle directory.
-                match scan_vst3_bundle(&path, sample_rate) {
+                match scan_vst3_bundle_light(&path) {
                     Ok(infos) => results.extend(infos),
                     Err(e) => {
-                        log::debug!(
-                            "VST3 scan: skipping {}: {}",
-                            path.display(),
-                            e
-                        );
+                        log::debug!("VST3 scan: skipping {}: {}", path.display(), e);
                     }
                 }
             } else {
-                // Recurse into sub-directories (some installers nest bundles).
-                scan_directory(&path, sample_rate, results);
+                scan_directory_light(&path, results);
             }
         }
     }

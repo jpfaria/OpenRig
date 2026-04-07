@@ -20,7 +20,7 @@ pub mod catalog;
 pub use host::{Vst3Plugin, Vst3ParamInfo, Vst3PluginClass};
 pub use processor::Vst3Processor;
 pub use stereo::StereoVst3Processor;
-pub use discovery::{Vst3PluginInfo, scan_vst3_bundle, scan_system_vst3, system_vst3_paths, resolve_vst3_bundle};
+pub use discovery::{Vst3PluginInfo, scan_vst3_bundle, scan_vst3_bundle_light, scan_system_vst3, system_vst3_paths, resolve_vst3_bundle};
 pub use catalog::{
     Vst3CatalogEntry, init_vst3_catalog, vst3_catalog, find_vst3_plugin,
     vst3_model_ids, vst3_model_visual, make_model_id,

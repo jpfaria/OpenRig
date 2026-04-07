@@ -54,10 +54,12 @@ pub fn make_model_id(info: &Vst3PluginInfo) -> String {
 /// Must be called once at startup before `vst3_catalog()` is used.
 /// Subsequent calls are no-ops (the `OnceLock` prevents re-initialisation).
 ///
-/// `sample_rate` is used to instantiate plugins for parameter enumeration.
+/// Uses light scanning (no plugin instantiation), so it is safe even for
+/// complex commercial plugins that might crash on full initialisation.
+/// `sample_rate` is kept for API compatibility but is no longer used here.
 pub fn init_vst3_catalog(sample_rate: f64) {
     CATALOG.get_or_init(|| {
-        let infos = scan_system_vst3(sample_rate);
+        let infos = scan_system_vst3(sample_rate); // sample_rate unused (light scan)
         log::info!("VST3 catalog: discovered {} plugins", infos.len());
         infos
             .into_iter()
