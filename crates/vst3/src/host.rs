@@ -572,6 +572,11 @@ impl Vst3Plugin {
         &self.controller
     }
 
+    /// Access the `IComponent` interface (needed for GUI host setup: IConnectionPoint).
+    pub fn component(&self) -> &ComPtr<IComponent> {
+        &self.component
+    }
+
     /// Enumerate all plugin classes in a bundle without fully initialising them.
     ///
     /// Useful for the discovery scanner.

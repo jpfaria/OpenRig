@@ -7,7 +7,7 @@
 
 use anyhow::{bail, Result};
 use std::path::Path;
-use vst3::Steinberg::Vst::{IEditControllerTrait, ViewType};
+use vst3::Steinberg::Vst::{IConnectionPointTrait, IEditControllerTrait, ViewType};
 use vst3::Steinberg::{IPlugViewTrait, ViewRect, kResultOk};
 use vst3::ComPtr;
 
@@ -49,6 +49,20 @@ pub fn open_vst3_editor_window(
 ) -> Result<Vst3EditorHandle> {
     // Load a lightweight plugin instance (2ch, small block) just for the GUI.
     let plugin = Vst3Plugin::load(bundle_path, uid, sample_rate, 2, 512, &[])?;
+
+    // Standard VST3 host requirement: connect component ↔ controller via
+    // IConnectionPoint so the controller can query component state before
+    // creating its view. Many plugins return null from createView otherwise.
+    unsafe {
+        use vst3::Steinberg::Vst::IConnectionPoint;
+        if let Some(comp_cp) = plugin.component().cast::<IConnectionPoint>() {
+            if let Some(ctrl_cp) = plugin.controller().cast::<IConnectionPoint>() {
+                let _ = comp_cp.connect(ctrl_cp.as_ptr());
+                let _ = ctrl_cp.connect(comp_cp.as_ptr());
+                log::debug!("VST3 editor: IConnectionPoint connected");
+            }
+        }
+    }
 
     // Get IPlugView from the controller.
     let view_ptr = unsafe { plugin.controller().createView(ViewType::kEditor) };
