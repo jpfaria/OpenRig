@@ -355,6 +355,7 @@ export component BlockEditorWindow inherits Window {
     callback update-block-parameter-bool(string, bool);
     callback select-block-parameter-option(string, int);
     callback pick-block-parameter-file(string);
+    callback open-vst3-editor(string); // model-id
 
     // Realtime data stream from engine (tuner, meter, analyzer, etc.)
     in property <BlockStreamData> block-stream-data;
@@ -458,6 +459,7 @@ export component BlockEditorWindow inherits Window {
         update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
         select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
         pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
+        open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
     }
 
     in-out property <string> toast-message;
@@ -635,6 +637,7 @@ export component AppWindow inherits Window {
     callback update-block-parameter-bool(string, bool);
     callback select-block-parameter-option(string, int);
     callback pick-block-parameter-file(string);
+    callback open-vst3-editor(string); // model-id
     callback save-chain();
     callback cancel-chain();
     title: "OpenRig";
@@ -751,6 +754,7 @@ export component AppWindow inherits Window {
         update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
         select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
         pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
+        open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
         reorder-chain-block(chain-index, from-index, before-index) => { root.reorder-chain-block(chain-index, from-index, before-index); }
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }
@@ -864,6 +868,7 @@ export component AppWindow inherits Window {
         update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
         select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
         pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
+        open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
         reorder-chain-block(chain-index, from-index, before-index) => { root.reorder-chain-block(chain-index, from-index, before-index); }
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }

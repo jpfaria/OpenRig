@@ -567,6 +567,11 @@ impl Vst3Plugin {
         unsafe { self.controller.getParameterCount() }
     }
 
+    /// Access the `IEditController` interface for this plugin (e.g. to create a GUI view).
+    pub fn controller(&self) -> &ComPtr<vst3::Steinberg::Vst::IEditController> {
+        &self.controller
+    }
+
     /// Enumerate all plugin classes in a bundle without fully initialising them.
     ///
     /// Useful for the discovery scanner.
