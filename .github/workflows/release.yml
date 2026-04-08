@@ -100,6 +100,7 @@ jobs:
           cp -r libs/nam/macos-universal "$APP/Contents/Resources/libs/nam/macos-universal"
           cp -r data/lv2                "$APP/Contents/Resources/data"
           cp -r assets                  "$APP/Contents/Resources/assets"
+          cp -r captures                "$APP/Contents/Resources/captures"
 
           cat > "$APP/Contents/Info.plist" << 'PLIST'
           <?xml version="1.0" encoding="UTF-8"?>
@@ -201,22 +202,20 @@ jobs:
           cp -r libs/lv2/linux-x86_64      "$S/usr/lib/openrig/libs/lv2/linux-x86_64"
           cp -r libs/nam/linux-x86_64      "$S/usr/lib/openrig/libs/nam/linux-x86_64"
           cp -r data/lv2                   "$S/usr/share/openrig/data/lv2"
-          cp -r assets/blocks              "$S/usr/share/openrig/assets/blocks"
+          cp -r assets                     "$S/usr/share/openrig/assets"
+          cp -r captures                   "$S/usr/share/openrig/captures"
 
       - name: Create .tar.gz
         env:
           VERSION: ${{ steps.ver.outputs.v }}
         run: |
           D="openrig-${VERSION}-linux-x86_64"
-          cp -r dist/stage/usr/bin/openrig dist/stage/usr/lib/openrig/libs \
-               dist/stage/usr/share/openrig/data \
-               dist/stage/usr/share/openrig/assets \
-               /tmp/ 2>/dev/null || true
           mkdir -p "dist/${D}"
-          cp dist/stage/usr/bin/openrig            "dist/${D}/openrig"
-          cp -r dist/stage/usr/lib/openrig/libs    "dist/${D}/libs"
-          cp -r dist/stage/usr/share/openrig/data  "dist/${D}/data"
-          cp -r dist/stage/usr/share/openrig/assets "dist/${D}/assets"
+          cp dist/stage/usr/bin/openrig               "dist/${D}/openrig"
+          cp -r dist/stage/usr/lib/openrig/libs       "dist/${D}/libs"
+          cp -r dist/stage/usr/share/openrig/data     "dist/${D}/data"
+          cp -r dist/stage/usr/share/openrig/assets   "dist/${D}/assets"
+          cp -r dist/stage/usr/share/openrig/captures "dist/${D}/captures"
           tar -czf "dist/${D}.tar.gz" -C dist "${D}"
 
       - name: Create .deb
@@ -268,6 +267,7 @@ jobs:
             'export OPENRIG_LIBS_DIR="$HERE/usr/lib/openrig/libs"' \
             'export OPENRIG_DATA_DIR="$HERE/usr/share/openrig/data"' \
             'export OPENRIG_ASSETS_DIR="$HERE/usr/share/openrig/assets"' \
+            'export OPENRIG_CAPTURES_DIR="$HERE/usr/share/openrig/captures"' \
             'exec "$HERE/usr/bin/openrig" "$@"' \
             > "$APPDIR/AppRun"
           chmod +x "$APPDIR/AppRun"
@@ -356,7 +356,8 @@ jobs:
           cp -r libs/lv2/linux-aarch64     "$S/usr/lib/openrig/libs/lv2/linux-aarch64"
           cp -r libs/nam/linux-aarch64     "$S/usr/lib/openrig/libs/nam/linux-aarch64"
           cp -r data/lv2                   "$S/usr/share/openrig/data/lv2"
-          cp -r assets/blocks              "$S/usr/share/openrig/assets/blocks"
+          cp -r assets                     "$S/usr/share/openrig/assets"
+          cp -r captures                   "$S/usr/share/openrig/captures"
 
       - name: Create .tar.gz
         env:
@@ -364,10 +365,11 @@ jobs:
         run: |
           D="openrig-${VERSION}-linux-aarch64"
           mkdir -p "dist/${D}"
-          cp dist/stage/usr/bin/openrig              "dist/${D}/openrig"
-          cp -r dist/stage/usr/lib/openrig/libs      "dist/${D}/libs"
-          cp -r dist/stage/usr/share/openrig/data    "dist/${D}/data"
-          cp -r dist/stage/usr/share/openrig/assets  "dist/${D}/assets"
+          cp dist/stage/usr/bin/openrig               "dist/${D}/openrig"
+          cp -r dist/stage/usr/lib/openrig/libs       "dist/${D}/libs"
+          cp -r dist/stage/usr/share/openrig/data     "dist/${D}/data"
+          cp -r dist/stage/usr/share/openrig/assets   "dist/${D}/assets"
+          cp -r dist/stage/usr/share/openrig/captures "dist/${D}/captures"
           tar -czf "dist/${D}.tar.gz" -C dist "${D}"
 
       - name: Create .deb
@@ -419,6 +421,7 @@ jobs:
             'export OPENRIG_LIBS_DIR="$HERE/usr/lib/openrig/libs"' \
             'export OPENRIG_DATA_DIR="$HERE/usr/share/openrig/data"' \
             'export OPENRIG_ASSETS_DIR="$HERE/usr/share/openrig/assets"' \
+            'export OPENRIG_CAPTURES_DIR="$HERE/usr/share/openrig/captures"' \
             'exec "$HERE/usr/bin/openrig" "$@"' \
             > "$APPDIR/AppRun"
           chmod +x "$APPDIR/AppRun"
@@ -498,7 +501,8 @@ jobs:
           cp libs/nam/windows-x64/libNeuralAudioCAPI.dll "dist/${D}/"
           cp -r libs/lv2/windows-x64             "dist/${D}/libs/lv2/windows-x64" 2>/dev/null || true
           cp -r data/lv2                         "dist/${D}/data"
-          cp -r assets/blocks                    "dist/${D}/assets"
+          cp -r assets                           "dist/${D}/assets"
+          cp -r captures                         "dist/${D}/captures"
 
           cd dist
           7z a "${D}.zip" "${D}"

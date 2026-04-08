@@ -71,6 +71,7 @@ cp -r libs/lv2/macos-universal "$APP/Contents/Resources/libs/lv2/macos-universal
 cp -r libs/nam/macos-universal "$APP/Contents/Resources/libs/nam/macos-universal"
 cp -r data/lv2                 "$APP/Contents/Resources/data"
 cp -r assets                   "$APP/Contents/Resources/assets"
+cp -r captures                 "$APP/Contents/Resources/captures"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
