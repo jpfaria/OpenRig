@@ -537,6 +537,7 @@ export component AppWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
     default-font-family: "Cooper Hewitt";
     default-font-size: 13px;
+    in property <string> app-version;
     in property <bool> show-project-launcher;
     in property <bool> show-project-setup;
     in property <bool> show-project-chains;
@@ -660,6 +661,7 @@ export component AppWindow inherits Window {
     if !touch-optimized : DesktopMain {
         width: 100%;
         height: 100%;
+        app-version: root.app-version;
         show-project-launcher: root.show-project-launcher;
         show-project-setup: root.show-project-setup;
         show-project-chains: root.show-project-chains;
