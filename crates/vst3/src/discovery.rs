@@ -181,7 +181,7 @@ pub fn system_vst3_paths() -> Vec<PathBuf> {
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(not(target_os = "windows"))]
 fn dirs_home() -> Option<PathBuf> {
     std::env::var_os("HOME").map(PathBuf::from)
 }
