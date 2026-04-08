@@ -480,6 +480,7 @@ pub fn run_desktop_app(
     let insert_return_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
     let block_editor_window =
         BlockEditorWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    window.set_app_version(env!("CARGO_PKG_VERSION").into());
     window.set_show_project_launcher(true);
     window.set_show_project_setup(false);
     window.set_show_project_chains(false);
