@@ -41,25 +41,25 @@ pub fn model_schema() -> ModelParameterSchema {
 }
 
 pub struct GuitarEq {
-    low_shelf: BiquadFilter,
-    high_shelf: BiquadFilter,
+    hpf: BiquadFilter,
+    lpf: BiquadFilter,
 }
 
 impl GuitarEq {
-    pub fn new(low_cut_pct: f32, high_cut_pct: f32, sample_rate: f32) -> Self {
-        let low_gain_db = -(low_cut_pct / 100.0) * 12.0;
-        let high_gain_db = -(high_cut_pct / 100.0) * 12.0;
+    pub fn new(low_cut: f32, high_cut: f32, sample_rate: f32) -> Self {
+        let hpf_freq = 20.0 + (low_cut / 100.0) * 80.0;
+        let lpf_freq = 20000.0 - (high_cut / 100.0) * 13000.0;
         Self {
-            low_shelf: BiquadFilter::new(BiquadKind::LowShelf, 80.0, low_gain_db, 0.707, sample_rate),
-            high_shelf: BiquadFilter::new(BiquadKind::HighShelf, 8000.0, high_gain_db, 0.707, sample_rate),
+            hpf: BiquadFilter::new(BiquadKind::HighPass, hpf_freq, 0.0, 0.707, sample_rate),
+            lpf: BiquadFilter::new(BiquadKind::LowPass,  lpf_freq, 0.0, 0.707, sample_rate),
         }
     }
 }
 
 impl MonoProcessor for GuitarEq {
     fn process_sample(&mut self, input: f32) -> f32 {
-        let x = self.low_shelf.process(input);
-        self.high_shelf.process(x)
+        let x = self.hpf.process(input);
+        self.lpf.process(x)
     }
 }
 
