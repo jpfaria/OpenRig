@@ -23,6 +23,8 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Install Rust targets
         run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
@@ -117,6 +119,8 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Install system dependencies
         run: |
@@ -231,6 +235,8 @@ jobs:
     runs-on: ubuntu-22.04-arm
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Install system dependencies
         run: |
@@ -341,6 +347,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Cache Cargo
         uses: actions/cache@v4
