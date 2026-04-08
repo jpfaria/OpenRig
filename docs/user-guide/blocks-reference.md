@@ -740,6 +740,7 @@ Filter blocks shape the frequency spectrum of the signal using equalization and 
 | Model Name        | Brand | Backend | Description                    |
 |-------------------|-------|---------|--------------------------------|
 | Three Band EQ     | --    | Native  | 3-band parametric EQ           |
+| Guitar EQ         | --    | Native  | Low-cut + high-cut EQ for guitar |
 | TAP Equalizer     | TAP   | LV2     | Parametric EQ                  |
 | TAP Equalizer/BW  | TAP   | LV2     | Butterworth EQ                 |
 | ZamEQ2            | ZAM   | LV2     | 2-band parametric EQ           |
@@ -758,6 +759,15 @@ Filter blocks shape the frequency spectrum of the signal using equalization and 
 | low       | 0--100% | -24 dB to +24 dB  | Low-band gain      |
 | mid       | 0--100% | -24 dB to +24 dB  | Mid-band gain      |
 | high      | 0--100% | -24 dB to +24 dB  | High-band gain     |
+
+### Parameters -- Guitar EQ
+
+Cuts the two frequency ranges known to cause noise and mud in guitar signals. Each cut uses a gentle Butterworth shelf (Q=0.707) so the rolloff is musical rather than surgical.
+
+| Parameter | Range   | Mapped Range  | Description                                          |
+|-----------|---------|---------------|------------------------------------------------------|
+| low_cut   | 0--100% | 0 to -12 dB   | Low-shelf cut below 80 Hz (rumble, stage noise, mud) |
+| high_cut  | 0--100% | 0 to -12 dB   | High-shelf cut above 8 kHz (hiss, pick fizz)         |
 
 ---
 

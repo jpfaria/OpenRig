@@ -140,7 +140,7 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 | **Reverb** | Ambiência e simulação de espaço | 19 | Hall, Plate Foundation, Room, Spring (native); Dragonfly Hall/Room/Plate/Early, CAPS Plate/X2/Scape, TAP Reflector/Reverberator, MDA Ambience, MVerb, B Reverb, Roomy, Shiroverb, Floaty (LV2) |
 | **Modulation** | Chorus, flanger, tremolo, vibrato | 16 | Classic/Stereo/Ensemble Chorus, Sine Tremolo, Vibrato (native); TAP Chorus/Flanger/Tremolo/Rotary, MDA Leslie/RingMod/ThruZero, FOMP CS Chorus/Phaser, CAPS Phaser II, Harmless, Larynx (LV2) |
 | **Dynamics** | Compressor e gate | 9 | Studio Clean Compressor, Noise Gate, Brick Wall Limiter (native); TAP DeEsser/Dynamics/Limiter, ZamComp, ZamGate, ZaMultiComp (LV2) |
-| **Filter** | EQ e moldagem tonal | 11 | Three Band EQ (native); TAP Equalizer/BW, ZamEQ2, ZamGEQ31, CAPS AutoFilter, FOMP Auto-Wah, MOD HPF/LPF, Filta, Mud (LV2) |
+| **Filter** | EQ e moldagem tonal | 12 | Three Band EQ, Guitar EQ (native); TAP Equalizer/BW, ZamEQ2, ZamGEQ31, CAPS AutoFilter, FOMP Auto-Wah, MOD HPF/LPF, Filta, Mud (LV2) |
 | **Wah** | Pedal wah-wah | 2 | Cry Classic (native); GxQuack (LV2) |
 | **Utility** | Ferramentas | 2 | Chromatic Tuner, Spectrum Analyzer (native) |
 | **Body** | Ressonância de corpo acústico | 114 | Martin (45), Taylor (30), Gibson (10), Yamaha (5), Guild (4), Takamine (4), Cort (4), Emerald (2), Rainsong (2), Lowden (2) + outros boutique (IR) |

@@ -56,6 +56,10 @@ plugins:
     description: "Three-band EQ with low, mid, and high controls mapped to ±24 dB."
     license: "Proprietary - OpenRig"
     homepage: "https://github.com/jpfaria/OpenRig"
+  native_guitar_eq:
+    description: "Guitar EQ — cuts low-end rumble below 80Hz and high-frequency fizz above 8kHz. Two independent controls let you dial in how much of each cut to apply."
+    license: "Proprietary - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
   ibanez_ts9:
     description: "Classic Ibanez Tube Screamer overdrive with drive, tone, and level controls."
     license: "Proprietary - OpenRig"
