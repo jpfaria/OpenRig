@@ -569,18 +569,19 @@ jobs:
           NOTES: ${{ steps.notes.outputs.notes }}
           USE_GENERATED: ${{ steps.notes.outputs.use_generated }}
         run: |
+          mapfile -t FILES < <(find artifacts -type f | sort)
           if [ "$USE_GENERATED" = "true" ]; then
             gh release create "$TAG" \
               --repo "$REPO" \
               --title "OpenRig $TAG" \
               --generate-notes \
-              artifacts/*
+              "${FILES[@]}"
           else
             gh release create "$TAG" \
               --repo "$REPO" \
               --title "OpenRig $TAG" \
               --notes "$NOTES" \
-              artifacts/*
+              "${FILES[@]}"
           fi
 
       - name: Close milestone
