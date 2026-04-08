@@ -100,6 +100,7 @@ jobs:
         env:
           VERSION: ${{ steps.ver.outputs.v }}
         run: |
+          hdiutil detach "/Volumes/OpenRig ${VERSION}" 2>/dev/null || true
           hdiutil create \
             -volname "OpenRig ${VERSION}" \
             -srcfolder dist/OpenRig.app \
