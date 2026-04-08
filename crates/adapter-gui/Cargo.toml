@@ -2,6 +2,7 @@
 name = "adapter-gui"
 version.workspace = true
 edition.workspace = true
+authors = ["Joao Paulo Faria"]
 
 [dependencies]
 anyhow.workspace = true
