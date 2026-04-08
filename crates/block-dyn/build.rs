@@ -38,7 +38,7 @@ fn main() {
     for module_name in &all_modules {
         generated.push_str(&format!(
             "#[path = \"{}/{}.rs\"]\nmod {};\n",
-            src_dir.to_string_lossy(), module_name, module_name
+            src_dir.to_string_lossy().replace("\\", "/"), module_name, module_name
         ));
     }
 
