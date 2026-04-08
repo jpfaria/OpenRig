@@ -96,6 +96,29 @@ try {
     Copy-Item -Recurse "assets"               "$stageDir\assets"
     Copy-Item -Recurse "captures"             "$stageDir\captures"
 
+    # ── Copy MinGW runtime DLLs (required by libNeuralAudioCAPI.dll) ────────────
+    Write-Host "==> Copying MinGW runtime DLLs..."
+    $mingwDlls = @("libgcc_s_seh-1.dll", "libstdc++-6.dll", "libwinpthread-1.dll")
+    $mingwSearchPaths = @(
+        "C:\msys64\mingw64\bin",
+        "C:\msys64\ucrt64\bin",
+        "C:\Strawberry\c\bin",
+        "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin"
+    )
+    foreach ($dll in $mingwDlls) {
+        $found = $false
+        foreach ($p in $mingwSearchPaths) {
+            $src = "$p\$dll"
+            if (Test-Path $src) {
+                Copy-Item $src "$stageDir\"
+                Write-Host "    $dll  <-  $p"
+                $found = $true
+                break
+            }
+        }
+        if (-not $found) { Write-Host "    WARNING: $dll not found (may not be needed)" }
+    }
+
     $stageDirAbs = (Resolve-Path $stageDir).Path
     Write-Host "    Stage ready"
 

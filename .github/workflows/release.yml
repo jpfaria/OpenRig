@@ -403,6 +403,10 @@ jobs:
       - name: Install WiX Toolset v3
         run: choco install wixtoolset -y --no-progress
 
+      - name: Install MinGW runtime DLLs (needed by libNeuralAudioCAPI.dll)
+        shell: cmd
+        run: C:\msys64\usr\bin\pacman.exe -S --noconfirm --needed mingw-w64-x86_64-gcc-libs mingw-w64-x86_64-winpthreads-git
+
       - name: Package (.zip + .msi)
         env:
           VERSION: ${{ steps.ver.outputs.v }}
