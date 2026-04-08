@@ -3953,11 +3953,13 @@ pub fn run_desktop_app(
                     .unwrap_or_else(|| "Block".to_string());
                 win.set_block_window_title(format!("OpenRig · {}", title_label).into());
 
-                // Stream data timer — polls stream data when block produces it (e.g. tuner)
+                // Stream data timer — polls stream data when block produces it (e.g. tuner).
+                // Start the timer regardless of current enabled state: when the user enables
+                // the block while the popup is open, stream data must appear without reopening.
                 let mut block_stream_timer: Option<Rc<Timer>> = None;
                 let is_utility = effect_type == block_core::EFFECT_TYPE_UTILITY;
                 log::info!("[block-editor-stream] block='{}' effect_type='{}' model='{}' enabled={} is_utility={}", block_id_for_editor.0, effect_type, model_id, enabled, is_utility);
-                if is_utility && enabled {
+                if is_utility {
                     log::info!("[block-editor-stream] starting stream timer for block '{}'", block_id_for_editor.0);
                     let stream_timer = Rc::new(Timer::default());
                     let weak_win_stream = win.as_weak();
@@ -4013,8 +4015,6 @@ pub fn run_desktop_app(
                         },
                     );
                     block_stream_timer = Some(stream_timer);
-                } else if is_utility && !enabled {
-                    log::warn!("[block-editor-stream] block '{}' is DISABLED — stream timer not started", block_id_for_editor.0);
                 }
 
                 // on_choose_block_model
