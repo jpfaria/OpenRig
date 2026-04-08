@@ -2,7 +2,6 @@
 name = "adapter-gui"
 version.workspace = true
 edition.workspace = true
-authors = ["Joao Paulo Faria"]
 
 [dependencies]
 anyhow.workspace = true
@@ -18,7 +17,7 @@ infra-yaml = { path = "../infra-yaml" }
 serde.workspace = true
 serde_yaml.workspace = true
 rfd = "0.15"
-slint.workspace = true
+slint = { workspace = true, features = ["backend-linuxkms", "renderer-software"] }
 log.workspace = true
 env_logger.workspace = true
 project = { path = "../project" }
