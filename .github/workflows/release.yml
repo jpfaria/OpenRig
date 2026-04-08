@@ -431,20 +431,86 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: write
+      issues: write
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
           merge-multiple: true
 
-      - name: Create Release
+      - name: Generate release notes from milestone
+        id: notes
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
         run: |
-          gh release create "$TAG" \
-            --repo "$REPO" \
-            --title "OpenRig $TAG" \
-            --generate-notes \
-            artifacts/*
+          VERSION="${TAG#v}"
+
+          MILESTONE_NUMBER=$(gh api "repos/${REPO}/milestones?state=all&per_page=100" \
+            | jq -r --arg ver "$VERSION" --arg tag "$TAG" \
+              '.[] | select(.title == $ver or .title == $tag) | .number' \
+            | head -1)
+
+          if [ -z "$MILESTONE_NUMBER" ]; then
+            echo "No milestone found for ${TAG}, using auto-generated notes"
+            echo "milestone_number=" >> "$GITHUB_OUTPUT"
+            echo "use_generated=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Found milestone #${MILESTONE_NUMBER}"
+            echo "milestone_number=${MILESTONE_NUMBER}" >> "$GITHUB_OUTPUT"
+            echo "use_generated=false" >> "$GITHUB_OUTPUT"
+
+            ITEMS=$(gh api "repos/${REPO}/issues?milestone=${MILESTONE_NUMBER}&state=closed&per_page=100")
+
+            PRS=$(echo "$ITEMS" | jq -r '.[] | select(.pull_request) | "- " + .title + " (#" + (.number|tostring) + ")"')
+            ISSUES=$(echo "$ITEMS" | jq -r '.[] | select(.pull_request == null) | "- " + .title + " (#" + (.number|tostring) + ")"')
+
+            NOTES="## What's Changed"
+            if [ -n "$PRS" ]; then
+              NOTES+=$'\n\n### Pull Requests\n'"$PRS"
+            fi
+            if [ -n "$ISSUES" ]; then
+              NOTES+=$'\n\n### Issues Fixed\n'"$ISSUES"
+            fi
+
+            {
+              echo "notes<<RELEASE_NOTES_EOF"
+              echo "$NOTES"
+              echo "RELEASE_NOTES_EOF"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+          NOTES: ${{ steps.notes.outputs.notes }}
+          USE_GENERATED: ${{ steps.notes.outputs.use_generated }}
+        run: |
+          if [ "$USE_GENERATED" = "true" ]; then
+            gh release create "$TAG" \
+              --repo "$REPO" \
+              --title "OpenRig $TAG" \
+              --generate-notes \
+              artifacts/*
+          else
+            gh release create "$TAG" \
+              --repo "$REPO" \
+              --title "OpenRig $TAG" \
+              --notes "$NOTES" \
+              artifacts/*
+          fi
+
+      - name: Close milestone
+        if: steps.notes.outputs.milestone_number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          MILESTONE_NUMBER: ${{ steps.notes.outputs.milestone_number }}
+        run: |
+          gh api "repos/${REPO}/milestones/${MILESTONE_NUMBER}" \
+            -X PATCH \
+            -f state=closed
+          echo "Closed milestone #${MILESTONE_NUMBER}"
