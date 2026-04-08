@@ -26,15 +26,19 @@ echo ">>> [OpenRig] Copying rootfs overlay..."
 cp -r /tmp/overlay/etc /
 cp -r /tmp/overlay/usr /
 
-# ── 3. Install OpenRig binary ─────────────────────────────────────────────────
-echo ">>> [OpenRig] Installing OpenRig binary..."
-install -m 755 /tmp/overlay/bin/openrig /usr/local/bin/openrig
+# ── 3. Install OpenRig binary, libs, data and assets ─────────────────────────
+echo ">>> [OpenRig] Installing OpenRig from release..."
+RELEASE_DIR=/tmp/overlay/openrig-release
 
-# ── 4. Install LV2 and NAM libs ──────────────────────────────────────────────
-echo ">>> [OpenRig] Installing libs..."
+install -m 755 "$RELEASE_DIR/openrig" /usr/local/bin/openrig
+
 mkdir -p /usr/local/lib/openrig
-cp -r /tmp/overlay/lib/lv2 /usr/local/lib/openrig/
-cp -r /tmp/overlay/lib/nam /usr/local/lib/openrig/
+cp -r "$RELEASE_DIR/libs/lv2" /usr/local/lib/openrig/
+cp -r "$RELEASE_DIR/libs/nam" /usr/local/lib/openrig/
+
+mkdir -p /usr/local/share/openrig
+cp -r "$RELEASE_DIR/data"   /usr/local/share/openrig/
+cp -r "$RELEASE_DIR/assets" /usr/local/share/openrig/
 
 # ── 5. Convert OpenRig logo SVG → PNG for Plymouth ───────────────────────────
 echo ">>> [OpenRig] Converting logo to PNG..."
