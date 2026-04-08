@@ -18,7 +18,7 @@ infra-yaml = { path = "../infra-yaml" }
 serde.workspace = true
 serde_yaml.workspace = true
 rfd = "0.15"
-slint = { workspace = true, features = ["backend-linuxkms", "renderer-software"] }
+slint.workspace = true
 log.workspace = true
 env_logger.workspace = true
 project = { path = "../project" }
