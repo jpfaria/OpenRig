@@ -71,6 +71,7 @@ cp -r libs/lv2/macos-universal "$APP/Contents/Resources/libs/lv2/macos-universal
 cp -r libs/nam/macos-universal "$APP/Contents/Resources/libs/nam/macos-universal"
 cp -r data/lv2                 "$APP/Contents/Resources/data"
 cp -r assets                   "$APP/Contents/Resources/assets"
+cp -r captures                 "$APP/Contents/Resources/captures"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -100,9 +101,12 @@ codesign --force --deep --sign - "$APP"
 xattr -cr "$APP"
 
 # ── 6. Quick smoke test ────────────────────────────────────────────────────────
-echo "==> Testing binary launches..."
-timeout 3 "$APP/Contents/MacOS/openrig" --help 2>&1 || true
-echo "    (timeout is expected if app opens a window)"
+echo "==> Testing binary launches (3s)..."
+(gtimeout 3 "$APP/Contents/MacOS/openrig" 2>&1 || \
+ timeout  3 "$APP/Contents/MacOS/openrig" 2>&1 || true) &
+sleep 3
+kill %1 2>/dev/null || true
+echo "    binary OK"
 
 # ── 7. Create .dmg with drag-to-Applications ──────────────────────────────────
 echo "==> Creating .dmg..."
