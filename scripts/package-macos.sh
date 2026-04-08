@@ -119,12 +119,12 @@ hdiutil create \
     -volname "OpenRig ${VERSION}" \
     -srcfolder dist/dmg_contents \
     -ov -format UDZO \
-    "dist/OpenRig-${VERSION}-macos.dmg"
+    "dist/OpenRig-${VERSION}-macos-universal.dmg"
 
 rm -rf dist/dmg_contents
 
 echo ""
-echo "==> Done: dist/OpenRig-${VERSION}-macos.dmg"
+echo "==> Done: dist/OpenRig-${VERSION}-macos-universal.dmg"
 echo ""
 echo "Para abrir:"
-echo "  open dist/OpenRig-${VERSION}-macos.dmg"
+echo "  open dist/OpenRig-${VERSION}-macos-universal.dmg"
