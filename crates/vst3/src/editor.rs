@@ -10,7 +10,7 @@ use anyhow::{bail, Result};
 use std::path::Path;
 use std::sync::Arc;
 use vst3::Steinberg::Vst::{IEditControllerTrait, ViewType};
-use vst3::Steinberg::{IPlugViewTrait, ViewRect, kResultOk};
+use vst3::Steinberg::IPlugViewTrait;
 use vst3::ComPtr;
 
 use crate::component_handler::ComponentHandler;
@@ -58,51 +58,47 @@ pub fn open_vst3_editor_window(
     gui_context: Vst3GuiContext,
 ) -> Result<Vst3EditorHandle> {
     let controller = gui_context.controller;
-    let library = gui_context.library;
-    let param_channel = gui_context.param_channel;
-
-    // Register the component handler so parameter changes from the native GUI
-    // reach the audio processor via the param channel.
-    let component_handler = {
-        let wrapper = ComponentHandler::new(param_channel).into_com_ptr();
-        unsafe {
-            use vst3::Steinberg::Vst::IComponentHandler;
-            if let Some(com_ref) = wrapper.as_com_ref::<IComponentHandler>() {
-                let _ = controller.setComponentHandler(com_ref.as_ptr());
-                log::debug!("VST3 editor: IComponentHandler registered");
-            }
-        }
-        Some(wrapper)
-    };
 
     // Get IPlugView from the controller.
     let view_ptr = unsafe { controller.createView(ViewType::kEditor) };
     if view_ptr.is_null() {
         bail!("plugin '{}' returned null IPlugView (no GUI)", plugin_name);
     }
-    let view: ComPtr<vst3::Steinberg::IPlugView> =
-        unsafe { ComPtr::from_raw_unchecked(view_ptr) };
 
-    // Check that NSView platform is supported.
     #[cfg(target_os = "macos")]
     {
-        use vst3::Steinberg::kPlatformTypeNSView;
+        use vst3::Steinberg::{kPlatformTypeNSView, kResultOk, ViewRect};
+
+        let library = gui_context.library;
+        let param_channel = gui_context.param_channel;
+
+        // Register the component handler so parameter changes from the native GUI
+        // reach the audio processor via the param channel.
+        let component_handler = {
+            let wrapper = ComponentHandler::new(param_channel).into_com_ptr();
+            unsafe {
+                use vst3::Steinberg::Vst::IComponentHandler;
+                if let Some(com_ref) = wrapper.as_com_ref::<IComponentHandler>() {
+                    let _ = controller.setComponentHandler(com_ref.as_ptr());
+                    log::debug!("VST3 editor: IComponentHandler registered");
+                }
+            }
+            Some(wrapper)
+        };
+
+        let view: ComPtr<vst3::Steinberg::IPlugView> =
+            unsafe { ComPtr::from_raw_unchecked(view_ptr) };
+
         let res = unsafe { view.isPlatformTypeSupported(kPlatformTypeNSView) };
         if res != kResultOk {
             bail!("plugin '{}' does not support NSView GUI (result={})", plugin_name, res);
         }
-    }
 
-    // Get preferred size.
-    let mut rect = ViewRect { left: 0, top: 0, right: 800, bottom: 600 };
-    unsafe { view.getSize(&mut rect) };
-    let width = (rect.right - rect.left).max(200) as f64;
-    let height = (rect.bottom - rect.top).max(100) as f64;
+        let mut rect = ViewRect { left: 0, top: 0, right: 800, bottom: 600 };
+        unsafe { view.getSize(&mut rect) };
+        let width = (rect.right - rect.left).max(200) as f64;
+        let height = (rect.bottom - rect.top).max(100) as f64;
 
-    // Create the native window and embed the view.
-    #[cfg(target_os = "macos")]
-    {
-        use vst3::Steinberg::kPlatformTypeNSView;
         let ns_window = macos::create_editor_window(plugin_name, width, height)?;
         let ns_view = ns_window.content_view();
 
@@ -155,31 +151,34 @@ pub fn open_vst3_editor_window_standalone(
         }
     }
 
-    let library = plugin.library_arc();
     let controller = plugin.controller_clone();
-
-    // No param channel — engine not running.
-    let component_handler = {
-        let wrapper = ComponentHandler::new(crate::param_channel::vst3_param_channel()).into_com_ptr();
-        unsafe {
-            use vst3::Steinberg::Vst::IComponentHandler;
-            if let Some(com_ref) = wrapper.as_com_ref::<IComponentHandler>() {
-                let _ = controller.setComponentHandler(com_ref.as_ptr());
-            }
-        }
-        Some(wrapper)
-    };
 
     let view_ptr = unsafe { controller.createView(ViewType::kEditor) };
     if view_ptr.is_null() {
         bail!("plugin '{}' returned null IPlugView (no GUI)", plugin_name);
     }
-    let view: ComPtr<vst3::Steinberg::IPlugView> =
-        unsafe { ComPtr::from_raw_unchecked(view_ptr) };
 
     #[cfg(target_os = "macos")]
     {
-        use vst3::Steinberg::kPlatformTypeNSView;
+        use vst3::Steinberg::{kPlatformTypeNSView, kResultOk, ViewRect};
+
+        let library = plugin.library_arc();
+
+        // No param channel — engine not running.
+        let component_handler = {
+            let wrapper = ComponentHandler::new(crate::param_channel::vst3_param_channel()).into_com_ptr();
+            unsafe {
+                use vst3::Steinberg::Vst::IComponentHandler;
+                if let Some(com_ref) = wrapper.as_com_ref::<IComponentHandler>() {
+                    let _ = controller.setComponentHandler(com_ref.as_ptr());
+                }
+            }
+            Some(wrapper)
+        };
+
+        let view: ComPtr<vst3::Steinberg::IPlugView> =
+            unsafe { ComPtr::from_raw_unchecked(view_ptr) };
+
         let res = unsafe { view.isPlatformTypeSupported(kPlatformTypeNSView) };
         if res != kResultOk {
             bail!("plugin '{}' does not support NSView GUI (result={})", plugin_name, res);
