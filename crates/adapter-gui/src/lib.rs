@@ -425,7 +425,8 @@ pub fn run_desktop_app(
         context.capabilities.can_select_audio_device && !settings.is_complete();
     let project_paths = resolve_project_paths();
     let loaded_config = load_and_sync_app_config()?;
-    infra_filesystem::init_asset_paths(loaded_config.paths.clone());
+    let resolved_paths = infra_filesystem::resolve_asset_paths(loaded_config.paths.clone());
+    infra_filesystem::init_asset_paths(resolved_paths);
     // Open VST3 editor handles (kept alive so the OS window stays open).
     let vst3_editor_handles: Rc<RefCell<Vec<Box<dyn project::vst3_editor::PluginEditorHandle>>>> =
         Rc::new(RefCell::new(Vec::new()));
