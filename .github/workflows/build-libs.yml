@@ -100,6 +100,9 @@ jobs:
       matrix:
         plugin: ${{ fromJson(needs.detect-changes.outputs.plugins) }}
     steps:
+      - name: Rewrite git:// URLs to https://
+        run: git config --global url."https://".insteadOf git://
+
       - uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -141,6 +144,9 @@ jobs:
       matrix:
         plugin: ${{ fromJson(needs.detect-changes.outputs.plugins) }}
     steps:
+      - name: Rewrite git:// URLs to https://
+        run: git config --global url."https://".insteadOf git://
+
       - uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -182,6 +188,9 @@ jobs:
       matrix:
         plugin: ${{ fromJson(needs.detect-changes.outputs.plugins) }}
     steps:
+      - name: Rewrite git:// URLs to https://
+        run: git config --global url."https://".insteadOf git://
+
       - uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -222,6 +231,10 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
+      - name: Rewrite git:// URLs to https://
+        shell: bash
+        run: git config --global url."https://".insteadOf git://
+
       - uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -279,6 +292,10 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
+      - name: Rewrite git:// URLs to https://
+        shell: bash
+        run: git config --global url."https://".insteadOf git://
+
       - uses: actions/checkout@v4
         with:
           submodules: recursive

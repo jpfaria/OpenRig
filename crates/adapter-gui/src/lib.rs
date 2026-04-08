@@ -610,6 +610,28 @@ pub fn run_desktop_app(
     let toast_timer = Rc::new(Timer::default());
     window.set_toast_message("".into());
     window.set_toast_level("info".into());
+
+    // Error polling timer — drains block errors from the audio engine and shows toasts
+    {
+        let weak_window = window.as_weak();
+        let toast_timer_for_errors = toast_timer.clone();
+        let project_runtime_for_errors = project_runtime.clone();
+        let error_poll_timer = Timer::default();
+        error_poll_timer.start(
+            slint::TimerMode::Repeated,
+            std::time::Duration::from_millis(200),
+            move || {
+                let Some(win) = weak_window.upgrade() else { return; };
+                let rt_borrow = project_runtime_for_errors.borrow();
+                let Some(rt) = rt_borrow.as_ref() else { return; };
+                let errors = rt.poll_errors();
+                if let Some(first) = errors.first() {
+                    set_status_error(&win, &toast_timer_for_errors, &format!("Plugin error: {}", first.message));
+                }
+            },
+        );
+        std::mem::forget(error_poll_timer);
+    }
     window.set_block_type_options(ModelRc::from(block_type_options.clone()));
     window.set_block_model_options(ModelRc::from(block_model_options.clone()));
     window.set_block_model_option_labels(ModelRc::from(block_model_option_labels.clone()));
