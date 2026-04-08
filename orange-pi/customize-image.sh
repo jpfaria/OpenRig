@@ -56,6 +56,7 @@ update-alternatives --set \
 
 # ── 7. Create openrig system user ────────────────────────────────────────────
 echo ">>> [OpenRig] Creating openrig user..."
+groupadd -f video
 useradd --system --no-create-home \
     --groups audio,video \
     --shell /usr/sbin/nologin \

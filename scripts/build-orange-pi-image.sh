@@ -113,7 +113,13 @@ prepare_overlay() {
 
     # Stage binary
     run mkdir -p "$OVERLAY_DIR/bin"
-    run cp "$PROJECT_ROOT/target/$RUST_TARGET/release/openrig" "$OVERLAY_DIR/bin/openrig"
+    if [ "$SKIP_RUST" = false ] || [ -f "$PROJECT_ROOT/target/$RUST_TARGET/release/openrig" ]; then
+        run cp "$PROJECT_ROOT/target/$RUST_TARGET/release/openrig" "$OVERLAY_DIR/bin/openrig"
+    else
+        echo "  WARNING: --skip-rust passed and no pre-built binary found at target/$RUST_TARGET/release/openrig"
+        echo "           Run without --skip-rust first to build the binary."
+        exit 1
+    fi
 
     # Stage C++ libs
     run mkdir -p "$OVERLAY_DIR/lib/lv2"
@@ -140,15 +146,15 @@ run_armbian() {
     run mkdir -p "$OUTPUT_DIR"
 
     run bash "$ARMBIAN_DIR/compile.sh" \
-        BOARD="$BOARD" \
-        BRANCH="$BRANCH" \
-        RELEASE="$RELEASE" \
-        BUILD_DESKTOP=no \
-        BUILD_MINIMAL=yes \
-        KERNEL_CONFIGURE=no \
-        BOOT_LOGO=no \
-        COMPRESS_OUTPUTIMAGE=no \
-        OUTPUT_DIR="$OUTPUT_DIR"
+        "BOARD=$BOARD" \
+        "BRANCH=$BRANCH" \
+        "RELEASE=$RELEASE" \
+        "BUILD_DESKTOP=no" \
+        "BUILD_MINIMAL=yes" \
+        "KERNEL_CONFIGURE=no" \
+        "BOOT_LOGO=no" \
+        "COMPRESS_OUTPUTIMAGE=no" \
+        "OUTPUT_DIR=$OUTPUT_DIR"
 
     echo ""
     echo "Image written to: $OUTPUT_DIR/"
