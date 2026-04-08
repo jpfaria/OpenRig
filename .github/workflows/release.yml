@@ -74,7 +74,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libasound2-dev libudev-dev pkg-config \
-            fakeroot rpm ruby-dev build-essential imagemagick
+            fakeroot rpm ruby-dev build-essential \
+            librsvg2-bin imagemagick
 
       - name: Install fpm
         run: sudo gem install fpm --no-document
@@ -110,7 +111,6 @@ jobs:
           mkdir -p "$S/usr/lib/openrig/libs/lv2"
           mkdir -p "$S/usr/lib/openrig/libs/nam"
           mkdir -p "$S/usr/share/openrig/data"
-          mkdir -p "$S/usr/share/openrig/assets"
 
           cp target/release/adapter-gui    "$S/usr/bin/openrig"
           cp -r libs/lv2/linux-x86_64      "$S/usr/lib/openrig/libs/lv2/linux-x86_64"
@@ -195,10 +195,9 @@ jobs:
             'Categories=Audio;Music;' \
             > "$APPDIR/openrig.desktop"
 
-          convert -size 256x256 xc:'#1a1a2e' \
-            -fill white -font DejaVu-Sans-Bold -pointsize 80 \
-            -gravity center -annotate 0 'OR' \
-            "$APPDIR/openrig.png"
+          rsvg-convert -w 256 -h 256 \
+            crates/adapter-gui/ui/assets/openrig-logomark.svg \
+            -o "$APPDIR/openrig.png"
 
           APPIMAGE_EXTRACT_AND_RUN=1 ARCH=x86_64 ./appimagetool "$APPDIR" \
             "dist/OpenRig-${VERSION}-linux-x86_64.AppImage"
@@ -228,7 +227,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libasound2-dev libudev-dev pkg-config \
-            fakeroot rpm ruby-dev build-essential imagemagick
+            fakeroot rpm ruby-dev build-essential \
+            librsvg2-bin imagemagick
 
       - name: Install fpm
         run: sudo gem install fpm --no-document
@@ -264,7 +264,6 @@ jobs:
           mkdir -p "$S/usr/lib/openrig/libs/lv2"
           mkdir -p "$S/usr/lib/openrig/libs/nam"
           mkdir -p "$S/usr/share/openrig/data"
-          mkdir -p "$S/usr/share/openrig/assets"
 
           cp target/release/adapter-gui    "$S/usr/bin/openrig"
           cp -r libs/lv2/linux-aarch64     "$S/usr/lib/openrig/libs/lv2/linux-aarch64"
@@ -349,10 +348,9 @@ jobs:
             'Categories=Audio;Music;' \
             > "$APPDIR/openrig.desktop"
 
-          convert -size 256x256 xc:'#1a1a2e' \
-            -fill white -font DejaVu-Sans-Bold -pointsize 80 \
-            -gravity center -annotate 0 'OR' \
-            "$APPDIR/openrig.png"
+          rsvg-convert -w 256 -h 256 \
+            crates/adapter-gui/ui/assets/openrig-logomark.svg \
+            -o "$APPDIR/openrig.png"
 
           APPIMAGE_EXTRACT_AND_RUN=1 ARCH=aarch64 ./appimagetool "$APPDIR" \
             "dist/OpenRig-${VERSION}-linux-aarch64.AppImage"
