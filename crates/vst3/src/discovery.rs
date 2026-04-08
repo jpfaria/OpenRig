@@ -181,6 +181,11 @@ pub fn system_vst3_paths() -> Vec<PathBuf> {
     }
 }
 
+#[cfg(target_os = "linux")]
+fn dirs_home() -> Option<PathBuf> {
+    std::env::var_os("HOME").map(PathBuf::from)
+}
+
 /// Scan a single `.vst3` bundle directory — **safe mode**: zero dylib loading.
 ///
 /// Strategy (in order):
