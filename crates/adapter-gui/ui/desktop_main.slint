@@ -4,6 +4,7 @@ import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProject
 import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage } from "pages/pages.slint";
 
 export component DesktopMain inherits Rectangle {
+    in property <string> app-version;
     in property <bool> show-project-launcher;
     in property <bool> show-project-setup;
     in property <bool> show-project-chains;
@@ -122,6 +123,7 @@ export component DesktopMain inherits Rectangle {
     if root.show-project-launcher : ProjectLauncherPage {
         width: parent.width;
         height: parent.height;
+        app-version: root.app-version;
         recent-projects: root.recent-projects;
         recent-project-search: root.recent-project-search;
         status-message: root.status-message;
