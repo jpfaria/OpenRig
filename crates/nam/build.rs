@@ -73,7 +73,7 @@ fn lib_filename() -> &'static str {
     if cfg!(target_os = "macos") {
         "libNeuralAudioCAPI.dylib"
     } else if cfg!(target_os = "windows") {
-        "NeuralAudioCAPI.dll"
+        "libNeuralAudioCAPI.dll"
     } else {
         "libNeuralAudioCAPI.so"
     }
