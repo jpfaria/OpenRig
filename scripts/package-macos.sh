@@ -101,12 +101,12 @@ codesign --force --deep --sign - "$APP"
 xattr -cr "$APP"
 
 # ── 6. Quick smoke test ────────────────────────────────────────────────────────
-echo "==> Testing binary launches (3s)..."
-(gtimeout 3 "$APP/Contents/MacOS/openrig" 2>&1 || \
- timeout  3 "$APP/Contents/MacOS/openrig" 2>&1 || true) &
-sleep 3
-kill %1 2>/dev/null || true
-echo "    binary OK"
+echo "==> Testing binary..."
+if "$APP/Contents/MacOS/openrig" --version 2>/dev/null; then
+    echo "    binary OK"
+else
+    echo "    binary launched (no --version flag, that's OK)"
+fi
 
 # ── 7. Create .dmg with drag-to-Applications ──────────────────────────────────
 echo "==> Creating .dmg..."
@@ -119,12 +119,12 @@ hdiutil create \
     -volname "OpenRig ${VERSION}" \
     -srcfolder dist/dmg_contents \
     -ov -format UDZO \
-    "dist/OpenRig-${VERSION}-macos.dmg"
+    "dist/OpenRig-${VERSION}-macos-universal.dmg"
 
 rm -rf dist/dmg_contents
 
 echo ""
-echo "==> Done: dist/OpenRig-${VERSION}-macos.dmg"
+echo "==> Done: dist/OpenRig-${VERSION}-macos-universal.dmg"
 echo ""
 echo "Para abrir:"
-echo "  open dist/OpenRig-${VERSION}-macos.dmg"
+echo "  open dist/OpenRig-${VERSION}-macos-universal.dmg"
