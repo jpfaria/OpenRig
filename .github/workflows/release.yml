@@ -13,6 +13,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   # --------------------------------------------------------------------------
@@ -100,6 +101,7 @@ jobs:
         env:
           VERSION: ${{ steps.ver.outputs.v }}
         run: |
+          hdiutil detach "/Volumes/OpenRig ${VERSION}" 2>/dev/null || true
           hdiutil create \
             -volname "OpenRig ${VERSION}" \
             -srcfolder dist/OpenRig.app \
@@ -112,7 +114,7 @@ jobs:
           path: dist/OpenRig-*.dmg
 
   # --------------------------------------------------------------------------
-  # Linux x86_64: .tar.gz + .deb + .rpm
+  # Linux x86_64: .tar.gz + .deb + .rpm + .AppImage
   # --------------------------------------------------------------------------
   build-linux-x86_64:
     name: Build Linux x86_64
@@ -127,7 +129,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libasound2-dev libudev-dev pkg-config \
-            fakeroot rpm ruby-dev build-essential
+            fakeroot rpm ruby-dev build-essential imagemagick
 
       - name: Install fpm
         run: sudo gem install fpm --no-document
@@ -219,6 +221,44 @@ jobs:
             --package "dist/openrig-${VERSION}-1.x86_64.rpm" \
             usr
 
+      - name: Create AppImage (x86_64)
+        env:
+          VERSION: ${{ steps.ver.outputs.v }}
+        run: |
+          curl -fsSL -o appimagetool \
+            https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+
+          APPDIR=dist/AppDir
+          cp -r dist/stage "$APPDIR"
+
+          printf '%s\n' \
+            '#!/bin/bash' \
+            'HERE="$(dirname "$(readlink -f "${0}")")"' \
+            'export OPENRIG_LIBS_DIR="$HERE/usr/lib/openrig/libs"' \
+            'export OPENRIG_DATA_DIR="$HERE/usr/share/openrig/data"' \
+            'export OPENRIG_ASSETS_DIR="$HERE/usr/share/openrig/assets"' \
+            'exec "$HERE/usr/bin/openrig" "$@"' \
+            > "$APPDIR/AppRun"
+          chmod +x "$APPDIR/AppRun"
+
+          printf '%s\n' \
+            '[Desktop Entry]' \
+            'Name=OpenRig' \
+            'Exec=openrig' \
+            'Icon=openrig' \
+            'Type=Application' \
+            'Categories=Audio;Music;' \
+            > "$APPDIR/openrig.desktop"
+
+          convert -size 256x256 xc:'#1a1a2e' \
+            -fill white -font DejaVu-Sans-Bold -pointsize 80 \
+            -gravity center -annotate 0 'OR' \
+            "$APPDIR/openrig.png"
+
+          APPIMAGE_EXTRACT_AND_RUN=1 ARCH=x86_64 ./appimagetool "$APPDIR" \
+            "dist/OpenRig-${VERSION}-linux-x86_64.AppImage"
+
       - uses: actions/upload-artifact@v4
         with:
           name: openrig-linux-x86_64
@@ -226,9 +266,10 @@ jobs:
             dist/openrig-*-linux-x86_64.tar.gz
             dist/openrig_*_amd64.deb
             dist/openrig-*-1.x86_64.rpm
+            dist/OpenRig-*-linux-x86_64.AppImage
 
   # --------------------------------------------------------------------------
-  # Linux aarch64: .tar.gz + .deb + .rpm
+  # Linux aarch64: .tar.gz + .deb + .rpm + .AppImage
   # --------------------------------------------------------------------------
   build-linux-aarch64:
     name: Build Linux aarch64
@@ -243,7 +284,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libasound2-dev libudev-dev pkg-config \
-            fakeroot rpm ruby-dev build-essential
+            fakeroot rpm ruby-dev build-essential imagemagick
 
       - name: Install fpm
         run: sudo gem install fpm --no-document
@@ -331,6 +372,44 @@ jobs:
             --package "dist/openrig-${VERSION}-1.aarch64.rpm" \
             usr
 
+      - name: Create AppImage (aarch64)
+        env:
+          VERSION: ${{ steps.ver.outputs.v }}
+        run: |
+          curl -fsSL -o appimagetool \
+            https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-aarch64.AppImage
+          chmod +x appimagetool
+
+          APPDIR=dist/AppDir
+          cp -r dist/stage "$APPDIR"
+
+          printf '%s\n' \
+            '#!/bin/bash' \
+            'HERE="$(dirname "$(readlink -f "${0}")")"' \
+            'export OPENRIG_LIBS_DIR="$HERE/usr/lib/openrig/libs"' \
+            'export OPENRIG_DATA_DIR="$HERE/usr/share/openrig/data"' \
+            'export OPENRIG_ASSETS_DIR="$HERE/usr/share/openrig/assets"' \
+            'exec "$HERE/usr/bin/openrig" "$@"' \
+            > "$APPDIR/AppRun"
+          chmod +x "$APPDIR/AppRun"
+
+          printf '%s\n' \
+            '[Desktop Entry]' \
+            'Name=OpenRig' \
+            'Exec=openrig' \
+            'Icon=openrig' \
+            'Type=Application' \
+            'Categories=Audio;Music;' \
+            > "$APPDIR/openrig.desktop"
+
+          convert -size 256x256 xc:'#1a1a2e' \
+            -fill white -font DejaVu-Sans-Bold -pointsize 80 \
+            -gravity center -annotate 0 'OR' \
+            "$APPDIR/openrig.png"
+
+          APPIMAGE_EXTRACT_AND_RUN=1 ARCH=aarch64 ./appimagetool "$APPDIR" \
+            "dist/OpenRig-${VERSION}-linux-aarch64.AppImage"
+
       - uses: actions/upload-artifact@v4
         with:
           name: openrig-linux-aarch64
@@ -338,6 +417,7 @@ jobs:
             dist/openrig-*-linux-aarch64.tar.gz
             dist/openrig_*_arm64.deb
             dist/openrig-*-1.aarch64.rpm
+            dist/OpenRig-*-linux-aarch64.AppImage
 
   # --------------------------------------------------------------------------
   # Windows x64: .zip (full bundle) + .msi (installer)
@@ -394,7 +474,7 @@ jobs:
           7z a "${D}.zip" "${D}"
 
       - name: Install WiX Toolset v3
-        run: choco install wixtoolset --version 3.11.2 -y --no-progress
+        run: choco install wixtoolset -y --no-progress || true
 
       - name: Install cargo-wix
         run: cargo install cargo-wix --locked
@@ -431,20 +511,86 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: write
+      issues: write
     steps:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
           merge-multiple: true
 
-      - name: Create Release
+      - name: Generate release notes from milestone
+        id: notes
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
           REPO: ${{ github.repository }}
         run: |
-          gh release create "$TAG" \
-            --repo "$REPO" \
-            --title "OpenRig $TAG" \
-            --generate-notes \
-            artifacts/*
+          VERSION="${TAG#v}"
+
+          MILESTONE_NUMBER=$(gh api "repos/${REPO}/milestones?state=all&per_page=100" \
+            | jq -r --arg ver "$VERSION" --arg tag "$TAG" \
+              '.[] | select(.title == $ver or .title == $tag) | .number' \
+            | head -1)
+
+          if [ -z "$MILESTONE_NUMBER" ]; then
+            echo "No milestone found for ${TAG}, using auto-generated notes"
+            echo "milestone_number=" >> "$GITHUB_OUTPUT"
+            echo "use_generated=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Found milestone #${MILESTONE_NUMBER}"
+            echo "milestone_number=${MILESTONE_NUMBER}" >> "$GITHUB_OUTPUT"
+            echo "use_generated=false" >> "$GITHUB_OUTPUT"
+
+            ITEMS=$(gh api "repos/${REPO}/issues?milestone=${MILESTONE_NUMBER}&state=closed&per_page=100")
+
+            PRS=$(echo "$ITEMS" | jq -r '.[] | select(.pull_request) | "- " + .title + " (#" + (.number|tostring) + ")"')
+            ISSUES=$(echo "$ITEMS" | jq -r '.[] | select(.pull_request == null) | "- " + .title + " (#" + (.number|tostring) + ")"')
+
+            NOTES="## What's Changed"
+            if [ -n "$PRS" ]; then
+              NOTES+=$'\n\n### Pull Requests\n'"$PRS"
+            fi
+            if [ -n "$ISSUES" ]; then
+              NOTES+=$'\n\n### Issues Fixed\n'"$ISSUES"
+            fi
+
+            {
+              echo "notes<<RELEASE_NOTES_EOF"
+              echo "$NOTES"
+              echo "RELEASE_NOTES_EOF"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+          NOTES: ${{ steps.notes.outputs.notes }}
+          USE_GENERATED: ${{ steps.notes.outputs.use_generated }}
+        run: |
+          if [ "$USE_GENERATED" = "true" ]; then
+            gh release create "$TAG" \
+              --repo "$REPO" \
+              --title "OpenRig $TAG" \
+              --generate-notes \
+              artifacts/*
+          else
+            gh release create "$TAG" \
+              --repo "$REPO" \
+              --title "OpenRig $TAG" \
+              --notes "$NOTES" \
+              artifacts/*
+          fi
+
+      - name: Close milestone
+        if: steps.notes.outputs.milestone_number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          MILESTONE_NUMBER: ${{ steps.notes.outputs.milestone_number }}
+        run: |
+          gh api "repos/${REPO}/milestones/${MILESTONE_NUMBER}" \
+            -X PATCH \
+            -f state=closed
+          echo "Closed milestone #${MILESTONE_NUMBER}"
