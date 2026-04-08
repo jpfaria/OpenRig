@@ -3955,23 +3955,33 @@ pub fn run_desktop_app(
 
                 // Stream data timer — polls stream data when block produces it (e.g. tuner)
                 let mut block_stream_timer: Option<Rc<Timer>> = None;
-                if effect_type == block_core::EFFECT_TYPE_UTILITY && enabled {
+                let is_utility = effect_type == block_core::EFFECT_TYPE_UTILITY;
+                log::info!("[block-editor-stream] block='{}' effect_type='{}' model='{}' enabled={} is_utility={}", block_id_for_editor.0, effect_type, model_id, enabled, is_utility);
+                if is_utility && enabled {
+                    log::info!("[block-editor-stream] starting stream timer for block '{}'", block_id_for_editor.0);
                     let stream_timer = Rc::new(Timer::default());
                     let weak_win_stream = win.as_weak();
                     let project_runtime_stream = project_runtime.clone();
                     let block_id_for_stream = block_id_for_editor.clone();
                     let stream_model_id = model_id.clone();
+                    let mut poll_count: u32 = 0;
                     stream_timer.start(
                         slint::TimerMode::Repeated,
                         std::time::Duration::from_millis(50),
                         move || {
                             let Some(win) = weak_win_stream.upgrade() else { return; };
                             let runtime_borrow = project_runtime_stream.borrow();
-                            let Some(runtime) = runtime_borrow.as_ref() else { return; };
                             let kind: slint::SharedString = if stream_model_id == "spectrum_analyzer" {
                                 "spectrum".into()
                             } else {
                                 "stream".into()
+                            };
+                            let Some(runtime) = runtime_borrow.as_ref() else {
+                                poll_count += 1;
+                                if poll_count % 40 == 0 {
+                                    log::warn!("[block-editor-stream] runtime not available (poll #{})", poll_count);
+                                }
+                                return;
                             };
                             if let Some(entries) = runtime.poll_stream(&block_id_for_stream) {
                                 let slint_entries: Vec<BlockStreamEntry> = entries.iter().map(|e| BlockStreamEntry {
@@ -3980,12 +3990,20 @@ pub fn run_desktop_app(
                                     text: e.text.clone().into(),
                                     peak: e.peak,
                                 }).collect();
+                                poll_count += 1;
+                                if poll_count % 40 == 1 {
+                                    log::debug!("[block-editor-stream] poll #{}: {} entries, first={:?}", poll_count, slint_entries.len(), entries.first().map(|e| &e.key));
+                                }
                                 win.set_block_stream_data(BlockStreamData {
                                     active: true,
                                     stream_kind: kind,
                                     entries: ModelRc::from(Rc::new(VecModel::from(slint_entries))),
                                 });
                             } else {
+                                poll_count += 1;
+                                if poll_count % 40 == 0 {
+                                    log::debug!("[block-editor-stream] poll #{}: no entries (silence or no runtime handle)", poll_count);
+                                }
                                 win.set_block_stream_data(BlockStreamData {
                                     active: false,
                                     stream_kind: "".into(),
@@ -3995,6 +4013,8 @@ pub fn run_desktop_app(
                         },
                     );
                     block_stream_timer = Some(stream_timer);
+                } else if is_utility && !enabled {
+                    log::warn!("[block-editor-stream] block '{}' is DISABLED — stream timer not started", block_id_for_editor.0);
                 }
 
                 // on_choose_block_model
