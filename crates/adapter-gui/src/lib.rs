@@ -2637,7 +2637,6 @@ pub fn run_desktop_app(
             {
                 let weak_cw = compact_win.as_weak();
                 let project_runtime_poll = project_runtime.clone();
-                let project_session_poll = project_session.clone();
                 let stream_timer = Timer::default();
                 stream_timer.start(
                     slint::TimerMode::Repeated,
@@ -2646,31 +2645,22 @@ pub fn run_desktop_app(
                         let Some(cw) = weak_cw.upgrade() else { return; };
                         let rt_borrow = project_runtime_poll.borrow();
                         let Some(rt) = rt_borrow.as_ref() else { return; };
-                        let session_borrow = project_session_poll.borrow();
-                        let Some(session) = session_borrow.as_ref() else { return; };
                         let compact_blocks = cw.get_compact_blocks();
                         for i in 0..compact_blocks.row_count() {
                             if let Some(mut item) = compact_blocks.row_data(i) {
                                 if item.effect_type == "utility" && item.enabled {
-                                    let block_id = session.project.chains
-                                        .get(item.chain_index as usize)
-                                        .and_then(|c| c.blocks.get(item.block_index as usize))
-                                        .map(|b| b.id.clone());
-                                    let stream_data = if let Some(ref bid) = block_id {
-                                        if let Some(entries) = rt.poll_stream(bid) {
-                                            let slint_entries: Vec<BlockStreamEntry> = entries.iter().map(|e| BlockStreamEntry {
-                                                key: e.key.clone().into(),
-                                                value: e.value,
-                                                text: e.text.clone().into(),
-                                                peak: e.peak,
-                                            }).collect();
-                                            BlockStreamData {
-                                                active: true,
-                                                stream_kind: project::catalog::model_stream_kind(item.effect_type.as_str(), item.model_id.as_str()).into(),
-                                                entries: ModelRc::from(Rc::new(VecModel::from(slint_entries))),
-                                            }
-                                        } else {
-                                            BlockStreamData { active: false, stream_kind: "".into(), entries: ModelRc::default() }
+                                    let bid = domain::ids::BlockId(item.block_id.to_string());
+                                    let stream_data = if let Some(entries) = rt.poll_stream(&bid) {
+                                        let slint_entries: Vec<BlockStreamEntry> = entries.iter().map(|e| BlockStreamEntry {
+                                            key: e.key.clone().into(),
+                                            value: e.value,
+                                            text: e.text.clone().into(),
+                                            peak: e.peak,
+                                        }).collect();
+                                        BlockStreamData {
+                                            active: true,
+                                            stream_kind: project::catalog::model_stream_kind(item.effect_type.as_str(), item.model_id.as_str()).into(),
+                                            entries: ModelRc::from(Rc::new(VecModel::from(slint_entries))),
                                         }
                                     } else {
                                         BlockStreamData { active: false, stream_kind: "".into(), entries: ModelRc::default() }
@@ -3963,25 +3953,37 @@ pub fn run_desktop_app(
                     .unwrap_or_else(|| "Block".to_string());
                 win.set_block_window_title(format!("OpenRig · {}", title_label).into());
 
-                // Stream data timer — polls stream data when block produces it (e.g. tuner)
+                // Stream data timer — polls stream data when block produces it (e.g. tuner).
+                // Start the timer regardless of current enabled state: when the user enables
+                // the block while the popup is open, stream data must appear without reopening.
                 let mut block_stream_timer: Option<Rc<Timer>> = None;
-                if effect_type == block_core::EFFECT_TYPE_UTILITY && enabled {
+                let is_utility = effect_type == block_core::EFFECT_TYPE_UTILITY;
+                log::info!("[block-editor-stream] block='{}' effect_type='{}' model='{}' enabled={} is_utility={}", block_id_for_editor.0, effect_type, model_id, enabled, is_utility);
+                if is_utility {
+                    log::info!("[block-editor-stream] starting stream timer for block '{}'", block_id_for_editor.0);
                     let stream_timer = Rc::new(Timer::default());
                     let weak_win_stream = win.as_weak();
                     let project_runtime_stream = project_runtime.clone();
                     let block_id_for_stream = block_id_for_editor.clone();
                     let stream_model_id = model_id.clone();
+                    let mut poll_count: u32 = 0;
                     stream_timer.start(
                         slint::TimerMode::Repeated,
                         std::time::Duration::from_millis(50),
                         move || {
                             let Some(win) = weak_win_stream.upgrade() else { return; };
                             let runtime_borrow = project_runtime_stream.borrow();
-                            let Some(runtime) = runtime_borrow.as_ref() else { return; };
                             let kind: slint::SharedString = if stream_model_id == "spectrum_analyzer" {
                                 "spectrum".into()
                             } else {
                                 "stream".into()
+                            };
+                            let Some(runtime) = runtime_borrow.as_ref() else {
+                                poll_count += 1;
+                                if poll_count % 40 == 0 {
+                                    log::warn!("[block-editor-stream] runtime not available (poll #{})", poll_count);
+                                }
+                                return;
                             };
                             if let Some(entries) = runtime.poll_stream(&block_id_for_stream) {
                                 let slint_entries: Vec<BlockStreamEntry> = entries.iter().map(|e| BlockStreamEntry {
@@ -3990,12 +3992,20 @@ pub fn run_desktop_app(
                                     text: e.text.clone().into(),
                                     peak: e.peak,
                                 }).collect();
+                                poll_count += 1;
+                                if poll_count % 40 == 1 {
+                                    log::debug!("[block-editor-stream] poll #{}: {} entries, first={:?}", poll_count, slint_entries.len(), entries.first().map(|e| &e.key));
+                                }
                                 win.set_block_stream_data(BlockStreamData {
                                     active: true,
                                     stream_kind: kind,
                                     entries: ModelRc::from(Rc::new(VecModel::from(slint_entries))),
                                 });
                             } else {
+                                poll_count += 1;
+                                if poll_count % 40 == 0 {
+                                    log::debug!("[block-editor-stream] poll #{}: no entries (silence or no runtime handle)", poll_count);
+                                }
                                 win.set_block_stream_data(BlockStreamData {
                                     active: false,
                                     stream_kind: "".into(),
@@ -6943,6 +6953,7 @@ fn build_compact_blocks(
             Some(CompactBlockItem {
                 chain_index: chain_index as i32,
                 block_index: block_index as i32,
+                block_id: block.id.0.clone().into(),
                 effect_type: effect_type.clone().into(),
                 model_id: model_id.clone().into(),
                 icon_kind: icon_kind.clone().into(),
