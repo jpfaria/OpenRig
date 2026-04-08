@@ -82,4 +82,7 @@ EOF
 echo ">>> [OpenRig] Enabling openrig.service..."
 systemctl enable openrig.service
 
+# ── 10. Set permissions on install script ────────────────────────────────────
+chmod 755 /usr/local/bin/openrig-install-to-emmc
+
 echo ">>> [OpenRig] Image customization complete."
