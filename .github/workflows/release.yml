@@ -27,9 +27,6 @@ jobs:
         with:
           lfs: true
 
-      - name: Install Rust targets
-        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
-
       - name: Cache Cargo
         uses: actions/cache@v4
         with:
@@ -39,12 +36,6 @@ jobs:
             target
           key: macos-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: macos-cargo-
-
-      - name: Build arm64
-        run: cargo build --release --target aarch64-apple-darwin -p adapter-gui
-
-      - name: Build x86_64
-        run: cargo build --release --target x86_64-apple-darwin -p adapter-gui
 
       - name: Resolve version
         id: ver
@@ -57,64 +48,18 @@ jobs:
           fi
           echo "v=${V}" >> "$GITHUB_OUTPUT"
 
-      - name: Create .app bundle
+      - name: Build and package
         env:
           VERSION: ${{ steps.ver.outputs.v }}
-        run: |
-          APP="dist/OpenRig.app"
-          mkdir -p "$APP/Contents/MacOS"
-          mkdir -p "$APP/Contents/Resources/libs/lv2"
-          mkdir -p "$APP/Contents/Resources/libs/nam"
-
-          lipo -create \
-            target/aarch64-apple-darwin/release/adapter-gui \
-            target/x86_64-apple-darwin/release/adapter-gui \
-            -output "$APP/Contents/MacOS/openrig"
-          chmod +x "$APP/Contents/MacOS/openrig"
-
-          cp -r libs/lv2/macos-universal "$APP/Contents/Resources/libs/lv2/macos-universal"
-          cp -r libs/nam/macos-universal "$APP/Contents/Resources/libs/nam/macos-universal"
-          cp -r data/lv2                "$APP/Contents/Resources/data"
-          cp -r assets/blocks           "$APP/Contents/Resources/assets"
-
-          cat > "$APP/Contents/Info.plist" <<PLIST
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>CFBundleExecutable</key><string>openrig</string>
-            <key>CFBundleIdentifier</key><string>com.openrig.app</string>
-            <key>CFBundleName</key><string>OpenRig</string>
-            <key>CFBundleVersion</key><string>${VERSION}</string>
-            <key>CFBundleShortVersionString</key><string>${VERSION}</string>
-            <key>CFBundlePackageType</key><string>APPL</string>
-            <key>LSMinimumSystemVersion</key><string>11.0</string>
-            <key>NSHighResolutionCapable</key><true/>
-            <key>NSMicrophoneUsageDescription</key>
-            <string>OpenRig uses the microphone for audio input.</string>
-          </dict>
-          </plist>
-          PLIST
-
-      - name: Create .dmg
-        env:
-          VERSION: ${{ steps.ver.outputs.v }}
-        run: |
-          hdiutil detach "/Volumes/OpenRig ${VERSION}" 2>/dev/null || true
-          hdiutil create \
-            -volname "OpenRig ${VERSION}" \
-            -srcfolder dist/OpenRig.app \
-            -ov -format UDZO \
-            "dist/OpenRig-${VERSION}-macos-universal.dmg"
+        run: ./scripts/package-macos.sh "$VERSION"
 
       - uses: actions/upload-artifact@v4
         with:
           name: openrig-macos
-          path: dist/OpenRig-*.dmg
+          path: dist/OpenRig-*-macos-universal.dmg
 
   # --------------------------------------------------------------------------
-  # Linux x86_64: .tar.gz + .deb + .rpm
+  # Linux x86_64: .tar.gz + .deb + .rpm + .AppImage
   # --------------------------------------------------------------------------
   build-linux-x86_64:
     name: Build Linux x86_64
@@ -129,7 +74,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libasound2-dev libudev-dev pkg-config \
-            fakeroot rpm ruby-dev build-essential
+            fakeroot rpm ruby-dev build-essential \
+            librsvg2-bin imagemagick
 
       - name: Install fpm
         run: sudo gem install fpm --no-document
@@ -165,28 +111,25 @@ jobs:
           mkdir -p "$S/usr/lib/openrig/libs/lv2"
           mkdir -p "$S/usr/lib/openrig/libs/nam"
           mkdir -p "$S/usr/share/openrig/data"
-          mkdir -p "$S/usr/share/openrig/assets"
 
           cp target/release/adapter-gui    "$S/usr/bin/openrig"
           cp -r libs/lv2/linux-x86_64      "$S/usr/lib/openrig/libs/lv2/linux-x86_64"
           cp -r libs/nam/linux-x86_64      "$S/usr/lib/openrig/libs/nam/linux-x86_64"
           cp -r data/lv2                   "$S/usr/share/openrig/data/lv2"
-          cp -r assets/blocks              "$S/usr/share/openrig/assets/blocks"
+          cp -r assets                     "$S/usr/share/openrig/assets"
+          cp -r captures                   "$S/usr/share/openrig/captures"
 
       - name: Create .tar.gz
         env:
           VERSION: ${{ steps.ver.outputs.v }}
         run: |
           D="openrig-${VERSION}-linux-x86_64"
-          cp -r dist/stage/usr/bin/openrig dist/stage/usr/lib/openrig/libs \
-               dist/stage/usr/share/openrig/data \
-               dist/stage/usr/share/openrig/assets \
-               /tmp/ 2>/dev/null || true
           mkdir -p "dist/${D}"
-          cp dist/stage/usr/bin/openrig            "dist/${D}/openrig"
-          cp -r dist/stage/usr/lib/openrig/libs    "dist/${D}/libs"
-          cp -r dist/stage/usr/share/openrig/data  "dist/${D}/data"
-          cp -r dist/stage/usr/share/openrig/assets "dist/${D}/assets"
+          cp dist/stage/usr/bin/openrig               "dist/${D}/openrig"
+          cp -r dist/stage/usr/lib/openrig/libs       "dist/${D}/libs"
+          cp -r dist/stage/usr/share/openrig/data     "dist/${D}/data"
+          cp -r dist/stage/usr/share/openrig/assets   "dist/${D}/assets"
+          cp -r dist/stage/usr/share/openrig/captures "dist/${D}/captures"
           tar -czf "dist/${D}.tar.gz" -C dist "${D}"
 
       - name: Create .deb
@@ -221,6 +164,44 @@ jobs:
             --package "dist/openrig-${VERSION}-1.x86_64.rpm" \
             usr
 
+      - name: Create AppImage (x86_64)
+        env:
+          VERSION: ${{ steps.ver.outputs.v }}
+        run: |
+          curl -fsSL -o appimagetool \
+            https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+
+          APPDIR=dist/AppDir
+          cp -r dist/stage "$APPDIR"
+
+          printf '%s\n' \
+            '#!/bin/bash' \
+            'HERE="$(dirname "$(readlink -f "${0}")")"' \
+            'export OPENRIG_LIBS_DIR="$HERE/usr/lib/openrig/libs"' \
+            'export OPENRIG_DATA_DIR="$HERE/usr/share/openrig/data"' \
+            'export OPENRIG_ASSETS_DIR="$HERE/usr/share/openrig/assets"' \
+            'export OPENRIG_CAPTURES_DIR="$HERE/usr/share/openrig/captures"' \
+            'exec "$HERE/usr/bin/openrig" "$@"' \
+            > "$APPDIR/AppRun"
+          chmod +x "$APPDIR/AppRun"
+
+          printf '%s\n' \
+            '[Desktop Entry]' \
+            'Name=OpenRig' \
+            'Exec=openrig' \
+            'Icon=openrig' \
+            'Type=Application' \
+            'Categories=Audio;Music;' \
+            > "$APPDIR/openrig.desktop"
+
+          rsvg-convert -w 256 -h 256 \
+            crates/adapter-gui/ui/assets/openrig-logomark.svg \
+            -o "$APPDIR/openrig.png"
+
+          APPIMAGE_EXTRACT_AND_RUN=1 ARCH=x86_64 ./appimagetool "$APPDIR" \
+            "dist/OpenRig-${VERSION}-linux-x86_64.AppImage"
+
       - uses: actions/upload-artifact@v4
         with:
           name: openrig-linux-x86_64
@@ -228,9 +209,10 @@ jobs:
             dist/openrig-*-linux-x86_64.tar.gz
             dist/openrig_*_amd64.deb
             dist/openrig-*-1.x86_64.rpm
+            dist/OpenRig-*-linux-x86_64.AppImage
 
   # --------------------------------------------------------------------------
-  # Linux aarch64: .tar.gz + .deb + .rpm
+  # Linux aarch64: .tar.gz + .deb + .rpm + .AppImage
   # --------------------------------------------------------------------------
   build-linux-aarch64:
     name: Build Linux aarch64
@@ -245,7 +227,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libasound2-dev libudev-dev pkg-config \
-            fakeroot rpm ruby-dev build-essential
+            fakeroot rpm ruby-dev build-essential \
+            librsvg2-bin imagemagick
 
       - name: Install fpm
         run: sudo gem install fpm --no-document
@@ -281,13 +264,13 @@ jobs:
           mkdir -p "$S/usr/lib/openrig/libs/lv2"
           mkdir -p "$S/usr/lib/openrig/libs/nam"
           mkdir -p "$S/usr/share/openrig/data"
-          mkdir -p "$S/usr/share/openrig/assets"
 
           cp target/release/adapter-gui    "$S/usr/bin/openrig"
           cp -r libs/lv2/linux-aarch64     "$S/usr/lib/openrig/libs/lv2/linux-aarch64"
           cp -r libs/nam/linux-aarch64     "$S/usr/lib/openrig/libs/nam/linux-aarch64"
           cp -r data/lv2                   "$S/usr/share/openrig/data/lv2"
-          cp -r assets/blocks              "$S/usr/share/openrig/assets/blocks"
+          cp -r assets                     "$S/usr/share/openrig/assets"
+          cp -r captures                   "$S/usr/share/openrig/captures"
 
       - name: Create .tar.gz
         env:
@@ -295,10 +278,11 @@ jobs:
         run: |
           D="openrig-${VERSION}-linux-aarch64"
           mkdir -p "dist/${D}"
-          cp dist/stage/usr/bin/openrig              "dist/${D}/openrig"
-          cp -r dist/stage/usr/lib/openrig/libs      "dist/${D}/libs"
-          cp -r dist/stage/usr/share/openrig/data    "dist/${D}/data"
-          cp -r dist/stage/usr/share/openrig/assets  "dist/${D}/assets"
+          cp dist/stage/usr/bin/openrig               "dist/${D}/openrig"
+          cp -r dist/stage/usr/lib/openrig/libs       "dist/${D}/libs"
+          cp -r dist/stage/usr/share/openrig/data     "dist/${D}/data"
+          cp -r dist/stage/usr/share/openrig/assets   "dist/${D}/assets"
+          cp -r dist/stage/usr/share/openrig/captures "dist/${D}/captures"
           tar -czf "dist/${D}.tar.gz" -C dist "${D}"
 
       - name: Create .deb
@@ -333,6 +317,44 @@ jobs:
             --package "dist/openrig-${VERSION}-1.aarch64.rpm" \
             usr
 
+      - name: Create AppImage (aarch64)
+        env:
+          VERSION: ${{ steps.ver.outputs.v }}
+        run: |
+          curl -fsSL -o appimagetool \
+            https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-aarch64.AppImage
+          chmod +x appimagetool
+
+          APPDIR=dist/AppDir
+          cp -r dist/stage "$APPDIR"
+
+          printf '%s\n' \
+            '#!/bin/bash' \
+            'HERE="$(dirname "$(readlink -f "${0}")")"' \
+            'export OPENRIG_LIBS_DIR="$HERE/usr/lib/openrig/libs"' \
+            'export OPENRIG_DATA_DIR="$HERE/usr/share/openrig/data"' \
+            'export OPENRIG_ASSETS_DIR="$HERE/usr/share/openrig/assets"' \
+            'export OPENRIG_CAPTURES_DIR="$HERE/usr/share/openrig/captures"' \
+            'exec "$HERE/usr/bin/openrig" "$@"' \
+            > "$APPDIR/AppRun"
+          chmod +x "$APPDIR/AppRun"
+
+          printf '%s\n' \
+            '[Desktop Entry]' \
+            'Name=OpenRig' \
+            'Exec=openrig' \
+            'Icon=openrig' \
+            'Type=Application' \
+            'Categories=Audio;Music;' \
+            > "$APPDIR/openrig.desktop"
+
+          rsvg-convert -w 256 -h 256 \
+            crates/adapter-gui/ui/assets/openrig-logomark.svg \
+            -o "$APPDIR/openrig.png"
+
+          APPIMAGE_EXTRACT_AND_RUN=1 ARCH=aarch64 ./appimagetool "$APPDIR" \
+            "dist/OpenRig-${VERSION}-linux-aarch64.AppImage"
+
       - uses: actions/upload-artifact@v4
         with:
           name: openrig-linux-aarch64
@@ -340,6 +362,7 @@ jobs:
             dist/openrig-*-linux-aarch64.tar.gz
             dist/openrig_*_arm64.deb
             dist/openrig-*-1.aarch64.rpm
+            dist/OpenRig-*-linux-aarch64.AppImage
 
   # --------------------------------------------------------------------------
   # Windows x64: .zip (full bundle) + .msi (installer)
@@ -390,7 +413,8 @@ jobs:
           cp libs/nam/windows-x64/libNeuralAudioCAPI.dll "dist/${D}/"
           cp -r libs/lv2/windows-x64             "dist/${D}/libs/lv2/windows-x64" 2>/dev/null || true
           cp -r data/lv2                         "dist/${D}/data"
-          cp -r assets/blocks                    "dist/${D}/assets"
+          cp -r assets                           "dist/${D}/assets"
+          cp -r captures                         "dist/${D}/captures"
 
           cd dist
           7z a "${D}.zip" "${D}"
@@ -491,18 +515,19 @@ jobs:
           NOTES: ${{ steps.notes.outputs.notes }}
           USE_GENERATED: ${{ steps.notes.outputs.use_generated }}
         run: |
+          mapfile -t FILES < <(find artifacts -type f | sort)
           if [ "$USE_GENERATED" = "true" ]; then
             gh release create "$TAG" \
               --repo "$REPO" \
               --title "OpenRig $TAG" \
               --generate-notes \
-              artifacts/*
+              "${FILES[@]}"
           else
             gh release create "$TAG" \
               --repo "$REPO" \
               --title "OpenRig $TAG" \
               --notes "$NOTES" \
-              artifacts/*
+              "${FILES[@]}"
           fi
 
       - name: Close milestone
