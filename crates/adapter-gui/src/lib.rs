@@ -2637,7 +2637,6 @@ pub fn run_desktop_app(
             {
                 let weak_cw = compact_win.as_weak();
                 let project_runtime_poll = project_runtime.clone();
-                let project_session_poll = project_session.clone();
                 let stream_timer = Timer::default();
                 stream_timer.start(
                     slint::TimerMode::Repeated,
@@ -2646,31 +2645,22 @@ pub fn run_desktop_app(
                         let Some(cw) = weak_cw.upgrade() else { return; };
                         let rt_borrow = project_runtime_poll.borrow();
                         let Some(rt) = rt_borrow.as_ref() else { return; };
-                        let session_borrow = project_session_poll.borrow();
-                        let Some(session) = session_borrow.as_ref() else { return; };
                         let compact_blocks = cw.get_compact_blocks();
                         for i in 0..compact_blocks.row_count() {
                             if let Some(mut item) = compact_blocks.row_data(i) {
                                 if item.effect_type == "utility" && item.enabled {
-                                    let block_id = session.project.chains
-                                        .get(item.chain_index as usize)
-                                        .and_then(|c| c.blocks.get(item.block_index as usize))
-                                        .map(|b| b.id.clone());
-                                    let stream_data = if let Some(ref bid) = block_id {
-                                        if let Some(entries) = rt.poll_stream(bid) {
-                                            let slint_entries: Vec<BlockStreamEntry> = entries.iter().map(|e| BlockStreamEntry {
-                                                key: e.key.clone().into(),
-                                                value: e.value,
-                                                text: e.text.clone().into(),
-                                                peak: e.peak,
-                                            }).collect();
-                                            BlockStreamData {
-                                                active: true,
-                                                stream_kind: project::catalog::model_stream_kind(item.effect_type.as_str(), item.model_id.as_str()).into(),
-                                                entries: ModelRc::from(Rc::new(VecModel::from(slint_entries))),
-                                            }
-                                        } else {
-                                            BlockStreamData { active: false, stream_kind: "".into(), entries: ModelRc::default() }
+                                    let bid = domain::ids::BlockId(item.block_id.to_string());
+                                    let stream_data = if let Some(entries) = rt.poll_stream(&bid) {
+                                        let slint_entries: Vec<BlockStreamEntry> = entries.iter().map(|e| BlockStreamEntry {
+                                            key: e.key.clone().into(),
+                                            value: e.value,
+                                            text: e.text.clone().into(),
+                                            peak: e.peak,
+                                        }).collect();
+                                        BlockStreamData {
+                                            active: true,
+                                            stream_kind: project::catalog::model_stream_kind(item.effect_type.as_str(), item.model_id.as_str()).into(),
+                                            entries: ModelRc::from(Rc::new(VecModel::from(slint_entries))),
                                         }
                                     } else {
                                         BlockStreamData { active: false, stream_kind: "".into(), entries: ModelRc::default() }
@@ -6943,6 +6933,7 @@ fn build_compact_blocks(
             Some(CompactBlockItem {
                 chain_index: chain_index as i32,
                 block_index: block_index as i32,
+                block_id: block.id.0.clone().into(),
                 effect_type: effect_type.clone().into(),
                 model_id: model_id.clone().into(),
                 icon_kind: icon_kind.clone().into(),
