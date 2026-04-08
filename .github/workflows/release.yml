@@ -74,7 +74,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libasound2-dev libudev-dev pkg-config \
-            fakeroot rpm ruby-dev build-essential librsvg2-bin
+            fakeroot rpm ruby-dev build-essential \
+            librsvg2-bin imagemagick
 
       - name: Install fpm
         run: sudo gem install fpm --no-document
@@ -171,22 +172,17 @@ jobs:
             https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool
 
-          # AppDir: libs must be under usr/share/openrig/ so detect_data_root()
-          # resolves them correctly (it returns usr/share/openrig/ for the binary
-          # at usr/bin/openrig, then joins the default relative paths from there).
           APPDIR=dist/AppDir
-          mkdir -p "$APPDIR/usr/bin"
-          mkdir -p "$APPDIR/usr/share/openrig"
-
-          cp dist/stage/usr/bin/openrig                      "$APPDIR/usr/bin/openrig"
-          cp -r dist/stage/usr/lib/openrig/libs              "$APPDIR/usr/share/openrig/libs"
-          cp -r dist/stage/usr/share/openrig/data            "$APPDIR/usr/share/openrig/data"
-          cp -r dist/stage/usr/share/openrig/assets          "$APPDIR/usr/share/openrig/assets"
-          cp -r dist/stage/usr/share/openrig/captures        "$APPDIR/usr/share/openrig/captures"
+          cp -r dist/stage "$APPDIR"
 
           printf '%s\n' \
             '#!/bin/bash' \
-            'exec "${APPDIR}/usr/bin/openrig" "$@"' \
+            'HERE="$(dirname "$(readlink -f "${0}")")"' \
+            'export OPENRIG_LIBS_DIR="$HERE/usr/lib/openrig/libs"' \
+            'export OPENRIG_DATA_DIR="$HERE/usr/share/openrig/data"' \
+            'export OPENRIG_ASSETS_DIR="$HERE/usr/share/openrig/assets"' \
+            'export OPENRIG_CAPTURES_DIR="$HERE/usr/share/openrig/captures"' \
+            'exec "$HERE/usr/bin/openrig" "$@"' \
             > "$APPDIR/AppRun"
           chmod +x "$APPDIR/AppRun"
 
@@ -231,7 +227,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libasound2-dev libudev-dev pkg-config \
-            fakeroot rpm ruby-dev build-essential librsvg2-bin
+            fakeroot rpm ruby-dev build-essential \
+            librsvg2-bin imagemagick
 
       - name: Install fpm
         run: sudo gem install fpm --no-document
@@ -328,22 +325,17 @@ jobs:
             https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-aarch64.AppImage
           chmod +x appimagetool
 
-          # AppDir: libs must be under usr/share/openrig/ so detect_data_root()
-          # resolves them correctly (it returns usr/share/openrig/ for the binary
-          # at usr/bin/openrig, then joins the default relative paths from there).
           APPDIR=dist/AppDir
-          mkdir -p "$APPDIR/usr/bin"
-          mkdir -p "$APPDIR/usr/share/openrig"
-
-          cp dist/stage/usr/bin/openrig                      "$APPDIR/usr/bin/openrig"
-          cp -r dist/stage/usr/lib/openrig/libs              "$APPDIR/usr/share/openrig/libs"
-          cp -r dist/stage/usr/share/openrig/data            "$APPDIR/usr/share/openrig/data"
-          cp -r dist/stage/usr/share/openrig/assets          "$APPDIR/usr/share/openrig/assets"
-          cp -r dist/stage/usr/share/openrig/captures        "$APPDIR/usr/share/openrig/captures"
+          cp -r dist/stage "$APPDIR"
 
           printf '%s\n' \
             '#!/bin/bash' \
-            'exec "${APPDIR}/usr/bin/openrig" "$@"' \
+            'HERE="$(dirname "$(readlink -f "${0}")")"' \
+            'export OPENRIG_LIBS_DIR="$HERE/usr/lib/openrig/libs"' \
+            'export OPENRIG_DATA_DIR="$HERE/usr/share/openrig/data"' \
+            'export OPENRIG_ASSETS_DIR="$HERE/usr/share/openrig/assets"' \
+            'export OPENRIG_CAPTURES_DIR="$HERE/usr/share/openrig/captures"' \
+            'exec "$HERE/usr/bin/openrig" "$@"' \
             > "$APPDIR/AppRun"
           chmod +x "$APPDIR/AppRun"
 
