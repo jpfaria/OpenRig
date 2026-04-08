@@ -345,6 +345,8 @@ jobs:
     needs: [detect-changes, linux-x86_64, linux-aarch64, macos-universal, windows-x64, windows-arm64]
     if: always() && needs.detect-changes.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
