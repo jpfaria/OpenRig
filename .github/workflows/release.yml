@@ -396,7 +396,7 @@ jobs:
           7z a "${D}.zip" "${D}"
 
       - name: Install WiX Toolset v3
-        run: choco install wixtoolset --version 3.11.2 -y --no-progress
+        run: choco install wixtoolset -y --no-progress || true
 
       - name: Install cargo-wix
         run: cargo install cargo-wix --locked
