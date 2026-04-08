@@ -41,7 +41,7 @@ for y in range(h):
         raw += bytes([r, g, b, 0xff])
 compressed = zlib.compress(raw)
 png = b'\x89PNG\r\n\x1a\n'
-png += png_chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0))
+png += png_chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 6, 0, 0, 0))  # type 6 = RGBA
 png += png_chunk(b'IDAT', compressed)
 png += png_chunk(b'IEND', b'')
 sys.stdout.buffer.write(png)
