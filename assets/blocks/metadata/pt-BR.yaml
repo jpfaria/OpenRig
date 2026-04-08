@@ -56,6 +56,10 @@ plugins:
     description: "EQ de três bandas com controles de grave, médio e agudo (±24 dB)."
     license: "Proprietário - OpenRig"
     homepage: "https://github.com/jpfaria/OpenRig"
+  native_guitar_eq:
+    description: "Guitar EQ — corta o grave abaixo de 80Hz e o agudo acima de 8kHz. Dois controles independentes permitem ajustar a intensidade de cada corte."
+    license: "Proprietário - OpenRig"
+    homepage: "https://github.com/jpfaria/OpenRig"
   ibanez_ts9:
     description: "Tube Screamer clássico da Ibanez com controles de drive, tone e level."
     license: "Proprietário - OpenRig"
