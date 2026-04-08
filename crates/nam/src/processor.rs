@@ -187,6 +187,10 @@ struct NeuralModel {
     _opaque: [u8; 0],
 }
 
+// On Windows use raw-dylib so no .lib import library is required — the DLL is
+// found by name at runtime.  On other platforms the build script emits the
+// standard dylib link directive.
+#[cfg_attr(target_os = "windows", link(name = "libNeuralAudioCAPI", kind = "raw-dylib"))]
 unsafe extern "C" {
     // wchar_t is u32 on macOS/Linux, u16 on Windows
     #[cfg(not(target_os = "windows"))]
