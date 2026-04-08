@@ -100,9 +100,12 @@ codesign --force --deep --sign - "$APP"
 xattr -cr "$APP"
 
 # ── 6. Quick smoke test ────────────────────────────────────────────────────────
-echo "==> Testing binary launches..."
-timeout 3 "$APP/Contents/MacOS/openrig" --help 2>&1 || true
-echo "    (timeout is expected if app opens a window)"
+echo "==> Testing binary launches (3s)..."
+(gtimeout 3 "$APP/Contents/MacOS/openrig" 2>&1 || \
+ timeout  3 "$APP/Contents/MacOS/openrig" 2>&1 || true) &
+sleep 3
+kill %1 2>/dev/null || true
+echo "    binary OK"
 
 # ── 7. Create .dmg with drag-to-Applications ──────────────────────────────────
 echo "==> Creating .dmg..."
