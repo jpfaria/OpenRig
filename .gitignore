@@ -4,3 +4,4 @@
 .worktrees/
 .solvers/
 .logs/
+dist/
