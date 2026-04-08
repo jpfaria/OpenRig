@@ -1,0 +1,442 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. v0.1.0)'
+        required: false
+        default: 'dev'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # --------------------------------------------------------------------------
+  # macOS universal binary + .app bundle + .dmg
+  # --------------------------------------------------------------------------
+  build-macos:
+    name: Build macOS (universal)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust targets
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: macos-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: macos-cargo-
+
+      - name: Build arm64
+        run: cargo build --release --target aarch64-apple-darwin -p adapter-gui
+
+      - name: Build x86_64
+        run: cargo build --release --target x86_64-apple-darwin -p adapter-gui
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="${{ inputs.version }}"
+            V="${V:-dev}"
+          fi
+          echo "v=${V}" >> "$GITHUB_OUTPUT"
+
+      - name: Create .app bundle
+        env:
+          VERSION: ${{ steps.ver.outputs.v }}
+        run: |
+          APP="dist/OpenRig.app"
+          mkdir -p "$APP/Contents/MacOS"
+          mkdir -p "$APP/Contents/Resources/libs/lv2"
+          mkdir -p "$APP/Contents/Resources/libs/nam"
+
+          lipo -create \
+            target/aarch64-apple-darwin/release/adapter-gui \
+            target/x86_64-apple-darwin/release/adapter-gui \
+            -output "$APP/Contents/MacOS/openrig"
+          chmod +x "$APP/Contents/MacOS/openrig"
+
+          cp -r libs/lv2/macos-universal "$APP/Contents/Resources/libs/lv2/macos-universal"
+          cp -r libs/nam/macos-universal "$APP/Contents/Resources/libs/nam/macos-universal"
+          cp -r data/lv2                "$APP/Contents/Resources/data"
+          cp -r assets/blocks           "$APP/Contents/Resources/assets"
+
+          cat > "$APP/Contents/Info.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleExecutable</key><string>openrig</string>
+            <key>CFBundleIdentifier</key><string>com.openrig.app</string>
+            <key>CFBundleName</key><string>OpenRig</string>
+            <key>CFBundleVersion</key><string>${VERSION}</string>
+            <key>CFBundleShortVersionString</key><string>${VERSION}</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+            <key>LSMinimumSystemVersion</key><string>11.0</string>
+            <key>NSHighResolutionCapable</key><true/>
+            <key>NSMicrophoneUsageDescription</key>
+            <string>OpenRig uses the microphone for audio input.</string>
+          </dict>
+          </plist>
+          PLIST
+
+      - name: Create .dmg
+        env:
+          VERSION: ${{ steps.ver.outputs.v }}
+        run: |
+          hdiutil create \
+            -volname "OpenRig ${VERSION}" \
+            -srcfolder dist/OpenRig.app \
+            -ov -format UDZO \
+            "dist/OpenRig-${VERSION}-macos-universal.dmg"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openrig-macos
+          path: dist/OpenRig-*.dmg
+
+  # --------------------------------------------------------------------------
+  # Linux x86_64: .tar.gz + .deb + .rpm
+  # --------------------------------------------------------------------------
+  build-linux-x86_64:
+    name: Build Linux x86_64
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev libudev-dev pkg-config \
+            fakeroot rpm ruby-dev build-essential
+
+      - name: Install fpm
+        run: sudo gem install fpm --no-document
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: linux-x86_64-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: linux-x86_64-cargo-
+
+      - name: Build
+        run: cargo build --release -p adapter-gui
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="${{ inputs.version }}"
+            V="${V:-0.0.0-dev}"
+          fi
+          echo "v=${V}" >> "$GITHUB_OUTPUT"
+
+      - name: Stage install tree
+        run: |
+          S=dist/stage
+          mkdir -p "$S/usr/bin"
+          mkdir -p "$S/usr/lib/openrig/libs/lv2"
+          mkdir -p "$S/usr/lib/openrig/libs/nam"
+          mkdir -p "$S/usr/share/openrig/data"
+          mkdir -p "$S/usr/share/openrig/assets"
+
+          cp target/release/adapter-gui    "$S/usr/bin/openrig"
+          cp -r libs/lv2/linux-x86_64      "$S/usr/lib/openrig/libs/lv2/linux-x86_64"
+          cp -r libs/nam/linux-x86_64      "$S/usr/lib/openrig/libs/nam/linux-x86_64"
+          cp -r data/lv2                   "$S/usr/share/openrig/data/lv2"
+          cp -r assets/blocks              "$S/usr/share/openrig/assets/blocks"
+
+      - name: Create .tar.gz
+        env:
+          VERSION: ${{ steps.ver.outputs.v }}
+        run: |
+          D="openrig-${VERSION}-linux-x86_64"
+          cp -r dist/stage/usr/bin/openrig dist/stage/usr/lib/openrig/libs \
+               dist/stage/usr/share/openrig/data \
+               dist/stage/usr/share/openrig/assets \
+               /tmp/ 2>/dev/null || true
+          mkdir -p "dist/${D}"
+          cp dist/stage/usr/bin/openrig            "dist/${D}/openrig"
+          cp -r dist/stage/usr/lib/openrig/libs    "dist/${D}/libs"
+          cp -r dist/stage/usr/share/openrig/data  "dist/${D}/data"
+          cp -r dist/stage/usr/share/openrig/assets "dist/${D}/assets"
+          tar -czf "dist/${D}.tar.gz" -C dist "${D}"
+
+      - name: Create .deb
+        env:
+          VERSION: ${{ steps.ver.outputs.v }}
+        run: |
+          fpm -s dir -t deb \
+            -n openrig -v "${VERSION}" \
+            --architecture x86_64 \
+            --description "OpenRig virtual guitar pedalboard" \
+            --url "https://github.com/jpfaria/OpenRig" \
+            --maintainer "Joao Paulo Faria" \
+            --category sound \
+            --depends libasound2 \
+            --deb-no-default-config-files \
+            -C dist/stage \
+            --package "dist/openrig_${VERSION}_amd64.deb" \
+            usr
+
+      - name: Create .rpm
+        env:
+          VERSION: ${{ steps.ver.outputs.v }}
+        run: |
+          fpm -s dir -t rpm \
+            -n openrig -v "${VERSION}" \
+            --architecture x86_64 \
+            --description "OpenRig virtual guitar pedalboard" \
+            --url "https://github.com/jpfaria/OpenRig" \
+            --maintainer "Joao Paulo Faria" \
+            --category "Applications/Multimedia" \
+            -C dist/stage \
+            --package "dist/openrig-${VERSION}-1.x86_64.rpm" \
+            usr
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openrig-linux-x86_64
+          path: |
+            dist/openrig-*-linux-x86_64.tar.gz
+            dist/openrig_*_amd64.deb
+            dist/openrig-*-1.x86_64.rpm
+
+  # --------------------------------------------------------------------------
+  # Linux aarch64: .tar.gz + .deb + .rpm
+  # --------------------------------------------------------------------------
+  build-linux-aarch64:
+    name: Build Linux aarch64
+    runs-on: ubuntu-22.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev libudev-dev pkg-config \
+            fakeroot rpm ruby-dev build-essential
+
+      - name: Install fpm
+        run: sudo gem install fpm --no-document
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: linux-aarch64-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: linux-aarch64-cargo-
+
+      - name: Build
+        run: cargo build --release -p adapter-gui
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="${{ inputs.version }}"
+            V="${V:-0.0.0-dev}"
+          fi
+          echo "v=${V}" >> "$GITHUB_OUTPUT"
+
+      - name: Stage install tree
+        run: |
+          S=dist/stage
+          mkdir -p "$S/usr/bin"
+          mkdir -p "$S/usr/lib/openrig/libs/lv2"
+          mkdir -p "$S/usr/lib/openrig/libs/nam"
+          mkdir -p "$S/usr/share/openrig/data"
+          mkdir -p "$S/usr/share/openrig/assets"
+
+          cp target/release/adapter-gui    "$S/usr/bin/openrig"
+          cp -r libs/lv2/linux-aarch64     "$S/usr/lib/openrig/libs/lv2/linux-aarch64"
+          cp -r libs/nam/linux-aarch64     "$S/usr/lib/openrig/libs/nam/linux-aarch64"
+          cp -r data/lv2                   "$S/usr/share/openrig/data/lv2"
+          cp -r assets/blocks              "$S/usr/share/openrig/assets/blocks"
+
+      - name: Create .tar.gz
+        env:
+          VERSION: ${{ steps.ver.outputs.v }}
+        run: |
+          D="openrig-${VERSION}-linux-aarch64"
+          mkdir -p "dist/${D}"
+          cp dist/stage/usr/bin/openrig              "dist/${D}/openrig"
+          cp -r dist/stage/usr/lib/openrig/libs      "dist/${D}/libs"
+          cp -r dist/stage/usr/share/openrig/data    "dist/${D}/data"
+          cp -r dist/stage/usr/share/openrig/assets  "dist/${D}/assets"
+          tar -czf "dist/${D}.tar.gz" -C dist "${D}"
+
+      - name: Create .deb
+        env:
+          VERSION: ${{ steps.ver.outputs.v }}
+        run: |
+          fpm -s dir -t deb \
+            -n openrig -v "${VERSION}" \
+            --architecture arm64 \
+            --description "OpenRig virtual guitar pedalboard" \
+            --url "https://github.com/jpfaria/OpenRig" \
+            --maintainer "Joao Paulo Faria" \
+            --category sound \
+            --depends libasound2 \
+            --deb-no-default-config-files \
+            -C dist/stage \
+            --package "dist/openrig_${VERSION}_arm64.deb" \
+            usr
+
+      - name: Create .rpm
+        env:
+          VERSION: ${{ steps.ver.outputs.v }}
+        run: |
+          fpm -s dir -t rpm \
+            -n openrig -v "${VERSION}" \
+            --architecture aarch64 \
+            --description "OpenRig virtual guitar pedalboard" \
+            --url "https://github.com/jpfaria/OpenRig" \
+            --maintainer "Joao Paulo Faria" \
+            --category "Applications/Multimedia" \
+            -C dist/stage \
+            --package "dist/openrig-${VERSION}-1.aarch64.rpm" \
+            usr
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openrig-linux-aarch64
+          path: |
+            dist/openrig-*-linux-aarch64.tar.gz
+            dist/openrig_*_arm64.deb
+            dist/openrig-*-1.aarch64.rpm
+
+  # --------------------------------------------------------------------------
+  # Windows x64: .zip (full bundle) + .msi (installer)
+  # --------------------------------------------------------------------------
+  build-windows:
+    name: Build Windows x64
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: windows-x64-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: windows-x64-cargo-
+
+      - name: Build
+        run: cargo build --release -p adapter-gui
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="${{ inputs.version }}"
+            V="${V:-0.0.0-dev}"
+          fi
+          echo "v=${V}" >> "$GITHUB_OUTPUT"
+
+      - name: Create .zip bundle
+        env:
+          VERSION: ${{ steps.ver.outputs.v }}
+        shell: bash
+        run: |
+          D="OpenRig-${VERSION}-windows-x64"
+          mkdir -p "dist/${D}/libs/lv2"
+          mkdir -p "dist/${D}/libs/nam"
+
+          cp target/release/adapter-gui.exe       "dist/${D}/openrig.exe"
+          cp libs/nam/windows-x64/libNeuralAudioCAPI.dll "dist/${D}/"
+          cp -r libs/lv2/windows-x64             "dist/${D}/libs/lv2/windows-x64" 2>/dev/null || true
+          cp -r data/lv2                         "dist/${D}/data"
+          cp -r assets/blocks                    "dist/${D}/assets"
+
+          cd dist
+          7z a "${D}.zip" "${D}"
+
+      - name: Install WiX Toolset v3
+        run: choco install wixtoolset --version 3.11.2 -y --no-progress
+
+      - name: Install cargo-wix
+        run: cargo install cargo-wix --locked
+
+      - name: Copy NAM DLL next to binary for MSI bundling
+        shell: bash
+        run: cp libs/nam/windows-x64/libNeuralAudioCAPI.dll target/release/
+
+      - name: Generate WiX template and build .msi
+        env:
+          VERSION: ${{ steps.ver.outputs.v }}
+        shell: bash
+        run: |
+          cargo wix init -p adapter-gui --force
+          cargo wix -p adapter-gui \
+            --no-build \
+            --name OpenRig \
+            --output "target/wix/OpenRig-${VERSION}-windows-x64.msi"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openrig-windows-x64
+          path: |
+            dist/OpenRig-*-windows-x64.zip
+            target/wix/OpenRig-*.msi
+
+  # --------------------------------------------------------------------------
+  # GitHub Release (only on tag push)
+  # --------------------------------------------------------------------------
+  create-release:
+    name: Create GitHub Release
+    needs: [build-macos, build-linux-x86_64, build-linux-aarch64, build-windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          gh release create "$TAG" \
+            --repo "$REPO" \
+            --title "OpenRig $TAG" \
+            --generate-notes \
+            artifacts/*
