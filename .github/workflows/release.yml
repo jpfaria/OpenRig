@@ -129,7 +129,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libasound2-dev libudev-dev pkg-config \
-            fakeroot rpm ruby-dev build-essential imagemagick
+            fakeroot rpm ruby-dev build-essential librsvg2-bin
 
       - name: Install fpm
         run: sudo gem install fpm --no-document
@@ -229,16 +229,21 @@ jobs:
             https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool
 
+          # AppDir: libs must be under usr/share/openrig/ so detect_data_root()
+          # resolves them correctly (it returns usr/share/openrig/ for the binary
+          # at usr/bin/openrig, then joins the default relative paths from there).
           APPDIR=dist/AppDir
-          cp -r dist/stage "$APPDIR"
+          mkdir -p "$APPDIR/usr/bin"
+          mkdir -p "$APPDIR/usr/share/openrig"
+
+          cp dist/stage/usr/bin/openrig                    "$APPDIR/usr/bin/openrig"
+          cp -r dist/stage/usr/lib/openrig/libs            "$APPDIR/usr/share/openrig/libs"
+          cp -r dist/stage/usr/share/openrig/data          "$APPDIR/usr/share/openrig/data"
+          cp -r dist/stage/usr/share/openrig/assets        "$APPDIR/usr/share/openrig/assets"
 
           printf '%s\n' \
             '#!/bin/bash' \
-            'HERE="$(dirname "$(readlink -f "${0}")")"' \
-            'export OPENRIG_LIBS_DIR="$HERE/usr/lib/openrig/libs"' \
-            'export OPENRIG_DATA_DIR="$HERE/usr/share/openrig/data"' \
-            'export OPENRIG_ASSETS_DIR="$HERE/usr/share/openrig/assets"' \
-            'exec "$HERE/usr/bin/openrig" "$@"' \
+            'exec "${APPDIR}/usr/bin/openrig" "$@"' \
             > "$APPDIR/AppRun"
           chmod +x "$APPDIR/AppRun"
 
@@ -251,10 +256,9 @@ jobs:
             'Categories=Audio;Music;' \
             > "$APPDIR/openrig.desktop"
 
-          convert -size 256x256 xc:'#1a1a2e' \
-            -fill white -font DejaVu-Sans-Bold -pointsize 80 \
-            -gravity center -annotate 0 'OR' \
-            "$APPDIR/openrig.png"
+          rsvg-convert -w 256 -h 256 \
+            crates/adapter-gui/ui/assets/openrig-logomark.svg \
+            -o "$APPDIR/openrig.png"
 
           APPIMAGE_EXTRACT_AND_RUN=1 ARCH=x86_64 ./appimagetool "$APPDIR" \
             "dist/OpenRig-${VERSION}-linux-x86_64.AppImage"
@@ -284,7 +288,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libasound2-dev libudev-dev pkg-config \
-            fakeroot rpm ruby-dev build-essential imagemagick
+            fakeroot rpm ruby-dev build-essential librsvg2-bin
 
       - name: Install fpm
         run: sudo gem install fpm --no-document
@@ -380,16 +384,21 @@ jobs:
             https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-aarch64.AppImage
           chmod +x appimagetool
 
+          # AppDir: libs must be under usr/share/openrig/ so detect_data_root()
+          # resolves them correctly (it returns usr/share/openrig/ for the binary
+          # at usr/bin/openrig, then joins the default relative paths from there).
           APPDIR=dist/AppDir
-          cp -r dist/stage "$APPDIR"
+          mkdir -p "$APPDIR/usr/bin"
+          mkdir -p "$APPDIR/usr/share/openrig"
+
+          cp dist/stage/usr/bin/openrig                    "$APPDIR/usr/bin/openrig"
+          cp -r dist/stage/usr/lib/openrig/libs            "$APPDIR/usr/share/openrig/libs"
+          cp -r dist/stage/usr/share/openrig/data          "$APPDIR/usr/share/openrig/data"
+          cp -r dist/stage/usr/share/openrig/assets        "$APPDIR/usr/share/openrig/assets"
 
           printf '%s\n' \
             '#!/bin/bash' \
-            'HERE="$(dirname "$(readlink -f "${0}")")"' \
-            'export OPENRIG_LIBS_DIR="$HERE/usr/lib/openrig/libs"' \
-            'export OPENRIG_DATA_DIR="$HERE/usr/share/openrig/data"' \
-            'export OPENRIG_ASSETS_DIR="$HERE/usr/share/openrig/assets"' \
-            'exec "$HERE/usr/bin/openrig" "$@"' \
+            'exec "${APPDIR}/usr/bin/openrig" "$@"' \
             > "$APPDIR/AppRun"
           chmod +x "$APPDIR/AppRun"
 
@@ -402,10 +411,9 @@ jobs:
             'Categories=Audio;Music;' \
             > "$APPDIR/openrig.desktop"
 
-          convert -size 256x256 xc:'#1a1a2e' \
-            -fill white -font DejaVu-Sans-Bold -pointsize 80 \
-            -gravity center -annotate 0 'OR' \
-            "$APPDIR/openrig.png"
+          rsvg-convert -w 256 -h 256 \
+            crates/adapter-gui/ui/assets/openrig-logomark.svg \
+            -o "$APPDIR/openrig.png"
 
           APPIMAGE_EXTRACT_AND_RUN=1 ARCH=aarch64 ./appimagetool "$APPDIR" \
             "dist/OpenRig-${VERSION}-linux-aarch64.AppImage"
