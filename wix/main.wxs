@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WiX v3 Product definition for OpenRig Windows installer.
+  File components are harvested at build time by heat.exe (see scripts/package-windows.ps1).
+  UpgradeCode must NEVER change between releases — it ties the upgrade chain together.
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*"
+           Name="OpenRig"
+           Language="1033"
+           Version="$(var.Version)"
+           Manufacturer="Joao Paulo Faria"
+           UpgradeCode="{6B2F8B9A-1C3D-4E5F-A6B7-C8D9E0F1A2B3}">
+
+    <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine"/>
+
+    <!-- Remove older versions before installing a newer one -->
+    <MajorUpgrade DowngradeErrorMessage="A newer version of OpenRig is already installed." />
+
+    <!-- Embed all files into the MSI cabinet -->
+    <MediaTemplate EmbedCab="yes"/>
+
+    <!-- All files come from the heat-harvested ComponentGroup -->
+    <Feature Id="ProductFeature" Title="OpenRig" Level="1">
+      <ComponentGroupRef Id="StageFiles"/>
+    </Feature>
+
+    <!-- Install to C:\Program Files\OpenRig\ -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="OpenRig"/>
+      </Directory>
+    </Directory>
+
+    <!-- Minimal UI: progress bar only, no directory choice -->
+    <UIRef Id="WixUI_Minimal"/>
+    <WixVariable Id="WixUILicenseRtf" Value="wix\License.rtf"/>
+
+    <!-- Add/Remove Programs entry -->
+    <Property Id="ARPPRODUCTICON" Value="OpenRigIcon"/>
+    <Icon Id="OpenRigIcon" SourceFile="$(var.SourceDir)\openrig.exe"/>
+
+  </Product>
+</Wix>

@@ -400,52 +400,21 @@ jobs:
           fi
           echo "v=${V}" >> "$GITHUB_OUTPUT"
 
-      - name: Create .zip bundle
-        env:
-          VERSION: ${{ steps.ver.outputs.v }}
-        shell: bash
-        run: |
-          D="OpenRig-${VERSION}-windows-x64"
-          mkdir -p "dist/${D}/libs/lv2"
-          mkdir -p "dist/${D}/libs/nam"
-
-          cp target/release/adapter-gui.exe       "dist/${D}/openrig.exe"
-          cp libs/nam/windows-x64/libNeuralAudioCAPI.dll "dist/${D}/"
-          cp -r libs/lv2/windows-x64             "dist/${D}/libs/lv2/windows-x64" 2>/dev/null || true
-          cp -r data/lv2                         "dist/${D}/data"
-          cp -r assets                           "dist/${D}/assets"
-          cp -r captures                         "dist/${D}/captures"
-
-          cd dist
-          7z a "${D}.zip" "${D}"
-
       - name: Install WiX Toolset v3
-        run: choco install wixtoolset -y --no-progress || true
+        run: choco install wixtoolset -y --no-progress
 
-      - name: Install cargo-wix
-        run: cargo install cargo-wix --locked
-
-      - name: Copy NAM DLL next to binary for MSI bundling
-        shell: bash
-        run: cp libs/nam/windows-x64/libNeuralAudioCAPI.dll target/release/
-
-      - name: Generate WiX template and build .msi
+      - name: Package (.zip + .msi)
         env:
           VERSION: ${{ steps.ver.outputs.v }}
-        shell: bash
-        run: |
-          cargo wix init -p adapter-gui --force
-          cargo wix -p adapter-gui \
-            --no-build \
-            --name OpenRig \
-            --output "target/wix/OpenRig-${VERSION}-windows-x64.msi"
+        shell: pwsh
+        run: .\scripts\package-windows.ps1 "$env:VERSION"
 
       - uses: actions/upload-artifact@v4
         with:
           name: openrig-windows-x64
           path: |
             dist/OpenRig-*-windows-x64.zip
-            target/wix/OpenRig-*.msi
+            dist/OpenRig-*-windows-x64.msi
 
   # --------------------------------------------------------------------------
   # GitHub Release (only on tag push)
