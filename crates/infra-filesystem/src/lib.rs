@@ -28,6 +28,12 @@ pub struct AssetPaths {
     /// Root directory for block thumbnails (PNG images).
     #[serde(default = "default_thumbnails")]
     pub thumbnails: String,
+    /// Root directory for block screenshots (PNG images for info panel).
+    #[serde(default = "default_screenshots")]
+    pub screenshots: String,
+    /// Root directory for plugin metadata YAML files (per-language).
+    #[serde(default = "default_metadata")]
+    pub metadata: String,
 }
 
 impl Default for AssetPaths {
@@ -38,6 +44,8 @@ impl Default for AssetPaths {
             nam_captures: default_nam_captures(),
             ir_captures: default_ir_captures(),
             thumbnails: default_thumbnails(),
+            screenshots: default_screenshots(),
+            metadata: default_metadata(),
         }
     }
 }
@@ -69,6 +77,14 @@ fn default_ir_captures() -> String {
 
 fn default_thumbnails() -> String {
     "assets/blocks/thumbnails".to_string()
+}
+
+fn default_screenshots() -> String {
+    "assets/blocks/screenshots".to_string()
+}
+
+fn default_metadata() -> String {
+    "assets/blocks/metadata".to_string()
 }
 
 static ASSET_PATHS: OnceLock<AssetPaths> = OnceLock::new();

@@ -294,26 +294,32 @@ pub enum BiquadKind {
     Peak,
     LowShelf,
     HighShelf,
+    HighPass,
+    LowPass,
 }
 
 impl BiquadFilter {
     pub fn new(kind: BiquadKind, freq_hz: f32, gain_db: f32, q: f32, sample_rate: f32) -> Self {
-        let a = 10.0_f32.powf(gain_db / 40.0);
         let w0 = 2.0 * PI * freq_hz / sample_rate;
         let cos_w0 = w0.cos();
         let sin_w0 = w0.sin();
-        let alpha = sin_w0 / (2.0 * q.max(0.01));
 
         let (b0, b1, b2, a0, a1, a2) = match kind {
-            BiquadKind::Peak => (
-                1.0 + alpha * a,
-                -2.0 * cos_w0,
-                1.0 - alpha * a,
-                1.0 + alpha / a,
-                -2.0 * cos_w0,
-                1.0 - alpha / a,
-            ),
+            BiquadKind::Peak => {
+                let a = 10.0_f32.powf(gain_db / 40.0);
+                let alpha = sin_w0 / (2.0 * q.max(0.01));
+                (
+                    1.0 + alpha * a,
+                    -2.0 * cos_w0,
+                    1.0 - alpha * a,
+                    1.0 + alpha / a,
+                    -2.0 * cos_w0,
+                    1.0 - alpha / a,
+                )
+            }
             BiquadKind::LowShelf => {
+                let a = 10.0_f32.powf(gain_db / 40.0);
+                let alpha = sin_w0 / (2.0 * q.max(0.01));
                 let two_sqrt_a_alpha = 2.0 * a.sqrt() * alpha;
                 (
                     a * ((a + 1.0) - (a - 1.0) * cos_w0 + two_sqrt_a_alpha),
@@ -325,6 +331,8 @@ impl BiquadFilter {
                 )
             }
             BiquadKind::HighShelf => {
+                let a = 10.0_f32.powf(gain_db / 40.0);
+                let alpha = sin_w0 / (2.0 * q.max(0.01));
                 let two_sqrt_a_alpha = 2.0 * a.sqrt() * alpha;
                 (
                     a * ((a + 1.0) + (a - 1.0) * cos_w0 + two_sqrt_a_alpha),
@@ -333,6 +341,28 @@ impl BiquadFilter {
                     (a + 1.0) - (a - 1.0) * cos_w0 + two_sqrt_a_alpha,
                     2.0 * ((a - 1.0) - (a + 1.0) * cos_w0),
                     (a + 1.0) - (a - 1.0) * cos_w0 - two_sqrt_a_alpha,
+                )
+            }
+            BiquadKind::HighPass => {
+                let alpha = sin_w0 / (2.0 * q.max(0.01));
+                (
+                    (1.0 + cos_w0) / 2.0,
+                    -(1.0 + cos_w0),
+                    (1.0 + cos_w0) / 2.0,
+                    1.0 + alpha,
+                    -2.0 * cos_w0,
+                    1.0 - alpha,
+                )
+            }
+            BiquadKind::LowPass => {
+                let alpha = sin_w0 / (2.0 * q.max(0.01));
+                (
+                    (1.0 - cos_w0) / 2.0,
+                    1.0 - cos_w0,
+                    (1.0 - cos_w0) / 2.0,
+                    1.0 + alpha,
+                    -2.0 * cos_w0,
+                    1.0 - alpha,
                 )
             }
         };

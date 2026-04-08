@@ -103,6 +103,7 @@ export component DesktopMain inherits Rectangle {
     callback close-block-drawer();
     callback save-block-drawer();
     callback delete-block-drawer();
+    callback show-plugin-info(string, string);  // effect_type, model_id
     callback toggle-block-drawer-enabled();
     callback update-block-parameter-text(string, string);
     callback update-block-parameter-number(string, float);
@@ -192,6 +193,7 @@ export component DesktopMain inherits Rectangle {
             close-block-drawer => { root.close-block-drawer(); }
             save-block-drawer => { root.save-block-drawer(); }
             delete-block-drawer => { root.delete-block-drawer(); }
+            show-plugin-info(effect_type, model_id) => { root.show-plugin-info(effect_type, model_id); }
             toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
             update-block-parameter-text(path, value) => { root.update-block-parameter-text(path, value); }
             update-block-parameter-number(path, value) => { root.update-block-parameter-number(path, value); }
