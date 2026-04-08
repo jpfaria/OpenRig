@@ -18,37 +18,28 @@ cargo build --release --target aarch64-apple-darwin -p adapter-gui
 echo "==> Building x86_64..."
 cargo build --release --target x86_64-apple-darwin -p adapter-gui
 
-# ── 3. Generate placeholder icon (same as CI) ─────────────────────────────────
-echo "==> Generating placeholder icon..."
+# ── 3. Generate .icns from OpenRig logo SVG ───────────────────────────────────
+echo "==> Generating icon from openrig-logomark.svg..."
+SVG="crates/adapter-gui/ui/assets/openrig-logomark.svg"
 mkdir -p assets/brands/openrig
 TMP_ICONSET=$(mktemp -d)/openrig.iconset
 mkdir -p "$TMP_ICONSET"
-for SIZE in 16 32 64 128 256 512; do
-    python3 -c "
-import struct, zlib, sys
-size = $SIZE
-def png_chunk(tag, data):
-    c = zlib.crc32(tag + data) & 0xffffffff
-    return struct.pack('>I', len(data)) + tag + data + struct.pack('>I', c)
-w, h = size, size
-raw = b''
-for y in range(h):
-    raw += b'\x00'
-    for x in range(w):
-        r, g, b = 0x1a, 0x1a, 0x2e
-        if abs(x - w//2) < w//8 or abs(y - h//2) < h//8:
-            r, g, b = 0xff, 0xff, 0xff
-        raw += bytes([r, g, b, 0xff])
-compressed = zlib.compress(raw)
-png = b'\x89PNG\r\n\x1a\n'
-png += png_chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 6, 0, 0, 0))  # type 6 = RGBA
-png += png_chunk(b'IDAT', compressed)
-png += png_chunk(b'IEND', b'')
-sys.stdout.buffer.write(png)
-" > "$TMP_ICONSET/icon_${SIZE}x${SIZE}.png"
-    cp "$TMP_ICONSET/icon_${SIZE}x${SIZE}.png" "$TMP_ICONSET/icon_${SIZE}x${SIZE}@2x.png"
+
+# iconset requires these specific filenames
+# @1x sizes: 16, 32, 128, 256, 512
+# @2x sizes: 32, 64, 256, 512, 1024 (named as @2x of the @1x size)
+for SIZE in 16 32 128 256 512; do
+    sips -s format png --resampleHeightWidth $SIZE $SIZE "$SVG" \
+        --out "$TMP_ICONSET/icon_${SIZE}x${SIZE}.png" >/dev/null
 done
+for SIZE in 32 64 256 512 1024; do
+    HALF=$((SIZE / 2))
+    sips -s format png --resampleHeightWidth $SIZE $SIZE "$SVG" \
+        --out "$TMP_ICONSET/icon_${HALF}x${HALF}@2x.png" >/dev/null
+done
+
 iconutil -c icns "$TMP_ICONSET" -o assets/brands/openrig/icon.icns
+echo "    icon.icns generated ($(du -h assets/brands/openrig/icon.icns | cut -f1))"
 
 # ── 4. Create .app bundle (same as CI) ───────────────────────────────────────
 echo "==> Creating .app bundle..."
