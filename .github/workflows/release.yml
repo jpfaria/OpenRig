@@ -95,6 +95,7 @@ sys.stdout.buffer.write(png)
         run: |
           APP="dist/OpenRig.app"
           mkdir -p "$APP/Contents/MacOS"
+          mkdir -p "$APP/Contents/Frameworks"
           mkdir -p "$APP/Contents/Resources/libs/lv2"
           mkdir -p "$APP/Contents/Resources/libs/nam"
 
@@ -103,6 +104,11 @@ sys.stdout.buffer.write(png)
             target/x86_64-apple-darwin/release/adapter-gui \
             -output "$APP/Contents/MacOS/openrig"
           chmod +x "$APP/Contents/MacOS/openrig"
+
+          cp libs/nam/macos-universal/libNeuralAudioCAPI.dylib "$APP/Contents/Frameworks/"
+          install_name_tool \
+            -add_rpath "@executable_path/../Frameworks" \
+            "$APP/Contents/MacOS/openrig" 2>/dev/null || true
 
           cp assets/brands/openrig/icon.icns "$APP/Contents/Resources/openrig.icns"
           cp -r libs/lv2/macos-universal "$APP/Contents/Resources/libs/lv2/macos-universal"
