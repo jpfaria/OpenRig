@@ -89,6 +89,69 @@ fn default_metadata() -> String {
 
 static ASSET_PATHS: OnceLock<AssetPaths> = OnceLock::new();
 
+/// Detect the application data root for the current installation layout.
+///
+/// Returns the directory that contains `libs/`, `data/`, and `assets/`:
+///
+/// - macOS `.app` bundle: `<bundle>/Contents/Resources/`
+/// - Linux deb/rpm: `/usr/share/openrig/`
+/// - Windows MSI: directory alongside the executable
+/// - Development fallback: current working directory
+pub fn detect_data_root() -> PathBuf {
+    if let Ok(exe) = std::env::current_exe() {
+        #[cfg(target_os = "macos")]
+        if let Some(resources) = exe
+            .parent() // .app/Contents/MacOS/
+            .and_then(|p| p.parent()) // .app/Contents/
+            .map(|p| p.join("Resources"))
+        {
+            if resources.exists() {
+                return resources;
+            }
+        }
+
+        #[cfg(target_os = "linux")]
+        if let Some(exe_dir) = exe.parent() {
+            if let Some(prefix) = exe_dir.parent() {
+                let share = prefix.join("share/openrig");
+                if share.exists() {
+                    return share;
+                }
+            }
+        }
+
+        #[cfg(target_os = "windows")]
+        if let Some(exe_dir) = exe.parent() {
+            if exe_dir.join("libs").exists() {
+                return exe_dir.to_path_buf();
+            }
+        }
+    }
+    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+}
+
+/// Resolve relative asset paths against the detected data root.
+///
+/// Absolute paths in `paths` are left unchanged. Relative paths are joined
+/// with `detect_data_root()` so the app finds its assets regardless of the
+/// current working directory.
+pub fn resolve_asset_paths(paths: AssetPaths) -> AssetPaths {
+    let root = detect_data_root();
+    fn resolve(root: &std::path::Path, s: String) -> String {
+        let p = std::path::Path::new(&s);
+        if p.is_absolute() { s } else { root.join(p).to_string_lossy().into_owned() }
+    }
+    AssetPaths {
+        lv2_libs: resolve(&root, paths.lv2_libs),
+        lv2_data: resolve(&root, paths.lv2_data),
+        nam_captures: resolve(&root, paths.nam_captures),
+        ir_captures: resolve(&root, paths.ir_captures),
+        thumbnails: resolve(&root, paths.thumbnails),
+        screenshots: resolve(&root, paths.screenshots),
+        metadata: resolve(&root, paths.metadata),
+    }
+}
+
 /// Store the resolved asset paths for the lifetime of the process.
 ///
 /// Must be called once during app startup (after loading config).  Subsequent
