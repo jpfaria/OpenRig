@@ -5,28 +5,39 @@ use cpal::{
     SupportedStreamConfigRange,
 };
 
-/// Select the best available audio host.
+/// Select the audio host based on environment or platform default.
 ///
-/// On Windows: tries ASIO first (low latency, bypasses Windows mixer),
-/// falls back to WASAPI if no ASIO driver is installed.
-/// On macOS/Linux: returns the platform default (CoreAudio / ALSA).
+/// On Windows: uses ASIO only when `OPENRIG_AUDIO_HOST=asio` is set.
+/// ASIO requires the interface's ASIO driver installed (e.g. Focusrite USB ASIO)
+/// and Focusrite Control configured with the desired sample rate and buffer size.
+/// Without the env var, falls back to WASAPI (safe default).
+///
+/// On macOS/Linux: always uses the platform default (CoreAudio / ALSA).
 fn select_host() -> cpal::Host {
     #[cfg(target_os = "windows")]
     {
-        for host_id in cpal::available_hosts() {
-            if host_id == cpal::HostId::Asio {
-                match cpal::host_from_id(host_id) {
-                    Ok(host) => {
-                        log::info!("Audio host: ASIO");
-                        return host;
-                    }
-                    Err(e) => {
-                        log::warn!("ASIO host found but failed to initialize: {e} — falling back to WASAPI");
+        let want_asio = std::env::var("OPENRIG_AUDIO_HOST")
+            .map(|v| v.to_lowercase() == "asio")
+            .unwrap_or(false);
+
+        if want_asio {
+            for host_id in cpal::available_hosts() {
+                if host_id == cpal::HostId::Asio {
+                    match cpal::host_from_id(host_id) {
+                        Ok(host) => {
+                            log::info!("Audio host: ASIO (OPENRIG_AUDIO_HOST=asio)");
+                            return host;
+                        }
+                        Err(e) => {
+                            log::warn!("ASIO requested but failed to initialize: {e} — falling back to WASAPI");
+                        }
                     }
                 }
             }
+            log::warn!("ASIO requested (OPENRIG_AUDIO_HOST=asio) but no ASIO driver found — falling back to WASAPI");
         }
-        log::info!("Audio host: WASAPI (no ASIO driver installed)");
+
+        log::info!("Audio host: WASAPI (set OPENRIG_AUDIO_HOST=asio to use ASIO)");
     }
     cpal::default_host()
 }
