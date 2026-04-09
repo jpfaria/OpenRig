@@ -10,7 +10,10 @@ use cpal::{
 /// installed (e.g. Focusrite USB ASIO) and Focusrite Control configured with the
 /// desired sample rate and buffer size. Falls back to WASAPI if no ASIO driver is found.
 ///
-/// On macOS/Linux: always uses the platform default (CoreAudio / ALSA).
+/// On Linux (when compiled with `jack` feature): uses JACK by default for low
+/// latency. Set `OPENRIG_AUDIO_HOST=alsa` to force ALSA instead.
+///
+/// On macOS: always uses CoreAudio.
 fn select_host() -> cpal::Host {
     #[cfg(target_os = "windows")]
     {
@@ -29,6 +32,32 @@ fn select_host() -> cpal::Host {
         }
         log::info!("Audio host: WASAPI (no ASIO driver found)");
     }
+
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    {
+        let force_alsa = std::env::var("OPENRIG_AUDIO_HOST")
+            .map(|v| v.to_lowercase() == "alsa")
+            .unwrap_or(false);
+
+        if !force_alsa {
+            for host_id in cpal::available_hosts() {
+                if host_id == cpal::HostId::Jack {
+                    match cpal::host_from_id(host_id) {
+                        Ok(host) => {
+                            log::info!("Audio host: JACK (set OPENRIG_AUDIO_HOST=alsa to use ALSA)");
+                            return host;
+                        }
+                        Err(e) => {
+                            log::warn!("JACK not available: {e} — falling back to ALSA");
+                        }
+                    }
+                }
+            }
+        }
+
+        log::info!("Audio host: ALSA");
+    }
+
     cpal::default_host()
 }
 

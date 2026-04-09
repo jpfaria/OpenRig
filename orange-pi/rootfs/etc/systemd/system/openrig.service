@@ -1,0 +1,24 @@
+[Unit]
+Description=OpenRig Guitar Pedalboard
+Documentation=https://github.com/jpfaria/OpenRig
+After=jackd.service local-fs.target
+Requires=jackd.service
+
+[Service]
+Type=simple
+User=openrig
+Group=openrig
+SupplementaryGroups=audio video
+
+Environment=SLINT_BACKEND=linuxkms
+Environment=SLINT_RENDERER=software
+Environment=RUST_LOG=warn
+Environment=JACK_NO_AUDIO_RESERVATION=1
+
+ExecStart=/usr/local/bin/openrig
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=30
+
+[Install]
+WantedBy=multi-user.target
