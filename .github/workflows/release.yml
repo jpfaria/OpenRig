@@ -63,7 +63,7 @@ jobs:
   # --------------------------------------------------------------------------
   build-linux-x86_64:
     name: Build Linux x86_64
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -74,7 +74,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libasound2-dev libudev-dev pkg-config \
-            libjack-jackd2-dev libseat-dev \
             fakeroot rpm ruby-dev build-essential \
             librsvg2-bin imagemagick
 
@@ -88,11 +87,11 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: linux-x86_64-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: linux-x86_64-cargo-
+          key: linux-x86_64-u24-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: linux-x86_64-u24-cargo-
 
       - name: Build
-        run: cargo build --release -p adapter-gui --features infra-cpal/jack
+        run: cargo build --release -p adapter-gui
 
       - name: Resolve version
         id: ver
@@ -217,7 +216,7 @@ jobs:
   # --------------------------------------------------------------------------
   build-linux-aarch64:
     name: Build Linux aarch64
-    runs-on: ubuntu-22.04-arm
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v4
         with:
@@ -228,7 +227,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libasound2-dev libudev-dev pkg-config \
-            libjack-jackd2-dev libseat-dev \
             fakeroot rpm ruby-dev build-essential \
             librsvg2-bin imagemagick
 
@@ -242,11 +240,11 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: linux-aarch64-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: linux-aarch64-cargo-
+          key: linux-aarch64-u24-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: linux-aarch64-u24-cargo-
 
       - name: Build
-        run: cargo build --release -p adapter-gui --features infra-cpal/jack
+        run: cargo build --release -p adapter-gui
 
       - name: Resolve version
         id: ver
