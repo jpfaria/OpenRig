@@ -1,8 +1,8 @@
 [Unit]
 Description=OpenRig Guitar Pedalboard
 Documentation=https://github.com/jpfaria/OpenRig
-After=systemd-udev-settle.service sound.target local-fs.target
-Wants=systemd-udev-settle.service sound.target
+After=jackd.service local-fs.target
+Requires=jackd.service
 
 [Service]
 Type=simple
@@ -10,12 +10,10 @@ User=openrig
 Group=openrig
 SupplementaryGroups=audio video
 
-# Wait for the Teyun Q-26 to be enumerated (max 10s)
-ExecStartPre=/bin/sh -c 'for i in $(seq 1 10); do aplay -l 2>/dev/null | grep -q Q26 && break; sleep 1; done'
-
 Environment=SLINT_BACKEND=linuxkms
 Environment=SLINT_RENDERER=software
 Environment=RUST_LOG=warn
+Environment=JACK_NO_AUDIO_RESERVATION=1
 
 ExecStart=/usr/local/bin/openrig
 Restart=on-failure
