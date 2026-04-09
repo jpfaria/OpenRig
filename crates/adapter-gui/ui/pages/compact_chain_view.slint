@@ -346,7 +346,7 @@ component CompactBlockRow inherits Rectangle {
 
     // ── All parameters (HorizontalLayout, right-aligned, when no knob overlays and no stream data) ──
     HorizontalLayout {
-        visible: root.block-data.knob-overlays.length == 0 && !root.block-data.stream-data.active && !root.block-data.has-external-gui;
+        visible: root.block-data.knob-overlays.length == 0 && root.block-data.stream-data.stream-kind == "" && !root.block-data.has-external-gui;
         alignment: end;
         spacing: 4px;
         padding-right: 8px;
@@ -472,12 +472,22 @@ component CompactBlockRow inherits Rectangle {
     }
 
     // ── Stream data display (tuner readings, meter, etc.) ──
-    if root.block-data.stream-data.active && root.block-data.stream-data.stream-kind != "spectrum" : Rectangle {
+    if root.block-data.stream-data.stream-kind != "" && root.block-data.stream-data.stream-kind != "spectrum" : Rectangle {
         x: 470px;
         y: 4px;
         width: parent.width - 510px;
         height: parent.height - 8px;
         background: transparent;
+
+        // Waiting for signal — shown until pitch is detected
+        if !root.block-data.stream-data.active : Text {
+            x: 0; y: 0; width: parent.width; height: parent.height;
+            text: "–";
+            color: #3a4050;
+            font-size: 28px; font-weight: 900;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
 
         for entry[ei] in root.block-data.stream-data.entries : Rectangle {
             property <length> slot-w: parent.width / root.block-data.stream-data.entries.length;
