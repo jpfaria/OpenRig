@@ -592,6 +592,7 @@ export component AppWindow inherits Window {
     in-out property <string> status-message;
     in property <[string]> sample-rate-options: ["44100", "48000", "88200", "96000"];
     in property <[string]> buffer-size-options: ["32", "64", "128", "256", "512", "1024"];
+    in property <[DeviceSelectionItem]> project-devices;
 
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
@@ -652,6 +653,9 @@ export component AppWindow inherits Window {
     callback open-vst3-editor(string); // model-id
     callback save-chain();
     callback cancel-chain();
+    callback toggle-project-device(int, bool);
+    callback update-project-sample-rate(int, string);
+    callback update-project-buffer-size(int, string);
     title: "OpenRig";
     min-width: 980px;
     min-height: 680px;
@@ -713,6 +717,7 @@ export component AppWindow inherits Window {
         status-message: root.status-message;
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
+        project-devices: root.project-devices;
         toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
         toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
         update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
@@ -772,6 +777,9 @@ export component AppWindow inherits Window {
         reorder-chain-block(chain-index, from-index, before-index) => { root.reorder-chain-block(chain-index, from-index, before-index); }
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }
+        toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
+        update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
+        update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
     }
 
     if touch-optimized : TouchMain {
@@ -828,6 +836,7 @@ export component AppWindow inherits Window {
         status-message: root.status-message;
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
+        project-devices: root.project-devices;
         toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
         toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
         update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
@@ -887,6 +896,9 @@ export component AppWindow inherits Window {
         reorder-chain-block(chain-index, from-index, before-index) => { root.reorder-chain-block(chain-index, from-index, before-index); }
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }
+        toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
+        update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
+        update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
     }
 
     in-out property <string> toast-message;

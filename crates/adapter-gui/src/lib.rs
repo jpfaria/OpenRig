@@ -857,6 +857,7 @@ pub fn run_desktop_app(
         });
     }
     project_settings_window.set_project_devices(ModelRc::from(project_devices.clone()));
+    window.set_project_devices(ModelRc::from(project_devices.clone()));
     project_settings_window.set_sample_rate_options(window.get_sample_rate_options());
     project_settings_window.set_buffer_size_options(window.get_buffer_size_options());
     chain_input_window.set_device_options(ModelRc::from(chain_input_device_options.clone()));
@@ -1162,6 +1163,24 @@ pub fn run_desktop_app(
         });
     }
     {
+        let project_devices = project_devices.clone();
+        window.on_toggle_project_device(move |index, selected| {
+            toggle_device_row(&project_devices, index as usize, selected);
+        });
+    }
+    {
+        let project_devices = project_devices.clone();
+        window.on_update_project_sample_rate(move |index, value| {
+            update_device_sample_rate(&project_devices, index as usize, value);
+        });
+    }
+    {
+        let project_devices = project_devices.clone();
+        window.on_update_project_buffer_size(move |index, value| {
+            update_device_buffer_size(&project_devices, index as usize, value);
+        });
+    }
+    {
         let weak_window = window.as_weak();
         let input_devices = input_devices.clone();
         let toast_timer = toast_timer.clone();
@@ -1198,6 +1217,7 @@ pub fn run_desktop_app(
         let weak_window = window.as_weak();
         let input_devices = input_devices.clone();
         let output_devices = output_devices.clone();
+        let project_devices = project_devices.clone();
         let audio_settings_mode = audio_settings_mode.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
@@ -1211,30 +1231,30 @@ pub fn run_desktop_app(
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let input_devices = match selected_device_settings(&input_devices, "input") {
-                Ok(devices) => devices,
-                Err(error) => {
-                    set_status_error(&window, &toast_timer, &error.to_string());
-                    return;
-                }
-            };
-            let output_devices = match selected_device_settings(&output_devices, "output") {
-                Ok(devices) => devices,
-                Err(error) => {
-                    set_status_error(&window, &toast_timer, &error.to_string());
-                    return;
-                }
-            };
-            let settings = GuiAudioSettings {
-                input_devices,
-                output_devices,
-            };
-            if !settings.is_complete() {
-                set_status_warning(&window, &toast_timer, "Selecione pelo menos um input e um output antes de continuar.");
-                return;
-            }
             match *audio_settings_mode.borrow() {
                 AudioSettingsMode::Gui => {
+                    let input_devices = match selected_device_settings(&input_devices, "input") {
+                        Ok(devices) => devices,
+                        Err(error) => {
+                            set_status_error(&window, &toast_timer, &error.to_string());
+                            return;
+                        }
+                    };
+                    let output_devices = match selected_device_settings(&output_devices, "output") {
+                        Ok(devices) => devices,
+                        Err(error) => {
+                            set_status_error(&window, &toast_timer, &error.to_string());
+                            return;
+                        }
+                    };
+                    let settings = GuiAudioSettings {
+                        input_devices,
+                        output_devices,
+                    };
+                    if !settings.is_complete() {
+                        set_status_warning(&window, &toast_timer, "Selecione pelo menos um input e um output antes de continuar.");
+                        return;
+                    }
                     match FilesystemStorage::save_gui_audio_settings(&settings) {
                         Ok(()) => {
                             clear_status(&window, &toast_timer);
@@ -1244,15 +1264,21 @@ pub fn run_desktop_app(
                     }
                 }
                 AudioSettingsMode::Project => {
+                    let project_device_settings =
+                        match selected_device_settings(&project_devices, "device") {
+                            Ok(devices) => devices,
+                            Err(error) => {
+                                set_status_error(&window, &toast_timer, &error.to_string());
+                                return;
+                            }
+                        };
                     let mut session_borrow = project_session.borrow_mut();
                     let Some(session) = session_borrow.as_mut() else {
                         set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                         return;
                     };
-                    session.project.device_settings = settings
-                        .input_devices
+                    session.project.device_settings = project_device_settings
                         .into_iter()
-                        .chain(settings.output_devices)
                         .map(|device| DeviceSettings {
                             device_id: DeviceId(device.device_id),
                             sample_rate: device.sample_rate,
@@ -1764,7 +1790,6 @@ pub fn run_desktop_app(
             settings_window.set_status_message("".into());
             clear_status(&window, &toast_timer);
             window.set_show_project_settings(true);
-            show_child_window(window.window(), settings_window.window());
         });
     }
     {
