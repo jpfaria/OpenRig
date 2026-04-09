@@ -414,6 +414,14 @@ fn build_knob_overlays(knob_layout: &[block_core::KnobLayoutEntry], param_items:
         })
         .collect()
 }
+fn open_cli_project(path: &PathBuf) -> Result<ProjectSession> {
+    if !path.exists() {
+        anyhow::bail!("CLI project path does not exist: {:?}", path);
+    }
+    let config_path = resolve_project_config_path(path);
+    load_project_session(path, &config_path)
+}
+
 pub fn parse_cli_args_from(args: &[&str]) -> (Option<PathBuf>, bool) {
     let mut project_path: Option<PathBuf> = None;
     let mut auto_save = false;
@@ -434,7 +442,6 @@ pub fn run_desktop_app(
     auto_save: bool,
 ) -> Result<()> {
     log::info!("starting desktop app: runtime_mode={:?}, interaction_mode={:?}", runtime_mode, interaction_mode);
-    let _ = cli_project_path;
     let _ = auto_save;
     let context = UiRuntimeContext::new(runtime_mode, interaction_mode);
     let settings = FilesystemStorage::load_gui_audio_settings()?.unwrap_or_default();
@@ -584,6 +591,44 @@ pub fn run_desktop_app(
         "",
     )));
     window.set_recent_projects(ModelRc::from(recent_projects.clone()));
+    // CLI auto-open
+    if let Some(ref cli_path) = cli_project_path {
+        match open_cli_project(cli_path) {
+            Ok(session) => {
+                let canonical_path = canonical_project_path(cli_path).unwrap_or(cli_path.clone());
+                let title = project_title_for_path(Some(&canonical_path), &session.project);
+                let display_name = project_display_name(&session.project);
+                replace_project_chains(
+                    &project_chains,
+                    &session.project,
+                    &*input_chain_devices.borrow(),
+                    &*output_chain_devices.borrow(),
+                );
+                let snapshot = project_session_snapshot(&session).ok();
+                *project_session.borrow_mut() = Some(session);
+                *saved_project_snapshot.borrow_mut() = snapshot;
+                register_recent_project(
+                    &mut app_config.borrow_mut(),
+                    &canonical_path,
+                    &display_name,
+                );
+                let _ = FilesystemStorage::save_app_config(&app_config.borrow());
+                recent_projects.set_vec(recent_project_items(&app_config.borrow().recent_projects, ""));
+                set_project_dirty(&window, &project_dirty, false);
+                window.set_project_title(title.into());
+                window.set_project_path_label(
+                    format!("Projeto: {}", canonical_path.display()).into(),
+                );
+                window.set_show_project_launcher(false);
+                window.set_show_project_setup(false);
+                window.set_show_project_chains(true);
+                log::info!("CLI: opened {:?}", canonical_path);
+            }
+            Err(e) => {
+                log::error!("CLI project open failed, falling back to launcher: {e}");
+            }
+        }
+    }
     let chain_input_device_options = Rc::new(VecModel::from(
         input_chain_devices
             .borrow()
@@ -9281,7 +9326,7 @@ fn parse_positive_u32(value: &str, field: &str) -> Result<u32> {
 mod tests {
     use super::{
         block_editor_data, block_parameter_items_for_editor, numeric_widget_kind,
-        parse_cli_args_from, quantize_numeric_value, SELECT_SELECTED_BLOCK_ID,
+        open_cli_project, parse_cli_args_from, quantize_numeric_value, SELECT_SELECTED_BLOCK_ID,
     };
     use domain::ids::BlockId;
     use domain::value_objects::ParameterValue;
@@ -9653,6 +9698,14 @@ mod tests {
         } else {
             panic!("block 4 should be Output");
         }
+    }
+
+    #[test]
+    fn open_cli_project_errors_on_nonexistent_path() {
+        let result = open_cli_project(&std::path::PathBuf::from("/nonexistent/project.yaml"));
+        assert!(result.is_err());
+        let msg = format!("{}", result.unwrap_err());
+        assert!(msg.contains("does not exist"), "got: {}", msg);
     }
 
     #[test]
