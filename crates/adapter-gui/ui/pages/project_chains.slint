@@ -1536,6 +1536,9 @@ export component BlockEditorPanel inherits Rectangle {
         && root.block-drawer-selected-type-index < root.block-type-options.length
         && root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "preamp";
 
+    // True when a tuner (or other non-spectrum stream) is the active block — show stream area even while silent
+    property <bool> has-tuner-stream: root.block-stream-data.stream-kind != "" && root.block-stream-data.stream-kind != "spectrum";
+
     property <bool> is-vst3:
         root.block-drawer-selected-type-index >= 0
         && root.block-drawer-selected-type-index < root.block-type-options.length
@@ -1694,7 +1697,7 @@ export component BlockEditorPanel inherits Rectangle {
         }
 
         // ── Stream display (tuner, spectrum) — for non-preamp utility blocks ──
-        if !root.is-preamp && root.block-stream-data.active && root.block-stream-data.stream-kind != "spectrum" : Rectangle {
+        if !root.is-preamp && root.has-tuner-stream : Rectangle {
             x: 20px;
             y: 142px;
             width: parent.width - 40px;
@@ -1703,6 +1706,16 @@ export component BlockEditorPanel inherits Rectangle {
             border-radius: 8px;
             border-width: 1px;
             border-color: #2d3340;
+
+            // Waiting for signal — shown until pitch is detected
+            if !root.block-stream-data.active : Text {
+                x: 0; y: 0; width: parent.width; height: parent.height;
+                text: "–";
+                color: #3a4050;
+                font-size: 52px; font-weight: 900;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
 
             for entry[ei] in root.block-stream-data.entries : Rectangle {
                 property <length> slot-w: parent.width / root.block-stream-data.entries.length;
@@ -1784,9 +1797,9 @@ export component BlockEditorPanel inherits Rectangle {
 
         if !root.is-preamp && root.curve-editor-points.length == 0 && root.multi-slider-points.length == 0 : ScrollView {
             x: 20px;
-            y: root.block-stream-data.active ? 354px : 138px;
+            y: root.has-tuner-stream || (root.block-stream-data.active && root.block-stream-data.stream-kind == "spectrum") ? 354px : 138px;
             width: parent.width - 40px;
-            height: root.block-stream-data.active ? (parent.height - 374px) : (parent.height - 158px);
+            height: root.has-tuner-stream || (root.block-stream-data.active && root.block-stream-data.stream-kind == "spectrum") ? (parent.height - 374px) : (parent.height - 158px);
             viewport-width: self.width;
             viewport-height: root.block-parameter-items.length * 96px;
 
