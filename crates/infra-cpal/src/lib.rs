@@ -205,13 +205,13 @@ pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
             continue;
         }
         let description = device.description()?;
-        devices.push(AudioDeviceDescriptor {
-            id,
-            name: description.name().to_string(),
-            channels: max_supported_input_channels(&device).unwrap_or(0),
-        });
+        let name = description.name().to_string();
+        if devices.iter().any(|d: &AudioDeviceDescriptor| d.name == name) {
+            continue;
+        }
+        devices.push(AudioDeviceDescriptor { id, name, channels: max_supported_input_channels(&device).unwrap_or(0) });
     }
-    devices.sort_by(|a, b| a.name.cmp(&b.name).then(a.id.cmp(&b.id)));
+    devices.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(devices)
 }
 
@@ -225,13 +225,13 @@ pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
             continue;
         }
         let description = device.description()?;
-        devices.push(AudioDeviceDescriptor {
-            id,
-            name: description.name().to_string(),
-            channels: max_supported_output_channels(&device).unwrap_or(0),
-        });
+        let name = description.name().to_string();
+        if devices.iter().any(|d: &AudioDeviceDescriptor| d.name == name) {
+            continue;
+        }
+        devices.push(AudioDeviceDescriptor { id, name, channels: max_supported_output_channels(&device).unwrap_or(0) });
     }
-    devices.sort_by(|a, b| a.name.cmp(&b.name).then(a.id.cmp(&b.id)));
+    devices.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(devices)
 }
 pub fn build_streams_for_project(
