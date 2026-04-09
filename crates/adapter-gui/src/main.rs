@@ -18,5 +18,8 @@ fn main() -> anyhow::Result<()> {
         _ => InteractionMode::Mouse,
     };
 
-    run_desktop_app(runtime_mode, interaction_mode)
+    let raw_args: Vec<String> = std::env::args().collect();
+    let raw_refs: Vec<&str> = raw_args.iter().map(|s| s.as_str()).collect();
+    let (cli_project_path, auto_save) = adapter_gui::parse_cli_args_from(&raw_refs);
+    run_desktop_app(runtime_mode, interaction_mode, cli_project_path, auto_save)
 }

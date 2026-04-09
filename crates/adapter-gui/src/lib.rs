@@ -414,11 +414,28 @@ fn build_knob_overlays(knob_layout: &[block_core::KnobLayoutEntry], param_items:
         })
         .collect()
 }
+pub fn parse_cli_args_from(args: &[&str]) -> (Option<PathBuf>, bool) {
+    let mut project_path: Option<PathBuf> = None;
+    let mut auto_save = false;
+    for arg in args.iter().skip(1) {
+        if *arg == "--auto-save" {
+            auto_save = true;
+        } else if !arg.starts_with('-') {
+            project_path = Some(PathBuf::from(arg));
+        }
+    }
+    (project_path, auto_save)
+}
+
 pub fn run_desktop_app(
     runtime_mode: AppRuntimeMode,
     interaction_mode: InteractionMode,
+    cli_project_path: Option<PathBuf>,
+    auto_save: bool,
 ) -> Result<()> {
     log::info!("starting desktop app: runtime_mode={:?}, interaction_mode={:?}", runtime_mode, interaction_mode);
+    let _ = cli_project_path;
+    let _ = auto_save;
     let context = UiRuntimeContext::new(runtime_mode, interaction_mode);
     let settings = FilesystemStorage::load_gui_audio_settings()?.unwrap_or_default();
     let needs_audio_settings =
@@ -9264,7 +9281,7 @@ fn parse_positive_u32(value: &str, field: &str) -> Result<u32> {
 mod tests {
     use super::{
         block_editor_data, block_parameter_items_for_editor, numeric_widget_kind,
-        quantize_numeric_value, SELECT_SELECTED_BLOCK_ID,
+        parse_cli_args_from, quantize_numeric_value, SELECT_SELECTED_BLOCK_ID,
     };
     use domain::ids::BlockId;
     use domain::value_objects::ParameterValue;
@@ -9636,5 +9653,28 @@ mod tests {
         } else {
             panic!("block 4 should be Output");
         }
+    }
+
+    #[test]
+    fn parse_cli_args_extracts_path_and_auto_save_flag() {
+        let (path, auto_save) = parse_cli_args_from(&["openrig", "/tmp/project.yaml"]);
+        assert_eq!(path, Some(std::path::PathBuf::from("/tmp/project.yaml")));
+        assert!(!auto_save);
+
+        let (path, auto_save) = parse_cli_args_from(&["openrig", "--auto-save"]);
+        assert_eq!(path, None);
+        assert!(auto_save);
+
+        let (path, auto_save) = parse_cli_args_from(&["openrig", "/tmp/project.yaml", "--auto-save"]);
+        assert_eq!(path, Some(std::path::PathBuf::from("/tmp/project.yaml")));
+        assert!(auto_save);
+
+        let (path, auto_save) = parse_cli_args_from(&["openrig"]);
+        assert_eq!(path, None);
+        assert!(!auto_save);
+
+        let (path, auto_save) = parse_cli_args_from(&["openrig", "--unknown-flag"]);
+        assert_eq!(path, None);
+        assert!(!auto_save);
     }
 }
