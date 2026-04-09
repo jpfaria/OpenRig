@@ -9,8 +9,10 @@ RELEASE="$1"   # e.g. "bookworm"
 echo ">>> [OpenRig] Customizing image for release: $RELEASE"
 
 # ── 1. Install runtime dependencies ──────────────────────────────────────────
-apt-get update -qq
-apt-get install -y --no-install-recommends \
+# Pre-answer jackd2 debconf question (realtime privileges) to avoid interactive prompt
+echo "jackd2 jackd/tweak_rt_limits boolean true" | debconf-set-selections
+DEBIAN_FRONTEND=noninteractive apt-get update -qq
+DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     alsa-utils \
     jackd2 \
     libfreetype6 \

@@ -10,12 +10,15 @@ User=openrig
 Group=openrig
 SupplementaryGroups=audio
 
-# Wait for Teyun Q-26 to be enumerated (max 10s)
-ExecStartPre=/bin/sh -c 'for i in $(seq 1 10); do aplay -l 2>/dev/null | grep -q Q26 && break; sleep 1; done'
-
 # Low-latency config: 128 frames/period, 2 periods = ~5ms @ 48kHz
+# Waits up to 10s for Teyun Q-26; exits cleanly if not found (OpenRig falls back to ALSA)
 Environment=JACK_NO_AUDIO_RESERVATION=1
-ExecStart=/usr/bin/jackd -d alsa -d hw:Q26 -r 48000 -p 128 -n 2
+ExecStart=/bin/sh -c '\
+  for i in $(seq 1 10); do \
+    aplay -l 2>/dev/null | grep -q Q26 && exec /usr/bin/jackd -d alsa -d hw:Q26 -r 48000 -p 128 -n 2; \
+    sleep 1; \
+  done; \
+  echo "Teyun Q-26 not found after 10s, JACK disabled (OpenRig will use ALSA)"'
 
 Restart=on-failure
 RestartSec=2
