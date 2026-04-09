@@ -74,7 +74,9 @@ struct ResolvedInputDevice {
     settings: Option<DeviceSettings>,
     device: cpal::Device,
     supported: SupportedStreamConfig,
-    /// Concrete buffer size reported by the device (used when settings is None, e.g. ASIO).
+    /// When true, buffer size comes from the device (ASIO fixed buffer), not project settings.
+    use_native_buffer: bool,
+    /// Concrete buffer size reported by the device (used for ASIO).
     native_buffer_size: u32,
 }
 #[derive(Clone)]
@@ -82,7 +84,9 @@ struct ResolvedOutputDevice {
     settings: Option<DeviceSettings>,
     device: cpal::Device,
     supported: SupportedStreamConfig,
-    /// Concrete buffer size reported by the device (used when settings is None, e.g. ASIO).
+    /// When true, buffer size comes from the device (ASIO fixed buffer), not project settings.
+    use_native_buffer: bool,
+    /// Concrete buffer size reported by the device (used for ASIO).
     native_buffer_size: u32,
 }
 
@@ -354,17 +358,11 @@ fn resolve_input_device_for_chain_input(
     input: &InputEntry,
     is_asio: bool,
 ) -> Result<ResolvedInputDevice> {
-    // ASIO devices impose their own sample rate and buffer size (set in Focusrite Control).
-    // Ignore project DeviceSettings for ASIO — the device is always authoritative.
-    let settings = if is_asio {
-        None
-    } else {
-        project
-            .device_settings
-            .iter()
-            .find(|s| s.device_id == input.device_id)
-            .cloned()
-    };
+    let settings = project
+        .device_settings
+        .iter()
+        .find(|s| s.device_id == input.device_id)
+        .cloned();
     let device = find_input_device_by_id(host, &input.device_id.0)?.ok_or_else(|| {
         anyhow!(
             "input device '{}' not found by device_id",
@@ -377,41 +375,40 @@ fn resolve_input_device_for_chain_input(
             input.device_id.0
         )
     })?;
-    let supported = if is_asio {
-        // Trust the ASIO driver's native config directly — no matching/validation.
-        default_config.clone()
-    } else {
-        let supported_ranges = device
-            .supported_input_configs()
-            .with_context(|| {
-                format!(
-                    "failed to enumerate input configs for '{}'",
-                    input.device_id.0
-                )
-            })?
-            .collect::<Vec<_>>();
-        let required_channels = required_channel_count(&input.channels);
-        let cfg = select_supported_stream_config(
-            &default_config,
-            &supported_ranges,
-            settings.as_ref().map(|s| s.sample_rate),
-            required_channels,
-            &input.device_id.0,
-        )?;
+    let supported_ranges = device
+        .supported_input_configs()
+        .with_context(|| {
+            format!(
+                "failed to enumerate input configs for '{}'",
+                input.device_id.0
+            )
+        })?
+        .collect::<Vec<_>>();
+    let required_channels = required_channel_count(&input.channels);
+    let supported = select_supported_stream_config(
+        &default_config,
+        &supported_ranges,
+        settings.as_ref().map(|s| s.sample_rate),
+        required_channels,
+        &input.device_id.0,
+    )?;
+    // ASIO has a fixed buffer size set by the driver — skip range validation.
+    // For non-ASIO, validate that the project buffer size is within the supported range.
+    if !is_asio {
         if let Some(settings) = &settings {
             validate_buffer_size(
                 settings.buffer_size_frames,
-                cfg.buffer_size(),
+                supported.buffer_size(),
                 &settings.device_id.0,
             )?;
         }
-        cfg
-    };
+    }
     let native_buffer_size = extract_native_buffer_size(&supported);
     Ok(ResolvedInputDevice {
         settings,
         device,
         supported,
+        use_native_buffer: is_asio,
         native_buffer_size,
     })
 }
@@ -422,15 +419,11 @@ fn resolve_output_device_for_chain_output(
     output: &OutputEntry,
     is_asio: bool,
 ) -> Result<ResolvedOutputDevice> {
-    let settings = if is_asio {
-        None
-    } else {
-        project
-            .device_settings
-            .iter()
-            .find(|s| s.device_id == output.device_id)
-            .cloned()
-    };
+    let settings = project
+        .device_settings
+        .iter()
+        .find(|s| s.device_id == output.device_id)
+        .cloned();
     let device = find_output_device_by_id(host, &output.device_id.0)?.ok_or_else(|| {
         anyhow!(
             "output device '{}' not found by device_id",
@@ -443,40 +436,38 @@ fn resolve_output_device_for_chain_output(
             output.device_id.0
         )
     })?;
-    let supported = if is_asio {
-        default_config.clone()
-    } else {
-        let supported_ranges = device
-            .supported_output_configs()
-            .with_context(|| {
-                format!(
-                    "failed to enumerate output configs for '{}'",
-                    output.device_id.0
-                )
-            })?
-            .collect::<Vec<_>>();
-        let required_channels = required_channel_count(&output.channels);
-        let cfg = select_supported_stream_config(
-            &default_config,
-            &supported_ranges,
-            settings.as_ref().map(|s| s.sample_rate),
-            required_channels,
-            &output.device_id.0,
-        )?;
+    let supported_ranges = device
+        .supported_output_configs()
+        .with_context(|| {
+            format!(
+                "failed to enumerate output configs for '{}'",
+                output.device_id.0
+            )
+        })?
+        .collect::<Vec<_>>();
+    let required_channels = required_channel_count(&output.channels);
+    let supported = select_supported_stream_config(
+        &default_config,
+        &supported_ranges,
+        settings.as_ref().map(|s| s.sample_rate),
+        required_channels,
+        &output.device_id.0,
+    )?;
+    if !is_asio {
         if let Some(settings) = &settings {
             validate_buffer_size(
                 settings.buffer_size_frames,
-                cfg.buffer_size(),
+                supported.buffer_size(),
                 &settings.device_id.0,
             )?;
         }
-        cfg
-    };
+    }
     let native_buffer_size = extract_native_buffer_size(&supported);
     Ok(ResolvedOutputDevice {
         settings,
         device,
         supported,
+        use_native_buffer: is_asio,
         native_buffer_size,
     })
 }
@@ -1083,19 +1074,25 @@ fn resolved_output_sample_rate(resolved: &ResolvedOutputDevice) -> u32 {
 }
 
 fn resolved_input_buffer_size_frames(resolved: &ResolvedInputDevice) -> u32 {
+    if resolved.use_native_buffer {
+        return resolved.native_buffer_size;
+    }
     resolved
         .settings
         .as_ref()
         .map(|settings| settings.buffer_size_frames)
-        .unwrap_or(resolved.native_buffer_size)
+        .unwrap_or(256)
 }
 
 fn resolved_output_buffer_size_frames(resolved: &ResolvedOutputDevice) -> u32 {
+    if resolved.use_native_buffer {
+        return resolved.native_buffer_size;
+    }
     resolved
         .settings
         .as_ref()
         .map(|settings| settings.buffer_size_frames)
-        .unwrap_or(resolved.native_buffer_size)
+        .unwrap_or(256)
 }
 
 fn required_channel_count(channels: &[usize]) -> usize {
