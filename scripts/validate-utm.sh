@@ -169,43 +169,36 @@ packages:
   - libdrm2
   - libgles2
   - libegl1
-  - gh
   - curl
-  - xz-utils
+  - tar
+
+write_files:
+  - path: /usr/local/bin/openrig-start
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      export SLINT_BACKEND=linuxkms
+      export SLINT_RENDERER=software
+      export RUST_LOG=warn
+      exec /usr/local/bin/openrig "$@"
 
 runcmd:
-  # Download latest OpenRig release for linux-aarch64
   - |
+    LATEST=$(curl -sf https://api.github.com/repos/jpfaria/OpenRig/releases/latest \
+      | grep "browser_download_url.*linux-aarch64\.tar\.gz" \
+      | cut -d '"' -f 4)
     mkdir -p /opt/openrig-release
-    gh release download \
-      --repo jpfaria/OpenRig \
-      --pattern "openrig-*-linux-aarch64.tar.gz" \
-      --dir /opt/openrig-release \
-      --clobber 2>/dev/null || \
-    curl -s https://api.github.com/repos/jpfaria/OpenRig/releases/latest \
-      | grep "browser_download_url.*linux-aarch64.tar.gz" \
-      | cut -d '"' -f 4 \
-      | xargs curl -L -o /opt/openrig-release/openrig-linux-aarch64.tar.gz
+    curl -L "$LATEST" -o /opt/openrig-release/openrig-linux-aarch64.tar.gz
   - |
     cd /opt/openrig-release
     tar -xzf openrig-*-linux-aarch64.tar.gz
-    RELEASE_DIR=$(ls -d openrig-*-linux-aarch64 | head -1)
+    RELEASE_DIR=$(ls -d openrig-*-linux-aarch64 2>/dev/null | head -1)
     install -m 755 "$RELEASE_DIR/openrig" /usr/local/bin/openrig
-    mkdir -p /usr/local/lib/openrig /usr/local/share/openrig
-    cp -r "$RELEASE_DIR/libs"   /usr/local/lib/openrig/
-    cp -r "$RELEASE_DIR/data"   /usr/local/share/openrig/
-    cp -r "$RELEASE_DIR/assets" /usr/local/share/openrig/
-  # openrig-start helper
-  - |
-    cat > /usr/local/bin/openrig-start <<'EOF'
-    #!/bin/bash
-    export SLINT_BACKEND=linuxkms
-    export SLINT_RENDERER=software
-    export RUST_LOG=warn
-    exec /usr/local/bin/openrig "$@"
-    EOF
-    chmod +x /usr/local/bin/openrig-start
-  # Add openrig user to audio/video groups
+    mkdir -p /usr/local/share/openrig
+    cp -r "$RELEASE_DIR/libs"     /usr/local/share/openrig/
+    cp -r "$RELEASE_DIR/data"     /usr/local/share/openrig/
+    cp -r "$RELEASE_DIR/assets"   /usr/local/share/openrig/
+    cp -r "$RELEASE_DIR/captures" /usr/local/share/openrig/ 2>/dev/null || true
   - usermod -aG audio,video openrig
 
 final_message: |

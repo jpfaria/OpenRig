@@ -32,13 +32,11 @@ RELEASE_DIR=/tmp/overlay/openrig-release
 
 install -m 755 "$RELEASE_DIR/openrig" /usr/local/bin/openrig
 
-mkdir -p /usr/local/lib/openrig
-cp -r "$RELEASE_DIR/libs/lv2" /usr/local/lib/openrig/
-cp -r "$RELEASE_DIR/libs/nam" /usr/local/lib/openrig/
-
 mkdir -p /usr/local/share/openrig
-cp -r "$RELEASE_DIR/data"   /usr/local/share/openrig/
-cp -r "$RELEASE_DIR/assets" /usr/local/share/openrig/
+cp -r "$RELEASE_DIR/libs"     /usr/local/share/openrig/
+cp -r "$RELEASE_DIR/data"     /usr/local/share/openrig/
+cp -r "$RELEASE_DIR/assets"   /usr/local/share/openrig/
+cp -r "$RELEASE_DIR/captures" /usr/local/share/openrig/ 2>/dev/null || true
 
 # ── 5. Convert OpenRig logo SVG → PNG for Plymouth ───────────────────────────
 echo ">>> [OpenRig] Converting logo to PNG..."
