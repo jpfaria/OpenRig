@@ -57,14 +57,13 @@ fn select_host() -> cpal::Host {
 
 /// Select the audio host for device enumeration.
 ///
-/// Always uses the platform default host (ALSA on Linux, CoreAudio on macOS,
-/// WASAPI on Windows). Never attempts to connect to JACK, because:
-/// 1. JACK connection attempts block the UI thread when the JACK server is
-///    not running (can take seconds to time out).
-/// 2. JACK "devices" are ports, not physical interfaces — showing them in
-///    the device picker would be confusing to users.
+/// Uses the same host as `select_host` so that the device list shown in the
+/// UI matches the host used for actual streaming. This is important on Linux
+/// with JACK: when JACK holds exclusive ALSA access to a hardware device,
+/// ALSA enumeration returns 0 channels for that device (JACK locked it). By
+/// using the JACK host for enumeration we correctly show JACK's system ports.
 fn select_host_for_enumeration() -> cpal::Host {
-    cpal::default_host()
+    select_host()
 }
 
 /// Returns true when the given host is the ASIO host on Windows.
@@ -207,6 +206,19 @@ fn is_hardware_device(id: &str) -> bool {
     // form survives — it is stable (card numbers can change on reboot).
     #[cfg(target_os = "linux")]
     {
+        // When using the JACK host, device IDs start with "jack:" — always accept them.
+        if id.starts_with("jack:") {
+            return true;
+        }
+        // For ALSA, only keep hw: entries — direct hardware, one per physical
+        // card/device. Skips plughw, default, surround51, iec958, dmix, etc.
+        //
+        // cpal enumerates each card twice: once via HintIter (named form:
+        // hw:CARD=Gen,DEV=0) and once via hardware scan (numeric form:
+        // hw:CARD=1,DEV=0). The two forms may have slightly different device names
+        // ("Scarlett 2i2 4th Gen, USB Audio" vs "Scarlett 2i2 4th Gen"), defeating
+        // name-based deduplication. Reject numeric CARD= forms so only the named
+        // form survives — it is stable (card numbers can change on reboot).
         let pcm_id = id.split_once(':').map(|(_, d)| d).unwrap_or(id);
         if !pcm_id.starts_with("hw:") {
             return false;
