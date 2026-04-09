@@ -15,7 +15,7 @@ SupplementaryGroups=audio
 Environment=JACK_NO_AUDIO_RESERVATION=1
 ExecStart=/bin/sh -c '\
   for i in $(seq 1 10); do \
-    CARD=$(aplay -l 2>/dev/null | awk "/USB Audio/ {match(\$0, /card ([0-9]+)/, m); if (m[1]!=\"\") {print m[1]; exit}}"); \
+    CARD=$(aplay -l 2>/dev/null | grep "USB Audio" | head -1 | sed "s/card \([0-9]*\):.*/\1/"); \
     if [ -n "$CARD" ]; then \
       echo "Found USB audio card $CARD, starting JACK..."; \
       exec /usr/bin/jackd -d alsa -d hw:$CARD -r 48000 -p 128 -n 2; \
