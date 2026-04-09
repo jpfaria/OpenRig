@@ -527,6 +527,7 @@ pub fn run_desktop_app(
     window.set_runtime_mode_label(context.runtime_mode.label().into());
     window.set_interaction_mode_label(context.interaction_mode.label().into());
     window.set_touch_optimized(context.capabilities.touch_optimized);
+    window.set_auto_save(auto_save);
     window.set_show_audio_settings(needs_audio_settings);
     window.set_wizard_step(if settings.is_complete() { 1 } else { 0 });
     window.set_status_message("".into());
