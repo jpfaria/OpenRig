@@ -48,7 +48,7 @@ serde = { version = "1", features = ["derive"] }
 serde_yaml = "0.9"
 dirs = "6"
 thiserror = "1"
-cpal = "0.17.3"
+cpal = { version = "0.17.3", features = ["asio"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 tonic = "0.12"
 prost = "0.13"

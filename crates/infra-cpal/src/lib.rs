@@ -4,6 +4,32 @@ use cpal::{
     BufferSize, SampleFormat, Stream, StreamConfig, SupportedBufferSize, SupportedStreamConfig,
     SupportedStreamConfigRange,
 };
+
+/// Select the best available audio host.
+///
+/// On Windows: tries ASIO first (low latency, bypasses Windows mixer),
+/// falls back to WASAPI if no ASIO driver is installed.
+/// On macOS/Linux: returns the platform default (CoreAudio / ALSA).
+fn select_host() -> cpal::Host {
+    #[cfg(target_os = "windows")]
+    {
+        for host_id in cpal::available_hosts() {
+            if host_id == cpal::HostId::Asio {
+                match cpal::host_from_id(host_id) {
+                    Ok(host) => {
+                        log::info!("Audio host: ASIO");
+                        return host;
+                    }
+                    Err(e) => {
+                        log::warn!("ASIO host found but failed to initialize: {e} — falling back to WASAPI");
+                    }
+                }
+            }
+        }
+        log::info!("Audio host: WASAPI (no ASIO driver installed)");
+    }
+    cpal::default_host()
+}
 use domain::ids::ChainId;
 use engine::runtime::{process_input_f32, process_output_f32, RuntimeGraph, ChainRuntimeState};
 use engine;
@@ -76,7 +102,7 @@ pub struct ProjectRuntimeController {
 }
 pub fn list_devices() -> Result<Vec<String>> {
     log::debug!("listing all audio devices");
-    let host = cpal::default_host();
+    let host = select_host();
     let mut devices = Vec::new();
     for device in host.input_devices()? {
         let description = device.description()?;
@@ -99,7 +125,7 @@ pub fn list_devices() -> Result<Vec<String>> {
 
 pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     log::debug!("listing input device descriptors");
-    let host = cpal::default_host();
+    let host = select_host();
     let mut devices = Vec::new();
     for device in host.input_devices()? {
         let description = device.description()?;
@@ -115,7 +141,7 @@ pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
 
 pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     log::debug!("listing output device descriptors");
-    let host = cpal::default_host();
+    let host = select_host();
     let mut devices = Vec::new();
     for device in host.output_devices()? {
         let description = device.description()?;
@@ -133,7 +159,7 @@ pub fn build_streams_for_project(
     runtime_graph: &RuntimeGraph,
 ) -> Result<Vec<Stream>> {
     log::info!("building audio streams for project");
-    let host = cpal::default_host();
+    let host = select_host();
     validate_channels_against_devices(project, &host)?;
     let mut resolved_chains = resolve_enabled_chain_audio_configs(&host, project)?;
     let mut streams = Vec::new();
@@ -171,7 +197,7 @@ impl ProjectRuntimeController {
 
     pub fn sync_project(&mut self, project: &Project) -> Result<()> {
         log::debug!("syncing project runtime with {} chains", project.chains.len());
-        let host = cpal::default_host();
+        let host = select_host();
         validate_channels_against_devices(project, &host)?;
         let mut resolved_chains = resolve_enabled_chain_audio_configs(&host, project)?;
 
@@ -208,7 +234,7 @@ impl ProjectRuntimeController {
             return Ok(());
         }
 
-        let host = cpal::default_host();
+        let host = select_host();
         validate_chain_channels_against_devices(&host, chain)?;
         let resolved = resolve_chain_audio_config(&host, project, chain)?;
         self.upsert_chain_with_resolved(chain, resolved)
@@ -278,7 +304,7 @@ impl ProjectRuntimeController {
 }
 
 pub fn resolve_project_chain_sample_rates(project: &Project) -> Result<HashMap<ChainId, f32>> {
-    let host = cpal::default_host();
+    let host = select_host();
     let mut sample_rates = HashMap::new();
 
     for chain in &project.chains {
