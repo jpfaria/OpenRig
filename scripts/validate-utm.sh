@@ -252,7 +252,7 @@ out_path, vm_uuid, vm_name, memory, cpus = sys.argv[1], sys.argv[2], sys.argv[3]
 
 config = {
     "Backend": "Apple",
-    "ConfigurationVersion": 5,
+    "ConfigurationVersion": 3,
     "Information": {
         "Name": vm_name,
         "UUID": vm_uuid,
