@@ -1943,7 +1943,7 @@ export component ProjectChainsPage inherits Rectangle {
         }
 
         HeaderIconAction {
-            x: parent.width - 120px;
+            x: root.auto-save ? parent.width - 80px : parent.width - 120px;
             y: 14px;
             icon: @image-url("../assets/gear.svg");
             tooltip: "Projeto";
