@@ -11,13 +11,14 @@ User=root
 Group=root
 
 Environment=WAYLAND_DISPLAY=wayland-1
-Environment=XDG_RUNTIME_DIR=/run/user/0
+Environment=XDG_RUNTIME_DIR=/run/weston
 Environment=RUST_LOG=warn
 Environment=JACK_NO_AUDIO_RESERVATION=1
 Environment=LD_LIBRARY_PATH=/usr/local/share/openrig/libs/nam/linux-aarch64
+Environment=GDK_BACKEND=wayland
 
 # Wait for weston to create the Wayland socket before starting
-ExecStartPre=/bin/sh -c 'for i in $(seq 1 15); do [ -S /run/user/0/wayland-1 ] && exit 0; sleep 1; done; exit 1'
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 15); do [ -S /run/weston/wayland-1 ] && exit 0; sleep 1; done; exit 1'
 
 ExecStart=/usr/local/bin/openrig
 Restart=on-failure
