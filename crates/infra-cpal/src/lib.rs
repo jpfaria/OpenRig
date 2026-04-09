@@ -209,47 +209,41 @@ fn is_hardware_device(id: &str) -> bool {
 }
 
 pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
-    log::info!("listing input device descriptors");
+    log::debug!("listing input device descriptors");
     let host = select_host_for_enumeration();
     let mut devices = Vec::new();
     for device in host.input_devices()? {
         let id = device.id()?.to_string();
-        let description = device.description()?;
-        let name = description.name().to_string();
-        log::info!("  input candidate: id={:?} name={:?} hw={}", id, name, is_hardware_device(&id));
         if !is_hardware_device(&id) {
             continue;
         }
+        let description = device.description()?;
+        let name = description.name().to_string();
         if devices.iter().any(|d: &AudioDeviceDescriptor| d.name == name) {
-            log::info!("  -> skipped (duplicate name)");
             continue;
         }
         devices.push(AudioDeviceDescriptor { id, name, channels: max_supported_input_channels(&device).unwrap_or(0) });
     }
-    log::info!("  input devices after filter: {:?}", devices.iter().map(|d| &d.name).collect::<Vec<_>>());
     devices.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(devices)
 }
 
 pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
-    log::info!("listing output device descriptors");
+    log::debug!("listing output device descriptors");
     let host = select_host_for_enumeration();
     let mut devices = Vec::new();
     for device in host.output_devices()? {
         let id = device.id()?.to_string();
-        let description = device.description()?;
-        let name = description.name().to_string();
-        log::info!("  output candidate: id={:?} name={:?} hw={}", id, name, is_hardware_device(&id));
         if !is_hardware_device(&id) {
             continue;
         }
+        let description = device.description()?;
+        let name = description.name().to_string();
         if devices.iter().any(|d: &AudioDeviceDescriptor| d.name == name) {
-            log::info!("  -> skipped (duplicate name)");
             continue;
         }
         devices.push(AudioDeviceDescriptor { id, name, channels: max_supported_output_channels(&device).unwrap_or(0) });
     }
-    log::info!("  output devices after filter: {:?}", devices.iter().map(|d| &d.name).collect::<Vec<_>>());
     devices.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(devices)
 }
