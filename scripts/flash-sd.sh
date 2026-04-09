@@ -18,7 +18,7 @@ ARMBIAN_OUTPUT_DIR="$PROJECT_ROOT/.orange-pi-build/output/images"
 if [ $# -ge 1 ]; then
     IMAGE="$1"
 else
-    IMAGE=$(ls -t "$ARMBIAN_OUTPUT_DIR"/Armbian_*.img 2>/dev/null | head -1)
+    IMAGE=$(ls -t "$ARMBIAN_OUTPUT_DIR"/Armbian*.img 2>/dev/null | head -1)
     if [ -z "$IMAGE" ]; then
         echo "ERROR: No .img found in $ARMBIAN_OUTPUT_DIR"
         echo "       Run ./scripts/build-orange-pi-image.sh first."
