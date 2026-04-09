@@ -45,14 +45,6 @@ fn is_asio_host(_host: &cpal::Host) -> bool {
     false
 }
 
-/// Extract a concrete buffer size from a `SupportedBufferSize`.
-/// For ASIO, min == max (fixed). Falls back to 256 when unknown.
-fn extract_native_buffer_size(supported: &SupportedStreamConfig) -> u32 {
-    match supported.buffer_size() {
-        SupportedBufferSize::Range { min, .. } => *min,
-        SupportedBufferSize::Unknown => 256,
-    }
-}
 use domain::ids::ChainId;
 use engine::runtime::{process_input_f32, process_output_f32, RuntimeGraph, ChainRuntimeState};
 use engine;
@@ -74,20 +66,12 @@ struct ResolvedInputDevice {
     settings: Option<DeviceSettings>,
     device: cpal::Device,
     supported: SupportedStreamConfig,
-    /// When true, buffer size comes from the device (ASIO fixed buffer), not project settings.
-    use_native_buffer: bool,
-    /// Concrete buffer size reported by the device (used for ASIO).
-    native_buffer_size: u32,
 }
 #[derive(Clone)]
 struct ResolvedOutputDevice {
     settings: Option<DeviceSettings>,
     device: cpal::Device,
     supported: SupportedStreamConfig,
-    /// When true, buffer size comes from the device (ASIO fixed buffer), not project settings.
-    use_native_buffer: bool,
-    /// Concrete buffer size reported by the device (used for ASIO).
-    native_buffer_size: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -392,8 +376,11 @@ fn resolve_input_device_for_chain_input(
         required_channels,
         &input.device_id.0,
     )?;
-    // ASIO has a fixed buffer size set by the driver — skip range validation.
-    // For non-ASIO, validate that the project buffer size is within the supported range.
+    // For ASIO, skip buffer size range validation — the project's requested buffer size
+    // is passed directly to the ASIO driver via BufferSize::Fixed. The driver accepts or
+    // rejects it at stream build time with a real error. Pre-validation is incorrect for
+    // ASIO because the driver's reported range reflects its current preferred size, not
+    // what it actually accepts when asked.
     if !is_asio {
         if let Some(settings) = &settings {
             validate_buffer_size(
@@ -403,14 +390,7 @@ fn resolve_input_device_for_chain_input(
             )?;
         }
     }
-    let native_buffer_size = extract_native_buffer_size(&supported);
-    Ok(ResolvedInputDevice {
-        settings,
-        device,
-        supported,
-        use_native_buffer: is_asio,
-        native_buffer_size,
-    })
+    Ok(ResolvedInputDevice { settings, device, supported })
 }
 
 fn resolve_output_device_for_chain_output(
@@ -462,14 +442,7 @@ fn resolve_output_device_for_chain_output(
             )?;
         }
     }
-    let native_buffer_size = extract_native_buffer_size(&supported);
-    Ok(ResolvedOutputDevice {
-        settings,
-        device,
-        supported,
-        use_native_buffer: is_asio,
-        native_buffer_size,
-    })
+    Ok(ResolvedOutputDevice { settings, device, supported })
 }
 
 fn resolve_chain_inputs(
@@ -1074,9 +1047,6 @@ fn resolved_output_sample_rate(resolved: &ResolvedOutputDevice) -> u32 {
 }
 
 fn resolved_input_buffer_size_frames(resolved: &ResolvedInputDevice) -> u32 {
-    if resolved.use_native_buffer {
-        return resolved.native_buffer_size;
-    }
     resolved
         .settings
         .as_ref()
@@ -1085,9 +1055,6 @@ fn resolved_input_buffer_size_frames(resolved: &ResolvedInputDevice) -> u32 {
 }
 
 fn resolved_output_buffer_size_frames(resolved: &ResolvedOutputDevice) -> u32 {
-    if resolved.use_native_buffer {
-        return resolved.native_buffer_size;
-    }
     resolved
         .settings
         .as_ref()
