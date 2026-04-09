@@ -70,18 +70,6 @@ useradd --system --no-create-home \
     --shell /usr/sbin/nologin \
     openrig
 
-# ── 8. Add udev rule to pin Teyun Q-26 as card "Q26" ─────────────────────────
-# USB Vendor:Product ID for Teyun Q-26: 1852:5065
-# If incorrect, verify on first boot with `lsusb` and update the rule.
-cat > /etc/udev/rules.d/90-teyun-q26.rules <<'EOF'
-# Teyun Q-26 USB Audio Interface — pin as card "Q26"
-SUBSYSTEM=="sound", ATTR{id}=="Q26", GOTO="q26_done"
-SUBSYSTEM=="sound", SUBSYSTEMS=="usb", \
-  ATTRS{idVendor}=="1852", ATTRS{idProduct}=="5065", \
-  ATTR{id}="Q26"
-LABEL="q26_done"
-EOF
-
 # ── 9. Enable systemd services ───────────────────────────────────────────────
 echo ">>> [OpenRig] Enabling jackd.service, weston.service and openrig.service..."
 systemctl enable jackd.service

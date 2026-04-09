@@ -11,14 +11,18 @@ Group=openrig
 SupplementaryGroups=audio
 
 # Low-latency config: 128 frames/period, 2 periods = ~5ms @ 48kHz
-# Waits up to 10s for Teyun Q-26; exits cleanly if not found (OpenRig falls back to ALSA)
+# Waits up to 10s for any USB audio interface; exits cleanly if none found.
 Environment=JACK_NO_AUDIO_RESERVATION=1
 ExecStart=/bin/sh -c '\
   for i in $(seq 1 10); do \
-    aplay -l 2>/dev/null | grep -q Q26 && exec /usr/bin/jackd -d alsa -d hw:Q26 -r 48000 -p 128 -n 2; \
+    CARD=$(aplay -l 2>/dev/null | awk "/USB Audio/ {match(\$0, /card ([0-9]+)/, m); if (m[1]!=\"\") {print m[1]; exit}}"); \
+    if [ -n "$CARD" ]; then \
+      echo "Found USB audio card $CARD, starting JACK..."; \
+      exec /usr/bin/jackd -d alsa -d hw:$CARD -r 48000 -p 128 -n 2; \
+    fi; \
     sleep 1; \
   done; \
-  echo "Teyun Q-26 not found after 10s, JACK disabled (OpenRig will use ALSA)"'
+  echo "No USB audio interface found after 10s, JACK disabled (OpenRig will use ALSA)"'
 
 Restart=on-failure
 RestartSec=2
