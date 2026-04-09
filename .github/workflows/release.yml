@@ -227,6 +227,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libasound2-dev libudev-dev pkg-config \
+            libjack-jackd2-dev \
             fakeroot rpm ruby-dev build-essential \
             librsvg2-bin imagemagick
 
@@ -244,7 +245,7 @@ jobs:
           restore-keys: linux-aarch64-cargo-
 
       - name: Build
-        run: cargo build --release -p adapter-gui
+        run: cargo build --release -p adapter-gui --features infra-cpal/jack
 
       - name: Resolve version
         id: ver

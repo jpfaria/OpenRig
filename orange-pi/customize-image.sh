@@ -12,6 +12,7 @@ echo ">>> [OpenRig] Customizing image for release: $RELEASE"
 apt-get update -qq
 apt-get install -y --no-install-recommends \
     alsa-utils \
+    jackd2 \
     libfreetype6 \
     libfontconfig1 \
     libdrm2 \
@@ -76,8 +77,9 @@ SUBSYSTEM=="sound", SUBSYSTEMS=="usb", \
 LABEL="q26_done"
 EOF
 
-# ── 9. Enable systemd service ─────────────────────────────────────────────────
-echo ">>> [OpenRig] Enabling openrig.service..."
+# ── 9. Enable systemd services ───────────────────────────────────────────────
+echo ">>> [OpenRig] Enabling jackd.service and openrig.service..."
+systemctl enable jackd.service
 systemctl enable openrig.service
 
 # ── 10. Set permissions on install script ────────────────────────────────────
