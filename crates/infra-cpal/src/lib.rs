@@ -868,6 +868,26 @@ fn build_input_stream_for_input(
                 None,
             )?
         }
+        SampleFormat::I32 => {
+            let runtime_for_data = runtime.clone();
+            let channels = stream_config.channels as usize;
+            let error_chain_id = chain_id.0.clone();
+            let mut converted = Vec::new();
+            device.build_input_stream(
+                &stream_config,
+                move |data: &[i32], _| {
+                    converted.resize(data.len(), 0.0);
+                    for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
+                        *dst = src as f32 / i32::MAX as f32;
+                    }
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        process_input_f32(&runtime_for_data, input_index, &converted, channels);
+                    }));
+                },
+                move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
+                None,
+            )?
+        }
         other => {
             bail!(
                 "unsupported input sample format for chain '{}': {:?}",
@@ -956,6 +976,27 @@ fn build_output_stream_for_output(
                         let normalized =
                             ((*src + 1.0) * 0.5 * u16::MAX as f32).clamp(0.0, u16::MAX as f32);
                         *dst = normalized as u16;
+                    }
+                },
+                move |err| log::error!("[{}] output stream error: {}", error_chain_id, err),
+                None,
+            )?
+        }
+        SampleFormat::I32 => {
+            let runtime_for_data = runtime.clone();
+            let channels = stream_config.channels as usize;
+            let error_chain_id = chain_id.0.clone();
+            let mut temp = Vec::new();
+            device.build_output_stream(
+                &stream_config,
+                move |out: &mut [i32], _| {
+                    temp.resize(out.len(), 0.0);
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        process_output_f32(&runtime_for_data, output_index, &mut temp, channels);
+                    }));
+                    for (dst, src) in out.iter_mut().zip(temp.iter()) {
+                        *dst = (*src * i32::MAX as f32)
+                            .clamp(i32::MIN as f32, i32::MAX as f32) as i32;
                     }
                 },
                 move |err| log::error!("[{}] output stream error: {}", error_chain_id, err),
