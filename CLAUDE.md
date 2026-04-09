@@ -128,6 +128,8 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 - **Settings** — dispositivos de áudio (input/output), sample rate, buffer size
 - **Chain Editor** — nome da chain, instrumento, I/O blocks (Input/Output como blocos na cadeia)
 
+**Tamanhos de janela:** Janela principal iniciada em 1100×620px (lógicos) para caber em telas de ~1300×700px (notebooks Windows). Tamanhos mínimos no Slint permitem redimensionamento livre.
+
 ### Tipos de bloco e para que servem
 
 | Tipo | O que faz | Total | Modelos (resumo) |
