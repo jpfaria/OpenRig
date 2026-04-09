@@ -1,0 +1,26 @@
+[Unit]
+Description=Weston Wayland Compositor (kiosk)
+After=local-fs.target plymouth-quit-wait.service
+Requires=local-fs.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+
+Environment=XDG_RUNTIME_DIR=/run/user/0
+
+ExecStartPre=/bin/mkdir -p /run/user/0
+ExecStartPre=/bin/chmod 700 /run/user/0
+ExecStart=/usr/bin/weston \
+    --backend=drm-backend.so \
+    --tty=1 \
+    --shell=kiosk-shell.so \
+    --log=/var/log/weston.log
+
+Restart=on-failure
+RestartSec=3
+TimeoutStartSec=15
+
+[Install]
+WantedBy=multi-user.target

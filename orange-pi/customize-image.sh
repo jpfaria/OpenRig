@@ -19,6 +19,9 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     libfontconfig1 \
     libdrm2 \
     libgles2 \
+    libgl1-mesa-dri \
+    weston \
+    adwaita-icon-theme \
     plymouth \
     librsvg2-bin \
     udev \
@@ -80,8 +83,9 @@ LABEL="q26_done"
 EOF
 
 # ── 9. Enable systemd services ───────────────────────────────────────────────
-echo ">>> [OpenRig] Enabling jackd.service and openrig.service..."
+echo ">>> [OpenRig] Enabling jackd.service, weston.service and openrig.service..."
 systemctl enable jackd.service
+systemctl enable weston.service
 systemctl enable openrig.service
 
 # ── 10. Set permissions on install script ────────────────────────────────────
