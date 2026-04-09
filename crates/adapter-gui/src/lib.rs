@@ -461,21 +461,10 @@ pub fn run_desktop_app(
         if needs_audio_settings { list_output_device_descriptors().unwrap_or_default() } else { Vec::new() }
     ));
     let window = AppWindow::new().map_err(|error| anyhow!(error.to_string()))?;
-    {
-        let scale = window.window().scale_factor() as f32;
-        // Get screen size from environment or use reasonable defaults
-        let screen_w_str = std::env::var("SCREEN_WIDTH").unwrap_or_default();
-        let screen_h_str = std::env::var("SCREEN_HEIGHT").unwrap_or_default();
-        let (screen_w, screen_h) = if let (Ok(w), Ok(h)) = (screen_w_str.parse::<f32>(), screen_h_str.parse::<f32>()) {
-            (w / scale, h / scale)
-        } else {
-            // Default to common monitor sizes
-            (1920.0 / scale, 1080.0 / scale)
-        };
-        let w = (screen_w * 0.85).clamp(860.0, 1400.0);
-        let h = (screen_h * 0.80).clamp(540.0, 860.0);
-        window.window().set_size(slint::WindowSize::Logical(slint::LogicalSize { width: w, height: h }));
-    }
+    window.window().set_size(slint::WindowSize::Logical(slint::LogicalSize {
+        width: 1100.0,
+        height: 620.0,
+    }));
     let project_settings_window =
         ProjectSettingsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     let chain_editor_window: Rc<RefCell<Option<ChainEditorWindow>>> =
