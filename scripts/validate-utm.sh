@@ -206,12 +206,12 @@ final_message: |
 USERDATA
 
     echo "  Creating seed ISO..."
+    rm -f "$SEED_ISO"
     hdiutil makehybrid \
         -o "$SEED_ISO" \
-        -hfs -iso -joliet \
+        -iso -joliet \
         -default-volume-name "cidata" \
-        "$seed_dir" \
-        -quiet
+        "$seed_dir"
     echo "  Seed: $SEED_ISO"
 }
 
