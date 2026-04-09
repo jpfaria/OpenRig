@@ -235,7 +235,9 @@ create_utm_vm() {
     fi
 
     mkdir -p "$vm_dir/Images"
+    echo "  Copying disk image (may take ~30s)..."
     cp "$DISK_IMG" "$vm_dir/Images/disk0.qcow2"
+    echo "  Copying seed ISO..."
     cp "$SEED_ISO" "$vm_dir/Images/seed.iso"
 
     local vm_uuid
