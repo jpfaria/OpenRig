@@ -859,6 +859,7 @@ pub fn run_desktop_app(
     project_settings_window.set_project_devices(ModelRc::from(project_devices.clone()));
     project_settings_window.set_sample_rate_options(window.get_sample_rate_options());
     project_settings_window.set_buffer_size_options(window.get_buffer_size_options());
+    window.set_project_devices(ModelRc::from(project_devices.clone()));
     chain_input_window.set_device_options(ModelRc::from(chain_input_device_options.clone()));
     chain_input_window.set_channels(ModelRc::from(chain_input_channels.clone()));
     chain_input_window.set_selected_device_index(-1);
@@ -1120,6 +1121,12 @@ pub fn run_desktop_app(
         });
     }
     {
+        let project_devices = project_devices.clone();
+        window.on_toggle_project_device(move |index, selected| {
+            toggle_device_row(&project_devices, index as usize, selected);
+        });
+    }
+    {
         let output_devices = output_devices.clone();
         window.on_toggle_output_device(move |index, selected| {
             toggle_device_row(&output_devices, index as usize, selected);
@@ -1144,6 +1151,12 @@ pub fn run_desktop_app(
         });
     }
     {
+        let project_devices = project_devices.clone();
+        window.on_update_project_sample_rate(move |index, value| {
+            update_device_sample_rate(&project_devices, index as usize, value);
+        });
+    }
+    {
         let output_devices = output_devices.clone();
         window.on_update_output_sample_rate(move |index, value| {
             update_device_sample_rate(&output_devices, index as usize, value);
@@ -1158,6 +1171,12 @@ pub fn run_desktop_app(
     {
         let project_devices = project_devices.clone();
         project_settings_window.on_update_project_buffer_size(move |index, value| {
+            update_device_buffer_size(&project_devices, index as usize, value);
+        });
+    }
+    {
+        let project_devices = project_devices.clone();
+        window.on_update_project_buffer_size(move |index, value| {
             update_device_buffer_size(&project_devices, index as usize, value);
         });
     }
