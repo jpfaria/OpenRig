@@ -173,14 +173,36 @@ pub fn list_devices() -> Result<Vec<String>> {
     Ok(devices)
 }
 
+/// On Linux/ALSA, cpal lists all logical devices (equivalent to `aplay -L`),
+/// which includes dozens of virtual entries per card (surround51, iec958, dmix,
+/// plughw, default, etc.). Only hardware devices (`hw:`) are meaningful for
+/// the device picker — they map 1:1 to physical cards.
+///
+/// On other platforms this function always returns true (no filtering needed).
+fn is_hardware_device(id: &str) -> bool {
+    #[cfg(target_os = "linux")]
+    {
+        id.starts_with("hw:")
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = id;
+        true
+    }
+}
+
 pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     log::debug!("listing input device descriptors");
     let host = select_host_for_enumeration();
     let mut devices = Vec::new();
     for device in host.input_devices()? {
+        let id = device.id()?.to_string();
+        if !is_hardware_device(&id) {
+            continue;
+        }
         let description = device.description()?;
         devices.push(AudioDeviceDescriptor {
-            id: device.id()?.to_string(),
+            id,
             name: description.name().to_string(),
             channels: max_supported_input_channels(&device).unwrap_or(0),
         });
@@ -194,9 +216,13 @@ pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     let host = select_host_for_enumeration();
     let mut devices = Vec::new();
     for device in host.output_devices()? {
+        let id = device.id()?.to_string();
+        if !is_hardware_device(&id) {
+            continue;
+        }
         let description = device.description()?;
         devices.push(AudioDeviceDescriptor {
-            id: device.id()?.to_string(),
+            id,
             name: description.name().to_string(),
             channels: max_supported_output_channels(&device).unwrap_or(0),
         });
