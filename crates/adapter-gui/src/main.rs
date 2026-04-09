@@ -1,3 +1,5 @@
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
+
 use adapter_gui::run_desktop_app;
 use ui_openrig::{AppRuntimeMode, InteractionMode};
 
