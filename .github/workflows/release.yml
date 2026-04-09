@@ -74,7 +74,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libasound2-dev libudev-dev pkg-config \
-            libfontconfig1-dev \
+            libfontconfig1-dev libseat-dev \
             fakeroot rpm ruby-dev build-essential \
             librsvg2-bin imagemagick
 
@@ -228,7 +228,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libasound2-dev libudev-dev pkg-config \
-            libfontconfig1-dev \
+            libfontconfig1-dev libseat-dev \
             fakeroot rpm ruby-dev build-essential \
             librsvg2-bin imagemagick
 
