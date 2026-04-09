@@ -2,10 +2,6 @@
 name = "infra-cpal"
 version.workspace = true
 edition.workspace = true
-
-[features]
-jack = ["cpal/jack"]
-
 [dependencies]
 log.workspace = true
 anyhow.workspace = true
