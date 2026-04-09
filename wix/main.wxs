@@ -2,7 +2,7 @@
 <!--
   WiX v3 Product definition for OpenRig Windows installer.
   File components are harvested at build time by heat.exe (see scripts/package-windows.ps1).
-  UpgradeCode must NEVER change between releases — it ties the upgrade chain together.
+  UpgradeCode must NEVER change between releases.
 -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   <Product Id="*"
@@ -13,32 +13,64 @@
            UpgradeCode="{6B2F8B9A-1C3D-4E5F-A6B7-C8D9E0F1A2B3}">
 
     <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine"/>
-
-    <!-- Remove older versions before installing a newer one -->
-    <MajorUpgrade DowngradeErrorMessage="A newer version of OpenRig is already installed." />
-
-    <!-- Embed all files into the MSI cabinet -->
+    <MajorUpgrade DowngradeErrorMessage="A newer version of OpenRig is already installed."/>
     <MediaTemplate EmbedCab="yes"/>
 
-    <!-- All files come from the heat-harvested ComponentGroup -->
+    <!-- Icon shown in Add/Remove Programs and shortcuts -->
+    <Icon Id="OpenRigIcon" SourceFile="$(var.IconFile)"/>
+    <Property Id="ARPPRODUCTICON" Value="OpenRigIcon"/>
+
     <Feature Id="ProductFeature" Title="OpenRig" Level="1">
       <ComponentGroupRef Id="StageFiles"/>
+      <ComponentRef Id="StartMenuShortcut"/>
+      <ComponentRef Id="DesktopShortcut"/>
     </Feature>
 
-    <!-- Install to C:\Program Files\OpenRig\ -->
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFiles64Folder">
         <Directory Id="INSTALLFOLDER" Name="OpenRig"/>
       </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="AppStartMenuFolder" Name="OpenRig"/>
+      </Directory>
+      <Directory Id="DesktopFolder" Name="Desktop"/>
     </Directory>
 
-    <!-- Minimal UI: progress bar only, no directory choice -->
+    <!-- Start Menu shortcut -->
+    <DirectoryRef Id="AppStartMenuFolder">
+      <Component Id="StartMenuShortcut" Guid="{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}">
+        <Shortcut Id="AppStartMenuShortcut"
+                  Name="OpenRig"
+                  Description="OpenRig virtual guitar pedalboard"
+                  Target="[INSTALLFOLDER]openrig.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="OpenRigIcon"/>
+        <RemoveFolder Id="RemoveStartMenuFolder" Directory="AppStartMenuFolder" On="uninstall"/>
+        <RegistryValue Root="HKCU"
+                       Key="Software\OpenRig"
+                       Name="StartMenuShortcut"
+                       Type="integer" Value="1" KeyPath="yes"/>
+      </Component>
+    </DirectoryRef>
+
+    <!-- Desktop shortcut -->
+    <DirectoryRef Id="DesktopFolder">
+      <Component Id="DesktopShortcut" Guid="{B2C3D4E5-F6A7-8901-BCDE-F12345678901}">
+        <Shortcut Id="AppDesktopShortcut"
+                  Name="OpenRig"
+                  Description="OpenRig virtual guitar pedalboard"
+                  Target="[INSTALLFOLDER]openrig.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="OpenRigIcon"/>
+        <RegistryValue Root="HKCU"
+                       Key="Software\OpenRig"
+                       Name="DesktopShortcut"
+                       Type="integer" Value="1" KeyPath="yes"/>
+      </Component>
+    </DirectoryRef>
+
     <UIRef Id="WixUI_Minimal"/>
     <WixVariable Id="WixUILicenseRtf" Value="wix\License.rtf"/>
-
-    <!-- Add/Remove Programs entry -->
-    <Property Id="ARPPRODUCTICON" Value="OpenRigIcon"/>
-    <Icon Id="OpenRigIcon" SourceFile="$(var.SourceDir)\openrig.exe"/>
 
   </Product>
 </Wix>

@@ -50,7 +50,36 @@ try {
     if ($wixVersion -notmatch '^\d+(\.\d+)*$') { $wixVersion = "0.0.0" }
     Write-Host "    Version: $Version  (WiX: $wixVersion)"
 
-    # ── 2. Stage all files ───────────────────────────────────────────────────────
+    # ── 2. Generate Windows icon (.ico) ──────────────────────────────────────────
+    Write-Host "==> Generating Windows icon..."
+    New-Item -ItemType Directory -Force "wix" | Out-Null
+    $svgPath = "crates\adapter-gui\ui\assets\openrig-logomark.svg"
+    $icoPath = (Resolve-Path "wix").Path + "\openrig.ico"
+    $iconOk = $false
+    try {
+        # Convert SVG to PNG at multiple sizes, then combine into ICO
+        $tmpPngs = @()
+        foreach ($size in @(16, 32, 48, 64, 128, 256)) {
+            $png = "wix\icon_${size}.png"
+            & magick -background none -density 300 $svgPath -resize "${size}x${size}" $png 2>$null
+            if ($LASTEXITCODE -eq 0 -and (Test-Path $png)) { $tmpPngs += $png }
+        }
+        if ($tmpPngs.Count -gt 0) {
+            & magick @tmpPngs $icoPath 2>$null
+            $iconOk = ($LASTEXITCODE -eq 0 -and (Test-Path $icoPath))
+            foreach ($png in $tmpPngs) { Remove-Item $png -ErrorAction SilentlyContinue }
+        }
+    } catch {}
+
+    if (-not $iconOk) {
+        # Fallback: use the exe itself as icon source (no dedicated icon)
+        Write-Host "    WARNING: ImageMagick not available, using exe as icon source"
+        $stageDirAbs0 = (Resolve-Path "target\release").Path
+        $icoPath = $stageDirAbs0 + "\adapter-gui.exe"
+    }
+    Write-Host "    Icon: $icoPath"
+
+    # ── 3. Stage all files ───────────────────────────────────────────────────────
     Write-Host "==> Staging install tree..."
     $stageDir = "dist\stage"
     Remove-Item -Recurse -Force $stageDir -ErrorAction SilentlyContinue
@@ -67,9 +96,33 @@ try {
     Copy-Item -Recurse "assets"               "$stageDir\assets"
     Copy-Item -Recurse "captures"             "$stageDir\captures"
 
-    Write-Host "    Stage ready ($(Get-ChildItem -Recurse $stageDir | Measure-Object).Count files)"
+    # ── Copy MinGW runtime DLLs (required by libNeuralAudioCAPI.dll) ────────────
+    Write-Host "==> Copying MinGW runtime DLLs..."
+    $mingwDlls = @("libgcc_s_seh-1.dll", "libstdc++-6.dll", "libwinpthread-1.dll")
+    $mingwSearchPaths = @(
+        "C:\msys64\mingw64\bin",
+        "C:\msys64\ucrt64\bin",
+        "C:\Strawberry\c\bin",
+        "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin"
+    )
+    foreach ($dll in $mingwDlls) {
+        $found = $false
+        foreach ($p in $mingwSearchPaths) {
+            $src = "$p\$dll"
+            if (Test-Path $src) {
+                Copy-Item $src "$stageDir\"
+                Write-Host "    $dll  <-  $p"
+                $found = $true
+                break
+            }
+        }
+        if (-not $found) { Write-Host "    WARNING: $dll not found (may not be needed)" }
+    }
 
-    # ── 3. Create .zip bundle ────────────────────────────────────────────────────
+    $stageDirAbs = (Resolve-Path $stageDir).Path
+    Write-Host "    Stage ready"
+
+    # ── 4. Create .zip bundle ────────────────────────────────────────────────────
     Write-Host "==> Creating .zip..."
     $zipName = "OpenRig-${Version}-windows-x64"
     $zipDir  = "dist\$zipName"
@@ -80,10 +133,8 @@ try {
     Compress-Archive -Path $zipDir -DestinationPath $zipOut
     Write-Host "    $zipOut"
 
-    # ── 4. Harvest files with heat.exe ───────────────────────────────────────────
+    # ── 5. Harvest files with heat.exe ───────────────────────────────────────────
     Write-Host "==> Harvesting files with heat.exe..."
-    $stageDirAbs = (Resolve-Path $stageDir).Path
-    New-Item -ItemType Directory -Force "wix" | Out-Null
     & "$wixBin\heat.exe" dir $stageDirAbs `
         -o "wix\heat_stage.wxs" `
         -cg StageFiles `
@@ -94,11 +145,12 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "heat.exe failed with exit code $LASTEXITCODE" }
     Write-Host "    wix\heat_stage.wxs generated"
 
-    # ── 5. Compile WiX sources with candle.exe ───────────────────────────────────
+    # ── 6. Compile WiX sources with candle.exe ───────────────────────────────────
     Write-Host "==> Compiling WiX sources..."
     & "$wixBin\candle.exe" -arch x64 `
         "-dVersion=$wixVersion" `
         "-dSourceDir=$stageDirAbs" `
+        "-dIconFile=$icoPath" `
         "wix\main.wxs" `
         -o "wix\main.wixobj"
     if ($LASTEXITCODE -ne 0) { throw "candle.exe (main.wxs) failed" }
@@ -109,7 +161,7 @@ try {
         -o "wix\heat_stage.wixobj"
     if ($LASTEXITCODE -ne 0) { throw "candle.exe (heat_stage.wxs) failed" }
 
-    # ── 6. Link MSI with light.exe ───────────────────────────────────────────────
+    # ── 7. Link MSI with light.exe ───────────────────────────────────────────────
     Write-Host "==> Linking MSI..."
     $msiOut = "dist\OpenRig-${Version}-windows-x64.msi"
     New-Item -ItemType Directory -Force "dist" | Out-Null
