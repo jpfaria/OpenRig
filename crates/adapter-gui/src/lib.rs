@@ -2649,21 +2649,31 @@ pub fn run_desktop_app(
                         let compact_blocks = cw.get_compact_blocks();
                         for i in 0..compact_blocks.row_count() {
                             if let Some(mut item) = compact_blocks.row_data(i) {
-                                if item.effect_type == "utility" && item.enabled {
-                                    let bid = domain::ids::BlockId(item.block_id.to_string());
-                                    let stream_data = if let Some(entries) = rt.poll_stream(&bid) {
-                                        let slint_entries: Vec<BlockStreamEntry> = entries.iter().map(|e| BlockStreamEntry {
-                                            key: e.key.clone().into(),
-                                            value: e.value,
-                                            text: e.text.clone().into(),
-                                            peak: e.peak,
-                                        }).collect();
-                                        BlockStreamData {
-                                            active: true,
-                                            stream_kind: project::catalog::model_stream_kind(item.effect_type.as_str(), item.model_id.as_str()).into(),
-                                            entries: ModelRc::from(Rc::new(VecModel::from(slint_entries))),
+                                if item.effect_type == "utility" {
+                                    let stream_data = if item.enabled {
+                                        let bid = domain::ids::BlockId(item.block_id.to_string());
+                                        let kind: slint::SharedString = project::catalog::model_stream_kind(item.effect_type.as_str(), item.model_id.as_str()).into();
+                                        if let Some(entries) = rt.poll_stream(&bid) {
+                                            let slint_entries: Vec<BlockStreamEntry> = entries.iter().map(|e| BlockStreamEntry {
+                                                key: e.key.clone().into(),
+                                                value: e.value,
+                                                text: e.text.clone().into(),
+                                                peak: e.peak,
+                                            }).collect();
+                                            BlockStreamData {
+                                                active: true,
+                                                stream_kind: kind,
+                                                entries: ModelRc::from(Rc::new(VecModel::from(slint_entries))),
+                                            }
+                                        } else {
+                                            BlockStreamData {
+                                                active: false,
+                                                stream_kind: kind,
+                                                entries: ModelRc::default(),
+                                            }
                                         }
                                     } else {
+                                        // Disabled utility block — clear stream so parameters become visible
                                         BlockStreamData { active: false, stream_kind: "".into(), entries: ModelRc::default() }
                                     };
                                     item.stream_data = stream_data;
@@ -4009,7 +4019,7 @@ pub fn run_desktop_app(
                                 }
                                 win.set_block_stream_data(BlockStreamData {
                                     active: false,
-                                    stream_kind: "".into(),
+                                    stream_kind: kind.clone(),
                                     entries: ModelRc::default(),
                                 });
                             }
