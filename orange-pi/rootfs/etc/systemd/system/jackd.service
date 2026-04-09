@@ -6,9 +6,8 @@ Before=openrig.service
 
 [Service]
 Type=simple
-User=openrig
-Group=openrig
-SupplementaryGroups=audio
+User=root
+Group=audio
 
 # Low-latency config: 128 frames/period, 2 periods = ~5ms @ 48kHz
 # Waits up to 10s for any USB audio interface; exits cleanly if none found.
