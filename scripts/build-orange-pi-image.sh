@@ -158,6 +158,11 @@ prepare_overlay() {
 
     # Stage rootfs overlay (etc, usr)
     run cp -r "$PROJECT_ROOT/orange-pi/rootfs/." "$OVERLAY_DIR/"
+
+    # Stage PREEMPT_RT kernel config fragment
+    run mkdir -p "$USERPATCHES_DIR/config/kernel"
+    run cp "$PROJECT_ROOT/orange-pi/kernel-config/orangepi5b-current.config" \
+        "$USERPATCHES_DIR/config/kernel/orangepi5b-current.config"
 }
 
 # ── Step 3: Run Armbian build ─────────────────────────────────────────────────
