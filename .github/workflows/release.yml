@@ -385,6 +385,19 @@ jobs:
           key: windows-x64-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: windows-x64-cargo-
 
+      - name: Download ASIO SDK
+        shell: pwsh
+        run: |
+          $sdk_url = "https://download.steinberg.net/sdk_downloads/asiosdk_2.3.3_2019-06-14.zip"
+          Invoke-WebRequest -Uri $sdk_url -OutFile asiosdk.zip
+          Expand-Archive -Path asiosdk.zip -DestinationPath C:\asiosdk
+          $sdk_dir = (Get-ChildItem C:\asiosdk -Directory)[0].FullName
+          "CPAL_ASIO_DIR=$sdk_dir" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "ASIO SDK: $sdk_dir"
+
+      - name: Install LLVM/clang (required by ASIO bindgen)
+        run: choco install llvm -y --no-progress
+
       - name: Build
         run: cargo build --release -p adapter-gui
 
