@@ -74,6 +74,17 @@ check_prereqs() {
         printf '  - %s\n' "${missing[@]}"
         exit 1
     fi
+
+    # On macOS, Armbian requires Bash 5 — use homebrew bash if available
+    if [ "$(uname)" = "Darwin" ]; then
+        BASH5=/opt/homebrew/bin/bash
+        [ -x "$BASH5" ] || BASH5=$(brew --prefix 2>/dev/null)/bin/bash
+        if [ ! -x "$BASH5" ]; then
+            echo "ERROR: Bash 5 required on macOS. Run: brew install bash"
+            exit 1
+        fi
+        export BASH="$BASH5"
+    fi
 }
 
 # ── Step 1: Download OpenRig release ─────────────────────────────────────────
@@ -155,7 +166,7 @@ run_armbian() {
 
     run mkdir -p "$OUTPUT_DIR"
 
-    run bash "$ARMBIAN_DIR/compile.sh" \
+    run "${BASH:-bash}" "$ARMBIAN_DIR/compile.sh" \
         "BOARD=$BOARD" \
         "BRANCH=$BRANCH" \
         "RELEASE=$RELEASE" \
