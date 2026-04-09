@@ -130,6 +130,18 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 
 **Tamanhos de janela:** Janela principal iniciada em 1100×620px (lógicos) para caber em telas de ~1300×700px (notebooks Windows). Tamanhos mínimos no Slint permitem redimensionamento livre.
 
+### Argumentos de linha de comando e variáveis de ambiente (adapter-gui)
+
+| Argumento / Variável | Exemplo | Efeito |
+|---|---|---|
+| Caminho do projeto (posicional) | `openrig /path/to/project.yaml` | Abre o projeto direto, pula o launcher |
+| `OPENRIG_PROJECT_PATH` | `OPENRIG_PROJECT_PATH=/path/project.yaml openrig` | Equivalente ao caminho posicional (env var tem menor prioridade) |
+| `--auto-save` | `openrig --auto-save` | Salva a cada alteração, esconde botão salvar |
+| `OPENRIG_AUTO_SAVE` | `OPENRIG_AUTO_SAVE=1 openrig` | Equivalente a `--auto-save` (aceita `1` ou `true`) |
+| Combinado | `openrig /path/project.yaml --auto-save` | Ambos os comportamentos |
+
+**Implementação:** Parsing em `crates/adapter-gui/src/main.rs` via `parse_cli_args_from()` (em `lib.rs`). Env vars resolvidas em `main.rs` após o parsing. Auto-save em `sync_project_dirty()` — único ponto de mutação do projeto. Botão salvar condicional via propriedade Slint `auto-save` em `ProjectChainsPage`.
+
 ### Tipos de bloco e para que servem
 
 | Tipo | O que faz | Total | Modelos (resumo) |
