@@ -7901,10 +7901,10 @@ fn build_project_device_rows(
 ) -> Vec<DeviceSelectionItem> {
     let mut rows: Vec<DeviceSelectionItem> = Vec::new();
     for device in input_devices.iter().chain(output_devices.iter()) {
-        if rows
-            .iter()
-            .any(|row| row.device_id.as_str() == device.id.as_str())
-        {
+        if rows.iter().any(|row| {
+            row.device_id.as_str() == device.id.as_str()
+                || row.name.as_str() == device.name.as_str()
+        }) {
             continue;
         }
         let config = device_settings

@@ -183,10 +183,23 @@ fn is_hardware_device(id: &str) -> bool {
     // cpal formats device IDs as "host:pcm_id", e.g. "alsa:hw:CARD=Gen,DEV=0".
     // On Linux/ALSA, only keep hw: entries — direct hardware, one per physical
     // card/device. Skips plughw, default, surround51, iec958, dmix, etc.
+    //
+    // cpal enumerates each card twice: once via HintIter (named form:
+    // hw:CARD=Gen,DEV=0) and once via hardware scan (numeric form:
+    // hw:CARD=1,DEV=0). The two forms may have slightly different device names
+    // ("Scarlett 2i2 4th Gen, USB Audio" vs "Scarlett 2i2 4th Gen"), defeating
+    // name-based deduplication. Reject numeric CARD= forms so only the named
+    // form survives — it is stable (card numbers can change on reboot).
     #[cfg(target_os = "linux")]
     {
         let pcm_id = id.split_once(':').map(|(_, d)| d).unwrap_or(id);
-        pcm_id.starts_with("hw:")
+        if !pcm_id.starts_with("hw:") {
+            return false;
+        }
+        // Accept only named CARD forms: hw:CARD=<letter>...
+        // Reject numeric CARD forms: hw:CARD=<digit>...
+        let after_card = pcm_id.split("CARD=").nth(1).unwrap_or("");
+        !after_card.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false)
     }
     #[cfg(not(target_os = "linux"))]
     {
