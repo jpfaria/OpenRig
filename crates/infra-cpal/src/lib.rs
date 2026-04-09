@@ -180,9 +180,13 @@ pub fn list_devices() -> Result<Vec<String>> {
 ///
 /// On other platforms this function always returns true (no filtering needed).
 fn is_hardware_device(id: &str) -> bool {
+    // cpal formats device IDs as "host:pcm_id", e.g. "alsa:hw:CARD=Gen,DEV=0".
+    // On Linux/ALSA, only keep hw: entries — direct hardware, one per physical
+    // card/device. Skips plughw, default, surround51, iec958, dmix, etc.
     #[cfg(target_os = "linux")]
     {
-        id.starts_with("hw:")
+        let pcm_id = id.split_once(':').map(|(_, d)| d).unwrap_or(id);
+        pcm_id.starts_with("hw:")
     }
     #[cfg(not(target_os = "linux"))]
     {
