@@ -87,4 +87,21 @@ systemctl enable openrig.service
 # ── 10. Set permissions on install script ────────────────────────────────────
 chmod 755 /usr/local/bin/openrig-install-to-emmc
 
+# ── 11. Silent kiosk boot ─────────────────────────────────────────────────────
+echo ">>> [OpenRig] Configuring silent kiosk boot..."
+
+# Quiet kernel boot — suppress console messages, keep Plymouth splash
+grep -q "^extraargs=" /boot/armbianEnv.txt 2>/dev/null \
+    && sed -i 's/^extraargs=.*/extraargs=quiet splash loglevel=3 rd.systemd.show_status=false rd.udev.log_level=3/' /boot/armbianEnv.txt \
+    || echo "extraargs=quiet splash loglevel=3 rd.systemd.show_status=false rd.udev.log_level=3" >> /boot/armbianEnv.txt
+
+# Disable Armbian first-run configuration wizard
+systemctl disable armbian-firstrun 2>/dev/null || true
+systemctl disable armbian-firstrun-config 2>/dev/null || true
+rm -f /etc/profile.d/armbian-check-first-run.sh
+
+# Disable login prompt on tty1 (OpenRig takes over the display via linuxkms)
+systemctl disable getty@tty1.service 2>/dev/null || true
+systemctl mask getty@tty1.service 2>/dev/null || true
+
 echo ">>> [OpenRig] Image customization complete."

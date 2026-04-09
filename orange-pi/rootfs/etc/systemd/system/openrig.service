@@ -1,7 +1,7 @@
 [Unit]
 Description=OpenRig Guitar Pedalboard
 Documentation=https://github.com/jpfaria/OpenRig
-After=jackd.service local-fs.target
+After=jackd.service local-fs.target plymouth-quit-wait.service
 Wants=jackd.service
 
 [Service]
@@ -14,6 +14,7 @@ Environment=SLINT_BACKEND=linuxkms
 Environment=SLINT_RENDERER=software
 Environment=RUST_LOG=warn
 Environment=JACK_NO_AUDIO_RESERVATION=1
+Environment=LD_LIBRARY_PATH=/usr/local/share/openrig/libs
 
 ExecStart=/usr/local/bin/openrig
 Restart=on-failure
