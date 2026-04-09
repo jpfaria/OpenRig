@@ -974,11 +974,21 @@ export component BlockPanelEditor inherits Rectangle {
     }
 
     // ── Realtime stream display — positioned between POWER (left) and Reference (right) ──
-    if root.block-stream-data.active && root.block-stream-data.stream-kind != "spectrum" : Rectangle {
+    if root.block-stream-data.stream-kind != "" && root.block-stream-data.stream-kind != "spectrum" : Rectangle {
         x: 56px;
         y: root.header-height + root.brand-strip-height + root.panel-height * 0.52;
         width: parent.width - 56px - 100px;
         height: root.panel-height * 0.46;
+
+        // Waiting for signal — shown until pitch is detected
+        if !root.block-stream-data.active : Text {
+            x: 0; y: 0; width: parent.width; height: parent.height;
+            text: "–";
+            color: #3a4050;
+            font-size: 28px; font-weight: 900;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
 
         for entry[ei] in root.block-stream-data.entries : Rectangle {
             property <length> slot-w: parent.width / root.block-stream-data.entries.length;
