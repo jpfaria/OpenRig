@@ -5,15 +5,9 @@ use cpal::{
     SupportedStreamConfigRange,
 };
 
-/// Select the audio host. On Windows, ASIO is preferred for zero-latency audio
-/// (bypasses the Windows audio mixer). ASIO requires the interface's ASIO driver
-/// installed (e.g. Focusrite USB ASIO) and Focusrite Control configured with the
-/// desired sample rate and buffer size. Falls back to WASAPI if no ASIO driver is found.
-///
-/// On Linux (when compiled with `jack` feature): uses JACK by default for low
-/// latency. Set `OPENRIG_AUDIO_HOST=alsa` to force ALSA instead.
-///
-/// On macOS: always uses CoreAudio.
+/// Select the audio host for stream processing. On Windows, ASIO is preferred for
+/// zero-latency audio. On Linux (with `jack` feature): uses JACK by default.
+/// Set `OPENRIG_AUDIO_HOST=alsa` to force ALSA instead. On macOS: CoreAudio.
 fn select_host() -> cpal::Host {
     #[cfg(target_os = "windows")]
     {
@@ -58,6 +52,18 @@ fn select_host() -> cpal::Host {
         log::info!("Audio host: ALSA");
     }
 
+    cpal::default_host()
+}
+
+/// Select the audio host for device enumeration.
+///
+/// Always uses the platform default host (ALSA on Linux, CoreAudio on macOS,
+/// WASAPI on Windows). Never attempts to connect to JACK, because:
+/// 1. JACK connection attempts block the UI thread when the JACK server is
+///    not running (can take seconds to time out).
+/// 2. JACK "devices" are ports, not physical interfaces — showing them in
+///    the device picker would be confusing to users.
+fn select_host_for_enumeration() -> cpal::Host {
     cpal::default_host()
 }
 
@@ -169,7 +175,7 @@ pub fn list_devices() -> Result<Vec<String>> {
 
 pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     log::debug!("listing input device descriptors");
-    let host = select_host();
+    let host = select_host_for_enumeration();
     let mut devices = Vec::new();
     for device in host.input_devices()? {
         let description = device.description()?;
@@ -185,7 +191,7 @@ pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
 
 pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     log::debug!("listing output device descriptors");
-    let host = select_host();
+    let host = select_host_for_enumeration();
     let mut devices = Vec::new();
     for device in host.output_devices()? {
         let description = device.description()?;
