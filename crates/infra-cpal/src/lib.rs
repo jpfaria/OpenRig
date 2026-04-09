@@ -80,6 +80,21 @@ fn is_asio_host(_host: &cpal::Host) -> bool {
     false
 }
 
+/// Returns true when the given host is the JACK host on Linux.
+/// When JACK is active, device routing is handled by the JACK server — OpenRig
+/// connects to JACK as a client and the JACK daemon manages the physical hardware.
+/// Project device IDs (ALSA format) are irrelevant; we always use JACK's default
+/// input/output device.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn is_jack_host(host: &cpal::Host) -> bool {
+    host.id() == cpal::HostId::Jack
+}
+
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+fn is_jack_host(_host: &cpal::Host) -> bool {
+    false
+}
+
 use domain::ids::ChainId;
 use engine::runtime::{process_input_f32, process_output_f32, RuntimeGraph, ChainRuntimeState};
 use engine;
@@ -425,12 +440,14 @@ fn resolve_input_device_for_chain_input(
         .iter()
         .find(|s| s.device_id == input.device_id)
         .cloned();
-    let device = find_input_device_by_id(host, &input.device_id.0)?.ok_or_else(|| {
-        anyhow!(
-            "input device '{}' not found by device_id",
-            input.device_id.0
-        )
-    })?;
+    let device = if is_jack_host(host) {
+        host.default_input_device()
+            .ok_or_else(|| anyhow!("no JACK input device available"))?
+    } else {
+        find_input_device_by_id(host, &input.device_id.0)?.ok_or_else(|| {
+            anyhow!("input device '{}' not found by device_id", input.device_id.0)
+        })?
+    };
     let default_config = device.default_input_config().with_context(|| {
         format!(
             "failed to get default input config for '{}'",
@@ -482,12 +499,14 @@ fn resolve_output_device_for_chain_output(
         .iter()
         .find(|s| s.device_id == output.device_id)
         .cloned();
-    let device = find_output_device_by_id(host, &output.device_id.0)?.ok_or_else(|| {
-        anyhow!(
-            "output device '{}' not found by device_id",
-            output.device_id.0
-        )
-    })?;
+    let device = if is_jack_host(host) {
+        host.default_output_device()
+            .ok_or_else(|| anyhow!("no JACK output device available"))?
+    } else {
+        find_output_device_by_id(host, &output.device_id.0)?.ok_or_else(|| {
+            anyhow!("output device '{}' not found by device_id", output.device_id.0)
+        })?
+    };
     let default_config = device.default_output_config().with_context(|| {
         format!(
             "failed to get default output config for '{}'",
@@ -715,13 +734,14 @@ fn validate_input_channels_against_device(
     device_id: &str,
     channels: &[usize],
 ) -> Result<()> {
-    let device = find_input_device_by_id(host, device_id)?.ok_or_else(|| {
-        anyhow!(
-            "chain '{}' missing input device '{}'",
-            chain_id,
-            device_id
-        )
-    })?;
+    let device = if is_jack_host(host) {
+        host.default_input_device()
+            .ok_or_else(|| anyhow!("no JACK input device available"))?
+    } else {
+        find_input_device_by_id(host, device_id)?.ok_or_else(|| {
+            anyhow!("chain '{}' missing input device '{}'", chain_id, device_id)
+        })?
+    };
     let total_channels = max_supported_input_channels(&device).with_context(|| {
         format!(
             "failed to resolve input channel capacity for '{}'",
@@ -747,13 +767,14 @@ fn validate_output_channels_against_device(
     device_id: &str,
     channels: &[usize],
 ) -> Result<()> {
-    let device = find_output_device_by_id(host, device_id)?.ok_or_else(|| {
-        anyhow!(
-            "chain '{}' missing output device '{}'",
-            chain_id,
-            device_id
-        )
-    })?;
+    let device = if is_jack_host(host) {
+        host.default_output_device()
+            .ok_or_else(|| anyhow!("no JACK output device available"))?
+    } else {
+        find_output_device_by_id(host, device_id)?.ok_or_else(|| {
+            anyhow!("chain '{}' missing output device '{}'", chain_id, device_id)
+        })?
+    };
     let total_channels = max_supported_output_channels(&device).with_context(|| {
         format!(
             "failed to resolve output channel capacity for '{}'",
