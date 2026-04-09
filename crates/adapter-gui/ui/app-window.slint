@@ -24,10 +24,10 @@ export component ProjectSettingsWindow inherits Window {
     callback update-project-sample-rate(int, string);
     callback update-project-buffer-size(int, string);
     title: "OpenRig · Configurar projeto";
-    min-width: 980px;
-    min-height: 680px;
-    preferred-width: 1160px;
-    preferred-height: 760px;
+    min-width: 860px;
+    min-height: 540px;
+    preferred-width: 1100px;
+    preferred-height: 640px;
     background: #040708;
 
     ProjectSettingsPage {
@@ -70,10 +70,10 @@ export component ChainEditorWindow inherits Window {
     callback cancel-chain();
     callback select-instrument(int);
     title: "OpenRig · Configurar chain";
-    min-width: 980px;
-    min-height: 680px;
-    preferred-width: 1160px;
-    preferred-height: 760px;
+    min-width: 860px;
+    min-height: 540px;
+    preferred-width: 1100px;
+    preferred-height: 640px;
     background: #040708;
 
     ChainEditorPage {
@@ -115,10 +115,10 @@ export component ChainInputWindow inherits Window {
     callback save();
     callback cancel();
     title: "OpenRig · Entrada da chain";
-    min-width: 720px;
-    min-height: 620px;
-    preferred-width: 860px;
-    preferred-height: 720px;
+    min-width: 680px;
+    min-height: 500px;
+    preferred-width: 820px;
+    preferred-height: 620px;
     background: #040708;
 
     ChainEndpointEditorPage {
@@ -155,10 +155,10 @@ export component ChainOutputWindow inherits Window {
     callback save();
     callback cancel();
     title: "OpenRig · Saída da chain";
-    min-width: 720px;
-    min-height: 620px;
-    preferred-width: 860px;
-    preferred-height: 720px;
+    min-width: 680px;
+    min-height: 500px;
+    preferred-width: 820px;
+    preferred-height: 620px;
     background: #040708;
 
     ChainEndpointEditorPage {
@@ -196,10 +196,10 @@ export component ChainInputGroupsWindow inherits Window {
     callback toggle-enabled();
     callback delete-block();
     title: "OpenRig \u{00B7} Entradas da chain";
-    min-width: 720px;
-    min-height: 620px;
-    preferred-width: 860px;
-    preferred-height: 720px;
+    min-width: 680px;
+    min-height: 500px;
+    preferred-width: 820px;
+    preferred-height: 620px;
     background: #040708;
 
     ChainIoGroupsPage {
@@ -237,10 +237,10 @@ export component ChainOutputGroupsWindow inherits Window {
     callback toggle-enabled();
     callback delete-block();
     title: "OpenRig \u{00B7} Sa\u{00ED}das da chain";
-    min-width: 720px;
-    min-height: 620px;
-    preferred-width: 860px;
-    preferred-height: 720px;
+    min-width: 680px;
+    min-height: 500px;
+    preferred-width: 820px;
+    preferred-height: 620px;
     background: #040708;
 
     ChainIoGroupsPage {
@@ -293,10 +293,10 @@ export component ChainInsertWindow inherits Window {
     callback cancel();
 
     title: "OpenRig \u{00B7} Configurar Insert";
-    min-width: 720px;
-    min-height: 720px;
-    preferred-width: 860px;
-    preferred-height: 820px;
+    min-width: 680px;
+    min-height: 580px;
+    preferred-width: 820px;
+    preferred-height: 720px;
     background: #040708;
 
     ChainInsertEditorPage {
@@ -399,11 +399,11 @@ export component BlockEditorWindow inherits Window {
 
     title: root.block-window-title;
     min-width: panel-width;
-    min-height: root.use-panel-editor ? eq-extra-height : 760px;
+    min-height: root.use-panel-editor ? eq-extra-height : 640px;
     max-width: panel-width;
-    max-height: root.use-panel-editor ? eq-extra-height : 760px;
+    max-height: root.use-panel-editor ? eq-extra-height : 640px;
     preferred-width: panel-width;
-    preferred-height: root.use-panel-editor ? eq-extra-height : 760px;
+    preferred-height: root.use-panel-editor ? eq-extra-height : 640px;
     background: #040708;
 
     // Amp head: visual panel editor
@@ -486,10 +486,10 @@ export component CompactChainViewWindow inherits Window {
     default-font-family: "Cooper Hewitt";
     default-font-size: 13px;
     title: "OpenRig \u{00B7} Chain";
-    min-width: 900px;
-    min-height: 300px;
-    preferred-width: 1100px;
-    preferred-height: 500px;
+    min-width: 800px;
+    min-height: 260px;
+    preferred-width: 1000px;
+    preferred-height: 460px;
     background: #0a0c10;
 
     in property <string> chain-title;
@@ -653,10 +653,10 @@ export component AppWindow inherits Window {
     callback save-chain();
     callback cancel-chain();
     title: "OpenRig";
-    min-width: 980px;
-    min-height: 680px;
-    preferred-width: 1160px;
-    preferred-height: 760px;
+    min-width: 860px;
+    min-height: 540px;
+    preferred-width: 1100px;
+    preferred-height: 640px;
     background: #040708;
     if !touch-optimized : DesktopMain {
         width: 100%;

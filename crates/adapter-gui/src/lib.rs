@@ -461,6 +461,10 @@ pub fn run_desktop_app(
         if needs_audio_settings { list_output_device_descriptors().unwrap_or_default() } else { Vec::new() }
     ));
     let window = AppWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    window.window().set_size(slint::WindowSize::Logical(slint::LogicalSize {
+        width: 1100.0,
+        height: 620.0,
+    }));
     let project_settings_window =
         ProjectSettingsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     let chain_editor_window: Rc<RefCell<Option<ChainEditorWindow>>> =
