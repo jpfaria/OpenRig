@@ -104,6 +104,16 @@ Conecte a interface USB antes de ligar. O `jackd.service` aguarda até 10s por u
 
 **IRQ affinity:** o `jackd.service` tem um `ExecStartPre` que fixa as IRQs do `xhci-hcd` no CPU 4 (big core A76) antes de iniciar o daemon, reduzindo jitter de áudio. Em RK3588S, CPUs 0–3 são A55 (little) e CPUs 4–7 são A76 (big).
 
+**DTB overlay USB-C host-mode (`openrig-usbc-host.dtbo`):** aplicado automaticamente pelo `customize-image.sh`. Corrige um bug genérico da porta USB-C do RK3588 em que o TCPM/FUSB302 interpreta queda transitória das linhas CC sob qualquer tráfego USB sustentado como disconnect e corta VBUS via `vbus_typec`, derrubando o xHCI (`xhci-hcd.7.auto`) e tirando **qualquer dispositivo** plugado na porta USB-C do barramento — não é específico da Scarlett, ela só foi o device que usamos para reproduzir porque áudio isoc é o workload que o OpenRig roda o tempo todo. O overlay:
+
+1. Desabilita o nó `usb-typec@22` (FUSB302) → TCPM não roda, CC não é monitorado.
+2. Marca `regulator-vbus-typec` como `regulator-always-on` + `regulator-boot-on` → VBUS 5 V fixo na porta USB-C.
+3. Força `dr_mode = "host"` no DWC3 `/usb@fc000000` → host puro, sem OTG. (O DWC3 só consulta `usb-role-switch` no code path de OTG; em modo host a propriedade é ignorada, e overlays do kernel não conseguem remover propriedades, só adicionar/substituir.)
+
+Trade-off: nenhum recurso Type-C (DisplayPort alt-mode, USB-PD, role swap) funciona na porta USB-C, e o board não pode ser plugado numa máquina host pela USB-C. Como o appliance usa HDMI para display e só hospeda periféricos USB downstream, esses recursos não são necessários. Fonte: `orange-pi/dtbo/openrig-usbc-host.dts` (ver comentários no topo do arquivo para o root cause completo). Reversível removendo `openrig-usbc-host` da linha `user_overlays=` em `/boot/armbianEnv.txt` e reiniciando.
+
+**Watchdog de áudio (`openrig-audio-watchdog.service`):** rede de segurança reativa. Mesmo com o overlay aplicado, o watchdog continua acompanhando o journal do `jackd` em busca de sinais de zombie (`capture device disconnected`, `ProcessAsync: read error`) e, se detectar, chama `openrig-reset-audio` — que faz unbind/rebind do driver `xhci-hcd` que hospeda a interface de áudio. Cooldown de 60 s entre resets em `/run/openrig-audio-watchdog.cooldown` para evitar loop.
+
 ---
 
 ## 4. Instalar no eMMC (opcional)
@@ -148,14 +158,19 @@ Após o boot: login `openrig / openrig`, depois `openrig-start`.
 orange-pi/
   README.md                          ← este arquivo
   customize-image.sh                 ← hook rodado dentro do chroot Armbian
+  dtbo/
+    openrig-usbc-host.dts                ← overlay USB-C host-mode (Scarlett fix, issue #225)
   rootfs/
     etc/
       environment.d/50-slint.conf        ← SLINT_BACKEND=linuxkms
       systemd/system/jackd.service       ← JACK2 48 kHz/256/3 + IRQ affinity (xhci → CPU 4)
       systemd/system/weston.service      ← Wayland compositor (kiosk)
       systemd/system/openrig.service     ← auto-start do OpenRig (depende de jackd + weston)
+      systemd/system/openrig-audio-watchdog.service  ← jackd zombie auto-recovery
     usr/
       local/bin/openrig-install-to-emmc  ← instala SD → eMMC
+      local/bin/openrig-reset-audio      ← unbind/rebind xhci-hcd (recuperação manual)
+      local/bin/openrig-audio-watchdog   ← tail do journal jackd, dispara reset
       share/plymouth/themes/openrig/     ← boot splash (logo OpenRig)
 
 scripts/

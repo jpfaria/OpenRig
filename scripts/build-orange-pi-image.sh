@@ -157,6 +157,13 @@ prepare_overlay() {
     # Stage rootfs overlay (etc, usr)
     run cp -r "$PROJECT_ROOT/orange-pi/rootfs/." "$OVERLAY_DIR/"
 
+    # Stage DTB overlay source for the Scarlett/USB-C TCPM workaround.
+    # customize-image.sh compiles and installs it inside the chroot using
+    # armbian-add-overlay so it lands in /boot/overlay-user/ and gets hooked
+    # into armbianEnv.txt automatically.
+    run cp "$PROJECT_ROOT/orange-pi/dtbo/openrig-usbc-host.dts" \
+        "$OVERLAY_DIR/openrig-usbc-host.dts"
+
     # Stage PREEMPT_RT kernel config fragment
     run mkdir -p "$USERPATCHES_DIR/config/kernel"
     run cp "$PROJECT_ROOT/orange-pi/kernel-config/orangepi5b-current.config" \

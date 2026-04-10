@@ -122,13 +122,51 @@ echo 'America/Sao_Paulo' > /etc/timezone
 dpkg-reconfigure -f noninteractive tzdata || true
 
 # ── 9. Enable systemd services ───────────────────────────────────────────────
-echo ">>> [OpenRig] Enabling jackd.service, weston.service and openrig.service..."
+echo ">>> [OpenRig] Enabling jackd.service, weston.service, openrig.service and openrig-audio-watchdog.service..."
 systemctl enable jackd.service
 systemctl enable weston.service
 systemctl enable openrig.service
+systemctl enable openrig-audio-watchdog.service
 
 # ── 10. Set permissions on install script ────────────────────────────────────
 chmod 755 /usr/local/bin/openrig-install-to-emmc
+chmod 755 /usr/local/bin/openrig-reset-audio
+chmod 755 /usr/local/bin/openrig-audio-watchdog
+
+# ── 10a. USB-C TCPM workaround (RK3588 USB-C port stability) ─────────────────
+# Root cause (issue #225): the FUSB302/TCPM stack on the RK3588 USB-C port
+# sporadically misreads CC lines as 0V under sustained USB traffic and cuts
+# VBUS via the vbus_typec regulator, which tears down xhci-hcd.7.auto and
+# drops whatever device was plugged in. Affects ANY USB device on the USB-C
+# port, not a single vendor — we reproduced it with a Focusrite Scarlett 2i2
+# Gen 4 only because isoc audio is the workload OpenRig always runs.
+# /sys/kernel/debug/usb/tcpm-6-0022/log shows the exact sequence: "CC1: 2
+# -> 0, CC2: 1 -> 0 [disconnected]" → "VBUS off" on a working, actively
+# streaming device.
+#
+# Fix: ship a DTB overlay (orange-pi/dtbo/openrig-usbc-host.dts) that disables
+# the FUSB302 node, pins vbus_typec hard on, and forces DWC3 @fc000000 into
+# pure host mode. Fully reversible by removing it from armbianEnv.txt.
+#
+# armbian-add-overlay compiles the .dts with dtc, installs the .dtbo into
+# /boot/overlay-user/ and appends the overlay name to the user_overlays= line
+# in /boot/armbianEnv.txt.
+echo ">>> [OpenRig] Installing USB-C host-mode DTB overlay (Scarlett stability)..."
+if command -v armbian-add-overlay >/dev/null 2>&1; then
+    armbian-add-overlay /tmp/overlay/openrig-usbc-host.dts
+else
+    # Fallback: compile with dtc and edit armbianEnv.txt by hand. This path is
+    # only exercised if armbian-bsp-cli is ever dropped from the base image.
+    echo ">>> [OpenRig] armbian-add-overlay missing, falling back to manual dtc"
+    mkdir -p /boot/overlay-user
+    dtc -I dts -O dtb -o /boot/overlay-user/openrig-usbc-host.dtbo \
+        /tmp/overlay/openrig-usbc-host.dts
+    if grep -q '^user_overlays=' /boot/armbianEnv.txt 2>/dev/null; then
+        sed -i 's|^user_overlays=.*|&  openrig-usbc-host|' /boot/armbianEnv.txt
+    else
+        echo 'user_overlays=openrig-usbc-host' >> /boot/armbianEnv.txt
+    fi
+fi
 
 # ── 11. Silent kiosk boot ─────────────────────────────────────────────────────
 # Pure appliance boot: plymouth splash from u-boot handoff all the way until
