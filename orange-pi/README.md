@@ -38,12 +38,22 @@ build-orange-pi-image.sh  →  flash-sd.sh  →  (boot na Orange Pi)  →  openr
 ```
 
 O que o script faz:
-1. Baixa o binário `openrig-*-linux-aarch64.tar.gz` do GitHub Releases
+1. Baixa o pacote `openrig_*_arm64.deb` do GitHub Releases
 2. Clona/atualiza o Armbian build framework em `.orange-pi-build/`
-3. Monta o overlay com o binário + rootfs customizado
-4. Roda o build Armbian via Docker (~30–60 min)
+3. Monta o overlay com o `.deb` + rootfs customizado (systemd units, plymouth, helpers)
+4. Roda o build Armbian via Docker (~30–60 min). Dentro do chroot, `customize-image.sh` instala o `.deb` com `apt install /tmp/overlay/openrig.deb`
 
 Imagem gerada em: `output/orange-pi/Armbian_*.img`
+
+### Base Linux
+
+| | Valor |
+|---|---|
+| Distro | Ubuntu 24.04 LTS (`noble`) via Armbian |
+| Kernel | Armbian `edge` branch (mainline mais recente, para driver `scarlett-gen2` atualizado) |
+| Fragmento de kernel | `orange-pi/kernel-config/orangepi5b-edge.config` — habilita `CONFIG_PREEMPT_RT=y` |
+| Display | Weston (Wayland, DRM backend, kiosk) + Slint `wayland` |
+| Boot splash | Plymouth theme customizado (`/usr/share/plymouth/themes/openrig/`) |
 
 ---
 
@@ -62,8 +72,26 @@ O script lista os discos externos disponíveis, pede confirmação e grava com `
 ## 3. Primeiro boot na Orange Pi
 
 1. Insira o SD card na Orange Pi 5B
-2. Ligue — o OpenRig sobe automaticamente via systemd
-3. A tela exibe o boot splash (logo OpenRig) e depois a UI
+2. Ligue — a tela mostra o splash com a logo OpenRig, e a imagem salta direto para o Wayland/OpenRig sem piscar nenhuma tty, sem prompt de login, sem wizard Armbian.
+
+### Credenciais (SSH / recovery)
+
+Se você precisar entrar via SSH para debugar:
+
+| Usuário | Senha |
+|---|---|
+| `root` | `root` |
+| `openrig` | `openrig` |
+
+> Imagem de appliance, destinada a rede local. Troque as senhas se for expor a internet.
+
+### Locale, teclado e timezone
+
+- **Locale:** `en_US.UTF-8`
+- **Teclado:** `br-abnt2`
+- **Timezone:** `America/Sao_Paulo`
+
+Tudo pré-configurado no `customize-image.sh` — nenhum prompt é exibido no primeiro boot.
 
 ### Áudio (USB)
 
@@ -144,6 +172,6 @@ scripts/
 |------|---------|
 | Board | Orange Pi 5B |
 | SoC | Rockchip RK3588S (4×A76 + 4×A55) |
-| OS | Armbian Bookworm (Debian 12, kernel current) |
-| Display | Slint `linuxkms` + renderer software (sem Wayland/X11) |
+| OS | Armbian Ubuntu Noble (24.04 LTS), kernel `edge` + PREEMPT_RT fragment |
+| Display | Weston (Wayland, DRM backend) + Slint `wayland` |
 | Áudio | JACK2 (ALSA backend), qualquer USB Audio (testado: Focusrite Scarlett 2i2 Gen 4, Teyun Q-26) |
