@@ -212,6 +212,172 @@ struct ActiveChainRuntime {
     stream_signature: ChainStreamSignature,
     _input_streams: Vec<Stream>,
     _output_streams: Vec<Stream>,
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    _jack_client: Option<jack::AsyncClient<(), JackProcessHandler>>,
+}
+
+/// Direct JACK process handler — runs in the JACK real-time thread with zero
+/// extra buffering. Reads from JACK input ports, interleaves into the engine,
+/// then deinterleaves engine output into JACK output ports.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+struct JackProcessHandler {
+    input_ports: Vec<jack::Port<jack::AudioIn>>,
+    output_ports: Vec<jack::Port<jack::AudioOut>>,
+    runtime: Arc<ChainRuntimeState>,
+    input_channels: Vec<Vec<usize>>,
+    output_channels: Vec<Vec<usize>>,
+}
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
+impl jack::ProcessHandler for JackProcessHandler {
+    fn process(&mut self, _client: &jack::Client, ps: &jack::ProcessScope) -> jack::Control {
+        let n_frames = ps.n_frames() as usize;
+
+        // --- Input: read from JACK ports, interleave, feed engine ---
+        let total_in_ports = self.input_ports.len();
+        if total_in_ports > 0 {
+            let mut interleaved = vec![0.0f32; n_frames * total_in_ports];
+            for (ch, port) in self.input_ports.iter().enumerate() {
+                let port_data = port.as_slice(ps);
+                for frame in 0..n_frames {
+                    interleaved[frame * total_in_ports + ch] = port_data[frame];
+                }
+            }
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                process_input_f32(&self.runtime, 0, &interleaved, total_in_ports);
+            }));
+        }
+
+        // --- Output: pull from engine, deinterleave into JACK ports ---
+        let total_out_ports = self.output_ports.len();
+        if total_out_ports > 0 {
+            let mut interleaved = vec![0.0f32; n_frames * total_out_ports];
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                process_output_f32(&self.runtime, 0, &mut interleaved, total_out_ports);
+            }));
+            for (ch, port) in self.output_ports.iter_mut().enumerate() {
+                let port_data = port.as_mut_slice(ps);
+                for frame in 0..n_frames {
+                    port_data[frame] = interleaved[frame * total_out_ports + ch];
+                }
+            }
+        }
+
+        jack::Control::Continue
+    }
+}
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn build_jack_direct_chain(
+    chain_id: &ChainId,
+    chain: &Chain,
+    runtime: Arc<ChainRuntimeState>,
+) -> Result<jack::AsyncClient<(), JackProcessHandler>> {
+    let client_name = format!("openrig_{}", chain_id.0);
+    let (client, _status) = jack::Client::new(
+        &client_name,
+        jack::ClientOptions::NO_START_SERVER,
+    ).map_err(|e| anyhow!("failed to create JACK client: {:?}", e))?;
+
+    let sample_rate = client.sample_rate() as f32;
+    log::info!(
+        "JACK direct: client '{}', sample_rate={}, buffer_size={}",
+        client_name, sample_rate, client.buffer_size()
+    );
+
+    // Collect input channel requirements from chain
+    let input_entries: Vec<&InputEntry> = chain.blocks.iter()
+        .filter(|b| b.enabled)
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Input(ib) => Some(ib),
+            _ => None,
+        })
+        .flat_map(|ib| ib.entries.iter())
+        .collect();
+
+    let input_channels: Vec<Vec<usize>> = input_entries.iter()
+        .map(|e| e.channels.clone())
+        .collect();
+
+    // Determine how many input ports we need (max channel index + 1)
+    let max_in_ch = input_channels.iter()
+        .flat_map(|chs| chs.iter())
+        .copied()
+        .max()
+        .map(|m| m + 1)
+        .unwrap_or(1);
+
+    // Collect output channel requirements from chain
+    let output_entries: Vec<&OutputEntry> = chain.blocks.iter()
+        .filter(|b| b.enabled)
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Output(ob) => Some(ob),
+            _ => None,
+        })
+        .flat_map(|ob| ob.entries.iter())
+        .collect();
+
+    let output_channels: Vec<Vec<usize>> = output_entries.iter()
+        .map(|e| e.channels.clone())
+        .collect();
+
+    let max_out_ch = output_channels.iter()
+        .flat_map(|chs| chs.iter())
+        .copied()
+        .max()
+        .map(|m| m + 1)
+        .unwrap_or(2);
+
+    // Register JACK ports
+    let mut input_ports = Vec::new();
+    for i in 0..max_in_ch {
+        let port = client
+            .register_port(&format!("in_{}", i + 1), jack::AudioIn::default())
+            .map_err(|e| anyhow!("failed to register JACK input port {}: {:?}", i, e))?;
+        input_ports.push(port);
+    }
+
+    let mut output_ports = Vec::new();
+    for i in 0..max_out_ch {
+        let port = client
+            .register_port(&format!("out_{}", i + 1), jack::AudioOut::default())
+            .map_err(|e| anyhow!("failed to register JACK output port {}: {:?}", i, e))?;
+        output_ports.push(port);
+    }
+
+    let handler = JackProcessHandler {
+        input_ports,
+        output_ports,
+        runtime,
+        input_channels,
+        output_channels,
+    };
+
+    let active_client = client.activate_async((), handler)
+        .map_err(|e| anyhow!("failed to activate JACK client: {:?}", e))?;
+
+    // Connect to system ports
+    for i in 0..max_in_ch {
+        let src = format!("system:capture_{}", i + 1);
+        let dst = format!("{}:in_{}", client_name, i + 1);
+        if let Err(e) = active_client.as_client().connect_ports_by_name(&src, &dst) {
+            log::warn!("JACK: failed to connect {} → {}: {:?}", src, dst, e);
+        }
+    }
+    for i in 0..max_out_ch {
+        let src = format!("{}:out_{}", client_name, i + 1);
+        let dst = format!("system:playback_{}", i + 1);
+        if let Err(e) = active_client.as_client().connect_ports_by_name(&src, &dst) {
+            log::warn!("JACK: failed to connect {} → {}: {:?}", src, dst, e);
+        }
+    }
+
+    log::info!(
+        "JACK direct: chain '{}' active with {} input(s), {} output(s)",
+        chain_id.0, max_in_ch, max_out_ch
+    );
+
+    Ok(active_client)
 }
 
 pub struct ProjectRuntimeController {
@@ -481,7 +647,7 @@ impl ProjectRuntimeController {
                 .upsert_chain(chain, resolved.sample_rate, needs_stream_rebuild)?;
 
         if needs_stream_rebuild {
-            let active = build_active_chain_runtime(&chain.id, resolved, runtime)?;
+            let active = build_active_chain_runtime(&chain.id, chain, resolved, runtime)?;
             self.active_chains.insert(chain.id.clone(), active);
         }
 
@@ -1154,11 +1320,30 @@ fn build_chain_streams(
 
 fn build_active_chain_runtime(
     chain_id: &ChainId,
+    #[allow(unused_variables)] chain: &Chain,
     resolved: ResolvedChainAudioConfig,
     runtime: Arc<ChainRuntimeState>,
 ) -> Result<ActiveChainRuntime> {
     log::info!("building active chain runtime for '{}', sample_rate={}", chain_id.0, resolved.sample_rate);
     let stream_signature = resolved.stream_signature.clone();
+
+    // On Linux with JACK: use the jack crate directly for zero-overhead audio.
+    // This bypasses CPAL entirely — the JACK process callback runs in the
+    // real-time thread with no extra buffering.
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    {
+        if jack_server_is_running() {
+            log::info!("JACK detected — using direct JACK backend (bypassing CPAL)");
+            let jack_client = build_jack_direct_chain(chain_id, chain, runtime)?;
+            return Ok(ActiveChainRuntime {
+                stream_signature,
+                _input_streams: Vec::new(),
+                _output_streams: Vec::new(),
+                _jack_client: Some(jack_client),
+            });
+        }
+    }
+
     let (input_streams, output_streams) = build_chain_streams(chain_id, resolved, runtime)?;
     for stream in &input_streams {
         stream.play()?;
@@ -1176,6 +1361,8 @@ fn build_active_chain_runtime(
         stream_signature,
         _input_streams: input_streams,
         _output_streams: output_streams,
+        #[cfg(all(target_os = "linux", feature = "jack"))]
+        _jack_client: None,
     })
 }
 
