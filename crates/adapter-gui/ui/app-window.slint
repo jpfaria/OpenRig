@@ -610,6 +610,7 @@ export component AppWindow inherits Window {
     in property <string> runtime-mode-label;
     in property <string> interaction-mode-label;
     in property <bool> touch-optimized;
+    in property <bool> auto-save: false;
     in property <bool> show-audio-settings;
     in-out property <int> wizard-step;
     in-out property <[DeviceSelectionItem]> input-devices;
@@ -732,6 +733,7 @@ export component AppWindow inherits Window {
         show-chain-editor: root.show-chain-editor;
         show-project-settings: root.show-project-settings;
         project-dirty: root.project-dirty;
+        auto-save: root.auto-save;
         project-path-label: root.project-path-label;
         project-title: root.project-title;
         project-name-draft <=> root.project-name-draft;
@@ -851,6 +853,7 @@ export component AppWindow inherits Window {
         show-chain-editor: root.show-chain-editor;
         show-project-settings: root.show-project-settings;
         project-dirty: root.project-dirty;
+        auto-save: root.auto-save;
         project-path-label: root.project-path-label;
         project-title: root.project-title;
         project-name-draft <=> root.project-name-draft;

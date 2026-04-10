@@ -1832,6 +1832,7 @@ export component ProjectChainsPage inherits Rectangle {
     in property <string> project-title;
     in property <string> project-path-label;
     in property <bool> project-dirty;
+    in property <bool> auto-save: false;
     in property <[ProjectChainItem]> project-chains;
     in property <int> selected-chain-block-chain-index;
     in property <int> selected-chain-block-index;
@@ -1942,14 +1943,14 @@ export component ProjectChainsPage inherits Rectangle {
         }
 
         HeaderIconAction {
-            x: parent.width - 120px;
+            x: root.auto-save ? parent.width - 80px : parent.width - 120px;
             y: 14px;
             icon: @image-url("../assets/gear.svg");
             tooltip: "Projeto";
             clicked => { root.configure-project(); }
         }
 
-        HeaderIconAction {
+        if !root.auto-save : HeaderIconAction {
             x: parent.width - 80px;
             y: 14px;
             icon: @image-url("../assets/save.svg");
