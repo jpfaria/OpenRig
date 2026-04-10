@@ -9331,7 +9331,7 @@ fn setup_chain_editor_callbacks(
                         eprintln!("io block insert error: {error}");
                     }
                     replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
-                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
                     chain_window.set_input_editor_status("".into());
                     chain_window.set_show_input_editor(false);
                     return;
@@ -9385,7 +9385,7 @@ fn setup_chain_editor_callbacks(
                     return;
                 }
                 replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
-                sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
             }
             apply_chain_io_groups(&window, &chain_window, draft, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
             draft.adding_new_input = false;
@@ -9528,7 +9528,7 @@ fn setup_chain_editor_callbacks(
                         eprintln!("io block insert error: {error}");
                     }
                     replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
-                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
                     chain_window.set_output_editor_status("".into());
                     chain_window.set_show_output_editor(false);
                     return;
@@ -9582,7 +9582,7 @@ fn setup_chain_editor_callbacks(
                     return;
                 }
                 replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
-                sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
             }
             apply_chain_io_groups(&window, &chain_window, draft, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
             draft.adding_new_output = false;
