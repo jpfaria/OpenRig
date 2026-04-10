@@ -55,6 +55,29 @@ fn select_host() -> cpal::Host {
     cpal::default_host()
 }
 
+/// Read the physical hardware name managed by JACK from /proc/asound/cards.
+///
+/// JACK abstracts hardware so CPAL only exposes "cpal_client_in/out" as device
+/// names. This function reads the kernel's card list to find the actual hardware
+/// name (e.g. "Scarlett 2i2 4th Gen") and returns it for display purposes.
+/// Returns None if no USB audio card is found or the file is unreadable.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn jack_hardware_name() -> Option<String> {
+    let content = std::fs::read_to_string("/proc/asound/cards").ok()?;
+    for line in content.lines() {
+        // Lines look like: " 1 [Gen ]: USB-Audio - Scarlett 2i2 4th Gen"
+        if line.contains("USB-Audio") || line.contains("USB Audio") {
+            if let Some(pos) = line.find(" - ") {
+                let name = line[pos + 3..].trim().to_string();
+                if !name.is_empty() {
+                    return Some(name);
+                }
+            }
+        }
+    }
+    None
+}
+
 /// Select the audio host for device enumeration.
 ///
 /// Returns true when the JACK server is running and reachable, determined by
@@ -269,14 +292,20 @@ fn is_hardware_device(id: &str) -> bool {
 pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     log::debug!("listing input device descriptors");
     let host = select_host_for_enumeration();
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    let jack_hw_name = if is_jack_host(&host) { jack_hardware_name() } else { None };
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
+    let jack_hw_name: Option<String> = None;
     let mut devices = Vec::new();
     for device in host.input_devices()? {
         let id = device.id()?.to_string();
         if !is_hardware_device(&id) {
             continue;
         }
-        let description = device.description()?;
-        let name = description.name().to_string();
+        let name = match &jack_hw_name {
+            Some(hw) => format!("{} (JACK)", hw),
+            None => device.description()?.name().to_string(),
+        };
         if devices.iter().any(|d: &AudioDeviceDescriptor| d.name == name) {
             continue;
         }
@@ -289,14 +318,20 @@ pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
 pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     log::debug!("listing output device descriptors");
     let host = select_host_for_enumeration();
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    let jack_hw_name = if is_jack_host(&host) { jack_hardware_name() } else { None };
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
+    let jack_hw_name: Option<String> = None;
     let mut devices = Vec::new();
     for device in host.output_devices()? {
         let id = device.id()?.to_string();
         if !is_hardware_device(&id) {
             continue;
         }
-        let description = device.description()?;
-        let name = description.name().to_string();
+        let name = match &jack_hw_name {
+            Some(hw) => format!("{} (JACK)", hw),
+            None => device.description()?.name().to_string(),
+        };
         if devices.iter().any(|d: &AudioDeviceDescriptor| d.name == name) {
             continue;
         }
