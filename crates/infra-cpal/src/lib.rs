@@ -204,96 +204,98 @@ fn select_host_for_enumeration() -> cpal::Host {
     cpal::default_host()
 }
 
-/// Cached JACK enumeration results.
+/// Cached JACK server metadata.
 ///
-/// Device topology is static while jackd is running — the hardware attached to
-/// JACK cannot change without restarting the daemon. Caching avoids creating a
-/// fresh JACK client on every UI interaction (device picker, dropdown hover,
-/// block type change). On fragile USB audio stacks (e.g. Rockchip xHCI +
-/// Scarlett Gen 4), the churn of transient client creation has been correlated
-/// with xHCI host controller resets and interface disconnects.
+/// Populated by a SINGLE transient JACK client on first access and reused for
+/// every enumeration, sample-rate query and chain config resolution until the
+/// process exits or jackd is restarted. This eliminates the churn of opening
+/// a fresh JACK client on every UI interaction (device picker, block change,
+/// chain resync, etc.) — which on fragile USB audio stacks (Rockchip xHCI +
+/// Scarlett Gen 4) has been correlated with xHCI host controller resets and
+/// interface disconnects.
 #[cfg(all(target_os = "linux", feature = "jack"))]
-static JACK_INPUT_CACHE: std::sync::Mutex<Option<Vec<AudioDeviceDescriptor>>> =
-    std::sync::Mutex::new(None);
-
-#[cfg(all(target_os = "linux", feature = "jack"))]
-static JACK_OUTPUT_CACHE: std::sync::Mutex<Option<Vec<AudioDeviceDescriptor>>> =
-    std::sync::Mutex::new(None);
-
-/// Enumerate input devices directly via the jack crate.
-///
-/// Creates a short-lived JACK client on the FIRST call only, queries system
-/// capture ports, then drops it. Subsequent calls return the cached result.
-/// Returns one AudioDeviceDescriptor per hardware interface with the real
-/// hardware name from /proc/asound/cards.
-#[cfg(all(target_os = "linux", feature = "jack"))]
-fn jack_enumerate_input_devices() -> Result<Vec<AudioDeviceDescriptor>> {
-    if let Some(cached) = JACK_INPUT_CACHE.lock().unwrap().clone() {
-        log::trace!("jack input enumeration: cache hit ({} devices)", cached.len());
-        return Ok(cached);
-    }
-
-    log::debug!("jack input enumeration: cache miss, creating transient JACK client");
-    let (client, _) = jack::Client::new(
-        "openrig_enum_in",
-        jack::ClientOptions::NO_START_SERVER,
-    ).map_err(|e| anyhow!("failed to connect to JACK for input enumeration: {:?}", e))?;
-
-    let capture_ports = client.ports(Some("system:capture_"), None, jack::PortFlags::IS_OUTPUT);
-    let channels = capture_ports.len();
-    drop(client);
-
-    let result = if channels == 0 {
-        Vec::new()
-    } else {
-        let hw_name = jack_hardware_name().unwrap_or_else(|| "JACK Audio".to_string());
-        vec![AudioDeviceDescriptor {
-            id: "jack:system".to_string(),
-            name: format!("{} (JACK)", hw_name),
-            channels,
-        }]
-    };
-
-    *JACK_INPUT_CACHE.lock().unwrap() = Some(result.clone());
-    log::debug!("jack input enumeration: cached {} devices", result.len());
-    Ok(result)
+#[derive(Clone)]
+struct JackMeta {
+    sample_rate: u32,
+    buffer_size: u32,
+    capture_port_count: usize,
+    playback_port_count: usize,
+    hw_name: String,
 }
 
-/// Enumerate output devices directly via the jack crate.
-///
-/// Creates a short-lived JACK client on the FIRST call only; subsequent calls
-/// return the cached result (see `jack_enumerate_input_devices` for rationale).
 #[cfg(all(target_os = "linux", feature = "jack"))]
-fn jack_enumerate_output_devices() -> Result<Vec<AudioDeviceDescriptor>> {
-    if let Some(cached) = JACK_OUTPUT_CACHE.lock().unwrap().clone() {
-        log::trace!("jack output enumeration: cache hit ({} devices)", cached.len());
+static JACK_META_CACHE: std::sync::Mutex<Option<JackMeta>> = std::sync::Mutex::new(None);
+
+/// Return cached JACK metadata, creating a single transient JACK client the
+/// first time. All other call sites that used to open their own client now go
+/// through this function, so the process opens at most ONE enumeration client
+/// during its lifetime (plus the per-chain AsyncClient used for real-time
+/// processing).
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn jack_meta() -> Result<JackMeta> {
+    if let Some(cached) = JACK_META_CACHE.lock().unwrap().clone() {
+        log::trace!("jack meta: cache hit");
         return Ok(cached);
     }
 
-    log::debug!("jack output enumeration: cache miss, creating transient JACK client");
+    log::debug!("jack meta: cache miss, creating single transient JACK client");
     let (client, _) = jack::Client::new(
-        "openrig_enum_out",
+        "openrig_meta",
         jack::ClientOptions::NO_START_SERVER,
-    ).map_err(|e| anyhow!("failed to connect to JACK for output enumeration: {:?}", e))?;
+    ).map_err(|e| anyhow!("failed to connect to JACK for metadata: {:?}", e))?;
 
+    let capture_ports = client.ports(Some("system:capture_"), None, jack::PortFlags::IS_OUTPUT);
     let playback_ports = client.ports(Some("system:playback_"), None, jack::PortFlags::IS_INPUT);
-    let channels = playback_ports.len();
+    let meta = JackMeta {
+        sample_rate: client.sample_rate() as u32,
+        buffer_size: client.buffer_size(),
+        capture_port_count: capture_ports.len(),
+        playback_port_count: playback_ports.len(),
+        hw_name: jack_hardware_name().unwrap_or_else(|| "JACK Audio".to_string()),
+    };
     drop(client);
 
-    let result = if channels == 0 {
-        Vec::new()
-    } else {
-        let hw_name = jack_hardware_name().unwrap_or_else(|| "JACK Audio".to_string());
-        vec![AudioDeviceDescriptor {
-            id: "jack:system".to_string(),
-            name: format!("{} (JACK)", hw_name),
-            channels,
-        }]
-    };
+    *JACK_META_CACHE.lock().unwrap() = Some(meta.clone());
+    log::debug!(
+        "jack meta: cached sr={} buf={} in={} out={} hw='{}'",
+        meta.sample_rate, meta.buffer_size,
+        meta.capture_port_count, meta.playback_port_count, meta.hw_name
+    );
+    Ok(meta)
+}
 
-    *JACK_OUTPUT_CACHE.lock().unwrap() = Some(result.clone());
-    log::debug!("jack output enumeration: cached {} devices", result.len());
-    Ok(result)
+/// Enumerate input devices directly via cached JACK metadata.
+///
+/// Returns one AudioDeviceDescriptor per hardware interface with the real
+/// hardware name from /proc/asound/cards. Never creates a new JACK client on
+/// its own — relies on `jack_meta()` which opens at most one client per
+/// process lifetime.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn jack_enumerate_input_devices() -> Result<Vec<AudioDeviceDescriptor>> {
+    let meta = jack_meta()?;
+    if meta.capture_port_count == 0 {
+        return Ok(Vec::new());
+    }
+    Ok(vec![AudioDeviceDescriptor {
+        id: "jack:system".to_string(),
+        name: format!("{} (JACK)", meta.hw_name),
+        channels: meta.capture_port_count,
+    }])
+}
+
+/// Enumerate output devices directly via cached JACK metadata.
+/// See `jack_enumerate_input_devices` for rationale.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn jack_enumerate_output_devices() -> Result<Vec<AudioDeviceDescriptor>> {
+    let meta = jack_meta()?;
+    if meta.playback_port_count == 0 {
+        return Ok(Vec::new());
+    }
+    Ok(vec![AudioDeviceDescriptor {
+        id: "jack:system".to_string(),
+        name: format!("{} (JACK)", meta.hw_name),
+        channels: meta.playback_port_count,
+    }])
 }
 
 /// Returns true when the direct JACK backend will be used for audio streaming.
@@ -758,18 +760,13 @@ pub fn build_streams_for_project(
 /// backend ignores inputs/outputs entirely.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn jack_resolve_chain_config(chain: &Chain) -> Result<ResolvedChainAudioConfig> {
-    let (client, _) = jack::Client::new(
-        "openrig_cfg",
-        jack::ClientOptions::NO_START_SERVER,
-    ).map_err(|e| anyhow!("failed to connect to JACK for config: {:?}", e))?;
-    let sample_rate = client.sample_rate() as f32;
-    let buffer_size = client.buffer_size();
-
-    let capture_ports = client.ports(Some("system:capture_"), None, jack::PortFlags::IS_OUTPUT);
-    let playback_ports = client.ports(Some("system:playback_"), None, jack::PortFlags::IS_INPUT);
-    let in_channels = capture_ports.len() as u16;
-    let out_channels = playback_ports.len() as u16;
-    drop(client);
+    // Uses cached metadata — never opens a JACK client on its own. This is
+    // called on every upsert_chain/sync_project, so opening a client here
+    // used to dominate the client-churn load on jackd.
+    let meta = jack_meta()?;
+    let sample_rate = meta.sample_rate as f32;
+    let in_channels = meta.capture_port_count as u16;
+    let out_channels = meta.playback_port_count as u16;
 
     // Build a minimal stream signature so the runtime can detect config changes
     let input_sigs: Vec<InputStreamSignature> = chain.input_blocks().into_iter()
@@ -778,8 +775,8 @@ fn jack_resolve_chain_config(chain: &Chain) -> Result<ResolvedChainAudioConfig> 
             device_id: "jack:system".to_string(),
             channels: entry.channels.clone(),
             stream_channels: in_channels,
-            sample_rate: sample_rate as u32,
-            buffer_size_frames: buffer_size,
+            sample_rate: meta.sample_rate,
+            buffer_size_frames: meta.buffer_size,
         })
         .collect();
 
@@ -789,8 +786,8 @@ fn jack_resolve_chain_config(chain: &Chain) -> Result<ResolvedChainAudioConfig> 
             device_id: "jack:system".to_string(),
             channels: entry.channels.clone(),
             stream_channels: out_channels,
-            sample_rate: sample_rate as u32,
-            buffer_size_frames: buffer_size,
+            sample_rate: meta.sample_rate,
+            buffer_size_frames: meta.buffer_size,
         })
         .collect();
 
@@ -973,12 +970,8 @@ pub fn resolve_project_chain_sample_rates(project: &Project) -> Result<HashMap<C
     #[cfg(all(target_os = "linux", feature = "jack"))]
     {
         if jack_server_is_running() {
-            let (client, _) = jack::Client::new(
-                "openrig_sr",
-                jack::ClientOptions::NO_START_SERVER,
-            ).map_err(|e| anyhow!("failed to connect to JACK for sample rate: {:?}", e))?;
-            let sr = client.sample_rate() as f32;
-            drop(client);
+            // Reuse the cached metadata client — no fresh JACK client here.
+            let sr = jack_meta()?.sample_rate as f32;
             let mut sample_rates = HashMap::new();
             for chain in &project.chains {
                 if chain.enabled {
