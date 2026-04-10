@@ -8048,6 +8048,7 @@ fn set_project_dirty(window: &AppWindow, project_dirty: &Rc<RefCell<bool>>, dirt
     *project_dirty.borrow_mut() = dirty;
     window.set_project_dirty(dirty);
 }
+#[track_caller]
 fn sync_project_dirty(
     window: &AppWindow,
     session: &ProjectSession,
@@ -8055,6 +8056,17 @@ fn sync_project_dirty(
     project_dirty: &Rc<RefCell<bool>>,
     auto_save: bool,
 ) {
+    // Snapshot audio hardware + JACK state for every UI-triggered mutation so we
+    // can correlate a specific user action (knob, device pick, chain edit) with
+    // downstream Scarlett/xHCI disconnects in the journal. The caller location
+    // identifies which UI callback fired this mutation.
+    let caller = std::panic::Location::caller();
+    infra_cpal::log_audio_status(&format!(
+        "sync_project_dirty from {}:{}",
+        caller.file(),
+        caller.line()
+    ));
+
     if auto_save {
         if let Some(ref path) = session.project_path {
             match save_project_session(session, path) {

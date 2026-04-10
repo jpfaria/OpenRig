@@ -89,6 +89,111 @@ fn jack_server_is_running() -> bool {
         .unwrap_or(false)
 }
 
+/// Snapshot hardware audio status (JACK + ALSA cards + USB audio devices) and
+/// emit it as a single structured log line. Safe to call from the UI thread on
+/// any platform: the Linux implementation is pure filesystem scans (no JACK
+/// client, no ALSA open, no CPAL host); other platforms are no-ops.
+///
+/// Intended to be invoked after every user mutation so that `journalctl -fu
+/// openrig` can correlate UI actions with audio hardware state changes (e.g.
+/// Scarlett disconnects on RK3588 xHCI).
+pub fn log_audio_status(context: &str) {
+    #[cfg(target_os = "linux")]
+    {
+        let alsa_cards = read_proc_asound_cards_for_status();
+        let usb_audio = read_usb_audio_devices_for_status();
+
+        #[cfg(feature = "jack")]
+        let jack_running = jack_server_is_running();
+        #[cfg(not(feature = "jack"))]
+        let jack_running = false;
+
+        log::info!(
+            "[AUDIO-STATUS] ctx='{}' jack_running={} alsa_cards=[{}] usb_audio=[{}]",
+            context,
+            jack_running,
+            alsa_cards.join(" | "),
+            usb_audio.join(" | "),
+        );
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = context;
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn read_proc_asound_cards_for_status() -> Vec<String> {
+    std::fs::read_to_string("/proc/asound/cards")
+        .ok()
+        .map(|content| {
+            content
+                .lines()
+                .filter_map(|line| {
+                    // Only lines starting with a card index (e.g. " 0 [Headphones     ]: ...").
+                    let trimmed = line.trim_start();
+                    let first = trimmed.chars().next()?;
+                    if first.is_ascii_digit() {
+                        Some(trimmed.to_string())
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+#[cfg(target_os = "linux")]
+fn read_usb_audio_devices_for_status() -> Vec<String> {
+    let root = std::path::Path::new("/sys/bus/usb/devices");
+    let Ok(entries) = std::fs::read_dir(root) else {
+        return Vec::new();
+    };
+
+    let mut out = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let node = entry.file_name().to_string_lossy().into_owned();
+        // Skip interface nodes (they contain ':'); we only want device nodes.
+        if node.contains(':') {
+            continue;
+        }
+        // Keep only devices that expose at least one audio-class interface (01).
+        let is_audio = std::fs::read_dir(&path)
+            .ok()
+            .map(|sub| {
+                sub.flatten().any(|s| {
+                    let sn = s.file_name();
+                    let sn = sn.to_string_lossy();
+                    if !sn.contains(':') {
+                        return false;
+                    }
+                    std::fs::read_to_string(s.path().join("bInterfaceClass"))
+                        .map(|v| v.trim() == "01")
+                        .unwrap_or(false)
+                })
+            })
+            .unwrap_or(false);
+        if !is_audio {
+            continue;
+        }
+
+        let vendor = std::fs::read_to_string(path.join("idVendor"))
+            .map(|s| s.trim().to_string())
+            .unwrap_or_default();
+        let product = std::fs::read_to_string(path.join("idProduct"))
+            .map(|s| s.trim().to_string())
+            .unwrap_or_default();
+        let product_name = std::fs::read_to_string(path.join("product"))
+            .map(|s| s.trim().to_string())
+            .unwrap_or_else(|_| "?".to_string());
+
+        out.push(format!("{}:{} {} @{}", vendor, product, product_name, node));
+    }
+    out
+}
+
 /// Select the CPAL audio host for device enumeration (non-JACK path only).
 ///
 /// When JACK is running, callers should use `jack_enumerate_*_devices()` instead
@@ -457,7 +562,7 @@ pub struct ProjectRuntimeController {
     active_chains: HashMap<ChainId, ActiveChainRuntime>,
 }
 pub fn list_devices() -> Result<Vec<String>> {
-    log::debug!("listing all audio devices");
+    log::trace!("listing all audio devices");
 
     // On Linux with the jack feature, JACK is the only supported backend for
     // audio streaming. Never fall through to CPAL/ALSA — probing a broken USB
@@ -547,7 +652,7 @@ fn is_hardware_device(id: &str) -> bool {
 }
 
 pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
-    log::debug!("listing input device descriptors");
+    log::trace!("listing input device descriptors");
 
     // On Linux with the jack feature, JACK is the only supported audio backend.
     // Always enumerate via the jack crate directly — CPAL's JACK host crashes
@@ -580,7 +685,7 @@ pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
 }
 
 pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
-    log::debug!("listing output device descriptors");
+    log::trace!("listing output device descriptors");
 
     // On Linux with the jack feature, JACK is the only supported audio backend.
     // See list_input_device_descriptors() for the rationale — falling back to
