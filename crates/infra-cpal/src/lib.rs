@@ -99,13 +99,36 @@ fn select_host_for_enumeration() -> cpal::Host {
     cpal::default_host()
 }
 
+/// Cached JACK enumeration results.
+///
+/// Device topology is static while jackd is running — the hardware attached to
+/// JACK cannot change without restarting the daemon. Caching avoids creating a
+/// fresh JACK client on every UI interaction (device picker, dropdown hover,
+/// block type change). On fragile USB audio stacks (e.g. Rockchip xHCI +
+/// Scarlett Gen 4), the churn of transient client creation has been correlated
+/// with xHCI host controller resets and interface disconnects.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+static JACK_INPUT_CACHE: std::sync::Mutex<Option<Vec<AudioDeviceDescriptor>>> =
+    std::sync::Mutex::new(None);
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
+static JACK_OUTPUT_CACHE: std::sync::Mutex<Option<Vec<AudioDeviceDescriptor>>> =
+    std::sync::Mutex::new(None);
+
 /// Enumerate input devices directly via the jack crate.
 ///
-/// Creates a short-lived JACK client to query system capture ports, then drops
-/// it immediately. Returns one AudioDeviceDescriptor per hardware interface with
-/// the real hardware name from /proc/asound/cards.
+/// Creates a short-lived JACK client on the FIRST call only, queries system
+/// capture ports, then drops it. Subsequent calls return the cached result.
+/// Returns one AudioDeviceDescriptor per hardware interface with the real
+/// hardware name from /proc/asound/cards.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn jack_enumerate_input_devices() -> Result<Vec<AudioDeviceDescriptor>> {
+    if let Some(cached) = JACK_INPUT_CACHE.lock().unwrap().clone() {
+        log::trace!("jack input enumeration: cache hit ({} devices)", cached.len());
+        return Ok(cached);
+    }
+
+    log::debug!("jack input enumeration: cache miss, creating transient JACK client");
     let (client, _) = jack::Client::new(
         "openrig_enum_in",
         jack::ClientOptions::NO_START_SERVER,
@@ -115,21 +138,34 @@ fn jack_enumerate_input_devices() -> Result<Vec<AudioDeviceDescriptor>> {
     let channels = capture_ports.len();
     drop(client);
 
-    if channels == 0 {
-        return Ok(Vec::new());
-    }
+    let result = if channels == 0 {
+        Vec::new()
+    } else {
+        let hw_name = jack_hardware_name().unwrap_or_else(|| "JACK Audio".to_string());
+        vec![AudioDeviceDescriptor {
+            id: "jack:system".to_string(),
+            name: format!("{} (JACK)", hw_name),
+            channels,
+        }]
+    };
 
-    let hw_name = jack_hardware_name().unwrap_or_else(|| "JACK Audio".to_string());
-    Ok(vec![AudioDeviceDescriptor {
-        id: "jack:system".to_string(),
-        name: format!("{} (JACK)", hw_name),
-        channels,
-    }])
+    *JACK_INPUT_CACHE.lock().unwrap() = Some(result.clone());
+    log::debug!("jack input enumeration: cached {} devices", result.len());
+    Ok(result)
 }
 
 /// Enumerate output devices directly via the jack crate.
+///
+/// Creates a short-lived JACK client on the FIRST call only; subsequent calls
+/// return the cached result (see `jack_enumerate_input_devices` for rationale).
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn jack_enumerate_output_devices() -> Result<Vec<AudioDeviceDescriptor>> {
+    if let Some(cached) = JACK_OUTPUT_CACHE.lock().unwrap().clone() {
+        log::trace!("jack output enumeration: cache hit ({} devices)", cached.len());
+        return Ok(cached);
+    }
+
+    log::debug!("jack output enumeration: cache miss, creating transient JACK client");
     let (client, _) = jack::Client::new(
         "openrig_enum_out",
         jack::ClientOptions::NO_START_SERVER,
@@ -139,16 +175,20 @@ fn jack_enumerate_output_devices() -> Result<Vec<AudioDeviceDescriptor>> {
     let channels = playback_ports.len();
     drop(client);
 
-    if channels == 0 {
-        return Ok(Vec::new());
-    }
+    let result = if channels == 0 {
+        Vec::new()
+    } else {
+        let hw_name = jack_hardware_name().unwrap_or_else(|| "JACK Audio".to_string());
+        vec![AudioDeviceDescriptor {
+            id: "jack:system".to_string(),
+            name: format!("{} (JACK)", hw_name),
+            channels,
+        }]
+    };
 
-    let hw_name = jack_hardware_name().unwrap_or_else(|| "JACK Audio".to_string());
-    Ok(vec![AudioDeviceDescriptor {
-        id: "jack:system".to_string(),
-        name: format!("{} (JACK)", hw_name),
-        channels,
-    }])
+    *JACK_OUTPUT_CACHE.lock().unwrap() = Some(result.clone());
+    log::debug!("jack output enumeration: cached {} devices", result.len());
+    Ok(result)
 }
 
 /// Returns true when the direct JACK backend will be used for audio streaming.
@@ -419,8 +459,15 @@ pub struct ProjectRuntimeController {
 pub fn list_devices() -> Result<Vec<String>> {
     log::debug!("listing all audio devices");
 
+    // On Linux with the jack feature, JACK is the only supported backend for
+    // audio streaming. Never fall through to CPAL/ALSA — probing a broken USB
+    // audio device via ALSA can block indefinitely on certain kernels (RK3588
+    // xHCI, for example). If JACK is not running, fail fast with a clear error.
     #[cfg(all(target_os = "linux", feature = "jack"))]
-    if using_jack_direct() {
+    {
+        if !jack_server_is_running() {
+            bail!("JACK server is not running — start jackd before enumerating devices");
+        }
         let inputs = jack_enumerate_input_devices()?;
         let outputs = jack_enumerate_output_devices()?;
         let mut devices = Vec::new();
@@ -429,6 +476,7 @@ pub fn list_devices() -> Result<Vec<String>> {
         return Ok(devices);
     }
 
+    #[allow(unreachable_code)]
     let host = select_host();
     let mut devices = Vec::new();
     for device in host.input_devices()? {
@@ -501,15 +549,19 @@ fn is_hardware_device(id: &str) -> bool {
 pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     log::debug!("listing input device descriptors");
 
-    // When JACK is running, enumerate via the jack crate directly.
-    // Never use CPAL's JACK host — it crashes the JACK server.
+    // On Linux with the jack feature, JACK is the only supported audio backend.
+    // Always enumerate via the jack crate directly — CPAL's JACK host crashes
+    // the JACK server, and falling back to ALSA can hang indefinitely on a
+    // broken USB device (xHCI reset state). Fail fast if JACK is not running.
     #[cfg(all(target_os = "linux", feature = "jack"))]
     {
-        if jack_server_is_running() {
-            return jack_enumerate_input_devices();
+        if !jack_server_is_running() {
+            bail!("JACK server is not running — start jackd before enumerating input devices");
         }
+        return jack_enumerate_input_devices();
     }
 
+    #[allow(unreachable_code)]
     let host = select_host_for_enumeration();
     let mut devices = Vec::new();
     for device in host.input_devices()? {
@@ -530,13 +582,18 @@ pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
 pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     log::debug!("listing output device descriptors");
 
+    // On Linux with the jack feature, JACK is the only supported audio backend.
+    // See list_input_device_descriptors() for the rationale — falling back to
+    // ALSA can hang indefinitely when the USB device is in a broken kernel state.
     #[cfg(all(target_os = "linux", feature = "jack"))]
     {
-        if jack_server_is_running() {
-            return jack_enumerate_output_devices();
+        if !jack_server_is_running() {
+            bail!("JACK server is not running — start jackd before enumerating output devices");
         }
+        return jack_enumerate_output_devices();
     }
 
+    #[allow(unreachable_code)]
     let host = select_host_for_enumeration();
     let mut devices = Vec::new();
     for device in host.output_devices()? {
@@ -855,16 +912,16 @@ fn resolve_input_device_for_chain_input(
         .iter()
         .find(|s| s.device_id == input.device_id)
         .cloned();
-    let device = if using_jack_direct() {
-        // When JACK is active, use ALSA default device for config resolution.
-        // The resolved config is not used for streaming (direct JACK handles it).
-        host.default_input_device()
-            .ok_or_else(|| anyhow!("no default input device available (JACK mode)"))?
-    } else {
-        find_input_device_by_id(host, &input.device_id.0)?.ok_or_else(|| {
-            anyhow!("input device '{}' not found by device_id", input.device_id.0)
-        })?
-    };
+    if using_jack_direct() {
+        // Unreachable in JACK-direct mode: sync_project / upsert_chain short-circuit
+        // into sync_project_jack_direct() before ever calling this function. If we
+        // ever land here while JACK is active, something bypassed the short-circuit
+        // and is about to probe ALSA on a device JACK owns — refuse instead.
+        bail!("internal error: resolve_input_device_for_chain_input called in JACK-direct mode");
+    }
+    let device = find_input_device_by_id(host, &input.device_id.0)?.ok_or_else(|| {
+        anyhow!("input device '{}' not found by device_id", input.device_id.0)
+    })?;
     let default_config = device.default_input_config().with_context(|| {
         format!(
             "failed to get default input config for '{}'",
@@ -916,14 +973,13 @@ fn resolve_output_device_for_chain_output(
         .iter()
         .find(|s| s.device_id == output.device_id)
         .cloned();
-    let device = if using_jack_direct() {
-        host.default_output_device()
-            .ok_or_else(|| anyhow!("no default output device available (JACK mode)"))?
-    } else {
-        find_output_device_by_id(host, &output.device_id.0)?.ok_or_else(|| {
-            anyhow!("output device '{}' not found by device_id", output.device_id.0)
-        })?
-    };
+    if using_jack_direct() {
+        // Unreachable in JACK-direct mode (see matching guard in the input path).
+        bail!("internal error: resolve_output_device_for_chain_output called in JACK-direct mode");
+    }
+    let device = find_output_device_by_id(host, &output.device_id.0)?.ok_or_else(|| {
+        anyhow!("output device '{}' not found by device_id", output.device_id.0)
+    })?;
     let default_config = device.default_output_config().with_context(|| {
         format!(
             "failed to get default output config for '{}'",
