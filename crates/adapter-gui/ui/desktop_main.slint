@@ -57,6 +57,7 @@ export component DesktopMain inherits Rectangle {
     in-out property <string> status-message;
     in property <[string]> sample-rate-options;
     in property <[string]> buffer-size-options;
+    in property <[DeviceSelectionItem]> project-devices;
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
     callback update-input-sample-rate(int, string);
@@ -116,6 +117,9 @@ export component DesktopMain inherits Rectangle {
     callback open-vst3-editor(string); // model-id
     callback save-chain();
     callback cancel-chain();
+    callback toggle-project-device(int, bool);
+    callback update-project-sample-rate(int, string);
+    callback update-project-buffer-size(int, string);
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
     private property <length> wizard-page-height: 24px + 20px + 24px + ((visible-device-count * 44px) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px)) + 24px + 44px + 24px;
 
@@ -214,5 +218,22 @@ export component DesktopMain inherits Rectangle {
             background: transparent;
         }
     }
+
+    if root.show-project-settings : ProjectSettingsPage {
+        width: parent.width;
+        height: parent.height;
+        project-name-draft <=> root.project-name-draft;
+        status-message <=> root.status-message;
+        project-devices: root.project-devices;
+        sample-rate-options: root.sample-rate-options;
+        buffer-size-options: root.buffer-size-options;
+        update-project-name(value) => { root.update-project-name(value); }
+        save-audio-settings => { root.save-audio-settings(); }
+        close-project-settings => { root.close-project-settings(); }
+        toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
+        update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
+        update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
+    }
+
 }
 

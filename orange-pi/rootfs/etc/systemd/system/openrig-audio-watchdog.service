@@ -1,0 +1,27 @@
+[Unit]
+Description=OpenRig Audio Zombie Watchdog
+Documentation=https://github.com/jpfaria/OpenRig
+# We want to start once jackd.service has been touched by systemd, but we
+# should NOT bind our lifecycle to it: when we detect a failure and trigger
+# openrig-reset-audio, the reset stops jackd briefly. A BindsTo= would kill
+# the watchdog in the middle of recovery. Just an ordering hint is enough.
+After=jackd.service
+Wants=jackd.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/openrig-audio-watchdog
+# Restart forever: if journalctl -f dies (e.g., systemd-journald restarted),
+# we need to start tailing again. 5s backoff is fine.
+Restart=always
+RestartSec=5
+# Send stdout/stderr to the journal so we can see the watchdog's own log
+# alongside the services it monitors.
+StandardOutput=journal
+StandardError=journal
+# Cooldown file lives in /run which is a tmpfs, so no cleanup needed across
+# reboots. Make sure we can write there.
+RuntimeDirectory=openrig-watchdog
+
+[Install]
+WantedBy=multi-user.target

@@ -11,7 +11,7 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 cpal = "0.17"
 domain = { path = "../domain" }
 engine = { path = "../engine" }
-infra-cpal = { path = "../infra-cpal" }
+infra-cpal = { path = "../infra-cpal", features = ["jack"] }
 infra-filesystem = { path = "../infra-filesystem" }
 infra-yaml = { path = "../infra-yaml" }
 serde.workspace = true
