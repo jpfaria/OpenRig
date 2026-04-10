@@ -2910,7 +2910,6 @@ dependencies = [
  "cpal",
  "domain",
  "engine",
- "jack",
  "log",
  "project",
 ]

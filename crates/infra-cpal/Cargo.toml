@@ -4,14 +4,12 @@ version.workspace = true
 edition.workspace = true
 
 [features]
-jack = ["cpal/jack", "dep:jack"]
+jack = ["cpal/jack"]
 
 [dependencies]
 log.workspace = true
 anyhow.workspace = true
 cpal.workspace = true
-jack = { version = "0.13", optional = true }
-
 domain = { path = "../domain" }
 engine = { path = "../engine" }
 block-util = { path = "../block-util" }
