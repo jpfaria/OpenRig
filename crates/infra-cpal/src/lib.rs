@@ -5,9 +5,14 @@ use cpal::{
     SupportedStreamConfigRange,
 };
 
-/// Select the audio host for stream processing. On Windows, ASIO is preferred for
-/// zero-latency audio. On Linux (with `jack` feature): uses JACK by default.
-/// Set `OPENRIG_AUDIO_HOST=alsa` to force ALSA instead. On macOS: CoreAudio.
+/// Select the CPAL audio host for device resolution and CPAL-based streaming.
+///
+/// On Linux with JACK: NEVER creates a CPAL JACK host. CPAL's JACK backend
+/// registers heavyweight clients (cpal_client_in/out) that crash the JACK server
+/// and cause hardware interfaces to disconnect. When JACK is running, returns
+/// ALSA — the direct JACK backend (jack crate) handles all streaming.
+///
+/// On Windows: ASIO preferred. On macOS: CoreAudio.
 fn select_host() -> cpal::Host {
     #[cfg(target_os = "windows")]
     {
@@ -29,27 +34,14 @@ fn select_host() -> cpal::Host {
 
     #[cfg(all(target_os = "linux", feature = "jack"))]
     {
-        let force_alsa = std::env::var("OPENRIG_AUDIO_HOST")
-            .map(|v| v.to_lowercase() == "alsa")
-            .unwrap_or(false);
-
-        if !force_alsa {
-            for host_id in cpal::available_hosts() {
-                if host_id == cpal::HostId::Jack {
-                    match cpal::host_from_id(host_id) {
-                        Ok(host) => {
-                            log::info!("Audio host: JACK (set OPENRIG_AUDIO_HOST=alsa to use ALSA)");
-                            return host;
-                        }
-                        Err(e) => {
-                            log::warn!("JACK not available: {e} — falling back to ALSA");
-                        }
-                    }
-                }
-            }
+        // When JACK is running, streaming is handled by the direct JACK backend
+        // (jack crate) in build_active_chain_runtime(). Return ALSA for device
+        // resolution — it can still read device capabilities even while JACK
+        // holds the hardware.
+        if jack_server_is_running() {
+            log::info!("Audio host: ALSA (JACK streaming via direct jack crate backend)");
+            return cpal::default_host();
         }
-
-        log::info!("Audio host: ALSA");
     }
 
     cpal::default_host()
@@ -97,27 +89,79 @@ fn jack_server_is_running() -> bool {
         .unwrap_or(false)
 }
 
-/// Select the audio host for device enumeration.
+/// Select the CPAL audio host for device enumeration (non-JACK path only).
 ///
-/// On Linux with JACK: uses JACK when the server socket is present (instant
-/// check, no blocking). When JACK holds exclusive ALSA access to a hw: device,
-/// ALSA enumeration returns 0 channels; JACK reports the correct count.
-/// Falls back to ALSA if JACK is not running.
+/// When JACK is running, callers should use `jack_enumerate_*_devices()` instead
+/// of this function — CPAL's JACK backend must never be instantiated.
 fn select_host_for_enumeration() -> cpal::Host {
-    #[cfg(all(target_os = "linux", feature = "jack"))]
-    {
-        if jack_server_is_running() {
-            for host_id in cpal::available_hosts() {
-                if host_id == cpal::HostId::Jack {
-                    if let Ok(host) = cpal::host_from_id(host_id) {
-                        log::debug!("device enumeration: using JACK host");
-                        return host;
-                    }
-                }
-            }
-        }
-    }
+    // CPAL JACK host is never created — it crashes the JACK server.
+    // When JACK is running, list_*_device_descriptors() bypass this function entirely.
     cpal::default_host()
+}
+
+/// Enumerate input devices directly via the jack crate.
+///
+/// Creates a short-lived JACK client to query system capture ports, then drops
+/// it immediately. Returns one AudioDeviceDescriptor per hardware interface with
+/// the real hardware name from /proc/asound/cards.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn jack_enumerate_input_devices() -> Result<Vec<AudioDeviceDescriptor>> {
+    let (client, _) = jack::Client::new(
+        "openrig_enum_in",
+        jack::ClientOptions::NO_START_SERVER,
+    ).map_err(|e| anyhow!("failed to connect to JACK for input enumeration: {:?}", e))?;
+
+    let capture_ports = client.ports(Some("system:capture_"), None, jack::PortFlags::IS_OUTPUT);
+    let channels = capture_ports.len();
+    drop(client);
+
+    if channels == 0 {
+        return Ok(Vec::new());
+    }
+
+    let hw_name = jack_hardware_name().unwrap_or_else(|| "JACK Audio".to_string());
+    Ok(vec![AudioDeviceDescriptor {
+        id: "jack:system".to_string(),
+        name: format!("{} (JACK)", hw_name),
+        channels,
+    }])
+}
+
+/// Enumerate output devices directly via the jack crate.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn jack_enumerate_output_devices() -> Result<Vec<AudioDeviceDescriptor>> {
+    let (client, _) = jack::Client::new(
+        "openrig_enum_out",
+        jack::ClientOptions::NO_START_SERVER,
+    ).map_err(|e| anyhow!("failed to connect to JACK for output enumeration: {:?}", e))?;
+
+    let playback_ports = client.ports(Some("system:playback_"), None, jack::PortFlags::IS_INPUT);
+    let channels = playback_ports.len();
+    drop(client);
+
+    if channels == 0 {
+        return Ok(Vec::new());
+    }
+
+    let hw_name = jack_hardware_name().unwrap_or_else(|| "JACK Audio".to_string());
+    Ok(vec![AudioDeviceDescriptor {
+        id: "jack:system".to_string(),
+        name: format!("{} (JACK)", hw_name),
+        channels,
+    }])
+}
+
+/// Returns true when the direct JACK backend will be used for audio streaming.
+/// This replaces is_jack_host() checks — since we never create a CPAL JACK host,
+/// we check JACK availability directly instead of inspecting the host type.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn using_jack_direct() -> bool {
+    jack_server_is_running()
+}
+
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+fn using_jack_direct() -> bool {
+    false
 }
 
 /// Returns true when the given host is the ASIO host on Windows.
@@ -133,20 +177,8 @@ fn is_asio_host(_host: &cpal::Host) -> bool {
     false
 }
 
-/// Returns true when the given host is the JACK host on Linux.
-/// When JACK is active, device routing is handled by the JACK server — OpenRig
-/// connects to JACK as a client and the JACK daemon manages the physical hardware.
-/// Project device IDs (ALSA format) are irrelevant; we always use JACK's default
-/// input/output device.
-#[cfg(all(target_os = "linux", feature = "jack"))]
-fn is_jack_host(host: &cpal::Host) -> bool {
-    host.id() == cpal::HostId::Jack
-}
-
-#[cfg(not(all(target_os = "linux", feature = "jack")))]
-fn is_jack_host(_host: &cpal::Host) -> bool {
-    false
-}
+// is_jack_host() removed — CPAL JACK host is never created.
+// Use using_jack_direct() to check if the direct JACK backend is active.
 
 use domain::ids::ChainId;
 use engine::runtime::{process_input_f32, process_output_f32, RuntimeGraph, ChainRuntimeState};
@@ -457,21 +489,24 @@ fn is_hardware_device(id: &str) -> bool {
 
 pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     log::debug!("listing input device descriptors");
-    let host = select_host_for_enumeration();
+
+    // When JACK is running, enumerate via the jack crate directly.
+    // Never use CPAL's JACK host — it crashes the JACK server.
     #[cfg(all(target_os = "linux", feature = "jack"))]
-    let jack_hw_name = if is_jack_host(&host) { jack_hardware_name() } else { None };
-    #[cfg(not(all(target_os = "linux", feature = "jack")))]
-    let jack_hw_name: Option<String> = None;
+    {
+        if jack_server_is_running() {
+            return jack_enumerate_input_devices();
+        }
+    }
+
+    let host = select_host_for_enumeration();
     let mut devices = Vec::new();
     for device in host.input_devices()? {
         let id = device.id()?.to_string();
         if !is_hardware_device(&id) {
             continue;
         }
-        let name = match &jack_hw_name {
-            Some(hw) => format!("{} (JACK)", hw),
-            None => device.description()?.name().to_string(),
-        };
+        let name = device.description()?.name().to_string();
         if devices.iter().any(|d: &AudioDeviceDescriptor| d.name == name) {
             continue;
         }
@@ -483,21 +518,22 @@ pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
 
 pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     log::debug!("listing output device descriptors");
-    let host = select_host_for_enumeration();
+
     #[cfg(all(target_os = "linux", feature = "jack"))]
-    let jack_hw_name = if is_jack_host(&host) { jack_hardware_name() } else { None };
-    #[cfg(not(all(target_os = "linux", feature = "jack")))]
-    let jack_hw_name: Option<String> = None;
+    {
+        if jack_server_is_running() {
+            return jack_enumerate_output_devices();
+        }
+    }
+
+    let host = select_host_for_enumeration();
     let mut devices = Vec::new();
     for device in host.output_devices()? {
         let id = device.id()?.to_string();
         if !is_hardware_device(&id) {
             continue;
         }
-        let name = match &jack_hw_name {
-            Some(hw) => format!("{} (JACK)", hw),
-            None => device.description()?.name().to_string(),
-        };
+        let name = device.description()?.name().to_string();
         if devices.iter().any(|d: &AudioDeviceDescriptor| d.name == name) {
             continue;
         }
@@ -656,6 +692,26 @@ impl ProjectRuntimeController {
 }
 
 pub fn resolve_project_chain_sample_rates(project: &Project) -> Result<HashMap<ChainId, f32>> {
+    // When using direct JACK, get sample rate from JACK server directly.
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    {
+        if jack_server_is_running() {
+            let (client, _) = jack::Client::new(
+                "openrig_sr",
+                jack::ClientOptions::NO_START_SERVER,
+            ).map_err(|e| anyhow!("failed to connect to JACK for sample rate: {:?}", e))?;
+            let sr = client.sample_rate() as f32;
+            drop(client);
+            let mut sample_rates = HashMap::new();
+            for chain in &project.chains {
+                if chain.enabled {
+                    sample_rates.insert(chain.id.clone(), sr);
+                }
+            }
+            return Ok(sample_rates);
+        }
+    }
+
     let host = select_host();
     let mut sample_rates = HashMap::new();
 
@@ -684,9 +740,11 @@ fn resolve_input_device_for_chain_input(
         .iter()
         .find(|s| s.device_id == input.device_id)
         .cloned();
-    let device = if is_jack_host(host) {
+    let device = if using_jack_direct() {
+        // When JACK is active, use ALSA default device for config resolution.
+        // The resolved config is not used for streaming (direct JACK handles it).
         host.default_input_device()
-            .ok_or_else(|| anyhow!("no JACK input device available"))?
+            .ok_or_else(|| anyhow!("no default input device available (JACK mode)"))?
     } else {
         find_input_device_by_id(host, &input.device_id.0)?.ok_or_else(|| {
             anyhow!("input device '{}' not found by device_id", input.device_id.0)
@@ -743,9 +801,9 @@ fn resolve_output_device_for_chain_output(
         .iter()
         .find(|s| s.device_id == output.device_id)
         .cloned();
-    let device = if is_jack_host(host) {
+    let device = if using_jack_direct() {
         host.default_output_device()
-            .ok_or_else(|| anyhow!("no JACK output device available"))?
+            .ok_or_else(|| anyhow!("no default output device available (JACK mode)"))?
     } else {
         find_output_device_by_id(host, &output.device_id.0)?.ok_or_else(|| {
             anyhow!("output device '{}' not found by device_id", output.device_id.0)
@@ -978,14 +1036,14 @@ fn validate_input_channels_against_device(
     device_id: &str,
     channels: &[usize],
 ) -> Result<()> {
-    let device = if is_jack_host(host) {
-        host.default_input_device()
-            .ok_or_else(|| anyhow!("no JACK input device available"))?
-    } else {
-        find_input_device_by_id(host, device_id)?.ok_or_else(|| {
-            anyhow!("chain '{}' missing input device '{}'", chain_id, device_id)
-        })?
-    };
+    // When using direct JACK backend, skip CPAL-based channel validation.
+    // JACK manages port routing and will report errors at connect time.
+    if using_jack_direct() {
+        return Ok(());
+    }
+    let device = find_input_device_by_id(host, device_id)?.ok_or_else(|| {
+        anyhow!("chain '{}' missing input device '{}'", chain_id, device_id)
+    })?;
     let total_channels = max_supported_input_channels(&device).with_context(|| {
         format!(
             "failed to resolve input channel capacity for '{}'",
@@ -1011,14 +1069,12 @@ fn validate_output_channels_against_device(
     device_id: &str,
     channels: &[usize],
 ) -> Result<()> {
-    let device = if is_jack_host(host) {
-        host.default_output_device()
-            .ok_or_else(|| anyhow!("no JACK output device available"))?
-    } else {
-        find_output_device_by_id(host, device_id)?.ok_or_else(|| {
-            anyhow!("chain '{}' missing output device '{}'", chain_id, device_id)
-        })?
-    };
+    if using_jack_direct() {
+        return Ok(());
+    }
+    let device = find_output_device_by_id(host, device_id)?.ok_or_else(|| {
+        anyhow!("chain '{}' missing output device '{}'", chain_id, device_id)
+    })?;
     let total_channels = max_supported_output_channels(&device).with_context(|| {
         format!(
             "failed to resolve output channel capacity for '{}'",
