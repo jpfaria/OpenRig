@@ -10,6 +10,7 @@ export component TouchMain inherits Rectangle {
     in property <bool> show-chain-editor;
     in property <bool> show-project-settings;
     in property <bool> project-dirty;
+    in property <bool> auto-save: false;
     in property <string> project-path-label;
     in property <string> project-title;
     in-out property <string> project-name-draft;
@@ -154,6 +155,7 @@ export component TouchMain inherits Rectangle {
             project-title: root.project-title;
             project-path-label: root.project-path-label;
             project-dirty: root.project-dirty;
+            auto-save: root.auto-save;
             project-chains: root.project-chains;
             selected-chain-block-chain-index: root.selected-chain-block-chain-index;
             selected-chain-block-index: root.selected-chain-block-index;

@@ -186,6 +186,7 @@ fn schedule_block_editor_persist(
     input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     context: &'static str,
+    auto_save: bool,
 ) {
     timer.stop();
     timer.start(TimerMode::SingleShot, Duration::from_millis(30), move || {
@@ -212,6 +213,7 @@ fn schedule_block_editor_persist(
             &*devs_in,
             &*devs_out,
             false,
+            auto_save,
         ) {
             log::error!("[adapter-gui] {context}: {error}");
             window.set_block_drawer_status_message(error.to_string().into());
@@ -233,6 +235,7 @@ fn schedule_block_editor_persist_for_block_win(
     input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>>,
     context: &'static str,
+    auto_save: bool,
 ) {
     timer.stop();
     timer.start(TimerMode::SingleShot, Duration::from_millis(30), move || {
@@ -263,6 +266,7 @@ fn schedule_block_editor_persist_for_block_win(
             &*devs_in,
             &*devs_out,
             false,
+            auto_save,
         ) {
             log::error!("[adapter-gui] {context}: {error}");
             main_window.set_block_drawer_status_message(error.to_string().into());
@@ -414,9 +418,32 @@ fn build_knob_overlays(knob_layout: &[block_core::KnobLayoutEntry], param_items:
         })
         .collect()
 }
+fn open_cli_project(path: &PathBuf) -> Result<ProjectSession> {
+    if !path.exists() {
+        anyhow::bail!("CLI project path does not exist: {:?}", path);
+    }
+    let config_path = resolve_project_config_path(path);
+    load_project_session(path, &config_path)
+}
+
+pub fn parse_cli_args_from(args: &[&str]) -> (Option<PathBuf>, bool) {
+    let mut project_path: Option<PathBuf> = None;
+    let mut auto_save = false;
+    for arg in args.iter().skip(1) {
+        if *arg == "--auto-save" {
+            auto_save = true;
+        } else if !arg.starts_with('-') {
+            project_path = Some(PathBuf::from(arg));
+        }
+    }
+    (project_path, auto_save)
+}
+
 pub fn run_desktop_app(
     runtime_mode: AppRuntimeMode,
     interaction_mode: InteractionMode,
+    cli_project_path: Option<PathBuf>,
+    auto_save: bool,
 ) -> Result<()> {
     log::info!("starting desktop app: runtime_mode={:?}, interaction_mode={:?}", runtime_mode, interaction_mode);
     let context = UiRuntimeContext::new(runtime_mode, interaction_mode);
@@ -500,6 +527,7 @@ pub fn run_desktop_app(
     window.set_runtime_mode_label(context.runtime_mode.label().into());
     window.set_interaction_mode_label(context.interaction_mode.label().into());
     window.set_touch_optimized(context.capabilities.touch_optimized);
+    window.set_auto_save(auto_save);
     window.set_show_audio_settings(needs_audio_settings);
     window.set_wizard_step(if settings.is_complete() { 1 } else { 0 });
     window.set_status_message("".into());
@@ -567,6 +595,44 @@ pub fn run_desktop_app(
         "",
     )));
     window.set_recent_projects(ModelRc::from(recent_projects.clone()));
+    // CLI auto-open
+    if let Some(ref cli_path) = cli_project_path {
+        match open_cli_project(cli_path) {
+            Ok(session) => {
+                let canonical_path = canonical_project_path(cli_path).unwrap_or(cli_path.clone());
+                let title = project_title_for_path(Some(&canonical_path), &session.project);
+                let display_name = project_display_name(&session.project);
+                replace_project_chains(
+                    &project_chains,
+                    &session.project,
+                    &*input_chain_devices.borrow(),
+                    &*output_chain_devices.borrow(),
+                );
+                let snapshot = project_session_snapshot(&session).ok();
+                *project_session.borrow_mut() = Some(session);
+                *saved_project_snapshot.borrow_mut() = snapshot;
+                register_recent_project(
+                    &mut app_config.borrow_mut(),
+                    &canonical_path,
+                    &display_name,
+                );
+                let _ = FilesystemStorage::save_app_config(&app_config.borrow());
+                recent_projects.set_vec(recent_project_items(&app_config.borrow().recent_projects, ""));
+                set_project_dirty(&window, &project_dirty, false);
+                window.set_project_title(title.into());
+                window.set_project_path_label(
+                    format!("Projeto: {}", canonical_path.display()).into(),
+                );
+                window.set_show_project_launcher(false);
+                window.set_show_project_setup(false);
+                window.set_show_project_chains(true);
+                log::info!("CLI: opened {:?}", canonical_path);
+            }
+            Err(e) => {
+                log::error!("CLI project open failed, falling back to launcher: {e}");
+            }
+        }
+    }
     let chain_input_device_options = Rc::new(VecModel::from(
         input_chain_devices
             .borrow()
@@ -998,7 +1064,7 @@ pub fn run_desktop_app(
                 log::error!("toggle insert block enabled: {e}");
             }
             replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
-            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
         });
     }
     {
@@ -1032,7 +1098,7 @@ pub fn run_desktop_app(
                 log::error!("delete insert block: {e}");
             }
             replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
-            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
             let _ = iw.hide();
         });
     }
@@ -1096,7 +1162,7 @@ pub fn run_desktop_app(
                 log::error!("insert save error: {e}");
             }
             replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
-            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
             iw.set_status_message("".into());
             let _ = iw.hide();
         });
@@ -1303,7 +1369,7 @@ pub fn run_desktop_app(
                         project_title_for_path(session.project_path.as_ref(), &session.project)
                             .into(),
                     );
-                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
                     clear_status(&window, &toast_timer);
                     window.set_show_project_chains(true);
                     window.set_show_chain_editor(false);
@@ -1406,7 +1472,7 @@ pub fn run_desktop_app(
                         project_title_for_path(session.project_path.as_ref(), &session.project)
                             .into(),
                     );
-                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
                     settings_window.set_status_message("".into());
                     clear_status(&window, &toast_timer);
                     window.set_show_project_settings(false);
@@ -1813,7 +1879,7 @@ pub fn run_desktop_app(
                 } else {
                     Some(trimmed.to_string())
                 };
-                sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
             }
         });
     }
@@ -1839,7 +1905,7 @@ pub fn run_desktop_app(
                 } else {
                     Some(trimmed.to_string())
                 };
-                sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
             }
         });
     }
@@ -1959,6 +2025,7 @@ pub fn run_desktop_app(
                             session,
                             &saved_project_snapshot,
                             &project_dirty,
+                            auto_save,
                         );
                         clear_status(&window, &toast_timer);
                     }
@@ -2069,6 +2136,7 @@ pub fn run_desktop_app(
                 weak_output_window.clone(),
                 io_block_insert_draft.clone(),
                 toast_timer.clone(),
+                auto_save,
             );
             *chain_editor_window.borrow_mut() = Some(editor_window);
             let ce_borrow = chain_editor_window.borrow();
@@ -2176,6 +2244,7 @@ pub fn run_desktop_app(
                 weak_output_window.clone(),
                 io_block_insert_draft.clone(),
                 toast_timer.clone(),
+                auto_save,
             );
             *chain_editor_window.borrow_mut() = Some(editor_window);
             let ce_borrow = chain_editor_window.borrow();
@@ -2339,6 +2408,7 @@ pub fn run_desktop_app(
                         session,
                         &saved_project_snapshot,
                         &project_dirty,
+                        auto_save,
                     );
                 });
             }
@@ -2467,7 +2537,7 @@ pub fn run_desktop_app(
                     replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
                     let blocks = build_compact_blocks(&session.project, chain_idx);
                     cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
-                    sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty);
+                    sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty, auto_save);
                 });
             }
 
@@ -2514,7 +2584,7 @@ pub fn run_desktop_app(
                     replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
                     let blocks = build_compact_blocks(&session.project, chain_idx);
                     cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
-                    sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty);
+                    sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty, auto_save);
                 });
             }
 
@@ -2586,7 +2656,7 @@ pub fn run_desktop_app(
                     replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
                     let blocks = build_compact_blocks(&session.project, chain_idx);
                     cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
-                    sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty);
+                    sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty, auto_save);
                 });
             }
 
@@ -2653,7 +2723,7 @@ pub fn run_desktop_app(
                     replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
                     let blocks = build_compact_blocks(&session.project, chain_idx);
                     cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
-                    sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty);
+                    sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty, auto_save);
                 });
             }
 
@@ -3332,7 +3402,7 @@ pub fn run_desktop_app(
                         return;
                     }
                     replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
-                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
                 }
             }
             *chain_draft.borrow_mut() = None;
@@ -3381,7 +3451,7 @@ pub fn run_desktop_app(
                 log::error!("toggle I/O block enabled: {e}");
             }
             replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
-            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
         });
     }
     {
@@ -3415,7 +3485,7 @@ pub fn run_desktop_app(
                 log::error!("delete I/O block: {e}");
             }
             replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
-            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
             let _ = gw.hide();
         });
     }
@@ -3628,7 +3698,7 @@ pub fn run_desktop_app(
                         return;
                     }
                     replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
-                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
                 }
             }
             *chain_draft.borrow_mut() = None;
@@ -3677,7 +3747,7 @@ pub fn run_desktop_app(
                 log::error!("toggle I/O block enabled: {e}");
             }
             replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
-            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
         });
     }
     {
@@ -3711,7 +3781,7 @@ pub fn run_desktop_app(
                 log::error!("delete I/O block: {e}");
             }
             replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
-            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
             let _ = gw.hide();
         });
     }
@@ -4119,6 +4189,7 @@ pub fn run_desktop_app(
                                 saved_project_snapshot.clone(), project_dirty.clone(),
                                 input_chain_devices.clone(), output_chain_devices.clone(),
                                 "block-window.choose-model",
+                            auto_save,
                             );
                         }
                     });
@@ -4176,7 +4247,7 @@ pub fn run_desktop_app(
                             return;
                         }
                         replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
-                        sync_project_dirty(&main, session, &saved_project_snapshot, &project_dirty);
+                        sync_project_dirty(&main, session, &saved_project_snapshot, &project_dirty, auto_save);
                         drop(session_borrow);
                         win.set_block_drawer_enabled(new_enabled);
                     });
@@ -4257,6 +4328,7 @@ pub fn run_desktop_app(
                                 saved_project_snapshot.clone(), project_dirty.clone(),
                                 input_chain_devices.clone(), output_chain_devices.clone(),
                                 "block-window.number",
+                            auto_save,
                             );
                         }
                     });
@@ -4288,6 +4360,7 @@ pub fn run_desktop_app(
                                 saved_project_snapshot.clone(), project_dirty.clone(),
                                 input_chain_devices.clone(), output_chain_devices.clone(),
                                 "block-window.number-text",
+                            auto_save,
                             );
                         }
                     });
@@ -4317,6 +4390,7 @@ pub fn run_desktop_app(
                                 saved_project_snapshot.clone(), project_dirty.clone(),
                                 input_chain_devices.clone(), output_chain_devices.clone(),
                                 "block-window.bool",
+                            auto_save,
                             );
                         }
                     });
@@ -4346,6 +4420,7 @@ pub fn run_desktop_app(
                                 saved_project_snapshot.clone(), project_dirty.clone(),
                                 input_chain_devices.clone(), output_chain_devices.clone(),
                                 "block-window.text",
+                            auto_save,
                             );
                         }
                     });
@@ -4375,6 +4450,7 @@ pub fn run_desktop_app(
                                 saved_project_snapshot.clone(), project_dirty.clone(),
                                 input_chain_devices.clone(), output_chain_devices.clone(),
                                 "block-window.option",
+                            auto_save,
                             );
                         }
                     });
@@ -4411,6 +4487,7 @@ pub fn run_desktop_app(
                                 saved_project_snapshot.clone(), project_dirty.clone(),
                                 input_chain_devices.clone(), output_chain_devices.clone(),
                                 "block-window.file",
+                            auto_save,
                             );
                         }
                     });
@@ -4452,6 +4529,7 @@ pub fn run_desktop_app(
                             &project_session, &project_chains, &project_runtime,
                             &saved_project_snapshot, &project_dirty,
                             &*input_chain_devices.borrow(), &*output_chain_devices.borrow(), true,
+                            auto_save,
                         ) {
                             log::error!("[adapter-gui] block-window.save: {e}");
                             main.set_block_drawer_status_message(e.to_string().into());
@@ -4510,7 +4588,7 @@ pub fn run_desktop_app(
                             return;
                         }
                         replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
-                        sync_project_dirty(&main, session, &saved_project_snapshot, &project_dirty);
+                        sync_project_dirty(&main, session, &saved_project_snapshot, &project_dirty, auto_save);
                         drop(session_borrow);
                         *selected_block.borrow_mut() = None;
                         set_selected_block(&main, None);
@@ -4686,7 +4764,7 @@ pub fn run_desktop_app(
                 block_index: block_index as usize,
             });
             set_selected_block(&window, selected_block.borrow().as_ref());
-            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
             clear_status(&window, &toast_timer);
         });
     }
@@ -4766,7 +4844,7 @@ pub fn run_desktop_app(
             window.set_show_block_drawer(false);
             window.set_show_block_type_picker(false);
             set_selected_block(&window, None);
-            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
             clear_status(&window, &toast_timer);
         });
     }
@@ -4916,7 +4994,7 @@ pub fn run_desktop_app(
                     log::error!("insert block create error: {e}");
                 }
                 replace_project_chains(&project_chains_for_type, &session.project, &*input_chain_devices_for_type.borrow(), &*output_chain_devices_for_type.borrow());
-                sync_project_dirty(&window, session, &saved_project_snapshot_for_type, &project_dirty_for_type);
+                sync_project_dirty(&window, session, &saved_project_snapshot_for_type, &project_dirty_for_type, auto_save);
                 window.set_show_block_type_picker(false);
                 // Open the insert window to configure the newly created block
                 drop(session_borrow);
@@ -5138,6 +5216,7 @@ pub fn run_desktop_app(
                     input_chain_devices.clone(),
                     output_chain_devices.clone(),
                     "block-drawer.choose-model",
+                    auto_save,
                 );
             }
         });
@@ -5251,6 +5330,7 @@ pub fn run_desktop_app(
                         input_chain_devices.clone(),
                         output_chain_devices.clone(),
                         "block-drawer.number-text",
+                    auto_save,
                     );
                 }
             }
@@ -5298,6 +5378,7 @@ pub fn run_desktop_app(
                     input_chain_devices.clone(),
                     output_chain_devices.clone(),
                     "block-drawer.toggle-enabled",
+                auto_save,
                 );
             }
         });
@@ -5339,6 +5420,7 @@ pub fn run_desktop_app(
                         input_chain_devices.clone(),
                         output_chain_devices.clone(),
                         "block-drawer.text",
+                    auto_save,
                     );
                 }
             }
@@ -5386,6 +5468,7 @@ pub fn run_desktop_app(
                         input_chain_devices.clone(),
                         output_chain_devices.clone(),
                         "block-drawer.number",
+                    auto_save,
                     );
                 }
             }
@@ -5428,6 +5511,7 @@ pub fn run_desktop_app(
                         input_chain_devices.clone(),
                         output_chain_devices.clone(),
                         "block-drawer.bool",
+                    auto_save,
                     );
                 }
             }
@@ -5514,6 +5598,7 @@ pub fn run_desktop_app(
                         input_chain_devices.clone(),
                         output_chain_devices.clone(),
                         "block-drawer.option",
+                    auto_save,
                     );
                 }
             }
@@ -5568,6 +5653,7 @@ pub fn run_desktop_app(
                         input_chain_devices.clone(),
                         output_chain_devices.clone(),
                         "block-drawer.file",
+                    auto_save,
                     );
                 }
             }
@@ -5624,6 +5710,7 @@ pub fn run_desktop_app(
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
                 true,
+                auto_save,
             ) {
                 log::error!("[adapter-gui] block-drawer.save: {error}");
                 window.set_block_drawer_status_message(error.to_string().into());
@@ -5721,7 +5808,7 @@ pub fn run_desktop_app(
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
             );
-            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
             *selected_block.borrow_mut() = None;
             *block_editor_draft.borrow_mut() = None;
             block_model_options.set_vec(Vec::new());
@@ -5826,7 +5913,7 @@ pub fn run_desktop_app(
                 &*output_chain_devices.borrow(),
             );
             *chain_draft.borrow_mut() = None;
-            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
             clear_status(&window, &toast_timer);
             window.set_show_chain_editor(false);
         });
@@ -5932,7 +6019,7 @@ pub fn run_desktop_app(
                         &*input_chain_devices.borrow(),
                         &*output_chain_devices.borrow(),
                     );
-                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
                     input_window.set_status_message("".into());
                     let _ = input_window.hide();
                     return;
@@ -6001,7 +6088,7 @@ pub fn run_desktop_app(
                     &*input_chain_devices.borrow(),
                     &*output_chain_devices.borrow(),
                 );
-                sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
             }
             if let Some(chain_window) = weak_chain_window.borrow().as_ref() {
                 apply_chain_io_groups(
@@ -6215,7 +6302,7 @@ pub fn run_desktop_app(
                         &*input_chain_devices.borrow(),
                         &*output_chain_devices.borrow(),
                     );
-                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
                     output_window.set_status_message("".into());
                     let _ = output_window.hide();
                     return;
@@ -6281,7 +6368,7 @@ pub fn run_desktop_app(
                     &*input_chain_devices.borrow(),
                     &*output_chain_devices.borrow(),
                 );
-                sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+                sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
             }
             if let Some(chain_window) = chain_editor_window_ref.borrow().as_ref() {
                 apply_chain_io_groups(
@@ -6361,7 +6448,7 @@ pub fn run_desktop_app(
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
             );
-            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
             clear_status(&window, &toast_timer);
         });
     }
@@ -7366,6 +7453,7 @@ fn persist_block_editor_draft(
     input_chain_devices: &[AudioDeviceDescriptor],
     output_chain_devices: &[AudioDeviceDescriptor],
     close_after_save: bool,
+    auto_save: bool,
 ) -> Result<()> {
     let params =
         block_parameter_values(block_parameter_items, &draft.effect_type, &draft.model_id)?;
@@ -7458,7 +7546,7 @@ fn persist_block_editor_draft(
         input_chain_devices,
         output_chain_devices,
     );
-    sync_project_dirty(window, session, saved_project_snapshot, project_dirty);
+    sync_project_dirty(window, session, saved_project_snapshot, project_dirty, auto_save);
     if close_after_save {
         window.set_show_block_drawer(false);
         window.set_show_block_type_picker(false);
@@ -7965,7 +8053,21 @@ fn sync_project_dirty(
     session: &ProjectSession,
     saved_project_snapshot: &Rc<RefCell<Option<String>>>,
     project_dirty: &Rc<RefCell<bool>>,
+    auto_save: bool,
 ) {
+    if auto_save {
+        if let Some(ref path) = session.project_path {
+            match save_project_session(session, path) {
+                Ok(()) => {
+                    *saved_project_snapshot.borrow_mut() = project_session_snapshot(session).ok();
+                    set_project_dirty(window, project_dirty, false);
+                    log::debug!("auto-save: saved to {:?}", path);
+                    return;
+                }
+                Err(e) => log::error!("auto-save failed: {e}"),
+            }
+        }
+    }
     let dirty = match saved_project_snapshot.borrow().as_ref() {
         Some(saved_snapshot) => project_session_snapshot(session)
             .map(|current| current != *saved_snapshot)
@@ -8645,6 +8747,7 @@ fn setup_chain_editor_callbacks(
     _weak_output_window: slint::Weak<ChainOutputWindow>,
     io_block_insert_draft: Rc<RefCell<Option<IoBlockInsertDraft>>>,
     toast_timer: Rc<Timer>,
+    auto_save: bool,
 ) {
     // on_update_chain_name
     {
@@ -9066,7 +9169,7 @@ fn setup_chain_editor_callbacks(
                 &*output_chain_devices.borrow(),
             );
             *chain_draft.borrow_mut() = None;
-            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty);
+            sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
             chain_window.set_status_message("".into());
             clear_status(&window, &toast_timer);
             window.set_show_chain_editor(false);
@@ -9675,7 +9778,7 @@ fn parse_positive_u32(value: &str, field: &str) -> Result<u32> {
 mod tests {
     use super::{
         block_editor_data, block_parameter_items_for_editor, numeric_widget_kind,
-        quantize_numeric_value, SELECT_SELECTED_BLOCK_ID,
+        open_cli_project, parse_cli_args_from, quantize_numeric_value, SELECT_SELECTED_BLOCK_ID,
     };
     use domain::ids::BlockId;
     use domain::value_objects::ParameterValue;
@@ -10047,5 +10150,36 @@ mod tests {
         } else {
             panic!("block 4 should be Output");
         }
+    }
+
+    #[test]
+    fn open_cli_project_errors_on_nonexistent_path() {
+        let result = open_cli_project(&std::path::PathBuf::from("/nonexistent/project.yaml"));
+        assert!(result.is_err());
+        let msg = format!("{}", result.unwrap_err());
+        assert!(msg.contains("does not exist"), "got: {}", msg);
+    }
+
+    #[test]
+    fn parse_cli_args_extracts_path_and_auto_save_flag() {
+        let (path, auto_save) = parse_cli_args_from(&["openrig", "/tmp/project.yaml"]);
+        assert_eq!(path, Some(std::path::PathBuf::from("/tmp/project.yaml")));
+        assert!(!auto_save);
+
+        let (path, auto_save) = parse_cli_args_from(&["openrig", "--auto-save"]);
+        assert_eq!(path, None);
+        assert!(auto_save);
+
+        let (path, auto_save) = parse_cli_args_from(&["openrig", "/tmp/project.yaml", "--auto-save"]);
+        assert_eq!(path, Some(std::path::PathBuf::from("/tmp/project.yaml")));
+        assert!(auto_save);
+
+        let (path, auto_save) = parse_cli_args_from(&["openrig"]);
+        assert_eq!(path, None);
+        assert!(!auto_save);
+
+        let (path, auto_save) = parse_cli_args_from(&["openrig", "--unknown-flag"]);
+        assert_eq!(path, None);
+        assert!(!auto_save);
     }
 }
