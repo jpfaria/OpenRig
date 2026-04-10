@@ -10,6 +10,7 @@ jack = ["cpal/jack"]
 log.workspace = true
 anyhow.workspace = true
 cpal.workspace = true
+
 domain = { path = "../domain" }
 engine = { path = "../engine" }
 block-util = { path = "../block-util" }

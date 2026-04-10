@@ -57,13 +57,44 @@ fn select_host() -> cpal::Host {
 
 /// Select the audio host for device enumeration.
 ///
-/// Uses the same host as `select_host` so that the device list shown in the
-/// UI matches the host used for actual streaming. This is important on Linux
-/// with JACK: when JACK holds exclusive ALSA access to a hardware device,
-/// ALSA enumeration returns 0 channels for that device (JACK locked it). By
-/// using the JACK host for enumeration we correctly show JACK's system ports.
+/// Returns true when the JACK server is running and reachable, determined by
+/// a non-blocking directory scan. Safe to call from the UI thread.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn jack_server_is_running() -> bool {
+    // jackd creates a Unix socket at /dev/shm/jack_default_{uid}_0.
+    // Scanning /dev/shm for this pattern is instant and non-blocking.
+    std::fs::read_dir("/dev/shm").ok()
+        .map(|entries| {
+            entries.filter_map(|e| e.ok()).any(|e| {
+                let name = e.file_name();
+                let s = name.to_string_lossy();
+                s.starts_with("jack_default_") && s.ends_with("_0")
+            })
+        })
+        .unwrap_or(false)
+}
+
+/// Select the audio host for device enumeration.
+///
+/// On Linux with JACK: uses JACK when the server socket is present (instant
+/// check, no blocking). When JACK holds exclusive ALSA access to a hw: device,
+/// ALSA enumeration returns 0 channels; JACK reports the correct count.
+/// Falls back to ALSA if JACK is not running.
 fn select_host_for_enumeration() -> cpal::Host {
-    select_host()
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    {
+        if jack_server_is_running() {
+            for host_id in cpal::available_hosts() {
+                if host_id == cpal::HostId::Jack {
+                    if let Ok(host) = cpal::host_from_id(host_id) {
+                        log::debug!("device enumeration: using JACK host");
+                        return host;
+                    }
+                }
+            }
+        }
+    }
+    cpal::default_host()
 }
 
 /// Returns true when the given host is the ASIO host on Windows.
