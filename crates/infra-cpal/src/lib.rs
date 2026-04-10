@@ -418,6 +418,17 @@ pub struct ProjectRuntimeController {
 }
 pub fn list_devices() -> Result<Vec<String>> {
     log::debug!("listing all audio devices");
+
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    if using_jack_direct() {
+        let inputs = jack_enumerate_input_devices()?;
+        let outputs = jack_enumerate_output_devices()?;
+        let mut devices = Vec::new();
+        for d in inputs { devices.push(format!("input: {} | device_id: {}", d.name, d.id)); }
+        for d in outputs { devices.push(format!("output: {} | device_id: {}", d.name, d.id)); }
+        return Ok(devices);
+    }
+
     let host = select_host();
     let mut devices = Vec::new();
     for device in host.input_devices()? {
@@ -547,6 +558,15 @@ pub fn build_streams_for_project(
     runtime_graph: &RuntimeGraph,
 ) -> Result<Vec<Stream>> {
     log::info!("building audio streams for project");
+
+    // When using direct JACK, no CPAL streams needed — streaming is handled
+    // entirely by the jack crate in build_active_chain_runtime.
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    if using_jack_direct() {
+        log::info!("JACK direct mode: no CPAL streams to build");
+        return Ok(Vec::new());
+    }
+
     let host = select_host();
     validate_channels_against_devices(project, &host)?;
     let mut resolved_chains = resolve_enabled_chain_audio_configs(&host, project)?;
@@ -570,6 +590,59 @@ pub fn build_streams_for_project(
     Ok(streams)
 }
 
+/// Build a synthetic ResolvedChainAudioConfig using only the jack crate.
+/// No CPAL or ALSA access. The resolved config is only used to provide
+/// sample_rate and stream_signature to the runtime graph — the direct JACK
+/// backend ignores inputs/outputs entirely.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn jack_resolve_chain_config(chain: &Chain) -> Result<ResolvedChainAudioConfig> {
+    let (client, _) = jack::Client::new(
+        "openrig_cfg",
+        jack::ClientOptions::NO_START_SERVER,
+    ).map_err(|e| anyhow!("failed to connect to JACK for config: {:?}", e))?;
+    let sample_rate = client.sample_rate() as f32;
+    let buffer_size = client.buffer_size();
+
+    let capture_ports = client.ports(Some("system:capture_"), None, jack::PortFlags::IS_OUTPUT);
+    let playback_ports = client.ports(Some("system:playback_"), None, jack::PortFlags::IS_INPUT);
+    let in_channels = capture_ports.len() as u16;
+    let out_channels = playback_ports.len() as u16;
+    drop(client);
+
+    // Build a minimal stream signature so the runtime can detect config changes
+    let input_sigs: Vec<InputStreamSignature> = chain.input_blocks().into_iter()
+        .flat_map(|(_, ib)| ib.entries.iter())
+        .map(|entry| InputStreamSignature {
+            device_id: "jack:system".to_string(),
+            channels: entry.channels.clone(),
+            stream_channels: in_channels,
+            sample_rate: sample_rate as u32,
+            buffer_size_frames: buffer_size,
+        })
+        .collect();
+
+    let output_sigs: Vec<OutputStreamSignature> = chain.output_blocks().into_iter()
+        .flat_map(|(_, ob)| ob.entries.iter())
+        .map(|entry| OutputStreamSignature {
+            device_id: "jack:system".to_string(),
+            channels: entry.channels.clone(),
+            stream_channels: out_channels,
+            sample_rate: sample_rate as u32,
+            buffer_size_frames: buffer_size,
+        })
+        .collect();
+
+    Ok(ResolvedChainAudioConfig {
+        inputs: Vec::new(),
+        outputs: Vec::new(),
+        sample_rate,
+        stream_signature: ChainStreamSignature {
+            inputs: input_sigs,
+            outputs: output_sigs,
+        },
+    })
+}
+
 impl ProjectRuntimeController {
     pub fn start(project: &Project) -> Result<Self> {
         log::info!("starting project runtime controller");
@@ -585,6 +658,15 @@ impl ProjectRuntimeController {
 
     pub fn sync_project(&mut self, project: &Project) -> Result<()> {
         log::debug!("syncing project runtime with {} chains", project.chains.len());
+
+        // When using direct JACK, bypass ALL CPAL/ALSA access.
+        // Even creating an ALSA host and probing devices can interfere with
+        // JACK's exclusive access to the hardware (causing xruns and device loss).
+        #[cfg(all(target_os = "linux", feature = "jack"))]
+        if using_jack_direct() {
+            return self.sync_project_jack_direct(project);
+        }
+
         let host = select_host();
         validate_channels_against_devices(project, &host)?;
         let mut resolved_chains = resolve_enabled_chain_audio_configs(&host, project)?;
@@ -615,11 +697,44 @@ impl ProjectRuntimeController {
         Ok(())
     }
 
+    /// Sync project using only the jack crate — zero CPAL/ALSA access.
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    fn sync_project_jack_direct(&mut self, project: &Project) -> Result<()> {
+        log::info!("sync_project: JACK direct mode (no CPAL/ALSA)");
+
+        // Remove chains that are no longer in the project
+        let active_ids: Vec<ChainId> = self.active_chains.keys().cloned().collect();
+        for chain_id in active_ids {
+            let still_exists = project.chains.iter().any(|c| c.enabled && c.id == chain_id);
+            if !still_exists {
+                log::info!("removing chain '{}' from runtime", chain_id.0);
+                self.active_chains.remove(&chain_id);
+                self.runtime_graph.remove_chain(&chain_id);
+            }
+        }
+
+        for chain in &project.chains {
+            if !chain.enabled {
+                continue;
+            }
+            let resolved = jack_resolve_chain_config(chain)?;
+            self.upsert_chain_with_resolved(chain, resolved)?;
+        }
+
+        Ok(())
+    }
+
     pub fn upsert_chain(&mut self, project: &Project, chain: &Chain) -> Result<()> {
         log::info!("upserting chain '{}', enabled={}", chain.id.0, chain.enabled);
         if !chain.enabled {
             self.remove_chain(&chain.id);
             return Ok(());
+        }
+
+        #[cfg(all(target_os = "linux", feature = "jack"))]
+        if using_jack_direct() {
+            let resolved = jack_resolve_chain_config(chain)?;
+            return self.upsert_chain_with_resolved(chain, resolved);
         }
 
         let host = select_host();
