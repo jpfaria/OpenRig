@@ -65,9 +65,16 @@ O script lista os discos externos disponíveis, pede confirmação e grava com `
 2. Ligue — o OpenRig sobe automaticamente via systemd
 3. A tela exibe o boot splash (logo OpenRig) e depois a UI
 
-### Áudio (Teyun Q-26)
+### Áudio (USB)
 
-Conecte a interface USB antes de ligar. O ALSA já está configurado para pinná-la como `Q26` via udev. O serviço do OpenRig aguarda o dispositivo aparecer antes de iniciar.
+Conecte a interface USB antes de ligar. O `jackd.service` aguarda até 10s por uma placa USB Audio aparecer e então inicia o JACK em **48000 Hz / 256 frames / 3 periods** (~16 ms de latência). O OpenRig aguarda o JACK estar pronto antes de subir.
+
+**Por que 48 kHz / 256 / 3 e não algo menor:**
+
+- **Scarlett Gen 4** é travada em 48 kHz pelo driver mainline `scarlett-gen2`. Abaixo disso o driver falha com `Error initialising Scarlett Gen 4 Mixer Driver: -71` (EPROTO).
+- No **Rockchip RK3588 xHCI** (controladora USB do Orange Pi 5B), buffers pequenos (ex.: 128 × 2) provocam resets do host controller e quedas da interface sob carga — correlacionado com LED vermelho fixo na Scarlett. 256 × 3 é o menor config estável observado.
+
+**IRQ affinity:** o `jackd.service` tem um `ExecStartPre` que fixa as IRQs do `xhci-hcd` no CPU 4 (big core A76) antes de iniciar o daemon, reduzindo jitter de áudio. Em RK3588S, CPUs 0–3 são A55 (little) e CPUs 4–7 são A76 (big).
 
 ---
 
@@ -115,9 +122,10 @@ orange-pi/
   customize-image.sh                 ← hook rodado dentro do chroot Armbian
   rootfs/
     etc/
-      asound.conf                    ← ALSA: Teyun Q-26 como device padrão
-      environment.d/50-slint.conf    ← SLINT_BACKEND=linuxkms
-      systemd/system/openrig.service ← auto-start do OpenRig
+      environment.d/50-slint.conf        ← SLINT_BACKEND=linuxkms
+      systemd/system/jackd.service       ← JACK2 48 kHz/256/3 + IRQ affinity (xhci → CPU 4)
+      systemd/system/weston.service      ← Wayland compositor (kiosk)
+      systemd/system/openrig.service     ← auto-start do OpenRig (depende de jackd + weston)
     usr/
       local/bin/openrig-install-to-emmc  ← instala SD → eMMC
       share/plymouth/themes/openrig/     ← boot splash (logo OpenRig)
@@ -138,4 +146,4 @@ scripts/
 | SoC | Rockchip RK3588S (4×A76 + 4×A55) |
 | OS | Armbian Bookworm (Debian 12, kernel current) |
 | Display | Slint `linuxkms` + renderer software (sem Wayland/X11) |
-| Áudio | ALSA, Teyun Q-26 USB (Vendor 1852, Product 5065) |
+| Áudio | JACK2 (ALSA backend), qualquer USB Audio (testado: Focusrite Scarlett 2i2 Gen 4, Teyun Q-26) |
