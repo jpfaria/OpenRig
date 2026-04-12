@@ -20,8 +20,12 @@ ARMBIAN_DIR="$PROJECT_ROOT/.orange-pi-build"
 ARMBIAN_REPO="https://github.com/armbian/build.git"
 ARMBIAN_BRANCH="main"
 BOARD="orangepi5b"
-BRANCH="current"
-RELEASE="bookworm"
+# BRANCH=edge → latest mainline kernel. Needed for up-to-date Focusrite
+# `scarlett-gen2` driver and xHCI fixes that matter for USB audio on RK3588.
+BRANCH="edge"
+# RELEASE=noble → Ubuntu 24.04 LTS. Newer JACK2 + audio stack than Debian
+# Bookworm, supported until 2029, still gets a minimal Armbian image.
+RELEASE="noble"
 OUTPUT_DIR="$PROJECT_ROOT/output/orange-pi"
 USERPATCHES_DIR="$ARMBIAN_DIR/userpatches"
 OVERLAY_DIR="$USERPATCHES_DIR/overlay"
@@ -87,47 +91,38 @@ check_prereqs() {
     fi
 }
 
-# ── Step 1: Download OpenRig release ─────────────────────────────────────────
+# ── Step 1: Download OpenRig .deb release ────────────────────────────────────
 download_release() {
-    step "1/3  Downloading OpenRig linux-aarch64 release ($VERSION)"
+    step "1/3  Downloading OpenRig arm64 .deb release ($VERSION)"
 
     local download_dir="$PROJECT_ROOT/output/orange-pi-release"
     run mkdir -p "$download_dir"
+    # Clean any previous downloads so the 'ls | head' below always picks up the
+    # package for the current version.
+    run sh -c "rm -f '$download_dir'/openrig_*_arm64.deb"
 
     if [ "$VERSION" = "latest" ]; then
         echo "  Fetching latest release from github.com/$GITHUB_REPO..."
         run gh release download \
             --repo "$GITHUB_REPO" \
-            --pattern "openrig-*-linux-aarch64.tar.gz" \
+            --pattern "openrig_*_arm64.deb" \
             --dir "$download_dir" \
             --clobber
     else
         echo "  Fetching release $VERSION from github.com/$GITHUB_REPO..."
         run gh release download "$VERSION" \
             --repo "$GITHUB_REPO" \
-            --pattern "openrig-*-linux-aarch64.tar.gz" \
+            --pattern "openrig_*_arm64.deb" \
             --dir "$download_dir" \
             --clobber
     fi
 
-    # Extract
-    local tarball
-    tarball=$(ls "$download_dir"/openrig-*-linux-aarch64.tar.gz 2>/dev/null | head -1)
-    if [ -z "$tarball" ]; then
-        echo "ERROR: No openrig-*-linux-aarch64.tar.gz found in $download_dir"
+    RELEASE_DEB=$(ls "$download_dir"/openrig_*_arm64.deb 2>/dev/null | head -1)
+    if [ -z "$RELEASE_DEB" ]; then
+        echo "ERROR: No openrig_*_arm64.deb found in $download_dir"
         exit 1
     fi
-
-    echo "  Extracting: $(basename "$tarball")"
-    run tar -xzf "$tarball" -C "$download_dir"
-
-    # Find extracted directory
-    RELEASE_DIR=$(ls -d "$download_dir"/openrig-*-linux-aarch64 2>/dev/null | head -1)
-    if [ -z "$RELEASE_DIR" ]; then
-        echo "ERROR: Could not find extracted release directory in $download_dir"
-        exit 1
-    fi
-    echo "  Release staged at: $RELEASE_DIR"
+    echo "  Package staged at: $RELEASE_DEB"
 }
 
 # ── Step 2: Prepare Armbian userpatches overlay ───────────────────────────────
@@ -148,9 +143,12 @@ prepare_overlay() {
     run cp "$PROJECT_ROOT/orange-pi/customize-image.sh" "$USERPATCHES_DIR/customize-image.sh"
     run chmod +x "$USERPATCHES_DIR/customize-image.sh"
 
-    # Stage release contents into overlay
-    run mkdir -p "$OVERLAY_DIR/openrig-release"
-    run cp -r "$RELEASE_DIR/." "$OVERLAY_DIR/openrig-release/"
+    # Stage the .deb package into the overlay. customize-image.sh will
+    # `apt install` it inside the chroot so all runtime dependencies are
+    # resolved by dpkg — no manual file copies.
+    run mkdir -p "$OVERLAY_DIR"
+    run sh -c "rm -f '$OVERLAY_DIR'/openrig.deb"
+    run cp "$RELEASE_DEB" "$OVERLAY_DIR/openrig.deb"
 
     # Stage logo SVG (rsvg-convert inside Armbian chroot converts to PNG)
     LOGO_SVG="$PROJECT_ROOT/crates/adapter-gui/ui/assets/openrig-logomark.svg"
@@ -158,6 +156,13 @@ prepare_overlay() {
 
     # Stage rootfs overlay (etc, usr)
     run cp -r "$PROJECT_ROOT/orange-pi/rootfs/." "$OVERLAY_DIR/"
+
+    # Stage DTB overlay source for the Scarlett/USB-C TCPM workaround.
+    # customize-image.sh compiles and installs it inside the chroot using
+    # armbian-add-overlay so it lands in /boot/overlay-user/ and gets hooked
+    # into armbianEnv.txt automatically.
+    run cp "$PROJECT_ROOT/orange-pi/dtbo/openrig-usbc-host.dts" \
+        "$OVERLAY_DIR/openrig-usbc-host.dts"
 
     # Stage PREEMPT_RT kernel config fragment
     run mkdir -p "$USERPATCHES_DIR/config/kernel"

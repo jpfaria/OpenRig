@@ -1,0 +1,133 @@
+#!/bin/sh
+# openrig-reset-audio — recover the Scarlett from a zombie/red-LED state
+# without touching the physical cable.
+#
+# PROBLEM:
+#   On RK3588 the scarlett-gen2 + xhci-hcd stack occasionally drops the
+#   Scarlett. Symptoms:
+#     - Scarlett's front USB LED turns red/dim (device deactivated)
+#     - kernel: "scarlett2_notify: Unhandled notification: 0x20000000"
+#     - kernel: "xhci-hcd: remove, state 1"
+#     - jackd: "ALSA: capture device disconnected"
+#   The xHCI driver may auto-recover on its own, but often the Scarlett gets
+#   stuck in a half-dead state where /proc/asound/cards still lists it but
+#   the device does not respond. jackd falls into a zombie state (process
+#   alive, ALSA driver dead) and needs a restart.
+#
+# RECOVERY:
+#   The cleanest fix is to unbind/rebind the xHCI host controller platform
+#   driver. This is exactly what the kernel does internally when it
+#   auto-recovers — it power-cycles the whole controller, forcing every
+#   device on the bus (including the Scarlett) to re-enumerate. No cable
+#   movement required.
+#
+# SEQUENCE:
+#   1. Stop openrig + jackd (release any PCM handles)
+#   2. Unbind xhci-hcd platform driver for the USB3 controller
+#   3. Rebind it → Scarlett re-enumerates fresh
+#   4. Restart jackd (re-opens ALSA on the new PCM)
+#   5. Restart openrig (reconnects to new jackd)
+#
+# Usage:
+#   openrig-reset-audio                    # full reset
+#   openrig-reset-audio --no-restart       # only USB reset, leave services
+#
+# Device: xhci-hcd.6.auto is the USB3 controller on RK3588S where the
+# external USB-A ports live. RK3588 boards have multiple xHCI platform
+# devices (.3.auto, .6.auto, ...); we target the one currently hosting a
+# USB-Audio device so the script keeps working if USB topology changes.
+
+set -e
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "openrig-reset-audio: must run as root" >&2
+    exit 2
+fi
+
+RESTART_SERVICES=1
+case "$1" in
+    --no-restart) RESTART_SERVICES=0 ;;
+esac
+
+# Find which xhci-hcd platform device currently hosts a USB-Audio interface.
+# /sys/bus/platform/drivers/xhci-hcd/xhci-hcd.N.auto/usbX/ contains the
+# enumerated devices for that controller; we look for any with a USB audio
+# interface (bInterfaceClass=01).
+find_audio_xhci() {
+    for drv_dev in /sys/bus/platform/drivers/xhci-hcd/xhci-hcd.*.auto; do
+        [ -d "$drv_dev" ] || continue
+        name=$(basename "$drv_dev")
+        for iface in "$drv_dev"/usb*/*/*:*; do
+            [ -r "$iface/bInterfaceClass" ] || continue
+            cls=$(cat "$iface/bInterfaceClass" 2>/dev/null)
+            if [ "$cls" = "01" ]; then
+                echo "$name"
+                return 0
+            fi
+        done
+    done
+    return 1
+}
+
+TARGET=$(find_audio_xhci) || {
+    echo "openrig-reset-audio: no xHCI controller currently hosting a USB-Audio device" >&2
+    exit 1
+}
+echo "openrig-reset-audio: target xHCI controller = $TARGET"
+
+if [ "$RESTART_SERVICES" -eq 1 ]; then
+    echo "openrig-reset-audio: stopping openrig.service"
+    systemctl stop openrig.service 2>/dev/null || true
+    echo "openrig-reset-audio: stopping jackd.service"
+    systemctl stop jackd.service 2>/dev/null || true
+    # small delay so the ALSA PCM is fully released before the unbind
+    sleep 1
+fi
+
+echo "openrig-reset-audio: unbinding $TARGET"
+echo "$TARGET" > /sys/bus/platform/drivers/xhci-hcd/unbind
+sleep 2
+echo "openrig-reset-audio: rebinding $TARGET"
+echo "$TARGET" > /sys/bus/platform/drivers/xhci-hcd/bind
+
+# Wait for re-enumeration. The scarlett-gen2 driver takes ~1s after the USB
+# device reappears to probe the device and emit the "Mixer Driver enabled"
+# message. Wait for /proc/asound/cards to list a USB-Audio entry.
+echo "openrig-reset-audio: waiting for USB-Audio card to re-enumerate..."
+for _ in $(seq 1 15); do
+    if grep -q "USB-Audio" /proc/asound/cards 2>/dev/null; then
+        break
+    fi
+    sleep 1
+done
+
+if ! grep -q "USB-Audio" /proc/asound/cards 2>/dev/null; then
+    echo "openrig-reset-audio: WARNING — USB-Audio not re-enumerated after 15s" >&2
+fi
+
+if [ "$RESTART_SERVICES" -eq 0 ]; then
+    echo "openrig-reset-audio: USB reset done, services left untouched"
+    exit 0
+fi
+
+echo "openrig-reset-audio: starting jackd.service"
+systemctl start jackd.service || true
+
+# jackd's first post-reset start sometimes fails with "Broken pipe" because
+# the previous ALSA handle is still being torn down; systemd's
+# Restart=on-failure retries. Wait for the shm socket as the source of truth.
+for _ in $(seq 1 10); do
+    if ls /dev/shm/jack_default_*_0 >/dev/null 2>&1; then
+        break
+    fi
+    sleep 1
+done
+
+if ! ls /dev/shm/jack_default_*_0 >/dev/null 2>&1; then
+    echo "openrig-reset-audio: WARNING — jackd shm socket not ready after 10s" >&2
+fi
+
+echo "openrig-reset-audio: starting openrig.service"
+systemctl start openrig.service || true
+
+echo "openrig-reset-audio: done"
