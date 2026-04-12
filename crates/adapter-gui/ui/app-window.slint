@@ -69,6 +69,30 @@ export component ChainEditorWindow inherits Window {
     callback save-chain();
     callback cancel-chain();
     callback select-instrument(int);
+    // Inline input endpoint editor
+    in property <bool> show-input-editor: false;
+    in property <[string]> input-device-options;
+    in-out property <int> input-selected-device-index: -1;
+    in property <[ChannelOptionItem]> input-channels;
+    in-out property <string> input-editor-status: "";
+    in-out property <int> input-mode-index: 0;
+    callback input-select-device(int);
+    callback input-toggle-channel(int, bool);
+    callback input-select-mode(int);
+    callback input-save();
+    callback input-cancel();
+    // Inline output endpoint editor
+    in property <bool> show-output-editor: false;
+    in property <[string]> output-device-options;
+    in-out property <int> output-selected-device-index: -1;
+    in property <[ChannelOptionItem]> output-channels;
+    in-out property <string> output-editor-status: "";
+    in-out property <int> output-mode-index: 0;
+    callback output-select-device(int);
+    callback output-toggle-channel(int, bool);
+    callback output-select-mode(int);
+    callback output-save();
+    callback output-cancel();
     title: "OpenRig · Configurar chain";
     min-width: 860px;
     min-height: 540px;
@@ -97,6 +121,42 @@ export component ChainEditorWindow inherits Window {
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }
         select-instrument(index) => { root.select-instrument(index); }
+    }
+
+    if root.show-input-editor : ChainEndpointEditorPage {
+        width: parent.width;
+        height: parent.height;
+        title: "Entrada";
+        device-options: root.input-device-options;
+        selected-device-index <=> root.input-selected-device-index;
+        channels: root.input-channels;
+        status-message <=> root.input-editor-status;
+        show-mode-selector: true;
+        mode-labels: ["Mono", "Stereo", "Dual Mono"];
+        selected-mode-index <=> root.input-mode-index;
+        select-device(index) => { root.input-select-device(index); }
+        toggle-channel(index, selected) => { root.input-toggle-channel(index, selected); }
+        select-mode(index) => { root.input-select-mode(index); }
+        save => { root.input-save(); }
+        cancel => { root.input-cancel(); }
+    }
+
+    if root.show-output-editor : ChainEndpointEditorPage {
+        width: parent.width;
+        height: parent.height;
+        title: "Saída";
+        device-options: root.output-device-options;
+        selected-device-index <=> root.output-selected-device-index;
+        channels: root.output-channels;
+        status-message <=> root.output-editor-status;
+        show-mode-selector: true;
+        mode-labels: ["Mono", "Stereo"];
+        selected-mode-index <=> root.output-mode-index;
+        select-device(index) => { root.output-select-device(index); }
+        toggle-channel(index, selected) => { root.output-toggle-channel(index, selected); }
+        select-mode(index) => { root.output-select-mode(index); }
+        save => { root.output-save(); }
+        cancel => { root.output-cancel(); }
     }
 }
 
@@ -593,6 +653,7 @@ export component AppWindow inherits Window {
     in-out property <string> status-message;
     in property <[string]> sample-rate-options: ["44100", "48000", "88200", "96000"];
     in property <[string]> buffer-size-options: ["32", "64", "128", "256", "512", "1024"];
+    in property <[DeviceSelectionItem]> project-devices;
 
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
@@ -653,6 +714,9 @@ export component AppWindow inherits Window {
     callback open-vst3-editor(string); // model-id
     callback save-chain();
     callback cancel-chain();
+    callback toggle-project-device(int, bool);
+    callback update-project-sample-rate(int, string);
+    callback update-project-buffer-size(int, string);
     title: "OpenRig";
     min-width: 860px;
     min-height: 540px;
@@ -715,6 +779,7 @@ export component AppWindow inherits Window {
         status-message: root.status-message;
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
+        project-devices: root.project-devices;
         toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
         toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
         update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
@@ -774,6 +839,9 @@ export component AppWindow inherits Window {
         reorder-chain-block(chain-index, from-index, before-index) => { root.reorder-chain-block(chain-index, from-index, before-index); }
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }
+        toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
+        update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
+        update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
     }
 
     if touch-optimized : TouchMain {
@@ -831,6 +899,7 @@ export component AppWindow inherits Window {
         status-message: root.status-message;
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
+        project-devices: root.project-devices;
         toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
         toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
         update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
@@ -890,6 +959,9 @@ export component AppWindow inherits Window {
         reorder-chain-block(chain-index, from-index, before-index) => { root.reorder-chain-block(chain-index, from-index, before-index); }
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }
+        toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
+        update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
+        update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
     }
 
     in-out property <string> toast-message;

@@ -24,5 +24,9 @@ project = { path = "../project" }
 ui-openrig = { path = "../ui-openrig" }
 webbrowser.workspace = true
 
+[target.'cfg(target_os = "linux")'.dependencies.infra-cpal]
+path = "../infra-cpal"
+features = ["jack"]
+
 [build-dependencies]
 slint-build.workspace = true
