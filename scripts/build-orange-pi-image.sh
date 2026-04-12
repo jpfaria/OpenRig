@@ -218,7 +218,7 @@ run_armbian() {
     echo ""
     echo "Image written to: $OUTPUT_DIR/"
     echo "Flash with:"
-    echo "  ./scripts/flash-sd.sh $OUTPUT_DIR/Armbian_*.img"
+    echo "  ./scripts/flash-sd.sh $OUTPUT_DIR/Armbian*.img"
 }
 
 # ── Main ──────────────────────────────────────────────────────────────────────
