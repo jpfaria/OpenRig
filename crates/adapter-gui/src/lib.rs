@@ -2811,6 +2811,7 @@ pub fn run_desktop_app(
         let chain_output_device_options = chain_output_device_options.clone();
         let chain_input_channels = chain_input_channels.clone();
         window.on_select_chain_input_device(move |index| {
+            log::debug!("[select_chain_input_device] index={}", index);
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -2826,6 +2827,7 @@ pub fn run_desktop_app(
             let Some(gi) = draft.editing_input_index else {
                 return;
             };
+            log::debug!("[select_chain_input_device] device={}, channels={}", device.id, device.channels);
             // Mutate the group first
             {
                 let Some(input_group) = draft.inputs.get_mut(gi) else {
@@ -2837,12 +2839,14 @@ pub fn run_desktop_app(
             // Now use immutable references
             if let Some(session) = project_session.borrow().as_ref() {
                 if let Some(input_group) = draft.inputs.get(gi) {
+                    log::debug!("[select_chain_input_device] calling replace_channel_options");
                     replace_channel_options(
                         &chain_input_channels,
                         build_input_channel_items(input_group, draft, &session.project, &fresh_input),
                     );
                 }
                 if let Some(chain_window) = chain_editor_window_ref.borrow().as_ref() {
+                    log::debug!("[select_chain_input_device] calling apply_chain_io_groups");
                     apply_chain_io_groups(
                         &window,
                         chain_window,
@@ -2852,6 +2856,7 @@ pub fn run_desktop_app(
                     );
                 }
             }
+            log::debug!("[select_chain_input_device] model_count after={}", chain_input_channels.row_count());
             let selected_index = selected_device_index(
                 &fresh_input,
                 draft.inputs.get(gi).and_then(|ig| ig.device_id.as_deref()),
@@ -2927,15 +2932,19 @@ pub fn run_desktop_app(
         let weak_window = window.as_weak();
         let toast_timer = toast_timer.clone();
         window.on_toggle_chain_input_channel(move |index, selected| {
+            log::debug!("[toggle_chain_input_channel] index={}, selected={}, model_count={}", index, selected, chain_input_channels.row_count());
             let Some(window) = weak_window.upgrade() else {
+                log::debug!("[toggle_chain_input_channel] window upgrade failed");
                 return;
             };
             let mut draft_borrow = chain_draft.borrow_mut();
             let Some(draft) = draft_borrow.as_mut() else {
+                log::debug!("[toggle_chain_input_channel] no draft");
                 return;
             };
             let channel = index as usize;
             let Some(option) = chain_input_channels.row_data(index as usize) else {
+                log::debug!("[toggle_chain_input_channel] no row_data at index {}", index);
                 return;
             };
             if selected && !option.available && !option.selected {
@@ -2943,10 +2952,13 @@ pub fn run_desktop_app(
                 return;
             }
             let Some(gi) = draft.editing_input_index else {
+                log::debug!("[toggle_chain_input_channel] no editing_input_index");
                 return;
             };
+            log::debug!("[toggle_chain_input_channel] editing_input_index={}, channel={}", gi, channel);
             {
                 let Some(input_group) = draft.inputs.get_mut(gi) else {
+                    log::debug!("[toggle_chain_input_channel] no input group at index {}", gi);
                     return;
                 };
                 if selected {
@@ -2957,10 +2969,12 @@ pub fn run_desktop_app(
                 } else {
                     input_group.channels.retain(|current| *current != channel);
                 }
+                log::debug!("[toggle_chain_input_channel] channels now: {:?}", input_group.channels);
             }
             if let Some(mut row) = chain_input_channels.row_data(index as usize) {
                 row.selected = selected;
                 chain_input_channels.set_row_data(index as usize, row);
+                log::debug!("[toggle_chain_input_channel] set_row_data done, model_count={}", chain_input_channels.row_count());
             }
         });
     }
@@ -8357,6 +8371,10 @@ fn build_output_channel_items(
         .collect()
 }
 fn replace_channel_options(model: &Rc<VecModel<ChannelOptionItem>>, items: Vec<ChannelOptionItem>) {
+    log::debug!("[replace_channel_options] setting {} items (was {})", items.len(), model.row_count());
+    for (i, item) in items.iter().enumerate() {
+        log::debug!("  [{}] label={}, selected={}, available={}", i, item.label, item.selected, item.available);
+    }
     model.set_vec(items);
 }
 fn build_insert_send_channel_items(
