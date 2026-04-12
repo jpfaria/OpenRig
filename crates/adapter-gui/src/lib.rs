@@ -2923,12 +2923,8 @@ pub fn run_desktop_app(
     }
     {
         let chain_draft = chain_draft.clone();
-        let project_session = project_session.clone();
-        let input_chain_devices = input_chain_devices.clone();
-        let output_chain_devices = output_chain_devices.clone();
         let chain_input_channels = chain_input_channels.clone();
         let weak_window = window.as_weak();
-        let chain_editor_window_ref = chain_editor_window.clone();
         let toast_timer = toast_timer.clone();
         window.on_toggle_chain_input_channel(move |index, selected| {
             let Some(window) = weak_window.upgrade() else {
@@ -2966,29 +2962,11 @@ pub fn run_desktop_app(
                 row.selected = selected;
                 chain_input_channels.set_row_data(index as usize, row);
             }
-            let devs_in = input_chain_devices.borrow();
-            let devs_out = output_chain_devices.borrow();
-            if project_session.borrow().as_ref().is_some() {
-                if let Some(chain_window) = chain_editor_window_ref.borrow().as_ref() {
-                    apply_chain_io_groups(
-                        &window,
-                        chain_window,
-                        draft,
-                        &*devs_in,
-                        &*devs_out,
-                    );
-                }
-            }
         });
     }
     {
         let chain_draft = chain_draft.clone();
-        let project_session = project_session.clone();
-        let input_chain_devices = input_chain_devices.clone();
-        let output_chain_devices = output_chain_devices.clone();
         let chain_output_channels = chain_output_channels.clone();
-        let weak_window = window.as_weak();
-        let chain_editor_window_ref = chain_editor_window.clone();
         window.on_toggle_chain_output_channel(move |index, selected| {
             let mut draft_borrow = chain_draft.borrow_mut();
             let Some(draft) = draft_borrow.as_mut() else {
@@ -3014,21 +2992,6 @@ pub fn run_desktop_app(
             if let Some(mut row) = chain_output_channels.row_data(index as usize) {
                 row.selected = selected;
                 chain_output_channels.set_row_data(index as usize, row);
-            }
-            if project_session.borrow().as_ref().is_some() {
-                let devs_in = input_chain_devices.borrow();
-                let devs_out = output_chain_devices.borrow();
-                if let Some(window) = weak_window.upgrade() {
-                    if let Some(chain_window) = chain_editor_window_ref.borrow().as_ref() {
-                        apply_chain_io_groups(
-                            &window,
-                            chain_window,
-                            draft,
-                            &*devs_in,
-                            &*devs_out,
-                        );
-                    }
-                }
             }
         });
     }
