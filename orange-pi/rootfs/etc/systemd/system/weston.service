@@ -1,0 +1,39 @@
+[Unit]
+Description=Weston Wayland Compositor (kiosk)
+# Chain weston directly after plymouth-start so the splash is visible from
+# early boot all the way until weston owns the framebuffer — no blank/text
+# gap. We dismiss plymouth ourselves in ExecStartPre/Post so we do NOT depend
+# on plymouth-quit-wait (which would create a visible handoff).
+After=plymouth-start.service local-fs.target
+Requires=local-fs.target
+Before=plymouth-quit-wait.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+
+RuntimeDirectory=weston
+Environment=XDG_RUNTIME_DIR=/run/weston
+
+# Tell plymouth to release the framebuffer (but keep its logo as the current
+# image) right before weston opens DRM. The two "-" prefixes make this
+# tolerant of plymouth not being running (e.g. during debug boots).
+ExecStartPre=-/usr/bin/plymouth deactivate
+
+ExecStart=/usr/bin/weston \
+    --backend=drm-backend.so \
+    --tty=1 \
+    --log=/var/log/weston.log
+
+# Once weston is drawing, let plymouth fully exit. `--retain-splash` keeps
+# the current framebuffer content, so there's no flash between plymouth and
+# the OpenRig window.
+ExecStartPost=-/usr/bin/plymouth quit --retain-splash
+
+Restart=on-failure
+RestartSec=3
+TimeoutStartSec=15
+
+[Install]
+WantedBy=multi-user.target
