@@ -2588,7 +2588,7 @@ pub fn run_desktop_app(
                 });
             }
 
-            // Wire reorder-block — handle directly (compact indices differ from chain view UI indices)
+            // Wire reorder-block — resolve real indices from CompactBlockItem.block_index
             {
                 let project_session = project_session.clone();
                 let weak_main = window.as_weak();
@@ -2600,24 +2600,39 @@ pub fn run_desktop_app(
                 let input_chain_devices = input_chain_devices.clone();
                 let output_chain_devices = output_chain_devices.clone();
                 compact_win.on_reorder_block(move |ci, compact_from, compact_before| {
-                    log::info!("[compact] reorder-block: chain={}, compact_from={}, compact_before={}", ci, compact_from, compact_before);
                     let Some(main_win) = weak_main.upgrade() else { return; };
                     let Some(cw) = weak_compact.upgrade() else { return; };
+                    // Look up real chain.blocks indices from the Slint compact model
+                    let compact_model = cw.get_compact_blocks();
+                    let compact_len = compact_model.row_count();
+                    let from_pos = compact_from as usize;
+                    if from_pos >= compact_len { return; }
+                    let from_index = compact_model.row_data(from_pos)
+                        .map(|item| item.block_index as usize)
+                        .unwrap_or(0);
+                    let before_pos = compact_before as usize;
+                    let real_before = if before_pos < compact_len {
+                        compact_model.row_data(before_pos)
+                            .map(|item| item.block_index as usize)
+                            .unwrap_or(0)
+                    } else {
+                        // "after last compact block" → one position after last compact block's real index
+                        compact_model.row_data(compact_len - 1)
+                            .map(|item| item.block_index as usize + 1)
+                            .unwrap_or(0)
+                    };
+                    log::info!("[compact] reorder-block: compact_from={}, compact_before={}, real_from={}, real_before={}", compact_from, compact_before, from_index, real_before);
+                    if real_before == from_index || real_before == from_index + 1 { return; }
                     let mut session_borrow = project_session.borrow_mut();
                     let Some(session) = session_borrow.as_mut() else { return; };
                     let chain_idx = ci as usize;
                     let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
-                    // Convert compact view positions to real chain.blocks indices
-                    let from_index = ui_index_to_real_block_index(chain, compact_from as usize) as i32;
-                    let real_before = ui_index_to_real_block_index(chain, compact_before as usize) as i32;
-                    log::info!("[compact] reorder-block: real_from={}, real_before={}", from_index, real_before);
-                    let block_count = chain.blocks.len() as i32;
-                    if from_index < 0 || from_index >= block_count { return; }
-                    if real_before == from_index || real_before == from_index + 1 { return; }
-                    let block = chain.blocks.remove(from_index as usize);
+                    let block_count = chain.blocks.len();
+                    if from_index >= block_count { return; }
+                    let block = chain.blocks.remove(from_index);
                     let mut normalized_before = real_before;
                     if normalized_before > from_index { normalized_before -= 1; }
-                    let insert_at = normalized_before.clamp(0, chain.blocks.len() as i32) as usize;
+                    let insert_at = normalized_before.min(chain.blocks.len());
                     chain.blocks.insert(insert_at, block);
                     let chain_id = chain.id.clone();
                     if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
