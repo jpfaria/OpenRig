@@ -93,8 +93,6 @@ mkdir -p "$OUTPUT_DIR"
 
 docker run --rm --platform linux/arm64 \
     -v "$PROJECT_ROOT:/workspace:delegated" \
-    -v openrig-cargo-registry:/root/.cargo/registry \
-    -v openrig-cargo-git:/root/.cargo/git \
     -e VERSION="$VERSION" \
     "$DOCKER_IMAGE" \
     bash -c '
