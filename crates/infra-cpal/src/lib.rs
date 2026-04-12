@@ -403,8 +403,6 @@ struct JackProcessHandler {
     input_ports: Vec<jack::Port<jack::AudioIn>>,
     output_ports: Vec<jack::Port<jack::AudioOut>>,
     runtime: Arc<ChainRuntimeState>,
-    input_channels: Vec<Vec<usize>>,
-    output_channels: Vec<Vec<usize>>,
 }
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
@@ -474,13 +472,9 @@ fn build_jack_direct_chain(
         .flat_map(|ib| ib.entries.iter())
         .collect();
 
-    let input_channels: Vec<Vec<usize>> = input_entries.iter()
-        .map(|e| e.channels.clone())
-        .collect();
-
     // Determine how many input ports we need (max channel index + 1)
-    let max_in_ch = input_channels.iter()
-        .flat_map(|chs| chs.iter())
+    let max_in_ch = input_entries.iter()
+        .flat_map(|e| e.channels.iter())
         .copied()
         .max()
         .map(|m| m + 1)
@@ -496,12 +490,8 @@ fn build_jack_direct_chain(
         .flat_map(|ob| ob.entries.iter())
         .collect();
 
-    let output_channels: Vec<Vec<usize>> = output_entries.iter()
-        .map(|e| e.channels.clone())
-        .collect();
-
-    let max_out_ch = output_channels.iter()
-        .flat_map(|chs| chs.iter())
+    let max_out_ch = output_entries.iter()
+        .flat_map(|e| e.channels.iter())
         .copied()
         .max()
         .map(|m| m + 1)
@@ -528,8 +518,6 @@ fn build_jack_direct_chain(
         input_ports,
         output_ports,
         runtime,
-        input_channels,
-        output_channels,
     };
 
     let active_client = client.activate_async((), handler)
