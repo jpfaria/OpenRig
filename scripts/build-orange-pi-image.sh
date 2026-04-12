@@ -16,7 +16,7 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ARMBIAN_DIR="$PROJECT_ROOT/.orange-pi-build"
+ARMBIAN_DIR="$PROJECT_ROOT/output/armbian-build"
 ARMBIAN_REPO="https://github.com/armbian/build.git"
 ARMBIAN_BRANCH="main"
 BOARD="orangepi5b"
