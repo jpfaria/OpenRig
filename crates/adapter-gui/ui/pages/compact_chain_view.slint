@@ -103,6 +103,7 @@ component CompactBlockRow inherits Rectangle {
     in property <CompactBlockItem> block-data;
     callback toggle-enabled(int, int);
     callback update-parameter-number(int, int, string, float);
+    callback update-parameter-bool(int, int, string, bool);
     callback select-parameter-option(int, int, string, int);
     callback choose-model(int, int, int); // chain_index, block_index, model_index
     callback open-block-detail(int, int);
@@ -356,11 +357,13 @@ component CompactBlockRow inherits Rectangle {
         height: 72px;
 
         for param[pi] in root.block-data.parameter-items : Rectangle {
-            visible: param.widget_kind != "" && param.widget_kind != "bool";
-            min-width: param.widget_kind == "enum" && param.option_labels.length <= 4 ? 120px
+            visible: param.widget_kind != "";
+            min-width: param.widget_kind == "bool" ? 56px
+                : param.widget_kind == "enum" && param.option_labels.length <= 4 ? 120px
                 : param.widget_kind == "enum" && param.option_labels.length > 4 ? 140px
                 : 56px;
-            preferred-width: param.widget_kind == "enum" && param.option_labels.length <= 4 ? Math.max(120px, param.option_labels.length * 56px)
+            preferred-width: param.widget_kind == "bool" ? 62px
+                : param.widget_kind == "enum" && param.option_labels.length <= 4 ? Math.max(120px, param.option_labels.length * 56px)
                 : param.widget_kind == "enum" && param.option_labels.length > 4 ? 200px
                 : 62px;
             height: 72px;
@@ -466,6 +469,32 @@ component CompactBlockRow inherits Rectangle {
                             }
                         }
                     }
+                }
+            }
+
+            // ── Bool toggle ──
+            if param.widget_kind == "bool" : Rectangle {
+                x: (parent.width - 44px) / 2; y: 14px;
+                width: 44px; height: 24px;
+                border-radius: 12px;
+                background: param.bool_value ? #4488dd : #333;
+                border-width: 1px;
+                border-color: param.bool_value ? #4488dd : #555;
+                animate background { duration: 150ms; }
+
+                Rectangle {
+                    x: param.bool_value ? parent.width - 22px : 2px;
+                    y: 2px;
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 10px;
+                    background: #ffffff;
+                    animate x { duration: 150ms; }
+                }
+
+                TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.update-parameter-bool(root.block-data.chain-index, root.block-data.block-index, param.path, !param.bool_value); }
                 }
             }
         }
@@ -641,6 +670,7 @@ export component CompactChainViewPage inherits Rectangle {
     callback toggle-chain-enabled(int);
     callback toggle-block-enabled(int, int);
     callback update-block-parameter-number(int, int, string, float);
+    callback update-block-parameter-bool(int, int, string, bool);
     callback select-block-parameter-option(int, int, string, int);
     callback choose-block-model(int, int, int);
     callback insert-block(int, int); // chain_index, before_index
@@ -759,6 +789,7 @@ export component CompactChainViewPage inherits Rectangle {
                 block-data: block-item;
                 toggle-enabled(ci, bi2) => { root.toggle-block-enabled(ci, bi2); }
                 update-parameter-number(ci, bi2, p, v) => { root.update-block-parameter-number(ci, bi2, p, v); }
+                update-parameter-bool(ci, bi2, p, v) => { root.update-block-parameter-bool(ci, bi2, p, v); }
                 select-parameter-option(ci, bi2, p, oi) => { root.select-block-parameter-option(ci, bi2, p, oi); }
                 choose-model(ci, bi2, mi) => { root.choose-block-model(ci, bi2, mi); }
                 open-block-detail(ci, bi2) => { root.open-block-detail(ci, bi2); }
