@@ -2287,6 +2287,7 @@ pub fn run_desktop_app(
         let toast_timer = toast_timer.clone();
         let open_compact_window = open_compact_window.clone();
         let vst3_editor_handles_for_compact = vst3_editor_handles.clone();
+        let block_editor_draft = block_editor_draft.clone();
         window.on_open_compact_chain_view(move |chain_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2335,6 +2336,7 @@ pub fn run_desktop_app(
                 let output_chain_devices = output_chain_devices.clone();
                 let saved_project_snapshot = saved_project_snapshot.clone();
                 let project_dirty = project_dirty.clone();
+                let block_editor_draft = block_editor_draft.clone();
                 let weak_main = window.as_weak();
                 let weak_compact = compact_win.as_weak();
                 let toast_timer = toast_timer.clone();
@@ -2358,7 +2360,14 @@ pub fn run_desktop_app(
                         return;
                     };
                     block.enabled = !block.enabled;
+                    let new_enabled = block.enabled;
                     let chain_id = chain.id.clone();
+                    // Keep block_editor_draft in sync to prevent stale persist from reverting
+                    if let Some(draft) = block_editor_draft.borrow_mut().as_mut() {
+                        if draft.chain_index == chain_idx && draft.block_index == Some(block_idx) {
+                            draft.enabled = new_enabled;
+                        }
+                    }
                     if let Err(error) =
                         sync_live_chain_runtime(&project_runtime, session, &chain_id)
                     {
@@ -4702,6 +4711,7 @@ pub fn run_desktop_app(
     {
         let weak_window = window.as_weak();
         let selected_block = selected_block.clone();
+        let block_editor_draft = block_editor_draft.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
@@ -4731,7 +4741,16 @@ pub fn run_desktop_app(
                 return;
             };
             block.enabled = !block.enabled;
+            let new_enabled = block.enabled;
             let chain_id = chain.id.clone();
+            // Keep block_editor_draft in sync to prevent stale persist from reverting
+            if let Some(draft) = block_editor_draft.borrow_mut().as_mut() {
+                if draft.chain_index == chain_index as usize && draft.block_index == Some(block_index) {
+                    draft.enabled = new_enabled;
+                }
+            }
+            // Keep inline drawer UI in sync
+            window.set_block_drawer_enabled(new_enabled);
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 set_status_error(&window, &toast_timer, &error.to_string());
                 return;
