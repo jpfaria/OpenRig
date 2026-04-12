@@ -192,6 +192,8 @@ run_armbian() {
 
     run mkdir -p "$OUTPUT_DIR"
 
+    # Armbian ignores OUTPUT_DIR when running inside Docker — images land
+    # in its own output/images/ dir.  We copy them to our OUTPUT_DIR after.
     run "${BASH:-bash}" "$ARMBIAN_DIR/compile.sh" \
         "BOARD=$BOARD" \
         "BRANCH=$BRANCH" \
@@ -200,13 +202,20 @@ run_armbian() {
         "BUILD_MINIMAL=yes" \
         "KERNEL_CONFIGURE=no" \
         "BOOT_LOGO=no" \
-        "COMPRESS_OUTPUTIMAGE=no" \
-        "OUTPUT_DIR=$OUTPUT_DIR"
+        "COMPRESS_OUTPUTIMAGE=no"
+
+    # Copy resulting image to our output dir
+    local armbian_images="$ARMBIAN_DIR/output/images"
+    if ls "$armbian_images"/Armbian*.img 1>/dev/null 2>&1; then
+        run cp "$armbian_images"/Armbian*.img "$OUTPUT_DIR/"
+        run cp "$armbian_images"/Armbian*.img.sha "$OUTPUT_DIR/" 2>/dev/null || true
+        run cp "$armbian_images"/Armbian*.img.txt "$OUTPUT_DIR/" 2>/dev/null || true
+    fi
 
     echo ""
     echo "Image written to: $OUTPUT_DIR/"
-    echo "Flash with Balena Etcher or:"
-    echo "  sudo dd if=\"$OUTPUT_DIR/Armbian_*.img\" of=/dev/sdX bs=4M status=progress"
+    echo "Flash with:"
+    echo "  ./scripts/flash-sd.sh $OUTPUT_DIR/Armbian_*.img"
 }
 
 # ── Main ──────────────────────────────────────────────────────────────────────
