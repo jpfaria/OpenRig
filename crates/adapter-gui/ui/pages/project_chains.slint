@@ -1296,22 +1296,22 @@ component ChainRow inherits Rectangle {
             x: 120px + Math.mod(block-index, root.blocks-per-row) * 116px;
             y: Math.floor(block-index / root.blocks-per-row) * 108px;
             block: block;
-            selected: root.dragging-chain-index == root.chain-index && root.dragging-block-index == block.real_index
+            selected: root.dragging-chain-index == root.chain-index && root.dragging-block-index == block-index
                 ? false
-                : root.selected-block-chain-index == root.chain-index && root.selected-block-index == block.real_index;
-            dragging: root.dragging-chain-index == root.chain-index && root.dragging-block-index == block.real_index;
-            clicked => { root.select-chain-block(root.chain-index, block.real_index); }
+                : root.selected-block-chain-index == root.chain-index && root.selected-block-index == block-index;
+            dragging: root.dragging-chain-index == root.chain-index && root.dragging-block-index == block-index;
+            clicked => { root.select-chain-block(root.chain-index, block-index); }
             drag-moved(pointer-x, pointer-y) => {
                 root.suppress-insert-hover = false;
                 root.dragging-chain-index = root.chain-index;
-                root.dragging-block-index = block.real_index;
+                root.dragging-block-index = block-index;
                 root.drag-hover-before-index = root.slot-index-for-position(pointer-x, pointer-y);
             }
             drag-finished(pointer-x, pointer-y) => {
-                if root.dragging-chain-index == root.chain-index && root.dragging-block-index == block.real_index {
+                if root.dragging-chain-index == root.chain-index && root.dragging-block-index == block-index {
                     let before-index = root.slot-index-for-position(pointer-x, pointer-y);
                     root.drag-hover-before-index = before-index;
-                    root.reorder-chain-block(root.chain-index, block.real_index, before-index);
+                    root.reorder-chain-block(root.chain-index, block-index, before-index);
                     root.dragging-chain-index = -1;
                     root.dragging-block-index = -1;
                     root.drag-hover-before-index = -1;
