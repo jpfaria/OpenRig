@@ -180,10 +180,13 @@ prepare_overlay() {
     run cp "$PROJECT_ROOT/platform/orange-pi/dtbo/openrig-usbc-host.dts" \
         "$OVERLAY_DIR/openrig-usbc-host.dts"
 
-    # Stage PREEMPT_RT kernel config fragment
-    run mkdir -p "$USERPATCHES_DIR/config/kernel"
-    run cp "$PROJECT_ROOT/platform/orange-pi/kernel-config/orangepi5b-edge.config" \
-        "$USERPATCHES_DIR/config/kernel/orangepi5b-edge.config"
+    # PREEMPT_RT kernel config fragment — disabled for now.
+    # edge 7.0.0-rc7 does not support CONFIG_PREEMPT_RT=y reliably and
+    # applying the fragment produces a non-bootable kernel. Re-enable
+    # once the edge kernel ships with RT support baked in.
+    # run mkdir -p "$USERPATCHES_DIR/config/kernel"
+    # run cp "$PROJECT_ROOT/platform/orange-pi/kernel-config/orangepi5b-edge.config" \
+    #     "$USERPATCHES_DIR/config/kernel/orangepi5b-edge.config"
 }
 
 # ── Step 3: Run Armbian build ─────────────────────────────────────────────────
