@@ -32,6 +32,7 @@ OVERLAY_DIR="$USERPATCHES_DIR/overlay"
 GITHUB_REPO="jpfaria/OpenRig"
 
 VERSION="latest"
+LOCAL_DEB=""
 DRY_RUN=false
 
 # ── Parse args ────────────────────────────────────────────────────────────────
@@ -39,6 +40,10 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --version)
             VERSION="$2"
+            shift 2
+            ;;
+        --local-deb)
+            LOCAL_DEB="$2"
             shift 2
             ;;
         --dry-run)
@@ -91,8 +96,19 @@ check_prereqs() {
     fi
 }
 
-# ── Step 1: Download OpenRig .deb release ────────────────────────────────────
+# ── Step 1: Download or use local OpenRig .deb ──────────────────────────────
 download_release() {
+    if [ -n "$LOCAL_DEB" ]; then
+        step "1/3  Using local .deb: $LOCAL_DEB"
+        if [ ! -f "$LOCAL_DEB" ]; then
+            echo "ERROR: Local .deb not found: $LOCAL_DEB"
+            exit 1
+        fi
+        RELEASE_DEB="$LOCAL_DEB"
+        echo "  Package: $RELEASE_DEB"
+        return
+    fi
+
     step "1/3  Downloading OpenRig arm64 .deb release ($VERSION)"
 
     local download_dir="$PROJECT_ROOT/output/orange-pi-release"
@@ -199,6 +215,9 @@ echo "Repo:    github.com/$GITHUB_REPO"
 echo "Version: $VERSION"
 echo "Board:   $BOARD ($BRANCH, $RELEASE)"
 echo "DryRun:  $DRY_RUN"
+if [ -n "$LOCAL_DEB" ]; then
+    echo "LocalDeb: $LOCAL_DEB"
+fi
 echo ""
 
 check_prereqs
