@@ -3925,7 +3925,11 @@ pub fn run_desktop_app(
                 }
                 _ => {}
             }
-            log::info!("[select_chain_block] block at index {}: id='{}', kind={:?}", block_index, block.id.0, block.model_ref().map(|m| format!("{}/{}", m.effect_type, m.model)));
+            log::info!("[select_chain_block] block at real_index={}: id='{}', kind={}", block_index, block.id.0, block.model_ref().map(|m| format!("{}/{}", m.effect_type, m.model)).unwrap_or_else(|| "io/insert".to_string()));
+            log::info!("[select_chain_block] chain has {} blocks:", chain.blocks.len());
+            for (i, b) in chain.blocks.iter().enumerate() {
+                log::info!("[select_chain_block]   [{}] id='{}' kind={}", i, b.id.0, b.model_ref().map(|m| format!("{}/{}", m.effect_type, m.model)).unwrap_or_else(|| "io/insert".to_string()));
+            }
             let Some(editor_data) = block_editor_data(block) else {
                 set_status_error(&window, &toast_timer, "Esse block ainda não pode ser editado pela GUI.");
                 return;
@@ -6836,6 +6840,13 @@ fn replace_project_chains(
                 blocks: {
                     let first_input_idx = chain.blocks.iter().position(|b| matches!(&b.kind, AudioBlockKind::Input(_)));
                     let last_output_idx = chain.blocks.iter().rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_)));
+                    log::info!("[replace_project_chains] chain[{}] '{}' UI blocks:", index, chain.description.as_deref().unwrap_or(""));
+                    for (real_idx, b) in chain.blocks.iter().enumerate() {
+                        if Some(real_idx) == first_input_idx || Some(real_idx) == last_output_idx {
+                            continue;
+                        }
+                        log::info!("[replace_project_chains]   real_index={} kind={}", real_idx, b.model_ref().map(|m| format!("{}/{}", m.effect_type, m.model)).unwrap_or_else(|| "io/insert".to_string()));
+                    }
                     ModelRc::from(Rc::new(VecModel::from(
                         chain
                             .blocks
@@ -7525,6 +7536,7 @@ fn persist_block_editor_draft(
             let kind = build_audio_block_kind(&draft.effect_type, &draft.model_id, params)
                 .map_err(|error| anyhow!(error))?;
             let insert_index = draft.before_index.min(chain.blocks.len());
+            log::info!("[persist] INSERT new block at index={}, effect_type='{}', model_id='{}'", insert_index, draft.effect_type, draft.model_id);
             chain.blocks.insert(
                 insert_index,
                 AudioBlock {
@@ -7533,6 +7545,10 @@ fn persist_block_editor_draft(
                     kind,
                 },
             );
+            log::info!("[persist] chain after insert has {} blocks:", chain.blocks.len());
+            for (i, b) in chain.blocks.iter().enumerate() {
+                log::info!("[persist]   [{}] id='{}' kind={}", i, b.id.0, b.model_ref().map(|m| format!("{}/{}", m.effect_type, m.model)).unwrap_or_else(|| "io/insert".to_string()));
+            }
         }
         chain.id.clone()
     };
