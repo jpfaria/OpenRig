@@ -2559,22 +2559,60 @@ pub fn run_desktop_app(
                 });
             }
 
-            // Wire reorder-block
+            // Wire reorder-block — resolve real indices from CompactBlockItem.block_index
             {
                 let project_session = project_session.clone();
                 let weak_main = window.as_weak();
                 let weak_compact = compact_win.as_weak();
-                compact_win.on_reorder_block(move |ci, from, before| {
-                    log::info!("[compact] reorder-block: chain={}, from={}, before={}", ci, from, before);
+                let project_chains = project_chains.clone();
+                let project_runtime = project_runtime.clone();
+                let saved_project_snapshot = saved_project_snapshot.clone();
+                let project_dirty = project_dirty.clone();
+                let input_chain_devices = input_chain_devices.clone();
+                let output_chain_devices = output_chain_devices.clone();
+                compact_win.on_reorder_block(move |ci, compact_from, compact_before| {
                     let Some(main_win) = weak_main.upgrade() else { return; };
                     let Some(cw) = weak_compact.upgrade() else { return; };
-                    // Reuse main window's reorder logic
-                    main_win.invoke_reorder_chain_block(ci, from, before);
-                    // Refresh compact blocks
-                    let session_borrow = project_session.borrow();
-                    let Some(session) = session_borrow.as_ref() else { return; };
-                    let blocks = build_compact_blocks(&session.project, ci as usize);
+                    // Look up real chain.blocks indices from the Slint compact model
+                    let compact_model = cw.get_compact_blocks();
+                    let compact_len = compact_model.row_count();
+                    let from_pos = compact_from as usize;
+                    if from_pos >= compact_len { return; }
+                    let from_index = compact_model.row_data(from_pos)
+                        .map(|item| item.block_index as usize)
+                        .unwrap_or(0);
+                    let before_pos = compact_before as usize;
+                    let real_before = if before_pos < compact_len {
+                        compact_model.row_data(before_pos)
+                            .map(|item| item.block_index as usize)
+                            .unwrap_or(0)
+                    } else {
+                        // "after last compact block" → one position after last compact block's real index
+                        compact_model.row_data(compact_len - 1)
+                            .map(|item| item.block_index as usize + 1)
+                            .unwrap_or(0)
+                    };
+                    log::info!("[compact] reorder-block: compact_from={}, compact_before={}, real_from={}, real_before={}", compact_from, compact_before, from_index, real_before);
+                    if real_before == from_index || real_before == from_index + 1 { return; }
+                    let mut session_borrow = project_session.borrow_mut();
+                    let Some(session) = session_borrow.as_mut() else { return; };
+                    let chain_idx = ci as usize;
+                    let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
+                    let block_count = chain.blocks.len();
+                    if from_index >= block_count { return; }
+                    let block = chain.blocks.remove(from_index);
+                    let mut normalized_before = real_before;
+                    if normalized_before > from_index { normalized_before -= 1; }
+                    let insert_at = normalized_before.min(chain.blocks.len());
+                    chain.blocks.insert(insert_at, block);
+                    let chain_id = chain.id.clone();
+                    if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                        log::error!("[compact] reorder-block runtime sync: {}", e);
+                    }
+                    replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
+                    let blocks = build_compact_blocks(&session.project, chain_idx);
                     cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
+                    sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty, auto_save);
                 });
             }
 
@@ -2701,9 +2739,24 @@ pub fn run_desktop_app(
             // Wire open-block-detail (click on model select opens full editor)
             {
                 let weak_main = window.as_weak();
+                let project_session_detail = project_session.clone();
                 compact_win.on_open_block_detail(move |ci, bi| {
                     let Some(main_win) = weak_main.upgrade() else { return; };
-                    main_win.invoke_select_chain_block(ci, bi);
+                    // bi is a real block index from CompactBlockItem — convert to UI index
+                    // because on_select_chain_block now expects UI indices
+                    let session_borrow = project_session_detail.borrow();
+                    let ui_bi = if let Some(session) = session_borrow.as_ref() {
+                        if let Some(chain) = session.project.chains.get(ci as usize) {
+                            real_block_index_to_ui(chain, bi as usize)
+                                .map(|i| i as i32)
+                                .unwrap_or(bi)
+                        } else {
+                            bi
+                        }
+                    } else {
+                        bi
+                    };
+                    main_win.invoke_select_chain_block(ci, ui_bi);
                     let _ = main_win.window().show();
                 });
             }
@@ -3750,7 +3803,7 @@ pub fn run_desktop_app(
         let block_type_options_for_select = block_type_options.clone();
         let vst3_handles_for_select = vst3_editor_handles.clone();
         let vst3_sr_for_select = vst3_sample_rate;
-        window.on_select_chain_block(move |chain_index, block_index| {
+        window.on_select_chain_block(move |chain_index, ui_block_index| {
             let Some(window) = weak_main_window.upgrade() else {
                 return;
             };
@@ -3763,6 +3816,10 @@ pub fn run_desktop_app(
                 set_status_error(&window, &toast_timer, "Chain inválida.");
                 return;
             };
+            // Convert UI index (position in filtered array without first Input/last Output)
+            // to real index in chain.blocks — always computed from current chain state
+            let block_index = ui_index_to_real_block_index(chain, ui_block_index as usize) as i32;
+            log::info!("[select_chain_block] ui_index={} → real_index={}", ui_block_index, block_index);
             let Some(block) = chain.blocks.get(block_index as usize) else {
                 log::warn!("[select_chain_block] block_index={} out of bounds, chain has {} blocks", block_index, chain.blocks.len());
                 set_status_error(&window, &toast_timer, "Block inválido.");
@@ -3859,7 +3916,11 @@ pub fn run_desktop_app(
                 }
                 _ => {}
             }
-            log::info!("[select_chain_block] block at index {}: id='{}', kind={:?}", block_index, block.id.0, block.model_ref().map(|m| format!("{}/{}", m.effect_type, m.model)));
+            log::info!("[select_chain_block] block at real_index={}: id='{}', kind={}", block_index, block.id.0, block.model_ref().map(|m| format!("{}/{}", m.effect_type, m.model)).unwrap_or_else(|| "io/insert".to_string()));
+            log::info!("[select_chain_block] chain has {} blocks:", chain.blocks.len());
+            for (i, b) in chain.blocks.iter().enumerate() {
+                log::info!("[select_chain_block]   [{}] id='{}' kind={}", i, b.id.0, b.model_ref().map(|m| format!("{}/{}", m.effect_type, m.model)).unwrap_or_else(|| "io/insert".to_string()));
+            }
             let Some(editor_data) = block_editor_data(block) else {
                 set_status_error(&window, &toast_timer, "Esse block ainda não pode ser editado pela GUI.");
                 return;
@@ -3896,7 +3957,7 @@ pub fn run_desktop_app(
             let (eq_total, eq_bands) = compute_eq_curves(&editor_data.effect_type, &editor_data.model_id, &editor_data.params);
             eq_band_curves.set_vec(eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>());
             window.set_eq_total_curve(eq_total.into());
-            set_selected_block(&window, selected_block.borrow().as_ref());
+            set_selected_block(&window, selected_block.borrow().as_ref(), Some(chain));
             let drawer_state =
                 block_drawer_state(Some(block_index as usize), &effect_type, Some(&model_id));
             window.set_block_drawer_title(drawer_state.title.into());
@@ -4470,7 +4531,7 @@ pub fn run_desktop_app(
                             return;
                         }
                         *selected_block.borrow_mut() = None;
-                        set_selected_block(&main, None);
+                        set_selected_block(&main, None, None);
                         open_block_windows.borrow_mut().retain(|bw| {
                             bw.chain_index != draft.chain_index
                                 || bw.block_index != draft.block_index.unwrap_or(usize::MAX)
@@ -4525,7 +4586,7 @@ pub fn run_desktop_app(
                         sync_project_dirty(&main, session, &saved_project_snapshot, &project_dirty, auto_save);
                         drop(session_borrow);
                         *selected_block.borrow_mut() = None;
-                        set_selected_block(&main, None);
+                        set_selected_block(&main, None, None);
                         open_block_windows.borrow_mut().retain(|bw| {
                             bw.chain_index != draft.chain_index || bw.block_index != block_index
                         });
@@ -4610,7 +4671,7 @@ pub fn run_desktop_app(
                         }
                         drop(draft_borrow);
                         *selected_block.borrow_mut() = None;
-                        set_selected_block(&main, None);
+                        set_selected_block(&main, None, None);
                         let _ = win.hide();
                     });
                 }
@@ -4643,7 +4704,7 @@ pub fn run_desktop_app(
             curve_editor_points.set_vec(Vec::new());
             eq_band_curves.set_vec(Vec::new());
             window.set_eq_total_curve("".into());
-            set_selected_block(&window, None);
+            set_selected_block(&window, None, None);
             window.set_show_block_drawer(false);
             window.set_show_block_type_picker(false);
             window.set_block_drawer_status_message("".into());
@@ -4663,11 +4724,10 @@ pub fn run_desktop_app(
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         let toast_timer = toast_timer.clone();
-        window.on_toggle_chain_block_enabled(move |chain_index, block_index| {
+        window.on_toggle_chain_block_enabled(move |chain_index, ui_block_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            log::info!("on_toggle_chain_block_enabled: chain_index={}, block_index={}", chain_index, block_index);
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
                 set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
@@ -4677,7 +4737,10 @@ pub fn run_desktop_app(
                 set_status_error(&window, &toast_timer, "Chain inválida.");
                 return;
             };
-            let Some(block) = chain.blocks.get_mut(block_index as usize) else {
+            // Convert UI index to real block index from current chain state
+            let block_index = ui_index_to_real_block_index(chain, ui_block_index as usize);
+            log::info!("on_toggle_chain_block_enabled: chain_index={}, ui_index={}, real_index={}", chain_index, ui_block_index, block_index);
+            let Some(block) = chain.blocks.get_mut(block_index) else {
                 set_status_error(&window, &toast_timer, "Block inválido.");
                 return;
             };
@@ -4693,11 +4756,12 @@ pub fn run_desktop_app(
                 &*input_chain_devices.borrow(),
                 &*output_chain_devices.borrow(),
             );
+            let chain_ref = session.project.chains.get(chain_index as usize);
             *selected_block.borrow_mut() = Some(SelectedBlock {
                 chain_index: chain_index as usize,
-                block_index: block_index as usize,
+                block_index,
             });
-            set_selected_block(&window, selected_block.borrow().as_ref());
+            set_selected_block(&window, selected_block.borrow().as_ref(), chain_ref);
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
             clear_status(&window, &toast_timer);
         });
@@ -4716,8 +4780,7 @@ pub fn run_desktop_app(
         let output_chain_devices = output_chain_devices.clone();
         let toast_timer = toast_timer.clone();
         let open_block_windows = open_block_windows.clone();
-        window.on_reorder_chain_block(move |chain_index, from_index, before_index| {
-            log::info!("[reorder_chain_block] chain_index={}, from_index={} (real), before_index={} (UI)", chain_index, from_index, before_index);
+        window.on_reorder_chain_block(move |chain_index, ui_from_index, ui_before_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
@@ -4731,14 +4794,14 @@ pub fn run_desktop_app(
                     set_status_error(&window, &toast_timer, "Chain inválida.");
                     return;
                 };
+                // Both from_index and before_index are in UI space — convert to real indices
+                let from_index = ui_index_to_real_block_index(chain, ui_from_index as usize) as i32;
+                let real_before = ui_index_to_real_block_index(chain, ui_before_index as usize) as i32;
+                log::info!("[reorder_chain_block] chain_index={}, ui_from={} → real_from={}, ui_before={} → real_before={}", chain_index, ui_from_index, from_index, ui_before_index, real_before);
                 let block_count = chain.blocks.len() as i32;
                 if from_index < 0 || from_index >= block_count {
                     return;
                 }
-                // before_index is in UI space (excludes hidden first Input and last Output).
-                // Convert to real block index before operating on chain.blocks.
-                let real_before = ui_index_to_real_block_index(chain, before_index as usize) as i32;
-                log::info!("[reorder_chain_block] real_before={}", real_before);
                 if real_before == from_index || real_before == from_index + 1 {
                     return;
                 }
@@ -4777,7 +4840,7 @@ pub fn run_desktop_app(
             }
             window.set_show_block_drawer(false);
             window.set_show_block_type_picker(false);
-            set_selected_block(&window, None);
+            set_selected_block(&window, None, None);
             sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
             clear_status(&window, &toast_timer);
         });
@@ -4837,7 +4900,7 @@ pub fn run_desktop_app(
             curve_editor_points.set_vec(Vec::new());
             eq_band_curves.set_vec(Vec::new());
             window.set_eq_total_curve("".into());
-            set_selected_block(&window, None);
+            set_selected_block(&window, None, None);
             window.set_block_drawer_edit_mode(false);
             window.set_block_drawer_selected_type_index(-1);
             window.set_block_drawer_selected_model_index(-1);
@@ -5217,7 +5280,7 @@ pub fn run_desktop_app(
             window.set_eq_total_curve("".into());
             window.set_block_drawer_selected_model_index(-1);
             window.set_block_drawer_selected_type_index(-1);
-            set_selected_block(&window, None);
+            set_selected_block(&window, None, None);
             window.set_show_block_type_picker(false);
             window.set_show_block_drawer(false);
             window.set_block_drawer_status_message("".into());
@@ -5651,7 +5714,7 @@ pub fn run_desktop_app(
                 return;
             }
             *selected_block.borrow_mut() = None;
-            set_selected_block(&window, None);
+            set_selected_block(&window, None, None);
             *block_editor_draft.borrow_mut() = None;
             block_model_options.set_vec(Vec::new());
             block_model_option_labels.set_vec(Vec::new());
@@ -5752,7 +5815,7 @@ pub fn run_desktop_app(
             curve_editor_points.set_vec(Vec::new());
             eq_band_curves.set_vec(Vec::new());
             window.set_eq_total_curve("".into());
-            set_selected_block(&window, None);
+            set_selected_block(&window, None, None);
             window.set_show_block_drawer(false);
             window.set_block_drawer_status_message("".into());
             clear_status(&window, &toast_timer);
@@ -6770,6 +6833,13 @@ fn replace_project_chains(
                 blocks: {
                     let first_input_idx = chain.blocks.iter().position(|b| matches!(&b.kind, AudioBlockKind::Input(_)));
                     let last_output_idx = chain.blocks.iter().rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_)));
+                    log::info!("[replace_project_chains] chain[{}] '{}' UI blocks:", index, chain.description.as_deref().unwrap_or(""));
+                    for (real_idx, b) in chain.blocks.iter().enumerate() {
+                        if Some(real_idx) == first_input_idx || Some(real_idx) == last_output_idx {
+                            continue;
+                        }
+                        log::info!("[replace_project_chains]   real_index={} kind={}", real_idx, b.model_ref().map(|m| format!("{}/{}", m.effect_type, m.model)).unwrap_or_else(|| "io/insert".to_string()));
+                    }
                     ModelRc::from(Rc::new(VecModel::from(
                         chain
                             .blocks
@@ -6949,10 +7019,14 @@ fn block_model_picker_items(effect_type: &str, instrument: &str) -> Vec<BlockMod
 fn block_model_picker_labels(items: &[BlockModelPickerItem]) -> Vec<SharedString> {
     items.iter().map(|item| item.label.clone()).collect()
 }
-fn set_selected_block(window: &AppWindow, selected_block: Option<&SelectedBlock>) {
+fn set_selected_block(window: &AppWindow, selected_block: Option<&SelectedBlock>, chain: Option<&Chain>) {
     if let Some(selected_block) = selected_block {
+        let ui_index = chain
+            .and_then(|c| real_block_index_to_ui(c, selected_block.block_index))
+            .map(|i| i as i32)
+            .unwrap_or(selected_block.block_index as i32);
         window.set_selected_chain_block_chain_index(selected_block.chain_index as i32);
-        window.set_selected_chain_block_index(selected_block.block_index as i32);
+        window.set_selected_chain_block_index(ui_index);
     } else {
         window.set_selected_chain_block_chain_index(-1);
         window.set_selected_chain_block_index(-1);
@@ -7459,6 +7533,7 @@ fn persist_block_editor_draft(
             let kind = build_audio_block_kind(&draft.effect_type, &draft.model_id, params)
                 .map_err(|error| anyhow!(error))?;
             let insert_index = draft.before_index.min(chain.blocks.len());
+            log::info!("[persist] INSERT new block at index={}, effect_type='{}', model_id='{}'", insert_index, draft.effect_type, draft.model_id);
             chain.blocks.insert(
                 insert_index,
                 AudioBlock {
@@ -7467,6 +7542,10 @@ fn persist_block_editor_draft(
                     kind,
                 },
             );
+            log::info!("[persist] chain after insert has {} blocks:", chain.blocks.len());
+            for (i, b) in chain.blocks.iter().enumerate() {
+                log::info!("[persist]   [{}] id='{}' kind={}", i, b.id.0, b.model_ref().map(|m| format!("{}/{}", m.effect_type, m.model)).unwrap_or_else(|| "io/insert".to_string()));
+            }
         }
         chain.id.clone()
     };
@@ -8255,6 +8334,23 @@ fn ui_index_to_real_block_index(chain: &Chain, ui_index: usize) -> usize {
     }
     // If ui_index is past all visible blocks, return end (before last output)
     last_output_idx.unwrap_or(chain.blocks.len())
+}
+
+/// Map a real chain.blocks index to the UI block index (which excludes hidden first Input and last Output).
+fn real_block_index_to_ui(chain: &Chain, real_index: usize) -> Option<usize> {
+    let first_input_idx = chain.blocks.iter().position(|b| matches!(&b.kind, AudioBlockKind::Input(_)));
+    let last_output_idx = chain.blocks.iter().rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_)));
+    let mut visible_count = 0;
+    for (idx, _) in chain.blocks.iter().enumerate() {
+        if Some(idx) == first_input_idx || Some(idx) == last_output_idx {
+            continue;
+        }
+        if idx == real_index {
+            return Some(visible_count);
+        }
+        visible_count += 1;
+    }
+    None
 }
 
 fn chain_block_item_from_block(block: &AudioBlock) -> ChainBlockItem {
