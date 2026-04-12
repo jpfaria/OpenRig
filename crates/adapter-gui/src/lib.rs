@@ -927,6 +927,7 @@ pub fn run_desktop_app(
         });
     }
     project_settings_window.set_project_devices(ModelRc::from(project_devices.clone()));
+    window.set_project_devices(ModelRc::from(project_devices.clone()));
     project_settings_window.set_sample_rate_options(window.get_sample_rate_options());
     project_settings_window.set_buffer_size_options(window.get_buffer_size_options());
     chain_input_window.set_device_options(ModelRc::from(chain_input_device_options.clone()));
@@ -1232,6 +1233,24 @@ pub fn run_desktop_app(
         });
     }
     {
+        let project_devices = project_devices.clone();
+        window.on_toggle_project_device(move |index, selected| {
+            toggle_device_row(&project_devices, index as usize, selected);
+        });
+    }
+    {
+        let project_devices = project_devices.clone();
+        window.on_update_project_sample_rate(move |index, value| {
+            update_device_sample_rate(&project_devices, index as usize, value);
+        });
+    }
+    {
+        let project_devices = project_devices.clone();
+        window.on_update_project_buffer_size(move |index, value| {
+            update_device_buffer_size(&project_devices, index as usize, value);
+        });
+    }
+    {
         let weak_window = window.as_weak();
         let input_devices = input_devices.clone();
         let toast_timer = toast_timer.clone();
@@ -1268,6 +1287,7 @@ pub fn run_desktop_app(
         let weak_window = window.as_weak();
         let input_devices = input_devices.clone();
         let output_devices = output_devices.clone();
+        let project_devices = project_devices.clone();
         let audio_settings_mode = audio_settings_mode.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
@@ -1281,30 +1301,30 @@ pub fn run_desktop_app(
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            let input_devices = match selected_device_settings(&input_devices, "input") {
-                Ok(devices) => devices,
-                Err(error) => {
-                    set_status_error(&window, &toast_timer, &error.to_string());
-                    return;
-                }
-            };
-            let output_devices = match selected_device_settings(&output_devices, "output") {
-                Ok(devices) => devices,
-                Err(error) => {
-                    set_status_error(&window, &toast_timer, &error.to_string());
-                    return;
-                }
-            };
-            let settings = GuiAudioSettings {
-                input_devices,
-                output_devices,
-            };
-            if !settings.is_complete() {
-                set_status_warning(&window, &toast_timer, "Selecione pelo menos um input e um output antes de continuar.");
-                return;
-            }
             match *audio_settings_mode.borrow() {
                 AudioSettingsMode::Gui => {
+                    let input_devices = match selected_device_settings(&input_devices, "input") {
+                        Ok(devices) => devices,
+                        Err(error) => {
+                            set_status_error(&window, &toast_timer, &error.to_string());
+                            return;
+                        }
+                    };
+                    let output_devices = match selected_device_settings(&output_devices, "output") {
+                        Ok(devices) => devices,
+                        Err(error) => {
+                            set_status_error(&window, &toast_timer, &error.to_string());
+                            return;
+                        }
+                    };
+                    let settings = GuiAudioSettings {
+                        input_devices,
+                        output_devices,
+                    };
+                    if !settings.is_complete() {
+                        set_status_warning(&window, &toast_timer, "Selecione pelo menos um input e um output antes de continuar.");
+                        return;
+                    }
                     match FilesystemStorage::save_gui_audio_settings(&settings) {
                         Ok(()) => {
                             clear_status(&window, &toast_timer);
@@ -1314,15 +1334,21 @@ pub fn run_desktop_app(
                     }
                 }
                 AudioSettingsMode::Project => {
+                    let project_device_settings =
+                        match selected_device_settings(&project_devices, "device") {
+                            Ok(devices) => devices,
+                            Err(error) => {
+                                set_status_error(&window, &toast_timer, &error.to_string());
+                                return;
+                            }
+                        };
                     let mut session_borrow = project_session.borrow_mut();
                     let Some(session) = session_borrow.as_mut() else {
                         set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                         return;
                     };
-                    session.project.device_settings = settings
-                        .input_devices
+                    session.project.device_settings = project_device_settings
                         .into_iter()
-                        .chain(settings.output_devices)
                         .map(|device| DeviceSettings {
                             device_id: DeviceId(device.device_id),
                             sample_rate: device.sample_rate,
@@ -1834,7 +1860,6 @@ pub fn run_desktop_app(
             settings_window.set_status_message("".into());
             clear_status(&window, &toast_timer);
             window.set_show_project_settings(true);
-            show_child_window(window.window(), settings_window.window());
         });
     }
     {
@@ -2077,6 +2102,7 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let weak_input_window = chain_input_window.as_weak();
         let weak_output_window = chain_output_window.as_weak();
+        let io_block_insert_draft = io_block_insert_draft.clone();
         let toast_timer = toast_timer.clone();
         window.on_add_chain(move || {
             log::info!("on_add_chain triggered");
@@ -2108,6 +2134,7 @@ pub fn run_desktop_app(
                 chain_output_channels.clone(),
                 weak_input_window.clone(),
                 weak_output_window.clone(),
+                io_block_insert_draft.clone(),
                 toast_timer.clone(),
                 auto_save,
             );
@@ -2184,6 +2211,7 @@ pub fn run_desktop_app(
         let project_dirty = project_dirty.clone();
         let weak_input_window = chain_input_window.as_weak();
         let weak_output_window = chain_output_window.as_weak();
+        let io_block_insert_draft = io_block_insert_draft.clone();
         let toast_timer = toast_timer.clone();
         window.on_configure_chain(move |index| {
             let Some(window) = weak_window.upgrade() else {
@@ -2214,6 +2242,7 @@ pub fn run_desktop_app(
                 chain_output_channels.clone(),
                 weak_input_window.clone(),
                 weak_output_window.clone(),
+                io_block_insert_draft.clone(),
                 toast_timer.clone(),
                 auto_save,
             );
@@ -2913,6 +2942,11 @@ pub fn run_desktop_app(
             if let Some(input_window) = weak_input_window.upgrade() {
                 input_window.set_selected_device_index(selected_index);
             }
+            if let Some(chain_window) = chain_editor_window_ref.borrow().as_ref() {
+                if chain_window.get_show_input_editor() {
+                    chain_window.set_input_selected_device_index(selected_index);
+                }
+            }
         });
     }
     {
@@ -2971,6 +3005,11 @@ pub fn run_desktop_app(
             window.set_selected_chain_output_device_index(selected_index);
             if let Some(output_window) = weak_output_window.upgrade() {
                 output_window.set_selected_device_index(selected_index);
+            }
+            if let Some(chain_window) = chain_editor_window_ref.borrow().as_ref() {
+                if chain_window.get_show_output_editor() {
+                    chain_window.set_output_selected_device_index(selected_index);
+                }
             }
         });
     }
@@ -8012,10 +8051,10 @@ fn build_project_device_rows(
 ) -> Vec<DeviceSelectionItem> {
     let mut rows: Vec<DeviceSelectionItem> = Vec::new();
     for device in input_devices.iter().chain(output_devices.iter()) {
-        if rows
-            .iter()
-            .any(|row| row.device_id.as_str() == device.id.as_str())
-        {
+        if rows.iter().any(|row| {
+            row.device_id.as_str() == device.id.as_str()
+                || row.name.as_str() == device.name.as_str()
+        }) {
             continue;
         }
         let config = device_settings
@@ -8047,6 +8086,7 @@ fn set_project_dirty(window: &AppWindow, project_dirty: &Rc<RefCell<bool>>, dirt
     *project_dirty.borrow_mut() = dirty;
     window.set_project_dirty(dirty);
 }
+#[track_caller]
 fn sync_project_dirty(
     window: &AppWindow,
     session: &ProjectSession,
@@ -8054,6 +8094,17 @@ fn sync_project_dirty(
     project_dirty: &Rc<RefCell<bool>>,
     auto_save: bool,
 ) {
+    // Snapshot audio hardware + JACK state for every UI-triggered mutation so we
+    // can correlate a specific user action (knob, device pick, chain edit) with
+    // downstream Scarlett/xHCI disconnects in the journal. The caller location
+    // identifies which UI callback fired this mutation.
+    let caller = std::panic::Location::caller();
+    infra_cpal::log_audio_status(&format!(
+        "sync_project_dirty from {}:{}",
+        caller.file(),
+        caller.line()
+    ));
+
     if auto_save {
         if let Some(ref path) = session.project_path {
             match save_project_session(session, path) {
@@ -8759,8 +8810,9 @@ fn setup_chain_editor_callbacks(
     chain_output_device_options: Rc<VecModel<SharedString>>,
     chain_input_channels: Rc<VecModel<ChannelOptionItem>>,
     chain_output_channels: Rc<VecModel<ChannelOptionItem>>,
-    weak_input_window: slint::Weak<ChainInputWindow>,
-    weak_output_window: slint::Weak<ChainOutputWindow>,
+    _weak_input_window: slint::Weak<ChainInputWindow>,
+    _weak_output_window: slint::Weak<ChainOutputWindow>,
+    io_block_insert_draft: Rc<RefCell<Option<IoBlockInsertDraft>>>,
     toast_timer: Rc<Timer>,
     auto_save: bool,
 ) {
@@ -8800,18 +8852,13 @@ fn setup_chain_editor_callbacks(
     // on_edit_input
     {
         let weak_window = weak_window.clone();
-        let weak_input_window = weak_input_window.clone();
         let weak_chain_window = editor_window.as_weak();
         let chain_draft = chain_draft.clone();
-        let project_session = project_session.clone();
         let chain_input_device_options = chain_input_device_options.clone();
         let chain_output_device_options = chain_output_device_options.clone();
         let chain_input_channels = chain_input_channels.clone();
         editor_window.on_edit_input(move |group_index| {
             let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let Some(input_window) = weak_input_window.upgrade() else {
                 return;
             };
             let fresh_input = refresh_input_devices(&chain_input_device_options);
@@ -8828,10 +8875,6 @@ fn setup_chain_editor_callbacks(
             let Some(draft) = draft_borrow.as_ref() else {
                 return;
             };
-            let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else {
-                return;
-            };
             if let Some(chain_window) = weak_chain_window.upgrade() {
                 apply_chain_io_groups(
                     &window,
@@ -8840,35 +8883,30 @@ fn setup_chain_editor_callbacks(
                     &fresh_input,
                     &fresh_output,
                 );
+                chain_window.set_input_device_options(ModelRc::from(chain_input_device_options.clone()));
+                chain_window.set_input_channels(ModelRc::from(chain_input_channels.clone()));
+                if let Some(input_group) = draft.inputs.get(gi) {
+                    chain_window.set_input_selected_device_index(selected_device_index(
+                        &fresh_input,
+                        input_group.device_id.as_deref(),
+                    ));
+                    chain_window.set_input_mode_index(input_mode_to_index(input_group.mode));
+                }
+                chain_window.set_input_editor_status("".into());
+                chain_window.set_show_input_editor(true);
             }
-            if let Some(input_group) = draft.inputs.get(gi) {
-                apply_chain_input_window_state(
-                    &input_window,
-                    input_group,
-                    draft,
-                    &session.project,
-                    &fresh_input,
-                    &chain_input_channels,
-                );
-            }
-            show_child_window(window.window(), input_window.window());
         });
     }
     // on_edit_output
     {
         let weak_window = weak_window.clone();
-        let weak_output_window = weak_output_window.clone();
         let weak_chain_window = editor_window.as_weak();
         let chain_draft = chain_draft.clone();
-        let project_session = project_session.clone();
         let chain_input_device_options = chain_input_device_options.clone();
         let chain_output_device_options = chain_output_device_options.clone();
         let chain_output_channels = chain_output_channels.clone();
         editor_window.on_edit_output(move |group_index| {
             let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let Some(output_window) = weak_output_window.upgrade() else {
                 return;
             };
             let fresh_input = refresh_input_devices(&chain_input_device_options);
@@ -8885,10 +8923,6 @@ fn setup_chain_editor_callbacks(
             let Some(draft) = draft_borrow.as_ref() else {
                 return;
             };
-            let session_borrow = project_session.borrow();
-            let Some(_session) = session_borrow.as_ref() else {
-                return;
-            };
             if let Some(chain_window) = weak_chain_window.upgrade() {
                 apply_chain_io_groups(
                     &window,
@@ -8897,33 +8931,30 @@ fn setup_chain_editor_callbacks(
                     &fresh_input,
                     &fresh_output,
                 );
+                chain_window.set_output_device_options(ModelRc::from(chain_output_device_options.clone()));
+                chain_window.set_output_channels(ModelRc::from(chain_output_channels.clone()));
+                if let Some(output_group) = draft.outputs.get(gi) {
+                    chain_window.set_output_selected_device_index(selected_device_index(
+                        &fresh_output,
+                        output_group.device_id.as_deref(),
+                    ));
+                    chain_window.set_output_mode_index(output_mode_to_index(output_group.mode));
+                }
+                chain_window.set_output_editor_status("".into());
+                chain_window.set_show_output_editor(true);
             }
-            if let Some(output_group) = draft.outputs.get(gi) {
-                apply_chain_output_window_state(
-                    &output_window,
-                    output_group,
-                    &fresh_output,
-                    &chain_output_channels,
-                );
-            }
-            show_child_window(window.window(), output_window.window());
         });
     }
     // on_add_input
     {
         let weak_window = weak_window.clone();
         let weak_chain_window = editor_window.as_weak();
-        let weak_input_window = weak_input_window.clone();
         let chain_draft = chain_draft.clone();
-        let project_session = project_session.clone();
         let chain_input_device_options = chain_input_device_options.clone();
         let chain_output_device_options = chain_output_device_options.clone();
         let chain_input_channels = chain_input_channels.clone();
         editor_window.on_add_input(move || {
             let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let Some(input_window) = weak_input_window.upgrade() else {
                 return;
             };
             let fresh_input = refresh_input_devices(&chain_input_device_options);
@@ -8957,37 +8988,31 @@ fn setup_chain_editor_callbacks(
             let Some(draft) = draft_borrow.as_ref() else {
                 return;
             };
-            let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else {
-                return;
-            };
-            if let Some(input_group) = draft.inputs.get(new_idx) {
-                apply_chain_input_window_state(
-                    &input_window,
-                    input_group,
-                    draft,
-                    &session.project,
-                    &fresh_input,
-                    &chain_input_channels,
-                );
+            if let Some(chain_window) = weak_chain_window.upgrade() {
+                chain_window.set_input_device_options(ModelRc::from(chain_input_device_options.clone()));
+                chain_window.set_input_channels(ModelRc::from(chain_input_channels.clone()));
+                if let Some(input_group) = draft.inputs.get(new_idx) {
+                    chain_window.set_input_selected_device_index(selected_device_index(
+                        &fresh_input,
+                        input_group.device_id.as_deref(),
+                    ));
+                    chain_window.set_input_mode_index(input_mode_to_index(input_group.mode));
+                }
+                chain_window.set_input_editor_status("".into());
+                chain_window.set_show_input_editor(true);
             }
-            show_child_window(window.window(), input_window.window());
         });
     }
     // on_add_output
     {
         let weak_window = weak_window.clone();
         let weak_chain_window = editor_window.as_weak();
-        let weak_output_window = weak_output_window.clone();
         let chain_draft = chain_draft.clone();
         let chain_input_device_options = chain_input_device_options.clone();
         let chain_output_device_options = chain_output_device_options.clone();
         let chain_output_channels = chain_output_channels.clone();
         editor_window.on_add_output(move || {
             let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let Some(output_window) = weak_output_window.upgrade() else {
                 return;
             };
             let fresh_input = refresh_input_devices(&chain_input_device_options);
@@ -9021,15 +9046,19 @@ fn setup_chain_editor_callbacks(
             let Some(draft) = draft_borrow.as_ref() else {
                 return;
             };
-            if let Some(output_group) = draft.outputs.get(new_idx) {
-                apply_chain_output_window_state(
-                    &output_window,
-                    output_group,
-                    &fresh_output,
-                    &chain_output_channels,
-                );
+            if let Some(chain_window) = weak_chain_window.upgrade() {
+                chain_window.set_output_device_options(ModelRc::from(chain_output_device_options.clone()));
+                chain_window.set_output_channels(ModelRc::from(chain_output_channels.clone()));
+                if let Some(output_group) = draft.outputs.get(new_idx) {
+                    chain_window.set_output_selected_device_index(selected_device_index(
+                        &fresh_output,
+                        output_group.device_id.as_deref(),
+                    ));
+                    chain_window.set_output_mode_index(output_mode_to_index(output_group.mode));
+                }
+                chain_window.set_output_editor_status("".into());
+                chain_window.set_show_output_editor(true);
             }
-            show_child_window(window.window(), output_window.window());
         });
     }
     // on_remove_input
@@ -9232,6 +9261,400 @@ fn setup_chain_editor_callbacks(
             clear_status(&window, &toast_timer);
             window.set_show_chain_editor(false);
             let _ = chain_window.hide();
+        });
+    }
+    // inline input editor: on_input_select_device
+    {
+        let weak_window = weak_window.clone();
+        editor_window.on_input_select_device(move |index| {
+            if let Some(window) = weak_window.upgrade() {
+                window.invoke_select_chain_input_device(index);
+            }
+        });
+    }
+    // inline input editor: on_input_toggle_channel
+    {
+        let weak_window = weak_window.clone();
+        editor_window.on_input_toggle_channel(move |index, selected| {
+            if let Some(window) = weak_window.upgrade() {
+                window.invoke_toggle_chain_input_channel(index, selected);
+            }
+        });
+    }
+    // inline input editor: on_input_select_mode
+    {
+        let chain_draft = chain_draft.clone();
+        editor_window.on_input_select_mode(move |index| {
+            if let Some(draft) = chain_draft.borrow_mut().as_mut() {
+                if let Some(gi) = draft.editing_input_index {
+                    if let Some(input) = draft.inputs.get_mut(gi) {
+                        input.mode = input_mode_from_index(index);
+                    }
+                }
+            }
+        });
+    }
+    // inline input editor: on_input_cancel
+    {
+        let weak_chain_window = editor_window.as_weak();
+        let weak_window = weak_window.clone();
+        let chain_draft = chain_draft.clone();
+        let io_block_insert_draft = io_block_insert_draft.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        editor_window.on_input_cancel(move || {
+            let Some(chain_window) = weak_chain_window.upgrade() else { return; };
+            chain_window.set_input_editor_status("".into());
+            chain_window.set_show_input_editor(false);
+            if io_block_insert_draft.borrow().is_some() {
+                *io_block_insert_draft.borrow_mut() = None;
+                *chain_draft.borrow_mut() = None;
+                return;
+            }
+            let mut draft_borrow = chain_draft.borrow_mut();
+            if let Some(draft) = draft_borrow.as_mut() {
+                if draft.adding_new_input {
+                    if let Some(idx) = draft.editing_input_index {
+                        if idx < draft.inputs.len() {
+                            draft.inputs.remove(idx);
+                        }
+                    }
+                    draft.adding_new_input = false;
+                    draft.editing_input_index = None;
+                    if let Some(window) = weak_window.upgrade() {
+                        apply_chain_io_groups(&window, &chain_window, draft, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
+                    }
+                }
+            }
+        });
+    }
+    // inline input editor: on_input_save
+    {
+        let weak_window = weak_window.clone();
+        let weak_chain_window = editor_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let io_block_insert_draft = io_block_insert_draft.clone();
+        let project_session = project_session.clone();
+        let project_chains = project_chains.clone();
+        let project_runtime = project_runtime.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        editor_window.on_input_save(move || {
+            let Some(window) = weak_window.upgrade() else { return; };
+            let Some(chain_window) = weak_chain_window.upgrade() else { return; };
+            let io_insert = io_block_insert_draft.borrow().clone();
+            if let Some(io_draft) = io_insert {
+                if io_draft.kind == "input" {
+                    let input_group = {
+                        let draft_borrow = chain_draft.borrow();
+                        let Some(draft) = draft_borrow.as_ref() else {
+                            *io_block_insert_draft.borrow_mut() = None;
+                            chain_window.set_show_input_editor(false);
+                            return;
+                        };
+                        let Some(ig) = draft.inputs.first().cloned() else {
+                            *io_block_insert_draft.borrow_mut() = None;
+                            chain_window.set_show_input_editor(false);
+                            return;
+                        };
+                        ig
+                    };
+                    if input_group.device_id.is_none() || input_group.channels.is_empty() {
+                        chain_window.set_input_editor_status("Selecione dispositivo e canais.".into());
+                        return;
+                    }
+                    let chain_index = io_draft.chain_index;
+                    let before_index = io_draft.before_index;
+                    *io_block_insert_draft.borrow_mut() = None;
+                    *chain_draft.borrow_mut() = None;
+                    let mut session_borrow = project_session.borrow_mut();
+                    let Some(session) = session_borrow.as_mut() else {
+                        chain_window.set_show_input_editor(false);
+                        return;
+                    };
+                    let Some(chain) = session.project.chains.get_mut(chain_index) else {
+                        chain_window.set_show_input_editor(false);
+                        return;
+                    };
+                    let real_chain_id = chain.id.clone();
+                    let input_block = AudioBlock {
+                        id: BlockId::generate_for_chain(&real_chain_id),
+                        enabled: true,
+                        kind: AudioBlockKind::Input(InputBlock {
+                            model: "standard".to_string(),
+                            entries: vec![InputEntry {
+                                name: input_group.name.clone(),
+                                device_id: DeviceId(input_group.device_id.clone().unwrap_or_default()),
+                                mode: input_group.mode,
+                                channels: input_group.channels.clone(),
+                            }],
+                        }),
+                    };
+                    let insert_pos = before_index.min(chain.blocks.len());
+                    chain.blocks.insert(insert_pos, input_block);
+                    if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &real_chain_id) {
+                        eprintln!("io block insert error: {error}");
+                    }
+                    replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
+                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
+                    chain_window.set_input_editor_status("".into());
+                    chain_window.set_show_input_editor(false);
+                    return;
+                }
+            }
+            let mut draft_borrow = chain_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else {
+                chain_window.set_show_input_editor(false);
+                return;
+            };
+            let Some(gi) = draft.editing_input_index else {
+                chain_window.set_show_input_editor(false);
+                return;
+            };
+            let Some(input_group) = draft.inputs.get(gi) else {
+                chain_window.set_show_input_editor(false);
+                return;
+            };
+            if input_group.device_id.is_none() || input_group.channels.is_empty() {
+                chain_window.set_input_editor_status("Selecione dispositivo e canais.".into());
+                return;
+            }
+            if let Some(index) = draft.editing_index {
+                let mut session_borrow = project_session.borrow_mut();
+                let Some(session) = session_borrow.as_mut() else { return; };
+                let Some(chain) = session.project.chains.get_mut(index) else { return; };
+                let new_input_blocks: Vec<AudioBlock> = draft.inputs.iter().enumerate().map(|(i, ig)| AudioBlock {
+                    id: BlockId(format!("{}:input:{}", chain.id.0, i)),
+                    enabled: true,
+                    kind: AudioBlockKind::Input(InputBlock {
+                        model: "standard".to_string(),
+                        entries: vec![InputEntry {
+                            name: ig.name.clone(),
+                            device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
+                            mode: ig.mode,
+                            channels: ig.channels.clone(),
+                        }],
+                    }),
+                }).collect();
+                let non_input_blocks: Vec<AudioBlock> = chain.blocks.iter()
+                    .filter(|b| !matches!(&b.kind, AudioBlockKind::Input(_)))
+                    .cloned()
+                    .collect();
+                let mut all_blocks = Vec::with_capacity(new_input_blocks.len() + non_input_blocks.len());
+                all_blocks.extend(new_input_blocks);
+                all_blocks.extend(non_input_blocks);
+                chain.blocks = all_blocks;
+                let chain_id = chain.id.clone();
+                if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                    eprintln!("input editor save error: {error}");
+                    return;
+                }
+                replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
+                sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
+            }
+            apply_chain_io_groups(&window, &chain_window, draft, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
+            draft.adding_new_input = false;
+            chain_window.set_input_editor_status("".into());
+            chain_window.set_show_input_editor(false);
+        });
+    }
+    // inline output editor: on_output_select_device
+    {
+        let weak_window = weak_window.clone();
+        editor_window.on_output_select_device(move |index| {
+            if let Some(window) = weak_window.upgrade() {
+                window.invoke_select_chain_output_device(index);
+            }
+        });
+    }
+    // inline output editor: on_output_toggle_channel
+    {
+        let weak_window = weak_window.clone();
+        editor_window.on_output_toggle_channel(move |index, selected| {
+            if let Some(window) = weak_window.upgrade() {
+                window.invoke_toggle_chain_output_channel(index, selected);
+            }
+        });
+    }
+    // inline output editor: on_output_select_mode
+    {
+        let chain_draft = chain_draft.clone();
+        editor_window.on_output_select_mode(move |index| {
+            if let Some(draft) = chain_draft.borrow_mut().as_mut() {
+                if let Some(gi) = draft.editing_output_index {
+                    if let Some(output) = draft.outputs.get_mut(gi) {
+                        output.mode = output_mode_from_index(index);
+                    }
+                }
+            }
+        });
+    }
+    // inline output editor: on_output_cancel
+    {
+        let weak_chain_window = editor_window.as_weak();
+        let weak_window = weak_window.clone();
+        let chain_draft = chain_draft.clone();
+        let io_block_insert_draft = io_block_insert_draft.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        editor_window.on_output_cancel(move || {
+            let Some(chain_window) = weak_chain_window.upgrade() else { return; };
+            chain_window.set_output_editor_status("".into());
+            chain_window.set_show_output_editor(false);
+            if io_block_insert_draft.borrow().is_some() {
+                *io_block_insert_draft.borrow_mut() = None;
+                *chain_draft.borrow_mut() = None;
+                return;
+            }
+            let mut draft_borrow = chain_draft.borrow_mut();
+            if let Some(draft) = draft_borrow.as_mut() {
+                if draft.adding_new_output {
+                    if let Some(idx) = draft.editing_output_index {
+                        if idx < draft.outputs.len() {
+                            draft.outputs.remove(idx);
+                        }
+                    }
+                    draft.adding_new_output = false;
+                    draft.editing_output_index = None;
+                    if let Some(window) = weak_window.upgrade() {
+                        apply_chain_io_groups(&window, &chain_window, draft, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
+                    }
+                }
+            }
+        });
+    }
+    // inline output editor: on_output_save
+    {
+        let weak_window = weak_window.clone();
+        let weak_chain_window = editor_window.as_weak();
+        let chain_draft = chain_draft.clone();
+        let io_block_insert_draft = io_block_insert_draft.clone();
+        let project_session = project_session.clone();
+        let project_chains = project_chains.clone();
+        let project_runtime = project_runtime.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        editor_window.on_output_save(move || {
+            let Some(window) = weak_window.upgrade() else { return; };
+            let Some(chain_window) = weak_chain_window.upgrade() else { return; };
+            let io_insert = io_block_insert_draft.borrow().clone();
+            if let Some(io_draft) = io_insert {
+                if io_draft.kind == "output" {
+                    let output_group = {
+                        let draft_borrow = chain_draft.borrow();
+                        let Some(draft) = draft_borrow.as_ref() else {
+                            *io_block_insert_draft.borrow_mut() = None;
+                            chain_window.set_show_output_editor(false);
+                            return;
+                        };
+                        let Some(og) = draft.outputs.first().cloned() else {
+                            *io_block_insert_draft.borrow_mut() = None;
+                            chain_window.set_show_output_editor(false);
+                            return;
+                        };
+                        og
+                    };
+                    if output_group.device_id.is_none() || output_group.channels.is_empty() {
+                        chain_window.set_output_editor_status("Selecione dispositivo e canais.".into());
+                        return;
+                    }
+                    let chain_index = io_draft.chain_index;
+                    let before_index = io_draft.before_index;
+                    *io_block_insert_draft.borrow_mut() = None;
+                    *chain_draft.borrow_mut() = None;
+                    let mut session_borrow = project_session.borrow_mut();
+                    let Some(session) = session_borrow.as_mut() else {
+                        chain_window.set_show_output_editor(false);
+                        return;
+                    };
+                    let Some(chain) = session.project.chains.get_mut(chain_index) else {
+                        chain_window.set_show_output_editor(false);
+                        return;
+                    };
+                    let real_chain_id = chain.id.clone();
+                    let output_block = AudioBlock {
+                        id: BlockId::generate_for_chain(&real_chain_id),
+                        enabled: true,
+                        kind: AudioBlockKind::Output(OutputBlock {
+                            model: "standard".to_string(),
+                            entries: vec![OutputEntry {
+                                name: output_group.name.clone(),
+                                device_id: DeviceId(output_group.device_id.clone().unwrap_or_default()),
+                                mode: output_group.mode,
+                                channels: output_group.channels.clone(),
+                            }],
+                        }),
+                    };
+                    let insert_pos = before_index.min(chain.blocks.len());
+                    chain.blocks.insert(insert_pos, output_block);
+                    if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &real_chain_id) {
+                        eprintln!("io block insert error: {error}");
+                    }
+                    replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
+                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
+                    chain_window.set_output_editor_status("".into());
+                    chain_window.set_show_output_editor(false);
+                    return;
+                }
+            }
+            let mut draft_borrow = chain_draft.borrow_mut();
+            let Some(draft) = draft_borrow.as_mut() else {
+                chain_window.set_show_output_editor(false);
+                return;
+            };
+            let Some(gi) = draft.editing_output_index else {
+                chain_window.set_show_output_editor(false);
+                return;
+            };
+            let Some(output_group) = draft.outputs.get(gi) else {
+                chain_window.set_show_output_editor(false);
+                return;
+            };
+            if output_group.device_id.is_none() || output_group.channels.is_empty() {
+                chain_window.set_output_editor_status("Selecione dispositivo e canais.".into());
+                return;
+            }
+            if let Some(index) = draft.editing_index {
+                let mut session_borrow = project_session.borrow_mut();
+                let Some(session) = session_borrow.as_mut() else { return; };
+                let Some(chain) = session.project.chains.get_mut(index) else { return; };
+                let new_output_blocks: Vec<AudioBlock> = draft.outputs.iter().enumerate().map(|(i, og)| AudioBlock {
+                    id: BlockId(format!("{}:output:{}", chain.id.0, i)),
+                    enabled: true,
+                    kind: AudioBlockKind::Output(OutputBlock {
+                        model: "standard".to_string(),
+                        entries: vec![OutputEntry {
+                            name: og.name.clone(),
+                            device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
+                            mode: og.mode,
+                            channels: og.channels.clone(),
+                        }],
+                    }),
+                }).collect();
+                let non_output_blocks: Vec<AudioBlock> = chain.blocks.iter()
+                    .filter(|b| !matches!(&b.kind, AudioBlockKind::Output(_)))
+                    .cloned()
+                    .collect();
+                let mut all_blocks = Vec::with_capacity(non_output_blocks.len() + new_output_blocks.len());
+                all_blocks.extend(non_output_blocks);
+                all_blocks.extend(new_output_blocks);
+                chain.blocks = all_blocks;
+                let chain_id = chain.id.clone();
+                if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                    eprintln!("output editor save error: {error}");
+                    return;
+                }
+                replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
+                sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
+            }
+            apply_chain_io_groups(&window, &chain_window, draft, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
+            draft.adding_new_output = false;
+            chain_window.set_output_editor_status("".into());
+            chain_window.set_show_output_editor(false);
         });
     }
 }
