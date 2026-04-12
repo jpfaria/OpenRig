@@ -156,7 +156,7 @@ prepare_overlay() {
 
     # Set up userpatches
     run mkdir -p "$USERPATCHES_DIR"
-    run cp "$PROJECT_ROOT/orange-pi/customize-image.sh" "$USERPATCHES_DIR/customize-image.sh"
+    run cp "$PROJECT_ROOT/platform/orange-pi/customize-image.sh" "$USERPATCHES_DIR/customize-image.sh"
     run chmod +x "$USERPATCHES_DIR/customize-image.sh"
 
     # Stage the .deb package into the overlay. customize-image.sh will
@@ -171,19 +171,19 @@ prepare_overlay() {
     run cp "$LOGO_SVG" "$OVERLAY_DIR/openrig-logomark.svg"
 
     # Stage rootfs overlay (etc, usr)
-    run cp -r "$PROJECT_ROOT/orange-pi/rootfs/." "$OVERLAY_DIR/"
+    run cp -r "$PROJECT_ROOT/platform/orange-pi/rootfs/." "$OVERLAY_DIR/"
 
     # Stage DTB overlay source for the Scarlett/USB-C TCPM workaround.
     # customize-image.sh compiles and installs it inside the chroot using
     # armbian-add-overlay so it lands in /boot/overlay-user/ and gets hooked
     # into armbianEnv.txt automatically.
-    run cp "$PROJECT_ROOT/orange-pi/dtbo/openrig-usbc-host.dts" \
+    run cp "$PROJECT_ROOT/platform/orange-pi/dtbo/openrig-usbc-host.dts" \
         "$OVERLAY_DIR/openrig-usbc-host.dts"
 
     # Stage PREEMPT_RT kernel config fragment
     run mkdir -p "$USERPATCHES_DIR/config/kernel"
-    run cp "$PROJECT_ROOT/orange-pi/kernel-config/orangepi5b-current.config" \
-        "$USERPATCHES_DIR/config/kernel/orangepi5b-current.config"
+    run cp "$PROJECT_ROOT/platform/orange-pi/kernel-config/orangepi5b-edge.config" \
+        "$USERPATCHES_DIR/config/kernel/orangepi5b-edge.config"
 }
 
 # ── Step 3: Run Armbian build ─────────────────────────────────────────────────
