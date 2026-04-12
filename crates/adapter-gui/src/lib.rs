@@ -2962,15 +2962,13 @@ pub fn run_desktop_app(
                     input_group.channels.retain(|current| *current != channel);
                 }
             }
+            if let Some(mut row) = chain_input_channels.row_data(index as usize) {
+                row.selected = selected;
+                chain_input_channels.set_row_data(index as usize, row);
+            }
             let devs_in = input_chain_devices.borrow();
             let devs_out = output_chain_devices.borrow();
-            if let Some(session) = project_session.borrow().as_ref() {
-                if let Some(input_group) = draft.inputs.get(gi) {
-                    replace_channel_options(
-                        &chain_input_channels,
-                        build_input_channel_items(input_group, draft, &session.project, &*devs_in),
-                    );
-                }
+            if project_session.borrow().as_ref().is_some() {
                 if let Some(chain_window) = chain_editor_window_ref.borrow().as_ref() {
                     apply_chain_io_groups(
                         &window,
@@ -3013,15 +3011,13 @@ pub fn run_desktop_app(
                     output_group.channels.retain(|current| *current != channel);
                 }
             }
+            if let Some(mut row) = chain_output_channels.row_data(index as usize) {
+                row.selected = selected;
+                chain_output_channels.set_row_data(index as usize, row);
+            }
             if project_session.borrow().as_ref().is_some() {
                 let devs_in = input_chain_devices.borrow();
                 let devs_out = output_chain_devices.borrow();
-                if let Some(output_group) = draft.outputs.get(gi) {
-                    replace_channel_options(
-                        &chain_output_channels,
-                        build_output_channel_items(output_group, &*devs_out),
-                    );
-                }
                 if let Some(window) = weak_window.upgrade() {
                     if let Some(chain_window) = chain_editor_window_ref.borrow().as_ref() {
                         apply_chain_io_groups(
