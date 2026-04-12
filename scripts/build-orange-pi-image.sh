@@ -20,12 +20,10 @@ ARMBIAN_DIR="$PROJECT_ROOT/output/armbian-build"
 ARMBIAN_REPO="https://github.com/armbian/build.git"
 ARMBIAN_BRANCH="main"
 BOARD="orangepi5b"
-# BRANCH=edge → latest mainline kernel. Needed for up-to-date Focusrite
-# `scarlett-gen2` driver and xHCI fixes that matter for USB audio on RK3588.
-BRANCH="edge"
-# RELEASE=noble → Ubuntu 24.04 LTS. Newer JACK2 + audio stack than Debian
-# Bookworm, supported until 2029, still gets a minimal Armbian image.
-RELEASE="noble"
+# BRANCH=current → stable 6.x LTS kernel. edge (7.0-rc) does NOT boot
+# on RK3588 as of 2026-04-12 (confirmed with official Armbian image).
+BRANCH="current"
+RELEASE="bookworm"
 OUTPUT_DIR="$PROJECT_ROOT/output/orange-pi"
 USERPATCHES_DIR="$ARMBIAN_DIR/userpatches"
 OVERLAY_DIR="$USERPATCHES_DIR/overlay"
