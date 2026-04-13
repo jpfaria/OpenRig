@@ -9466,7 +9466,6 @@ fn setup_chain_editor_callbacks(
                         kind: AudioBlockKind::Input(InputBlock {
                             model: "standard".to_string(),
                             entries: vec![InputEntry {
-                                name: input_group.name.clone(),
                                 device_id: DeviceId(input_group.device_id.clone().unwrap_or_default()),
                                 mode: input_group.mode,
                                 channels: input_group.channels.clone(),
@@ -9512,7 +9511,6 @@ fn setup_chain_editor_callbacks(
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".to_string(),
                         entries: vec![InputEntry {
-                            name: ig.name.clone(),
                             device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
                             mode: ig.mode,
                             channels: ig.channels.clone(),
@@ -9663,7 +9661,6 @@ fn setup_chain_editor_callbacks(
                         kind: AudioBlockKind::Output(OutputBlock {
                             model: "standard".to_string(),
                             entries: vec![OutputEntry {
-                                name: output_group.name.clone(),
                                 device_id: DeviceId(output_group.device_id.clone().unwrap_or_default()),
                                 mode: output_group.mode,
                                 channels: output_group.channels.clone(),
@@ -9709,7 +9706,6 @@ fn setup_chain_editor_callbacks(
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".to_string(),
                         entries: vec![OutputEntry {
-                            name: og.name.clone(),
                             device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
                             mode: og.mode,
                             channels: og.channels.clone(),
