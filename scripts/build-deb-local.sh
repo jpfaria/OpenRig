@@ -56,12 +56,12 @@ echo "════════════════════════�
 
 DOCKERFILE="$PROJECT_ROOT/scripts/Dockerfile.deb-builder"
 cat > "$DOCKERFILE" <<'DKEOF'
-FROM ubuntu:24.04
+FROM debian:12
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV CARGO_TERM_COLOR=always
 
-# Same packages as .github/workflows/release.yml build-linux-aarch64
+# Build deps for Debian 12 (Bookworm) — glibc 2.36 compatible
 RUN apt-get update && apt-get install -y \
     curl \
     libasound2-dev libudev-dev pkg-config \
