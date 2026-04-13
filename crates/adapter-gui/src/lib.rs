@@ -2323,14 +2323,6 @@ pub fn run_desktop_app(
             let blocks = build_compact_blocks(&session.project, ci);
             compact_win.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
 
-            // Populate I/O device selectors
-            {
-                ensure_devices_loaded(&input_chain_devices, &output_chain_devices);
-                let devs_in = input_chain_devices.borrow();
-                let devs_out = output_chain_devices.borrow();
-                populate_compact_io_devices(&compact_win, chain, &devs_in, &devs_out);
-            }
-
             // Store weak ref for refresh after block insert/save
             *open_compact_window.borrow_mut() = Some((ci, compact_win.as_weak()));
 
@@ -2875,157 +2867,21 @@ pub fn run_desktop_app(
                 std::mem::forget(stream_timer);
             }
 
-            // Wire select-input-device callback
+            // Wire configure-input/output — delegate to the main window's existing handlers
             {
-                let project_session = project_session.clone();
-                let project_runtime = project_runtime.clone();
-                let project_chains = project_chains.clone();
-                let input_chain_devices = input_chain_devices.clone();
-                let output_chain_devices = output_chain_devices.clone();
-                let saved_project_snapshot = saved_project_snapshot.clone();
-                let project_dirty = project_dirty.clone();
                 let weak_main = window.as_weak();
-                let weak_compact = compact_win.as_weak();
-                let toast_timer = toast_timer.clone();
-                compact_win.on_select_input_device(move |ci, device_index| {
-                    let Some(main_win) = weak_main.upgrade() else {
-                        return;
-                    };
-                    let Some(cw) = weak_compact.upgrade() else {
-                        return;
-                    };
-                    let chain_idx = ci as usize;
-                    let dev_idx = device_index as usize;
-                    ensure_devices_loaded(&input_chain_devices, &output_chain_devices);
-                    let new_device_id = {
-                        let devs_in = input_chain_devices.borrow();
-                        let Some(device) = devs_in.get(dev_idx) else {
-                            return;
-                        };
-                        device.id.clone()
-                    };
-                    let mut session_borrow = project_session.borrow_mut();
-                    let Some(session) = session_borrow.as_mut() else {
-                        return;
-                    };
-                    let Some(chain) = session.project.chains.get_mut(chain_idx) else {
-                        return;
-                    };
-                    // Find the first InputBlock and update its first entry
-                    let first_input_idx = chain.blocks.iter().position(|b| matches!(&b.kind, AudioBlockKind::Input(_)));
-                    if let Some(idx) = first_input_idx {
-                        if let AudioBlockKind::Input(ref mut input_block) = chain.blocks[idx].kind {
-                            if let Some(entry) = input_block.entries.first_mut() {
-                                entry.device_id = DeviceId(new_device_id);
-                                entry.channels.clear();
-                            }
-                        }
+                compact_win.on_configure_input(move |ci| {
+                    if let Some(main_win) = weak_main.upgrade() {
+                        main_win.invoke_configure_chain_input(ci);
                     }
-                    let chain_id = chain.id.clone();
-                    if let Err(error) =
-                        sync_live_chain_runtime(&project_runtime, session, &chain_id)
-                    {
-                        set_status_error(&main_win, &toast_timer, &error.to_string());
-                        return;
-                    }
-                    // Refresh compact I/O
-                    {
-                        let devs_in = input_chain_devices.borrow();
-                        let devs_out = output_chain_devices.borrow();
-                        if let Some(chain) = session.project.chains.get(chain_idx) {
-                            populate_compact_io_devices(&cw, chain, &devs_in, &devs_out);
-                        }
-                    }
-                    replace_project_chains(
-                        &project_chains,
-                        &session.project,
-                        &*input_chain_devices.borrow(),
-                        &*output_chain_devices.borrow(),
-                    );
-                    sync_project_dirty(
-                        &main_win,
-                        session,
-                        &saved_project_snapshot,
-                        &project_dirty,
-                        auto_save,
-                    );
                 });
             }
-
-            // Wire select-output-device callback
             {
-                let project_session = project_session.clone();
-                let project_runtime = project_runtime.clone();
-                let project_chains = project_chains.clone();
-                let input_chain_devices = input_chain_devices.clone();
-                let output_chain_devices = output_chain_devices.clone();
-                let saved_project_snapshot = saved_project_snapshot.clone();
-                let project_dirty = project_dirty.clone();
                 let weak_main = window.as_weak();
-                let weak_compact = compact_win.as_weak();
-                let toast_timer = toast_timer.clone();
-                compact_win.on_select_output_device(move |ci, device_index| {
-                    let Some(main_win) = weak_main.upgrade() else {
-                        return;
-                    };
-                    let Some(cw) = weak_compact.upgrade() else {
-                        return;
-                    };
-                    let chain_idx = ci as usize;
-                    let dev_idx = device_index as usize;
-                    ensure_devices_loaded(&input_chain_devices, &output_chain_devices);
-                    let new_device_id = {
-                        let devs_out = output_chain_devices.borrow();
-                        let Some(device) = devs_out.get(dev_idx) else {
-                            return;
-                        };
-                        device.id.clone()
-                    };
-                    let mut session_borrow = project_session.borrow_mut();
-                    let Some(session) = session_borrow.as_mut() else {
-                        return;
-                    };
-                    let Some(chain) = session.project.chains.get_mut(chain_idx) else {
-                        return;
-                    };
-                    // Find the last OutputBlock and update its first entry
-                    let last_output_idx = chain.blocks.iter().rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_)));
-                    if let Some(idx) = last_output_idx {
-                        if let AudioBlockKind::Output(ref mut output_block) = chain.blocks[idx].kind {
-                            if let Some(entry) = output_block.entries.first_mut() {
-                                entry.device_id = DeviceId(new_device_id);
-                                entry.channels.clear();
-                            }
-                        }
+                compact_win.on_configure_output(move |ci| {
+                    if let Some(main_win) = weak_main.upgrade() {
+                        main_win.invoke_configure_chain_output(ci);
                     }
-                    let chain_id = chain.id.clone();
-                    if let Err(error) =
-                        sync_live_chain_runtime(&project_runtime, session, &chain_id)
-                    {
-                        set_status_error(&main_win, &toast_timer, &error.to_string());
-                        return;
-                    }
-                    // Refresh compact I/O
-                    {
-                        let devs_in = input_chain_devices.borrow();
-                        let devs_out = output_chain_devices.borrow();
-                        if let Some(chain) = session.project.chains.get(chain_idx) {
-                            populate_compact_io_devices(&cw, chain, &devs_in, &devs_out);
-                        }
-                    }
-                    replace_project_chains(
-                        &project_chains,
-                        &session.project,
-                        &*input_chain_devices.borrow(),
-                        &*output_chain_devices.borrow(),
-                    );
-                    sync_project_dirty(
-                        &main_win,
-                        session,
-                        &saved_project_snapshot,
-                        &project_dirty,
-                        auto_save,
-                    );
                 });
             }
 
@@ -7270,43 +7126,6 @@ fn unit_label(unit: &ParameterUnit) -> &'static str {
         ParameterUnit::Semitones => "st",
     }
 }
-fn populate_compact_io_devices(
-    compact_win: &CompactChainViewWindow,
-    chain: &Chain,
-    input_devices: &[AudioDeviceDescriptor],
-    output_devices: &[AudioDeviceDescriptor],
-) {
-    // Input device options
-    let input_names: Vec<SharedString> = input_devices
-        .iter()
-        .map(|d| SharedString::from(d.name.as_str()))
-        .collect();
-    compact_win.set_input_device_options(ModelRc::from(Rc::new(VecModel::from(input_names))));
-
-    // Output device options
-    let output_names: Vec<SharedString> = output_devices
-        .iter()
-        .map(|d| SharedString::from(d.name.as_str()))
-        .collect();
-    compact_win.set_output_device_options(ModelRc::from(Rc::new(VecModel::from(output_names))));
-
-    // Selected input device index
-    if let Some(input) = chain.first_input() {
-        if let Some(entry) = input.entries.first() {
-            let idx = selected_device_index(input_devices, Some(&entry.device_id.0));
-            compact_win.set_selected_input_device_index(idx);
-        }
-    }
-
-    // Selected output device index
-    if let Some(output) = chain.last_output() {
-        if let Some(entry) = output.entries.first() {
-            let idx = selected_device_index(output_devices, Some(&entry.device_id.0));
-            compact_win.set_selected_output_device_index(idx);
-        }
-    }
-}
-
 fn build_compact_blocks(
     project: &Project,
     chain_index: usize,

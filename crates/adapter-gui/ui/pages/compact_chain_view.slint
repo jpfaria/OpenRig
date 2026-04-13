@@ -1,4 +1,4 @@
-import { ScrollView, ComboBox } from "std-widgets.slint";
+import { ScrollView } from "std-widgets.slint";
 import { CompactBlockItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem } from "../models.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { BrandLogo } from "../components/brand_logo.slint";
@@ -681,27 +681,14 @@ export component CompactChainViewPage inherits Rectangle {
     callback remove-block(int, int); // chain_index, block_index
     callback open-plugin(string); // model-id, for VST3 blocks
 
-    // I/O device selection
-    in property <[string]> input-device-options;
-    in property <[string]> output-device-options;
-    in-out property <int> selected-input-device-index;
-    in-out property <int> selected-output-device-index;
-    callback select-input-device(int, int); // chain_index, device_index
-    callback select-output-device(int, int); // chain_index, device_index
+    // I/O device configuration (reuses the chain list's configure flow)
+    callback configure-input(int); // chain_index
+    callback configure-output(int); // chain_index
 
     // Type picker state
     in property <[BlockTypePickerItem]> block-type-options;
     private property <bool> show-type-picker: false;
     private property <int> insert-before-index: 0;
-
-    // I/O device picker state
-    private property <bool> show-io-picker: false;
-    private property <string> io-picker-kind: "input"; // "input" or "output"
-    private property <[string]> io-picker-items: root.io-picker-kind == "input"
-        ? root.input-device-options : root.output-device-options;
-    private property <int> io-picker-sel-idx: root.io-picker-kind == "input"
-        ? root.selected-input-device-index : root.selected-output-device-index;
-    private property <color> io-picker-accent: root.io-picker-kind == "input" ? #29df85 : #e07040;
 
     // Drag-to-reorder state
     private property <int> dragging-block-index: -1;
@@ -773,10 +760,7 @@ export component CompactChainViewPage inherits Rectangle {
 
             in-ta := TouchArea {
                 mouse-cursor: pointer;
-                clicked => {
-                    root.io-picker-kind = "input";
-                    root.show-io-picker = true;
-                }
+                clicked => { root.configure-input(root.chain-index); }
             }
         }
 
@@ -801,10 +785,7 @@ export component CompactChainViewPage inherits Rectangle {
 
             out-ta := TouchArea {
                 mouse-cursor: pointer;
-                clicked => {
-                    root.io-picker-kind = "output";
-                    root.show-io-picker = true;
-                }
+                clicked => { root.configure-output(root.chain-index); }
             }
         }
     }
@@ -1043,81 +1024,4 @@ export component CompactChainViewPage inherits Rectangle {
         }
     }
 
-    // ── I/O device picker modal overlay ──
-    if root.show-io-picker : Rectangle {
-        x: 0; y: 0; width: parent.width; height: parent.height;
-        background: #0405069a;
-
-        TouchArea {
-            width: 100%; height: 100%;
-            clicked => { root.show-io-picker = false; }
-        }
-
-        Rectangle {
-            x: (parent.width - 360px) / 2;
-            y: (parent.height - self.height) / 2;
-            width: 360px;
-            height: Math.min(parent.height - 80px, root.io-picker-items.length * 44px + 60px);
-            background: #171a20f8;
-            border-width: 1px;
-            border-color: #2d3340;
-            border-radius: 6px;
-
-            Text {
-                x: 20px; y: 14px;
-                width: parent.width - 40px; height: 24px;
-                text: root.io-picker-kind == "input" ? "Input Device" : "Output Device";
-                color: root.io-picker-accent;
-                font-size: 14px; font-weight: 800;
-            }
-
-            ScrollView {
-                x: 12px; y: 48px;
-                width: parent.width - 24px;
-                height: parent.height - 60px;
-                viewport-height: root.io-picker-items.length * 44px;
-
-                for dev-name[di] in root.io-picker-items : Rectangle {
-                    x: 0; y: di * 44px;
-                    width: parent.width - 8px;
-                    height: 40px;
-                    border-radius: 4px;
-                    background: dev-ta.has-hover
-                        ? #ffffff10
-                        : (di == root.io-picker-sel-idx ? #ffffff08 : transparent);
-
-                    // Selected indicator
-                    if di == root.io-picker-sel-idx : Rectangle {
-                        x: 8px;
-                        y: (parent.height - 8px) / 2;
-                        width: 8px; height: 8px;
-                        border-radius: 4px;
-                        background: root.io-picker-accent;
-                    }
-
-                    Text {
-                        x: 24px; width: parent.width - 32px; height: parent.height;
-                        text: dev-name;
-                        color: di == root.io-picker-sel-idx ? #edf2f9 : #8a95a5;
-                        font-size: 13px;
-                        font-weight: di == root.io-picker-sel-idx ? 600 : 400;
-                        vertical-alignment: center;
-                        overflow: elide;
-                    }
-
-                    dev-ta := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => {
-                            if root.io-picker-kind == "input" {
-                                root.select-input-device(root.chain-index, di);
-                            } else {
-                                root.select-output-device(root.chain-index, di);
-                            }
-                            root.show-io-picker = false;
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
