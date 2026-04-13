@@ -33,7 +33,7 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-const ELASTIC_BUFFER_TARGET_LEVEL: usize = 2048;
+const ELASTIC_BUFFER_TARGET_LEVEL: usize = 256;
 static NEXT_BLOCK_INSTANCE_SERIAL: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Debug, Clone, Copy)]
@@ -1598,27 +1598,14 @@ fn optional_string(params: &ParameterSet, path: &str) -> Option<String> {
         .map(ToString::to_string)
 }
 
-/// Ensure denormalized floats are flushed to zero on the current thread.
+/// Ensure denormalized floats are flushed to zero on aarch64.
 ///
 /// Without this, neural-network processors (NAM) produce degraded audio on
 /// aarch64 because denormals accumulate through the network layers.  On x86
-/// the NAM/Eigen libraries sometimes set DAZ+FTZ internally, but on aarch64
-/// nobody does — so we do it here, once per callback invocation.
-///
-/// This is standard practice in professional audio software (JUCE, JACK,
-/// Ardour, Reaper all do the same).  The cost is a single register
-/// read-modify-write per callback — negligible.
+/// the NAM/Eigen libraries set DAZ+FTZ internally — we leave x86 alone to
+/// avoid changing the sound character on macOS/Windows.
 #[inline(always)]
 fn ensure_flush_to_zero() {
-    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-    unsafe {
-        // DAZ (bit 6) + FTZ (bit 15) in MXCSR
-        let mxcsr = std::arch::x86_64::_mm_getcsr();
-        if mxcsr & 0x8040 != 0x8040 {
-            std::arch::x86_64::_mm_setcsr(mxcsr | 0x8040);
-        }
-    }
-
     #[cfg(target_arch = "aarch64")]
     unsafe {
         // FZ bit (bit 24) in FPCR
