@@ -416,11 +416,15 @@ struct ActiveChainRuntime {
 /// Direct JACK process handler — runs in the JACK real-time thread with zero
 /// extra buffering. Reads from JACK input ports, interleaves into the engine,
 /// then deinterleaves engine output into JACK output ports.
+///
+/// Buffers are pre-allocated to avoid heap allocation in the RT callback.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 struct JackProcessHandler {
     input_ports: Vec<jack::Port<jack::AudioIn>>,
     output_ports: Vec<jack::Port<jack::AudioOut>>,
     runtime: Arc<ChainRuntimeState>,
+    input_buf: Vec<f32>,
+    output_buf: Vec<f32>,
 }
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
@@ -431,29 +435,39 @@ impl jack::ProcessHandler for JackProcessHandler {
         // --- Input: read from JACK ports, interleave, feed engine ---
         let total_in_ports = self.input_ports.len();
         if total_in_ports > 0 {
-            let mut interleaved = vec![0.0f32; n_frames * total_in_ports];
+            let needed = n_frames * total_in_ports;
+            // Grow only once (first callback); subsequent calls reuse the buffer
+            if self.input_buf.len() < needed {
+                self.input_buf.resize(needed, 0.0);
+            }
+            let buf = &mut self.input_buf[..needed];
             for (ch, port) in self.input_ports.iter().enumerate() {
                 let port_data = port.as_slice(ps);
                 for frame in 0..n_frames {
-                    interleaved[frame * total_in_ports + ch] = port_data[frame];
+                    buf[frame * total_in_ports + ch] = port_data[frame];
                 }
             }
             let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                process_input_f32(&self.runtime, 0, &interleaved, total_in_ports);
+                process_input_f32(&self.runtime, 0, buf, total_in_ports);
             }));
         }
 
         // --- Output: pull from engine, deinterleave into JACK ports ---
         let total_out_ports = self.output_ports.len();
         if total_out_ports > 0 {
-            let mut interleaved = vec![0.0f32; n_frames * total_out_ports];
+            let needed = n_frames * total_out_ports;
+            if self.output_buf.len() < needed {
+                self.output_buf.resize(needed, 0.0);
+            }
+            let buf = &mut self.output_buf[..needed];
+            buf.fill(0.0);
             let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                process_output_f32(&self.runtime, 0, &mut interleaved, total_out_ports);
+                process_output_f32(&self.runtime, 0, buf, total_out_ports);
             }));
             for (ch, port) in self.output_ports.iter_mut().enumerate() {
                 let port_data = port.as_mut_slice(ps);
                 for frame in 0..n_frames {
-                    port_data[frame] = interleaved[frame * total_out_ports + ch];
+                    port_data[frame] = buf[frame * total_out_ports + ch];
                 }
             }
         }
@@ -532,7 +546,10 @@ fn build_jack_direct_chain(
         output_ports.push(port);
     }
 
+    let buf_size = client.buffer_size() as usize;
     let handler = JackProcessHandler {
+        input_buf: vec![0.0f32; buf_size * input_ports.len().max(1)],
+        output_buf: vec![0.0f32; buf_size * output_ports.len().max(1)],
         input_ports,
         output_ports,
         runtime,

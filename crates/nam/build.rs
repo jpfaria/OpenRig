@@ -34,9 +34,6 @@ fn main() {
         cmake_cfg.define("CMAKE_BUILD_TYPE", "Release");
         cmake_cfg.define("CMAKE_OSX_DEPLOYMENT_TARGET", "11.0");
 
-        // RTNeural SIMD backend: xsimd is fastest for real-time neural inference.
-        cmake_cfg.define("RTNEURAL_XSIMD", "ON");
-
         // aarch64-specific: enable NEON SIMD and aggressive optimization.
         // Without these, NAM processing is too slow for real-time on ARM
         // (constant JACK xruns even at 1024-frame buffer on RK3588).

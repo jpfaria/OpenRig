@@ -33,7 +33,7 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-const ELASTIC_BUFFER_TARGET_LEVEL: usize = 256;
+const ELASTIC_BUFFER_TARGET_LEVEL: usize = 2048;
 static NEXT_BLOCK_INSTANCE_SERIAL: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Debug, Clone, Copy)]
