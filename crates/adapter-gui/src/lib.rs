@@ -626,6 +626,7 @@ pub fn run_desktop_app(
                 window.set_show_project_launcher(false);
                 window.set_show_project_setup(false);
                 window.set_show_project_chains(true);
+                window.set_skip_launcher(true);
                 log::info!("CLI: opened {:?}", canonical_path);
             }
             Err(e) => {
