@@ -2008,7 +2008,7 @@ mod tests {
     use domain::ids::{BlockId, DeviceId, ChainId};
     use domain::value_objects::ParameterValue;
     use project::block::{
-        AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, OutputBlock, OutputEntry, SelectBlock, schema_for_block_model,
+        AudioBlock, AudioBlockKind, CoreBlock, InputBlock, InputEntry, InsertBlock, InsertEndpoint, OutputBlock, OutputEntry, SelectBlock, schema_for_block_model,
     };
     use project::param::ParameterSet;
     use project::project::Project;
@@ -2568,6 +2568,45 @@ mod tests {
         assert!(buf.len() <= target * 2);
     }
 
+    /// A chain with proper Input and Output blocks but no effect blocks.
+    /// Useful for testing process_input_f32 / process_output_f32.
+    fn io_passthrough_chain(id: &str) -> Chain {
+        Chain {
+            id: ChainId(id.into()),
+            description: Some("Passthrough".into()),
+            instrument: "electric_guitar".to_string(),
+            enabled: true,
+            blocks: vec![
+                AudioBlock {
+                    id: BlockId(format!("{id}:input:0")),
+                    enabled: true,
+                    kind: AudioBlockKind::Input(InputBlock {
+                        model: "standard".into(),
+                        entries: vec![InputEntry {
+                            name: "In".into(),
+                            device_id: DeviceId("dev".into()),
+                            mode: ChainInputMode::Mono,
+                            channels: vec![0],
+                        }],
+                    }),
+                },
+                AudioBlock {
+                    id: BlockId(format!("{id}:output:0")),
+                    enabled: true,
+                    kind: AudioBlockKind::Output(OutputBlock {
+                        model: "standard".into(),
+                        entries: vec![OutputEntry {
+                            name: "Out".into(),
+                            device_id: DeviceId("dev".into()),
+                            mode: ChainOutputMode::Mono,
+                            channels: vec![0],
+                        }],
+                    }),
+                },
+            ],
+        }
+    }
+
     fn select_delay_chain(id: &str, selected_option: &str) -> Chain {
         let models = supported_delay_models();
         let first_model = models
@@ -2837,5 +2876,885 @@ mod tests {
 
         assert!(counter.load(std::sync::atomic::Ordering::SeqCst) > 0,
             "fading-in block should call process_sample");
+    }
+
+    // ── AudioFrame tests ─────────────────────────────────────────────────────
+
+    #[test]
+    fn audio_frame_mono_mix_mono_returns_sample() {
+        let frame = AudioFrame::Mono(0.75);
+        assert!((frame.mono_mix() - 0.75).abs() < 1e-6);
+    }
+
+    #[test]
+    fn audio_frame_mono_mix_stereo_returns_average() {
+        let frame = AudioFrame::Stereo([0.4, 0.8]);
+        assert!((frame.mono_mix() - 0.6).abs() < 1e-6);
+    }
+
+    // ── ElasticBuffer edge cases ─────────────────────────────────────────────
+
+    #[test]
+    fn elastic_buffer_target_one_limits_to_two() {
+        let mut buf = ElasticBuffer::new(1, AudioChannelLayout::Mono);
+        buf.push(AudioFrame::Mono(1.0));
+        buf.push(AudioFrame::Mono(2.0));
+        buf.push(AudioFrame::Mono(3.0)); // should discard oldest
+        assert!(buf.len() <= 2, "buffer with target=1 should hold at most 2 frames");
+    }
+
+    #[test]
+    fn elastic_buffer_stereo_push_pop_preserves_channels() {
+        let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Stereo);
+        buf.push(AudioFrame::Stereo([0.3, 0.7]));
+        let frame = buf.pop();
+        match frame {
+            AudioFrame::Stereo([l, r]) => {
+                assert!((l - 0.3).abs() < 1e-6);
+                assert!((r - 0.7).abs() < 1e-6);
+            }
+            _ => panic!("expected stereo frame"),
+        }
+    }
+
+    #[test]
+    fn elastic_buffer_multiple_pops_on_empty_repeat_last() {
+        let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
+        buf.push(AudioFrame::Mono(0.99));
+        let _ = buf.pop(); // drain
+        // Multiple pops should all return last frame
+        for _ in 0..5 {
+            let f = buf.pop();
+            assert!(matches!(f, AudioFrame::Mono(v) if (v - 0.99).abs() < 1e-6));
+        }
+    }
+
+    // ── FadeState transition tests ───────────────────────────────────────────
+
+    #[test]
+    fn fade_in_completes_to_active_after_enough_frames() {
+        let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let mut block = counting_block_node(counter.clone());
+        block.fade_state = FadeState::FadingIn { frames_remaining: 16 };
+
+        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
+
+        process_audio_block(&mut block, &mut frames, &error_queue);
+
+        assert_eq!(block.fade_state, FadeState::Active,
+            "fade-in should complete to Active when frames_remaining reaches 0");
+    }
+
+    #[test]
+    fn fade_in_partial_keeps_fading_in() {
+        let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let mut block = counting_block_node(counter.clone());
+        block.fade_state = FadeState::FadingIn { frames_remaining: 64 };
+
+        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
+
+        process_audio_block(&mut block, &mut frames, &error_queue);
+
+        match block.fade_state {
+            FadeState::FadingIn { frames_remaining } => {
+                assert_eq!(frames_remaining, 48, "should have consumed 16 frames of fade");
+            }
+            other => panic!("expected FadingIn, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn fade_out_completes_to_bypassed_after_enough_frames() {
+        let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let mut block = counting_block_node(counter.clone());
+        block.fade_state = FadeState::FadingOut { frames_remaining: 16 };
+
+        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
+
+        process_audio_block(&mut block, &mut frames, &error_queue);
+
+        assert_eq!(block.fade_state, FadeState::Bypassed,
+            "fade-out should complete to Bypassed when frames_remaining reaches 0");
+    }
+
+    #[test]
+    fn fade_out_partial_keeps_fading_out() {
+        let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let mut block = counting_block_node(counter.clone());
+        block.fade_state = FadeState::FadingOut { frames_remaining: 64 };
+
+        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
+
+        process_audio_block(&mut block, &mut frames, &error_queue);
+
+        match block.fade_state {
+            FadeState::FadingOut { frames_remaining } => {
+                assert_eq!(frames_remaining, 48, "should have consumed 16 frames of fade");
+            }
+            other => panic!("expected FadingOut, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn fade_out_applies_processing_during_transition() {
+        let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let mut block = counting_block_node(counter.clone());
+        block.fade_state = FadeState::FadingOut { frames_remaining: FADE_IN_FRAMES };
+
+        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
+
+        process_audio_block(&mut block, &mut frames, &error_queue);
+
+        assert!(counter.load(std::sync::atomic::Ordering::SeqCst) > 0,
+            "fading-out block should still call process_sample during transition");
+    }
+
+    // ── blend_frame tests ────────────────────────────────────────────────────
+
+    #[test]
+    fn blend_frame_mono_interpolates_correctly() {
+        use super::blend_frame;
+        let mut wet = AudioFrame::Mono(1.0);
+        let dry = AudioFrame::Mono(0.0);
+        blend_frame(&mut wet, dry, 0.5, 0.5);
+        assert!((wet.mono_mix() - 0.5).abs() < 1e-6);
+    }
+
+    #[test]
+    fn blend_frame_stereo_interpolates_correctly() {
+        use super::blend_frame;
+        let mut wet = AudioFrame::Stereo([1.0, 0.0]);
+        let dry = AudioFrame::Stereo([0.0, 1.0]);
+        blend_frame(&mut wet, dry, 0.5, 0.5);
+        match wet {
+            AudioFrame::Stereo([l, r]) => {
+                assert!((l - 0.5).abs() < 1e-6);
+                assert!((r - 0.5).abs() < 1e-6);
+            }
+            _ => panic!("expected stereo"),
+        }
+    }
+
+    #[test]
+    fn blend_frame_layout_mismatch_passes_dry_through() {
+        use super::blend_frame;
+        let mut wet = AudioFrame::Mono(1.0);
+        let dry = AudioFrame::Stereo([0.3, 0.7]);
+        blend_frame(&mut wet, dry, 0.5, 0.5);
+        // On layout mismatch, frame should be set to dry
+        match wet {
+            AudioFrame::Stereo([l, r]) => {
+                assert!((l - 0.3).abs() < 1e-6);
+                assert!((r - 0.7).abs() < 1e-6);
+            }
+            _ => panic!("expected stereo from dry passthrough"),
+        }
+    }
+
+    // ── mix_frames tests ─────────────────────────────────────────────────────
+
+    #[test]
+    fn mix_frames_mono_mono_sums() {
+        use super::mix_frames;
+        let result = mix_frames(AudioFrame::Mono(0.3), AudioFrame::Mono(0.5));
+        assert!(matches!(result, AudioFrame::Mono(v) if (v - 0.8).abs() < 1e-6));
+    }
+
+    #[test]
+    fn mix_frames_stereo_stereo_sums() {
+        use super::mix_frames;
+        let result = mix_frames(
+            AudioFrame::Stereo([0.1, 0.2]),
+            AudioFrame::Stereo([0.3, 0.4]),
+        );
+        match result {
+            AudioFrame::Stereo([l, r]) => {
+                assert!((l - 0.4).abs() < 1e-6);
+                assert!((r - 0.6).abs() < 1e-6);
+            }
+            _ => panic!("expected stereo"),
+        }
+    }
+
+    #[test]
+    fn mix_frames_mono_stereo_widens() {
+        use super::mix_frames;
+        let result = mix_frames(AudioFrame::Mono(0.5), AudioFrame::Stereo([0.1, 0.2]));
+        match result {
+            AudioFrame::Stereo([l, r]) => {
+                assert!((l - 0.6).abs() < 1e-6);
+                assert!((r - 0.7).abs() < 1e-6);
+            }
+            _ => panic!("expected stereo"),
+        }
+    }
+
+    #[test]
+    fn mix_frames_stereo_mono_widens() {
+        use super::mix_frames;
+        let result = mix_frames(AudioFrame::Stereo([0.1, 0.2]), AudioFrame::Mono(0.5));
+        match result {
+            AudioFrame::Stereo([l, r]) => {
+                assert!((l - 0.6).abs() < 1e-6);
+                assert!((r - 0.7).abs() < 1e-6);
+            }
+            _ => panic!("expected stereo"),
+        }
+    }
+
+    // ── output_limiter tests ─────────────────────────────────────────────────
+
+    #[test]
+    fn output_limiter_transparent_below_threshold() {
+        use super::output_limiter;
+        assert!((output_limiter(0.5) - 0.5).abs() < 1e-6);
+        assert!((output_limiter(-0.5) - (-0.5)).abs() < 1e-6);
+        assert!((output_limiter(0.0) - 0.0).abs() < 1e-6);
+        assert!((output_limiter(0.94) - 0.94).abs() < 1e-6);
+    }
+
+    #[test]
+    fn output_limiter_saturates_above_threshold() {
+        use super::output_limiter;
+        let limited = output_limiter(2.0);
+        assert!(limited < 2.0, "limiter should reduce values above threshold");
+        assert!(limited > 0.0, "limiter should keep positive sign");
+        // tanh(2.0) ≈ 0.964
+        assert!((limited - 2.0f32.tanh()).abs() < 1e-6);
+    }
+
+    #[test]
+    fn output_limiter_negative_saturates_symmetrically() {
+        use super::output_limiter;
+        let limited = output_limiter(-2.0);
+        assert!(limited > -2.0, "limiter should reduce negative values");
+        assert!((limited - (-2.0f32).tanh()).abs() < 1e-6);
+    }
+
+    // ── apply_mixdown tests ──────────────────────────────────────────────────
+
+    #[test]
+    fn apply_mixdown_sum_adds_channels() {
+        use super::apply_mixdown;
+        use project::chain::ChainOutputMixdown;
+        assert!((apply_mixdown(ChainOutputMixdown::Sum, 0.3, 0.5) - 0.8).abs() < 1e-6);
+    }
+
+    #[test]
+    fn apply_mixdown_average_averages_channels() {
+        use super::apply_mixdown;
+        use project::chain::ChainOutputMixdown;
+        assert!((apply_mixdown(ChainOutputMixdown::Average, 0.4, 0.8) - 0.6).abs() < 1e-6);
+    }
+
+    #[test]
+    fn apply_mixdown_left_returns_left() {
+        use super::apply_mixdown;
+        use project::chain::ChainOutputMixdown;
+        assert!((apply_mixdown(ChainOutputMixdown::Left, 0.3, 0.7) - 0.3).abs() < 1e-6);
+    }
+
+    #[test]
+    fn apply_mixdown_right_returns_right() {
+        use super::apply_mixdown;
+        use project::chain::ChainOutputMixdown;
+        assert!((apply_mixdown(ChainOutputMixdown::Right, 0.3, 0.7) - 0.7).abs() < 1e-6);
+    }
+
+    // ── layout_from_channels tests ───────────────────────────────────────────
+
+    #[test]
+    fn layout_from_channels_mono_ok() {
+        use super::layout_from_channels;
+        assert_eq!(layout_from_channels(1).unwrap(), AudioChannelLayout::Mono);
+    }
+
+    #[test]
+    fn layout_from_channels_stereo_ok() {
+        use super::layout_from_channels;
+        assert_eq!(layout_from_channels(2).unwrap(), AudioChannelLayout::Stereo);
+    }
+
+    #[test]
+    fn layout_from_channels_invalid_errors() {
+        use super::layout_from_channels;
+        assert!(layout_from_channels(0).is_err());
+        assert!(layout_from_channels(3).is_err());
+        assert!(layout_from_channels(8).is_err());
+    }
+
+    // ── write_output_frame tests ─────────────────────────────────────────────
+
+    #[test]
+    fn write_output_frame_mono_to_single_channel() {
+        use super::write_output_frame;
+        use project::chain::ChainOutputMixdown;
+        let mut frame = [0.0f32; 2];
+        write_output_frame(AudioFrame::Mono(0.5), &[1], &mut frame, ChainOutputMixdown::Average);
+        assert!((frame[0] - 0.0).abs() < 1e-6, "channel 0 should be untouched");
+        assert!((frame[1] - 0.5).abs() < 1e-6, "channel 1 should have the sample");
+    }
+
+    #[test]
+    fn write_output_frame_mono_to_multiple_channels() {
+        use super::write_output_frame;
+        use project::chain::ChainOutputMixdown;
+        let mut frame = [0.0f32; 4];
+        write_output_frame(AudioFrame::Mono(0.8), &[0, 2, 3], &mut frame, ChainOutputMixdown::Average);
+        assert!((frame[0] - 0.8).abs() < 1e-6);
+        assert!((frame[1] - 0.0).abs() < 1e-6);
+        assert!((frame[2] - 0.8).abs() < 1e-6);
+        assert!((frame[3] - 0.8).abs() < 1e-6);
+    }
+
+    #[test]
+    fn write_output_frame_stereo_to_zero_channels() {
+        use super::write_output_frame;
+        use project::chain::ChainOutputMixdown;
+        let mut frame = [0.0f32; 2];
+        // Empty channels — should not write anything
+        write_output_frame(AudioFrame::Stereo([0.5, 0.7]), &[], &mut frame, ChainOutputMixdown::Average);
+        assert_eq!(frame, [0.0, 0.0]);
+    }
+
+    #[test]
+    fn write_output_frame_stereo_to_one_channel_uses_mixdown() {
+        use super::write_output_frame;
+        use project::chain::ChainOutputMixdown;
+        let mut frame = [0.0f32; 2];
+        write_output_frame(AudioFrame::Stereo([0.4, 0.8]), &[0], &mut frame, ChainOutputMixdown::Average);
+        // Average of 0.4 and 0.8 = 0.6
+        assert!((frame[0] - 0.6).abs() < 1e-6);
+    }
+
+    #[test]
+    fn write_output_frame_stereo_to_two_channels_preserves_lr() {
+        use super::write_output_frame;
+        use project::chain::ChainOutputMixdown;
+        let mut frame = [0.0f32; 4];
+        write_output_frame(AudioFrame::Stereo([0.3, 0.7]), &[1, 3], &mut frame, ChainOutputMixdown::Average);
+        assert!((frame[0] - 0.0).abs() < 1e-6);
+        assert!((frame[1] - 0.3).abs() < 1e-6);
+        assert!((frame[2] - 0.0).abs() < 1e-6);
+        assert!((frame[3] - 0.7).abs() < 1e-6);
+    }
+
+    // ── read_input_frame tests ───────────────────────────────────────────────
+
+    #[test]
+    fn read_input_frame_mono_reads_correct_channel() {
+        use super::read_input_frame;
+        let data = [0.1, 0.9, 0.5, 0.3];
+        let frame = read_input_frame(AudioChannelLayout::Mono, &[2], &data);
+        assert!(matches!(frame, AudioFrame::Mono(v) if (v - 0.5).abs() < 1e-6));
+    }
+
+    #[test]
+    fn read_input_frame_stereo_reads_two_channels() {
+        use super::read_input_frame;
+        let data = [0.1, 0.2, 0.3, 0.4];
+        let frame = read_input_frame(AudioChannelLayout::Stereo, &[1, 3], &data);
+        match frame {
+            AudioFrame::Stereo([l, r]) => {
+                assert!((l - 0.2).abs() < 1e-6);
+                assert!((r - 0.4).abs() < 1e-6);
+            }
+            _ => panic!("expected stereo"),
+        }
+    }
+
+    #[test]
+    fn read_input_frame_out_of_bounds_returns_zero() {
+        use super::read_input_frame;
+        let data = [0.5f32; 2];
+        let frame = read_input_frame(AudioChannelLayout::Mono, &[99], &data);
+        assert!(matches!(frame, AudioFrame::Mono(v) if v.abs() < 1e-6));
+    }
+
+    // ── silent_frame tests ───────────────────────────────────────────────────
+
+    #[test]
+    fn silent_frame_mono_is_zero() {
+        use super::silent_frame;
+        let frame = silent_frame(AudioChannelLayout::Mono);
+        assert!(matches!(frame, AudioFrame::Mono(v) if v.abs() < 1e-6));
+    }
+
+    #[test]
+    fn silent_frame_stereo_is_zero() {
+        use super::silent_frame;
+        let frame = silent_frame(AudioChannelLayout::Stereo);
+        assert!(matches!(frame, AudioFrame::Stereo([l, r]) if l.abs() < 1e-6 && r.abs() < 1e-6));
+    }
+
+    // ── build_runtime_graph edge cases ───────────────────────────────────────
+
+    #[test]
+    fn build_runtime_graph_skips_disabled_chains() {
+        let project = Project {
+            name: None,
+            device_settings: Vec::new(),
+            chains: vec![Chain {
+                id: ChainId("disabled".into()),
+                description: None,
+                instrument: "electric_guitar".to_string(),
+                enabled: false,
+                blocks: vec![],
+            }],
+        };
+
+        let runtime = build_runtime_graph(&project, &HashMap::new())
+            .expect("build should succeed with disabled chain");
+        assert!(runtime.chains.is_empty(), "disabled chains should be skipped");
+    }
+
+    #[test]
+    fn build_runtime_graph_errors_on_missing_sample_rate() {
+        let project = Project {
+            name: None,
+            device_settings: Vec::new(),
+            chains: vec![Chain {
+                id: ChainId("chain:0".into()),
+                description: None,
+                instrument: "electric_guitar".to_string(),
+                enabled: true,
+                blocks: vec![],
+            }],
+        };
+
+        let result = build_runtime_graph(&project, &HashMap::new());
+        assert!(result.is_err(), "should error when chain has no sample rate");
+    }
+
+    // ── RuntimeGraph methods ─────────────────────────────────────────────────
+
+    #[test]
+    fn runtime_graph_remove_chain_removes_entry() {
+        let chain = tuner_track("chain:remove", Vec::new());
+        let mut rates = HashMap::new();
+        rates.insert(ChainId("chain:remove".into()), 48_000.0);
+        let project = Project {
+            name: None,
+            device_settings: Vec::new(),
+            chains: vec![chain],
+        };
+        let mut graph = build_runtime_graph(&project, &rates).unwrap();
+        assert_eq!(graph.chains.len(), 1);
+        graph.remove_chain(&ChainId("chain:remove".into()));
+        assert!(graph.chains.is_empty());
+    }
+
+    #[test]
+    fn runtime_graph_runtime_for_chain_returns_none_for_unknown() {
+        use super::RuntimeGraph;
+        let graph = RuntimeGraph { chains: HashMap::new() };
+        assert!(graph.runtime_for_chain(&ChainId("nonexistent".into())).is_none());
+    }
+
+    #[test]
+    fn runtime_graph_upsert_chain_creates_new_entry() {
+        use super::RuntimeGraph;
+        let mut graph = RuntimeGraph { chains: HashMap::new() };
+        let chain = tuner_track("chain:new", Vec::new());
+        let result = graph.upsert_chain(&chain, 48_000.0, false);
+        assert!(result.is_ok());
+        assert_eq!(graph.chains.len(), 1);
+    }
+
+    #[test]
+    fn runtime_graph_upsert_chain_updates_existing() {
+        use super::RuntimeGraph;
+        let mut graph = RuntimeGraph { chains: HashMap::new() };
+        let chain = tuner_track("chain:upsert", vec![tuner_block("b:0", 440.0)]);
+        graph.upsert_chain(&chain, 48_000.0, false).unwrap();
+        // Update — should reuse existing entry
+        let chain2 = tuner_track("chain:upsert", vec![tuner_block("b:0", 445.0)]);
+        let result = graph.upsert_chain(&chain2, 48_000.0, false);
+        assert!(result.is_ok());
+        assert_eq!(graph.chains.len(), 1);
+    }
+
+    // ── process_output_f32 edge cases ────────────────────────────────────────
+
+    #[test]
+    fn process_output_fills_silence_for_invalid_output_index() {
+        let chain = io_passthrough_chain("chain:0");
+        let runtime =
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime should build"));
+
+        let mut out = vec![1.0f32; 8];
+        process_output_f32(&runtime, 999, &mut out, 1);
+
+        assert!(out.iter().all(|&v| v == 0.0),
+            "invalid output index should fill with silence");
+    }
+
+    #[test]
+    fn process_output_underrun_repeats_last_frame() {
+        let chain = io_passthrough_chain("chain:underrun");
+        let runtime =
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime should build"));
+
+        // Push enough frames to get past the fade-in, then push our test frames
+        let warmup = vec![0.0f32; FADE_IN_FRAMES + 16];
+        process_input_f32(&runtime, 0, &warmup, 1);
+        // Drain warmup frames
+        let mut drain = vec![0.0f32; warmup.len()];
+        process_output_f32(&runtime, 0, &mut drain, 1);
+
+        // Now push only 2 frames (no fade-in active)
+        process_input_f32(&runtime, 0, &[0.5, 0.7], 1);
+        // Request 4 frames — last 2 should repeat the last pushed frame
+        let mut out = vec![0.0f32; 4];
+        process_output_f32(&runtime, 0, &mut out, 1);
+
+        assert!((out[0] - 0.5).abs() < 1e-6, "frame 0 should be 0.5, got {}", out[0]);
+        assert!((out[1] - 0.7).abs() < 1e-6, "frame 1 should be 0.7, got {}", out[1]);
+        // Frames 2 and 3 should be the last frame (0.7) repeated
+        assert!((out[2] - 0.7).abs() < 1e-6, "frame 2 should repeat last: 0.7, got {}", out[2]);
+        assert!((out[3] - 0.7).abs() < 1e-6, "frame 3 should repeat last: 0.7, got {}", out[3]);
+    }
+
+    // ── ChainRuntimeState method tests ───────────────────────────────────────
+
+    #[test]
+    fn measured_latency_ms_returns_zero_initially() {
+        let chain = tuner_track("chain:0", Vec::new());
+        let runtime = build_chain_runtime_state(&chain, 48_000.0).unwrap();
+        assert!((runtime.measured_latency_ms() - 0.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn poll_errors_drains_and_returns_all() {
+        let chain = tuner_track("chain:0", Vec::new());
+        let runtime = build_chain_runtime_state(&chain, 48_000.0).unwrap();
+        // Manually push errors
+        {
+            let mut q = runtime.error_queue.lock().unwrap();
+            q.push(BlockError { block_id: BlockId("err:1".into()), message: "oops".into() });
+            q.push(BlockError { block_id: BlockId("err:2".into()), message: "boom".into() });
+        }
+        let errors = runtime.poll_errors();
+        assert_eq!(errors.len(), 2);
+        // Second call should be empty
+        let errors2 = runtime.poll_errors();
+        assert!(errors2.is_empty(), "poll_errors should drain the queue");
+    }
+
+    #[test]
+    fn poll_stream_returns_none_for_unknown_block() {
+        let chain = tuner_track("chain:0", Vec::new());
+        let runtime = build_chain_runtime_state(&chain, 48_000.0).unwrap();
+        assert!(runtime.poll_stream(&BlockId("nonexistent".into())).is_none());
+    }
+
+    // ── effective_inputs / effective_outputs with Insert blocks ───────────────
+
+    fn insert_chain() -> Chain {
+        Chain {
+            id: ChainId("chain:insert".into()),
+            description: None,
+            instrument: "electric_guitar".to_string(),
+            enabled: true,
+            blocks: vec![
+                AudioBlock {
+                    id: BlockId("input:0".into()),
+                    enabled: true,
+                    kind: AudioBlockKind::Input(InputBlock {
+                        model: "standard".into(),
+                        entries: vec![InputEntry {
+                            name: "In".into(),
+                            device_id: DeviceId("dev_in".into()),
+                            mode: ChainInputMode::Mono,
+                            channels: vec![0],
+                        }],
+                    }),
+                },
+                AudioBlock {
+                    id: BlockId("comp:0".into()),
+                    enabled: true,
+                    kind: AudioBlockKind::Core(CoreBlock {
+                        effect_type: "gain".into(),
+                        model: "volume".into(),
+                        params: ParameterSet::default(),
+                    }),
+                },
+                AudioBlock {
+                    id: BlockId("insert:0".into()),
+                    enabled: true,
+                    kind: AudioBlockKind::Insert(InsertBlock {
+                        model: "external_loop".into(),
+                        send: InsertEndpoint {
+                            device_id: DeviceId("send_dev".into()),
+                            mode: ChainInputMode::Stereo,
+                            channels: vec![0, 1],
+                        },
+                        return_: InsertEndpoint {
+                            device_id: DeviceId("return_dev".into()),
+                            mode: ChainInputMode::Stereo,
+                            channels: vec![0, 1],
+                        },
+                    }),
+                },
+                AudioBlock {
+                    id: BlockId("delay:0".into()),
+                    enabled: true,
+                    kind: AudioBlockKind::Core(CoreBlock {
+                        effect_type: "gain".into(),
+                        model: "volume".into(),
+                        params: ParameterSet::default(),
+                    }),
+                },
+                AudioBlock {
+                    id: BlockId("output:0".into()),
+                    enabled: true,
+                    kind: AudioBlockKind::Output(OutputBlock {
+                        model: "standard".into(),
+                        entries: vec![OutputEntry {
+                            name: "Out".into(),
+                            device_id: DeviceId("dev_out".into()),
+                            mode: ChainOutputMode::Stereo,
+                            channels: vec![0, 1],
+                        }],
+                    }),
+                },
+            ],
+        }
+    }
+
+    #[test]
+    fn effective_inputs_includes_insert_return() {
+        let chain = insert_chain();
+        let (eff_inputs, cpal_indices) = effective_inputs(&chain);
+        // Should have: 1 regular input + 1 insert return = 2
+        assert_eq!(eff_inputs.len(), 2);
+        assert_eq!(eff_inputs[0].name, "In");
+        assert_eq!(eff_inputs[1].name, "Insert Return");
+        assert_eq!(cpal_indices.len(), 2);
+    }
+
+    #[test]
+    fn effective_outputs_includes_insert_send() {
+        let chain = insert_chain();
+        let eff_outputs = effective_outputs(&chain);
+        // Should have: 1 regular output + 1 insert send = 2
+        assert_eq!(eff_outputs.len(), 2);
+        assert_eq!(eff_outputs[0].name, "Out");
+        assert_eq!(eff_outputs[1].name, "Insert Send");
+    }
+
+    #[test]
+    fn split_chain_with_insert_produces_two_segments() {
+        let chain = insert_chain();
+        let (eff_inputs, cpal_indices) = effective_inputs(&chain);
+        let eff_outputs = effective_outputs(&chain);
+        let segments = split_chain_into_segments(&chain, &eff_inputs, &cpal_indices, &eff_outputs);
+
+        // Should have 2 segments: before insert and after insert
+        assert_eq!(segments.len(), 2, "insert should split chain into 2 segments");
+
+        // Segment 0: input → [comp:0] → insert send
+        assert_eq!(segments[0].block_indices, vec![1],
+            "first segment should contain only effect blocks before insert");
+
+        // Segment 1: insert return → [delay:0] → output
+        assert_eq!(segments[1].block_indices, vec![3],
+            "second segment should contain only effect blocks after insert");
+    }
+
+    #[test]
+    fn split_chain_with_disabled_insert_produces_one_segment() {
+        let mut chain = insert_chain();
+        // Disable the insert block
+        chain.blocks[2].enabled = false;
+        let (eff_inputs, cpal_indices) = effective_inputs(&chain);
+        let eff_outputs = effective_outputs(&chain);
+        let segments = split_chain_into_segments(&chain, &eff_inputs, &cpal_indices, &eff_outputs);
+
+        // Disabled insert should not split the chain
+        assert_eq!(segments.len(), 1, "disabled insert should not split the chain");
+    }
+
+    // ── effective_inputs with mono multi-channel splitting ────────────────────
+
+    #[test]
+    fn effective_inputs_splits_mono_multichannel_entry() {
+        let chain = Chain {
+            id: ChainId("chain:split".into()),
+            description: None,
+            instrument: "electric_guitar".to_string(),
+            enabled: true,
+            blocks: vec![AudioBlock {
+                id: BlockId("input:0".into()),
+                enabled: true,
+                kind: AudioBlockKind::Input(InputBlock {
+                    model: "standard".into(),
+                    entries: vec![InputEntry {
+                        name: "Guitar".into(),
+                        device_id: DeviceId("dev".into()),
+                        mode: ChainInputMode::Mono,
+                        channels: vec![0, 1, 2],
+                    }],
+                }),
+            }],
+        };
+        let (eff_inputs, cpal_indices) = effective_inputs(&chain);
+        assert_eq!(eff_inputs.len(), 3, "mono entry with 3 channels should split into 3 entries");
+        assert_eq!(eff_inputs[0].channels, vec![0]);
+        assert_eq!(eff_inputs[1].channels, vec![1]);
+        assert_eq!(eff_inputs[2].channels, vec![2]);
+        // All should share the same CPAL stream index
+        assert_eq!(cpal_indices[0], cpal_indices[1]);
+        assert_eq!(cpal_indices[1], cpal_indices[2]);
+    }
+
+    // ── effective_inputs / outputs fallback ───────────────────────────────────
+
+    #[test]
+    fn effective_inputs_fallback_when_no_input_blocks() {
+        let chain = Chain {
+            id: ChainId("chain:fallback".into()),
+            description: None,
+            instrument: "electric_guitar".to_string(),
+            enabled: true,
+            blocks: vec![],
+        };
+        let (eff_inputs, cpal_indices) = effective_inputs(&chain);
+        assert_eq!(eff_inputs.len(), 1, "fallback should produce exactly 1 input");
+        assert_eq!(eff_inputs[0].name, "Input");
+        assert_eq!(cpal_indices, vec![0]);
+    }
+
+    #[test]
+    fn effective_outputs_fallback_when_no_output_blocks() {
+        let chain = Chain {
+            id: ChainId("chain:fallback".into()),
+            description: None,
+            instrument: "electric_guitar".to_string(),
+            enabled: true,
+            blocks: vec![],
+        };
+        let eff_outputs = effective_outputs(&chain);
+        assert_eq!(eff_outputs.len(), 1, "fallback should produce exactly 1 output");
+        assert_eq!(eff_outputs[0].name, "Output");
+    }
+
+    // ── downcast_panic_message tests ─────────────────────────────────────────
+
+    #[test]
+    fn downcast_panic_str_message() {
+        use super::downcast_panic_message;
+        let payload: Box<dyn std::any::Any + Send> = Box::new("static string");
+        assert_eq!(downcast_panic_message(payload), "static string");
+    }
+
+    #[test]
+    fn downcast_panic_string_message() {
+        use super::downcast_panic_message;
+        let payload: Box<dyn std::any::Any + Send> = Box::new(String::from("owned string"));
+        assert_eq!(downcast_panic_message(payload), "owned string");
+    }
+
+    #[test]
+    fn downcast_panic_unknown_type_message() {
+        use super::downcast_panic_message;
+        let payload: Box<dyn std::any::Any + Send> = Box::new(42i32);
+        assert_eq!(downcast_panic_message(payload), "unknown panic");
+    }
+
+    // ── process_input_f32 with stereo I/O ────────────────────────────────────
+
+    #[test]
+    fn process_input_stereo_output_preserves_channels() {
+        let chain = Chain {
+            id: ChainId("chain:stereo-io".into()),
+            description: None,
+            instrument: "electric_guitar".to_string(),
+            enabled: true,
+            blocks: vec![
+                AudioBlock {
+                    id: BlockId("input:0".into()),
+                    enabled: true,
+                    kind: AudioBlockKind::Input(InputBlock {
+                        model: "standard".into(),
+                        entries: vec![InputEntry {
+                            name: "In".into(),
+                            device_id: DeviceId("dev".into()),
+                            mode: ChainInputMode::Stereo,
+                            channels: vec![0, 1],
+                        }],
+                    }),
+                },
+                AudioBlock {
+                    id: BlockId("output:0".into()),
+                    enabled: true,
+                    kind: AudioBlockKind::Output(OutputBlock {
+                        model: "standard".into(),
+                        entries: vec![OutputEntry {
+                            name: "Out".into(),
+                            device_id: DeviceId("dev".into()),
+                            mode: ChainOutputMode::Stereo,
+                            channels: vec![0, 1],
+                        }],
+                    }),
+                },
+            ],
+        };
+        let runtime =
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime should build"));
+
+        // Push enough frames to get past fade-in (interleaved stereo)
+        let warmup = vec![0.0f32; (FADE_IN_FRAMES + 16) * 2];
+        process_input_f32(&runtime, 0, &warmup, 2);
+        let mut drain = vec![0.0f32; warmup.len()];
+        process_output_f32(&runtime, 0, &mut drain, 2);
+
+        // Interleaved stereo: L=0.3, R=0.7, L=0.5, R=0.9
+        let input = [0.3f32, 0.7, 0.5, 0.9];
+        process_input_f32(&runtime, 0, &input, 2);
+
+        let mut out = vec![0.0f32; 4];
+        process_output_f32(&runtime, 0, &mut out, 2);
+
+        assert!((out[0] - 0.3).abs() < 1e-6, "left ch frame 0: got {}", out[0]);
+        assert!((out[1] - 0.7).abs() < 1e-6, "right ch frame 0: got {}", out[1]);
+        assert!((out[2] - 0.5).abs() < 1e-6, "left ch frame 1: got {}", out[2]);
+        assert!((out[3] - 0.9).abs() < 1e-6, "right ch frame 1: got {}", out[3]);
+    }
+
+    // ── update_chain_runtime_state with reset_output_queue ───────────────────
+
+    #[test]
+    fn update_chain_runtime_state_with_reset_output_queue() {
+        let chain = io_passthrough_chain("chain:0");
+        let runtime =
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime should build"));
+
+        // Push some data
+        process_input_f32(&runtime, 0, &[0.5, 0.7], 1);
+
+        // Update with reset_output_queue=true should clear the buffer
+        update_chain_runtime_state(&runtime, &chain, 48_000.0, true)
+            .expect("update should succeed");
+
+        let mut out = vec![0.0f32; 2];
+        process_output_f32(&runtime, 0, &mut out, 1);
+        // After reset, output should be silence (no frames in queue)
+        assert!(out.iter().all(|&v| v.abs() < 1e-6),
+            "after reset_output_queue, output should be silent");
+    }
+
+    // ── layout_label tests ───────────────────────────────────────────────────
+
+    #[test]
+    fn layout_label_returns_correct_strings() {
+        use super::layout_label;
+        assert_eq!(layout_label(AudioChannelLayout::Mono), "mono");
+        assert_eq!(layout_label(AudioChannelLayout::Stereo), "stereo");
     }
 }
