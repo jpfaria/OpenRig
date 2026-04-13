@@ -1525,10 +1525,12 @@ export component BlockEditorPanel inherits Rectangle {
     callback update-block-parameter-bool(string, bool);
     callback select-block-parameter-option(string, int);
     callback pick-block-parameter-file(string);
-    callback open-vst3-editor(string); // model-id
+    callback open-external-editor(string); // model-id
 
     // Realtime data stream from engine (tuner, spectrum analyzer, etc.)
     in property <BlockStreamData> block-stream-data;
+
+    in property <bool> has-external-editor: false;
 
     // Computed helpers
     property <bool> is-preamp:
@@ -1538,11 +1540,6 @@ export component BlockEditorPanel inherits Rectangle {
 
     // True when a tuner (or other non-spectrum stream) is the active block — show stream area even while silent
     property <bool> has-tuner-stream: root.block-stream-data.stream-kind != "" && root.block-stream-data.stream-kind != "spectrum";
-
-    property <bool> is-vst3:
-        root.block-drawer-selected-type-index >= 0
-        && root.block-drawer-selected-type-index < root.block-type-options.length
-        && root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "vst3";
 
     property <string> selected-model-id:
         root.block-drawer-selected-model-index >= 0
@@ -1587,12 +1584,12 @@ export component BlockEditorPanel inherits Rectangle {
             vertical-alignment: center;
         }
 
-        if root.block-drawer-edit-mode && root.is-vst3 : ChainActionIcon {
+        if root.block-drawer-edit-mode && root.has-external-editor : ChainActionIcon {
             x: parent.width - 104px;
             y: 20px;
             icon: @image-url("../assets/expand.svg");
             tooltip: "Plugin GUI";
-            clicked => { root.open-vst3-editor(root.selected-model-id); }
+            clicked => { root.open-external-editor(root.selected-model-id); }
         }
 
         if root.block-drawer-edit-mode : ChainPowerToggle {
@@ -1666,7 +1663,7 @@ export component BlockEditorPanel inherits Rectangle {
         }
 
         // ── VST3: model selector + "Open Editor" button, no inline params ──
-        if !root.is-preamp && root.is-vst3 : ComboBox {
+        if !root.is-preamp && root.has-external-editor : ComboBox {
             x: 20px;
             y: 78px;
             width: parent.width - 40px;
@@ -1676,7 +1673,7 @@ export component BlockEditorPanel inherits Rectangle {
             selected(_) => { root.choose-block-model(self.current-index); }
         }
 
-        if !root.is-preamp && root.is-vst3 && root.block-drawer-selected-model-index >= 0 && root.block-drawer-selected-model-index < root.block-model-options.length : Text {
+        if !root.is-preamp && root.has-external-editor && root.block-drawer-selected-model-index >= 0 && root.block-drawer-selected-model-index < root.block-model-options.length : Text {
             x: 20px;
             y: 118px;
             width: parent.width - 40px;
@@ -1686,7 +1683,7 @@ export component BlockEditorPanel inherits Rectangle {
             font-size: 11px;
         }
 
-        if !root.is-preamp && root.is-vst3 && root.block-drawer-edit-mode : Rectangle {
+        if !root.is-preamp && root.has-external-editor && root.block-drawer-edit-mode : Rectangle {
             x: 20px;
             y: 152px;
             width: parent.width - 40px;
@@ -1695,7 +1692,7 @@ export component BlockEditorPanel inherits Rectangle {
             TouchArea {
                 width: parent.width; height: parent.height;
                 mouse-cursor: pointer;
-                clicked => { root.open-vst3-editor(root.selected-model-id); }
+                clicked => { root.open-external-editor(root.selected-model-id); }
 
                 Rectangle {
                     width: parent.width; height: parent.height;
@@ -1724,7 +1721,7 @@ export component BlockEditorPanel inherits Rectangle {
         }
 
         // ── OUTROS TIPOS: layout original (exceto preamp e vst3) ─────
-        if !root.is-preamp && !root.is-vst3 : ComboBox {
+        if !root.is-preamp && !root.has-external-editor : ComboBox {
             x: 20px;
             y: 78px;
             width: parent.width - 40px;
@@ -1734,7 +1731,7 @@ export component BlockEditorPanel inherits Rectangle {
             selected(_) => { root.choose-block-model(self.current-index); }
         }
 
-        if !root.is-preamp && !root.is-vst3 && root.block-drawer-selected-model-index >= 0 && root.block-drawer-selected-model-index < root.block-model-options.length : Text {
+        if !root.is-preamp && !root.has-external-editor && root.block-drawer-selected-model-index >= 0 && root.block-drawer-selected-model-index < root.block-model-options.length : Text {
             x: 20px;
             y: 118px;
             width: parent.width - 40px;
@@ -1744,7 +1741,7 @@ export component BlockEditorPanel inherits Rectangle {
             font-size: 11px;
         }
 
-        if !root.is-preamp && !root.is-vst3 && root.curve-editor-points.length > 0 : CurveEditorControl {
+        if !root.is-preamp && !root.has-external-editor && root.curve-editor-points.length > 0 : CurveEditorControl {
             x: 8px;
             y: 142px;
             width: parent.width - 16px;
@@ -1754,7 +1751,7 @@ export component BlockEditorPanel inherits Rectangle {
             update-parameter(path, val) => { root.update-block-parameter-number(path, val); }
         }
 
-        if !root.is-preamp && !root.is-vst3 && root.multi-slider-points.length > 0 && root.curve-editor-points.length == 0 : MultiSliderControl {
+        if !root.is-preamp && !root.has-external-editor && root.multi-slider-points.length > 0 && root.curve-editor-points.length == 0 : MultiSliderControl {
             x: 8px;
             y: 142px;
             width: parent.width - 16px;
@@ -1763,7 +1760,7 @@ export component BlockEditorPanel inherits Rectangle {
         }
 
         // ── Stream display (tuner, spectrum) — for non-preamp utility blocks ──
-        if !root.is-preamp && !root.is-vst3 && root.has-tuner-stream : Rectangle {
+        if !root.is-preamp && !root.has-external-editor && root.has-tuner-stream : Rectangle {
             x: 20px;
             y: 142px;
             width: parent.width - 40px;
@@ -1832,7 +1829,7 @@ export component BlockEditorPanel inherits Rectangle {
             }
         }
 
-        if !root.is-preamp && !root.is-vst3 && root.block-stream-data.active && root.block-stream-data.stream-kind == "spectrum" : Rectangle {
+        if !root.is-preamp && !root.has-external-editor && root.block-stream-data.active && root.block-stream-data.stream-kind == "spectrum" : Rectangle {
             x: 20px;
             y: 142px;
             width: parent.width - 40px;
@@ -1861,7 +1858,7 @@ export component BlockEditorPanel inherits Rectangle {
             }
         }
 
-        if !root.is-preamp && !root.is-vst3 && root.curve-editor-points.length == 0 && root.multi-slider-points.length == 0 : ScrollView {
+        if !root.is-preamp && !root.has-external-editor && root.curve-editor-points.length == 0 && root.multi-slider-points.length == 0 : ScrollView {
             x: 20px;
             y: root.has-tuner-stream || (root.block-stream-data.active && root.block-stream-data.stream-kind == "spectrum") ? 354px : 138px;
             width: parent.width - 40px;
@@ -1956,7 +1953,9 @@ export component ProjectChainsPage inherits Rectangle {
     callback update-block-parameter-bool(string, bool);
     callback select-block-parameter-option(string, int);
     callback pick-block-parameter-file(string);
-    callback open-vst3-editor(string); // model-id
+    callback open-external-editor(string); // model-id
+
+    in property <bool> has-external-editor: false;
 
     background: #1f2023;
 
@@ -2132,6 +2131,7 @@ export component ProjectChainsPage inherits Rectangle {
             block-drawer-selected-type-index: root.block-drawer-selected-type-index;
             block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
             block-drawer-enabled: root.block-drawer-enabled;
+            has-external-editor: root.has-external-editor;
             block-parameter-items: root.block-parameter-items;
             multi-slider-points: root.multi-slider-points;
             curve-editor-points: root.curve-editor-points;
@@ -2149,7 +2149,7 @@ export component ProjectChainsPage inherits Rectangle {
             update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
             select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
             pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
-            open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
+            open-external-editor(model-id) => { root.open-external-editor(model-id); }
         }
     }
 

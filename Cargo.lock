@@ -343,6 +343,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "block-core",
+ "block-delay",
+ "block-reverb",
+ "domain",
  "project",
 ]
 
@@ -799,6 +802,7 @@ dependencies = [
  "domain",
  "log",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -807,6 +811,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "block-core",
+ "domain",
  "lv2",
  "vst3-host",
 ]
@@ -817,6 +822,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "block-core",
+ "domain",
  "log",
  "lv2",
  "vst3-host",
@@ -828,6 +834,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "block-core",
+ "domain",
  "log",
  "lv2",
  "vst3-host",
@@ -909,6 +916,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "block-core",
+ "domain",
  "log",
  "lv2",
  "vst3-host",
@@ -934,6 +942,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "block-core",
+ "domain",
  "lv2",
 ]
 

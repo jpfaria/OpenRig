@@ -1,6 +1,7 @@
 import { BlockTypePickerItem, BlockModelPickerItem, BlockKnobOverlay, BlockParameterItem, BlockStreamData, MultiSliderPoint, CurveEditorPoint } from "../models.slint";
 import { BrandLogo } from "../components/brand_logo.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
+import { PanelKnob } from "../components/panel_knob.slint";
 import { CurveEditorControl } from "curve_editor_control.slint";
 import { MultiSliderControl } from "multi_slider_control.slint";
 
@@ -142,100 +143,6 @@ component ModelSelector inherits Rectangle {
     }
 }
 
-// Dial knob — dark circle, dot indicator on edge, value in center
-component PanelKnob inherits Rectangle {
-    in property <float> value;
-    in property <float> min-val;
-    in property <float> max-val;
-    in property <float> step: 1.0;
-    in property <string> path;
-    callback changed(string, float);
-
-    private property <float> norm: root.preview-active ? (root.preview-val - root.min-val) / (root.max-val - root.min-val) : root.value / 100.0;
-    private property <float> drag-y0: 0;
-    private property <float> drag-val0: 0;
-    private property <bool> preview-active: false;
-    private property <float> preview-val: 0;
-    // Angle: 225° (min, 7:30) → 495° (max, 4:30)
-    private property <angle> dot-angle: 225deg + root.norm * 270deg;
-    private property <length> knob-size: Math.min(root.width, root.height);
-    private property <length> orbit: root.knob-size / 2 - 6px;
-
-    background: transparent;
-
-    // Dark circle base
-    Rectangle {
-        x: (parent.width - root.knob-size) / 2;
-        y: (parent.height - root.knob-size) / 2;
-        width: root.knob-size;
-        height: root.knob-size;
-        border-radius: root.knob-size / 2;
-        background: #111;
-        border-width: ta.pressed ? 2.5px : ta.has-hover ? 2px : 1.5px;
-        border-color: ta.pressed ? #6688ff : ta.has-hover ? #4466bb : #333;
-    }
-
-    // Dot indicator on circumference
-    Rectangle {
-        x: parent.width / 2 + Math.sin(root.dot-angle) * (root.orbit / 1px) * 1px - 4px;
-        y: parent.height / 2 - Math.cos(root.dot-angle) * (root.orbit / 1px) * 1px - 4px;
-        width: 8px;
-        height: 8px;
-        border-radius: 4px;
-        background: ta.pressed ? #ffffff : ta.has-hover ? #ddeeff : #aabbdd;
-    }
-
-    // Value in center
-    Text {
-        x: (parent.width - root.knob-size) / 2;
-        y: (parent.height - root.knob-size) / 2;
-        width: root.knob-size;
-        height: root.knob-size;
-        text: root.preview-active
-            ? (root.step >= 1.0
-                ? Math.round(root.preview-val) + ""
-                : Math.round(root.preview-val * 10) / 10 + "")
-            : (root.step >= 1.0
-                ? Math.round(root.value) + ""
-                : Math.round(root.value * 10) / 10 + "");
-        color: ta.pressed ? #ffffff : ta.has-hover ? #ddeeff : #ccdde8;
-        font-size: 14px;
-        font-weight: 700;
-        horizontal-alignment: center;
-        vertical-alignment: center;
-    }
-
-    ta := TouchArea {
-        mouse-cursor: ta.pressed ? none : ns-resize;
-
-        pointer-event(ev) => {
-            if ev.kind == PointerEventKind.down {
-                root.drag-y0 = ta.mouse-y / 1px;
-                root.drag-val0 = root.value;
-                root.preview-active = true;
-                root.preview-val = root.value;
-            }
-            if ev.kind == PointerEventKind.up {
-                if root.preview-active {
-                    root.changed(root.path, root.preview-val);
-                    root.preview-active = false;
-                }
-            }
-        }
-
-        moved => {
-            if ta.pressed {
-                let delta = root.drag-y0 - ta.mouse-y / 1px;
-                let range = root.max-val - root.min-val;
-                let raw = root.drag-val0 + delta * range / 120.0;
-                let clamped = raw < root.min-val ? root.min-val : (raw > root.max-val ? root.max-val : raw);
-                let stepped = root.step > 0.0 ? Math.round(clamped / root.step) * root.step : clamped;
-                root.preview-val = stepped;
-            }
-        }
-    }
-}
-
 // Full visual amp head editor window content
 export component BlockPanelEditor inherits Rectangle {
     in property <[BlockTypePickerItem]> block-type-options;
@@ -256,7 +163,6 @@ export component BlockPanelEditor inherits Rectangle {
 
     callback choose-block-model(int);
     callback close-block-drawer();
-    callback open-vst3-editor(string); // model-id
     callback save-block-drawer();
     callback delete-block-drawer();
     callback show-plugin-info(string, string);  // effect_type, model_id
@@ -265,6 +171,7 @@ export component BlockPanelEditor inherits Rectangle {
     callback select-block-parameter-option(string, int);
     callback pick-block-parameter-file(string);
     callback update-block-parameter-bool(string, bool);
+    callback open-external-editor(string); // model-id
 
     // Computed
     private property <string> selected-model-id:
@@ -285,7 +192,7 @@ export component BlockPanelEditor inherits Rectangle {
         ? root.block-model-options[root.block-drawer-selected-model-index].type_label
         : "";
 
-    private property <bool> is-vst3: root.selected-type-label == "VST3";
+    in property <bool> has-external-editor: false;
 
     private property <string> selected-model-label:
         root.block-drawer-selected-model-index >= 0
@@ -382,7 +289,7 @@ export component BlockPanelEditor inherits Rectangle {
         ModelSelector {
             x: 100px;
             y: (parent.height - 34px) / 2;
-            width: parent.width - 100px - root.badge-width - (root.block-drawer-edit-mode ? 112px : 48px);
+            width: parent.width - 100px - root.badge-width - (root.block-drawer-edit-mode ? 80px : 48px);
             labels: root.block-model-option-labels;
             models: root.block-model-options;
             current-index <=> root.block-drawer-selected-model-index;
@@ -391,7 +298,7 @@ export component BlockPanelEditor inherits Rectangle {
 
         // Type badge
         if root.selected-type-label != "" : Rectangle {
-            x: parent.width - root.badge-width - (root.block-drawer-edit-mode ? 104px : 40px);
+            x: parent.width - root.badge-width - (root.block-drawer-edit-mode ? 72px : 40px);
             y: (parent.height - 22px) / 2;
             width: root.badge-width;
             height: 22px;
@@ -420,9 +327,9 @@ export component BlockPanelEditor inherits Rectangle {
             }
         }
 
-        // Info button (edit mode)
+        // Info button (edit mode, ao lado do delete)
         if root.block-drawer-edit-mode : Rectangle {
-            x: parent.width - 96px;
+            x: parent.width - 64px;
             y: (parent.height - 24px) / 2;
             width: 24px;
             height: 24px;
@@ -445,9 +352,9 @@ export component BlockPanelEditor inherits Rectangle {
             }
         }
 
-        // Delete button (edit mode)
+        // Delete button (edit mode, ao lado do badge)
         if root.block-drawer-edit-mode : Rectangle {
-            x: parent.width - 64px;
+            x: parent.width - 32px;
             y: (parent.height - 24px) / 2;
             width: 24px;
             height: 24px;
@@ -465,35 +372,6 @@ export component BlockPanelEditor inherits Rectangle {
             ta-del := TouchArea {
                 mouse-cursor: pointer;
                 clicked => { root.delete-block-drawer(); }
-            }
-        }
-
-        // Power toggle (edit mode, rightmost in header)
-        if root.block-drawer-edit-mode : Rectangle {
-            x: parent.width - 32px;
-            y: (parent.height - 24px) / 2;
-            width: 24px;
-            height: 24px;
-            border-radius: 4px;
-            background: ta-hdr-power.has-hover ? (root.block-drawer-enabled ? #0a1a0a : #1a0a0a) : transparent;
-
-            Rectangle {
-                x: 4px; y: 4px;
-                width: 16px; height: 16px;
-                border-radius: 8px;
-                border-width: 2px;
-                border-color: root.block-drawer-enabled ? #29df85 : #6a7483;
-            }
-            Rectangle {
-                x: 11px; y: 3px;
-                width: 2px; height: 8px;
-                background: root.block-drawer-enabled ? #29df85 : #6a7483;
-                border-radius: 1px;
-            }
-
-            ta-hdr-power := TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.toggle-block-drawer-enabled(); }
             }
         }
 
@@ -697,7 +575,7 @@ export component BlockPanelEditor inherits Rectangle {
         }
 
         // ── VST3: "Open Editor" button, no inline params ──
-        if root.is-vst3 && root.block-drawer-edit-mode : Rectangle {
+        if root.has-external-editor && root.block-drawer-edit-mode : Rectangle {
             x: (parent.width - 180px) / 2;
             y: (parent.height - 38px) / 2;
             width: 180px;
@@ -706,7 +584,7 @@ export component BlockPanelEditor inherits Rectangle {
             TouchArea {
                 width: parent.width; height: parent.height;
                 mouse-cursor: pointer;
-                clicked => { root.open-vst3-editor(root.selected-model-id); }
+                clicked => { root.open-external-editor(root.selected-model-id); }
 
                 Rectangle {
                     width: parent.width; height: parent.height;
@@ -734,42 +612,36 @@ export component BlockPanelEditor inherits Rectangle {
             }
         }
 
-        // ── Control labels (alinhados à direita, espaçamento fixo 70px) ──
-        for knob[ki] in root.block-knob-overlays : Text {
-            visible: !root.is-vst3;
-            x: parent.width - 28px - (root.block-knob-overlays.length - ki) * 70px - 10px;
-            y: parent.height * 0.54;
-            width: 80px;
-            height: 16px;
-            text: knob.label;
-            color: root.panel-text;
-            font-family: "Bebas Neue";
-            font-size: 13px;
-            letter-spacing: 2px;
-            horizontal-alignment: center;
-        }
-
-
-        // ── Knob overlays (HorizontalLayout, right-aligned) ──
+        // ── Knob overlays (distributed like table columns) ──
         HorizontalLayout {
-            visible: root.block-knob-overlays.length > 0 && !root.is-vst3;
-            alignment: end;
-            spacing: 4px;
+            visible: root.block-knob-overlays.length > 0 && !root.has-external-editor;
+            alignment: stretch;
+            padding-left: 60px;
             padding-right: 8px;
             x: 0;
-            y: parent.height * 0.62;
+            y: parent.height * 0.54;
             width: parent.width;
-            height: 56px;
+            height: 72px;
 
             for knob[ki] in root.block-knob-overlays : Rectangle {
-                min-width: 56px;
-                preferred-width: 56px;
-                height: 56px;
+                horizontal-stretch: 1;
+                height: 72px;
+
+                Text {
+                    x: 0; y: 0; width: parent.width; height: 14px;
+                    text: knob.label;
+                    color: root.panel-text;
+                    font-family: "Bebas Neue";
+                    font-size: 10px;
+                    letter-spacing: 1.5px;
+                    horizontal-alignment: center;
+                    overflow: elide;
+                }
 
                 PanelKnob {
-                    x: 0; y: 0;
-                    width: parent.width;
-                    height: parent.height;
+                    x: (parent.width - 58px) / 2; y: 14px;
+                    width: 58px;
+                    height: 58px;
                     value: knob.value;
                     min-val: knob.min_val;
                     max-val: knob.max_val;
@@ -780,44 +652,35 @@ export component BlockPanelEditor inherits Rectangle {
             }
         }
 
-        // ── All parameters (HorizontalLayout, right-aligned, when no knob overlays) ──
+        // ── All parameters (distributed like table columns, when no knob overlays) ──
         HorizontalLayout {
             visible: root.block-knob-overlays.length == 0
                 && root.curve-editor-points.length == 0
-                && root.multi-slider-points.length == 0
-                && !root.is-vst3;
-            alignment: end;
-            spacing: 4px;
+                && root.multi-slider-points.length == 0;
+            alignment: stretch;
+            padding-left: 60px;
             padding-right: 8px;
             x: 0;
             y: parent.height * 0.54;
             width: parent.width;
-            height: 60px;
+            height: 72px;
 
             for param[pi] in root.block-parameter-items : Rectangle {
                 visible: param.widget_kind != "";
-                min-width: param.widget_kind == "enum" && param.option_labels.length <= 4 ? 120px
-                    : param.widget_kind == "enum" && param.option_labels.length > 4 ? 140px
-                    : param.widget_kind == "bool" ? 48px
-                    : param.widget_kind == "path" ? 60px
-                    : 56px;
-                preferred-width: param.widget_kind == "enum" && param.option_labels.length <= 4 ? Math.max(120px, param.option_labels.length * 72px)
-                    : param.widget_kind == "enum" && param.option_labels.length > 4 ? 220px
-                    : param.widget_kind == "bool" ? 60px
-                    : param.widget_kind == "path" ? 82px
-                    : 82px;
-                height: 60px;
+                horizontal-stretch: param.widget_kind == "enum" ? 2 : 1;
+                height: 72px;
 
                 // Label (shared by all widget types)
                 Text {
-                    x: 0; y: 0; width: parent.width; height: 16px;
+                    x: 0; y: 0; width: parent.width; height: 14px;
                     text: param.label;
                     color: root.panel-text;
-                    font-family: param.widget_kind == "enum" ? "Bebas Neue" : "";
-                    font-size: param.widget_kind == "enum" ? 13px : 9px;
-                    font-weight: param.widget_kind == "enum" ? 700 : 800;
-                    letter-spacing: param.widget_kind == "enum" ? 2px : 1px;
+                    font-family: "Bebas Neue";
+                    font-size: 10px;
+                    font-weight: 700;
+                    letter-spacing: 1.5px;
                     horizontal-alignment: center;
+                    overflow: elide;
                 }
 
                 // ── Enum ≤4 options (segmented control) ──
@@ -984,10 +847,10 @@ export component BlockPanelEditor inherits Rectangle {
 
                 // ── Numeric knob/stepper/slider ──
                 if param.widget_kind == "stepper" || param.widget_kind == "slider" || param.widget_kind == "knob" : PanelKnob {
-                    x: (parent.width - 48px) / 2;
-                    y: 18px;
-                    width: 48px;
-                    height: 48px;
+                    x: (parent.width - 58px) / 2;
+                    y: 14px;
+                    width: 58px;
+                    height: 58px;
                     value: param.numeric_value;
                     min-val: param.numeric_min;
                     max-val: param.numeric_max;
@@ -1199,4 +1062,49 @@ export component BlockPanelEditor inherits Rectangle {
         }
     }
 
+    // ── Power switch — root level so it always renders above panel content ──
+    // Pinned to top (4px) when there are no knob overlays or eq widget — those blocks
+    // (e.g. utility) use the full panel area for stream display, so the button goes top-left.
+    // Falls to 62% when knob overlays are present so it sits alongside the knobs.
+    private property <length> power-y: root.header-height + root.brand-strip-height + 4px;
+
+    Rectangle {
+        x: 10px;
+        y: root.power-y;
+        width: 32px;
+        height: 40px;
+        border-radius: 3px;
+        background: #0a0a0a;
+        border-width: 1.5px;
+        border-color: #404040;
+
+        Rectangle {
+            x: 6px;
+            y: root.block-drawer-enabled ? 4px : 20px;
+            width: 20px;
+            height: 16px;
+            border-radius: 2px;
+            background: root.block-drawer-enabled ? #cc2222 : #1a0808;
+            border-width: 1px;
+            border-color: root.block-drawer-enabled ? #ee4444 : #331111;
+        }
+
+        ta-power := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.toggle-block-drawer-enabled(); }
+        }
+    }
+
+    Text {
+        x: 8px;
+        y: root.power-y + 44px;
+        width: 36px;
+        height: 12px;
+        text: "POWER";
+        color: root.panel-text;
+        font-size: 7px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        horizontal-alignment: center;
+    }
 }

@@ -113,7 +113,8 @@ export component TouchMain inherits Rectangle {
     callback update-block-parameter-bool(string, bool);
     callback select-block-parameter-option(string, int);
     callback pick-block-parameter-file(string);
-    callback open-vst3-editor(string); // model-id
+    callback open-external-editor(string); // model-id
+    in property <bool> has-external-editor: false;
     callback save-chain();
     callback cancel-chain();
 
@@ -170,6 +171,7 @@ export component TouchMain inherits Rectangle {
             block-drawer-selected-type-index: root.block-drawer-selected-type-index;
             block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
             block-drawer-enabled: root.block-drawer-enabled;
+            has-external-editor: root.has-external-editor;
             block-parameter-items: root.block-parameter-items;
             multi-slider-points: root.multi-slider-points;
             curve-editor-points: root.curve-editor-points;
@@ -207,7 +209,7 @@ export component TouchMain inherits Rectangle {
             update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
             select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
             pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
-            open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
+            open-external-editor(model-id) => { root.open-external-editor(model-id); }
         }
 
         if !root.show-project-chains : Rectangle {

@@ -347,6 +347,7 @@ export component BlockEditorWindow inherits Window {
     in property <string> eq-total-curve;
     in property <[string]> eq-band-curves;
     in property <[BlockKnobOverlay]> block-knob-overlays;
+    in property <bool> has-external-editor: false;
     in property <string> block-window-title: "OpenRig · Block";
     callback choose-block-model(int);
     callback close-block-drawer();
@@ -425,6 +426,7 @@ export component BlockEditorWindow inherits Window {
         eq-band-curves: root.eq-band-curves;
         block-drawer-confirm-label: root.block-drawer-confirm-label;
         block-stream-data: root.block-stream-data;
+        has-external-editor: root.has-external-editor;
         choose-block-model(i) => { root.choose-block-model(i); }
         close-block-drawer => { root.close-block-drawer(); }
         save-block-drawer => { root.save-block-drawer(); }
@@ -435,7 +437,7 @@ export component BlockEditorWindow inherits Window {
         select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
         pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
         update-block-parameter-bool(path, val) => { root.update-block-parameter-bool(path, val); }
-        open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
+        open-external-editor(model-id) => { root.open-vst3-editor(model-id); }
     }
 
     // Other block types: existing form-based editor
@@ -452,6 +454,7 @@ export component BlockEditorWindow inherits Window {
         block-drawer-selected-type-index: root.block-drawer-selected-type-index;
         block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
         block-drawer-enabled: root.block-drawer-enabled;
+        has-external-editor: root.has-external-editor;
         block-parameter-items: root.block-parameter-items;
         multi-slider-points: root.multi-slider-points;
         curve-editor-points: root.curve-editor-points;
@@ -468,7 +471,7 @@ export component BlockEditorWindow inherits Window {
         update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
         select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
         pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
-        open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
+        open-external-editor(model-id) => { root.open-vst3-editor(model-id); }
     }
 
     in-out property <string> toast-message;
@@ -661,6 +664,7 @@ export component AppWindow inherits Window {
     callback select-block-parameter-option(string, int);
     callback pick-block-parameter-file(string);
     callback open-vst3-editor(string); // model-id
+    in-out property <bool> has-external-editor: false;
     callback save-chain();
     callback cancel-chain();
     title: "OpenRig";
@@ -673,6 +677,7 @@ export component AppWindow inherits Window {
         width: 100%;
         height: 100%;
         app-version: root.app-version;
+        has-external-editor: root.has-external-editor;
         show-project-launcher: root.show-project-launcher;
         show-project-setup: root.show-project-setup;
         show-project-chains: root.show-project-chains;
@@ -781,7 +786,7 @@ export component AppWindow inherits Window {
         update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
         select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
         pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
-        open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
+        open-external-editor(model-id) => { root.open-vst3-editor(model-id); }
         reorder-chain-block(chain-index, from-index, before-index) => { root.reorder-chain-block(chain-index, from-index, before-index); }
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }
@@ -790,6 +795,7 @@ export component AppWindow inherits Window {
     if touch-optimized : TouchMain {
         width: 100%;
         height: 100%;
+        has-external-editor: root.has-external-editor;
         show-project-launcher: root.show-project-launcher;
         show-project-setup: root.show-project-setup;
         show-project-chains: root.show-project-chains;
@@ -898,7 +904,7 @@ export component AppWindow inherits Window {
         update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
         select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
         pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
-        open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
+        open-external-editor(model-id) => { root.open-vst3-editor(model-id); }
         reorder-chain-block(chain-index, from-index, before-index) => { root.reorder-chain-block(chain-index, from-index, before-index); }
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }
