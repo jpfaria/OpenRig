@@ -4,16 +4,19 @@ use cpal::{
     BufferSize, SampleFormat, Stream, StreamConfig, SupportedBufferSize, SupportedStreamConfig,
     SupportedStreamConfigRange,
 };
+use std::sync::OnceLock;
 
-/// Select the CPAL audio host for device resolution and CPAL-based streaming.
-///
-/// On Linux with JACK: NEVER creates a CPAL JACK host. CPAL's JACK backend
-/// registers heavyweight clients (cpal_client_in/out) that crash the JACK server
-/// and cause hardware interfaces to disconnect. When JACK is running, returns
-/// ALSA — the direct JACK backend (jack crate) handles all streaming.
-///
-/// On Windows: ASIO preferred. On macOS: CoreAudio.
-fn select_host() -> cpal::Host {
+// ── Cached host ─────────────────────────────────────────────────────────────
+// select_host() was called 8+ times per session (each creating a new CPAL
+// host, which on JACK means a new client connection).  Cache it once.
+
+static HOST: OnceLock<cpal::Host> = OnceLock::new();
+
+fn get_host() -> &'static cpal::Host {
+    HOST.get_or_init(create_host)
+}
+
+fn create_host() -> cpal::Host {
     #[cfg(target_os = "windows")]
     {
         for host_id in cpal::available_hosts() {
@@ -198,10 +201,11 @@ fn read_usb_audio_devices_for_status() -> Vec<String> {
 ///
 /// When JACK is running, callers should use `jack_enumerate_*_devices()` instead
 /// of this function — CPAL's JACK backend must never be instantiated.
-fn select_host_for_enumeration() -> cpal::Host {
+fn select_host_for_enumeration() -> &'static cpal::Host {
     // CPAL JACK host is never created — it crashes the JACK server.
     // When JACK is running, list_*_device_descriptors() bypass this function entirely.
-    cpal::default_host()
+    static ENUM_HOST: OnceLock<cpal::Host> = OnceLock::new();
+    ENUM_HOST.get_or_init(cpal::default_host)
 }
 
 /// Cached JACK server metadata.
@@ -262,6 +266,20 @@ fn jack_meta() -> Result<JackMeta> {
         meta.capture_port_count, meta.playback_port_count, meta.hw_name
     );
     Ok(meta)
+}
+
+/// Invalidate the cached JACK metadata so the next `jack_meta()` call
+/// reconnects to the JACK server.  Called when device enumeration fails,
+/// indicating the JACK server may have restarted (e.g. after a USB
+/// disconnect/reconnect cycle).
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn invalidate_jack_meta_cache() {
+    if let Ok(mut cache) = JACK_META_CACHE.lock() {
+        if cache.is_some() {
+            log::info!("jack meta: cache invalidated — will reconnect on next enumeration");
+            *cache = None;
+        }
+    }
 }
 
 /// Enumerate input devices directly via cached JACK metadata.
@@ -572,7 +590,7 @@ pub fn list_devices() -> Result<Vec<String>> {
     }
 
     #[allow(unreachable_code)]
-    let host = select_host();
+    let host = get_host();
     let mut devices = Vec::new();
     for device in host.input_devices()? {
         let description = device.description()?;
@@ -651,6 +669,9 @@ pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     #[cfg(all(target_os = "linux", feature = "jack"))]
     {
         if !jack_server_is_running() {
+            // JACK died (USB disconnect, restart cycle). Flush stale metadata
+            // so the next successful enumeration gets fresh port counts.
+            invalidate_jack_meta_cache();
             bail!("JACK server is not running — start jackd before enumerating input devices");
         }
         return jack_enumerate_input_devices();
@@ -683,6 +704,7 @@ pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     #[cfg(all(target_os = "linux", feature = "jack"))]
     {
         if !jack_server_is_running() {
+            invalidate_jack_meta_cache();
             bail!("JACK server is not running — start jackd before enumerating output devices");
         }
         return jack_enumerate_output_devices();
@@ -719,9 +741,9 @@ pub fn build_streams_for_project(
         return Ok(Vec::new());
     }
 
-    let host = select_host();
-    validate_channels_against_devices(project, &host)?;
-    let mut resolved_chains = resolve_enabled_chain_audio_configs(&host, project)?;
+    let host = get_host();
+    validate_channels_against_devices(project, host)?;
+    let mut resolved_chains = resolve_enabled_chain_audio_configs(host, project)?;
     let mut streams = Vec::new();
     for chain in &project.chains {
         if !chain.enabled {
@@ -814,9 +836,9 @@ impl ProjectRuntimeController {
             return self.sync_project_jack_direct(project);
         }
 
-        let host = select_host();
-        validate_channels_against_devices(project, &host)?;
-        let mut resolved_chains = resolve_enabled_chain_audio_configs(&host, project)?;
+        let host = get_host();
+        validate_channels_against_devices(project, host)?;
+        let mut resolved_chains = resolve_enabled_chain_audio_configs(host, project)?;
 
         let removed_chain_ids = self
             .active_chains
@@ -884,9 +906,9 @@ impl ProjectRuntimeController {
             return self.upsert_chain_with_resolved(chain, resolved);
         }
 
-        let host = select_host();
-        validate_chain_channels_against_devices(&host, chain)?;
-        let resolved = resolve_chain_audio_config(&host, project, chain)?;
+        let host = get_host();
+        validate_chain_channels_against_devices(host, chain)?;
+        let resolved = resolve_chain_audio_config(host, project, chain)?;
         self.upsert_chain_with_resolved(chain, resolved)
     }
 
@@ -970,7 +992,7 @@ pub fn resolve_project_chain_sample_rates(project: &Project) -> Result<HashMap<C
         }
     }
 
-    let host = select_host();
+    let host = get_host();
     let mut sample_rates = HashMap::new();
 
     for chain in &project.chains {
