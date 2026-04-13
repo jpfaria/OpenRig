@@ -184,7 +184,6 @@ mod tests {
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".to_string(),
                         entries: vec![InputEntry {
-                            name: "Input 1".to_string(),
                             device_id: DeviceId("in".to_string()),
                             mode: ChainInputMode::Mono,
                             channels: vec![0],
@@ -197,7 +196,6 @@ mod tests {
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".to_string(),
                         entries: vec![OutputEntry {
-                            name: "Output 1".to_string(),
                             device_id: DeviceId("out".to_string()),
                             mode: ChainOutputMode::Stereo,
                             channels: vec![0, 1],
