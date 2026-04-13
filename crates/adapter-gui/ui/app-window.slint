@@ -498,6 +498,16 @@ export component CompactChainViewWindow inherits Window {
     in property <[CompactBlockItem]> compact-blocks;
     in property <[BlockTypePickerItem]> block-type-options;
 
+    // I/O device selection
+    in property <[string]> input-device-options;
+    in property <[string]> output-device-options;
+    in-out property <int> selected-input-device-index;
+    in-out property <int> selected-output-device-index;
+    in property <string> input-channel-summary;
+    in property <string> output-channel-summary;
+    callback select-input-device(int, int); // chain_index, device_index
+    callback select-output-device(int, int); // chain_index, device_index
+
     callback toggle-chain-enabled(int);
     callback toggle-block-enabled(int, int);
     callback update-block-parameter-number(int, int, string, float);
@@ -519,6 +529,14 @@ export component CompactChainViewWindow inherits Window {
         chain-enabled: root.chain-enabled;
         compact-blocks: root.compact-blocks;
         block-type-options: root.block-type-options;
+        input-device-options: root.input-device-options;
+        output-device-options: root.output-device-options;
+        selected-input-device-index <=> root.selected-input-device-index;
+        selected-output-device-index <=> root.selected-output-device-index;
+        input-channel-summary: root.input-channel-summary;
+        output-channel-summary: root.output-channel-summary;
+        select-input-device(ci, di) => { root.select-input-device(ci, di); }
+        select-output-device(ci, di) => { root.select-output-device(ci, di); }
         toggle-chain-enabled(ci) => { root.toggle-chain-enabled(ci); }
         toggle-block-enabled(ci, bi) => { root.toggle-block-enabled(ci, bi); }
         update-block-parameter-number(ci, bi, p, v) => { root.update-block-parameter-number(ci, bi, p, v); }

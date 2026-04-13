@@ -1,4 +1,4 @@
-import { ScrollView } from "std-widgets.slint";
+import { ScrollView, ComboBox } from "std-widgets.slint";
 import { CompactBlockItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem } from "../models.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { BrandLogo } from "../components/brand_logo.slint";
@@ -681,6 +681,16 @@ export component CompactChainViewPage inherits Rectangle {
     callback remove-block(int, int); // chain_index, block_index
     callback open-plugin(string); // model-id, for VST3 blocks
 
+    // I/O device selection
+    in property <[string]> input-device-options;
+    in property <[string]> output-device-options;
+    in-out property <int> selected-input-device-index;
+    in-out property <int> selected-output-device-index;
+    in property <string> input-channel-summary;
+    in property <string> output-channel-summary;
+    callback select-input-device(int, int); // chain_index, device_index
+    callback select-output-device(int, int); // chain_index, device_index
+
     // Type picker state
     in property <[BlockTypePickerItem]> block-type-options;
     private property <bool> show-type-picker: false;
@@ -736,11 +746,75 @@ export component CompactChainViewPage inherits Rectangle {
         }
     }
 
+    // ── Input device selector ──
+    Rectangle {
+        x: 0; y: 44px; width: parent.width; height: 36px;
+        background: #12141a;
+
+        Text {
+            x: 12px; width: 36px; height: parent.height;
+            text: "IN";
+            color: #29df85;
+            font-size: 10px; font-weight: 800; letter-spacing: 1px;
+            vertical-alignment: center;
+        }
+
+        ComboBox {
+            x: 48px; y: 4px;
+            width: parent.width - 56px - (root.input-channel-summary != "" ? 80px : 0px);
+            height: 28px;
+            model: root.input-device-options;
+            current-index <=> root.selected-input-device-index;
+            selected(value) => { root.select-input-device(root.chain-index, self.current-index); }
+        }
+
+        if root.input-channel-summary != "" : Text {
+            x: parent.width - 88px; width: 80px; height: parent.height;
+            text: root.input-channel-summary;
+            color: #5a6575;
+            font-size: 10px; font-weight: 600;
+            horizontal-alignment: right;
+            vertical-alignment: center;
+        }
+    }
+
+    // ── Output device selector ──
+    Rectangle {
+        x: 0; y: parent.height - 36px; width: parent.width; height: 36px;
+        background: #12141a;
+
+        Text {
+            x: 12px; width: 36px; height: parent.height;
+            text: "OUT";
+            color: #e07040;
+            font-size: 10px; font-weight: 800; letter-spacing: 1px;
+            vertical-alignment: center;
+        }
+
+        ComboBox {
+            x: 48px; y: 4px;
+            width: parent.width - 56px - (root.output-channel-summary != "" ? 80px : 0px);
+            height: 28px;
+            model: root.output-device-options;
+            current-index <=> root.selected-output-device-index;
+            selected(value) => { root.select-output-device(root.chain-index, self.current-index); }
+        }
+
+        if root.output-channel-summary != "" : Text {
+            x: parent.width - 88px; width: 80px; height: parent.height;
+            text: root.output-channel-summary;
+            color: #5a6575;
+            font-size: 10px; font-weight: 600;
+            horizontal-alignment: right;
+            vertical-alignment: center;
+        }
+    }
+
     // Block rows with insert slots between them
     Flickable {
-        x: 0; y: 48px;
+        x: 0; y: 80px;
         width: parent.width;
-        height: parent.height - 48px;
+        height: parent.height - 116px;
         viewport-height: root.compact-blocks.length * 112px + 24px;
         interactive: false;
 
