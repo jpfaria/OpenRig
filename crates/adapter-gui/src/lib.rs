@@ -97,12 +97,13 @@ fn ensure_devices_loaded(
     }
 }
 fn use_inline_block_editor(window: &AppWindow) -> bool {
-    window.get_touch_optimized()
-        && window
-            .get_interaction_mode_label()
-            .to_string()
-            .to_lowercase()
-            .contains("touch")
+    window.get_fullscreen()
+        || (window.get_touch_optimized()
+            && window
+                .get_interaction_mode_label()
+                .to_string()
+                .to_lowercase()
+                .contains("touch"))
 }
 /// Sets a toast notification on the main window and starts the auto-dismiss timer.
 /// Also sets `status_message` for backward compatibility with pages that still reference it.
@@ -424,17 +425,20 @@ fn open_cli_project(path: &PathBuf) -> Result<ProjectSession> {
     load_project_session(path, &config_path)
 }
 
-pub fn parse_cli_args_from(args: &[&str]) -> (Option<PathBuf>, bool) {
+pub fn parse_cli_args_from(args: &[&str]) -> (Option<PathBuf>, bool, bool) {
     let mut project_path: Option<PathBuf> = None;
     let mut auto_save = false;
+    let mut fullscreen = false;
     for arg in args.iter().skip(1) {
         if *arg == "--auto-save" {
             auto_save = true;
+        } else if *arg == "--fullscreen" {
+            fullscreen = true;
         } else if !arg.starts_with('-') {
             project_path = Some(PathBuf::from(arg));
         }
     }
-    (project_path, auto_save)
+    (project_path, auto_save, fullscreen)
 }
 
 pub fn run_desktop_app(
@@ -442,6 +446,7 @@ pub fn run_desktop_app(
     interaction_mode: InteractionMode,
     cli_project_path: Option<PathBuf>,
     auto_save: bool,
+    fullscreen: bool,
 ) -> Result<()> {
     log::info!("starting desktop app: runtime_mode={:?}, interaction_mode={:?}", runtime_mode, interaction_mode);
     let context = UiRuntimeContext::new(runtime_mode, interaction_mode);
@@ -526,6 +531,10 @@ pub fn run_desktop_app(
     window.set_interaction_mode_label(context.interaction_mode.label().into());
     window.set_touch_optimized(context.capabilities.touch_optimized);
     window.set_auto_save(auto_save);
+    window.set_fullscreen(fullscreen);
+    if fullscreen {
+        window.window().set_fullscreen(true);
+    }
     window.set_show_audio_settings(needs_audio_settings);
     window.set_wizard_step(if settings.is_complete() { 1 } else { 0 });
     window.set_status_message("".into());
@@ -2291,6 +2300,10 @@ pub fn run_desktop_app(
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            // In fullscreen mode, compact view is not available
+            if fullscreen {
+                return;
+            }
             let session_borrow = project_session.borrow();
             let Some(session) = session_borrow.as_ref() else {
                 set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
@@ -10193,22 +10206,23 @@ mod tests {
 
     #[test]
     fn parse_cli_args_auto_save_before_path() {
-        let (path, auto_save) = parse_cli_args_from(&["openrig", "--auto-save", "/tmp/p.yaml"]);
+        let (path, auto_save, _) = parse_cli_args_from(&["openrig", "--auto-save", "/tmp/p.yaml"]);
         assert_eq!(path, Some(std::path::PathBuf::from("/tmp/p.yaml")));
         assert!(auto_save);
     }
 
     #[test]
     fn parse_cli_args_multiple_paths_last_wins() {
-        let (path, _) = parse_cli_args_from(&["openrig", "/first.yaml", "/second.yaml"]);
+        let (path, _, _) = parse_cli_args_from(&["openrig", "/first.yaml", "/second.yaml"]);
         assert_eq!(path, Some(std::path::PathBuf::from("/second.yaml")));
     }
 
     #[test]
     fn parse_cli_args_dashed_flags_ignored_as_paths() {
-        let (path, auto_save) = parse_cli_args_from(&["openrig", "--verbose", "--debug"]);
+        let (path, auto_save, fullscreen) = parse_cli_args_from(&["openrig", "--verbose", "--debug"]);
         assert_eq!(path, None);
         assert!(!auto_save);
+        assert!(!fullscreen);
     }
 
     // --- chain_endpoint_label ---
@@ -10281,25 +10295,40 @@ mod tests {
 
     #[test]
     fn parse_cli_args_extracts_path_and_auto_save_flag() {
-        let (path, auto_save) = parse_cli_args_from(&["openrig", "/tmp/project.yaml"]);
+        let (path, auto_save, fullscreen) = parse_cli_args_from(&["openrig", "/tmp/project.yaml"]);
         assert_eq!(path, Some(std::path::PathBuf::from("/tmp/project.yaml")));
         assert!(!auto_save);
+        assert!(!fullscreen);
 
-        let (path, auto_save) = parse_cli_args_from(&["openrig", "--auto-save"]);
+        let (path, auto_save, _) = parse_cli_args_from(&["openrig", "--auto-save"]);
         assert_eq!(path, None);
         assert!(auto_save);
 
-        let (path, auto_save) = parse_cli_args_from(&["openrig", "/tmp/project.yaml", "--auto-save"]);
+        let (path, auto_save, _) = parse_cli_args_from(&["openrig", "/tmp/project.yaml", "--auto-save"]);
         assert_eq!(path, Some(std::path::PathBuf::from("/tmp/project.yaml")));
         assert!(auto_save);
 
-        let (path, auto_save) = parse_cli_args_from(&["openrig"]);
+        let (path, auto_save, _) = parse_cli_args_from(&["openrig"]);
         assert_eq!(path, None);
         assert!(!auto_save);
 
-        let (path, auto_save) = parse_cli_args_from(&["openrig", "--unknown-flag"]);
+        let (path, auto_save, _) = parse_cli_args_from(&["openrig", "--unknown-flag"]);
         assert_eq!(path, None);
         assert!(!auto_save);
+    }
+
+    #[test]
+    fn parse_cli_args_fullscreen_flag() {
+        let (_, _, fullscreen) = parse_cli_args_from(&["openrig", "--fullscreen"]);
+        assert!(fullscreen);
+
+        let (path, auto_save, fullscreen) = parse_cli_args_from(&["openrig", "--fullscreen", "--auto-save", "/tmp/p.yaml"]);
+        assert_eq!(path, Some(std::path::PathBuf::from("/tmp/p.yaml")));
+        assert!(auto_save);
+        assert!(fullscreen);
+
+        let (_, _, fullscreen) = parse_cli_args_from(&["openrig", "/tmp/p.yaml"]);
+        assert!(!fullscreen);
     }
 
     // --- sync_recent_projects ---

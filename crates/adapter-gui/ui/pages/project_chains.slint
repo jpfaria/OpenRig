@@ -1001,6 +1001,7 @@ component ChainRow inherits Rectangle {
     in property <int> chain-index;
     in property <int> selected-block-chain-index;
     in property <int> selected-block-index;
+    in property <bool> fullscreen: false;
     callback toggle-chain-enabled(int);
     callback remove-chain(int);
     callback configure-chain(int);
@@ -1088,12 +1089,16 @@ component ChainRow inherits Rectangle {
             }
 
             title-ta := TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.open-compact-chain-view(root.chain-index); }
+                mouse-cursor: root.fullscreen ? default : pointer;
+                clicked => {
+                    if !root.fullscreen {
+                        root.open-compact-chain-view(root.chain-index);
+                    }
+                }
             }
         }
 
-        ChainActionIcon {
+        if !root.fullscreen : ChainActionIcon {
             x: parent.width - 196px;
             y: 14px;
             icon: @image-url("../assets/expand.svg");
@@ -1833,6 +1838,7 @@ export component ProjectChainsPage inherits Rectangle {
     in property <string> project-path-label;
     in property <bool> project-dirty;
     in property <bool> auto-save: false;
+    in property <bool> fullscreen: false;
     in property <bool> skip-launcher: false;
     in property <[ProjectChainItem]> project-chains;
     in property <int> selected-chain-block-chain-index;
@@ -2010,6 +2016,7 @@ export component ProjectChainsPage inherits Rectangle {
                 width: parent.width;
                 chain: chain;
                 chain-index: index;
+                fullscreen: root.fullscreen;
                 selected-block-chain-index: root.selected-chain-block-chain-index;
                 selected-block-index: root.selected-chain-block-index;
                 toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
