@@ -1546,4 +1546,384 @@ mod tests {
         assert_eq!(config.sample_rate, 44_100);
         assert_eq!(config.buffer_size, BufferSize::Fixed(128));
     }
+
+    // ── build_stream_config edge cases ──────────────────────────────────────
+
+    #[test]
+    fn build_stream_config_high_sample_rate() {
+        let config = build_stream_config(2, 96_000, 512);
+        assert_eq!(config.channels, 2);
+        assert_eq!(config.sample_rate, 96_000);
+        assert_eq!(config.buffer_size, BufferSize::Fixed(512));
+    }
+
+    #[test]
+    fn build_stream_config_large_buffer() {
+        let config = build_stream_config(8, 48_000, 1024);
+        assert_eq!(config.channels, 8);
+        assert_eq!(config.buffer_size, BufferSize::Fixed(1024));
+    }
+
+    // ── validate_buffer_size edge cases ─────────────────────────────────────
+
+    #[test]
+    fn validate_buffer_size_exactly_one_element_range_succeeds() {
+        let supported = SupportedBufferSize::Range { min: 256, max: 256 };
+        let result = validate_buffer_size(256, &supported, "test");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn validate_buffer_size_exactly_one_element_range_rejects_other() {
+        let supported = SupportedBufferSize::Range { min: 256, max: 256 };
+        let result = validate_buffer_size(128, &supported, "test");
+        assert!(result.is_err());
+    }
+
+    // ── required_channel_count more edge cases ──────────────────────────────
+
+    #[test]
+    fn required_channel_count_duplicate_channels() {
+        // Duplicate channels should still return max+1
+        assert_eq!(required_channel_count(&[0, 0, 0]), 1);
+    }
+
+    #[test]
+    fn required_channel_count_unsorted_channels() {
+        assert_eq!(required_channel_count(&[3, 1, 5, 2]), 6);
+    }
+
+    // ── max_supported_channels additional tests ─────────────────────────────
+
+    #[test]
+    fn max_supported_channels_same_default_and_supported() {
+        let resolved = max_supported_channels(Some(4), Some(4)).unwrap();
+        assert_eq!(resolved, 4);
+    }
+
+    #[test]
+    fn max_supported_channels_zero_default_with_some_supported() {
+        let resolved = max_supported_channels(Some(0), Some(2)).unwrap();
+        assert_eq!(resolved, 2);
+    }
+
+    // ── select_supported_stream_config additional tests ─────────────────────
+
+    #[test]
+    fn select_supported_stream_config_empty_ranges_returns_error() {
+        let default_config = supported_range(2, 48_000, 48_000).with_max_sample_rate();
+        let supported: Vec<SupportedStreamConfigRange> = vec![];
+
+        let result = select_supported_stream_config(
+            &default_config,
+            &supported,
+            Some(48_000),
+            2,
+            "test-device",
+        );
+
+        assert!(result.is_err(), "empty ranges should return error");
+    }
+
+    #[test]
+    fn select_supported_stream_config_zero_channels_required() {
+        let default_config = supported_range(2, 48_000, 48_000).with_max_sample_rate();
+        let supported = vec![supported_range(2, 44_100, 96_000)];
+
+        let resolved = select_supported_stream_config(
+            &default_config,
+            &supported,
+            Some(48_000),
+            0,
+            "test-device",
+        )
+        .expect("zero required channels should match any range");
+
+        assert!(resolved.channels() >= 1);
+    }
+
+    #[test]
+    fn select_supported_stream_config_prefers_exact_channel_match() {
+        let default_config = supported_range(2, 48_000, 48_000).with_max_sample_rate();
+        let supported = vec![
+            supported_range(4, 44_100, 96_000),
+            supported_range(2, 44_100, 96_000),
+            supported_range(8, 44_100, 96_000),
+        ];
+
+        let resolved = select_supported_stream_config(
+            &default_config,
+            &supported,
+            Some(48_000),
+            2,
+            "test-device",
+        )
+        .unwrap();
+
+        assert_eq!(resolved.channels(), 2, "should prefer exact channel count");
+    }
+
+    // ── resolve_chain_runtime_sample_rate tests ─────────────────────────────
+
+    #[test]
+    fn resolve_chain_runtime_sample_rate_high_rate_matching() {
+        let input = supported_range(2, 96_000, 96_000).with_max_sample_rate();
+        let output = supported_range(2, 96_000, 96_000).with_max_sample_rate();
+        let rate = resolve_chain_runtime_sample_rate("chain:0", &input, &output).unwrap();
+        assert_eq!(rate, 96_000.0);
+    }
+
+    #[test]
+    fn resolve_chain_runtime_sample_rate_low_rate_matching() {
+        let input = supported_range(2, 44_100, 44_100).with_max_sample_rate();
+        let output = supported_range(2, 44_100, 44_100).with_max_sample_rate();
+        let rate = resolve_chain_runtime_sample_rate("chain:0", &input, &output).unwrap();
+        assert_eq!(rate, 44_100.0);
+    }
+
+    // ── AudioDeviceDescriptor additional tests ──────────────────────────────
+
+    #[test]
+    fn audio_device_descriptor_different_channels_not_equal() {
+        let a = AudioDeviceDescriptor {
+            id: "dev1".to_string(),
+            name: "Device".to_string(),
+            channels: 2,
+        };
+        let b = AudioDeviceDescriptor {
+            id: "dev1".to_string(),
+            name: "Device".to_string(),
+            channels: 4,
+        };
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn audio_device_descriptor_different_name_not_equal() {
+        let a = AudioDeviceDescriptor {
+            id: "dev1".to_string(),
+            name: "Device A".to_string(),
+            channels: 2,
+        };
+        let b = AudioDeviceDescriptor {
+            id: "dev1".to_string(),
+            name: "Device B".to_string(),
+            channels: 2,
+        };
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn audio_device_descriptor_zero_channels() {
+        let desc = AudioDeviceDescriptor {
+            id: "dev0".to_string(),
+            name: "Null".to_string(),
+            channels: 0,
+        };
+        assert_eq!(desc.channels, 0);
+    }
+
+    // ── InputStreamSignature / OutputStreamSignature equality ────────────────
+
+    #[test]
+    fn input_stream_signature_equality() {
+        use super::InputStreamSignature;
+        let a = InputStreamSignature {
+            device_id: "dev1".to_string(),
+            channels: vec![0, 1],
+            stream_channels: 2,
+            sample_rate: 48_000,
+            buffer_size_frames: 256,
+        };
+        let b = a.clone();
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn input_stream_signature_different_rate_not_equal() {
+        use super::InputStreamSignature;
+        let a = InputStreamSignature {
+            device_id: "dev1".to_string(),
+            channels: vec![0, 1],
+            stream_channels: 2,
+            sample_rate: 48_000,
+            buffer_size_frames: 256,
+        };
+        let b = InputStreamSignature {
+            sample_rate: 44_100,
+            ..a.clone()
+        };
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn output_stream_signature_equality() {
+        use super::OutputStreamSignature;
+        let a = OutputStreamSignature {
+            device_id: "dev1".to_string(),
+            channels: vec![0, 1],
+            stream_channels: 2,
+            sample_rate: 48_000,
+            buffer_size_frames: 256,
+        };
+        let b = a.clone();
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn output_stream_signature_different_channels_not_equal() {
+        use super::OutputStreamSignature;
+        let a = OutputStreamSignature {
+            device_id: "dev1".to_string(),
+            channels: vec![0, 1],
+            stream_channels: 2,
+            sample_rate: 48_000,
+            buffer_size_frames: 256,
+        };
+        let b = OutputStreamSignature {
+            channels: vec![0],
+            ..a.clone()
+        };
+        assert_ne!(a, b);
+    }
+
+    // ── ChainStreamSignature equality ───────────────────────────────────────
+
+    #[test]
+    fn chain_stream_signature_equality() {
+        use super::{ChainStreamSignature, InputStreamSignature, OutputStreamSignature};
+        let a = ChainStreamSignature {
+            inputs: vec![InputStreamSignature {
+                device_id: "dev1".to_string(),
+                channels: vec![0],
+                stream_channels: 1,
+                sample_rate: 48_000,
+                buffer_size_frames: 256,
+            }],
+            outputs: vec![OutputStreamSignature {
+                device_id: "dev2".to_string(),
+                channels: vec![0, 1],
+                stream_channels: 2,
+                sample_rate: 48_000,
+                buffer_size_frames: 256,
+            }],
+        };
+        let b = a.clone();
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn chain_stream_signature_different_inputs_not_equal() {
+        use super::{ChainStreamSignature, InputStreamSignature};
+        let a = ChainStreamSignature {
+            inputs: vec![InputStreamSignature {
+                device_id: "dev1".to_string(),
+                channels: vec![0],
+                stream_channels: 1,
+                sample_rate: 48_000,
+                buffer_size_frames: 256,
+            }],
+            outputs: vec![],
+        };
+        let b = ChainStreamSignature {
+            inputs: vec![InputStreamSignature {
+                device_id: "dev2".to_string(),
+                channels: vec![0],
+                stream_channels: 1,
+                sample_rate: 48_000,
+                buffer_size_frames: 256,
+            }],
+            outputs: vec![],
+        };
+        assert_ne!(a, b);
+    }
+
+    // ── is_asio_host (non-Windows always returns false) ─────────────────────
+
+    #[test]
+    fn is_asio_host_returns_false_on_non_windows() {
+        use super::is_asio_host;
+        let host = cpal::default_host();
+        assert!(!is_asio_host(&host), "non-Windows host should not be ASIO");
+    }
+
+    // ── insert_return_as_input_entry ────────────────────────────────────────
+
+    #[test]
+    fn insert_return_as_input_entry_copies_return_fields() {
+        use super::insert_return_as_input_entry;
+        use project::block::{InsertBlock, InsertEndpoint};
+        use project::chain::ChainInputMode;
+        use domain::ids::DeviceId;
+
+        let insert = InsertBlock {
+            model: "external_loop".into(),
+            send: InsertEndpoint {
+                device_id: DeviceId("send".into()),
+                mode: ChainInputMode::Mono,
+                channels: vec![0],
+            },
+            return_: InsertEndpoint {
+                device_id: DeviceId("return".into()),
+                mode: ChainInputMode::Stereo,
+                channels: vec![2, 3],
+            },
+        };
+        let entry = insert_return_as_input_entry(&insert);
+        assert_eq!(entry.name, "Insert Return");
+        assert_eq!(entry.device_id.0, "return");
+        assert_eq!(entry.channels, vec![2, 3]);
+    }
+
+    // ── insert_send_as_output_entry ─────────────────────────────────────────
+
+    #[test]
+    fn insert_send_as_output_entry_mono_becomes_mono() {
+        use super::insert_send_as_output_entry;
+        use project::block::{InsertBlock, InsertEndpoint};
+        use project::chain::{ChainInputMode, ChainOutputMode};
+        use domain::ids::DeviceId;
+
+        let insert = InsertBlock {
+            model: "external_loop".into(),
+            send: InsertEndpoint {
+                device_id: DeviceId("send".into()),
+                mode: ChainInputMode::Mono,
+                channels: vec![0],
+            },
+            return_: InsertEndpoint {
+                device_id: DeviceId("return".into()),
+                mode: ChainInputMode::Mono,
+                channels: vec![0],
+            },
+        };
+        let entry = insert_send_as_output_entry(&insert);
+        assert_eq!(entry.name, "Insert Send");
+        assert_eq!(entry.device_id.0, "send");
+        assert!(matches!(entry.mode, ChainOutputMode::Mono));
+    }
+
+    #[test]
+    fn insert_send_as_output_entry_stereo_becomes_stereo() {
+        use super::insert_send_as_output_entry;
+        use project::block::{InsertBlock, InsertEndpoint};
+        use project::chain::{ChainInputMode, ChainOutputMode};
+        use domain::ids::DeviceId;
+
+        let insert = InsertBlock {
+            model: "external_loop".into(),
+            send: InsertEndpoint {
+                device_id: DeviceId("send".into()),
+                mode: ChainInputMode::Stereo,
+                channels: vec![0, 1],
+            },
+            return_: InsertEndpoint {
+                device_id: DeviceId("return".into()),
+                mode: ChainInputMode::Mono,
+                channels: vec![0],
+            },
+        };
+        let entry = insert_send_as_output_entry(&insert);
+        assert!(matches!(entry.mode, ChainOutputMode::Stereo));
+    }
 }
