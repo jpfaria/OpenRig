@@ -261,6 +261,11 @@ impl NamProcessor {
     }
 }
 
+/// Diagnostic counter for periodic NAM audio health logging.
+/// Only compiled on Linux/aarch64 where NAM audio issues have been observed.
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+static NAM_DIAG_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 impl MonoProcessor for NamProcessor {
     fn process_sample(&mut self, sample: f32) -> f32 {
         let input = [sample * self.input_gain];
@@ -293,6 +298,29 @@ impl MonoProcessor for NamProcessor {
         // Apply output gain
         for (dst, src) in buffer.iter_mut().zip(self.scratch_output.iter()) {
             *dst = *src * self.output_gain;
+        }
+
+        // Periodic diagnostic logging on aarch64 to investigate NAM audio quality
+        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+        {
+            let count = NAM_DIAG_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            // Log every ~2 seconds at 48kHz/256 = 187.5 callbacks/sec → every 375 callbacks
+            if count % 375 == 0 {
+                let in_rms = (self.scratch_input.iter().map(|s| s * s).sum::<f32>()
+                    / self.scratch_input.len() as f32)
+                    .sqrt();
+                let out_rms =
+                    (buffer.iter().map(|s| s * s).sum::<f32>() / buffer.len() as f32).sqrt();
+                let has_nan = buffer.iter().any(|s| s.is_nan());
+                let has_inf = buffer.iter().any(|s| s.is_infinite());
+                let peak_out = buffer.iter().map(|s| s.abs()).fold(0.0f32, f32::max);
+                let denorms = buffer.iter().filter(|s| **s != 0.0 && s.abs() < 1e-30).count();
+                log::warn!(
+                    "[NAM-DIAG] blk={} len={} in_rms={:.6} out_rms={:.6} peak={:.4} nan={} inf={} denorms={} in_gain={:.3} out_gain={:.3}",
+                    count, buffer.len(), in_rms, out_rms, peak_out, has_nan, has_inf, denorms,
+                    self.input_gain, self.output_gain,
+                );
+            }
         }
     }
 }
