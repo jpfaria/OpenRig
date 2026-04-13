@@ -10302,4 +10302,367 @@ mod tests {
         assert_eq!(path, None);
         assert!(!auto_save);
     }
+
+    // --- sync_recent_projects ---
+
+    use super::sync_recent_projects;
+    use infra_filesystem::{AppConfig, RecentProjectEntry};
+
+    #[test]
+    fn sync_recent_projects_deduplicates_by_canonical_path() {
+        let mut config = AppConfig {
+            recent_projects: vec![
+                RecentProjectEntry {
+                    project_path: "/tmp/project_a.yaml".to_string(),
+                    project_name: "A".to_string(),
+                    is_valid: true,
+                    invalid_reason: None,
+                },
+                RecentProjectEntry {
+                    project_path: "/tmp/project_a.yaml".to_string(),
+                    project_name: "A duplicate".to_string(),
+                    is_valid: true,
+                    invalid_reason: None,
+                },
+            ],
+            ..Default::default()
+        };
+        let changed = sync_recent_projects(&mut config);
+        assert!(changed);
+        assert_eq!(config.recent_projects.len(), 1);
+        assert_eq!(config.recent_projects[0].project_name, "A");
+    }
+
+    #[test]
+    fn sync_recent_projects_empty_name_becomes_untitled() {
+        let mut config = AppConfig {
+            recent_projects: vec![RecentProjectEntry {
+                project_path: "/tmp/x.yaml".to_string(),
+                project_name: "  ".to_string(),
+                is_valid: true,
+                invalid_reason: None,
+            }],
+            ..Default::default()
+        };
+        sync_recent_projects(&mut config);
+        assert_eq!(config.recent_projects[0].project_name, UNTITLED_PROJECT_NAME);
+    }
+
+    #[test]
+    fn sync_recent_projects_returns_false_when_unchanged() {
+        let mut config = AppConfig {
+            recent_projects: vec![RecentProjectEntry {
+                project_path: "/tmp/project.yaml".to_string(),
+                project_name: "My Project".to_string(),
+                is_valid: true,
+                invalid_reason: None,
+            }],
+            ..Default::default()
+        };
+        let changed = sync_recent_projects(&mut config);
+        assert!(!changed);
+    }
+
+    // --- register_recent_project ---
+
+    use super::register_recent_project;
+
+    #[test]
+    fn register_recent_project_adds_to_front() {
+        let mut config = AppConfig {
+            recent_projects: vec![RecentProjectEntry {
+                project_path: "/old.yaml".to_string(),
+                project_name: "Old".to_string(),
+                is_valid: true,
+                invalid_reason: None,
+            }],
+            ..Default::default()
+        };
+        register_recent_project(&mut config, &std::path::PathBuf::from("/new.yaml"), "New");
+        assert_eq!(config.recent_projects.len(), 2);
+        assert_eq!(config.recent_projects[0].project_name, "New");
+    }
+
+    #[test]
+    fn register_recent_project_removes_duplicate_and_reinserts_at_front() {
+        let path = std::path::PathBuf::from("/project.yaml");
+        let mut config = AppConfig {
+            recent_projects: vec![
+                RecentProjectEntry {
+                    project_path: "/other.yaml".to_string(),
+                    project_name: "Other".to_string(),
+                    is_valid: true,
+                    invalid_reason: None,
+                },
+                RecentProjectEntry {
+                    project_path: "/project.yaml".to_string(),
+                    project_name: "Project".to_string(),
+                    is_valid: true,
+                    invalid_reason: None,
+                },
+            ],
+            ..Default::default()
+        };
+        register_recent_project(&mut config, &path, "Updated");
+        assert_eq!(config.recent_projects.len(), 2);
+        assert_eq!(config.recent_projects[0].project_name, "Updated");
+        assert_eq!(config.recent_projects[1].project_name, "Other");
+    }
+
+    #[test]
+    fn register_recent_project_empty_name_becomes_untitled() {
+        let mut config = AppConfig::default();
+        register_recent_project(&mut config, &std::path::PathBuf::from("/x.yaml"), "  ");
+        assert_eq!(config.recent_projects[0].project_name, UNTITLED_PROJECT_NAME);
+    }
+
+    // --- mark_recent_project_invalid ---
+
+    use super::mark_recent_project_invalid;
+
+    #[test]
+    fn mark_recent_project_invalid_sets_flag_and_reason() {
+        let mut config = AppConfig {
+            recent_projects: vec![RecentProjectEntry {
+                project_path: "/p.yaml".to_string(),
+                project_name: "P".to_string(),
+                is_valid: true,
+                invalid_reason: None,
+            }],
+            ..Default::default()
+        };
+        mark_recent_project_invalid(&mut config, &std::path::PathBuf::from("/p.yaml"), "File corrupted");
+        assert!(!config.recent_projects[0].is_valid);
+        assert_eq!(
+            config.recent_projects[0].invalid_reason.as_deref(),
+            Some("File corrupted")
+        );
+    }
+
+    #[test]
+    fn mark_recent_project_invalid_empty_reason_gets_default() {
+        let mut config = AppConfig {
+            recent_projects: vec![RecentProjectEntry {
+                project_path: "/p.yaml".to_string(),
+                project_name: "P".to_string(),
+                is_valid: true,
+                invalid_reason: None,
+            }],
+            ..Default::default()
+        };
+        mark_recent_project_invalid(&mut config, &std::path::PathBuf::from("/p.yaml"), "  ");
+        assert!(!config.recent_projects[0].is_valid);
+        assert_eq!(
+            config.recent_projects[0].invalid_reason.as_deref(),
+            Some("Projeto inválido")
+        );
+    }
+
+    #[test]
+    fn mark_recent_project_invalid_nonexistent_path_does_nothing() {
+        let mut config = AppConfig {
+            recent_projects: vec![RecentProjectEntry {
+                project_path: "/p.yaml".to_string(),
+                project_name: "P".to_string(),
+                is_valid: true,
+                invalid_reason: None,
+            }],
+            ..Default::default()
+        };
+        mark_recent_project_invalid(&mut config, &std::path::PathBuf::from("/other.yaml"), "err");
+        assert!(config.recent_projects[0].is_valid);
+        assert!(config.recent_projects[0].invalid_reason.is_none());
+    }
+
+    // --- chain_inputs_tooltip ---
+
+    use super::chain_inputs_tooltip;
+
+    #[test]
+    fn chain_inputs_tooltip_shows_device_name_and_channels() {
+        let chain = test_chain(vec![
+            input_kind(),
+            output_kind(),
+        ]);
+        let project = Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![chain.clone()],
+        };
+        let devices = vec![
+            AudioDeviceDescriptor { id: "dev".into(), name: "USB Audio".into(), channels: 2 },
+        ];
+        let tooltip = chain_inputs_tooltip(&chain, &project, &devices);
+        assert!(tooltip.contains("USB Audio"), "tooltip should contain device name: {}", tooltip);
+        assert!(tooltip.contains("Mono"), "tooltip should contain mode: {}", tooltip);
+        assert!(tooltip.contains("1"), "tooltip should contain channel number: {}", tooltip);
+    }
+
+    #[test]
+    fn chain_inputs_tooltip_no_input_block() {
+        let chain = test_chain(vec![
+            effect_kind("delay"),
+        ]);
+        let project = Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![],
+        };
+        let tooltip = chain_inputs_tooltip(&chain, &project, &[]);
+        assert_eq!(tooltip, "No input configured");
+    }
+
+    #[test]
+    fn chain_inputs_tooltip_unknown_device_shows_id() {
+        let chain = test_chain(vec![
+            input_kind(),
+            output_kind(),
+        ]);
+        let project = Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![],
+        };
+        // No devices → falls back to device_id
+        let tooltip = chain_inputs_tooltip(&chain, &project, &[]);
+        assert!(tooltip.contains("dev"), "should fall back to device id: {}", tooltip);
+    }
+
+    // --- chain_outputs_tooltip ---
+
+    use super::chain_outputs_tooltip;
+
+    #[test]
+    fn chain_outputs_tooltip_shows_device_and_channels() {
+        let chain = test_chain(vec![
+            input_kind(),
+            output_kind(),
+        ]);
+        let project = Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![chain.clone()],
+        };
+        let devices = vec![
+            AudioDeviceDescriptor { id: "dev".into(), name: "Headphones".into(), channels: 2 },
+        ];
+        let tooltip = chain_outputs_tooltip(&chain, &project, &devices);
+        assert!(tooltip.contains("Headphones"), "should contain device name: {}", tooltip);
+        assert!(tooltip.contains("Stereo"), "should contain mode: {}", tooltip);
+    }
+
+    #[test]
+    fn chain_outputs_tooltip_no_output_block() {
+        let chain = test_chain(vec![
+            effect_kind("delay"),
+        ]);
+        let project = Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![],
+        };
+        let tooltip = chain_outputs_tooltip(&chain, &project, &[]);
+        assert_eq!(tooltip, "No output configured");
+    }
+
+    // --- eq_frequencies ---
+
+    use super::eq_frequencies;
+
+    #[test]
+    fn eq_frequencies_returns_200_points() {
+        let freqs = eq_frequencies();
+        assert_eq!(freqs.len(), 200);
+    }
+
+    #[test]
+    fn eq_frequencies_starts_at_20_hz_ends_at_20k_hz() {
+        let freqs = eq_frequencies();
+        assert!((freqs[0] - 20.0).abs() < 0.1);
+        assert!((freqs[199] - 20_000.0).abs() < 1.0);
+    }
+
+    #[test]
+    fn eq_frequencies_monotonically_increasing() {
+        let freqs = eq_frequencies();
+        for i in 1..freqs.len() {
+            assert!(freqs[i] > freqs[i - 1], "freq[{}]={} must be > freq[{}]={}", i, freqs[i], i - 1, freqs[i - 1]);
+        }
+    }
+
+    // --- db_vec_to_svg_path ---
+
+    use super::db_vec_to_svg_path;
+
+    #[test]
+    fn db_vec_to_svg_path_starts_with_move_command() {
+        let dbs = vec![0.0; 200];
+        let path = db_vec_to_svg_path(&dbs);
+        assert!(path.starts_with("M "), "SVG path should start with M: {}", &path[..20]);
+    }
+
+    #[test]
+    fn db_vec_to_svg_path_contains_line_commands() {
+        let dbs = vec![0.0; 200];
+        let path = db_vec_to_svg_path(&dbs);
+        assert!(path.contains(" L "), "SVG path should contain L commands");
+    }
+
+    #[test]
+    fn db_vec_to_svg_path_empty_dbs_returns_empty() {
+        let path = db_vec_to_svg_path(&[]);
+        assert!(path.is_empty());
+    }
+
+    // --- block_model_index ---
+
+    use super::block_model_index;
+
+    #[test]
+    fn block_model_index_finds_known_delay_model() {
+        let models = delay_model_ids();
+        let first = &models[0];
+        let idx = block_model_index("delay", first, "electric_guitar");
+        assert_eq!(idx, 0);
+    }
+
+    #[test]
+    fn block_model_index_unknown_model_returns_negative() {
+        let idx = block_model_index("delay", "nonexistent_model", "electric_guitar");
+        assert_eq!(idx, -1);
+    }
+
+    // --- block_type_index ---
+
+    use super::block_type_index;
+
+    #[test]
+    fn block_type_index_finds_delay() {
+        let idx = block_type_index("delay", "electric_guitar");
+        assert!(idx >= 0, "delay should be in type picker");
+    }
+
+    #[test]
+    fn block_type_index_unknown_type_returns_negative() {
+        let idx = block_type_index("nonexistent_type", "electric_guitar");
+        assert_eq!(idx, -1);
+    }
+
+    #[test]
+    fn block_type_index_input_is_present() {
+        let idx = block_type_index("input", "electric_guitar");
+        assert!(idx >= 0, "input should be in type picker");
+    }
+
+    #[test]
+    fn block_type_index_output_is_present() {
+        let idx = block_type_index("output", "electric_guitar");
+        assert!(idx >= 0, "output should be in type picker");
+    }
+
+    #[test]
+    fn block_type_index_insert_is_present() {
+        let idx = block_type_index("insert", "electric_guitar");
+        assert!(idx >= 0, "insert should be in type picker");
+    }
 }
