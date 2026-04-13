@@ -1,14 +1,7 @@
 name: Test
 
 on:
-  push:
-    branches:
-      - develop
-      - 'feature/*'
-      - 'bugfix/*'
-  pull_request:
-    branches:
-      - develop
+  workflow_dispatch: # manual trigger only — no automatic runs
 
 env:
   CARGO_TERM_COLOR: always

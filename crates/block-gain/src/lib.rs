@@ -289,6 +289,142 @@ mod tests {
         }
     }
 
+    // ── registry: process 1024 frames at 44100Hz ─────────────────────
+
+    #[test]
+    fn registry_process_native_mono_44100hz_1024_frames_finite() {
+        for model in supported_models().iter().filter(|m| is_native(m)) {
+            let params = defaults_for(model);
+            let mut proc = match build_gain_processor_for_layout(
+                model,
+                &params,
+                44_100.0,
+                AudioChannelLayout::Mono,
+            )
+            .unwrap()
+            {
+                BlockProcessor::Mono(p) => p,
+                BlockProcessor::Stereo(_) => panic!("expected Mono for '{model}'"),
+            };
+            for i in 0..1024 {
+                let input = (i as f32 / 1024.0 * std::f32::consts::TAU * 2.0).sin() * 0.3;
+                let out = proc.process_sample(input);
+                assert!(
+                    out.is_finite(),
+                    "native mono '{model}' @44100 produced non-finite at sample {i}: {out}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn registry_process_native_stereo_44100hz_1024_frames_finite() {
+        for model in supported_models().iter().filter(|m| is_native(m)) {
+            let params = defaults_for(model);
+            let processor = build_gain_processor_for_layout(
+                model,
+                &params,
+                44_100.0,
+                AudioChannelLayout::Stereo,
+            )
+            .unwrap();
+            match processor {
+                BlockProcessor::Stereo(mut p) => {
+                    for i in 0..1024 {
+                        let input = (i as f32 / 1024.0 * std::f32::consts::TAU * 2.0).sin() * 0.3;
+                        let [l, r] = p.process_frame([input, input]);
+                        assert!(
+                            l.is_finite() && r.is_finite(),
+                            "native stereo '{model}' @44100 non-finite at {i}: [{l}, {r}]"
+                        );
+                    }
+                }
+                BlockProcessor::Mono(mut p) => {
+                    for i in 0..1024 {
+                        let input = (i as f32 / 1024.0 * std::f32::consts::TAU * 2.0).sin() * 0.3;
+                        let out = p.process_sample(input);
+                        assert!(
+                            out.is_finite(),
+                            "native dualmono '{model}' @44100 non-finite at {i}: {out}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    // ── registry: asset_summary for native models ───────────────────
+
+    #[test]
+    fn registry_asset_summary_native_models_return_nonempty() {
+        for model in supported_models().iter().filter(|m| is_native(m)) {
+            let params = defaults_for(model);
+            let summary = super::gain_asset_summary(model, &params)
+                .unwrap_or_else(|e| panic!("asset_summary failed for '{model}': {e}"));
+            assert!(
+                !summary.is_empty(),
+                "asset_summary should be non-empty for '{model}'"
+            );
+        }
+    }
+
+    // ── registry: visual data for all models ────────────────────────
+
+    #[test]
+    fn registry_visual_data_all_models_have_entries() {
+        for model in supported_models() {
+            let visual = super::gain_model_visual(model);
+            assert!(
+                visual.is_some(),
+                "gain_model_visual should return Some for '{model}'"
+            );
+            let v = visual.unwrap();
+            assert!(!v.brand.is_empty(), "brand should be non-empty for '{model}'");
+            assert!(!v.type_label.is_empty(), "type_label should be non-empty for '{model}'");
+            assert!(
+                !v.supported_instruments.is_empty(),
+                "supported_instruments should be non-empty for '{model}'"
+            );
+        }
+    }
+
+    // ── edge cases: unknown model ───────────────────────────────────
+
+    #[test]
+    fn unknown_model_returns_empty_name_and_brand() {
+        assert_eq!(gain_display_name("nonexistent_model"), "");
+        assert_eq!(gain_brand("nonexistent_model"), "");
+        assert_eq!(gain_type_label("nonexistent_model"), "");
+    }
+
+    #[test]
+    fn unknown_model_schema_fails() {
+        assert!(super::gain_model_schema("nonexistent_model").is_err());
+    }
+
+    #[test]
+    fn unknown_model_build_fails() {
+        let params = ParameterSet::default();
+        assert!(build_gain_processor_for_layout(
+            "nonexistent_model",
+            &params,
+            48_000.0,
+            AudioChannelLayout::Mono,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn unknown_model_validate_fails() {
+        let params = ParameterSet::default();
+        assert!(super::validate_gain_params("nonexistent_model", &params).is_err());
+    }
+
+    #[test]
+    fn unknown_model_visual_returns_none() {
+        assert!(super::gain_model_visual("nonexistent_model").is_none());
+    }
+
     // ── existing specific tests (kept) ──────────────────────────────────
 
     #[test]

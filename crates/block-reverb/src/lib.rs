@@ -356,32 +356,53 @@ mod tests {
         );
     }
 
-    // ── processing silence tests (native only) ─────────────────────────
+    // ── processing tests (native only) ──────────────────────────────
 
     #[test]
-    #[ignore]
-    fn native_reverb_process_silence_mono_produces_non_nan() {
+    fn native_reverb_build_mono_at_44100() {
+        for model in native_reverb_models() {
+            let schema = reverb_model_schema(model).expect("schema");
+            let params = ParameterSet::default()
+                .normalized_against(&schema)
+                .expect("normalized defaults");
+            let result = build_reverb_processor_for_layout(
+                model, &params, 44_100.0, AudioChannelLayout::Mono,
+            );
+            assert!(result.is_ok(), "{model} should build mono at 44100Hz: {:?}", result.err());
+        }
+    }
+
+    #[test]
+    fn native_reverb_stereo_capable_build_stereo_at_44100() {
+        let stereo_models = ["hall", "room", "spring"];
+        for model in stereo_models {
+            let schema = reverb_model_schema(model).expect("schema");
+            let params = ParameterSet::default()
+                .normalized_against(&schema)
+                .expect("normalized defaults");
+            let result = build_reverb_processor_for_layout(
+                model, &params, 44_100.0, AudioChannelLayout::Stereo,
+            );
+            assert!(result.is_ok(), "{model} should build stereo at 44100Hz: {:?}", result.err());
+        }
+    }
+
+    #[test]
+    fn native_reverb_process_silence_mono_all_finite() {
         for model in native_reverb_models() {
             let schema = reverb_model_schema(model).expect("schema");
             let params = ParameterSet::default()
                 .normalized_against(&schema)
                 .expect("normalized defaults");
             let mut processor = build_reverb_processor_for_layout(
-                model,
-                &params,
-                48_000.0,
-                AudioChannelLayout::Mono,
-            )
-            .expect("build");
+                model, &params, 44_100.0, AudioChannelLayout::Mono,
+            ).expect("build");
 
             match &mut processor {
                 block_core::BlockProcessor::Mono(ref mut p) => {
-                    for i in 0..4096 {
+                    for i in 0..1024 {
                         let out = p.process_sample(0.0);
-                        assert!(
-                            !out.is_nan(),
-                            "{model} mono produced NaN at sample {i}"
-                        );
+                        assert!(out.is_finite(), "{model} mono not finite at sample {i}");
                     }
                 }
                 _ => panic!("{model} expected Mono processor"),
@@ -390,8 +411,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn native_reverb_process_silence_stereo_produces_non_nan() {
+    fn native_reverb_process_silence_stereo_all_finite() {
         let stereo_models = ["hall", "room", "spring"];
         for model in stereo_models {
             let schema = reverb_model_schema(model).expect("schema");
@@ -399,21 +419,136 @@ mod tests {
                 .normalized_against(&schema)
                 .expect("normalized defaults");
             let mut processor = build_reverb_processor_for_layout(
-                model,
-                &params,
-                48_000.0,
-                AudioChannelLayout::Stereo,
-            )
-            .expect("build");
+                model, &params, 44_100.0, AudioChannelLayout::Stereo,
+            ).expect("build");
 
             match &mut processor {
                 block_core::BlockProcessor::Stereo(ref mut p) => {
-                    for i in 0..4096 {
+                    for i in 0..1024 {
                         let [l, r] = p.process_frame([0.0, 0.0]);
-                        assert!(
-                            !l.is_nan() && !r.is_nan(),
-                            "{model} stereo produced NaN at sample {i}"
-                        );
+                        assert!(l.is_finite() && r.is_finite(),
+                            "{model} stereo not finite at sample {i}");
+                    }
+                }
+                _ => panic!("{model} expected Stereo processor"),
+            }
+        }
+    }
+
+    #[test]
+    fn native_reverb_process_sine_mono_all_finite_and_nonzero() {
+        for model in native_reverb_models() {
+            let schema = reverb_model_schema(model).expect("schema");
+            let params = ParameterSet::default()
+                .normalized_against(&schema)
+                .expect("normalized defaults");
+            let mut processor = build_reverb_processor_for_layout(
+                model, &params, 44_100.0, AudioChannelLayout::Mono,
+            ).expect("build");
+
+            let sr = 44_100.0_f32;
+            let mut any_nonzero = false;
+            match &mut processor {
+                block_core::BlockProcessor::Mono(ref mut p) => {
+                    for i in 0..1024 {
+                        let input = (2.0 * std::f32::consts::PI * 440.0 * i as f32 / sr).sin();
+                        let out = p.process_sample(input);
+                        assert!(out.is_finite(), "{model} mono not finite at sample {i}");
+                        if out.abs() > 1e-10 {
+                            any_nonzero = true;
+                        }
+                    }
+                }
+                _ => panic!("{model} expected Mono processor"),
+            }
+            assert!(any_nonzero, "{model} mono produced all zeros for sine input");
+        }
+    }
+
+    #[test]
+    fn native_reverb_process_sine_stereo_all_finite_and_nonzero() {
+        let stereo_models = ["hall", "room", "spring"];
+        for model in stereo_models {
+            let schema = reverb_model_schema(model).expect("schema");
+            let params = ParameterSet::default()
+                .normalized_against(&schema)
+                .expect("normalized defaults");
+            let mut processor = build_reverb_processor_for_layout(
+                model, &params, 44_100.0, AudioChannelLayout::Stereo,
+            ).expect("build");
+
+            let sr = 44_100.0_f32;
+            let mut any_nonzero = false;
+            match &mut processor {
+                block_core::BlockProcessor::Stereo(ref mut p) => {
+                    for i in 0..1024 {
+                        let input = (2.0 * std::f32::consts::PI * 440.0 * i as f32 / sr).sin();
+                        let [l, r] = p.process_frame([input, input]);
+                        assert!(l.is_finite() && r.is_finite(),
+                            "{model} stereo not finite at sample {i}");
+                        if l.abs() > 1e-10 || r.abs() > 1e-10 {
+                            any_nonzero = true;
+                        }
+                    }
+                }
+                _ => panic!("{model} expected Stereo processor"),
+            }
+            assert!(any_nonzero, "{model} stereo produced all zeros for sine input");
+        }
+    }
+
+    #[test]
+    fn native_reverb_process_block_mono_all_finite() {
+        for model in native_reverb_models() {
+            let schema = reverb_model_schema(model).expect("schema");
+            let params = ParameterSet::default()
+                .normalized_against(&schema)
+                .expect("normalized defaults");
+            let mut processor = build_reverb_processor_for_layout(
+                model, &params, 44_100.0, AudioChannelLayout::Mono,
+            ).expect("build");
+
+            let sr = 44_100.0_f32;
+            match &mut processor {
+                block_core::BlockProcessor::Mono(ref mut p) => {
+                    let mut buffer: Vec<f32> = (0..1024)
+                        .map(|i| (2.0 * std::f32::consts::PI * 440.0 * i as f32 / sr).sin())
+                        .collect();
+                    p.process_block(&mut buffer);
+                    for (i, s) in buffer.iter().enumerate() {
+                        assert!(s.is_finite(), "{model} mono block not finite at frame {i}");
+                    }
+                }
+                _ => panic!("{model} expected Mono processor"),
+            }
+        }
+    }
+
+    #[test]
+    fn native_reverb_process_block_stereo_all_finite() {
+        let stereo_models = ["hall", "room", "spring"];
+        for model in stereo_models {
+            let schema = reverb_model_schema(model).expect("schema");
+            let params = ParameterSet::default()
+                .normalized_against(&schema)
+                .expect("normalized defaults");
+            let mut processor = build_reverb_processor_for_layout(
+                model, &params, 44_100.0, AudioChannelLayout::Stereo,
+            ).expect("build");
+
+            let sr = 44_100.0_f32;
+            match &mut processor {
+                block_core::BlockProcessor::Stereo(ref mut p) => {
+                    let mut buffer: Vec<[f32; 2]> = (0..1024)
+                        .map(|i| {
+                            let s = (2.0 * std::f32::consts::PI * 440.0 * i as f32 / sr).sin();
+                            [s, s]
+                        })
+                        .collect();
+                    p.process_block(&mut buffer);
+                    for (i, [l, r]) in buffer.iter().enumerate() {
+                        assert!(l.is_finite() && r.is_finite(),
+                            "{model} stereo block not finite at frame {i}");
                     }
                 }
                 _ => panic!("{model} expected Stereo processor"),

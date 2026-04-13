@@ -316,6 +316,107 @@ mod tests {
         assert!(filter_model_visual("nonexistent_model").is_none());
     }
 
+    // ── native model helpers ──────────────────────────────────────────
+
+    fn native_filter_models() -> Vec<&'static str> {
+        supported_models()
+            .iter()
+            .copied()
+            .filter(|m| filter_type_label(m) == "NATIVE")
+            .collect()
+    }
+
+    // ── native process tests (registry-level) ─────────────────────────
+
+    #[test]
+    fn native_filter_build_mono_at_44100() {
+        for model in native_filter_models() {
+            let params = default_params_for(model);
+            let result = build_filter_processor_for_layout(
+                model, &params, 44_100.0, AudioChannelLayout::Mono,
+            );
+            assert!(result.is_ok(), "{model} should build mono at 44100Hz: {:?}", result.err());
+        }
+    }
+
+    #[test]
+    fn native_filter_process_silence_mono_all_finite() {
+        for model in native_filter_models() {
+            let params = default_params_for(model);
+            let mut proc = build_filter_processor_for_layout(
+                model, &params, 44_100.0, AudioChannelLayout::Mono,
+            ).expect("build");
+            let output = process_silence(&mut proc, 1024);
+            for (i, s) in output.iter().enumerate() {
+                assert!(s.is_finite(), "{model} mono not finite at sample {i}");
+            }
+        }
+    }
+
+    fn process_sine(processor: &mut BlockProcessor, frames: usize, sample_rate: f32) -> Vec<f32> {
+        match processor {
+            BlockProcessor::Mono(p) => {
+                let mut buf: Vec<f32> = (0..frames)
+                    .map(|i| (2.0 * std::f32::consts::PI * 440.0 * i as f32 / sample_rate).sin())
+                    .collect();
+                p.process_block(&mut buf);
+                buf
+            }
+            BlockProcessor::Stereo(p) => {
+                let mut buf: Vec<[f32; 2]> = (0..frames)
+                    .map(|i| {
+                        let s = (2.0 * std::f32::consts::PI * 440.0 * i as f32 / sample_rate).sin();
+                        [s, s]
+                    })
+                    .collect();
+                p.process_block(&mut buf);
+                buf.iter().flat_map(|pair| pair.iter().copied()).collect()
+            }
+        }
+    }
+
+    #[test]
+    fn native_filter_process_sine_mono_all_finite_and_nonzero() {
+        for model in native_filter_models() {
+            let params = default_params_for(model);
+            let mut proc = build_filter_processor_for_layout(
+                model, &params, 44_100.0, AudioChannelLayout::Mono,
+            ).expect("build");
+            let output = process_sine(&mut proc, 1024, 44_100.0);
+            let any_nonzero = output.iter().any(|s| s.abs() > 1e-10);
+            for (i, s) in output.iter().enumerate() {
+                assert!(s.is_finite(), "{model} mono sine not finite at frame {i}");
+            }
+            assert!(any_nonzero, "{model} mono produced all zeros for sine input");
+        }
+    }
+
+    #[test]
+    fn native_filter_process_block_mono_all_finite() {
+        for model in native_filter_models() {
+            let params = default_params_for(model);
+            let mut proc = build_filter_processor_for_layout(
+                model, &params, 44_100.0, AudioChannelLayout::Mono,
+            ).expect("build");
+            let output = process_sine(&mut proc, 1024, 44_100.0);
+            for (i, s) in output.iter().enumerate() {
+                assert!(s.is_finite(), "{model} mono block not finite at frame {i}");
+            }
+        }
+    }
+
+    #[test]
+    fn native_filter_stereo_build_rejected() {
+        // Both native filter models are mono-only
+        for model in native_filter_models() {
+            let params = default_params_for(model);
+            let result = build_filter_processor_for_layout(
+                model, &params, 44_100.0, AudioChannelLayout::Stereo,
+            );
+            assert!(result.is_err(), "{model} should reject stereo layout");
+        }
+    }
+
     // ── LV2 models: schema only (build requires plugin binaries) ────
 
     #[test]
