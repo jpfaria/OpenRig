@@ -33,12 +33,11 @@ component FooterButton inherits Rectangle {
 }
 
 component IoGroupRow inherits Rectangle {
-    in property <string> group-name;
     in property <string> group-summary;
     callback edit-clicked();
     callback remove-clicked();
 
-    height: 52px;
+    height: 36px;
     background: transparent;
 
     property <bool> hovered: false;
@@ -53,24 +52,13 @@ component IoGroupRow inherits Rectangle {
 
     Text {
         x: 0px;
-        y: 6px;
+        y: 0px;
         width: parent.width - 60px;
-        height: 18px;
-        text: root.group-name;
+        height: parent.height;
+        text: root.group-summary;
         color: #edf2f9;
         font-size: 13px;
-        font-weight: 700;
-        vertical-alignment: center;
-    }
-
-    Text {
-        x: 0px;
-        y: 28px;
-        width: parent.width - 60px;
-        height: 18px;
-        text: root.group-summary;
-        color: #6b7786;
-        font-size: 12px;
+        font-weight: 600;
         overflow: elide;
         vertical-alignment: center;
     }
@@ -280,7 +268,6 @@ export component ChainIoGroupsPage inherits Rectangle {
 
             for group[index] in root.groups : IoGroupRow {
                 width: root.width - 64px;
-                group-name: group.name;
                 group-summary: group.summary;
                 edit-clicked => { root.edit-group(index); }
                 remove-clicked => { root.remove-group(index); }

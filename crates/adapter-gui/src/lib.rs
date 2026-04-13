@@ -291,14 +291,12 @@ struct ProjectSession {
 }
 #[derive(Debug, Clone)]
 struct InputGroupDraft {
-    name: String,
     device_id: Option<String>,
     channels: Vec<usize>,
     mode: ChainInputMode,
 }
 #[derive(Debug, Clone)]
 struct OutputGroupDraft {
-    name: String,
     device_id: Option<String>,
     channels: Vec<usize>,
     mode: ChainOutputMode,
@@ -3155,15 +3153,13 @@ pub fn run_desktop_app(
             let first_input = chain.first_input();
             let inputs: Vec<InputGroupDraft> = first_input
                 .map(|ib| {
-                    ib.entries.iter().enumerate().map(|(idx, e)| InputGroupDraft {
-                        name: format!("Input {}", idx + 1),
+                    ib.entries.iter().map(|e| InputGroupDraft {
                         device_id: if e.device_id.0.is_empty() { None } else { Some(e.device_id.0.clone()) },
                         channels: e.channels.clone(),
                         mode: e.mode,
                     }).collect()
                 })
                 .unwrap_or_else(|| vec![InputGroupDraft {
-                    name: "Input 1".to_string(),
                     device_id: None,
                     channels: Vec::new(),
                     mode: ChainInputMode::Mono,
@@ -3207,15 +3203,13 @@ pub fn run_desktop_app(
             let last_output = chain.last_output();
             let outputs: Vec<OutputGroupDraft> = last_output
                 .map(|ob| {
-                    ob.entries.iter().enumerate().map(|(idx, e)| OutputGroupDraft {
-                        name: format!("Output {}", idx + 1),
+                    ob.entries.iter().map(|e| OutputGroupDraft {
                         device_id: if e.device_id.0.is_empty() { None } else { Some(e.device_id.0.clone()) },
                         channels: e.channels.clone(),
                         mode: e.mode,
                     }).collect()
                 })
                 .unwrap_or_else(|| vec![OutputGroupDraft {
-                    name: "Output 1".to_string(),
                     device_id: None,
                     channels: Vec::new(),
                     mode: ChainOutputMode::Stereo,
@@ -3337,7 +3331,6 @@ pub fn run_desktop_app(
                 };
                 let idx = draft.inputs.len();
                 draft.inputs.push(InputGroupDraft {
-                    name: format!("Input {}", idx + 1),
                     device_id: fresh_input.first().map(|d| d.id.clone()),
                     channels: Vec::new(),
                     mode: ChainInputMode::Mono,
@@ -3638,7 +3631,6 @@ pub fn run_desktop_app(
                 };
                 let idx = draft.outputs.len();
                 draft.outputs.push(OutputGroupDraft {
-                    name: format!("Output {}", idx + 1),
                     device_id: fresh_output.first().map(|d| d.id.clone()),
                     channels: Vec::new(),
                     mode: ChainOutputMode::Stereo,
@@ -3894,8 +3886,7 @@ pub fn run_desktop_app(
                 AudioBlockKind::Input(ib) => {
                     let fresh_input = refresh_input_devices(&chain_input_device_options_for_select);
                     let fresh_output = refresh_output_devices(&chain_output_device_options_for_select);
-                    let inputs: Vec<InputGroupDraft> = ib.entries.iter().enumerate().map(|(idx, e)| InputGroupDraft {
-                        name: format!("Input {}", idx + 1),
+                    let inputs: Vec<InputGroupDraft> = ib.entries.iter().map(|e| InputGroupDraft {
                         device_id: if e.device_id.0.is_empty() { None } else { Some(e.device_id.0.clone()) },
                         channels: e.channels.clone(),
                         mode: e.mode,
@@ -3918,8 +3909,7 @@ pub fn run_desktop_app(
                 AudioBlockKind::Output(ob) => {
                     let fresh_input = refresh_input_devices(&chain_input_device_options_for_select);
                     let fresh_output = refresh_output_devices(&chain_output_device_options_for_select);
-                    let outputs: Vec<OutputGroupDraft> = ob.entries.iter().enumerate().map(|(idx, e)| OutputGroupDraft {
-                        name: format!("Output {}", idx + 1),
+                    let outputs: Vec<OutputGroupDraft> = ob.entries.iter().map(|e| OutputGroupDraft {
                         device_id: if e.device_id.0.is_empty() { None } else { Some(e.device_id.0.clone()) },
                         channels: e.channels.clone(),
                         mode: e.mode,
@@ -5113,7 +5103,6 @@ pub fn run_desktop_app(
                 if effect_type_str == "input" {
                     // Set up a temporary chain draft for the input window callbacks
                     let input_group = InputGroupDraft {
-                        name: "Input".to_string(),
                         device_id: None,
                         channels: Vec::new(),
                         mode: ChainInputMode::Mono,
@@ -5149,7 +5138,6 @@ pub fn run_desktop_app(
                 } else {
                     // Set up a temporary chain draft for the output window callbacks
                     let output_group = OutputGroupDraft {
-                        name: "Output".to_string(),
                         device_id: None,
                         channels: Vec::new(),
                         mode: ChainOutputMode::Stereo,
@@ -8228,13 +8216,11 @@ fn create_chain_draft(
     output_devices: &[AudioDeviceDescriptor],
 ) -> ChainDraft {
     let default_input = InputGroupDraft {
-        name: "Input 1".to_string(),
         device_id: input_devices.first().map(|device| device.id.clone()),
         channels: Vec::new(),
         mode: ChainInputMode::Mono,
     };
     let default_output = OutputGroupDraft {
-        name: "Output 1".to_string(),
         device_id: output_devices.first().map(|device| device.id.clone()),
         channels: Vec::new(),
         mode: ChainOutputMode::Stereo,
@@ -8259,16 +8245,13 @@ fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
         Some((_, input)) => input
             .entries
             .iter()
-            .enumerate()
-            .map(|(idx, entry)| InputGroupDraft {
-                name: format!("Input {}", idx + 1),
+            .map(|entry| InputGroupDraft {
                 device_id: if entry.device_id.0.is_empty() { None } else { Some(entry.device_id.0.clone()) },
                 channels: entry.channels.clone(),
                 mode: entry.mode,
             })
             .collect(),
         None => vec![InputGroupDraft {
-            name: "Input 1".to_string(),
             device_id: None,
             channels: Vec::new(),
             mode: ChainInputMode::Mono,
@@ -8280,16 +8263,13 @@ fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
         Some((_, output)) => output
             .entries
             .iter()
-            .enumerate()
-            .map(|(idx, entry)| OutputGroupDraft {
-                name: format!("Output {}", idx + 1),
+            .map(|entry| OutputGroupDraft {
                 device_id: if entry.device_id.0.is_empty() { None } else { Some(entry.device_id.0.clone()) },
                 channels: entry.channels.clone(),
                 mode: entry.mode,
             })
             .collect(),
         None => vec![OutputGroupDraft {
-            name: "Output 1".to_string(),
             device_id: None,
             channels: Vec::new(),
             mode: ChainOutputMode::Stereo,
@@ -9019,7 +8999,6 @@ fn setup_chain_editor_callbacks(
                 };
                 let idx = draft.inputs.len();
                 draft.inputs.push(InputGroupDraft {
-                    name: format!("Input {}", idx + 1),
                     device_id: fresh_input.first().map(|d| d.id.clone()),
                     channels: Vec::new(),
                     mode: ChainInputMode::Mono,
@@ -9083,7 +9062,6 @@ fn setup_chain_editor_callbacks(
                 };
                 let idx = draft.outputs.len();
                 draft.outputs.push(OutputGroupDraft {
-                    name: format!("Output {}", idx + 1),
                     device_id: fresh_output.first().map(|d| d.id.clone()),
                     channels: Vec::new(),
                     mode: ChainOutputMode::Stereo,
@@ -9334,7 +9312,6 @@ fn build_io_group_items(
                 input_devices,
             );
             IoGroupItem {
-                name: input.name.clone().into(),
                 summary: summary.into(),
             }
         })
@@ -9349,7 +9326,6 @@ fn build_io_group_items(
                 output_devices,
             );
             IoGroupItem {
-                name: output.name.clone().into(),
                 summary: summary.into(),
             }
         })
