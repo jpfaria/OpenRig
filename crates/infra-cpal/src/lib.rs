@@ -4,7 +4,7 @@ use cpal::{
     BufferSize, SampleFormat, Stream, StreamConfig, SupportedBufferSize, SupportedStreamConfig,
     SupportedStreamConfigRange,
 };
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 
 // ── Cached host ─────────────────────────────────────────────────────────────
 // select_host() was called 8+ times per session (each creating a new CPAL
@@ -929,18 +929,50 @@ fn is_hardware_device(id: &str) -> bool {
     }
 }
 
-pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
-    log::trace!("listing input device descriptors");
+// ── Device descriptor cache ─────────────────────────────────────────────────
+// Device enumeration (CPAL or JACK) is expensive — on macOS CoreAudio takes
+// 200-500ms, on Linux/JACK the first connection takes similar time. The UI
+// calls refresh_input/output_devices on every click (30+ call sites). Cache
+// the result so enumeration only happens once; callers that need fresh data
+// can call invalidate_device_cache() first.
 
-    // On Linux with the jack feature, JACK is the only supported audio backend.
-    // Always enumerate via the jack crate directly — CPAL's JACK host crashes
-    // the JACK server, and falling back to ALSA can hang indefinitely on a
-    // broken USB device (xHCI reset state). Fail fast if JACK is not running.
+static INPUT_DEVICE_CACHE: Mutex<Option<Vec<AudioDeviceDescriptor>>> = Mutex::new(None);
+static OUTPUT_DEVICE_CACHE: Mutex<Option<Vec<AudioDeviceDescriptor>>> = Mutex::new(None);
+
+/// Clear the device cache so the next list_*_device_descriptors() call
+/// re-enumerates. Call this when a device connect/disconnect is detected.
+pub fn invalidate_device_cache() {
+    *INPUT_DEVICE_CACHE.lock().unwrap() = None;
+    *OUTPUT_DEVICE_CACHE.lock().unwrap() = None;
+    log::info!("device descriptor cache invalidated");
+}
+
+pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
+    if let Some(cached) = INPUT_DEVICE_CACHE.lock().unwrap().clone() {
+        log::trace!("list_input_device_descriptors: cache hit ({} devices)", cached.len());
+        return Ok(cached);
+    }
+    log::info!("list_input_device_descriptors: cache miss, enumerating...");
+    let devices = enumerate_input_devices_uncached()?;
+    *INPUT_DEVICE_CACHE.lock().unwrap() = Some(devices.clone());
+    Ok(devices)
+}
+
+pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
+    if let Some(cached) = OUTPUT_DEVICE_CACHE.lock().unwrap().clone() {
+        log::trace!("list_output_device_descriptors: cache hit ({} devices)", cached.len());
+        return Ok(cached);
+    }
+    log::info!("list_output_device_descriptors: cache miss, enumerating...");
+    let devices = enumerate_output_devices_uncached()?;
+    *OUTPUT_DEVICE_CACHE.lock().unwrap() = Some(devices.clone());
+    Ok(devices)
+}
+
+fn enumerate_input_devices_uncached() -> Result<Vec<AudioDeviceDescriptor>> {
     #[cfg(all(target_os = "linux", feature = "jack"))]
     {
         if !jack_server_is_running() {
-            // JACK died (USB disconnect, restart cycle). Flush stale metadata
-            // so the next successful enumeration gets fresh port counts.
             invalidate_jack_meta_cache();
             bail!("JACK server is not running — start jackd before enumerating input devices");
         }
@@ -965,12 +997,7 @@ pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     Ok(devices)
 }
 
-pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
-    log::trace!("listing output device descriptors");
-
-    // On Linux with the jack feature, JACK is the only supported audio backend.
-    // See list_input_device_descriptors() for the rationale — falling back to
-    // ALSA can hang indefinitely when the USB device is in a broken kernel state.
+fn enumerate_output_devices_uncached() -> Result<Vec<AudioDeviceDescriptor>> {
     #[cfg(all(target_os = "linux", feature = "jack"))]
     {
         if !jack_server_is_running() {
