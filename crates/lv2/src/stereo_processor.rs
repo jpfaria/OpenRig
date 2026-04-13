@@ -10,7 +10,8 @@ use std::ffi::c_void;
 const MAX_BLOCK_SIZE: usize = 4096;
 
 /// Size of the dummy atom buffer for MIDI/atom sidechain ports.
-const ATOM_BUF_SIZE: usize = 256;
+/// Must meet rsz:minimumSize from plugin TTL (Dragonfly requires 2048).
+const ATOM_BUF_SIZE: usize = 4096;
 
 pub struct StereoLv2Processor {
     plugin: Lv2Plugin,

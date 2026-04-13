@@ -11,7 +11,7 @@ pub const MODEL_ID: &str = "lv2_mda_ringmod";
 pub const DISPLAY_NAME: &str = "MDA RingMod";
 const BRAND: &str = "mda";
 
-const PLUGIN_URI: &str = "http://moddevices.com/plugins/mda/RingMod";
+const PLUGIN_URI: &str = "http://drobilla.net/plugins/mda/RingMod";
 const PLUGIN_DIR: &str = "mod-mda-RingMod";
 const PLUGIN_BINARY: &str = "RingMod.so";
 
@@ -55,10 +55,11 @@ fn build(params: &ParameterSet, sample_rate: f32, _layout: AudioChannelLayout) -
         &bundle_path,
         &[PORT_AUDIO_IN_L, PORT_AUDIO_IN_R],
         &[PORT_AUDIO_OUT_L, PORT_AUDIO_OUT_R],
+        // MDA lvz wrapper expects all params normalized 0-1
         &[
-            (PORT_FREQ, freq),
-            (PORT_FINE, fine),
-            (PORT_FEEDBACK, feedback),
+            (PORT_FREQ, (freq - 0.1) / (16000.0 - 0.1)),
+            (PORT_FINE, fine / 100.0),
+            (PORT_FEEDBACK, feedback / 100.0),
         ],
     )?;
     Ok(BlockProcessor::Stereo(Box::new(processor)))

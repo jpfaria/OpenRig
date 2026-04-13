@@ -2316,6 +2316,7 @@ pub fn run_desktop_app(
         let toast_timer = toast_timer.clone();
         let open_compact_window = open_compact_window.clone();
         let vst3_editor_handles_for_compact = vst3_editor_handles.clone();
+        let block_editor_draft = block_editor_draft.clone();
         window.on_open_compact_chain_view(move |chain_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2364,6 +2365,7 @@ pub fn run_desktop_app(
                 let output_chain_devices = output_chain_devices.clone();
                 let saved_project_snapshot = saved_project_snapshot.clone();
                 let project_dirty = project_dirty.clone();
+                let block_editor_draft = block_editor_draft.clone();
                 let weak_main = window.as_weak();
                 let weak_compact = compact_win.as_weak();
                 let toast_timer = toast_timer.clone();
@@ -2387,7 +2389,14 @@ pub fn run_desktop_app(
                         return;
                     };
                     block.enabled = !block.enabled;
+                    let new_enabled = block.enabled;
                     let chain_id = chain.id.clone();
+                    // Keep block_editor_draft in sync to prevent stale persist from reverting
+                    if let Some(draft) = block_editor_draft.borrow_mut().as_mut() {
+                        if draft.chain_index == chain_idx && draft.block_index == Some(block_idx) {
+                            draft.enabled = new_enabled;
+                        }
+                    }
                     if let Err(error) =
                         sync_live_chain_runtime(&project_runtime, session, &chain_id)
                     {
@@ -2765,6 +2774,59 @@ pub fn run_desktop_app(
                 });
             }
 
+            // Wire update-block-parameter-bool (bool toggles like mute_signal)
+            {
+                let project_session = project_session.clone();
+                let project_runtime = project_runtime.clone();
+                let project_chains = project_chains.clone();
+                let input_chain_devices = input_chain_devices.clone();
+                let output_chain_devices = output_chain_devices.clone();
+                let saved_project_snapshot = saved_project_snapshot.clone();
+                let project_dirty = project_dirty.clone();
+                let weak_main = window.as_weak();
+                let weak_compact = compact_win.as_weak();
+                let toast_timer = toast_timer.clone();
+                compact_win.on_update_block_parameter_bool(move |ci, bi, path, value| {
+                    let Some(main_win) = weak_main.upgrade() else { return; };
+                    let Some(cw) = weak_compact.upgrade() else { return; };
+                    let chain_idx = ci as usize;
+                    let block_idx = bi as usize;
+                    let mut session_borrow = project_session.borrow_mut();
+                    let Some(session) = session_borrow.as_mut() else { return; };
+                    let Some(chain) = session.project.chains.get_mut(chain_idx) else { return; };
+                    let Some(block) = chain.blocks.get_mut(block_idx) else { return; };
+                    // Update the parameter in the block
+                    if let AudioBlockKind::Core(ref mut core) = block.kind {
+                        core.params.insert(path.as_str(), domain::value_objects::ParameterValue::Bool(value));
+                    }
+                    // Rebuild block kind with updated params
+                    let Some(data) = block_editor_data(block) else { return; };
+                    let params_set = data.params.clone();
+                    match project::block::build_audio_block_kind(&data.effect_type, &data.model_id, params_set) {
+                        Ok(kind) => {
+                            let id = block.id.clone();
+                            let enabled = block.enabled;
+                            block.kind = kind;
+                            block.id = id;
+                            block.enabled = enabled;
+                        }
+                        Err(e) => {
+                            log::error!("[compact] update bool param error: {e}");
+                            return;
+                        }
+                    }
+                    let chain_id = chain.id.clone();
+                    if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                        set_status_error(&main_win, &toast_timer, &e.to_string());
+                        return;
+                    }
+                    replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
+                    let blocks = build_compact_blocks(&session.project, chain_idx);
+                    cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
+                    sync_project_dirty(&main_win, session, &saved_project_snapshot, &project_dirty, auto_save);
+                });
+            }
+
             // Wire open-block-detail (click on model select opens full editor)
             {
                 let weak_main = window.as_weak();
@@ -2841,6 +2903,24 @@ pub fn run_desktop_app(
                 );
                 // Timer lives as long as compact_win (dropped when window closes)
                 std::mem::forget(stream_timer);
+            }
+
+            // Wire configure-input/output — delegate to the main window's existing handlers
+            {
+                let weak_main = window.as_weak();
+                compact_win.on_configure_input(move |ci| {
+                    if let Some(main_win) = weak_main.upgrade() {
+                        main_win.invoke_configure_chain_input(ci);
+                    }
+                });
+            }
+            {
+                let weak_main = window.as_weak();
+                compact_win.on_configure_output(move |ci| {
+                    if let Some(main_win) = weak_main.upgrade() {
+                        main_win.invoke_configure_chain_output(ci);
+                    }
+                });
             }
 
             {
@@ -4741,6 +4821,7 @@ pub fn run_desktop_app(
     {
         let weak_window = window.as_weak();
         let selected_block = selected_block.clone();
+        let block_editor_draft = block_editor_draft.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
@@ -4770,7 +4851,16 @@ pub fn run_desktop_app(
                 return;
             };
             block.enabled = !block.enabled;
+            let new_enabled = block.enabled;
             let chain_id = chain.id.clone();
+            // Keep block_editor_draft in sync to prevent stale persist from reverting
+            if let Some(draft) = block_editor_draft.borrow_mut().as_mut() {
+                if draft.chain_index == chain_index as usize && draft.block_index == Some(block_index) {
+                    draft.enabled = new_enabled;
+                }
+            }
+            // Keep inline drawer UI in sync
+            window.set_block_drawer_enabled(new_enabled);
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 set_status_error(&window, &toast_timer, &error.to_string());
                 return;
