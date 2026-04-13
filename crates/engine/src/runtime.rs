@@ -1559,12 +1559,45 @@ fn optional_string(params: &ParameterSet, path: &str) -> Option<String> {
         .map(ToString::to_string)
 }
 
+/// Ensure denormalized floats are flushed to zero on the current thread.
+///
+/// Without this, neural-network processors (NAM) produce degraded audio on
+/// aarch64 because denormals accumulate through the network layers.  On x86
+/// the NAM/Eigen libraries sometimes set DAZ+FTZ internally, but on aarch64
+/// nobody does — so we do it here, once per callback invocation.
+///
+/// This is standard practice in professional audio software (JUCE, JACK,
+/// Ardour, Reaper all do the same).  The cost is a single register
+/// read-modify-write per callback — negligible.
+#[inline(always)]
+fn ensure_flush_to_zero() {
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    unsafe {
+        // DAZ (bit 6) + FTZ (bit 15) in MXCSR
+        let mxcsr = std::arch::x86_64::_mm_getcsr();
+        if mxcsr & 0x8040 != 0x8040 {
+            std::arch::x86_64::_mm_setcsr(mxcsr | 0x8040);
+        }
+    }
+
+    #[cfg(target_arch = "aarch64")]
+    unsafe {
+        // FZ bit (bit 24) in FPCR
+        let fpcr: u64;
+        core::arch::asm!("mrs {}, fpcr", out(reg) fpcr);
+        if fpcr & (1 << 24) == 0 {
+            core::arch::asm!("msr fpcr, {}", in(reg) fpcr | (1 << 24));
+        }
+    }
+}
+
 pub fn process_input_f32(
     runtime: &Arc<ChainRuntimeState>,
     input_index: usize,
     data: &[f32],
     input_total_channels: usize,
 ) {
+    ensure_flush_to_zero();
     let num_frames = data.len() / input_total_channels;
 
     // Get which segments this CPAL input feeds
@@ -1838,6 +1871,7 @@ pub fn process_output_f32(
     out: &mut [f32],
     output_total_channels: usize,
 ) {
+    ensure_flush_to_zero();
     // Get the Arc for this specific route (brief lock on output state)
     let route_arc = {
         let output_state = match runtime.output.lock() {
