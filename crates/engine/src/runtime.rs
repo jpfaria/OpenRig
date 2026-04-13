@@ -785,14 +785,14 @@ fn build_input_processing_state(
         output_channels,
         input.mode,
     );
-    // Chain processing bus is ALWAYS stereo. Mono blocks convert
-    // stereo→mono on input and mono→stereo on output transparently.
-    let _ = proc_layout;
-    let processing_layout_channel = AudioChannelLayout::Stereo;
+    // Use mono processing when input is mono — avoids creating duplicate
+    // DualMono processors (e.g. two NAM instances) for identical L/R data.
+    // Stereo/DualMono inputs still use stereo processing bus.
     let input_read_layout = match input.mode {
         ChainInputMode::Mono => AudioChannelLayout::Mono,
         ChainInputMode::Stereo | ChainInputMode::DualMono => AudioChannelLayout::Stereo,
     };
+    let processing_layout_channel = input_read_layout;
     log::info!(
         "chain '{}' input entry processing layout: input_read={}, processing={:?} (channels={:?} mode={:?})",
         chain.id.0,
