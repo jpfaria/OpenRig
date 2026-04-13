@@ -9,10 +9,11 @@ Type=simple
 User=root
 Group=audio
 
-# Stability config for Rockchip RK3588 xHCI + USB audio: 256 frames/period, 3 periods = ~16ms @ 48kHz.
-# Scarlett Gen 4 is locked to 48kHz by the mainline scarlett-gen2 driver — lower rates cause
-# "Error initialising Scarlett Gen 4 Mixer Driver: -71" (EPROTO). Small buffers on RK3588 xHCI
-# have been correlated with host controller resets and interface disconnects (red LED).
+# Audio config: 128 frames/period @ 48kHz = 2.67ms latency.
+# DSP runs on a separate worker thread pinned to big A76 cores via SPSC ring buffer,
+# so the JACK RT callback only does I/O (copy ports ↔ ring buffers).
+# Tested: 64 frames caused xruns, 128 frames is the sweet spot.
+# 48kHz is required — 44.1kHz sounds degraded on the Scarlett Gen 4.
 # Waits up to 10s for any USB audio interface; exits cleanly if none found.
 Environment=JACK_NO_AUDIO_RESERVATION=1
 
@@ -32,7 +33,7 @@ ExecStart=/bin/sh -c '\
     CARD=$(aplay -l 2>/dev/null | grep "USB Audio" | head -1 | sed "s/card \([0-9]*\):.*/\1/"); \
     if [ -n "$CARD" ]; then \
       echo "Found USB audio card $CARD, starting JACK..."; \
-      exec /usr/bin/jackd -d alsa -d hw:$CARD -r 48000 -p 1024 -n 2; \
+      exec /usr/bin/jackd -d alsa -d hw:$CARD -r 48000 -p 128 -n 3; \
     fi; \
     sleep 1; \
   done; \

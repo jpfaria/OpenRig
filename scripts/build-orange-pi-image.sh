@@ -166,9 +166,11 @@ prepare_overlay() {
     run sh -c "rm -f '$OVERLAY_DIR'/openrig.deb"
     run cp "$RELEASE_DEB" "$OVERLAY_DIR/openrig.deb"
 
-    # Stage logo SVG (rsvg-convert inside Armbian chroot converts to PNG)
+    # Stage logo SVGs (rsvg-convert inside Armbian chroot converts to PNG)
     LOGO_SVG="$PROJECT_ROOT/crates/adapter-gui/ui/assets/openrig-logomark.svg"
+    LOGOTYPE_SVG="$PROJECT_ROOT/crates/adapter-gui/ui/assets/openrig-logotype.svg"
     run cp "$LOGO_SVG" "$OVERLAY_DIR/openrig-logomark.svg"
+    run cp "$LOGOTYPE_SVG" "$OVERLAY_DIR/openrig-logotype.svg"
 
     # Stage rootfs overlay (etc, usr)
     run cp -r "$PROJECT_ROOT/platform/orange-pi/rootfs/." "$OVERLAY_DIR/"
