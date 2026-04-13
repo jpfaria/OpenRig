@@ -848,6 +848,10 @@ impl ProjectRuntimeController {
             .collect::<Vec<_>>();
         for chain_id in removed_chain_ids {
             log::info!("removing chain '{}' from runtime", chain_id.0);
+            if let Some(runtime) = self.runtime_graph.runtime_for_chain(&chain_id) {
+                runtime.set_draining();
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
             self.active_chains.remove(&chain_id);
             self.runtime_graph.remove_chain(&chain_id);
         }
@@ -877,6 +881,14 @@ impl ProjectRuntimeController {
             let still_exists = project.chains.iter().any(|c| c.enabled && c.id == chain_id);
             if !still_exists {
                 log::info!("removing chain '{}' from runtime", chain_id.0);
+                // Signal the audio callback to stop processing blocks BEFORE
+                // deactivating the JACK client — prevents use-after-free in C++
+                // NAM destructors ("terminate called without active exception").
+                if let Some(runtime) = self.runtime_graph.runtime_for_chain(&chain_id) {
+                    runtime.set_draining();
+                    // Give the JACK callback time to finish its current cycle.
+                    std::thread::sleep(std::time::Duration::from_millis(50));
+                }
                 self.active_chains.remove(&chain_id);
                 self.runtime_graph.remove_chain(&chain_id);
             }
@@ -914,6 +926,10 @@ impl ProjectRuntimeController {
 
     pub fn remove_chain(&mut self, chain_id: &ChainId) {
         log::info!("removing chain '{}' from runtime", chain_id.0);
+        if let Some(runtime) = self.runtime_graph.runtime_for_chain(chain_id) {
+            runtime.set_draining();
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
         self.active_chains.remove(chain_id);
         self.runtime_graph.remove_chain(chain_id);
     }

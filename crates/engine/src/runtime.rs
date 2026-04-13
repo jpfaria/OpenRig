@@ -208,9 +208,23 @@ pub struct ChainRuntimeState {
     #[allow(dead_code)]
     last_input_nanos: AtomicU64,
     measured_latency_nanos: AtomicU64,
+    /// When true, the audio callback must not call any block processors.
+    /// Set before deactivating the JACK client to prevent use-after-free
+    /// in C++ NAM destructors (terminate called without active exception).
+    draining: std::sync::atomic::AtomicBool,
 }
 
 impl ChainRuntimeState {
+    /// Signal the audio callback to stop processing blocks.
+    /// Must be called before deactivating JACK or dropping block processors.
+    pub fn set_draining(&self) {
+        self.draining.store(true, std::sync::atomic::Ordering::Release);
+    }
+
+    pub fn is_draining(&self) -> bool {
+        self.draining.load(std::sync::atomic::Ordering::Acquire)
+    }
+
     pub fn measured_latency_ms(&self) -> f32 {
         let nanos = self.measured_latency_nanos.load(std::sync::atomic::Ordering::Relaxed);
         nanos as f32 / 1_000_000.0
@@ -423,6 +437,7 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
         error_queue: Mutex::new(Vec::new()),
         last_input_nanos: AtomicU64::new(0),
         measured_latency_nanos: AtomicU64::new(0),
+        draining: std::sync::atomic::AtomicBool::new(false),
     })
 }
 
@@ -1624,6 +1639,9 @@ pub fn process_input_f32(
     data: &[f32],
     input_total_channels: usize,
 ) {
+    if runtime.is_draining() {
+        return;
+    }
     ensure_flush_to_zero();
     let num_frames = data.len() / input_total_channels;
 
@@ -1898,6 +1916,10 @@ pub fn process_output_f32(
     out: &mut [f32],
     output_total_channels: usize,
 ) {
+    if runtime.is_draining() {
+        out.fill(0.0);
+        return;
+    }
     ensure_flush_to_zero();
     // Get the Arc for this specific route (brief lock on output state)
     let route_arc = {
