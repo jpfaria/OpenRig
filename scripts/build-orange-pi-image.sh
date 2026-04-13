@@ -180,10 +180,11 @@ prepare_overlay() {
     run cp "$PROJECT_ROOT/platform/orange-pi/dtbo/openrig-usbc-host.dts" \
         "$OVERLAY_DIR/openrig-usbc-host.dts"
 
-    # PREEMPT_RT kernel config fragment for low-latency JACK audio
-    run mkdir -p "$USERPATCHES_DIR/config/kernel"
-    run cp "$PROJECT_ROOT/platform/orange-pi/kernel-config/orangepi5b-current.config" \
-        "$USERPATCHES_DIR/config/kernel/orangepi5b-current.config"
+    # PREEMPT_RT extension — Armbian calls custom_kernel_config__openrig_rt()
+    # after loading the base .config, so we only need to flip the RT flag.
+    run mkdir -p "$USERPATCHES_DIR/extensions"
+    run cp "$PROJECT_ROOT/platform/orange-pi/extensions/openrig-kernel-rt.sh" \
+        "$USERPATCHES_DIR/extensions/openrig-kernel-rt.sh"
 }
 
 # ── Step 3: Run Armbian build ─────────────────────────────────────────────────
