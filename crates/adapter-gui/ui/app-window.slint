@@ -603,6 +603,13 @@ export component AppWindow inherits Window {
     in-out property <string> status-message;
     in property <[string]> sample-rate-options: ["44100", "48000", "88200", "96000"];
     in property <[string]> buffer-size-options: ["32", "64", "128", "256", "512", "1024"];
+    // Fullscreen inline project settings
+    in property <[DeviceSelectionItem]> project-devices;
+    // Fullscreen inline chain editor
+    in property <[IoGroupItem]> chain-editor-input-groups;
+    in property <[IoGroupItem]> chain-editor-output-groups;
+    in property <bool> chain-editor-is-create-mode: true;
+    in-out property <int> chain-editor-selected-instrument-index: 0;
 
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
@@ -663,6 +670,18 @@ export component AppWindow inherits Window {
     callback open-vst3-editor(string); // model-id
     callback save-chain();
     callback cancel-chain();
+    // Fullscreen inline project settings callbacks
+    callback toggle-project-device(int, bool);
+    callback update-project-sample-rate(int, string);
+    callback update-project-buffer-size(int, string);
+    // Fullscreen inline chain editor callbacks
+    callback edit-chain-input(int);
+    callback remove-chain-input(int);
+    callback add-chain-input();
+    callback edit-chain-output(int);
+    callback remove-chain-output(int);
+    callback add-chain-output();
+    callback select-chain-instrument(int);
     title: "OpenRig";
     min-width: 860px;
     min-height: 540px;
@@ -727,6 +746,11 @@ export component AppWindow inherits Window {
         status-message: root.status-message;
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
+        project-devices: root.project-devices;
+        chain-editor-input-groups: root.chain-editor-input-groups;
+        chain-editor-output-groups: root.chain-editor-output-groups;
+        chain-editor-is-create-mode: root.chain-editor-is-create-mode;
+        chain-editor-selected-instrument-index <=> root.chain-editor-selected-instrument-index;
         toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
         toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
         update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
@@ -786,6 +810,16 @@ export component AppWindow inherits Window {
         reorder-chain-block(chain-index, from-index, before-index) => { root.reorder-chain-block(chain-index, from-index, before-index); }
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }
+        toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
+        update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
+        update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
+        edit-chain-input(index) => { root.edit-chain-input(index); }
+        remove-chain-input(index) => { root.remove-chain-input(index); }
+        add-chain-input => { root.add-chain-input(); }
+        edit-chain-output(index) => { root.edit-chain-output(index); }
+        remove-chain-output(index) => { root.remove-chain-output(index); }
+        add-chain-output => { root.add-chain-output(); }
+        select-chain-instrument(index) => { root.select-chain-instrument(index); }
     }
 
     if touch-optimized : TouchMain {

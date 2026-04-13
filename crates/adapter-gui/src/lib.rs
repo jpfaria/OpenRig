@@ -1239,6 +1239,25 @@ pub fn run_desktop_app(
             update_device_buffer_size(&project_devices, index as usize, value);
         });
     }
+    // Fullscreen inline project settings callbacks (mirror the ProjectSettingsWindow callbacks)
+    {
+        let project_devices = project_devices.clone();
+        window.on_toggle_project_device(move |index, selected| {
+            toggle_device_row(&project_devices, index as usize, selected);
+        });
+    }
+    {
+        let project_devices = project_devices.clone();
+        window.on_update_project_sample_rate(move |index, value| {
+            update_device_sample_rate(&project_devices, index as usize, value);
+        });
+    }
+    {
+        let project_devices = project_devices.clone();
+        window.on_update_project_buffer_size(move |index, value| {
+            update_device_buffer_size(&project_devices, index as usize, value);
+        });
+    }
     {
         let weak_window = window.as_weak();
         let input_devices = input_devices.clone();
@@ -1842,7 +1861,12 @@ pub fn run_desktop_app(
             settings_window.set_status_message("".into());
             clear_status(&window, &toast_timer);
             window.set_show_project_settings(true);
-            show_child_window(window.window(), settings_window.window());
+            if fullscreen {
+                // In fullscreen mode, render inline — set project-devices on main window
+                window.set_project_devices(settings_window.get_project_devices());
+            } else {
+                show_child_window(window.window(), settings_window.window());
+            }
         });
     }
     {
@@ -2172,7 +2196,14 @@ pub fn run_desktop_app(
             editor_window.set_status_message("".into());
             clear_status(&window, &toast_timer);
             window.set_show_chain_editor(true);
-            show_child_window(window.window(), editor_window.window());
+            if fullscreen {
+                window.set_chain_editor_input_groups(editor_window.get_input_groups());
+                window.set_chain_editor_output_groups(editor_window.get_output_groups());
+                window.set_chain_editor_is_create_mode(editor_window.get_is_create_mode());
+                window.set_chain_editor_selected_instrument_index(editor_window.get_selected_instrument_index());
+            } else {
+                show_child_window(window.window(), editor_window.window());
+            }
         });
     }
     {
@@ -2280,7 +2311,15 @@ pub fn run_desktop_app(
             editor_window.set_status_message("".into());
             clear_status(&window, &toast_timer);
             window.set_show_chain_editor(true);
-            show_child_window(window.window(), editor_window.window());
+            if fullscreen {
+                // In fullscreen mode, render inline — sync chain editor properties to main window
+                window.set_chain_editor_input_groups(editor_window.get_input_groups());
+                window.set_chain_editor_output_groups(editor_window.get_output_groups());
+                window.set_chain_editor_is_create_mode(editor_window.get_is_create_mode());
+                window.set_chain_editor_selected_instrument_index(editor_window.get_selected_instrument_index());
+            } else {
+                show_child_window(window.window(), editor_window.window());
+            }
         });
     }
     {
@@ -5897,6 +5936,63 @@ pub fn run_desktop_app(
             clear_status(&window, &toast_timer);
             if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
                 let _ = block_editor_window.hide();
+            }
+        });
+    }
+    // Fullscreen inline chain editor callbacks — delegate to ChainEditorWindow
+    {
+        let chain_editor_window = chain_editor_window.clone();
+        window.on_edit_chain_input(move |index| {
+            if let Some(cew) = chain_editor_window.borrow().as_ref() {
+                cew.invoke_edit_input(index);
+            }
+        });
+    }
+    {
+        let chain_editor_window = chain_editor_window.clone();
+        window.on_remove_chain_input(move |index| {
+            if let Some(cew) = chain_editor_window.borrow().as_ref() {
+                cew.invoke_remove_input(index);
+            }
+        });
+    }
+    {
+        let chain_editor_window = chain_editor_window.clone();
+        window.on_add_chain_input(move || {
+            if let Some(cew) = chain_editor_window.borrow().as_ref() {
+                cew.invoke_add_input();
+            }
+        });
+    }
+    {
+        let chain_editor_window = chain_editor_window.clone();
+        window.on_edit_chain_output(move |index| {
+            if let Some(cew) = chain_editor_window.borrow().as_ref() {
+                cew.invoke_edit_output(index);
+            }
+        });
+    }
+    {
+        let chain_editor_window = chain_editor_window.clone();
+        window.on_remove_chain_output(move |index| {
+            if let Some(cew) = chain_editor_window.borrow().as_ref() {
+                cew.invoke_remove_output(index);
+            }
+        });
+    }
+    {
+        let chain_editor_window = chain_editor_window.clone();
+        window.on_add_chain_output(move || {
+            if let Some(cew) = chain_editor_window.borrow().as_ref() {
+                cew.invoke_add_output();
+            }
+        });
+    }
+    {
+        let chain_editor_window = chain_editor_window.clone();
+        window.on_select_chain_instrument(move |index| {
+            if let Some(cew) = chain_editor_window.borrow().as_ref() {
+                cew.invoke_select_instrument(index);
             }
         });
     }
