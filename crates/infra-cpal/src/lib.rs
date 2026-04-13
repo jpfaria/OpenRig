@@ -1224,9 +1224,11 @@ fn max_supported_channels(
 #[cfg(test)]
 mod tests {
     use super::{
-        max_supported_channels, resolve_chain_runtime_sample_rate, select_supported_stream_config,
+        build_stream_config, max_supported_channels, required_channel_count,
+        resolve_chain_runtime_sample_rate, select_supported_stream_config, validate_buffer_size,
+        AudioDeviceDescriptor,
     };
-    use cpal::{SampleFormat, SupportedBufferSize, SupportedStreamConfigRange};
+    use cpal::{BufferSize, SampleFormat, SupportedBufferSize, SupportedStreamConfigRange};
 
     fn supported_range(
         channels: u16,
@@ -1241,6 +1243,75 @@ mod tests {
             SampleFormat::F32,
         )
     }
+
+    // ── AudioDeviceDescriptor ───────────────────────────────────────
+
+    #[test]
+    fn audio_device_descriptor_construction_stores_fields() {
+        let desc = AudioDeviceDescriptor {
+            id: "coreaudio:abc123".to_string(),
+            name: "Focusrite Scarlett 2i2".to_string(),
+            channels: 2,
+        };
+        assert_eq!(desc.id, "coreaudio:abc123");
+        assert_eq!(desc.name, "Focusrite Scarlett 2i2");
+        assert_eq!(desc.channels, 2);
+    }
+
+    #[test]
+    fn audio_device_descriptor_equality_same_values_returns_true() {
+        let a = AudioDeviceDescriptor {
+            id: "dev1".to_string(),
+            name: "Device".to_string(),
+            channels: 4,
+        };
+        let b = AudioDeviceDescriptor {
+            id: "dev1".to_string(),
+            name: "Device".to_string(),
+            channels: 4,
+        };
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn audio_device_descriptor_equality_different_id_returns_false() {
+        let a = AudioDeviceDescriptor {
+            id: "dev1".to_string(),
+            name: "Device".to_string(),
+            channels: 4,
+        };
+        let b = AudioDeviceDescriptor {
+            id: "dev2".to_string(),
+            name: "Device".to_string(),
+            channels: 4,
+        };
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn audio_device_descriptor_clone_produces_equal_copy() {
+        let original = AudioDeviceDescriptor {
+            id: "dev1".to_string(),
+            name: "My Device".to_string(),
+            channels: 8,
+        };
+        let cloned = original.clone();
+        assert_eq!(original, cloned);
+    }
+
+    #[test]
+    fn audio_device_descriptor_debug_format_contains_fields() {
+        let desc = AudioDeviceDescriptor {
+            id: "dev1".to_string(),
+            name: "Test".to_string(),
+            channels: 2,
+        };
+        let debug = format!("{:?}", desc);
+        assert!(debug.contains("dev1"));
+        assert!(debug.contains("Test"));
+    }
+
+    // ── select_supported_stream_config ──────────────────────────────
 
     #[test]
     fn select_supported_stream_config_accepts_non_default_sample_rate_when_device_supports_it() {
@@ -1264,6 +1335,77 @@ mod tests {
     }
 
     #[test]
+    fn select_supported_stream_config_no_requested_rate_uses_default() {
+        let default_config = supported_range(2, 48_000, 48_000).with_max_sample_rate();
+        let supported = vec![supported_range(2, 44_100, 96_000)];
+
+        let resolved = select_supported_stream_config(
+            &default_config,
+            &supported,
+            None,
+            2,
+            "test-device",
+        )
+        .expect("should use default sample rate");
+
+        assert_eq!(resolved.sample_rate(), 48_000);
+    }
+
+    #[test]
+    fn select_supported_stream_config_unsupported_rate_returns_error() {
+        let default_config = supported_range(2, 48_000, 48_000).with_max_sample_rate();
+        let supported = vec![supported_range(2, 44_100, 44_100)];
+
+        let result = select_supported_stream_config(
+            &default_config,
+            &supported,
+            Some(96_000),
+            2,
+            "test-device",
+        );
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn select_supported_stream_config_insufficient_channels_returns_error() {
+        let default_config = supported_range(1, 48_000, 48_000).with_max_sample_rate();
+        let supported = vec![supported_range(1, 44_100, 96_000)];
+
+        let result = select_supported_stream_config(
+            &default_config,
+            &supported,
+            Some(48_000),
+            4,
+            "test-device",
+        );
+
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn select_supported_stream_config_picks_minimum_channels_matching() {
+        let default_config = supported_range(2, 48_000, 48_000).with_max_sample_rate();
+        let supported = vec![
+            supported_range(8, 44_100, 96_000),
+            supported_range(2, 44_100, 96_000),
+        ];
+
+        let resolved = select_supported_stream_config(
+            &default_config,
+            &supported,
+            Some(48_000),
+            2,
+            "test-device",
+        )
+        .unwrap();
+
+        assert_eq!(resolved.channels(), 2);
+    }
+
+    // ── resolve_chain_runtime_sample_rate ────────────────────────────
+
+    #[test]
     fn resolve_chain_runtime_sample_rate_rejects_mismatched_input_and_output_sample_rates() {
         let input = supported_range(2, 48_000, 48_000).with_max_sample_rate();
         let output = supported_range(2, 44_100, 44_100).with_max_sample_rate();
@@ -1273,6 +1415,18 @@ mod tests {
 
         assert!(error.to_string().contains("sample_rate"));
     }
+
+    #[test]
+    fn resolve_chain_runtime_sample_rate_matching_rates_returns_rate() {
+        let input = supported_range(2, 48_000, 48_000).with_max_sample_rate();
+        let output = supported_range(2, 48_000, 48_000).with_max_sample_rate();
+
+        let rate = resolve_chain_runtime_sample_rate("chain:0", &input, &output).unwrap();
+
+        assert_eq!(rate, 48_000.0);
+    }
+
+    // ── max_supported_channels ──────────────────────────────────────
 
     #[test]
     fn max_supported_channels_prefers_supported_capacity_over_default() {
@@ -1288,5 +1442,108 @@ mod tests {
             max_supported_channels(Some(2), None).expect("default channels should resolve");
 
         assert_eq!(resolved, 2);
+    }
+
+    #[test]
+    fn max_supported_channels_both_none_returns_error() {
+        let result = max_supported_channels(None, None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn max_supported_channels_only_supported_uses_supported() {
+        let resolved =
+            max_supported_channels(None, Some(6)).expect("should use supported channels");
+        assert_eq!(resolved, 6);
+    }
+
+    // ── required_channel_count ──────────────────────────────────────
+
+    #[test]
+    fn required_channel_count_empty_returns_zero() {
+        assert_eq!(required_channel_count(&[]), 0);
+    }
+
+    #[test]
+    fn required_channel_count_single_channel_zero_returns_one() {
+        assert_eq!(required_channel_count(&[0]), 1);
+    }
+
+    #[test]
+    fn required_channel_count_stereo_returns_two() {
+        assert_eq!(required_channel_count(&[0, 1]), 2);
+    }
+
+    #[test]
+    fn required_channel_count_non_contiguous_returns_max_plus_one() {
+        assert_eq!(required_channel_count(&[0, 3, 7]), 8);
+    }
+
+    #[test]
+    fn required_channel_count_single_high_channel_returns_correct() {
+        assert_eq!(required_channel_count(&[5]), 6);
+    }
+
+    // ── validate_buffer_size ────────────────────────────────────────
+
+    #[test]
+    fn validate_buffer_size_within_range_succeeds() {
+        let supported = SupportedBufferSize::Range { min: 64, max: 1024 };
+        let result = validate_buffer_size(256, &supported, "test");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn validate_buffer_size_at_min_boundary_succeeds() {
+        let supported = SupportedBufferSize::Range { min: 64, max: 1024 };
+        let result = validate_buffer_size(64, &supported, "test");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn validate_buffer_size_at_max_boundary_succeeds() {
+        let supported = SupportedBufferSize::Range { min: 64, max: 1024 };
+        let result = validate_buffer_size(1024, &supported, "test");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn validate_buffer_size_below_min_returns_error() {
+        let supported = SupportedBufferSize::Range { min: 64, max: 1024 };
+        let result = validate_buffer_size(32, &supported, "test");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("outside supported range"));
+    }
+
+    #[test]
+    fn validate_buffer_size_above_max_returns_error() {
+        let supported = SupportedBufferSize::Range { min: 64, max: 1024 };
+        let result = validate_buffer_size(2048, &supported, "test");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn validate_buffer_size_unknown_always_succeeds() {
+        let supported = SupportedBufferSize::Unknown;
+        let result = validate_buffer_size(9999, &supported, "test");
+        assert!(result.is_ok());
+    }
+
+    // ── build_stream_config ─────────────────────────────────────────
+
+    #[test]
+    fn build_stream_config_sets_channels_and_rate() {
+        let config = build_stream_config(2, 48_000, 256);
+        assert_eq!(config.channels, 2);
+        assert_eq!(config.sample_rate, 48_000);
+        assert_eq!(config.buffer_size, BufferSize::Fixed(256));
+    }
+
+    #[test]
+    fn build_stream_config_mono_128_buffer() {
+        let config = build_stream_config(1, 44_100, 128);
+        assert_eq!(config.channels, 1);
+        assert_eq!(config.sample_rate, 44_100);
+        assert_eq!(config.buffer_size, BufferSize::Fixed(128));
     }
 }
