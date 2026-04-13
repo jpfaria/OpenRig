@@ -62,12 +62,16 @@ fi
 
 rm -rf /var/lib/apt/lists/*
 
-# ── 5. Convert OpenRig logo SVG → PNG for Plymouth ───────────────────────────
-echo ">>> [OpenRig] Converting logo to PNG..."
+# ── 5. Convert OpenRig logo SVGs → PNGs for Plymouth ────────────────────────
+echo ">>> [OpenRig] Converting logo assets to PNG..."
 rsvg-convert \
     -w 256 -h 256 \
     /tmp/overlay/openrig-logomark.svg \
     -o /usr/share/plymouth/themes/openrig/logo.png
+rsvg-convert \
+    -w 400 \
+    /tmp/overlay/openrig-logotype.svg \
+    -o /usr/share/plymouth/themes/openrig/logotype.png
 
 # ── 6. Register and activate Plymouth theme ──────────────────────────────────
 echo ">>> [OpenRig] Activating Plymouth theme..."
