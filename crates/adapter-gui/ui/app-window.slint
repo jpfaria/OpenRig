@@ -503,8 +503,6 @@ export component CompactChainViewWindow inherits Window {
     in property <[string]> output-device-options;
     in-out property <int> selected-input-device-index;
     in-out property <int> selected-output-device-index;
-    in property <string> input-channel-summary;
-    in property <string> output-channel-summary;
     callback select-input-device(int, int); // chain_index, device_index
     callback select-output-device(int, int); // chain_index, device_index
 
@@ -533,8 +531,6 @@ export component CompactChainViewWindow inherits Window {
         output-device-options: root.output-device-options;
         selected-input-device-index <=> root.selected-input-device-index;
         selected-output-device-index <=> root.selected-output-device-index;
-        input-channel-summary: root.input-channel-summary;
-        output-channel-summary: root.output-channel-summary;
         select-input-device(ci, di) => { root.select-input-device(ci, di); }
         select-output-device(ci, di) => { root.select-output-device(ci, di); }
         toggle-chain-enabled(ci) => { root.toggle-chain-enabled(ci); }

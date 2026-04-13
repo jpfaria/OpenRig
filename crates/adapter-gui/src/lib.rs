@@ -7290,31 +7290,19 @@ fn populate_compact_io_devices(
         .collect();
     compact_win.set_output_device_options(ModelRc::from(Rc::new(VecModel::from(output_names))));
 
-    // Selected input device index + channel summary
+    // Selected input device index
     if let Some(input) = chain.first_input() {
         if let Some(entry) = input.entries.first() {
             let idx = selected_device_index(input_devices, Some(&entry.device_id.0));
             compact_win.set_selected_input_device_index(idx);
-            let ch_summary = if entry.channels.is_empty() {
-                String::new()
-            } else {
-                format!("Ch {}", format_channel_list(&entry.channels))
-            };
-            compact_win.set_input_channel_summary(ch_summary.into());
         }
     }
 
-    // Selected output device index + channel summary
+    // Selected output device index
     if let Some(output) = chain.last_output() {
         if let Some(entry) = output.entries.first() {
             let idx = selected_device_index(output_devices, Some(&entry.device_id.0));
             compact_win.set_selected_output_device_index(idx);
-            let ch_summary = if entry.channels.is_empty() {
-                String::new()
-            } else {
-                format!("Ch {}", format_channel_list(&entry.channels))
-            };
-            compact_win.set_output_channel_summary(ch_summary.into());
         }
     }
 }
