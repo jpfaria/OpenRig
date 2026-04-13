@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "CS Phaser";
 const BRAND: &str = "fomp";
 
 const PLUGIN_URI: &str = "http://drobilla.net/plugins/fomp/cs_phaser1";
-const PLUGIN_DIR: &str = "fomp.lv2";
+const PLUGIN_DIR: &str = "fomp";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "cs_phaser.dylib";
@@ -39,7 +39,7 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: block_core::EFFECT_TYPE_MODULATION.into(),
         model: MODEL_ID.into(),
         display_name: DISPLAY_NAME.into(),
-        audio_mode: ModelAudioMode::DualMono,
+        audio_mode: ModelAudioMode::MonoToStereo,
         parameters: vec![
             float_parameter(
                 "input_gain",
@@ -95,66 +95,6 @@ pub fn model_schema() -> ModelParameterSchema {
     }
 }
 
-fn resolve_lib_path() -> Result<String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
-    let candidates = [
-        exe_dir
-            .as_ref()
-            .map(|d| d.join("../../").join(lv2::default_lv2_lib_dir()).join(PLUGIN_BINARY)),
-        Some(std::path::PathBuf::from(lv2::default_lv2_lib_dir()).join(PLUGIN_BINARY)),
-    ];
-
-    for candidate in candidates.iter().flatten() {
-        if candidate.exists() {
-            return Ok(candidate.to_string_lossy().to_string());
-        }
-    }
-
-    anyhow::bail!(
-        "LV2 binary '{}' not found in '{}'",
-        PLUGIN_BINARY,
-        lv2::default_lv2_lib_dir()
-    )
-}
-
-fn resolve_bundle_path() -> Result<String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
-    let candidates = [
-        exe_dir
-            .as_ref()
-            .map(|d| d.join("../../plugins").join(PLUGIN_DIR)),
-        Some(std::path::PathBuf::from("plugins").join(PLUGIN_DIR)),
-    ];
-
-    for candidate in candidates.iter().flatten() {
-        if candidate.exists() {
-            return Ok(candidate.to_string_lossy().to_string());
-        }
-    }
-
-    anyhow::bail!("LV2 bundle '{}' not found in plugins/", PLUGIN_DIR)
-}
-
-struct DualMonoLv2 {
-    left: lv2::Lv2Processor,
-    right: lv2::Lv2Processor,
-}
-
-impl StereoProcessor for DualMonoLv2 {
-    fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
-        [
-            self.left.process_sample(input[0]),
-            self.right.process_sample(input[1]),
-        ]
-    }
-}
-
 fn build_mono_processor(
     sample_rate: f32,
     input_gain: f32,
@@ -163,8 +103,8 @@ fn build_mono_processor(
     feedback: f32,
     output_mix: f32,
 ) -> Result<lv2::Lv2Processor> {
-    let lib_path = resolve_lib_path()?;
-    let bundle_path = resolve_bundle_path()?;
+    let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
+    let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
 
     lv2::build_lv2_processor(
         &lib_path,
@@ -199,17 +139,16 @@ fn build(
     let feedback = required_f32(params, "feedback").map_err(anyhow::Error::msg)?;
     let output_mix = required_f32(params, "output_mix").map_err(anyhow::Error::msg)?;
 
-    match layout {
-        AudioChannelLayout::Mono => {
-            let processor = build_mono_processor(sample_rate, input_gain, sections, frequency, feedback, output_mix)?;
-            Ok(BlockProcessor::Mono(Box::new(processor)))
-        }
-        AudioChannelLayout::Stereo => {
-            let left = build_mono_processor(sample_rate, input_gain, sections, frequency, feedback, output_mix)?;
-            let right = build_mono_processor(sample_rate, input_gain, sections, frequency, feedback, output_mix)?;
-            Ok(BlockProcessor::Stereo(Box::new(DualMonoLv2 { left, right })))
+    let _ = layout;
+    let processor = build_mono_processor(sample_rate, input_gain, sections, frequency, feedback, output_mix)?;
+    struct MonoAsStereo(lv2::Lv2Processor);
+    impl StereoProcessor for MonoAsStereo {
+        fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
+            let out = self.0.process_sample(input[0]);
+            [out, out]
         }
     }
+    Ok(BlockProcessor::Stereo(Box::new(MonoAsStereo(processor))))
 }
 
 fn schema() -> Result<ModelParameterSchema> {

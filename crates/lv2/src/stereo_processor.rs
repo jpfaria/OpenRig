@@ -5,13 +5,22 @@ use std::ffi::c_void;
 /// Stereo audio processor wrapping a loaded LV2 plugin with 2-in/2-out audio.
 ///
 /// Unlike `Lv2Processor` (mono), this connects separate L/R buffers.
+
+/// Maximum block size for LV2 processing (matches `Lv2Processor`).
+const MAX_BLOCK_SIZE: usize = 4096;
+
+/// Size of the dummy atom buffer for MIDI/atom sidechain ports.
+/// Must meet rsz:minimumSize from plugin TTL (Dragonfly requires 2048).
+const ATOM_BUF_SIZE: usize = 4096;
+
 pub struct StereoLv2Processor {
     plugin: Lv2Plugin,
-    in_buf_l: Box<[f32; 1]>,
-    in_buf_r: Box<[f32; 1]>,
-    out_buf_l: Box<[f32; 1]>,
-    out_buf_r: Box<[f32; 1]>,
+    in_buf_l: Box<[f32; MAX_BLOCK_SIZE]>,
+    in_buf_r: Box<[f32; MAX_BLOCK_SIZE]>,
+    out_buf_l: Box<[f32; MAX_BLOCK_SIZE]>,
+    out_buf_r: Box<[f32; MAX_BLOCK_SIZE]>,
     control_values: Vec<f32>,
+    _atom_buf: Box<[u8; ATOM_BUF_SIZE]>,
 }
 
 impl StereoLv2Processor {
@@ -26,14 +35,33 @@ impl StereoLv2Processor {
         audio_out_ports: &[usize],
         control_ports: &[(usize, f32)],
     ) -> Self {
+        Self::with_atom_ports(plugin, audio_in_ports, audio_out_ports, control_ports, &[])
+    }
+
+    pub fn with_atom_ports(
+        plugin: Lv2Plugin,
+        audio_in_ports: &[usize],
+        audio_out_ports: &[usize],
+        control_ports: &[(usize, f32)],
+        atom_ports: &[usize],
+    ) -> Self {
         assert!(audio_in_ports.len() == 2, "stereo requires 2 audio inputs");
         assert!(audio_out_ports.len() == 2, "stereo requires 2 audio outputs");
 
-        let mut in_buf_l = Box::new([0.0f32; 1]);
-        let mut in_buf_r = Box::new([0.0f32; 1]);
-        let mut out_buf_l = Box::new([0.0f32; 1]);
-        let mut out_buf_r = Box::new([0.0f32; 1]);
+        let mut in_buf_l = Box::new([0.0f32; MAX_BLOCK_SIZE]);
+        let mut in_buf_r = Box::new([0.0f32; MAX_BLOCK_SIZE]);
+        let mut out_buf_l = Box::new([0.0f32; MAX_BLOCK_SIZE]);
+        let mut out_buf_r = Box::new([0.0f32; MAX_BLOCK_SIZE]);
         let mut control_values: Vec<f32> = control_ports.iter().map(|(_, v)| *v).collect();
+
+        let mut atom_buf = Box::new([0u8; ATOM_BUF_SIZE]);
+        atom_buf[0] = 8; // atom.size = 8
+
+        for &port_idx in atom_ports {
+            unsafe {
+                plugin.connect_port(port_idx as u32, atom_buf.as_mut_ptr() as *mut c_void);
+            }
+        }
 
         unsafe {
             plugin.connect_port(audio_in_ports[0] as u32, in_buf_l.as_mut_ptr() as *mut c_void);
@@ -58,6 +86,7 @@ impl StereoLv2Processor {
             out_buf_l,
             out_buf_r,
             control_values,
+            _atom_buf: atom_buf,
         }
     }
 
@@ -77,12 +106,18 @@ impl StereoProcessor for StereoLv2Processor {
     }
 
     fn process_block(&mut self, buffer: &mut [[f32; 2]]) {
-        for frame in buffer.iter_mut() {
-            self.in_buf_l[0] = frame[0];
-            self.in_buf_r[0] = frame[1];
-            self.plugin.run(1);
-            frame[0] = self.out_buf_l[0];
-            frame[1] = self.out_buf_r[0];
+        let len = buffer.len().min(MAX_BLOCK_SIZE);
+
+        for (i, frame) in buffer[..len].iter().enumerate() {
+            self.in_buf_l[i] = frame[0];
+            self.in_buf_r[i] = frame[1];
+        }
+
+        self.plugin.run(len as u32);
+
+        for (i, frame) in buffer[..len].iter_mut().enumerate() {
+            frame[0] = self.out_buf_l[i];
+            frame[1] = self.out_buf_r[i];
         }
     }
 }

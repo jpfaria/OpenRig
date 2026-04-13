@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Result};
-use asset_runtime::{materialize, EmbeddedAsset};
 use crate::registry::GainModelDefinition;
 use crate::GainBackendKind;
 use nam::{
@@ -27,20 +26,12 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
 };
 
 macro_rules! capture {
-    ($voicing:expr, $boost:expr, $quality:expr, $asset_id:literal, $relative_path:literal) => {
+    ($voicing:expr, $boost:expr, $quality:expr, $nam_file:literal) => {
         JhsAndyTimmonsCapture {
             voicing: $voicing,
             boost: $boost,
             quality: $quality,
-            asset: EmbeddedAsset::new(
-                $asset_id,
-                $relative_path,
-                include_bytes!(concat!(
-                    env!("CARGO_MANIFEST_DIR"),
-                    "/../../",
-                    $relative_path
-                )),
-            ),
+            nam_file: $nam_file,
         }
     };
 }
@@ -73,46 +64,46 @@ pub struct JhsAndyTimmonsCapture {
     pub voicing: Voicing,
     pub boost: Boost,
     pub quality: Quality,
-    pub asset: EmbeddedAsset,
+    pub nam_file: &'static str,
 }
 
 pub const CAPTURES: &[JhsAndyTimmonsCapture] = &[
     // BRIGHT
-    capture!(Voicing::Bright, Boost::On,  Quality::C,  "gain.nam_jhs_andy_timmons.bright.boost.c",  "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_BRIGHT_BOOST_C.nam"),
-    capture!(Voicing::Bright, Boost::On,  Quality::S,  "gain.nam_jhs_andy_timmons.bright.boost.s",  "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_BRIGHT_BOOST_S.nam"),
-    capture!(Voicing::Bright, Boost::On,  Quality::Xs, "gain.nam_jhs_andy_timmons.bright.boost.xs", "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_BRIGHT_BOOST_XS.nam"),
-    capture!(Voicing::Bright, Boost::Off, Quality::C,  "gain.nam_jhs_andy_timmons.bright.c",        "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_BRIGHT_C.nam"),
-    capture!(Voicing::Bright, Boost::Off, Quality::S,  "gain.nam_jhs_andy_timmons.bright.s",        "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_BRIGHT_S.nam"),
-    capture!(Voicing::Bright, Boost::Off, Quality::Xs, "gain.nam_jhs_andy_timmons.bright.xs",       "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_BRIGHT_XS.nam"),
+    capture!(Voicing::Bright, Boost::On,  Quality::C, "pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_BRIGHT_BOOST_C.nam"),
+    capture!(Voicing::Bright, Boost::On,  Quality::S, "pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_BRIGHT_BOOST_S.nam"),
+    capture!(Voicing::Bright, Boost::On,  Quality::Xs, "pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_BRIGHT_BOOST_XS.nam"),
+    capture!(Voicing::Bright, Boost::Off, Quality::C, "pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_BRIGHT_C.nam"),
+    capture!(Voicing::Bright, Boost::Off, Quality::S, "pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_BRIGHT_S.nam"),
+    capture!(Voicing::Bright, Boost::Off, Quality::Xs, "pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_BRIGHT_XS.nam"),
     // DARK
-    capture!(Voicing::Dark, Boost::On,  Quality::C,  "gain.nam_jhs_andy_timmons.dark.boost.c",  "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_DARK_BOOST_C.nam"),
-    capture!(Voicing::Dark, Boost::On,  Quality::S,  "gain.nam_jhs_andy_timmons.dark.boost.s",  "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_DARK_BOOST_S.nam"),
-    capture!(Voicing::Dark, Boost::On,  Quality::Xs, "gain.nam_jhs_andy_timmons.dark.boost.xs", "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_DARK_BOOST_XS.nam"),
-    capture!(Voicing::Dark, Boost::Off, Quality::C,  "gain.nam_jhs_andy_timmons.dark.c",        "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_DARK_C.nam"),
-    capture!(Voicing::Dark, Boost::Off, Quality::S,  "gain.nam_jhs_andy_timmons.dark.s",        "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_DARK_S.nam"),
-    capture!(Voicing::Dark, Boost::Off, Quality::Xs, "gain.nam_jhs_andy_timmons.dark.xs",       "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_DARK_XS.nam"),
+    capture!(Voicing::Dark, Boost::On,  Quality::C, "pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_DARK_BOOST_C.nam"),
+    capture!(Voicing::Dark, Boost::On,  Quality::S, "pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_DARK_BOOST_S.nam"),
+    capture!(Voicing::Dark, Boost::On,  Quality::Xs, "pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_DARK_BOOST_XS.nam"),
+    capture!(Voicing::Dark, Boost::Off, Quality::C, "pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_DARK_C.nam"),
+    capture!(Voicing::Dark, Boost::Off, Quality::S, "pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_DARK_S.nam"),
+    capture!(Voicing::Dark, Boost::Off, Quality::Xs, "pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_DARK_XS.nam"),
     // MAIN
-    capture!(Voicing::Main, Boost::On,  Quality::C,  "gain.nam_jhs_andy_timmons.main.boost.c",  "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_MAIN_BOOST_C.nam"),
-    capture!(Voicing::Main, Boost::On,  Quality::S,  "gain.nam_jhs_andy_timmons.main.boost.s",  "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_MAIN_BOOST_S.nam"),
-    capture!(Voicing::Main, Boost::On,  Quality::Xs, "gain.nam_jhs_andy_timmons.main.boost.xs", "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_MAIN_BOOST_XS.nam"),
-    capture!(Voicing::Main, Boost::Off, Quality::C,  "gain.nam_jhs_andy_timmons.main.c",        "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_MAIN_C.nam"),
-    capture!(Voicing::Main, Boost::Off, Quality::S,  "gain.nam_jhs_andy_timmons.main.s",        "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_MAIN_S.nam"),
-    capture!(Voicing::Main, Boost::Off, Quality::Xs, "gain.nam_jhs_andy_timmons.main.xs",       "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_MAIN_XS.nam"),
+    capture!(Voicing::Main, Boost::On,  Quality::C, "pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_MAIN_BOOST_C.nam"),
+    capture!(Voicing::Main, Boost::On,  Quality::S, "pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_MAIN_BOOST_S.nam"),
+    capture!(Voicing::Main, Boost::On,  Quality::Xs, "pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_MAIN_BOOST_XS.nam"),
+    capture!(Voicing::Main, Boost::Off, Quality::C, "pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_MAIN_C.nam"),
+    capture!(Voicing::Main, Boost::Off, Quality::S, "pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_MAIN_S.nam"),
+    capture!(Voicing::Main, Boost::Off, Quality::Xs, "pedals/jhs_andy_timmons/SLAMMIN_JHS_TIMMONS_MAIN_XS.nam"),
     // DELIVER US (Rivera)
-    capture!(Voicing::DeliverUs, Boost::Off, Quality::C,  "gain.nam_jhs_andy_timmons.deliver_us.c",  "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_TIMMONS_RIVERA_DELIVER_US_C.nam"),
-    capture!(Voicing::DeliverUs, Boost::Off, Quality::S,  "gain.nam_jhs_andy_timmons.deliver_us.s",  "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_TIMMONS_RIVERA_DELIVER_US_S.nam"),
-    capture!(Voicing::DeliverUs, Boost::Off, Quality::Xs, "gain.nam_jhs_andy_timmons.deliver_us.xs", "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_TIMMONS_RIVERA_DELIVER_US_XS.nam"),
+    capture!(Voicing::DeliverUs, Boost::Off, Quality::C, "pedals/jhs_andy_timmons/SLAMMIN_TIMMONS_RIVERA_DELIVER_US_C.nam"),
+    capture!(Voicing::DeliverUs, Boost::Off, Quality::S, "pedals/jhs_andy_timmons/SLAMMIN_TIMMONS_RIVERA_DELIVER_US_S.nam"),
+    capture!(Voicing::DeliverUs, Boost::Off, Quality::Xs, "pedals/jhs_andy_timmons/SLAMMIN_TIMMONS_RIVERA_DELIVER_US_XS.nam"),
     // MAIN BRIGHTER (Rivera)
-    capture!(Voicing::MainBrighter, Boost::On,  Quality::C,  "gain.nam_jhs_andy_timmons.main_brighter.boost.c",  "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_TIMMONS_RIVERA_MAIN_BRIGHTER_BOOST_C.nam"),
-    capture!(Voicing::MainBrighter, Boost::On,  Quality::S,  "gain.nam_jhs_andy_timmons.main_brighter.boost.s",  "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_TIMMONS_RIVERA_MAIN_BRIGHTER_BOOST_S.nam"),
-    capture!(Voicing::MainBrighter, Boost::On,  Quality::Xs, "gain.nam_jhs_andy_timmons.main_brighter.boost.xs", "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_TIMMONS_RIVERA_MAIN_BRIGHTER_BOOST_XS.nam"),
-    capture!(Voicing::MainBrighter, Boost::Off, Quality::C,  "gain.nam_jhs_andy_timmons.main_brighter.c",        "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_TIMMONS_RIVERA_MAIN_BRIGHTER_C.nam"),
-    capture!(Voicing::MainBrighter, Boost::Off, Quality::S,  "gain.nam_jhs_andy_timmons.main_brighter.s",        "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_TIMMONS_RIVERA_MAIN_BRIGHTER_S.nam"),
-    capture!(Voicing::MainBrighter, Boost::Off, Quality::Xs, "gain.nam_jhs_andy_timmons.main_brighter.xs",       "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_TIMMONS_RIVERA_MAIN_BRIGHTER_XS.nam"),
+    capture!(Voicing::MainBrighter, Boost::On,  Quality::C, "pedals/jhs_andy_timmons/SLAMMIN_TIMMONS_RIVERA_MAIN_BRIGHTER_BOOST_C.nam"),
+    capture!(Voicing::MainBrighter, Boost::On,  Quality::S, "pedals/jhs_andy_timmons/SLAMMIN_TIMMONS_RIVERA_MAIN_BRIGHTER_BOOST_S.nam"),
+    capture!(Voicing::MainBrighter, Boost::On,  Quality::Xs, "pedals/jhs_andy_timmons/SLAMMIN_TIMMONS_RIVERA_MAIN_BRIGHTER_BOOST_XS.nam"),
+    capture!(Voicing::MainBrighter, Boost::Off, Quality::C, "pedals/jhs_andy_timmons/SLAMMIN_TIMMONS_RIVERA_MAIN_BRIGHTER_C.nam"),
+    capture!(Voicing::MainBrighter, Boost::Off, Quality::S, "pedals/jhs_andy_timmons/SLAMMIN_TIMMONS_RIVERA_MAIN_BRIGHTER_S.nam"),
+    capture!(Voicing::MainBrighter, Boost::Off, Quality::Xs, "pedals/jhs_andy_timmons/SLAMMIN_TIMMONS_RIVERA_MAIN_BRIGHTER_XS.nam"),
     // SCOOPY (Rivera)
-    capture!(Voicing::Scoopy, Boost::On,  Quality::C,  "gain.nam_jhs_andy_timmons.scoopy.boost.c",  "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_TIMMONS_RIVERA_SCOOPY_BOOST_C.nam"),
-    capture!(Voicing::Scoopy, Boost::On,  Quality::S,  "gain.nam_jhs_andy_timmons.scoopy.boost.s",  "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_TIMMONS_RIVERA_SCOOPY_BOOST_S.nam"),
-    capture!(Voicing::Scoopy, Boost::On,  Quality::Xs, "gain.nam_jhs_andy_timmons.scoopy.boost.xs", "captures/nam/pedals/jhs_andy_timmons/SLAMMIN_TIMMONS_RIVERA_SCOOPY_BOOST_XS.nam"),
+    capture!(Voicing::Scoopy, Boost::On,  Quality::C, "pedals/jhs_andy_timmons/SLAMMIN_TIMMONS_RIVERA_SCOOPY_BOOST_C.nam"),
+    capture!(Voicing::Scoopy, Boost::On,  Quality::S, "pedals/jhs_andy_timmons/SLAMMIN_TIMMONS_RIVERA_SCOOPY_BOOST_S.nam"),
+    capture!(Voicing::Scoopy, Boost::On,  Quality::Xs, "pedals/jhs_andy_timmons/SLAMMIN_TIMMONS_RIVERA_SCOOPY_BOOST_XS.nam"),
 ];
 
 fn parse_voicing(value: &str) -> Result<Voicing> {
@@ -212,9 +203,9 @@ pub fn build_processor_for_model(
 ) -> Result<BlockProcessor> {
     let capture = resolve_capture(params)?;
     let plugin_params = plugin_params_from_set_with_defaults(params, NAM_PLUGIN_DEFAULTS)?;
-    let model_path = materialize(&capture.asset)?;
+    let model_path = nam::resolve_nam_capture(capture.nam_file)?;
     build_processor_with_assets_for_layout(
-        &model_path.to_string_lossy(),
+        &model_path,
         None,
         plugin_params,
         sample_rate,
@@ -253,7 +244,7 @@ pub fn validate_params(params: &ParameterSet) -> Result<()> {
 
 pub fn asset_summary(params: &ParameterSet) -> Result<String> {
     let capture = resolve_capture(params)?;
-    Ok(format!("asset_id='{}'", capture.asset.id))
+    Ok(format!("asset_id='{}'", capture.nam_file))
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static JhsAndyTimmonsCapture> {

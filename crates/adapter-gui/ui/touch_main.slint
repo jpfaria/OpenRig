@@ -1,6 +1,6 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, MultiSliderPoint, CurveEditorPoint } from "models.slint";
 import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage } from "pages/pages.slint";
 
 export component TouchMain inherits Rectangle {
@@ -10,6 +10,8 @@ export component TouchMain inherits Rectangle {
     in property <bool> show-chain-editor;
     in property <bool> show-project-settings;
     in property <bool> project-dirty;
+    in property <bool> auto-save: false;
+    in property <bool> skip-launcher: false;
     in property <string> project-path-label;
     in property <string> project-title;
     in-out property <string> project-name-draft;
@@ -46,6 +48,10 @@ export component TouchMain inherits Rectangle {
     in-out property <int> block-drawer-selected-model-index;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
+    in property <[MultiSliderPoint]> multi-slider-points;
+    in property <[CurveEditorPoint]> curve-editor-points;
+    in property <string> eq-total-curve;
+    in property <[string]> eq-band-curves;
     in property <[ChannelOptionItem]> chain-input-channels;
     in property <[ChannelOptionItem]> chain-output-channels;
     in-out property <string> status-message;
@@ -99,6 +105,7 @@ export component TouchMain inherits Rectangle {
     callback close-block-drawer();
     callback save-block-drawer();
     callback delete-block-drawer();
+    callback show-plugin-info(string, string);  // effect_type, model_id
     callback toggle-block-drawer-enabled();
     callback update-block-parameter-text(string, string);
     callback update-block-parameter-number(string, float);
@@ -106,6 +113,7 @@ export component TouchMain inherits Rectangle {
     callback update-block-parameter-bool(string, bool);
     callback select-block-parameter-option(string, int);
     callback pick-block-parameter-file(string);
+    callback open-vst3-editor(string); // model-id
     callback save-chain();
     callback cancel-chain();
 
@@ -144,6 +152,8 @@ export component TouchMain inherits Rectangle {
             project-title: root.project-title;
             project-path-label: root.project-path-label;
             project-dirty: root.project-dirty;
+            auto-save: root.auto-save;
+            skip-launcher: root.skip-launcher;
             project-chains: root.project-chains;
             selected-chain-block-chain-index: root.selected-chain-block-chain-index;
             selected-chain-block-index: root.selected-chain-block-index;
@@ -161,6 +171,10 @@ export component TouchMain inherits Rectangle {
             block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
             block-drawer-enabled: root.block-drawer-enabled;
             block-parameter-items: root.block-parameter-items;
+            multi-slider-points: root.multi-slider-points;
+            curve-editor-points: root.curve-editor-points;
+            eq-total-curve: root.eq-total-curve;
+            eq-band-curves: root.eq-band-curves;
             status-message: root.status-message;
             back-to-launcher => { root.back-to-launcher(); }
             add-chain => { root.add-chain(); }
@@ -185,6 +199,7 @@ export component TouchMain inherits Rectangle {
             close-block-drawer => { root.close-block-drawer(); }
             save-block-drawer => { root.save-block-drawer(); }
             delete-block-drawer => { root.delete-block-drawer(); }
+            show-plugin-info(effect_type, model_id) => { root.show-plugin-info(effect_type, model_id); }
             toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
             update-block-parameter-text(path, value) => { root.update-block-parameter-text(path, value); }
             update-block-parameter-number(path, value) => { root.update-block-parameter-number(path, value); }
@@ -192,6 +207,7 @@ export component TouchMain inherits Rectangle {
             update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
             select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
             pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
+            open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
         }
 
         if !root.show-project-chains : Rectangle {

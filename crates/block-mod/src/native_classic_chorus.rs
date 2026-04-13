@@ -18,7 +18,7 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: "modulation".to_string(),
         model: MODEL_ID.to_string(),
         display_name: DISPLAY_NAME.to_string(),
-        audio_mode: ModelAudioMode::DualMono,
+        audio_mode: ModelAudioMode::MonoToStereo,
         parameters: vec![
             float_parameter(
                 "rate_hz",
@@ -110,6 +110,15 @@ fn build_processor(params: &ParameterSet, sample_rate: f32) -> Result<Box<dyn Mo
     Ok(Box::new(ClassicChorus::new(rate_hz, depth, mix, sample_rate)))
 }
 
+fn build_processor_with_phase(params: &ParameterSet, sample_rate: f32, phase_offset: f32) -> Result<Box<dyn MonoProcessor>> {
+    let rate_hz = required_f32(params, "rate_hz").map_err(Error::msg)?;
+    let depth = required_f32(params, "depth").map_err(Error::msg)? / 100.0;
+    let mix = required_f32(params, "mix").map_err(Error::msg)? / 100.0;
+    let mut c = ClassicChorus::new(rate_hz, depth, mix, sample_rate);
+    c.phase = phase_offset;
+    Ok(Box::new(c))
+}
+
 fn schema() -> Result<ModelParameterSchema> {
     Ok(model_schema())
 }
@@ -124,12 +133,12 @@ fn build(
             Ok(block_core::BlockProcessor::Mono(build_processor(params, sample_rate)?))
         }
         block_core::AudioChannelLayout::Stereo => {
-            struct DualMonoProcessor {
+            struct StereoChorus {
                 left: Box<dyn block_core::MonoProcessor>,
                 right: Box<dyn block_core::MonoProcessor>,
             }
 
-            impl block_core::StereoProcessor for DualMonoProcessor {
+            impl block_core::StereoProcessor for StereoChorus {
                 fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
                     [
                         self.left.process_sample(input[0]),
@@ -138,9 +147,9 @@ fn build(
                 }
             }
 
-            Ok(block_core::BlockProcessor::Stereo(Box::new(DualMonoProcessor {
+            Ok(block_core::BlockProcessor::Stereo(Box::new(StereoChorus {
                 left: build_processor(params, sample_rate)?,
-                right: build_processor(params, sample_rate)?,
+                right: build_processor_with_phase(params, sample_rate, std::f32::consts::PI)?,
             })))
         }
     }

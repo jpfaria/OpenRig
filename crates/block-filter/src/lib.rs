@@ -11,6 +11,8 @@ pub enum FilterBackendKind {
     Native,
     Nam,
     Ir,
+    Lv2,
+    Vst3,
 }
 
 pub fn supported_models() -> &'static [&'static str] {
@@ -25,10 +27,24 @@ pub fn filter_model_visual(model_id: &str) -> Option<ModelVisualData> {
             FilterBackendKind::Native => "NATIVE",
             FilterBackendKind::Nam => "NAM",
             FilterBackendKind::Ir => "IR",
+            FilterBackendKind::Lv2 => "LV2",
+            FilterBackendKind::Vst3 => "VST3",
         },
         supported_instruments: def.supported_instruments,
         knob_layout: def.knob_layout,
     })
+}
+
+pub fn filter_display_name(model: &str) -> &'static str {
+    registry::find_model_definition(model).map(|d| d.display_name).unwrap_or("")
+}
+
+pub fn filter_brand(model: &str) -> &'static str {
+    registry::find_model_definition(model).map(|d| d.brand).unwrap_or("")
+}
+
+pub fn filter_type_label(model: &str) -> &'static str {
+    filter_model_visual(model).map(|v| v.type_label).unwrap_or("")
 }
 
 pub fn filter_model_schema(model: &str) -> Result<ModelParameterSchema> {

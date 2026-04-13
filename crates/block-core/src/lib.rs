@@ -3,6 +3,22 @@ pub mod param;
 
 use serde::{Deserialize, Serialize};
 use std::f32::consts::PI;
+use std::sync::{Arc, Mutex};
+
+/// A single key-value entry in a real-time data stream.
+/// Any block can publish stream entries for the GUI to display.
+#[derive(Debug, Clone)]
+pub struct StreamEntry {
+    pub key: String,
+    pub value: f32,
+    pub text: String,
+    /// Peak hold level (0.0–1.0). Used by spectrum-type streams; 0.0 for others.
+    pub peak: f32,
+}
+
+/// Shared handle for publishing stream data from a processor to the GUI.
+/// The processor writes entries during `process_block`; the GUI reads them via polling.
+pub type StreamHandle = Arc<Mutex<Vec<StreamEntry>>>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -87,6 +103,7 @@ pub const EFFECT_TYPE_WAH: &str = "wah";
 pub const EFFECT_TYPE_PITCH: &str = "pitch";
 pub const EFFECT_TYPE_MODULATION: &str = "modulation";
 pub const EFFECT_TYPE_BODY: &str = "body";
+pub const EFFECT_TYPE_VST3: &str = "vst3";
 
 // Default instrument (used as fallback)
 pub const DEFAULT_INSTRUMENT: &str = INST_ELECTRIC_GUITAR;
@@ -151,6 +168,12 @@ pub trait NamedModel {
     fn model_key(&self) -> &'static str;
     fn display_name(&self) -> &'static str;
 }
+
+/// Opaque handle to an open plugin editor window.
+///
+/// Dropping the handle closes the window and releases all resources.
+/// The concrete type is an implementation detail of the plugin host crate.
+pub trait PluginEditorHandle: Send {}
 /// Capitalize the first character of a string, leaving the rest unchanged.
 pub fn capitalize_first(s: &str) -> String {
     let mut chars = s.chars();
@@ -251,5 +274,136 @@ impl OnePoleHighPass {
         self.prev_input = input;
         self.prev_output = output;
         output
+    }
+}
+
+/// Second-order IIR (biquad) filter supporting peaking EQ, low shelf and high shelf.
+pub struct BiquadFilter {
+    b0: f32,
+    b1: f32,
+    b2: f32,
+    a1: f32,
+    a2: f32,
+    x1: f32,
+    x2: f32,
+    y1: f32,
+    y2: f32,
+}
+
+pub enum BiquadKind {
+    Peak,
+    LowShelf,
+    HighShelf,
+    HighPass,
+    LowPass,
+}
+
+impl BiquadFilter {
+    pub fn new(kind: BiquadKind, freq_hz: f32, gain_db: f32, q: f32, sample_rate: f32) -> Self {
+        let w0 = 2.0 * PI * freq_hz / sample_rate;
+        let cos_w0 = w0.cos();
+        let sin_w0 = w0.sin();
+
+        let (b0, b1, b2, a0, a1, a2) = match kind {
+            BiquadKind::Peak => {
+                let a = 10.0_f32.powf(gain_db / 40.0);
+                let alpha = sin_w0 / (2.0 * q.max(0.01));
+                (
+                    1.0 + alpha * a,
+                    -2.0 * cos_w0,
+                    1.0 - alpha * a,
+                    1.0 + alpha / a,
+                    -2.0 * cos_w0,
+                    1.0 - alpha / a,
+                )
+            }
+            BiquadKind::LowShelf => {
+                let a = 10.0_f32.powf(gain_db / 40.0);
+                let alpha = sin_w0 / (2.0 * q.max(0.01));
+                let two_sqrt_a_alpha = 2.0 * a.sqrt() * alpha;
+                (
+                    a * ((a + 1.0) - (a - 1.0) * cos_w0 + two_sqrt_a_alpha),
+                    2.0 * a * ((a - 1.0) - (a + 1.0) * cos_w0),
+                    a * ((a + 1.0) - (a - 1.0) * cos_w0 - two_sqrt_a_alpha),
+                    (a + 1.0) + (a - 1.0) * cos_w0 + two_sqrt_a_alpha,
+                    -2.0 * ((a - 1.0) + (a + 1.0) * cos_w0),
+                    (a + 1.0) + (a - 1.0) * cos_w0 - two_sqrt_a_alpha,
+                )
+            }
+            BiquadKind::HighShelf => {
+                let a = 10.0_f32.powf(gain_db / 40.0);
+                let alpha = sin_w0 / (2.0 * q.max(0.01));
+                let two_sqrt_a_alpha = 2.0 * a.sqrt() * alpha;
+                (
+                    a * ((a + 1.0) + (a - 1.0) * cos_w0 + two_sqrt_a_alpha),
+                    -2.0 * a * ((a - 1.0) + (a + 1.0) * cos_w0),
+                    a * ((a + 1.0) + (a - 1.0) * cos_w0 - two_sqrt_a_alpha),
+                    (a + 1.0) - (a - 1.0) * cos_w0 + two_sqrt_a_alpha,
+                    2.0 * ((a - 1.0) - (a + 1.0) * cos_w0),
+                    (a + 1.0) - (a - 1.0) * cos_w0 - two_sqrt_a_alpha,
+                )
+            }
+            BiquadKind::HighPass => {
+                let alpha = sin_w0 / (2.0 * q.max(0.01));
+                (
+                    (1.0 + cos_w0) / 2.0,
+                    -(1.0 + cos_w0),
+                    (1.0 + cos_w0) / 2.0,
+                    1.0 + alpha,
+                    -2.0 * cos_w0,
+                    1.0 - alpha,
+                )
+            }
+            BiquadKind::LowPass => {
+                let alpha = sin_w0 / (2.0 * q.max(0.01));
+                (
+                    (1.0 - cos_w0) / 2.0,
+                    1.0 - cos_w0,
+                    (1.0 - cos_w0) / 2.0,
+                    1.0 + alpha,
+                    -2.0 * cos_w0,
+                    1.0 - alpha,
+                )
+            }
+        };
+
+        let inv_a0 = 1.0 / a0;
+        Self {
+            b0: b0 * inv_a0,
+            b1: b1 * inv_a0,
+            b2: b2 * inv_a0,
+            a1: a1 * inv_a0,
+            a2: a2 * inv_a0,
+            x1: 0.0,
+            x2: 0.0,
+            y1: 0.0,
+            y2: 0.0,
+        }
+    }
+
+    pub fn process(&mut self, input: f32) -> f32 {
+        let output = self.b0 * input + self.b1 * self.x1 + self.b2 * self.x2
+            - self.a1 * self.y1
+            - self.a2 * self.y2;
+        self.x2 = self.x1;
+        self.x1 = input;
+        self.y2 = self.y1;
+        self.y1 = output;
+        output
+    }
+
+    /// Magnitude response in dB at the given frequency.
+    pub fn magnitude_db(&self, freq_hz: f32, sample_rate: f32) -> f32 {
+        let w = 2.0 * PI * freq_hz / sample_rate;
+        let cos_w = w.cos();
+        let sin_w = w.sin();
+        let cos_2w = (2.0 * w).cos();
+        let sin_2w = (2.0 * w).sin();
+        let nr = self.b0 + self.b1 * cos_w + self.b2 * cos_2w;
+        let ni = -(self.b1 * sin_w + self.b2 * sin_2w);
+        let dr = 1.0 + self.a1 * cos_w + self.a2 * cos_2w;
+        let di = -(self.a1 * sin_w + self.a2 * sin_2w);
+        let mag_sq = (nr * nr + ni * ni) / (dr * dr + di * di).max(1e-30);
+        10.0 * mag_sq.max(1e-30_f32).log10()
     }
 }

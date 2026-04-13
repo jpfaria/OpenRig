@@ -11,7 +11,7 @@ pub const DISPLAY_NAME: &str = "Bitta";
 const BRAND: &str = "artyfx";
 
 const PLUGIN_URI: &str = "http://www.openavproductions.com/artyfx#bitta";
-const PLUGIN_DIR: &str = "artyfx-bitta.lv2";
+const PLUGIN_DIR: &str = "artyfx-bitta";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "artyfx.dylib";
@@ -26,6 +26,7 @@ const PORT_AUDIO_OUT: usize = 1;
 const PORT_CRUSH: usize = 2;
 const PORT_DRYWET: usize = 3;
 const PORT_ACTIVE: usize = 4;
+const PORT_CONTROL: usize = 5;
 
 pub fn model_schema() -> ModelParameterSchema {
     ModelParameterSchema {
@@ -68,52 +69,6 @@ fn asset_summary(_params: &ParameterSet) -> Result<String> {
     Ok(format!("lv2='{}'", MODEL_ID))
 }
 
-fn resolve_lib_path() -> Result<String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
-    let candidates = [
-        exe_dir
-            .as_ref()
-            .map(|d| d.join("../../").join(lv2::default_lv2_lib_dir()).join(PLUGIN_BINARY)),
-        Some(std::path::PathBuf::from(lv2::default_lv2_lib_dir()).join(PLUGIN_BINARY)),
-    ];
-
-    for candidate in candidates.iter().flatten() {
-        if candidate.exists() {
-            return Ok(candidate.to_string_lossy().to_string());
-        }
-    }
-
-    anyhow::bail!(
-        "LV2 binary '{}' not found in '{}'",
-        PLUGIN_BINARY,
-        lv2::default_lv2_lib_dir()
-    )
-}
-
-fn resolve_bundle_path() -> Result<String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
-    let candidates = [
-        exe_dir
-            .as_ref()
-            .map(|d| d.join("../../plugins").join(PLUGIN_DIR)),
-        Some(std::path::PathBuf::from("plugins").join(PLUGIN_DIR)),
-    ];
-
-    for candidate in candidates.iter().flatten() {
-        if candidate.exists() {
-            return Ok(candidate.to_string_lossy().to_string());
-        }
-    }
-
-    anyhow::bail!("LV2 bundle '{}' not found in plugins/", PLUGIN_DIR)
-}
-
 struct DualMonoLv2 {
     left: lv2::Lv2Processor,
     right: lv2::Lv2Processor,
@@ -133,8 +88,8 @@ fn build_mono_processor(
     crush: f32,
     drywet: f32,
 ) -> Result<lv2::Lv2Processor> {
-    let lib_path = resolve_lib_path()?;
-    let bundle_path = resolve_bundle_path()?;
+    let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
+    let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
 
     lv2::build_lv2_processor(
         &lib_path,
@@ -147,6 +102,7 @@ fn build_mono_processor(
             (PORT_CRUSH, crush),
             (PORT_DRYWET, drywet),
             (PORT_ACTIVE, 1.0),
+            (PORT_CONTROL, 0.0),
         ],
     )
 }

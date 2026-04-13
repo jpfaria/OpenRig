@@ -4,3 +4,6 @@
 .worktrees/
 .solvers/
 .logs/
+.orange-pi-build/
+output/
+dist/

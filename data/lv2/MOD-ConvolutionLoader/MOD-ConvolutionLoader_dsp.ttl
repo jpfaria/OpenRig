@@ -1,0 +1,207 @@
+@prefix atom:  <http://lv2plug.in/ns/ext/atom#> .
+@prefix doap:  <http://usefulinc.com/ns/doap#> .
+@prefix foaf:  <http://xmlns.com/foaf/0.1/> .
+@prefix lv2:   <http://lv2plug.in/ns/lv2core#> .
+@prefix midi:  <http://lv2plug.in/ns/ext/midi#> .
+@prefix mod:   <http://moddevices.com/ns/mod#> .
+@prefix opts:  <http://lv2plug.in/ns/ext/options#> .
+@prefix pg:    <http://lv2plug.in/ns/ext/port-groups#> .
+@prefix patch: <http://lv2plug.in/ns/ext/patch#> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rsz:   <http://lv2plug.in/ns/ext/resize-port#> .
+@prefix spdx:  <http://spdx.org/rdf/terms#> .
+@prefix state: <http://lv2plug.in/ns/ext/state#> .
+@prefix unit:  <http://lv2plug.in/ns/extensions/units#> .
+
+<https://mod.audio/plugins/ConvolutionLoader#irfile>
+    a lv2:Parameter ;
+    rdfs:label "IR File" ;
+    mod:fileTypes "ir" ;
+    rdfs:range atom:Path .
+
+<https://mod.audio/plugins/ConvolutionLoader>
+    a lv2:ReverbPlugin, lv2:Plugin, doap:Project ;
+
+    lv2:extensionData opts:interface ,
+                      state:interface ,
+                      <http://lv2plug.in/ns/ext/worker#interface> ;
+
+    lv2:optionalFeature <http://lv2plug.in/ns/ext/buf-size#boundedBlockLength> ,
+                        state:freePath ,
+                        state:loadDefaultState ,
+                        state:mapPath ,
+                        state:threadSafeRestore ;
+
+    lv2:requiredFeature opts:options ,
+                        <http://lv2plug.in/ns/ext/urid#map> ,
+                        <http://lv2plug.in/ns/ext/worker#schedule> ;
+
+    opts:supportedOption <http://lv2plug.in/ns/ext/buf-size#nominalBlockLength> ,
+                         <http://lv2plug.in/ns/ext/buf-size#maxBlockLength> ,
+                         <http://lv2plug.in/ns/ext/parameters#sampleRate> ;
+
+    patch:writable <https://mod.audio/plugins/ConvolutionLoader#irfile> ;
+
+    lv2:port [
+        a lv2:InputPort, lv2:AudioPort ;
+        lv2:index 0 ;
+        lv2:symbol "lv2_audio_in_1" ;
+        lv2:name "Audio Input 1" ;
+    ] ,
+    [
+        a lv2:InputPort, lv2:AudioPort ;
+        lv2:index 1 ;
+        lv2:symbol "lv2_audio_in_2" ;
+        lv2:name "Audio Input 2" ;
+    ] ;
+
+    lv2:port [
+        a lv2:OutputPort, lv2:AudioPort ;
+        lv2:index 2 ;
+        lv2:symbol "lv2_audio_out_1" ;
+        lv2:name "Audio Output 1" ;
+    ] ,
+    [
+        a lv2:OutputPort, lv2:AudioPort ;
+        lv2:index 3 ;
+        lv2:symbol "lv2_audio_out_2" ;
+        lv2:name "Audio Output 2" ;
+    ] ;
+
+    lv2:port [
+        a lv2:InputPort, atom:AtomPort ;
+        lv2:index 4 ;
+        lv2:name "Events Input" ;
+        lv2:symbol "lv2_events_in" ;
+        atom:bufferType atom:Sequence ;
+        atom:supports <http://lv2plug.in/ns/ext/patch#Message> ;
+        lv2:designation lv2:control ;
+    ] ;
+
+    lv2:port [
+        a lv2:OutputPort, atom:AtomPort ;
+        lv2:index 5 ;
+        lv2:name "Events Output" ;
+        lv2:symbol "lv2_events_out" ;
+        atom:bufferType atom:Sequence ;
+        atom:supports <http://lv2plug.in/ns/ext/patch#Message> ;
+        lv2:designation lv2:control ;
+    ] ;
+
+    lv2:port [
+        a lv2:InputPort, lv2:ControlPort ;
+        lv2:index 6 ;
+        lv2:name "Dry Level" ;
+        lv2:symbol "drylevel" ;
+        lv2:default 0 ;
+        lv2:minimum -60 ;
+        lv2:maximum 0 ;
+        lv2:scalePoint [
+            rdfs:label  "Off" ;
+            rdf:value -60 ;
+        ] ;
+        unit:unit unit:db ;
+    ] ,
+    [
+        a lv2:InputPort, lv2:ControlPort ;
+        lv2:index 7 ;
+        lv2:name "Wet Level" ;
+        lv2:symbol "wetlevel" ;
+        lv2:default -30 ;
+        lv2:minimum -60 ;
+        lv2:maximum 0 ;
+        lv2:scalePoint [
+            rdfs:label  "Off" ;
+            rdf:value -60 ;
+        ] ;
+        unit:unit unit:db ;
+    ] ,
+    [
+        a lv2:InputPort, lv2:ControlPort ;
+        lv2:index 8 ;
+        lv2:name "High Pass Filter" ;
+        lv2:symbol "hpf" ;
+        lv2:default 0 ;
+        lv2:minimum 0 ;
+        lv2:maximum 500 ;
+        lv2:scalePoint [
+            rdfs:label  "Off" ;
+            rdf:value 0 ;
+        ] ;
+        unit:unit unit:hz ;
+    ] ,
+    [
+        a lv2:InputPort, lv2:ControlPort ;
+        lv2:index 9 ;
+        lv2:name "Trails" ;
+        lv2:symbol "trails" ;
+        lv2:default 1 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        lv2:portProperty lv2:toggled ;
+        lv2:portProperty lv2:integer ;
+    ] ,
+    [
+        a lv2:InputPort, lv2:ControlPort ;
+        lv2:index 10 ;
+        lv2:name "Enabled" ;
+        lv2:symbol "lv2_enabled" ;
+        lv2:default 1 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        lv2:portProperty lv2:toggled , lv2:integer ;
+        lv2:designation lv2:enabled ;
+    ] ,
+    [
+        a lv2:InputPort, lv2:ControlPort ;
+        lv2:index 11 ;
+        lv2:name "Buffered" ;
+        lv2:symbol "buffered" ;
+        lv2:default 0 ;
+        lv2:minimum 0 ;
+        lv2:maximum 1 ;
+        lv2:portProperty lv2:toggled ;
+        lv2:portProperty lv2:integer ;
+    ] ;
+
+    rdfs:comment """
+The MOD Convolution Loader enables you to easily create custom reverb and other effects using impulse responses (IRs).
+
+Using a very resource effective processing, it allows IRs with a length of up to 15s on the MOD Dwarf and MOD Duo X, less on the MOD Duo.
+
+IRs can be uploaded using the file manager in either WAV and FLAC format.
+Multi-channel files are supported but always processed in stereo mode.
+For faster loading it is recommended to use WAV format files with 48kHz and 24 bit.
+
+The plugin is very easy to use: Simply select the IR file, set the levels as desired, optionally filter out some low end with the built-in high pass filter, and off you go.
+
+There is a Trails switch in the advanced settings;
+when enabled the reverb tail peacefully decays when you bypass the plugin, disable it and the tail will immediately disappear when bypassed.
+
+Features:
+Plugin by MOD Audio & DISTRHO, based on HiFi-LoFi FFTConvolver engine.
+""" ;
+
+    mod:brand "MOD" ;
+    mod:label "Convolution Loader" ;
+
+    doap:name "Convolution Loader" ;
+    doap:license <http://spdx.org/licenses/ISC.html> ;
+
+    doap:developer [
+        foaf:name "DISTRHO" ;
+        foaf:homepage <https://mod.audio/plugins/ConvolutionLoader> ;
+    ] ;
+
+    doap:maintainer [
+        foaf:name "MOD" ;
+        foaf:homepage <https://mod.audio/> ;
+    ] ;
+
+    lv2:microVersion 0 ;
+    lv2:minorVersion 2 ;
+
+    state:state [
+        <https://mod.audio/plugins/ConvolutionLoader#irfile> <hall1-medium.flac>;
+    ] .

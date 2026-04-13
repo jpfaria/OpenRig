@@ -10,6 +10,7 @@ use block_core::{AudioChannelLayout, BlockProcessor, ModelVisualData};
 pub enum CabBackendKind {
     Ir,
     Native,
+    Lv2,
 }
 
 pub fn supported_models() -> &'static [&'static str] {
@@ -27,10 +28,23 @@ pub fn cab_model_visual(model_id: &str) -> Option<ModelVisualData> {
         type_label: match def.backend_kind {
             CabBackendKind::Native => "NATIVE",
             CabBackendKind::Ir => "IR",
+            CabBackendKind::Lv2 => "LV2",
         },
         supported_instruments: def.supported_instruments,
         knob_layout: def.knob_layout,
     })
+}
+
+pub fn cab_display_name(model: &str) -> &'static str {
+    registry::find_model_definition(model).map(|d| d.display_name).unwrap_or("")
+}
+
+pub fn cab_brand(model: &str) -> &'static str {
+    registry::find_model_definition(model).map(|d| d.brand).unwrap_or("")
+}
+
+pub fn cab_type_label(model: &str) -> &'static str {
+    cab_model_visual(model).map(|v| v.type_label).unwrap_or("")
 }
 
 pub fn cab_model_schema(model: &str) -> Result<ModelParameterSchema> {

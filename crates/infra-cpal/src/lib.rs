@@ -4,8 +4,79 @@ use cpal::{
     BufferSize, SampleFormat, Stream, StreamConfig, SupportedBufferSize, SupportedStreamConfig,
     SupportedStreamConfigRange,
 };
+
+/// Select the audio host. On Windows, ASIO is preferred for zero-latency audio
+/// (bypasses the Windows audio mixer). ASIO requires the interface's ASIO driver
+/// installed (e.g. Focusrite USB ASIO) and Focusrite Control configured with the
+/// desired sample rate and buffer size. Falls back to WASAPI if no ASIO driver is found.
+///
+/// On Linux (when compiled with `jack` feature): uses JACK by default for low
+/// latency. Set `OPENRIG_AUDIO_HOST=alsa` to force ALSA instead.
+///
+/// On macOS: always uses CoreAudio.
+fn select_host() -> cpal::Host {
+    #[cfg(target_os = "windows")]
+    {
+        for host_id in cpal::available_hosts() {
+            if host_id == cpal::HostId::Asio {
+                match cpal::host_from_id(host_id) {
+                    Ok(host) => {
+                        log::info!("Audio host: ASIO");
+                        return host;
+                    }
+                    Err(e) => {
+                        log::warn!("ASIO driver found but failed to initialize: {e} — falling back to WASAPI");
+                    }
+                }
+            }
+        }
+        log::info!("Audio host: WASAPI (no ASIO driver found)");
+    }
+
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    {
+        let force_alsa = std::env::var("OPENRIG_AUDIO_HOST")
+            .map(|v| v.to_lowercase() == "alsa")
+            .unwrap_or(false);
+
+        if !force_alsa {
+            for host_id in cpal::available_hosts() {
+                if host_id == cpal::HostId::Jack {
+                    match cpal::host_from_id(host_id) {
+                        Ok(host) => {
+                            log::info!("Audio host: JACK (set OPENRIG_AUDIO_HOST=alsa to use ALSA)");
+                            return host;
+                        }
+                        Err(e) => {
+                            log::warn!("JACK not available: {e} — falling back to ALSA");
+                        }
+                    }
+                }
+            }
+        }
+
+        log::info!("Audio host: ALSA");
+    }
+
+    cpal::default_host()
+}
+
+/// Returns true when the given host is the ASIO host on Windows.
+/// ASIO devices report a fixed sample rate and buffer size configured externally
+/// (e.g. in Focusrite Control) — project settings must be ignored for those devices.
+#[cfg(target_os = "windows")]
+fn is_asio_host(host: &cpal::Host) -> bool {
+    host.id() == cpal::HostId::Asio
+}
+
+#[cfg(not(target_os = "windows"))]
+fn is_asio_host(_host: &cpal::Host) -> bool {
+    false
+}
+
 use domain::ids::ChainId;
 use engine::runtime::{process_input_f32, process_output_f32, RuntimeGraph, ChainRuntimeState};
+use engine;
 use project::device::DeviceSettings;
 use project::project::Project;
 use project::block::{AudioBlockKind, InputEntry, InsertBlock, OutputEntry};
@@ -75,7 +146,7 @@ pub struct ProjectRuntimeController {
 }
 pub fn list_devices() -> Result<Vec<String>> {
     log::debug!("listing all audio devices");
-    let host = cpal::default_host();
+    let host = select_host();
     let mut devices = Vec::new();
     for device in host.input_devices()? {
         let description = device.description()?;
@@ -98,7 +169,7 @@ pub fn list_devices() -> Result<Vec<String>> {
 
 pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     log::debug!("listing input device descriptors");
-    let host = cpal::default_host();
+    let host = select_host();
     let mut devices = Vec::new();
     for device in host.input_devices()? {
         let description = device.description()?;
@@ -114,7 +185,7 @@ pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
 
 pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
     log::debug!("listing output device descriptors");
-    let host = cpal::default_host();
+    let host = select_host();
     let mut devices = Vec::new();
     for device in host.output_devices()? {
         let description = device.description()?;
@@ -132,7 +203,7 @@ pub fn build_streams_for_project(
     runtime_graph: &RuntimeGraph,
 ) -> Result<Vec<Stream>> {
     log::info!("building audio streams for project");
-    let host = cpal::default_host();
+    let host = select_host();
     validate_channels_against_devices(project, &host)?;
     let mut resolved_chains = resolve_enabled_chain_audio_configs(&host, project)?;
     let mut streams = Vec::new();
@@ -170,7 +241,7 @@ impl ProjectRuntimeController {
 
     pub fn sync_project(&mut self, project: &Project) -> Result<()> {
         log::debug!("syncing project runtime with {} chains", project.chains.len());
-        let host = cpal::default_host();
+        let host = select_host();
         validate_channels_against_devices(project, &host)?;
         let mut resolved_chains = resolve_enabled_chain_audio_configs(&host, project)?;
 
@@ -207,7 +278,7 @@ impl ProjectRuntimeController {
             return Ok(());
         }
 
-        let host = cpal::default_host();
+        let host = select_host();
         validate_chain_channels_against_devices(&host, chain)?;
         let resolved = resolve_chain_audio_config(&host, project, chain)?;
         self.upsert_chain_with_resolved(chain, resolved)
@@ -229,14 +300,21 @@ impl ProjectRuntimeController {
         !self.active_chains.is_empty()
     }
 
-    /// Returns the first active tuner reading from any running chain.
-    pub fn poll_tuner_reading(&self) -> Option<block_util::TunerReading> {
+    /// Returns stream data for a block in any running chain.
+    pub fn poll_stream(&self, block_id: &domain::ids::BlockId) -> Option<Vec<block_core::StreamEntry>> {
         for (_, runtime) in &self.runtime_graph.chains {
-            if let Some(reading) = runtime.poll_tuner() {
-                return Some(reading);
+            if let Some(entries) = runtime.poll_stream(block_id) {
+                return Some(entries);
             }
         }
         None
+    }
+
+    /// Drains and returns all block errors that occurred since the last call.
+    pub fn poll_errors(&self) -> Vec<engine::runtime::BlockError> {
+        self.runtime_graph.chains.values()
+            .flat_map(|runtime| runtime.poll_errors())
+            .collect()
     }
 
     /// Returns the measured real-time latency in milliseconds for a given chain.
@@ -270,7 +348,7 @@ impl ProjectRuntimeController {
 }
 
 pub fn resolve_project_chain_sample_rates(project: &Project) -> Result<HashMap<ChainId, f32>> {
-    let host = cpal::default_host();
+    let host = select_host();
     let mut sample_rates = HashMap::new();
 
     for chain in &project.chains {
@@ -291,11 +369,12 @@ fn resolve_input_device_for_chain_input(
     host: &cpal::Host,
     project: &Project,
     input: &InputEntry,
+    is_asio: bool,
 ) -> Result<ResolvedInputDevice> {
     let settings = project
         .device_settings
         .iter()
-        .find(|settings| settings.device_id == input.device_id)
+        .find(|s| s.device_id == input.device_id)
         .cloned();
     let device = find_input_device_by_id(host, &input.device_id.0)?.ok_or_else(|| {
         anyhow!(
@@ -322,33 +401,37 @@ fn resolve_input_device_for_chain_input(
     let supported = select_supported_stream_config(
         &default_config,
         &supported_ranges,
-        settings.as_ref().map(|settings| settings.sample_rate),
+        settings.as_ref().map(|s| s.sample_rate),
         required_channels,
         &input.device_id.0,
     )?;
-    if let Some(settings) = &settings {
-        validate_buffer_size(
-            settings.buffer_size_frames,
-            supported.buffer_size(),
-            &settings.device_id.0,
-        )?;
+    // For ASIO, skip buffer size range validation — the project's requested buffer size
+    // is passed directly to the ASIO driver via BufferSize::Fixed. The driver accepts or
+    // rejects it at stream build time with a real error. Pre-validation is incorrect for
+    // ASIO because the driver's reported range reflects its current preferred size, not
+    // what it actually accepts when asked.
+    if !is_asio {
+        if let Some(settings) = &settings {
+            validate_buffer_size(
+                settings.buffer_size_frames,
+                supported.buffer_size(),
+                &settings.device_id.0,
+            )?;
+        }
     }
-    Ok(ResolvedInputDevice {
-        settings,
-        device,
-        supported,
-    })
+    Ok(ResolvedInputDevice { settings, device, supported })
 }
 
 fn resolve_output_device_for_chain_output(
     host: &cpal::Host,
     project: &Project,
     output: &OutputEntry,
+    is_asio: bool,
 ) -> Result<ResolvedOutputDevice> {
     let settings = project
         .device_settings
         .iter()
-        .find(|settings| settings.device_id == output.device_id)
+        .find(|s| s.device_id == output.device_id)
         .cloned();
     let device = find_output_device_by_id(host, &output.device_id.0)?.ok_or_else(|| {
         anyhow!(
@@ -375,22 +458,20 @@ fn resolve_output_device_for_chain_output(
     let supported = select_supported_stream_config(
         &default_config,
         &supported_ranges,
-        settings.as_ref().map(|settings| settings.sample_rate),
+        settings.as_ref().map(|s| s.sample_rate),
         required_channels,
         &output.device_id.0,
     )?;
-    if let Some(settings) = &settings {
-        validate_buffer_size(
-            settings.buffer_size_frames,
-            supported.buffer_size(),
-            &settings.device_id.0,
-        )?;
+    if !is_asio {
+        if let Some(settings) = &settings {
+            validate_buffer_size(
+                settings.buffer_size_frames,
+                supported.buffer_size(),
+                &settings.device_id.0,
+            )?;
+        }
     }
-    Ok(ResolvedOutputDevice {
-        settings,
-        device,
-        supported,
-    })
+    Ok(ResolvedOutputDevice { settings, device, supported })
 }
 
 fn resolve_chain_inputs(
@@ -398,6 +479,7 @@ fn resolve_chain_inputs(
     project: &Project,
     chain: &Chain,
 ) -> Result<Vec<ResolvedInputDevice>> {
+    let is_asio = is_asio_host(host);
     let mut input_entries: Vec<&InputEntry> = chain.blocks.iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
@@ -421,7 +503,7 @@ fn resolve_chain_inputs(
     }
     input_entries
         .iter()
-        .map(|input| resolve_input_device_for_chain_input(host, project, input))
+        .map(|input| resolve_input_device_for_chain_input(host, project, input, is_asio))
         .collect()
 }
 
@@ -430,6 +512,7 @@ fn resolve_chain_outputs(
     project: &Project,
     chain: &Chain,
 ) -> Result<Vec<ResolvedOutputDevice>> {
+    let is_asio = is_asio_host(host);
     let mut output_entries: Vec<&OutputEntry> = chain.blocks.iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
@@ -453,14 +536,13 @@ fn resolve_chain_outputs(
     }
     output_entries
         .iter()
-        .map(|output| resolve_output_device_for_chain_output(host, project, output))
+        .map(|output| resolve_output_device_for_chain_output(host, project, output, is_asio))
         .collect()
 }
 
 /// Convert an InsertBlock's return endpoint to an InputEntry for stream resolution.
 fn insert_return_as_input_entry(insert: &InsertBlock) -> InputEntry {
     InputEntry {
-        name: "Insert Return".to_string(),
         device_id: insert.return_.device_id.clone(),
         mode: insert.return_.mode,
         channels: insert.return_.channels.clone(),
@@ -471,7 +553,6 @@ fn insert_return_as_input_entry(insert: &InsertBlock) -> InputEntry {
 fn insert_send_as_output_entry(insert: &InsertBlock) -> OutputEntry {
     use project::chain::ChainOutputMode;
     OutputEntry {
-        name: "Insert Send".to_string(),
         device_id: insert.send.device_id.clone(),
         mode: match insert.send.mode {
             project::chain::ChainInputMode::Mono => ChainOutputMode::Mono,
@@ -688,7 +769,9 @@ fn build_input_stream_for_input(
             device.build_input_stream(
                 &stream_config,
                 move |data: &[f32], _| {
-                    process_input_f32(&runtime_for_data, input_index, data, channels);
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        process_input_f32(&runtime_for_data, input_index, data, channels);
+                    }));
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
@@ -706,7 +789,9 @@ fn build_input_stream_for_input(
                     for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
                         *dst = src as f32 / i16::MAX as f32;
                     }
-                    process_input_f32(&runtime_for_data, input_index, &converted, channels);
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        process_input_f32(&runtime_for_data, input_index, &converted, channels);
+                    }));
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
@@ -724,7 +809,9 @@ fn build_input_stream_for_input(
                     for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
                         *dst = (src as f32 / u16::MAX as f32) * 2.0 - 1.0;
                     }
-                    process_input_f32(&runtime_for_data, input_index, &converted, channels);
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        process_input_f32(&runtime_for_data, input_index, &converted, channels);
+                    }));
                 },
                 move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
                 None,
@@ -773,7 +860,9 @@ fn build_output_stream_for_output(
             device.build_output_stream(
                 &stream_config,
                 move |out: &mut [f32], _| {
-                    process_output_f32(&runtime_for_data, output_index, out, channels);
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        process_output_f32(&runtime_for_data, output_index, out, channels);
+                    }));
                 },
                 move |err| log::error!("[{}] output stream error: {}", error_chain_id, err),
                 None,
@@ -788,7 +877,9 @@ fn build_output_stream_for_output(
                 &stream_config,
                 move |out: &mut [i16], _| {
                     temp.resize(out.len(), 0.0);
-                    process_output_f32(&runtime_for_data, output_index, &mut temp, channels);
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        process_output_f32(&runtime_for_data, output_index, &mut temp, channels);
+                    }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         *dst =
                             (*src * i16::MAX as f32).clamp(i16::MIN as f32, i16::MAX as f32) as i16;
@@ -807,7 +898,9 @@ fn build_output_stream_for_output(
                 &stream_config,
                 move |out: &mut [u16], _| {
                     temp.resize(out.len(), 0.0);
-                    process_output_f32(&runtime_for_data, output_index, &mut temp, channels);
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        process_output_f32(&runtime_for_data, output_index, &mut temp, channels);
+                    }));
                     for (dst, src) in out.iter_mut().zip(temp.iter()) {
                         let normalized =
                             ((*src + 1.0) * 0.5 * u16::MAX as f32).clamp(0.0, u16::MAX as f32);
@@ -842,8 +935,17 @@ fn build_chain_streams(
     resolved: ResolvedChainAudioConfig,
     runtime: Arc<ChainRuntimeState>,
 ) -> Result<(Vec<Stream>, Vec<Stream>)> {
+    // Deduplicate input streams by device: one CPAL stream per unique device.
+    // Multiple entries on the same device share the stream — the engine
+    // reads each entry's channels from the same raw data buffer.
     let mut input_streams = Vec::new();
+    let mut seen_devices: std::collections::HashSet<String> = std::collections::HashSet::new();
     for (i, resolved_input) in resolved.inputs.into_iter().enumerate() {
+        let device_key = resolved_input.device.id().map(|id| id.to_string()).unwrap_or_default();
+        if !seen_devices.insert(device_key.clone()) {
+            log::info!("input[{}] shares device '{}', reusing existing CPAL stream", i, device_key);
+            continue;
+        }
         let stream =
             build_input_stream_for_input(chain_id, i, resolved_input, runtime.clone())?;
         input_streams.push(stream);

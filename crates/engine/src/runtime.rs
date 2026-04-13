@@ -6,7 +6,7 @@ use project::block::{
 use project::param::ParameterSet;
 use project::project::Project;
 use project::chain::{
-    Chain, ChainInputMode, ChainOutputMixdown, ChainOutputMode, ProcessingLayout,
+    Chain, ChainInputMode, ChainOutputMixdown, ChainOutputMode,
 };
 use block_amp::build_amp_processor_for_layout;
 use block_preamp::build_preamp_processor_for_layout;
@@ -25,8 +25,10 @@ use block_mod::build_modulation_processor_for_layout;
 use block_nam::build_nam_processor_for_layout;
 use block_pitch::build_pitch_processor_for_layout;
 use block_reverb::build_reverb_processor_for_layout;
-use block_util::{build_utility_processor, TunerProcessor};
+use block_util::build_utility_processor_for_layout;
+use block_core::StreamHandle;
 use block_wah::build_wah_processor_for_layout;
+use std::any::Any;
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -103,23 +105,22 @@ enum ProcessorScratch {
 }
 
 impl AudioProcessor {
+    /// Process a buffer of audio frames.
+    ///
+    /// Bus between blocks is ALWAYS stereo. Mono processors receive the left
+    /// channel (or mono mix), process it, and output stereo (duplicated).
     fn process_buffer(&mut self, frames: &mut [AudioFrame], scratch: &mut ProcessorScratch) {
         match (self, scratch) {
             (AudioProcessor::Mono(processor), ProcessorScratch::Mono(mono)) => {
                 mono.clear();
                 mono.reserve(frames.len().saturating_sub(mono.capacity()));
                 for frame in frames.iter() {
-                    match frame {
-                        AudioFrame::Mono(sample) => mono.push(*sample),
-                        AudioFrame::Stereo(_) => {
-                            debug_assert!(false, "mono processor received stereo frames");
-                            return;
-                        }
-                    }
+                    mono.push(frame.mono_mix());
                 }
                 processor.process_block(mono);
+                // Always output stereo — mono processors duplicate to both channels
                 for (frame, sample) in frames.iter_mut().zip(mono.iter().copied()) {
-                    *frame = AudioFrame::Mono(sample);
+                    *frame = AudioFrame::Stereo([sample, sample]);
                 }
             }
             (
@@ -135,13 +136,13 @@ impl AudioProcessor {
                 right_buffer.reserve(frames.len().saturating_sub(right_buffer.capacity()));
                 for frame in frames.iter() {
                     match frame {
-                        AudioFrame::Stereo([left_sample, right_sample]) => {
-                            left_buffer.push(*left_sample);
-                            right_buffer.push(*right_sample);
+                        AudioFrame::Stereo([l, r]) => {
+                            left_buffer.push(*l);
+                            right_buffer.push(*r);
                         }
-                        AudioFrame::Mono(_) => {
-                            debug_assert!(false, "dual-mono processor received mono frames");
-                            return;
+                        AudioFrame::Mono(s) => {
+                            left_buffer.push(*s);
+                            right_buffer.push(*s);
                         }
                     }
                 }
@@ -160,11 +161,8 @@ impl AudioProcessor {
                 stereo.reserve(frames.len().saturating_sub(stereo.capacity()));
                 for frame in frames.iter() {
                     match frame {
-                        AudioFrame::Stereo(stereo_frame) => stereo.push(*stereo_frame),
-                        AudioFrame::Mono(_) => {
-                            debug_assert!(false, "stereo processor received mono frames");
-                            return;
-                        }
+                        AudioFrame::Stereo(sf) => stereo.push(*sf),
+                        AudioFrame::Mono(s) => stereo.push([*s, *s]),
                     }
                 }
                 processor.process_block(stereo);
@@ -177,11 +175,8 @@ impl AudioProcessor {
                 stereo.reserve(frames.len().saturating_sub(stereo.capacity()));
                 for frame in frames.iter() {
                     match frame {
-                        AudioFrame::Mono(sample) => stereo.push([*sample, *sample]),
-                        AudioFrame::Stereo(_) => {
-                            debug_assert!(false, "mono-to-stereo processor received stereo frames");
-                            return;
-                        }
+                        AudioFrame::Mono(s) => stereo.push([*s, *s]),
+                        AudioFrame::Stereo(sf) => stereo.push(*sf),
                     }
                 }
                 processor.process_block(stereo);
@@ -196,19 +191,20 @@ impl AudioProcessor {
     }
 }
 
+/// An error produced by a block processor during audio processing.
+#[derive(Debug, Clone)]
+pub struct BlockError {
+    pub block_id: BlockId,
+    pub message: String,
+}
+
 pub struct ChainRuntimeState {
     processing: Mutex<ChainProcessingState>,
     output: Mutex<ChainOutputState>,
-    /// Tuner samples written by audio thread, read+cleared by UI thread.
-    tuner_shared_buffer: Mutex<Vec<f32>>,
-    /// Tuner state owned by UI thread only (never touched by audio).
-    pub tuner_reading: Mutex<block_util::TunerReading>,
-    /// Smoothed frequency for stable display (EMA filtered).
-    tuner_smoothed_freq: Mutex<Option<f32>>,
-    /// Consecutive polls with no detection — clears reading after threshold.
-    tuner_miss_count: AtomicU64,
-    /// Sample rate for pitch detection (Hz).
-    sample_rate: f32,
+    /// Stream handles published by block processors, polled by UI thread.
+    stream_handles: Mutex<HashMap<BlockId, StreamHandle>>,
+    /// Errors posted by the audio thread, drained by the UI thread.
+    error_queue: Mutex<Vec<BlockError>>,
     #[allow(dead_code)]
     last_input_nanos: AtomicU64,
     measured_latency_nanos: AtomicU64,
@@ -219,78 +215,20 @@ impl ChainRuntimeState {
         let nanos = self.measured_latency_nanos.load(std::sync::atomic::Ordering::Relaxed);
         nanos as f32 / 1_000_000.0
     }
-    /// Called from audio thread: append tuner samples (fast, non-blocking).
-    pub fn push_tuner_samples(&self, samples: &[f32]) {
-        if let Ok(mut buf) = self.tuner_shared_buffer.try_lock() {
-            buf.extend_from_slice(samples);
-            // Cap at 8192 to prevent unbounded growth
-            if buf.len() > 8192 {
-                let start = buf.len() - 4096;
-                buf.drain(..start);
-            }
-        }
+
+    /// Returns stream data for a block by ID, or None if not found or empty.
+    pub fn poll_stream(&self, block_id: &BlockId) -> Option<Vec<block_core::StreamEntry>> {
+        let handles = self.stream_handles.lock().ok()?;
+        let handle = handles.get(block_id)?;
+        let entries = handle.lock().ok()?;
+        if entries.is_empty() { None } else { Some(entries.clone()) }
     }
 
-    /// Called from UI thread: run detection on accumulated samples.
-    pub fn poll_tuner(&self) -> Option<block_util::TunerReading> {
-        // Need ~46ms of audio for reliable pitch detection
-        let min_samples = (self.sample_rate * 0.046) as usize;
-        // Grab samples quickly
-        let samples = {
-            let mut buf = self.tuner_shared_buffer.try_lock().ok()?;
-            if buf.len() < min_samples {
-                return self.tuner_reading.try_lock().ok().and_then(|r| {
-                    if r.frequency.is_some() { Some(r.clone()) } else { None }
-                });
-            }
-            let s = buf.clone();
-            buf.clear();
-            s
-        };
-
-        // Run detection outside any lock (takes ~1ms, fine for UI thread)
-        let reading = detect_pitch(&samples, self.sample_rate);
-
-        if let Some(raw_freq) = reading.frequency {
-            self.tuner_miss_count.store(0, std::sync::atomic::Ordering::Relaxed);
-
-            // EMA smoothing: blend with previous frequency for stable display.
-            // Snap to new value if pitch jumps >5% (new note).
-            let smoothed = if let Ok(mut prev) = self.tuner_smoothed_freq.try_lock() {
-                let freq = match *prev {
-                    Some(p) if (raw_freq - p).abs() / p < 0.05 => {
-                        // Same note — heavy smoothing (alpha=0.15)
-                        p * 0.85 + raw_freq * 0.15
-                    }
-                    _ => raw_freq, // New note or first reading — snap
-                };
-                *prev = Some(freq);
-                freq
-            } else {
-                raw_freq
-            };
-
-            let smoothed_reading = block_util::TunerReading::from(Some(smoothed));
-            if let Ok(mut tr) = self.tuner_reading.try_lock() {
-                *tr = smoothed_reading.clone();
-            }
-            Some(smoothed_reading)
-        } else {
-            // Allow ~5s of silence before clearing (100 polls at 50ms)
-            let misses = self.tuner_miss_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
-            if misses >= 100 {
-                if let Ok(mut tr) = self.tuner_reading.try_lock() {
-                    *tr = block_util::TunerReading::default();
-                }
-                if let Ok(mut sf) = self.tuner_smoothed_freq.try_lock() {
-                    *sf = None;
-                }
-                None
-            } else {
-                self.tuner_reading.try_lock().ok().and_then(|r| {
-                    if r.frequency.is_some() { Some(r.clone()) } else { None }
-                })
-            }
+    /// Drains and returns all block errors posted since the last call.
+    pub fn poll_errors(&self) -> Vec<BlockError> {
+        match self.error_queue.lock() {
+            Ok(mut q) => std::mem::take(&mut *q),
+            Err(_) => vec![],
         }
     }
 }
@@ -315,7 +253,6 @@ struct ChainProcessingState {
     input_states: Vec<InputProcessingState>,
     /// Maps CPAL input_index → Vec of input_states indices to process.
     input_to_segments: Vec<Vec<usize>>,
-    tuner_samples: Vec<f32>,
     #[allow(dead_code)]
     mixed_buffer: Vec<AudioFrame>,
 }
@@ -332,10 +269,20 @@ struct ChainOutputState {
 
 enum RuntimeProcessor {
     Audio(AudioProcessor),
-    #[allow(dead_code)]
-    Tuner(Box<dyn TunerProcessor>),
     Select(SelectRuntimeState),
     Bypass,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum FadeState {
+    /// Fully active — no fade in progress.
+    Active,
+    /// Transitioning from bypass → active. frames_remaining counts down.
+    FadingIn { frames_remaining: usize },
+    /// Transitioning from active → bypass. frames_remaining counts down.
+    FadingOut { frames_remaining: usize },
+    /// Fully bypassed — no audio processing needed.
+    Bypassed,
 }
 
 struct BlockRuntimeNode {
@@ -347,6 +294,11 @@ struct BlockRuntimeNode {
     output_layout: AudioChannelLayout,
     scratch: ProcessorScratch,
     processor: RuntimeProcessor,
+    stream_handle: Option<StreamHandle>,
+    fade_state: FadeState,
+    /// Set to true if this block panicked during audio processing.
+    /// Once faulted, the block is permanently bypassed to prevent repeated crashes.
+    faulted: bool,
 }
 
 struct SelectRuntimeState {
@@ -357,15 +309,10 @@ struct SelectRuntimeState {
 struct ProcessorBuildOutcome {
     processor: AudioProcessor,
     output_layout: AudioChannelLayout,
+    stream_handle: Option<StreamHandle>,
 }
 
 impl SelectRuntimeState {
-    fn selected_node(&self) -> Option<&BlockRuntimeNode> {
-        self.options
-            .iter()
-            .find(|option| option.block_id == self.selected_block_id)
-    }
-
     fn selected_node_mut(&mut self) -> Option<&mut BlockRuntimeNode> {
         self.options
             .iter_mut()
@@ -396,18 +343,18 @@ pub fn build_runtime_graph(
 }
 
 pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<ChainRuntimeState> {
-    let eff_inputs = effective_inputs(chain);
+    let (eff_inputs, eff_input_cpal_indices) = effective_inputs(chain);
     let eff_outputs = effective_outputs(chain);
     log::info!("=== CHAIN '{}' RUNTIME BUILD ===", chain.id.0);
     log::info!("  inputs: {}", eff_inputs.len());
     for (i, inp) in eff_inputs.iter().enumerate() {
-        log::info!("    input[{}]: '{}' dev='{}' ch={:?}", i, inp.name, inp.device_id.0.split(':').last().unwrap_or("?"), inp.channels);
+        log::info!("    input[{}]: 'input #{}' dev='{}' ch={:?} cpal_stream={}", i, i, inp.device_id.0.split(':').last().unwrap_or("?"), inp.channels, eff_input_cpal_indices[i]);
     }
     log::info!("  outputs: {}", eff_outputs.len());
     for (i, out) in eff_outputs.iter().enumerate() {
-        log::info!("    output[{}]: '{}' dev='{}' ch={:?}", i, out.name, out.device_id.0.split(':').last().unwrap_or("?"), out.channels);
+        log::info!("    output[{}]: 'output #{}' dev='{}' ch={:?}", i, i, out.device_id.0.split(':').last().unwrap_or("?"), out.channels);
     }
-    let segments = split_chain_into_segments(chain, &eff_inputs, &eff_outputs);
+    let segments = split_chain_into_segments(chain, &eff_inputs, &eff_input_cpal_indices, &eff_outputs);
     log::info!("  segments: {}", segments.len());
     for (i, seg) in segments.iter().enumerate() {
         let block_names: Vec<String> = seg.block_indices.iter()
@@ -418,7 +365,7 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
                 _ => "?",
             }))
             .collect();
-        log::info!("    seg[{}]: input='{}' → blocks={:?} → output_routes={:?}", i, seg.input.name, block_names, seg.output_route_indices);
+        log::info!("    seg[{}]: input='input #{}' → blocks={:?} → output_routes={:?}", i, i, block_names, seg.output_route_indices);
     }
     log::info!("=== END CHAIN '{}' ===", chain.id.0);
 
@@ -455,19 +402,25 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
         output_routes.push(Arc::new(Mutex::new(build_output_routing_state(output))));
     }
 
+    // Collect stream handles from all blocks across all input states
+    let mut stream_handles_map: HashMap<BlockId, StreamHandle> = HashMap::new();
+    for input_state in &input_states {
+        for block in &input_state.blocks {
+            if let Some(ref handle) = block.stream_handle {
+                stream_handles_map.insert(block.block_id.clone(), Arc::clone(handle));
+            }
+        }
+    }
+
     Ok(ChainRuntimeState {
         processing: Mutex::new(ChainProcessingState {
             input_states,
             input_to_segments,
-            tuner_samples: Vec::new(),
             mixed_buffer: Vec::with_capacity(1024),
         }),
         output: Mutex::new(ChainOutputState { output_routes }),
-        tuner_shared_buffer: Mutex::new(Vec::with_capacity(8192)),
-        tuner_reading: Mutex::new(block_util::TunerReading::default()),
-        tuner_smoothed_freq: Mutex::new(None),
-        tuner_miss_count: AtomicU64::new(0),
-        sample_rate,
+        stream_handles: Mutex::new(stream_handles_map),
+        error_queue: Mutex::new(Vec::new()),
         last_input_nanos: AtomicU64::new(0),
         measured_latency_nanos: AtomicU64::new(0),
     })
@@ -476,8 +429,12 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
 /// Build effective input entries from chain's InputBlock entries, plus Insert return entries.
 /// Order: InputBlock entries first, then Insert return entries (matches CPAL stream order).
 /// Falls back to a single mono input on channel 0 if no InputBlocks exist and no Inserts.
-fn effective_inputs(chain: &Chain) -> Vec<InputEntry> {
-    let mut entries: Vec<InputEntry> = chain.blocks.iter()
+/// Returns (effective_entries, cpal_stream_index_per_entry).
+/// cpal_stream_index maps each effective entry back to the CPAL stream
+/// that provides its audio data. Entries split from the same original
+/// entry share the same CPAL stream index.
+fn effective_inputs(chain: &Chain) -> (Vec<InputEntry>, Vec<usize>) {
+    let raw_entries: Vec<InputEntry> = chain.blocks.iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
             AudioBlockKind::Input(ib) => Some(ib),
@@ -486,7 +443,42 @@ fn effective_inputs(chain: &Chain) -> Vec<InputEntry> {
         .flat_map(|ib| ib.entries.iter().cloned())
         .collect();
 
+    // Mono entries with multiple channels: split into one entry per channel
+    // so each channel gets its own isolated processing stream.
+    //
+    // cpal_indices maps each effective entry to the CPAL stream index.
+    // Entries sharing the same device get the same CPAL stream index
+    // (infra-cpal deduplicates streams by device).
+    let mut entries: Vec<InputEntry> = Vec::new();
+    let mut cpal_indices: Vec<usize> = Vec::new();
+    let mut device_to_cpal: HashMap<String, usize> = HashMap::new();
+    let mut next_cpal_idx: usize = 0;
+
+    for entry in raw_entries.iter() {
+        let device_key = entry.device_id.0.clone();
+        let cpal_idx = *device_to_cpal.entry(device_key).or_insert_with(|| {
+            let idx = next_cpal_idx;
+            next_cpal_idx += 1;
+            idx
+        });
+
+        if matches!(entry.mode, ChainInputMode::Mono) && entry.channels.len() > 1 {
+            for &ch in &entry.channels {
+                entries.push(InputEntry {
+                    device_id: entry.device_id.clone(),
+                    mode: ChainInputMode::Mono,
+                    channels: vec![ch],
+                });
+                cpal_indices.push(cpal_idx);
+            }
+        } else {
+            entries.push(entry.clone());
+            cpal_indices.push(cpal_idx);
+        }
+    }
+
     // Append Insert return entries (as inputs for segments after each Insert)
+    let insert_return_base = raw_entries.len();
     let insert_returns: Vec<InputEntry> = chain.blocks.iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
@@ -494,18 +486,20 @@ fn effective_inputs(chain: &Chain) -> Vec<InputEntry> {
             _ => None,
         })
         .collect();
-    entries.extend(insert_returns);
+    for (i, ret) in insert_returns.into_iter().enumerate() {
+        cpal_indices.push(insert_return_base + i);
+        entries.push(ret);
+    }
 
     if !entries.is_empty() {
-        return entries;
+        return (entries, cpal_indices);
     }
     // Fallback — no InputBlocks defined
-    vec![InputEntry {
-        name: "Input".to_string(),
+    (vec![InputEntry {
         device_id: domain::ids::DeviceId("".to_string()),
         mode: ChainInputMode::Mono,
         channels: vec![0],
-    }]
+    }], vec![0])
 }
 
 /// Build effective output entries from chain's OutputBlock entries, plus Insert send entries.
@@ -536,7 +530,6 @@ fn effective_outputs(chain: &Chain) -> Vec<OutputEntry> {
     }
     // Fallback — no OutputBlocks defined
     vec![OutputEntry {
-        name: "Output".to_string(),
         device_id: domain::ids::DeviceId("".to_string()),
         mode: ChainOutputMode::Mono,
         channels: vec![0],
@@ -546,7 +539,6 @@ fn effective_outputs(chain: &Chain) -> Vec<OutputEntry> {
 /// Convert an InsertBlock's return endpoint to an InputEntry.
 fn insert_return_as_input_entry(insert: &InsertBlock) -> InputEntry {
     InputEntry {
-        name: "Insert Return".to_string(),
         device_id: insert.return_.device_id.clone(),
         mode: insert.return_.mode,
         channels: insert.return_.channels.clone(),
@@ -556,7 +548,6 @@ fn insert_return_as_input_entry(insert: &InsertBlock) -> InputEntry {
 /// Convert an InsertBlock's send endpoint to an OutputEntry.
 fn insert_send_as_output_entry(insert: &InsertBlock) -> OutputEntry {
     OutputEntry {
-        name: "Insert Send".to_string(),
         device_id: insert.send.device_id.clone(),
         mode: match insert.send.mode {
             ChainInputMode::Mono => ChainOutputMode::Mono,
@@ -582,7 +573,7 @@ struct ChainSegment {
 ///   Segment 2: input=Insert return,      blocks=[Delay, Reverb], outputs=[OutputBlock entries]
 ///
 /// If no Insert blocks exist, a single segment covers the entire chain.
-fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], _effective_outs: &[OutputEntry]) -> Vec<ChainSegment> {
+fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], cpal_indices: &[usize], _effective_outs: &[OutputEntry]) -> Vec<ChainSegment> {
     // Count regular InputBlock entries and OutputBlock entries
     let regular_input_count: usize = chain.blocks.iter()
         .filter(|b| b.enabled)
@@ -624,7 +615,7 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], _effec
             }
         }
 
-        let input_count = if regular_input_count > 0 { regular_input_count } else { effective_ins.len() };
+        let input_count = effective_ins.len();
         let mut segments = Vec::new();
 
         for &(out_pos, out_entry_idx) in &output_positions {
@@ -641,7 +632,7 @@ fn split_chain_into_segments(chain: &Chain, effective_ins: &[InputEntry], _effec
             for in_idx in 0..input_count {
                 segments.push(ChainSegment {
                     input: effective_ins[in_idx].clone(),
-                    cpal_input_index: in_idx,
+                    cpal_input_index: cpal_indices.get(in_idx).copied().unwrap_or(in_idx),
                     block_indices: block_indices.clone(),
                     output_route_indices: vec![out_entry_idx],
                 });
@@ -774,10 +765,10 @@ fn build_input_processing_state(
         output_channels,
         input.mode,
     );
-    let processing_layout_channel = match proc_layout {
-        ProcessingLayout::Mono | ProcessingLayout::DualMono => AudioChannelLayout::Mono,
-        ProcessingLayout::Stereo => AudioChannelLayout::Stereo,
-    };
+    // Chain processing bus is ALWAYS stereo. Mono blocks convert
+    // stereo→mono on input and mono→stereo on output transparently.
+    let _ = proc_layout;
+    let processing_layout_channel = AudioChannelLayout::Stereo;
     let input_read_layout = match input.mode {
         ChainInputMode::Mono => AudioChannelLayout::Mono,
         ChainInputMode::Stereo | ChainInputMode::DualMono => AudioChannelLayout::Stereo,
@@ -790,6 +781,7 @@ fn build_input_processing_state(
         input.channels,
         input.mode,
     );
+    let had_existing = existing_blocks.is_some();
     let (blocks, _output_layout) =
         build_runtime_block_nodes(chain, processing_layout_channel, sample_rate, existing_blocks, block_indices)?;
 
@@ -799,7 +791,7 @@ fn build_input_processing_state(
         input_channels: input.channels.clone(),
         blocks,
         frame_buffer: Vec::with_capacity(1024),
-        fade_in_remaining: FADE_IN_FRAMES,
+        fade_in_remaining: if had_existing { 0 } else { FADE_IN_FRAMES },
         output_route_indices,
     })
 }
@@ -826,9 +818,9 @@ pub fn update_chain_runtime_state(
     sample_rate: f32,
     reset_output_queue: bool,
 ) -> Result<()> {
-    let effective_ins = effective_inputs(chain);
+    let (effective_ins, eff_input_cpal_indices) = effective_inputs(chain);
     let effective_outs = effective_outputs(chain);
-    let segments = split_chain_into_segments(chain, &effective_ins, &effective_outs);
+    let segments = split_chain_into_segments(chain, &effective_ins, &eff_input_cpal_indices, &effective_outs);
 
     // Step 1: Extract existing blocks from all input states (brief lock)
     let mut existing_per_input: Vec<Vec<BlockRuntimeNode>> = {
@@ -852,7 +844,7 @@ pub fn update_chain_runtime_state(
             .filter_map(|&idx| effective_outs.get(idx))
             .flat_map(|e| e.channels.iter().copied())
             .collect();
-        let input_state = build_input_processing_state(
+        let input_state = match build_input_processing_state(
             chain,
             &segment.input,
             &segment_output_channels,
@@ -860,7 +852,20 @@ pub fn update_chain_runtime_state(
             existing,
             Some(&segment.block_indices),
             segment.output_route_indices.clone(),
-        )?;
+        ) {
+            Ok(state) => state,
+            Err(e) => {
+                // Restore previously-extracted blocks so the chain keeps playing
+                log::error!("[engine] rebuild failed for chain '{}': {e} — restoring previous state", chain.id.0);
+                let mut processing = runtime.processing.lock().expect("chain runtime poisoned");
+                for (is, old_blocks) in processing.input_states.iter_mut().zip(existing_per_input.into_iter()) {
+                    if is.blocks.is_empty() {
+                        is.blocks = old_blocks;
+                    }
+                }
+                return Err(e);
+            }
+        };
         new_input_states.push(input_state);
     }
 
@@ -869,6 +874,20 @@ pub fn update_chain_runtime_state(
         .iter()
         .map(|o| Arc::new(Mutex::new(build_output_routing_state(o))))
         .collect();
+
+    // Step 2.5: Refresh stream_handles — picks up new handles from rebuilt blocks
+    // (e.g. block param changed → new processor → new Arc; old Arc in map would be stale)
+    {
+        let mut handles = runtime.stream_handles.lock().expect("stream_handles poisoned");
+        handles.clear();
+        for input_state in &new_input_states {
+            for block in &input_state.blocks {
+                if let Some(ref handle) = block.stream_handle {
+                    handles.insert(block.block_id.clone(), Arc::clone(handle));
+                }
+            }
+        }
+    }
 
     // Step 3: Swap in new state (brief lock)
     {
@@ -957,8 +976,12 @@ fn build_runtime_block_nodes(
         // for instant re-enable), otherwise create a bypass node.
         if !block.enabled {
             if let Some(mut node) = reusable_nodes.remove(&block.id) {
+                let was_enabled = node.block_snapshot.enabled;
                 node.block_snapshot = block.clone();
-                // Keep the processor alive but don't change layout
+                // If block was just disabled, start a fade-out instead of hard-cutting
+                if was_enabled && !matches!(node.processor, RuntimeProcessor::Bypass) {
+                    node.fade_state = FadeState::FadingOut { frames_remaining: FADE_IN_FRAMES };
+                }
                 blocks.push(node);
             } else {
                 blocks.push(bypass_runtime_node(block, current_layout));
@@ -998,9 +1021,20 @@ fn build_runtime_block_nodes(
                 log::info!("[engine]   {} = {:?}", path, value);
             }
         }
-        let node = build_block_runtime_node(chain, block, current_layout, sample_rate)?;
-        current_layout = node.output_layout;
-        blocks.push(node);
+        match build_block_runtime_node(chain, block, current_layout, sample_rate) {
+            Ok(node) => {
+                current_layout = node.output_layout;
+                blocks.push(node);
+            }
+            Err(e) => {
+                // Don't fail the whole chain — bypass this block and keep going
+                log::error!("[engine] block {:?} (id={}) build failed: {e} — inserting faulted bypass",
+                    block.model_ref().map(|m| m.model.to_string()), block.id.0);
+                let mut node = bypass_runtime_node(block, current_layout);
+                node.faulted = true;
+                blocks.push(node);
+            }
+        }
     }
 
     Ok((blocks, current_layout))
@@ -1013,19 +1047,32 @@ fn try_reuse_block_node(
 ) -> Option<BlockRuntimeNode> {
     let mut node = reusable_nodes.remove(&block.id)?;
     if node.input_layout != current_layout {
+        log::debug!("[engine] cannot reuse block id={}: layout changed ({:?} → {:?})",
+            block.id.0, node.input_layout, current_layout);
         return None;
     }
     // Exact match — reuse as-is
     if node.block_snapshot == *block {
         return Some(node);
     }
-    // Only enabled changed — reuse processor, update snapshot
+    // Only enabled changed — reuse processor, update snapshot.
+    // Exception: if the node is a Bypass (block was built while disabled and has no real
+    // processor or stream_handle), enabling it requires a full rebuild.
     let mut snapshot_without_enabled = node.block_snapshot.clone();
     snapshot_without_enabled.enabled = block.enabled;
     if snapshot_without_enabled == *block {
+        if matches!(node.processor, RuntimeProcessor::Bypass) && block.enabled {
+            return None; // force rebuild so we get a real processor + stream_handle
+        }
+        let was_disabled = !node.block_snapshot.enabled;
         node.block_snapshot = block.clone();
+        // If block was just enabled, start a fade-in
+        if was_disabled && block.enabled {
+            node.fade_state = FadeState::FadingIn { frames_remaining: FADE_IN_FRAMES };
+        }
         return Some(node);
     }
+    log::info!("[engine] cannot reuse block id={}: snapshot differs (params or kind changed)", block.id.0);
     None
 }
 
@@ -1127,19 +1174,29 @@ fn build_core_block_runtime_node(
                 build_reverb_processor_for_layout(model, params, sample_rate, layout)
             })?,
         )),
-        EFFECT_TYPE_UTILITY => Ok(BlockRuntimeNode {
-            instance_serial: next_block_instance_serial(),
-            block_id: block.id.clone(),
-            block_snapshot: block.clone(),
-            input_layout,
-            output_layout: input_layout,
-            scratch: ProcessorScratch::Mono(Vec::new()),
-            processor: RuntimeProcessor::Tuner(build_utility_processor(
+        EFFECT_TYPE_UTILITY => {
+            let mut captured_stream: Option<StreamHandle> = None;
+            let mut outcome = build_audio_processor_for_model(
+                chain,
+                EFFECT_TYPE_UTILITY,
                 model,
-                params,
-                sample_rate.round() as usize,
-            )?),
-        }),
+                input_layout,
+                |layout| {
+                    let (bp, sh) = build_utility_processor_for_layout(
+                        model,
+                        params,
+                        sample_rate.round() as usize,
+                        layout,
+                    )?;
+                    if captured_stream.is_none() {
+                        captured_stream = sh;
+                    }
+                    Ok(bp)
+                },
+            )?;
+            outcome.stream_handle = captured_stream;
+            Ok(audio_block_runtime_node(block, input_layout, outcome))
+        },
         EFFECT_TYPE_DYNAMICS => Ok(audio_block_runtime_node(
             block,
             input_layout,
@@ -1175,6 +1232,52 @@ fn build_core_block_runtime_node(
                 build_pitch_processor_for_layout(model, params, sample_rate, layout)
             })?,
         )),
+        x if x == block_core::EFFECT_TYPE_VST3 => {
+            let entry = vst3_host::find_vst3_plugin(model)
+                .ok_or_else(|| anyhow!("VST3 plugin '{}' not found in catalog", model))?;
+            let bundle_path = entry.info.bundle_path.clone();
+            // Resolve UID lazily if not available from moduleinfo.json.
+            let uid = vst3_host::resolve_uid_for_model(model)
+                .map_err(|e| anyhow!("VST3 UID resolution failed for '{}': {}", model, e))?;
+            // Convert stored params (path="p{id}", value=0–100%) to VST3 normalized pairs.
+            let vst3_params: Vec<(u32, f64)> = params
+                .values
+                .iter()
+                .filter_map(|(path, value)| {
+                    let id_str = path.strip_prefix('p')?;
+                    let id: u32 = id_str.parse().ok()?;
+                    let pct = value.as_f32()?;
+                    Some((id, (pct / 100.0).clamp(0.0, 1.0) as f64))
+                })
+                .collect();
+            // Load the plugin once so we can extract the controller and library
+            // Arc before building the processor. This allows the GUI to reuse
+            // the same IEditController instead of creating a second instance
+            // (which fails for plugins like ValhallaSupermassive).
+            const VST3_BLOCK_SIZE: usize = 512;
+            let plugin = vst3_host::Vst3Plugin::load(
+                &bundle_path, &uid, sample_rate as f64, 2, VST3_BLOCK_SIZE, &vst3_params,
+            ).map_err(|e| anyhow!("VST3 load failed for '{}': {}", model, e))?;
+            // Register GUI context: shared controller + library Arc + param channel.
+            let param_channel = vst3_host::register_vst3_gui_context(
+                model,
+                plugin.controller_clone(),
+                plugin.library_arc(),
+            );
+            // Wrap in Option so we can move the plugin out of the FnMut closure
+            // (VST3 MonoToStereo schema guarantees the closure is called exactly once).
+            let mut plugin_opt = Some(plugin);
+            Ok(audio_block_runtime_node(
+                block,
+                input_layout,
+                build_audio_processor_for_model(chain, block_core::EFFECT_TYPE_VST3, model, input_layout, |layout| {
+                    let p = plugin_opt.take().ok_or_else(|| anyhow!("VST3 plugin consumed twice"))?;
+                    Ok(vst3_host::build_vst3_processor_from_plugin(
+                        p, layout, param_channel.clone(),
+                    ))
+                })?,
+            ))
+        }
         other => Err(anyhow!("unsupported core block effect_type '{}'", other)),
     }
 }
@@ -1187,6 +1290,7 @@ fn build_select_runtime_node(
     sample_rate: f32,
     existing: Option<BlockRuntimeNode>,
 ) -> Result<BlockRuntimeNode> {
+    let is_new = existing.is_none();
     let (instance_serial, mut reusable_option_nodes) = match existing {
         Some(node) => {
             let instance_serial = node.instance_serial;
@@ -1244,6 +1348,13 @@ fn build_select_runtime_node(
             selected_block_id: select.selected_block_id.clone(),
             options: option_nodes,
         }),
+        stream_handle: None,
+        fade_state: if is_new {
+            FadeState::FadingIn { frames_remaining: FADE_IN_FRAMES }
+        } else {
+            FadeState::Active
+        },
+        faulted: false,
     })
 }
 
@@ -1259,6 +1370,9 @@ fn bypass_runtime_node(
         output_layout: input_layout,
         scratch: ProcessorScratch::None,
         processor: RuntimeProcessor::Bypass,
+        stream_handle: None,
+        fade_state: FadeState::Bypassed,
+        faulted: false,
     }
 }
 
@@ -1276,6 +1390,9 @@ fn audio_block_runtime_node(
         output_layout: outcome.output_layout,
         scratch,
         processor: RuntimeProcessor::Audio(outcome.processor),
+        stream_handle: outcome.stream_handle,
+        fade_state: FadeState::FadingIn { frames_remaining: FADE_IN_FRAMES },
+        faulted: false,
     }
 }
 
@@ -1327,7 +1444,8 @@ where
         })?;
 
     let processor = match (schema.audio_mode, input_layout) {
-        (ModelAudioMode::MonoOnly, AudioChannelLayout::Mono) => {
+        // MonoOnly: build mono processor — process_buffer handles stereo↔mono conversion
+        (ModelAudioMode::MonoOnly, _) => {
             AudioProcessor::Mono(expect_mono_processor(
                 builder(AudioChannelLayout::Mono)?,
                 chain,
@@ -1396,6 +1514,7 @@ where
     Ok(ProcessorBuildOutcome {
         processor,
         output_layout,
+        stream_handle: None,
     })
 }
 
@@ -1484,36 +1603,61 @@ pub fn process_input_f32(
             })
     };
 
-    // Process each segment independently
+    // Process each segment, collect results keyed by output route
+    let mut mixed_per_route: HashMap<usize, Vec<AudioFrame>> = HashMap::new();
     for &seg_idx in &segment_indices {
-        // Lock processing, process this segment, collect frames, unlock
         let result = {
             let mut processing = match runtime.processing.try_lock() {
                 Ok(guard) => guard,
                 Err(_) => continue,
             };
-            process_single_segment(&mut processing, seg_idx, data, input_total_channels, num_frames, runtime)
+            process_single_segment(&mut processing, seg_idx, data, input_total_channels, num_frames, &runtime.error_queue)
         };
-        // Push to output (processing lock already released)
         if let Some((processed, route_indices)) = result {
-            // Collect Arc refs with a brief lock on output state
-            let route_arcs: Vec<Arc<Mutex<OutputRoutingState>>> = {
-                if let Ok(output) = runtime.output.try_lock() {
-                    route_indices.iter()
-                        .filter_map(|&idx| output.output_routes.get(idx).map(Arc::clone))
-                        .collect()
+            for &route_idx in &route_indices {
+                let buf = mixed_per_route.entry(route_idx).or_insert_with(Vec::new);
+                if buf.is_empty() {
+                    // First segment for this route — just copy
+                    *buf = processed.clone();
                 } else {
-                    continue;
+                    // Sum with existing frames
+                    for (i, &frame) in processed.iter().enumerate() {
+                        if i < buf.len() {
+                            buf[i] = match (buf[i], frame) {
+                                (AudioFrame::Stereo([l1, r1]), AudioFrame::Stereo([l2, r2])) =>
+                                    AudioFrame::Stereo([l1 + l2, r1 + r2]),
+                                (AudioFrame::Mono(a), AudioFrame::Mono(b)) =>
+                                    AudioFrame::Mono(a + b),
+                                (AudioFrame::Stereo([l, r]), AudioFrame::Mono(m)) =>
+                                    AudioFrame::Stereo([l + m, r + m]),
+                                (AudioFrame::Mono(m), AudioFrame::Stereo([l, r])) =>
+                                    AudioFrame::Stereo([m + l, m + r]),
+                            };
+                        }
+                    }
                 }
+            }
+        }
+    }
+
+    // Push mixed frames to output routes
+    let route_arcs: Vec<(usize, Arc<Mutex<OutputRoutingState>>)> = {
+        if let Ok(output) = runtime.output.try_lock() {
+            mixed_per_route.keys()
+                .filter_map(|&idx| output.output_routes.get(idx).map(|arc| (idx, Arc::clone(arc))))
+                .collect()
+        } else {
+            return;
+        }
+    };
+    for (route_idx, route_arc) in &route_arcs {
+        if let Some(frames) = mixed_per_route.get(route_idx) {
+            let mut route = match route_arc.lock() {
+                Ok(g) => g,
+                Err(e) => e.into_inner(),
             };
-            // Lock each route individually — brief wait is acceptable since
-            // output pop is fast (VecDeque pop). Dropping frames with try_lock
-            // causes audible clicks on the affected output.
-            for route_arc in &route_arcs {
-                let mut route = route_arc.lock().expect("route poisoned");
-                for &frame in &processed {
-                    route.buffer.push(frame);
-                }
+            for &frame in frames {
+                route.buffer.push(frame);
             }
         }
     }
@@ -1525,12 +1669,11 @@ fn process_single_segment(
     data: &[f32],
     input_total_channels: usize,
     num_frames: usize,
-    runtime: &Arc<ChainRuntimeState>,
+    error_queue: &Mutex<Vec<BlockError>>,
 ) -> Option<(Vec<AudioFrame>, Vec<usize>)> {
     let ChainProcessingState {
         input_states,
         input_to_segments: _,
-        tuner_samples,
         mixed_buffer: _,
     } = processing;
 
@@ -1549,16 +1692,9 @@ fn process_single_segment(
         output_route_indices: _,
     } = input_state;
 
-    let tuner_enabled = blocks.iter().any(block_has_active_tuner);
-
     frame_buffer.clear();
     if num_frames > frame_buffer.capacity() {
         frame_buffer.reserve(num_frames - frame_buffer.capacity());
-    }
-
-    tuner_samples.clear();
-    if tuner_enabled && num_frames > tuner_samples.capacity() {
-        tuner_samples.reserve(num_frames - tuner_samples.capacity());
     }
 
     for frame in data.chunks(input_total_channels).take(num_frames) {
@@ -1573,18 +1709,11 @@ fn process_single_segment(
             }
             _ => raw_frame,
         };
-        if tuner_enabled {
-            tuner_samples.push(chain_frame.mono_mix());
-        }
         frame_buffer.push(chain_frame);
     }
 
-    if tuner_enabled && !tuner_samples.is_empty() {
-        runtime.push_tuner_samples(tuner_samples);
-    }
-
     for block in blocks.iter_mut() {
-        process_audio_block(block, frame_buffer.as_mut_slice());
+        process_audio_block(block, frame_buffer.as_mut_slice(), error_queue);
     }
 
     if *fade_in_remaining > 0 {
@@ -1607,158 +1736,121 @@ fn process_single_segment(
     Some((processed, segment_routes))
 }
 
-fn block_has_active_tuner(block: &BlockRuntimeNode) -> bool {
-    match &block.processor {
-        RuntimeProcessor::Tuner(_) => true,
-        RuntimeProcessor::Select(select) => select
-            .selected_node()
-            .map(block_has_active_tuner)
-            .unwrap_or(false),
-        RuntimeProcessor::Audio(_) | RuntimeProcessor::Bypass => false,
+fn process_audio_block(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame], error_queue: &Mutex<Vec<BlockError>>) {
+    // Copy the fade state (it's Copy) so we can call apply_block_processor without
+    // holding a borrow into block.fade_state at the same time.
+    match block.fade_state {
+        FadeState::Bypassed => {
+            // Fully bypassed — no processing, no fade. Hard skip.
+        }
+        FadeState::Active => {
+            apply_block_processor(block, frames, error_queue);
+        }
+        FadeState::FadingIn { frames_remaining } => {
+            // Crossfade: dry → wet (block fading in)
+            let dry: Vec<AudioFrame> = frames.to_vec();
+            apply_block_processor(block, frames, error_queue);
+            let fade_total = FADE_IN_FRAMES as f32;
+            for (i, frame) in frames.iter_mut().enumerate() {
+                if frames_remaining <= i {
+                    break;
+                }
+                let remaining = frames_remaining - i;
+                // progress: 0.0 at start of fade, 1.0 at end
+                let progress = 1.0 - (remaining as f32 / fade_total);
+                let wet_gain = 0.5 * (1.0 - (std::f32::consts::PI * progress).cos());
+                let dry_gain = 1.0 - wet_gain;
+                blend_frame(frame, dry[i], dry_gain, wet_gain);
+            }
+            let new_remaining = frames_remaining.saturating_sub(frames.len());
+            block.fade_state = if new_remaining == 0 {
+                FadeState::Active
+            } else {
+                FadeState::FadingIn { frames_remaining: new_remaining }
+            };
+        }
+        FadeState::FadingOut { frames_remaining } => {
+            // Crossfade: wet → dry (block fading out / being disabled)
+            // We still process audio so we can fade out smoothly
+            let dry: Vec<AudioFrame> = frames.to_vec();
+            apply_block_processor(block, frames, error_queue);
+            let fade_total = FADE_IN_FRAMES as f32;
+            for (i, frame) in frames.iter_mut().enumerate() {
+                if frames_remaining <= i {
+                    break;
+                }
+                let remaining = frames_remaining - i;
+                // progress: 0.0 at start of fade-out, 1.0 at end
+                let progress = 1.0 - (remaining as f32 / fade_total);
+                // wet_gain: 1.0 at start, 0.0 at end (cosine fade-out)
+                let wet_gain = 0.5 * (1.0 + (std::f32::consts::PI * progress).cos());
+                let dry_gain = 1.0 - wet_gain;
+                blend_frame(frame, dry[i], dry_gain, wet_gain);
+            }
+            let new_remaining = frames_remaining.saturating_sub(frames.len());
+            block.fade_state = if new_remaining == 0 {
+                FadeState::Bypassed
+            } else {
+                FadeState::FadingOut { frames_remaining: new_remaining }
+            };
+        }
     }
 }
 
-/// YIN pitch detection — runs on UI thread, NOT audio thread.
-/// Based on "YIN, a fundamental frequency estimator for speech and music"
-/// (de Cheveigné & Kawahara, 2002).
-fn detect_pitch(samples: &[f32], sample_rate: f32) -> block_util::TunerReading {
-    let len = samples.len();
-    let rms = (samples.iter().map(|s| s * s).sum::<f32>() / len as f32).sqrt();
-    if rms < 0.005 || len < 512 {
-        return block_util::TunerReading::default();
-    }
-
-    let min_period = (sample_rate / 1200.0).max(2.0) as usize; // ~1200 Hz max (above high E)
-    let max_period = (sample_rate / 55.0) as usize;  // ~55 Hz min (below A1)
-    let half = len / 2;
-    let search_max = max_period.min(half);
-
-    if search_max <= min_period {
-        return block_util::TunerReading::default();
-    }
-
-    // Step 1-2: Difference function d(tau)
-    let mut d = vec![0.0_f32; search_max];
-    for tau in 1..search_max {
-        let mut sum = 0.0_f32;
-        for i in 0..half {
-            let diff = samples[i] - samples[i + tau];
-            sum += diff * diff;
-        }
-        d[tau] = sum;
-    }
-
-    // Step 3: Cumulative mean normalized difference d'(tau)
-    let mut d_prime = vec![0.0_f32; search_max];
-    d_prime[0] = 1.0;
-    let mut running_sum = 0.0_f32;
-    for tau in 1..search_max {
-        running_sum += d[tau];
-        d_prime[tau] = if running_sum > 0.0 {
-            d[tau] * tau as f32 / running_sum
-        } else {
-            1.0
-        };
-    }
-
-    // Step 4: Absolute threshold — find first tau where d'(tau) < threshold
-    let threshold = 0.15_f32;
-    let mut best_tau = 0;
-    for tau in min_period..search_max {
-        if d_prime[tau] < threshold {
-            // Find the local minimum after this dip
-            best_tau = tau;
-            while best_tau + 1 < search_max && d_prime[best_tau + 1] < d_prime[best_tau] {
-                best_tau += 1;
-            }
-            break;
-        }
-    }
-
-    // Fallback: if no dip below threshold, pick the global minimum
-    if best_tau == 0 {
-        let mut global_min = f32::MAX;
-        for tau in min_period..search_max {
-            if d_prime[tau] < global_min {
-                global_min = d_prime[tau];
-                best_tau = tau;
-            }
-        }
-        // Reject if global minimum is still high (no clear pitch)
-        if global_min > 0.4 {
-            return block_util::TunerReading::default();
-        }
-    }
-
-    if best_tau == 0 {
-        return block_util::TunerReading::default();
-    }
-
-    // Step 5: Parabolic interpolation for sub-sample accuracy
-    let freq = if best_tau > 0 && best_tau + 1 < search_max {
-        let alpha = d_prime[best_tau - 1];
-        let beta = d_prime[best_tau];
-        let gamma = d_prime[best_tau + 1];
-        let denom = 2.0 * (2.0 * beta - alpha - gamma);
-        let shift = if denom.abs() > 1e-10 {
-            (alpha - gamma) / denom
-        } else {
-            0.0
-        };
-        sample_rate / (best_tau as f32 + shift)
-    } else {
-        sample_rate / best_tau as f32
-    };
-
-    block_util::TunerReading::from(Some(freq))
-}
-
-#[allow(dead_code)]
-fn extract_tuner_reading(block: &mut BlockRuntimeNode) -> Option<block_util::TunerReading> {
-    match &mut block.processor {
-        RuntimeProcessor::Tuner(tuner) => {
-            let r = tuner.latest_reading();
-            if r.frequency.is_some() { Some(r.clone()) } else { None }
-        }
-        RuntimeProcessor::Select(select) => {
-            select.selected_node_mut().and_then(extract_tuner_reading)
-        }
-        _ => None,
-    }
-}
-
-#[allow(dead_code)]
-fn process_tuners(block: &mut BlockRuntimeNode, tuner_samples: &[f32]) {
-    match &mut block.processor {
-        RuntimeProcessor::Tuner(tuner) => {
-            if !tuner_samples.is_empty() {
-                tuner.process(tuner_samples);
-            }
-        }
-        RuntimeProcessor::Select(select) => {
-            if let Some(selected) = select.selected_node_mut() {
-                process_tuners(selected, tuner_samples);
-            }
-        }
-        RuntimeProcessor::Audio(_) | RuntimeProcessor::Bypass => {}
-    }
-}
-
-fn process_audio_block(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame]) {
-    // Skip disabled blocks (processor is kept alive for instant re-enable)
-    if !block.block_snapshot.enabled {
+fn apply_block_processor(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame], error_queue: &Mutex<Vec<BlockError>>) {
+    if block.faulted {
         return;
     }
     match &mut block.processor {
         RuntimeProcessor::Audio(processor) => {
-            processor.process_buffer(frames, &mut block.scratch);
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                processor.process_buffer(frames, &mut block.scratch);
+            }));
+            if let Err(payload) = result {
+                block.faulted = true;
+                for frame in frames.iter_mut() {
+                    *frame = AudioFrame::Stereo([0.0, 0.0]);
+                }
+                let msg = downcast_panic_message(payload);
+                log::error!("block '{}' panicked — permanently bypassed: {}", block.block_id.0, msg);
+                if let Ok(mut q) = error_queue.try_lock() {
+                    q.push(BlockError { block_id: block.block_id.clone(), message: msg });
+                }
+            }
         }
         RuntimeProcessor::Select(select) => {
             if let Some(selected) = select.selected_node_mut() {
-                process_audio_block(selected, frames);
+                process_audio_block(selected, frames, error_queue);
             }
         }
-        RuntimeProcessor::Tuner(_) | RuntimeProcessor::Bypass => {}
+        RuntimeProcessor::Bypass => {}
+    }
+}
+
+fn downcast_panic_message(payload: Box<dyn Any + Send>) -> String {
+    if let Some(s) = payload.downcast_ref::<&str>() {
+        s.to_string()
+    } else if let Some(s) = payload.downcast_ref::<String>() {
+        s.clone()
+    } else {
+        "unknown panic".to_string()
+    }
+}
+
+#[inline]
+fn blend_frame(frame: &mut AudioFrame, dry: AudioFrame, dry_gain: f32, wet_gain: f32) {
+    match (frame, dry) {
+        (AudioFrame::Mono(w), AudioFrame::Mono(d)) => {
+            *w = d * dry_gain + *w * wet_gain;
+        }
+        (AudioFrame::Stereo([wl, wr]), AudioFrame::Stereo([dl, dr])) => {
+            *wl = dl * dry_gain + *wl * wet_gain;
+            *wr = dr * dry_gain + *wr * wet_gain;
+        }
+        // Layout mismatch shouldn't happen in practice; pass dry through
+        (frame, dry) => {
+            *frame = dry;
+        }
     }
 }
 
@@ -1770,7 +1862,10 @@ pub fn process_output_f32(
 ) {
     // Get the Arc for this specific route (brief lock on output state)
     let route_arc = {
-        let output_state = runtime.output.lock().expect("output state poisoned");
+        let output_state = match runtime.output.lock() {
+            Ok(g) => g,
+            Err(e) => e.into_inner(),
+        };
         match output_state.output_routes.get(output_index) {
             Some(r) => Arc::clone(r),
             None => {
@@ -1781,7 +1876,10 @@ pub fn process_output_f32(
     };
     // Lock this route — brief wait while input pushes is acceptable,
     // filling with silence on try_lock failure causes audible clicks.
-    let mut route = route_arc.lock().expect("route poisoned");
+    let mut route = match route_arc.lock() {
+        Ok(g) => g,
+        Err(e) => e.into_inner(),
+    };
     let num_frames = out.len() / output_total_channels;
     for frame in out.chunks_mut(output_total_channels).take(num_frames) {
         frame.fill(0.0);
@@ -1916,9 +2014,11 @@ fn next_block_instance_serial() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::{
+        apply_block_processor, process_audio_block,
         build_chain_runtime_state, build_runtime_graph, process_input_f32, process_output_f32,
         update_chain_runtime_state, split_chain_into_segments, effective_inputs, effective_outputs,
-        AudioFrame, ElasticBuffer, ELASTIC_BUFFER_TARGET_LEVEL,
+        AudioFrame, AudioProcessor, BlockError, BlockRuntimeNode, FadeState, ProcessorScratch, RuntimeProcessor,
+        ElasticBuffer, ELASTIC_BUFFER_TARGET_LEVEL, FADE_IN_FRAMES,
     };
     use block_core::AudioChannelLayout;
     use block_preamp::supported_models as supported_preamp_models;
@@ -2132,7 +2232,6 @@ mod tests {
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".to_string(),
                         entries: vec![InputEntry {
-                            name: "Input 1".to_string(),
                             device_id: DeviceId("input-device".into()),
                             mode: ChainInputMode::Mono,
                             channels: vec![0, 1],
@@ -2149,7 +2248,6 @@ mod tests {
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".to_string(),
                         entries: vec![OutputEntry {
-                            name: "Output 1".to_string(),
                             device_id: DeviceId("output-device".into()),
                             mode: ChainOutputMode::Stereo,
                             channels: vec![0, 1],
@@ -2195,7 +2293,6 @@ mod tests {
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".to_string(),
                         entries: vec![InputEntry {
-                            name: "Input 1".to_string(),
                             device_id: DeviceId("input-device".into()),
                             mode: ChainInputMode::Mono,
                             channels: vec![0, 1],
@@ -2211,7 +2308,6 @@ mod tests {
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".to_string(),
                         entries: vec![OutputEntry {
-                            name: "Output 1".to_string(),
                             device_id: DeviceId("output-device".into()),
                             mode: ChainOutputMode::Stereo,
                             channels: vec![0, 1],
@@ -2541,7 +2637,7 @@ mod tests {
             blocks: vec![
                 AudioBlock { id: BlockId("input:0".into()), enabled: true,
                     kind: AudioBlockKind::Input(InputBlock { model: "standard".into(),
-                        entries: vec![InputEntry { name: "In".into(), device_id: DeviceId("scarlett".into()), mode: ChainInputMode::Mono, channels: vec![0] }] }) },
+                        entries: vec![InputEntry { device_id: DeviceId("scarlett".into()), mode: ChainInputMode::Mono, channels: vec![0] }] }) },
                 AudioBlock { id: BlockId("ts9".into()), enabled: true,
                     kind: AudioBlockKind::Core(CoreBlock { effect_type: "gain".into(), model: "volume".into(), params: ParameterSet::default() }) },
                 AudioBlock { id: BlockId("amp".into()), enabled: true,
@@ -2550,20 +2646,20 @@ mod tests {
                     kind: AudioBlockKind::Core(CoreBlock { effect_type: "gain".into(), model: "volume".into(), params: ParameterSet::default() }) },
                 AudioBlock { id: BlockId("out_mixer".into()), enabled: true,
                     kind: AudioBlockKind::Output(OutputBlock { model: "standard".into(),
-                        entries: vec![OutputEntry { name: "Mixer".into(), device_id: DeviceId("mixer".into()), mode: ChainOutputMode::Stereo, channels: vec![0, 1] }] }) },
+                        entries: vec![OutputEntry { device_id: DeviceId("mixer".into()), mode: ChainOutputMode::Stereo, channels: vec![0, 1] }] }) },
                 AudioBlock { id: BlockId("delay".into()), enabled: true,
                     kind: AudioBlockKind::Core(CoreBlock { effect_type: "delay".into(), model: "digital_clean".into(), params: ParameterSet::default() }) },
                 AudioBlock { id: BlockId("reverb".into()), enabled: true,
                     kind: AudioBlockKind::Core(CoreBlock { effect_type: "reverb".into(), model: "plate_foundation".into(), params: ParameterSet::default() }) },
                 AudioBlock { id: BlockId("out_scarlett".into()), enabled: true,
                     kind: AudioBlockKind::Output(OutputBlock { model: "standard".into(),
-                        entries: vec![OutputEntry { name: "Scarlett".into(), device_id: DeviceId("scarlett".into()), mode: ChainOutputMode::Stereo, channels: vec![0, 1] }] }) },
+                        entries: vec![OutputEntry { device_id: DeviceId("scarlett".into()), mode: ChainOutputMode::Stereo, channels: vec![0, 1] }] }) },
             ],
         };
 
-        let eff_inputs = effective_inputs(&chain);
+        let (eff_inputs, eff_cpal_indices) = effective_inputs(&chain);
         let eff_outputs = effective_outputs(&chain);
-        let segments = split_chain_into_segments(&chain, &eff_inputs, &eff_outputs);
+        let segments = split_chain_into_segments(&chain, &eff_inputs, &eff_cpal_indices, &eff_outputs);
 
         // Should have 2 segments (1 input × 2 outputs)
         assert_eq!(segments.len(), 2, "expected 2 segments, got {}", segments.len());
@@ -2579,5 +2675,185 @@ mod tests {
             "segment 1 should have blocks [1,2,3,5,6], got {:?}", segments[1].block_indices);
         assert_eq!(segments[1].output_route_indices, vec![1],
             "segment 1 should push to output 1 only");
+    }
+
+    // ── Panic recovery tests ──────────────────────────────────────────────────
+
+    struct PanickingProcessor;
+    impl block_core::MonoProcessor for PanickingProcessor {
+        fn process_sample(&mut self, _: f32) -> f32 {
+            panic!("simulated plugin crash");
+        }
+    }
+
+    struct CountingProcessor {
+        call_count: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    }
+    impl block_core::MonoProcessor for CountingProcessor {
+        fn process_sample(&mut self, input: f32) -> f32 {
+            self.call_count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            input
+        }
+    }
+
+    fn panicking_block_node() -> BlockRuntimeNode {
+        BlockRuntimeNode {
+            instance_serial: 0,
+            block_id: domain::ids::BlockId("test:panicking".into()),
+            block_snapshot: project::block::AudioBlock {
+                id: domain::ids::BlockId("test:panicking".into()),
+                enabled: true,
+                kind: project::block::AudioBlockKind::Core(project::block::CoreBlock {
+                    effect_type: "gain".into(),
+                    model: "volume".into(),
+                    params: project::param::ParameterSet::default(),
+                }),
+            },
+            input_layout: block_core::AudioChannelLayout::Mono,
+            output_layout: block_core::AudioChannelLayout::Mono,
+            scratch: ProcessorScratch::Mono(Vec::new()),
+            processor: RuntimeProcessor::Audio(AudioProcessor::Mono(Box::new(PanickingProcessor))),
+            stream_handle: None,
+            fade_state: FadeState::Active,
+            faulted: false,
+        }
+    }
+
+    fn counting_block_node(counter: std::sync::Arc<std::sync::atomic::AtomicUsize>) -> BlockRuntimeNode {
+        BlockRuntimeNode {
+            instance_serial: 0,
+            block_id: domain::ids::BlockId("test:counting".into()),
+            block_snapshot: project::block::AudioBlock {
+                id: domain::ids::BlockId("test:counting".into()),
+                enabled: true,
+                kind: project::block::AudioBlockKind::Core(project::block::CoreBlock {
+                    effect_type: "gain".into(),
+                    model: "volume".into(),
+                    params: project::param::ParameterSet::default(),
+                }),
+            },
+            input_layout: block_core::AudioChannelLayout::Mono,
+            output_layout: block_core::AudioChannelLayout::Mono,
+            scratch: ProcessorScratch::Mono(Vec::new()),
+            processor: RuntimeProcessor::Audio(AudioProcessor::Mono(Box::new(CountingProcessor { call_count: counter }))),
+            stream_handle: None,
+            fade_state: FadeState::Active,
+            faulted: false,
+        }
+    }
+
+    #[test]
+    fn panicking_processor_does_not_crash_the_caller() {
+        let mut block = panicking_block_node();
+        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
+
+        // Must not panic
+        apply_block_processor(&mut block, &mut frames, &error_queue);
+    }
+
+    #[test]
+    fn panicking_processor_marks_block_as_faulted() {
+        let mut block = panicking_block_node();
+        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
+
+        apply_block_processor(&mut block, &mut frames, &error_queue);
+
+        assert!(block.faulted, "block should be marked faulted after a panic");
+    }
+
+    #[test]
+    fn panicking_processor_zeroes_output_frames() {
+        let mut block = panicking_block_node();
+        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
+
+        apply_block_processor(&mut block, &mut frames, &error_queue);
+
+        for frame in &frames {
+            match frame {
+                AudioFrame::Stereo([l, r]) => {
+                    assert_eq!(*l, 0.0, "left channel should be silent after panic");
+                    assert_eq!(*r, 0.0, "right channel should be silent after panic");
+                }
+                AudioFrame::Mono(s) => assert_eq!(*s, 0.0, "mono channel should be silent after panic"),
+            }
+        }
+    }
+
+    #[test]
+    fn panicking_processor_posts_error_to_queue() {
+        let mut block = panicking_block_node();
+        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
+
+        apply_block_processor(&mut block, &mut frames, &error_queue);
+
+        let errors = error_queue.lock().unwrap();
+        assert_eq!(errors.len(), 1, "exactly one error should be posted");
+        assert_eq!(errors[0].block_id.0, "test:panicking");
+        assert!(errors[0].message.contains("simulated plugin crash"), "error message should contain panic message");
+    }
+
+    #[test]
+    fn faulted_block_is_permanently_bypassed() {
+        let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let mut block = counting_block_node(counter.clone());
+        block.faulted = true; // pre-fault the block
+
+        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
+
+        apply_block_processor(&mut block, &mut frames, &error_queue);
+
+        assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 0,
+            "process_sample should never be called on a faulted block");
+    }
+
+    #[test]
+    fn second_call_after_panic_does_not_process_or_post_error() {
+        let mut block = panicking_block_node();
+        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
+
+        // First call: panics, marks faulted, posts error
+        apply_block_processor(&mut block, &mut frames, &error_queue);
+        assert_eq!(error_queue.lock().unwrap().len(), 1);
+
+        // Second call: faulted — must not post another error
+        apply_block_processor(&mut block, &mut frames, &error_queue);
+        assert_eq!(error_queue.lock().unwrap().len(), 1,
+            "no additional error should be posted for an already-faulted block");
+    }
+
+    #[test]
+    fn process_audio_block_bypassed_state_skips_processing() {
+        let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let mut block = counting_block_node(counter.clone());
+        block.fade_state = FadeState::Bypassed;
+
+        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
+
+        process_audio_block(&mut block, &mut frames, &error_queue);
+
+        assert_eq!(counter.load(std::sync::atomic::Ordering::SeqCst), 0,
+            "bypassed block should not call process_sample");
+    }
+
+    #[test]
+    fn process_audio_block_fading_in_applies_processing() {
+        let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let mut block = counting_block_node(counter.clone());
+        block.fade_state = FadeState::FadingIn { frames_remaining: FADE_IN_FRAMES };
+
+        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
+
+        process_audio_block(&mut block, &mut frames, &error_queue);
+
+        assert!(counter.load(std::sync::atomic::Ordering::SeqCst) > 0,
+            "fading-in block should call process_sample");
     }
 }

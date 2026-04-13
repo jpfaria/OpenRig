@@ -11,6 +11,8 @@ pub enum ReverbBackendKind {
     Native,
     Nam,
     Ir,
+    Lv2,
+    Vst3,
 }
 
 pub fn supported_models() -> &'static [&'static str] {
@@ -25,10 +27,24 @@ pub fn reverb_model_visual(model_id: &str) -> Option<ModelVisualData> {
             ReverbBackendKind::Native => "NATIVE",
             ReverbBackendKind::Nam => "NAM",
             ReverbBackendKind::Ir => "IR",
+            ReverbBackendKind::Lv2 => "LV2",
+            ReverbBackendKind::Vst3 => "VST3",
         },
         supported_instruments: def.supported_instruments,
         knob_layout: def.knob_layout,
     })
+}
+
+pub fn reverb_display_name(model: &str) -> &'static str {
+    registry::find_model_definition(model).map(|d| d.display_name).unwrap_or("")
+}
+
+pub fn reverb_brand(model: &str) -> &'static str {
+    registry::find_model_definition(model).map(|d| d.brand).unwrap_or("")
+}
+
+pub fn reverb_type_label(model: &str) -> &'static str {
+    reverb_model_visual(model).map(|v| v.type_label).unwrap_or("")
 }
 
 pub fn reverb_model_schema(model: &str) -> Result<ModelParameterSchema> {

@@ -1,5 +1,4 @@
 use anyhow::{anyhow, bail, Result};
-use asset_runtime::{materialize, EmbeddedAsset};
 use ir::{build_mono_ir_processor_from_wav, IrAsset};
 use crate::registry::CabModelDefinition;
 use crate::CabBackendKind;
@@ -11,18 +10,10 @@ pub const DISPLAY_NAME: &str = "Oversized 4x12 V30";
 const BRAND: &str = "mesa";
 
 macro_rules! capture {
-    ($capture:literal, $asset_id:literal, $relative_path:literal) => {
+    ($p1:literal, $ir_file:literal) => {
         MesaOs4x12V30Capture {
-            capture: $capture,
-            asset: EmbeddedAsset::new(
-                $asset_id,
-                $relative_path,
-                include_bytes!(concat!(
-                    env!("CARGO_MANIFEST_DIR"),
-                    "/../../",
-                    $relative_path
-                )),
-            ),
+            capture: $p1,
+            ir_file: $ir_file,
         }
     };
 }
@@ -30,50 +21,19 @@ macro_rules! capture {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MesaOs4x12V30Capture {
     pub capture: &'static str,
-    pub asset: EmbeddedAsset,
+    pub ir_file: &'static str,
 }
 
 pub const CAPTURES: &[MesaOs4x12V30Capture] = &[
-    capture!(
-        "at2020_1",
-        "cab.mesa_os_4x12_v30.at2020_1",
-        "captures/ir/cabs/mesa_os_4x12_v30/at2020_1.wav"
-    ),
-    capture!(
-        "at2020_2",
-        "cab.mesa_os_4x12_v30.at2020_2",
-        "captures/ir/cabs/mesa_os_4x12_v30/at2020_2.wav"
-    ),
-    capture!(
-        "room_left_at2020",
-        "cab.mesa_os_4x12_v30.room_left_at2020",
-        "captures/ir/cabs/mesa_os_4x12_v30/room_left_at2020.wav"
-    ),
-    capture!(
-        "room_right_at2020",
-        "cab.mesa_os_4x12_v30.room_right_at2020",
-        "captures/ir/cabs/mesa_os_4x12_v30/room_right_at2020.wav"
-    ),
-    capture!(
-        "sm57_1",
-        "cab.mesa_os_4x12_v30.sm57_1",
-        "captures/ir/cabs/mesa_os_4x12_v30/sm57_1.wav"
-    ),
-    capture!(
-        "sm57_2",
-        "cab.mesa_os_4x12_v30.sm57_2",
-        "captures/ir/cabs/mesa_os_4x12_v30/sm57_2.wav"
-    ),
-    capture!(
-        "sm58_1",
-        "cab.mesa_os_4x12_v30.sm58_1",
-        "captures/ir/cabs/mesa_os_4x12_v30/sm58_1.wav"
-    ),
-    capture!(
-        "sm58_2",
-        "cab.mesa_os_4x12_v30.sm58_2",
-        "captures/ir/cabs/mesa_os_4x12_v30/sm58_2.wav"
-    ),
+    capture!("at2020_1",         "cabs/mesa_os_4x12_v30/at2020_1.wav"),
+    capture!("at2020_2",         "cabs/mesa_os_4x12_v30/at2020_2.wav"),
+    capture!("room_left_at2020", "cabs/mesa_os_4x12_v30/room_left_at2020.wav"),
+    capture!("room_right_at2020","cabs/mesa_os_4x12_v30/room_right_at2020.wav"),
+    capture!("sm57_1",           "cabs/mesa_os_4x12_v30/sm57_1.wav"),
+    capture!("sm57_2",           "cabs/mesa_os_4x12_v30/sm57_2.wav"),
+    capture!("sm57_m160_mix",    "cabs/mesa_os_4x12_v30/sm57_m160_mix.wav"),
+    capture!("sm58_1",           "cabs/mesa_os_4x12_v30/sm58_1.wav"),
+    capture!("sm58_2",           "cabs/mesa_os_4x12_v30/sm58_2.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -88,14 +48,15 @@ pub fn model_schema() -> ModelParameterSchema {
             Some("Cab"),
             Some("at2020_1"),
             &[
-                ("at2020_1", "AT2020 1"),
-                ("at2020_2", "AT2020 2"),
+                ("at2020_1",         "AT2020 1"),
+                ("at2020_2",         "AT2020 2"),
                 ("room_left_at2020", "Room Left AT2020"),
-                ("room_right_at2020", "Room Right AT2020"),
-                ("sm57_1", "SM57 1"),
-                ("sm57_2", "SM57 2"),
-                ("sm58_1", "SM58 1"),
-                ("sm58_2", "SM58 2"),
+                ("room_right_at2020","Room Right AT2020"),
+                ("sm57_1",           "SM57 1"),
+                ("sm57_2",           "SM57 2"),
+                ("sm57_m160_mix",    "SM57 + M160 Mix"),
+                ("sm58_1",           "SM58 1"),
+                ("sm58_2",           "SM58 2"),
             ],
         )],
     }
@@ -109,9 +70,9 @@ pub fn build_processor_for_model(
     match layout {
         AudioChannelLayout::Mono => {
             let capture = resolve_capture(params)?;
-            let materialized_path = materialize(&capture.asset)?;
-            let materialized_path_str = materialized_path.to_string_lossy();
-            let ir = IrAsset::load_from_wav(&materialized_path_str)?;
+            let wav_path = ir::resolve_ir_capture(capture.ir_file)?;
+            
+            let ir = IrAsset::load_from_wav(&wav_path)?;
             if ir.channel_count() != 1 {
                 bail!(
                     "cab model '{}' capture '{}' must be mono, got {} channels",
@@ -120,7 +81,7 @@ pub fn build_processor_for_model(
                     ir.channel_count()
                 );
             }
-            let processor = build_mono_ir_processor_from_wav(&materialized_path_str, sample_rate)?;
+            let processor = build_mono_ir_processor_from_wav(&wav_path, sample_rate)?;
             Ok(BlockProcessor::Mono(processor))
         }
         AudioChannelLayout::Stereo => bail!(
@@ -161,7 +122,7 @@ pub fn validate_params(params: &ParameterSet) -> Result<()> {
 
 pub fn asset_summary(params: &ParameterSet) -> Result<String> {
     let capture = resolve_capture(params)?;
-    Ok(format!("asset_id='{}'", capture.asset.id))
+    Ok(format!("asset_id='{}'", capture.ir_file))
 }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static MesaOs4x12V30Capture> {

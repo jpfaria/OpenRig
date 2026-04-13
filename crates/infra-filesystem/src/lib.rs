@@ -2,6 +2,172 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use std::sync::OnceLock;
+
+/// Central configuration for all asset directories.
+///
+/// Each field holds a path (absolute or relative to the executable) where the
+/// corresponding asset category lives.  When the app starts it loads these
+/// values from `config.yaml` (falling back to sensible per-platform defaults)
+/// and stores them in a global `OnceLock` so every crate can access them
+/// without passing config around.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AssetPaths {
+    /// Directory containing prebuilt LV2 shared libraries (.dylib/.so/.dll).
+    #[serde(default = "default_lv2_libs")]
+    pub lv2_libs: String,
+    /// Directory containing LV2 plugin data (TTL metadata, presets).
+    #[serde(default = "default_lv2_data")]
+    pub lv2_data: String,
+    /// Root directory for NAM capture files (.nam).
+    #[serde(default = "default_nam_captures")]
+    pub nam_captures: String,
+    /// Root directory for IR capture files (.wav).
+    #[serde(default = "default_ir_captures")]
+    pub ir_captures: String,
+    /// Root directory for block thumbnails (PNG images).
+    #[serde(default = "default_thumbnails")]
+    pub thumbnails: String,
+    /// Root directory for block screenshots (PNG images for info panel).
+    #[serde(default = "default_screenshots")]
+    pub screenshots: String,
+    /// Root directory for plugin metadata YAML files (per-language).
+    #[serde(default = "default_metadata")]
+    pub metadata: String,
+}
+
+impl Default for AssetPaths {
+    fn default() -> Self {
+        Self {
+            lv2_libs: default_lv2_libs(),
+            lv2_data: default_lv2_data(),
+            nam_captures: default_nam_captures(),
+            ir_captures: default_ir_captures(),
+            thumbnails: default_thumbnails(),
+            screenshots: default_screenshots(),
+            metadata: default_metadata(),
+        }
+    }
+}
+
+fn default_lv2_libs() -> String {
+    #[cfg(target_os = "macos")]
+    { "libs/lv2/macos-universal".to_string() }
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    { "libs/lv2/linux-x86_64".to_string() }
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    { "libs/lv2/linux-aarch64".to_string() }
+    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+    { "libs/lv2/windows-x64".to_string() }
+    #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
+    { "libs/lv2/windows-arm64".to_string() }
+}
+
+fn default_lv2_data() -> String {
+    "data/lv2".to_string()
+}
+
+fn default_nam_captures() -> String {
+    "captures/nam".to_string()
+}
+
+fn default_ir_captures() -> String {
+    "captures/ir".to_string()
+}
+
+fn default_thumbnails() -> String {
+    "assets/blocks/thumbnails".to_string()
+}
+
+fn default_screenshots() -> String {
+    "assets/blocks/screenshots".to_string()
+}
+
+fn default_metadata() -> String {
+    "assets/blocks/metadata".to_string()
+}
+
+static ASSET_PATHS: OnceLock<AssetPaths> = OnceLock::new();
+
+/// Detect the application data root for the current installation layout.
+///
+/// Returns the directory that contains `libs/`, `data/`, and `assets/`:
+///
+/// - macOS `.app` bundle: `<bundle>/Contents/Resources/`
+/// - Linux deb/rpm: `/usr/share/openrig/`
+/// - Windows MSI: directory alongside the executable
+/// - Development fallback: current working directory
+pub fn detect_data_root() -> PathBuf {
+    if let Ok(exe) = std::env::current_exe() {
+        #[cfg(target_os = "macos")]
+        if let Some(resources) = exe
+            .parent() // .app/Contents/MacOS/
+            .and_then(|p| p.parent()) // .app/Contents/
+            .map(|p| p.join("Resources"))
+        {
+            if resources.exists() {
+                return resources;
+            }
+        }
+
+        #[cfg(target_os = "linux")]
+        if let Some(exe_dir) = exe.parent() {
+            if let Some(prefix) = exe_dir.parent() {
+                let share = prefix.join("share/openrig");
+                if share.exists() {
+                    return share;
+                }
+            }
+        }
+
+        #[cfg(target_os = "windows")]
+        if let Some(exe_dir) = exe.parent() {
+            if exe_dir.join("libs").exists() {
+                return exe_dir.to_path_buf();
+            }
+        }
+    }
+    std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+}
+
+/// Resolve relative asset paths against the detected data root.
+///
+/// Absolute paths in `paths` are left unchanged. Relative paths are joined
+/// with `detect_data_root()` so the app finds its assets regardless of the
+/// current working directory.
+pub fn resolve_asset_paths(paths: AssetPaths) -> AssetPaths {
+    let root = detect_data_root();
+    fn resolve(root: &std::path::Path, s: String) -> String {
+        let p = std::path::Path::new(&s);
+        if p.is_absolute() { s } else { root.join(p).to_string_lossy().into_owned() }
+    }
+    AssetPaths {
+        lv2_libs: resolve(&root, paths.lv2_libs),
+        lv2_data: resolve(&root, paths.lv2_data),
+        nam_captures: resolve(&root, paths.nam_captures),
+        ir_captures: resolve(&root, paths.ir_captures),
+        thumbnails: resolve(&root, paths.thumbnails),
+        screenshots: resolve(&root, paths.screenshots),
+        metadata: resolve(&root, paths.metadata),
+    }
+}
+
+/// Store the resolved asset paths for the lifetime of the process.
+///
+/// Must be called once during app startup (after loading config).  Subsequent
+/// calls are silently ignored so that tests that initialise multiple times do
+/// not panic.
+pub fn init_asset_paths(paths: AssetPaths) {
+    ASSET_PATHS.set(paths).ok();
+}
+
+/// Retrieve the global asset paths.
+///
+/// # Panics
+/// Panics if `init_asset_paths` has not been called yet.
+pub fn asset_paths() -> &'static AssetPaths {
+    ASSET_PATHS.get().expect("asset_paths not initialized — call init_asset_paths() during startup")
+}
 
 pub struct FilesystemStorage;
 
@@ -19,6 +185,8 @@ pub struct RecentProjectEntry {
 pub struct AppConfig {
     #[serde(default)]
     pub recent_projects: Vec<RecentProjectEntry>,
+    #[serde(default)]
+    pub paths: AssetPaths,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -214,6 +382,7 @@ mod tests {
                     invalid_reason: None,
                 },
             ],
+            ..Default::default()
         };
 
         insert_recent_project(

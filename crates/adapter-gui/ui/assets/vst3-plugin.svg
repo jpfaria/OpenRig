@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
+  <!-- Plug prongs -->
+  <line x1="104" y1="68" x2="104" y2="116" stroke="#E8E8E8" stroke-width="14" stroke-linecap="round"/>
+  <line x1="152" y1="68" x2="152" y2="116" stroke="#E8E8E8" stroke-width="14" stroke-linecap="round"/>
+  <!-- Plug body -->
+  <rect x="80" y="116" width="96" height="64" rx="14" stroke="#E8E8E8" stroke-width="12"/>
+  <!-- Cable -->
+  <line x1="128" y1="180" x2="128" y2="212" stroke="#E8E8E8" stroke-width="14" stroke-linecap="round"/>
+</svg>

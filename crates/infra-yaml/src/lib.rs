@@ -191,8 +191,9 @@ impl DeviceSettingsYaml {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[allow(dead_code)]
 struct ChainInputEntryYaml {
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     name: String,
     device_id: String,
     #[serde(default)]
@@ -201,6 +202,7 @@ struct ChainInputEntryYaml {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[allow(dead_code)]
 struct ChainInputYaml {
     #[serde(default = "default_io_yaml_model")]
     model: String,
@@ -224,8 +226,9 @@ fn default_io_yaml_model() -> String {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[allow(dead_code)]
 struct ChainOutputEntryYaml {
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     name: String,
     device_id: String,
     #[serde(default)]
@@ -234,6 +237,7 @@ struct ChainOutputEntryYaml {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[allow(dead_code)]
 struct ChainOutputYaml {
     #[serde(default = "default_io_yaml_model")]
     model: String,
@@ -316,17 +320,14 @@ impl ChainYaml {
 
         // Old format: convert separate inputs/outputs sections to blocks
         let mut input_blocks: Vec<AudioBlock> = self.inputs.into_iter().enumerate().map(|(i, inp)| {
-            let legacy_name = if inp.name.is_empty() { format!("Input {}", i + 1) } else { inp.name };
             let entries = if !inp.entries.is_empty() {
                 inp.entries.into_iter().map(|e| InputEntry {
-                    name: if e.name.is_empty() { legacy_name.clone() } else { e.name },
                     device_id: DeviceId(e.device_id),
                     mode: e.mode,
                     channels: e.channels,
                 }).collect()
             } else if let Some(device_id) = inp.device_id {
                 vec![InputEntry {
-                    name: legacy_name,
                     device_id: DeviceId(device_id),
                     mode: inp.mode.unwrap_or_default(),
                     channels: inp.channels.unwrap_or_default(),
@@ -345,17 +346,14 @@ impl ChainYaml {
         }).collect();
 
         let mut output_blocks: Vec<AudioBlock> = self.outputs.into_iter().enumerate().map(|(i, out)| {
-            let legacy_name = if out.name.is_empty() { format!("Output {}", i + 1) } else { out.name };
             let entries = if !out.entries.is_empty() {
                 out.entries.into_iter().map(|e| OutputEntry {
-                    name: if e.name.is_empty() { legacy_name.clone() } else { e.name },
                     device_id: DeviceId(e.device_id),
                     mode: e.mode,
                     channels: e.channels,
                 }).collect()
             } else if let Some(device_id) = out.device_id {
                 vec![OutputEntry {
-                    name: legacy_name,
                     device_id: DeviceId(device_id),
                     mode: out.mode.unwrap_or_default(),
                     channels: out.channels.unwrap_or_default(),
@@ -383,7 +381,6 @@ impl ChainYaml {
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".to_string(),
                         entries: vec![InputEntry {
-                            name: "Input 1".to_string(),
                             device_id: DeviceId(legacy_device),
                             mode: self.input_mode,
                             channels: self.input_channels.unwrap_or_default(),
@@ -407,7 +404,6 @@ impl ChainYaml {
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".to_string(),
                         entries: vec![OutputEntry {
-                            name: "Output 1".to_string(),
                             device_id: DeviceId(legacy_device),
                             mode,
                             channels: legacy_channels,
@@ -598,6 +594,14 @@ enum AudioBlockYaml {
         #[serde(default)]
         params: Value,
     },
+    #[serde(rename = "vst3")]
+    Vst3 {
+        #[serde(default = "default_enabled")]
+        enabled: bool,
+        model: String,
+        #[serde(default)]
+        params: Value,
+    },
     Select {
         #[serde(default = "default_enabled")]
         enabled: bool,
@@ -717,23 +721,20 @@ impl AudioBlockYaml {
             AudioBlockYaml::Input {
                 enabled,
                 model,
-                name,
+                name: _,
                 entries,
                 device_id,
                 mode,
                 channels,
             } => {
-                let legacy_name = if name.is_empty() { "Input".to_string() } else { name };
                 let entries = if !entries.is_empty() {
                     entries.into_iter().map(|e| InputEntry {
-                        name: if e.name.is_empty() { legacy_name.clone() } else { e.name },
                         device_id: DeviceId(e.device_id),
                         mode: e.mode,
                         channels: e.channels,
                     }).collect()
                 } else if let Some(device_id) = device_id {
                     vec![InputEntry {
-                        name: legacy_name,
                         device_id: DeviceId(device_id),
                         mode: mode.unwrap_or_default(),
                         channels: channels.unwrap_or_default(),
@@ -753,23 +754,20 @@ impl AudioBlockYaml {
             AudioBlockYaml::Output {
                 enabled,
                 model,
-                name,
+                name: _,
                 entries,
                 device_id,
                 mode,
                 channels,
             } => {
-                let legacy_name = if name.is_empty() { "Output".to_string() } else { name };
                 let entries = if !entries.is_empty() {
                     entries.into_iter().map(|e| OutputEntry {
-                        name: if e.name.is_empty() { legacy_name.clone() } else { e.name },
                         device_id: DeviceId(e.device_id),
                         mode: e.mode,
                         channels: e.channels,
                     }).collect()
                 } else if let Some(device_id) = device_id {
                     vec![OutputEntry {
-                        name: legacy_name,
                         device_id: DeviceId(device_id),
                         mode: mode.unwrap_or_default(),
                         channels: channels.unwrap_or_default(),
@@ -850,6 +848,7 @@ impl AudioBlockYaml {
                     block_core::EFFECT_TYPE_WAH => Ok(Self::Wah { enabled, model, params }),
                     block_core::EFFECT_TYPE_MODULATION => Ok(Self::Modulation { enabled, model, params }),
                     block_core::EFFECT_TYPE_PITCH => Ok(Self::Pitch { enabled, model, params }),
+                    block_core::EFFECT_TYPE_VST3 => Ok(Self::Vst3 { enabled, model, params }),
                     other => Err(anyhow!("unsupported core block effect_type '{}'", other)),
                 }
             }
@@ -895,7 +894,7 @@ impl AudioBlockYaml {
                 model: input.model.clone(),
                 name: String::new(),
                 entries: input.entries.iter().map(|e| ChainInputEntryYaml {
-                    name: e.name.clone(),
+                    name: String::new(),
                     device_id: e.device_id.0.clone(),
                     mode: e.mode,
                     channels: e.channels.clone(),
@@ -909,7 +908,7 @@ impl AudioBlockYaml {
                 model: output.model.clone(),
                 name: String::new(),
                 entries: output.entries.iter().map(|e| ChainOutputEntryYaml {
-                    name: e.name.clone(),
+                    name: String::new(),
                     device_id: e.device_id.0.clone(),
                     mode: e.mode,
                     channels: e.channels.clone(),
@@ -993,6 +992,7 @@ fn extract_core_block_fields(yaml: AudioBlockYaml) -> (&'static str, bool, Strin
         AudioBlockYaml::Wah { enabled, model, params } => (block_core::EFFECT_TYPE_WAH, enabled, model, params),
         AudioBlockYaml::Modulation { enabled, model, params } => (block_core::EFFECT_TYPE_MODULATION, enabled, model, params),
         AudioBlockYaml::Pitch { enabled, model, params } => (block_core::EFFECT_TYPE_PITCH, enabled, model, params),
+        AudioBlockYaml::Vst3 { enabled, model, params } => (block_core::EFFECT_TYPE_VST3, enabled, model, params),
         AudioBlockYaml::Nam { enabled, model, params } => (block_core::EFFECT_TYPE_NAM, enabled, model, params),
         AudioBlockYaml::Select { .. } => unreachable!("Select handled before extract_core_block_fields"),
         AudioBlockYaml::Input { .. } => unreachable!("Input handled before extract_core_block_fields"),
@@ -1268,7 +1268,6 @@ mod tests {
                         kind: AudioBlockKind::Input(InputBlock {
                             model: "standard".to_string(),
                             entries: vec![InputEntry {
-                                name: "Input 1".to_string(),
                                 device_id: DeviceId("input-device".into()),
                                 mode: ChainInputMode::Mono,
                                 channels: vec![0],
@@ -1281,7 +1280,6 @@ mod tests {
                         kind: AudioBlockKind::Output(OutputBlock {
                             model: "standard".to_string(),
                             entries: vec![OutputEntry {
-                                name: "Output 1".to_string(),
                                 device_id: DeviceId("output-device".into()),
                                 mode: ChainOutputMode::Stereo,
                                 channels: vec![0, 1],

@@ -171,7 +171,7 @@ fn block_registry() -> [BlockRegistryEntry; 16] {
 }
 
 pub fn supported_block_types() -> Vec<BlockTypeCatalogEntry> {
-    let types: Vec<_> = block_registry()
+    let mut types: Vec<_> = block_registry()
         .into_iter()
         .filter(|entry| !(entry.supported_models)().is_empty())
         .map(|entry| BlockTypeCatalogEntry {
@@ -181,11 +181,28 @@ pub fn supported_block_types() -> Vec<BlockTypeCatalogEntry> {
             use_panel_editor: entry.use_panel_editor,
         })
         .collect();
+    // Include the VST3 dynamic type only if plugins have been discovered.
+    if !vst3_host::vst3_catalog().is_empty() {
+        types.push(BlockTypeCatalogEntry {
+            effect_type: block_core::EFFECT_TYPE_VST3,
+            display_label: "VST3",
+            icon_kind: block_core::EFFECT_TYPE_VST3,
+            use_panel_editor: true,
+        });
+    }
     log::trace!("supported_block_types: {} types registered", types.len());
     types
 }
 
 pub fn supported_block_type(effect_type: &str) -> Option<BlockTypeCatalogEntry> {
+    if effect_type == block_core::EFFECT_TYPE_VST3 {
+        return Some(BlockTypeCatalogEntry {
+            effect_type: block_core::EFFECT_TYPE_VST3,
+            display_label: "VST3",
+            icon_kind: block_core::EFFECT_TYPE_VST3,
+            use_panel_editor: true,
+        });
+    }
     block_registry()
         .into_iter()
         .find(|entry| entry.effect_type == effect_type)
@@ -199,6 +216,26 @@ pub fn supported_block_type(effect_type: &str) -> Option<BlockTypeCatalogEntry> 
 
 pub fn supported_block_models(effect_type: &str) -> Result<Vec<BlockModelCatalogEntry>, String> {
     log::trace!("looking up models for effect_type='{}'", effect_type);
+
+    // Dynamic VST3 catalog — bypass the static block_registry.
+    if effect_type == block_core::EFFECT_TYPE_VST3 {
+        return Ok(vst3_host::vst3_catalog()
+            .iter()
+            .map(|entry| BlockModelCatalogEntry {
+                effect_type: block_core::EFFECT_TYPE_VST3.to_string(),
+                model_id: entry.model_id.to_string(),
+                display_name: entry.display_name.to_string(),
+                brand: entry.brand.to_string(),
+                type_label: "VST3".to_string(),
+                supported_instruments: block_core::ALL_INSTRUMENTS
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
+                knob_layout: &[],
+            })
+            .collect());
+    }
+
     let entry = block_registry()
         .into_iter()
         .find(|entry| entry.effect_type == effect_type)
@@ -224,6 +261,89 @@ pub fn supported_block_models(effect_type: &str) -> Result<Vec<BlockModelCatalog
         .collect()
 }
 
+/// Returns the stream kind produced by a model's StreamHandle.
+/// Empty string if the model produces no stream.
+pub fn model_stream_kind(effect_type: &str, model_id: &str) -> &'static str {
+    if effect_type == block_core::EFFECT_TYPE_UTILITY {
+        block_util::util_stream_kind(model_id)
+    } else {
+        ""
+    }
+}
+
+/// Returns the display name for a model, or empty string if not found.
+pub fn model_display_name(effect_type: &str, model_id: &str) -> &'static str {
+    use block_core::*;
+    match effect_type {
+        EFFECT_TYPE_UTILITY => block_util::util_display_name(model_id),
+        EFFECT_TYPE_GAIN => block_gain::gain_display_name(model_id),
+        EFFECT_TYPE_AMP => block_amp::amp_display_name(model_id),
+        EFFECT_TYPE_PREAMP => block_preamp::preamp_display_name(model_id).unwrap_or(""),
+        EFFECT_TYPE_CAB => block_cab::cab_display_name(model_id),
+        EFFECT_TYPE_DELAY => block_delay::delay_display_name(model_id),
+        EFFECT_TYPE_REVERB => block_reverb::reverb_display_name(model_id),
+        EFFECT_TYPE_MODULATION => block_mod::mod_display_name(model_id),
+        EFFECT_TYPE_DYNAMICS => block_dyn::dyn_display_name(model_id),
+        EFFECT_TYPE_FILTER => block_filter::filter_display_name(model_id),
+        EFFECT_TYPE_WAH => block_wah::wah_display_name(model_id),
+        EFFECT_TYPE_PITCH => block_pitch::pitch_display_name(model_id),
+        EFFECT_TYPE_BODY => block_body::body_display_name(model_id),
+        EFFECT_TYPE_FULL_RIG => block_full_rig::full_rig_display_name(model_id),
+        EFFECT_TYPE_NAM => block_nam::nam_display_name(model_id),
+        EFFECT_TYPE_IR => block_ir::ir_display_name(model_id),
+        _ => "",
+    }
+}
+
+/// Returns the brand for a model, or empty string if not found.
+pub fn model_brand(effect_type: &str, model_id: &str) -> &'static str {
+    use block_core::*;
+    match effect_type {
+        EFFECT_TYPE_UTILITY => block_util::util_brand(model_id),
+        EFFECT_TYPE_GAIN => block_gain::gain_brand(model_id),
+        EFFECT_TYPE_AMP => block_amp::amp_model_visual(model_id).map(|v| v.brand).unwrap_or(""),
+        EFFECT_TYPE_PREAMP => block_preamp::preamp_brand(model_id).unwrap_or(""),
+        EFFECT_TYPE_CAB => block_cab::cab_brand(model_id),
+        EFFECT_TYPE_DELAY => block_delay::delay_brand(model_id),
+        EFFECT_TYPE_REVERB => block_reverb::reverb_brand(model_id),
+        EFFECT_TYPE_MODULATION => block_mod::mod_brand(model_id),
+        EFFECT_TYPE_DYNAMICS => block_dyn::dyn_brand(model_id),
+        EFFECT_TYPE_FILTER => block_filter::filter_brand(model_id),
+        EFFECT_TYPE_WAH => block_wah::wah_brand(model_id),
+        EFFECT_TYPE_PITCH => block_pitch::pitch_brand(model_id),
+        EFFECT_TYPE_BODY => block_body::body_brand(model_id),
+        EFFECT_TYPE_FULL_RIG => block_full_rig::full_rig_brand(model_id),
+        EFFECT_TYPE_NAM => block_nam::nam_brand(model_id),
+        EFFECT_TYPE_IR => block_ir::ir_brand(model_id),
+        _ => "",
+    }
+}
+
+/// Returns the type label for a model (e.g. "NATIVE", "NAM", "LV2", "IR"),
+/// or empty string if not found.
+pub fn model_type_label(effect_type: &str, model_id: &str) -> &'static str {
+    use block_core::*;
+    match effect_type {
+        EFFECT_TYPE_UTILITY => block_util::util_type_label(model_id),
+        EFFECT_TYPE_GAIN => block_gain::gain_type_label(model_id),
+        EFFECT_TYPE_AMP => block_amp::amp_model_visual(model_id).map(|v| v.type_label).unwrap_or(""),
+        EFFECT_TYPE_PREAMP => block_preamp::preamp_type_label(model_id).unwrap_or(""),
+        EFFECT_TYPE_CAB => block_cab::cab_type_label(model_id),
+        EFFECT_TYPE_DELAY => block_delay::delay_type_label(model_id),
+        EFFECT_TYPE_REVERB => block_reverb::reverb_type_label(model_id),
+        EFFECT_TYPE_MODULATION => block_mod::mod_type_label(model_id),
+        EFFECT_TYPE_DYNAMICS => block_dyn::dyn_type_label(model_id),
+        EFFECT_TYPE_FILTER => block_filter::filter_type_label(model_id),
+        EFFECT_TYPE_WAH => block_wah::wah_type_label(model_id),
+        EFFECT_TYPE_PITCH => block_pitch::pitch_type_label(model_id),
+        EFFECT_TYPE_BODY => block_body::body_type_label(model_id),
+        EFFECT_TYPE_FULL_RIG => block_full_rig::full_rig_type_label(model_id),
+        EFFECT_TYPE_NAM => block_nam::nam_type_label(model_id),
+        EFFECT_TYPE_IR => block_ir::ir_type_label(model_id),
+        _ => "",
+    }
+}
+
 pub fn model_knob_layout(effect_type: &str, model_id: &str) -> &'static [block_core::KnobLayoutEntry] {
     let entry = block_registry()
         .into_iter()
@@ -234,6 +354,13 @@ pub fn model_knob_layout(effect_type: &str, model_id: &str) -> &'static [block_c
             .unwrap_or(&[]),
         None => &[],
     }
+}
+
+/// Returns true when a block type opens its own native editor window,
+/// meaning the compact view should show an "open editor" action instead
+/// of rendering inline parameter controls.
+pub fn block_has_external_gui(effect_type: &str) -> bool {
+    effect_type == block_core::EFFECT_TYPE_VST3
 }
 
 pub fn build_block_kind(

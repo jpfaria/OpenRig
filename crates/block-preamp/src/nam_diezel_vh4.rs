@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Result};
-use asset_runtime::{materialize, EmbeddedAsset};
 use crate::registry::PreampModelDefinition;
 use crate::PreampBackendKind;
 use nam::{
@@ -27,20 +26,12 @@ pub const NAM_PLUGIN_DEFAULTS: NamPluginParams = NamPluginParams {
 };
 
 macro_rules! capture {
-    ($channel:expr, $gain:expr, $boost:expr, $asset_id:literal, $relative_path:literal) => {
+    ($channel:expr, $gain:expr, $boost:expr, $nam_file:literal) => {
         DiezelVh4Capture {
             channel: $channel,
             gain: $gain,
             boost: $boost,
-            asset: EmbeddedAsset::new(
-                $asset_id,
-                $relative_path,
-                include_bytes!(concat!(
-                    env!("CARGO_MANIFEST_DIR"),
-                    "/../../",
-                    $relative_path
-                )),
-            ),
+            nam_file: $nam_file,
         }
     };
 }
@@ -78,35 +69,35 @@ pub struct DiezelVh4Capture {
     pub channel: Channel,
     pub gain: GainLevel,
     pub boost: Boost,
-    pub asset: EmbeddedAsset,
+    pub nam_file: &'static str,
 }
 
 pub const CAPTURES: &[DiezelVh4Capture] = &[
     // Channel 2 — no boost
-    capture!(Channel::Ch2, GainLevel::BrLg, Boost::None, "preamp.nam_diezel_vh4.ch2.br_lg", "captures/nam/preamp/diezel_vh4/diezel_vh4_ch_2_br_lg.nam"),
-    capture!(Channel::Ch2, GainLevel::BrMg, Boost::None, "preamp.nam_diezel_vh4.ch2.br_mg", "captures/nam/preamp/diezel_vh4/diezel_vh4_ch_2_br_mg.nam"),
-    capture!(Channel::Ch2, GainLevel::Lg01, Boost::None, "preamp.nam_diezel_vh4.ch2.lg01", "captures/nam/preamp/diezel_vh4/diezel_vh4_ch_2_lg_01.nam"),
-    capture!(Channel::Ch2, GainLevel::Lg02, Boost::None, "preamp.nam_diezel_vh4.ch2.lg02", "captures/nam/preamp/diezel_vh4/diezel_vh4_ch_2_lg_02.nam"),
-    capture!(Channel::Ch2, GainLevel::Lg03, Boost::None, "preamp.nam_diezel_vh4.ch2.lg03", "captures/nam/preamp/diezel_vh4/diezel_vh4_ch_2_lg_03.nam"),
-    capture!(Channel::Ch2, GainLevel::Mg01, Boost::None, "preamp.nam_diezel_vh4.ch2.mg01", "captures/nam/preamp/diezel_vh4/diezel_vh4_ch_2_mg_01.nam"),
-    capture!(Channel::Ch2, GainLevel::Mg02, Boost::None, "preamp.nam_diezel_vh4.ch2.mg02", "captures/nam/preamp/diezel_vh4/diezel_vh4_ch_2_mg_02.nam"),
-    capture!(Channel::Ch2, GainLevel::Mg03, Boost::None, "preamp.nam_diezel_vh4.ch2.mg03", "captures/nam/preamp/diezel_vh4/diezel_vh4_ch_2_mg_03.nam"),
+    capture!(Channel::Ch2, GainLevel::BrLg, Boost::None, "preamp/diezel_vh4/diezel_vh4_ch_2_br_lg.nam"),
+    capture!(Channel::Ch2, GainLevel::BrMg, Boost::None, "preamp/diezel_vh4/diezel_vh4_ch_2_br_mg.nam"),
+    capture!(Channel::Ch2, GainLevel::Lg01, Boost::None, "preamp/diezel_vh4/diezel_vh4_ch_2_lg_01.nam"),
+    capture!(Channel::Ch2, GainLevel::Lg02, Boost::None, "preamp/diezel_vh4/diezel_vh4_ch_2_lg_02.nam"),
+    capture!(Channel::Ch2, GainLevel::Lg03, Boost::None, "preamp/diezel_vh4/diezel_vh4_ch_2_lg_03.nam"),
+    capture!(Channel::Ch2, GainLevel::Mg01, Boost::None, "preamp/diezel_vh4/diezel_vh4_ch_2_mg_01.nam"),
+    capture!(Channel::Ch2, GainLevel::Mg02, Boost::None, "preamp/diezel_vh4/diezel_vh4_ch_2_mg_02.nam"),
+    capture!(Channel::Ch2, GainLevel::Mg03, Boost::None, "preamp/diezel_vh4/diezel_vh4_ch_2_mg_03.nam"),
     // Channel 3 — no boost
-    capture!(Channel::Ch3, GainLevel::Hg01, Boost::None, "preamp.nam_diezel_vh4.ch3.hg01", "captures/nam/preamp/diezel_vh4/diezel_vh4_ch_3_hg_01.nam"),
-    capture!(Channel::Ch3, GainLevel::Hg02, Boost::None, "preamp.nam_diezel_vh4.ch3.hg02", "captures/nam/preamp/diezel_vh4/diezel_vh4_ch_3_hg_02.nam"),
-    capture!(Channel::Ch3, GainLevel::Hg03, Boost::None, "preamp.nam_diezel_vh4.ch3.hg03", "captures/nam/preamp/diezel_vh4/diezel_vh4_ch_3_hg_03.nam"),
+    capture!(Channel::Ch3, GainLevel::Hg01, Boost::None, "preamp/diezel_vh4/diezel_vh4_ch_3_hg_01.nam"),
+    capture!(Channel::Ch3, GainLevel::Hg02, Boost::None, "preamp/diezel_vh4/diezel_vh4_ch_3_hg_02.nam"),
+    capture!(Channel::Ch3, GainLevel::Hg03, Boost::None, "preamp/diezel_vh4/diezel_vh4_ch_3_hg_03.nam"),
     // Channel 3 — TS9 boost
-    capture!(Channel::Ch3, GainLevel::Hg01, Boost::Ts9, "preamp.nam_diezel_vh4.ch3.ts9_hg01", "captures/nam/preamp/diezel_vh4/diezel_vh4_ch_3_ts9_hg_01.nam"),
-    capture!(Channel::Ch3, GainLevel::Hg02, Boost::Ts9, "preamp.nam_diezel_vh4.ch3.ts9_hg02", "captures/nam/preamp/diezel_vh4/diezel_vh4_ch_3_ts9_hg_02.nam"),
-    capture!(Channel::Ch3, GainLevel::Hg03, Boost::Ts9, "preamp.nam_diezel_vh4.ch3.ts9_hg03", "captures/nam/preamp/diezel_vh4/diezel_vh4_ch_3_ts9_hg_03.nam"),
+    capture!(Channel::Ch3, GainLevel::Hg01, Boost::Ts9, "preamp/diezel_vh4/diezel_vh4_ch_3_ts9_hg_01.nam"),
+    capture!(Channel::Ch3, GainLevel::Hg02, Boost::Ts9, "preamp/diezel_vh4/diezel_vh4_ch_3_ts9_hg_02.nam"),
+    capture!(Channel::Ch3, GainLevel::Hg03, Boost::Ts9, "preamp/diezel_vh4/diezel_vh4_ch_3_ts9_hg_03.nam"),
     // Channel 4 — no boost
-    capture!(Channel::Ch4, GainLevel::Hg01, Boost::None, "preamp.nam_diezel_vh4.ch4.hg01", "captures/nam/preamp/diezel_vh4/diezel_vh4_ch_4_hg_01.nam"),
-    capture!(Channel::Ch4, GainLevel::Hg02, Boost::None, "preamp.nam_diezel_vh4.ch4.hg02", "captures/nam/preamp/diezel_vh4/diezel_vh4_ch_4_hg_02.nam"),
-    capture!(Channel::Ch4, GainLevel::Hg03, Boost::None, "preamp.nam_diezel_vh4.ch4.hg03", "captures/nam/preamp/diezel_vh4/diezel_vh4_ch_4_hg_03.nam"),
+    capture!(Channel::Ch4, GainLevel::Hg01, Boost::None, "preamp/diezel_vh4/diezel_vh4_ch_4_hg_01.nam"),
+    capture!(Channel::Ch4, GainLevel::Hg02, Boost::None, "preamp/diezel_vh4/diezel_vh4_ch_4_hg_02.nam"),
+    capture!(Channel::Ch4, GainLevel::Hg03, Boost::None, "preamp/diezel_vh4/diezel_vh4_ch_4_hg_03.nam"),
     // Channel 4 — TS9 boost
-    capture!(Channel::Ch4, GainLevel::Hg01, Boost::Ts9, "preamp.nam_diezel_vh4.ch4.ts9_hg01", "captures/nam/preamp/diezel_vh4/diezel_vh4_ch_4_ts9_hg_01.nam"),
-    capture!(Channel::Ch4, GainLevel::Hg02, Boost::Ts9, "preamp.nam_diezel_vh4.ch4.ts9_hg02", "captures/nam/preamp/diezel_vh4/diezel_vh4_ch_4_ts9_hg_02.nam"),
-    capture!(Channel::Ch4, GainLevel::Hg03, Boost::Ts9, "preamp.nam_diezel_vh4.ch4.ts9_hg03", "captures/nam/preamp/diezel_vh4/diezel_vh4_ch_4_ts9_hg_03.nam"),
+    capture!(Channel::Ch4, GainLevel::Hg01, Boost::Ts9, "preamp/diezel_vh4/diezel_vh4_ch_4_ts9_hg_01.nam"),
+    capture!(Channel::Ch4, GainLevel::Hg02, Boost::Ts9, "preamp/diezel_vh4/diezel_vh4_ch_4_ts9_hg_02.nam"),
+    capture!(Channel::Ch4, GainLevel::Hg03, Boost::Ts9, "preamp/diezel_vh4/diezel_vh4_ch_4_ts9_hg_03.nam"),
 ];
 
 fn parse_channel(value: &str) -> Result<Channel> {
@@ -216,9 +207,9 @@ pub fn build_processor_for_model(
 ) -> Result<BlockProcessor> {
     let capture = resolve_capture(params)?;
     let plugin_params = plugin_params_from_set_with_defaults(params, NAM_PLUGIN_DEFAULTS)?;
-    let model_path = materialize(&capture.asset)?;
+    let model_path = nam::resolve_nam_capture(capture.nam_file)?;
     build_processor_with_assets_for_layout(
-        &model_path.to_string_lossy(),
+        &model_path,
         None,
         plugin_params,
         sample_rate,
@@ -257,7 +248,7 @@ pub fn validate_params(params: &ParameterSet) -> Result<()> {
 
 pub fn asset_summary(params: &ParameterSet) -> Result<String> {
     let capture = resolve_capture(params)?;
-    Ok(format!("asset_id='{}'", capture.asset.id))
+    Ok(format!("asset_id='{}'", capture.nam_file))
 }
 
 fn voicing_gain_to_gain_level(voicing: &str, level: &str) -> GainLevel {

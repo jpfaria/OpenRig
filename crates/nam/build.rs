@@ -54,7 +54,12 @@ fn main() {
         };
     }
 
-    println!("cargo:rustc-link-lib=dylib=NeuralAudioCAPI");
+    // On Windows the extern block uses raw-dylib, so no link directive is needed.
+    // On other platforms we emit the standard dylib directive.
+    let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    if target_os != "windows" {
+        println!("cargo:rustc-link-lib=dylib=NeuralAudioCAPI");
+    }
 
     // Copy dylib to cargo's output directory so it's found at runtime
     copy_lib_to_target(&lib_source_dir, lib_name);
@@ -73,7 +78,7 @@ fn lib_filename() -> &'static str {
     if cfg!(target_os = "macos") {
         "libNeuralAudioCAPI.dylib"
     } else if cfg!(target_os = "windows") {
-        "NeuralAudioCAPI.dll"
+        "libNeuralAudioCAPI.dll"
     } else {
         "libNeuralAudioCAPI.so"
     }

@@ -10,8 +10,8 @@ pub const MODEL_ID: &str = "lv2_mda_overdrive";
 pub const DISPLAY_NAME: &str = "MDA Overdrive";
 const BRAND: &str = "mda";
 
-const PLUGIN_URI: &str = "http://moddevices.com/plugins/mda/Overdrive";
-const PLUGIN_DIR: &str = "mod-mda-Overdrive.lv2";
+const PLUGIN_URI: &str = "http://drobilla.net/plugins/mda/Overdrive";
+const PLUGIN_DIR: &str = "mod-mda-Overdrive";
 
 #[cfg(target_os = "macos")]
 const PLUGIN_BINARY: &str = "Overdrive.dylib";
@@ -34,7 +34,7 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: block_core::EFFECT_TYPE_GAIN.into(),
         model: MODEL_ID.into(),
         display_name: DISPLAY_NAME.into(),
-        audio_mode: ModelAudioMode::TrueStereo,
+        audio_mode: ModelAudioMode::MonoToStereo,
         parameters: vec![
             float_parameter(
                 "drive",
@@ -81,80 +81,27 @@ fn asset_summary(_params: &ParameterSet) -> Result<String> {
     Ok(format!("lv2='{}'", MODEL_ID))
 }
 
-fn resolve_lib_path() -> Result<String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
-    let candidates = [
-        exe_dir
-            .as_ref()
-            .map(|d| d.join("../../").join(lv2::default_lv2_lib_dir()).join(PLUGIN_BINARY)),
-        Some(std::path::PathBuf::from(lv2::default_lv2_lib_dir()).join(PLUGIN_BINARY)),
-    ];
-
-    for candidate in candidates.iter().flatten() {
-        if candidate.exists() {
-            return Ok(candidate.to_string_lossy().to_string());
-        }
-    }
-
-    anyhow::bail!(
-        "LV2 binary '{}' not found in '{}'",
-        PLUGIN_BINARY,
-        lv2::default_lv2_lib_dir()
-    )
-}
-
-fn resolve_bundle_path() -> Result<String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
-    let candidates = [
-        exe_dir
-            .as_ref()
-            .map(|d| d.join("../../plugins").join(PLUGIN_DIR)),
-        Some(std::path::PathBuf::from("plugins").join(PLUGIN_DIR)),
-    ];
-
-    for candidate in candidates.iter().flatten() {
-        if candidate.exists() {
-            return Ok(candidate.to_string_lossy().to_string());
-        }
-    }
-
-    anyhow::bail!("LV2 bundle '{}' not found in plugins/", PLUGIN_DIR)
-}
-
 fn build(
     params: &ParameterSet,
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    let drive = required_f32(params, "drive").map_err(anyhow::Error::msg)?;
-    let muffle = required_f32(params, "muffle").map_err(anyhow::Error::msg)?;
-    // Level: 0-100% maps to -20..+20 dB
+    // lvz wrapper normalizes all params to 0-1
+    let drive = required_f32(params, "drive").map_err(anyhow::Error::msg)? / 100.0;
+    let muffle = required_f32(params, "muffle").map_err(anyhow::Error::msg)? / 100.0;
     let level_pct = required_f32(params, "level").map_err(anyhow::Error::msg)?;
-    let output = -20.0 + (level_pct / 100.0) * 40.0;
+    let output = level_pct / 100.0;
 
-    let lib_path = resolve_lib_path()?;
-    let bundle_path = resolve_bundle_path()?;
+    let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
+    let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
 
     match layout {
         AudioChannelLayout::Mono => {
-            let processor = lv2::build_lv2_processor(
-                &lib_path,
-                PLUGIN_URI,
-                sample_rate as f64,
-                &bundle_path,
-                &[PORT_LEFT_IN],
-                &[PORT_LEFT_OUT],
-                &[
-                    (PORT_DRIVE, drive),
-                    (PORT_MUFFLE, muffle),
-                    (PORT_OUTPUT, output),
-                ],
+            let processor = lv2::build_lv2_processor_with_extras(
+                &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
+                &[PORT_LEFT_IN], &[PORT_LEFT_OUT],
+                &[(PORT_DRIVE, drive), (PORT_MUFFLE, muffle), (PORT_OUTPUT, output)],
+                &[PORT_RIGHT_IN, PORT_RIGHT_OUT],
             )?;
             Ok(BlockProcessor::Mono(Box::new(processor)))
         }

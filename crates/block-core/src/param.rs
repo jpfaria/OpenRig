@@ -235,6 +235,15 @@ pub enum ParameterWidget {
     Select,
     FilePicker,
     TextInput,
+    MultiSlider,
+    CurveEditor { role: CurveEditorRole },
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum CurveEditorRole {
+    X,
+    Y,
+    Width,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -391,6 +400,53 @@ pub fn text_parameter(
         domain: ParameterDomain::Text,
         default_value: default_value.map(|value| ParameterValue::String(value.to_string())),
         optional,
+        allow_empty: false,
+    }
+}
+
+pub fn multi_slider_parameter(
+    path: &str,
+    label: &str,
+    group: Option<&str>,
+    default_value: Option<f32>,
+    min: f32,
+    max: f32,
+    step: f32,
+    unit: ParameterUnit,
+) -> ParameterSpec {
+    ParameterSpec {
+        path: path.to_string(),
+        label: label.to_string(),
+        group: group.map(ToString::to_string),
+        widget: ParameterWidget::MultiSlider,
+        unit,
+        domain: ParameterDomain::FloatRange { min, max, step },
+        default_value: default_value.map(ParameterValue::Float),
+        optional: false,
+        allow_empty: false,
+    }
+}
+
+pub fn curve_editor_parameter(
+    path: &str,
+    label: &str,
+    group: Option<&str>,
+    role: CurveEditorRole,
+    default_value: Option<f32>,
+    min: f32,
+    max: f32,
+    step: f32,
+    unit: ParameterUnit,
+) -> ParameterSpec {
+    ParameterSpec {
+        path: path.to_string(),
+        label: label.to_string(),
+        group: group.map(ToString::to_string),
+        widget: ParameterWidget::CurveEditor { role },
+        unit,
+        domain: ParameterDomain::FloatRange { min, max, step },
+        default_value: default_value.map(ParameterValue::Float),
+        optional: false,
         allow_empty: false,
     }
 }

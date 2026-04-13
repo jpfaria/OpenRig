@@ -96,11 +96,50 @@ export struct BlockParameterItem {
     allow_empty: bool,
 }
 
+// Point in a MultiSlider widget (one vertical slider per point)
+export struct MultiSliderPoint {
+    path: string,
+    label: string,
+    value: float,
+    min_val: float,
+    max_val: float,
+    step: float,
+}
+
+// Point in a CurveEditor widget (draggable on 2D plane)
+export struct CurveEditorPoint {
+    group: string,
+    band_color: color,
+    // Y axis (gain)
+    y_path: string,
+    y_value: float,
+    y_min: float,
+    y_max: float,
+    y_step: float,
+    y_label: string,  // formatted gain, e.g. "+3.5", "0.0"
+    // X axis (frequency) — optional, 0 if not present
+    has_x: bool,
+    x_path: string,
+    x_value: float,
+    x_min: float,
+    x_max: float,
+    x_step: float,
+    x_label: string,  // formatted frequency, e.g. "200Hz", "1.0k"
+    // Width (Q/BW) — optional, 0 if not present
+    has_width: bool,
+    width_path: string,
+    width_value: float,
+    width_min: float,
+    width_max: float,
+    width_step: float,
+}
+
 // Key-value entry for realtime data streams
 export struct BlockStreamEntry {
     key: string,
     value: float,
     text: string,
+    peak: float,
 }
 
 // Realtime data stream for blocks that produce live readings (tuner, meter, analyzer).
@@ -114,6 +153,7 @@ export struct BlockStreamData {
 export struct CompactBlockItem {
     chain_index: int,
     block_index: int,
+    block_id: string,
     effect_type: string,
     model_id: string,
     icon_kind: string,
@@ -131,6 +171,7 @@ export struct CompactBlockItem {
     model_labels: [string],
     model_selected_index: int,
     stream_data: BlockStreamData,
+    has_external_gui: bool,
 }
 
 export struct RecentProjectItem {
@@ -149,7 +190,6 @@ export struct ChannelOptionItem {
 }
 
 export struct IoGroupItem {
-    name: string,
     summary: string,
 }
 

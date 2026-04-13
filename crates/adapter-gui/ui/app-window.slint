@@ -1,12 +1,16 @@
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem } from "models.slint";
+import "fonts/CooperHewitt-Semibold.ttf";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem, MultiSliderPoint, CurveEditorPoint } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
 import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
+import { PluginInfoWindow } from "pages/plugin_info_window.slint";
+
+export { PluginInfoWindow }
 
 export component ProjectSettingsWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Ek Mukta";
+    default-font-family: "Cooper Hewitt";
     default-font-size: 13px;
     in-out property <string> project-name-draft;
     in-out property <string> status-message;
@@ -20,10 +24,10 @@ export component ProjectSettingsWindow inherits Window {
     callback update-project-sample-rate(int, string);
     callback update-project-buffer-size(int, string);
     title: "OpenRig · Configurar projeto";
-    min-width: 980px;
-    min-height: 680px;
-    preferred-width: 1160px;
-    preferred-height: 760px;
+    min-width: 860px;
+    min-height: 540px;
+    preferred-width: 1100px;
+    preferred-height: 640px;
     background: #040708;
 
     ProjectSettingsPage {
@@ -45,7 +49,7 @@ export component ProjectSettingsWindow inherits Window {
 
 export component ChainEditorWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Ek Mukta";
+    default-font-family: "Cooper Hewitt";
     default-font-size: 13px;
     in property <string> editor-title;
     in property <string> editor-save-label;
@@ -66,10 +70,10 @@ export component ChainEditorWindow inherits Window {
     callback cancel-chain();
     callback select-instrument(int);
     title: "OpenRig · Configurar chain";
-    min-width: 980px;
-    min-height: 680px;
-    preferred-width: 1160px;
-    preferred-height: 760px;
+    min-width: 860px;
+    min-height: 540px;
+    preferred-width: 1100px;
+    preferred-height: 640px;
     background: #040708;
 
     ChainEditorPage {
@@ -98,7 +102,7 @@ export component ChainEditorWindow inherits Window {
 
 export component ChainInputWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Ek Mukta";
+    default-font-family: "Cooper Hewitt";
     default-font-size: 13px;
     in property <[string]> device-options;
     in-out property <int> selected-device-index;
@@ -111,10 +115,10 @@ export component ChainInputWindow inherits Window {
     callback save();
     callback cancel();
     title: "OpenRig · Entrada da chain";
-    min-width: 720px;
-    min-height: 620px;
-    preferred-width: 860px;
-    preferred-height: 720px;
+    min-width: 680px;
+    min-height: 500px;
+    preferred-width: 820px;
+    preferred-height: 620px;
     background: #040708;
 
     ChainEndpointEditorPage {
@@ -138,7 +142,7 @@ export component ChainInputWindow inherits Window {
 
 export component ChainOutputWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Ek Mukta";
+    default-font-family: "Cooper Hewitt";
     default-font-size: 13px;
     in property <[string]> device-options;
     in-out property <int> selected-device-index;
@@ -151,10 +155,10 @@ export component ChainOutputWindow inherits Window {
     callback save();
     callback cancel();
     title: "OpenRig · Saída da chain";
-    min-width: 720px;
-    min-height: 620px;
-    preferred-width: 860px;
-    preferred-height: 720px;
+    min-width: 680px;
+    min-height: 500px;
+    preferred-width: 820px;
+    preferred-height: 620px;
     background: #040708;
 
     ChainEndpointEditorPage {
@@ -178,7 +182,7 @@ export component ChainOutputWindow inherits Window {
 
 export component ChainInputGroupsWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Ek Mukta";
+    default-font-family: "Cooper Hewitt";
     default-font-size: 13px;
     in property <[IoGroupItem]> groups;
     in-out property <string> status-message;
@@ -192,10 +196,10 @@ export component ChainInputGroupsWindow inherits Window {
     callback toggle-enabled();
     callback delete-block();
     title: "OpenRig \u{00B7} Entradas da chain";
-    min-width: 720px;
-    min-height: 620px;
-    preferred-width: 860px;
-    preferred-height: 720px;
+    min-width: 680px;
+    min-height: 500px;
+    preferred-width: 820px;
+    preferred-height: 620px;
     background: #040708;
 
     ChainIoGroupsPage {
@@ -219,7 +223,7 @@ export component ChainInputGroupsWindow inherits Window {
 
 export component ChainOutputGroupsWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Ek Mukta";
+    default-font-family: "Cooper Hewitt";
     default-font-size: 13px;
     in property <[IoGroupItem]> groups;
     in-out property <string> status-message;
@@ -233,10 +237,10 @@ export component ChainOutputGroupsWindow inherits Window {
     callback toggle-enabled();
     callback delete-block();
     title: "OpenRig \u{00B7} Sa\u{00ED}das da chain";
-    min-width: 720px;
-    min-height: 620px;
-    preferred-width: 860px;
-    preferred-height: 720px;
+    min-width: 680px;
+    min-height: 500px;
+    preferred-width: 820px;
+    preferred-height: 620px;
     background: #040708;
 
     ChainIoGroupsPage {
@@ -260,7 +264,7 @@ export component ChainOutputGroupsWindow inherits Window {
 
 export component ChainInsertWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Ek Mukta";
+    default-font-family: "Cooper Hewitt";
     default-font-size: 13px;
     // Send (output devices)
     in property <[string]> send-device-options;
@@ -289,10 +293,10 @@ export component ChainInsertWindow inherits Window {
     callback cancel();
 
     title: "OpenRig \u{00B7} Configurar Insert";
-    min-width: 720px;
-    min-height: 720px;
-    preferred-width: 860px;
-    preferred-height: 820px;
+    min-width: 680px;
+    min-height: 580px;
+    preferred-width: 820px;
+    preferred-height: 720px;
     background: #040708;
 
     ChainInsertEditorPage {
@@ -325,7 +329,7 @@ export component ChainInsertWindow inherits Window {
 
 export component BlockEditorWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Ek Mukta";
+    default-font-family: "Cooper Hewitt";
     default-font-size: 13px;
     in property <[BlockTypePickerItem]> block-type-options;
     in property <[BlockModelPickerItem]> block-model-options;
@@ -338,12 +342,17 @@ export component BlockEditorWindow inherits Window {
     in-out property <int> block-drawer-selected-model-index;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
+    in property <[MultiSliderPoint]> multi-slider-points;
+    in property <[CurveEditorPoint]> curve-editor-points;
+    in property <string> eq-total-curve;
+    in property <[string]> eq-band-curves;
     in property <[BlockKnobOverlay]> block-knob-overlays;
     in property <string> block-window-title: "OpenRig · Block";
     callback choose-block-model(int);
     callback close-block-drawer();
     callback save-block-drawer();
     callback delete-block-drawer();
+    callback show-plugin-info(string, string);
     callback toggle-block-drawer-enabled();
     callback update-block-parameter-text(string, string);
     callback update-block-parameter-number(string, float);
@@ -351,6 +360,7 @@ export component BlockEditorWindow inherits Window {
     callback update-block-parameter-bool(string, bool);
     callback select-block-parameter-option(string, int);
     callback pick-block-parameter-file(string);
+    callback open-vst3-editor(string); // model-id
 
     // Realtime data stream from engine (tuner, meter, analyzer, etc.)
     in property <BlockStreamData> block-stream-data;
@@ -361,13 +371,39 @@ export component BlockEditorWindow inherits Window {
         && root.block-drawer-selected-type-index < root.block-type-options.length
         && root.block-type-options[root.block-drawer-selected-type-index].use_panel_editor;
 
+    // Dynamic width: each knob=56px, gap=8px, margins=80px (power btn + right padding)
+    property <int> param-count: root.block-parameter-items.length;
+    property <length> needed-width: param-count > 0 ? param-count * 64px + 80px : 520px;
+    private property <bool> has-eq-widget:
+        root.curve-editor-points.length > 0 || root.multi-slider-points.length > 0;
+    // EQ width: ~35px per band for MultiSlider, ~200px per band for CurveEditor (few bands).
+    // (panel-height = panel-width/4; minimum 600px keeps the power-button label visible.)
+    private property <length> eq-panel-width:
+        multi-slider-points.length > 0 ?
+            Math.max(600px, Math.min(1400px, multi-slider-points.length * 35px + 80px)) :
+        curve-editor-points.length > 0 ?
+            Math.max(600px, Math.min(1200px, curve-editor-points.length * 200px + 80px)) :
+            600px;
+    property <length> panel-width:
+        root.use-panel-editor ?
+            (has-eq-widget ? eq-panel-width : Math.max(900px, needed-width)) :
+            520px;
+    // EQ widget heights: CurveEditor = 200px, MultiSlider = 180px.
+    // Total = header(48) + panel-height(width/4) + gap(8) + widget-height + margin(8).
+    private property <length> eq-widget-height:
+        root.curve-editor-points.length > 0 ? 200px :
+        root.multi-slider-points.length > 0 ? 180px : 0px;
+    // EQ blocks: compact 60px panel (just POWER button, no brand strip).
+    private property <length> eq-extra-height:
+        has-eq-widget ? (48px + 60px + 8px + eq-widget-height + 8px) : 275px;
+
     title: root.block-window-title;
-    min-width: root.use-panel-editor ? 900px : 520px;
-    min-height: root.use-panel-editor ? 275px : 760px;
-    max-width: root.use-panel-editor ? 900px : 520px;
-    max-height: root.use-panel-editor ? 275px : 760px;
-    preferred-width: root.use-panel-editor ? 900px : 520px;
-    preferred-height: root.use-panel-editor ? 275px : 760px;
+    min-width: panel-width;
+    min-height: root.use-panel-editor ? eq-extra-height : 640px;
+    max-width: panel-width;
+    max-height: root.use-panel-editor ? eq-extra-height : 640px;
+    preferred-width: panel-width;
+    preferred-height: root.use-panel-editor ? eq-extra-height : 640px;
     background: #040708;
 
     // Amp head: visual panel editor
@@ -383,12 +419,17 @@ export component BlockEditorWindow inherits Window {
         block-drawer-enabled: root.block-drawer-enabled;
         block-knob-overlays: root.block-knob-overlays;
         block-parameter-items: root.block-parameter-items;
+        multi-slider-points: root.multi-slider-points;
+        curve-editor-points: root.curve-editor-points;
+        eq-total-curve: root.eq-total-curve;
+        eq-band-curves: root.eq-band-curves;
         block-drawer-confirm-label: root.block-drawer-confirm-label;
         block-stream-data: root.block-stream-data;
         choose-block-model(i) => { root.choose-block-model(i); }
         close-block-drawer => { root.close-block-drawer(); }
         save-block-drawer => { root.save-block-drawer(); }
         delete-block-drawer => { root.delete-block-drawer(); }
+        show-plugin-info(effect_type, model_id) => { root.show-plugin-info(effect_type, model_id); }
         toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
         update-block-parameter-number(path, val) => { root.update-block-parameter-number(path, val); }
         select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
@@ -411,10 +452,14 @@ export component BlockEditorWindow inherits Window {
         block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
         block-drawer-enabled: root.block-drawer-enabled;
         block-parameter-items: root.block-parameter-items;
+        multi-slider-points: root.multi-slider-points;
+        curve-editor-points: root.curve-editor-points;
+        block-stream-data: root.block-stream-data;
         choose-block-model(index) => { root.choose-block-model(index); }
         close-block-drawer => { root.close-block-drawer(); }
         save-block-drawer => { root.save-block-drawer(); }
         delete-block-drawer => { root.delete-block-drawer(); }
+        show-plugin-info(effect_type, model_id) => { root.show-plugin-info(effect_type, model_id); }
         toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
         update-block-parameter-text(path, value) => { root.update-block-parameter-text(path, value); }
         update-block-parameter-number(path, value) => { root.update-block-parameter-number(path, value); }
@@ -422,6 +467,7 @@ export component BlockEditorWindow inherits Window {
         update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
         select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
         pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
+        open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
     }
 
     in-out property <string> toast-message;
@@ -437,13 +483,13 @@ export component BlockEditorWindow inherits Window {
 
 export component CompactChainViewWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Ek Mukta";
+    default-font-family: "Cooper Hewitt";
     default-font-size: 13px;
     title: "OpenRig \u{00B7} Chain";
-    min-width: 900px;
-    min-height: 300px;
-    preferred-width: 1100px;
-    preferred-height: 500px;
+    min-width: 800px;
+    min-height: 260px;
+    preferred-width: 1000px;
+    preferred-height: 460px;
     background: #0a0c10;
 
     in property <string> chain-title;
@@ -452,9 +498,14 @@ export component CompactChainViewWindow inherits Window {
     in property <[CompactBlockItem]> compact-blocks;
     in property <[BlockTypePickerItem]> block-type-options;
 
+    // I/O device configuration
+    callback configure-input(int); // chain_index
+    callback configure-output(int); // chain_index
+
     callback toggle-chain-enabled(int);
     callback toggle-block-enabled(int, int);
     callback update-block-parameter-number(int, int, string, float);
+    callback update-block-parameter-bool(int, int, string, bool);
     callback select-block-parameter-option(int, int, string, int);
     callback choose-block-model(int, int, int);
     callback insert-block(int, int);
@@ -463,6 +514,7 @@ export component CompactChainViewWindow inherits Window {
     callback close-compact-view();
     callback choose-block-type(int, int, int);
     callback remove-block(int, int);
+    callback open-plugin(string); // model-id, for VST3 blocks
 
     CompactChainViewPage {
         width: parent.width; height: parent.height;
@@ -471,9 +523,12 @@ export component CompactChainViewWindow inherits Window {
         chain-enabled: root.chain-enabled;
         compact-blocks: root.compact-blocks;
         block-type-options: root.block-type-options;
+        configure-input(ci) => { root.configure-input(ci); }
+        configure-output(ci) => { root.configure-output(ci); }
         toggle-chain-enabled(ci) => { root.toggle-chain-enabled(ci); }
         toggle-block-enabled(ci, bi) => { root.toggle-block-enabled(ci, bi); }
         update-block-parameter-number(ci, bi, p, v) => { root.update-block-parameter-number(ci, bi, p, v); }
+        update-block-parameter-bool(ci, bi, p, v) => { root.update-block-parameter-bool(ci, bi, p, v); }
         select-block-parameter-option(ci, bi, p, oi) => { root.select-block-parameter-option(ci, bi, p, oi); }
         choose-block-model(ci, bi, mi) => { root.choose-block-model(ci, bi, mi); }
         insert-block(ci, before) => { root.insert-block(ci, before); }
@@ -482,13 +537,15 @@ export component CompactChainViewWindow inherits Window {
         close-compact-view => { root.close-compact-view(); }
         choose-block-type(ci, before, ti) => { root.choose-block-type(ci, before, ti); }
         remove-block(ci, bi) => { root.remove-block(ci, bi); }
+        open-plugin(model-id) => { root.open-plugin(model-id); }
     }
 }
 
 export component AppWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Ek Mukta";
+    default-font-family: "Cooper Hewitt";
     default-font-size: 13px;
+    in property <string> app-version;
     in property <bool> show-project-launcher;
     in property <bool> show-project-setup;
     in property <bool> show-project-chains;
@@ -501,6 +558,8 @@ export component AppWindow inherits Window {
     in property <string> runtime-mode-label;
     in property <string> interaction-mode-label;
     in property <bool> touch-optimized;
+    in property <bool> auto-save: false;
+    in property <bool> skip-launcher: false;
     in property <bool> show-audio-settings;
     in-out property <int> wizard-step;
     in-out property <[DeviceSelectionItem]> input-devices;
@@ -534,6 +593,10 @@ export component AppWindow inherits Window {
     in-out property <int> block-drawer-selected-model-index;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
+    in property <[MultiSliderPoint]> multi-slider-points;
+    in property <[CurveEditorPoint]> curve-editor-points;
+    in property <string> eq-total-curve;
+    in property <[string]> eq-band-curves;
     in property <[ChannelOptionItem]> chain-input-channels;
     in property <[ChannelOptionItem]> chain-output-channels;
     in-out property <string> status-message;
@@ -588,6 +651,7 @@ export component AppWindow inherits Window {
     callback close-block-drawer();
     callback save-block-drawer();
     callback delete-block-drawer();
+    callback show-plugin-info(string, string);  // effect_type, model_id
     callback toggle-block-drawer-enabled();
     callback update-block-parameter-text(string, string);
     callback update-block-parameter-number(string, float);
@@ -595,23 +659,27 @@ export component AppWindow inherits Window {
     callback update-block-parameter-bool(string, bool);
     callback select-block-parameter-option(string, int);
     callback pick-block-parameter-file(string);
+    callback open-vst3-editor(string); // model-id
     callback save-chain();
     callback cancel-chain();
     title: "OpenRig";
-    min-width: 980px;
-    min-height: 680px;
-    preferred-width: 1160px;
-    preferred-height: 760px;
+    min-width: 860px;
+    min-height: 540px;
+    preferred-width: 1100px;
+    preferred-height: 640px;
     background: #040708;
     if !touch-optimized : DesktopMain {
         width: 100%;
         height: 100%;
+        app-version: root.app-version;
         show-project-launcher: root.show-project-launcher;
         show-project-setup: root.show-project-setup;
         show-project-chains: root.show-project-chains;
         show-chain-editor: root.show-chain-editor;
         show-project-settings: root.show-project-settings;
         project-dirty: root.project-dirty;
+        auto-save: root.auto-save;
+        skip-launcher: root.skip-launcher;
         project-path-label: root.project-path-label;
         project-title: root.project-title;
         project-name-draft <=> root.project-name-draft;
@@ -648,6 +716,10 @@ export component AppWindow inherits Window {
         block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
         block-drawer-enabled: root.block-drawer-enabled;
         block-parameter-items: root.block-parameter-items;
+        multi-slider-points: root.multi-slider-points;
+        curve-editor-points: root.curve-editor-points;
+        eq-total-curve: root.eq-total-curve;
+        eq-band-curves: root.eq-band-curves;
         chain-input-channels: root.chain-input-channels;
         chain-output-channels: root.chain-output-channels;
         status-message: root.status-message;
@@ -700,6 +772,7 @@ export component AppWindow inherits Window {
         close-block-drawer => { root.close-block-drawer(); }
         save-block-drawer => { root.save-block-drawer(); }
         delete-block-drawer => { root.delete-block-drawer(); }
+        show-plugin-info(effect_type, model_id) => { root.show-plugin-info(effect_type, model_id); }
         toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
         update-block-parameter-text(path, value) => { root.update-block-parameter-text(path, value); }
         update-block-parameter-number(path, value) => { root.update-block-parameter-number(path, value); }
@@ -707,6 +780,7 @@ export component AppWindow inherits Window {
         update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
         select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
         pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
+        open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
         reorder-chain-block(chain-index, from-index, before-index) => { root.reorder-chain-block(chain-index, from-index, before-index); }
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }
@@ -721,6 +795,8 @@ export component AppWindow inherits Window {
         show-chain-editor: root.show-chain-editor;
         show-project-settings: root.show-project-settings;
         project-dirty: root.project-dirty;
+        auto-save: root.auto-save;
+        skip-launcher: root.skip-launcher;
         project-path-label: root.project-path-label;
         project-title: root.project-title;
         project-name-draft <=> root.project-name-draft;
@@ -757,6 +833,10 @@ export component AppWindow inherits Window {
         block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
         block-drawer-enabled: root.block-drawer-enabled;
         block-parameter-items: root.block-parameter-items;
+        multi-slider-points: root.multi-slider-points;
+        curve-editor-points: root.curve-editor-points;
+        eq-total-curve: root.eq-total-curve;
+        eq-band-curves: root.eq-band-curves;
         chain-input-channels: root.chain-input-channels;
         chain-output-channels: root.chain-output-channels;
         status-message: root.status-message;
@@ -809,6 +889,7 @@ export component AppWindow inherits Window {
         close-block-drawer => { root.close-block-drawer(); }
         save-block-drawer => { root.save-block-drawer(); }
         delete-block-drawer => { root.delete-block-drawer(); }
+        show-plugin-info(effect_type, model_id) => { root.show-plugin-info(effect_type, model_id); }
         toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
         update-block-parameter-text(path, value) => { root.update-block-parameter-text(path, value); }
         update-block-parameter-number(path, value) => { root.update-block-parameter-number(path, value); }
@@ -816,6 +897,7 @@ export component AppWindow inherits Window {
         update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
         select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
         pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
+        open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
         reorder-chain-block(chain-index, from-index, before-index) => { root.reorder-chain-block(chain-index, from-index, before-index); }
         save-chain => { root.save-chain(); }
         cancel-chain => { root.cancel-chain(); }

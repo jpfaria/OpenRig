@@ -1,3 +1,5 @@
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
+
 use adapter_gui::run_desktop_app;
 use ui_openrig::{AppRuntimeMode, InteractionMode};
 
@@ -7,7 +9,7 @@ fn main() -> anyhow::Result<()> {
     let runtime_mode = match std::env::var("OPENRIG_APP_MODE").ok().as_deref() {
         Some("pedalboard") => AppRuntimeMode::Pedalboard,
         Some("controller") => AppRuntimeMode::Controller,
-        Some("vst3") => AppRuntimeMode::Vst3Plugin,
+        Some(x) if x == block_core::EFFECT_TYPE_VST3 => AppRuntimeMode::Vst3Plugin,
         _ => AppRuntimeMode::Standalone,
     };
 
@@ -16,5 +18,12 @@ fn main() -> anyhow::Result<()> {
         _ => InteractionMode::Mouse,
     };
 
-    run_desktop_app(runtime_mode, interaction_mode)
+    let raw_args: Vec<String> = std::env::args().collect();
+    let raw_refs: Vec<&str> = raw_args.iter().map(|s| s.as_str()).collect();
+    let (arg_project_path, arg_auto_save) = adapter_gui::parse_cli_args_from(&raw_refs);
+    let cli_project_path = arg_project_path
+        .or_else(|| std::env::var("OPENRIG_PROJECT_PATH").ok().map(std::path::PathBuf::from));
+    let auto_save = arg_auto_save
+        || std::env::var("OPENRIG_AUTO_SAVE").ok().map_or(false, |v| v == "1" || v.eq_ignore_ascii_case("true"));
+    run_desktop_app(runtime_mode, interaction_mode, cli_project_path, auto_save)
 }

@@ -1,5 +1,4 @@
 use anyhow::{anyhow, bail, Result};
-use asset_runtime::{materialize, EmbeddedAsset};
 use ir::{build_mono_ir_processor_from_wav, IrAsset};
 use crate::registry::BodyModelDefinition;
 use crate::BodyBackendKind;
@@ -11,20 +10,23 @@ pub const DISPLAY_NAME: &str = "HD-28 Highlander";
 const BRAND: &str = "martin";
 
 macro_rules! capture {
-    ($voicing:literal, $asset_id:literal, $relative_path:literal) => {
-        Capture { voicing: $voicing, asset: EmbeddedAsset::new($asset_id, $relative_path, include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/../../", $relative_path))) }
+    ($voicing:literal, $ir_file:literal) => {
+        Capture {
+            voicing: $voicing,
+            ir_file: $ir_file,
+        }
     };
 }
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Capture { pub voicing: &'static str, pub asset: EmbeddedAsset }
+pub struct Capture { pub voicing: &'static str, pub ir_file: &'static str }
 
 pub const CAPTURES: &[Capture] = &[
-    capture!("ir_martin_hd28_highlander_48000", "body.martin_hd_28_highlander.ir_martin_hd28_highlander_48000", "captures/ir/body/martin_hd_28_highlander/ir_martin_hd28_highlander_48000.wav"),
-    capture!("ir_martin_hd28_highlander_48000_m1", "body.martin_hd_28_highlander.ir_martin_hd28_highlander_48000_m1", "captures/ir/body/martin_hd_28_highlander/ir_martin_hd28_highlander_48000_m1.wav"),
-    capture!("ir_martin_hd28_highlander_48000_m2", "body.martin_hd_28_highlander.ir_martin_hd28_highlander_48000_m2", "captures/ir/body/martin_hd_28_highlander/ir_martin_hd28_highlander_48000_m2.wav"),
-    capture!("jf45irmartin_hd28_highlander", "body.martin_hd_28_highlander.jf45irmartin_hd28_highlander", "captures/ir/body/martin_hd_28_highlander/jf45irmartin_hd28_highlander.wav"),
-    capture!("jf45ir1024martin_hd28_highlander", "body.martin_hd_28_highlander.jf45ir1024martin_hd28_highlander", "captures/ir/body/martin_hd_28_highlander/jf45ir1024martin_hd28_highlander.wav"),
-    capture!("jf45ir5050martin_hd28_highlander", "body.martin_hd_28_highlander.jf45ir5050martin_hd28_highlander", "captures/ir/body/martin_hd_28_highlander/jf45ir5050martin_hd28_highlander.wav"),
+    capture!("ir_martin_hd28_highlander_48000", "body/martin_hd_28_highlander/ir_martin_hd28_highlander_48000.wav"),
+    capture!("ir_martin_hd28_highlander_48000_m1", "body/martin_hd_28_highlander/ir_martin_hd28_highlander_48000_m1.wav"),
+    capture!("ir_martin_hd28_highlander_48000_m2", "body/martin_hd_28_highlander/ir_martin_hd28_highlander_48000_m2.wav"),
+    capture!("jf45irmartin_hd28_highlander", "body/martin_hd_28_highlander/jf45irmartin_hd28_highlander.wav"),
+    capture!("jf45ir1024martin_hd28_highlander", "body/martin_hd_28_highlander/jf45ir1024martin_hd28_highlander.wav"),
+    capture!("jf45ir5050martin_hd28_highlander", "body/martin_hd_28_highlander/jf45ir5050martin_hd28_highlander.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -39,7 +41,7 @@ pub fn model_schema() -> ModelParameterSchema {
 
 pub fn build_processor_for_model(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) -> Result<BlockProcessor> {
     match layout {
-        AudioChannelLayout::Mono => { let c = resolve_capture(params)?; let p = materialize(&c.asset)?; let ps = p.to_string_lossy(); let ir = IrAsset::load_from_wav(&ps)?; if ir.channel_count() != 1 { bail!("body model '{}' capture must be mono, got {} channels", MODEL_ID, ir.channel_count()); } Ok(BlockProcessor::Mono(build_mono_ir_processor_from_wav(&ps, sample_rate)?)) }
+        AudioChannelLayout::Mono => { let c = resolve_capture(params)?; let wav_path = ir::resolve_ir_capture(c.ir_file)?; let ir = IrAsset::load_from_wav(&wav_path)?; if ir.channel_count() != 1 { bail!("body model '{}' capture must be mono, got {} channels", MODEL_ID, ir.channel_count()); } Ok(BlockProcessor::Mono(build_mono_ir_processor_from_wav(&wav_path, sample_rate)?)) }
         AudioChannelLayout::Stereo => bail!("body model '{}' currently expects mono processor layout", MODEL_ID),
     }
 }
@@ -47,7 +49,7 @@ fn schema() -> Result<ModelParameterSchema> { Ok(model_schema()) }
 fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) -> Result<BlockProcessor> { build_processor_for_model(params, sample_rate, layout) }
 pub const MODEL_DEFINITION: BodyModelDefinition = BodyModelDefinition { id: MODEL_ID, display_name: DISPLAY_NAME, brand: BRAND, backend_kind: BodyBackendKind::Ir, schema, validate: validate_params, asset_summary, build, supported_instruments: &[block_core::INST_ACOUSTIC_GUITAR], knob_layout: &[] };
 pub fn validate_params(params: &ParameterSet) -> Result<()> { resolve_capture(params).map(|_| ()) }
-pub fn asset_summary(params: &ParameterSet) -> Result<String> { let c = resolve_capture(params)?; Ok(format!("asset_id='{}'", c.asset.id)) }
+pub fn asset_summary(params: &ParameterSet) -> Result<String> { let c = resolve_capture(params)?; Ok(format!("asset_id='{}'", c.ir_file)) }
 fn resolve_capture(params: &ParameterSet) -> Result<&'static Capture> {
     let requested = required_string(params, "voicing").map_err(anyhow::Error::msg)?;
     CAPTURES.iter().find(|c| c.voicing == requested).ok_or_else(|| anyhow!("body model '{}' does not support voicing '{}'", MODEL_ID, requested))

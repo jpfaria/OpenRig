@@ -10,6 +10,7 @@ pub enum WahBackendKind {
     Native,
     Nam,
     Ir,
+    Lv2,
 }
 
 pub fn supported_models() -> &'static [&'static str] {
@@ -24,10 +25,23 @@ pub fn wah_model_visual(model_id: &str) -> Option<ModelVisualData> {
             WahBackendKind::Native => "NATIVE",
             WahBackendKind::Nam => "NAM",
             WahBackendKind::Ir => "IR",
+            WahBackendKind::Lv2 => "LV2",
         },
         supported_instruments: def.supported_instruments,
         knob_layout: def.knob_layout,
     })
+}
+
+pub fn wah_display_name(model: &str) -> &'static str {
+    registry::find_model_definition(model).map(|d| d.display_name).unwrap_or("")
+}
+
+pub fn wah_brand(model: &str) -> &'static str {
+    registry::find_model_definition(model).map(|d| d.brand).unwrap_or("")
+}
+
+pub fn wah_type_label(model: &str) -> &'static str {
+    wah_model_visual(model).map(|v| v.type_label).unwrap_or("")
 }
 
 pub fn wah_model_schema(model: &str) -> Result<ModelParameterSchema> {

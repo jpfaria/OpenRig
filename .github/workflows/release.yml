@@ -1,0 +1,535 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. v0.1.0)'
+        required: false
+        default: 'dev'
+
+env:
+  CARGO_TERM_COLOR: always
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  # --------------------------------------------------------------------------
+  # macOS universal binary + .app bundle + .dmg
+  # --------------------------------------------------------------------------
+  build-macos:
+    name: Build macOS (universal)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: macos-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: macos-cargo-
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="${{ inputs.version }}"
+            V="${V:-dev}"
+          fi
+          echo "v=${V}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and package
+        env:
+          VERSION: ${{ steps.ver.outputs.v }}
+        run: ./scripts/package-macos.sh "$VERSION"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openrig-macos
+          path: dist/OpenRig-*-macos-universal.dmg
+
+  # --------------------------------------------------------------------------
+  # Linux x86_64: .tar.gz + .deb + .rpm + .AppImage
+  # --------------------------------------------------------------------------
+  build-linux-x86_64:
+    name: Build Linux x86_64
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev libudev-dev pkg-config \
+            libfontconfig1-dev libseat-dev \
+            libxkbcommon-dev libinput-dev libgbm-dev \
+            libjack-jackd2-dev \
+            fakeroot rpm ruby-dev build-essential \
+            librsvg2-bin imagemagick
+
+      - name: Install fpm
+        run: sudo gem install fpm --no-document
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: linux-x86_64-u24-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: linux-x86_64-u24-cargo-
+
+      - name: Build
+        run: cargo build --release -p adapter-gui
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="${{ inputs.version }}"
+            V="${V:-0.0.0-dev}"
+          fi
+          echo "v=${V}" >> "$GITHUB_OUTPUT"
+
+      - name: Stage install tree
+        run: |
+          S=dist/stage
+          mkdir -p "$S/usr/bin"
+          mkdir -p "$S/usr/lib/openrig/libs/lv2"
+          mkdir -p "$S/usr/lib/openrig/libs/nam"
+          mkdir -p "$S/usr/share/openrig/data"
+
+          cp target/release/adapter-gui    "$S/usr/bin/openrig"
+          cp -r libs/lv2/linux-x86_64      "$S/usr/lib/openrig/libs/lv2/linux-x86_64"
+          cp -r libs/nam/linux-x86_64      "$S/usr/lib/openrig/libs/nam/linux-x86_64"
+          cp -r data/lv2                   "$S/usr/share/openrig/data/lv2"
+          cp -r assets                     "$S/usr/share/openrig/assets"
+          cp -r captures                   "$S/usr/share/openrig/captures"
+
+      - name: Create .tar.gz
+        env:
+          VERSION: ${{ steps.ver.outputs.v }}
+        run: |
+          D="openrig-${VERSION}-linux-x86_64"
+          mkdir -p "dist/${D}"
+          cp dist/stage/usr/bin/openrig               "dist/${D}/openrig"
+          cp -r dist/stage/usr/lib/openrig/libs       "dist/${D}/libs"
+          cp -r dist/stage/usr/share/openrig/data     "dist/${D}/data"
+          cp -r dist/stage/usr/share/openrig/assets   "dist/${D}/assets"
+          cp -r dist/stage/usr/share/openrig/captures "dist/${D}/captures"
+          tar -czf "dist/${D}.tar.gz" -C dist "${D}"
+
+      - name: Create .deb
+        env:
+          VERSION: ${{ steps.ver.outputs.v }}
+        run: |
+          fpm -s dir -t deb \
+            -n openrig -v "${VERSION}" \
+            --architecture x86_64 \
+            --description "OpenRig virtual guitar pedalboard" \
+            --url "https://github.com/jpfaria/OpenRig" \
+            --maintainer "Joao Paulo Faria" \
+            --category sound \
+            --depends libasound2 \
+            --deb-no-default-config-files \
+            -C dist/stage \
+            --package "dist/openrig_${VERSION}_amd64.deb" \
+            usr
+
+      - name: Create .rpm
+        env:
+          VERSION: ${{ steps.ver.outputs.v }}
+        run: |
+          fpm -s dir -t rpm \
+            -n openrig -v "${VERSION}" \
+            --architecture x86_64 \
+            --description "OpenRig virtual guitar pedalboard" \
+            --url "https://github.com/jpfaria/OpenRig" \
+            --maintainer "Joao Paulo Faria" \
+            --category "Applications/Multimedia" \
+            -C dist/stage \
+            --package "dist/openrig-${VERSION}-1.x86_64.rpm" \
+            usr
+
+      - name: Create AppImage (x86_64)
+        env:
+          VERSION: ${{ steps.ver.outputs.v }}
+        run: |
+          curl -fsSL -o appimagetool \
+            https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+
+          APPDIR=dist/AppDir
+          cp -r dist/stage "$APPDIR"
+
+          printf '%s\n' \
+            '#!/bin/bash' \
+            'HERE="$(dirname "$(readlink -f "${0}")")"' \
+            'export OPENRIG_LIBS_DIR="$HERE/usr/lib/openrig/libs"' \
+            'export OPENRIG_DATA_DIR="$HERE/usr/share/openrig/data"' \
+            'export OPENRIG_ASSETS_DIR="$HERE/usr/share/openrig/assets"' \
+            'export OPENRIG_CAPTURES_DIR="$HERE/usr/share/openrig/captures"' \
+            'exec "$HERE/usr/bin/openrig" "$@"' \
+            > "$APPDIR/AppRun"
+          chmod +x "$APPDIR/AppRun"
+
+          printf '%s\n' \
+            '[Desktop Entry]' \
+            'Name=OpenRig' \
+            'Exec=openrig' \
+            'Icon=openrig' \
+            'Type=Application' \
+            'Categories=Audio;Music;' \
+            > "$APPDIR/openrig.desktop"
+
+          rsvg-convert -w 256 -h 256 \
+            crates/adapter-gui/ui/assets/openrig-logomark.svg \
+            -o "$APPDIR/openrig.png"
+
+          APPIMAGE_EXTRACT_AND_RUN=1 ARCH=x86_64 ./appimagetool "$APPDIR" \
+            "dist/OpenRig-${VERSION}-linux-x86_64.AppImage"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openrig-linux-x86_64
+          path: |
+            dist/openrig-*-linux-x86_64.tar.gz
+            dist/openrig_*_amd64.deb
+            dist/openrig-*-1.x86_64.rpm
+            dist/OpenRig-*-linux-x86_64.AppImage
+
+  # --------------------------------------------------------------------------
+  # Linux aarch64: .tar.gz + .deb + .rpm + .AppImage
+  # --------------------------------------------------------------------------
+  build-linux-aarch64:
+    name: Build Linux aarch64
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev libudev-dev pkg-config \
+            libfontconfig1-dev libseat-dev \
+            libxkbcommon-dev libinput-dev libgbm-dev \
+            libjack-jackd2-dev \
+            fakeroot rpm ruby-dev build-essential \
+            librsvg2-bin imagemagick
+
+      - name: Install fpm
+        run: sudo gem install fpm --no-document
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: linux-aarch64-u24-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: linux-aarch64-u24-cargo-
+
+      - name: Build
+        run: cargo build --release -p adapter-gui
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="${{ inputs.version }}"
+            V="${V:-0.0.0-dev}"
+          fi
+          echo "v=${V}" >> "$GITHUB_OUTPUT"
+
+      - name: Stage install tree
+        run: |
+          S=dist/stage
+          mkdir -p "$S/usr/bin"
+          mkdir -p "$S/usr/lib/openrig/libs/lv2"
+          mkdir -p "$S/usr/lib/openrig/libs/nam"
+          mkdir -p "$S/usr/share/openrig/data"
+
+          cp target/release/adapter-gui    "$S/usr/bin/openrig"
+          cp -r libs/lv2/linux-aarch64     "$S/usr/lib/openrig/libs/lv2/linux-aarch64"
+          cp -r libs/nam/linux-aarch64     "$S/usr/lib/openrig/libs/nam/linux-aarch64"
+          cp -r data/lv2                   "$S/usr/share/openrig/data/lv2"
+          cp -r assets                     "$S/usr/share/openrig/assets"
+          cp -r captures                   "$S/usr/share/openrig/captures"
+
+      - name: Create .tar.gz
+        env:
+          VERSION: ${{ steps.ver.outputs.v }}
+        run: |
+          D="openrig-${VERSION}-linux-aarch64"
+          mkdir -p "dist/${D}"
+          cp dist/stage/usr/bin/openrig               "dist/${D}/openrig"
+          cp -r dist/stage/usr/lib/openrig/libs       "dist/${D}/libs"
+          cp -r dist/stage/usr/share/openrig/data     "dist/${D}/data"
+          cp -r dist/stage/usr/share/openrig/assets   "dist/${D}/assets"
+          cp -r dist/stage/usr/share/openrig/captures "dist/${D}/captures"
+          tar -czf "dist/${D}.tar.gz" -C dist "${D}"
+
+      - name: Create .deb
+        env:
+          VERSION: ${{ steps.ver.outputs.v }}
+        run: |
+          fpm -s dir -t deb \
+            -n openrig -v "${VERSION}" \
+            --architecture arm64 \
+            --description "OpenRig virtual guitar pedalboard" \
+            --url "https://github.com/jpfaria/OpenRig" \
+            --maintainer "Joao Paulo Faria" \
+            --category sound \
+            --depends libasound2 \
+            --deb-no-default-config-files \
+            -C dist/stage \
+            --package "dist/openrig_${VERSION}_arm64.deb" \
+            usr
+
+      - name: Create .rpm
+        env:
+          VERSION: ${{ steps.ver.outputs.v }}
+        run: |
+          fpm -s dir -t rpm \
+            -n openrig -v "${VERSION}" \
+            --architecture aarch64 \
+            --description "OpenRig virtual guitar pedalboard" \
+            --url "https://github.com/jpfaria/OpenRig" \
+            --maintainer "Joao Paulo Faria" \
+            --category "Applications/Multimedia" \
+            -C dist/stage \
+            --package "dist/openrig-${VERSION}-1.aarch64.rpm" \
+            usr
+
+      - name: Create AppImage (aarch64)
+        env:
+          VERSION: ${{ steps.ver.outputs.v }}
+        run: |
+          curl -fsSL -o appimagetool \
+            https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-aarch64.AppImage
+          chmod +x appimagetool
+
+          APPDIR=dist/AppDir
+          cp -r dist/stage "$APPDIR"
+
+          printf '%s\n' \
+            '#!/bin/bash' \
+            'HERE="$(dirname "$(readlink -f "${0}")")"' \
+            'export OPENRIG_LIBS_DIR="$HERE/usr/lib/openrig/libs"' \
+            'export OPENRIG_DATA_DIR="$HERE/usr/share/openrig/data"' \
+            'export OPENRIG_ASSETS_DIR="$HERE/usr/share/openrig/assets"' \
+            'export OPENRIG_CAPTURES_DIR="$HERE/usr/share/openrig/captures"' \
+            'exec "$HERE/usr/bin/openrig" "$@"' \
+            > "$APPDIR/AppRun"
+          chmod +x "$APPDIR/AppRun"
+
+          printf '%s\n' \
+            '[Desktop Entry]' \
+            'Name=OpenRig' \
+            'Exec=openrig' \
+            'Icon=openrig' \
+            'Type=Application' \
+            'Categories=Audio;Music;' \
+            > "$APPDIR/openrig.desktop"
+
+          rsvg-convert -w 256 -h 256 \
+            crates/adapter-gui/ui/assets/openrig-logomark.svg \
+            -o "$APPDIR/openrig.png"
+
+          APPIMAGE_EXTRACT_AND_RUN=1 ARCH=aarch64 ./appimagetool "$APPDIR" \
+            "dist/OpenRig-${VERSION}-linux-aarch64.AppImage"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openrig-linux-aarch64
+          path: |
+            dist/openrig-*-linux-aarch64.tar.gz
+            dist/openrig_*_arm64.deb
+            dist/openrig-*-1.aarch64.rpm
+            dist/OpenRig-*-linux-aarch64.AppImage
+
+  # --------------------------------------------------------------------------
+  # Windows x64: .zip (full bundle) + .msi (installer)
+  # --------------------------------------------------------------------------
+  build-windows:
+    name: Build Windows x64
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: windows-x64-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: windows-x64-cargo-
+
+      - name: Download ASIO SDK
+        shell: pwsh
+        run: |
+          $sdk_url = "https://download.steinberg.net/sdk_downloads/asiosdk_2.3.3_2019-06-14.zip"
+          Invoke-WebRequest -Uri $sdk_url -OutFile asiosdk.zip
+          Expand-Archive -Path asiosdk.zip -DestinationPath C:\asiosdk
+          $sdk_dir = (Get-ChildItem C:\asiosdk -Directory)[0].FullName
+          "CPAL_ASIO_DIR=$sdk_dir" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "ASIO SDK: $sdk_dir"
+
+      - name: Install LLVM/clang (required by ASIO bindgen)
+        run: choco install llvm -y --no-progress
+
+      - name: Build
+        run: cargo build --release -p adapter-gui
+
+      - name: Resolve version
+        id: ver
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            V="${GITHUB_REF_NAME#v}"
+          else
+            V="${{ inputs.version }}"
+            V="${V:-0.0.0-dev}"
+          fi
+          echo "v=${V}" >> "$GITHUB_OUTPUT"
+
+      - name: Install WiX Toolset v3
+        run: choco install wixtoolset -y --no-progress
+
+      - name: Install MinGW runtime DLLs (needed by libNeuralAudioCAPI.dll)
+        shell: cmd
+        run: C:\msys64\usr\bin\pacman.exe -S --noconfirm --needed mingw-w64-x86_64-gcc-libs mingw-w64-x86_64-winpthreads-git
+
+      - name: Package (.zip + .msi)
+        env:
+          VERSION: ${{ steps.ver.outputs.v }}
+        shell: pwsh
+        run: .\scripts\package-windows.ps1 "$env:VERSION"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openrig-windows-x64
+          path: |
+            dist/OpenRig-*-windows-x64.zip
+            dist/OpenRig-*-windows-x64.msi
+
+  # --------------------------------------------------------------------------
+  # GitHub Release (only on tag push)
+  # --------------------------------------------------------------------------
+  create-release:
+    name: Create GitHub Release
+    needs: [build-macos, build-linux-x86_64, build-linux-aarch64, build-windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Generate release notes from milestone
+        id: notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          VERSION="${TAG#v}"
+
+          MILESTONE_NUMBER=$(gh api "repos/${REPO}/milestones?state=all&per_page=100" \
+            | jq -r --arg ver "$VERSION" --arg tag "$TAG" \
+              '.[] | select(.title == $ver or .title == $tag) | .number' \
+            | head -1)
+
+          if [ -z "$MILESTONE_NUMBER" ]; then
+            echo "No milestone found for ${TAG}, using auto-generated notes"
+            echo "milestone_number=" >> "$GITHUB_OUTPUT"
+            echo "use_generated=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Found milestone #${MILESTONE_NUMBER}"
+            echo "milestone_number=${MILESTONE_NUMBER}" >> "$GITHUB_OUTPUT"
+            echo "use_generated=false" >> "$GITHUB_OUTPUT"
+
+            ITEMS=$(gh api "repos/${REPO}/issues?milestone=${MILESTONE_NUMBER}&state=closed&per_page=100")
+
+            PRS=$(echo "$ITEMS" | jq -r '.[] | select(.pull_request) | "- " + .title + " (#" + (.number|tostring) + ")"')
+            ISSUES=$(echo "$ITEMS" | jq -r '.[] | select(.pull_request == null) | "- " + .title + " (#" + (.number|tostring) + ")"')
+
+            NOTES="## What's Changed"
+            if [ -n "$PRS" ]; then
+              NOTES+=$'\n\n### Pull Requests\n'"$PRS"
+            fi
+            if [ -n "$ISSUES" ]; then
+              NOTES+=$'\n\n### Issues Fixed\n'"$ISSUES"
+            fi
+
+            {
+              echo "notes<<RELEASE_NOTES_EOF"
+              echo "$NOTES"
+              echo "RELEASE_NOTES_EOF"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          REPO: ${{ github.repository }}
+          NOTES: ${{ steps.notes.outputs.notes }}
+          USE_GENERATED: ${{ steps.notes.outputs.use_generated }}
+        run: |
+          mapfile -t FILES < <(find artifacts -type f | sort)
+          if [ "$USE_GENERATED" = "true" ]; then
+            gh release create "$TAG" \
+              --repo "$REPO" \
+              --title "OpenRig $TAG" \
+              --generate-notes \
+              "${FILES[@]}"
+          else
+            gh release create "$TAG" \
+              --repo "$REPO" \
+              --title "OpenRig $TAG" \
+              --notes "$NOTES" \
+              "${FILES[@]}"
+          fi
+
+      - name: Close milestone
+        if: steps.notes.outputs.milestone_number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          MILESTONE_NUMBER: ${{ steps.notes.outputs.milestone_number }}
+        run: |
+          gh api "repos/${REPO}/milestones/${MILESTONE_NUMBER}" \
+            -X PATCH \
+            -f state=closed
+          echo "Closed milestone #${MILESTONE_NUMBER}"
