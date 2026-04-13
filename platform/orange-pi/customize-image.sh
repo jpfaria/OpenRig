@@ -191,6 +191,12 @@ else
     echo "extraargs=${KERNEL_ARGS}" >> /boot/armbianEnv.txt
 fi
 
+# Armbian boot env: suppress verbose splash, keep console on serial only
+# (HDMI shows Plymouth logo), enable u-boot logo handoff.
+sed -i 's/^verbosity=.*/verbosity=0/' /boot/armbianEnv.txt
+sed -i 's/^console=.*/console=serial/' /boot/armbianEnv.txt
+sed -i 's/^bootlogo=.*/bootlogo=true/' /boot/armbianEnv.txt
+
 # Armbian first-run wizard (language/keyboard/timezone/user prompt).
 # On Armbian, the presence of /root/.not_logged_in_yet triggers the wizard
 # on first shell login; armbian-firstrun*.service also runs unconditionally.
