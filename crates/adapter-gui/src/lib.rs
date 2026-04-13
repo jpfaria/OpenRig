@@ -2913,16 +2913,24 @@ pub fn run_desktop_app(
             {
                 let weak_main = window.as_weak();
                 compact_win.on_configure_input(move |ci| {
+                    log::warn!("[compact] on_configure_input fired, chain_index={}", ci);
                     if let Some(main_win) = weak_main.upgrade() {
+                        log::warn!("[compact] main_win upgrade OK, invoking configure_chain_input");
                         main_win.invoke_configure_chain_input(ci);
+                    } else {
+                        log::warn!("[compact] main_win upgrade FAILED");
                     }
                 });
             }
             {
                 let weak_main = window.as_weak();
                 compact_win.on_configure_output(move |ci| {
+                    log::warn!("[compact] on_configure_output fired, chain_index={}", ci);
                     if let Some(main_win) = weak_main.upgrade() {
+                        log::warn!("[compact] main_win upgrade OK, invoking configure_chain_output");
                         main_win.invoke_configure_chain_output(ci);
+                    } else {
+                        log::warn!("[compact] main_win upgrade FAILED");
                     }
                 });
             }

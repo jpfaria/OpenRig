@@ -662,7 +662,10 @@ component ChainEndpointChip inherits Rectangle {
         width: parent.width;
         height: parent.height;
         mouse-cursor: pointer;
-        clicked => { root.clicked(); }
+        clicked => {
+            debug("ChainEndpointChip clicked", root.is-input, root.label);
+            root.clicked();
+        }
     }
 }
 
