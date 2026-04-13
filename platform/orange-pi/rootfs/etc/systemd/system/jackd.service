@@ -16,6 +16,10 @@ Group=audio
 # Waits up to 10s for any USB audio interface; exits cleanly if none found.
 Environment=JACK_NO_AUDIO_RESERVATION=1
 
+# systemd ignores PAM limits.conf, so RT scheduling must be granted here.
+LimitRTPRIO=95
+LimitMEMLOCK=infinity
+
 # Pin xHCI USB host IRQs to a big A76 core (CPU 4 = mask 0x10) to reduce audio jitter.
 # RK3588S topology: CPUs 0-3 = A55 (little), CPUs 4-7 = A76 (big).
 ExecStartPre=/bin/sh -c '\
