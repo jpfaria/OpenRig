@@ -2609,7 +2609,6 @@ mod tests {
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".into(),
                         entries: vec![InputEntry {
-                            name: "In".into(),
                             device_id: DeviceId("dev".into()),
                             mode: ChainInputMode::Mono,
                             channels: vec![0],
@@ -2622,7 +2621,6 @@ mod tests {
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".into(),
                         entries: vec![OutputEntry {
-                            name: "Out".into(),
                             device_id: DeviceId("dev".into()),
                             mode: ChainOutputMode::Mono,
                             channels: vec![0],
@@ -3494,7 +3492,6 @@ mod tests {
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".into(),
                         entries: vec![InputEntry {
-                            name: "In".into(),
                             device_id: DeviceId("dev_in".into()),
                             mode: ChainInputMode::Mono,
                             channels: vec![0],
@@ -3542,7 +3539,6 @@ mod tests {
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".into(),
                         entries: vec![OutputEntry {
-                            name: "Out".into(),
                             device_id: DeviceId("dev_out".into()),
                             mode: ChainOutputMode::Stereo,
                             channels: vec![0, 1],
@@ -3559,8 +3555,6 @@ mod tests {
         let (eff_inputs, cpal_indices) = effective_inputs(&chain);
         // Should have: 1 regular input + 1 insert return = 2
         assert_eq!(eff_inputs.len(), 2);
-        assert_eq!(eff_inputs[0].name, "In");
-        assert_eq!(eff_inputs[1].name, "Insert Return");
         assert_eq!(cpal_indices.len(), 2);
     }
 
@@ -3570,8 +3564,7 @@ mod tests {
         let eff_outputs = effective_outputs(&chain);
         // Should have: 1 regular output + 1 insert send = 2
         assert_eq!(eff_outputs.len(), 2);
-        assert_eq!(eff_outputs[0].name, "Out");
-        assert_eq!(eff_outputs[1].name, "Insert Send");
+        assert_eq!(eff_outputs.len(), 2);
     }
 
     #[test]
@@ -3621,7 +3614,6 @@ mod tests {
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".into(),
                     entries: vec![InputEntry {
-                        name: "Guitar".into(),
                         device_id: DeviceId("dev".into()),
                         mode: ChainInputMode::Mono,
                         channels: vec![0, 1, 2],
@@ -3652,7 +3644,6 @@ mod tests {
         };
         let (eff_inputs, cpal_indices) = effective_inputs(&chain);
         assert_eq!(eff_inputs.len(), 1, "fallback should produce exactly 1 input");
-        assert_eq!(eff_inputs[0].name, "Input");
         assert_eq!(cpal_indices, vec![0]);
     }
 
@@ -3667,7 +3658,6 @@ mod tests {
         };
         let eff_outputs = effective_outputs(&chain);
         assert_eq!(eff_outputs.len(), 1, "fallback should produce exactly 1 output");
-        assert_eq!(eff_outputs[0].name, "Output");
     }
 
     // ── downcast_panic_message tests ─────────────────────────────────────────
@@ -3709,7 +3699,6 @@ mod tests {
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".into(),
                         entries: vec![InputEntry {
-                            name: "In".into(),
                             device_id: DeviceId("dev".into()),
                             mode: ChainInputMode::Stereo,
                             channels: vec![0, 1],
@@ -3722,7 +3711,6 @@ mod tests {
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".into(),
                         entries: vec![OutputEntry {
-                            name: "Out".into(),
                             device_id: DeviceId("dev".into()),
                             mode: ChainOutputMode::Stereo,
                             channels: vec![0, 1],
@@ -3803,7 +3791,6 @@ mod tests {
             },
         };
         let entry = insert_return_as_input_entry(&insert);
-        assert_eq!(entry.name, "Insert Return");
         assert_eq!(entry.device_id.0, "return_dev");
         assert_eq!(entry.channels, vec![2]);
         assert!(matches!(entry.mode, ChainInputMode::Mono));
@@ -3828,7 +3815,6 @@ mod tests {
             },
         };
         let entry = insert_send_as_output_entry(&insert);
-        assert_eq!(entry.name, "Insert Send");
         assert_eq!(entry.device_id.0, "send_dev");
         assert_eq!(entry.channels, vec![0]);
         assert!(matches!(entry.mode, ChainOutputMode::Mono));
@@ -3890,7 +3876,6 @@ mod tests {
     fn build_output_routing_state_mono_single_channel() {
         use super::build_output_routing_state;
         let output = OutputEntry {
-            name: "Out".into(),
             device_id: DeviceId("dev".into()),
             mode: ChainOutputMode::Mono,
             channels: vec![0],
@@ -3903,7 +3888,6 @@ mod tests {
     fn build_output_routing_state_stereo_two_channels() {
         use super::build_output_routing_state;
         let output = OutputEntry {
-            name: "Out".into(),
             device_id: DeviceId("dev".into()),
             mode: ChainOutputMode::Stereo,
             channels: vec![0, 1],
@@ -3916,7 +3900,6 @@ mod tests {
     fn build_output_routing_state_mono_mode_with_two_channels_uses_mono() {
         use super::build_output_routing_state;
         let output = OutputEntry {
-            name: "Out".into(),
             device_id: DeviceId("dev".into()),
             mode: ChainOutputMode::Mono,
             channels: vec![0, 1],
@@ -4027,7 +4010,6 @@ mod tests {
                 kind: AudioBlockKind::Input(InputBlock {
                     model: "standard".into(),
                     entries: vec![InputEntry {
-                        name: "Stereo In".into(),
                         device_id: DeviceId("dev".into()),
                         mode: ChainInputMode::Stereo,
                         channels: vec![0, 1],
@@ -4056,7 +4038,6 @@ mod tests {
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".into(),
                         entries: vec![InputEntry {
-                            name: "Disabled".into(),
                             device_id: DeviceId("dev".into()),
                             mode: ChainInputMode::Mono,
                             channels: vec![0],
@@ -4069,7 +4050,6 @@ mod tests {
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".into(),
                         entries: vec![OutputEntry {
-                            name: "Out".into(),
                             device_id: DeviceId("dev".into()),
                             mode: ChainOutputMode::Mono,
                             channels: vec![0],
@@ -4081,7 +4061,7 @@ mod tests {
         let (eff_inputs, _) = effective_inputs(&chain);
         // Disabled input block is ignored, so fallback
         assert_eq!(eff_inputs.len(), 1);
-        assert_eq!(eff_inputs[0].name, "Input", "should fall back to default input");
+        assert_eq!(eff_inputs[0].device_id.0, "", "should fall back to default input");
     }
 
     // ── effective_outputs with disabled output block ─────────────────────────
@@ -4099,7 +4079,6 @@ mod tests {
                 kind: AudioBlockKind::Output(OutputBlock {
                     model: "standard".into(),
                     entries: vec![OutputEntry {
-                        name: "Disabled Out".into(),
                         device_id: DeviceId("dev".into()),
                         mode: ChainOutputMode::Mono,
                         channels: vec![0],
@@ -4109,7 +4088,7 @@ mod tests {
         };
         let eff_outputs = effective_outputs(&chain);
         assert_eq!(eff_outputs.len(), 1);
-        assert_eq!(eff_outputs[0].name, "Output", "should fall back to default output");
+        assert_eq!(eff_outputs[0].device_id.0, "", "should fall back to default output");
     }
 
     // ── effective_inputs with multiple input blocks ─────────────────────────
@@ -4128,7 +4107,6 @@ mod tests {
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".into(),
                         entries: vec![InputEntry {
-                            name: "Guitar".into(),
                             device_id: DeviceId("dev1".into()),
                             mode: ChainInputMode::Mono,
                             channels: vec![0],
@@ -4141,7 +4119,6 @@ mod tests {
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".into(),
                         entries: vec![InputEntry {
-                            name: "Mic".into(),
                             device_id: DeviceId("dev2".into()),
                             mode: ChainInputMode::Mono,
                             channels: vec![0],
@@ -4152,8 +4129,8 @@ mod tests {
         };
         let (eff_inputs, cpal_indices) = effective_inputs(&chain);
         assert_eq!(eff_inputs.len(), 2);
-        assert_eq!(eff_inputs[0].name, "Guitar");
-        assert_eq!(eff_inputs[1].name, "Mic");
+        assert_eq!(eff_inputs[0].device_id.0, "dev1");
+        assert_eq!(eff_inputs[1].device_id.0, "dev2");
         // Different devices should have different CPAL indices
         assert_ne!(cpal_indices[0], cpal_indices[1]);
     }
@@ -4174,13 +4151,11 @@ mod tests {
                     model: "standard".into(),
                     entries: vec![
                         InputEntry {
-                            name: "Ch1".into(),
                             device_id: DeviceId("same_dev".into()),
                             mode: ChainInputMode::Mono,
                             channels: vec![0],
                         },
                         InputEntry {
-                            name: "Ch2".into(),
                             device_id: DeviceId("same_dev".into()),
                             mode: ChainInputMode::Mono,
                             channels: vec![1],

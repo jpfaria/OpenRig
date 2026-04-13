@@ -197,7 +197,6 @@ mod tests {
             kind: AudioBlockKind::Input(InputBlock {
                 model: "standard".to_string(),
                 entries: vec![InputEntry {
-                    name: "Input".to_string(),
                     device_id: DeviceId(device.into()),
                     mode,
                     channels,
@@ -213,7 +212,6 @@ mod tests {
             kind: AudioBlockKind::Output(OutputBlock {
                 model: "standard".to_string(),
                 entries: vec![OutputEntry {
-                    name: "Output".to_string(),
                     device_id: DeviceId(device.into()),
                     mode,
                     channels,
@@ -328,7 +326,6 @@ mod tests {
     #[test]
     fn processing_layout_for_input_entry_mono() {
         let entry = InputEntry {
-            name: "In".to_string(),
             device_id: DeviceId("dev".into()),
             mode: ChainInputMode::Mono,
             channels: vec![0],
@@ -339,7 +336,6 @@ mod tests {
     #[test]
     fn processing_layout_for_input_entry_stereo() {
         let entry = InputEntry {
-            name: "In".to_string(),
             device_id: DeviceId("dev".into()),
             mode: ChainInputMode::Stereo,
             channels: vec![0, 1],
@@ -350,7 +346,6 @@ mod tests {
     #[test]
     fn processing_layout_for_input_entry_dual_mono() {
         let entry = InputEntry {
-            name: "In".to_string(),
             device_id: DeviceId("dev".into()),
             mode: ChainInputMode::DualMono,
             channels: vec![0, 1],
@@ -361,7 +356,6 @@ mod tests {
     #[test]
     fn processing_layout_for_input_entry_stereo_single_channel_falls_to_mono() {
         let entry = InputEntry {
-            name: "In".to_string(),
             device_id: DeviceId("dev".into()),
             mode: ChainInputMode::Stereo,
             channels: vec![0], // only 1 channel despite Stereo mode
@@ -372,7 +366,6 @@ mod tests {
     #[test]
     fn processing_layout_for_input_entry_dual_mono_single_channel_falls_to_mono() {
         let entry = InputEntry {
-            name: "In".to_string(),
             device_id: DeviceId("dev".into()),
             mode: ChainInputMode::DualMono,
             channels: vec![0], // only 1 channel despite DualMono mode
@@ -527,7 +520,6 @@ mod tests {
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".to_string(),
                         entries: vec![InputEntry {
-                            name: "A".to_string(),
                             device_id: DeviceId("scarlett".into()),
                             mode: ChainInputMode::Mono,
                             channels: vec![0],
@@ -540,7 +532,6 @@ mod tests {
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".to_string(),
                         entries: vec![InputEntry {
-                            name: "B".to_string(),
                             device_id: DeviceId("scarlett".into()),
                             mode: ChainInputMode::Mono,
                             channels: vec![0], // same device+channel as in:0
@@ -570,7 +561,6 @@ mod tests {
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".to_string(),
                         entries: vec![OutputEntry {
-                            name: "A".to_string(),
                             device_id: DeviceId("speakers".into()),
                             mode: ChainOutputMode::Stereo,
                             channels: vec![0, 1],
@@ -583,7 +573,6 @@ mod tests {
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".to_string(),
                         entries: vec![OutputEntry {
-                            name: "B".to_string(),
                             device_id: DeviceId("speakers".into()),
                             mode: ChainOutputMode::Mono,
                             channels: vec![1], // conflicts with out:0 channel 1
@@ -621,7 +610,6 @@ mod tests {
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".to_string(),
                         entries: vec![InputEntry {
-                            name: "A".to_string(),
                             device_id: DeviceId("scarlett".into()),
                             mode: ChainInputMode::Mono,
                             channels: vec![0],
@@ -634,7 +622,6 @@ mod tests {
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".to_string(),
                         entries: vec![InputEntry {
-                            name: "B".to_string(),
                             device_id: DeviceId("macbook".into()),
                             mode: ChainInputMode::Mono,
                             channels: vec![0], // same channel but different device
@@ -669,13 +656,11 @@ mod tests {
                         model: "standard".to_string(),
                         entries: vec![
                             InputEntry {
-                                name: "A".to_string(),
                                 device_id: DeviceId("dev".into()),
                                 mode: ChainInputMode::Mono,
                                 channels: vec![0],
                             },
                             InputEntry {
-                                name: "B".to_string(),
                                 device_id: DeviceId("dev".into()),
                                 mode: ChainInputMode::Mono,
                                 channels: vec![0], // duplicate within same InputBlock

@@ -1827,7 +1827,6 @@ chains:
                         kind: AudioBlockKind::Input(InputBlock {
                             model: "standard".to_string(),
                             entries: vec![InputEntry {
-                                name: "In".to_string(),
                                 device_id: DeviceId("dev-in".into()),
                                 mode: ChainInputMode::Mono,
                                 channels: vec![0],
@@ -1840,7 +1839,6 @@ chains:
                         kind: AudioBlockKind::Output(OutputBlock {
                             model: "standard".to_string(),
                             entries: vec![OutputEntry {
-                                name: "Out".to_string(),
                                 device_id: DeviceId("dev-out".into()),
                                 mode: ChainOutputMode::Mono,
                                 channels: vec![0],
@@ -1982,7 +1980,6 @@ chains:
         let repo = YamlProjectRepository { path: project_path };
         let project = repo.load_current_project().expect("load");
         let inputs = project.chains[0].input_blocks();
-        assert_eq!(inputs[0].1.entries[0].name, "Bass Input");
         assert_eq!(inputs[0].1.entries[0].device_id, DeviceId("bass-interface".into()));
         assert_eq!(inputs[0].1.entries[0].channels, vec![1]);
     }
@@ -2198,7 +2195,6 @@ mode: clean
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".to_string(),
                         entries: vec![InputEntry {
-                            name: "Mic 1".to_string(),
                             device_id: DeviceId("mic-dev".into()),
                             mode: ChainInputMode::Mono,
                             channels: vec![0],
@@ -2211,7 +2207,6 @@ mode: clean
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".to_string(),
                         entries: vec![OutputEntry {
-                            name: "Speaker".to_string(),
                             device_id: DeviceId("spk-dev".into()),
                             mode: ChainOutputMode::Stereo,
                             channels: vec![0, 1],
@@ -2223,8 +2218,8 @@ mode: clean
         save_chain_preset_file(&path, &preset).expect("save");
         let loaded = load_chain_preset_file(&path).expect("load");
         assert_eq!(loaded.blocks.len(), 2);
-        assert!(matches!(&loaded.blocks[0].kind, AudioBlockKind::Input(inp) if inp.entries[0].name == "Mic 1"));
-        assert!(matches!(&loaded.blocks[1].kind, AudioBlockKind::Output(out) if out.entries[0].name == "Speaker"));
+        assert!(matches!(&loaded.blocks[0].kind, AudioBlockKind::Input(inp) if inp.entries[0].device_id == DeviceId("mic-dev".into())));
+        assert!(matches!(&loaded.blocks[1].kind, AudioBlockKind::Output(out) if out.entries[0].device_id == DeviceId("spk-dev".into())));
     }
 
     // ─── Error cases ───

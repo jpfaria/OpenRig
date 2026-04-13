@@ -1868,7 +1868,6 @@ mod tests {
             },
         };
         let entry = insert_return_as_input_entry(&insert);
-        assert_eq!(entry.name, "Insert Return");
         assert_eq!(entry.device_id.0, "return");
         assert_eq!(entry.channels, vec![2, 3]);
     }
@@ -1896,7 +1895,6 @@ mod tests {
             },
         };
         let entry = insert_send_as_output_entry(&insert);
-        assert_eq!(entry.name, "Insert Send");
         assert_eq!(entry.device_id.0, "send");
         assert!(matches!(entry.mode, ChainOutputMode::Mono));
     }

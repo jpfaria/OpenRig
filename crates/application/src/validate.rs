@@ -287,9 +287,8 @@ mod tests {
     // Helper functions
     // -----------------------------------------------------------------------
 
-    fn test_input_entry(name: &str, device_id: &str, channels: Vec<usize>) -> InputEntry {
+    fn test_input_entry(_name: &str, device_id: &str, channels: Vec<usize>) -> InputEntry {
         InputEntry {
-            name: name.to_string(),
             device_id: DeviceId(device_id.to_string()),
             mode: ChainInputMode::Mono,
             channels,
@@ -307,9 +306,8 @@ mod tests {
         }
     }
 
-    fn test_output_entry(name: &str, device_id: &str, channels: Vec<usize>) -> OutputEntry {
+    fn test_output_entry(_name: &str, device_id: &str, channels: Vec<usize>) -> OutputEntry {
         OutputEntry {
-            name: name.to_string(),
             device_id: DeviceId(device_id.to_string()),
             mode: ChainOutputMode::Stereo,
             channels,
@@ -717,7 +715,6 @@ mod tests {
             kind: AudioBlockKind::Input(InputBlock {
                 model: "standard".to_string(),
                 entries: vec![InputEntry {
-                    name: "".to_string(),
                     device_id: DeviceId("".to_string()),
                     mode: ChainInputMode::Mono,
                     channels: vec![0],
@@ -738,7 +735,6 @@ mod tests {
             kind: AudioBlockKind::Output(OutputBlock {
                 model: "standard".to_string(),
                 entries: vec![OutputEntry {
-                    name: "".to_string(),
                     device_id: DeviceId("".to_string()),
                     mode: ChainOutputMode::Stereo,
                     channels: vec![0, 1],
