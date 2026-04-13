@@ -411,11 +411,130 @@ struct ActiveChainRuntime {
     _output_streams: Vec<Stream>,
     #[cfg(all(target_os = "linux", feature = "jack"))]
     _jack_client: Option<jack::AsyncClient<(), JackProcessHandler>>,
+    /// DSP worker thread handle (Linux/JACK only). Dropped when chain stops.
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    _dsp_worker: Option<DspWorkerHandle>,
 }
 
-/// Direct JACK process handler — runs in the JACK real-time thread with zero
-/// extra buffering. Reads from JACK input ports, interleaves into the engine,
-/// then deinterleaves engine output into JACK output ports.
+/// Handle to the DSP worker thread. Setting the stop flag and joining on drop.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+struct DspWorkerHandle {
+    stop_flag: Arc<std::sync::atomic::AtomicBool>,
+    wake: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>,
+    thread: Option<std::thread::JoinHandle<()>>,
+}
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
+impl Drop for DspWorkerHandle {
+    fn drop(&mut self) {
+        self.stop_flag.store(true, std::sync::atomic::Ordering::Release);
+        // Wake the worker so it sees the stop flag
+        if let Ok(mut flag) = self.wake.0.lock() {
+            *flag = true;
+        }
+        self.wake.1.notify_one();
+        if let Some(handle) = self.thread.take() {
+            let _ = handle.join();
+        }
+    }
+}
+
+/// Lock-free single-producer single-consumer ring buffer for passing audio
+/// data from the JACK RT callback to the DSP worker thread.
+///
+/// The JACK callback writes interleaved f32 blocks; the worker reads them.
+/// Slots are fixed-size (max_samples_per_slot), indexed by atomic counters.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+struct SpscRingBuffer {
+    /// Flat storage: `num_slots * max_samples_per_slot` f32s.
+    data: Vec<std::cell::UnsafeCell<f32>>,
+    /// How many f32 samples each slot holds.
+    max_samples_per_slot: usize,
+    /// Number of slots (power of 2 for fast modulo).
+    num_slots: usize,
+    /// Monotonically increasing write counter (slot index = write_pos % num_slots).
+    write_pos: std::sync::atomic::AtomicUsize,
+    /// Monotonically increasing read counter.
+    read_pos: std::sync::atomic::AtomicUsize,
+}
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
+unsafe impl Send for SpscRingBuffer {}
+#[cfg(all(target_os = "linux", feature = "jack"))]
+unsafe impl Sync for SpscRingBuffer {}
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
+impl SpscRingBuffer {
+    fn new(num_slots: usize, max_samples_per_slot: usize) -> Self {
+        assert!(num_slots.is_power_of_two());
+        let total = num_slots * max_samples_per_slot;
+        let mut data = Vec::with_capacity(total);
+        for _ in 0..total {
+            data.push(std::cell::UnsafeCell::new(0.0));
+        }
+        Self {
+            data,
+            max_samples_per_slot,
+            num_slots,
+            write_pos: std::sync::atomic::AtomicUsize::new(0),
+            read_pos: std::sync::atomic::AtomicUsize::new(0),
+        }
+    }
+
+    /// Try to write `samples` into the next slot. Returns false if full.
+    /// SAFETY: Only one thread may call this (producer).
+    fn try_write(&self, samples: &[f32]) -> bool {
+        use std::sync::atomic::Ordering;
+        let wp = self.write_pos.load(Ordering::Relaxed);
+        let rp = self.read_pos.load(Ordering::Acquire);
+        if wp.wrapping_sub(rp) >= self.num_slots {
+            return false; // full
+        }
+        let slot = wp & (self.num_slots - 1);
+        let base = slot * self.max_samples_per_slot;
+        let n = samples.len().min(self.max_samples_per_slot);
+        for i in 0..n {
+            unsafe { *self.data[base + i].get() = samples[i]; }
+        }
+        // Zero remaining samples in slot
+        for i in n..self.max_samples_per_slot {
+            unsafe { *self.data[base + i].get() = 0.0; }
+        }
+        self.write_pos.store(wp.wrapping_add(1), Ordering::Release);
+        true
+    }
+
+    /// Try to read the next slot into `dst`. Returns false if empty.
+    /// SAFETY: Only one thread may call this (consumer).
+    fn try_read(&self, dst: &mut [f32]) -> bool {
+        use std::sync::atomic::Ordering;
+        let rp = self.read_pos.load(Ordering::Relaxed);
+        let wp = self.write_pos.load(Ordering::Acquire);
+        if rp == wp {
+            return false; // empty
+        }
+        let slot = rp & (self.num_slots - 1);
+        let base = slot * self.max_samples_per_slot;
+        let n = dst.len().min(self.max_samples_per_slot);
+        for i in 0..n {
+            dst[i] = unsafe { *self.data[base + i].get() };
+        }
+        self.read_pos.store(rp.wrapping_add(1), Ordering::Release);
+        true
+    }
+
+    /// Number of slots available to read.
+    fn available(&self) -> usize {
+        use std::sync::atomic::Ordering;
+        let wp = self.write_pos.load(Ordering::Acquire);
+        let rp = self.read_pos.load(Ordering::Acquire);
+        wp.wrapping_sub(rp)
+    }
+}
+
+/// Direct JACK process handler — runs in the JACK real-time thread.
+/// Does NO DSP processing — only copies audio data to/from ring buffers.
+/// The heavy DSP work happens in a separate worker thread.
 ///
 /// Buffers are pre-allocated to avoid heap allocation in the RT callback.
 #[cfg(all(target_os = "linux", feature = "jack"))]
@@ -425,6 +544,15 @@ struct JackProcessHandler {
     runtime: Arc<ChainRuntimeState>,
     input_buf: Vec<f32>,
     output_buf: Vec<f32>,
+    /// Ring buffer for offloading DSP to the worker thread.
+    /// When Some, the RT callback writes input to this ring and the worker
+    /// thread does the processing. When None, processing is done inline
+    /// (fallback for non-Linux or when worker setup fails).
+    input_ring: Option<Arc<SpscRingBuffer>>,
+    /// Condvar to wake the worker thread when new input is available.
+    worker_wake: Option<Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>>,
+    /// Number of input channels (for the worker thread to know).
+    total_in_channels: usize,
 }
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
@@ -432,11 +560,10 @@ impl jack::ProcessHandler for JackProcessHandler {
     fn process(&mut self, _client: &jack::Client, ps: &jack::ProcessScope) -> jack::Control {
         let n_frames = ps.n_frames() as usize;
 
-        // --- Input: read from JACK ports, interleave, feed engine ---
+        // --- Input: read from JACK ports, interleave ---
         let total_in_ports = self.input_ports.len();
         if total_in_ports > 0 {
             let needed = n_frames * total_in_ports;
-            // Grow only once (first callback); subsequent calls reuse the buffer
             if self.input_buf.len() < needed {
                 self.input_buf.resize(needed, 0.0);
             }
@@ -447,12 +574,27 @@ impl jack::ProcessHandler for JackProcessHandler {
                     buf[frame * total_in_ports + ch] = port_data[frame];
                 }
             }
-            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                process_input_f32(&self.runtime, 0, buf, total_in_ports);
-            }));
+
+            if let Some(ring) = &self.input_ring {
+                // Offload: write to ring buffer, wake worker
+                let _ = ring.try_write(buf);
+                if let Some(wake) = &self.worker_wake {
+                    // Non-blocking: just set flag and notify
+                    if let Ok(mut flag) = wake.0.try_lock() {
+                        *flag = true;
+                    }
+                    wake.1.notify_one();
+                }
+            } else {
+                // Fallback: process inline (no worker thread)
+                let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    process_input_f32(&self.runtime, 0, buf, total_in_ports);
+                }));
+            }
         }
 
         // --- Output: pull from engine, deinterleave into JACK ports ---
+        // This is lightweight — just pops from ElasticBuffer, no DSP.
         let total_out_ports = self.output_ports.len();
         if total_out_ports > 0 {
             let needed = n_frames * total_out_ports;
@@ -476,12 +618,55 @@ impl jack::ProcessHandler for JackProcessHandler {
     }
 }
 
+/// Pin the calling thread to the given CPU cores (Linux only).
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn pin_thread_to_cpus(cpus: &[usize]) {
+    use std::mem;
+    unsafe {
+        let mut set: libc::cpu_set_t = mem::zeroed();
+        for &cpu in cpus {
+            libc::CPU_SET(cpu, &mut set);
+        }
+        let ret = libc::sched_setaffinity(0, mem::size_of::<libc::cpu_set_t>(), &set);
+        if ret != 0 {
+            log::warn!("sched_setaffinity failed: {}", std::io::Error::last_os_error());
+        }
+    }
+}
+
+/// Detect big cores on ARM big.LITTLE by reading max frequency from sysfs.
+/// Returns CPU indices sorted by max frequency (highest first).
+/// Falls back to CPUs 4-7 if sysfs is unavailable.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn detect_big_cores() -> Vec<usize> {
+    let mut cpu_freqs: Vec<(usize, u64)> = Vec::new();
+    for cpu in 0..16 {
+        let path = format!("/sys/devices/system/cpu/cpu{}/cpufreq/cpuinfo_max_freq", cpu);
+        if let Ok(contents) = std::fs::read_to_string(&path) {
+            if let Ok(freq) = contents.trim().parse::<u64>() {
+                cpu_freqs.push((cpu, freq));
+            }
+        }
+    }
+    if cpu_freqs.is_empty() {
+        log::info!("DSP worker: sysfs unavailable, defaulting to CPUs 4-7");
+        return vec![4, 5, 6, 7];
+    }
+    let max_freq = cpu_freqs.iter().map(|(_, f)| *f).max().unwrap_or(0);
+    let big: Vec<usize> = cpu_freqs.iter()
+        .filter(|(_, f)| *f == max_freq)
+        .map(|(cpu, _)| *cpu)
+        .collect();
+    log::info!("DSP worker: detected big cores {:?} (max_freq={}kHz)", big, max_freq);
+    big
+}
+
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn build_jack_direct_chain(
     chain_id: &ChainId,
     chain: &Chain,
     runtime: Arc<ChainRuntimeState>,
-) -> Result<jack::AsyncClient<(), JackProcessHandler>> {
+) -> Result<(jack::AsyncClient<(), JackProcessHandler>, DspWorkerHandle)> {
     let client_name = format!("openrig_{}", chain_id.0);
     let (client, _status) = jack::Client::new(
         &client_name,
@@ -489,9 +674,10 @@ fn build_jack_direct_chain(
     ).map_err(|e| anyhow!("failed to create JACK client: {:?}", e))?;
 
     let sample_rate = client.sample_rate() as f32;
+    let buf_size = client.buffer_size() as usize;
     log::info!(
         "JACK direct: client '{}', sample_rate={}, buffer_size={}",
-        client_name, sample_rate, client.buffer_size()
+        client_name, sample_rate, buf_size
     );
 
     // Collect input channel requirements from chain
@@ -504,7 +690,6 @@ fn build_jack_direct_chain(
         .flat_map(|ib| ib.entries.iter())
         .collect();
 
-    // Determine how many input ports we need (max channel index + 1)
     let max_in_ch = input_entries.iter()
         .flat_map(|e| e.channels.iter())
         .copied()
@@ -546,13 +731,81 @@ fn build_jack_direct_chain(
         output_ports.push(port);
     }
 
-    let buf_size = client.buffer_size() as usize;
+    // Set up DSP worker thread with ring buffer
+    let samples_per_buffer = buf_size * max_in_ch;
+    // 8 slots: enough headroom for JACK to write while worker processes
+    let ring = Arc::new(SpscRingBuffer::new(8, samples_per_buffer));
+    let wake = Arc::new((std::sync::Mutex::new(false), std::sync::Condvar::new()));
+    let stop_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
+
     let handler = JackProcessHandler {
         input_buf: vec![0.0f32; buf_size * input_ports.len().max(1)],
         output_buf: vec![0.0f32; buf_size * output_ports.len().max(1)],
         input_ports,
         output_ports,
-        runtime,
+        runtime: Arc::clone(&runtime),
+        input_ring: Some(Arc::clone(&ring)),
+        worker_wake: Some(Arc::clone(&wake)),
+        total_in_channels: max_in_ch,
+    };
+
+    // Spawn DSP worker thread
+    let worker_runtime = Arc::clone(&runtime);
+    let worker_ring = Arc::clone(&ring);
+    let worker_wake = Arc::clone(&wake);
+    let worker_stop = Arc::clone(&stop_flag);
+    let worker_channels = max_in_ch;
+    let worker_chain_id = chain_id.0.clone();
+
+    let thread = std::thread::Builder::new()
+        .name(format!("dsp-worker-{}", chain_id.0))
+        .spawn(move || {
+            // Pin to big cores (A76 on RK3588)
+            let big_cores = detect_big_cores();
+            if !big_cores.is_empty() {
+                pin_thread_to_cpus(&big_cores);
+                log::info!("DSP worker '{}': pinned to cores {:?}", worker_chain_id, big_cores);
+            }
+
+            // Set high priority (not RT, but high normal)
+            unsafe {
+                let param = libc::sched_param { sched_priority: 0 };
+                libc::sched_setscheduler(0, libc::SCHED_OTHER, &param);
+                // Use nice -10 for higher scheduling priority
+                libc::setpriority(libc::PRIO_PROCESS, 0, -10);
+            }
+
+            let mut read_buf = vec![0.0f32; samples_per_buffer];
+            log::info!("DSP worker '{}': started (buf_size={}, channels={})", worker_chain_id, buf_size, worker_channels);
+
+            loop {
+                if worker_stop.load(std::sync::atomic::Ordering::Acquire) {
+                    break;
+                }
+
+                // Process all available buffers
+                let mut processed_any = false;
+                while worker_ring.try_read(&mut read_buf) {
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        process_input_f32(&worker_runtime, 0, &read_buf, worker_channels);
+                    }));
+                    processed_any = true;
+                }
+
+                if !processed_any {
+                    // Wait for wake signal (with timeout to check stop flag)
+                    let lock = worker_wake.0.lock().unwrap();
+                    let _ = worker_wake.1.wait_timeout(lock, std::time::Duration::from_millis(10));
+                }
+            }
+            log::info!("DSP worker '{}': stopped", worker_chain_id);
+        })
+        .map_err(|e| anyhow!("failed to spawn DSP worker thread: {}", e))?;
+
+    let worker_handle = DspWorkerHandle {
+        stop_flag,
+        wake,
+        thread: Some(thread),
     };
 
     let active_client = client.activate_async((), handler)
@@ -575,11 +828,11 @@ fn build_jack_direct_chain(
     }
 
     log::info!(
-        "JACK direct: chain '{}' active with {} input(s), {} output(s)",
+        "JACK direct: chain '{}' active with {} input(s), {} output(s), DSP worker on big cores",
         chain_id.0, max_in_ch, max_out_ch
     );
 
-    Ok(active_client)
+    Ok((active_client, worker_handle))
 }
 
 pub struct ProjectRuntimeController {
@@ -1702,12 +1955,13 @@ fn build_active_chain_runtime(
     {
         if jack_server_is_running() {
             log::info!("JACK detected — using direct JACK backend (bypassing CPAL)");
-            let jack_client = build_jack_direct_chain(chain_id, chain, runtime)?;
+            let (jack_client, dsp_worker) = build_jack_direct_chain(chain_id, chain, runtime)?;
             return Ok(ActiveChainRuntime {
                 stream_signature,
                 _input_streams: Vec::new(),
                 _output_streams: Vec::new(),
                 _jack_client: Some(jack_client),
+                _dsp_worker: Some(dsp_worker),
             });
         }
     }
@@ -1731,6 +1985,8 @@ fn build_active_chain_runtime(
         _output_streams: output_streams,
         #[cfg(all(target_os = "linux", feature = "jack"))]
         _jack_client: None,
+        #[cfg(all(target_os = "linux", feature = "jack"))]
+        _dsp_worker: None,
     })
 }
 
