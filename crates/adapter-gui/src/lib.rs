@@ -58,10 +58,14 @@ fn log_gui_error(context: &str, error: impl Display) {
 }
 fn show_child_window(parent_window: &slint::Window, child_window: &slint::Window) {
     let pos = parent_window.position();
+    log::warn!("[UI] show_child_window: parent_pos=({},{})", pos.x, pos.y);
     child_window.set_position(slint::WindowPosition::Physical(
         slint::PhysicalPosition { x: pos.x + 40, y: pos.y + 40 },
     ));
-    let _ = child_window.show();
+    match child_window.show() {
+        Ok(_) => log::warn!("[UI] show_child_window: success"),
+        Err(e) => log::error!("[UI] show_child_window: FAILED: {e}"),
+    }
 }
 fn refresh_input_devices(
     device_options_model: &Rc<VecModel<SharedString>>,
@@ -3175,10 +3179,13 @@ pub fn run_desktop_app(
         let chain_input_device_options = chain_input_device_options.clone();
         let chain_output_device_options = chain_output_device_options.clone();
         window.on_configure_chain_input(move |index| {
+            log::warn!("[UI] configure-chain-input clicked, chain_index={}", index);
             let Some(window) = weak_window.upgrade() else {
+                log::warn!("[UI] configure-chain-input: window upgrade failed");
                 return;
             };
             let Some(groups_window) = weak_groups_window.upgrade() else {
+                log::warn!("[UI] configure-chain-input: groups_window upgrade failed");
                 return;
             };
             let fresh_input = refresh_input_devices(&chain_input_device_options);
@@ -3227,10 +3234,13 @@ pub fn run_desktop_app(
         let chain_input_device_options = chain_input_device_options.clone();
         let chain_output_device_options = chain_output_device_options.clone();
         window.on_configure_chain_output(move |index| {
+            log::warn!("[UI] configure-chain-output clicked, chain_index={}", index);
             let Some(window) = weak_window.upgrade() else {
+                log::warn!("[UI] configure-chain-output: window upgrade failed");
                 return;
             };
             let Some(groups_window) = weak_groups_window.upgrade() else {
+                log::warn!("[UI] configure-chain-output: groups_window upgrade failed");
                 return;
             };
             let fresh_input = refresh_input_devices(&chain_input_device_options);
