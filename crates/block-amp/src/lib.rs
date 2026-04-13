@@ -257,6 +257,91 @@ mod tests {
         }
     }
 
+    #[test]
+    fn registry_process_native_mono_block_1024_silence_all_finite() {
+        for model in supported_models().iter().filter(|m| is_native(m)) {
+            let params = defaults_for(model);
+            let mut proc = match build_amp_processor_for_layout(
+                model,
+                &params,
+                44100.0,
+                AudioChannelLayout::Mono,
+            )
+            .unwrap()
+            {
+                BlockProcessor::Mono(p) => p,
+                BlockProcessor::Stereo(_) => panic!("expected Mono for '{model}'"),
+            };
+            let mut buf = vec![0.0_f32; 1024];
+            proc.process_block(&mut buf);
+            for (i, &s) in buf.iter().enumerate() {
+                assert!(
+                    s.is_finite(),
+                    "native mono '{model}' block silence non-finite at {i}: {s}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn registry_process_native_mono_block_1024_sine_all_finite() {
+        for model in supported_models().iter().filter(|m| is_native(m)) {
+            let params = defaults_for(model);
+            let mut proc = match build_amp_processor_for_layout(
+                model,
+                &params,
+                44100.0,
+                AudioChannelLayout::Mono,
+            )
+            .unwrap()
+            {
+                BlockProcessor::Mono(p) => p,
+                BlockProcessor::Stereo(_) => panic!("expected Mono for '{model}'"),
+            };
+            let mut buf: Vec<f32> = (0..1024)
+                .map(|i| (i as f32 / 44100.0 * 440.0 * std::f32::consts::TAU).sin() * 0.5)
+                .collect();
+            proc.process_block(&mut buf);
+            for (i, &s) in buf.iter().enumerate() {
+                assert!(
+                    s.is_finite(),
+                    "native mono '{model}' block sine non-finite at {i}: {s}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn registry_process_native_stereo_block_1024_sine_all_finite() {
+        for model in supported_models().iter().filter(|m| is_native(m)) {
+            let params = defaults_for(model);
+            let mut proc = match build_amp_processor_for_layout(
+                model,
+                &params,
+                44100.0,
+                AudioChannelLayout::Stereo,
+            )
+            .unwrap()
+            {
+                BlockProcessor::Stereo(p) => p,
+                BlockProcessor::Mono(_) => panic!("expected Stereo for '{model}'"),
+            };
+            let mut buf: Vec<[f32; 2]> = (0..1024)
+                .map(|i| {
+                    let s = (i as f32 / 44100.0 * 440.0 * std::f32::consts::TAU).sin() * 0.5;
+                    [s, s]
+                })
+                .collect();
+            proc.process_block(&mut buf);
+            for (i, &[l, r]) in buf.iter().enumerate() {
+                assert!(
+                    l.is_finite() && r.is_finite(),
+                    "native stereo '{model}' block sine non-finite at {i}: [{l}, {r}]"
+                );
+            }
+        }
+    }
+
     // ── non-native models: build requires external assets, skip ──────
 
     #[test]

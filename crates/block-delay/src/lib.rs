@@ -374,31 +374,34 @@ mod tests {
         );
     }
 
-    // ── processing silence tests (native only) ─────────────────────────
+    // ── processing tests (native only) ──────────────────────────────────
+
+    fn default_params_for(model: &str) -> ParameterSet {
+        let schema = delay_model_schema(model).expect("schema");
+        ParameterSet::default()
+            .normalized_against(&schema)
+            .expect("normalized defaults")
+    }
 
     #[test]
-    #[ignore]
-    fn native_delay_process_silence_mono_produces_non_nan() {
+    fn native_delay_process_silence_mono_produces_finite() {
         for model in native_delay_models() {
-            let schema = delay_model_schema(model).expect("schema");
-            let params = ParameterSet::default()
-                .normalized_against(&schema)
-                .expect("normalized defaults");
+            let params = default_params_for(model);
             let mut processor = build_delay_processor_for_layout(
                 model,
                 &params,
-                48_000.0,
+                44100.0,
                 AudioChannelLayout::Mono,
             )
             .expect("build");
 
             match &mut processor {
                 block_core::BlockProcessor::Mono(ref mut p) => {
-                    for i in 0..4096 {
+                    for i in 0..1024 {
                         let out = p.process_sample(0.0);
                         assert!(
-                            !out.is_nan(),
-                            "{model} mono produced NaN at sample {i}"
+                            out.is_finite(),
+                            "{model} mono produced non-finite at sample {i}: {out}"
                         );
                     }
                 }
@@ -408,28 +411,176 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
-    fn native_delay_process_silence_stereo_produces_non_nan() {
+    fn native_delay_process_sine_mono_produces_finite() {
         for model in native_delay_models() {
-            let schema = delay_model_schema(model).expect("schema");
-            let params = ParameterSet::default()
-                .normalized_against(&schema)
-                .expect("normalized defaults");
+            let params = default_params_for(model);
             let mut processor = build_delay_processor_for_layout(
                 model,
                 &params,
-                48_000.0,
+                44100.0,
+                AudioChannelLayout::Mono,
+            )
+            .expect("build");
+
+            match &mut processor {
+                block_core::BlockProcessor::Mono(ref mut p) => {
+                    for i in 0..1024 {
+                        let input =
+                            (i as f32 / 44100.0 * 440.0 * std::f32::consts::TAU).sin() * 0.5;
+                        let out = p.process_sample(input);
+                        assert!(
+                            out.is_finite(),
+                            "{model} mono produced non-finite at sample {i}: {out}"
+                        );
+                    }
+                }
+                _ => panic!("{model} expected Mono processor"),
+            }
+        }
+    }
+
+    #[test]
+    fn native_delay_process_silence_stereo_produces_finite() {
+        for model in native_delay_models() {
+            let params = default_params_for(model);
+            let mut processor = build_delay_processor_for_layout(
+                model,
+                &params,
+                44100.0,
                 AudioChannelLayout::Stereo,
             )
             .expect("build");
 
             match &mut processor {
                 block_core::BlockProcessor::Stereo(ref mut p) => {
-                    for i in 0..4096 {
+                    for i in 0..1024 {
                         let [l, r] = p.process_frame([0.0, 0.0]);
                         assert!(
-                            !l.is_nan() && !r.is_nan(),
-                            "{model} stereo produced NaN at sample {i}"
+                            l.is_finite() && r.is_finite(),
+                            "{model} stereo produced non-finite at frame {i}: [{l}, {r}]"
+                        );
+                    }
+                }
+                _ => panic!("{model} expected Stereo processor"),
+            }
+        }
+    }
+
+    #[test]
+    fn native_delay_process_sine_stereo_produces_finite() {
+        for model in native_delay_models() {
+            let params = default_params_for(model);
+            let mut processor = build_delay_processor_for_layout(
+                model,
+                &params,
+                44100.0,
+                AudioChannelLayout::Stereo,
+            )
+            .expect("build");
+
+            match &mut processor {
+                block_core::BlockProcessor::Stereo(ref mut p) => {
+                    for i in 0..1024 {
+                        let s =
+                            (i as f32 / 44100.0 * 440.0 * std::f32::consts::TAU).sin() * 0.5;
+                        let [l, r] = p.process_frame([s, s]);
+                        assert!(
+                            l.is_finite() && r.is_finite(),
+                            "{model} stereo produced non-finite at frame {i}: [{l}, {r}]"
+                        );
+                    }
+                }
+                _ => panic!("{model} expected Stereo processor"),
+            }
+        }
+    }
+
+    #[test]
+    fn native_delay_process_block_1024_silence_mono_all_finite() {
+        for model in native_delay_models() {
+            let params = default_params_for(model);
+            let mut processor = build_delay_processor_for_layout(
+                model,
+                &params,
+                44100.0,
+                AudioChannelLayout::Mono,
+            )
+            .expect("build");
+
+            match &mut processor {
+                block_core::BlockProcessor::Mono(ref mut p) => {
+                    let mut buf = vec![0.0_f32; 1024];
+                    p.process_block(&mut buf);
+                    for (i, &s) in buf.iter().enumerate() {
+                        assert!(
+                            s.is_finite(),
+                            "{model} mono block silence non-finite at {i}: {s}"
+                        );
+                    }
+                }
+                _ => panic!("{model} expected Mono processor"),
+            }
+        }
+    }
+
+    #[test]
+    fn native_delay_process_block_1024_sine_mono_all_finite() {
+        for model in native_delay_models() {
+            let params = default_params_for(model);
+            let mut processor = build_delay_processor_for_layout(
+                model,
+                &params,
+                44100.0,
+                AudioChannelLayout::Mono,
+            )
+            .expect("build");
+
+            match &mut processor {
+                block_core::BlockProcessor::Mono(ref mut p) => {
+                    let mut buf: Vec<f32> = (0..1024)
+                        .map(|i| {
+                            (i as f32 / 44100.0 * 440.0 * std::f32::consts::TAU).sin() * 0.5
+                        })
+                        .collect();
+                    p.process_block(&mut buf);
+                    for (i, &s) in buf.iter().enumerate() {
+                        assert!(
+                            s.is_finite(),
+                            "{model} mono block sine non-finite at {i}: {s}"
+                        );
+                    }
+                }
+                _ => panic!("{model} expected Mono processor"),
+            }
+        }
+    }
+
+    #[test]
+    fn native_delay_process_block_1024_sine_stereo_all_finite() {
+        for model in native_delay_models() {
+            let params = default_params_for(model);
+            let mut processor = build_delay_processor_for_layout(
+                model,
+                &params,
+                44100.0,
+                AudioChannelLayout::Stereo,
+            )
+            .expect("build");
+
+            match &mut processor {
+                block_core::BlockProcessor::Stereo(ref mut p) => {
+                    let mut buf: Vec<[f32; 2]> = (0..1024)
+                        .map(|i| {
+                            let s = (i as f32 / 44100.0 * 440.0 * std::f32::consts::TAU).sin()
+                                * 0.5;
+                            [s, s]
+                        })
+                        .collect();
+                    p.process_block(&mut buf);
+                    for (i, &[l, r]) in buf.iter().enumerate() {
+                        assert!(
+                            l.is_finite() && r.is_finite(),
+                            "{model} stereo block sine non-finite at {i}: [{l}, {r}]"
                         );
                     }
                 }

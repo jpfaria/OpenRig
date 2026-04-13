@@ -438,6 +438,94 @@ mod tests {
         assert!(output.iter().all(|s| !s.is_nan()), "output contains NaN");
     }
 
+    // ── Registry-level process tests for all native models ──────────
+
+    fn native_dyn_models() -> Vec<&'static str> {
+        supported_models()
+            .iter()
+            .copied()
+            .filter(|m| dyn_type_label(m) == "NATIVE")
+            .collect()
+    }
+
+    #[test]
+    fn native_dyn_process_sine_mono_produces_finite() {
+        for model in native_dyn_models() {
+            let params = default_params_for(model);
+            let mut proc = build_dynamics_processor_for_layout(
+                model,
+                &params,
+                44100.0,
+                AudioChannelLayout::Mono,
+            )
+            .expect("build");
+            match &mut proc {
+                BlockProcessor::Mono(ref mut p) => {
+                    for i in 0..1024 {
+                        let input =
+                            (i as f32 / 44100.0 * 440.0 * std::f32::consts::TAU).sin() * 0.5;
+                        let out = p.process_sample(input);
+                        assert!(
+                            out.is_finite(),
+                            "{model} mono produced non-finite at sample {i}: {out}"
+                        );
+                    }
+                }
+                _ => panic!("{model} expected Mono processor"),
+            }
+        }
+    }
+
+    #[test]
+    fn native_dyn_process_block_1024_silence_all_finite() {
+        for model in native_dyn_models() {
+            let params = default_params_for(model);
+            let mut proc = build_dynamics_processor_for_layout(
+                model,
+                &params,
+                44100.0,
+                AudioChannelLayout::Mono,
+            )
+            .expect("build");
+            let output = process_silence(&mut proc, 1024);
+            assert!(
+                output.iter().all(|s| s.is_finite()),
+                "{model} block silence contains non-finite"
+            );
+        }
+    }
+
+    #[test]
+    fn native_dyn_process_block_1024_sine_all_finite() {
+        for model in native_dyn_models() {
+            let params = default_params_for(model);
+            let mut proc = build_dynamics_processor_for_layout(
+                model,
+                &params,
+                44100.0,
+                AudioChannelLayout::Mono,
+            )
+            .expect("build");
+            match &mut proc {
+                BlockProcessor::Mono(ref mut p) => {
+                    let mut buf: Vec<f32> = (0..1024)
+                        .map(|i| {
+                            (i as f32 / 44100.0 * 440.0 * std::f32::consts::TAU).sin() * 0.5
+                        })
+                        .collect();
+                    p.process_block(&mut buf);
+                    for (i, &s) in buf.iter().enumerate() {
+                        assert!(
+                            s.is_finite(),
+                            "{model} block sine non-finite at {i}: {s}"
+                        );
+                    }
+                }
+                _ => panic!("{model} expected Mono processor"),
+            }
+        }
+    }
+
     // ── Display name / brand / type label ───────────────────────────
 
     #[test]
