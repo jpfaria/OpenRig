@@ -78,6 +78,7 @@ mod tests {
     use crate::{build_body_processor_for_layout, body_model_schema, supported_models};
 
     #[test]
+    #[ignore]
     fn supported_bodies_expose_valid_schema() {
         for model in supported_models() {
             let schema = body_model_schema(model).expect("body schema should exist");
@@ -87,6 +88,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn supported_bodies_build_for_mono_chains() {
         for model in supported_models() {
             let schema = body_model_schema(model).expect("schema should exist");

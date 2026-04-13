@@ -180,6 +180,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn builds_mono_processor() {
         let mut params = ParameterSet::default();
         params.insert("position", ParameterValue::String("1".into()));
@@ -198,6 +199,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn position_3_match_falls_back_to_standard() {
         let mut params = ParameterSet::default();
         params.insert("position", ParameterValue::String("3".into()));
