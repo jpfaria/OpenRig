@@ -28,7 +28,7 @@ Issue → Branch (from develop) → Commits → PR → Review/Merge
 ### Fluxo
 
 1. **Issue primeiro** — criar issue no GitHub antes de escrever qualquer codigo
-2. **Branch por issue desde develop** — `git checkout -b feature/issue-{N}-descricao` ou `bugfix/issue-{N}-descricao`
+2. **Branch por issue desde develop** — `git checkout -b feature/issue-{N}` ou `bugfix/issue-{N}` (NUNCA adicionar sufixo descritivo)
 3. **Commits em ingles** — sem `Co-Authored-By`, foco no "why"
 4. **PR para develop** — `gh pr create --base develop` com `Closes #N` no body
 5. **Merge policy**:
@@ -46,8 +46,8 @@ git branch -a | grep "issue-{N}"
 ```
 
 - Se **ja existe** → usar a branch existente (`git checkout feature/issue-{N}`)
-- Se **nao existe** → criar a branch (`git checkout -b feature/issue-{N}-descricao`)
-- **NUNCA** adicionar sufixos como `-20260401-1742`, `-v2`, `-fix` etc.
+- Se **nao existe** → criar a branch (`git checkout -b feature/issue-{N}`)
+- **NUNCA** adicionar sufixos descritivos como `-parameter-layout`, `-add-captures`, `-fix-something`, `-20260401-1742`, `-v2`, `-fix` etc.
 - Se precisar recomecar, resetar a branch existente em vez de criar outra
 
 ### Agents paralelos com workspace isolado (.solvers/)
