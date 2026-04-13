@@ -2481,6 +2481,7 @@ pub fn run_desktop_app(
                         Ok(s) => s,
                         Err(e) => {
                             log::error!("compact choose-model schema error: {e}");
+                            set_status_error(&main_win, &toast_timer, &e.to_string());
                             return;
                         }
                     };
@@ -2488,6 +2489,7 @@ pub fn run_desktop_app(
                         Ok(p) => p,
                         Err(e) => {
                             log::error!("compact choose-model normalize error: {e}");
+                            set_status_error(&main_win, &toast_timer, &e.to_string());
                             return;
                         }
                     };
@@ -2495,6 +2497,7 @@ pub fn run_desktop_app(
                         Ok(k) => k,
                         Err(e) => {
                             log::error!("compact choose-model build error: {e}");
+                            set_status_error(&main_win, &toast_timer, &e.to_string());
                             return;
                         }
                     };
@@ -2546,7 +2549,7 @@ pub fn run_desktop_app(
                 let project_dirty = project_dirty.clone();
                 let input_chain_devices = input_chain_devices.clone();
                 let output_chain_devices = output_chain_devices.clone();
-                let _toast_timer = toast_timer.clone();
+                let toast_timer = toast_timer.clone();
                 compact_win.on_remove_block(move |ci, bi| {
                     log::info!("[compact] remove-block: chain={}, block={}", ci, bi);
                     let Some(main_win) = weak_main.upgrade() else { return; };
@@ -2561,6 +2564,7 @@ pub fn run_desktop_app(
                     let chain_id = chain.id.clone();
                     if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                         log::error!("[compact] remove-block runtime sync: {}", e);
+                        set_status_error(&main_win, &toast_timer, &e.to_string());
                     }
                     replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
                     let blocks = build_compact_blocks(&session.project, chain_idx);
@@ -2572,6 +2576,7 @@ pub fn run_desktop_app(
             // Wire reorder-block — resolve real indices from CompactBlockItem.block_index
             {
                 let project_session = project_session.clone();
+                let toast_timer = toast_timer.clone();
                 let weak_main = window.as_weak();
                 let weak_compact = compact_win.as_weak();
                 let project_chains = project_chains.clone();
@@ -2618,6 +2623,7 @@ pub fn run_desktop_app(
                     let chain_id = chain.id.clone();
                     if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                         log::error!("[compact] reorder-block runtime sync: {}", e);
+                        set_status_error(&main_win, &toast_timer, &e.to_string());
                     }
                     replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
                     let blocks = build_compact_blocks(&session.project, chain_idx);
@@ -2664,6 +2670,7 @@ pub fn run_desktop_app(
                         }
                         Err(e) => {
                             log::error!("[compact] update param error: {e}");
+                            set_status_error(&main_win, &toast_timer, &e.to_string());
                             return;
                         }
                     }
@@ -2731,6 +2738,7 @@ pub fn run_desktop_app(
                         }
                         Err(e) => {
                             log::error!("[compact] select option error: {e}");
+                            set_status_error(&main_win, &toast_timer, &e.to_string());
                             return;
                         }
                     }
@@ -2784,6 +2792,7 @@ pub fn run_desktop_app(
                         }
                         Err(e) => {
                             log::error!("[compact] update bool param error: {e}");
+                            set_status_error(&main_win, &toast_timer, &e.to_string());
                             return;
                         }
                     }
@@ -2898,10 +2907,17 @@ pub fn run_desktop_app(
             {
                 let vst3_handles = vst3_editor_handles_for_compact.clone();
                 let vst3_sr = vst3_sample_rate;
+                let toast_timer = toast_timer.clone();
+                let weak_main = window.as_weak();
                 compact_win.on_open_plugin(move |model_id| {
                     match project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr) {
                         Ok(handle) => { vst3_handles.borrow_mut().push(handle); }
-                        Err(e) => log::error!("[compact] failed to open VST3 editor '{}': {}", model_id, e),
+                        Err(e) => {
+                            log::error!("[compact] failed to open VST3 editor '{}': {}", model_id, e);
+                            if let Some(w) = weak_main.upgrade() {
+                                set_status_error(&w, &toast_timer, &e.to_string());
+                            }
+                        }
                     }
                 });
             }
@@ -4556,10 +4572,17 @@ pub fn run_desktop_app(
                 {
                     let vst3_handles = vst3_editor_handles.clone();
                     let vst3_sr = vst3_sample_rate;
+                    let toast_timer = toast_timer.clone();
+                    let weak_main = weak_main_window.clone();
                     win.on_open_vst3_editor(move |model_id| {
                         match project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr) {
                             Ok(handle) => { vst3_handles.borrow_mut().push(handle); }
-                            Err(e) => { log::error!("VST3 editor: failed '{}': {}", model_id, e); }
+                            Err(e) => {
+                                log::error!("VST3 editor: failed '{}': {}", model_id, e);
+                                if let Some(w) = weak_main.upgrade() {
+                                    set_status_error(&w, &toast_timer, &e.to_string());
+                                }
+                            }
                         }
                     });
                 }
@@ -5751,10 +5774,17 @@ pub fn run_desktop_app(
     {
         let vst3_handles = vst3_editor_handles_for_on_open.clone();
         let vst3_sr = vst3_sample_rate;
+        let toast_timer = toast_timer.clone();
+        let weak_window = window.as_weak();
         window.on_open_vst3_editor(move |model_id| {
             match project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr) {
                 Ok(handle) => { vst3_handles.borrow_mut().push(handle); }
-                Err(e) => { log::error!("VST3 editor: failed to open '{}': {}", model_id, e); }
+                Err(e) => {
+                    log::error!("VST3 editor: failed to open '{}': {}", model_id, e);
+                    if let Some(w) = weak_window.upgrade() {
+                        set_status_error(&w, &toast_timer, &e.to_string());
+                    }
+                }
             }
         });
     }
