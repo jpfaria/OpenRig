@@ -1587,6 +1587,14 @@ export component BlockEditorPanel inherits Rectangle {
             vertical-alignment: center;
         }
 
+        if root.block-drawer-edit-mode && root.is-vst3 : ChainActionIcon {
+            x: parent.width - 104px;
+            y: 20px;
+            icon: @image-url("../assets/expand.svg");
+            tooltip: "Plugin GUI";
+            clicked => { root.open-vst3-editor(root.selected-model-id); }
+        }
+
         if root.block-drawer-edit-mode : ChainPowerToggle {
             x: parent.width - 72px;
             y: 20px;
