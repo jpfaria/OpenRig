@@ -10,7 +10,7 @@ pub const MODEL_ID: &str = "lv2_mda_dubdelay";
 pub const DISPLAY_NAME: &str = "MDA DubDelay";
 const BRAND: &str = "mda";
 
-const PLUGIN_URI: &str = "http://moddevices.com/plugins/mda/DubDelay";
+const PLUGIN_URI: &str = "http://drobilla.net/plugins/mda/DubDelay";
 const PLUGIN_DIR: &str = "mod-mda-DubDelay";
 
 #[cfg(target_os = "macos")]

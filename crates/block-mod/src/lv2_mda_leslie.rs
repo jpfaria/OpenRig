@@ -10,7 +10,7 @@ pub const MODEL_ID: &str = "lv2_mda_leslie";
 pub const DISPLAY_NAME: &str = "MDA Leslie";
 const BRAND: &str = "mda";
 
-const PLUGIN_URI: &str = "http://moddevices.com/plugins/mda/Leslie";
+const PLUGIN_URI: &str = "http://drobilla.net/plugins/mda/Leslie";
 const PLUGIN_DIR: &str = "mod-mda-Leslie";
 
 #[cfg(target_os = "macos")]
