@@ -33,6 +33,12 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
+// Orange Pi (aarch64/JACK) needs a larger elastic buffer to absorb jitter
+// from the SPSC ring buffer + worker thread architecture. On macOS/Windows
+// the default 256 is fine — CPAL callbacks are tight and predictable.
+#[cfg(target_arch = "aarch64")]
+const ELASTIC_BUFFER_TARGET_LEVEL: usize = 2048;
+#[cfg(not(target_arch = "aarch64"))]
 const ELASTIC_BUFFER_TARGET_LEVEL: usize = 256;
 static NEXT_BLOCK_INSTANCE_SERIAL: AtomicU64 = AtomicU64::new(1);
 
@@ -780,16 +786,18 @@ fn build_input_processing_state(
         output_channels,
         input.mode,
     );
-    // Chain processing bus is ALWAYS stereo. Mono blocks convert
-    // stereo→mono on input and mono→stereo on output transparently.
-    // The mono optimization (using Mono layout to halve NAM instances)
-    // is disabled because it breaks effect processing on some platforms.
-    let _ = proc_layout;
-    let processing_layout_channel = AudioChannelLayout::Stereo;
     let input_read_layout = match input.mode {
         ChainInputMode::Mono => AudioChannelLayout::Mono,
         ChainInputMode::Stereo | ChainInputMode::DualMono => AudioChannelLayout::Stereo,
     };
+    // On aarch64 (Orange Pi), use mono processing when input is mono to halve
+    // NAM instances (DualMono→Mono). On x86 (Mac/Windows) keep stereo always
+    // to avoid any risk of changing the sound character.
+    #[cfg(target_arch = "aarch64")]
+    let processing_layout_channel = input_read_layout;
+    #[cfg(not(target_arch = "aarch64"))]
+    let processing_layout_channel = AudioChannelLayout::Stereo;
+    let _ = proc_layout;
     log::info!(
         "chain '{}' input entry processing layout: input_read={}, processing={:?} (channels={:?} mode={:?})",
         chain.id.0,
