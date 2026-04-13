@@ -510,3 +510,54 @@ O Insert divide a chain em segmentos. Cada segmento tem sua própria lista de ef
 - [ ] **output_db nos paineis nativos** — parametro existe no Rust mas nao esta no controls.svg
 - [ ] **Vox AC30 -> struct Rust** — ainda nao tem `PreampModelDefinition` equivalente (e amp, arquitetura diferente)
 - [ ] **Marshall JCM 800 2203 — versao Native** — criar modelo nativo com `NativeAmpHeadProfile` que expoe todos os controles reais: PRESENCE, BASS, MIDDLE, TREBLE, MASTER VOLUME, PRE-AMP. O painel (`controls.svg`) tera o painel completo igual ao amp real. O NAM atual (`marshall_jcm_800_2203`) continua com apenas MASTER + PRE-AMP.
+
+---
+
+## Testes
+
+### Ferramenta de cobertura
+
+- **`cargo-llvm-cov`** — instalar com `cargo install cargo-llvm-cov` + `rustup component add llvm-tools-preview`
+- **Script local**: `scripts/coverage.sh` — gera relatório HTML em `coverage/`
+- **CI**: `.github/workflows/test.yml` — roda `cargo test --workspace` + relatório de cobertura (informativo, sem gate)
+
+### Convenções
+
+- Testes dentro do módulo: `#[cfg(test)] mod tests { ... }`
+- Nomenclatura: `<behavior>_<scenario>_<expected>` (ex: `validate_project_rejects_empty_chains`)
+- Sem frameworks externos — usar `assert!`, `assert_eq!`, `assert!(result.is_err())`
+- Helpers de teste no próprio módulo — sem crate de test-utils separado
+- Testes de integração com áudio real: `#[ignore]` (rodar com `cargo test -- --ignored`)
+
+### DSP
+
+- **Nativos**: golden samples com tolerância `1e-4`, processar silêncio/sine e verificar non-NaN
+- **NAM/LV2/IR builds**: `#[ignore]` (dependem de assets externos)
+- **Registry tests** para block-* crates: iterar sobre TODOS os modelos via registry (schema, validate, build)
+
+### Cobertura atual (~1100 testes)
+
+| Crate | Testes |
+|-------|--------|
+| domain | 87 |
+| block-core | 134 |
+| application | 50 |
+| infra-filesystem | 32 |
+| engine | 85+ |
+| infra-yaml | 57 |
+| project | 133+ |
+| adapter-gui | 83 |
+| block-delay | 31 |
+| block-reverb | 25 |
+| block-dyn | 39 |
+| block-filter | 33+ |
+| block-mod | 42 |
+| block-wah | 16 |
+| block-gain | 12+ |
+| block-preamp | 9+ |
+| block-amp | 10 |
+| block-util | 17 |
+| block-pitch | 5 |
+| ir | 31 |
+| nam | 30 |
+| infra-cpal | 12 |

@@ -9798,6 +9798,429 @@ mod tests {
         assert_eq!(chain.blocks[4].id.0, "block:4");
     }
 
+    // --- format_channel_list ---
+
+    use super::format_channel_list;
+
+    #[test]
+    fn format_channel_list_empty_returns_dash() {
+        assert_eq!(format_channel_list(&[]), "-");
+    }
+
+    #[test]
+    fn format_channel_list_single_channel_is_one_indexed() {
+        assert_eq!(format_channel_list(&[0]), "1");
+        assert_eq!(format_channel_list(&[3]), "4");
+    }
+
+    #[test]
+    fn format_channel_list_multiple_channels_comma_separated() {
+        assert_eq!(format_channel_list(&[0, 1]), "1, 2");
+        assert_eq!(format_channel_list(&[2, 5, 7]), "3, 6, 8");
+    }
+
+    // --- unit_label ---
+
+    use super::unit_label;
+    use project::param::ParameterUnit;
+
+    #[test]
+    fn unit_label_returns_correct_suffix_for_all_variants() {
+        assert_eq!(unit_label(&ParameterUnit::None), "");
+        assert_eq!(unit_label(&ParameterUnit::Decibels), "dB");
+        assert_eq!(unit_label(&ParameterUnit::Hertz), "Hz");
+        assert_eq!(unit_label(&ParameterUnit::Milliseconds), "ms");
+        assert_eq!(unit_label(&ParameterUnit::Percent), "%");
+        assert_eq!(unit_label(&ParameterUnit::Ratio), "Ratio");
+        assert_eq!(unit_label(&ParameterUnit::Semitones), "st");
+    }
+
+    // --- db_to_linear / linear_to_db ---
+
+    use super::{db_to_linear, linear_to_db};
+
+    #[test]
+    fn db_to_linear_zero_db_is_unity() {
+        let result = db_to_linear(0.0);
+        assert!((result - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn db_to_linear_minus_20_is_point_one() {
+        let result = db_to_linear(-20.0);
+        assert!((result - 0.1).abs() < 1e-6);
+    }
+
+    #[test]
+    fn db_to_linear_plus_20_is_ten() {
+        let result = db_to_linear(20.0);
+        assert!((result - 10.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn linear_to_db_roundtrip() {
+        for db in [-12.0_f32, -6.0, 0.0, 3.0, 6.0, 12.0] {
+            let lin = db_to_linear(db);
+            let back = linear_to_db(lin);
+            assert!((back - db).abs() < 1e-4, "roundtrip failed for {} dB: got {}", db, back);
+        }
+    }
+
+    // --- freq_to_x / gain_to_y ---
+
+    use super::{freq_to_x, gain_to_y};
+
+    #[test]
+    fn freq_to_x_min_freq_returns_zero() {
+        let x = freq_to_x(20.0);
+        assert_eq!(x, 0.0);
+    }
+
+    #[test]
+    fn freq_to_x_max_freq_returns_svg_width() {
+        let x = freq_to_x(20_000.0);
+        assert_eq!(x, 1000.0);
+    }
+
+    #[test]
+    fn gain_to_y_zero_db_returns_mid_height() {
+        let y = gain_to_y(0.0);
+        assert_eq!(y, 100.0); // EQ_SVG_H / 2
+    }
+
+    #[test]
+    fn gain_to_y_max_gain_returns_zero() {
+        let y = gain_to_y(24.0);
+        assert_eq!(y, 0.0);
+    }
+
+    #[test]
+    fn gain_to_y_min_gain_returns_svg_height() {
+        let y = gain_to_y(-24.0);
+        assert_eq!(y, 200.0);
+    }
+
+    // --- biquad_kind_for_group ---
+
+    use super::biquad_kind_for_group;
+
+    #[test]
+    fn biquad_kind_low_group_returns_low_shelf() {
+        assert!(matches!(biquad_kind_for_group("Low Band"), block_core::BiquadKind::LowShelf));
+        assert!(matches!(biquad_kind_for_group("low"), block_core::BiquadKind::LowShelf));
+    }
+
+    #[test]
+    fn biquad_kind_high_group_returns_high_shelf() {
+        assert!(matches!(biquad_kind_for_group("High Band"), block_core::BiquadKind::HighShelf));
+        assert!(matches!(biquad_kind_for_group("HIGH"), block_core::BiquadKind::HighShelf));
+    }
+
+    #[test]
+    fn biquad_kind_mid_group_returns_peak() {
+        assert!(matches!(biquad_kind_for_group("Mid"), block_core::BiquadKind::Peak));
+        assert!(matches!(biquad_kind_for_group(""), block_core::BiquadKind::Peak));
+    }
+
+    // --- insert_mode_to_index / insert_mode_from_index ---
+
+    use super::{insert_mode_to_index, insert_mode_from_index};
+
+    #[test]
+    fn insert_mode_mono_roundtrip() {
+        assert_eq!(insert_mode_to_index(ChainInputMode::Mono), 0);
+        assert_eq!(insert_mode_from_index(0), ChainInputMode::Mono);
+    }
+
+    #[test]
+    fn insert_mode_stereo_roundtrip() {
+        assert_eq!(insert_mode_to_index(ChainInputMode::Stereo), 1);
+        assert_eq!(insert_mode_from_index(1), ChainInputMode::Stereo);
+    }
+
+    #[test]
+    fn insert_mode_dual_mono_maps_to_zero() {
+        assert_eq!(insert_mode_to_index(ChainInputMode::DualMono), 0);
+    }
+
+    #[test]
+    fn insert_mode_from_negative_index_defaults_to_mono() {
+        assert_eq!(insert_mode_from_index(-1), ChainInputMode::Mono);
+    }
+
+    // --- normalized_chain_description ---
+
+    use super::normalized_chain_description;
+
+    #[test]
+    fn normalized_chain_description_trims_whitespace() {
+        assert_eq!(normalized_chain_description("  Guitar 1  "), Some("Guitar 1".to_string()));
+    }
+
+    #[test]
+    fn normalized_chain_description_empty_returns_none() {
+        assert_eq!(normalized_chain_description(""), None);
+        assert_eq!(normalized_chain_description("   "), None);
+    }
+
+    // --- preset_id_from_path ---
+
+    use super::preset_id_from_path;
+
+    #[test]
+    fn preset_id_from_path_extracts_stem() {
+        let path = std::path::Path::new("/some/dir/my_preset.yaml");
+        assert_eq!(preset_id_from_path(path).unwrap(), "my_preset");
+    }
+
+    #[test]
+    fn preset_id_from_path_no_extension_uses_filename() {
+        let path = std::path::Path::new("/some/dir/my_preset");
+        assert_eq!(preset_id_from_path(path).unwrap(), "my_preset");
+    }
+
+    // --- project_title_for_path ---
+
+    use super::project_title_for_path;
+    use project::project::Project;
+
+    #[test]
+    fn project_title_uses_name_when_present() {
+        let project = Project {
+            name: Some("My Rig".to_string()),
+            device_settings: vec![],
+            chains: vec![],
+        };
+        assert_eq!(project_title_for_path(None, &project), "My Rig");
+    }
+
+    #[test]
+    fn project_title_falls_back_to_path_stem() {
+        let project = Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![],
+        };
+        let path = std::path::PathBuf::from("/home/user/my_project.yaml");
+        assert_eq!(project_title_for_path(Some(&path), &project), "my_project");
+    }
+
+    #[test]
+    fn project_title_empty_name_treated_as_absent() {
+        let project = Project {
+            name: Some("  ".to_string()),
+            device_settings: vec![],
+            chains: vec![],
+        };
+        let path = std::path::PathBuf::from("/home/user/fallback.yaml");
+        assert_eq!(project_title_for_path(Some(&path), &project), "fallback");
+    }
+
+    #[test]
+    fn project_title_no_name_no_path_empty_chains_is_novo_projeto() {
+        let project = Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![],
+        };
+        assert_eq!(project_title_for_path(None, &project), "Novo Projeto");
+    }
+
+    #[test]
+    fn project_title_no_name_no_path_with_chains_is_projeto() {
+        let chain = Chain {
+            id: ChainId("c".to_string()),
+            description: None,
+            instrument: "electric_guitar".to_string(),
+            enabled: true,
+            blocks: vec![],
+        };
+        let project = Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![chain],
+        };
+        assert_eq!(project_title_for_path(None, &project), "Projeto");
+    }
+
+    // --- selected_device_index ---
+
+    use super::selected_device_index;
+    use infra_cpal::AudioDeviceDescriptor;
+
+    #[test]
+    fn selected_device_index_finds_matching_device() {
+        let devices = vec![
+            AudioDeviceDescriptor { id: "dev_a".into(), name: "A".into(), channels: 2 },
+            AudioDeviceDescriptor { id: "dev_b".into(), name: "B".into(), channels: 4 },
+        ];
+        assert_eq!(selected_device_index(&devices, Some("dev_b")), 1);
+    }
+
+    #[test]
+    fn selected_device_index_returns_negative_when_not_found() {
+        let devices = vec![
+            AudioDeviceDescriptor { id: "dev_a".into(), name: "A".into(), channels: 2 },
+        ];
+        assert_eq!(selected_device_index(&devices, Some("dev_x")), -1);
+    }
+
+    #[test]
+    fn selected_device_index_returns_negative_for_none() {
+        let devices = vec![
+            AudioDeviceDescriptor { id: "dev_a".into(), name: "A".into(), channels: 2 },
+        ];
+        assert_eq!(selected_device_index(&devices, None), -1);
+    }
+
+    // --- real_block_index_to_ui ---
+
+    use super::real_block_index_to_ui;
+
+    #[test]
+    fn real_block_index_to_ui_maps_effect_blocks_correctly() {
+        // [Input, Comp, Preamp, Delay, Output]
+        let chain = test_chain(vec![
+            input_kind(),
+            effect_kind("dynamics"),
+            effect_kind("preamp"),
+            effect_kind("delay"),
+            output_kind(),
+        ]);
+        assert_eq!(real_block_index_to_ui(&chain, 1), Some(0));
+        assert_eq!(real_block_index_to_ui(&chain, 2), Some(1));
+        assert_eq!(real_block_index_to_ui(&chain, 3), Some(2));
+    }
+
+    #[test]
+    fn real_block_index_to_ui_hidden_blocks_return_none() {
+        let chain = test_chain(vec![
+            input_kind(),
+            effect_kind("delay"),
+            output_kind(),
+        ]);
+        assert_eq!(real_block_index_to_ui(&chain, 0), None); // first input hidden
+        assert_eq!(real_block_index_to_ui(&chain, 2), None); // last output hidden
+    }
+
+    #[test]
+    fn real_block_index_to_ui_out_of_range_returns_none() {
+        let chain = test_chain(vec![
+            input_kind(),
+            output_kind(),
+        ]);
+        assert_eq!(real_block_index_to_ui(&chain, 99), None);
+    }
+
+    // --- project_display_name ---
+
+    use super::{project_display_name, UNTITLED_PROJECT_NAME};
+
+    #[test]
+    fn project_display_name_returns_trimmed_name() {
+        let project = Project {
+            name: Some("  My Project  ".to_string()),
+            device_settings: vec![],
+            chains: vec![],
+        };
+        assert_eq!(project_display_name(&project), "My Project");
+    }
+
+    #[test]
+    fn project_display_name_no_name_returns_untitled() {
+        let project = Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![],
+        };
+        assert_eq!(project_display_name(&project), UNTITLED_PROJECT_NAME);
+    }
+
+    #[test]
+    fn project_display_name_empty_name_returns_untitled() {
+        let project = Project {
+            name: Some("".to_string()),
+            device_settings: vec![],
+            chains: vec![],
+        };
+        assert_eq!(project_display_name(&project), UNTITLED_PROJECT_NAME);
+    }
+
+    // --- quantize_numeric_value edge cases ---
+
+    #[test]
+    fn quantize_numeric_value_zero_step_only_clamps() {
+        assert_eq!(quantize_numeric_value(50.0, 0.0, 100.0, 0.0, false), 50.0);
+        assert_eq!(quantize_numeric_value(150.0, 0.0, 100.0, 0.0, false), 100.0);
+    }
+
+    #[test]
+    fn quantize_numeric_value_exact_boundary_stays() {
+        assert_eq!(quantize_numeric_value(0.0, 0.0, 100.0, 10.0, false), 0.0);
+        assert_eq!(quantize_numeric_value(100.0, 0.0, 100.0, 10.0, false), 100.0);
+    }
+
+    #[test]
+    fn quantize_numeric_value_integer_flag_rounds() {
+        assert_eq!(quantize_numeric_value(3.7, 0.0, 10.0, 0.0, true), 4.0);
+        assert_eq!(quantize_numeric_value(3.2, 0.0, 10.0, 0.0, true), 3.0);
+    }
+
+    // --- numeric_widget_kind edge cases ---
+
+    #[test]
+    fn numeric_widget_kind_step_zero_returns_slider() {
+        assert_eq!(numeric_widget_kind(0.0, 100.0, 0.0, false), "slider");
+    }
+
+    #[test]
+    fn numeric_widget_kind_boundary_24_steps_is_stepper() {
+        // exactly 24 steps: (24.0 - 0.0) / 1.0 = 24
+        assert_eq!(numeric_widget_kind(0.0, 24.0, 1.0, false), "stepper");
+    }
+
+    #[test]
+    fn numeric_widget_kind_25_steps_is_slider() {
+        assert_eq!(numeric_widget_kind(0.0, 25.0, 1.0, false), "slider");
+    }
+
+    #[test]
+    fn numeric_widget_kind_equal_min_max_returns_slider() {
+        assert_eq!(numeric_widget_kind(5.0, 5.0, 1.0, false), "slider");
+    }
+
+    // --- parse_cli_args_from additional edge cases ---
+
+    #[test]
+    fn parse_cli_args_auto_save_before_path() {
+        let (path, auto_save) = parse_cli_args_from(&["openrig", "--auto-save", "/tmp/p.yaml"]);
+        assert_eq!(path, Some(std::path::PathBuf::from("/tmp/p.yaml")));
+        assert!(auto_save);
+    }
+
+    #[test]
+    fn parse_cli_args_multiple_paths_last_wins() {
+        let (path, _) = parse_cli_args_from(&["openrig", "/first.yaml", "/second.yaml"]);
+        assert_eq!(path, Some(std::path::PathBuf::from("/second.yaml")));
+    }
+
+    #[test]
+    fn parse_cli_args_dashed_flags_ignored_as_paths() {
+        let (path, auto_save) = parse_cli_args_from(&["openrig", "--verbose", "--debug"]);
+        assert_eq!(path, None);
+        assert!(!auto_save);
+    }
+
+    // --- chain_endpoint_label ---
+
+    use super::chain_endpoint_label;
+
+    #[test]
+    fn chain_endpoint_label_returns_prefix() {
+        assert_eq!(chain_endpoint_label("In", &[0, 1]), "In");
+        assert_eq!(chain_endpoint_label("Out", &[]), "Out");
+    }
+
     #[test]
     fn save_output_entries_finds_last_output_block() {
         // Chain: [Input, Gain, Output_mid, Delay, Output_last]
@@ -9877,5 +10300,368 @@ mod tests {
         let (path, auto_save) = parse_cli_args_from(&["openrig", "--unknown-flag"]);
         assert_eq!(path, None);
         assert!(!auto_save);
+    }
+
+    // --- sync_recent_projects ---
+
+    use super::sync_recent_projects;
+    use infra_filesystem::{AppConfig, RecentProjectEntry};
+
+    #[test]
+    fn sync_recent_projects_deduplicates_by_canonical_path() {
+        let mut config = AppConfig {
+            recent_projects: vec![
+                RecentProjectEntry {
+                    project_path: "/tmp/project_a.yaml".to_string(),
+                    project_name: "A".to_string(),
+                    is_valid: true,
+                    invalid_reason: None,
+                },
+                RecentProjectEntry {
+                    project_path: "/tmp/project_a.yaml".to_string(),
+                    project_name: "A duplicate".to_string(),
+                    is_valid: true,
+                    invalid_reason: None,
+                },
+            ],
+            ..Default::default()
+        };
+        let changed = sync_recent_projects(&mut config);
+        assert!(changed);
+        assert_eq!(config.recent_projects.len(), 1);
+        assert_eq!(config.recent_projects[0].project_name, "A");
+    }
+
+    #[test]
+    fn sync_recent_projects_empty_name_becomes_untitled() {
+        let mut config = AppConfig {
+            recent_projects: vec![RecentProjectEntry {
+                project_path: "/tmp/x.yaml".to_string(),
+                project_name: "  ".to_string(),
+                is_valid: true,
+                invalid_reason: None,
+            }],
+            ..Default::default()
+        };
+        sync_recent_projects(&mut config);
+        assert_eq!(config.recent_projects[0].project_name, UNTITLED_PROJECT_NAME);
+    }
+
+    #[test]
+    fn sync_recent_projects_returns_false_when_unchanged() {
+        let mut config = AppConfig {
+            recent_projects: vec![RecentProjectEntry {
+                project_path: "/tmp/project.yaml".to_string(),
+                project_name: "My Project".to_string(),
+                is_valid: true,
+                invalid_reason: None,
+            }],
+            ..Default::default()
+        };
+        let changed = sync_recent_projects(&mut config);
+        assert!(!changed);
+    }
+
+    // --- register_recent_project ---
+
+    use super::register_recent_project;
+
+    #[test]
+    fn register_recent_project_adds_to_front() {
+        let mut config = AppConfig {
+            recent_projects: vec![RecentProjectEntry {
+                project_path: "/old.yaml".to_string(),
+                project_name: "Old".to_string(),
+                is_valid: true,
+                invalid_reason: None,
+            }],
+            ..Default::default()
+        };
+        register_recent_project(&mut config, &std::path::PathBuf::from("/new.yaml"), "New");
+        assert_eq!(config.recent_projects.len(), 2);
+        assert_eq!(config.recent_projects[0].project_name, "New");
+    }
+
+    #[test]
+    fn register_recent_project_removes_duplicate_and_reinserts_at_front() {
+        let path = std::path::PathBuf::from("/project.yaml");
+        let mut config = AppConfig {
+            recent_projects: vec![
+                RecentProjectEntry {
+                    project_path: "/other.yaml".to_string(),
+                    project_name: "Other".to_string(),
+                    is_valid: true,
+                    invalid_reason: None,
+                },
+                RecentProjectEntry {
+                    project_path: "/project.yaml".to_string(),
+                    project_name: "Project".to_string(),
+                    is_valid: true,
+                    invalid_reason: None,
+                },
+            ],
+            ..Default::default()
+        };
+        register_recent_project(&mut config, &path, "Updated");
+        assert_eq!(config.recent_projects.len(), 2);
+        assert_eq!(config.recent_projects[0].project_name, "Updated");
+        assert_eq!(config.recent_projects[1].project_name, "Other");
+    }
+
+    #[test]
+    fn register_recent_project_empty_name_becomes_untitled() {
+        let mut config = AppConfig::default();
+        register_recent_project(&mut config, &std::path::PathBuf::from("/x.yaml"), "  ");
+        assert_eq!(config.recent_projects[0].project_name, UNTITLED_PROJECT_NAME);
+    }
+
+    // --- mark_recent_project_invalid ---
+
+    use super::mark_recent_project_invalid;
+
+    #[test]
+    fn mark_recent_project_invalid_sets_flag_and_reason() {
+        let mut config = AppConfig {
+            recent_projects: vec![RecentProjectEntry {
+                project_path: "/p.yaml".to_string(),
+                project_name: "P".to_string(),
+                is_valid: true,
+                invalid_reason: None,
+            }],
+            ..Default::default()
+        };
+        mark_recent_project_invalid(&mut config, &std::path::PathBuf::from("/p.yaml"), "File corrupted");
+        assert!(!config.recent_projects[0].is_valid);
+        assert_eq!(
+            config.recent_projects[0].invalid_reason.as_deref(),
+            Some("File corrupted")
+        );
+    }
+
+    #[test]
+    fn mark_recent_project_invalid_empty_reason_gets_default() {
+        let mut config = AppConfig {
+            recent_projects: vec![RecentProjectEntry {
+                project_path: "/p.yaml".to_string(),
+                project_name: "P".to_string(),
+                is_valid: true,
+                invalid_reason: None,
+            }],
+            ..Default::default()
+        };
+        mark_recent_project_invalid(&mut config, &std::path::PathBuf::from("/p.yaml"), "  ");
+        assert!(!config.recent_projects[0].is_valid);
+        assert_eq!(
+            config.recent_projects[0].invalid_reason.as_deref(),
+            Some("Projeto inválido")
+        );
+    }
+
+    #[test]
+    fn mark_recent_project_invalid_nonexistent_path_does_nothing() {
+        let mut config = AppConfig {
+            recent_projects: vec![RecentProjectEntry {
+                project_path: "/p.yaml".to_string(),
+                project_name: "P".to_string(),
+                is_valid: true,
+                invalid_reason: None,
+            }],
+            ..Default::default()
+        };
+        mark_recent_project_invalid(&mut config, &std::path::PathBuf::from("/other.yaml"), "err");
+        assert!(config.recent_projects[0].is_valid);
+        assert!(config.recent_projects[0].invalid_reason.is_none());
+    }
+
+    // --- chain_inputs_tooltip ---
+
+    use super::chain_inputs_tooltip;
+
+    #[test]
+    fn chain_inputs_tooltip_shows_device_name_and_channels() {
+        let chain = test_chain(vec![
+            input_kind(),
+            output_kind(),
+        ]);
+        let project = Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![chain.clone()],
+        };
+        let devices = vec![
+            AudioDeviceDescriptor { id: "dev".into(), name: "USB Audio".into(), channels: 2 },
+        ];
+        let tooltip = chain_inputs_tooltip(&chain, &project, &devices);
+        assert!(tooltip.contains("USB Audio"), "tooltip should contain device name: {}", tooltip);
+        assert!(tooltip.contains("Mono"), "tooltip should contain mode: {}", tooltip);
+        assert!(tooltip.contains("1"), "tooltip should contain channel number: {}", tooltip);
+    }
+
+    #[test]
+    fn chain_inputs_tooltip_no_input_block() {
+        let chain = test_chain(vec![
+            effect_kind("delay"),
+        ]);
+        let project = Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![],
+        };
+        let tooltip = chain_inputs_tooltip(&chain, &project, &[]);
+        assert_eq!(tooltip, "No input configured");
+    }
+
+    #[test]
+    fn chain_inputs_tooltip_unknown_device_shows_id() {
+        let chain = test_chain(vec![
+            input_kind(),
+            output_kind(),
+        ]);
+        let project = Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![],
+        };
+        // No devices → falls back to device_id
+        let tooltip = chain_inputs_tooltip(&chain, &project, &[]);
+        assert!(tooltip.contains("dev"), "should fall back to device id: {}", tooltip);
+    }
+
+    // --- chain_outputs_tooltip ---
+
+    use super::chain_outputs_tooltip;
+
+    #[test]
+    fn chain_outputs_tooltip_shows_device_and_channels() {
+        let chain = test_chain(vec![
+            input_kind(),
+            output_kind(),
+        ]);
+        let project = Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![chain.clone()],
+        };
+        let devices = vec![
+            AudioDeviceDescriptor { id: "dev".into(), name: "Headphones".into(), channels: 2 },
+        ];
+        let tooltip = chain_outputs_tooltip(&chain, &project, &devices);
+        assert!(tooltip.contains("Headphones"), "should contain device name: {}", tooltip);
+        assert!(tooltip.contains("Stereo"), "should contain mode: {}", tooltip);
+    }
+
+    #[test]
+    fn chain_outputs_tooltip_no_output_block() {
+        let chain = test_chain(vec![
+            effect_kind("delay"),
+        ]);
+        let project = Project {
+            name: None,
+            device_settings: vec![],
+            chains: vec![],
+        };
+        let tooltip = chain_outputs_tooltip(&chain, &project, &[]);
+        assert_eq!(tooltip, "No output configured");
+    }
+
+    // --- eq_frequencies ---
+
+    use super::eq_frequencies;
+
+    #[test]
+    fn eq_frequencies_returns_200_points() {
+        let freqs = eq_frequencies();
+        assert_eq!(freqs.len(), 200);
+    }
+
+    #[test]
+    fn eq_frequencies_starts_at_20_hz_ends_at_20k_hz() {
+        let freqs = eq_frequencies();
+        assert!((freqs[0] - 20.0).abs() < 0.1);
+        assert!((freqs[199] - 20_000.0).abs() < 1.0);
+    }
+
+    #[test]
+    fn eq_frequencies_monotonically_increasing() {
+        let freqs = eq_frequencies();
+        for i in 1..freqs.len() {
+            assert!(freqs[i] > freqs[i - 1], "freq[{}]={} must be > freq[{}]={}", i, freqs[i], i - 1, freqs[i - 1]);
+        }
+    }
+
+    // --- db_vec_to_svg_path ---
+
+    use super::db_vec_to_svg_path;
+
+    #[test]
+    fn db_vec_to_svg_path_starts_with_move_command() {
+        let dbs = vec![0.0; 200];
+        let path = db_vec_to_svg_path(&dbs);
+        assert!(path.starts_with("M "), "SVG path should start with M: {}", &path[..20]);
+    }
+
+    #[test]
+    fn db_vec_to_svg_path_contains_line_commands() {
+        let dbs = vec![0.0; 200];
+        let path = db_vec_to_svg_path(&dbs);
+        assert!(path.contains(" L "), "SVG path should contain L commands");
+    }
+
+    #[test]
+    fn db_vec_to_svg_path_empty_dbs_returns_empty() {
+        let path = db_vec_to_svg_path(&[]);
+        assert!(path.is_empty());
+    }
+
+    // --- block_model_index ---
+
+    use super::block_model_index;
+
+    #[test]
+    fn block_model_index_finds_known_delay_model() {
+        let models = delay_model_ids();
+        let first = &models[0];
+        let idx = block_model_index("delay", first, "electric_guitar");
+        assert_eq!(idx, 0);
+    }
+
+    #[test]
+    fn block_model_index_unknown_model_returns_negative() {
+        let idx = block_model_index("delay", "nonexistent_model", "electric_guitar");
+        assert_eq!(idx, -1);
+    }
+
+    // --- block_type_index ---
+
+    use super::block_type_index;
+
+    #[test]
+    fn block_type_index_finds_delay() {
+        let idx = block_type_index("delay", "electric_guitar");
+        assert!(idx >= 0, "delay should be in type picker");
+    }
+
+    #[test]
+    fn block_type_index_unknown_type_returns_negative() {
+        let idx = block_type_index("nonexistent_type", "electric_guitar");
+        assert_eq!(idx, -1);
+    }
+
+    #[test]
+    fn block_type_index_input_is_present() {
+        let idx = block_type_index("input", "electric_guitar");
+        assert!(idx >= 0, "input should be in type picker");
+    }
+
+    #[test]
+    fn block_type_index_output_is_present() {
+        let idx = block_type_index("output", "electric_guitar");
+        assert!(idx >= 0, "output should be in type picker");
+    }
+
+    #[test]
+    fn block_type_index_insert_is_present() {
+        let idx = block_type_index("insert", "electric_guitar");
+        assert!(idx >= 0, "insert should be in type picker");
     }
 }
