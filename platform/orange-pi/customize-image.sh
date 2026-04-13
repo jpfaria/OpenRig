@@ -105,6 +105,32 @@ chown -R openrig:openrig /home/openrig
 echo 'openrig:openrig' | chpasswd
 echo 'root:root'       | chpasswd
 
+# Create a default project so OpenRig opens directly into the main view
+# instead of showing the launcher on first boot.
+cat > /home/openrig/project.yaml << 'DEFAULT_PROJECT'
+version: 1
+name: My Rig
+chains:
+  - description: guitar 1
+    instrument: electric_guitar
+    blocks:
+      - type: input
+        model: standard
+        enabled: true
+        entries:
+          - device_id: ""
+            mode: mono
+            channels: [0]
+      - type: output
+        model: standard
+        enabled: true
+        entries:
+          - device_id: ""
+            mode: stereo
+            channels: [0, 1]
+DEFAULT_PROJECT
+chown openrig:openrig /home/openrig/project.yaml
+
 # ── 8. Locale, keyboard, timezone ────────────────────────────────────────────
 # English UI, Brazilian ABNT2 keyboard, São Paulo time. All configured
 # directly so the Armbian first-run wizard has nothing left to ask.
