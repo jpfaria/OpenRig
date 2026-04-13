@@ -2876,6 +2876,24 @@ pub fn run_desktop_app(
                 std::mem::forget(stream_timer);
             }
 
+            // Wire configure-input/output — delegate to the main window's existing handlers
+            {
+                let weak_main = window.as_weak();
+                compact_win.on_configure_input(move |ci| {
+                    if let Some(main_win) = weak_main.upgrade() {
+                        main_win.invoke_configure_chain_input(ci);
+                    }
+                });
+            }
+            {
+                let weak_main = window.as_weak();
+                compact_win.on_configure_output(move |ci| {
+                    if let Some(main_win) = weak_main.upgrade() {
+                        main_win.invoke_configure_chain_output(ci);
+                    }
+                });
+            }
+
             {
                 let vst3_handles = vst3_editor_handles_for_compact.clone();
                 let vst3_sr = vst3_sample_rate;

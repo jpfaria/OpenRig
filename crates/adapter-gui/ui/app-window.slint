@@ -498,6 +498,10 @@ export component CompactChainViewWindow inherits Window {
     in property <[CompactBlockItem]> compact-blocks;
     in property <[BlockTypePickerItem]> block-type-options;
 
+    // I/O device configuration
+    callback configure-input(int); // chain_index
+    callback configure-output(int); // chain_index
+
     callback toggle-chain-enabled(int);
     callback toggle-block-enabled(int, int);
     callback update-block-parameter-number(int, int, string, float);
@@ -519,6 +523,8 @@ export component CompactChainViewWindow inherits Window {
         chain-enabled: root.chain-enabled;
         compact-blocks: root.compact-blocks;
         block-type-options: root.block-type-options;
+        configure-input(ci) => { root.configure-input(ci); }
+        configure-output(ci) => { root.configure-output(ci); }
         toggle-chain-enabled(ci) => { root.toggle-chain-enabled(ci); }
         toggle-block-enabled(ci, bi) => { root.toggle-block-enabled(ci, bi); }
         update-block-parameter-number(ci, bi, p, v) => { root.update-block-parameter-number(ci, bi, p, v); }
