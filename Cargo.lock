@@ -2920,6 +2920,7 @@ dependencies = [
  "domain",
  "engine",
  "jack",
+ "libc",
  "log",
  "project",
 ]
