@@ -193,6 +193,11 @@ run_armbian() {
 
     run mkdir -p "$OUTPUT_DIR"
 
+    # Armbian's Docker launcher bind-mounts its output/ directory. The dir
+    # must exist on the host BEFORE Docker starts, otherwise the bind mount
+    # fails with "source path does not exist".
+    run mkdir -p "$ARMBIAN_DIR/output/images"
+
     # Armbian ignores OUTPUT_DIR when running inside Docker — images land
     # in its own output/images/ dir.  We copy them to our OUTPUT_DIR after.
     run "${BASH:-bash}" "$ARMBIAN_DIR/compile.sh" \
