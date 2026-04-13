@@ -287,6 +287,8 @@ impl MonoProcessor for NamProcessor {
         }
         // Process through neural model
         self.scratch_output.resize(buffer.len(), 0.0);
+        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+        let t0 = std::time::Instant::now();
         unsafe {
             Process(
                 self.model,
@@ -295,6 +297,8 @@ impl MonoProcessor for NamProcessor {
                 buffer.len(),
             );
         }
+        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+        let elapsed = t0.elapsed();
         // Apply output gain
         for (dst, src) in buffer.iter_mut().zip(self.scratch_output.iter()) {
             *dst = *src * self.output_gain;
@@ -304,21 +308,19 @@ impl MonoProcessor for NamProcessor {
         #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
         {
             let count = NAM_DIAG_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-            // Log every ~2 seconds at 48kHz/256 = 187.5 callbacks/sec → every 375 callbacks
-            if count % 375 == 0 {
-                let in_rms = (self.scratch_input.iter().map(|s| s * s).sum::<f32>()
-                    / self.scratch_input.len() as f32)
-                    .sqrt();
+            // Log every ~2 seconds at 48kHz/1024 ≈ 47 callbacks/sec → every 94 callbacks
+            if count % 94 == 0 {
                 let out_rms =
                     (buffer.iter().map(|s| s * s).sum::<f32>() / buffer.len() as f32).sqrt();
                 let has_nan = buffer.iter().any(|s| s.is_nan());
-                let has_inf = buffer.iter().any(|s| s.is_infinite());
                 let peak_out = buffer.iter().map(|s| s.abs()).fold(0.0f32, f32::max);
-                let denorms = buffer.iter().filter(|s| **s != 0.0 && s.abs() < 1e-30).count();
+                let elapsed_us = elapsed.as_micros();
+                let budget_us = (buffer.len() as u64 * 1_000_000) / 48000;
                 log::warn!(
-                    "[NAM-DIAG] blk={} len={} in_rms={:.6} out_rms={:.6} peak={:.4} nan={} inf={} denorms={} in_gain={:.3} out_gain={:.3}",
-                    count, buffer.len(), in_rms, out_rms, peak_out, has_nan, has_inf, denorms,
-                    self.input_gain, self.output_gain,
+                    "[NAM-DIAG] blk={} len={} process_us={} budget_us={} load={:.0}% out_rms={:.4} peak={:.4} nan={}",
+                    count, buffer.len(), elapsed_us, budget_us,
+                    elapsed_us as f64 / budget_us as f64 * 100.0,
+                    out_rms, peak_out, has_nan,
                 );
             }
         }
