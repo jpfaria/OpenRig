@@ -79,7 +79,7 @@ git fetch origin
 # Verificar se branch ja existe:
 git branch -a | grep "issue-{N}"
 # Se existe: git checkout feature/issue-{N}
-# Se nao existe: git checkout develop && git pull origin develop && git checkout -b feature/issue-{N}-descricao
+# Se nao existe: git checkout develop && git pull origin develop && git checkout -b feature/issue-{N}
 
 # Para documentacao
 rsync -a --exclude='target' --exclude='.solvers' . .solvers/doc/
@@ -101,6 +101,8 @@ Ver `CONTRIBUTING.md` para detalhes completos.
 - **NUNCA rebase** — sempre usar `git merge`, nunca `git rebase` ou `git pull --rebase`
 - **NUNCA fechar issues** — so fechar quando o usuario pedir explicitamente
 - **NUNCA editar workspace principal** — todo codigo vai em `.solvers/issue-{N}/`, a pasta principal e so leitura
+- **NUNCA sugerir `cd .solvers/`** — o usuario trabalha no workspace principal. Apos push, sugerir apenas `git checkout <branch> && git pull`
+- **Branch sem sufixo** — `feature/issue-{N}` ou `bugfix/issue-{N}`, NUNCA com sufixo descritivo
 
 ### Premissa de distribuicao (OBRIGATORIO)
 
