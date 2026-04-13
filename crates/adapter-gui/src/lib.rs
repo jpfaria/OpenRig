@@ -175,6 +175,7 @@ fn sync_block_editor_window(window: &AppWindow, block_editor_window: &BlockEdito
 #[allow(clippy::too_many_arguments)]
 fn schedule_block_editor_persist(
     timer: &Rc<Timer>,
+    toast_timer: Rc<Timer>,
     window_weak: slint::Weak<AppWindow>,
     block_editor_draft: Rc<RefCell<Option<BlockEditorDraft>>>,
     block_parameter_items: Rc<VecModel<BlockParameterItem>>,
@@ -216,13 +217,14 @@ fn schedule_block_editor_persist(
             auto_save,
         ) {
             log::error!("[adapter-gui] {context}: {error}");
-            window.set_block_drawer_status_message(error.to_string().into());
+            set_status_error(&window, &toast_timer, &error.to_string());
         }
     });
 }
 #[allow(clippy::too_many_arguments)]
 fn schedule_block_editor_persist_for_block_win(
     timer: &Rc<Timer>,
+    toast_timer: Rc<Timer>,
     block_win_weak: slint::Weak<BlockEditorWindow>,
     main_win_weak: slint::Weak<AppWindow>,
     block_editor_draft: Rc<RefCell<Option<BlockEditorDraft>>>,
@@ -269,7 +271,7 @@ fn schedule_block_editor_persist_for_block_win(
             auto_save,
         ) {
             log::error!("[adapter-gui] {context}: {error}");
-            main_window.set_block_drawer_status_message(error.to_string().into());
+            set_status_error(&main_window, &toast_timer, &error.to_string());
         }
     });
 }
@@ -4200,6 +4202,7 @@ pub fn run_desktop_app(
                     let win_curve_editor_pts = win_curve_editor_pts.clone();
                     let win_eq_band_curves = win_eq_band_curves.clone();
                     let win_timer = win_timer.clone();
+                    let toast_timer = toast_timer.clone();
                     let project_session = project_session.clone();
                     let project_chains = project_chains.clone();
                     let project_runtime = project_runtime.clone();
@@ -4233,7 +4236,7 @@ pub fn run_desktop_app(
                         drop(draft_borrow);
                         if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
                             schedule_block_editor_persist_for_block_win(
-                                &win_timer, weak_win.clone(), weak_main.clone(),
+                                &win_timer, toast_timer.clone(), weak_win.clone(), weak_main.clone(),
                                 win_draft.clone(), win_param_items.clone(),
                                 project_session.clone(), project_chains.clone(), project_runtime.clone(),
                                 saved_project_snapshot.clone(), project_dirty.clone(),
@@ -4247,6 +4250,7 @@ pub fn run_desktop_app(
                 // on_toggle_block_drawer_enabled
                 {
                     let win_draft = win_draft.clone();
+                    let toast_timer = toast_timer.clone();
                     let project_session = project_session.clone();
                     let project_chains = project_chains.clone();
                     let project_runtime = project_runtime.clone();
@@ -4292,7 +4296,7 @@ pub fn run_desktop_app(
                         if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                             log::error!("[adapter-gui] block-window.toggle-enabled: {e}");
                             if let Some(w) = weak_main.upgrade() {
-                                w.set_block_drawer_status_message(e.to_string().into());
+                                set_status_error(&w, &toast_timer, &e.to_string());
                             }
                             return;
                         }
@@ -4310,6 +4314,7 @@ pub fn run_desktop_app(
                     let win_eq_band_curves = win_eq_band_curves.clone();
                     let win_curve_editor_pts = win_curve_editor_pts.clone();
                     let win_timer = win_timer.clone();
+                    let toast_timer = toast_timer.clone();
                     let project_session = project_session.clone();
                     let project_chains = project_chains.clone();
                     let project_runtime = project_runtime.clone();
@@ -4372,7 +4377,7 @@ pub fn run_desktop_app(
                         }
                         if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
                             schedule_block_editor_persist_for_block_win(
-                                &win_timer, weak_win.clone(), weak_main.clone(),
+                                &win_timer, toast_timer.clone(), weak_win.clone(), weak_main.clone(),
                                 win_draft.clone(), win_param_items.clone(),
                                 project_session.clone(), project_chains.clone(), project_runtime.clone(),
                                 saved_project_snapshot.clone(), project_dirty.clone(),
@@ -4388,6 +4393,7 @@ pub fn run_desktop_app(
                     let win_draft = win_draft.clone();
                     let win_param_items = win_param_items.clone();
                     let win_timer = win_timer.clone();
+                    let toast_timer = toast_timer.clone();
                     let project_session = project_session.clone();
                     let project_chains = project_chains.clone();
                     let project_runtime = project_runtime.clone();
@@ -4404,7 +4410,7 @@ pub fn run_desktop_app(
                         set_block_parameter_number(&win_param_items, path.as_str(), value);
                         if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
                             schedule_block_editor_persist_for_block_win(
-                                &win_timer, weak_win.clone(), weak_main.clone(),
+                                &win_timer, toast_timer.clone(), weak_win.clone(), weak_main.clone(),
                                 win_draft.clone(), win_param_items.clone(),
                                 project_session.clone(), project_chains.clone(), project_runtime.clone(),
                                 saved_project_snapshot.clone(), project_dirty.clone(),
@@ -4420,6 +4426,7 @@ pub fn run_desktop_app(
                     let win_draft = win_draft.clone();
                     let win_param_items = win_param_items.clone();
                     let win_timer = win_timer.clone();
+                    let toast_timer = toast_timer.clone();
                     let project_session = project_session.clone();
                     let project_chains = project_chains.clone();
                     let project_runtime = project_runtime.clone();
@@ -4434,7 +4441,7 @@ pub fn run_desktop_app(
                         set_block_parameter_bool(&win_param_items, path.as_str(), value);
                         if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
                             schedule_block_editor_persist_for_block_win(
-                                &win_timer, weak_win.clone(), weak_main.clone(),
+                                &win_timer, toast_timer.clone(), weak_win.clone(), weak_main.clone(),
                                 win_draft.clone(), win_param_items.clone(),
                                 project_session.clone(), project_chains.clone(), project_runtime.clone(),
                                 saved_project_snapshot.clone(), project_dirty.clone(),
@@ -4450,6 +4457,7 @@ pub fn run_desktop_app(
                     let win_draft = win_draft.clone();
                     let win_param_items = win_param_items.clone();
                     let win_timer = win_timer.clone();
+                    let toast_timer = toast_timer.clone();
                     let project_session = project_session.clone();
                     let project_chains = project_chains.clone();
                     let project_runtime = project_runtime.clone();
@@ -4464,7 +4472,7 @@ pub fn run_desktop_app(
                         set_block_parameter_text(&win_param_items, path.as_str(), value.as_str());
                         if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
                             schedule_block_editor_persist_for_block_win(
-                                &win_timer, weak_win.clone(), weak_main.clone(),
+                                &win_timer, toast_timer.clone(), weak_win.clone(), weak_main.clone(),
                                 win_draft.clone(), win_param_items.clone(),
                                 project_session.clone(), project_chains.clone(), project_runtime.clone(),
                                 saved_project_snapshot.clone(), project_dirty.clone(),
@@ -4480,6 +4488,7 @@ pub fn run_desktop_app(
                     let win_draft = win_draft.clone();
                     let win_param_items = win_param_items.clone();
                     let win_timer = win_timer.clone();
+                    let toast_timer = toast_timer.clone();
                     let project_session = project_session.clone();
                     let project_chains = project_chains.clone();
                     let project_runtime = project_runtime.clone();
@@ -4494,7 +4503,7 @@ pub fn run_desktop_app(
                         set_block_parameter_option(&win_param_items, path.as_str(), index);
                         if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
                             schedule_block_editor_persist_for_block_win(
-                                &win_timer, weak_win.clone(), weak_main.clone(),
+                                &win_timer, toast_timer.clone(), weak_win.clone(), weak_main.clone(),
                                 win_draft.clone(), win_param_items.clone(),
                                 project_session.clone(), project_chains.clone(), project_runtime.clone(),
                                 saved_project_snapshot.clone(), project_dirty.clone(),
@@ -4510,6 +4519,7 @@ pub fn run_desktop_app(
                     let win_draft = win_draft.clone();
                     let win_param_items = win_param_items.clone();
                     let win_timer = win_timer.clone();
+                    let toast_timer = toast_timer.clone();
                     let project_session = project_session.clone();
                     let project_chains = project_chains.clone();
                     let project_runtime = project_runtime.clone();
@@ -4531,7 +4541,7 @@ pub fn run_desktop_app(
                         set_block_parameter_text(&win_param_items, path.as_str(), file.to_string_lossy().as_ref());
                         if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
                             schedule_block_editor_persist_for_block_win(
-                                &win_timer, weak_win.clone(), weak_main.clone(),
+                                &win_timer, toast_timer.clone(), weak_win.clone(), weak_main.clone(),
                                 win_draft.clone(), win_param_items.clone(),
                                 project_session.clone(), project_chains.clone(), project_runtime.clone(),
                                 saved_project_snapshot.clone(), project_dirty.clone(),
@@ -4558,6 +4568,7 @@ pub fn run_desktop_app(
                     let win_draft = win_draft.clone();
                     let win_param_items = win_param_items.clone();
                     let win_timer = win_timer.clone();
+                    let toast_timer = toast_timer.clone();
                     let project_session = project_session.clone();
                     let project_chains = project_chains.clone();
                     let project_runtime = project_runtime.clone();
@@ -4582,7 +4593,7 @@ pub fn run_desktop_app(
                             auto_save,
                         ) {
                             log::error!("[adapter-gui] block-window.save: {e}");
-                            main.set_block_drawer_status_message(e.to_string().into());
+                            set_status_error(&main, &toast_timer, &e.to_string());
                             return;
                         }
                         *selected_block.borrow_mut() = None;
@@ -4598,6 +4609,7 @@ pub fn run_desktop_app(
                 {
                     let win_draft = win_draft.clone();
                     let win_timer = win_timer.clone();
+                    let toast_timer = toast_timer.clone();
                     let project_session = project_session.clone();
                     let project_chains = project_chains.clone();
                     let project_runtime = project_runtime.clone();
@@ -4633,7 +4645,7 @@ pub fn run_desktop_app(
                         if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                             log::error!("[adapter-gui] block-window.delete: {e}");
                             if let Some(w) = weak_main.upgrade() {
-                                w.set_block_drawer_status_message(e.to_string().into());
+                                set_status_error(&w, &toast_timer, &e.to_string());
                             }
                             return;
                         }
@@ -4836,6 +4848,7 @@ pub fn run_desktop_app(
         let selected_block = selected_block.clone();
         let block_editor_draft = block_editor_draft.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
+        let toast_timer = toast_timer.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
@@ -5226,6 +5239,7 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
+        let toast_timer = toast_timer.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
@@ -5265,6 +5279,7 @@ pub fn run_desktop_app(
             if draft.block_index.is_some() {
                 schedule_block_editor_persist(
                     &block_editor_persist_timer,
+                    toast_timer.clone(),
                     weak_window.clone(),
                     block_editor_draft.clone(),
                     block_parameter_items.clone(),
@@ -5362,6 +5377,7 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
+        let toast_timer = toast_timer.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         window.on_update_block_parameter_number_text(move |path, value_text| {
@@ -5379,6 +5395,7 @@ pub fn run_desktop_app(
                 if draft.block_index.is_some() {
                     schedule_block_editor_persist(
                         &block_editor_persist_timer,
+                        toast_timer.clone(),
                         weak_window.clone(),
                         block_editor_draft.clone(),
                         block_parameter_items.clone(),
@@ -5406,6 +5423,7 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
+        let toast_timer = toast_timer.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
@@ -5427,6 +5445,7 @@ pub fn run_desktop_app(
             if draft.block_index.is_some() {
                 schedule_block_editor_persist(
                     &block_editor_persist_timer,
+                    toast_timer.clone(),
                     weak_window.clone(),
                     block_editor_draft.clone(),
                     block_parameter_items.clone(),
@@ -5453,6 +5472,7 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
+        let toast_timer = toast_timer.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
@@ -5469,6 +5489,7 @@ pub fn run_desktop_app(
                 if draft.block_index.is_some() {
                     schedule_block_editor_persist(
                         &block_editor_persist_timer,
+                        toast_timer.clone(),
                         weak_window.clone(),
                         block_editor_draft.clone(),
                         block_parameter_items.clone(),
@@ -5497,6 +5518,7 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
+        let toast_timer = toast_timer.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
@@ -5517,6 +5539,7 @@ pub fn run_desktop_app(
                 if draft.block_index.is_some() {
                     schedule_block_editor_persist(
                         &block_editor_persist_timer,
+                        toast_timer.clone(),
                         weak_window.clone(),
                         block_editor_draft.clone(),
                         block_parameter_items.clone(),
@@ -5544,6 +5567,7 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
+        let toast_timer = toast_timer.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
@@ -5560,6 +5584,7 @@ pub fn run_desktop_app(
                 if draft.block_index.is_some() {
                     schedule_block_editor_persist(
                         &block_editor_persist_timer,
+                        toast_timer.clone(),
                         weak_window.clone(),
                         block_editor_draft.clone(),
                         block_parameter_items.clone(),
@@ -5589,6 +5614,7 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
+        let toast_timer = toast_timer.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         window.on_select_block_parameter_option(move |path, index| {
@@ -5647,6 +5673,7 @@ pub fn run_desktop_app(
                 if draft.block_index.is_some() {
                     schedule_block_editor_persist(
                         &block_editor_persist_timer,
+                        toast_timer.clone(),
                         weak_window.clone(),
                         block_editor_draft.clone(),
                         block_parameter_items.clone(),
@@ -5674,6 +5701,7 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
+        let toast_timer = toast_timer.clone();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         window.on_pick_block_parameter_file(move |path| {
@@ -5702,6 +5730,7 @@ pub fn run_desktop_app(
                 if draft.block_index.is_some() {
                     schedule_block_editor_persist(
                         &block_editor_persist_timer,
+                        toast_timer.clone(),
                         weak_window.clone(),
                         block_editor_draft.clone(),
                         block_parameter_items.clone(),
@@ -5745,6 +5774,7 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
+        let toast_timer = toast_timer.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
@@ -5773,7 +5803,7 @@ pub fn run_desktop_app(
                 auto_save,
             ) {
                 log::error!("[adapter-gui] block-drawer.save: {error}");
-                window.set_block_drawer_status_message(error.to_string().into());
+                set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }
             *selected_block.borrow_mut() = None;
@@ -5817,6 +5847,7 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
+        let toast_timer = toast_timer.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
