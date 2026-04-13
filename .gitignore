@@ -7,3 +7,4 @@
 .orange-pi-build/
 output/
 dist/
+coverage/

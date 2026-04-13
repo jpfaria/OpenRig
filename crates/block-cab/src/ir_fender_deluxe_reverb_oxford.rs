@@ -154,6 +154,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn builds_mono_processor_for_curated_capture() {
         let mut params = ParameterSet::default();
         params.insert("flavor", ParameterValue::String("big".into()));

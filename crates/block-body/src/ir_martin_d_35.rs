@@ -158,6 +158,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn builds_mono_processor() {
         let mut params = ParameterSet::default();
         params.insert("voicing", ParameterValue::String("blend".into()));

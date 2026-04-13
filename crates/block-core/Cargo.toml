@@ -6,3 +6,6 @@ edition.workspace = true
 log.workspace = true
 serde.workspace = true
 domain = { path = "../domain" }
+
+[dev-dependencies]
+serde_json = "1"

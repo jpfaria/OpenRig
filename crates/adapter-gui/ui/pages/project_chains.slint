@@ -1828,6 +1828,7 @@ export component ProjectChainsPage inherits Rectangle {
     in property <string> project-path-label;
     in property <bool> project-dirty;
     in property <bool> auto-save: false;
+    in property <bool> skip-launcher: false;
     in property <[ProjectChainItem]> project-chains;
     in property <int> selected-chain-block-chain-index;
     in property <int> selected-chain-block-index;
@@ -1929,7 +1930,7 @@ export component ProjectChainsPage inherits Rectangle {
             vertical-alignment: center;
         }
 
-        HeaderIconAction {
+        if !root.skip-launcher : HeaderIconAction {
             x: parent.width - 160px;
             y: 14px;
             icon: @image-url("../assets/arrow-left.svg");
