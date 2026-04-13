@@ -6,8 +6,9 @@ use std::ffi::c_void;
 const MAX_BLOCK_SIZE: usize = 4096;
 
 /// Size of the dummy atom buffer for MIDI/atom sidechain ports.
-/// Must be large enough for an empty LV2_Atom_Sequence header (16 bytes min).
-const ATOM_BUF_SIZE: usize = 256;
+/// Must be large enough for an empty LV2_Atom_Sequence header (16 bytes min)
+/// and meet the rsz:minimumSize declared in plugin TTL (Dragonfly requires 2048).
+const ATOM_BUF_SIZE: usize = 4096;
 
 /// Audio processor wrapping a loaded LV2 plugin instance.
 ///

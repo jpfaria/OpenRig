@@ -291,14 +291,12 @@ struct ProjectSession {
 }
 #[derive(Debug, Clone)]
 struct InputGroupDraft {
-    name: String,
     device_id: Option<String>,
     channels: Vec<usize>,
     mode: ChainInputMode,
 }
 #[derive(Debug, Clone)]
 struct OutputGroupDraft {
-    name: String,
     device_id: Option<String>,
     channels: Vec<usize>,
     mode: ChainOutputMode,
@@ -626,6 +624,7 @@ pub fn run_desktop_app(
                 window.set_show_project_launcher(false);
                 window.set_show_project_setup(false);
                 window.set_show_project_chains(true);
+                window.set_skip_launcher(true);
                 log::info!("CLI: opened {:?}", canonical_path);
             }
             Err(e) => {
@@ -2287,6 +2286,7 @@ pub fn run_desktop_app(
         let toast_timer = toast_timer.clone();
         let open_compact_window = open_compact_window.clone();
         let vst3_editor_handles_for_compact = vst3_editor_handles.clone();
+        let block_editor_draft = block_editor_draft.clone();
         window.on_open_compact_chain_view(move |chain_index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2335,6 +2335,7 @@ pub fn run_desktop_app(
                 let output_chain_devices = output_chain_devices.clone();
                 let saved_project_snapshot = saved_project_snapshot.clone();
                 let project_dirty = project_dirty.clone();
+                let block_editor_draft = block_editor_draft.clone();
                 let weak_main = window.as_weak();
                 let weak_compact = compact_win.as_weak();
                 let toast_timer = toast_timer.clone();
@@ -2358,7 +2359,14 @@ pub fn run_desktop_app(
                         return;
                     };
                     block.enabled = !block.enabled;
+                    let new_enabled = block.enabled;
                     let chain_id = chain.id.clone();
+                    // Keep block_editor_draft in sync to prevent stale persist from reverting
+                    if let Some(draft) = block_editor_draft.borrow_mut().as_mut() {
+                        if draft.chain_index == chain_idx && draft.block_index == Some(block_idx) {
+                            draft.enabled = new_enabled;
+                        }
+                    }
                     if let Err(error) =
                         sync_live_chain_runtime(&project_runtime, session, &chain_id)
                     {
@@ -2867,6 +2875,24 @@ pub fn run_desktop_app(
                 std::mem::forget(stream_timer);
             }
 
+            // Wire configure-input/output — delegate to the main window's existing handlers
+            {
+                let weak_main = window.as_weak();
+                compact_win.on_configure_input(move |ci| {
+                    if let Some(main_win) = weak_main.upgrade() {
+                        main_win.invoke_configure_chain_input(ci);
+                    }
+                });
+            }
+            {
+                let weak_main = window.as_weak();
+                compact_win.on_configure_output(move |ci| {
+                    if let Some(main_win) = weak_main.upgrade() {
+                        main_win.invoke_configure_chain_output(ci);
+                    }
+                });
+            }
+
             {
                 let vst3_handles = vst3_editor_handles_for_compact.clone();
                 let vst3_sr = vst3_sample_rate;
@@ -3129,14 +3155,12 @@ pub fn run_desktop_app(
             let inputs: Vec<InputGroupDraft> = first_input
                 .map(|ib| {
                     ib.entries.iter().map(|e| InputGroupDraft {
-                        name: e.name.clone(),
                         device_id: if e.device_id.0.is_empty() { None } else { Some(e.device_id.0.clone()) },
                         channels: e.channels.clone(),
                         mode: e.mode,
                     }).collect()
                 })
                 .unwrap_or_else(|| vec![InputGroupDraft {
-                    name: "Input 1".to_string(),
                     device_id: None,
                     channels: Vec::new(),
                     mode: ChainInputMode::Mono,
@@ -3181,14 +3205,12 @@ pub fn run_desktop_app(
             let outputs: Vec<OutputGroupDraft> = last_output
                 .map(|ob| {
                     ob.entries.iter().map(|e| OutputGroupDraft {
-                        name: e.name.clone(),
                         device_id: if e.device_id.0.is_empty() { None } else { Some(e.device_id.0.clone()) },
                         channels: e.channels.clone(),
                         mode: e.mode,
                     }).collect()
                 })
                 .unwrap_or_else(|| vec![OutputGroupDraft {
-                    name: "Output 1".to_string(),
                     device_id: None,
                     channels: Vec::new(),
                     mode: ChainOutputMode::Stereo,
@@ -3310,7 +3332,6 @@ pub fn run_desktop_app(
                 };
                 let idx = draft.inputs.len();
                 draft.inputs.push(InputGroupDraft {
-                    name: format!("Input {}", idx + 1),
                     device_id: fresh_input.first().map(|d| d.id.clone()),
                     channels: Vec::new(),
                     mode: ChainInputMode::Mono,
@@ -3401,7 +3422,6 @@ pub fn run_desktop_app(
             let new_entries: Vec<InputEntry> = draft.inputs.iter()
                 .filter(|ig| ig.device_id.is_some() && !ig.channels.is_empty())
                 .map(|ig| InputEntry {
-                    name: ig.name.clone(),
                     device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
                     mode: ig.mode,
                     channels: ig.channels.clone(),
@@ -3612,7 +3632,6 @@ pub fn run_desktop_app(
                 };
                 let idx = draft.outputs.len();
                 draft.outputs.push(OutputGroupDraft {
-                    name: format!("Output {}", idx + 1),
                     device_id: fresh_output.first().map(|d| d.id.clone()),
                     channels: Vec::new(),
                     mode: ChainOutputMode::Stereo,
@@ -3697,7 +3716,6 @@ pub fn run_desktop_app(
             let new_entries: Vec<OutputEntry> = draft.outputs.iter()
                 .filter(|og| og.device_id.is_some() && !og.channels.is_empty())
                 .map(|og| OutputEntry {
-                    name: og.name.clone(),
                     device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
                     mode: og.mode,
                     channels: og.channels.clone(),
@@ -3870,7 +3888,6 @@ pub fn run_desktop_app(
                     let fresh_input = refresh_input_devices(&chain_input_device_options_for_select);
                     let fresh_output = refresh_output_devices(&chain_output_device_options_for_select);
                     let inputs: Vec<InputGroupDraft> = ib.entries.iter().map(|e| InputGroupDraft {
-                        name: e.name.clone(),
                         device_id: if e.device_id.0.is_empty() { None } else { Some(e.device_id.0.clone()) },
                         channels: e.channels.clone(),
                         mode: e.mode,
@@ -3894,7 +3911,6 @@ pub fn run_desktop_app(
                     let fresh_input = refresh_input_devices(&chain_input_device_options_for_select);
                     let fresh_output = refresh_output_devices(&chain_output_device_options_for_select);
                     let outputs: Vec<OutputGroupDraft> = ob.entries.iter().map(|e| OutputGroupDraft {
-                        name: e.name.clone(),
                         device_id: if e.device_id.0.is_empty() { None } else { Some(e.device_id.0.clone()) },
                         channels: e.channels.clone(),
                         mode: e.mode,
@@ -4755,6 +4771,7 @@ pub fn run_desktop_app(
     {
         let weak_window = window.as_weak();
         let selected_block = selected_block.clone();
+        let block_editor_draft = block_editor_draft.clone();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
@@ -4784,7 +4801,16 @@ pub fn run_desktop_app(
                 return;
             };
             block.enabled = !block.enabled;
+            let new_enabled = block.enabled;
             let chain_id = chain.id.clone();
+            // Keep block_editor_draft in sync to prevent stale persist from reverting
+            if let Some(draft) = block_editor_draft.borrow_mut().as_mut() {
+                if draft.chain_index == chain_index as usize && draft.block_index == Some(block_index) {
+                    draft.enabled = new_enabled;
+                }
+            }
+            // Keep inline drawer UI in sync
+            window.set_block_drawer_enabled(new_enabled);
             if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                 set_status_error(&window, &toast_timer, &error.to_string());
                 return;
@@ -5078,7 +5104,6 @@ pub fn run_desktop_app(
                 if effect_type_str == "input" {
                     // Set up a temporary chain draft for the input window callbacks
                     let input_group = InputGroupDraft {
-                        name: "Input".to_string(),
                         device_id: None,
                         channels: Vec::new(),
                         mode: ChainInputMode::Mono,
@@ -5114,7 +5139,6 @@ pub fn run_desktop_app(
                 } else {
                     // Set up a temporary chain draft for the output window callbacks
                     let output_group = OutputGroupDraft {
-                        name: "Output".to_string(),
                         device_id: None,
                         channels: Vec::new(),
                         mode: ChainOutputMode::Stereo,
@@ -6037,7 +6061,6 @@ pub fn run_desktop_app(
                         kind: AudioBlockKind::Input(InputBlock {
                             model: "standard".to_string(),
                             entries: vec![InputEntry {
-                                name: input_group.name.clone(),
                                 device_id: DeviceId(input_group.device_id.clone().unwrap_or_default()),
                                 mode: input_group.mode,
                                 channels: input_group.channels.clone(),
@@ -6097,7 +6120,6 @@ pub fn run_desktop_app(
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".to_string(),
                         entries: vec![InputEntry {
-                            name: ig.name.clone(),
                             device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
                             mode: ig.mode,
                             channels: ig.channels.clone(),
@@ -6320,7 +6342,6 @@ pub fn run_desktop_app(
                         kind: AudioBlockKind::Output(OutputBlock {
                             model: "standard".to_string(),
                             entries: vec![OutputEntry {
-                                name: output_group.name.clone(),
                                 device_id: DeviceId(output_group.device_id.clone().unwrap_or_default()),
                                 mode: output_group.mode,
                                 channels: output_group.channels.clone(),
@@ -6377,7 +6398,6 @@ pub fn run_desktop_app(
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".to_string(),
                         entries: vec![OutputEntry {
-                            name: og.name.clone(),
                             device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
                             mode: og.mode,
                             channels: og.channels.clone(),
@@ -6925,7 +6945,7 @@ fn chain_inputs_tooltip(
                 ChainInputMode::Stereo => "Stereo",
                 ChainInputMode::DualMono => "Dual Mono",
             };
-            let label = if entry.name.is_empty() { format!("Input #{}", ei + 1) } else { entry.name.clone() };
+            let label = format!("Input #{}", ei + 1);
             format!("{}: {} · {} · Ch {}", label, device_name, mode, format_channel_list(&entry.channels))
     }).collect::<Vec<_>>().join("\n")
 }
@@ -6949,7 +6969,7 @@ fn chain_outputs_tooltip(
             ChainOutputMode::Mono => "Mono",
             ChainOutputMode::Stereo => "Stereo",
         };
-        let label = if entry.name.is_empty() { format!("Output #{}", ei + 1) } else { entry.name.clone() };
+        let label = format!("Output #{}", ei + 1);
         format!("{}: {} · {} · Ch {}", label, device_name, mode, format_channel_list(&entry.channels))
     }).collect::<Vec<_>>().join("\n")
 }
@@ -8197,13 +8217,11 @@ fn create_chain_draft(
     output_devices: &[AudioDeviceDescriptor],
 ) -> ChainDraft {
     let default_input = InputGroupDraft {
-        name: "Input 1".to_string(),
         device_id: input_devices.first().map(|device| device.id.clone()),
         channels: Vec::new(),
         mode: ChainInputMode::Mono,
     };
     let default_output = OutputGroupDraft {
-        name: "Output 1".to_string(),
         device_id: output_devices.first().map(|device| device.id.clone()),
         channels: Vec::new(),
         mode: ChainOutputMode::Stereo,
@@ -8229,14 +8247,12 @@ fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
             .entries
             .iter()
             .map(|entry| InputGroupDraft {
-                name: if entry.name.is_empty() { "Input".to_string() } else { entry.name.clone() },
                 device_id: if entry.device_id.0.is_empty() { None } else { Some(entry.device_id.0.clone()) },
                 channels: entry.channels.clone(),
                 mode: entry.mode,
             })
             .collect(),
         None => vec![InputGroupDraft {
-            name: "Input 1".to_string(),
             device_id: None,
             channels: Vec::new(),
             mode: ChainInputMode::Mono,
@@ -8249,14 +8265,12 @@ fn chain_draft_from_chain(index: usize, chain: &Chain) -> ChainDraft {
             .entries
             .iter()
             .map(|entry| OutputGroupDraft {
-                name: if entry.name.is_empty() { "Output".to_string() } else { entry.name.clone() },
                 device_id: if entry.device_id.0.is_empty() { None } else { Some(entry.device_id.0.clone()) },
                 channels: entry.channels.clone(),
                 mode: entry.mode,
             })
             .collect(),
         None => vec![OutputGroupDraft {
-            name: "Output 1".to_string(),
             device_id: None,
             channels: Vec::new(),
             mode: ChainOutputMode::Stereo,
@@ -8584,7 +8598,6 @@ fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain>) -> Chain
             .iter()
             .filter(|ig| ig.device_id.is_some() && !ig.channels.is_empty())
             .map(|ig| InputEntry {
-                name: ig.name.clone(),
                 device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
                 mode: ig.mode,
                 channels: ig.channels.clone(),
@@ -8595,7 +8608,6 @@ fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain>) -> Chain
             .iter()
             .filter(|og| og.device_id.is_some() && !og.channels.is_empty())
             .map(|og| OutputEntry {
-                name: og.name.clone(),
                 device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
                 mode: og.mode,
                 channels: og.channels.clone(),
@@ -8988,7 +9000,6 @@ fn setup_chain_editor_callbacks(
                 };
                 let idx = draft.inputs.len();
                 draft.inputs.push(InputGroupDraft {
-                    name: format!("Input {}", idx + 1),
                     device_id: fresh_input.first().map(|d| d.id.clone()),
                     channels: Vec::new(),
                     mode: ChainInputMode::Mono,
@@ -9052,7 +9063,6 @@ fn setup_chain_editor_callbacks(
                 };
                 let idx = draft.outputs.len();
                 draft.outputs.push(OutputGroupDraft {
-                    name: format!("Output {}", idx + 1),
                     device_id: fresh_output.first().map(|d| d.id.clone()),
                     channels: Vec::new(),
                     mode: ChainOutputMode::Stereo,
@@ -9303,7 +9313,6 @@ fn build_io_group_items(
                 input_devices,
             );
             IoGroupItem {
-                name: input.name.clone().into(),
                 summary: summary.into(),
             }
         })
@@ -9318,7 +9327,6 @@ fn build_io_group_items(
                 output_devices,
             );
             IoGroupItem {
-                name: output.name.clone().into(),
                 summary: summary.into(),
             }
         })
@@ -9610,7 +9618,6 @@ mod tests {
         AudioBlockKind::Input(InputBlock {
             model: "standard".into(),
             entries: vec![InputEntry {
-                name: "In".into(),
                 device_id: DeviceId("dev".into()),
                 mode: ChainInputMode::Mono,
                 channels: vec![0],
@@ -9622,7 +9629,6 @@ mod tests {
         AudioBlockKind::Output(OutputBlock {
             model: "standard".into(),
             entries: vec![OutputEntry {
-                name: "Out".into(),
                 device_id: DeviceId("dev".into()),
                 mode: ChainOutputMode::Stereo,
                 channels: vec![0, 1],
@@ -9734,7 +9740,6 @@ mod tests {
             AudioBlockKind::Input(InputBlock {
                 model: "standard".into(),
                 entries: vec![InputEntry {
-                    name: "Middle In".into(),
                     device_id: DeviceId("dev2".into()),
                     mode: ChainInputMode::Mono,
                     channels: vec![1],
@@ -9752,7 +9757,6 @@ mod tests {
 
         // Update first InputBlock entries (simulating save)
         let new_entries = vec![InputEntry {
-            name: "Updated G1".into(),
             device_id: DeviceId("dev_new".into()),
             mode: ChainInputMode::Stereo,
             channels: vec![2, 3],
@@ -9772,7 +9776,6 @@ mod tests {
         // Verify first InputBlock was updated
         if let AudioBlockKind::Input(ref ib) = chain.blocks[0].kind {
             assert_eq!(ib.entries.len(), 1);
-            assert_eq!(ib.entries[0].name, "Updated G1");
             assert_eq!(ib.entries[0].device_id.0, "dev_new");
         } else {
             panic!("block 0 should be Input");
@@ -9781,7 +9784,6 @@ mod tests {
         // Verify middle InputBlock at position 2 is UNTOUCHED
         if let AudioBlockKind::Input(ref ib) = chain.blocks[2].kind {
             assert_eq!(ib.entries.len(), 1);
-            assert_eq!(ib.entries[0].name, "Middle In");
             assert_eq!(ib.entries[0].device_id.0, "dev2");
             assert_eq!(ib.entries[0].channels, vec![1]);
         } else {
@@ -10229,7 +10231,6 @@ mod tests {
             AudioBlockKind::Output(OutputBlock {
                 model: "standard".into(),
                 entries: vec![OutputEntry {
-                    name: "Mid Out".into(),
                     device_id: DeviceId("dev_mid".into()),
                     mode: ChainOutputMode::Stereo,
                     channels: vec![2, 3],
@@ -10247,7 +10248,6 @@ mod tests {
 
         // Update last OutputBlock entries
         let new_entries = vec![OutputEntry {
-            name: "Updated Out".into(),
             device_id: DeviceId("dev_updated".into()),
             mode: ChainOutputMode::Mono,
             channels: vec![0],
@@ -10258,7 +10258,6 @@ mod tests {
 
         // Verify middle OutputBlock at position 2 is UNTOUCHED
         if let AudioBlockKind::Output(ref ob) = chain.blocks[2].kind {
-            assert_eq!(ob.entries[0].name, "Mid Out");
             assert_eq!(ob.entries[0].device_id.0, "dev_mid");
         } else {
             panic!("block 2 should be Output");
@@ -10266,7 +10265,7 @@ mod tests {
 
         // Verify last OutputBlock was updated
         if let AudioBlockKind::Output(ref ob) = chain.blocks[4].kind {
-            assert_eq!(ob.entries[0].name, "Updated Out");
+            assert_eq!(ob.entries[0].device_id.0, "dev_updated");
         } else {
             panic!("block 4 should be Output");
         }

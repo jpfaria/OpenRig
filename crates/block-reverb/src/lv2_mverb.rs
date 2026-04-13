@@ -60,15 +60,15 @@ fn build(
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    let damping = required_f32(params, "damping").map_err(anyhow::Error::msg)? / 100.0;
-    let density = required_f32(params, "density").map_err(anyhow::Error::msg)? / 100.0;
-    let bandwidth = required_f32(params, "bandwidth").map_err(anyhow::Error::msg)? / 100.0;
-    let decay = required_f32(params, "decay").map_err(anyhow::Error::msg)? / 100.0;
-    let predelay = required_f32(params, "predelay").map_err(anyhow::Error::msg)? / 100.0;
-    let size = required_f32(params, "size").map_err(anyhow::Error::msg)? / 100.0;
-    let gain = required_f32(params, "gain").map_err(anyhow::Error::msg)? / 100.0;
-    let mix = required_f32(params, "mix").map_err(anyhow::Error::msg)? / 100.0;
-    let early_mix = required_f32(params, "early_mix").map_err(anyhow::Error::msg)? / 100.0;
+    let damping = required_f32(params, "damping").map_err(anyhow::Error::msg)?;
+    let density = required_f32(params, "density").map_err(anyhow::Error::msg)?;
+    let bandwidth = required_f32(params, "bandwidth").map_err(anyhow::Error::msg)?;
+    let decay = required_f32(params, "decay").map_err(anyhow::Error::msg)?;
+    let predelay = required_f32(params, "predelay").map_err(anyhow::Error::msg)?;
+    let size = required_f32(params, "size").map_err(anyhow::Error::msg)?;
+    let gain = required_f32(params, "gain").map_err(anyhow::Error::msg)?;
+    let mix = required_f32(params, "mix").map_err(anyhow::Error::msg)?;
+    let early_mix = required_f32(params, "early_mix").map_err(anyhow::Error::msg)?;
 
     let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
     let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;

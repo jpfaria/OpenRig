@@ -12,6 +12,7 @@ export component DesktopMain inherits Rectangle {
     in property <bool> show-project-settings;
     in property <bool> project-dirty;
     in property <bool> auto-save: false;
+    in property <bool> skip-launcher: false;
     in property <string> project-path-label;
     in property <string> project-title;
     in-out property <string> project-name-draft;
@@ -156,6 +157,7 @@ export component DesktopMain inherits Rectangle {
             project-path-label: root.project-path-label;
             project-dirty: root.project-dirty;
             auto-save: root.auto-save;
+            skip-launcher: root.skip-launcher;
             project-chains: root.project-chains;
             selected-chain-block-chain-index: root.selected-chain-block-chain-index;
             selected-chain-block-index: root.selected-chain-block-index;

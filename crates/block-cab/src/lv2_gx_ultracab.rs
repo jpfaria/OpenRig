@@ -65,7 +65,7 @@ fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) ->
     let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
 
     let control_ports = &[
-        (PORT_BYPASS, 0.0),
+        (PORT_BYPASS, 1.0), // lv2:enabled — 1.0 = active
         (PORT_GAIN, gain), (PORT_MIDS, mids), (PORT_PUNCH, punch),
         (PORT_RESONANCE, resonance), (PORT_SIZE, size), (PORT_TOP, top),
     ];

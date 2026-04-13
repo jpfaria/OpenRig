@@ -206,6 +206,34 @@ After writing code:
    // RIGHT: docs always reflect current state
 ```
 
+### 13. Test Coverage (OBRIGATORIO)
+
+- [ ] **Toda feature/bugfix DEVE ter testes** — sem exceção
+- [ ] Testes dentro do módulo: `#[cfg(test)] mod tests { ... }`
+- [ ] Nomenclatura: `<behavior>_<scenario>_<expected>` (ex: `validate_project_rejects_empty_chains`)
+- [ ] Sem frameworks externos — usar `assert!`, `assert_eq!`, `assert!(result.is_err())`
+- [ ] **DSP nativo**: testar com golden samples, tolerância `1e-4`
+- [ ] **NAM/LV2/IR builds**: marcar `#[ignore]` (dependem de assets externos)
+- [ ] **Registry tests** para block-* crates: iterar sobre TODOS os modelos via registry (schema, validate, build)
+- [ ] Helpers de teste no próprio módulo — sem crate de test-utils separado
+- [ ] `cargo test --workspace` DEVE passar antes de qualquer commit
+- [ ] Cobertura local: `scripts/coverage.sh` (requer `cargo-llvm-cov`)
+
+### Anti-Pattern (Testes)
+```
+❌ Commitar código sem testes
+   // WRONG: código sem teste é dívida técnica
+
+❌ Testar build() de modelo IR/NAM/LV2 sem #[ignore]
+   // WRONG: depende de assets externos, falha no CI
+
+❌ Criar crate test-utils separado
+   // WRONG: cada crate deve ser autossuficiente em testes
+
+❌ Usar mockall ou frameworks de mock
+   // WRONG: testar código real, não mocks
+```
+
 ## Living Document
 
 This skill is a LIVING DOCUMENT. Every time the user corrects a software engineering mistake:

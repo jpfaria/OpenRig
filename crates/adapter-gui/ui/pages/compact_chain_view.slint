@@ -681,6 +681,10 @@ export component CompactChainViewPage inherits Rectangle {
     callback remove-block(int, int); // chain_index, block_index
     callback open-plugin(string); // model-id, for VST3 blocks
 
+    // I/O device configuration (reuses the chain list's configure flow)
+    callback configure-input(int); // chain_index
+    callback configure-output(int); // chain_index
+
     // Type picker state
     in property <[BlockTypePickerItem]> block-type-options;
     private property <bool> show-type-picker: false;
@@ -729,10 +733,60 @@ export component CompactChainViewPage inherits Rectangle {
         }
 
         Text {
-            x: 44px; width: parent.width - 60px; height: parent.height;
+            x: 44px; width: parent.width - 160px; height: parent.height;
             text: root.chain-title;
             color: #d8e0ff; font-size: 14px; font-weight: 700;
             vertical-alignment: center;
+        }
+
+        // IN button
+        Rectangle {
+            x: parent.width - 108px;
+            y: (parent.height - 28px) / 2;
+            width: 46px; height: 28px;
+            background: in-ta.has-hover ? #29df8520 : #29df8510;
+            border-width: 1px;
+            border-color: #29df8540;
+            border-radius: 4px;
+
+            Text {
+                width: 100%; height: 100%;
+                text: "IN";
+                color: #29df85;
+                font-size: 10px; font-weight: 800; letter-spacing: 1px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            in-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.configure-input(root.chain-index); }
+            }
+        }
+
+        // OUT button
+        Rectangle {
+            x: parent.width - 56px;
+            y: (parent.height - 28px) / 2;
+            width: 46px; height: 28px;
+            background: out-ta.has-hover ? #e0704020 : #e0704010;
+            border-width: 1px;
+            border-color: #e0704040;
+            border-radius: 4px;
+
+            Text {
+                width: 100%; height: 100%;
+                text: "OUT";
+                color: #e07040;
+                font-size: 10px; font-weight: 800; letter-spacing: 1px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            out-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.configure-output(root.chain-index); }
+            }
         }
     }
 
@@ -969,4 +1023,5 @@ export component CompactChainViewPage inherits Rectangle {
             }
         }
     }
+
 }

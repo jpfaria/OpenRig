@@ -37,8 +37,8 @@ pub fn validate_project(project: &Project) -> Result<()> {
 
         // Validate each input block's entries
         for (_, input) in &input_blocks {
-            for entry in &input.entries {
-                let entry_label = if entry.name.is_empty() { &input.model } else { &entry.name };
+            for (entry_idx, entry) in input.entries.iter().enumerate() {
+                let entry_label = format!("{}[{}]", input.model, entry_idx);
                 if entry.device_id.0.trim().is_empty() {
                     bail!(
                         "invalid project: chain '{}' input '{}' missing device_id",
@@ -60,8 +60,8 @@ pub fn validate_project(project: &Project) -> Result<()> {
 
         // Validate each output block's entries
         for (_, output) in &output_blocks {
-            for entry in &output.entries {
-                let entry_label = if entry.name.is_empty() { &output.model } else { &entry.name };
+            for (entry_idx, entry) in output.entries.iter().enumerate() {
+                let entry_label = format!("{}[{}]", output.model, entry_idx);
                 if entry.device_id.0.trim().is_empty() {
                     bail!(
                         "invalid project: chain '{}' output '{}' missing device_id",

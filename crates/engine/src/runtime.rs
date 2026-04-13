@@ -348,11 +348,11 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
     log::info!("=== CHAIN '{}' RUNTIME BUILD ===", chain.id.0);
     log::info!("  inputs: {}", eff_inputs.len());
     for (i, inp) in eff_inputs.iter().enumerate() {
-        log::info!("    input[{}]: '{}' dev='{}' ch={:?} cpal_stream={}", i, inp.name, inp.device_id.0.split(':').last().unwrap_or("?"), inp.channels, eff_input_cpal_indices[i]);
+        log::info!("    input[{}]: 'input #{}' dev='{}' ch={:?} cpal_stream={}", i, i, inp.device_id.0.split(':').last().unwrap_or("?"), inp.channels, eff_input_cpal_indices[i]);
     }
     log::info!("  outputs: {}", eff_outputs.len());
     for (i, out) in eff_outputs.iter().enumerate() {
-        log::info!("    output[{}]: '{}' dev='{}' ch={:?}", i, out.name, out.device_id.0.split(':').last().unwrap_or("?"), out.channels);
+        log::info!("    output[{}]: 'output #{}' dev='{}' ch={:?}", i, i, out.device_id.0.split(':').last().unwrap_or("?"), out.channels);
     }
     let segments = split_chain_into_segments(chain, &eff_inputs, &eff_input_cpal_indices, &eff_outputs);
     log::info!("  segments: {}", segments.len());
@@ -365,7 +365,7 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
                 _ => "?",
             }))
             .collect();
-        log::info!("    seg[{}]: input='{}' → blocks={:?} → output_routes={:?}", i, seg.input.name, block_names, seg.output_route_indices);
+        log::info!("    seg[{}]: input='input #{}' → blocks={:?} → output_routes={:?}", i, i, block_names, seg.output_route_indices);
     }
     log::info!("=== END CHAIN '{}' ===", chain.id.0);
 
@@ -463,9 +463,8 @@ fn effective_inputs(chain: &Chain) -> (Vec<InputEntry>, Vec<usize>) {
         });
 
         if matches!(entry.mode, ChainInputMode::Mono) && entry.channels.len() > 1 {
-            for (i, &ch) in entry.channels.iter().enumerate() {
+            for &ch in &entry.channels {
                 entries.push(InputEntry {
-                    name: format!("{} ch{}", entry.name, i + 1),
                     device_id: entry.device_id.clone(),
                     mode: ChainInputMode::Mono,
                     channels: vec![ch],
@@ -497,7 +496,6 @@ fn effective_inputs(chain: &Chain) -> (Vec<InputEntry>, Vec<usize>) {
     }
     // Fallback — no InputBlocks defined
     (vec![InputEntry {
-        name: "Input".to_string(),
         device_id: domain::ids::DeviceId("".to_string()),
         mode: ChainInputMode::Mono,
         channels: vec![0],
@@ -532,7 +530,6 @@ fn effective_outputs(chain: &Chain) -> Vec<OutputEntry> {
     }
     // Fallback — no OutputBlocks defined
     vec![OutputEntry {
-        name: "Output".to_string(),
         device_id: domain::ids::DeviceId("".to_string()),
         mode: ChainOutputMode::Mono,
         channels: vec![0],
@@ -542,7 +539,6 @@ fn effective_outputs(chain: &Chain) -> Vec<OutputEntry> {
 /// Convert an InsertBlock's return endpoint to an InputEntry.
 fn insert_return_as_input_entry(insert: &InsertBlock) -> InputEntry {
     InputEntry {
-        name: "Insert Return".to_string(),
         device_id: insert.return_.device_id.clone(),
         mode: insert.return_.mode,
         channels: insert.return_.channels.clone(),
@@ -552,7 +548,6 @@ fn insert_return_as_input_entry(insert: &InsertBlock) -> InputEntry {
 /// Convert an InsertBlock's send endpoint to an OutputEntry.
 fn insert_send_as_output_entry(insert: &InsertBlock) -> OutputEntry {
     OutputEntry {
-        name: "Insert Send".to_string(),
         device_id: insert.send.device_id.clone(),
         mode: match insert.send.mode {
             ChainInputMode::Mono => ChainOutputMode::Mono,
@@ -849,7 +844,7 @@ pub fn update_chain_runtime_state(
             .filter_map(|&idx| effective_outs.get(idx))
             .flat_map(|e| e.channels.iter().copied())
             .collect();
-        let input_state = build_input_processing_state(
+        let input_state = match build_input_processing_state(
             chain,
             &segment.input,
             &segment_output_channels,
@@ -857,7 +852,20 @@ pub fn update_chain_runtime_state(
             existing,
             Some(&segment.block_indices),
             segment.output_route_indices.clone(),
-        )?;
+        ) {
+            Ok(state) => state,
+            Err(e) => {
+                // Restore previously-extracted blocks so the chain keeps playing
+                log::error!("[engine] rebuild failed for chain '{}': {e} — restoring previous state", chain.id.0);
+                let mut processing = runtime.processing.lock().expect("chain runtime poisoned");
+                for (is, old_blocks) in processing.input_states.iter_mut().zip(existing_per_input.into_iter()) {
+                    if is.blocks.is_empty() {
+                        is.blocks = old_blocks;
+                    }
+                }
+                return Err(e);
+            }
+        };
         new_input_states.push(input_state);
     }
 
@@ -1013,9 +1021,20 @@ fn build_runtime_block_nodes(
                 log::info!("[engine]   {} = {:?}", path, value);
             }
         }
-        let node = build_block_runtime_node(chain, block, current_layout, sample_rate)?;
-        current_layout = node.output_layout;
-        blocks.push(node);
+        match build_block_runtime_node(chain, block, current_layout, sample_rate) {
+            Ok(node) => {
+                current_layout = node.output_layout;
+                blocks.push(node);
+            }
+            Err(e) => {
+                // Don't fail the whole chain — bypass this block and keep going
+                log::error!("[engine] block {:?} (id={}) build failed: {e} — inserting faulted bypass",
+                    block.model_ref().map(|m| m.model.to_string()), block.id.0);
+                let mut node = bypass_runtime_node(block, current_layout);
+                node.faulted = true;
+                blocks.push(node);
+            }
+        }
     }
 
     Ok((blocks, current_layout))
@@ -1028,6 +1047,8 @@ fn try_reuse_block_node(
 ) -> Option<BlockRuntimeNode> {
     let mut node = reusable_nodes.remove(&block.id)?;
     if node.input_layout != current_layout {
+        log::debug!("[engine] cannot reuse block id={}: layout changed ({:?} → {:?})",
+            block.id.0, node.input_layout, current_layout);
         return None;
     }
     // Exact match — reuse as-is
@@ -1051,6 +1072,7 @@ fn try_reuse_block_node(
         }
         return Some(node);
     }
+    log::info!("[engine] cannot reuse block id={}: snapshot differs (params or kind changed)", block.id.0);
     None
 }
 
@@ -2215,7 +2237,6 @@ mod tests {
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".to_string(),
                         entries: vec![InputEntry {
-                            name: "Input 1".to_string(),
                             device_id: DeviceId("input-device".into()),
                             mode: ChainInputMode::Mono,
                             channels: vec![0, 1],
@@ -2232,7 +2253,6 @@ mod tests {
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".to_string(),
                         entries: vec![OutputEntry {
-                            name: "Output 1".to_string(),
                             device_id: DeviceId("output-device".into()),
                             mode: ChainOutputMode::Stereo,
                             channels: vec![0, 1],
@@ -2279,7 +2299,6 @@ mod tests {
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".to_string(),
                         entries: vec![InputEntry {
-                            name: "Input 1".to_string(),
                             device_id: DeviceId("input-device".into()),
                             mode: ChainInputMode::Mono,
                             channels: vec![0, 1],
@@ -2295,7 +2314,6 @@ mod tests {
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".to_string(),
                         entries: vec![OutputEntry {
-                            name: "Output 1".to_string(),
                             device_id: DeviceId("output-device".into()),
                             mode: ChainOutputMode::Stereo,
                             channels: vec![0, 1],
@@ -2666,7 +2684,7 @@ mod tests {
             blocks: vec![
                 AudioBlock { id: BlockId("input:0".into()), enabled: true,
                     kind: AudioBlockKind::Input(InputBlock { model: "standard".into(),
-                        entries: vec![InputEntry { name: "In".into(), device_id: DeviceId("scarlett".into()), mode: ChainInputMode::Mono, channels: vec![0] }] }) },
+                        entries: vec![InputEntry { device_id: DeviceId("scarlett".into()), mode: ChainInputMode::Mono, channels: vec![0] }] }) },
                 AudioBlock { id: BlockId("ts9".into()), enabled: true,
                     kind: AudioBlockKind::Core(CoreBlock { effect_type: "gain".into(), model: "volume".into(), params: ParameterSet::default() }) },
                 AudioBlock { id: BlockId("amp".into()), enabled: true,
@@ -2675,14 +2693,14 @@ mod tests {
                     kind: AudioBlockKind::Core(CoreBlock { effect_type: "gain".into(), model: "volume".into(), params: ParameterSet::default() }) },
                 AudioBlock { id: BlockId("out_mixer".into()), enabled: true,
                     kind: AudioBlockKind::Output(OutputBlock { model: "standard".into(),
-                        entries: vec![OutputEntry { name: "Mixer".into(), device_id: DeviceId("mixer".into()), mode: ChainOutputMode::Stereo, channels: vec![0, 1] }] }) },
+                        entries: vec![OutputEntry { device_id: DeviceId("mixer".into()), mode: ChainOutputMode::Stereo, channels: vec![0, 1] }] }) },
                 AudioBlock { id: BlockId("delay".into()), enabled: true,
                     kind: AudioBlockKind::Core(CoreBlock { effect_type: "delay".into(), model: "digital_clean".into(), params: ParameterSet::default() }) },
                 AudioBlock { id: BlockId("reverb".into()), enabled: true,
                     kind: AudioBlockKind::Core(CoreBlock { effect_type: "reverb".into(), model: "plate_foundation".into(), params: ParameterSet::default() }) },
                 AudioBlock { id: BlockId("out_scarlett".into()), enabled: true,
                     kind: AudioBlockKind::Output(OutputBlock { model: "standard".into(),
-                        entries: vec![OutputEntry { name: "Scarlett".into(), device_id: DeviceId("scarlett".into()), mode: ChainOutputMode::Stereo, channels: vec![0, 1] }] }) },
+                        entries: vec![OutputEntry { device_id: DeviceId("scarlett".into()), mode: ChainOutputMode::Stereo, channels: vec![0, 1] }] }) },
             ],
         };
 

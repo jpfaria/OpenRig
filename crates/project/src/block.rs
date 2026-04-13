@@ -68,8 +68,6 @@ pub enum AudioBlockKind {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputEntry {
-    #[serde(default)]
-    pub name: String,
     pub device_id: DeviceId,
     #[serde(default)]
     pub mode: ChainInputMode,
@@ -78,8 +76,6 @@ pub struct InputEntry {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct OutputEntry {
-    #[serde(default)]
-    pub name: String,
     pub device_id: DeviceId,
     #[serde(default)]
     pub mode: ChainOutputMode,
@@ -650,13 +646,12 @@ mod tests {
             model: "standard".to_string(),
             entries: vec![
                 InputEntry {
-                    name: "Guitar 1".to_string(),
+
                     device_id: DeviceId("scarlett".into()),
                     mode: ChainInputMode::Mono,
                     channels: vec![0],
                 },
                 InputEntry {
-                    name: "Guitar 2".to_string(),
                     device_id: DeviceId("scarlett".into()),
                     mode: ChainInputMode::Mono,
                     channels: vec![1],
@@ -674,13 +669,11 @@ mod tests {
             model: "standard".to_string(),
             entries: vec![
                 OutputEntry {
-                    name: "Monitors".to_string(),
                     device_id: DeviceId("scarlett".into()),
                     mode: ChainOutputMode::Stereo,
                     channels: vec![0, 1],
                 },
                 OutputEntry {
-                    name: "Headphones".to_string(),
                     device_id: DeviceId("macbook".into()),
                     mode: ChainOutputMode::Stereo,
                     channels: vec![0, 1],
@@ -697,7 +690,6 @@ mod tests {
         let input = InputBlock {
             model: "standard".to_string(),
             entries: vec![InputEntry {
-                name: "Guitar".to_string(),
                 device_id: DeviceId("scarlett".into()),
                 mode: ChainInputMode::Mono,
                 channels: vec![0],
@@ -712,13 +704,11 @@ mod tests {
             model: "standard".to_string(),
             entries: vec![
                 InputEntry {
-                    name: "Input A".to_string(),
                     device_id: DeviceId("scarlett".into()),
                     mode: ChainInputMode::Mono,
                     channels: vec![0],
                 },
                 InputEntry {
-                    name: "Input B".to_string(),
                     device_id: DeviceId("scarlett".into()),
                     mode: ChainInputMode::Mono,
                     channels: vec![0], // duplicate!
@@ -736,13 +726,11 @@ mod tests {
             model: "standard".to_string(),
             entries: vec![
                 InputEntry {
-                    name: "Input A".to_string(),
                     device_id: DeviceId("scarlett".into()),
                     mode: ChainInputMode::Mono,
                     channels: vec![0],
                 },
                 InputEntry {
-                    name: "Input B".to_string(),
                     device_id: DeviceId("scarlett".into()),
                     mode: ChainInputMode::Mono,
                     channels: vec![1],
@@ -758,13 +746,11 @@ mod tests {
             model: "standard".to_string(),
             entries: vec![
                 InputEntry {
-                    name: "Input A".to_string(),
                     device_id: DeviceId("scarlett".into()),
                     mode: ChainInputMode::Mono,
                     channels: vec![0],
                 },
                 InputEntry {
-                    name: "Input B".to_string(),
                     device_id: DeviceId("macbook".into()),
                     mode: ChainInputMode::Mono,
                     channels: vec![0],
@@ -816,7 +802,6 @@ mod tests {
                     kind: AudioBlockKind::Input(InputBlock {
                         model: "standard".to_string(),
                         entries: vec![InputEntry {
-                            name: "Input 1".to_string(),
                             device_id: DeviceId("scarlett".into()),
                             mode: ChainInputMode::Mono,
                             channels: vec![0],
@@ -846,7 +831,6 @@ mod tests {
                     kind: AudioBlockKind::Output(OutputBlock {
                         model: "standard".to_string(),
                         entries: vec![OutputEntry {
-                            name: "Output 1".to_string(),
                             device_id: DeviceId("scarlett".into()),
                             mode: ChainOutputMode::Stereo,
                             channels: vec![0, 1],

@@ -11,7 +11,7 @@ pub const MODEL_ID: &str = "lv2_mda_repsycho";
 pub const DISPLAY_NAME: &str = "MDA RePsycho!";
 const BRAND: &str = "mda";
 
-const PLUGIN_URI: &str = "http://moddevices.com/plugins/mda/RePsycho";
+const PLUGIN_URI: &str = "http://drobilla.net/plugins/mda/RePsycho";
 const PLUGIN_DIR: &str = "mod-mda-RePsycho.lv2";
 
 #[cfg(target_os = "macos")]
@@ -110,51 +110,6 @@ fn quality_to_float(s: &str) -> f32 {
     }
 }
 
-fn resolve_lib_path() -> Result<String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
-    let candidates = [
-        exe_dir
-            .as_ref()
-            .map(|d| d.join("../../").join(lv2::default_lv2_lib_dir()).join(PLUGIN_BINARY)),
-        Some(std::path::PathBuf::from(lv2::default_lv2_lib_dir()).join(PLUGIN_BINARY)),
-    ];
-
-    for candidate in candidates.iter().flatten() {
-        if candidate.exists() {
-            return Ok(candidate.to_string_lossy().to_string());
-        }
-    }
-
-    anyhow::bail!(
-        "LV2 binary '{}' not found in '{}'",
-        PLUGIN_BINARY,
-        lv2::default_lv2_lib_dir()
-    )
-}
-
-fn resolve_bundle_path() -> Result<String> {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
-
-    let candidates = [
-        exe_dir
-            .as_ref()
-            .map(|d| d.join("../../plugins").join(PLUGIN_DIR)),
-        Some(std::path::PathBuf::from("plugins").join(PLUGIN_DIR)),
-    ];
-
-    for candidate in candidates.iter().flatten() {
-        if candidate.exists() {
-            return Ok(candidate.to_string_lossy().to_string());
-        }
-    }
-
-    anyhow::bail!("LV2 bundle '{}' not found in plugins/", PLUGIN_DIR)
-}
 
 fn schema() -> Result<ModelParameterSchema> {
     Ok(model_schema())
@@ -173,16 +128,17 @@ fn build(
     let quality_str = required_string(params, "quality").map_err(anyhow::Error::msg)?;
     let quality = quality_to_float(&quality_str);
 
-    let lib_path = resolve_lib_path()?;
-    let bundle_path = resolve_bundle_path()?;
+    let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
+    let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
 
+    // MDA lvz wrapper expects all params normalized 0-1
     let control_ports = &[
-        (PORT_TUNE, tune),
-        (PORT_FINE, fine),
+        (PORT_TUNE, (tune + 24.0) / 24.0),
+        (PORT_FINE, (fine + 100.0) / 100.0),
         (PORT_DECAY, 0.0),
-        (PORT_THRESH, thresh),
-        (PORT_HOLD, hold),
-        (PORT_MIX, mix),
+        (PORT_THRESH, (thresh + 30.0) / 30.0),
+        (PORT_HOLD, (hold - 10.0) / 250.0),
+        (PORT_MIX, mix / 100.0),
         (PORT_QUALITY, quality),
     ];
 

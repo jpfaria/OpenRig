@@ -543,7 +543,6 @@ fn resolve_chain_outputs(
 /// Convert an InsertBlock's return endpoint to an InputEntry for stream resolution.
 fn insert_return_as_input_entry(insert: &InsertBlock) -> InputEntry {
     InputEntry {
-        name: "Insert Return".to_string(),
         device_id: insert.return_.device_id.clone(),
         mode: insert.return_.mode,
         channels: insert.return_.channels.clone(),
@@ -554,7 +553,6 @@ fn insert_return_as_input_entry(insert: &InsertBlock) -> InputEntry {
 fn insert_send_as_output_entry(insert: &InsertBlock) -> OutputEntry {
     use project::chain::ChainOutputMode;
     OutputEntry {
-        name: "Insert Send".to_string(),
         device_id: insert.send.device_id.clone(),
         mode: match insert.send.mode {
             project::chain::ChainInputMode::Mono => ChainOutputMode::Mono,
