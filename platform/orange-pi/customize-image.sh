@@ -22,6 +22,7 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     libfreetype6 \
     libfontconfig1 \
     libdrm2 \
+    libseat1 \
     libgles2 \
     libgl1-mesa-dri \
     weston \
