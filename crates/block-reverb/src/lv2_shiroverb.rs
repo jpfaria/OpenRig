@@ -107,13 +107,13 @@ fn build(
     sample_rate: f32,
     layout: AudioChannelLayout,
 ) -> Result<BlockProcessor> {
-    let shimmer = required_f32(params, "shimmer").map_err(anyhow::Error::msg)? / 100.0;
-    let decay = required_f32(params, "decay").map_err(anyhow::Error::msg)? / 100.0;
-    let damping = required_f32(params, "damping").map_err(anyhow::Error::msg)? / 100.0;
-    let mix = required_f32(params, "mix").map_err(anyhow::Error::msg)? / 100.0;
+    let shimmer = required_f32(params, "shimmer").map_err(anyhow::Error::msg)?;
+    let decay = required_f32(params, "decay").map_err(anyhow::Error::msg)?;
+    let damping = required_f32(params, "damping").map_err(anyhow::Error::msg)?;
+    let mix = required_f32(params, "mix").map_err(anyhow::Error::msg)?;
     let ratio = required_f32(params, "ratio").map_err(anyhow::Error::msg)?;
     let roomsize = required_f32(params, "roomsize").map_err(anyhow::Error::msg)?;
-    let bandwidth = required_f32(params, "bandwidth").map_err(anyhow::Error::msg)? / 100.0;
+    let bandwidth = required_f32(params, "bandwidth").map_err(anyhow::Error::msg)?;
     let tone = required_f32(params, "tone").map_err(anyhow::Error::msg)?;
 
     match layout {

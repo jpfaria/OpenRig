@@ -9,7 +9,7 @@ pub const MODEL_ID: &str = "lv2_mda_combo";
 pub const DISPLAY_NAME: &str = "MDA Combo";
 const BRAND: &str = "mda";
 
-const PLUGIN_URI: &str = "http://moddevices.com/plugins/mda/Combo";
+const PLUGIN_URI: &str = "http://drobilla.net/plugins/mda/Combo";
 const PLUGIN_DIR: &str = "mod-mda-Combo";
 
 #[cfg(target_os = "macos")]

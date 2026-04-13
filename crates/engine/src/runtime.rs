@@ -849,7 +849,7 @@ pub fn update_chain_runtime_state(
             .filter_map(|&idx| effective_outs.get(idx))
             .flat_map(|e| e.channels.iter().copied())
             .collect();
-        let input_state = build_input_processing_state(
+        let input_state = match build_input_processing_state(
             chain,
             &segment.input,
             &segment_output_channels,
@@ -857,7 +857,20 @@ pub fn update_chain_runtime_state(
             existing,
             Some(&segment.block_indices),
             segment.output_route_indices.clone(),
-        )?;
+        ) {
+            Ok(state) => state,
+            Err(e) => {
+                // Restore previously-extracted blocks so the chain keeps playing
+                log::error!("[engine] rebuild failed for chain '{}': {e} — restoring previous state", chain.id.0);
+                let mut processing = runtime.processing.lock().expect("chain runtime poisoned");
+                for (is, old_blocks) in processing.input_states.iter_mut().zip(existing_per_input.into_iter()) {
+                    if is.blocks.is_empty() {
+                        is.blocks = old_blocks;
+                    }
+                }
+                return Err(e);
+            }
+        };
         new_input_states.push(input_state);
     }
 
@@ -1013,9 +1026,20 @@ fn build_runtime_block_nodes(
                 log::info!("[engine]   {} = {:?}", path, value);
             }
         }
-        let node = build_block_runtime_node(chain, block, current_layout, sample_rate)?;
-        current_layout = node.output_layout;
-        blocks.push(node);
+        match build_block_runtime_node(chain, block, current_layout, sample_rate) {
+            Ok(node) => {
+                current_layout = node.output_layout;
+                blocks.push(node);
+            }
+            Err(e) => {
+                // Don't fail the whole chain — bypass this block and keep going
+                log::error!("[engine] block {:?} (id={}) build failed: {e} — inserting faulted bypass",
+                    block.model_ref().map(|m| m.model.to_string()), block.id.0);
+                let mut node = bypass_runtime_node(block, current_layout);
+                node.faulted = true;
+                blocks.push(node);
+            }
+        }
     }
 
     Ok((blocks, current_layout))
@@ -1028,6 +1052,8 @@ fn try_reuse_block_node(
 ) -> Option<BlockRuntimeNode> {
     let mut node = reusable_nodes.remove(&block.id)?;
     if node.input_layout != current_layout {
+        log::debug!("[engine] cannot reuse block id={}: layout changed ({:?} → {:?})",
+            block.id.0, node.input_layout, current_layout);
         return None;
     }
     // Exact match — reuse as-is
@@ -1051,6 +1077,7 @@ fn try_reuse_block_node(
         }
         return Some(node);
     }
+    log::info!("[engine] cannot reuse block id={}: snapshot differs (params or kind changed)", block.id.0);
     None
 }
 

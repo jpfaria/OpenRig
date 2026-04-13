@@ -58,11 +58,12 @@ fn build(
     let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
     let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
 
+    // MDA lvz wrapper expects all params normalized 0-1
     let control_ports = &[
-        (PORT_SIZE, size),
-        (PORT_HF_DAMP, hf_damp),
-        (PORT_MIX, mix),
-        (PORT_OUTPUT, output),
+        (PORT_SIZE, size / 10.0),
+        (PORT_HF_DAMP, hf_damp / 100.0),
+        (PORT_MIX, mix / 100.0),
+        (PORT_OUTPUT, (output + 20.0) / 40.0),
     ];
 
     match layout {

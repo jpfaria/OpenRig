@@ -58,7 +58,7 @@ fn build(params: &ParameterSet, sample_rate: f32, layout: AudioChannelLayout) ->
     let processor = lv2::build_lv2_processor(
         &lib_path, PLUGIN_URI, sample_rate as f64, &bundle_path,
         &[PORT_AUDIO_IN], &[PORT_AUDIO_OUT],
-        &[(PORT_BYPASS, 0.0), (PORT_GAIN, gain), (PORT_BASS, bass), (PORT_TREBLE, treble), (PORT_VOLUME, volume)],
+        &[(PORT_BYPASS, 1.0), (PORT_GAIN, gain), (PORT_BASS, bass), (PORT_TREBLE, treble), (PORT_VOLUME, volume)],
     )?;
 
     struct MonoAsStereo(lv2::Lv2Processor);
