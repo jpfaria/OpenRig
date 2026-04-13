@@ -656,7 +656,8 @@ export component BlockPanelEditor inherits Rectangle {
         HorizontalLayout {
             visible: root.block-knob-overlays.length == 0
                 && root.curve-editor-points.length == 0
-                && root.multi-slider-points.length == 0;
+                && root.multi-slider-points.length == 0
+                && !root.has-external-editor;
             alignment: stretch;
             padding-left: 60px;
             padding-right: 8px;

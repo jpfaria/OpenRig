@@ -3876,8 +3876,6 @@ pub fn run_desktop_app(
         let insert_send_channels_for_select = insert_send_channels.clone();
         let insert_return_channels_for_select = insert_return_channels.clone();
         let block_type_options_for_select = block_type_options.clone();
-        let vst3_handles_for_select = vst3_editor_handles.clone();
-        let vst3_sr_for_select = vst3_sample_rate;
         window.on_select_chain_block(move |chain_index, ui_block_index| {
             let Some(window) = weak_main_window.upgrade() else {
                 return;
@@ -4046,16 +4044,7 @@ pub fn run_desktop_app(
             window.set_has_external_editor(project::catalog::block_has_external_gui(&effect_type));
             // Clone block_id before dropping session_borrow (needed by window editor stream timer)
             let block_id_for_editor = block.id.clone();
-            let is_vst3_block = effect_type == block_core::EFFECT_TYPE_VST3;
             drop(session_borrow);
-            // VST3 blocks: open the native plugin GUI directly — no Slint editor popup.
-            if is_vst3_block && !model_id.is_empty() {
-                match project::vst3_editor::open_vst3_editor(&model_id, vst3_sr_for_select) {
-                    Ok(handle) => { vst3_handles_for_select.borrow_mut().push(handle); }
-                    Err(e) => set_status_error(&window, &toast_timer, &format!("Erro ao abrir plugin VST3: {}", e)),
-                }
-                return;
-            }
             if use_inline_block_editor(&window) {
                 window.set_show_block_drawer(true);
             } else {
@@ -4251,6 +4240,7 @@ pub fn run_desktop_app(
                         let (eq_total, eq_bands) = compute_eq_curves(&model.effect_type, &model.model_id, &default_params);
                         win_eq_band_curves.set_vec(eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>());
                         win.set_eq_total_curve(eq_total.into());
+                        win.set_has_external_editor(project::catalog::block_has_external_gui(&model.effect_type));
                         drop(draft_borrow);
                         if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
                             schedule_block_editor_persist_for_block_win(
