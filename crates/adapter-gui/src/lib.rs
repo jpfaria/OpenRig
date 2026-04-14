@@ -5645,41 +5645,7 @@ pub fn run_desktop_app(
             window.set_show_block_type_picker(false);
             let is_vst3_gui = project::catalog::block_has_external_gui(&model.effect_type, &model.model_id);
             window.set_has_external_editor(is_vst3_gui);
-            if is_vst3_gui && !use_inline_block_editor(&window) {
-                // Desktop + VST3: auto-persist the new block so the engine
-                // builds the VST3 processor and registers the GUI context,
-                // then open the titled editor window.
-                {
-                    let draft_snapshot = block_editor_draft.borrow().clone();
-                    if let Some(ref draft) = draft_snapshot {
-                        let devs_in = input_chain_devices_for_type.borrow();
-                        let devs_out = output_chain_devices_for_type.borrow();
-                        if let Err(e) = persist_block_editor_draft(
-                            &window,
-                            draft,
-                            &block_parameter_items,
-                            &project_session_for_type,
-                            &project_chains_for_type,
-                            &project_runtime_for_type,
-                            &saved_project_snapshot_for_type,
-                            &project_dirty_for_type,
-                            &*devs_in,
-                            &*devs_out,
-                            false,
-                            auto_save,
-                        ) {
-                            log::error!("[adapter-gui] vst3-auto-persist: {e}");
-                        } else {
-                            // Mark as existing block so future model changes auto-persist.
-                            if let Some(d) = block_editor_draft.borrow_mut().as_mut() {
-                                d.block_index = Some(d.before_index);
-                            }
-                        }
-                    }
-                }
-                window.set_show_block_drawer(false);
-                window.invoke_open_vst3_editor(model.model_id.clone().into());
-            } else if use_inline_block_editor(&window) || is_vst3_gui {
+            if use_inline_block_editor(&window) || is_vst3_gui {
                 window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
                 window.set_show_block_drawer(true);
                 if is_vst3_gui {
@@ -5744,10 +5710,7 @@ pub fn run_desktop_app(
             window.set_block_drawer_status_message("".into());
             let has_ext_gui2 = project::catalog::block_has_external_gui(&model.effect_type, &model.model_id);
             window.set_has_external_editor(has_ext_gui2);
-            if has_ext_gui2 && !use_inline_block_editor(&window) {
-                // Desktop + VST3: open (or replace) the titled editor window.
-                window.invoke_open_vst3_editor(model.model_id.clone().into());
-            } else if use_inline_block_editor(&window) || has_ext_gui2 {
+            if use_inline_block_editor(&window) || has_ext_gui2 {
                 window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
             } else if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
                 block_editor_window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
@@ -6390,6 +6353,16 @@ pub fn run_desktop_app(
                 set_status_error(&window, &toast_timer, &error.to_string());
                 return;
             }
+            // Desktop + VST3: after persisting, open the titled editor window
+            // so the user can interact with the plugin's native GUI.
+            let open_vst3_after = project::catalog::block_has_external_gui(
+                &draft.effect_type, &draft.model_id,
+            ) && !use_inline_block_editor(&window);
+            let vst3_model_id = if open_vst3_after {
+                Some(draft.model_id.clone())
+            } else {
+                None
+            };
             *selected_block.borrow_mut() = None;
             set_selected_block(&window, None, None);
             *block_editor_draft.borrow_mut() = None;
@@ -6402,6 +6375,10 @@ pub fn run_desktop_app(
             window.set_eq_total_curve("".into());
             if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
                 let _ = block_editor_window.hide();
+            }
+            // Open VST3 editor after the block has been persisted and engine rebuilt.
+            if let Some(model_id) = vst3_model_id {
+                window.invoke_open_vst3_editor(model_id.into());
             }
             // Refresh compact chain view if open
             if let Some((ci, weak_cw)) = open_compact_window_save.borrow().as_ref() {
