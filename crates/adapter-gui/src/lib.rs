@@ -4041,7 +4041,7 @@ pub fn run_desktop_app(
             window.set_block_drawer_enabled(enabled);
             window.set_block_drawer_status_message("".into());
             window.set_show_block_type_picker(false);
-            window.set_has_external_editor(project::catalog::block_has_external_gui(&effect_type));
+            window.set_has_external_editor(project::catalog::block_has_external_gui(&effect_type, &model_id));
             // Clone block_id before dropping session_borrow (needed by window editor stream timer)
             let block_id_for_editor = block.id.clone();
             drop(session_borrow);
@@ -4128,7 +4128,7 @@ pub fn run_desktop_app(
                 win.set_block_drawer_edit_mode(true);
                 win.set_block_drawer_enabled(enabled);
                 win.set_block_drawer_status_message("".into());
-                win.set_has_external_editor(project::catalog::block_has_external_gui(&effect_type));
+                win.set_has_external_editor(project::catalog::block_has_external_gui(&effect_type, &model_id));
                 // Set window title
                 let title_label = win_model_options
                     .row_data(model_index as usize)
@@ -4240,7 +4240,7 @@ pub fn run_desktop_app(
                         let (eq_total, eq_bands) = compute_eq_curves(&model.effect_type, &model.model_id, &default_params);
                         win_eq_band_curves.set_vec(eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>());
                         win.set_eq_total_curve(eq_total.into());
-                        win.set_has_external_editor(project::catalog::block_has_external_gui(&model.effect_type));
+                        win.set_has_external_editor(project::catalog::block_has_external_gui(&model.effect_type, &model.model_id));
                         drop(draft_borrow);
                         if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
                             schedule_block_editor_persist_for_block_win(
@@ -5230,14 +5230,14 @@ pub fn run_desktop_app(
             window.set_block_drawer_selected_model_index(0);
             window.set_block_drawer_status_message("".into());
             window.set_show_block_type_picker(false);
-            window.set_has_external_editor(project::catalog::block_has_external_gui(&model.effect_type));
+            window.set_has_external_editor(project::catalog::block_has_external_gui(&model.effect_type, &model.model_id));
             if use_inline_block_editor(&window) {
                 window.set_show_block_drawer(true);
             } else {
                 window.set_show_block_drawer(false);
                 if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
                     block_editor_window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
-                    block_editor_window.set_has_external_editor(project::catalog::block_has_external_gui(&model.effect_type));
+                    block_editor_window.set_has_external_editor(project::catalog::block_has_external_gui(&model.effect_type, &model.model_id));
                     sync_block_editor_window(&window, &block_editor_window);
                     show_child_window(window.window(), block_editor_window.window());
                 }
@@ -5290,10 +5290,10 @@ pub fn run_desktop_app(
             window.set_eq_total_curve(eq_total.into());
             window.set_block_drawer_selected_model_index(index);
             window.set_block_drawer_status_message("".into());
-            window.set_has_external_editor(project::catalog::block_has_external_gui(&model.effect_type));
+            window.set_has_external_editor(project::catalog::block_has_external_gui(&model.effect_type, &model.model_id));
             if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
                 block_editor_window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
-                block_editor_window.set_has_external_editor(project::catalog::block_has_external_gui(&model.effect_type));
+                block_editor_window.set_has_external_editor(project::catalog::block_has_external_gui(&model.effect_type, &model.model_id));
                 sync_block_editor_window(&window, &block_editor_window);
             }
             if draft.block_index.is_some() {
@@ -7271,7 +7271,7 @@ fn build_compact_blocks(
                     items.iter().position(|i| i.model_id.as_str() == model_id).map(|i| i as i32).unwrap_or(-1)
                 },
                 stream_data: Default::default(),
-                has_external_gui: project::catalog::block_has_external_gui(&effect_type),
+                has_external_gui: project::catalog::block_has_external_gui(&effect_type, &model_id),
             })
         })
         .collect()

@@ -356,11 +356,11 @@ pub fn model_knob_layout(effect_type: &str, model_id: &str) -> &'static [block_c
     }
 }
 
-/// Returns true when a block type opens its own native editor window,
-/// meaning the compact view should show an "open editor" action instead
+/// Returns true when a block opens its own native editor window,
+/// meaning the UI should show an "open editor" action instead
 /// of rendering inline parameter controls.
-pub fn block_has_external_gui(effect_type: &str) -> bool {
-    effect_type == block_core::EFFECT_TYPE_VST3
+pub fn block_has_external_gui(effect_type: &str, model_id: &str) -> bool {
+    model_type_label(effect_type, model_id) == "VST3"
 }
 
 pub fn build_block_kind(
@@ -551,23 +551,18 @@ mod tests {
     // --- block_has_external_gui tests ---
 
     #[test]
-    fn block_has_external_gui_vst3_returns_true() {
-        assert!(super::block_has_external_gui("vst3"));
+    fn block_has_external_gui_vst3_reverb_returns_true() {
+        assert!(super::block_has_external_gui("reverb", "vst3_cloud_seed"));
     }
 
     #[test]
-    fn block_has_external_gui_non_vst3_returns_false() {
-        let non_vst3_types = [
-            "preamp", "amp", "cab", "delay", "reverb", "gain",
-            "dynamics", "filter", "wah", "pitch", "modulation",
-            "utility", "body", "ir", "nam", "full_rig",
-        ];
-        for effect_type in non_vst3_types {
-            assert!(
-                !super::block_has_external_gui(effect_type),
-                "{effect_type} should not have external GUI"
-            );
-        }
+    fn block_has_external_gui_native_reverb_returns_false() {
+        assert!(!super::block_has_external_gui("reverb", "hall"));
+    }
+
+    #[test]
+    fn block_has_external_gui_native_preamp_returns_false() {
+        assert!(!super::block_has_external_gui("preamp", "american_clean"));
     }
 
     // --- supported_block_models for all effect types ---
