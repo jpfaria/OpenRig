@@ -5905,6 +5905,7 @@ pub fn run_desktop_app(
         let toast_timer = toast_timer.clone();
         let weak_window = window.as_weak();
         window.on_open_vst3_editor(move |model_id| {
+            log::info!("on_open_vst3_editor fired: model_id='{}'", model_id);
             let result = if let Some(w) = weak_window.upgrade() {
                 if use_inline_block_editor(&w) {
                     // Fullscreen/touch: embed VST3 editor inside the main window
