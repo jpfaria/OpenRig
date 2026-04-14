@@ -4127,14 +4127,11 @@ pub fn run_desktop_app(
             window.set_block_drawer_enabled(enabled);
             window.set_block_drawer_status_message("".into());
             window.set_show_block_type_picker(false);
-            let has_ext_gui = project::catalog::block_has_external_gui(&effect_type, &model_id);
-            window.set_has_external_editor(has_ext_gui);
+            window.set_has_external_editor(project::catalog::block_has_external_gui(&effect_type, &model_id));
             // Clone block_id before dropping session_borrow (needed by window editor stream timer)
             let block_id_for_editor = block.id.clone();
             drop(session_borrow);
-            // VST3 blocks with external GUI always use the inline drawer so the
-            // embedded NSView editor can be attached to the main window.
-            if use_inline_block_editor(&window) || has_ext_gui {
+            if use_inline_block_editor(&window) {
                 let param_items_vec = block_parameter_items_for_editor(&editor_data);
                 let overlays = build_knob_overlays(project::catalog::model_knob_layout(&effect_type, &model_id), &param_items_vec);
                 window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
@@ -4901,6 +4898,10 @@ pub fn run_desktop_app(
                     });
                 }
                 show_child_window(window.window(), win.window());
+                // Auto-open VST3 editor when the block has an external GUI
+                if project::catalog::block_has_external_gui(&effect_type, &model_id) {
+                    win.invoke_open_vst3_editor(model_id.clone().into());
+                }
                 open_block_windows.borrow_mut().push(BlockWindow { chain_index: ci, block_index: bi, window: win, stream_timer: block_stream_timer });
             }
         });
@@ -5375,7 +5376,7 @@ pub fn run_desktop_app(
             window.set_show_block_type_picker(false);
             let is_vst3_gui = project::catalog::block_has_external_gui(&model.effect_type, &model.model_id);
             window.set_has_external_editor(is_vst3_gui);
-            if use_inline_block_editor(&window) || is_vst3_gui {
+            if use_inline_block_editor(&window) {
                 window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
                 window.set_show_block_drawer(true);
                 if is_vst3_gui {
@@ -5388,6 +5389,10 @@ pub fn run_desktop_app(
                     block_editor_window.set_has_external_editor(is_vst3_gui);
                     sync_block_editor_window(&window, &block_editor_window);
                     show_child_window(window.window(), block_editor_window.window());
+                    // Auto-open VST3 editor in the child window
+                    if is_vst3_gui {
+                        block_editor_window.invoke_open_vst3_editor(model.model_id.clone().into());
+                    }
                 }
             }
         });
@@ -5438,13 +5443,12 @@ pub fn run_desktop_app(
             window.set_eq_total_curve(eq_total.into());
             window.set_block_drawer_selected_model_index(index);
             window.set_block_drawer_status_message("".into());
-            let is_vst3_gui2 = project::catalog::block_has_external_gui(&model.effect_type, &model.model_id);
-            window.set_has_external_editor(is_vst3_gui2);
-            if use_inline_block_editor(&window) || is_vst3_gui2 {
+            window.set_has_external_editor(project::catalog::block_has_external_gui(&model.effect_type, &model.model_id));
+            if use_inline_block_editor(&window) {
                 window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
             } else if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
                 block_editor_window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
-                block_editor_window.set_has_external_editor(is_vst3_gui2);
+                block_editor_window.set_has_external_editor(project::catalog::block_has_external_gui(&model.effect_type, &model.model_id));
                 sync_block_editor_window(&window, &block_editor_window);
             }
             if draft.block_index.is_some() {
@@ -5982,13 +5986,6 @@ pub fn run_desktop_app(
                 }
             };
 
-            let size = w.window().size();
-            let scale = w.window().scale_factor() as f64;
-            let win_w = size.width as f64 / scale;
-            let win_h = size.height as f64 / scale;
-            log::info!("VST3 embed: window={}x{} (physical {}x{}, scale={})",
-                win_w, win_h, size.width, size.height, scale);
-
             let (handle, editor_w, editor_h) = match project::vst3_editor::open_vst3_editor_embedded(
                 model_str.as_str(), vst3_sr, ns_view, 0.0, 0.0,
             ) {
@@ -6000,16 +5997,12 @@ pub fn run_desktop_app(
                 }
             };
 
-            log::info!("VST3 embed: editor size={}x{}", editor_w, editor_h);
-
             let (cx, cy) = calc_position(editor_w, editor_h);
-            log::info!("VST3 embed: repositioning to ({}, {})", cx, cy);
             handle.reposition_embedded(cx, cy);
 
             w.set_vst3_editor_width(editor_w as f32);
             w.set_vst3_editor_height(editor_h as f32);
             w.set_vst3_editor_active(true);
-            log::info!("VST3 embed: set vst3-editor-active=true, width={}, height={}", editor_w, editor_h);
 
             *embedded_editor.borrow_mut() = Some((model_str, handle));
         });
