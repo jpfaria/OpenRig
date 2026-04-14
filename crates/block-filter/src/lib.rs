@@ -489,19 +489,4 @@ mod tests {
         assert!(!schema.parameters.is_empty());
     }
 
-    // ── VST3 model: schema only ─────────────────────────────────────
-
-    #[test]
-    fn vst3_modeq_schema_valid() {
-        let schema = filter_model_schema("vst3_modeq").expect("schema");
-        assert_eq!(schema.effect_type, "filter");
-        assert!(!schema.parameters.is_empty());
-    }
-
-    #[test]
-    fn vst3_modeq_defaults_normalize() {
-        let schema = filter_model_schema("vst3_modeq").expect("schema");
-        let result = ParameterSet::default().normalized_against(&schema);
-        assert!(result.is_ok());
-    }
 }

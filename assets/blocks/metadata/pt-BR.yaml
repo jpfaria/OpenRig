@@ -229,32 +229,6 @@ plugins:
     license: "GPL-2.0"
     homepage: "https://launchpad.net/invada-studio-plugins-lv2"
 
-  # ── VST3 ─────────────────────────────────────────────────────────────────────
-  vst3_cocoa_delay:
-    description: "Cocoa Delay — delay com caráter analógico e modulação nas repetições."
-    license: "GPL-3.0"
-    homepage: "https://github.com/tesselode/cocoa-delay"
-  vst3_squeezer:
-    description: "Squeezer — compressor/limitador flexível com modos vintage e moderno."
-    license: "GPL-3.0"
-    homepage: "https://github.com/mzuther/Squeezer"
-  vst3_modeq:
-    description: "modEQ — equalizador paramétrico moderno com som transparente e limpo."
-    license: "GPL-3.0"
-    homepage: "https://github.com/jatinchowdhury18/modEQ"
-  vst3_chow_tape:
-    description: "CHOW Tape Model — modelo físico de gravador de fita com wow, flutter e saturação realistas."
-    license: "GPL-3.0"
-    homepage: "https://github.com/jatinchowdhury18/AnalogTapeModel"
-  vst3_stone_mistress:
-    description: "Stone Mistress — flanger/chorus inspirado no clássico pedal EHX Stone Mistress."
-    license: "GPL-3.0"
-    homepage: "https://github.com/jpcima/stone-mistress"
-  vst3_cloud_seed:
-    description: "Cloud Seed — reverb algorítmico com caudas longas e ambientes etéreos."
-    license: "MIT"
-    homepage: "https://github.com/ValdemarOrn/CloudSeed"
-
   # ── Novos Preamps NAM ─────────────────────────────────────────────────────────
   nam_engl_thunder_50:
     description: "Captura neural do ENGL Thunder 50 — cabeçote high-gain alemão versátil."

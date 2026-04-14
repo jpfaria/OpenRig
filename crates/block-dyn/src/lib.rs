@@ -625,19 +625,4 @@ mod tests {
         }
     }
 
-    // ── VST3 model: schema only ─────────────────────────────────────
-
-    #[test]
-    fn vst3_squeezer_schema_valid() {
-        let schema = dynamics_model_schema("vst3_squeezer").expect("schema");
-        assert_eq!(schema.effect_type, "dynamics");
-        assert!(!schema.parameters.is_empty());
-    }
-
-    #[test]
-    fn vst3_squeezer_defaults_normalize() {
-        let schema = dynamics_model_schema("vst3_squeezer").expect("schema");
-        let result = ParameterSet::default().normalized_against(&schema);
-        assert!(result.is_ok());
-    }
 }

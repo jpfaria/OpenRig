@@ -616,31 +616,6 @@ plugins:
     description: "MDA RePsycho! — pitch shifting effect."
     license: "MIT"
     homepage: "https://github.com/rncbc/mda-lv2"
-  # ── VST3 ─────────────────────────────────────────────────────────────────────
-  vst3_cocoa_delay:
-    description: "Cocoa Delay — warm analog-style delay with modulation and filtering on repeats."
-    license: "GPL-3.0"
-    homepage: "https://github.com/tesselode/cocoa-delay"
-  vst3_squeezer:
-    description: "Squeezer — flexible compressor/limiter with vintage and modern modes."
-    license: "GPL-3.0"
-    homepage: "https://github.com/mzuther/Squeezer"
-  vst3_modeq:
-    description: "modEQ — modern parametric equalizer with clean transparent sound."
-    license: "GPL-3.0"
-    homepage: "https://github.com/jatinchowdhury18/modEQ"
-  vst3_chow_tape:
-    description: "CHOW Tape Model — physical model of a reel-to-reel tape machine with realistic wow, flutter and saturation."
-    license: "GPL-3.0"
-    homepage: "https://github.com/jatinchowdhury18/AnalogTapeModel"
-  vst3_stone_mistress:
-    description: "Stone Mistress — flanger/chorus inspired by the classic EHX Stone Mistress pedal."
-    license: "GPL-3.0"
-    homepage: "https://github.com/jpcima/stone-mistress"
-  vst3_cloud_seed:
-    description: "Cloud Seed — algorithmic reverb plugin with long, lush, ambient tails."
-    license: "MIT"
-    homepage: "https://github.com/ValdemarOrn/CloudSeed"
   # ── New NAM Preamps ───────────────────────────────────────────────────────────
   nam_engl_thunder_50:
     description: "Neural capture of the ENGL Thunder 50 — British-voiced amp with tight, aggressive response."

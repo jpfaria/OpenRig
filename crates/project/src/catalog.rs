@@ -340,6 +340,7 @@ pub fn model_type_label(effect_type: &str, model_id: &str) -> &'static str {
         EFFECT_TYPE_FULL_RIG => block_full_rig::full_rig_type_label(model_id),
         EFFECT_TYPE_NAM => block_nam::nam_type_label(model_id),
         EFFECT_TYPE_IR => block_ir::ir_type_label(model_id),
+        EFFECT_TYPE_VST3 => "VST3",
         _ => "",
     }
 }
@@ -551,8 +552,8 @@ mod tests {
     // --- block_has_external_gui tests ---
 
     #[test]
-    fn block_has_external_gui_vst3_reverb_returns_true() {
-        assert!(super::block_has_external_gui("reverb", "vst3_cloud_seed"));
+    fn block_has_external_gui_vst3_returns_true() {
+        assert!(super::block_has_external_gui("vst3", "any_dynamic_plugin"));
     }
 
     #[test]
