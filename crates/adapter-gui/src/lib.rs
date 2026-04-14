@@ -1443,18 +1443,10 @@ pub fn run_desktop_app(
                             // On Linux/JACK this will restart jackd if sample
                             // rate or buffer size changed.
                             if let Some(session) = project_session.borrow_mut().as_mut() {
-                                let all_devices: Vec<_> = settings.input_devices.iter()
-                                    .chain(settings.output_devices.iter())
-                                    .collect();
-                                session.project.device_settings = all_devices
-                                    .into_iter()
-                                    .map(|d| DeviceSettings {
-                                        device_id: DeviceId(d.device_id.clone()),
-                                        sample_rate: d.sample_rate,
-                                        buffer_size_frames: d.buffer_size_frames,
-                                        bit_depth: d.bit_depth,
-                                    })
-                                    .collect();
+                                session.project.device_settings = build_device_settings_from_gui(
+                                    &settings.input_devices,
+                                    &settings.output_devices,
+                                );
                                 // Apply device config to hardware (works even without active chains)
                                 if let Err(e) = infra_cpal::apply_device_settings(&session.project.device_settings) {
                                     log::warn!("apply_device_settings failed: {e}");
@@ -7550,6 +7542,25 @@ fn resolve_project_config_path(project_path: &Path) -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
         .join("config.yaml")
 }
+fn build_device_settings_from_gui(
+    input_devices: &[infra_filesystem::GuiAudioDeviceSettings],
+    output_devices: &[infra_filesystem::GuiAudioDeviceSettings],
+) -> Vec<DeviceSettings> {
+    let mut seen = std::collections::HashSet::new();
+    let mut result = Vec::new();
+    for g in input_devices.iter().chain(output_devices.iter()) {
+        if seen.insert(g.device_id.clone()) {
+            result.push(DeviceSettings {
+                device_id: DeviceId(g.device_id.clone()),
+                sample_rate: g.sample_rate,
+                buffer_size_frames: g.buffer_size_frames,
+                bit_depth: g.bit_depth,
+            });
+        }
+    }
+    result
+}
+
 fn load_project_session(project_path: &Path, config_path: &Path) -> Result<ProjectSession> {
     log::info!("loading project session from {:?}", project_path);
     let config = if config_path.exists() {
@@ -7573,17 +7584,10 @@ fn load_project_session(project_path: &Path, config_path: &Path) -> Result<Proje
         .ok()
         .flatten()
         .unwrap_or_default();
-    project.device_settings = gui_settings
-        .input_devices
-        .iter()
-        .chain(gui_settings.output_devices.iter())
-        .map(|g| DeviceSettings {
-            device_id: DeviceId(g.device_id.clone()),
-            sample_rate: g.sample_rate,
-            buffer_size_frames: g.buffer_size_frames,
-            bit_depth: g.bit_depth,
-        })
-        .collect();
+    project.device_settings = build_device_settings_from_gui(
+        &gui_settings.input_devices,
+        &gui_settings.output_devices,
+    );
 
     Ok(ProjectSession {
         project,
@@ -10706,8 +10710,9 @@ fn parse_positive_u32(value: &str, field: &str) -> Result<u32> {
 #[cfg(test)]
 mod tests {
     use super::{
-        block_editor_data, block_parameter_items_for_editor, numeric_widget_kind,
-        open_cli_project, parse_cli_args_from, quantize_numeric_value, SELECT_SELECTED_BLOCK_ID,
+        block_editor_data, block_parameter_items_for_editor, build_device_settings_from_gui,
+        numeric_widget_kind, open_cli_project, parse_cli_args_from, quantize_numeric_value,
+        SELECT_SELECTED_BLOCK_ID,
     };
     use domain::ids::BlockId;
     use domain::value_objects::ParameterValue;
@@ -11282,9 +11287,23 @@ mod tests {
     }
 
     #[test]
-    fn selected_device_index_returns_negative_when_not_found() {
+    fn selected_device_index_falls_back_to_zero_when_single_device() {
+        // When there is exactly one device and the saved ID doesn't match,
+        // auto-select it (index 0) so the user doesn't have to manually
+        // pick the only option (common on single-device setups like Orange Pi).
         let devices = vec![
             AudioDeviceDescriptor { id: "dev_a".into(), name: "A".into(), channels: 2 },
+        ];
+        assert_eq!(selected_device_index(&devices, Some("dev_x")), 0);
+    }
+
+    #[test]
+    fn selected_device_index_returns_negative_when_not_found_multiple_devices() {
+        // When there are multiple devices and none match, return -1
+        // so the UI shows "Select device" instead of picking one arbitrarily.
+        let devices = vec![
+            AudioDeviceDescriptor { id: "dev_a".into(), name: "A".into(), channels: 2 },
+            AudioDeviceDescriptor { id: "dev_b".into(), name: "B".into(), channels: 4 },
         ];
         assert_eq!(selected_device_index(&devices, Some("dev_x")), -1);
     }
@@ -11903,5 +11922,71 @@ mod tests {
     fn block_type_index_insert_is_present() {
         let idx = block_type_index("insert", "electric_guitar");
         assert!(idx >= 0, "insert should be in type picker");
+    }
+
+    #[test]
+    fn build_device_settings_deduplicates_same_device_id() {
+        use infra_filesystem::GuiAudioDeviceSettings;
+        let input = vec![GuiAudioDeviceSettings {
+            device_id: "alsa:hw:CARD=Q26,DEV=0".into(),
+            name: "TEYUN Q26".into(),
+            sample_rate: 48000,
+            buffer_size_frames: 64,
+            bit_depth: 16,
+        }];
+        let output = vec![GuiAudioDeviceSettings {
+            device_id: "alsa:hw:CARD=Q26,DEV=0".into(),
+            name: "TEYUN Q26".into(),
+            sample_rate: 48000,
+            buffer_size_frames: 64,
+            bit_depth: 16,
+        }];
+        let result = build_device_settings_from_gui(&input, &output);
+        assert_eq!(result.len(), 1, "same device_id in input+output should produce 1 entry");
+        assert_eq!(result[0].device_id.0, "alsa:hw:CARD=Q26,DEV=0");
+    }
+
+    #[test]
+    fn build_device_settings_keeps_distinct_devices() {
+        use infra_filesystem::GuiAudioDeviceSettings;
+        let input = vec![GuiAudioDeviceSettings {
+            device_id: "alsa:hw:CARD=Q26,DEV=0".into(),
+            name: "TEYUN Q26".into(),
+            sample_rate: 48000,
+            buffer_size_frames: 64,
+            bit_depth: 16,
+        }];
+        let output = vec![GuiAudioDeviceSettings {
+            device_id: "alsa:hw:CARD=hdmi0,DEV=0".into(),
+            name: "HDMI".into(),
+            sample_rate: 48000,
+            buffer_size_frames: 128,
+            bit_depth: 24,
+        }];
+        let result = build_device_settings_from_gui(&input, &output);
+        assert_eq!(result.len(), 2, "different device_ids should produce 2 entries");
+    }
+
+    #[test]
+    fn build_device_settings_input_takes_precedence_on_duplicate() {
+        use infra_filesystem::GuiAudioDeviceSettings;
+        let input = vec![GuiAudioDeviceSettings {
+            device_id: "alsa:hw:CARD=Q26,DEV=0".into(),
+            name: "TEYUN Q26".into(),
+            sample_rate: 48000,
+            buffer_size_frames: 128,
+            bit_depth: 24,
+        }];
+        let output = vec![GuiAudioDeviceSettings {
+            device_id: "alsa:hw:CARD=Q26,DEV=0".into(),
+            name: "TEYUN Q26".into(),
+            sample_rate: 44100,
+            buffer_size_frames: 64,
+            bit_depth: 16,
+        }];
+        let result = build_device_settings_from_gui(&input, &output);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].sample_rate, 48000, "input settings should take precedence");
+        assert_eq!(result[0].buffer_size_frames, 128);
     }
 }
