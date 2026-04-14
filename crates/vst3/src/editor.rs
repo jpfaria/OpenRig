@@ -79,10 +79,8 @@ impl block_core::PluginEditorHandle for Vst3EditorHandle {
     fn hide_embedded(&self) {
         #[cfg(target_os = "macos")]
         {
-            if self.is_child_window {
-                if let Some(ref win) = self._ns_window {
-                    win.set_visible(false);
-                }
+            if let Some(ref win) = self._ns_window {
+                win.set_visible(false);
             } else if let Some(ref view) = self._embedded_view {
                 view.set_hidden(true);
             }
@@ -92,10 +90,8 @@ impl block_core::PluginEditorHandle for Vst3EditorHandle {
     fn show_embedded(&self) {
         #[cfg(target_os = "macos")]
         {
-            if self.is_child_window {
-                if let Some(ref win) = self._ns_window {
-                    win.set_visible(true);
-                }
+            if let Some(ref win) = self._ns_window {
+                win.set_visible(true);
             } else if let Some(ref view) = self._embedded_view {
                 view.set_hidden(false);
             }

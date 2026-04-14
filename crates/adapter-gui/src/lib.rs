@@ -6029,7 +6029,7 @@ pub fn run_desktop_app(
 
                 *embedded_editor.borrow_mut() = Some((model_str, handle));
             } else {
-                // Desktop mode: borderless child window below the Slint popup header.
+                // Desktop mode: titled child window (floats above main, moves with it).
                 let ns_window = match get_ns_window(w.window()) {
                     Ok(v) => v,
                     Err(e) => {
@@ -6039,21 +6039,18 @@ pub fn run_desktop_app(
                     }
                 };
 
-                // First pass: create with dummy position, then reposition.
-                let (handle, editor_w, editor_h) = match project::vst3_editor::open_vst3_editor_child_window(
-                    model_str.as_str(), vst3_sr, ns_window, 0.0, 0.0,
+                let handle = match project::vst3_editor::open_vst3_editor_parented(
+                    model_str.as_str(), vst3_sr, ns_window,
                 ) {
-                    Ok(result) => result,
+                    Ok(h) => h,
                     Err(e) => {
-                        log::error!("VST3 editor: failed to open child window for '{}': {}", model_str, e);
+                        log::error!("VST3 editor: failed to open parented window for '{}': {}", model_str, e);
                         set_status_error(&w, &toast_timer, &e.to_string());
                         return;
                     }
                 };
 
-                let (cx, cy) = calc_position(editor_w, editor_h);
-                handle.reposition_embedded(cx, cy);
-
+                let (editor_w, editor_h) = handle.editor_size();
                 w.set_vst3_editor_width(editor_w as f32);
                 w.set_vst3_editor_height(editor_h as f32);
                 w.set_vst3_editor_active(true);
