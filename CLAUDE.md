@@ -225,9 +225,24 @@ Input, Output e Insert são variantes de `AudioBlockKind` (`InputBlock`, `Output
 - Devices: input e output independentes (podem ser devices diferentes)
 - Sample rates: 44.1kHz, 48kHz, 88.2kHz, 96kHz
 - Buffer sizes: 32, 64, 128, 256, 512, 1024 samples
+- Bit depths: 16, 24, 32 bits
 - **YAML (novo formato)**: todos os blocos I/O ficam inline no array `blocks:` (sem seções `inputs:`/`outputs:` separadas)
 - **YAML (formato antigo)**: seções `inputs:` / `outputs:` separadas ainda são suportadas por backward compatibility — na deserialização tudo é reunido no vetor `blocks`
 - **Migração**: YAML antigo com `input_device_id`/`output_device_id` (campos únicos) é migrado automaticamente para o formato novo ao carregar
+
+#### Per-machine device settings (gui-settings.yaml)
+
+Device settings (sample rate, buffer size, bit depth) são **per-machine**, não per-project. Ficam em `gui-settings.yaml` no diretório de configuração do OS:
+- macOS: `~/Library/Application Support/OpenRig/gui-settings.yaml`
+- Windows: `%APPDATA%\OpenRig\gui-settings.yaml`
+- Linux: `~/.config/OpenRig/gui-settings.yaml`
+
+**Fluxo:**
+1. `load_project_session()` lê `gui-settings.yaml` e popula `project.device_settings` em memória
+2. Settings UI lê/grava de `gui-settings.yaml` via `FilesystemStorage`
+3. `infra-cpal` lê `project.device_settings` (já populado) para resolver devices
+4. YAML do projeto **não persiste** `device_settings` (campo tem `skip_serializing`)
+5. YAML antigo com `device_settings` ainda deserializa (backward compat)
 
 ---
 
