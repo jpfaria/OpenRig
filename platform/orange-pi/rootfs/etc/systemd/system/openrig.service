@@ -1,8 +1,8 @@
 [Unit]
 Description=OpenRig Guitar Pedalboard
 Documentation=https://github.com/jpfaria/OpenRig
-After=jackd.service weston.service
-Wants=jackd.service
+After=openrig-irq-affinity.service weston.service
+Wants=openrig-irq-affinity.service
 Requires=weston.service
 
 [Service]
@@ -25,25 +25,14 @@ Environment=GDK_BACKEND=wayland
 # Wait for weston to create the Wayland socket before starting.
 ExecStartPre=/bin/sh -c 'for i in $(seq 1 15); do [ -S /run/weston/wayland-1 ] && exit 0; sleep 1; done; exit 1'
 
-# Wait for jackd to be fully up before starting OpenRig.
-#
-# CRITICAL: jackd.service is Type=simple wrapped in a bash loop that waits
-# up to 10s for a USB audio interface to appear before exec'ing jackd. That
-# means systemd marks jackd.service as "started" the moment the bash
-# wrapper forks — NOT when jackd itself has actually opened ALSA and is
-# serving clients. If OpenRig starts in that window, jack_server_is_running()
-# in infra-cpal returns false (no /dev/shm/jack_default_*_0 yet), OpenRig
-# falls into the CPAL/ALSA path, and supported_input_configs() probes the
-# Scarlett via ALSA at the exact moment jackd is also about to open it.
-# On RK3588 xHCI this double-open causes the Scarlett Gen 4 to fall off the
-# USB bus (red LED, card disappears until replug or reboot).
-#
-# Wait up to 20s for the JACK server socket to appear. If it never does
-# (no USB audio present), give up and start anyway — OpenRig will fall
-# back to silent/ALSA mode and at least the UI will come up.
-ExecStartPre=/bin/sh -c 'for i in $(seq 1 20); do ls /dev/shm/jack_default_*_0 2>/dev/null | grep -q . && exit 0; sleep 1; done; echo "WARN: JACK socket not found after 20s, starting OpenRig anyway"; exit 0'
+# JACK is no longer started by systemd — OpenRig manages it programmatically
+# via ensure_jack_running() in infra-cpal. When a chain is enabled, OpenRig
+# detects the USB audio card, reads sample_rate/buffer_size from
+# gui-settings.yaml, and launches jackd with the correct parameters. This
+# avoids the old race condition where jackd.service started with hardcoded
+# settings before OpenRig could configure it.
 
-ExecStart=/usr/bin/openrig /home/openrig/project.yaml --auto-save
+ExecStart=/usr/bin/openrig --fullscreen --auto-save /etc/openrig.yaml
 Restart=always
 RestartSec=5
 TimeoutStartSec=30

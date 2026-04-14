@@ -22,6 +22,7 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     libfreetype6 \
     libfontconfig1 \
     libdrm2 \
+    libseat1 \
     libgles2 \
     libgl1-mesa-dri \
     weston \
@@ -61,12 +62,16 @@ fi
 
 rm -rf /var/lib/apt/lists/*
 
-# ── 5. Convert OpenRig logo SVG → PNG for Plymouth ───────────────────────────
-echo ">>> [OpenRig] Converting logo to PNG..."
+# ── 5. Convert OpenRig logo SVGs → PNGs for Plymouth ────────────────────────
+echo ">>> [OpenRig] Converting logo assets to PNG..."
 rsvg-convert \
     -w 256 -h 256 \
     /tmp/overlay/openrig-logomark.svg \
     -o /usr/share/plymouth/themes/openrig/logo.png
+rsvg-convert \
+    -w 400 \
+    /tmp/overlay/openrig-logotype.svg \
+    -o /usr/share/plymouth/themes/openrig/logotype.png
 
 # ── 6. Register and activate Plymouth theme ──────────────────────────────────
 echo ">>> [OpenRig] Activating Plymouth theme..."
@@ -100,6 +105,32 @@ chown -R openrig:openrig /home/openrig
 echo 'openrig:openrig' | chpasswd
 echo 'root:root'       | chpasswd
 
+# Create a default project so OpenRig opens directly into the main view
+# instead of showing the launcher on first boot.
+cat > /home/openrig/project.yaml << 'DEFAULT_PROJECT'
+version: 1
+name: My Rig
+chains:
+  - description: guitar 1
+    instrument: electric_guitar
+    blocks:
+      - type: input
+        model: standard
+        enabled: true
+        entries:
+          - device_id: ""
+            mode: mono
+            channels: [0]
+      - type: output
+        model: standard
+        enabled: true
+        entries:
+          - device_id: ""
+            mode: stereo
+            channels: [0, 1]
+DEFAULT_PROJECT
+chown openrig:openrig /home/openrig/project.yaml
+
 # ── 8. Locale, keyboard, timezone ────────────────────────────────────────────
 # English UI, Brazilian ABNT2 keyboard, São Paulo time. All configured
 # directly so the Armbian first-run wizard has nothing left to ask.
@@ -122,15 +153,10 @@ echo 'America/Sao_Paulo' > /etc/timezone
 dpkg-reconfigure -f noninteractive tzdata || true
 
 # ── 9. Enable systemd services ───────────────────────────────────────────────
-# JACK is no longer started by systemd. OpenRig manages JACK lifecycle
-# programmatically via ensure_jack_running() in infra-cpal: it detects the
-# USB audio card, reads sample_rate/buffer_size from gui-settings.yaml, and
-# launches jackd with the correct parameters. The jackd2 package is still
-# installed (we need the /usr/bin/jackd binary).
-echo ">>> [OpenRig] Enabling openrig-irq-affinity.service, weston.service, openrig.service and openrig-audio-watchdog.service..."
-systemctl enable openrig-irq-affinity.service
+echo ">>> [OpenRig] Enabling weston.service, openrig.service, openrig-irq-affinity.service and openrig-audio-watchdog.service..."
 systemctl enable weston.service
 systemctl enable openrig.service
+systemctl enable openrig-irq-affinity.service
 systemctl enable openrig-audio-watchdog.service
 
 # ── 10. Set permissions on install script ────────────────────────────────────
@@ -194,6 +220,12 @@ if grep -q "^extraargs=" /boot/armbianEnv.txt 2>/dev/null; then
 else
     echo "extraargs=${KERNEL_ARGS}" >> /boot/armbianEnv.txt
 fi
+
+# Armbian boot env: suppress verbose splash, keep console on serial only
+# (HDMI shows Plymouth logo), enable u-boot logo handoff.
+sed -i 's/^verbosity=.*/verbosity=0/' /boot/armbianEnv.txt
+sed -i 's/^console=.*/console=serial/' /boot/armbianEnv.txt
+sed -i 's/^bootlogo=.*/bootlogo=true/' /boot/armbianEnv.txt
 
 # Armbian first-run wizard (language/keyboard/timezone/user prompt).
 # On Armbian, the presence of /root/.not_logged_in_yet triggers the wizard

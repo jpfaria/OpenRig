@@ -153,10 +153,10 @@ echo 'America/Sao_Paulo' > /etc/timezone
 dpkg-reconfigure -f noninteractive tzdata || true
 
 # ── 9. Enable systemd services ───────────────────────────────────────────────
-echo ">>> [OpenRig] Enabling jackd.service, weston.service, openrig.service and openrig-audio-watchdog.service..."
-systemctl enable jackd.service
+echo ">>> [OpenRig] Enabling weston.service, openrig.service, openrig-irq-affinity.service and openrig-audio-watchdog.service..."
 systemctl enable weston.service
 systemctl enable openrig.service
+systemctl enable openrig-irq-affinity.service
 systemctl enable openrig-audio-watchdog.service
 
 # ── 10. Set permissions on install script ────────────────────────────────────
