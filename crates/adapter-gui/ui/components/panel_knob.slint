@@ -70,7 +70,7 @@ export component PanelKnob inherits Rectangle {
 
     // ── Center cap shadow (depth) ──
     Rectangle {
-        property <length> cap: root.ks * 0.52;
+        property <length> cap: root.ks * 0.62;
         x: root.cx - self.cap / 2 + 1px;
         y: root.cy - self.cap / 2 + 1.5px;
         width: self.cap;
@@ -81,7 +81,7 @@ export component PanelKnob inherits Rectangle {
 
     // ── Center cap ──
     Rectangle {
-        property <length> cap: root.ks * 0.50;
+        property <length> cap: root.ks * 0.60;
         x: root.cx - self.cap / 2;
         y: root.cy - self.cap / 2;
         width: self.cap;
