@@ -1,7 +1,7 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay } from "models.slint";
-import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage } from "pages/pages.slint";
+import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage } from "pages/pages.slint";
 
 export component DesktopMain inherits Rectangle {
     in property <string> app-version;
@@ -141,6 +141,21 @@ export component DesktopMain inherits Rectangle {
     callback remove-chain-output(int);
     callback add-chain-output();
     callback select-chain-instrument(int);
+    // Fullscreen inline I/O endpoint editor
+    in property <bool> show-chain-io-editor: false;
+    in property <string> chain-io-editor-title;
+    in property <[string]> chain-io-device-options;
+    in-out property <int> chain-io-selected-device-index: -1;
+    in property <[ChannelOptionItem]> chain-io-channels;
+    in-out property <string> chain-io-editor-status: "";
+    in property <bool> chain-io-show-mode-selector: false;
+    in property <[string]> chain-io-mode-labels;
+    in-out property <int> chain-io-selected-mode-index: 0;
+    callback chain-io-select-device(int);
+    callback chain-io-toggle-channel(int, bool);
+    callback chain-io-select-mode(int);
+    callback chain-io-save();
+    callback chain-io-cancel();
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
     private property <length> wizard-page-height: 24px + 20px + 24px + ((visible-device-count * 44px) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px)) + 24px + 44px + 24px;
 
@@ -259,7 +274,7 @@ export component DesktopMain inherits Rectangle {
         }
 
         // Fullscreen inline chain editor
-        if root.fullscreen && root.show-chain-editor : ChainEditorPage {
+        if root.fullscreen && root.show-chain-editor && !root.show-chain-io-editor : ChainEditorPage {
             width: parent.width;
             height: parent.height;
             title: root.chain-editor-title;
@@ -280,6 +295,25 @@ export component DesktopMain inherits Rectangle {
             save-chain => { root.save-chain(); }
             cancel-chain => { root.cancel-chain(); }
             select-instrument(index) => { root.select-chain-instrument(index); }
+        }
+
+        // Fullscreen inline I/O endpoint editor (input or output device selection)
+        if root.fullscreen && root.show-chain-io-editor : ChainEndpointEditorPage {
+            width: parent.width;
+            height: parent.height;
+            title: root.chain-io-editor-title;
+            device-options: root.chain-io-device-options;
+            selected-device-index <=> root.chain-io-selected-device-index;
+            channels: root.chain-io-channels;
+            status-message <=> root.chain-io-editor-status;
+            show-mode-selector: root.chain-io-show-mode-selector;
+            mode-labels: root.chain-io-mode-labels;
+            selected-mode-index <=> root.chain-io-selected-mode-index;
+            select-device(index) => { root.chain-io-select-device(index); }
+            toggle-channel(index, selected) => { root.chain-io-toggle-channel(index, selected); }
+            select-mode(index) => { root.chain-io-select-mode(index); }
+            save => { root.chain-io-save(); }
+            cancel => { root.chain-io-cancel(); }
         }
 
         if !root.show-project-chains : Rectangle {

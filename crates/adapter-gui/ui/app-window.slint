@@ -677,6 +677,16 @@ export component AppWindow inherits Window {
     in property <[IoGroupItem]> chain-editor-output-groups;
     in property <bool> chain-editor-is-create-mode: true;
     in-out property <int> chain-editor-selected-instrument-index: 0;
+    // Fullscreen inline I/O endpoint editor
+    in property <bool> show-chain-io-editor: false;
+    in property <string> chain-io-editor-title;
+    in property <[string]> chain-io-device-options;
+    in-out property <int> chain-io-selected-device-index: -1;
+    in property <[ChannelOptionItem]> chain-io-channels;
+    in-out property <string> chain-io-editor-status: "";
+    in property <bool> chain-io-show-mode-selector: false;
+    in property <[string]> chain-io-mode-labels;
+    in-out property <int> chain-io-selected-mode-index: 0;
 
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
@@ -750,6 +760,12 @@ export component AppWindow inherits Window {
     callback remove-chain-output(int);
     callback add-chain-output();
     callback select-chain-instrument(int);
+    // Fullscreen inline I/O endpoint editor callbacks
+    callback chain-io-select-device(int);
+    callback chain-io-toggle-channel(int, bool);
+    callback chain-io-select-mode(int);
+    callback chain-io-save();
+    callback chain-io-cancel();
     title: "OpenRig";
     min-width: 860px;
     min-height: 540px;
@@ -822,6 +838,20 @@ export component AppWindow inherits Window {
         chain-editor-output-groups: root.chain-editor-output-groups;
         chain-editor-is-create-mode: root.chain-editor-is-create-mode;
         chain-editor-selected-instrument-index <=> root.chain-editor-selected-instrument-index;
+        show-chain-io-editor: root.show-chain-io-editor;
+        chain-io-editor-title: root.chain-io-editor-title;
+        chain-io-device-options: root.chain-io-device-options;
+        chain-io-selected-device-index <=> root.chain-io-selected-device-index;
+        chain-io-channels: root.chain-io-channels;
+        chain-io-editor-status <=> root.chain-io-editor-status;
+        chain-io-show-mode-selector: root.chain-io-show-mode-selector;
+        chain-io-mode-labels: root.chain-io-mode-labels;
+        chain-io-selected-mode-index <=> root.chain-io-selected-mode-index;
+        chain-io-select-device(index) => { root.chain-io-select-device(index); }
+        chain-io-toggle-channel(index, selected) => { root.chain-io-toggle-channel(index, selected); }
+        chain-io-select-mode(index) => { root.chain-io-select-mode(index); }
+        chain-io-save => { root.chain-io-save(); }
+        chain-io-cancel => { root.chain-io-cancel(); }
         toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
         toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
         update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
