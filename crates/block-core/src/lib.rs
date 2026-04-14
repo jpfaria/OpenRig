@@ -173,7 +173,13 @@ pub trait NamedModel {
 ///
 /// Dropping the handle closes the window and releases all resources.
 /// The concrete type is an implementation detail of the plugin host crate.
-pub trait PluginEditorHandle: Send {}
+pub trait PluginEditorHandle: Send {
+    /// Reposition the embedded plugin view inside its parent.
+    ///
+    /// `x`, `y` use top-left origin (Slint convention). Only meaningful for
+    /// editors opened in embedded mode; default is a no-op.
+    fn reposition_embedded(&self, _x: f64, _y: f64) {}
+}
 /// Capitalize the first character of a string, leaving the rest unchanged.
 pub fn capitalize_first(s: &str) -> String {
     let mut chars = s.chars();

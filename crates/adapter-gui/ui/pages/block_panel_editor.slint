@@ -193,6 +193,7 @@ export component BlockPanelEditor inherits Rectangle {
         : "";
 
     in property <bool> has-external-editor: false;
+    in property <bool> vst3-editor-active: false;
 
     private property <string> selected-model-label:
         root.block-drawer-selected-model-index >= 0
@@ -574,8 +575,8 @@ export component BlockPanelEditor inherits Rectangle {
             }
         }
 
-        // ── VST3: "Open Editor" button, no inline params ──
-        if root.has-external-editor && root.block-drawer-edit-mode : Rectangle {
+        // ── VST3: "Open Editor" button (hidden when native editor is embedded) ──
+        if root.has-external-editor && root.block-drawer-edit-mode && !root.vst3-editor-active : Rectangle {
             x: (parent.width - 180px) / 2;
             y: (parent.height - 38px) / 2;
             width: 180px;

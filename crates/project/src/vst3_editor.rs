@@ -89,34 +89,45 @@ pub fn open_vst3_editor_parented(
     Ok(Box::new(handle))
 }
 
-/// Open the VST3 editor **embedded** inside a parent window.
+/// Open the VST3 editor **embedded** inside a parent view.
 ///
 /// `parent_view` is a platform-specific view handle (`NSView*` on macOS).
-/// The plugin GUI is attached as a child view inside the parent.
+/// The plugin GUI is attached as a child view at `(x, y)` inside the parent,
+/// using the parent's coordinate system (Slint-style top-left origin is
+/// automatically converted if needed).
+///
+/// Returns `(handle, editor_width, editor_height)` so the caller can resize
+/// the surrounding UI to fit the plugin GUI.
 ///
 /// Must be called on the main/UI thread.
 pub fn open_vst3_editor_embedded(
     model_id: &str,
     sample_rate: f64,
     parent_view: *mut std::ffi::c_void,
-) -> Result<Box<dyn PluginEditorHandle>> {
+    x: f64,
+    y: f64,
+) -> Result<(Box<dyn PluginEditorHandle>, f64, f64)> {
     let entry = vst3_host::find_vst3_plugin(model_id)
         .ok_or_else(|| anyhow::anyhow!("VST3 plugin '{}' not found in catalog", model_id))?;
 
     if let Some(gui_context) = vst3_host::lookup_vst3_gui_context(model_id) {
         log::debug!("VST3 embedded editor: reusing engine controller for '{}'", model_id);
-        let handle = vst3_host::open_vst3_editor_embedded(entry.display_name, gui_context, parent_view)?;
-        return Ok(Box::new(handle));
+        let (handle, w, h) = vst3_host::open_vst3_editor_embedded(
+            entry.display_name, gui_context, parent_view, x, y,
+        )?;
+        return Ok((Box::new(handle), w, h));
     }
 
     log::debug!("VST3 embedded editor: loading standalone instance for '{}'", model_id);
     let uid = vst3_host::resolve_uid_for_model(model_id)?;
-    let handle = vst3_host::open_vst3_editor_embedded_standalone(
+    let (handle, w, h) = vst3_host::open_vst3_editor_embedded_standalone(
         &entry.info.bundle_path,
         &uid,
         entry.display_name,
         sample_rate,
         parent_view,
+        x,
+        y,
     )?;
-    Ok(Box::new(handle))
+    Ok((Box::new(handle), w, h))
 }

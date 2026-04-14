@@ -98,9 +98,8 @@ fn ensure_devices_loaded(
 }
 /// Get the NSWindow from the Slint AppWindow for parenting child windows.
 ///
-/// On macOS, obtains the NSView via `raw-window-handle` and then calls
-/// `[nsView window]` to get the owning NSWindow.
-fn get_parent_ns_window(window: &AppWindow) -> anyhow::Result<*mut std::ffi::c_void> {
+/// Get the root NSView from the Slint window for embedding child views.
+fn get_parent_ns_view(window: &AppWindow) -> anyhow::Result<*mut std::ffi::c_void> {
     #[cfg(target_os = "macos")]
     {
         use raw_window_handle::HasWindowHandle;
@@ -110,17 +109,10 @@ fn get_parent_ns_window(window: &AppWindow) -> anyhow::Result<*mut std::ffi::c_v
         match raw_handle.as_raw() {
             raw_window_handle::RawWindowHandle::AppKit(appkit) => {
                 let ns_view = appkit.ns_view.as_ptr();
-                // [nsView window] → NSWindow*
-                extern "C" { fn objc_msgSend(); }
-                extern "C" { fn sel_registerName(str_: *const std::ffi::c_char) -> *mut std::ffi::c_void; }
-                let sel = unsafe { sel_registerName(b"window\0".as_ptr() as *const _) };
-                type MsgSend0 = unsafe extern "C" fn(*mut std::ffi::c_void, *mut std::ffi::c_void) -> *mut std::ffi::c_void;
-                let f: MsgSend0 = unsafe { std::mem::transmute(objc_msgSend as *const ()) };
-                let ns_window = unsafe { f(ns_view, sel) };
-                if ns_window.is_null() {
-                    anyhow::bail!("NSView has no window");
+                if ns_view.is_null() {
+                    anyhow::bail!("NSView is null");
                 }
-                Ok(ns_window)
+                Ok(ns_view)
             }
             _ => anyhow::bail!("unexpected window handle type (expected AppKit)"),
         }
@@ -128,7 +120,7 @@ fn get_parent_ns_window(window: &AppWindow) -> anyhow::Result<*mut std::ffi::c_v
     #[cfg(not(target_os = "macos"))]
     {
         let _ = window;
-        anyhow::bail!("parented VST3 editor not yet supported on this platform")
+        anyhow::bail!("embedded VST3 editor not yet supported on this platform")
     }
 }
 
@@ -499,6 +491,7 @@ pub fn run_desktop_app(
     let vst3_editor_handles: Rc<RefCell<Vec<Box<dyn project::vst3_editor::PluginEditorHandle>>>> =
         Rc::new(RefCell::new(Vec::new()));
     let vst3_editor_handles_for_on_open = vst3_editor_handles.clone();
+    let vst3_editor_handles_for_close = vst3_editor_handles.clone();
     // Scan system VST3 paths in a background thread so startup isn't blocked.
     // The catalog is available before any project is opened.
     let vst3_sample_rate = settings
@@ -5506,6 +5499,7 @@ pub fn run_desktop_app(
         let block_editor_persist_timer = block_editor_persist_timer.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
         let inline_stream_timer = inline_stream_timer.clone();
+        let vst3_handles_for_close = vst3_editor_handles_for_close.clone();
         window.on_close_block_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -5527,6 +5521,13 @@ pub fn run_desktop_app(
             window.set_show_block_type_picker(false);
             window.set_show_block_drawer(false);
             window.set_block_drawer_status_message("".into());
+            // Drop embedded VST3 editor handles (removes native NSView).
+            if window.get_vst3_editor_active() {
+                vst3_handles_for_close.borrow_mut().clear();
+                window.set_vst3_editor_active(false);
+                window.set_vst3_editor_width(0.0);
+                window.set_vst3_editor_height(0.0);
+            }
             if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
                 let _ = block_editor_window.hide();
             }
@@ -5919,30 +5920,56 @@ pub fn run_desktop_app(
         let toast_timer = toast_timer.clone();
         let weak_window = window.as_weak();
         window.on_open_vst3_editor(move |model_id| {
-            // Try to parent the editor window to the main window so it
-            // floats above it and moves together. Fall back to a standalone
-            // floating window if the parent handle cannot be obtained.
-            let result = if let Some(w) = weak_window.upgrade() {
-                match get_parent_ns_window(&w) {
-                    Ok(parent) => project::vst3_editor::open_vst3_editor_parented(
-                        model_id.as_str(), vst3_sr, parent,
-                    ),
-                    Err(_) => project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr),
-                }
-            } else {
-                project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr)
-            };
-            match result {
-                Ok(handle) => {
-                    vst3_handles.borrow_mut().push(handle);
-                }
+            let Some(w) = weak_window.upgrade() else { return; };
+
+            // Embed the VST3 editor inside the BlockPanelEditor popup
+            // by creating a child NSView on the Slint window's root view.
+            let ns_view = match get_parent_ns_view(&w) {
+                Ok(v) => v,
                 Err(e) => {
-                    log::error!("VST3 editor: failed to open '{}': {}", model_id, e);
-                    if let Some(w) = weak_window.upgrade() {
-                        set_status_error(&w, &toast_timer, &e.to_string());
-                    }
+                    log::error!("VST3 editor: cannot get NSView: {}", e);
+                    set_status_error(&w, &toast_timer, &e.to_string());
+                    return;
                 }
-            }
+            };
+
+            // Create the embedded editor at (0,0) first, then reposition
+            // once we know the editor dimensions and can calculate the
+            // final popup layout.
+            let (handle, editor_w, editor_h) = match project::vst3_editor::open_vst3_editor_embedded(
+                model_id.as_str(), vst3_sr, ns_view, 0.0, 0.0,
+            ) {
+                Ok(result) => result,
+                Err(e) => {
+                    log::error!("VST3 editor: failed to embed '{}': {}", model_id, e);
+                    set_status_error(&w, &toast_timer, &e.to_string());
+                    return;
+                }
+            };
+
+            // Calculate the popup position (matches Slint layout):
+            // panel_width = max(editor_w + 32, 900)
+            // panel_height = 48 (header) + editor_h + 16 (bottom pad)
+            let size = w.window().size();
+            let scale = w.window().scale_factor() as f64;
+            let window_w = size.width as f64 / scale;
+            let window_h = size.height as f64 / scale;
+            let panel_w = (editor_w + 32.0).max(900.0);
+            let panel_h = 48.0 + editor_h + 16.0;
+            let popup_x = (window_w - panel_w) / 2.0;
+            let popup_y = (window_h - panel_h) / 2.0;
+            // Content area: centered horizontally within panel, below header
+            let content_x = popup_x + (panel_w - editor_w) / 2.0;
+            let content_y = popup_y + 48.0;
+
+            handle.reposition_embedded(content_x, content_y);
+
+            // Tell Slint about the editor dimensions so the popup resizes.
+            w.set_vst3_editor_width(editor_w as f32);
+            w.set_vst3_editor_height(editor_h as f32);
+            w.set_vst3_editor_active(true);
+
+            vst3_handles.borrow_mut().push(handle);
         });
     }
     {

@@ -1965,6 +1965,9 @@ export component ProjectChainsPage inherits Rectangle {
     callback open-external-editor(string); // model-id
 
     in property <bool> has-external-editor: false;
+    in-out property <bool> vst3-editor-active: false;
+    in property <float> vst3-editor-width: 0;
+    in property <float> vst3-editor-height: 0;
 
     background: #1f2023;
 
@@ -2135,9 +2138,12 @@ export component ProjectChainsPage inherits Rectangle {
             root.curve-editor-points.length > 0 ?
                 Math.max(600px, Math.min(1200px, root.curve-editor-points.length * 200px + 80px)) :
                 600px;
+        property <length> vst3-w: root.vst3-editor-width * 1px;
+        property <length> vst3-h: root.vst3-editor-height * 1px;
         property <length> panel-width:
             use-panel-editor ?
-                (has-eq-widget ? eq-panel-width : Math.max(900px, needed-width)) :
+                (root.vst3-editor-active ? Math.max(vst3-w + 32px, 900px) :
+                 has-eq-widget ? eq-panel-width : Math.max(900px, needed-width)) :
                 520px;
         property <length> eq-widget-height:
             root.curve-editor-points.length > 0 ? 200px :
@@ -2145,7 +2151,9 @@ export component ProjectChainsPage inherits Rectangle {
         property <length> eq-extra-height:
             has-eq-widget ? (48px + 60px + 8px + eq-widget-height + 8px) : 275px;
         property <length> panel-height:
-            use-panel-editor ? eq-extra-height : parent.height;
+            use-panel-editor ?
+                (root.vst3-editor-active ? 48px + vst3-h + 16px : eq-extra-height) :
+                parent.height;
 
         TouchArea {
             x: 0px;
@@ -2187,6 +2195,7 @@ export component ProjectChainsPage inherits Rectangle {
             pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
             update-block-parameter-bool(path, val) => { root.update-block-parameter-bool(path, val); }
             has-external-editor: root.has-external-editor;
+            vst3-editor-active: root.vst3-editor-active;
             open-external-editor(model-id) => { root.open-external-editor(model-id); }
         }
 

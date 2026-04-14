@@ -17,8 +17,6 @@ use crate::component_handler::ComponentHandler;
 use crate::host::Vst3Plugin;
 use crate::param_registry::Vst3GuiContext;
 
-impl block_core::PluginEditorHandle for Vst3EditorHandle {}
-
 /// Handle to an open VST3 editor window.
 ///
 /// Closing/dropping this handle calls `IPlugView::removed()` and releases
@@ -40,6 +38,17 @@ pub struct Vst3EditorHandle {
     /// Child NSView used for embedded mode (None when using standalone window).
     #[cfg(target_os = "macos")]
     _embedded_view: Option<macos::OwnedNsView>,
+}
+
+impl block_core::PluginEditorHandle for Vst3EditorHandle {
+    fn reposition_embedded(&self, x: f64, y: f64) {
+        #[cfg(target_os = "macos")]
+        if let Some(ref view) = self._embedded_view {
+            view.reposition(x, y);
+        }
+        #[cfg(not(target_os = "macos"))]
+        { let _ = (x, y); }
+    }
 }
 
 impl Drop for Vst3EditorHandle {
@@ -303,18 +312,23 @@ pub fn open_vst3_editor_window_standalone(
     bail!("VST3 editor window not yet supported on this platform")
 }
 
-/// Open the VST3 editor embedded inside a parent window (no new OS window).
+/// Open the VST3 editor embedded inside a parent view (no new OS window).
 ///
 /// `parent_ns_view` must be a valid `NSView*` pointer (e.g. from Slint's raw
-/// window handle). The plugin view is attached to a child NSView sized to the
-/// plugin's requested dimensions, positioned at (0, 0) within the parent.
+/// window handle). The plugin view is attached to a child NSView positioned
+/// at `(x, y)` within the parent, using the parent's coordinate system
+/// (Slint-style top-left origin is automatically converted if needed).
+///
+/// Returns `(handle, editor_width, editor_height)`.
 ///
 /// Must be called on the main/UI thread.
 pub fn open_vst3_editor_embedded(
     plugin_name: &str,
     gui_context: Vst3GuiContext,
     parent_ns_view: *mut std::ffi::c_void,
-) -> Result<Vst3EditorHandle> {
+    x: f64,
+    y: f64,
+) -> Result<(Vst3EditorHandle, f64, f64)> {
     let controller = gui_context.controller;
 
     let view_ptr = unsafe { controller.createView(vst3::Steinberg::Vst::ViewType::kEditor) };
@@ -353,7 +367,7 @@ pub fn open_vst3_editor_embedded(
         let width = (rect.right - rect.left).max(200) as f64;
         let height = (rect.bottom - rect.top).max(100) as f64;
 
-        let child_view = macos::create_child_nsview(parent_ns_view, width, height)?;
+        let child_view = macos::create_child_nsview(parent_ns_view, x, y, width, height)?;
         let ns_view_ptr = child_view.ptr();
 
         let res = unsafe { view.attached(ns_view_ptr, kPlatformTypeNSView) };
@@ -361,7 +375,7 @@ pub fn open_vst3_editor_embedded(
             bail!("IPlugView::attached failed (result={})", res);
         }
 
-        return Ok(Vst3EditorHandle {
+        return Ok((Vst3EditorHandle {
             view,
             _library: library,
             _controller: controller,
@@ -369,7 +383,7 @@ pub fn open_vst3_editor_embedded(
             _standalone_plugin: None,
             _ns_window: None,
             _embedded_view: Some(child_view),
-        });
+        }, width, height));
     }
 
     #[cfg(not(target_os = "macos"))]
@@ -377,13 +391,17 @@ pub fn open_vst3_editor_embedded(
 }
 
 /// Open the VST3 editor embedded (standalone mode — no engine context).
+///
+/// Returns `(handle, editor_width, editor_height)`.
 pub fn open_vst3_editor_embedded_standalone(
     bundle_path: &Path,
     uid: &[u8; 16],
     plugin_name: &str,
     sample_rate: f64,
     parent_ns_view: *mut std::ffi::c_void,
-) -> Result<Vst3EditorHandle> {
+    x: f64,
+    y: f64,
+) -> Result<(Vst3EditorHandle, f64, f64)> {
     let plugin = Vst3Plugin::load(bundle_path, uid, sample_rate, 2, 512, &[])?;
 
     unsafe {
@@ -434,7 +452,7 @@ pub fn open_vst3_editor_embedded_standalone(
         let width = (rect.right - rect.left).max(200) as f64;
         let height = (rect.bottom - rect.top).max(100) as f64;
 
-        let child_view = macos::create_child_nsview(parent_ns_view, width, height)?;
+        let child_view = macos::create_child_nsview(parent_ns_view, x, y, width, height)?;
         let ns_view_ptr = child_view.ptr();
 
         let res = unsafe { view.attached(ns_view_ptr, kPlatformTypeNSView) };
@@ -442,7 +460,7 @@ pub fn open_vst3_editor_embedded_standalone(
             bail!("IPlugView::attached failed (result={})", res);
         }
 
-        return Ok(Vst3EditorHandle {
+        return Ok((Vst3EditorHandle {
             view,
             _library: library,
             _controller: controller,
@@ -450,7 +468,7 @@ pub fn open_vst3_editor_embedded_standalone(
             _standalone_plugin: Some(Box::new(plugin)),
             _ns_window: None,
             _embedded_view: Some(child_view),
-        });
+        }, width, height));
     }
 
     #[cfg(not(target_os = "macos"))]
@@ -576,6 +594,44 @@ mod macos {
         pub fn ptr(&self) -> *mut c_void {
             self.0
         }
+
+        /// Reposition this view within its parent.
+        ///
+        /// `x`, `y` use top-left origin (Slint convention). Automatically
+        /// converts to bottom-left if the parent NSView is not flipped.
+        pub fn reposition(&self, x: f64, y: f64) {
+            unsafe {
+                // Get superview
+                let superview = msg0!(self.0, sel("superview"));
+                if superview.is_null() {
+                    return;
+                }
+
+                // Get current frame to preserve size
+                type MsgSendRect = unsafe extern "C" fn(*mut c_void, *mut c_void) -> NSRect;
+                let f: MsgSendRect = std::mem::transmute(objc_msgSend as *const ());
+                let current_frame = f(self.0, sel("frame"));
+                let width = current_frame.size.width;
+                let height = current_frame.size.height;
+
+                // Check if parent is flipped
+                type MsgSendBoolRet = unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool;
+                let is_flipped_fn: MsgSendBoolRet = std::mem::transmute(objc_msgSend as *const ());
+                let is_flipped = is_flipped_fn(superview, sel("isFlipped"));
+
+                let actual_y = if is_flipped {
+                    y
+                } else {
+                    let parent_bounds = f(superview, sel("bounds"));
+                    parent_bounds.size.height - y - height
+                };
+
+                let new_frame = NSRect::new(x, actual_y, width, height);
+                type MsgSendSetFrame = unsafe extern "C" fn(*mut c_void, *mut c_void, NSRect);
+                let set_f: MsgSendSetFrame = std::mem::transmute(objc_msgSend as *const ());
+                set_f(self.0, sel("setFrame:"), new_frame);
+            }
+        }
     }
 
     impl Drop for OwnedNsView {
@@ -591,16 +647,35 @@ mod macos {
         }
     }
 
-    /// Create a child NSView inside a parent NSView, sized to fit the plugin.
-    pub fn create_child_nsview(parent: *mut c_void, width: f64, height: f64) -> Result<OwnedNsView> {
+    /// Create a child NSView inside a parent NSView at a given position.
+    ///
+    /// `x`, `y` are in the parent's coordinate system. On macOS the Slint
+    /// content view is typically **flipped** (y=0 at top), so pass Slint
+    /// logical coordinates directly.
+    pub fn create_child_nsview(parent: *mut c_void, x: f64, y: f64, width: f64, height: f64) -> Result<OwnedNsView> {
         unsafe {
+            // Check if the parent view is flipped. If not, convert y.
+            type MsgSendBoolRet = unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool;
+            let is_flipped_fn: MsgSendBoolRet = std::mem::transmute(objc_msgSend as *const ());
+            let is_flipped = is_flipped_fn(parent, sel("isFlipped"));
+
+            let actual_y = if is_flipped {
+                y
+            } else {
+                // Need parent's height to flip: ns_y = parent_height - y - height
+                type MsgSendRect = unsafe extern "C" fn(*mut c_void, *mut c_void) -> NSRect;
+                let f: MsgSendRect = std::mem::transmute(objc_msgSend as *const ());
+                let parent_bounds = f(parent, sel("bounds"));
+                parent_bounds.size.height - y - height
+            };
+
             let ns_view_cls = cls("NSView");
             let alloc = msg0!(ns_view_cls, sel("alloc"));
             if alloc.is_null() {
                 anyhow::bail!("NSView alloc returned nil");
             }
 
-            let frame = NSRect::new(0.0, 0.0, width, height);
+            let frame = NSRect::new(x, actual_y, width, height);
             let init_sel = sel("initWithFrame:");
             type MsgSendFrame = unsafe extern "C" fn(*mut c_void, *mut c_void, NSRect) -> *mut c_void;
             let f: MsgSendFrame = std::mem::transmute(objc_msgSend as *const ());

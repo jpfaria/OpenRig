@@ -675,6 +675,9 @@ export component AppWindow inherits Window {
     callback pick-block-parameter-file(string);
     callback open-vst3-editor(string); // model-id
     in-out property <bool> has-external-editor: false;
+    in-out property <bool> vst3-editor-active: false;
+    in property <float> vst3-editor-width: 0;
+    in property <float> vst3-editor-height: 0;
     callback save-chain();
     callback cancel-chain();
     // Fullscreen inline project settings callbacks
@@ -700,6 +703,9 @@ export component AppWindow inherits Window {
         height: 100%;
         app-version: root.app-version;
         has-external-editor: root.has-external-editor;
+        vst3-editor-active <=> root.vst3-editor-active;
+        vst3-editor-width: root.vst3-editor-width;
+        vst3-editor-height: root.vst3-editor-height;
         show-project-launcher: root.show-project-launcher;
         show-project-setup: root.show-project-setup;
         show-project-chains: root.show-project-chains;
@@ -836,6 +842,9 @@ export component AppWindow inherits Window {
         width: 100%;
         height: 100%;
         has-external-editor: root.has-external-editor;
+        vst3-editor-active <=> root.vst3-editor-active;
+        vst3-editor-width: root.vst3-editor-width;
+        vst3-editor-height: root.vst3-editor-height;
         show-project-launcher: root.show-project-launcher;
         show-project-setup: root.show-project-setup;
         show-project-chains: root.show-project-chains;

@@ -116,6 +116,9 @@ export component TouchMain inherits Rectangle {
     callback pick-block-parameter-file(string);
     callback open-external-editor(string); // model-id
     in property <bool> has-external-editor: false;
+    in-out property <bool> vst3-editor-active: false;
+    in property <float> vst3-editor-width: 0;
+    in property <float> vst3-editor-height: 0;
     callback save-chain();
     callback cancel-chain();
 
@@ -174,6 +177,9 @@ export component TouchMain inherits Rectangle {
             block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
             block-drawer-enabled: root.block-drawer-enabled;
             has-external-editor: root.has-external-editor;
+            vst3-editor-active <=> root.vst3-editor-active;
+            vst3-editor-width: root.vst3-editor-width;
+            vst3-editor-height: root.vst3-editor-height;
             block-parameter-items: root.block-parameter-items;
             multi-slider-points: root.multi-slider-points;
             curve-editor-points: root.curve-editor-points;
