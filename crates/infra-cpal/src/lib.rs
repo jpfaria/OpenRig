@@ -1565,29 +1565,7 @@ impl ProjectRuntimeController {
         let needs_stream_rebuild = self
             .active_chains
             .get(&chain.id)
-            .map(|active| {
-                let changed = active.stream_signature != resolved.stream_signature;
-                if changed {
-                    log::info!(
-                        "chain '{}' stream signature changed, will rebuild streams",
-                        chain.id.0
-                    );
-                    log::debug!(
-                        "  old sig: {:?}",
-                        active.stream_signature
-                    );
-                    log::debug!(
-                        "  new sig: {:?}",
-                        resolved.stream_signature
-                    );
-                } else {
-                    log::debug!(
-                        "chain '{}' stream signature unchanged, skipping rebuild",
-                        chain.id.0
-                    );
-                }
-                changed
-            })
+            .map(|active| active.stream_signature != resolved.stream_signature)
             .unwrap_or(true);
 
         let runtime =
@@ -1648,11 +1626,6 @@ fn resolve_input_device_for_chain_input(
         .iter()
         .find(|s| s.device_id == input.device_id)
         .cloned();
-    log::debug!(
-        "resolve_input: device_id='{}', settings={:?}",
-        input.device_id.0,
-        settings.as_ref().map(|s| format!("sr={} buf={} bit={}", s.sample_rate, s.buffer_size_frames, s.bit_depth)),
-    );
     if using_jack_direct() {
         // Unreachable in JACK-direct mode: sync_project / upsert_chain short-circuit
         // into sync_project_jack_direct() before ever calling this function. If we
@@ -1714,11 +1687,6 @@ fn resolve_output_device_for_chain_output(
         .iter()
         .find(|s| s.device_id == output.device_id)
         .cloned();
-    log::debug!(
-        "resolve_output: device_id='{}', settings={:?}",
-        output.device_id.0,
-        settings.as_ref().map(|s| format!("sr={} buf={} bit={}", s.sample_rate, s.buffer_size_frames, s.bit_depth)),
-    );
     if using_jack_direct() {
         // Unreachable in JACK-direct mode (see matching guard in the input path).
         bail!("internal error: resolve_output_device_for_chain_output called in JACK-direct mode");

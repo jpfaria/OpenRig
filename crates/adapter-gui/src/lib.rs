@@ -1452,16 +1452,6 @@ pub fn run_desktop_app(
                                         bit_depth: d.bit_depth,
                                     })
                                     .collect();
-                                log::info!(
-                                    "save_audio_settings(Gui): updated device_settings ({} entries)",
-                                    session.project.device_settings.len()
-                                );
-                                for ds in &session.project.device_settings {
-                                    log::info!(
-                                        "  device='{}' sr={} buf={} bit={}",
-                                        ds.device_id.0, ds.sample_rate, ds.buffer_size_frames, ds.bit_depth
-                                    );
-                                }
                                 // Apply device config to hardware (works even without active chains)
                                 if let Err(e) = infra_cpal::apply_device_settings(&session.project.device_settings) {
                                     log::warn!("apply_device_settings failed: {e}");
@@ -1508,16 +1498,6 @@ pub fn run_desktop_app(
                             bit_depth: device.bit_depth,
                         })
                         .collect();
-                    log::info!(
-                        "save_audio_settings(Project/main_window): updated device_settings ({} entries)",
-                        session.project.device_settings.len()
-                    );
-                    for ds in &session.project.device_settings {
-                        log::info!(
-                            "  device='{}' sr={} buf={} bit={}",
-                            ds.device_id.0, ds.sample_rate, ds.buffer_size_frames, ds.bit_depth
-                        );
-                    }
                     // Apply device config to hardware (works even without active chains)
                     if let Err(e) = infra_cpal::apply_device_settings(&session.project.device_settings) {
                         log::warn!("apply_device_settings failed: {e}");
@@ -1634,16 +1614,6 @@ pub fn run_desktop_app(
                             bit_depth: device.bit_depth,
                         })
                         .collect();
-                    log::info!(
-                        "save_audio_settings(Project/settings_window): updated device_settings ({} entries)",
-                        session.project.device_settings.len()
-                    );
-                    for ds in &session.project.device_settings {
-                        log::info!(
-                            "  device='{}' sr={} buf={} bit={}",
-                            ds.device_id.0, ds.sample_rate, ds.buffer_size_frames, ds.bit_depth
-                        );
-                    }
                     // Apply device config to hardware (works even without active chains)
                     if let Err(e) = infra_cpal::apply_device_settings(&session.project.device_settings) {
                         log::warn!("apply_device_settings failed: {e}");
