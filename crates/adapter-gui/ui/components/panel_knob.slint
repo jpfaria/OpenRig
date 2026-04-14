@@ -56,7 +56,7 @@ export component PanelKnob inherits Rectangle {
         viewbox-width: root.ks-f;
         viewbox-height: root.ks-f;
         stroke: ta.pressed ? #cc99ff : ta.has-hover ? #aa88ee : #8866cc;
-        stroke-width: 2.5px;
+        stroke-width: 3.5px;
 
         MoveTo {
             x: root.half + root.sin-a * 2;
@@ -66,6 +66,17 @@ export component PanelKnob inherits Rectangle {
             x: root.half + root.sin-a * (root.half - 3);
             y: root.half - root.cos-a * (root.half - 3);
         }
+    }
+
+    // ── Center cap (covers inner line, like a real knob hub) ──
+    Rectangle {
+        property <length> cap: root.ks * 0.38;
+        x: root.cx - self.cap / 2;
+        y: root.cy - self.cap / 2;
+        width: self.cap;
+        height: self.cap;
+        border-radius: self.cap / 2;
+        background: @linear-gradient(170deg, #2a2832 0%, #141218 50%, #0a0810 100%);
     }
 
     // ── Value box below knob ──
