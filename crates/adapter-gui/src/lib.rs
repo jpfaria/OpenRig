@@ -482,6 +482,7 @@ pub fn run_desktop_app(
     let saved_project_snapshot = Rc::new(RefCell::new(None::<String>));
     let project_dirty = Rc::new(RefCell::new(false));
     let open_block_windows: Rc<RefCell<Vec<BlockWindow>>> = Rc::new(RefCell::new(Vec::new()));
+    let inline_stream_timer: Rc<RefCell<Option<Timer>>> = Rc::new(RefCell::new(None));
     let open_compact_window: Rc<RefCell<Option<(usize, slint::Weak<CompactChainViewWindow>)>>> = Rc::new(RefCell::new(None));
     let audio_settings_mode = Rc::new(RefCell::new(AudioSettingsMode::Gui));
     let input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>> = Rc::new(RefCell::new(
@@ -3901,6 +3902,7 @@ pub fn run_desktop_app(
         let chain_input_device_options_for_select = chain_input_device_options.clone();
         let chain_output_device_options_for_select = chain_output_device_options.clone();
         let open_block_windows = open_block_windows.clone();
+        let inline_stream_timer = inline_stream_timer.clone();
         let toast_timer = toast_timer.clone();
         let weak_input_groups_for_select = chain_input_groups_window.as_weak();
         let weak_output_groups_for_select = chain_output_groups_window.as_weak();
@@ -4090,6 +4092,56 @@ pub fn run_desktop_app(
                 return;
             }
             if use_inline_block_editor(&window) {
+                let param_items_vec = block_parameter_items_for_editor(&editor_data);
+                let overlays = build_knob_overlays(project::catalog::model_knob_layout(&effect_type, &model_id), &param_items_vec);
+                window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
+                // Start inline stream timer for utility blocks (tuner, spectrum analyzer)
+                {
+                    let mut timer_ref = inline_stream_timer.borrow_mut();
+                    *timer_ref = None; // stop previous timer
+                    let is_utility = effect_type == block_core::EFFECT_TYPE_UTILITY;
+                    if is_utility {
+                        let timer = Timer::default();
+                        let weak_win = window.as_weak();
+                        let runtime = project_runtime.clone();
+                        let bid = block_id_for_editor.clone();
+                        let stream_model = model_id.clone();
+                        timer.start(
+                            slint::TimerMode::Repeated,
+                            std::time::Duration::from_millis(50),
+                            move || {
+                                let Some(win) = weak_win.upgrade() else { return; };
+                                let runtime_borrow = runtime.borrow();
+                                let kind: slint::SharedString = if stream_model == "spectrum_analyzer" {
+                                    "spectrum".into()
+                                } else {
+                                    "stream".into()
+                                };
+                                let Some(rt) = runtime_borrow.as_ref() else { return; };
+                                if let Some(entries) = rt.poll_stream(&bid) {
+                                    let slint_entries: Vec<BlockStreamEntry> = entries.iter().map(|e| BlockStreamEntry {
+                                        key: e.key.clone().into(),
+                                        value: e.value,
+                                        text: e.text.clone().into(),
+                                        peak: e.peak,
+                                    }).collect();
+                                    win.set_block_stream_data(BlockStreamData {
+                                        active: true,
+                                        stream_kind: kind,
+                                        entries: ModelRc::from(Rc::new(VecModel::from(slint_entries))),
+                                    });
+                                } else {
+                                    win.set_block_stream_data(BlockStreamData {
+                                        active: false,
+                                        stream_kind: kind,
+                                        entries: ModelRc::default(),
+                                    });
+                                }
+                            },
+                        );
+                        *timer_ref = Some(timer);
+                    }
+                }
                 window.set_show_block_drawer(true);
             } else {
                 window.set_show_block_drawer(false);
@@ -5254,6 +5306,7 @@ pub fn run_desktop_app(
             window.set_block_drawer_status_message("".into());
             window.set_show_block_type_picker(false);
             if use_inline_block_editor(&window) {
+                window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
                 window.set_show_block_drawer(true);
             } else {
                 window.set_show_block_drawer(false);
@@ -5310,7 +5363,9 @@ pub fn run_desktop_app(
             window.set_eq_total_curve(eq_total.into());
             window.set_block_drawer_selected_model_index(index);
             window.set_block_drawer_status_message("".into());
-            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
+            if use_inline_block_editor(&window) {
+                window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
+            } else if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
                 block_editor_window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
                 sync_block_editor_window(&window, &block_editor_window);
             }
@@ -5379,11 +5434,13 @@ pub fn run_desktop_app(
         let eq_band_curves = eq_band_curves.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
+        let inline_stream_timer = inline_stream_timer.clone();
         window.on_close_block_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             block_editor_persist_timer.stop();
+            *inline_stream_timer.borrow_mut() = None;
             *selected_block.borrow_mut() = None;
             *block_editor_draft.borrow_mut() = None;
             block_model_options.set_vec(Vec::new());

@@ -1,6 +1,6 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay } from "models.slint";
 import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage } from "pages/pages.slint";
 
 export component DesktopMain inherits Rectangle {
@@ -54,6 +54,8 @@ export component DesktopMain inherits Rectangle {
     in property <[CurveEditorPoint]> curve-editor-points;
     in property <string> eq-total-curve;
     in property <[string]> eq-band-curves;
+    in property <BlockStreamData> block-stream-data;
+    in property <[BlockKnobOverlay]> block-knob-overlays;
     in property <[ChannelOptionItem]> chain-input-channels;
     in property <[ChannelOptionItem]> chain-output-channels;
     in-out property <string> status-message;
@@ -196,6 +198,12 @@ export component DesktopMain inherits Rectangle {
             block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
             block-drawer-enabled: root.block-drawer-enabled;
             block-parameter-items: root.block-parameter-items;
+            multi-slider-points: root.multi-slider-points;
+            curve-editor-points: root.curve-editor-points;
+            eq-total-curve: root.eq-total-curve;
+            eq-band-curves: root.eq-band-curves;
+            block-stream-data: root.block-stream-data;
+            block-knob-overlays: root.block-knob-overlays;
             status-message: root.status-message;
             back-to-launcher => { root.back-to-launcher(); }
             add-chain => { root.add-chain(); }

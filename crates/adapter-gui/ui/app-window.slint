@@ -598,6 +598,8 @@ export component AppWindow inherits Window {
     in property <[CurveEditorPoint]> curve-editor-points;
     in property <string> eq-total-curve;
     in property <[string]> eq-band-curves;
+    in property <BlockStreamData> block-stream-data;
+    in property <[BlockKnobOverlay]> block-knob-overlays;
     in property <[ChannelOptionItem]> chain-input-channels;
     in property <[ChannelOptionItem]> chain-output-channels;
     in-out property <string> status-message;
@@ -741,6 +743,8 @@ export component AppWindow inherits Window {
         curve-editor-points: root.curve-editor-points;
         eq-total-curve: root.eq-total-curve;
         eq-band-curves: root.eq-band-curves;
+        block-stream-data: root.block-stream-data;
+        block-knob-overlays: root.block-knob-overlays;
         chain-input-channels: root.chain-input-channels;
         chain-output-channels: root.chain-output-channels;
         status-message: root.status-message;
