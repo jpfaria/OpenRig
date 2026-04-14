@@ -2186,6 +2186,8 @@ export component ProjectChainsPage inherits Rectangle {
             select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
             pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
             update-block-parameter-bool(path, val) => { root.update-block-parameter-bool(path, val); }
+            has-external-editor: root.has-external-editor;
+            open-external-editor(model-id) => { root.open-external-editor(model-id); }
         }
 
         // Form editor (other block types)

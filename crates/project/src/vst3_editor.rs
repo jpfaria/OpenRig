@@ -28,30 +28,25 @@ pub fn init_vst3_catalog(sample_rate: f64) {
 ///
 /// Opens the editor in a **separate floating window**.
 pub fn open_vst3_editor(model_id: &str, sample_rate: f64) -> Result<Box<dyn PluginEditorHandle>> {
-    log::info!("open_vst3_editor: model_id='{}' sample_rate={}", model_id, sample_rate);
-
     let entry = vst3_host::find_vst3_plugin(model_id)
         .ok_or_else(|| anyhow::anyhow!("VST3 plugin '{}' not found in catalog", model_id))?;
-    log::info!("open_vst3_editor: found plugin '{}' at '{}'", entry.display_name, entry.info.bundle_path.display());
 
     if let Some(gui_context) = vst3_host::lookup_vst3_gui_context(model_id) {
         // Engine already loaded this plugin — reuse the existing controller.
-        log::info!("VST3 editor: reusing engine controller for '{}'", model_id);
+        log::debug!("VST3 editor: reusing engine controller for '{}'", model_id);
         let handle = vst3_host::open_vst3_editor_window(entry.display_name, gui_context)?;
         return Ok(Box::new(handle));
     }
 
     // Fallback: load a standalone instance (no param-channel communication).
-    log::info!("VST3 editor: no engine context for '{}', loading standalone instance", model_id);
+    log::debug!("VST3 editor: no engine context for '{}', loading standalone instance", model_id);
     let uid = vst3_host::resolve_uid_for_model(model_id)?;
-    log::info!("VST3 editor: resolved UID for '{}': {:?}", model_id, uid);
     let handle = vst3_host::open_vst3_editor_window_standalone(
         &entry.info.bundle_path,
         &uid,
         entry.display_name,
         sample_rate,
     )?;
-    log::info!("VST3 editor: window opened successfully for '{}'", model_id);
     Ok(Box::new(handle))
 }
 
