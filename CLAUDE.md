@@ -168,7 +168,7 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 | **Output** | Saída de áudio (device + channels) | — | standard |
 | **Insert** | Loop de efeito externo (send/return) | — | external_loop |
 
-**Total: 361+ modelos em 16 tipos de bloco processadores (5 backends: Native 34, NAM 89, IR 127, LV2 105, VST3 6).**
+**Total: 355+ modelos em 16 tipos de bloco processadores (4 backends estáticos: Native 34, NAM 89, IR 127, LV2 105; VST3 dinâmico).**
 
 ### Parâmetros comuns
 
@@ -191,7 +191,66 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 - **Native** — DSP em Rust, mais rápido, menor CPU
 - **NAM** — Neural Amp Modeler, captura realista de amps/pedais
 - **IR** — Impulse Response, convolução para cabs e corpos acústicos
-- **LV2** — Plugins externos open-source
+- **LV2** — Plugins externos open-source (bundled em `libs/lv2/`)
+- **VST3** — Plugins externos descobertos dinamicamente em runtime (bundled em `libs/vst3/` + sistema)
+
+### VST3 — Arquitetura dinâmica (IMPORTANTE)
+
+VST3 é **100% dinâmico**. NÃO existem modelos VST3 hardcoded no código Rust. Diferente de LV2/NAM/IR que têm `MODEL_DEFINITION` estáticos, o VST3 funciona assim:
+
+1. **Discovery em runtime** — `vst3_host::scan_system_vst3()` escaneia paths do sistema e `libs/vst3/{platform}/`
+2. **Catalog dinâmico** — `vst3_host::vst3_catalog()` retorna os plugins encontrados, cada um com `effect_type: "vst3"`
+3. **GUI nativa** — VST3 usa a GUI do plugin (`IPlugView`), NÃO mostra parâmetros inline do OpenRig
+4. **`has-external-editor`** — flag genérica na UI para qualquer bloco com editor externo (hoje = VST3)
+
+#### Paths de busca (ordem de prioridade)
+
+| Prioridade | Path | Fonte |
+|-----------|------|-------|
+| 1 | `libs/vst3/{platform}/` | Bundled com o app (via `AssetPaths.vst3_plugins`) |
+| 2 | `~/Library/Audio/Plug-Ins/VST3/` (macOS) | Instalados pelo usuário |
+| 3 | `/Library/Audio/Plug-Ins/VST3/` (macOS) | Instalados pelo sistema |
+| 4 | `~/.vst3/`, `/usr/lib/vst3/` (Linux) | Equivalente Linux |
+| 5 | `%PROGRAMFILES%\Common Files\VST3\` (Windows) | Equivalente Windows |
+
+#### Estrutura de `libs/vst3/`
+
+```
+libs/vst3/
+  macos-universal/     ← .vst3 bundles (Universal Binary)
+  linux-x86_64/        ← .vst3 bundles (x86_64)
+  linux-aarch64/       ← .vst3 bundles (ARM64)
+  windows-x64/         ← .vst3 bundles (x64)
+  windows-arm64/       ← .vst3 bundles (ARM64)
+```
+
+#### Plugins VST3 target para bundling
+
+Estes são os plugins open-source que devem ser compilados e colocados em `libs/vst3/`:
+
+| Plugin | Tipo | Licença | Repo |
+|--------|------|---------|------|
+| CloudSeed | Reverb | MIT | github.com/ValdemarOrn/CloudSeed |
+| Cocoa Delay | Delay | GPL-3.0 | github.com/tesselode/cocoa-delay |
+| CHOW Tape Model | Gain/Saturation | GPL-3.0 | github.com/jatinchowdhury18/AnalogTapeModel |
+| modEQ | Filter/EQ | GPL-3.0 | github.com/jatinchowdhury18/modEQ |
+| Squeezer | Dynamics | GPL-3.0 | github.com/mzuther/Squeezer |
+| Stone Mistress | Modulation | GPL-3.0 | github.com/jpcima/stone-mistress |
+
+**Nota legal**: 5 dos 6 plugins são GPL-3.0. Verificar compatibilidade de licença antes de distribuir.
+
+#### Editor VST3 — embedded vs floating
+
+- **Modo windowed** — editor abre em janela floating separada (`NSWindow` no macOS)
+- **Modo fullscreen/touch** — editor embeda como child `NSView` dentro da janela Slint (via `raw-window-handle`)
+- Detecção via `use_inline_block_editor()` que checa `fullscreen` ou `touch_optimized`
+
+#### Regras para agents
+
+- **NUNCA criar MODEL_DEFINITION estático para VST3** — todo VST3 é dinâmico
+- **NUNCA adicionar parâmetros VST3 no Rust** — o plugin gerencia seus próprios params via GUI nativa
+- **`effect_type: "vst3"`** é o tipo no catálogo, NÃO é um tipo de bloco como `reverb` ou `delay`
+- Para adicionar novo plugin bundled: compilar o .vst3, colocar em `libs/vst3/{platform}/`, o discovery encontra automaticamente
 
 ### Instrumentos suportados
 
