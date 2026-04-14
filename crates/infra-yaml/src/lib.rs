@@ -250,7 +250,7 @@ struct ChainYaml {
     description: Option<String>,
     #[serde(default = "default_instrument")]
     instrument: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     enabled: bool,
     // Legacy multi-input/output fields — kept for backward-compatible deserialization, skipped on serialization
     #[serde(default, skip_serializing)]
