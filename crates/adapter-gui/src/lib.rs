@@ -8156,6 +8156,7 @@ fn build_project_device_rows(
                 name: device.name.clone(),
                 sample_rate: setting.sample_rate,
                 buffer_size_frames: setting.buffer_size_frames,
+                bit_depth: 32,
             })
             .unwrap_or_else(|| default_device_settings(device.id.clone(), device.name.clone()));
         rows.push(DeviceSelectionItem {
@@ -9875,6 +9876,7 @@ fn selected_device_settings(
                     row.buffer_size_text.as_str(),
                     &format!("{}_buffer_size_frames '{}'", device_kind, row.name),
                 )?,
+                bit_depth: 32,
             })
         })
         .collect()
@@ -9885,6 +9887,7 @@ fn default_device_settings(device_id: String, name: String) -> GuiAudioDeviceSet
         name,
         sample_rate: DEFAULT_SAMPLE_RATE,
         buffer_size_frames: DEFAULT_BUFFER_SIZE_FRAMES,
+        bit_depth: 32,
     }
 }
 fn normalize_device_settings(mut settings: GuiAudioDeviceSettings) -> GuiAudioDeviceSettings {
