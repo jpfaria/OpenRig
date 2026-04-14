@@ -656,14 +656,6 @@ impl SpscRingBuffer {
         self.read_pos.store(rp.wrapping_add(1), Ordering::Release);
         true
     }
-
-    /// Number of slots available to read.
-    fn available(&self) -> usize {
-        use std::sync::atomic::Ordering;
-        let wp = self.write_pos.load(Ordering::Acquire);
-        let rp = self.read_pos.load(Ordering::Acquire);
-        wp.wrapping_sub(rp)
-    }
 }
 
 /// Direct JACK process handler — runs in the JACK real-time thread.
@@ -685,8 +677,6 @@ struct JackProcessHandler {
     input_ring: Option<Arc<SpscRingBuffer>>,
     /// Condvar to wake the worker thread when new input is available.
     worker_wake: Option<Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>>,
-    /// Number of input channels (for the worker thread to know).
-    total_in_channels: usize,
 }
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
@@ -880,7 +870,6 @@ fn build_jack_direct_chain(
         runtime: Arc::clone(&runtime),
         input_ring: Some(Arc::clone(&ring)),
         worker_wake: Some(Arc::clone(&wake)),
-        total_in_channels: max_in_ch,
     };
 
     // Spawn DSP worker thread
@@ -890,7 +879,6 @@ fn build_jack_direct_chain(
     let worker_stop = Arc::clone(&stop_flag);
     let worker_channels = max_in_ch;
     let worker_chain_id = chain_id.0.clone();
-
     let thread = std::thread::Builder::new()
         .name(format!("dsp-worker-{}", chain_id.0))
         .spawn(move || {
@@ -1362,22 +1350,19 @@ impl ProjectRuntimeController {
     pub fn sync_project(&mut self, project: &Project) -> Result<()> {
         log::debug!("syncing project runtime with {} chains", project.chains.len());
 
-        // When using direct JACK, bypass ALL CPAL/ALSA access.
-        // Even creating an ALSA host and probing devices can interfere with
-        // JACK's exclusive access to the hardware (causing xruns and device loss).
+        // On Linux with JACK feature, always ensure JACK is running first.
+        // ensure_jack_running will start JACK if it's not already running,
+        // then using_jack_direct() will return true and we use the JACK path.
         #[cfg(all(target_os = "linux", feature = "jack"))]
-        if using_jack_direct() {
-            // Ensure JACK is running before attempting to connect.
-            // If no JACK server is active, launch one with the project's
-            // device settings (sample rate, buffer size from gui-settings.yaml).
+        {
             let jack_restarted = ensure_jack_running(project)?;
             if jack_restarted && !self.active_chains.is_empty() {
-                // JACK was restarted — all existing JACK clients are dead.
-                // Tear down everything so sync_project_jack_direct rebuilds.
                 log::info!("sync_project: JACK restarted, tearing down all chains");
                 self.stop();
             }
-            return self.sync_project_jack_direct(project);
+            if using_jack_direct() {
+                return self.sync_project_jack_direct(project);
+            }
         }
 
         let host = get_host();
@@ -1457,14 +1442,16 @@ impl ProjectRuntimeController {
         }
 
         #[cfg(all(target_os = "linux", feature = "jack"))]
-        if using_jack_direct() {
+        {
             let jack_restarted = ensure_jack_running(project)?;
             if jack_restarted && !self.active_chains.is_empty() {
                 log::info!("upsert_chain: JACK restarted, tearing down all chains");
                 self.stop();
             }
-            let resolved = jack_resolve_chain_config(chain)?;
-            return self.upsert_chain_with_resolved(chain, resolved);
+            if using_jack_direct() {
+                let resolved = jack_resolve_chain_config(chain)?;
+                return self.upsert_chain_with_resolved(chain, resolved);
+            }
         }
 
         let host = get_host();

@@ -250,7 +250,7 @@ struct ChainYaml {
     description: Option<String>,
     #[serde(default = "default_instrument")]
     instrument: String,
-    #[serde(default = "default_enabled", skip_serializing)]
+    #[serde(default = "default_enabled")]
     enabled: bool,
     // Legacy multi-input/output fields — kept for backward-compatible deserialization, skipped on serialization
     #[serde(default, skip_serializing)]
@@ -299,7 +299,7 @@ impl ChainYaml {
                 id: chain_id.clone(),
                 description: self.description,
                 instrument: self.instrument,
-                enabled: false,
+                enabled: self.enabled,
                 blocks: parsed_blocks,
             };
             return Ok(chain);
@@ -410,7 +410,7 @@ impl ChainYaml {
             id: chain_id.clone(),
             description: self.description,
             instrument: self.instrument,
-            enabled: false,
+            enabled: self.enabled,
             blocks: all_blocks,
         };
 

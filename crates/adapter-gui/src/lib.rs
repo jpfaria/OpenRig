@@ -647,6 +647,29 @@ pub fn run_desktop_app(
                 window.set_show_project_chains(true);
                 window.set_skip_launcher(true);
                 log::info!("CLI: opened {:?}", canonical_path);
+
+                // Auto-start enabled chains at startup (needed for Orange Pi auto-boot)
+                {
+                    let session_borrow = project_session.borrow();
+                    if let Some(session) = session_borrow.as_ref() {
+                        let has_enabled = session.project.chains.iter().any(|c| c.enabled);
+                        if has_enabled {
+                            drop(session_borrow);
+                            let mut session_borrow = project_session.borrow_mut();
+                            if let Some(session) = session_borrow.as_mut() {
+                                for chain in &session.project.chains {
+                                    if chain.enabled {
+                                        let chain_id = chain.id.clone();
+                                        log::info!("auto-starting enabled chain '{}'", chain_id.0);
+                                        if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
+                                            log::error!("failed to auto-start chain '{}': {}", chain_id.0, e);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
             Err(e) => {
                 log::error!("CLI project open failed, falling back to launcher: {e}");
