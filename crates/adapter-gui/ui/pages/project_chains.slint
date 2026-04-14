@@ -1556,6 +1556,8 @@ export component BlockEditorPanel inherits Rectangle {
         : "";
 
     background: transparent;
+    border-radius: 12px;
+    clip: true;
 
     Rectangle {
         x: 0px;
@@ -1565,6 +1567,7 @@ export component BlockEditorPanel inherits Rectangle {
         background: #171a20f8;
         border-width: 1px;
         border-color: #2d3340;
+        border-radius: 12px;
 
         // ── CABEÇALHO ────────────────────────────────────────────
         EffectTypeIcon {
@@ -2053,16 +2056,16 @@ export component ProjectChainsPage inherits Rectangle {
         TouchArea {
             x: 0px;
             y: 0px;
-            width: parent.width - 420px;
+            width: parent.width;
             height: parent.height;
             clicked => { root.close-block-drawer(); }
         }
 
         BlockEditorPanel {
-            x: parent.width - 520px;
-            y: 0px;
+            x: (parent.width - 520px) / 2;
+            y: (parent.height - self.height) / 2;
             width: 520px;
-            height: parent.height;
+            height: min(parent.height - 48px, 620px);
             block-type-options: root.block-type-options;
             block-model-options: root.block-model-options;
             block-model-option-labels: root.block-model-option-labels;
