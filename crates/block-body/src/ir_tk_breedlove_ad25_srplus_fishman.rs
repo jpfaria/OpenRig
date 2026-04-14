@@ -7,7 +7,7 @@ use block_core::{AudioChannelLayout, ModelAudioMode, BlockProcessor};
 
 pub const MODEL_ID: &str = "tk_breedlove_ad25_srplus_fishman";
 pub const DISPLAY_NAME: &str = "Breedlove AD25 SR Plus Fishman";
-const BRAND: &str = "";
+const BRAND: &str = "breedlove";
 
 macro_rules! capture {
     ($voicing:literal, $ir_file:literal) => {

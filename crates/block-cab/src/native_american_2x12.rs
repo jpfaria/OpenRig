@@ -48,7 +48,7 @@ fn asset_summary(params: &ParameterSet) -> Result<String> {
 pub const MODEL_DEFINITION: CabModelDefinition = CabModelDefinition {
     id: MODEL_ID,
     display_name: DISPLAY_NAME,
-    brand: "",
+    brand: block_core::BRAND_NATIVE,
     backend_kind: CabBackendKind::Native,
     schema,
     validate: native_core::validate_params,

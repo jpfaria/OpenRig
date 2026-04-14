@@ -10,7 +10,7 @@ use block_core::{AudioChannelLayout, BlockProcessor};
 
 pub const MODEL_ID: &str = "slammin_booster";
 pub const DISPLAY_NAME: &str = "Slammin Clean Booster";
-const BRAND: &str = "slammin";
+const BRAND: &str = "jhs";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 

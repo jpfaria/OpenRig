@@ -7,7 +7,7 @@ use block_core::{AudioChannelLayout, ModelAudioMode, BlockProcessor};
 
 pub const MODEL_ID: &str = "mcilroy_a30_mi_si";
 pub const DISPLAY_NAME: &str = "A30 Mi Si";
-const BRAND: &str = "";
+const BRAND: &str = "mcilroy";
 
 macro_rules! capture {
     ($voicing:literal, $ir_file:literal) => {

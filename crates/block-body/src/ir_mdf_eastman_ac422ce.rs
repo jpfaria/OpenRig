@@ -7,7 +7,7 @@ use block_core::{AudioChannelLayout, ModelAudioMode, BlockProcessor};
 
 pub const MODEL_ID: &str = "mdf_eastman_ac422ce";
 pub const DISPLAY_NAME: &str = "MDF Eastman AC422CE";
-const BRAND: &str = "";
+const BRAND: &str = "eastman";
 
 macro_rules! capture {
     ($p1:literal, $ir_file:literal) => {
