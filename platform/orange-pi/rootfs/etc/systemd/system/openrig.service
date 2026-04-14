@@ -2,7 +2,7 @@
 Description=OpenRig Guitar Pedalboard
 Documentation=https://github.com/jpfaria/OpenRig
 After=jackd.service weston.service
-BindsTo=jackd.service
+Wants=jackd.service
 Requires=weston.service
 
 [Service]
