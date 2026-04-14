@@ -55,6 +55,10 @@ impl Drop for Vst3EditorHandle {
 ///
 /// `plugin_name` is used only for the window title.
 /// `gui_context` carries the shared controller, library handle, and param channel.
+/// `parent_window` is an optional platform-specific parent window handle.
+/// On macOS this is an `NSWindow*`; the editor window is added as a child
+/// so it floats above and moves with the parent. Pass null for a standalone
+/// floating window.
 ///
 /// Returns a `Vst3EditorHandle` that keeps the window alive. Drop it to close.
 pub fn open_vst3_editor_window(
@@ -109,6 +113,86 @@ pub fn open_vst3_editor_window(
         let res = unsafe { view.attached(ns_view, kPlatformTypeNSView) };
         if res != kResultOk {
             bail!("IPlugView::attached failed (result={})", res);
+        }
+
+        ns_window.show(plugin_name);
+
+        return Ok(Vst3EditorHandle {
+            view,
+            _library: library,
+            _controller: controller,
+            _component_handler: component_handler,
+            _standalone_plugin: None,
+            _ns_window: Some(ns_window),
+            _embedded_view: None,
+        });
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    bail!("VST3 editor window not yet supported on this platform")
+}
+
+/// Open the native editor window as a child of a parent window.
+///
+/// The editor window is registered via `addChildWindow:ordered:` so it
+/// always floats above the parent and moves with it. The title bar is kept
+/// for the user to see the plugin name.
+///
+/// `parent_ns_window` is an `NSWindow*` obtained from `raw-window-handle`.
+pub fn open_vst3_editor_window_parented(
+    plugin_name: &str,
+    gui_context: Vst3GuiContext,
+    parent_ns_window: *mut std::ffi::c_void,
+) -> Result<Vst3EditorHandle> {
+    let controller = gui_context.controller;
+
+    let view_ptr = unsafe { controller.createView(ViewType::kEditor) };
+    if view_ptr.is_null() {
+        bail!("plugin '{}' returned null IPlugView (no GUI)", plugin_name);
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        use vst3::Steinberg::{kPlatformTypeNSView, kResultOk, ViewRect};
+
+        let library = gui_context.library;
+        let param_channel = gui_context.param_channel;
+
+        let component_handler = {
+            let wrapper = ComponentHandler::new(param_channel).into_com_ptr();
+            unsafe {
+                use vst3::Steinberg::Vst::IComponentHandler;
+                if let Some(com_ref) = wrapper.as_com_ref::<IComponentHandler>() {
+                    let _ = controller.setComponentHandler(com_ref.as_ptr());
+                }
+            }
+            Some(wrapper)
+        };
+
+        let view: ComPtr<vst3::Steinberg::IPlugView> =
+            unsafe { ComPtr::from_raw_unchecked(view_ptr) };
+
+        let res = unsafe { view.isPlatformTypeSupported(kPlatformTypeNSView) };
+        if res != kResultOk {
+            bail!("plugin '{}' does not support NSView GUI (result={})", plugin_name, res);
+        }
+
+        let mut rect = ViewRect { left: 0, top: 0, right: 800, bottom: 600 };
+        unsafe { view.getSize(&mut rect) };
+        let width = (rect.right - rect.left).max(200) as f64;
+        let height = (rect.bottom - rect.top).max(100) as f64;
+
+        let ns_window = macos::create_editor_window(plugin_name, width, height)?;
+        let ns_view = ns_window.content_view();
+
+        let res = unsafe { view.attached(ns_view, kPlatformTypeNSView) };
+        if res != kResultOk {
+            bail!("IPlugView::attached failed (result={})", res);
+        }
+
+        // Register as child of the parent window so it moves with it.
+        if !parent_ns_window.is_null() {
+            ns_window.add_as_child_of(parent_ns_window);
         }
 
         ns_window.show(plugin_name);
@@ -540,6 +624,17 @@ mod macos {
     impl OwnedNsWindow {
         pub fn content_view(&self) -> *mut c_void {
             unsafe { msg0!(self.0, sel("contentView")) }
+        }
+
+        /// Register this window as a child of `parent` so it always floats
+        /// above the parent and moves with it.
+        pub fn add_as_child_of(&self, parent: *mut c_void) {
+            unsafe {
+                // NSWindowOrderingMode.above = 1
+                type MsgSendChild = unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, i64) -> *mut c_void;
+                let f: MsgSendChild = std::mem::transmute(objc_msgSend as *const ());
+                f(parent, sel("addChildWindow:ordered:"), self.0, 1);
+            }
         }
 
         pub fn show(&self, title: &str) {

@@ -96,11 +96,11 @@ fn ensure_devices_loaded(
         *output.borrow_mut() = list_output_device_descriptors().unwrap_or_default();
     }
 }
-/// Get the content NSView from the Slint AppWindow for embedding native views.
+/// Get the NSWindow from the Slint AppWindow for parenting child windows.
 ///
-/// Returns `None` on non-macOS platforms or if the handle cannot be obtained.
-#[allow(dead_code)] // Will be used when embedded VST3 editor mode is enabled for fullscreen
-fn get_parent_ns_view(window: &AppWindow) -> anyhow::Result<*mut std::ffi::c_void> {
+/// On macOS, obtains the NSView via `raw-window-handle` and then calls
+/// `[nsView window]` to get the owning NSWindow.
+fn get_parent_ns_window(window: &AppWindow) -> anyhow::Result<*mut std::ffi::c_void> {
     #[cfg(target_os = "macos")]
     {
         use raw_window_handle::HasWindowHandle;
@@ -110,13 +110,26 @@ fn get_parent_ns_view(window: &AppWindow) -> anyhow::Result<*mut std::ffi::c_voi
         match raw_handle.as_raw() {
             raw_window_handle::RawWindowHandle::AppKit(appkit) => {
                 let ns_view = appkit.ns_view.as_ptr();
-                Ok(ns_view)
+                // [nsView window] → NSWindow*
+                extern "C" { fn objc_msgSend(); }
+                extern "C" { fn sel_registerName(str_: *const std::ffi::c_char) -> *mut std::ffi::c_void; }
+                let sel = unsafe { sel_registerName(b"window\0".as_ptr() as *const _) };
+                type MsgSend0 = unsafe extern "C" fn(*mut std::ffi::c_void, *mut std::ffi::c_void) -> *mut std::ffi::c_void;
+                let f: MsgSend0 = unsafe { std::mem::transmute(objc_msgSend as *const ()) };
+                let ns_window = unsafe { f(ns_view, sel) };
+                if ns_window.is_null() {
+                    anyhow::bail!("NSView has no window");
+                }
+                Ok(ns_window)
             }
             _ => anyhow::bail!("unexpected window handle type (expected AppKit)"),
         }
     }
     #[cfg(not(target_os = "macos"))]
-    anyhow::bail!("embedded VST3 editor not yet supported on this platform")
+    {
+        let _ = window;
+        anyhow::bail!("parented VST3 editor not yet supported on this platform")
+    }
 }
 
 fn use_inline_block_editor(window: &AppWindow) -> bool {
@@ -5906,13 +5919,23 @@ pub fn run_desktop_app(
         let toast_timer = toast_timer.clone();
         let weak_window = window.as_weak();
         window.on_open_vst3_editor(move |model_id| {
-            // Always open VST3 editors in a separate floating window.
-            // Embedded mode (inside the Slint window) is not yet ready for
-            // production — plugin GUIs have arbitrary sizes and need their own
-            // window chrome (resize handle, close button, etc.).
-            let result = project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr);
+            // Try to parent the editor window to the main window so it
+            // floats above it and moves together. Fall back to a standalone
+            // floating window if the parent handle cannot be obtained.
+            let result = if let Some(w) = weak_window.upgrade() {
+                match get_parent_ns_window(&w) {
+                    Ok(parent) => project::vst3_editor::open_vst3_editor_parented(
+                        model_id.as_str(), vst3_sr, parent,
+                    ),
+                    Err(_) => project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr),
+                }
+            } else {
+                project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr)
+            };
             match result {
-                Ok(handle) => { vst3_handles.borrow_mut().push(handle); }
+                Ok(handle) => {
+                    vst3_handles.borrow_mut().push(handle);
+                }
                 Err(e) => {
                     log::error!("VST3 editor: failed to open '{}': {}", model_id, e);
                     if let Some(w) = weak_window.upgrade() {
