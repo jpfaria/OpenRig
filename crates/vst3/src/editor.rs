@@ -641,6 +641,100 @@ pub fn open_vst3_editor_child_window(
     bail!("VST3 child window editor not yet supported on this platform")
 }
 
+/// Open the VST3 editor in a borderless child window (standalone mode — no engine context).
+///
+/// Same as `open_vst3_editor_child_window` but loads a fresh plugin instance.
+pub fn open_vst3_editor_child_window_standalone(
+    bundle_path: &Path,
+    uid: &[u8; 16],
+    plugin_name: &str,
+    sample_rate: f64,
+    parent_ns_window: *mut std::ffi::c_void,
+    x: f64,
+    y: f64,
+) -> Result<(Vst3EditorHandle, f64, f64)> {
+    let plugin = Vst3Plugin::load(bundle_path, uid, sample_rate, 2, 512, &[])?;
+
+    unsafe {
+        use vst3::Steinberg::Vst::IConnectionPoint;
+        use vst3::Steinberg::Vst::IConnectionPointTrait;
+        if let Some(comp_cp) = plugin.component().cast::<IConnectionPoint>() {
+            if let Some(ctrl_cp) = plugin.controller().cast::<IConnectionPoint>() {
+                let _ = comp_cp.connect(ctrl_cp.as_ptr());
+                let _ = ctrl_cp.connect(comp_cp.as_ptr());
+            }
+        }
+    }
+
+    let controller = plugin.controller_clone();
+
+    let view_ptr = unsafe { controller.createView(vst3::Steinberg::Vst::ViewType::kEditor) };
+    if view_ptr.is_null() {
+        bail!("plugin '{}' returned null IPlugView (no GUI)", plugin_name);
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        use vst3::Steinberg::{kPlatformTypeNSView, kResultOk, ViewRect};
+
+        let library = plugin.library_arc();
+
+        let component_handler = {
+            let wrapper = ComponentHandler::new(crate::param_channel::vst3_param_channel()).into_com_ptr();
+            unsafe {
+                use vst3::Steinberg::Vst::IComponentHandler;
+                if let Some(com_ref) = wrapper.as_com_ref::<IComponentHandler>() {
+                    let _ = controller.setComponentHandler(com_ref.as_ptr());
+                }
+            }
+            Some(wrapper)
+        };
+
+        let view: ComPtr<vst3::Steinberg::IPlugView> =
+            unsafe { ComPtr::from_raw_unchecked(view_ptr) };
+
+        let res = unsafe { view.isPlatformTypeSupported(kPlatformTypeNSView) };
+        if res != kResultOk {
+            bail!("plugin '{}' does not support NSView GUI (result={})", plugin_name, res);
+        }
+
+        let mut rect = ViewRect { left: 0, top: 0, right: 800, bottom: 600 };
+        unsafe { view.getSize(&mut rect) };
+        let width = (rect.right - rect.left).max(200) as f64;
+        let height = (rect.bottom - rect.top).max(100) as f64;
+
+        let child_win = macos::create_borderless_child_window(parent_ns_window, width, height)?;
+
+        let (sx, sy) = macos::window_to_screen_coords(parent_ns_window, x, y, height);
+        child_win.set_frame_origin(sx, sy);
+
+        let content_view = child_win.content_view();
+        let res = unsafe { view.attached(content_view, kPlatformTypeNSView) };
+        if res != kResultOk {
+            bail!("IPlugView::attached failed (result={})", res);
+        }
+
+        child_win.set_visible(true);
+
+        return Ok((Vst3EditorHandle {
+            view,
+            _library: library,
+            _controller: controller,
+            _component_handler: component_handler,
+            _standalone_plugin: Some(Box::new(plugin)),
+            _ns_window: Some(child_win),
+            _embedded_view: None,
+            is_child_window: true,
+            parent_ns_window,
+            editor_width: width,
+            editor_height: height,
+        }, width, height));
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    bail!("VST3 child window editor not yet supported on this platform")
+}
+
 // ---------------------------------------------------------------------------
 // macOS implementation
 // ---------------------------------------------------------------------------
@@ -985,10 +1079,58 @@ mod macos {
         }
     }
 
+    #[link(name = "objc")]
+    extern "C" {
+        fn objc_allocateClassPair(superclass: *mut c_void, name: *const i8, extra_bytes: usize) -> *mut c_void;
+        fn objc_registerClassPair(cls: *mut c_void);
+        fn class_addMethod(cls: *mut c_void, sel: *mut c_void, imp: *const c_void, types: *const i8) -> bool;
+    }
+
+    /// Return YES from canBecomeKeyWindow so the borderless window accepts
+    /// key focus and mouse events stay local (not forwarded to the parent winit window).
+    extern "C" fn can_become_key_window(_this: *mut c_void, _sel: *mut c_void) -> bool {
+        true
+    }
+
+    /// Get or create the `OpenRigBorderlessWindow` runtime ObjC class.
+    ///
+    /// This is an NSWindow subclass that overrides `canBecomeKeyWindow` → YES.
+    /// Borderless windows (style mask 0) return NO by default, which causes
+    /// mouse events to be forwarded to the key window (winit's window), triggering panics.
+    fn borderless_window_class() -> *mut c_void {
+        use std::sync::Once;
+        static REGISTER: Once = Once::new();
+        static mut CLASS: *mut c_void = std::ptr::null_mut();
+
+        REGISTER.call_once(|| {
+            unsafe {
+                let superclass = cls("NSWindow");
+                let name = CString::new("OpenRigBorderlessWindow").unwrap();
+                let new_cls = objc_allocateClassPair(superclass, name.as_ptr(), 0);
+                if !new_cls.is_null() {
+                    let types = CString::new("B@:").unwrap(); // BOOL, self, _cmd
+                    class_addMethod(
+                        new_cls,
+                        sel("canBecomeKeyWindow"),
+                        can_become_key_window as *const c_void,
+                        types.as_ptr(),
+                    );
+                    objc_registerClassPair(new_cls);
+                    CLASS = new_cls;
+                } else {
+                    // Already registered from a previous load — look it up.
+                    CLASS = cls("OpenRigBorderlessWindow");
+                }
+            }
+        });
+        unsafe { CLASS }
+    }
+
     /// Create a borderless NSWindow and add it as a child of the parent NSWindow.
     ///
-    /// `parent_ns_window` is the NSWindow* of the main Slint window.
-    /// `x`, `y` are the position of the child window in screen coordinates.
+    /// Uses a custom NSWindow subclass (`OpenRigBorderlessWindow`) that overrides
+    /// `canBecomeKeyWindow` → YES so mouse events stay local and don't get
+    /// forwarded to the parent winit window.
     pub fn create_borderless_child_window(
         parent_ns_window: *mut c_void,
         width: f64,
@@ -998,17 +1140,17 @@ mod macos {
             let ns_app_cls = cls("NSApplication");
             msg0!(ns_app_cls, sel("sharedApplication"));
 
-            let ns_window_cls = cls("NSWindow");
-            let window_alloc = msg0!(ns_window_cls, sel("alloc"));
+            let window_cls = borderless_window_class();
+            let window_alloc = msg0!(window_cls, sel("alloc"));
             if window_alloc.is_null() {
-                anyhow::bail!("NSWindow alloc returned nil");
+                anyhow::bail!("OpenRigBorderlessWindow alloc returned nil");
             }
 
             // Borderless window (style mask = 0)
             let frame = NSRect::new(0.0, 0.0, width, height);
             let window = msg_init_window!(window_alloc, frame, 0u64);
             if window.is_null() {
-                anyhow::bail!("NSWindow init returned nil");
+                anyhow::bail!("OpenRigBorderlessWindow init returned nil");
             }
 
             msg_bool!(window, sel("setReleasedWhenClosed:"), false);

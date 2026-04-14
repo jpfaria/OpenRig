@@ -156,11 +156,9 @@ pub fn open_vst3_editor_child_window(
         return Ok((Box::new(handle), w, h));
     }
 
-    // Fallback: no engine context, can't open child window without gui context.
-    // Use embedded standalone as fallback.
-    log::warn!("VST3 child-window editor: no engine context for '{}', falling back to embedded standalone", model_id);
+    log::debug!("VST3 child-window editor: loading standalone instance for '{}'", model_id);
     let uid = vst3_host::resolve_uid_for_model(model_id)?;
-    let (handle, w, h) = vst3_host::open_vst3_editor_embedded_standalone(
+    let (handle, w, h) = vst3_host::open_vst3_editor_child_window_standalone(
         &entry.info.bundle_path,
         &uid,
         entry.display_name,
