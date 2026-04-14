@@ -254,6 +254,10 @@ export component BlockPanelEditor inherits Rectangle {
     private property <length> footer-height: root.block-drawer-edit-mode ? 0px : 52px;
 
     background: #0a0a0e;
+    border-width: 1px;
+    border-color: #3a3a5a;
+    border-radius: 8px;
+    clip: true;
 
     // ── HEADER (48px) ──────────────────────────────────────────────
     Rectangle {

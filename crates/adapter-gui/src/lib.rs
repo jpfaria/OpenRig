@@ -5982,6 +5982,13 @@ pub fn run_desktop_app(
                 }
             };
 
+            let size = w.window().size();
+            let scale = w.window().scale_factor() as f64;
+            let win_w = size.width as f64 / scale;
+            let win_h = size.height as f64 / scale;
+            log::info!("VST3 embed: window={}x{} (physical {}x{}, scale={})",
+                win_w, win_h, size.width, size.height, scale);
+
             let (handle, editor_w, editor_h) = match project::vst3_editor::open_vst3_editor_embedded(
                 model_str.as_str(), vst3_sr, ns_view, 0.0, 0.0,
             ) {
@@ -5993,12 +6000,16 @@ pub fn run_desktop_app(
                 }
             };
 
+            log::info!("VST3 embed: editor size={}x{}", editor_w, editor_h);
+
             let (cx, cy) = calc_position(editor_w, editor_h);
+            log::info!("VST3 embed: repositioning to ({}, {})", cx, cy);
             handle.reposition_embedded(cx, cy);
 
             w.set_vst3_editor_width(editor_w as f32);
             w.set_vst3_editor_height(editor_h as f32);
             w.set_vst3_editor_active(true);
+            log::info!("VST3 embed: set vst3-editor-active=true, width={}, height={}", editor_w, editor_h);
 
             *embedded_editor.borrow_mut() = Some((model_str, handle));
         });
