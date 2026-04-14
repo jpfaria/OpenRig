@@ -220,14 +220,18 @@ else
     echo "extraargs=${KERNEL_ARGS}" >> /boot/armbianEnv.txt
 fi
 
-# Armbian first-run wizard — disable so it does not prompt on first login.
+# Armbian first-run wizard and filesystem resize — disable all of it.
+# armbian-resize-filesystem.service hangs on noble despite the marker file;
+# mask it explicitly so it never runs (SD card keeps image partition size).
 rm -f /root/.not_logged_in_yet
 touch /root/.no_rootfs_resize_at_firstboot
-systemctl disable armbian-firstrun.service           2>/dev/null || true
-systemctl disable armbian-firstrun-config.service    2>/dev/null || true
-systemctl mask    armbian-firstrun.service           2>/dev/null || true
-systemctl mask    armbian-firstrun-config.service    2>/dev/null || true
+systemctl disable armbian-firstrun.service              2>/dev/null || true
+systemctl disable armbian-firstrun-config.service       2>/dev/null || true
+systemctl disable armbian-resize-filesystem.service     2>/dev/null || true
+systemctl mask    armbian-firstrun.service              2>/dev/null || true
+systemctl mask    armbian-firstrun-config.service       2>/dev/null || true
+systemctl mask    armbian-resize-filesystem.service     2>/dev/null || true
 rm -f /etc/profile.d/armbian-check-first-run.sh
-rm -f /etc/update-motd.d/30-armbian-sysinfo          2>/dev/null || true
+rm -f /etc/update-motd.d/30-armbian-sysinfo             2>/dev/null || true
 
 echo ">>> [OpenRig] Image customization complete."
