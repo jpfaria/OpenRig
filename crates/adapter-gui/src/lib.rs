@@ -1406,6 +1406,28 @@ pub fn run_desktop_app(
                     }
                     match FilesystemStorage::save_gui_audio_settings(&settings) {
                         Ok(()) => {
+                            // Update in-memory device settings and resync the
+                            // audio runtime so changes take effect immediately.
+                            // On Linux/JACK this will restart jackd if sample
+                            // rate or buffer size changed.
+                            if let Some(session) = project_session.borrow_mut().as_mut() {
+                                let all_devices: Vec<_> = settings.input_devices.iter()
+                                    .chain(settings.output_devices.iter())
+                                    .collect();
+                                session.project.device_settings = all_devices
+                                    .into_iter()
+                                    .map(|d| DeviceSettings {
+                                        device_id: DeviceId(d.device_id.clone()),
+                                        sample_rate: d.sample_rate,
+                                        buffer_size_frames: d.buffer_size_frames,
+                                        bit_depth: d.bit_depth,
+                                    })
+                                    .collect();
+                                if let Err(e) = sync_project_runtime(&project_runtime, session) {
+                                    set_status_error(&window, &toast_timer, &e.to_string());
+                                    return;
+                                }
+                            }
                             clear_status(&window, &toast_timer);
                             window.set_show_audio_settings(false);
                         }

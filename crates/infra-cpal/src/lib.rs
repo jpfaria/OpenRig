@@ -300,50 +300,23 @@ fn detect_usb_audio_card() -> Option<String> {
     None
 }
 
-/// Ensure JACK is running with the correct parameters. If JACK is not running,
-/// launch it with the device settings from the project (sample_rate, buffer_size).
-///
-/// This allows OpenRig to control the JACK lifecycle: when a chain is enabled,
-/// JACK is automatically started with the right configuration.
-///
-/// The function:
-/// 1. Checks if JACK is already running — if so, returns immediately
-/// 2. Detects the USB audio card via /proc/asound/cards
-/// 3. Launches `jackd` as a background process with the configured parameters
-/// 4. Waits up to 5 seconds for the JACK socket to appear
+/// Launch jackd with the given parameters and wait for it to become ready.
+/// Shared logic used by both `ensure_jack_running` and `restart_jack`.
 #[cfg(all(target_os = "linux", feature = "jack"))]
-fn ensure_jack_running(project: &project::Project) -> Result<()> {
-    if jack_server_is_running() {
-        log::debug!("ensure_jack_running: JACK already running");
-        return Ok(());
-    }
-
-    let card = detect_usb_audio_card()
-        .ok_or_else(|| anyhow!("no USB audio interface found — connect a device before starting audio"))?;
-
-    // Get sample_rate and buffer_size from project device_settings (populated
-    // from gui-settings.yaml). Fall back to safe defaults if empty.
-    let (sample_rate, buffer_size) = project
-        .device_settings
-        .first()
-        .map(|s| (s.sample_rate, s.buffer_size_frames))
-        .unwrap_or((48000, 64));
-
+fn launch_jackd(card: &str, sample_rate: u32, buffer_size: u32) -> Result<()> {
     log::info!(
-        "ensure_jack_running: launching jackd -d alsa -d hw:{} -r {} -p {} -n 3",
+        "launch_jackd: jackd -d alsa -d hw:{} -r {} -p {} -n 3",
         card, sample_rate, buffer_size
     );
 
     // Set ALSA mixer to unity gain before JACK starts (same as jackd.service)
     let _ = std::process::Command::new("amixer")
-        .args(["-c", &card, "set", "Mic", "46%"])
+        .args(["-c", card, "set", "Mic", "46%"])
         .output();
     let _ = std::process::Command::new("amixer")
-        .args(["-c", &card, "set", "PCM", "100%"])
+        .args(["-c", card, "set", "PCM", "100%"])
         .output();
 
-    // Launch jackd as a detached process. We use /bin/sh to ensure proper
-    // signal handling and avoid zombie processes.
     let child = std::process::Command::new("/usr/bin/jackd")
         .args([
             "-d", "alsa",
@@ -359,13 +332,12 @@ fn ensure_jack_running(project: &project::Project) -> Result<()> {
         .spawn()
         .map_err(|e| anyhow!("failed to launch jackd: {}", e))?;
 
-    log::info!("ensure_jack_running: jackd spawned with PID {}", child.id());
+    log::info!("launch_jackd: jackd spawned with PID {}", child.id());
 
     // Wait for the JACK socket to appear (up to 5 seconds)
     for i in 0..50 {
         if jack_server_is_running() {
-            log::info!("ensure_jack_running: JACK ready after {}ms", i * 100);
-            // Invalidate any stale cache from previous JACK instance
+            log::info!("launch_jackd: JACK ready after {}ms", i * 100);
             invalidate_jack_meta_cache();
             return Ok(());
         }
@@ -373,6 +345,70 @@ fn ensure_jack_running(project: &project::Project) -> Result<()> {
     }
 
     bail!("jackd was launched but did not become ready within 5 seconds")
+}
+
+/// Ensure JACK is running with the correct parameters. If JACK is not running,
+/// launch it. If JACK is running but with different sample_rate or buffer_size,
+/// kill it and relaunch with the new parameters.
+///
+/// Returns true if JACK was (re)started, false if already running with correct config.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn ensure_jack_running(project: &project::Project) -> Result<bool> {
+    let (desired_sr, desired_buf) = project
+        .device_settings
+        .first()
+        .map(|s| (s.sample_rate, s.buffer_size_frames))
+        .unwrap_or((48000, 64));
+
+    if jack_server_is_running() {
+        // Check if current JACK config matches desired
+        if let Ok(meta) = jack_meta() {
+            if meta.sample_rate == desired_sr && meta.buffer_size == desired_buf {
+                log::debug!("ensure_jack_running: JACK already running with correct config");
+                return Ok(false);
+            }
+            // Config mismatch — need to restart JACK
+            log::info!(
+                "ensure_jack_running: JACK config mismatch (running: sr={} buf={}, desired: sr={} buf={}), restarting",
+                meta.sample_rate, meta.buffer_size, desired_sr, desired_buf
+            );
+            stop_jackd()?;
+        }
+    }
+
+    let card = detect_usb_audio_card()
+        .ok_or_else(|| anyhow!("no USB audio interface found — connect a device before starting audio"))?;
+
+    launch_jackd(&card, desired_sr, desired_buf)?;
+    Ok(true)
+}
+
+/// Stop the running JACK server by sending SIGTERM to all jackd processes.
+/// Waits up to 3 seconds for the server to shut down.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn stop_jackd() -> Result<()> {
+    log::info!("stop_jackd: killing jackd");
+    let _ = std::process::Command::new("killall")
+        .args(["jackd"])
+        .output();
+
+    // Wait for JACK socket to disappear
+    for _ in 0..30 {
+        if !jack_server_is_running() {
+            invalidate_jack_meta_cache();
+            log::info!("stop_jackd: JACK stopped");
+            return Ok(());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+
+    // Force kill
+    let _ = std::process::Command::new("killall")
+        .args(["-9", "jackd"])
+        .output();
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    invalidate_jack_meta_cache();
+    Ok(())
 }
 
 /// Enumerate input devices directly via cached JACK metadata.
@@ -1226,7 +1262,13 @@ impl ProjectRuntimeController {
             // Ensure JACK is running before attempting to connect.
             // If no JACK server is active, launch one with the project's
             // device settings (sample rate, buffer size from gui-settings.yaml).
-            ensure_jack_running(project)?;
+            let jack_restarted = ensure_jack_running(project)?;
+            if jack_restarted && !self.active_chains.is_empty() {
+                // JACK was restarted — all existing JACK clients are dead.
+                // Tear down everything so sync_project_jack_direct rebuilds.
+                log::info!("sync_project: JACK restarted, tearing down all chains");
+                self.stop();
+            }
             return self.sync_project_jack_direct(project);
         }
 
@@ -1308,7 +1350,11 @@ impl ProjectRuntimeController {
 
         #[cfg(all(target_os = "linux", feature = "jack"))]
         if using_jack_direct() {
-            ensure_jack_running(project)?;
+            let jack_restarted = ensure_jack_running(project)?;
+            if jack_restarted && !self.active_chains.is_empty() {
+                log::info!("upsert_chain: JACK restarted, tearing down all chains");
+                self.stop();
+            }
             let resolved = jack_resolve_chain_config(chain)?;
             return self.upsert_chain_with_resolved(chain, resolved);
         }
