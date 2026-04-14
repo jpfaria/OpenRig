@@ -105,9 +105,10 @@ chown -R openrig:openrig /home/openrig
 echo 'openrig:openrig' | chpasswd
 echo 'root:root'       | chpasswd
 
-# Create a default project so OpenRig opens directly into the main view
-# instead of showing the launcher on first boot.
-cat > /home/openrig/project.yaml << 'DEFAULT_PROJECT'
+# Create the default project config that openrig.service uses
+# (ExecStart=/usr/bin/openrig --fullscreen --auto-save /etc/openrig.yaml).
+# OpenRig opens directly into the main view instead of the launcher.
+cat > /etc/openrig.yaml << 'DEFAULT_PROJECT'
 version: 1
 name: My Rig
 chains:
@@ -129,12 +130,6 @@ chains:
             mode: stereo
             channels: [0, 1]
 DEFAULT_PROJECT
-chown openrig:openrig /home/openrig/project.yaml
-
-# Create the system-level project config that openrig.service uses
-# (ExecStart=/usr/bin/openrig --fullscreen --auto-save /etc/openrig.yaml).
-# This is a minimal config; the user customizes it via the GUI.
-cp /home/openrig/project.yaml /etc/openrig.yaml
 
 # ── 8. Locale, keyboard, timezone ────────────────────────────────────────────
 # English UI, Brazilian ABNT2 keyboard, São Paulo time. All configured
