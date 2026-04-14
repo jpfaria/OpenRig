@@ -68,7 +68,9 @@ log "starting (cooldown=${COOLDOWN_SECS}s, reset_cmd=$RESET_CMD)"
 # --since now: ignore any historical entries at startup (e.g., yesterday's
 # "capture device disconnected" that already got handled). -o cat: strip
 # the "HOSTNAME SERVICE[PID]:" prefix so we pattern-match the raw message.
-journalctl -f -u jackd.service --since now -o cat | while IFS= read -r line; do
+# JACK is now launched by OpenRig as a background process (not a systemd
+# service), so we filter by _COMM=jackd instead of -u jackd.service.
+journalctl -f _COMM=jackd --since now -o cat | while IFS= read -r line; do
     case "$line" in
         *"capture device disconnected"*|*"playback device disconnected"*|*"ProcessAsync: read error"*)
             trigger_reset

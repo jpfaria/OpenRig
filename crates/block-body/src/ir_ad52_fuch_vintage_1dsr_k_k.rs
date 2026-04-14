@@ -7,7 +7,7 @@ use block_core::{AudioChannelLayout, ModelAudioMode, BlockProcessor};
 
 pub const MODEL_ID: &str = "ad52_fuch_vintage_1dsr_k_k";
 pub const DISPLAY_NAME: &str = "AD52 Fuch Vintage 1DSR K&K";
-const BRAND: &str = "";
+const BRAND: &str = "furch";
 
 macro_rules! capture {
     ($p1:literal, $ir_file:literal) => {

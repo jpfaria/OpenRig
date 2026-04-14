@@ -60,9 +60,11 @@ component DeviceRow inherits Rectangle {
     in property <DeviceSelectionItem> device;
     in property <[string]> sample-rate-options;
     in property <[string]> buffer-size-options;
+    in property <[string]> bit-depth-options;
     callback toggled(bool);
     callback sample-rate-selected(string);
     callback buffer-size-selected(string);
+    callback bit-depth-selected(string);
 
     height: 48px;
     background: transparent;
@@ -83,6 +85,13 @@ component DeviceRow inherits Rectangle {
             : value == "512" ? 4
             : value == "1024" ? 5
             : 3;
+    }
+
+    pure function bit-depth-index(value: string) -> int {
+        return value == "16" ? 0
+            : value == "24" ? 1
+            : value == "32" ? 2
+            : 2;
     }
 
     // Separator line
@@ -120,7 +129,7 @@ component DeviceRow inherits Rectangle {
     Text {
         x: 32px;
         y: 0px;
-        width: parent.width - 32px - (root.device.selected ? 310px : 0px);
+        width: parent.width - 32px - (root.device.selected ? 420px : 0px);
         height: parent.height;
         text: root.device.name;
         color: root.device.selected ? #edf2f9 : #8a95a5;
@@ -131,7 +140,7 @@ component DeviceRow inherits Rectangle {
     }
 
     if root.device.selected : Text {
-        x: parent.width - 314px;
+        x: parent.width - 424px;
         y: 0px;
         width: 26px;
         height: parent.height;
@@ -144,7 +153,7 @@ component DeviceRow inherits Rectangle {
     }
 
     if root.device.selected : ComboBox {
-        x: parent.width - 284px;
+        x: parent.width - 394px;
         y: 8px;
         width: 100px;
         height: 32px;
@@ -154,7 +163,7 @@ component DeviceRow inherits Rectangle {
     }
 
     if root.device.selected : Text {
-        x: parent.width - 178px;
+        x: parent.width - 288px;
         y: 0px;
         width: 32px;
         height: parent.height;
@@ -167,13 +176,36 @@ component DeviceRow inherits Rectangle {
     }
 
     if root.device.selected : ComboBox {
-        x: parent.width - 142px;
+        x: parent.width - 252px;
         y: 8px;
         width: 100px;
         height: 32px;
         model: root.buffer-size-options;
         current-index: root.buffer-size-index(root.device.buffer_size_text);
         selected(value) => { root.buffer-size-selected(value); }
+    }
+
+    if root.device.selected : Text {
+        x: parent.width - 146px;
+        y: 0px;
+        width: 26px;
+        height: parent.height;
+        text: "Bits";
+        color: #6b7786;
+        font-size: 11px;
+        font-weight: 600;
+        vertical-alignment: center;
+        horizontal-alignment: right;
+    }
+
+    if root.device.selected : ComboBox {
+        x: parent.width - 116px;
+        y: 8px;
+        width: 76px;
+        height: 32px;
+        model: root.bit-depth-options;
+        current-index: root.bit-depth-index(root.device.bit_depth_text);
+        selected(value) => { root.bit-depth-selected(value); }
     }
 
     TouchArea {
@@ -192,12 +224,14 @@ export component ProjectSettingsPage inherits Rectangle {
     in property <[DeviceSelectionItem]> project-devices;
     in property <[string]> sample-rate-options;
     in property <[string]> buffer-size-options;
+    in property <[string]> bit-depth-options;
     callback update-project-name(string);
     callback save-audio-settings();
     callback close-project-settings();
     callback toggle-project-device(int, bool);
     callback update-project-sample-rate(int, string);
     callback update-project-buffer-size(int, string);
+    callback update-project-bit-depth(int, string);
 
     background: #171a1f;
 
@@ -254,9 +288,11 @@ export component ProjectSettingsPage inherits Rectangle {
             device: device;
             sample-rate-options: root.sample-rate-options;
             buffer-size-options: root.buffer-size-options;
+            bit-depth-options: root.bit-depth-options;
             toggled(selected) => { root.toggle-project-device(index, selected); }
             sample-rate-selected(value) => { root.update-project-sample-rate(index, value); }
             buffer-size-selected(value) => { root.update-project-buffer-size(index, value); }
+            bit-depth-selected(value) => { root.update-project-bit-depth(index, value); }
         }
     }
 

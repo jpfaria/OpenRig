@@ -122,8 +122,13 @@ echo 'America/Sao_Paulo' > /etc/timezone
 dpkg-reconfigure -f noninteractive tzdata || true
 
 # ── 9. Enable systemd services ───────────────────────────────────────────────
-echo ">>> [OpenRig] Enabling jackd.service, weston.service, openrig.service and openrig-audio-watchdog.service..."
-systemctl enable jackd.service
+# JACK is no longer started by systemd. OpenRig manages JACK lifecycle
+# programmatically via ensure_jack_running() in infra-cpal: it detects the
+# USB audio card, reads sample_rate/buffer_size from gui-settings.yaml, and
+# launches jackd with the correct parameters. The jackd2 package is still
+# installed (we need the /usr/bin/jackd binary).
+echo ">>> [OpenRig] Enabling openrig-irq-affinity.service, weston.service, openrig.service and openrig-audio-watchdog.service..."
+systemctl enable openrig-irq-affinity.service
 systemctl enable weston.service
 systemctl enable openrig.service
 systemctl enable openrig-audio-watchdog.service
