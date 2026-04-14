@@ -1,4 +1,4 @@
-// Dark 3D knob with purple line indicator.
+// Dark 3D knob with purple line indicator and value below.
 // Used in both block_panel_editor and compact_chain_view.
 export component PanelKnob inherits Rectangle {
     in property <float> value;
@@ -17,9 +17,11 @@ export component PanelKnob inherits Rectangle {
     private property <bool> preview-active: false;
     private property <float> preview-val: 0;
     private property <angle> indicator-angle: 225deg + root.norm * 270deg;
-    private property <length> ks: Math.min(root.width, root.height);
+    // Knob circle uses upper portion, value text below
+    private property <length> text-h: 14px;
+    private property <length> ks: Math.min(root.width, root.height - root.text-h);
     private property <length> cx: root.width / 2;
-    private property <length> cy: root.height / 2;
+    private property <length> cy: root.ks / 2;
     private property <float> sin-a: Math.sin(root.indicator-angle);
     private property <float> cos-a: Math.cos(root.indicator-angle);
     private property <float> ks-f: root.ks / 1px;
@@ -37,7 +39,7 @@ export component PanelKnob inherits Rectangle {
         background: #00000050;
     }
 
-    // ── Knob body — single gradient does all the 3D work ──
+    // ── Knob body ──
     Rectangle {
         x: root.cx - root.ks / 2;
         y: root.cy - root.ks / 2;
@@ -70,18 +72,18 @@ export component PanelKnob inherits Rectangle {
         }
     }
 
-    // ── Value text ──
+    // ── Value text below knob ──
     Text {
         x: root.cx - root.ks / 2;
-        y: root.cy - root.ks / 2;
+        y: root.ks + 1px;
         width: root.ks;
-        height: root.ks;
+        height: root.text-h;
         text: root.step >= 1.0
             ? Math.round(root.current-val) + ""
             : Math.round(root.current-val * 10) / 10 + "";
-        color: ta.pressed ? #cccccc : ta.has-hover ? #aaaaaa : #777777;
+        color: ta.pressed ? #cccccc : ta.has-hover ? #aaaaaa : #999999;
         font-family: "Bebas Neue";
-        font-size: 10px;
+        font-size: 11px;
         font-weight: 700;
         horizontal-alignment: center;
         vertical-alignment: center;
