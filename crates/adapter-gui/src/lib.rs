@@ -1345,6 +1345,14 @@ pub fn run_desktop_app(
                                 return;
                             }
                         };
+                    // Persist device settings to per-machine config
+                    let gui_settings = GuiAudioSettings {
+                        input_devices: project_device_settings.clone(),
+                        output_devices: project_device_settings.clone(),
+                    };
+                    if let Err(e) = FilesystemStorage::save_gui_audio_settings(&gui_settings) {
+                        log::warn!("failed to persist gui audio settings: {e}");
+                    }
                     let mut session_borrow = project_session.borrow_mut();
                     let Some(session) = session_borrow.as_mut() else {
                         set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
@@ -1448,6 +1456,14 @@ pub fn run_desktop_app(
                     }
                 }
                 AudioSettingsMode::Project => {
+                    // Persist device settings to per-machine config
+                    let gui_settings = GuiAudioSettings {
+                        input_devices: project_device_settings.clone(),
+                        output_devices: project_device_settings.clone(),
+                    };
+                    if let Err(e) = FilesystemStorage::save_gui_audio_settings(&gui_settings) {
+                        log::warn!("failed to persist gui audio settings: {e}");
+                    }
                     let mut session_borrow = project_session.borrow_mut();
                     let Some(session) = session_borrow.as_mut() else {
                         settings_window.set_status_message("Nenhum projeto carregado.".into());
@@ -6869,10 +6885,29 @@ fn load_project_session(project_path: &Path, config_path: &Path) -> Result<Proje
         .presets_path
         .clone()
         .unwrap_or_else(|| PathBuf::from("./presets"));
-    let project = YamlProjectRepository {
+    let mut project = YamlProjectRepository {
         path: project_path.to_path_buf(),
     }
     .load_current_project()?;
+
+    // Populate device_settings from per-machine config (gui-settings.yaml)
+    // instead of the project YAML. Old projects may still have device_settings
+    // in their YAML — those are read for backward compat but overridden here.
+    let gui_settings = FilesystemStorage::load_gui_audio_settings()
+        .ok()
+        .flatten()
+        .unwrap_or_default();
+    project.device_settings = gui_settings
+        .input_devices
+        .iter()
+        .chain(gui_settings.output_devices.iter())
+        .map(|g| DeviceSettings {
+            device_id: DeviceId(g.device_id.clone()),
+            sample_rate: g.sample_rate,
+            buffer_size_frames: g.buffer_size_frames,
+        })
+        .collect();
+
     Ok(ProjectSession {
         project,
         project_path: Some(project_path.to_path_buf()),
