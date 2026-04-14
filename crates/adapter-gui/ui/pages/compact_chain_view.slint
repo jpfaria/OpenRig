@@ -222,14 +222,14 @@ component CompactBlockRow inherits Rectangle {
         spacing: 4px;
         padding-right: 8px;
         x: 0;
-        y: (parent.height - 72px) / 2;
+        y: (parent.height - 90px) / 2;
         width: parent.width;
-        height: 72px;
+        height: 90px;
 
         for knob[ki] in root.block-data.knob-overlays : Rectangle {
             min-width: 56px;
             preferred-width: 62px;
-            height: 72px;
+            height: 90px;
 
             Text {
                 x: 0; y: 0; width: parent.width; height: 12px;
@@ -243,7 +243,7 @@ component CompactBlockRow inherits Rectangle {
 
             PanelKnob {
                 x: 2px; y: 14px;
-                width: 58px; height: 58px;
+                width: 58px; height: 76px;
                 value: knob.value;
                 min-val: knob.min_val;
                 max-val: knob.max_val;
@@ -261,9 +261,9 @@ component CompactBlockRow inherits Rectangle {
         spacing: 4px;
         padding-right: 8px;
         x: 0;
-        y: (parent.height - 72px) / 2;
+        y: (parent.height - 90px) / 2;
         width: parent.width;
-        height: 72px;
+        height: 90px;
 
         for param[pi] in root.block-data.parameter-items : Rectangle {
             visible: param.widget_kind != "";
@@ -291,7 +291,7 @@ component CompactBlockRow inherits Rectangle {
             // ── Numeric knob/stepper/slider ──
             if param.widget_kind == "stepper" || param.widget_kind == "slider" || param.widget_kind == "knob" : PanelKnob {
                 x: 2px; y: 14px;
-                width: 58px; height: 58px;
+                width: 58px; height: 76px;
                 value: param.numeric_value;
                 min-val: param.numeric_min;
                 max-val: param.numeric_max;
