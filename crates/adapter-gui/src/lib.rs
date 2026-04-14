@@ -2995,6 +2995,7 @@ pub fn run_desktop_app(
                 let toast_timer = toast_timer.clone();
                 let weak_main = window.as_weak();
                 compact_win.on_open_plugin(move |model_id| {
+                    vst3_handles.borrow_mut().clear();
                     match project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr) {
                         Ok(handle) => { vst3_handles.borrow_mut().push(handle); }
                         Err(e) => {
@@ -4707,6 +4708,9 @@ pub fn run_desktop_app(
                     let toast_timer = toast_timer.clone();
                     let weak_main = weak_main_window.clone();
                     win.on_open_vst3_editor(move |model_id| {
+                        // Drop all previous handles so the plugin releases its
+                        // IEditController, allowing a fresh instance to be created.
+                        vst3_handles.borrow_mut().clear();
                         match project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr) {
                             Ok(handle) => { vst3_handles.borrow_mut().push(handle); }
                             Err(e) => {
