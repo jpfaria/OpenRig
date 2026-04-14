@@ -340,6 +340,7 @@ mod tests {
             device_id: DeviceId(device_id.to_string()),
             sample_rate: 48000,
             buffer_size_frames: 256,
+            bit_depth: 32,
         }
     }
 
@@ -623,6 +624,7 @@ mod tests {
             device_id: DeviceId("".to_string()),
             sample_rate: 48000,
             buffer_size_frames: 256,
+            bit_depth: 32,
         });
         let err = validate_project(&project).unwrap_err();
         assert!(err.to_string().contains("missing device_id"));
@@ -1131,6 +1133,7 @@ mod tests {
             device_id: DeviceId("  ".to_string()),
             sample_rate: 48000,
             buffer_size_frames: 256,
+            bit_depth: 32,
         }];
         let project = Project {
             name: Some("test".to_string()),

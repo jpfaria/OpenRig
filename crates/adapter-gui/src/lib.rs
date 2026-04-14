@@ -1380,6 +1380,7 @@ pub fn run_desktop_app(
                             device_id: DeviceId(device.device_id),
                             sample_rate: device.sample_rate,
                             buffer_size_frames: device.buffer_size_frames,
+                            bit_depth: device.bit_depth,
                         })
                         .collect();
                     if let Err(error) = sync_project_runtime(&project_runtime, session) {
@@ -1491,6 +1492,7 @@ pub fn run_desktop_app(
                             device_id: DeviceId(device.device_id),
                             sample_rate: device.sample_rate,
                             buffer_size_frames: device.buffer_size_frames,
+                            bit_depth: device.bit_depth,
                         })
                         .collect();
                     if let Err(error) = sync_project_runtime(&project_runtime, session) {
@@ -6921,6 +6923,7 @@ fn load_project_session(project_path: &Path, config_path: &Path) -> Result<Proje
             device_id: DeviceId(g.device_id.clone()),
             sample_rate: g.sample_rate,
             buffer_size_frames: g.buffer_size_frames,
+            bit_depth: g.bit_depth,
         })
         .collect();
 
@@ -8207,7 +8210,7 @@ fn build_project_device_rows(
                 name: device.name.clone(),
                 sample_rate: setting.sample_rate,
                 buffer_size_frames: setting.buffer_size_frames,
-                bit_depth: DEFAULT_BIT_DEPTH,
+                bit_depth: setting.bit_depth,
             })
             .unwrap_or_else(|| default_device_settings(device.id.clone(), device.name.clone()));
         rows.push(DeviceSelectionItem {

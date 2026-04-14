@@ -172,6 +172,7 @@ impl From<DeviceSettingsYaml> for DeviceSettings {
             device_id: DeviceId(value.device_id),
             sample_rate: value.sample_rate,
             buffer_size_frames: value.buffer_size_frames,
+            bit_depth: 32,
         }
     }
 }
@@ -2281,6 +2282,7 @@ mode: clean
                     device_id: DeviceId("coreaudio:builtin".into()),
                     sample_rate: 48000,
                     buffer_size_frames: 256,
+                    bit_depth: 32,
                 },
             ],
             chains: Vec::new(),
