@@ -68,15 +68,28 @@ export component PanelKnob inherits Rectangle {
         }
     }
 
-    // ── Center cap (covers inner line, like a real knob hub) ──
+    // ── Center cap shadow (depth) ──
     Rectangle {
-        property <length> cap: root.ks * 0.38;
+        property <length> cap: root.ks * 0.52;
+        x: root.cx - self.cap / 2 + 1px;
+        y: root.cy - self.cap / 2 + 1.5px;
+        width: self.cap;
+        height: self.cap;
+        border-radius: self.cap / 2;
+        background: #00000066;
+    }
+
+    // ── Center cap ──
+    Rectangle {
+        property <length> cap: root.ks * 0.50;
         x: root.cx - self.cap / 2;
         y: root.cy - self.cap / 2;
         width: self.cap;
         height: self.cap;
         border-radius: self.cap / 2;
-        background: @linear-gradient(170deg, #2a2832 0%, #141218 50%, #0a0810 100%);
+        background: @linear-gradient(170deg, #302e38 0%, #1a1820 40%, #0c0a12 100%);
+        border-width: 0.5px;
+        border-color: #3a3842;
     }
 
     // ── Value box below knob ──
