@@ -9,11 +9,10 @@ RELEASE="$1"   # e.g. "bookworm"
 echo ">>> [OpenRig] Customizing image for release: $RELEASE"
 
 # ── 1. Install runtime dependencies ──────────────────────────────────────────
-# System-level packages that are NOT pulled in by the openrig .deb itself:
-# weston/plymouth (boot + display stack), jackd2 (audio server), librsvg2-bin
-# (used below to convert the logo to PNG for the boot splash). The openrig
-# .deb declares its own runtime deps (libasound2 etc.), which apt will
-# resolve when we install it in step 3.
+# System-level packages that are NOT pulled in by the openrig .deb itself.
+# Plymouth is intentionally excluded for now — boot is kept verbose/text so
+# issues can be diagnosed via HDMI. Re-add plymouth + librsvg2-bin and
+# re-enable steps 5/6 once the kiosk boot sequence is validated.
 echo "jackd2 jackd/tweak_rt_limits boolean true" | debconf-set-selections
 DEBIAN_FRONTEND=noninteractive apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -27,8 +26,6 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     libgl1-mesa-dri \
     weston \
     adwaita-icon-theme \
-    plymouth \
-    librsvg2-bin \
     udev \
     locales \
     tzdata \
@@ -62,27 +59,21 @@ fi
 
 rm -rf /var/lib/apt/lists/*
 
-# ── 5. Convert OpenRig logo SVGs → PNGs for Plymouth ────────────────────────
-echo ">>> [OpenRig] Converting logo assets to PNG..."
-rsvg-convert \
-    -w 256 -h 256 \
-    /tmp/overlay/openrig-logomark.svg \
-    -o /usr/share/plymouth/themes/openrig/logo.png
-rsvg-convert \
-    -w 400 \
-    /tmp/overlay/openrig-logotype.svg \
-    -o /usr/share/plymouth/themes/openrig/logotype.png
-
-# ── 6. Register and activate Plymouth theme ──────────────────────────────────
-echo ">>> [OpenRig] Activating Plymouth theme..."
-update-alternatives --install \
-    /usr/share/plymouth/themes/default.plymouth \
-    default.plymouth \
-    /usr/share/plymouth/themes/openrig/openrig.plymouth \
-    100
-update-alternatives --set \
-    default.plymouth \
-    /usr/share/plymouth/themes/openrig/openrig.plymouth
+# ── 5/6. Plymouth theme (DISABLED — debug mode) ──────────────────────────────
+# Re-enable once boot sequence is stable:
+#   - install plymouth + librsvg2-bin in step 1
+#   - uncomment rsvg-convert + update-alternatives below
+#   - restore 'splash' in KERNEL_ARGS (step 11)
+#   - restore Plymouth commands in weston.service
+# rsvg-convert -w 256 -h 256 /tmp/overlay/openrig-logomark.svg \
+#     -o /usr/share/plymouth/themes/openrig/logo.png
+# rsvg-convert -w 400 /tmp/overlay/openrig-logotype.svg \
+#     -o /usr/share/plymouth/themes/openrig/logotype.png
+# update-alternatives --install /usr/share/plymouth/themes/default.plymouth \
+#     default.plymouth /usr/share/plymouth/themes/openrig/openrig.plymouth 100
+# update-alternatives --set default.plymouth \
+#     /usr/share/plymouth/themes/openrig/openrig.plymouth
+echo ">>> [OpenRig] Plymouth theme disabled (debug mode)."
 
 # ── 7. Create users with fixed passwords ─────────────────────────────────────
 # openrig: regular user with a real home so OpenRig can write projects,
@@ -172,20 +163,6 @@ systemctl enable openrig.service
 systemctl enable openrig-irq-affinity.service
 systemctl enable openrig-audio-watchdog.service
 
-# ── 9a. Plymouth quit failsafe ────────────────────────────────────────────────
-# plymouth-quit-wait.service blocks multi-user.target (and therefore sshd,
-# openrig, everything) until Plymouth receives 'quit'. weston.service calls
-# 'plymouth quit' in ExecStartPost/ExecStopPost, but if weston fails to exec
-# (binary missing, DRM not ready, libseat issue) before those hooks run,
-# Plymouth never gets the signal and SSH is unreachable forever.
-# This drop-in caps the wait at 10 s — the system always reaches
-# multi-user.target regardless of what happens with weston/Plymouth.
-echo ">>> [OpenRig] Capping plymouth-quit-wait timeout at 10s..."
-mkdir -p /etc/systemd/system/plymouth-quit-wait.service.d/
-cat > /etc/systemd/system/plymouth-quit-wait.service.d/openrig-timeout.conf << 'EOF'
-[Service]
-TimeoutStartSec=10
-EOF
 
 # ── 10. Set permissions on install script ────────────────────────────────────
 chmod 755 /usr/local/bin/openrig-install-to-emmc
@@ -229,38 +206,21 @@ else
     fi
 fi
 
-# ── 11. Silent kiosk boot ─────────────────────────────────────────────────────
-# Pure appliance boot: plymouth splash from u-boot handoff all the way until
-# weston takes the framebuffer, no text flashes, no login prompts on any tty,
-# no Armbian first-run wizard, no cursor blink.
-echo ">>> [OpenRig] Configuring silent kiosk boot..."
+# ── 11. Boot configuration (debug mode) ──────────────────────────────────────
+# Verbose boot: all kernel and systemd messages visible on HDMI (tty1).
+# No Plymouth, no quiet, gettys kept active for emergency console access.
+# Restore silent kiosk mode (quiet splash, console=tty3, mask gettys) once
+# boot issues are identified and resolved.
+echo ">>> [OpenRig] Configuring verbose debug boot..."
 
-# Kernel cmdline:
-#   quiet, loglevel=3            → suppress kernel chatter on the main console
-#   splash                        → Plymouth takes over early
-#   console=tty3                  → kernel console goes to an invisible tty
-#   vt.global_cursor_default=0    → no blinking cursor on any vt
-#   consoleblank=0                → never blank the console automatically
-#   systemd.show_status=false     → hide systemd unit status lines
-#   rd.systemd.show_status=false  → same, inside initramfs
-#   rd.udev.log_level=3           → quiet udev in initramfs
-KERNEL_ARGS='quiet splash loglevel=3 console=tty3 vt.global_cursor_default=0 consoleblank=0 systemd.show_status=false rd.systemd.show_status=false rd.udev.log_level=3'
+KERNEL_ARGS='loglevel=7 console=tty1 consoleblank=0'
 if grep -q "^extraargs=" /boot/armbianEnv.txt 2>/dev/null; then
     sed -i "s|^extraargs=.*|extraargs=${KERNEL_ARGS}|" /boot/armbianEnv.txt
 else
     echo "extraargs=${KERNEL_ARGS}" >> /boot/armbianEnv.txt
 fi
 
-# Armbian boot env: suppress verbose splash, keep console on serial only
-# (HDMI shows Plymouth logo), enable u-boot logo handoff.
-sed -i 's/^verbosity=.*/verbosity=0/' /boot/armbianEnv.txt
-sed -i 's/^console=.*/console=serial/' /boot/armbianEnv.txt
-sed -i 's/^bootlogo=.*/bootlogo=true/' /boot/armbianEnv.txt
-
-# Armbian first-run wizard (language/keyboard/timezone/user prompt).
-# On Armbian, the presence of /root/.not_logged_in_yet triggers the wizard
-# on first shell login; armbian-firstrun*.service also runs unconditionally.
-# We kill all of it.
+# Armbian first-run wizard — disable so it does not prompt on first login.
 rm -f /root/.not_logged_in_yet
 touch /root/.no_rootfs_resize_at_firstboot
 systemctl disable armbian-firstrun.service           2>/dev/null || true
@@ -269,13 +229,5 @@ systemctl mask    armbian-firstrun.service           2>/dev/null || true
 systemctl mask    armbian-firstrun-config.service    2>/dev/null || true
 rm -f /etc/profile.d/armbian-check-first-run.sh
 rm -f /etc/update-motd.d/30-armbian-sysinfo          2>/dev/null || true
-
-# Mask every getty so no text login prompt can ever appear.
-for tty in 1 2 3 4 5 6; do
-    systemctl disable "getty@tty${tty}.service" 2>/dev/null || true
-    systemctl mask    "getty@tty${tty}.service" 2>/dev/null || true
-done
-systemctl disable serial-getty@ttyS0.service  2>/dev/null || true
-systemctl mask    serial-getty@ttyS0.service  2>/dev/null || true
 
 echo ">>> [OpenRig] Image customization complete."
