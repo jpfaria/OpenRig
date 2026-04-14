@@ -584,11 +584,11 @@ export component BlockPanelEditor inherits Rectangle {
             x: 0;
             y: parent.height * 0.54;
             width: parent.width;
-            height: 72px;
+            height: 90px;
 
             for knob[ki] in root.block-knob-overlays : Rectangle {
                 horizontal-stretch: 1;
-                height: 72px;
+                height: 90px;
 
                 Text {
                     x: 0; y: 0; width: parent.width; height: 14px;
@@ -604,7 +604,7 @@ export component BlockPanelEditor inherits Rectangle {
                 PanelKnob {
                     x: (parent.width - 58px) / 2; y: 14px;
                     width: 58px;
-                    height: 58px;
+                    height: 76px;
                     value: knob.value;
                     min-val: knob.min_val;
                     max-val: knob.max_val;
@@ -627,7 +627,7 @@ export component BlockPanelEditor inherits Rectangle {
             x: 0;
             y: parent.height * 0.54;
             width: parent.width;
-            height: 72px;
+            height: 90px;
 
             for param[pi] in root.block-parameter-items : Rectangle {
                 visible: param.widget_kind != "";
@@ -814,7 +814,7 @@ export component BlockPanelEditor inherits Rectangle {
                     x: (parent.width - 58px) / 2;
                     y: 14px;
                     width: 58px;
-                    height: 58px;
+                    height: 76px;
                     value: param.numeric_value;
                     min-val: param.numeric_min;
                     max-val: param.numeric_max;

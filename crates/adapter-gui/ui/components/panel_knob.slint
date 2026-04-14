@@ -1,4 +1,4 @@
-// Shared dial knob — dark circle, dot indicator on edge, value in center.
+// Dark 3D knob with purple line indicator, value box below.
 // Used in both block_panel_editor and compact_chain_view.
 export component PanelKnob inherits Rectangle {
     in property <float> value;
@@ -8,61 +8,117 @@ export component PanelKnob inherits Rectangle {
     in property <string> path;
     callback changed(string, float);
 
-    private property <float> norm: root.preview-active ? (root.preview-val - root.min-val) / (root.max-val - root.min-val) : root.value / 100.0;
+    private property <float> current-val: root.preview-active ? root.preview-val : root.value;
+    private property <float> norm: root.max-val > root.min-val
+        ? Math.max(0.0, Math.min(1.0, (root.current-val - root.min-val) / (root.max-val - root.min-val)))
+        : 0.0;
     private property <float> drag-y0: 0;
     private property <float> drag-val0: 0;
     private property <bool> preview-active: false;
     private property <float> preview-val: 0;
-    // Angle: 225deg (min, 7:30) -> 495deg (max, 4:30)
-    private property <angle> dot-angle: 225deg + root.norm * 270deg;
-    private property <length> knob-size: Math.min(root.width, root.height);
-    private property <length> orbit: root.knob-size / 2 - 6px;
+    private property <angle> indicator-angle: 225deg + root.norm * 270deg;
+    private property <length> ks: root.width;
+    private property <length> cx: root.width / 2;
+    private property <length> cy: root.ks / 2;
+    private property <float> sin-a: Math.sin(root.indicator-angle);
+    private property <float> cos-a: Math.cos(root.indicator-angle);
+    private property <float> ks-f: root.ks / 1px;
+    private property <float> half: root.ks-f / 2;
 
     background: transparent;
 
-    // Dark circle base
+    // ── Shadow ──
     Rectangle {
-        x: (parent.width - root.knob-size) / 2;
-        y: (parent.height - root.knob-size) / 2;
-        width: root.knob-size;
-        height: root.knob-size;
-        border-radius: root.knob-size / 2;
-        background: #111;
-        border-width: ta.pressed ? 2.5px : ta.has-hover ? 2px : 1.5px;
-        border-color: ta.pressed ? #6688ff : ta.has-hover ? #4466bb : #333;
+        x: root.cx - root.ks / 2 + 1px;
+        y: root.cy - root.ks / 2 + 2px;
+        width: root.ks;
+        height: root.ks;
+        border-radius: root.ks / 2;
+        background: #00000050;
     }
 
-    // Dot indicator on circumference
+    // ── Knob body — top-to-bottom gradient (light top, dark bottom = sphere) ──
     Rectangle {
-        x: parent.width / 2 + Math.sin(root.dot-angle) * (root.orbit / 1px) * 1px - 4px;
-        y: parent.height / 2 - Math.cos(root.dot-angle) * (root.orbit / 1px) * 1px - 4px;
-        width: 8px;
-        height: 8px;
-        border-radius: 4px;
-        background: ta.pressed ? #ffffff : ta.has-hover ? #ddeeff : #aabbdd;
+        x: root.cx - root.ks / 2;
+        y: root.cy - root.ks / 2;
+        width: root.ks;
+        height: root.ks;
+        border-radius: root.ks / 2;
+        background: @linear-gradient(170deg, #38363f 0%, #2c2a33 15%, #201e27 35%, #16141c 55%, #0e0c14 75%, #08060e 100%);
     }
 
-    // Value in center
-    Text {
-        x: (parent.width - root.knob-size) / 2;
-        y: (parent.height - root.knob-size) / 2;
-        width: root.knob-size;
-        height: root.knob-size;
-        text: root.preview-active
-            ? (root.step >= 1.0
-                ? Math.round(root.preview-val) + ""
-                : Math.round(root.preview-val * 10) / 10 + "")
-            : (root.step >= 1.0
-                ? Math.round(root.value) + ""
-                : Math.round(root.value * 10) / 10 + "");
-        color: ta.pressed ? #ffffff : ta.has-hover ? #ddeeff : #ccdde8;
-        font-family: "Bebas Neue";
-        font-size: 11px;
-        font-weight: 700;
-        horizontal-alignment: center;
-        vertical-alignment: center;
+    // ── Purple indicator line — long, from center to near edge ──
+    Path {
+        x: root.cx - root.ks / 2;
+        y: root.cy - root.ks / 2;
+        width: root.ks;
+        height: root.ks;
+        viewbox-width: root.ks-f;
+        viewbox-height: root.ks-f;
+        stroke: ta.pressed ? #cc99ff : ta.has-hover ? #aa88ee : #8866cc;
+        stroke-width: 3.5px;
+
+        MoveTo {
+            x: root.half + root.sin-a * 2;
+            y: root.half - root.cos-a * 2;
+        }
+        LineTo {
+            x: root.half + root.sin-a * (root.half - 3);
+            y: root.half - root.cos-a * (root.half - 3);
+        }
     }
 
+    // ── Center cap shadow (depth) ──
+    Rectangle {
+        property <length> cap: root.ks * 0.62;
+        x: root.cx - self.cap / 2 + 1px;
+        y: root.cy - self.cap / 2 + 1.5px;
+        width: self.cap;
+        height: self.cap;
+        border-radius: self.cap / 2;
+        background: #00000066;
+    }
+
+    // ── Center cap ──
+    Rectangle {
+        property <length> cap: root.ks * 0.60;
+        x: root.cx - self.cap / 2;
+        y: root.cy - self.cap / 2;
+        width: self.cap;
+        height: self.cap;
+        border-radius: self.cap / 2;
+        background: @linear-gradient(170deg, #302e38 0%, #1a1820 40%, #0c0a12 100%);
+        border-width: 0.5px;
+        border-color: #3a3842;
+    }
+
+    // ── Value box below knob ──
+    Rectangle {
+        x: root.cx - root.ks * 0.45;
+        y: root.ks + 3px;
+        width: root.ks * 0.9;
+        height: root.height - root.ks - 4px;
+        border-radius: 3px;
+        background: #0c0a12;
+        border-width: 1px;
+        border-color: #2a2832;
+
+        Text {
+            width: parent.width;
+            height: parent.height;
+            text: root.step >= 1.0
+                ? Math.round(root.current-val) + ""
+                : Math.round(root.current-val * 10) / 10 + "";
+            color: ta.pressed ? #dddddd : ta.has-hover ? #cccccc : #bbbbbb;
+            font-family: "Bebas Neue";
+            font-size: 12px;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+
+    // ── Touch/drag ──
     ta := TouchArea {
         mouse-cursor: ta.pressed ? none : ns-resize;
 
