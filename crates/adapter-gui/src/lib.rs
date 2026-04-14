@@ -711,6 +711,66 @@ pub fn run_desktop_app(
         );
         std::mem::forget(error_poll_timer);
     }
+
+    // Audio health check timer — detects device disconnects (JACK server
+    // down on Linux, CoreAudio device removed on macOS) and auto-reconnects
+    // when the backend becomes available again.
+    {
+        let weak_window = window.as_weak();
+        let toast_timer_health = toast_timer.clone();
+        let runtime_health = project_runtime.clone();
+        let session_health = project_session.clone();
+        let disconnected = Rc::new(RefCell::new(false));
+        let health_timer = Timer::default();
+        health_timer.start(
+            slint::TimerMode::Repeated,
+            std::time::Duration::from_secs(2),
+            move || {
+                let Some(win) = weak_window.upgrade() else { return; };
+                let mut rt_borrow = runtime_health.borrow_mut();
+                let Some(rt) = rt_borrow.as_mut() else { return; };
+                if !rt.is_running() {
+                    return;
+                }
+                let mut is_disconnected = disconnected.borrow_mut();
+
+                if rt.is_healthy() {
+                    if *is_disconnected {
+                        // Was disconnected, now healthy again — nothing to do,
+                        // reconnection already happened
+                        *is_disconnected = false;
+                    }
+                    return;
+                }
+
+                // Backend is unhealthy
+                if !*is_disconnected {
+                    *is_disconnected = true;
+                    set_status_warning(&win, &toast_timer_health, "Audio device disconnected — reconnecting...");
+                    log::warn!("health check: audio backend unhealthy, will attempt reconnection");
+                }
+
+                // Try to reconnect
+                let session_borrow = session_health.borrow();
+                let Some(session) = session_borrow.as_ref() else { return; };
+                match rt.try_reconnect(&session.project) {
+                    Ok(true) => {
+                        *is_disconnected = false;
+                        set_status_info(&win, &toast_timer_health, "Audio device reconnected");
+                        log::info!("health check: successfully reconnected");
+                    }
+                    Ok(false) => {
+                        log::debug!("health check: backend not ready yet, will retry");
+                    }
+                    Err(e) => {
+                        log::warn!("health check: reconnection attempt failed: {}", e);
+                    }
+                }
+            },
+        );
+        std::mem::forget(health_timer);
+    }
+
     window.set_block_type_options(ModelRc::from(block_type_options.clone()));
     window.set_block_model_options(ModelRc::from(block_model_options.clone()));
     window.set_block_model_option_labels(ModelRc::from(block_model_option_labels.clone()));

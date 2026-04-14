@@ -244,6 +244,22 @@ Device settings (sample rate, buffer size, bit depth) são **per-machine**, não
 4. YAML do projeto **não persiste** `device_settings` (campo tem `skip_serializing`)
 5. YAML antigo com `device_settings` ainda deserializa (backward compat)
 
+#### JACK lifecycle management (Linux)
+
+No Linux com feature `jack`, o OpenRig controla o ciclo de vida do JACK:
+
+- **Auto-launch**: quando uma chain é habilitada e JACK não está rodando, `ensure_jack_running()` em infra-cpal:
+  1. Detecta a placa USB audio via `/proc/asound/cards`
+  2. Lê sample_rate e buffer_size do `project.device_settings` (gui-settings.yaml)
+  3. Configura mixer ALSA (Mic 46%, PCM 100% = unity gain)
+  4. Lança `jackd -d alsa -d hw:$CARD -r $SR -p $BUF -n 3` como processo background
+  5. Espera até 5s pelo socket JACK aparecer em `/dev/shm/`
+- **Auto-reconnect**: timer de 2s no adapter-gui (`health_timer`) verifica `is_healthy()`:
+  - Se JACK caiu (USB desconectou, service reiniciou) → mostra "Audio device disconnected"
+  - Tenta `try_reconnect()` a cada 2s → quando JACK volta, reconecta chains automaticamente
+  - Mostra "Audio device reconnected" quando sucesso
+- **Sem impacto em macOS/Windows**: `ensure_jack_running()` e `is_healthy()` são `#[cfg(all(target_os = "linux", feature = "jack"))]`
+
 ---
 
 ## Arquitetura

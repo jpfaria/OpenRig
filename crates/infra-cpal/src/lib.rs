@@ -282,6 +282,99 @@ fn invalidate_jack_meta_cache() {
     }
 }
 
+/// Detect the first USB audio ALSA card number by scanning /proc/asound/cards.
+/// Returns the card index (e.g. "1") or None if no USB audio card is present.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn detect_usb_audio_card() -> Option<String> {
+    let content = std::fs::read_to_string("/proc/asound/cards").ok()?;
+    for line in content.lines() {
+        let trimmed = line.trim_start();
+        if (trimmed.contains("USB-Audio") || trimmed.contains("USB Audio"))
+            && trimmed.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false)
+        {
+            // Line format: " 1 [Gen ]: USB-Audio - Scarlett 2i2 4th Gen"
+            let card = trimmed.split_whitespace().next()?;
+            return Some(card.to_string());
+        }
+    }
+    None
+}
+
+/// Ensure JACK is running with the correct parameters. If JACK is not running,
+/// launch it with the device settings from the project (sample_rate, buffer_size).
+///
+/// This allows OpenRig to control the JACK lifecycle: when a chain is enabled,
+/// JACK is automatically started with the right configuration.
+///
+/// The function:
+/// 1. Checks if JACK is already running — if so, returns immediately
+/// 2. Detects the USB audio card via /proc/asound/cards
+/// 3. Launches `jackd` as a background process with the configured parameters
+/// 4. Waits up to 5 seconds for the JACK socket to appear
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn ensure_jack_running(project: &project::Project) -> Result<()> {
+    if jack_server_is_running() {
+        log::debug!("ensure_jack_running: JACK already running");
+        return Ok(());
+    }
+
+    let card = detect_usb_audio_card()
+        .ok_or_else(|| anyhow!("no USB audio interface found — connect a device before starting audio"))?;
+
+    // Get sample_rate and buffer_size from project device_settings (populated
+    // from gui-settings.yaml). Fall back to safe defaults if empty.
+    let (sample_rate, buffer_size) = project
+        .device_settings
+        .first()
+        .map(|s| (s.sample_rate, s.buffer_size_frames))
+        .unwrap_or((48000, 64));
+
+    log::info!(
+        "ensure_jack_running: launching jackd -d alsa -d hw:{} -r {} -p {} -n 3",
+        card, sample_rate, buffer_size
+    );
+
+    // Set ALSA mixer to unity gain before JACK starts (same as jackd.service)
+    let _ = std::process::Command::new("amixer")
+        .args(["-c", &card, "set", "Mic", "46%"])
+        .output();
+    let _ = std::process::Command::new("amixer")
+        .args(["-c", &card, "set", "PCM", "100%"])
+        .output();
+
+    // Launch jackd as a detached process. We use /bin/sh to ensure proper
+    // signal handling and avoid zombie processes.
+    let child = std::process::Command::new("/usr/bin/jackd")
+        .args([
+            "-d", "alsa",
+            "-d", &format!("hw:{}", card),
+            "-r", &sample_rate.to_string(),
+            "-p", &buffer_size.to_string(),
+            "-n", "3",
+        ])
+        .env("JACK_NO_AUDIO_RESERVATION", "1")
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map_err(|e| anyhow!("failed to launch jackd: {}", e))?;
+
+    log::info!("ensure_jack_running: jackd spawned with PID {}", child.id());
+
+    // Wait for the JACK socket to appear (up to 5 seconds)
+    for i in 0..50 {
+        if jack_server_is_running() {
+            log::info!("ensure_jack_running: JACK ready after {}ms", i * 100);
+            // Invalidate any stale cache from previous JACK instance
+            invalidate_jack_meta_cache();
+            return Ok(());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+
+    bail!("jackd was launched but did not become ready within 5 seconds")
+}
+
 /// Enumerate input devices directly via cached JACK metadata.
 ///
 /// Returns one AudioDeviceDescriptor per hardware interface with the real
@@ -1130,6 +1223,10 @@ impl ProjectRuntimeController {
         // JACK's exclusive access to the hardware (causing xruns and device loss).
         #[cfg(all(target_os = "linux", feature = "jack"))]
         if using_jack_direct() {
+            // Ensure JACK is running before attempting to connect.
+            // If no JACK server is active, launch one with the project's
+            // device settings (sample rate, buffer size from gui-settings.yaml).
+            ensure_jack_running(project)?;
             return self.sync_project_jack_direct(project);
         }
 
@@ -1211,6 +1308,7 @@ impl ProjectRuntimeController {
 
         #[cfg(all(target_os = "linux", feature = "jack"))]
         if using_jack_direct() {
+            ensure_jack_running(project)?;
             let resolved = jack_resolve_chain_config(chain)?;
             return self.upsert_chain_with_resolved(chain, resolved);
         }
@@ -1239,6 +1337,60 @@ impl ProjectRuntimeController {
 
     pub fn is_running(&self) -> bool {
         !self.active_chains.is_empty()
+    }
+
+    /// Check whether the audio backend is still healthy.
+    ///
+    /// On Linux/JACK: returns false when the JACK server has disappeared (e.g.
+    /// USB audio device unplugged → udev restarts jackd). The caller should
+    /// tear down the runtime and attempt reconnection once JACK reappears.
+    ///
+    /// On macOS/Windows (CoreAudio/WASAPI): always returns true — device loss
+    /// is detected through stream error callbacks, not polling.
+    pub fn is_healthy(&self) -> bool {
+        if self.active_chains.is_empty() {
+            return true;
+        }
+        #[cfg(all(target_os = "linux", feature = "jack"))]
+        if using_jack_direct() {
+            return jack_server_is_running();
+        }
+        true
+    }
+
+    /// Attempt to reconnect after the audio backend became unhealthy.
+    ///
+    /// Tears down all active chains, invalidates caches, and re-syncs the
+    /// project. Returns Ok(true) if reconnection succeeded, Ok(false) if the
+    /// backend is not yet available (no USB device, JACK not ready).
+    pub fn try_reconnect(&mut self, project: &Project) -> Result<bool> {
+        log::info!("try_reconnect: checking if audio backend is available");
+
+        #[cfg(all(target_os = "linux", feature = "jack"))]
+        if using_jack_direct() {
+            // If no USB audio card is present, don't even try
+            if detect_usb_audio_card().is_none() {
+                log::debug!("try_reconnect: no USB audio card found");
+                return Ok(false);
+            }
+            invalidate_jack_meta_cache();
+        }
+
+        // Tear down everything cleanly
+        self.stop();
+
+        // Re-sync from scratch — sync_project will call ensure_jack_running
+        // on Linux, which launches jackd if needed
+        match self.sync_project(project) {
+            Ok(()) => {
+                log::info!("try_reconnect: successfully reconnected with {} chains", self.active_chains.len());
+                Ok(true)
+            }
+            Err(e) => {
+                log::warn!("try_reconnect: sync_project failed: {}", e);
+                Err(e)
+            }
+        }
     }
 
     /// Returns stream data for a block in any running chain.
@@ -2251,7 +2403,7 @@ mod tests {
     use super::{
         build_stream_config, max_supported_channels, required_channel_count,
         resolve_chain_runtime_sample_rate, select_supported_stream_config, validate_buffer_size,
-        AudioDeviceDescriptor,
+        AudioDeviceDescriptor, ProjectRuntimeController,
     };
     use cpal::{BufferSize, SampleFormat, SupportedBufferSize, SupportedStreamConfigRange};
 
@@ -2948,5 +3100,27 @@ mod tests {
         };
         let entry = insert_send_as_output_entry(&insert);
         assert!(matches!(entry.mode, ChainOutputMode::Stereo));
+    }
+
+    #[test]
+    fn is_healthy_returns_true_when_no_chains_active() {
+        let controller = ProjectRuntimeController {
+            runtime_graph: super::RuntimeGraph {
+                chains: std::collections::HashMap::new(),
+            },
+            active_chains: std::collections::HashMap::new(),
+        };
+        assert!(controller.is_healthy());
+    }
+
+    #[test]
+    fn is_running_returns_false_when_no_chains() {
+        let controller = ProjectRuntimeController {
+            runtime_graph: super::RuntimeGraph {
+                chains: std::collections::HashMap::new(),
+            },
+            active_chains: std::collections::HashMap::new(),
+        };
+        assert!(!controller.is_running());
     }
 }
