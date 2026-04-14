@@ -1452,6 +1452,16 @@ pub fn run_desktop_app(
                                         bit_depth: d.bit_depth,
                                     })
                                     .collect();
+                                log::info!(
+                                    "save_audio_settings(Gui): updated device_settings ({} entries)",
+                                    session.project.device_settings.len()
+                                );
+                                for ds in &session.project.device_settings {
+                                    log::info!(
+                                        "  device='{}' sr={} buf={} bit={}",
+                                        ds.device_id.0, ds.sample_rate, ds.buffer_size_frames, ds.bit_depth
+                                    );
+                                }
                                 if let Err(e) = sync_project_runtime(&project_runtime, session) {
                                     set_status_error(&window, &toast_timer, &e.to_string());
                                     return;
@@ -1494,6 +1504,16 @@ pub fn run_desktop_app(
                             bit_depth: device.bit_depth,
                         })
                         .collect();
+                    log::info!(
+                        "save_audio_settings(Project/main_window): updated device_settings ({} entries)",
+                        session.project.device_settings.len()
+                    );
+                    for ds in &session.project.device_settings {
+                        log::info!(
+                            "  device='{}' sr={} buf={} bit={}",
+                            ds.device_id.0, ds.sample_rate, ds.buffer_size_frames, ds.bit_depth
+                        );
+                    }
                     if let Err(error) = sync_project_runtime(&project_runtime, session) {
                         set_status_error(&window, &toast_timer, &error.to_string());
                         return;
@@ -1606,6 +1626,16 @@ pub fn run_desktop_app(
                             bit_depth: device.bit_depth,
                         })
                         .collect();
+                    log::info!(
+                        "save_audio_settings(Project/settings_window): updated device_settings ({} entries)",
+                        session.project.device_settings.len()
+                    );
+                    for ds in &session.project.device_settings {
+                        log::info!(
+                            "  device='{}' sr={} buf={} bit={}",
+                            ds.device_id.0, ds.sample_rate, ds.buffer_size_frames, ds.bit_depth
+                        );
+                    }
                     if let Err(error) = sync_project_runtime(&project_runtime, session) {
                         settings_window.set_status_message(error.to_string().into());
                         return;
