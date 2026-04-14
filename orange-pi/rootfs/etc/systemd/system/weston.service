@@ -21,9 +21,10 @@ Environment=XDG_RUNTIME_DIR=/run/weston
 # tolerant of plymouth not being running (e.g. during debug boots).
 ExecStartPre=-/usr/bin/plymouth deactivate
 
+# --tty is not supported in Weston 12+ (Ubuntu noble). DRM/KMS seat
+# management is handled automatically via logind/libseat.
 ExecStart=/usr/bin/weston \
     --backend=drm-backend.so \
-    --tty=1 \
     --log=/var/log/weston.log
 
 # Once weston is drawing, let plymouth fully exit. `--retain-splash` keeps
@@ -31,9 +32,14 @@ ExecStart=/usr/bin/weston \
 # the OpenRig window.
 ExecStartPost=-/usr/bin/plymouth quit --retain-splash
 
+# Failsafe: if weston stops for any reason, ensure Plymouth has quit.
+# Prevents plymouth-quit-wait.service from blocking multi-user.target
+# (and therefore SSH) indefinitely.
+ExecStopPost=-/usr/bin/plymouth quit
+
 Restart=on-failure
 RestartSec=3
-TimeoutStartSec=15
+TimeoutStartSec=30
 
 [Install]
 WantedBy=multi-user.target

@@ -197,18 +197,20 @@ chmod 755 /usr/local/bin/openrig-audio-watchdog
 # in /boot/armbianEnv.txt.
 echo ">>> [OpenRig] Installing USB-C host-mode DTB overlay (Scarlett stability)..."
 if command -v armbian-add-overlay >/dev/null 2>&1; then
-    armbian-add-overlay /tmp/overlay/openrig-usbc-host.dts
+    armbian-add-overlay /tmp/overlay/openrig-usbc-host.dts || \
+        echo ">>> [OpenRig] WARNING: armbian-add-overlay failed, skipping USB-C overlay"
 else
     # Fallback: compile with dtc and edit armbianEnv.txt by hand. This path is
     # only exercised if armbian-bsp-cli is ever dropped from the base image.
     echo ">>> [OpenRig] armbian-add-overlay missing, falling back to manual dtc"
     mkdir -p /boot/overlay-user
     dtc -I dts -O dtb -o /boot/overlay-user/openrig-usbc-host.dtbo \
-        /tmp/overlay/openrig-usbc-host.dts
+        /tmp/overlay/openrig-usbc-host.dts || \
+        echo ">>> [OpenRig] WARNING: dtc failed, skipping USB-C overlay"
     if grep -q '^user_overlays=' /boot/armbianEnv.txt 2>/dev/null; then
-        sed -i 's|^user_overlays=.*|&  openrig-usbc-host|' /boot/armbianEnv.txt
+        sed -i 's|^user_overlays=.*|&  openrig-usbc-host|' /boot/armbianEnv.txt || true
     else
-        echo 'user_overlays=openrig-usbc-host' >> /boot/armbianEnv.txt
+        echo 'user_overlays=openrig-usbc-host' >> /boot/armbianEnv.txt || true
     fi
 fi
 
