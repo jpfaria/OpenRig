@@ -7,7 +7,7 @@ use block_core::{AudioChannelLayout, ModelAudioMode, BlockProcessor};
 
 pub const MODEL_ID: &str = "framus_atlantis_sb_framus57";
 pub const DISPLAY_NAME: &str = "Atlantis SB Framus57";
-const BRAND: &str = "";
+const BRAND: &str = "framus";
 
 macro_rules! capture {
     ($voicing:literal, $ir_file:literal) => {

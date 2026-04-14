@@ -86,7 +86,7 @@ impl YamlProjectRepository {
 struct ProjectYaml {
     #[serde(default)]
     name: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     device_settings: Vec<DeviceSettingsYaml>,
     chains: Vec<ChainYaml>,
 }
@@ -108,11 +108,7 @@ impl ProjectYaml {
     fn from_project(project: &Project) -> Result<Self> {
         Ok(Self {
             name: project.name.clone(),
-            device_settings: project
-                .device_settings
-                .iter()
-                .map(DeviceSettingsYaml::from_settings)
-                .collect(),
+            device_settings: Vec::new(),
             chains: project
                 .chains
                 .iter()
@@ -176,16 +172,7 @@ impl From<DeviceSettingsYaml> for DeviceSettings {
             device_id: DeviceId(value.device_id),
             sample_rate: value.sample_rate,
             buffer_size_frames: value.buffer_size_frames,
-        }
-    }
-}
-
-impl DeviceSettingsYaml {
-    fn from_settings(settings: &DeviceSettings) -> Self {
-        Self {
-            device_id: settings.device_id.0.clone(),
-            sample_rate: settings.sample_rate,
-            buffer_size_frames: settings.buffer_size_frames,
+            bit_depth: 32,
         }
     }
 }
@@ -263,7 +250,7 @@ struct ChainYaml {
     description: Option<String>,
     #[serde(default = "default_instrument")]
     instrument: String,
-    #[serde(default = "default_enabled", skip_serializing)]
+    #[serde(default)]
     enabled: bool,
     // Legacy multi-input/output fields — kept for backward-compatible deserialization, skipped on serialization
     #[serde(default, skip_serializing)]
@@ -312,7 +299,7 @@ impl ChainYaml {
                 id: chain_id.clone(),
                 description: self.description,
                 instrument: self.instrument,
-                enabled: false,
+                enabled: self.enabled,
                 blocks: parsed_blocks,
             };
             return Ok(chain);
@@ -423,7 +410,7 @@ impl ChainYaml {
             id: chain_id.clone(),
             description: self.description,
             instrument: self.instrument,
-            enabled: false,
+            enabled: self.enabled,
             blocks: all_blocks,
         };
 
@@ -2283,7 +2270,7 @@ mode: clean
     // ─── Device settings roundtrip ───
 
     #[test]
-    fn device_settings_roundtrip_through_project() {
+    fn device_settings_not_persisted_in_yaml() {
         use project::device::DeviceSettings;
         let temp_dir = tempdir().expect("temp dir");
         let path = temp_dir.path().join("with_devices.yaml");
@@ -2295,23 +2282,33 @@ mode: clean
                     device_id: DeviceId("coreaudio:builtin".into()),
                     sample_rate: 48000,
                     buffer_size_frames: 256,
-                },
-                DeviceSettings {
-                    device_id: DeviceId("coreaudio:usb".into()),
-                    sample_rate: 96000,
-                    buffer_size_frames: 64,
+                    bit_depth: 32,
                 },
             ],
             chains: Vec::new(),
         };
         repo.save_project(&project).expect("save");
+        // device_settings are no longer written to YAML (per-machine config)
+        let yaml_content = fs::read_to_string(&path).expect("read");
+        assert!(!yaml_content.contains("device_settings"));
         let loaded = repo.load_current_project().expect("load");
-        assert_eq!(loaded.device_settings.len(), 2);
+        assert_eq!(loaded.device_settings.len(), 0);
+    }
+
+    #[test]
+    fn legacy_device_settings_still_deserialize() {
+        let temp_dir = tempdir().expect("temp dir");
+        let path = temp_dir.path().join("legacy.yaml");
+        let delay_model = first_model(block_delay::supported_models());
+        fs::write(&path, format!(
+            "name: Legacy\ndevice_settings:\n  - device_id: \"coreaudio:builtin\"\n    sample_rate: 48000\n    buffer_size_frames: 256\nchains:\n  - description: ch1\n    instrument: electric_guitar\n    blocks:\n      - type: input\n        model: standard\n        enabled: true\n        entries:\n          - name: In\n            device_id: \"coreaudio:builtin\"\n            mode: mono\n            channels: [0]\n      - type: delay\n        model: {}\n        enabled: true\n        params:\n          time_ms: 300.0\n          feedback: 40.0\n          mix: 30.0\n      - type: output\n        model: standard\n        enabled: true\n        entries:\n          - name: Out\n            device_id: \"coreaudio:builtin\"\n            mode: stereo\n            channels: [0, 1]\n",
+            delay_model
+        )).expect("write");
+        let repo = YamlProjectRepository { path };
+        let loaded = repo.load_current_project().expect("load");
+        // Legacy device_settings are still read for backward compat
+        assert_eq!(loaded.device_settings.len(), 1);
         assert_eq!(loaded.device_settings[0].device_id, DeviceId("coreaudio:builtin".into()));
-        assert_eq!(loaded.device_settings[0].sample_rate, 48000);
-        assert_eq!(loaded.device_settings[0].buffer_size_frames, 256);
-        assert_eq!(loaded.device_settings[1].sample_rate, 96000);
-        assert_eq!(loaded.device_settings[1].buffer_size_frames, 64);
     }
 
     // ─── Inline I/O in blocks (new format) takes precedence ───

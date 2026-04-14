@@ -202,7 +202,7 @@ mod tests {
 pub const MODEL_DEFINITION: DynModelDefinition = DynModelDefinition {
     id: MODEL_ID,
     display_name: DISPLAY_NAME,
-    brand: "",
+    brand: block_core::BRAND_NATIVE,
     backend_kind: DynBackendKind::Native,
     schema,
     build,

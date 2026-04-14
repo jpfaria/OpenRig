@@ -7,7 +7,7 @@ use block_core::{AudioChannelLayout, ModelAudioMode, BlockProcessor};
 
 pub const MODEL_ID: &str = "merill_om_28_dazzo";
 pub const DISPLAY_NAME: &str = "Merill OM-28 Dazzo";
-const BRAND: &str = "";
+const BRAND: &str = "merill";
 
 macro_rules! capture {
     ($p1:literal, $ir_file:literal) => {

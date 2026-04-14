@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     libfontconfig1-dev libseat-dev \
     libxkbcommon-dev libinput-dev libgbm-dev \
     libjack-jackd2-dev \
+    cmake git \
     fakeroot rpm ruby-dev build-essential \
     librsvg2-bin imagemagick \
     && rm -rf /var/lib/apt/lists/*

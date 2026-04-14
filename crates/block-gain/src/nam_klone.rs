@@ -10,7 +10,7 @@ use block_core::{AudioChannelLayout, BlockProcessor};
 
 pub const MODEL_ID: &str = "klone";
 pub const DISPLAY_NAME: &str = "Klone";
-const BRAND: &str = "electro_harmonix";
+const BRAND: &str = "electro-harmonix";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 

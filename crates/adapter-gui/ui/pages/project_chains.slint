@@ -663,7 +663,10 @@ component ChainEndpointChip inherits Rectangle {
         width: parent.width;
         height: parent.height;
         mouse-cursor: pointer;
-        clicked => { root.clicked(); }
+        clicked => {
+            debug("ChainEndpointChip clicked", root.is-input, root.label);
+            root.clicked();
+        }
     }
 }
 
@@ -1147,17 +1150,9 @@ component ChainRow inherits Rectangle {
         height: root.block-row-count * 108px;
         background: transparent;
 
-        TouchArea {
-            x: 0px;
-            y: 0px;
-            width: parent.width;
-            height: parent.height;
-            moved => {
-                if !self.pressed {
-                    root.suppress-insert-hover = false;
-                }
-            }
-        }
+        // NOTE: background TouchArea removed — it was consuming click events
+        // on Linux/software-renderer, preventing ChainEndpointChip clicks.
+        // The suppress-insert-hover reset it provided is non-critical (drag UX polish).
 
         // Routing lines — pedal center is at y = 52px + row * 108px
         // Row 0 horizontal

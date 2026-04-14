@@ -4,17 +4,19 @@ use cpal::{
     BufferSize, SampleFormat, Stream, StreamConfig, SupportedBufferSize, SupportedStreamConfig,
     SupportedStreamConfigRange,
 };
+use std::sync::{Mutex, OnceLock};
 
-/// Select the audio host. On Windows, ASIO is preferred for zero-latency audio
-/// (bypasses the Windows audio mixer). ASIO requires the interface's ASIO driver
-/// installed (e.g. Focusrite USB ASIO) and Focusrite Control configured with the
-/// desired sample rate and buffer size. Falls back to WASAPI if no ASIO driver is found.
-///
-/// On Linux (when compiled with `jack` feature): uses JACK by default for low
-/// latency. Set `OPENRIG_AUDIO_HOST=alsa` to force ALSA instead.
-///
-/// On macOS: always uses CoreAudio.
-fn select_host() -> cpal::Host {
+// ── Cached host ─────────────────────────────────────────────────────────────
+// select_host() was called 8+ times per session (each creating a new CPAL
+// host, which on JACK means a new client connection).  Cache it once.
+
+static HOST: OnceLock<cpal::Host> = OnceLock::new();
+
+fn get_host() -> &'static cpal::Host {
+    HOST.get_or_init(create_host)
+}
+
+fn create_host() -> cpal::Host {
     #[cfg(target_os = "windows")]
     {
         for host_id in cpal::available_hosts() {
@@ -35,30 +37,430 @@ fn select_host() -> cpal::Host {
 
     #[cfg(all(target_os = "linux", feature = "jack"))]
     {
-        let force_alsa = std::env::var("OPENRIG_AUDIO_HOST")
-            .map(|v| v.to_lowercase() == "alsa")
-            .unwrap_or(false);
-
-        if !force_alsa {
-            for host_id in cpal::available_hosts() {
-                if host_id == cpal::HostId::Jack {
-                    match cpal::host_from_id(host_id) {
-                        Ok(host) => {
-                            log::info!("Audio host: JACK (set OPENRIG_AUDIO_HOST=alsa to use ALSA)");
-                            return host;
-                        }
-                        Err(e) => {
-                            log::warn!("JACK not available: {e} — falling back to ALSA");
-                        }
-                    }
-                }
-            }
+        // When JACK is running, streaming is handled by the direct JACK backend
+        // (jack crate) in build_active_chain_runtime(). Return ALSA for device
+        // resolution — it can still read device capabilities even while JACK
+        // holds the hardware.
+        if jack_server_is_running() {
+            log::info!("Audio host: ALSA (JACK streaming via direct jack crate backend)");
+            return cpal::default_host();
         }
-
-        log::info!("Audio host: ALSA");
     }
 
     cpal::default_host()
+}
+
+/// Read the physical hardware name managed by JACK from /proc/asound/cards.
+///
+/// JACK abstracts hardware so CPAL only exposes "cpal_client_in/out" as device
+/// names. This function reads the kernel's card list to find the actual hardware
+/// name (e.g. "Scarlett 2i2 4th Gen") and returns it for display purposes.
+/// Returns None if no USB audio card is found or the file is unreadable.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn jack_hardware_name() -> Option<String> {
+    let content = std::fs::read_to_string("/proc/asound/cards").ok()?;
+    for line in content.lines() {
+        // Lines look like: " 1 [Gen ]: USB-Audio - Scarlett 2i2 4th Gen"
+        if line.contains("USB-Audio") || line.contains("USB Audio") {
+            if let Some(pos) = line.find(" - ") {
+                let name = line[pos + 3..].trim().to_string();
+                if !name.is_empty() {
+                    return Some(name);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Select the audio host for device enumeration.
+///
+/// Returns true when the JACK server is running and reachable, determined by
+/// a non-blocking directory scan. Safe to call from the UI thread.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn jack_server_is_running() -> bool {
+    // jackd creates a Unix socket at /dev/shm/jack_default_{uid}_0.
+    // Scanning /dev/shm for this pattern is instant and non-blocking.
+    std::fs::read_dir("/dev/shm").ok()
+        .map(|entries| {
+            entries.filter_map(|e| e.ok()).any(|e| {
+                let name = e.file_name();
+                let s = name.to_string_lossy();
+                s.starts_with("jack_default_") && s.ends_with("_0")
+            })
+        })
+        .unwrap_or(false)
+}
+
+/// Snapshot hardware audio status (JACK + ALSA cards + USB audio devices) and
+/// emit it as a single structured log line. Safe to call from the UI thread on
+/// any platform: the Linux implementation is pure filesystem scans (no JACK
+/// client, no ALSA open, no CPAL host); other platforms are no-ops.
+///
+/// Intended to be invoked after every user mutation so that `journalctl -fu
+/// openrig` can correlate UI actions with audio hardware state changes (e.g.
+/// Scarlett disconnects on RK3588 xHCI).
+pub fn log_audio_status(context: &str) {
+    #[cfg(target_os = "linux")]
+    {
+        let alsa_cards = read_proc_asound_cards_for_status();
+        let usb_audio = read_usb_audio_devices_for_status();
+
+        #[cfg(feature = "jack")]
+        let jack_running = jack_server_is_running();
+        #[cfg(not(feature = "jack"))]
+        let jack_running = false;
+
+        log::info!(
+            "[AUDIO-STATUS] ctx='{}' jack_running={} alsa_cards=[{}] usb_audio=[{}]",
+            context,
+            jack_running,
+            alsa_cards.join(" | "),
+            usb_audio.join(" | "),
+        );
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = context;
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn read_proc_asound_cards_for_status() -> Vec<String> {
+    std::fs::read_to_string("/proc/asound/cards")
+        .ok()
+        .map(|content| {
+            content
+                .lines()
+                .filter_map(|line| {
+                    // Only lines starting with a card index (e.g. " 0 [Headphones     ]: ...").
+                    let trimmed = line.trim_start();
+                    let first = trimmed.chars().next()?;
+                    if first.is_ascii_digit() {
+                        Some(trimmed.to_string())
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+#[cfg(target_os = "linux")]
+fn read_usb_audio_devices_for_status() -> Vec<String> {
+    let root = std::path::Path::new("/sys/bus/usb/devices");
+    let Ok(entries) = std::fs::read_dir(root) else {
+        return Vec::new();
+    };
+
+    let mut out = Vec::new();
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let node = entry.file_name().to_string_lossy().into_owned();
+        // Skip interface nodes (they contain ':'); we only want device nodes.
+        if node.contains(':') {
+            continue;
+        }
+        // Keep only devices that expose at least one audio-class interface (01).
+        let is_audio = std::fs::read_dir(&path)
+            .ok()
+            .map(|sub| {
+                sub.flatten().any(|s| {
+                    let sn = s.file_name();
+                    let sn = sn.to_string_lossy();
+                    if !sn.contains(':') {
+                        return false;
+                    }
+                    std::fs::read_to_string(s.path().join("bInterfaceClass"))
+                        .map(|v| v.trim() == "01")
+                        .unwrap_or(false)
+                })
+            })
+            .unwrap_or(false);
+        if !is_audio {
+            continue;
+        }
+
+        let vendor = std::fs::read_to_string(path.join("idVendor"))
+            .map(|s| s.trim().to_string())
+            .unwrap_or_default();
+        let product = std::fs::read_to_string(path.join("idProduct"))
+            .map(|s| s.trim().to_string())
+            .unwrap_or_default();
+        let product_name = std::fs::read_to_string(path.join("product"))
+            .map(|s| s.trim().to_string())
+            .unwrap_or_else(|_| "?".to_string());
+
+        out.push(format!("{}:{} {} @{}", vendor, product, product_name, node));
+    }
+    out
+}
+
+/// Select the CPAL audio host for device enumeration (non-JACK path only).
+///
+/// When JACK is running, callers should use `jack_enumerate_*_devices()` instead
+/// of this function — CPAL's JACK backend must never be instantiated.
+fn select_host_for_enumeration() -> &'static cpal::Host {
+    // CPAL JACK host is never created — it crashes the JACK server.
+    // When JACK is running, list_*_device_descriptors() bypass this function entirely.
+    static ENUM_HOST: OnceLock<cpal::Host> = OnceLock::new();
+    ENUM_HOST.get_or_init(cpal::default_host)
+}
+
+/// Cached JACK server metadata.
+///
+/// Populated by a SINGLE transient JACK client on first access and reused for
+/// every enumeration, sample-rate query and chain config resolution until the
+/// process exits or jackd is restarted. This eliminates the churn of opening
+/// a fresh JACK client on every UI interaction (device picker, block change,
+/// chain resync, etc.) — which on fragile USB audio stacks (Rockchip xHCI +
+/// Scarlett Gen 4) has been correlated with xHCI host controller resets and
+/// interface disconnects.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+#[derive(Clone)]
+struct JackMeta {
+    sample_rate: u32,
+    buffer_size: u32,
+    capture_port_count: usize,
+    playback_port_count: usize,
+    hw_name: String,
+}
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
+static JACK_META_CACHE: std::sync::Mutex<Option<JackMeta>> = std::sync::Mutex::new(None);
+
+/// Return cached JACK metadata, creating a single transient JACK client the
+/// first time. All other call sites that used to open their own client now go
+/// through this function, so the process opens at most ONE enumeration client
+/// during its lifetime (plus the per-chain AsyncClient used for real-time
+/// processing).
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn jack_meta() -> Result<JackMeta> {
+    if let Some(cached) = JACK_META_CACHE.lock().unwrap().clone() {
+        log::trace!("jack meta: cache hit");
+        return Ok(cached);
+    }
+
+    log::debug!("jack meta: cache miss, creating single transient JACK client");
+    let (client, _) = jack::Client::new(
+        "openrig_meta",
+        jack::ClientOptions::NO_START_SERVER,
+    ).map_err(|e| anyhow!("failed to connect to JACK for metadata: {:?}", e))?;
+
+    let capture_ports = client.ports(Some("system:capture_"), None, jack::PortFlags::IS_OUTPUT);
+    let playback_ports = client.ports(Some("system:playback_"), None, jack::PortFlags::IS_INPUT);
+    let meta = JackMeta {
+        sample_rate: client.sample_rate() as u32,
+        buffer_size: client.buffer_size(),
+        capture_port_count: capture_ports.len(),
+        playback_port_count: playback_ports.len(),
+        hw_name: jack_hardware_name().unwrap_or_else(|| "JACK Audio".to_string()),
+    };
+    drop(client);
+
+    *JACK_META_CACHE.lock().unwrap() = Some(meta.clone());
+    log::debug!(
+        "jack meta: cached sr={} buf={} in={} out={} hw='{}'",
+        meta.sample_rate, meta.buffer_size,
+        meta.capture_port_count, meta.playback_port_count, meta.hw_name
+    );
+    Ok(meta)
+}
+
+/// Invalidate the cached JACK metadata so the next `jack_meta()` call
+/// reconnects to the JACK server.  Called when device enumeration fails,
+/// indicating the JACK server may have restarted (e.g. after a USB
+/// disconnect/reconnect cycle).
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn invalidate_jack_meta_cache() {
+    if let Ok(mut cache) = JACK_META_CACHE.lock() {
+        if cache.is_some() {
+            log::info!("jack meta: cache invalidated — will reconnect on next enumeration");
+            *cache = None;
+        }
+    }
+}
+
+/// Detect the first USB audio ALSA card number by scanning /proc/asound/cards.
+/// Returns the card index (e.g. "1") or None if no USB audio card is present.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn detect_usb_audio_card() -> Option<String> {
+    let content = std::fs::read_to_string("/proc/asound/cards").ok()?;
+    for line in content.lines() {
+        let trimmed = line.trim_start();
+        if (trimmed.contains("USB-Audio") || trimmed.contains("USB Audio"))
+            && trimmed.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false)
+        {
+            // Line format: " 1 [Gen ]: USB-Audio - Scarlett 2i2 4th Gen"
+            let card = trimmed.split_whitespace().next()?;
+            return Some(card.to_string());
+        }
+    }
+    None
+}
+
+/// Launch jackd with the given parameters and wait for it to become ready.
+/// Shared logic used by both `ensure_jack_running` and `restart_jack`.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn launch_jackd(card: &str, sample_rate: u32, buffer_size: u32) -> Result<()> {
+    log::info!(
+        "launch_jackd: jackd -d alsa -d hw:{} -r {} -p {} -n 3",
+        card, sample_rate, buffer_size
+    );
+
+    // Set ALSA mixer to unity gain before JACK starts (same as jackd.service)
+    let _ = std::process::Command::new("amixer")
+        .args(["-c", card, "set", "Mic", "46%"])
+        .output();
+    let _ = std::process::Command::new("amixer")
+        .args(["-c", card, "set", "PCM", "100%"])
+        .output();
+
+    let child = std::process::Command::new("/usr/bin/jackd")
+        .args([
+            "-d", "alsa",
+            "-d", &format!("hw:{}", card),
+            "-r", &sample_rate.to_string(),
+            "-p", &buffer_size.to_string(),
+            "-n", "3",
+        ])
+        .env("JACK_NO_AUDIO_RESERVATION", "1")
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map_err(|e| anyhow!("failed to launch jackd: {}", e))?;
+
+    log::info!("launch_jackd: jackd spawned with PID {}", child.id());
+
+    // Wait for the JACK socket to appear (up to 5 seconds)
+    for i in 0..50 {
+        if jack_server_is_running() {
+            log::info!("launch_jackd: JACK ready after {}ms", i * 100);
+            invalidate_jack_meta_cache();
+            return Ok(());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+
+    bail!("jackd was launched but did not become ready within 5 seconds")
+}
+
+/// Ensure JACK is running with the correct parameters. If JACK is not running,
+/// launch it. If JACK is running but with different sample_rate or buffer_size,
+/// kill it and relaunch with the new parameters.
+///
+/// Returns true if JACK was (re)started, false if already running with correct config.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn ensure_jack_running(project: &Project) -> Result<bool> {
+    let (desired_sr, desired_buf) = project
+        .device_settings
+        .first()
+        .map(|s| (s.sample_rate, s.buffer_size_frames))
+        .unwrap_or((48000, 64));
+
+    if jack_server_is_running() {
+        // Check if current JACK config matches desired
+        if let Ok(meta) = jack_meta() {
+            if meta.sample_rate == desired_sr && meta.buffer_size == desired_buf {
+                log::debug!("ensure_jack_running: JACK already running with correct config");
+                return Ok(false);
+            }
+            // Config mismatch — need to restart JACK
+            log::info!(
+                "ensure_jack_running: JACK config mismatch (running: sr={} buf={}, desired: sr={} buf={}), restarting",
+                meta.sample_rate, meta.buffer_size, desired_sr, desired_buf
+            );
+            stop_jackd()?;
+        }
+    }
+
+    let card = detect_usb_audio_card()
+        .ok_or_else(|| anyhow!("no USB audio interface found — connect a device before starting audio"))?;
+
+    launch_jackd(&card, desired_sr, desired_buf)?;
+    // JACK is now running — invalidate device cache so next enumeration
+    // uses JACK ports instead of stale ALSA listing.
+    invalidate_device_cache();
+    Ok(true)
+}
+
+/// Stop the running JACK server by sending SIGTERM to all jackd processes.
+/// Waits up to 3 seconds for the server to shut down.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn stop_jackd() -> Result<()> {
+    log::info!("stop_jackd: killing jackd");
+    let _ = std::process::Command::new("killall")
+        .args(["jackd"])
+        .output();
+
+    // Wait for JACK socket to disappear
+    for _ in 0..30 {
+        if !jack_server_is_running() {
+            invalidate_jack_meta_cache();
+            invalidate_device_cache();
+            log::info!("stop_jackd: JACK stopped");
+            return Ok(());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+
+    // Force kill
+    let _ = std::process::Command::new("killall")
+        .args(["-9", "jackd"])
+        .output();
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    invalidate_jack_meta_cache();
+    invalidate_device_cache();
+    Ok(())
+}
+
+/// Enumerate input devices directly via cached JACK metadata.
+///
+/// Returns one AudioDeviceDescriptor per hardware interface with the real
+/// hardware name from /proc/asound/cards. Never creates a new JACK client on
+/// its own — relies on `jack_meta()` which opens at most one client per
+/// process lifetime.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn jack_enumerate_input_devices() -> Result<Vec<AudioDeviceDescriptor>> {
+    let meta = jack_meta()?;
+    if meta.capture_port_count == 0 {
+        return Ok(Vec::new());
+    }
+    Ok(vec![AudioDeviceDescriptor {
+        id: "jack:system".to_string(),
+        name: format!("{} (JACK)", meta.hw_name),
+        channels: meta.capture_port_count,
+    }])
+}
+
+/// Enumerate output devices directly via cached JACK metadata.
+/// See `jack_enumerate_input_devices` for rationale.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn jack_enumerate_output_devices() -> Result<Vec<AudioDeviceDescriptor>> {
+    let meta = jack_meta()?;
+    if meta.playback_port_count == 0 {
+        return Ok(Vec::new());
+    }
+    Ok(vec![AudioDeviceDescriptor {
+        id: "jack:system".to_string(),
+        name: format!("{} (JACK)", meta.hw_name),
+        channels: meta.playback_port_count,
+    }])
+}
+
+/// Returns true when the direct JACK backend will be used for audio streaming.
+/// This replaces is_jack_host() checks — since we never create a CPAL JACK host,
+/// we check JACK availability directly instead of inspecting the host type.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn using_jack_direct() -> bool {
+    jack_server_is_running()
+}
+
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+fn using_jack_direct() -> bool {
+    false
 }
 
 /// Returns true when the given host is the ASIO host on Windows.
@@ -73,6 +475,9 @@ fn is_asio_host(host: &cpal::Host) -> bool {
 fn is_asio_host(_host: &cpal::Host) -> bool {
     false
 }
+
+// is_jack_host() removed — CPAL JACK host is never created.
+// Use using_jack_direct() to check if the direct JACK backend is active.
 
 use domain::ids::ChainId;
 use engine::runtime::{process_input_f32, process_output_f32, RuntimeGraph, ChainRuntimeState};
@@ -138,6 +543,418 @@ struct ActiveChainRuntime {
     stream_signature: ChainStreamSignature,
     _input_streams: Vec<Stream>,
     _output_streams: Vec<Stream>,
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    _jack_client: Option<jack::AsyncClient<(), JackProcessHandler>>,
+    /// DSP worker thread handle (Linux/JACK only). Dropped when chain stops.
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    _dsp_worker: Option<DspWorkerHandle>,
+}
+
+/// Handle to the DSP worker thread. Setting the stop flag and joining on drop.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+struct DspWorkerHandle {
+    stop_flag: Arc<std::sync::atomic::AtomicBool>,
+    wake: Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>,
+    thread: Option<std::thread::JoinHandle<()>>,
+}
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
+impl Drop for DspWorkerHandle {
+    fn drop(&mut self) {
+        self.stop_flag.store(true, std::sync::atomic::Ordering::Release);
+        // Wake the worker so it sees the stop flag
+        if let Ok(mut flag) = self.wake.0.lock() {
+            *flag = true;
+        }
+        self.wake.1.notify_one();
+        if let Some(handle) = self.thread.take() {
+            let _ = handle.join();
+        }
+    }
+}
+
+/// Lock-free single-producer single-consumer ring buffer for passing audio
+/// data from the JACK RT callback to the DSP worker thread.
+///
+/// The JACK callback writes interleaved f32 blocks; the worker reads them.
+/// Slots are fixed-size (max_samples_per_slot), indexed by atomic counters.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+struct SpscRingBuffer {
+    /// Flat storage: `num_slots * max_samples_per_slot` f32s.
+    data: Vec<std::cell::UnsafeCell<f32>>,
+    /// How many f32 samples each slot holds.
+    max_samples_per_slot: usize,
+    /// Number of slots (power of 2 for fast modulo).
+    num_slots: usize,
+    /// Monotonically increasing write counter (slot index = write_pos % num_slots).
+    write_pos: std::sync::atomic::AtomicUsize,
+    /// Monotonically increasing read counter.
+    read_pos: std::sync::atomic::AtomicUsize,
+}
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
+unsafe impl Send for SpscRingBuffer {}
+#[cfg(all(target_os = "linux", feature = "jack"))]
+unsafe impl Sync for SpscRingBuffer {}
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
+impl SpscRingBuffer {
+    fn new(num_slots: usize, max_samples_per_slot: usize) -> Self {
+        assert!(num_slots.is_power_of_two());
+        let total = num_slots * max_samples_per_slot;
+        let mut data = Vec::with_capacity(total);
+        for _ in 0..total {
+            data.push(std::cell::UnsafeCell::new(0.0));
+        }
+        Self {
+            data,
+            max_samples_per_slot,
+            num_slots,
+            write_pos: std::sync::atomic::AtomicUsize::new(0),
+            read_pos: std::sync::atomic::AtomicUsize::new(0),
+        }
+    }
+
+    /// Try to write `samples` into the next slot. Returns false if full.
+    /// SAFETY: Only one thread may call this (producer).
+    fn try_write(&self, samples: &[f32]) -> bool {
+        use std::sync::atomic::Ordering;
+        let wp = self.write_pos.load(Ordering::Relaxed);
+        let rp = self.read_pos.load(Ordering::Acquire);
+        if wp.wrapping_sub(rp) >= self.num_slots {
+            return false; // full
+        }
+        let slot = wp & (self.num_slots - 1);
+        let base = slot * self.max_samples_per_slot;
+        let n = samples.len().min(self.max_samples_per_slot);
+        for i in 0..n {
+            unsafe { *self.data[base + i].get() = samples[i]; }
+        }
+        // Zero remaining samples in slot
+        for i in n..self.max_samples_per_slot {
+            unsafe { *self.data[base + i].get() = 0.0; }
+        }
+        self.write_pos.store(wp.wrapping_add(1), Ordering::Release);
+        true
+    }
+
+    /// Try to read the next slot into `dst`. Returns false if empty.
+    /// SAFETY: Only one thread may call this (consumer).
+    fn try_read(&self, dst: &mut [f32]) -> bool {
+        use std::sync::atomic::Ordering;
+        let rp = self.read_pos.load(Ordering::Relaxed);
+        let wp = self.write_pos.load(Ordering::Acquire);
+        if rp == wp {
+            return false; // empty
+        }
+        let slot = rp & (self.num_slots - 1);
+        let base = slot * self.max_samples_per_slot;
+        let n = dst.len().min(self.max_samples_per_slot);
+        for i in 0..n {
+            dst[i] = unsafe { *self.data[base + i].get() };
+        }
+        self.read_pos.store(rp.wrapping_add(1), Ordering::Release);
+        true
+    }
+}
+
+/// Direct JACK process handler — runs in the JACK real-time thread.
+/// Does NO DSP processing — only copies audio data to/from ring buffers.
+/// The heavy DSP work happens in a separate worker thread.
+///
+/// Buffers are pre-allocated to avoid heap allocation in the RT callback.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+struct JackProcessHandler {
+    input_ports: Vec<jack::Port<jack::AudioIn>>,
+    output_ports: Vec<jack::Port<jack::AudioOut>>,
+    runtime: Arc<ChainRuntimeState>,
+    input_buf: Vec<f32>,
+    output_buf: Vec<f32>,
+    /// Ring buffer for offloading DSP to the worker thread.
+    /// When Some, the RT callback writes input to this ring and the worker
+    /// thread does the processing. When None, processing is done inline
+    /// (fallback for non-Linux or when worker setup fails).
+    input_ring: Option<Arc<SpscRingBuffer>>,
+    /// Condvar to wake the worker thread when new input is available.
+    worker_wake: Option<Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>>,
+}
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
+impl jack::ProcessHandler for JackProcessHandler {
+    fn process(&mut self, _client: &jack::Client, ps: &jack::ProcessScope) -> jack::Control {
+        let n_frames = ps.n_frames() as usize;
+
+        // --- Input: read from JACK ports, interleave ---
+        let total_in_ports = self.input_ports.len();
+        if total_in_ports > 0 {
+            let needed = n_frames * total_in_ports;
+            if self.input_buf.len() < needed {
+                self.input_buf.resize(needed, 0.0);
+            }
+            let buf = &mut self.input_buf[..needed];
+            for (ch, port) in self.input_ports.iter().enumerate() {
+                let port_data = port.as_slice(ps);
+                for frame in 0..n_frames {
+                    buf[frame * total_in_ports + ch] = port_data[frame];
+                }
+            }
+
+            if let Some(ring) = &self.input_ring {
+                // Offload: write to ring buffer, wake worker
+                let _ = ring.try_write(buf);
+                if let Some(wake) = &self.worker_wake {
+                    // Non-blocking: just set flag and notify
+                    if let Ok(mut flag) = wake.0.try_lock() {
+                        *flag = true;
+                    }
+                    wake.1.notify_one();
+                }
+            } else {
+                // Fallback: process inline (no worker thread)
+                let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    process_input_f32(&self.runtime, 0, buf, total_in_ports);
+                }));
+            }
+        }
+
+        // --- Output: pull from engine, deinterleave into JACK ports ---
+        // This is lightweight — just pops from ElasticBuffer, no DSP.
+        let total_out_ports = self.output_ports.len();
+        if total_out_ports > 0 {
+            let needed = n_frames * total_out_ports;
+            if self.output_buf.len() < needed {
+                self.output_buf.resize(needed, 0.0);
+            }
+            let buf = &mut self.output_buf[..needed];
+            buf.fill(0.0);
+            let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                process_output_f32(&self.runtime, 0, buf, total_out_ports);
+            }));
+            for (ch, port) in self.output_ports.iter_mut().enumerate() {
+                let port_data = port.as_mut_slice(ps);
+                for frame in 0..n_frames {
+                    port_data[frame] = buf[frame * total_out_ports + ch];
+                }
+            }
+        }
+
+        jack::Control::Continue
+    }
+}
+
+/// Pin the calling thread to the given CPU cores (Linux only).
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn pin_thread_to_cpus(cpus: &[usize]) {
+    use std::mem;
+    unsafe {
+        let mut set: libc::cpu_set_t = mem::zeroed();
+        for &cpu in cpus {
+            libc::CPU_SET(cpu, &mut set);
+        }
+        let ret = libc::sched_setaffinity(0, mem::size_of::<libc::cpu_set_t>(), &set);
+        if ret != 0 {
+            log::warn!("sched_setaffinity failed: {}", std::io::Error::last_os_error());
+        }
+    }
+}
+
+/// Detect big cores on ARM big.LITTLE by reading max frequency from sysfs.
+/// Returns CPU indices sorted by max frequency (highest first).
+/// Falls back to CPUs 4-7 if sysfs is unavailable.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn detect_big_cores() -> Vec<usize> {
+    let mut cpu_freqs: Vec<(usize, u64)> = Vec::new();
+    for cpu in 0..16 {
+        let path = format!("/sys/devices/system/cpu/cpu{}/cpufreq/cpuinfo_max_freq", cpu);
+        if let Ok(contents) = std::fs::read_to_string(&path) {
+            if let Ok(freq) = contents.trim().parse::<u64>() {
+                cpu_freqs.push((cpu, freq));
+            }
+        }
+    }
+    if cpu_freqs.is_empty() {
+        log::info!("DSP worker: sysfs unavailable, defaulting to CPUs 4-7");
+        return vec![4, 5, 6, 7];
+    }
+    let max_freq = cpu_freqs.iter().map(|(_, f)| *f).max().unwrap_or(0);
+    let big: Vec<usize> = cpu_freqs.iter()
+        .filter(|(_, f)| *f == max_freq)
+        .map(|(cpu, _)| *cpu)
+        .collect();
+    log::info!("DSP worker: detected big cores {:?} (max_freq={}kHz)", big, max_freq);
+    big
+}
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn build_jack_direct_chain(
+    chain_id: &ChainId,
+    chain: &Chain,
+    runtime: Arc<ChainRuntimeState>,
+) -> Result<(jack::AsyncClient<(), JackProcessHandler>, DspWorkerHandle)> {
+    let client_name = format!("openrig_{}", chain_id.0);
+    let (client, _status) = jack::Client::new(
+        &client_name,
+        jack::ClientOptions::NO_START_SERVER,
+    ).map_err(|e| anyhow!("failed to create JACK client: {:?}", e))?;
+
+    let sample_rate = client.sample_rate() as f32;
+    let buf_size = client.buffer_size() as usize;
+    log::info!(
+        "JACK direct: client '{}', sample_rate={}, buffer_size={}",
+        client_name, sample_rate, buf_size
+    );
+
+    // Collect input channel requirements from chain
+    let input_entries: Vec<&InputEntry> = chain.blocks.iter()
+        .filter(|b| b.enabled)
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Input(ib) => Some(ib),
+            _ => None,
+        })
+        .flat_map(|ib| ib.entries.iter())
+        .collect();
+
+    let max_in_ch = input_entries.iter()
+        .flat_map(|e| e.channels.iter())
+        .copied()
+        .max()
+        .map(|m| m + 1)
+        .unwrap_or(1);
+
+    // Collect output channel requirements from chain
+    let output_entries: Vec<&OutputEntry> = chain.blocks.iter()
+        .filter(|b| b.enabled)
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Output(ob) => Some(ob),
+            _ => None,
+        })
+        .flat_map(|ob| ob.entries.iter())
+        .collect();
+
+    let max_out_ch = output_entries.iter()
+        .flat_map(|e| e.channels.iter())
+        .copied()
+        .max()
+        .map(|m| m + 1)
+        .unwrap_or(2);
+
+    // Register JACK ports
+    let mut input_ports = Vec::new();
+    for i in 0..max_in_ch {
+        let port = client
+            .register_port(&format!("in_{}", i + 1), jack::AudioIn::default())
+            .map_err(|e| anyhow!("failed to register JACK input port {}: {:?}", i, e))?;
+        input_ports.push(port);
+    }
+
+    let mut output_ports = Vec::new();
+    for i in 0..max_out_ch {
+        let port = client
+            .register_port(&format!("out_{}", i + 1), jack::AudioOut::default())
+            .map_err(|e| anyhow!("failed to register JACK output port {}: {:?}", i, e))?;
+        output_ports.push(port);
+    }
+
+    // Set up DSP worker thread with ring buffer
+    let samples_per_buffer = buf_size * max_in_ch;
+    // 8 slots: enough headroom for JACK to write while worker processes
+    let ring = Arc::new(SpscRingBuffer::new(8, samples_per_buffer));
+    let wake = Arc::new((std::sync::Mutex::new(false), std::sync::Condvar::new()));
+    let stop_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
+
+    let handler = JackProcessHandler {
+        input_buf: vec![0.0f32; buf_size * input_ports.len().max(1)],
+        output_buf: vec![0.0f32; buf_size * output_ports.len().max(1)],
+        input_ports,
+        output_ports,
+        runtime: Arc::clone(&runtime),
+        input_ring: Some(Arc::clone(&ring)),
+        worker_wake: Some(Arc::clone(&wake)),
+    };
+
+    // Spawn DSP worker thread
+    let worker_runtime = Arc::clone(&runtime);
+    let worker_ring = Arc::clone(&ring);
+    let worker_wake = Arc::clone(&wake);
+    let worker_stop = Arc::clone(&stop_flag);
+    let worker_channels = max_in_ch;
+    let worker_chain_id = chain_id.0.clone();
+    let thread = std::thread::Builder::new()
+        .name(format!("dsp-worker-{}", chain_id.0))
+        .spawn(move || {
+            // Pin to big cores (A76 on RK3588)
+            let big_cores = detect_big_cores();
+            if !big_cores.is_empty() {
+                pin_thread_to_cpus(&big_cores);
+                log::info!("DSP worker '{}': pinned to cores {:?}", worker_chain_id, big_cores);
+            }
+
+            // Set high priority (not RT, but high normal)
+            unsafe {
+                let param = libc::sched_param { sched_priority: 0 };
+                libc::sched_setscheduler(0, libc::SCHED_OTHER, &param);
+                // Use nice -10 for higher scheduling priority
+                libc::setpriority(libc::PRIO_PROCESS, 0, -10);
+            }
+
+            let mut read_buf = vec![0.0f32; samples_per_buffer];
+            log::info!("DSP worker '{}': started (buf_size={}, channels={})", worker_chain_id, buf_size, worker_channels);
+
+            loop {
+                if worker_stop.load(std::sync::atomic::Ordering::Acquire) {
+                    break;
+                }
+
+                // Process all available buffers
+                let mut processed_any = false;
+                while worker_ring.try_read(&mut read_buf) {
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        process_input_f32(&worker_runtime, 0, &read_buf, worker_channels);
+                    }));
+                    processed_any = true;
+                }
+
+                if !processed_any {
+                    // Wait for wake signal (with timeout to check stop flag)
+                    let lock = worker_wake.0.lock().unwrap();
+                    let _ = worker_wake.1.wait_timeout(lock, std::time::Duration::from_millis(10));
+                }
+            }
+            log::info!("DSP worker '{}': stopped", worker_chain_id);
+        })
+        .map_err(|e| anyhow!("failed to spawn DSP worker thread: {}", e))?;
+
+    let worker_handle = DspWorkerHandle {
+        stop_flag,
+        wake,
+        thread: Some(thread),
+    };
+
+    let active_client = client.activate_async((), handler)
+        .map_err(|e| anyhow!("failed to activate JACK client: {:?}", e))?;
+
+    // Connect to system ports
+    for i in 0..max_in_ch {
+        let src = format!("system:capture_{}", i + 1);
+        let dst = format!("{}:in_{}", client_name, i + 1);
+        if let Err(e) = active_client.as_client().connect_ports_by_name(&src, &dst) {
+            log::warn!("JACK: failed to connect {} → {}: {:?}", src, dst, e);
+        }
+    }
+    for i in 0..max_out_ch {
+        let src = format!("{}:out_{}", client_name, i + 1);
+        let dst = format!("system:playback_{}", i + 1);
+        if let Err(e) = active_client.as_client().connect_ports_by_name(&src, &dst) {
+            log::warn!("JACK: failed to connect {} → {}: {:?}", src, dst, e);
+        }
+    }
+
+    log::info!(
+        "JACK direct: chain '{}' active with {} input(s), {} output(s), DSP worker on big cores",
+        chain_id.0, max_in_ch, max_out_ch
+    );
+
+    Ok((active_client, worker_handle))
 }
 
 pub struct ProjectRuntimeController {
@@ -145,8 +962,27 @@ pub struct ProjectRuntimeController {
     active_chains: HashMap<ChainId, ActiveChainRuntime>,
 }
 pub fn list_devices() -> Result<Vec<String>> {
-    log::debug!("listing all audio devices");
-    let host = select_host();
+    log::trace!("listing all audio devices");
+
+    // On Linux with the jack feature, JACK is the only supported backend for
+    // audio streaming. Never fall through to CPAL/ALSA — probing a broken USB
+    // audio device via ALSA can block indefinitely on certain kernels (RK3588
+    // xHCI, for example). If JACK is not running, fail fast with a clear error.
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    {
+        if !jack_server_is_running() {
+            bail!("JACK server is not running — start jackd before enumerating devices");
+        }
+        let inputs = jack_enumerate_input_devices()?;
+        let outputs = jack_enumerate_output_devices()?;
+        let mut devices = Vec::new();
+        for d in inputs { devices.push(format!("input: {} | device_id: {}", d.name, d.id)); }
+        for d in outputs { devices.push(format!("output: {} | device_id: {}", d.name, d.id)); }
+        return Ok(devices);
+    }
+
+    #[allow(unreachable_code)]
+    let host = get_host();
     let mut devices = Vec::new();
     for device in host.input_devices()? {
         let description = device.description()?;
@@ -167,35 +1003,250 @@ pub fn list_devices() -> Result<Vec<String>> {
     Ok(devices)
 }
 
-pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
-    log::debug!("listing input device descriptors");
-    let host = select_host();
-    let mut devices = Vec::new();
-    for device in host.input_devices()? {
-        let description = device.description()?;
-        devices.push(AudioDeviceDescriptor {
-            id: device.id()?.to_string(),
-            name: description.name().to_string(),
-            channels: max_supported_input_channels(&device).unwrap_or(0),
-        });
+/// On Linux/ALSA, cpal lists all logical devices (equivalent to `aplay -L`),
+/// which includes dozens of virtual entries per card (surround51, iec958, dmix,
+/// plughw, default, etc.). Only hardware devices (`hw:`) are meaningful for
+/// the device picker — they map 1:1 to physical cards.
+///
+/// On other platforms this function always returns true (no filtering needed).
+fn is_hardware_device(id: &str) -> bool {
+    // cpal formats device IDs as "host:pcm_id", e.g. "alsa:hw:CARD=Gen,DEV=0".
+    // On Linux/ALSA, only keep hw: entries — direct hardware, one per physical
+    // card/device. Skips plughw, default, surround51, iec958, dmix, etc.
+    //
+    // cpal enumerates each card twice: once via HintIter (named form:
+    // hw:CARD=Gen,DEV=0) and once via hardware scan (numeric form:
+    // hw:CARD=1,DEV=0). The two forms may have slightly different device names
+    // ("Scarlett 2i2 4th Gen, USB Audio" vs "Scarlett 2i2 4th Gen"), defeating
+    // name-based deduplication. Reject numeric CARD= forms so only the named
+    // form survives — it is stable (card numbers can change on reboot).
+    #[cfg(target_os = "linux")]
+    {
+        // When using the JACK host, device IDs start with "jack:" — always accept them.
+        if id.starts_with("jack:") {
+            return true;
+        }
+        // For ALSA, only keep hw: entries — direct hardware, one per physical
+        // card/device. Skips plughw, default, surround51, iec958, dmix, etc.
+        //
+        // cpal enumerates each card twice: once via HintIter (named form:
+        // hw:CARD=Gen,DEV=0) and once via hardware scan (numeric form:
+        // hw:CARD=1,DEV=0). The two forms may have slightly different device names
+        // ("Scarlett 2i2 4th Gen, USB Audio" vs "Scarlett 2i2 4th Gen"), defeating
+        // name-based deduplication. Reject numeric CARD= forms so only the named
+        // form survives — it is stable (card numbers can change on reboot).
+        let pcm_id = id.split_once(':').map(|(_, d)| d).unwrap_or(id);
+        if !pcm_id.starts_with("hw:") {
+            return false;
+        }
+        // Accept only named CARD forms: hw:CARD=<letter>...
+        // Reject numeric CARD forms: hw:CARD=<digit>...
+        let after_card = pcm_id.split("CARD=").nth(1).unwrap_or("");
+        !after_card.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false)
     }
-    devices.sort_by(|a, b| a.name.cmp(&b.name).then(a.id.cmp(&b.id)));
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = id;
+        true
+    }
+}
+
+// ── Device descriptor cache ─────────────────────────────────────────────────
+// Device enumeration (CPAL or JACK) is expensive — on macOS CoreAudio takes
+// 200-500ms, on Linux/JACK the first connection takes similar time. The UI
+// calls refresh_input/output_devices on every click (30+ call sites). Cache
+// the result so enumeration only happens once; callers that need fresh data
+// can call invalidate_device_cache() first.
+
+static INPUT_DEVICE_CACHE: Mutex<Option<Vec<AudioDeviceDescriptor>>> = Mutex::new(None);
+static OUTPUT_DEVICE_CACHE: Mutex<Option<Vec<AudioDeviceDescriptor>>> = Mutex::new(None);
+
+/// Clear the device cache so the next list_*_device_descriptors() call
+/// re-enumerates. Call this when a device connect/disconnect is detected.
+pub fn invalidate_device_cache() {
+    *INPUT_DEVICE_CACHE.lock().unwrap() = None;
+    *OUTPUT_DEVICE_CACHE.lock().unwrap() = None;
+    log::info!("device descriptor cache invalidated");
+}
+
+/// Apply device settings (sample rate, buffer size) to hardware devices
+/// without requiring active chains. On macOS/CoreAudio, building a stream
+/// with the desired sample rate forces the driver to reconfigure the device.
+/// The temporary stream is dropped immediately after configuration.
+///
+/// USB audio devices (e.g., Scarlett) may take a few seconds to reconfigure.
+/// cpal may report a timeout even though the change succeeds — we treat
+/// timeouts as warnings and wait for the device to settle.
+pub fn apply_device_settings(settings: &[DeviceSettings]) -> Result<()> {
+    if settings.is_empty() {
+        return Ok(());
+    }
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    if using_jack_direct() {
+        log::info!("apply_device_settings: JACK mode — skipping (JACK controls device config)");
+        return Ok(());
+    }
+    let host = get_host();
+    let mut needs_settle = false;
+    for ds in settings {
+        log::info!(
+            "apply_device_settings: configuring '{}' sr={} buf={}",
+            ds.device_id.0, ds.sample_rate, ds.buffer_size_frames
+        );
+        // Try as input device first — on macOS the same physical device
+        // often shares one AudioObjectID for both directions, so configuring
+        // the input side sets the sample rate for the whole device.
+        if let Ok(Some(device)) = find_input_device_by_id(host, &ds.device_id.0) {
+            // Check if device already at requested sample rate
+            let current_rate = device.default_input_config()
+                .map(|c| c.sample_rate())
+                .unwrap_or(0);
+            if current_rate == ds.sample_rate {
+                log::info!(
+                    "apply_device_settings: input '{}' already at sr={}, skipping",
+                    ds.device_id.0, ds.sample_rate
+                );
+                continue;
+            }
+            if let Ok(ranges) = device.supported_input_configs() {
+                let ranges: Vec<_> = ranges.collect();
+                if let Some(config) = ranges.iter()
+                    .filter(|r| r.channels() >= 1)
+                    .filter_map(|r| r.try_with_sample_rate(ds.sample_rate))
+                    .next()
+                {
+                    let stream_config = build_stream_config(
+                        config.channels(),
+                        ds.sample_rate,
+                        ds.buffer_size_frames,
+                    );
+                    match device.build_input_stream(
+                        &stream_config,
+                        |_data: &[f32], _| {},
+                        |err| log::warn!("apply_device_settings input error: {err}"),
+                        None,
+                    ) {
+                        Ok(stream) => {
+                            log::info!(
+                                "apply_device_settings: input device '{}' configured (sr={} buf={})",
+                                ds.device_id.0, ds.sample_rate, ds.buffer_size_frames
+                            );
+                            drop(stream);
+                        }
+                        Err(e) => {
+                            // USB devices like Scarlett may timeout during sample rate
+                            // change but still reconfigure successfully. Treat as warning.
+                            let msg = e.to_string();
+                            if msg.contains("timeout") {
+                                log::info!(
+                                    "apply_device_settings: device '{}' sample rate change in progress (timeout is normal for USB devices)",
+                                    ds.device_id.0
+                                );
+                                needs_settle = true;
+                            } else {
+                                log::warn!(
+                                    "apply_device_settings: failed to configure input '{}': {e}",
+                                    ds.device_id.0
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if needs_settle {
+        log::info!("apply_device_settings: waiting 3s for USB device to settle after sample rate change");
+        std::thread::sleep(std::time::Duration::from_secs(3));
+        // Invalidate device cache since supported configs may have changed
+        invalidate_device_cache();
+    }
+    Ok(())
+}
+
+pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
+    if let Some(cached) = INPUT_DEVICE_CACHE.lock().unwrap().clone() {
+        log::trace!("list_input_device_descriptors: cache hit ({} devices)", cached.len());
+        return Ok(cached);
+    }
+    log::info!("list_input_device_descriptors: cache miss, enumerating...");
+    let devices = enumerate_input_devices_uncached()?;
+    *INPUT_DEVICE_CACHE.lock().unwrap() = Some(devices.clone());
     Ok(devices)
 }
 
 pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
-    log::debug!("listing output device descriptors");
-    let host = select_host();
+    if let Some(cached) = OUTPUT_DEVICE_CACHE.lock().unwrap().clone() {
+        log::trace!("list_output_device_descriptors: cache hit ({} devices)", cached.len());
+        return Ok(cached);
+    }
+    log::info!("list_output_device_descriptors: cache miss, enumerating...");
+    let devices = enumerate_output_devices_uncached()?;
+    *OUTPUT_DEVICE_CACHE.lock().unwrap() = Some(devices.clone());
+    Ok(devices)
+}
+
+fn enumerate_input_devices_uncached() -> Result<Vec<AudioDeviceDescriptor>> {
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    {
+        if jack_server_is_running() {
+            return jack_enumerate_input_devices();
+        }
+        // JACK not running — fall through to ALSA enumeration so the UI can
+        // still show available hardware devices for configuration.
+        invalidate_jack_meta_cache();
+        log::info!("JACK not running, falling back to ALSA enumeration for input devices");
+    }
+
+    #[allow(unreachable_code)]
+    let host = select_host_for_enumeration();
+    let mut devices = Vec::new();
+    for device in host.input_devices()? {
+        let id = device.id()?.to_string();
+        if !is_hardware_device(&id) {
+            continue;
+        }
+        let name = device.description()?.name().to_string();
+        if devices.iter().any(|d: &AudioDeviceDescriptor| d.name == name) {
+            continue;
+        }
+        let ch = max_supported_input_channels(&device).unwrap_or(0);
+        log::info!("[enumerate_input] device id='{}' name='{}' channels={}", id, name, ch);
+        devices.push(AudioDeviceDescriptor { id, name, channels: ch });
+    }
+    log::info!("[enumerate_input] total {} devices", devices.len());
+    devices.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(devices)
+}
+
+fn enumerate_output_devices_uncached() -> Result<Vec<AudioDeviceDescriptor>> {
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    {
+        if jack_server_is_running() {
+            return jack_enumerate_output_devices();
+        }
+        invalidate_jack_meta_cache();
+        log::info!("JACK not running, falling back to ALSA enumeration for output devices");
+    }
+
+    #[allow(unreachable_code)]
+    let host = select_host_for_enumeration();
     let mut devices = Vec::new();
     for device in host.output_devices()? {
-        let description = device.description()?;
-        devices.push(AudioDeviceDescriptor {
-            id: device.id()?.to_string(),
-            name: description.name().to_string(),
-            channels: max_supported_output_channels(&device).unwrap_or(0),
-        });
+        let id = device.id()?.to_string();
+        if !is_hardware_device(&id) {
+            continue;
+        }
+        let name = device.description()?.name().to_string();
+        if devices.iter().any(|d: &AudioDeviceDescriptor| d.name == name) {
+            continue;
+        }
+        let ch = max_supported_output_channels(&device).unwrap_or(0);
+        log::info!("[enumerate_output] device id='{}' name='{}' channels={}", id, name, ch);
+        devices.push(AudioDeviceDescriptor { id, name, channels: ch });
     }
-    devices.sort_by(|a, b| a.name.cmp(&b.name).then(a.id.cmp(&b.id)));
+    log::info!("[enumerate_output] total {} devices", devices.len());
+    devices.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(devices)
 }
 pub fn build_streams_for_project(
@@ -203,9 +1254,18 @@ pub fn build_streams_for_project(
     runtime_graph: &RuntimeGraph,
 ) -> Result<Vec<Stream>> {
     log::info!("building audio streams for project");
-    let host = select_host();
-    validate_channels_against_devices(project, &host)?;
-    let mut resolved_chains = resolve_enabled_chain_audio_configs(&host, project)?;
+
+    // When using direct JACK, no CPAL streams needed — streaming is handled
+    // entirely by the jack crate in build_active_chain_runtime.
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    if using_jack_direct() {
+        log::info!("JACK direct mode: no CPAL streams to build");
+        return Ok(Vec::new());
+    }
+
+    let host = get_host();
+    validate_channels_against_devices(project, host)?;
+    let mut resolved_chains = resolve_enabled_chain_audio_configs(host, project)?;
     let mut streams = Vec::new();
     for chain in &project.chains {
         if !chain.enabled {
@@ -226,6 +1286,54 @@ pub fn build_streams_for_project(
     Ok(streams)
 }
 
+/// Build a synthetic ResolvedChainAudioConfig using only the jack crate.
+/// No CPAL or ALSA access. The resolved config is only used to provide
+/// sample_rate and stream_signature to the runtime graph — the direct JACK
+/// backend ignores inputs/outputs entirely.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn jack_resolve_chain_config(chain: &Chain) -> Result<ResolvedChainAudioConfig> {
+    // Uses cached metadata — never opens a JACK client on its own. This is
+    // called on every upsert_chain/sync_project, so opening a client here
+    // used to dominate the client-churn load on jackd.
+    let meta = jack_meta()?;
+    let sample_rate = meta.sample_rate as f32;
+    let in_channels = meta.capture_port_count as u16;
+    let out_channels = meta.playback_port_count as u16;
+
+    // Build a minimal stream signature so the runtime can detect config changes
+    let input_sigs: Vec<InputStreamSignature> = chain.input_blocks().into_iter()
+        .flat_map(|(_, ib)| ib.entries.iter())
+        .map(|entry| InputStreamSignature {
+            device_id: "jack:system".to_string(),
+            channels: entry.channels.clone(),
+            stream_channels: in_channels,
+            sample_rate: meta.sample_rate,
+            buffer_size_frames: meta.buffer_size,
+        })
+        .collect();
+
+    let output_sigs: Vec<OutputStreamSignature> = chain.output_blocks().into_iter()
+        .flat_map(|(_, ob)| ob.entries.iter())
+        .map(|entry| OutputStreamSignature {
+            device_id: "jack:system".to_string(),
+            channels: entry.channels.clone(),
+            stream_channels: out_channels,
+            sample_rate: meta.sample_rate,
+            buffer_size_frames: meta.buffer_size,
+        })
+        .collect();
+
+    Ok(ResolvedChainAudioConfig {
+        inputs: Vec::new(),
+        outputs: Vec::new(),
+        sample_rate,
+        stream_signature: ChainStreamSignature {
+            inputs: input_sigs,
+            outputs: output_sigs,
+        },
+    })
+}
+
 impl ProjectRuntimeController {
     pub fn start(project: &Project) -> Result<Self> {
         log::info!("starting project runtime controller");
@@ -241,9 +1349,25 @@ impl ProjectRuntimeController {
 
     pub fn sync_project(&mut self, project: &Project) -> Result<()> {
         log::debug!("syncing project runtime with {} chains", project.chains.len());
-        let host = select_host();
-        validate_channels_against_devices(project, &host)?;
-        let mut resolved_chains = resolve_enabled_chain_audio_configs(&host, project)?;
+
+        // On Linux with JACK feature, always ensure JACK is running first.
+        // ensure_jack_running will start JACK if it's not already running,
+        // then using_jack_direct() will return true and we use the JACK path.
+        #[cfg(all(target_os = "linux", feature = "jack"))]
+        {
+            let jack_restarted = ensure_jack_running(project)?;
+            if jack_restarted && !self.active_chains.is_empty() {
+                log::info!("sync_project: JACK restarted, tearing down all chains");
+                self.stop();
+            }
+            if using_jack_direct() {
+                return self.sync_project_jack_direct(project);
+            }
+        }
+
+        let host = get_host();
+        validate_channels_against_devices(project, host)?;
+        let mut resolved_chains = resolve_enabled_chain_audio_configs(host, project)?;
 
         let removed_chain_ids = self
             .active_chains
@@ -253,6 +1377,10 @@ impl ProjectRuntimeController {
             .collect::<Vec<_>>();
         for chain_id in removed_chain_ids {
             log::info!("removing chain '{}' from runtime", chain_id.0);
+            if let Some(runtime) = self.runtime_graph.runtime_for_chain(&chain_id) {
+                runtime.set_draining();
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
             self.active_chains.remove(&chain_id);
             self.runtime_graph.remove_chain(&chain_id);
         }
@@ -271,6 +1399,41 @@ impl ProjectRuntimeController {
         Ok(())
     }
 
+    /// Sync project using only the jack crate — zero CPAL/ALSA access.
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    fn sync_project_jack_direct(&mut self, project: &Project) -> Result<()> {
+        log::info!("sync_project: JACK direct mode (no CPAL/ALSA)");
+
+        // Remove chains that are no longer in the project
+        let active_ids: Vec<ChainId> = self.active_chains.keys().cloned().collect();
+        for chain_id in active_ids {
+            let still_exists = project.chains.iter().any(|c| c.enabled && c.id == chain_id);
+            if !still_exists {
+                log::info!("removing chain '{}' from runtime", chain_id.0);
+                // Signal the audio callback to stop processing blocks BEFORE
+                // deactivating the JACK client — prevents use-after-free in C++
+                // NAM destructors ("terminate called without active exception").
+                if let Some(runtime) = self.runtime_graph.runtime_for_chain(&chain_id) {
+                    runtime.set_draining();
+                    // Give the JACK callback time to finish its current cycle.
+                    std::thread::sleep(std::time::Duration::from_millis(50));
+                }
+                self.active_chains.remove(&chain_id);
+                self.runtime_graph.remove_chain(&chain_id);
+            }
+        }
+
+        for chain in &project.chains {
+            if !chain.enabled {
+                continue;
+            }
+            let resolved = jack_resolve_chain_config(chain)?;
+            self.upsert_chain_with_resolved(chain, resolved)?;
+        }
+
+        Ok(())
+    }
+
     pub fn upsert_chain(&mut self, project: &Project, chain: &Chain) -> Result<()> {
         log::info!("upserting chain '{}', enabled={}", chain.id.0, chain.enabled);
         if !chain.enabled {
@@ -278,14 +1441,31 @@ impl ProjectRuntimeController {
             return Ok(());
         }
 
-        let host = select_host();
-        validate_chain_channels_against_devices(&host, chain)?;
-        let resolved = resolve_chain_audio_config(&host, project, chain)?;
+        #[cfg(all(target_os = "linux", feature = "jack"))]
+        {
+            let jack_restarted = ensure_jack_running(project)?;
+            if jack_restarted && !self.active_chains.is_empty() {
+                log::info!("upsert_chain: JACK restarted, tearing down all chains");
+                self.stop();
+            }
+            if using_jack_direct() {
+                let resolved = jack_resolve_chain_config(chain)?;
+                return self.upsert_chain_with_resolved(chain, resolved);
+            }
+        }
+
+        let host = get_host();
+        validate_chain_channels_against_devices(host, chain)?;
+        let resolved = resolve_chain_audio_config(host, project, chain)?;
         self.upsert_chain_with_resolved(chain, resolved)
     }
 
     pub fn remove_chain(&mut self, chain_id: &ChainId) {
         log::info!("removing chain '{}' from runtime", chain_id.0);
+        if let Some(runtime) = self.runtime_graph.runtime_for_chain(chain_id) {
+            runtime.set_draining();
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
         self.active_chains.remove(chain_id);
         self.runtime_graph.remove_chain(chain_id);
     }
@@ -298,6 +1478,60 @@ impl ProjectRuntimeController {
 
     pub fn is_running(&self) -> bool {
         !self.active_chains.is_empty()
+    }
+
+    /// Check whether the audio backend is still healthy.
+    ///
+    /// On Linux/JACK: returns false when the JACK server has disappeared (e.g.
+    /// USB audio device unplugged → udev restarts jackd). The caller should
+    /// tear down the runtime and attempt reconnection once JACK reappears.
+    ///
+    /// On macOS/Windows (CoreAudio/WASAPI): always returns true — device loss
+    /// is detected through stream error callbacks, not polling.
+    pub fn is_healthy(&self) -> bool {
+        if self.active_chains.is_empty() {
+            return true;
+        }
+        #[cfg(all(target_os = "linux", feature = "jack"))]
+        if using_jack_direct() {
+            return jack_server_is_running();
+        }
+        true
+    }
+
+    /// Attempt to reconnect after the audio backend became unhealthy.
+    ///
+    /// Tears down all active chains, invalidates caches, and re-syncs the
+    /// project. Returns Ok(true) if reconnection succeeded, Ok(false) if the
+    /// backend is not yet available (no USB device, JACK not ready).
+    pub fn try_reconnect(&mut self, project: &Project) -> Result<bool> {
+        log::info!("try_reconnect: checking if audio backend is available");
+
+        #[cfg(all(target_os = "linux", feature = "jack"))]
+        if using_jack_direct() {
+            // If no USB audio card is present, don't even try
+            if detect_usb_audio_card().is_none() {
+                log::debug!("try_reconnect: no USB audio card found");
+                return Ok(false);
+            }
+            invalidate_jack_meta_cache();
+        }
+
+        // Tear down everything cleanly
+        self.stop();
+
+        // Re-sync from scratch — sync_project will call ensure_jack_running
+        // on Linux, which launches jackd if needed
+        match self.sync_project(project) {
+            Ok(()) => {
+                log::info!("try_reconnect: successfully reconnected with {} chains", self.active_chains.len());
+                Ok(true)
+            }
+            Err(e) => {
+                log::warn!("try_reconnect: sync_project failed: {}", e);
+                Err(e)
+            }
+        }
     }
 
     /// Returns stream data for a block in any running chain.
@@ -339,7 +1573,7 @@ impl ProjectRuntimeController {
                 .upsert_chain(chain, resolved.sample_rate, needs_stream_rebuild)?;
 
         if needs_stream_rebuild {
-            let active = build_active_chain_runtime(&chain.id, resolved, runtime)?;
+            let active = build_active_chain_runtime(&chain.id, chain, resolved, runtime)?;
             self.active_chains.insert(chain.id.clone(), active);
         }
 
@@ -348,7 +1582,23 @@ impl ProjectRuntimeController {
 }
 
 pub fn resolve_project_chain_sample_rates(project: &Project) -> Result<HashMap<ChainId, f32>> {
-    let host = select_host();
+    // When using direct JACK, get sample rate from JACK server directly.
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    {
+        if jack_server_is_running() {
+            // Reuse the cached metadata client — no fresh JACK client here.
+            let sr = jack_meta()?.sample_rate as f32;
+            let mut sample_rates = HashMap::new();
+            for chain in &project.chains {
+                if chain.enabled {
+                    sample_rates.insert(chain.id.clone(), sr);
+                }
+            }
+            return Ok(sample_rates);
+        }
+    }
+
+    let host = get_host();
     let mut sample_rates = HashMap::new();
 
     for chain in &project.chains {
@@ -376,11 +1626,15 @@ fn resolve_input_device_for_chain_input(
         .iter()
         .find(|s| s.device_id == input.device_id)
         .cloned();
+    if using_jack_direct() {
+        // Unreachable in JACK-direct mode: sync_project / upsert_chain short-circuit
+        // into sync_project_jack_direct() before ever calling this function. If we
+        // ever land here while JACK is active, something bypassed the short-circuit
+        // and is about to probe ALSA on a device JACK owns — refuse instead.
+        bail!("internal error: resolve_input_device_for_chain_input called in JACK-direct mode");
+    }
     let device = find_input_device_by_id(host, &input.device_id.0)?.ok_or_else(|| {
-        anyhow!(
-            "input device '{}' not found by device_id",
-            input.device_id.0
-        )
+        anyhow!("input device '{}' not found by device_id", input.device_id.0)
     })?;
     let default_config = device.default_input_config().with_context(|| {
         format!(
@@ -433,11 +1687,12 @@ fn resolve_output_device_for_chain_output(
         .iter()
         .find(|s| s.device_id == output.device_id)
         .cloned();
+    if using_jack_direct() {
+        // Unreachable in JACK-direct mode (see matching guard in the input path).
+        bail!("internal error: resolve_output_device_for_chain_output called in JACK-direct mode");
+    }
     let device = find_output_device_by_id(host, &output.device_id.0)?.ok_or_else(|| {
-        anyhow!(
-            "output device '{}' not found by device_id",
-            output.device_id.0
-        )
+        anyhow!("output device '{}' not found by device_id", output.device_id.0)
     })?;
     let default_config = device.default_output_config().with_context(|| {
         format!(
@@ -664,19 +1919,27 @@ fn validate_input_channels_against_device(
     device_id: &str,
     channels: &[usize],
 ) -> Result<()> {
+    // When using direct JACK backend, skip CPAL-based channel validation.
+    // JACK manages port routing and will report errors at connect time.
+    if using_jack_direct() {
+        log::debug!("[validate_input_channels] skipping — JACK direct mode");
+        return Ok(());
+    }
+    log::info!(
+        "[validate_input_channels] chain='{}' device='{}' channels={:?} jack_direct=false",
+        chain_id, device_id, channels
+    );
     let device = find_input_device_by_id(host, device_id)?.ok_or_else(|| {
-        anyhow!(
-            "chain '{}' missing input device '{}'",
-            chain_id,
-            device_id
-        )
+        anyhow!("chain '{}' missing input device '{}'", chain_id, device_id)
     })?;
+    log::info!("[validate_input_channels] device found, querying channel capacity...");
     let total_channels = max_supported_input_channels(&device).with_context(|| {
         format!(
             "failed to resolve input channel capacity for '{}'",
             device_id
         )
     })?;
+    log::info!("[validate_input_channels] device '{}' has {} channels", device_id, total_channels);
     for channel in channels {
         if *channel >= total_channels {
             bail!(
@@ -696,19 +1959,25 @@ fn validate_output_channels_against_device(
     device_id: &str,
     channels: &[usize],
 ) -> Result<()> {
+    if using_jack_direct() {
+        log::debug!("[validate_output_channels] skipping — JACK direct mode");
+        return Ok(());
+    }
+    log::info!(
+        "[validate_output_channels] chain='{}' device='{}' channels={:?} jack_direct=false",
+        chain_id, device_id, channels
+    );
     let device = find_output_device_by_id(host, device_id)?.ok_or_else(|| {
-        anyhow!(
-            "chain '{}' missing output device '{}'",
-            chain_id,
-            device_id
-        )
+        anyhow!("chain '{}' missing output device '{}'", chain_id, device_id)
     })?;
+    log::info!("[validate_output_channels] device found, querying channel capacity...");
     let total_channels = max_supported_output_channels(&device).with_context(|| {
         format!(
             "failed to resolve output channel capacity for '{}'",
             device_id
         )
     })?;
+    log::info!("[validate_output_channels] device '{}' has {} channels", device_id, total_channels);
     for channel in channels {
         if *channel >= total_channels {
             bail!(
@@ -817,6 +2086,26 @@ fn build_input_stream_for_input(
                 None,
             )?
         }
+        SampleFormat::I32 => {
+            let runtime_for_data = runtime.clone();
+            let channels = stream_config.channels as usize;
+            let error_chain_id = chain_id.0.clone();
+            let mut converted = Vec::new();
+            device.build_input_stream(
+                &stream_config,
+                move |data: &[i32], _| {
+                    converted.resize(data.len(), 0.0);
+                    for (dst, src) in converted.iter_mut().zip(data.iter().copied()) {
+                        *dst = src as f32 / i32::MAX as f32;
+                    }
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        process_input_f32(&runtime_for_data, input_index, &converted, channels);
+                    }));
+                },
+                move |err| log::error!("[{}] input stream error: {}", error_chain_id, err),
+                None,
+            )?
+        }
         other => {
             bail!(
                 "unsupported input sample format for chain '{}': {:?}",
@@ -911,6 +2200,27 @@ fn build_output_stream_for_output(
                 None,
             )?
         }
+        SampleFormat::I32 => {
+            let runtime_for_data = runtime.clone();
+            let channels = stream_config.channels as usize;
+            let error_chain_id = chain_id.0.clone();
+            let mut temp = Vec::new();
+            device.build_output_stream(
+                &stream_config,
+                move |out: &mut [i32], _| {
+                    temp.resize(out.len(), 0.0);
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        process_output_f32(&runtime_for_data, output_index, &mut temp, channels);
+                    }));
+                    for (dst, src) in out.iter_mut().zip(temp.iter()) {
+                        *dst = (*src * i32::MAX as f32)
+                            .clamp(i32::MIN as f32, i32::MAX as f32) as i32;
+                    }
+                },
+                move |err| log::error!("[{}] output stream error: {}", error_chain_id, err),
+                None,
+            )?
+        }
         other => {
             bail!(
                 "unsupported output sample format for chain '{}': {:?}",
@@ -963,11 +2273,31 @@ fn build_chain_streams(
 
 fn build_active_chain_runtime(
     chain_id: &ChainId,
+    #[allow(unused_variables)] chain: &Chain,
     resolved: ResolvedChainAudioConfig,
     runtime: Arc<ChainRuntimeState>,
 ) -> Result<ActiveChainRuntime> {
     log::info!("building active chain runtime for '{}', sample_rate={}", chain_id.0, resolved.sample_rate);
     let stream_signature = resolved.stream_signature.clone();
+
+    // On Linux with JACK: use the jack crate directly for zero-overhead audio.
+    // This bypasses CPAL entirely — the JACK process callback runs in the
+    // real-time thread with no extra buffering.
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    {
+        if jack_server_is_running() {
+            log::info!("JACK detected — using direct JACK backend (bypassing CPAL)");
+            let (jack_client, dsp_worker) = build_jack_direct_chain(chain_id, chain, runtime)?;
+            return Ok(ActiveChainRuntime {
+                stream_signature,
+                _input_streams: Vec::new(),
+                _output_streams: Vec::new(),
+                _jack_client: Some(jack_client),
+                _dsp_worker: Some(dsp_worker),
+            });
+        }
+    }
+
     let (input_streams, output_streams) = build_chain_streams(chain_id, resolved, runtime)?;
     for stream in &input_streams {
         stream.play()?;
@@ -985,6 +2315,10 @@ fn build_active_chain_runtime(
         stream_signature,
         _input_streams: input_streams,
         _output_streams: output_streams,
+        #[cfg(all(target_os = "linux", feature = "jack"))]
+        _jack_client: None,
+        #[cfg(all(target_os = "linux", feature = "jack"))]
+        _dsp_worker: None,
     })
 }
 
@@ -1187,26 +2521,54 @@ fn resolve_multi_io_sample_rate(
 }
 
 fn max_supported_input_channels(device: &cpal::Device) -> Result<usize> {
-    let max_supported = device
-        .supported_input_configs()?
-        .map(|config| config.channels() as usize)
-        .max();
-    let default_channels = device
-        .default_input_config()
-        .ok()
-        .map(|config| config.channels() as usize);
+    let max_supported = match device.supported_input_configs() {
+        Ok(configs) => {
+            let max = configs.map(|config| config.channels() as usize).max();
+            log::info!("[max_supported_input_channels] supported_input_configs max={:?}", max);
+            max
+        }
+        Err(e) => {
+            log::warn!("[max_supported_input_channels] supported_input_configs error: {}", e);
+            return Err(e.into());
+        }
+    };
+    let default_channels = match device.default_input_config() {
+        Ok(config) => {
+            let ch = config.channels() as usize;
+            log::info!("[max_supported_input_channels] default_input_config channels={}", ch);
+            Some(ch)
+        }
+        Err(e) => {
+            log::info!("[max_supported_input_channels] default_input_config error: {}", e);
+            None
+        }
+    };
     max_supported_channels(default_channels, max_supported)
 }
 
 fn max_supported_output_channels(device: &cpal::Device) -> Result<usize> {
-    let max_supported = device
-        .supported_output_configs()?
-        .map(|config| config.channels() as usize)
-        .max();
-    let default_channels = device
-        .default_output_config()
-        .ok()
-        .map(|config| config.channels() as usize);
+    let max_supported = match device.supported_output_configs() {
+        Ok(configs) => {
+            let max = configs.map(|config| config.channels() as usize).max();
+            log::info!("[max_supported_output_channels] supported_output_configs max={:?}", max);
+            max
+        }
+        Err(e) => {
+            log::warn!("[max_supported_output_channels] supported_output_configs error: {}", e);
+            return Err(e.into());
+        }
+    };
+    let default_channels = match device.default_output_config() {
+        Ok(config) => {
+            let ch = config.channels() as usize;
+            log::info!("[max_supported_output_channels] default_output_config channels={}", ch);
+            Some(ch)
+        }
+        Err(e) => {
+            log::info!("[max_supported_output_channels] default_output_config error: {}", e);
+            None
+        }
+    };
     max_supported_channels(default_channels, max_supported)
 }
 
@@ -1224,7 +2586,7 @@ mod tests {
     use super::{
         build_stream_config, max_supported_channels, required_channel_count,
         resolve_chain_runtime_sample_rate, select_supported_stream_config, validate_buffer_size,
-        AudioDeviceDescriptor,
+        AudioDeviceDescriptor, ProjectRuntimeController,
     };
     use cpal::{BufferSize, SampleFormat, SupportedBufferSize, SupportedStreamConfigRange};
 
@@ -1921,5 +3283,27 @@ mod tests {
         };
         let entry = insert_send_as_output_entry(&insert);
         assert!(matches!(entry.mode, ChainOutputMode::Stereo));
+    }
+
+    #[test]
+    fn is_healthy_returns_true_when_no_chains_active() {
+        let controller = ProjectRuntimeController {
+            runtime_graph: super::RuntimeGraph {
+                chains: std::collections::HashMap::new(),
+            },
+            active_chains: std::collections::HashMap::new(),
+        };
+        assert!(controller.is_healthy());
+    }
+
+    #[test]
+    fn is_running_returns_false_when_no_chains() {
+        let controller = ProjectRuntimeController {
+            runtime_graph: super::RuntimeGraph {
+                chains: std::collections::HashMap::new(),
+            },
+            active_chains: std::collections::HashMap::new(),
+        };
+        assert!(!controller.is_running());
     }
 }

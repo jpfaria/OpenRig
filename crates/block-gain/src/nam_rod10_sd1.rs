@@ -10,7 +10,7 @@ use block_core::{AudioChannelLayout, BlockProcessor};
 
 pub const MODEL_ID: &str = "rod10_sd1";
 pub const DISPLAY_NAME: &str = "ROD-10 SD1";
-const BRAND: &str = "custom";
+const BRAND: &str = "boss";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 

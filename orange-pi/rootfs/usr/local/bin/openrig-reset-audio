@@ -78,8 +78,10 @@ echo "openrig-reset-audio: target xHCI controller = $TARGET"
 if [ "$RESTART_SERVICES" -eq 1 ]; then
     echo "openrig-reset-audio: stopping openrig.service"
     systemctl stop openrig.service 2>/dev/null || true
-    echo "openrig-reset-audio: stopping jackd.service"
-    systemctl stop jackd.service 2>/dev/null || true
+    # JACK is now managed programmatically by OpenRig (not a systemd service).
+    # Kill any running jackd process so the ALSA PCM is fully released.
+    echo "openrig-reset-audio: killing jackd process"
+    killall -9 jackd 2>/dev/null || true
     # small delay so the ALSA PCM is fully released before the unbind
     sleep 1
 fi
@@ -110,23 +112,9 @@ if [ "$RESTART_SERVICES" -eq 0 ]; then
     exit 0
 fi
 
-echo "openrig-reset-audio: starting jackd.service"
-systemctl start jackd.service || true
-
-# jackd's first post-reset start sometimes fails with "Broken pipe" because
-# the previous ALSA handle is still being torn down; systemd's
-# Restart=on-failure retries. Wait for the shm socket as the source of truth.
-for _ in $(seq 1 10); do
-    if ls /dev/shm/jack_default_*_0 >/dev/null 2>&1; then
-        break
-    fi
-    sleep 1
-done
-
-if ! ls /dev/shm/jack_default_*_0 >/dev/null 2>&1; then
-    echo "openrig-reset-audio: WARNING — jackd shm socket not ready after 10s" >&2
-fi
-
+# JACK is managed by OpenRig programmatically — just restart OpenRig.
+# When a chain is enabled, ensure_jack_running() will auto-launch jackd
+# with the correct sample_rate/buffer_size from gui-settings.yaml.
 echo "openrig-reset-audio: starting openrig.service"
 systemctl start openrig.service || true
 

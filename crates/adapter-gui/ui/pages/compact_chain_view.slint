@@ -670,7 +670,10 @@ export component CompactChainViewPage inherits Rectangle {
 
             in-ta := TouchArea {
                 mouse-cursor: pointer;
-                clicked => { root.configure-input(root.chain-index); }
+                clicked => {
+                    debug("compact IN clicked", root.chain-index);
+                    root.configure-input(root.chain-index);
+                }
             }
         }
 
@@ -695,7 +698,10 @@ export component CompactChainViewPage inherits Rectangle {
 
             out-ta := TouchArea {
                 mouse-cursor: pointer;
-                clicked => { root.configure-output(root.chain-index); }
+                clicked => {
+                    debug("compact OUT clicked", root.chain-index);
+                    root.configure-output(root.chain-index);
+                }
             }
         }
     }

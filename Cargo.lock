@@ -2920,6 +2920,8 @@ dependencies = [
  "cpal",
  "domain",
  "engine",
+ "jack",
+ "libc",
  "log",
  "project",
 ]

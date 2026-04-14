@@ -215,6 +215,8 @@ pub struct GuiAudioDeviceSettings {
     pub sample_rate: u32,
     #[serde(default = "default_buffer_size_frames")]
     pub buffer_size_frames: u32,
+    #[serde(default = "default_bit_depth")]
+    pub bit_depth: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -237,6 +239,10 @@ fn default_sample_rate() -> u32 {
 
 fn default_buffer_size_frames() -> u32 {
     256
+}
+
+fn default_bit_depth() -> u32 {
+    32
 }
 
 fn default_true() -> bool {
@@ -265,6 +271,7 @@ impl From<LegacyGuiAudioSettings> for GuiAudioSettings {
                 name,
                 sample_rate: value.sample_rate,
                 buffer_size_frames: value.buffer_size_frames,
+                bit_depth: default_bit_depth(),
             })
             .collect();
         let output_devices = value
@@ -275,6 +282,7 @@ impl From<LegacyGuiAudioSettings> for GuiAudioSettings {
                 name,
                 sample_rate: value.sample_rate,
                 buffer_size_frames: value.buffer_size_frames,
+                bit_depth: default_bit_depth(),
             })
             .collect();
         Self {
@@ -413,6 +421,7 @@ mod tests {
             name: name.into(),
             sample_rate: 48_000,
             buffer_size_frames: 256,
+            bit_depth: 32,
         }
     }
 
@@ -733,6 +742,28 @@ mod tests {
         let yaml = "device_id: x\nname: X\n";
         let dev: GuiAudioDeviceSettings = serde_yaml::from_str(yaml).unwrap();
         assert_eq!(dev.buffer_size_frames, 256);
+    }
+
+    #[test]
+    fn gui_audio_device_settings_defaults_bit_depth_32() {
+        let yaml = "device_id: x\nname: X\n";
+        let dev: GuiAudioDeviceSettings = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(dev.bit_depth, 32);
+    }
+
+    #[test]
+    fn gui_audio_device_settings_roundtrip_with_bit_depth() {
+        let dev = GuiAudioDeviceSettings {
+            device_id: "hw:0".into(),
+            name: "Teyun Q26".into(),
+            sample_rate: 48_000,
+            buffer_size_frames: 64,
+            bit_depth: 24,
+        };
+        let yaml = serde_yaml::to_string(&dev).unwrap();
+        let restored: GuiAudioDeviceSettings = serde_yaml::from_str(&yaml).unwrap();
+        assert_eq!(dev, restored);
+        assert_eq!(restored.bit_depth, 24);
     }
 
     // ── LegacyGuiAudioSettings migration ────────────────────────────────

@@ -211,7 +211,7 @@ fn build(
 pub const MODEL_DEFINITION: ReverbModelDefinition = ReverbModelDefinition {
     id: MODEL_ID,
     display_name: DISPLAY_NAME,
-    brand: "",
+    brand: block_core::BRAND_NATIVE,
     backend_kind: ReverbBackendKind::Native,
     schema,
     build,

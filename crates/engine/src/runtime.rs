@@ -33,6 +33,12 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
+// Orange Pi (aarch64/JACK) needs a larger elastic buffer to absorb jitter
+// from the SPSC ring buffer + worker thread architecture. On macOS/Windows
+// the default 256 is fine — CPAL callbacks are tight and predictable.
+#[cfg(target_arch = "aarch64")]
+const ELASTIC_BUFFER_TARGET_LEVEL: usize = 2048;
+#[cfg(not(target_arch = "aarch64"))]
 const ELASTIC_BUFFER_TARGET_LEVEL: usize = 256;
 static NEXT_BLOCK_INSTANCE_SERIAL: AtomicU64 = AtomicU64::new(1);
 
@@ -208,9 +214,23 @@ pub struct ChainRuntimeState {
     #[allow(dead_code)]
     last_input_nanos: AtomicU64,
     measured_latency_nanos: AtomicU64,
+    /// When true, the audio callback must not call any block processors.
+    /// Set before deactivating the JACK client to prevent use-after-free
+    /// in C++ NAM destructors (terminate called without active exception).
+    draining: std::sync::atomic::AtomicBool,
 }
 
 impl ChainRuntimeState {
+    /// Signal the audio callback to stop processing blocks.
+    /// Must be called before deactivating JACK or dropping block processors.
+    pub fn set_draining(&self) {
+        self.draining.store(true, std::sync::atomic::Ordering::Release);
+    }
+
+    pub fn is_draining(&self) -> bool {
+        self.draining.load(std::sync::atomic::Ordering::Acquire)
+    }
+
     pub fn measured_latency_ms(&self) -> f32 {
         let nanos = self.measured_latency_nanos.load(std::sync::atomic::Ordering::Relaxed);
         nanos as f32 / 1_000_000.0
@@ -423,6 +443,7 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
         error_queue: Mutex::new(Vec::new()),
         last_input_nanos: AtomicU64::new(0),
         measured_latency_nanos: AtomicU64::new(0),
+        draining: std::sync::atomic::AtomicBool::new(false),
     })
 }
 
@@ -765,14 +786,18 @@ fn build_input_processing_state(
         output_channels,
         input.mode,
     );
-    // Chain processing bus is ALWAYS stereo. Mono blocks convert
-    // stereo→mono on input and mono→stereo on output transparently.
-    let _ = proc_layout;
-    let processing_layout_channel = AudioChannelLayout::Stereo;
     let input_read_layout = match input.mode {
         ChainInputMode::Mono => AudioChannelLayout::Mono,
         ChainInputMode::Stereo | ChainInputMode::DualMono => AudioChannelLayout::Stereo,
     };
+    // On aarch64 (Orange Pi), use mono processing when input is mono to halve
+    // NAM instances (DualMono→Mono). On x86 (Mac/Windows) keep stereo always
+    // to avoid any risk of changing the sound character.
+    #[cfg(target_arch = "aarch64")]
+    let processing_layout_channel = input_read_layout;
+    #[cfg(not(target_arch = "aarch64"))]
+    let processing_layout_channel = AudioChannelLayout::Stereo;
+    let _ = proc_layout;
     log::info!(
         "chain '{}' input entry processing layout: input_read={}, processing={:?} (channels={:?} mode={:?})",
         chain.id.0,
@@ -1581,12 +1606,35 @@ fn optional_string(params: &ParameterSet, path: &str) -> Option<String> {
         .map(ToString::to_string)
 }
 
+/// Ensure denormalized floats are flushed to zero on aarch64.
+///
+/// Without this, neural-network processors (NAM) produce degraded audio on
+/// aarch64 because denormals accumulate through the network layers.  On x86
+/// the NAM/Eigen libraries set DAZ+FTZ internally — we leave x86 alone to
+/// avoid changing the sound character on macOS/Windows.
+#[inline(always)]
+fn ensure_flush_to_zero() {
+    #[cfg(target_arch = "aarch64")]
+    unsafe {
+        // FZ bit (bit 24) in FPCR
+        let fpcr: u64;
+        core::arch::asm!("mrs {}, fpcr", out(reg) fpcr);
+        if fpcr & (1 << 24) == 0 {
+            core::arch::asm!("msr fpcr, {}", in(reg) fpcr | (1 << 24));
+        }
+    }
+}
+
 pub fn process_input_f32(
     runtime: &Arc<ChainRuntimeState>,
     input_index: usize,
     data: &[f32],
     input_total_channels: usize,
 ) {
+    if runtime.is_draining() {
+        return;
+    }
+    ensure_flush_to_zero();
     let num_frames = data.len() / input_total_channels;
 
     // Get which segments this CPAL input feeds
@@ -1860,6 +1908,11 @@ pub fn process_output_f32(
     out: &mut [f32],
     output_total_channels: usize,
 ) {
+    if runtime.is_draining() {
+        out.fill(0.0);
+        return;
+    }
+    ensure_flush_to_zero();
     // Get the Arc for this specific route (brief lock on output state)
     let route_arc = {
         let output_state = match runtime.output.lock() {
