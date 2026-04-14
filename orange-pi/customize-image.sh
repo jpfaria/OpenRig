@@ -131,6 +131,11 @@ chains:
 DEFAULT_PROJECT
 chown openrig:openrig /home/openrig/project.yaml
 
+# Create the system-level project config that openrig.service uses
+# (ExecStart=/usr/bin/openrig --fullscreen --auto-save /etc/openrig.yaml).
+# This is a minimal config; the user customizes it via the GUI.
+cp /home/openrig/project.yaml /etc/openrig.yaml
+
 # ── 8. Locale, keyboard, timezone ────────────────────────────────────────────
 # English UI, Brazilian ABNT2 keyboard, São Paulo time. All configured
 # directly so the Armbian first-run wizard has nothing left to ask.
@@ -152,8 +157,21 @@ ln -sf /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime
 echo 'America/Sao_Paulo' > /etc/timezone
 dpkg-reconfigure -f noninteractive tzdata || true
 
+# ── 8b. Audio RT capabilities ────────────────────────────────────────────────
+# JACK needs real-time scheduling and memory locking for glitch-free audio.
+# setcap grants these without running jackd as a privileged systemd service
+# (JACK is now launched as a background process by OpenRig).
+echo ">>> [OpenRig] Setting JACK RT capabilities and audio group membership..."
+setcap cap_sys_nice,cap_ipc_lock=ep /usr/bin/jackd || true
+usermod -aG audio root
+
 # ── 9. Enable systemd services ───────────────────────────────────────────────
-echo ">>> [OpenRig] Enabling weston.service, openrig.service, openrig-irq-affinity.service and openrig-audio-watchdog.service..."
+# JACK is managed programmatically by OpenRig (ensure_jack_running in
+# infra-cpal), NOT by systemd. Mask jackd.service to prevent accidental
+# activation. The jackd2 package is still installed for /usr/bin/jackd.
+echo ">>> [OpenRig] Enabling services, masking jackd..."
+systemctl disable jackd.service  2>/dev/null || true
+systemctl mask    jackd.service  2>/dev/null || true
 systemctl enable weston.service
 systemctl enable openrig.service
 systemctl enable openrig-irq-affinity.service
