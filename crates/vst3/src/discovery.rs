@@ -128,9 +128,16 @@ pub struct Vst3PluginInfo {
 /// Paths are returned in priority order (user-level first, system-level second).
 /// None of these paths are guaranteed to exist.
 pub fn system_vst3_paths() -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+
+    // Bundled VST3 plugins shipped with the app (highest priority)
+    let bundled = PathBuf::from(&infra_filesystem::asset_paths().vst3_plugins);
+    if bundled.exists() {
+        paths.push(bundled);
+    }
+
     #[cfg(target_os = "macos")]
     {
-        let mut paths = Vec::new();
         // User-level
         if let Some(home) = dirs_home() {
             paths.push(home.join("Library").join("Audio").join("Plug-Ins").join("VST3"));
@@ -139,11 +146,9 @@ pub fn system_vst3_paths() -> Vec<PathBuf> {
         paths.push(PathBuf::from("/Library/Audio/Plug-Ins/VST3"));
         // Network / developer
         paths.push(PathBuf::from("/Network/Library/Audio/Plug-Ins/VST3"));
-        paths
     }
     #[cfg(target_os = "windows")]
     {
-        let mut paths = Vec::new();
         // %LOCALAPPDATA%\Programs\Common\VST3
         if let Some(local) = std::env::var_os("LOCALAPPDATA") {
             paths.push(
@@ -161,11 +166,9 @@ pub fn system_vst3_paths() -> Vec<PathBuf> {
         if let Some(pf86) = std::env::var_os("PROGRAMFILES(X86)") {
             paths.push(PathBuf::from(pf86).join("Common Files").join("VST3"));
         }
-        paths
     }
     #[cfg(target_os = "linux")]
     {
-        let mut paths = Vec::new();
         // User-level
         if let Some(home) = dirs_home() {
             paths.push(home.join(".vst3"));
@@ -173,12 +176,9 @@ pub fn system_vst3_paths() -> Vec<PathBuf> {
         // System-level
         paths.push(PathBuf::from("/usr/lib/vst3"));
         paths.push(PathBuf::from("/usr/local/lib/vst3"));
-        paths
     }
-    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
-    {
-        Vec::new()
-    }
+
+    paths
 }
 
 #[cfg(not(target_os = "windows"))]

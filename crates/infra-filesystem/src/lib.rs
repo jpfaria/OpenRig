@@ -34,6 +34,9 @@ pub struct AssetPaths {
     /// Root directory for plugin metadata YAML files (per-language).
     #[serde(default = "default_metadata")]
     pub metadata: String,
+    /// Directory containing bundled VST3 plugin bundles (.vst3).
+    #[serde(default = "default_vst3_plugins")]
+    pub vst3_plugins: String,
 }
 
 impl Default for AssetPaths {
@@ -46,6 +49,7 @@ impl Default for AssetPaths {
             thumbnails: default_thumbnails(),
             screenshots: default_screenshots(),
             metadata: default_metadata(),
+            vst3_plugins: default_vst3_plugins(),
         }
     }
 }
@@ -85,6 +89,19 @@ fn default_screenshots() -> String {
 
 fn default_metadata() -> String {
     "assets/blocks/metadata".to_string()
+}
+
+fn default_vst3_plugins() -> String {
+    #[cfg(target_os = "macos")]
+    { "libs/vst3/macos-universal".to_string() }
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    { "libs/vst3/linux-x86_64".to_string() }
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    { "libs/vst3/linux-aarch64".to_string() }
+    #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
+    { "libs/vst3/windows-x64".to_string() }
+    #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
+    { "libs/vst3/windows-arm64".to_string() }
 }
 
 static ASSET_PATHS: OnceLock<AssetPaths> = OnceLock::new();
@@ -149,6 +166,7 @@ pub fn resolve_asset_paths(paths: AssetPaths) -> AssetPaths {
         thumbnails: resolve(&root, paths.thumbnails),
         screenshots: resolve(&root, paths.screenshots),
         metadata: resolve(&root, paths.metadata),
+        vst3_plugins: resolve(&root, paths.vst3_plugins),
     }
 }
 
@@ -432,6 +450,7 @@ mod tests {
             thumbnails: "custom/thumbs".into(),
             screenshots: "custom/screens".into(),
             metadata: "custom/meta".into(),
+            vst3_plugins: "custom/vst3".into(),
         };
         let yaml = serde_yaml::to_string(&paths).unwrap();
         let restored: AssetPaths = serde_yaml::from_str(&yaml).unwrap();
@@ -455,6 +474,7 @@ mod tests {
             thumbnails: "/absolute/thumbs".into(),
             screenshots: "/absolute/screens".into(),
             metadata: "/absolute/meta".into(),
+            vst3_plugins: "/absolute/vst3".into(),
         };
         let resolved = resolve_asset_paths(paths.clone());
         assert_eq!(resolved.lv2_libs, "/absolute/lv2/libs");

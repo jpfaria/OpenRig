@@ -7,6 +7,7 @@ edition.workspace = true
 anyhow = { workspace = true }
 log = { workspace = true }
 block-core = { path = "../block-core" }
+infra-filesystem = { path = "../infra-filesystem" }
 vst3 = "0.3.0"
 libloading = "0.8"
 crossbeam-queue = "0.3"

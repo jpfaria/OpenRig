@@ -5981,6 +5981,7 @@ dependencies = [
  "anyhow",
  "block-core",
  "crossbeam-queue",
+ "infra-filesystem",
  "libloading 0.8.9",
  "log",
  "vst3",
