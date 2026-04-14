@@ -179,6 +179,15 @@ pub trait PluginEditorHandle: Send {
     /// `x`, `y` use top-left origin (Slint convention). Only meaningful for
     /// editors opened in embedded mode; default is a no-op.
     fn reposition_embedded(&self, _x: f64, _y: f64) {}
+
+    /// Hide the embedded view (keeps the plugin instance alive).
+    fn hide_embedded(&self) {}
+
+    /// Show a previously hidden embedded view.
+    fn show_embedded(&self) {}
+
+    /// Get the editor dimensions (width, height) in logical pixels.
+    fn editor_size(&self) -> (f64, f64) { (0.0, 0.0) }
 }
 /// Capitalize the first character of a string, leaving the rest unchanged.
 pub fn capitalize_first(s: &str) -> String {

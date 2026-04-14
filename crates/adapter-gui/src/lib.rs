@@ -490,8 +490,11 @@ pub fn run_desktop_app(
     // Open VST3 editor handles (kept alive so the OS window stays open).
     let vst3_editor_handles: Rc<RefCell<Vec<Box<dyn project::vst3_editor::PluginEditorHandle>>>> =
         Rc::new(RefCell::new(Vec::new()));
-    let vst3_editor_handles_for_on_open = vst3_editor_handles.clone();
-    let vst3_editor_handles_for_close = vst3_editor_handles.clone();
+    // Embedded VST3 editor: (model_id, handle) — kept alive across popup
+    // open/close to avoid re-creating plugin instances (some plugins like
+    // ValhallaSupermassive reject multiple createInstance calls).
+    let embedded_vst3_editor: Rc<RefCell<Option<(String, Box<dyn project::vst3_editor::PluginEditorHandle>)>>> =
+        Rc::new(RefCell::new(None));
     // Scan system VST3 paths in a background thread so startup isn't blocked.
     // The catalog is available before any project is opened.
     let vst3_sample_rate = settings
@@ -4180,6 +4183,10 @@ pub fn run_desktop_app(
                     }
                 }
                 window.set_show_block_drawer(true);
+                // Auto-open embedded VST3 editor when the block drawer opens
+                if project::catalog::block_has_external_gui(&effect_type, &model_id) {
+                    window.invoke_open_vst3_editor(model_id.clone().into());
+                }
             } else {
                 window.set_show_block_drawer(false);
                 let ci = chain_index as usize;
@@ -5363,15 +5370,19 @@ pub fn run_desktop_app(
             window.set_block_drawer_selected_model_index(0);
             window.set_block_drawer_status_message("".into());
             window.set_show_block_type_picker(false);
-            window.set_has_external_editor(project::catalog::block_has_external_gui(&model.effect_type, &model.model_id));
+            let is_vst3_gui = project::catalog::block_has_external_gui(&model.effect_type, &model.model_id);
+            window.set_has_external_editor(is_vst3_gui);
             if use_inline_block_editor(&window) {
                 window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
                 window.set_show_block_drawer(true);
+                if is_vst3_gui {
+                    window.invoke_open_vst3_editor(model.model_id.clone().into());
+                }
             } else {
                 window.set_show_block_drawer(false);
                 if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
                     block_editor_window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
-                    block_editor_window.set_has_external_editor(project::catalog::block_has_external_gui(&model.effect_type, &model.model_id));
+                    block_editor_window.set_has_external_editor(is_vst3_gui);
                     sync_block_editor_window(&window, &block_editor_window);
                     show_child_window(window.window(), block_editor_window.window());
                 }
@@ -5499,7 +5510,7 @@ pub fn run_desktop_app(
         let block_editor_persist_timer = block_editor_persist_timer.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
         let inline_stream_timer = inline_stream_timer.clone();
-        let vst3_handles_for_close = vst3_editor_handles_for_close.clone();
+        let embedded_editor_for_close = embedded_vst3_editor.clone();
         window.on_close_block_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -5521,12 +5532,12 @@ pub fn run_desktop_app(
             window.set_show_block_type_picker(false);
             window.set_show_block_drawer(false);
             window.set_block_drawer_status_message("".into());
-            // Drop embedded VST3 editor handles (removes native NSView).
+            // Hide embedded VST3 editor (keep alive for reuse on reopen).
             if window.get_vst3_editor_active() {
-                vst3_handles_for_close.borrow_mut().clear();
+                if let Some((_, handle)) = embedded_editor_for_close.borrow().as_ref() {
+                    handle.hide_embedded();
+                }
                 window.set_vst3_editor_active(false);
-                window.set_vst3_editor_width(0.0);
-                window.set_vst3_editor_height(0.0);
             }
             if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
                 let _ = block_editor_window.hide();
@@ -5915,15 +5926,49 @@ pub fn run_desktop_app(
         });
     }
     {
-        let vst3_handles = vst3_editor_handles_for_on_open.clone();
+        let embedded_editor = embedded_vst3_editor.clone();
         let vst3_sr = vst3_sample_rate;
         let toast_timer = toast_timer.clone();
         let weak_window = window.as_weak();
         window.on_open_vst3_editor(move |model_id| {
             let Some(w) = weak_window.upgrade() else { return; };
+            let model_str = model_id.to_string();
 
-            // Embed the VST3 editor inside the BlockPanelEditor popup
-            // by creating a child NSView on the Slint window's root view.
+            // Helper: calculate position for the embedded editor inside the popup.
+            let calc_position = |editor_w: f64, editor_h: f64| -> (f64, f64) {
+                let size = w.window().size();
+                let scale = w.window().scale_factor() as f64;
+                let window_w = size.width as f64 / scale;
+                let window_h = size.height as f64 / scale;
+                let panel_w = (editor_w + 32.0).max(900.0);
+                let panel_h = 48.0 + editor_h + 16.0;
+                let popup_x = (window_w - panel_w) / 2.0;
+                let popup_y = (window_h - panel_h) / 2.0;
+                let content_x = popup_x + (panel_w - editor_w) / 2.0;
+                let content_y = popup_y + 48.0;
+                (content_x, content_y)
+            };
+
+            // Check if we already have an editor for this model (reuse it).
+            {
+                let borrow = embedded_editor.borrow();
+                if let Some((existing_model, handle)) = borrow.as_ref() {
+                    if existing_model == &model_str {
+                        let (editor_w, editor_h) = handle.editor_size();
+                        let (cx, cy) = calc_position(editor_w, editor_h);
+                        handle.show_embedded();
+                        handle.reposition_embedded(cx, cy);
+                        w.set_vst3_editor_width(editor_w as f32);
+                        w.set_vst3_editor_height(editor_h as f32);
+                        w.set_vst3_editor_active(true);
+                        log::debug!("VST3 editor: reusing existing embedded editor for '{}'", model_str);
+                        return;
+                    }
+                }
+            }
+            // Different model or no existing editor — drop the old one and create new.
+            *embedded_editor.borrow_mut() = None;
+
             let ns_view = match get_parent_ns_view(&w) {
                 Ok(v) => v,
                 Err(e) => {
@@ -5933,43 +5978,25 @@ pub fn run_desktop_app(
                 }
             };
 
-            // Create the embedded editor at (0,0) first, then reposition
-            // once we know the editor dimensions and can calculate the
-            // final popup layout.
             let (handle, editor_w, editor_h) = match project::vst3_editor::open_vst3_editor_embedded(
-                model_id.as_str(), vst3_sr, ns_view, 0.0, 0.0,
+                model_str.as_str(), vst3_sr, ns_view, 0.0, 0.0,
             ) {
                 Ok(result) => result,
                 Err(e) => {
-                    log::error!("VST3 editor: failed to embed '{}': {}", model_id, e);
+                    log::error!("VST3 editor: failed to embed '{}': {}", model_str, e);
                     set_status_error(&w, &toast_timer, &e.to_string());
                     return;
                 }
             };
 
-            // Calculate the popup position (matches Slint layout):
-            // panel_width = max(editor_w + 32, 900)
-            // panel_height = 48 (header) + editor_h + 16 (bottom pad)
-            let size = w.window().size();
-            let scale = w.window().scale_factor() as f64;
-            let window_w = size.width as f64 / scale;
-            let window_h = size.height as f64 / scale;
-            let panel_w = (editor_w + 32.0).max(900.0);
-            let panel_h = 48.0 + editor_h + 16.0;
-            let popup_x = (window_w - panel_w) / 2.0;
-            let popup_y = (window_h - panel_h) / 2.0;
-            // Content area: centered horizontally within panel, below header
-            let content_x = popup_x + (panel_w - editor_w) / 2.0;
-            let content_y = popup_y + 48.0;
+            let (cx, cy) = calc_position(editor_w, editor_h);
+            handle.reposition_embedded(cx, cy);
 
-            handle.reposition_embedded(content_x, content_y);
-
-            // Tell Slint about the editor dimensions so the popup resizes.
             w.set_vst3_editor_width(editor_w as f32);
             w.set_vst3_editor_height(editor_h as f32);
             w.set_vst3_editor_active(true);
 
-            vst3_handles.borrow_mut().push(handle);
+            *embedded_editor.borrow_mut() = Some((model_str, handle));
         });
     }
     {

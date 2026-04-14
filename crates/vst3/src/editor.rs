@@ -38,6 +38,9 @@ pub struct Vst3EditorHandle {
     /// Child NSView used for embedded mode (None when using standalone window).
     #[cfg(target_os = "macos")]
     _embedded_view: Option<macos::OwnedNsView>,
+    /// Editor dimensions in logical pixels.
+    editor_width: f64,
+    editor_height: f64,
 }
 
 impl block_core::PluginEditorHandle for Vst3EditorHandle {
@@ -48,6 +51,24 @@ impl block_core::PluginEditorHandle for Vst3EditorHandle {
         }
         #[cfg(not(target_os = "macos"))]
         { let _ = (x, y); }
+    }
+
+    fn hide_embedded(&self) {
+        #[cfg(target_os = "macos")]
+        if let Some(ref view) = self._embedded_view {
+            view.set_hidden(true);
+        }
+    }
+
+    fn show_embedded(&self) {
+        #[cfg(target_os = "macos")]
+        if let Some(ref view) = self._embedded_view {
+            view.set_hidden(false);
+        }
+    }
+
+    fn editor_size(&self) -> (f64, f64) {
+        (self.editor_width, self.editor_height)
     }
 }
 
@@ -134,6 +155,8 @@ pub fn open_vst3_editor_window(
             _standalone_plugin: None,
             _ns_window: Some(ns_window),
             _embedded_view: None,
+            editor_width: width,
+            editor_height: height,
         });
     }
 
@@ -214,6 +237,8 @@ pub fn open_vst3_editor_window_parented(
             _standalone_plugin: None,
             _ns_window: Some(ns_window),
             _embedded_view: None,
+            editor_width: width,
+            editor_height: height,
         });
     }
 
@@ -305,6 +330,8 @@ pub fn open_vst3_editor_window_standalone(
             _standalone_plugin: Some(Box::new(plugin)),
             _ns_window: Some(ns_window),
             _embedded_view: None,
+            editor_width: width,
+            editor_height: height,
         });
     }
 
@@ -383,6 +410,8 @@ pub fn open_vst3_editor_embedded(
             _standalone_plugin: None,
             _ns_window: None,
             _embedded_view: Some(child_view),
+            editor_width: width,
+            editor_height: height,
         }, width, height));
     }
 
@@ -468,6 +497,8 @@ pub fn open_vst3_editor_embedded_standalone(
             _standalone_plugin: Some(Box::new(plugin)),
             _ns_window: None,
             _embedded_view: Some(child_view),
+            editor_width: width,
+            editor_height: height,
         }, width, height));
     }
 
@@ -593,6 +624,15 @@ mod macos {
     impl OwnedNsView {
         pub fn ptr(&self) -> *mut c_void {
             self.0
+        }
+
+        /// Show or hide this view.
+        pub fn set_hidden(&self, hidden: bool) {
+            unsafe {
+                type MsgSendBool = unsafe extern "C" fn(*mut c_void, *mut c_void, bool) -> *mut c_void;
+                let f: MsgSendBool = std::mem::transmute(objc_msgSend as *const ());
+                f(self.0, sel("setHidden:"), hidden);
+            }
         }
 
         /// Reposition this view within its parent.
