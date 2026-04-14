@@ -8965,10 +8965,19 @@ fn project_title_for_path(project_path: Option<&PathBuf>, project: &Project) -> 
         })
 }
 fn selected_device_index(devices: &[AudioDeviceDescriptor], selected_id: Option<&str>) -> i32 {
-    selected_id
-        .and_then(|selected_id| devices.iter().position(|device| device.id == selected_id))
-        .map(|index| index as i32)
-        .unwrap_or(-1)
+    let exact = selected_id
+        .and_then(|sid| devices.iter().position(|device| device.id == sid))
+        .map(|index| index as i32);
+    if let Some(idx) = exact {
+        return idx;
+    }
+    // Fallback: when the saved device_id doesn't match any listed device
+    // (e.g., JACK id "jack:system" vs ALSA ids when JACK is not running),
+    // auto-select the only device if there is exactly one.
+    if selected_id.is_some() && devices.len() == 1 {
+        return 0;
+    }
+    -1
 }
 fn create_chain_draft(
     project: &Project,
@@ -9231,9 +9240,13 @@ fn build_input_channel_items(
     let Some(device_id) = input_group.device_id.as_ref() else {
         return Vec::new();
     };
-    let Some(device) = input_devices.iter().find(|device| &device.id == device_id) else {
+    // Try exact match first, then fallback to single device
+    let device = input_devices.iter().find(|d| &d.id == device_id)
+        .or_else(|| if input_devices.len() == 1 { input_devices.first() } else { None });
+    let Some(device) = device else {
         return Vec::new();
     };
+    let device_id = &device.id;
     let used_channels = project
         .chains
         .iter()
@@ -9266,7 +9279,9 @@ fn build_output_channel_items(
     let Some(device_id) = output_group.device_id.as_ref() else {
         return Vec::new();
     };
-    let Some(device) = output_devices.iter().find(|device| &device.id == device_id) else {
+    let device = output_devices.iter().find(|d| &d.id == device_id)
+        .or_else(|| if output_devices.len() == 1 { output_devices.first() } else { None });
+    let Some(device) = device else {
         return Vec::new();
     };
     (0..device.channels)
