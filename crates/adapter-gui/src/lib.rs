@@ -96,6 +96,28 @@ fn ensure_devices_loaded(
         *output.borrow_mut() = list_output_device_descriptors().unwrap_or_default();
     }
 }
+/// Get the content NSView from the Slint AppWindow for embedding native views.
+///
+/// Returns `None` on non-macOS platforms or if the handle cannot be obtained.
+fn get_parent_ns_view(window: &AppWindow) -> anyhow::Result<*mut std::ffi::c_void> {
+    #[cfg(target_os = "macos")]
+    {
+        use raw_window_handle::HasWindowHandle;
+        let slint_handle = window.window().window_handle();
+        let raw_handle = slint_handle.window_handle()
+            .map_err(|e| anyhow::anyhow!("failed to get raw window handle: {}", e))?;
+        match raw_handle.as_raw() {
+            raw_window_handle::RawWindowHandle::AppKit(appkit) => {
+                let ns_view = appkit.ns_view.as_ptr();
+                Ok(ns_view)
+            }
+            _ => anyhow::bail!("unexpected window handle type (expected AppKit)"),
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    anyhow::bail!("embedded VST3 editor not yet supported on this platform")
+}
+
 fn use_inline_block_editor(window: &AppWindow) -> bool {
     window.get_fullscreen()
         || (window.get_touch_optimized()
@@ -5883,7 +5905,22 @@ pub fn run_desktop_app(
         let toast_timer = toast_timer.clone();
         let weak_window = window.as_weak();
         window.on_open_vst3_editor(move |model_id| {
-            match project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr) {
+            let result = if let Some(w) = weak_window.upgrade() {
+                if use_inline_block_editor(&w) {
+                    // Fullscreen/touch: embed VST3 editor inside the main window
+                    get_parent_ns_view(&w)
+                        .and_then(|parent_view| {
+                            project::vst3_editor::open_vst3_editor_embedded(
+                                model_id.as_str(), vst3_sr, parent_view,
+                            )
+                        })
+                } else {
+                    project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr)
+                }
+            } else {
+                project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr)
+            };
+            match result {
                 Ok(handle) => { vst3_handles.borrow_mut().push(handle); }
                 Err(e) => {
                     log::error!("VST3 editor: failed to open '{}': {}", model_id, e);

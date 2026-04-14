@@ -34,8 +34,12 @@ pub struct Vst3EditorHandle {
     /// In standalone mode (no engine running) the entire plugin instance must
     /// stay alive because the component must remain active for the view to work.
     _standalone_plugin: Option<Box<Vst3Plugin>>,
+    /// Standalone window (None when embedded in parent window).
     #[cfg(target_os = "macos")]
-    _ns_window: macos::OwnedNsWindow,
+    _ns_window: Option<macos::OwnedNsWindow>,
+    /// Child NSView used for embedded mode (None when using standalone window).
+    #[cfg(target_os = "macos")]
+    _embedded_view: Option<macos::OwnedNsView>,
 }
 
 impl Drop for Vst3EditorHandle {
@@ -115,7 +119,8 @@ pub fn open_vst3_editor_window(
             _controller: controller,
             _component_handler: component_handler,
             _standalone_plugin: None,
-            _ns_window: ns_window,
+            _ns_window: Some(ns_window),
+            _embedded_view: None,
         });
     }
 
@@ -205,12 +210,167 @@ pub fn open_vst3_editor_window_standalone(
             _controller: controller,
             _component_handler: component_handler,
             _standalone_plugin: Some(Box::new(plugin)),
-            _ns_window: ns_window,
+            _ns_window: Some(ns_window),
+            _embedded_view: None,
         });
     }
 
     #[cfg(not(target_os = "macos"))]
     bail!("VST3 editor window not yet supported on this platform")
+}
+
+/// Open the VST3 editor embedded inside a parent window (no new OS window).
+///
+/// `parent_ns_view` must be a valid `NSView*` pointer (e.g. from Slint's raw
+/// window handle). The plugin view is attached to a child NSView sized to the
+/// plugin's requested dimensions, positioned at (0, 0) within the parent.
+///
+/// Must be called on the main/UI thread.
+pub fn open_vst3_editor_embedded(
+    plugin_name: &str,
+    gui_context: Vst3GuiContext,
+    parent_ns_view: *mut std::ffi::c_void,
+) -> Result<Vst3EditorHandle> {
+    let controller = gui_context.controller;
+
+    let view_ptr = unsafe { controller.createView(vst3::Steinberg::Vst::ViewType::kEditor) };
+    if view_ptr.is_null() {
+        bail!("plugin '{}' returned null IPlugView (no GUI)", plugin_name);
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        use vst3::Steinberg::{kPlatformTypeNSView, kResultOk, ViewRect};
+
+        let library = gui_context.library;
+        let param_channel = gui_context.param_channel;
+
+        let component_handler = {
+            let wrapper = ComponentHandler::new(param_channel).into_com_ptr();
+            unsafe {
+                use vst3::Steinberg::Vst::IComponentHandler;
+                if let Some(com_ref) = wrapper.as_com_ref::<IComponentHandler>() {
+                    let _ = controller.setComponentHandler(com_ref.as_ptr());
+                }
+            }
+            Some(wrapper)
+        };
+
+        let view: ComPtr<vst3::Steinberg::IPlugView> =
+            unsafe { ComPtr::from_raw_unchecked(view_ptr) };
+
+        let res = unsafe { view.isPlatformTypeSupported(kPlatformTypeNSView) };
+        if res != kResultOk {
+            bail!("plugin '{}' does not support NSView GUI (result={})", plugin_name, res);
+        }
+
+        let mut rect = ViewRect { left: 0, top: 0, right: 800, bottom: 600 };
+        unsafe { view.getSize(&mut rect) };
+        let width = (rect.right - rect.left).max(200) as f64;
+        let height = (rect.bottom - rect.top).max(100) as f64;
+
+        let child_view = macos::create_child_nsview(parent_ns_view, width, height)?;
+        let ns_view_ptr = child_view.ptr();
+
+        let res = unsafe { view.attached(ns_view_ptr, kPlatformTypeNSView) };
+        if res != kResultOk {
+            bail!("IPlugView::attached failed (result={})", res);
+        }
+
+        return Ok(Vst3EditorHandle {
+            view,
+            _library: library,
+            _controller: controller,
+            _component_handler: component_handler,
+            _standalone_plugin: None,
+            _ns_window: None,
+            _embedded_view: Some(child_view),
+        });
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    bail!("VST3 embedded editor not yet supported on this platform")
+}
+
+/// Open the VST3 editor embedded (standalone mode — no engine context).
+pub fn open_vst3_editor_embedded_standalone(
+    bundle_path: &Path,
+    uid: &[u8; 16],
+    plugin_name: &str,
+    sample_rate: f64,
+    parent_ns_view: *mut std::ffi::c_void,
+) -> Result<Vst3EditorHandle> {
+    let plugin = Vst3Plugin::load(bundle_path, uid, sample_rate, 2, 512, &[])?;
+
+    unsafe {
+        use vst3::Steinberg::Vst::IConnectionPoint;
+        use vst3::Steinberg::Vst::IConnectionPointTrait;
+        if let Some(comp_cp) = plugin.component().cast::<IConnectionPoint>() {
+            if let Some(ctrl_cp) = plugin.controller().cast::<IConnectionPoint>() {
+                let _ = comp_cp.connect(ctrl_cp.as_ptr());
+                let _ = ctrl_cp.connect(comp_cp.as_ptr());
+            }
+        }
+    }
+
+    let controller = plugin.controller_clone();
+
+    let view_ptr = unsafe { controller.createView(vst3::Steinberg::Vst::ViewType::kEditor) };
+    if view_ptr.is_null() {
+        bail!("plugin '{}' returned null IPlugView (no GUI)", plugin_name);
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        use vst3::Steinberg::{kPlatformTypeNSView, kResultOk, ViewRect};
+
+        let library = plugin.library_arc();
+
+        let component_handler = {
+            let wrapper = ComponentHandler::new(crate::param_channel::vst3_param_channel()).into_com_ptr();
+            unsafe {
+                use vst3::Steinberg::Vst::IComponentHandler;
+                if let Some(com_ref) = wrapper.as_com_ref::<IComponentHandler>() {
+                    let _ = controller.setComponentHandler(com_ref.as_ptr());
+                }
+            }
+            Some(wrapper)
+        };
+
+        let view: ComPtr<vst3::Steinberg::IPlugView> =
+            unsafe { ComPtr::from_raw_unchecked(view_ptr) };
+
+        let res = unsafe { view.isPlatformTypeSupported(kPlatformTypeNSView) };
+        if res != kResultOk {
+            bail!("plugin '{}' does not support NSView GUI (result={})", plugin_name, res);
+        }
+
+        let mut rect = ViewRect { left: 0, top: 0, right: 800, bottom: 600 };
+        unsafe { view.getSize(&mut rect) };
+        let width = (rect.right - rect.left).max(200) as f64;
+        let height = (rect.bottom - rect.top).max(100) as f64;
+
+        let child_view = macos::create_child_nsview(parent_ns_view, width, height)?;
+        let ns_view_ptr = child_view.ptr();
+
+        let res = unsafe { view.attached(ns_view_ptr, kPlatformTypeNSView) };
+        if res != kResultOk {
+            bail!("IPlugView::attached failed (result={})", res);
+        }
+
+        return Ok(Vst3EditorHandle {
+            view,
+            _library: library,
+            _controller: controller,
+            _component_handler: component_handler,
+            _standalone_plugin: Some(Box::new(plugin)),
+            _ns_window: None,
+            _embedded_view: Some(child_view),
+        });
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    bail!("VST3 embedded editor not yet supported on this platform")
 }
 
 // ---------------------------------------------------------------------------
@@ -321,6 +481,55 @@ mod macos {
             let f: MsgSend1R = std::mem::transmute(objc_msgSend as *const ());
             f($obj, sel("initWithContentRect:styleMask:backing:defer:"), $rect, $style, NS_BACKING_BUFFERED, false)
         }};
+    }
+
+    /// An NSView that is removed from its superview and released in Drop.
+    pub struct OwnedNsView(*mut c_void);
+
+    unsafe impl Send for OwnedNsView {}
+
+    impl OwnedNsView {
+        pub fn ptr(&self) -> *mut c_void {
+            self.0
+        }
+    }
+
+    impl Drop for OwnedNsView {
+        fn drop(&mut self) {
+            unsafe {
+                // Remove from superview
+                msg0!(self.0, sel("removeFromSuperview"));
+                // Release
+                let f: unsafe extern "C" fn(*mut c_void, *mut c_void) =
+                    std::mem::transmute(objc_msgSend as *const ());
+                f(self.0, sel("release"));
+            }
+        }
+    }
+
+    /// Create a child NSView inside a parent NSView, sized to fit the plugin.
+    pub fn create_child_nsview(parent: *mut c_void, width: f64, height: f64) -> Result<OwnedNsView> {
+        unsafe {
+            let ns_view_cls = cls("NSView");
+            let alloc = msg0!(ns_view_cls, sel("alloc"));
+            if alloc.is_null() {
+                anyhow::bail!("NSView alloc returned nil");
+            }
+
+            let frame = NSRect::new(0.0, 0.0, width, height);
+            let init_sel = sel("initWithFrame:");
+            type MsgSendFrame = unsafe extern "C" fn(*mut c_void, *mut c_void, NSRect) -> *mut c_void;
+            let f: MsgSendFrame = std::mem::transmute(objc_msgSend as *const ());
+            let child = f(alloc, init_sel, frame);
+            if child.is_null() {
+                anyhow::bail!("NSView initWithFrame: returned nil");
+            }
+
+            // Add as subview of parent
+            msg1v!(parent, sel("addSubview:"), child);
+
+            Ok(OwnedNsView(child))
+        }
     }
 
     /// An NSWindow that is released in Drop.

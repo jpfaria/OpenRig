@@ -25,6 +25,8 @@ pub fn init_vst3_catalog(sample_rate: f64) {
 ///    user open the GUI before the engine has started.
 ///
 /// Must be called on the main/UI thread (macOS AppKit requirement).
+///
+/// Opens the editor in a **separate floating window**.
 pub fn open_vst3_editor(model_id: &str, sample_rate: f64) -> Result<Box<dyn PluginEditorHandle>> {
     let entry = vst3_host::find_vst3_plugin(model_id)
         .ok_or_else(|| anyhow::anyhow!("VST3 plugin '{}' not found in catalog", model_id))?;
@@ -44,6 +46,38 @@ pub fn open_vst3_editor(model_id: &str, sample_rate: f64) -> Result<Box<dyn Plug
         &uid,
         entry.display_name,
         sample_rate,
+    )?;
+    Ok(Box::new(handle))
+}
+
+/// Open the VST3 editor **embedded** inside a parent window.
+///
+/// `parent_view` is a platform-specific view handle (`NSView*` on macOS).
+/// The plugin GUI is attached as a child view inside the parent.
+///
+/// Must be called on the main/UI thread.
+pub fn open_vst3_editor_embedded(
+    model_id: &str,
+    sample_rate: f64,
+    parent_view: *mut std::ffi::c_void,
+) -> Result<Box<dyn PluginEditorHandle>> {
+    let entry = vst3_host::find_vst3_plugin(model_id)
+        .ok_or_else(|| anyhow::anyhow!("VST3 plugin '{}' not found in catalog", model_id))?;
+
+    if let Some(gui_context) = vst3_host::lookup_vst3_gui_context(model_id) {
+        log::debug!("VST3 embedded editor: reusing engine controller for '{}'", model_id);
+        let handle = vst3_host::open_vst3_editor_embedded(entry.display_name, gui_context, parent_view)?;
+        return Ok(Box::new(handle));
+    }
+
+    log::debug!("VST3 embedded editor: loading standalone instance for '{}'", model_id);
+    let uid = vst3_host::resolve_uid_for_model(model_id)?;
+    let handle = vst3_host::open_vst3_editor_embedded_standalone(
+        &entry.info.bundle_path,
+        &uid,
+        entry.display_name,
+        sample_rate,
+        parent_view,
     )?;
     Ok(Box::new(handle))
 }
