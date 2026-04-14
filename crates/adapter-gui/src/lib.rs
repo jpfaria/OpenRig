@@ -3195,10 +3195,15 @@ pub fn run_desktop_app(
             // Now use immutable references
             if let Some(session) = project_session.borrow().as_ref() {
                 if let Some(input_group) = draft.inputs.get(gi) {
+                    let channel_items = build_input_channel_items(input_group, draft, &session.project, &fresh_input);
                     replace_channel_options(
                         &chain_input_channels,
-                        build_input_channel_items(input_group, draft, &session.project, &fresh_input),
+                        channel_items.clone(),
                     );
+                    // Fullscreen: sync channels to inline endpoint editor
+                    if window.get_fullscreen() {
+                        window.set_chain_io_channels(ModelRc::from(Rc::new(VecModel::from(channel_items))));
+                    }
                 }
                 if let Some(chain_window) = chain_editor_window_ref.borrow().as_ref() {
                     apply_chain_io_groups(
@@ -3215,6 +3220,9 @@ pub fn run_desktop_app(
                 draft.inputs.get(gi).and_then(|ig| ig.device_id.as_deref()),
             );
             window.set_selected_chain_input_device_index(selected_index);
+            if window.get_fullscreen() {
+                window.set_chain_io_selected_device_index(selected_index);
+            }
             if let Some(input_window) = weak_input_window.upgrade() {
                 input_window.set_selected_device_index(selected_index);
             }
@@ -3259,10 +3267,15 @@ pub fn run_desktop_app(
             }
             if project_session.borrow().as_ref().is_some() {
                 if let Some(output_group) = draft.outputs.get(gi) {
+                    let channel_items = build_output_channel_items(output_group, &fresh_output);
                     replace_channel_options(
                         &chain_output_channels,
-                        build_output_channel_items(output_group, &fresh_output),
+                        channel_items.clone(),
                     );
+                    // Fullscreen: sync channels to inline endpoint editor
+                    if window.get_fullscreen() {
+                        window.set_chain_io_channels(ModelRc::from(Rc::new(VecModel::from(channel_items))));
+                    }
                 }
                 if let Some(chain_window) = chain_editor_window_ref.borrow().as_ref() {
                     apply_chain_io_groups(
@@ -3279,6 +3292,9 @@ pub fn run_desktop_app(
                 draft.outputs.get(gi).and_then(|og| og.device_id.as_deref()),
             );
             window.set_selected_chain_output_device_index(selected_index);
+            if window.get_fullscreen() {
+                window.set_chain_io_selected_device_index(selected_index);
+            }
             if let Some(output_window) = weak_output_window.upgrade() {
                 output_window.set_selected_device_index(selected_index);
             }
@@ -6415,8 +6431,6 @@ pub fn run_desktop_app(
     }
     // Fullscreen inline I/O groups callbacks — delegate to ChainInputGroupsWindow / ChainOutputGroupsWindow
     {
-        let weak_input_groups = chain_input_groups_window.as_weak();
-        let weak_output_groups = chain_output_groups_window.as_weak();
         let inline_flag = inline_io_groups_is_input.clone();
         let weak_window = window.as_weak();
         let chain_input_device_options = chain_input_device_options.clone();
@@ -6426,15 +6440,13 @@ pub fn run_desktop_app(
         window.on_chain_io_groups_edit(move |group_index| {
             let Some(window) = weak_window.upgrade() else { return; };
             if inline_flag.get() {
-                if let Some(gw) = weak_input_groups.upgrade() {
-                    gw.invoke_edit_group(group_index);
-                }
-                // After edit_group callback runs, it sets up ChainInputWindow state.
-                // In fullscreen, we propagate to inline endpoint editor.
+                // In fullscreen, we set up draft state directly instead of
+                // calling invoke_edit_group() which would open a child window.
                 let fresh_input = refresh_input_devices(&chain_input_device_options);
-                let draft_borrow = chain_draft.borrow();
-                if let Some(draft) = draft_borrow.as_ref() {
+                let mut draft_borrow = chain_draft.borrow_mut();
+                if let Some(draft) = draft_borrow.as_mut() {
                     let gi = group_index as usize;
+                    draft.editing_input_index = Some(gi);
                     if let Some(input_group) = draft.inputs.get(gi) {
                         let session_borrow = project_session.borrow();
                         if let Some(session) = session_borrow.as_ref() {
@@ -6459,13 +6471,13 @@ pub fn run_desktop_app(
                     }
                 }
             } else {
-                if let Some(gw) = weak_output_groups.upgrade() {
-                    gw.invoke_edit_group(group_index);
-                }
+                // In fullscreen, we set up draft state directly instead of
+                // calling invoke_edit_group() which would open a child window.
                 let fresh_output = refresh_output_devices(&chain_output_device_options);
-                let draft_borrow = chain_draft.borrow();
-                if let Some(draft) = draft_borrow.as_ref() {
+                let mut draft_borrow = chain_draft.borrow_mut();
+                if let Some(draft) = draft_borrow.as_mut() {
                     let gi = group_index as usize;
+                    draft.editing_output_index = Some(gi);
                     if let Some(output_group) = draft.outputs.get(gi) {
                         let dev_idx = selected_device_index(
                             &fresh_output,
