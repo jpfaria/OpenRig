@@ -9,10 +9,11 @@ RELEASE="$1"   # e.g. "bookworm"
 echo ">>> [OpenRig] Customizing image for release: $RELEASE"
 
 # ── 1. Install runtime dependencies ──────────────────────────────────────────
-# System-level packages that are NOT pulled in by the openrig .deb itself.
-# Plymouth is intentionally excluded for now — boot is kept verbose/text so
-# issues can be diagnosed via HDMI. Re-add plymouth + librsvg2-bin and
-# re-enable steps 5/6 once the kiosk boot sequence is validated.
+# System-level packages that are NOT pulled in by the openrig .deb itself:
+# weston/plymouth (boot + display stack), jackd2 (audio server), librsvg2-bin
+# (used below to convert the logo to PNG for the boot splash). The openrig
+# .deb declares its own runtime deps (libasound2 etc.), which apt will
+# resolve when we install it in step 3.
 echo "jackd2 jackd/tweak_rt_limits boolean true" | debconf-set-selections
 DEBIAN_FRONTEND=noninteractive apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -26,6 +27,8 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     libgl1-mesa-dri \
     weston \
     adwaita-icon-theme \
+    plymouth \
+    librsvg2-bin \
     udev \
     locales \
     tzdata \
@@ -59,21 +62,27 @@ fi
 
 rm -rf /var/lib/apt/lists/*
 
-# ── 5/6. Plymouth theme (DISABLED — debug mode) ──────────────────────────────
-# Re-enable once boot sequence is stable:
-#   - install plymouth + librsvg2-bin in step 1
-#   - uncomment rsvg-convert + update-alternatives below
-#   - restore 'splash' in KERNEL_ARGS (step 11)
-#   - restore Plymouth commands in weston.service
-# rsvg-convert -w 256 -h 256 /tmp/overlay/openrig-logomark.svg \
-#     -o /usr/share/plymouth/themes/openrig/logo.png
-# rsvg-convert -w 400 /tmp/overlay/openrig-logotype.svg \
-#     -o /usr/share/plymouth/themes/openrig/logotype.png
-# update-alternatives --install /usr/share/plymouth/themes/default.plymouth \
-#     default.plymouth /usr/share/plymouth/themes/openrig/openrig.plymouth 100
-# update-alternatives --set default.plymouth \
-#     /usr/share/plymouth/themes/openrig/openrig.plymouth
-echo ">>> [OpenRig] Plymouth theme disabled (debug mode)."
+# ── 5. Convert OpenRig logo SVGs → PNGs for Plymouth ────────────────────────
+echo ">>> [OpenRig] Converting logo assets to PNG..."
+rsvg-convert \
+    -w 256 -h 256 \
+    /tmp/overlay/openrig-logomark.svg \
+    -o /usr/share/plymouth/themes/openrig/logo.png
+rsvg-convert \
+    -w 400 \
+    /tmp/overlay/openrig-logotype.svg \
+    -o /usr/share/plymouth/themes/openrig/logotype.png
+
+# ── 6. Register and activate Plymouth theme ──────────────────────────────────
+echo ">>> [OpenRig] Activating Plymouth theme..."
+update-alternatives --install \
+    /usr/share/plymouth/themes/default.plymouth \
+    default.plymouth \
+    /usr/share/plymouth/themes/openrig/openrig.plymouth \
+    100
+update-alternatives --set \
+    default.plymouth \
+    /usr/share/plymouth/themes/openrig/openrig.plymouth
 
 # ── 7. Create users with fixed passwords ─────────────────────────────────────
 # openrig: regular user with a real home so OpenRig can write projects,
@@ -206,19 +215,21 @@ else
     fi
 fi
 
-# ── 11. Boot configuration (debug mode) ──────────────────────────────────────
-# Verbose boot: all kernel and systemd messages visible on HDMI (tty1).
-# No Plymouth, no quiet, gettys kept active for emergency console access.
-# Restore silent kiosk mode (quiet splash, console=tty3, mask gettys) once
-# boot issues are identified and resolved.
-echo ">>> [OpenRig] Configuring verbose debug boot..."
+# ── 11. Boot configuration (silent kiosk mode) ───────────────────────────────
+# Silent boot: Plymouth splash on tty3, kernel messages suppressed.
+# Gettys on tty1/tty2 masked so the display is owned by Weston on tty1.
+echo ">>> [OpenRig] Configuring silent kiosk boot..."
 
-KERNEL_ARGS='loglevel=7 console=tty1 consoleblank=0'
+KERNEL_ARGS='quiet splash loglevel=3 console=tty3 consoleblank=0'
 if grep -q "^extraargs=" /boot/armbianEnv.txt 2>/dev/null; then
     sed -i "s|^extraargs=.*|extraargs=${KERNEL_ARGS}|" /boot/armbianEnv.txt
 else
     echo "extraargs=${KERNEL_ARGS}" >> /boot/armbianEnv.txt
 fi
+
+# Mask gettys on tty1/tty2 so Weston owns the display uncontested.
+systemctl mask getty@tty1.service 2>/dev/null || true
+systemctl mask getty@tty2.service 2>/dev/null || true
 
 # Armbian first-run wizard and filesystem resize — disable all of it.
 # armbian-resize-filesystem.service hangs on noble despite the marker file;
