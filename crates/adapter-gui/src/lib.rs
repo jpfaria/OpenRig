@@ -96,8 +96,6 @@ fn ensure_devices_loaded(
         *output.borrow_mut() = list_output_device_descriptors().unwrap_or_default();
     }
 }
-/// Get the NSWindow from the Slint AppWindow for parenting child windows.
-///
 /// Get the root NSView from any Slint window for embedding child views.
 fn get_ns_view(slint_window: &slint::Window) -> anyhow::Result<*mut std::ffi::c_void> {
     #[cfg(target_os = "macos")]
@@ -121,6 +119,32 @@ fn get_ns_view(slint_window: &slint::Window) -> anyhow::Result<*mut std::ffi::c_
     {
         let _ = slint_window;
         anyhow::bail!("embedded VST3 editor not yet supported on this platform")
+    }
+}
+
+/// Get the NSWindow pointer from a Slint window (via NSView → [nsView window]).
+fn get_ns_window(slint_window: &slint::Window) -> anyhow::Result<*mut std::ffi::c_void> {
+    #[cfg(target_os = "macos")]
+    {
+        let ns_view = get_ns_view(slint_window)?;
+        unsafe {
+            // [nsView window] returns the NSWindow containing this view.
+            extern "C" { fn objc_msgSend(); }
+            extern "C" { fn sel_registerName(name: *const i8) -> *mut std::ffi::c_void; }
+            let sel = sel_registerName(b"window\0".as_ptr() as *const i8);
+            type MsgSend0 = unsafe extern "C" fn(*mut std::ffi::c_void, *mut std::ffi::c_void) -> *mut std::ffi::c_void;
+            let f: MsgSend0 = std::mem::transmute(objc_msgSend as *const ());
+            let ns_window = f(ns_view, sel);
+            if ns_window.is_null() {
+                anyhow::bail!("NSView.window returned nil");
+            }
+            Ok(ns_window)
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = slint_window;
+        anyhow::bail!("get_ns_window not supported on this platform")
     }
 }
 
@@ -5937,8 +5961,9 @@ pub fn run_desktop_app(
         window.on_open_vst3_editor(move |model_id| {
             let Some(w) = weak_window.upgrade() else { return; };
             let model_str = model_id.to_string();
+            let is_fullscreen = use_inline_block_editor(&w);
 
-            // Helper: calculate position for the embedded editor inside the popup.
+            // Helper: calculate position for the editor inside the popup.
             let calc_position = |editor_w: f64, editor_h: f64| -> (f64, f64) {
                 let size = w.window().size();
                 let scale = w.window().scale_factor() as f64;
@@ -5965,7 +5990,7 @@ pub fn run_desktop_app(
                         w.set_vst3_editor_width(editor_w as f32);
                         w.set_vst3_editor_height(editor_h as f32);
                         w.set_vst3_editor_active(true);
-                        log::debug!("VST3 editor: reusing existing embedded editor for '{}'", model_str);
+                        log::debug!("VST3 editor: reusing existing editor for '{}'", model_str);
                         return;
                     }
                 }
@@ -5973,34 +5998,68 @@ pub fn run_desktop_app(
             // Different model or no existing editor — drop the old one and create new.
             *embedded_editor.borrow_mut() = None;
 
-            let ns_view = match get_ns_view(w.window()) {
-                Ok(v) => v,
-                Err(e) => {
-                    log::error!("VST3 editor: cannot get NSView: {}", e);
-                    set_status_error(&w, &toast_timer, &e.to_string());
-                    return;
-                }
-            };
+            if is_fullscreen {
+                // Fullscreen mode: embed NSView directly inside Slint's content view.
+                let ns_view = match get_ns_view(w.window()) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        log::error!("VST3 editor: cannot get NSView: {}", e);
+                        set_status_error(&w, &toast_timer, &e.to_string());
+                        return;
+                    }
+                };
 
-            let (handle, editor_w, editor_h) = match project::vst3_editor::open_vst3_editor_embedded(
-                model_str.as_str(), vst3_sr, ns_view, 0.0, 0.0,
-            ) {
-                Ok(result) => result,
-                Err(e) => {
-                    log::error!("VST3 editor: failed to embed '{}': {}", model_str, e);
-                    set_status_error(&w, &toast_timer, &e.to_string());
-                    return;
-                }
-            };
+                let (handle, editor_w, editor_h) = match project::vst3_editor::open_vst3_editor_embedded(
+                    model_str.as_str(), vst3_sr, ns_view, 0.0, 0.0,
+                ) {
+                    Ok(result) => result,
+                    Err(e) => {
+                        log::error!("VST3 editor: failed to embed '{}': {}", model_str, e);
+                        set_status_error(&w, &toast_timer, &e.to_string());
+                        return;
+                    }
+                };
 
-            let (cx, cy) = calc_position(editor_w, editor_h);
-            handle.reposition_embedded(cx, cy);
+                let (cx, cy) = calc_position(editor_w, editor_h);
+                handle.reposition_embedded(cx, cy);
 
-            w.set_vst3_editor_width(editor_w as f32);
-            w.set_vst3_editor_height(editor_h as f32);
-            w.set_vst3_editor_active(true);
+                w.set_vst3_editor_width(editor_w as f32);
+                w.set_vst3_editor_height(editor_h as f32);
+                w.set_vst3_editor_active(true);
 
-            *embedded_editor.borrow_mut() = Some((model_str, handle));
+                *embedded_editor.borrow_mut() = Some((model_str, handle));
+            } else {
+                // Desktop mode: borderless child window below the Slint popup header.
+                let ns_window = match get_ns_window(w.window()) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        log::error!("VST3 editor: cannot get NSWindow: {}", e);
+                        set_status_error(&w, &toast_timer, &e.to_string());
+                        return;
+                    }
+                };
+
+                // First pass: create with dummy position, then reposition.
+                let (handle, editor_w, editor_h) = match project::vst3_editor::open_vst3_editor_child_window(
+                    model_str.as_str(), vst3_sr, ns_window, 0.0, 0.0,
+                ) {
+                    Ok(result) => result,
+                    Err(e) => {
+                        log::error!("VST3 editor: failed to open child window for '{}': {}", model_str, e);
+                        set_status_error(&w, &toast_timer, &e.to_string());
+                        return;
+                    }
+                };
+
+                let (cx, cy) = calc_position(editor_w, editor_h);
+                handle.reposition_embedded(cx, cy);
+
+                w.set_vst3_editor_width(editor_w as f32);
+                w.set_vst3_editor_height(editor_h as f32);
+                w.set_vst3_editor_active(true);
+
+                *embedded_editor.borrow_mut() = Some((model_str, handle));
+            }
         });
     }
     {

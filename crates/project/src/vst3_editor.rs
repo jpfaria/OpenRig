@@ -131,3 +131,43 @@ pub fn open_vst3_editor_embedded(
     )?;
     Ok((Box::new(handle), w, h))
 }
+
+/// Open the VST3 editor in a borderless child window of the main window.
+///
+/// `parent_ns_window` is the NSWindow pointer of the main Slint window.
+/// `x`, `y` are Slint logical coordinates where the plugin content should appear.
+///
+/// Returns `(handle, editor_width, editor_height)`.
+pub fn open_vst3_editor_child_window(
+    model_id: &str,
+    sample_rate: f64,
+    parent_ns_window: *mut std::ffi::c_void,
+    x: f64,
+    y: f64,
+) -> Result<(Box<dyn PluginEditorHandle>, f64, f64)> {
+    let entry = vst3_host::find_vst3_plugin(model_id)
+        .ok_or_else(|| anyhow::anyhow!("VST3 plugin '{}' not found in catalog", model_id))?;
+
+    if let Some(gui_context) = vst3_host::lookup_vst3_gui_context(model_id) {
+        log::debug!("VST3 child-window editor: reusing engine controller for '{}'", model_id);
+        let (handle, w, h) = vst3_host::open_vst3_editor_child_window(
+            entry.display_name, gui_context, parent_ns_window, x, y,
+        )?;
+        return Ok((Box::new(handle), w, h));
+    }
+
+    // Fallback: no engine context, can't open child window without gui context.
+    // Use embedded standalone as fallback.
+    log::warn!("VST3 child-window editor: no engine context for '{}', falling back to embedded standalone", model_id);
+    let uid = vst3_host::resolve_uid_for_model(model_id)?;
+    let (handle, w, h) = vst3_host::open_vst3_editor_embedded_standalone(
+        &entry.info.bundle_path,
+        &uid,
+        entry.display_name,
+        sample_rate,
+        parent_ns_window,
+        x,
+        y,
+    )?;
+    Ok((Box::new(handle), w, h))
+}

@@ -38,16 +38,39 @@ pub struct Vst3EditorHandle {
     /// Child NSView used for embedded mode (None when using standalone window).
     #[cfg(target_os = "macos")]
     _embedded_view: Option<macos::OwnedNsView>,
+    /// Whether _ns_window is a borderless child window (not a standalone titled window).
+    #[cfg(target_os = "macos")]
+    is_child_window: bool,
+    /// Parent NSWindow pointer (needed for coordinate conversion in child window mode).
+    #[cfg(target_os = "macos")]
+    parent_ns_window: *mut std::ffi::c_void,
     /// Editor dimensions in logical pixels.
     editor_width: f64,
     editor_height: f64,
 }
 
+// SAFETY: Vst3EditorHandle is only used on the main/UI thread. The raw
+// pointer `parent_ns_window` is kept for coordinate conversion and is never
+// dereferenced from another thread.
+unsafe impl Send for Vst3EditorHandle {}
+
 impl block_core::PluginEditorHandle for Vst3EditorHandle {
     fn reposition_embedded(&self, x: f64, y: f64) {
         #[cfg(target_os = "macos")]
-        if let Some(ref view) = self._embedded_view {
-            view.reposition(x, y);
+        {
+            if self.is_child_window {
+                // Child window mode: convert window-relative coords to screen coords.
+                if let Some(ref win) = self._ns_window {
+                    if !self.parent_ns_window.is_null() {
+                        let (sx, sy) = macos::window_to_screen_coords(
+                            self.parent_ns_window, x, y, self.editor_height,
+                        );
+                        win.set_frame_origin(sx, sy);
+                    }
+                }
+            } else if let Some(ref view) = self._embedded_view {
+                view.reposition(x, y);
+            }
         }
         #[cfg(not(target_os = "macos"))]
         { let _ = (x, y); }
@@ -55,15 +78,27 @@ impl block_core::PluginEditorHandle for Vst3EditorHandle {
 
     fn hide_embedded(&self) {
         #[cfg(target_os = "macos")]
-        if let Some(ref view) = self._embedded_view {
-            view.set_hidden(true);
+        {
+            if self.is_child_window {
+                if let Some(ref win) = self._ns_window {
+                    win.set_visible(false);
+                }
+            } else if let Some(ref view) = self._embedded_view {
+                view.set_hidden(true);
+            }
         }
     }
 
     fn show_embedded(&self) {
         #[cfg(target_os = "macos")]
-        if let Some(ref view) = self._embedded_view {
-            view.set_hidden(false);
+        {
+            if self.is_child_window {
+                if let Some(ref win) = self._ns_window {
+                    win.set_visible(true);
+                }
+            } else if let Some(ref view) = self._embedded_view {
+                view.set_hidden(false);
+            }
         }
     }
 
@@ -155,6 +190,8 @@ pub fn open_vst3_editor_window(
             _standalone_plugin: None,
             _ns_window: Some(ns_window),
             _embedded_view: None,
+            is_child_window: false,
+            parent_ns_window: std::ptr::null_mut(),
             editor_width: width,
             editor_height: height,
         });
@@ -237,6 +274,8 @@ pub fn open_vst3_editor_window_parented(
             _standalone_plugin: None,
             _ns_window: Some(ns_window),
             _embedded_view: None,
+            is_child_window: false,
+            parent_ns_window: std::ptr::null_mut(),
             editor_width: width,
             editor_height: height,
         });
@@ -330,6 +369,8 @@ pub fn open_vst3_editor_window_standalone(
             _standalone_plugin: Some(Box::new(plugin)),
             _ns_window: Some(ns_window),
             _embedded_view: None,
+            is_child_window: false,
+            parent_ns_window: std::ptr::null_mut(),
             editor_width: width,
             editor_height: height,
         });
@@ -410,6 +451,8 @@ pub fn open_vst3_editor_embedded(
             _standalone_plugin: None,
             _ns_window: None,
             _embedded_view: Some(child_view),
+            is_child_window: false,
+            parent_ns_window: std::ptr::null_mut(),
             editor_width: width,
             editor_height: height,
         }, width, height));
@@ -497,6 +540,8 @@ pub fn open_vst3_editor_embedded_standalone(
             _standalone_plugin: Some(Box::new(plugin)),
             _ns_window: None,
             _embedded_view: Some(child_view),
+            is_child_window: false,
+            parent_ns_window: std::ptr::null_mut(),
             editor_width: width,
             editor_height: height,
         }, width, height));
@@ -504,6 +549,96 @@ pub fn open_vst3_editor_embedded_standalone(
 
     #[cfg(not(target_os = "macos"))]
     bail!("VST3 embedded editor not yet supported on this platform")
+}
+
+/// Open the VST3 editor in a borderless child window of the main window.
+///
+/// This is the preferred approach for desktop (non-fullscreen) mode: the Slint
+/// popup header stays in the main window (and remains clickable), while the
+/// plugin's native GUI renders in a borderless child NSWindow positioned right
+/// below the header.
+///
+/// `parent_ns_window` is the main Slint window's NSWindow pointer.
+/// `x`, `y` are Slint logical coordinates (top-left origin, relative to the
+/// main window) where the plugin content should appear.
+///
+/// Returns `(handle, editor_width, editor_height)`.
+pub fn open_vst3_editor_child_window(
+    plugin_name: &str,
+    gui_context: Vst3GuiContext,
+    parent_ns_window: *mut std::ffi::c_void,
+    x: f64,
+    y: f64,
+) -> Result<(Vst3EditorHandle, f64, f64)> {
+    let controller = gui_context.controller;
+
+    let view_ptr = unsafe { controller.createView(vst3::Steinberg::Vst::ViewType::kEditor) };
+    if view_ptr.is_null() {
+        bail!("plugin '{}' returned null IPlugView (no GUI)", plugin_name);
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        use vst3::Steinberg::{kPlatformTypeNSView, kResultOk, ViewRect};
+
+        let library = gui_context.library;
+        let param_channel = gui_context.param_channel;
+
+        let component_handler = {
+            let wrapper = ComponentHandler::new(param_channel).into_com_ptr();
+            unsafe {
+                use vst3::Steinberg::Vst::IComponentHandler;
+                if let Some(com_ref) = wrapper.as_com_ref::<IComponentHandler>() {
+                    let _ = controller.setComponentHandler(com_ref.as_ptr());
+                }
+            }
+            Some(wrapper)
+        };
+
+        let view: ComPtr<vst3::Steinberg::IPlugView> =
+            unsafe { ComPtr::from_raw_unchecked(view_ptr) };
+
+        let res = unsafe { view.isPlatformTypeSupported(kPlatformTypeNSView) };
+        if res != kResultOk {
+            bail!("plugin '{}' does not support NSView GUI (result={})", plugin_name, res);
+        }
+
+        let mut rect = ViewRect { left: 0, top: 0, right: 800, bottom: 600 };
+        unsafe { view.getSize(&mut rect) };
+        let width = (rect.right - rect.left).max(200) as f64;
+        let height = (rect.bottom - rect.top).max(100) as f64;
+
+        let child_win = macos::create_borderless_child_window(parent_ns_window, width, height)?;
+
+        // Position the child window at the correct screen coordinates.
+        let (sx, sy) = macos::window_to_screen_coords(parent_ns_window, x, y, height);
+        child_win.set_frame_origin(sx, sy);
+
+        let content_view = child_win.content_view();
+        let res = unsafe { view.attached(content_view, kPlatformTypeNSView) };
+        if res != kResultOk {
+            bail!("IPlugView::attached failed (result={})", res);
+        }
+
+        child_win.set_visible(true);
+
+        return Ok((Vst3EditorHandle {
+            view,
+            _library: library,
+            _controller: controller,
+            _component_handler: component_handler,
+            _standalone_plugin: None,
+            _ns_window: Some(child_win),
+            _embedded_view: None,
+            is_child_window: true,
+            parent_ns_window,
+            editor_width: width,
+            editor_height: height,
+        }, width, height));
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    bail!("VST3 child window editor not yet supported on this platform")
 }
 
 // ---------------------------------------------------------------------------
@@ -752,6 +887,28 @@ mod macos {
             }
         }
 
+        /// Position this window at screen coordinates `(x, y)` (bottom-left origin).
+        pub fn set_frame_origin(&self, x: f64, y: f64) {
+            unsafe {
+                #[repr(C)]
+                struct NSPoint { x: f64, y: f64 }
+                type MsgSendPoint = unsafe extern "C" fn(*mut c_void, *mut c_void, NSPoint);
+                let f: MsgSendPoint = std::mem::transmute(objc_msgSend as *const ());
+                f(self.0, sel("setFrameOrigin:"), NSPoint { x, y });
+            }
+        }
+
+        /// Show or hide this window.
+        pub fn set_visible(&self, visible: bool) {
+            unsafe {
+                if visible {
+                    msg1v!(self.0, sel("orderFront:"), std::ptr::null_mut());
+                } else {
+                    msg1v!(self.0, sel("orderOut:"), std::ptr::null_mut());
+                }
+            }
+        }
+
         pub fn show(&self, title: &str) {
             unsafe {
                 // Set title
@@ -786,6 +943,85 @@ mod macos {
                     std::mem::transmute(objc_msgSend as *const ());
                 f(self.0, release_sel);
             }
+        }
+    }
+
+    /// Convert Slint-style window-relative coordinates (top-left origin) to
+    /// macOS screen coordinates (bottom-left origin) for positioning a child
+    /// window.
+    ///
+    /// `parent_ns_window` is the parent NSWindow pointer.
+    /// `x`, `y` are logical pixels from the top-left of the parent window.
+    /// `child_height` is the height of the child window being positioned.
+    pub fn window_to_screen_coords(
+        parent_ns_window: *mut c_void,
+        x: f64,
+        y: f64,
+        child_height: f64,
+    ) -> (f64, f64) {
+        unsafe {
+            // Get parent window's frame (screen coords, bottom-left origin).
+            type MsgSendRect = unsafe extern "C" fn(*mut c_void, *mut c_void) -> NSRect;
+            let f: MsgSendRect = std::mem::transmute(objc_msgSend as *const ());
+            let parent_frame = f(parent_ns_window, sel("frame"));
+
+            // Get the parent's content view frame to know the content area offset.
+            let content_view = msg0!(parent_ns_window, sel("contentView"));
+            let content_frame = f(content_view, sel("frame"));
+
+            // In screen coords: parent's content origin is at
+            // (parent_frame.origin.x, parent_frame.origin.y + title_bar_offset)
+            // where title_bar_offset = parent_frame.height - content_frame.height
+            let title_bar_height = parent_frame.size.height - content_frame.size.height;
+
+            // Convert top-left y to bottom-left:
+            // screen_y = parent_top - y - child_height
+            // parent_top = parent_frame.origin.y + parent_frame.size.height - title_bar_height
+            let parent_content_top = parent_frame.origin.y + parent_frame.size.height - title_bar_height;
+            let screen_x = parent_frame.origin.x + x;
+            let screen_y = parent_content_top - y - child_height;
+
+            (screen_x, screen_y)
+        }
+    }
+
+    /// Create a borderless NSWindow and add it as a child of the parent NSWindow.
+    ///
+    /// `parent_ns_window` is the NSWindow* of the main Slint window.
+    /// `x`, `y` are the position of the child window in screen coordinates.
+    pub fn create_borderless_child_window(
+        parent_ns_window: *mut c_void,
+        width: f64,
+        height: f64,
+    ) -> Result<OwnedNsWindow> {
+        unsafe {
+            let ns_app_cls = cls("NSApplication");
+            msg0!(ns_app_cls, sel("sharedApplication"));
+
+            let ns_window_cls = cls("NSWindow");
+            let window_alloc = msg0!(ns_window_cls, sel("alloc"));
+            if window_alloc.is_null() {
+                anyhow::bail!("NSWindow alloc returned nil");
+            }
+
+            // Borderless window (style mask = 0)
+            let frame = NSRect::new(0.0, 0.0, width, height);
+            let window = msg_init_window!(window_alloc, frame, 0u64);
+            if window.is_null() {
+                anyhow::bail!("NSWindow init returned nil");
+            }
+
+            msg_bool!(window, sel("setReleasedWhenClosed:"), false);
+            // Non-opaque with clear background so the plugin draws its own content.
+            msg_bool!(window, sel("setOpaque:"), false);
+
+            // Add as child of parent so it floats above and moves with it.
+            // NSWindowOrderingMode.above = 1
+            type MsgSendChild = unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void, i64) -> *mut c_void;
+            let f: MsgSendChild = std::mem::transmute(objc_msgSend as *const ());
+            f(parent_ns_window, sel("addChildWindow:ordered:"), window, 1);
+
+            Ok(OwnedNsWindow(window))
         }
     }
 
