@@ -27,6 +27,23 @@ ExecStartPre=/bin/sh -c '\
     echo 10 > /proc/irq/$irq/smp_affinity 2>/dev/null || true; \
   done; true'
 
+# Set ALSA mixer to unity gain before JACK starts.
+# Mic Capture = 46% (0dB) — unity, no boost/cut on input.
+# PCM Playback = 100% (0dB) — unity, no attenuation on output.
+# Without this, defaults vary per interface and cause volume issues.
+ExecStartPre=/bin/sh -c '\
+  for i in $(seq 1 10); do \
+    CARD=$(aplay -l 2>/dev/null | grep "USB Audio" | head -1 | sed "s/card \([0-9]*\):.*/\1/"); \
+    if [ -n "$CARD" ]; then \
+      amixer -c "$CARD" set Mic 46%% 2>/dev/null || true; \
+      amixer -c "$CARD" set PCM 100%% 2>/dev/null || true; \
+      echo "ALSA mixer set: Mic=46%% (0dB), PCM=100%% (0dB) on card $CARD"; \
+      exit 0; \
+    fi; \
+    sleep 1; \
+  done; \
+  echo "No USB audio card found, skipping mixer setup"'
+
 ExecStart=/bin/sh -c '\
   for i in $(seq 1 10); do \
     CARD=$(aplay -l 2>/dev/null | grep "USB Audio" | head -1 | sed "s/card \([0-9]*\):.*/\1/"); \
