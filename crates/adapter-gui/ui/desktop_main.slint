@@ -1,6 +1,6 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, MultiSliderPoint, CurveEditorPoint } from "models.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay } from "models.slint";
 import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage } from "pages/pages.slint";
 
 export component DesktopMain inherits Rectangle {
@@ -12,6 +12,7 @@ export component DesktopMain inherits Rectangle {
     in property <bool> show-project-settings;
     in property <bool> project-dirty;
     in property <bool> auto-save: false;
+    in property <bool> fullscreen: false;
     in property <bool> skip-launcher: false;
     in property <string> project-path-label;
     in property <string> project-title;
@@ -53,11 +54,20 @@ export component DesktopMain inherits Rectangle {
     in property <[CurveEditorPoint]> curve-editor-points;
     in property <string> eq-total-curve;
     in property <[string]> eq-band-curves;
+    in property <BlockStreamData> block-stream-data;
+    in property <[BlockKnobOverlay]> block-knob-overlays;
     in property <[ChannelOptionItem]> chain-input-channels;
     in property <[ChannelOptionItem]> chain-output-channels;
     in-out property <string> status-message;
     in property <[string]> sample-rate-options;
     in property <[string]> buffer-size-options;
+    // Fullscreen inline project settings
+    in property <[DeviceSelectionItem]> project-devices;
+    // Fullscreen inline chain editor
+    in property <[IoGroupItem]> chain-editor-input-groups;
+    in property <[IoGroupItem]> chain-editor-output-groups;
+    in property <bool> chain-editor-is-create-mode: true;
+    in-out property <int> chain-editor-selected-instrument-index: 0;
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
     callback update-input-sample-rate(int, string);
@@ -118,6 +128,18 @@ export component DesktopMain inherits Rectangle {
     in property <bool> has-external-editor: false;
     callback save-chain();
     callback cancel-chain();
+    // Fullscreen inline project settings callbacks
+    callback toggle-project-device(int, bool);
+    callback update-project-sample-rate(int, string);
+    callback update-project-buffer-size(int, string);
+    // Fullscreen inline chain editor callbacks
+    callback edit-chain-input(int);
+    callback remove-chain-input(int);
+    callback add-chain-input();
+    callback edit-chain-output(int);
+    callback remove-chain-output(int);
+    callback add-chain-output();
+    callback select-chain-instrument(int);
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
     private property <length> wizard-page-height: 24px + 20px + 24px + ((visible-device-count * 44px) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px)) + 24px + 44px + 24px;
 
@@ -151,13 +173,14 @@ export component DesktopMain inherits Rectangle {
         height: parent.height;
         background: transparent;
 
-        if root.show-project-chains : ProjectChainsPage {
+        if root.show-project-chains && !(root.fullscreen && (root.show-project-settings || root.show-chain-editor)) : ProjectChainsPage {
             width: parent.width;
             height: parent.height;
             project-title: root.project-title;
             project-path-label: root.project-path-label;
             project-dirty: root.project-dirty;
             auto-save: root.auto-save;
+            fullscreen: root.fullscreen;
             skip-launcher: root.skip-launcher;
             project-chains: root.project-chains;
             selected-chain-block-chain-index: root.selected-chain-block-chain-index;
@@ -167,7 +190,7 @@ export component DesktopMain inherits Rectangle {
             block-model-option-labels: root.block-model-option-labels;
             show-block-type-picker: root.show-block-type-picker;
             show-block-drawer: root.show-block-drawer;
-            show-inline-block-drawer: false;
+            show-inline-block-drawer: root.fullscreen;
             block-drawer-title: root.block-drawer-title;
             block-drawer-confirm-label: root.block-drawer-confirm-label;
             block-drawer-status-message: root.block-drawer-status-message;
@@ -177,6 +200,12 @@ export component DesktopMain inherits Rectangle {
             block-drawer-enabled: root.block-drawer-enabled;
             has-external-editor: root.has-external-editor;
             block-parameter-items: root.block-parameter-items;
+            multi-slider-points: root.multi-slider-points;
+            curve-editor-points: root.curve-editor-points;
+            eq-total-curve: root.eq-total-curve;
+            eq-band-curves: root.eq-band-curves;
+            block-stream-data: root.block-stream-data;
+            block-knob-overlays: root.block-knob-overlays;
             status-message: root.status-message;
             back-to-launcher => { root.back-to-launcher(); }
             add-chain => { root.add-chain(); }
@@ -210,6 +239,47 @@ export component DesktopMain inherits Rectangle {
             select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
             pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
             open-external-editor(model-id) => { root.open-external-editor(model-id); }
+        }
+
+        // Fullscreen inline project settings
+        if root.fullscreen && root.show-project-settings : ProjectSettingsPage {
+            width: parent.width;
+            height: parent.height;
+            project-name-draft <=> root.project-name-draft;
+            project-devices: root.project-devices;
+            sample-rate-options: root.sample-rate-options;
+            buffer-size-options: root.buffer-size-options;
+            status-message: root.status-message;
+            update-project-name(value) => { root.update-project-name(value); }
+            save-audio-settings => { root.save-audio-settings(); }
+            close-project-settings => { root.close-project-settings(); }
+            toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
+            update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
+            update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
+        }
+
+        // Fullscreen inline chain editor
+        if root.fullscreen && root.show-chain-editor : ChainEditorPage {
+            width: parent.width;
+            height: parent.height;
+            title: root.chain-editor-title;
+            save-label: root.chain-editor-save-label;
+            chain-name: root.chain-draft-name;
+            input-groups: root.chain-editor-input-groups;
+            output-groups: root.chain-editor-output-groups;
+            status-message: root.status-message;
+            is-create-mode: root.chain-editor-is-create-mode;
+            selected-instrument-index <=> root.chain-editor-selected-instrument-index;
+            update-chain-name(value) => { root.update-chain-name(value); }
+            edit-input(index) => { root.edit-chain-input(index); }
+            remove-input(index) => { root.remove-chain-input(index); }
+            add-input => { root.add-chain-input(); }
+            edit-output(index) => { root.edit-chain-output(index); }
+            remove-output(index) => { root.remove-chain-output(index); }
+            add-output => { root.add-chain-output(); }
+            save-chain => { root.save-chain(); }
+            cancel-chain => { root.cancel-chain(); }
+            select-instrument(index) => { root.select-chain-instrument(index); }
         }
 
         if !root.show-project-chains : Rectangle {
