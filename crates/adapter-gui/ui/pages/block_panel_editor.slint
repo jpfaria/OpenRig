@@ -430,9 +430,9 @@ export component BlockPanelEditor inherits Rectangle {
         clip: true;
         background: root.panel-bg;
 
-        // ── Brand strip (marca + modelo) — hidden for EQ blocks ──
+        // ── Brand strip (marca + modelo) — hidden for EQ blocks and VST3 ──
         // Com marca real (marshall, vox, etc)
-        if !root.has-eq-widget && root.selected-brand != "native" && root.selected-brand != "" : Rectangle {
+        if !root.has-eq-widget && !root.has-external-editor && root.selected-brand != "native" && root.selected-brand != "" : Rectangle {
             x: 0;
             y: 0;
             width: parent.width;
@@ -515,8 +515,8 @@ export component BlockPanelEditor inherits Rectangle {
             }
         }
 
-        // Nativos: fundo escuro com ilustração do modelo + nome — hidden for EQ blocks
-        if !root.has-eq-widget && (root.selected-brand == "native" || root.selected-brand == "") : Rectangle {
+        // Nativos: fundo escuro com ilustração do modelo + nome — hidden for EQ blocks and VST3
+        if !root.has-eq-widget && !root.has-external-editor && (root.selected-brand == "native" || root.selected-brand == "") : Rectangle {
             x: 0;
             y: 0;
             width: parent.width;
