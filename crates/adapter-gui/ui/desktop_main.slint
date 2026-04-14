@@ -58,6 +58,7 @@ export component DesktopMain inherits Rectangle {
     in-out property <string> status-message;
     in property <[string]> sample-rate-options;
     in property <[string]> buffer-size-options;
+    in property <[string]> bit-depth-options;
     in property <[DeviceSelectionItem]> project-devices;
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
@@ -121,6 +122,7 @@ export component DesktopMain inherits Rectangle {
     callback toggle-project-device(int, bool);
     callback update-project-sample-rate(int, string);
     callback update-project-buffer-size(int, string);
+    callback update-project-bit-depth(int, string);
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
     private property <length> wizard-page-height: 24px + 20px + 24px + ((visible-device-count * 44px) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px)) + 24px + 44px + 24px;
 
@@ -229,12 +231,14 @@ export component DesktopMain inherits Rectangle {
         project-devices: root.project-devices;
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
+        bit-depth-options: root.bit-depth-options;
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
         close-project-settings => { root.close-project-settings(); }
         toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
         update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
         update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
+        update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
     }
 
 }

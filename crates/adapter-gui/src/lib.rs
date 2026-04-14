@@ -48,8 +48,10 @@ mod visual_config;
 slint::include_modules!();
 const DEFAULT_SAMPLE_RATE: u32 = 48_000;
 const DEFAULT_BUFFER_SIZE_FRAMES: u32 = 256;
+const DEFAULT_BIT_DEPTH: u32 = 32;
 const SUPPORTED_SAMPLE_RATES: &[u32] = &[44_100, 48_000, 88_200, 96_000];
 const SUPPORTED_BUFFER_SIZES: &[u32] = &[32, 64, 128, 256, 512, 1024];
+const SUPPORTED_BIT_DEPTHS: &[u32] = &[16, 24, 32];
 fn log_gui_message(context: &str, message: &str) {
     log::info!("[adapter-gui] {context}: {message}");
 }
@@ -553,6 +555,7 @@ pub fn run_desktop_app(
                     selected: true,
                     sample_rate_text: config.sample_rate.to_string().into(),
                     buffer_size_text: config.buffer_size_frames.to_string().into(),
+                    bit_depth_text: config.bit_depth.to_string().into(),
                 }
             })
             .collect::<Vec<_>>(),
@@ -578,6 +581,7 @@ pub fn run_desktop_app(
                     selected: true,
                     sample_rate_text: config.sample_rate.to_string().into(),
                     buffer_size_text: config.buffer_size_frames.to_string().into(),
+                    bit_depth_text: config.bit_depth.to_string().into(),
                 }
             })
             .collect::<Vec<_>>(),
@@ -1237,6 +1241,12 @@ pub fn run_desktop_app(
     }
     {
         let project_devices = project_devices.clone();
+        project_settings_window.on_update_project_bit_depth(move |index, value| {
+            update_device_bit_depth(&project_devices, index as usize, value);
+        });
+    }
+    {
+        let project_devices = project_devices.clone();
         window.on_toggle_project_device(move |index, selected| {
             toggle_device_row(&project_devices, index as usize, selected);
         });
@@ -1251,6 +1261,12 @@ pub fn run_desktop_app(
         let project_devices = project_devices.clone();
         window.on_update_project_buffer_size(move |index, value| {
             update_device_buffer_size(&project_devices, index as usize, value);
+        });
+    }
+    {
+        let project_devices = project_devices.clone();
+        window.on_update_project_bit_depth(move |index, value| {
+            update_device_bit_depth(&project_devices, index as usize, value);
         });
     }
     {
@@ -8191,7 +8207,7 @@ fn build_project_device_rows(
                 name: device.name.clone(),
                 sample_rate: setting.sample_rate,
                 buffer_size_frames: setting.buffer_size_frames,
-                bit_depth: 32,
+                bit_depth: DEFAULT_BIT_DEPTH,
             })
             .unwrap_or_else(|| default_device_settings(device.id.clone(), device.name.clone()));
         rows.push(DeviceSelectionItem {
@@ -8202,6 +8218,7 @@ fn build_project_device_rows(
                 .any(|setting| setting.device_id.0 == device.id),
             sample_rate_text: config.sample_rate.to_string().into(),
             buffer_size_text: config.buffer_size_frames.to_string().into(),
+            bit_depth_text: config.bit_depth.to_string().into(),
         });
     }
     rows
@@ -9892,6 +9909,16 @@ fn update_device_buffer_size(
         model.set_row_data(index, row);
     }
 }
+fn update_device_bit_depth(
+    model: &Rc<VecModel<DeviceSelectionItem>>,
+    index: usize,
+    value: slint::SharedString,
+) {
+    if let Some(mut row) = model.row_data(index) {
+        row.bit_depth_text = value;
+        model.set_row_data(index, row);
+    }
+}
 fn selected_device_settings(
     model: &Rc<VecModel<DeviceSelectionItem>>,
     device_kind: &str,
@@ -9911,7 +9938,10 @@ fn selected_device_settings(
                     row.buffer_size_text.as_str(),
                     &format!("{}_buffer_size_frames '{}'", device_kind, row.name),
                 )?,
-                bit_depth: 32,
+                bit_depth: parse_positive_u32(
+                    row.bit_depth_text.as_str(),
+                    &format!("{}_bit_depth '{}'", device_kind, row.name),
+                )?,
             })
         })
         .collect()
@@ -9922,7 +9952,7 @@ fn default_device_settings(device_id: String, name: String) -> GuiAudioDeviceSet
         name,
         sample_rate: DEFAULT_SAMPLE_RATE,
         buffer_size_frames: DEFAULT_BUFFER_SIZE_FRAMES,
-        bit_depth: 32,
+        bit_depth: DEFAULT_BIT_DEPTH,
     }
 }
 fn normalize_device_settings(mut settings: GuiAudioDeviceSettings) -> GuiAudioDeviceSettings {
@@ -9931,6 +9961,9 @@ fn normalize_device_settings(mut settings: GuiAudioDeviceSettings) -> GuiAudioDe
     }
     if !SUPPORTED_BUFFER_SIZES.contains(&settings.buffer_size_frames) {
         settings.buffer_size_frames = DEFAULT_BUFFER_SIZE_FRAMES;
+    }
+    if !SUPPORTED_BIT_DEPTHS.contains(&settings.bit_depth) {
+        settings.bit_depth = DEFAULT_BIT_DEPTH;
     }
     settings
 }
