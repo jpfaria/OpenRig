@@ -177,7 +177,7 @@ fn build(
 pub const MODEL_DEFINITION: DelayModelDefinition = DelayModelDefinition {
     id: MODEL_ID,
     display_name: DISPLAY_NAME,
-    brand: "",
+    brand: block_core::BRAND_NATIVE,
     backend_kind: DelayBackendKind::Native,
     schema,
     build,

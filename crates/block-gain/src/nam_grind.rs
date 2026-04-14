@@ -10,7 +10,7 @@ use block_core::{AudioChannelLayout, BlockProcessor};
 
 pub const MODEL_ID: &str = "grind";
 pub const DISPLAY_NAME: &str = "Grind";
-const BRAND: &str = "tc_electronic";
+const BRAND: &str = "tc-electronic";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 

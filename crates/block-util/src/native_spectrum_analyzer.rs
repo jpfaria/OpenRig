@@ -260,7 +260,7 @@ fn build(
 pub const MODEL_DEFINITION: UtilModelDefinition = UtilModelDefinition {
     id: MODEL_ID,
     display_name: DISPLAY_NAME,
-    brand: "",
+    brand: block_core::BRAND_NATIVE,
     backend_kind: UtilBackendKind::Native,
     schema,
     build,

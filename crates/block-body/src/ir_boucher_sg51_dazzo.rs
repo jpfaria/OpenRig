@@ -7,7 +7,7 @@ use block_core::{AudioChannelLayout, ModelAudioMode, BlockProcessor};
 
 pub const MODEL_ID: &str = "boucher_sg51_dazzo";
 pub const DISPLAY_NAME: &str = "Boucher SG-51 Dazzo";
-const BRAND: &str = "";
+const BRAND: &str = "boucher";
 
 macro_rules! capture {
     ($p1:literal, $ir_file:literal) => {
