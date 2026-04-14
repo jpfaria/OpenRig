@@ -1,4 +1,4 @@
-// Dark spherical knob with purple line indicator.
+// Dark 3D spherical knob with purple line indicator.
 // Used in both block_panel_editor and compact_chain_view.
 export component PanelKnob inherits Rectangle {
     in property <float> value;
@@ -20,61 +20,68 @@ export component PanelKnob inherits Rectangle {
     private property <length> ks: Math.min(root.width, root.height);
     private property <length> cx: root.width / 2;
     private property <length> cy: root.height / 2;
-    // Trig as float (for Path coordinates)
     private property <float> sin-a: Math.sin(root.indicator-angle);
     private property <float> cos-a: Math.cos(root.indicator-angle);
     private property <float> ks-f: root.ks / 1px;
     private property <float> half: root.ks-f / 2;
-    private property <float> r-inner: root.half - 18;
-    private property <float> r-outer: root.half - 4;
 
     background: transparent;
 
-    // ── Shadow (depth) ──
+    // ── Shadow (knob sits above surface) ──
     Rectangle {
         x: root.cx - root.ks / 2 + 1px;
         y: root.cy - root.ks / 2 + 2px;
         width: root.ks;
         height: root.ks;
         border-radius: root.ks / 2;
-        background: #00000044;
+        background: #00000066;
     }
 
-    // ── Knob body — dark sphere with top-lit gradient ──
+    // ── Rim / edge ring (subtle edge catch light) ──
     Rectangle {
         x: root.cx - root.ks / 2;
         y: root.cy - root.ks / 2;
         width: root.ks;
         height: root.ks;
         border-radius: root.ks / 2;
-        background: @linear-gradient(180deg, #302e36 0%, #1a181e 40%, #0e0d10 100%);
-        border-width: 1px;
-        border-color: @linear-gradient(180deg, #44404c 0%, #1a181e 50%, #0a090c 100%);
+        background: @linear-gradient(135deg, #3e3c46 0%, #1a1820 100%);
     }
 
-    // ── Inner body (slight recess for depth) ──
+    // ── Knob body — strong diagonal gradient = sphere illusion ──
+    //    Light comes from upper-left, dark at lower-right
     Rectangle {
-        property <length> inner: root.ks - 4px;
-        x: root.cx - self.inner / 2;
-        y: root.cy - self.inner / 2;
-        width: self.inner;
-        height: self.inner;
-        border-radius: self.inner / 2;
-        background: @linear-gradient(170deg, #28262e 0%, #151318 45%, #0c0b0e 100%);
+        property <length> body: root.ks - 3px;
+        x: root.cx - self.body / 2;
+        y: root.cy - self.body / 2;
+        width: self.body;
+        height: self.body;
+        border-radius: self.body / 2;
+        background: @linear-gradient(140deg, #3a3842 0%, #2a2832 18%, #1a1820 40%, #100e14 65%, #0a090c 100%);
     }
 
-    // ── Top specular highlight (light from above) ──
+    // ── Large specular highlight (upper-left, sells the 3D) ──
     Rectangle {
-        property <length> hl: root.ks * 0.7;
-        x: root.cx - self.hl / 2;
-        y: root.cy - root.ks / 2 + 2px;
+        property <length> hl: root.ks * 0.75;
+        x: root.cx - self.hl / 2 - 2px;
+        y: root.cy - root.ks / 2 + 1px;
         width: self.hl;
-        height: self.hl * 0.35;
+        height: self.hl * 0.55;
         border-radius: self.hl / 2;
-        background: @linear-gradient(180deg, #ffffff18 0%, #ffffff00 100%);
+        background: @linear-gradient(165deg, #ffffff20 0%, #ffffff0a 50%, #ffffff00 100%);
     }
 
-    // ── Purple indicator line (real line via Path) ──
+    // ── Secondary highlight (smaller, brighter, very top-left) ──
+    Rectangle {
+        property <length> hl2: root.ks * 0.4;
+        x: root.cx - root.ks / 4 - 4px;
+        y: root.cy - root.ks / 4 - 4px;
+        width: self.hl2;
+        height: self.hl2 * 0.5;
+        border-radius: self.hl2 / 2;
+        background: @linear-gradient(160deg, #ffffff18 0%, #ffffff00 100%);
+    }
+
+    // ── Purple indicator line ──
     Path {
         x: root.cx - root.ks / 2;
         y: root.cy - root.ks / 2;
@@ -82,20 +89,20 @@ export component PanelKnob inherits Rectangle {
         height: root.ks;
         viewbox-width: root.ks-f;
         viewbox-height: root.ks-f;
-        stroke: ta.pressed ? #cc99ff : ta.has-hover ? #aa77ee : #8855cc;
+        stroke: ta.pressed ? #bb99ff : ta.has-hover ? #9977dd : #7755bb;
         stroke-width: 2.5px;
 
         MoveTo {
-            x: root.half + root.sin-a * root.r-inner;
-            y: root.half - root.cos-a * root.r-inner;
+            x: root.half + root.sin-a * (root.half - 18);
+            y: root.half - root.cos-a * (root.half - 18);
         }
         LineTo {
-            x: root.half + root.sin-a * root.r-outer;
-            y: root.half - root.cos-a * root.r-outer;
+            x: root.half + root.sin-a * (root.half - 4);
+            y: root.half - root.cos-a * (root.half - 4);
         }
     }
 
-    // ── Value text (centered in knob, subtle) ──
+    // ── Value text ──
     Text {
         x: root.cx - root.ks / 2;
         y: root.cy - root.ks / 2;
