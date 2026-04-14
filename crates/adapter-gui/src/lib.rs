@@ -4399,7 +4399,11 @@ pub fn run_desktop_app(
             // Clone block_id before dropping session_borrow (needed by window editor stream timer)
             let block_id_for_editor = block.id.clone();
             drop(session_borrow);
-            if use_inline_block_editor(&window) || has_ext_gui {
+            // Desktop + VST3: open titled window directly, no overlay/popup.
+            if has_ext_gui && !use_inline_block_editor(&window) {
+                window.set_show_block_drawer(false);
+                window.invoke_open_vst3_editor(model_id.clone().into());
+            } else if use_inline_block_editor(&window) || has_ext_gui {
                 let param_items_vec = block_parameter_items_for_editor(&editor_data);
                 let overlays = build_knob_overlays(project::catalog::model_knob_layout(&effect_type, &model_id), &param_items_vec);
                 window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
@@ -4451,7 +4455,7 @@ pub fn run_desktop_app(
                     }
                 }
                 window.set_show_block_drawer(true);
-                // Auto-open embedded VST3 editor when the block drawer opens
+                // Auto-open embedded VST3 editor when the block drawer opens (fullscreen)
                 if project::catalog::block_has_external_gui(&effect_type, &model_id) {
                     window.invoke_open_vst3_editor(model_id.clone().into());
                 }
@@ -5641,7 +5645,11 @@ pub fn run_desktop_app(
             window.set_show_block_type_picker(false);
             let is_vst3_gui = project::catalog::block_has_external_gui(&model.effect_type, &model.model_id);
             window.set_has_external_editor(is_vst3_gui);
-            if use_inline_block_editor(&window) || is_vst3_gui {
+            if is_vst3_gui && !use_inline_block_editor(&window) {
+                // Desktop + VST3: titled window, no overlay.
+                window.set_show_block_drawer(false);
+                window.invoke_open_vst3_editor(model.model_id.clone().into());
+            } else if use_inline_block_editor(&window) || is_vst3_gui {
                 window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
                 window.set_show_block_drawer(true);
                 if is_vst3_gui {
