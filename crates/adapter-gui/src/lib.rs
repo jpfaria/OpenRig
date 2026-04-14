@@ -6313,12 +6313,24 @@ pub fn run_desktop_app(
         let weak_output_window = chain_output_window.as_weak();
         let inline_flag = inline_io_groups_is_input.clone();
         window.on_chain_io_toggle_channel(move |index, selected| {
-            let from_groups = weak_window.upgrade().map_or(false, |w| w.get_show_chain_io_groups());
+            let Some(w) = weak_window.upgrade() else { return; };
+            let from_groups = w.get_show_chain_io_groups();
             if from_groups {
+                // Delegate to AppWindow's toggle handler (updates draft + shared VecModel)
                 if inline_flag.get() {
-                    if let Some(iw) = weak_input_window.upgrade() { iw.invoke_toggle_channel(index, selected); }
+                    w.invoke_toggle_chain_input_channel(index, selected);
                 } else {
-                    if let Some(ow) = weak_output_window.upgrade() { ow.invoke_toggle_channel(index, selected); }
+                    w.invoke_toggle_chain_output_channel(index, selected);
+                }
+                // Sync updated channel state back to inline editor model
+                if inline_flag.get() {
+                    if let Some(iw) = weak_input_window.upgrade() {
+                        w.set_chain_io_channels(iw.get_channels());
+                    }
+                } else {
+                    if let Some(ow) = weak_output_window.upgrade() {
+                        w.set_chain_io_channels(ow.get_channels());
+                    }
                 }
             } else {
                 if let Some(cew) = chain_editor_window.borrow().as_ref() {
