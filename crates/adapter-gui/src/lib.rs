@@ -98,12 +98,12 @@ fn ensure_devices_loaded(
 }
 /// Get the NSWindow from the Slint AppWindow for parenting child windows.
 ///
-/// Get the root NSView from the Slint window for embedding child views.
-fn get_parent_ns_view(window: &AppWindow) -> anyhow::Result<*mut std::ffi::c_void> {
+/// Get the root NSView from any Slint window for embedding child views.
+fn get_ns_view(slint_window: &slint::Window) -> anyhow::Result<*mut std::ffi::c_void> {
     #[cfg(target_os = "macos")]
     {
         use raw_window_handle::HasWindowHandle;
-        let slint_handle = window.window().window_handle();
+        let slint_handle = slint_window.window_handle();
         let raw_handle = slint_handle.window_handle()
             .map_err(|e| anyhow::anyhow!("failed to get raw window handle: {}", e))?;
         match raw_handle.as_raw() {
@@ -119,7 +119,7 @@ fn get_parent_ns_view(window: &AppWindow) -> anyhow::Result<*mut std::ffi::c_voi
     }
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = window;
+        let _ = slint_window;
         anyhow::bail!("embedded VST3 editor not yet supported on this platform")
     }
 }
@@ -4701,20 +4701,44 @@ pub fn run_desktop_app(
                         }
                     });
                 }
-                // on_open_vst3_editor (opens native plugin GUI window)
+                // on_open_vst3_editor (embeds plugin GUI inside BlockEditorWindow)
                 {
                     let vst3_handles = vst3_editor_handles.clone();
                     let vst3_sr = vst3_sample_rate;
                     let toast_timer = toast_timer.clone();
                     let weak_main = weak_main_window.clone();
+                    let weak_win = win.as_weak();
                     win.on_open_vst3_editor(move |model_id| {
+                        let Some(win) = weak_win.upgrade() else { return; };
                         // Drop all previous handles so the plugin releases its
                         // IEditController, allowing a fresh instance to be created.
                         vst3_handles.borrow_mut().clear();
-                        match project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr) {
-                            Ok(handle) => { vst3_handles.borrow_mut().push(handle); }
+
+                        let ns_view = match get_ns_view(win.window()) {
+                            Ok(v) => v,
                             Err(e) => {
-                                log::error!("VST3 editor: failed '{}': {}", model_id, e);
+                                log::error!("VST3 editor: cannot get NSView from BlockEditorWindow: {}", e);
+                                if let Some(w) = weak_main.upgrade() {
+                                    set_status_error(&w, &toast_timer, &e.to_string());
+                                }
+                                return;
+                            }
+                        };
+
+                        // Header is 48px; embed plugin editor below it.
+                        let header_h = 48.0;
+                        match project::vst3_editor::open_vst3_editor_embedded(
+                            model_id.as_str(), vst3_sr, ns_view, 0.0, header_h,
+                        ) {
+                            Ok((handle, editor_w, editor_h)) => {
+                                // Resize the BlockEditorWindow to fit the editor.
+                                let new_w = (editor_w as f32).max(900.0);
+                                let new_h = header_h as f32 + editor_h as f32;
+                                win.window().set_size(slint::LogicalSize::new(new_w, new_h));
+                                vst3_handles.borrow_mut().push(handle);
+                            }
+                            Err(e) => {
+                                log::error!("VST3 editor: failed to embed '{}': {}", model_id, e);
                                 if let Some(w) = weak_main.upgrade() {
                                     set_status_error(&w, &toast_timer, &e.to_string());
                                 }
@@ -5981,7 +6005,7 @@ pub fn run_desktop_app(
             // Different model or no existing editor — drop the old one and create new.
             *embedded_editor.borrow_mut() = None;
 
-            let ns_view = match get_parent_ns_view(&w) {
+            let ns_view = match get_ns_view(w.window()) {
                 Ok(v) => v,
                 Err(e) => {
                     log::error!("VST3 editor: cannot get NSView: {}", e);

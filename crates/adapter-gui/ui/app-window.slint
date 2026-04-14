@@ -399,12 +399,12 @@ export component BlockEditorWindow inherits Window {
         has-eq-widget ? (48px + 60px + 8px + eq-widget-height + 8px) : 275px;
 
     title: root.block-window-title;
-    min-width: panel-width;
-    min-height: root.use-panel-editor ? eq-extra-height : 640px;
-    max-width: panel-width;
-    max-height: root.use-panel-editor ? eq-extra-height : 640px;
-    preferred-width: panel-width;
-    preferred-height: root.use-panel-editor ? eq-extra-height : 640px;
+    min-width: root.has-external-editor ? 400px : panel-width;
+    min-height: root.has-external-editor ? 200px : (root.use-panel-editor ? eq-extra-height : 640px);
+    max-width: root.has-external-editor ? 9999px : panel-width;
+    max-height: root.has-external-editor ? 9999px : (root.use-panel-editor ? eq-extra-height : 640px);
+    preferred-width: root.has-external-editor ? 900px : panel-width;
+    preferred-height: root.has-external-editor ? 275px : (root.use-panel-editor ? eq-extra-height : 640px);
     background: #040708;
 
     // Amp head: visual panel editor
