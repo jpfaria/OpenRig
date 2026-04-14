@@ -1462,6 +1462,10 @@ pub fn run_desktop_app(
                                         ds.device_id.0, ds.sample_rate, ds.buffer_size_frames, ds.bit_depth
                                     );
                                 }
+                                // Apply device config to hardware (works even without active chains)
+                                if let Err(e) = infra_cpal::apply_device_settings(&session.project.device_settings) {
+                                    log::warn!("apply_device_settings failed: {e}");
+                                }
                                 if let Err(e) = sync_project_runtime(&project_runtime, session) {
                                     set_status_error(&window, &toast_timer, &e.to_string());
                                     return;
@@ -1513,6 +1517,10 @@ pub fn run_desktop_app(
                             "  device='{}' sr={} buf={} bit={}",
                             ds.device_id.0, ds.sample_rate, ds.buffer_size_frames, ds.bit_depth
                         );
+                    }
+                    // Apply device config to hardware (works even without active chains)
+                    if let Err(e) = infra_cpal::apply_device_settings(&session.project.device_settings) {
+                        log::warn!("apply_device_settings failed: {e}");
                     }
                     if let Err(error) = sync_project_runtime(&project_runtime, session) {
                         set_status_error(&window, &toast_timer, &error.to_string());
@@ -1635,6 +1643,10 @@ pub fn run_desktop_app(
                             "  device='{}' sr={} buf={} bit={}",
                             ds.device_id.0, ds.sample_rate, ds.buffer_size_frames, ds.bit_depth
                         );
+                    }
+                    // Apply device config to hardware (works even without active chains)
+                    if let Err(e) = infra_cpal::apply_device_settings(&session.project.device_settings) {
+                        log::warn!("apply_device_settings failed: {e}");
                     }
                     if let Err(error) = sync_project_runtime(&project_runtime, session) {
                         settings_window.set_status_message(error.to_string().into());
