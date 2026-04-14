@@ -1,4 +1,4 @@
-// Dark 3D knob with purple line indicator and value below.
+// Dark 3D knob with purple line indicator, value box below.
 // Used in both block_panel_editor and compact_chain_view.
 export component PanelKnob inherits Rectangle {
     in property <float> value;
@@ -17,9 +17,7 @@ export component PanelKnob inherits Rectangle {
     private property <bool> preview-active: false;
     private property <float> preview-val: 0;
     private property <angle> indicator-angle: 225deg + root.norm * 270deg;
-    // Knob circle uses upper portion, value text below
-    private property <length> text-h: 14px;
-    private property <length> ks: Math.min(root.width, root.height - root.text-h);
+    private property <length> ks: root.width;
     private property <length> cx: root.width / 2;
     private property <length> cy: root.ks / 2;
     private property <float> sin-a: Math.sin(root.indicator-angle);
@@ -39,19 +37,17 @@ export component PanelKnob inherits Rectangle {
         background: #00000050;
     }
 
-    // ── Knob body ──
+    // ── Knob body — top-to-bottom gradient (light top, dark bottom = sphere) ──
     Rectangle {
         x: root.cx - root.ks / 2;
         y: root.cy - root.ks / 2;
         width: root.ks;
         height: root.ks;
         border-radius: root.ks / 2;
-        background: @linear-gradient(140deg, #33313b 0%, #26242e 20%, #1c1a24 40%, #14121a 60%, #0e0c14 80%, #0a0810 100%);
-        border-width: 1px;
-        border-color: #2a2832;
+        background: @linear-gradient(170deg, #38363f 0%, #2c2a33 15%, #201e27 35%, #16141c 55%, #0e0c14 75%, #08060e 100%);
     }
 
-    // ── Purple indicator line ──
+    // ── Purple indicator line — long, from center to near edge ──
     Path {
         x: root.cx - root.ks / 2;
         y: root.cy - root.ks / 2;
@@ -59,34 +55,43 @@ export component PanelKnob inherits Rectangle {
         height: root.ks;
         viewbox-width: root.ks-f;
         viewbox-height: root.ks-f;
-        stroke: ta.pressed ? #bb99ff : ta.has-hover ? #9977dd : #7755bb;
+        stroke: ta.pressed ? #cc99ff : ta.has-hover ? #aa88ee : #8866cc;
         stroke-width: 2.5px;
 
         MoveTo {
-            x: root.half + root.sin-a * (root.half - 16);
-            y: root.half - root.cos-a * (root.half - 16);
+            x: root.half + root.sin-a * 2;
+            y: root.half - root.cos-a * 2;
         }
         LineTo {
-            x: root.half + root.sin-a * (root.half - 4);
-            y: root.half - root.cos-a * (root.half - 4);
+            x: root.half + root.sin-a * (root.half - 3);
+            y: root.half - root.cos-a * (root.half - 3);
         }
     }
 
-    // ── Value text below knob ──
-    Text {
-        x: root.cx - root.ks / 2;
-        y: root.ks + 1px;
-        width: root.ks;
-        height: root.text-h;
-        text: root.step >= 1.0
-            ? Math.round(root.current-val) + ""
-            : Math.round(root.current-val * 10) / 10 + "";
-        color: ta.pressed ? #cccccc : ta.has-hover ? #aaaaaa : #999999;
-        font-family: "Bebas Neue";
-        font-size: 11px;
-        font-weight: 700;
-        horizontal-alignment: center;
-        vertical-alignment: center;
+    // ── Value box below knob ──
+    Rectangle {
+        x: root.cx - root.ks * 0.45;
+        y: root.ks + 3px;
+        width: root.ks * 0.9;
+        height: root.height - root.ks - 4px;
+        border-radius: 3px;
+        background: #0c0a12;
+        border-width: 1px;
+        border-color: #2a2832;
+
+        Text {
+            width: parent.width;
+            height: parent.height;
+            text: root.step >= 1.0
+                ? Math.round(root.current-val) + ""
+                : Math.round(root.current-val * 10) / 10 + "";
+            color: ta.pressed ? #dddddd : ta.has-hover ? #cccccc : #bbbbbb;
+            font-family: "Bebas Neue";
+            font-size: 12px;
+            font-weight: 700;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
     }
 
     // ── Touch/drag ──
