@@ -32,7 +32,7 @@ ExecStartPre=/bin/sh -c 'for i in $(seq 1 15); do [ -S /run/weston/wayland-1 ] &
 # avoids the old race condition where jackd.service started with hardcoded
 # settings before OpenRig could configure it.
 
-ExecStart=/usr/bin/openrig
+ExecStart=/usr/bin/openrig --fullscreen
 Restart=on-failure
 RestartSec=5
 TimeoutStartSec=30

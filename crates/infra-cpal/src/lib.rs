@@ -353,7 +353,7 @@ fn launch_jackd(card: &str, sample_rate: u32, buffer_size: u32) -> Result<()> {
 ///
 /// Returns true if JACK was (re)started, false if already running with correct config.
 #[cfg(all(target_os = "linux", feature = "jack"))]
-fn ensure_jack_running(project: &project::Project) -> Result<bool> {
+fn ensure_jack_running(project: &Project) -> Result<bool> {
     let (desired_sr, desired_buf) = project
         .device_settings
         .first()
