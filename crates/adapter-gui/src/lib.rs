@@ -1,6 +1,7 @@
 mod thumbnails;
 mod plugin_info;
 
+use std::cell::Cell;
 use anyhow::{anyhow, Result};
 
 const SELECT_PATH_PREFIX: &str = "__select.";
@@ -515,6 +516,8 @@ pub fn run_desktop_app(
         ChainInputGroupsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     let chain_output_groups_window =
         ChainOutputGroupsWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    // Tracks whether the inline I/O groups page is showing inputs (true) or outputs (false)
+    let inline_io_groups_is_input: Rc<Cell<bool>> = Rc::new(Cell::new(true));
     let chain_insert_window =
         ChainInsertWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     let insert_send_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
@@ -3367,7 +3370,9 @@ pub fn run_desktop_app(
         let project_session = project_session.clone();
         let chain_input_device_options = chain_input_device_options.clone();
         let chain_output_device_options = chain_output_device_options.clone();
+        let inline_io_groups_is_input = inline_io_groups_is_input.clone();
         window.on_configure_chain_input(move |index| {
+            inline_io_groups_is_input.set(true);
             log::warn!("[UI] configure-chain-input clicked, chain_index={}", index);
             let Some(window) = weak_window.upgrade() else {
                 log::warn!("[UI] configure-chain-input: window upgrade failed");
@@ -3405,12 +3410,21 @@ pub fn run_desktop_app(
             draft.inputs = inputs;
             let (input_items, _) =
                 build_io_group_items(&draft, &fresh_input, &fresh_output);
-            groups_window
-                .set_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
+            let groups_model = ModelRc::from(Rc::new(VecModel::from(input_items)));
+            groups_window.set_groups(groups_model.clone());
             groups_window.set_status_message("".into());
             groups_window.set_show_block_controls(false);
             *chain_draft.borrow_mut() = Some(draft);
-            show_child_window(window.window(), groups_window.window());
+            if window.get_fullscreen() {
+                window.set_chain_io_groups_title("Entradas".into());
+                window.set_chain_io_groups_add_label("+ Adicionar entrada".into());
+                window.set_chain_io_groups_items(groups_model);
+                window.set_chain_io_groups_status("".into());
+                window.set_chain_io_groups_show_block_controls(false);
+                window.set_show_chain_io_groups(true);
+            } else {
+                show_child_window(window.window(), groups_window.window());
+            }
         });
     }
     {
@@ -3420,7 +3434,9 @@ pub fn run_desktop_app(
         let project_session = project_session.clone();
         let chain_input_device_options = chain_input_device_options.clone();
         let chain_output_device_options = chain_output_device_options.clone();
+        let inline_io_groups_is_input = inline_io_groups_is_input.clone();
         window.on_configure_chain_output(move |index| {
+            inline_io_groups_is_input.set(false);
             log::warn!("[UI] configure-chain-output clicked, chain_index={}", index);
             let Some(window) = weak_window.upgrade() else {
                 log::warn!("[UI] configure-chain-output: window upgrade failed");
@@ -3458,12 +3474,21 @@ pub fn run_desktop_app(
             draft.outputs = outputs;
             let (_, output_items) =
                 build_io_group_items(&draft, &fresh_input, &fresh_output);
-            groups_window
-                .set_groups(ModelRc::from(Rc::new(VecModel::from(output_items))));
+            let groups_model = ModelRc::from(Rc::new(VecModel::from(output_items)));
+            groups_window.set_groups(groups_model.clone());
             groups_window.set_status_message("".into());
             groups_window.set_show_block_controls(false);
             *chain_draft.borrow_mut() = Some(draft);
-            show_child_window(window.window(), groups_window.window());
+            if window.get_fullscreen() {
+                window.set_chain_io_groups_title("Saídas".into());
+                window.set_chain_io_groups_add_label("+ Adicionar saída".into());
+                window.set_chain_io_groups_items(groups_model);
+                window.set_chain_io_groups_status("".into());
+                window.set_chain_io_groups_show_block_controls(false);
+                window.set_show_chain_io_groups(true);
+            } else {
+                show_child_window(window.window(), groups_window.window());
+            }
         });
     }
     // --- ChainInputGroupsWindow callbacks ---
@@ -6239,39 +6264,78 @@ pub fn run_desktop_app(
             }
         });
     }
-    // Fullscreen inline I/O endpoint editor callbacks — delegate to ChainEditorWindow
+    // Fullscreen inline I/O endpoint editor callbacks — delegate based on flow
     {
         let chain_editor_window = chain_editor_window.clone();
+        let weak_window = window.as_weak();
+        let weak_input_window = chain_input_window.as_weak();
+        let weak_output_window = chain_output_window.as_weak();
+        let inline_flag = inline_io_groups_is_input.clone();
         window.on_chain_io_select_device(move |index| {
-            if let Some(cew) = chain_editor_window.borrow().as_ref() {
-                if cew.get_show_input_editor() {
-                    cew.invoke_input_select_device(index);
-                } else if cew.get_show_output_editor() {
-                    cew.invoke_output_select_device(index);
+            let from_groups = weak_window.upgrade().map_or(false, |w| w.get_show_chain_io_groups());
+            if from_groups {
+                if inline_flag.get() {
+                    if let Some(iw) = weak_input_window.upgrade() { iw.invoke_select_device(index); }
+                } else {
+                    if let Some(ow) = weak_output_window.upgrade() { ow.invoke_select_device(index); }
+                }
+            } else {
+                if let Some(cew) = chain_editor_window.borrow().as_ref() {
+                    if cew.get_show_input_editor() {
+                        cew.invoke_input_select_device(index);
+                    } else if cew.get_show_output_editor() {
+                        cew.invoke_output_select_device(index);
+                    }
                 }
             }
         });
     }
     {
         let chain_editor_window = chain_editor_window.clone();
+        let weak_window = window.as_weak();
+        let weak_input_window = chain_input_window.as_weak();
+        let weak_output_window = chain_output_window.as_weak();
+        let inline_flag = inline_io_groups_is_input.clone();
         window.on_chain_io_toggle_channel(move |index, selected| {
-            if let Some(cew) = chain_editor_window.borrow().as_ref() {
-                if cew.get_show_input_editor() {
-                    cew.invoke_input_toggle_channel(index, selected);
-                } else if cew.get_show_output_editor() {
-                    cew.invoke_output_toggle_channel(index, selected);
+            let from_groups = weak_window.upgrade().map_or(false, |w| w.get_show_chain_io_groups());
+            if from_groups {
+                if inline_flag.get() {
+                    if let Some(iw) = weak_input_window.upgrade() { iw.invoke_toggle_channel(index, selected); }
+                } else {
+                    if let Some(ow) = weak_output_window.upgrade() { ow.invoke_toggle_channel(index, selected); }
+                }
+            } else {
+                if let Some(cew) = chain_editor_window.borrow().as_ref() {
+                    if cew.get_show_input_editor() {
+                        cew.invoke_input_toggle_channel(index, selected);
+                    } else if cew.get_show_output_editor() {
+                        cew.invoke_output_toggle_channel(index, selected);
+                    }
                 }
             }
         });
     }
     {
         let chain_editor_window = chain_editor_window.clone();
+        let weak_window = window.as_weak();
+        let weak_input_window = chain_input_window.as_weak();
+        let weak_output_window = chain_output_window.as_weak();
+        let inline_flag = inline_io_groups_is_input.clone();
         window.on_chain_io_select_mode(move |index| {
-            if let Some(cew) = chain_editor_window.borrow().as_ref() {
-                if cew.get_show_input_editor() {
-                    cew.invoke_input_select_mode(index);
-                } else if cew.get_show_output_editor() {
-                    cew.invoke_output_select_mode(index);
+            let from_groups = weak_window.upgrade().map_or(false, |w| w.get_show_chain_io_groups());
+            if from_groups {
+                if inline_flag.get() {
+                    if let Some(iw) = weak_input_window.upgrade() { iw.invoke_select_input_mode(index); }
+                } else {
+                    if let Some(ow) = weak_output_window.upgrade() { ow.invoke_select_output_mode(index); }
+                }
+            } else {
+                if let Some(cew) = chain_editor_window.borrow().as_ref() {
+                    if cew.get_show_input_editor() {
+                        cew.invoke_input_select_mode(index);
+                    } else if cew.get_show_output_editor() {
+                        cew.invoke_output_select_mode(index);
+                    }
                 }
             }
         });
@@ -6279,32 +6343,272 @@ pub fn run_desktop_app(
     {
         let chain_editor_window = chain_editor_window.clone();
         let weak_window = window.as_weak();
+        let weak_input_window = chain_input_window.as_weak();
+        let weak_output_window = chain_output_window.as_weak();
+        let inline_flag = inline_io_groups_is_input.clone();
+        let weak_input_groups = chain_input_groups_window.as_weak();
+        let weak_output_groups = chain_output_groups_window.as_weak();
         window.on_chain_io_save(move || {
-            if let Some(cew) = chain_editor_window.borrow().as_ref() {
-                if cew.get_show_input_editor() {
-                    cew.invoke_input_save();
-                } else if cew.get_show_output_editor() {
-                    cew.invoke_output_save();
+            let Some(w) = weak_window.upgrade() else { return; };
+            if w.get_show_chain_io_groups() {
+                // Came from groups flow — delegate to ChainInputWindow/ChainOutputWindow
+                if inline_flag.get() {
+                    if let Some(iw) = weak_input_window.upgrade() {
+                        iw.invoke_save();
+                    }
+                    // Sync groups back after save
+                    if let Some(gw) = weak_input_groups.upgrade() {
+                        w.set_chain_io_groups_items(gw.get_groups());
+                    }
+                } else {
+                    if let Some(ow) = weak_output_window.upgrade() {
+                        ow.invoke_save();
+                    }
+                    if let Some(gw) = weak_output_groups.upgrade() {
+                        w.set_chain_io_groups_items(gw.get_groups());
+                    }
+                }
+            } else {
+                // Came from chain editor flow
+                if let Some(cew) = chain_editor_window.borrow().as_ref() {
+                    if cew.get_show_input_editor() {
+                        cew.invoke_input_save();
+                    } else if cew.get_show_output_editor() {
+                        cew.invoke_output_save();
+                    }
                 }
             }
-            if let Some(w) = weak_window.upgrade() {
-                w.set_show_chain_io_editor(false);
-            }
+            w.set_show_chain_io_editor(false);
         });
     }
     {
         let chain_editor_window = chain_editor_window.clone();
         let weak_window = window.as_weak();
+        let weak_input_window = chain_input_window.as_weak();
+        let weak_output_window = chain_output_window.as_weak();
+        let inline_flag = inline_io_groups_is_input.clone();
         window.on_chain_io_cancel(move || {
-            if let Some(cew) = chain_editor_window.borrow().as_ref() {
-                if cew.get_show_input_editor() {
-                    cew.invoke_input_cancel();
-                } else if cew.get_show_output_editor() {
-                    cew.invoke_output_cancel();
+            let Some(w) = weak_window.upgrade() else { return; };
+            if w.get_show_chain_io_groups() {
+                // Came from groups flow — delegate cancel
+                if inline_flag.get() {
+                    if let Some(iw) = weak_input_window.upgrade() {
+                        iw.invoke_cancel();
+                    }
+                } else {
+                    if let Some(ow) = weak_output_window.upgrade() {
+                        ow.invoke_cancel();
+                    }
+                }
+            } else {
+                // Came from chain editor flow
+                if let Some(cew) = chain_editor_window.borrow().as_ref() {
+                    if cew.get_show_input_editor() {
+                        cew.invoke_input_cancel();
+                    } else if cew.get_show_output_editor() {
+                        cew.invoke_output_cancel();
+                    }
+                }
+            }
+            w.set_show_chain_io_editor(false);
+        });
+    }
+    // Fullscreen inline I/O groups callbacks — delegate to ChainInputGroupsWindow / ChainOutputGroupsWindow
+    {
+        let weak_input_groups = chain_input_groups_window.as_weak();
+        let weak_output_groups = chain_output_groups_window.as_weak();
+        let inline_flag = inline_io_groups_is_input.clone();
+        let weak_window = window.as_weak();
+        let chain_input_device_options = chain_input_device_options.clone();
+        let chain_output_device_options = chain_output_device_options.clone();
+        let chain_draft = chain_draft.clone();
+        let project_session = project_session.clone();
+        window.on_chain_io_groups_edit(move |group_index| {
+            let Some(window) = weak_window.upgrade() else { return; };
+            if inline_flag.get() {
+                if let Some(gw) = weak_input_groups.upgrade() {
+                    gw.invoke_edit_group(group_index);
+                }
+                // After edit_group callback runs, it sets up ChainInputWindow state.
+                // In fullscreen, we propagate to inline endpoint editor.
+                let fresh_input = refresh_input_devices(&chain_input_device_options);
+                let draft_borrow = chain_draft.borrow();
+                if let Some(draft) = draft_borrow.as_ref() {
+                    let gi = group_index as usize;
+                    if let Some(input_group) = draft.inputs.get(gi) {
+                        let session_borrow = project_session.borrow();
+                        if let Some(session) = session_borrow.as_ref() {
+                            let dev_idx = selected_device_index(
+                                &fresh_input,
+                                input_group.device_id.as_deref(),
+                            );
+                            let mode_idx = input_mode_to_index(input_group.mode);
+                            let channel_items = build_input_channel_items(input_group, draft, &session.project, &fresh_input);
+                            let labels: Vec<slint::SharedString> = vec!["Mono".into(), "Stereo".into(), "Dual Mono".into()];
+                            let device_strings: Vec<slint::SharedString> = fresh_input.iter().map(|d| slint::SharedString::from(d.name.as_str())).collect();
+                            window.set_chain_io_editor_title("Entrada".into());
+                            window.set_chain_io_device_options(ModelRc::from(Rc::new(VecModel::from(device_strings))));
+                            window.set_chain_io_selected_device_index(dev_idx);
+                            window.set_chain_io_channels(ModelRc::from(Rc::new(VecModel::from(channel_items))));
+                            window.set_chain_io_editor_status("".into());
+                            window.set_chain_io_show_mode_selector(true);
+                            window.set_chain_io_mode_labels(ModelRc::from(Rc::new(VecModel::from(labels))));
+                            window.set_chain_io_selected_mode_index(mode_idx);
+                            window.set_show_chain_io_editor(true);
+                        }
+                    }
+                }
+            } else {
+                if let Some(gw) = weak_output_groups.upgrade() {
+                    gw.invoke_edit_group(group_index);
+                }
+                let fresh_output = refresh_output_devices(&chain_output_device_options);
+                let draft_borrow = chain_draft.borrow();
+                if let Some(draft) = draft_borrow.as_ref() {
+                    let gi = group_index as usize;
+                    if let Some(output_group) = draft.outputs.get(gi) {
+                        let dev_idx = selected_device_index(
+                            &fresh_output,
+                            output_group.device_id.as_deref(),
+                        );
+                        let mode_idx = output_mode_to_index(output_group.mode);
+                        let channel_items = build_output_channel_items(output_group, &fresh_output);
+                        let labels: Vec<slint::SharedString> = vec!["Mono".into(), "Stereo".into()];
+                        let device_strings: Vec<slint::SharedString> = fresh_output.iter().map(|d| slint::SharedString::from(d.name.as_str())).collect();
+                        window.set_chain_io_editor_title("Saída".into());
+                        window.set_chain_io_device_options(ModelRc::from(Rc::new(VecModel::from(device_strings))));
+                        window.set_chain_io_selected_device_index(dev_idx);
+                        window.set_chain_io_channels(ModelRc::from(Rc::new(VecModel::from(channel_items))));
+                        window.set_chain_io_editor_status("".into());
+                        window.set_chain_io_show_mode_selector(true);
+                        window.set_chain_io_mode_labels(ModelRc::from(Rc::new(VecModel::from(labels))));
+                        window.set_chain_io_selected_mode_index(mode_idx);
+                        window.set_show_chain_io_editor(true);
+                    }
+                }
+            }
+        });
+    }
+    {
+        let weak_input_groups = chain_input_groups_window.as_weak();
+        let weak_output_groups = chain_output_groups_window.as_weak();
+        let inline_flag = inline_io_groups_is_input.clone();
+        let weak_window = window.as_weak();
+        window.on_chain_io_groups_remove(move |group_index| {
+            if inline_flag.get() {
+                if let Some(gw) = weak_input_groups.upgrade() {
+                    gw.invoke_remove_group(group_index);
+                    // Sync updated groups back to AppWindow
+                    if let Some(w) = weak_window.upgrade() {
+                        w.set_chain_io_groups_items(gw.get_groups());
+                    }
+                }
+            } else {
+                if let Some(gw) = weak_output_groups.upgrade() {
+                    gw.invoke_remove_group(group_index);
+                    if let Some(w) = weak_window.upgrade() {
+                        w.set_chain_io_groups_items(gw.get_groups());
+                    }
+                }
+            }
+        });
+    }
+    {
+        let weak_input_groups = chain_input_groups_window.as_weak();
+        let weak_output_groups = chain_output_groups_window.as_weak();
+        let inline_flag = inline_io_groups_is_input.clone();
+        let weak_window = window.as_weak();
+        window.on_chain_io_groups_add(move || {
+            if inline_flag.get() {
+                if let Some(gw) = weak_input_groups.upgrade() {
+                    gw.invoke_add_group();
+                    if let Some(w) = weak_window.upgrade() {
+                        w.set_chain_io_groups_items(gw.get_groups());
+                    }
+                }
+            } else {
+                if let Some(gw) = weak_output_groups.upgrade() {
+                    gw.invoke_add_group();
+                    if let Some(w) = weak_window.upgrade() {
+                        w.set_chain_io_groups_items(gw.get_groups());
+                    }
+                }
+            }
+        });
+    }
+    {
+        let weak_input_groups = chain_input_groups_window.as_weak();
+        let weak_output_groups = chain_output_groups_window.as_weak();
+        let inline_flag = inline_io_groups_is_input.clone();
+        let weak_window = window.as_weak();
+        window.on_chain_io_groups_save(move || {
+            if inline_flag.get() {
+                if let Some(gw) = weak_input_groups.upgrade() {
+                    gw.invoke_save();
+                }
+            } else {
+                if let Some(gw) = weak_output_groups.upgrade() {
+                    gw.invoke_save();
                 }
             }
             if let Some(w) = weak_window.upgrade() {
-                w.set_show_chain_io_editor(false);
+                w.set_show_chain_io_groups(false);
+            }
+        });
+    }
+    {
+        let weak_input_groups = chain_input_groups_window.as_weak();
+        let weak_output_groups = chain_output_groups_window.as_weak();
+        let inline_flag = inline_io_groups_is_input.clone();
+        let weak_window = window.as_weak();
+        window.on_chain_io_groups_cancel(move || {
+            if inline_flag.get() {
+                if let Some(gw) = weak_input_groups.upgrade() {
+                    gw.invoke_cancel();
+                }
+            } else {
+                if let Some(gw) = weak_output_groups.upgrade() {
+                    gw.invoke_cancel();
+                }
+            }
+            if let Some(w) = weak_window.upgrade() {
+                w.set_show_chain_io_groups(false);
+            }
+        });
+    }
+    {
+        let weak_input_groups = chain_input_groups_window.as_weak();
+        let weak_output_groups = chain_output_groups_window.as_weak();
+        let inline_flag = inline_io_groups_is_input.clone();
+        window.on_chain_io_groups_toggle_enabled(move || {
+            if inline_flag.get() {
+                if let Some(gw) = weak_input_groups.upgrade() {
+                    gw.invoke_toggle_enabled();
+                }
+            } else {
+                if let Some(gw) = weak_output_groups.upgrade() {
+                    gw.invoke_toggle_enabled();
+                }
+            }
+        });
+    }
+    {
+        let weak_input_groups = chain_input_groups_window.as_weak();
+        let weak_output_groups = chain_output_groups_window.as_weak();
+        let inline_flag = inline_io_groups_is_input.clone();
+        let weak_window = window.as_weak();
+        window.on_chain_io_groups_delete_block(move || {
+            if inline_flag.get() {
+                if let Some(gw) = weak_input_groups.upgrade() {
+                    gw.invoke_delete_block();
+                }
+            } else {
+                if let Some(gw) = weak_output_groups.upgrade() {
+                    gw.invoke_delete_block();
+                }
+            }
+            if let Some(w) = weak_window.upgrade() {
+                w.set_show_chain_io_groups(false);
             }
         });
     }

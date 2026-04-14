@@ -1,7 +1,7 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay } from "models.slint";
-import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage } from "pages/pages.slint";
+import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage } from "pages/pages.slint";
 
 export component DesktopMain inherits Rectangle {
     in property <string> app-version;
@@ -156,6 +156,21 @@ export component DesktopMain inherits Rectangle {
     callback chain-io-select-mode(int);
     callback chain-io-save();
     callback chain-io-cancel();
+    // Fullscreen inline I/O groups editor (list of input/output entries)
+    in property <bool> show-chain-io-groups: false;
+    in property <string> chain-io-groups-title;
+    in property <string> chain-io-groups-add-label;
+    in property <[IoGroupItem]> chain-io-groups-items;
+    in-out property <string> chain-io-groups-status: "";
+    in property <bool> chain-io-groups-show-block-controls: false;
+    in property <bool> chain-io-groups-block-enabled: true;
+    callback chain-io-groups-edit(int);
+    callback chain-io-groups-remove(int);
+    callback chain-io-groups-add();
+    callback chain-io-groups-save();
+    callback chain-io-groups-cancel();
+    callback chain-io-groups-toggle-enabled();
+    callback chain-io-groups-delete-block();
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
     private property <length> wizard-page-height: 24px + 20px + 24px + ((visible-device-count * 44px) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px)) + 24px + 44px + 24px;
 
@@ -274,7 +289,7 @@ export component DesktopMain inherits Rectangle {
         }
 
         // Fullscreen inline chain editor
-        if root.fullscreen && root.show-chain-editor && !root.show-chain-io-editor : ChainEditorPage {
+        if root.fullscreen && root.show-chain-editor && !root.show-chain-io-editor && !root.show-chain-io-groups : ChainEditorPage {
             width: parent.width;
             height: parent.height;
             title: root.chain-editor-title;
@@ -295,6 +310,25 @@ export component DesktopMain inherits Rectangle {
             save-chain => { root.save-chain(); }
             cancel-chain => { root.cancel-chain(); }
             select-instrument(index) => { root.select-chain-instrument(index); }
+        }
+
+        // Fullscreen inline I/O groups editor (list of input/output entries)
+        if root.fullscreen && root.show-chain-io-groups && !root.show-chain-io-editor : ChainIoGroupsPage {
+            width: parent.width;
+            height: parent.height;
+            title: root.chain-io-groups-title;
+            add-label: root.chain-io-groups-add-label;
+            groups: root.chain-io-groups-items;
+            status-message <=> root.chain-io-groups-status;
+            show-block-controls: root.chain-io-groups-show-block-controls;
+            block-enabled: root.chain-io-groups-block-enabled;
+            edit-group(index) => { root.chain-io-groups-edit(index); }
+            remove-group(index) => { root.chain-io-groups-remove(index); }
+            add-group => { root.chain-io-groups-add(); }
+            save => { root.chain-io-groups-save(); }
+            cancel => { root.chain-io-groups-cancel(); }
+            toggle-enabled => { root.chain-io-groups-toggle-enabled(); }
+            delete-block => { root.chain-io-groups-delete-block(); }
         }
 
         // Fullscreen inline I/O endpoint editor (input or output device selection)

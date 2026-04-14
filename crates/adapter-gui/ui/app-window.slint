@@ -766,6 +766,21 @@ export component AppWindow inherits Window {
     callback chain-io-select-mode(int);
     callback chain-io-save();
     callback chain-io-cancel();
+    // Fullscreen inline I/O groups editor
+    in property <bool> show-chain-io-groups: false;
+    in property <string> chain-io-groups-title;
+    in property <string> chain-io-groups-add-label;
+    in property <[IoGroupItem]> chain-io-groups-items;
+    in-out property <string> chain-io-groups-status: "";
+    in property <bool> chain-io-groups-show-block-controls: false;
+    in property <bool> chain-io-groups-block-enabled: true;
+    callback chain-io-groups-edit(int);
+    callback chain-io-groups-remove(int);
+    callback chain-io-groups-add();
+    callback chain-io-groups-save();
+    callback chain-io-groups-cancel();
+    callback chain-io-groups-toggle-enabled();
+    callback chain-io-groups-delete-block();
     title: "OpenRig";
     min-width: 860px;
     min-height: 540px;
@@ -852,6 +867,20 @@ export component AppWindow inherits Window {
         chain-io-select-mode(index) => { root.chain-io-select-mode(index); }
         chain-io-save => { root.chain-io-save(); }
         chain-io-cancel => { root.chain-io-cancel(); }
+        show-chain-io-groups: root.show-chain-io-groups;
+        chain-io-groups-title: root.chain-io-groups-title;
+        chain-io-groups-add-label: root.chain-io-groups-add-label;
+        chain-io-groups-items: root.chain-io-groups-items;
+        chain-io-groups-status <=> root.chain-io-groups-status;
+        chain-io-groups-show-block-controls: root.chain-io-groups-show-block-controls;
+        chain-io-groups-block-enabled: root.chain-io-groups-block-enabled;
+        chain-io-groups-edit(index) => { root.chain-io-groups-edit(index); }
+        chain-io-groups-remove(index) => { root.chain-io-groups-remove(index); }
+        chain-io-groups-add => { root.chain-io-groups-add(); }
+        chain-io-groups-save => { root.chain-io-groups-save(); }
+        chain-io-groups-cancel => { root.chain-io-groups-cancel(); }
+        chain-io-groups-toggle-enabled => { root.chain-io-groups-toggle-enabled(); }
+        chain-io-groups-delete-block => { root.chain-io-groups-delete-block(); }
         toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
         toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
         update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
