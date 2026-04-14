@@ -380,6 +380,9 @@ fn ensure_jack_running(project: &Project) -> Result<bool> {
         .ok_or_else(|| anyhow!("no USB audio interface found — connect a device before starting audio"))?;
 
     launch_jackd(&card, desired_sr, desired_buf)?;
+    // JACK is now running — invalidate device cache so next enumeration
+    // uses JACK ports instead of stale ALSA listing.
+    invalidate_device_cache();
     Ok(true)
 }
 
@@ -396,6 +399,7 @@ fn stop_jackd() -> Result<()> {
     for _ in 0..30 {
         if !jack_server_is_running() {
             invalidate_jack_meta_cache();
+            invalidate_device_cache();
             log::info!("stop_jackd: JACK stopped");
             return Ok(());
         }
@@ -408,6 +412,7 @@ fn stop_jackd() -> Result<()> {
         .output();
     std::thread::sleep(std::time::Duration::from_millis(200));
     invalidate_jack_meta_cache();
+    invalidate_device_cache();
     Ok(())
 }
 
@@ -1196,11 +1201,13 @@ pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
 fn enumerate_input_devices_uncached() -> Result<Vec<AudioDeviceDescriptor>> {
     #[cfg(all(target_os = "linux", feature = "jack"))]
     {
-        if !jack_server_is_running() {
-            invalidate_jack_meta_cache();
-            bail!("JACK server is not running — start jackd before enumerating input devices");
+        if jack_server_is_running() {
+            return jack_enumerate_input_devices();
         }
-        return jack_enumerate_input_devices();
+        // JACK not running — fall through to ALSA enumeration so the UI can
+        // still show available hardware devices for configuration.
+        invalidate_jack_meta_cache();
+        log::info!("JACK not running, falling back to ALSA enumeration for input devices");
     }
 
     #[allow(unreachable_code)]
@@ -1224,11 +1231,11 @@ fn enumerate_input_devices_uncached() -> Result<Vec<AudioDeviceDescriptor>> {
 fn enumerate_output_devices_uncached() -> Result<Vec<AudioDeviceDescriptor>> {
     #[cfg(all(target_os = "linux", feature = "jack"))]
     {
-        if !jack_server_is_running() {
-            invalidate_jack_meta_cache();
-            bail!("JACK server is not running — start jackd before enumerating output devices");
+        if jack_server_is_running() {
+            return jack_enumerate_output_devices();
         }
-        return jack_enumerate_output_devices();
+        invalidate_jack_meta_cache();
+        log::info!("JACK not running, falling back to ALSA enumeration for output devices");
     }
 
     #[allow(unreachable_code)]
