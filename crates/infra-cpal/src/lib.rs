@@ -1222,8 +1222,11 @@ fn enumerate_input_devices_uncached() -> Result<Vec<AudioDeviceDescriptor>> {
         if devices.iter().any(|d: &AudioDeviceDescriptor| d.name == name) {
             continue;
         }
-        devices.push(AudioDeviceDescriptor { id, name, channels: max_supported_input_channels(&device).unwrap_or(0) });
+        let ch = max_supported_input_channels(&device).unwrap_or(0);
+        log::info!("[enumerate_input] device id='{}' name='{}' channels={}", id, name, ch);
+        devices.push(AudioDeviceDescriptor { id, name, channels: ch });
     }
+    log::info!("[enumerate_input] total {} devices", devices.len());
     devices.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(devices)
 }
@@ -1250,8 +1253,11 @@ fn enumerate_output_devices_uncached() -> Result<Vec<AudioDeviceDescriptor>> {
         if devices.iter().any(|d: &AudioDeviceDescriptor| d.name == name) {
             continue;
         }
-        devices.push(AudioDeviceDescriptor { id, name, channels: max_supported_output_channels(&device).unwrap_or(0) });
+        let ch = max_supported_output_channels(&device).unwrap_or(0);
+        log::info!("[enumerate_output] device id='{}' name='{}' channels={}", id, name, ch);
+        devices.push(AudioDeviceDescriptor { id, name, channels: ch });
     }
+    log::info!("[enumerate_output] total {} devices", devices.len());
     devices.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(devices)
 }

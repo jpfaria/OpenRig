@@ -6457,9 +6457,17 @@ pub fn run_desktop_app(
                             let labels: Vec<slint::SharedString> = vec!["Mono".into(), "Stereo".into(), "Dual Mono".into()];
                             let device_strings: Vec<slint::SharedString> = fresh_input.iter().map(|d| slint::SharedString::from(d.name.as_str())).collect();
                             // Sync shared VecModel so toggle_chain_input_channel works
+                            log::info!(
+                                "[groups_edit INPUT] gi={} dev_idx={} device_id={:?} fresh_devices={} channel_items={} mode_idx={}",
+                                gi, dev_idx, input_group.device_id, fresh_input.len(), channel_items.len(), mode_idx
+                            );
+                            for (ci, ch) in channel_items.iter().enumerate() {
+                                log::info!("[groups_edit INPUT]   ch[{}] label='{}' selected={} available={}", ci, ch.label, ch.selected, ch.available);
+                            }
                             replace_channel_options(&chain_input_channels, channel_items.clone());
                             window.set_chain_io_editor_title("Entrada".into());
-                            window.set_chain_io_device_options(ModelRc::from(Rc::new(VecModel::from(device_strings))));
+                            window.set_chain_io_device_options(ModelRc::from(Rc::new(VecModel::from(device_strings.clone()))));
+                            log::info!("[groups_edit INPUT] device_strings={:?}", device_strings);
                             window.set_chain_io_selected_device_index(dev_idx);
                             window.set_chain_io_channels(ModelRc::from(chain_input_channels.clone()));
                             window.set_chain_io_editor_status("".into());
@@ -6488,9 +6496,17 @@ pub fn run_desktop_app(
                         let labels: Vec<slint::SharedString> = vec!["Mono".into(), "Stereo".into()];
                         let device_strings: Vec<slint::SharedString> = fresh_output.iter().map(|d| slint::SharedString::from(d.name.as_str())).collect();
                         // Sync shared VecModel so toggle_chain_output_channel works
+                        log::info!(
+                            "[groups_edit OUTPUT] gi={} dev_idx={} device_id={:?} fresh_devices={} channel_items={} mode_idx={}",
+                            gi, dev_idx, output_group.device_id, fresh_output.len(), channel_items.len(), mode_idx
+                        );
+                        for (ci, ch) in channel_items.iter().enumerate() {
+                            log::info!("[groups_edit OUTPUT]   ch[{}] label='{}' selected={} available={}", ci, ch.label, ch.selected, ch.available);
+                        }
                         replace_channel_options(&chain_output_channels, channel_items.clone());
                         window.set_chain_io_editor_title("Saída".into());
-                        window.set_chain_io_device_options(ModelRc::from(Rc::new(VecModel::from(device_strings))));
+                        window.set_chain_io_device_options(ModelRc::from(Rc::new(VecModel::from(device_strings.clone()))));
+                        log::info!("[groups_edit OUTPUT] device_strings={:?}", device_strings);
                         window.set_chain_io_selected_device_index(dev_idx);
                         window.set_chain_io_channels(ModelRc::from(chain_output_channels.clone()));
                         window.set_chain_io_editor_status("".into());
