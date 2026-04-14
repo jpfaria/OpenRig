@@ -172,6 +172,21 @@ systemctl enable openrig.service
 systemctl enable openrig-irq-affinity.service
 systemctl enable openrig-audio-watchdog.service
 
+# ── 9a. Plymouth quit failsafe ────────────────────────────────────────────────
+# plymouth-quit-wait.service blocks multi-user.target (and therefore sshd,
+# openrig, everything) until Plymouth receives 'quit'. weston.service calls
+# 'plymouth quit' in ExecStartPost/ExecStopPost, but if weston fails to exec
+# (binary missing, DRM not ready, libseat issue) before those hooks run,
+# Plymouth never gets the signal and SSH is unreachable forever.
+# This drop-in caps the wait at 10 s — the system always reaches
+# multi-user.target regardless of what happens with weston/Plymouth.
+echo ">>> [OpenRig] Capping plymouth-quit-wait timeout at 10s..."
+mkdir -p /etc/systemd/system/plymouth-quit-wait.service.d/
+cat > /etc/systemd/system/plymouth-quit-wait.service.d/openrig-timeout.conf << 'EOF'
+[Service]
+TimeoutStartSec=10
+EOF
+
 # ── 10. Set permissions on install script ────────────────────────────────────
 chmod 755 /usr/local/bin/openrig-install-to-emmc
 chmod 755 /usr/local/bin/openrig-reset-audio
