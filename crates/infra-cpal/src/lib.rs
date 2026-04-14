@@ -1929,17 +1929,24 @@ fn validate_input_channels_against_device(
     // When using direct JACK backend, skip CPAL-based channel validation.
     // JACK manages port routing and will report errors at connect time.
     if using_jack_direct() {
+        log::debug!("[validate_input_channels] skipping — JACK direct mode");
         return Ok(());
     }
+    log::info!(
+        "[validate_input_channels] chain='{}' device='{}' channels={:?} jack_direct=false",
+        chain_id, device_id, channels
+    );
     let device = find_input_device_by_id(host, device_id)?.ok_or_else(|| {
         anyhow!("chain '{}' missing input device '{}'", chain_id, device_id)
     })?;
+    log::info!("[validate_input_channels] device found, querying channel capacity...");
     let total_channels = max_supported_input_channels(&device).with_context(|| {
         format!(
             "failed to resolve input channel capacity for '{}'",
             device_id
         )
     })?;
+    log::info!("[validate_input_channels] device '{}' has {} channels", device_id, total_channels);
     for channel in channels {
         if *channel >= total_channels {
             bail!(
@@ -1960,17 +1967,24 @@ fn validate_output_channels_against_device(
     channels: &[usize],
 ) -> Result<()> {
     if using_jack_direct() {
+        log::debug!("[validate_output_channels] skipping — JACK direct mode");
         return Ok(());
     }
+    log::info!(
+        "[validate_output_channels] chain='{}' device='{}' channels={:?} jack_direct=false",
+        chain_id, device_id, channels
+    );
     let device = find_output_device_by_id(host, device_id)?.ok_or_else(|| {
         anyhow!("chain '{}' missing output device '{}'", chain_id, device_id)
     })?;
+    log::info!("[validate_output_channels] device found, querying channel capacity...");
     let total_channels = max_supported_output_channels(&device).with_context(|| {
         format!(
             "failed to resolve output channel capacity for '{}'",
             device_id
         )
     })?;
+    log::info!("[validate_output_channels] device '{}' has {} channels", device_id, total_channels);
     for channel in channels {
         if *channel >= total_channels {
             bail!(
@@ -2514,26 +2528,54 @@ fn resolve_multi_io_sample_rate(
 }
 
 fn max_supported_input_channels(device: &cpal::Device) -> Result<usize> {
-    let max_supported = device
-        .supported_input_configs()?
-        .map(|config| config.channels() as usize)
-        .max();
-    let default_channels = device
-        .default_input_config()
-        .ok()
-        .map(|config| config.channels() as usize);
+    let max_supported = match device.supported_input_configs() {
+        Ok(configs) => {
+            let max = configs.map(|config| config.channels() as usize).max();
+            log::info!("[max_supported_input_channels] supported_input_configs max={:?}", max);
+            max
+        }
+        Err(e) => {
+            log::warn!("[max_supported_input_channels] supported_input_configs error: {}", e);
+            return Err(e.into());
+        }
+    };
+    let default_channels = match device.default_input_config() {
+        Ok(config) => {
+            let ch = config.channels() as usize;
+            log::info!("[max_supported_input_channels] default_input_config channels={}", ch);
+            Some(ch)
+        }
+        Err(e) => {
+            log::info!("[max_supported_input_channels] default_input_config error: {}", e);
+            None
+        }
+    };
     max_supported_channels(default_channels, max_supported)
 }
 
 fn max_supported_output_channels(device: &cpal::Device) -> Result<usize> {
-    let max_supported = device
-        .supported_output_configs()?
-        .map(|config| config.channels() as usize)
-        .max();
-    let default_channels = device
-        .default_output_config()
-        .ok()
-        .map(|config| config.channels() as usize);
+    let max_supported = match device.supported_output_configs() {
+        Ok(configs) => {
+            let max = configs.map(|config| config.channels() as usize).max();
+            log::info!("[max_supported_output_channels] supported_output_configs max={:?}", max);
+            max
+        }
+        Err(e) => {
+            log::warn!("[max_supported_output_channels] supported_output_configs error: {}", e);
+            return Err(e.into());
+        }
+    };
+    let default_channels = match device.default_output_config() {
+        Ok(config) => {
+            let ch = config.channels() as usize;
+            log::info!("[max_supported_output_channels] default_output_config channels={}", ch);
+            Some(ch)
+        }
+        Err(e) => {
+            log::info!("[max_supported_output_channels] default_output_config error: {}", e);
+            None
+        }
+    };
     max_supported_channels(default_channels, max_supported)
 }
 

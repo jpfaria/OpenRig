@@ -6301,28 +6301,20 @@ pub fn run_desktop_app(
     {
         let chain_editor_window = chain_editor_window.clone();
         let weak_window = window.as_weak();
-        let weak_input_window = chain_input_window.as_weak();
-        let weak_output_window = chain_output_window.as_weak();
         let inline_flag = inline_io_groups_is_input.clone();
         window.on_chain_io_toggle_channel(move |index, selected| {
             let Some(w) = weak_window.upgrade() else { return; };
             let from_groups = w.get_show_chain_io_groups();
             if from_groups {
-                // Delegate to AppWindow's toggle handler (updates draft + shared VecModel)
+                // Delegate to AppWindow's toggle handler which updates the
+                // shared chain_input_channels / chain_output_channels VecModel.
+                // Since on_chain_io_groups_edit already set chain-io-channels
+                // to point at the same shared VecModel, changes are reflected
+                // automatically — no sync needed.
                 if inline_flag.get() {
                     w.invoke_toggle_chain_input_channel(index, selected);
                 } else {
                     w.invoke_toggle_chain_output_channel(index, selected);
-                }
-                // Sync updated channel state back to inline editor model
-                if inline_flag.get() {
-                    if let Some(iw) = weak_input_window.upgrade() {
-                        w.set_chain_io_channels(iw.get_channels());
-                    }
-                } else {
-                    if let Some(ow) = weak_output_window.upgrade() {
-                        w.set_chain_io_channels(ow.get_channels());
-                    }
                 }
             } else {
                 if let Some(cew) = chain_editor_window.borrow().as_ref() {
@@ -6441,6 +6433,8 @@ pub fn run_desktop_app(
         let chain_output_device_options = chain_output_device_options.clone();
         let chain_draft = chain_draft.clone();
         let project_session = project_session.clone();
+        let chain_input_channels = chain_input_channels.clone();
+        let chain_output_channels = chain_output_channels.clone();
         window.on_chain_io_groups_edit(move |group_index| {
             let Some(window) = weak_window.upgrade() else { return; };
             if inline_flag.get() {
@@ -6462,10 +6456,12 @@ pub fn run_desktop_app(
                             let channel_items = build_input_channel_items(input_group, draft, &session.project, &fresh_input);
                             let labels: Vec<slint::SharedString> = vec!["Mono".into(), "Stereo".into(), "Dual Mono".into()];
                             let device_strings: Vec<slint::SharedString> = fresh_input.iter().map(|d| slint::SharedString::from(d.name.as_str())).collect();
+                            // Sync shared VecModel so toggle_chain_input_channel works
+                            replace_channel_options(&chain_input_channels, channel_items.clone());
                             window.set_chain_io_editor_title("Entrada".into());
                             window.set_chain_io_device_options(ModelRc::from(Rc::new(VecModel::from(device_strings))));
                             window.set_chain_io_selected_device_index(dev_idx);
-                            window.set_chain_io_channels(ModelRc::from(Rc::new(VecModel::from(channel_items))));
+                            window.set_chain_io_channels(ModelRc::from(chain_input_channels.clone()));
                             window.set_chain_io_editor_status("".into());
                             window.set_chain_io_show_mode_selector(true);
                             window.set_chain_io_mode_labels(ModelRc::from(Rc::new(VecModel::from(labels))));
@@ -6491,10 +6487,12 @@ pub fn run_desktop_app(
                         let channel_items = build_output_channel_items(output_group, &fresh_output);
                         let labels: Vec<slint::SharedString> = vec!["Mono".into(), "Stereo".into()];
                         let device_strings: Vec<slint::SharedString> = fresh_output.iter().map(|d| slint::SharedString::from(d.name.as_str())).collect();
+                        // Sync shared VecModel so toggle_chain_output_channel works
+                        replace_channel_options(&chain_output_channels, channel_items.clone());
                         window.set_chain_io_editor_title("Saída".into());
                         window.set_chain_io_device_options(ModelRc::from(Rc::new(VecModel::from(device_strings))));
                         window.set_chain_io_selected_device_index(dev_idx);
-                        window.set_chain_io_channels(ModelRc::from(Rc::new(VecModel::from(channel_items))));
+                        window.set_chain_io_channels(ModelRc::from(chain_output_channels.clone()));
                         window.set_chain_io_editor_status("".into());
                         window.set_chain_io_show_mode_selector(true);
                         window.set_chain_io_mode_labels(ModelRc::from(Rc::new(VecModel::from(labels))));
