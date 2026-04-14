@@ -11,6 +11,7 @@ export component TouchMain inherits Rectangle {
     in property <bool> show-project-settings;
     in property <bool> project-dirty;
     in property <bool> auto-save: false;
+    in property <bool> fullscreen: false;
     in property <bool> skip-launcher: false;
     in property <string> project-path-label;
     in property <string> project-title;
@@ -159,6 +160,7 @@ export component TouchMain inherits Rectangle {
             project-path-label: root.project-path-label;
             project-dirty: root.project-dirty;
             auto-save: root.auto-save;
+            fullscreen: root.fullscreen;
             skip-launcher: root.skip-launcher;
             project-chains: root.project-chains;
             selected-chain-block-chain-index: root.selected-chain-block-chain-index;

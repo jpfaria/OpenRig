@@ -103,12 +103,13 @@ fn ensure_devices_loaded(
     }
 }
 fn use_inline_block_editor(window: &AppWindow) -> bool {
-    window.get_touch_optimized()
-        && window
-            .get_interaction_mode_label()
-            .to_string()
-            .to_lowercase()
-            .contains("touch")
+    window.get_fullscreen()
+        || (window.get_touch_optimized()
+            && window
+                .get_interaction_mode_label()
+                .to_string()
+                .to_lowercase()
+                .contains("touch"))
 }
 /// Sets a toast notification on the main window and starts the auto-dismiss timer.
 /// Also sets `status_message` for backward compatibility with pages that still reference it.
@@ -430,17 +431,20 @@ fn open_cli_project(path: &PathBuf) -> Result<ProjectSession> {
     load_project_session(path, &config_path)
 }
 
-pub fn parse_cli_args_from(args: &[&str]) -> (Option<PathBuf>, bool) {
+pub fn parse_cli_args_from(args: &[&str]) -> (Option<PathBuf>, bool, bool) {
     let mut project_path: Option<PathBuf> = None;
     let mut auto_save = false;
+    let mut fullscreen = false;
     for arg in args.iter().skip(1) {
         if *arg == "--auto-save" {
             auto_save = true;
+        } else if *arg == "--fullscreen" {
+            fullscreen = true;
         } else if !arg.starts_with('-') {
             project_path = Some(PathBuf::from(arg));
         }
     }
-    (project_path, auto_save)
+    (project_path, auto_save, fullscreen)
 }
 
 pub fn run_desktop_app(
@@ -448,6 +452,7 @@ pub fn run_desktop_app(
     interaction_mode: InteractionMode,
     cli_project_path: Option<PathBuf>,
     auto_save: bool,
+    fullscreen: bool,
 ) -> Result<()> {
     log::info!("starting desktop app: runtime_mode={:?}, interaction_mode={:?}", runtime_mode, interaction_mode);
     let context = UiRuntimeContext::new(runtime_mode, interaction_mode);
@@ -483,6 +488,7 @@ pub fn run_desktop_app(
     let saved_project_snapshot = Rc::new(RefCell::new(None::<String>));
     let project_dirty = Rc::new(RefCell::new(false));
     let open_block_windows: Rc<RefCell<Vec<BlockWindow>>> = Rc::new(RefCell::new(Vec::new()));
+    let inline_stream_timer: Rc<RefCell<Option<Timer>>> = Rc::new(RefCell::new(None));
     let open_compact_window: Rc<RefCell<Option<(usize, slint::Weak<CompactChainViewWindow>)>>> = Rc::new(RefCell::new(None));
     let audio_settings_mode = Rc::new(RefCell::new(AudioSettingsMode::Gui));
     let input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>> = Rc::new(RefCell::new(
@@ -532,6 +538,10 @@ pub fn run_desktop_app(
     window.set_interaction_mode_label(context.interaction_mode.label().into());
     window.set_touch_optimized(context.capabilities.touch_optimized);
     window.set_auto_save(auto_save);
+    window.set_fullscreen(fullscreen);
+    if fullscreen {
+        window.window().set_fullscreen(true);
+    }
     window.set_show_audio_settings(needs_audio_settings);
     window.set_wizard_step(if settings.is_complete() { 1 } else { 0 });
     window.set_status_message("".into());
@@ -1299,6 +1309,25 @@ pub fn run_desktop_app(
             update_device_buffer_size(&project_devices, index as usize, value);
         });
     }
+    // Fullscreen inline project settings callbacks (mirror the ProjectSettingsWindow callbacks)
+    {
+        let project_devices = project_devices.clone();
+        window.on_toggle_project_device(move |index, selected| {
+            toggle_device_row(&project_devices, index as usize, selected);
+        });
+    }
+    {
+        let project_devices = project_devices.clone();
+        window.on_update_project_sample_rate(move |index, value| {
+            update_device_sample_rate(&project_devices, index as usize, value);
+        });
+    }
+    {
+        let project_devices = project_devices.clone();
+        window.on_update_project_buffer_size(move |index, value| {
+            update_device_buffer_size(&project_devices, index as usize, value);
+        });
+    }
     {
         let project_devices = project_devices.clone();
         project_settings_window.on_update_project_bit_depth(move |index, value| {
@@ -1979,6 +2008,12 @@ pub fn run_desktop_app(
             settings_window.set_status_message("".into());
             clear_status(&window, &toast_timer);
             window.set_show_project_settings(true);
+            if fullscreen {
+                // In fullscreen mode, render inline — set project-devices on main window
+                window.set_project_devices(settings_window.get_project_devices());
+            } else {
+                show_child_window(window.window(), settings_window.window());
+            }
         });
     }
     {
@@ -2310,7 +2345,14 @@ pub fn run_desktop_app(
             editor_window.set_status_message("".into());
             clear_status(&window, &toast_timer);
             window.set_show_chain_editor(true);
-            show_child_window(window.window(), editor_window.window());
+            if fullscreen {
+                window.set_chain_editor_input_groups(editor_window.get_input_groups());
+                window.set_chain_editor_output_groups(editor_window.get_output_groups());
+                window.set_chain_editor_is_create_mode(editor_window.get_is_create_mode());
+                window.set_chain_editor_selected_instrument_index(editor_window.get_selected_instrument_index());
+            } else {
+                show_child_window(window.window(), editor_window.window());
+            }
         });
     }
     {
@@ -2420,7 +2462,15 @@ pub fn run_desktop_app(
             editor_window.set_status_message("".into());
             clear_status(&window, &toast_timer);
             window.set_show_chain_editor(true);
-            show_child_window(window.window(), editor_window.window());
+            if fullscreen {
+                // In fullscreen mode, render inline — sync chain editor properties to main window
+                window.set_chain_editor_input_groups(editor_window.get_input_groups());
+                window.set_chain_editor_output_groups(editor_window.get_output_groups());
+                window.set_chain_editor_is_create_mode(editor_window.get_is_create_mode());
+                window.set_chain_editor_selected_instrument_index(editor_window.get_selected_instrument_index());
+            } else {
+                show_child_window(window.window(), editor_window.window());
+            }
         });
     }
     {
@@ -2440,6 +2490,10 @@ pub fn run_desktop_app(
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
+            // In fullscreen mode, compact view is not available
+            if fullscreen {
+                return;
+            }
             let session_borrow = project_session.borrow();
             let Some(session) = session_borrow.as_ref() else {
                 set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
@@ -4022,6 +4076,7 @@ pub fn run_desktop_app(
         let chain_input_device_options_for_select = chain_input_device_options.clone();
         let chain_output_device_options_for_select = chain_output_device_options.clone();
         let open_block_windows = open_block_windows.clone();
+        let inline_stream_timer = inline_stream_timer.clone();
         let toast_timer = toast_timer.clone();
         let weak_input_groups_for_select = chain_input_groups_window.as_weak();
         let weak_output_groups_for_select = chain_output_groups_window.as_weak();
@@ -4211,6 +4266,56 @@ pub fn run_desktop_app(
                 return;
             }
             if use_inline_block_editor(&window) {
+                let param_items_vec = block_parameter_items_for_editor(&editor_data);
+                let overlays = build_knob_overlays(project::catalog::model_knob_layout(&effect_type, &model_id), &param_items_vec);
+                window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
+                // Start inline stream timer for utility blocks (tuner, spectrum analyzer)
+                {
+                    let mut timer_ref = inline_stream_timer.borrow_mut();
+                    *timer_ref = None; // stop previous timer
+                    let is_utility = effect_type == block_core::EFFECT_TYPE_UTILITY;
+                    if is_utility {
+                        let timer = Timer::default();
+                        let weak_win = window.as_weak();
+                        let runtime = project_runtime.clone();
+                        let bid = block_id_for_editor.clone();
+                        let stream_model = model_id.clone();
+                        timer.start(
+                            slint::TimerMode::Repeated,
+                            std::time::Duration::from_millis(50),
+                            move || {
+                                let Some(win) = weak_win.upgrade() else { return; };
+                                let runtime_borrow = runtime.borrow();
+                                let kind: slint::SharedString = if stream_model == "spectrum_analyzer" {
+                                    "spectrum".into()
+                                } else {
+                                    "stream".into()
+                                };
+                                let Some(rt) = runtime_borrow.as_ref() else { return; };
+                                if let Some(entries) = rt.poll_stream(&bid) {
+                                    let slint_entries: Vec<BlockStreamEntry> = entries.iter().map(|e| BlockStreamEntry {
+                                        key: e.key.clone().into(),
+                                        value: e.value,
+                                        text: e.text.clone().into(),
+                                        peak: e.peak,
+                                    }).collect();
+                                    win.set_block_stream_data(BlockStreamData {
+                                        active: true,
+                                        stream_kind: kind,
+                                        entries: ModelRc::from(Rc::new(VecModel::from(slint_entries))),
+                                    });
+                                } else {
+                                    win.set_block_stream_data(BlockStreamData {
+                                        active: false,
+                                        stream_kind: kind,
+                                        entries: ModelRc::default(),
+                                    });
+                                }
+                            },
+                        );
+                        *timer_ref = Some(timer);
+                    }
+                }
                 window.set_show_block_drawer(true);
             } else {
                 window.set_show_block_drawer(false);
@@ -5375,6 +5480,7 @@ pub fn run_desktop_app(
             window.set_block_drawer_status_message("".into());
             window.set_show_block_type_picker(false);
             if use_inline_block_editor(&window) {
+                window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
                 window.set_show_block_drawer(true);
             } else {
                 window.set_show_block_drawer(false);
@@ -5431,7 +5537,9 @@ pub fn run_desktop_app(
             window.set_eq_total_curve(eq_total.into());
             window.set_block_drawer_selected_model_index(index);
             window.set_block_drawer_status_message("".into());
-            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
+            if use_inline_block_editor(&window) {
+                window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
+            } else if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
                 block_editor_window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
                 sync_block_editor_window(&window, &block_editor_window);
             }
@@ -5500,11 +5608,13 @@ pub fn run_desktop_app(
         let eq_band_curves = eq_band_curves.clone();
         let block_editor_persist_timer = block_editor_persist_timer.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
+        let inline_stream_timer = inline_stream_timer.clone();
         window.on_close_block_drawer(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
             block_editor_persist_timer.stop();
+            *inline_stream_timer.borrow_mut() = None;
             *selected_block.borrow_mut() = None;
             *block_editor_draft.borrow_mut() = None;
             block_model_options.set_vec(Vec::new());
@@ -6057,6 +6167,63 @@ pub fn run_desktop_app(
             clear_status(&window, &toast_timer);
             if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
                 let _ = block_editor_window.hide();
+            }
+        });
+    }
+    // Fullscreen inline chain editor callbacks — delegate to ChainEditorWindow
+    {
+        let chain_editor_window = chain_editor_window.clone();
+        window.on_edit_chain_input(move |index| {
+            if let Some(cew) = chain_editor_window.borrow().as_ref() {
+                cew.invoke_edit_input(index);
+            }
+        });
+    }
+    {
+        let chain_editor_window = chain_editor_window.clone();
+        window.on_remove_chain_input(move |index| {
+            if let Some(cew) = chain_editor_window.borrow().as_ref() {
+                cew.invoke_remove_input(index);
+            }
+        });
+    }
+    {
+        let chain_editor_window = chain_editor_window.clone();
+        window.on_add_chain_input(move || {
+            if let Some(cew) = chain_editor_window.borrow().as_ref() {
+                cew.invoke_add_input();
+            }
+        });
+    }
+    {
+        let chain_editor_window = chain_editor_window.clone();
+        window.on_edit_chain_output(move |index| {
+            if let Some(cew) = chain_editor_window.borrow().as_ref() {
+                cew.invoke_edit_output(index);
+            }
+        });
+    }
+    {
+        let chain_editor_window = chain_editor_window.clone();
+        window.on_remove_chain_output(move |index| {
+            if let Some(cew) = chain_editor_window.borrow().as_ref() {
+                cew.invoke_remove_output(index);
+            }
+        });
+    }
+    {
+        let chain_editor_window = chain_editor_window.clone();
+        window.on_add_chain_output(move || {
+            if let Some(cew) = chain_editor_window.borrow().as_ref() {
+                cew.invoke_add_output();
+            }
+        });
+    }
+    {
+        let chain_editor_window = chain_editor_window.clone();
+        window.on_select_chain_instrument(move |index| {
+            if let Some(cew) = chain_editor_window.borrow().as_ref() {
+                cew.invoke_select_instrument(index);
             }
         });
     }
@@ -10786,22 +10953,23 @@ mod tests {
 
     #[test]
     fn parse_cli_args_auto_save_before_path() {
-        let (path, auto_save) = parse_cli_args_from(&["openrig", "--auto-save", "/tmp/p.yaml"]);
+        let (path, auto_save, _) = parse_cli_args_from(&["openrig", "--auto-save", "/tmp/p.yaml"]);
         assert_eq!(path, Some(std::path::PathBuf::from("/tmp/p.yaml")));
         assert!(auto_save);
     }
 
     #[test]
     fn parse_cli_args_multiple_paths_last_wins() {
-        let (path, _) = parse_cli_args_from(&["openrig", "/first.yaml", "/second.yaml"]);
+        let (path, _, _) = parse_cli_args_from(&["openrig", "/first.yaml", "/second.yaml"]);
         assert_eq!(path, Some(std::path::PathBuf::from("/second.yaml")));
     }
 
     #[test]
     fn parse_cli_args_dashed_flags_ignored_as_paths() {
-        let (path, auto_save) = parse_cli_args_from(&["openrig", "--verbose", "--debug"]);
+        let (path, auto_save, fullscreen) = parse_cli_args_from(&["openrig", "--verbose", "--debug"]);
         assert_eq!(path, None);
         assert!(!auto_save);
+        assert!(!fullscreen);
     }
 
     // --- chain_endpoint_label ---
@@ -10874,25 +11042,40 @@ mod tests {
 
     #[test]
     fn parse_cli_args_extracts_path_and_auto_save_flag() {
-        let (path, auto_save) = parse_cli_args_from(&["openrig", "/tmp/project.yaml"]);
+        let (path, auto_save, fullscreen) = parse_cli_args_from(&["openrig", "/tmp/project.yaml"]);
         assert_eq!(path, Some(std::path::PathBuf::from("/tmp/project.yaml")));
         assert!(!auto_save);
+        assert!(!fullscreen);
 
-        let (path, auto_save) = parse_cli_args_from(&["openrig", "--auto-save"]);
+        let (path, auto_save, _) = parse_cli_args_from(&["openrig", "--auto-save"]);
         assert_eq!(path, None);
         assert!(auto_save);
 
-        let (path, auto_save) = parse_cli_args_from(&["openrig", "/tmp/project.yaml", "--auto-save"]);
+        let (path, auto_save, _) = parse_cli_args_from(&["openrig", "/tmp/project.yaml", "--auto-save"]);
         assert_eq!(path, Some(std::path::PathBuf::from("/tmp/project.yaml")));
         assert!(auto_save);
 
-        let (path, auto_save) = parse_cli_args_from(&["openrig"]);
+        let (path, auto_save, _) = parse_cli_args_from(&["openrig"]);
         assert_eq!(path, None);
         assert!(!auto_save);
 
-        let (path, auto_save) = parse_cli_args_from(&["openrig", "--unknown-flag"]);
+        let (path, auto_save, _) = parse_cli_args_from(&["openrig", "--unknown-flag"]);
         assert_eq!(path, None);
         assert!(!auto_save);
+    }
+
+    #[test]
+    fn parse_cli_args_fullscreen_flag() {
+        let (_, _, fullscreen) = parse_cli_args_from(&["openrig", "--fullscreen"]);
+        assert!(fullscreen);
+
+        let (path, auto_save, fullscreen) = parse_cli_args_from(&["openrig", "--fullscreen", "--auto-save", "/tmp/p.yaml"]);
+        assert_eq!(path, Some(std::path::PathBuf::from("/tmp/p.yaml")));
+        assert!(auto_save);
+        assert!(fullscreen);
+
+        let (_, _, fullscreen) = parse_cli_args_from(&["openrig", "/tmp/p.yaml"]);
+        assert!(!fullscreen);
     }
 
     // --- sync_recent_projects ---

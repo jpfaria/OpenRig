@@ -1,6 +1,7 @@
 import { ComboBox, ScrollView, VerticalBox } from "std-widgets.slint";
-import { ProjectChainItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, ChainBlockItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockStreamEntry } from "../models.slint";
+import { ProjectChainItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, ChainBlockItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockStreamEntry, BlockKnobOverlay } from "../models.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
+import { BlockPanelEditor } from "block_panel_editor.slint";
 import { CurveEditorControl } from "curve_editor_control.slint";
 import { MultiSliderControl } from "multi_slider_control.slint";
 
@@ -1004,6 +1005,7 @@ component ChainRow inherits Rectangle {
     in property <int> chain-index;
     in property <int> selected-block-chain-index;
     in property <int> selected-block-index;
+    in property <bool> fullscreen: false;
     callback toggle-chain-enabled(int);
     callback remove-chain(int);
     callback configure-chain(int);
@@ -1091,12 +1093,16 @@ component ChainRow inherits Rectangle {
             }
 
             title-ta := TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.open-compact-chain-view(root.chain-index); }
+                mouse-cursor: root.fullscreen ? default : pointer;
+                clicked => {
+                    if !root.fullscreen {
+                        root.open-compact-chain-view(root.chain-index);
+                    }
+                }
             }
         }
 
-        ChainActionIcon {
+        if !root.fullscreen : ChainActionIcon {
             x: parent.width - 196px;
             y: 14px;
             icon: @image-url("../assets/expand.svg");
@@ -1828,6 +1834,7 @@ export component ProjectChainsPage inherits Rectangle {
     in property <string> project-path-label;
     in property <bool> project-dirty;
     in property <bool> auto-save: false;
+    in property <bool> fullscreen: false;
     in property <bool> skip-launcher: false;
     in property <[ProjectChainItem]> project-chains;
     in property <int> selected-chain-block-chain-index;
@@ -1850,6 +1857,8 @@ export component ProjectChainsPage inherits Rectangle {
     in property <[CurveEditorPoint]> curve-editor-points;
     in property <string> eq-total-curve;
     in property <[string]> eq-band-curves;
+    in property <BlockStreamData> block-stream-data;
+    in property <[BlockKnobOverlay]> block-knob-overlays;
     in-out property <string> status-message;
     property <int> dragging-chain-index: -1;
     property <int> dragging-block-index: -1;
@@ -2005,6 +2014,7 @@ export component ProjectChainsPage inherits Rectangle {
                 width: parent.width;
                 chain: chain;
                 chain-index: index;
+                fullscreen: root.fullscreen;
                 selected-block-chain-index: root.selected-chain-block-chain-index;
                 selected-block-index: root.selected-chain-block-index;
                 toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
@@ -2038,15 +2048,78 @@ export component ProjectChainsPage inherits Rectangle {
         height: parent.height;
         background: #0405068a;
 
+        // Same use-panel-editor logic as BlockEditorWindow
+        property <bool> use-panel-editor:
+            root.block-drawer-selected-type-index >= 0
+            && root.block-drawer-selected-type-index < root.block-type-options.length
+            && root.block-type-options[root.block-drawer-selected-type-index].use_panel_editor;
+
+        // Dynamic width matching BlockEditorWindow
+        property <int> param-count: root.block-parameter-items.length;
+        property <length> needed-width: param-count > 0 ? param-count * 64px + 80px : 520px;
+        property <bool> has-eq-widget:
+            root.curve-editor-points.length > 0 || root.multi-slider-points.length > 0;
+        property <length> eq-panel-width:
+            root.multi-slider-points.length > 0 ?
+                Math.max(600px, Math.min(1400px, root.multi-slider-points.length * 35px + 80px)) :
+            root.curve-editor-points.length > 0 ?
+                Math.max(600px, Math.min(1200px, root.curve-editor-points.length * 200px + 80px)) :
+                600px;
+        property <length> panel-width:
+            use-panel-editor ?
+                (has-eq-widget ? eq-panel-width : Math.max(900px, needed-width)) :
+                520px;
+        property <length> eq-widget-height:
+            root.curve-editor-points.length > 0 ? 200px :
+            root.multi-slider-points.length > 0 ? 180px : 0px;
+        property <length> eq-extra-height:
+            has-eq-widget ? (48px + 60px + 8px + eq-widget-height + 8px) : 275px;
+        property <length> panel-height:
+            use-panel-editor ? eq-extra-height : parent.height;
+
         TouchArea {
             x: 0px;
             y: 0px;
-            width: parent.width - 420px;
+            width: parent.width;
             height: parent.height;
             clicked => { root.close-block-drawer(); }
         }
 
-        BlockEditorPanel {
+        // Panel editor (preamp/amp with knobs)
+        if use-panel-editor : BlockPanelEditor {
+            x: (parent.width - parent.panel-width) / 2;
+            y: (parent.height - parent.panel-height) / 2;
+            width: parent.panel-width;
+            height: parent.panel-height;
+            block-type-options: root.block-type-options;
+            block-model-options: root.block-model-options;
+            block-model-option-labels: root.block-model-option-labels;
+            block-drawer-selected-type-index: root.block-drawer-selected-type-index;
+            block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
+            block-drawer-edit-mode: root.block-drawer-edit-mode;
+            block-drawer-enabled: root.block-drawer-enabled;
+            block-knob-overlays: root.block-knob-overlays;
+            block-parameter-items: root.block-parameter-items;
+            multi-slider-points: root.multi-slider-points;
+            curve-editor-points: root.curve-editor-points;
+            eq-total-curve: root.eq-total-curve;
+            eq-band-curves: root.eq-band-curves;
+            block-drawer-confirm-label: root.block-drawer-confirm-label;
+            block-stream-data: root.block-stream-data;
+            choose-block-model(i) => { root.choose-block-model(i); }
+            close-block-drawer => { root.close-block-drawer(); }
+            save-block-drawer => { root.save-block-drawer(); }
+            delete-block-drawer => { root.delete-block-drawer(); }
+            show-plugin-info(effect_type, model_id) => { root.show-plugin-info(effect_type, model_id); }
+            toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
+            update-block-parameter-number(path, val) => { root.update-block-parameter-number(path, val); }
+            select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
+            pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
+            update-block-parameter-bool(path, val) => { root.update-block-parameter-bool(path, val); }
+        }
+
+        // Form editor (other block types)
+        if !use-panel-editor : BlockEditorPanel {
             x: parent.width - 520px;
             y: 0px;
             width: 520px;
@@ -2066,6 +2139,7 @@ export component ProjectChainsPage inherits Rectangle {
             curve-editor-points: root.curve-editor-points;
             eq-total-curve: root.eq-total-curve;
             eq-band-curves: root.eq-band-curves;
+            block-stream-data: root.block-stream-data;
             choose-block-model(index) => { root.choose-block-model(index); }
             close-block-drawer => { root.close-block-drawer(); }
             save-block-drawer => { root.save-block-drawer(); }

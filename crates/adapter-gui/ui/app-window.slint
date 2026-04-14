@@ -623,6 +623,7 @@ export component AppWindow inherits Window {
     in property <string> interaction-mode-label;
     in property <bool> touch-optimized;
     in property <bool> auto-save: false;
+    in property <bool> fullscreen: false;
     in property <bool> skip-launcher: false;
     in property <bool> show-audio-settings;
     in-out property <int> wizard-step;
@@ -661,13 +662,21 @@ export component AppWindow inherits Window {
     in property <[CurveEditorPoint]> curve-editor-points;
     in property <string> eq-total-curve;
     in property <[string]> eq-band-curves;
+    in property <BlockStreamData> block-stream-data;
+    in property <[BlockKnobOverlay]> block-knob-overlays;
     in property <[ChannelOptionItem]> chain-input-channels;
     in property <[ChannelOptionItem]> chain-output-channels;
     in-out property <string> status-message;
     in property <[string]> sample-rate-options: ["44100", "48000", "88200", "96000"];
     in property <[string]> buffer-size-options: ["32", "64", "128", "256", "512", "1024"];
     in property <[string]> bit-depth-options: ["16", "24", "32"];
+    // Fullscreen inline project settings
     in property <[DeviceSelectionItem]> project-devices;
+    // Fullscreen inline chain editor
+    in property <[IoGroupItem]> chain-editor-input-groups;
+    in property <[IoGroupItem]> chain-editor-output-groups;
+    in property <bool> chain-editor-is-create-mode: true;
+    in-out property <int> chain-editor-selected-instrument-index: 0;
 
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
@@ -728,10 +737,19 @@ export component AppWindow inherits Window {
     callback open-vst3-editor(string); // model-id
     callback save-chain();
     callback cancel-chain();
+    // Fullscreen inline project settings callbacks
     callback toggle-project-device(int, bool);
     callback update-project-sample-rate(int, string);
     callback update-project-buffer-size(int, string);
     callback update-project-bit-depth(int, string);
+    // Fullscreen inline chain editor callbacks
+    callback edit-chain-input(int);
+    callback remove-chain-input(int);
+    callback add-chain-input();
+    callback edit-chain-output(int);
+    callback remove-chain-output(int);
+    callback add-chain-output();
+    callback select-chain-instrument(int);
     title: "OpenRig";
     min-width: 860px;
     min-height: 540px;
@@ -749,6 +767,7 @@ export component AppWindow inherits Window {
         show-project-settings: root.show-project-settings;
         project-dirty: root.project-dirty;
         auto-save: root.auto-save;
+        fullscreen: root.fullscreen;
         skip-launcher: root.skip-launcher;
         project-path-label: root.project-path-label;
         project-title: root.project-title;
@@ -790,6 +809,8 @@ export component AppWindow inherits Window {
         curve-editor-points: root.curve-editor-points;
         eq-total-curve: root.eq-total-curve;
         eq-band-curves: root.eq-band-curves;
+        block-stream-data: root.block-stream-data;
+        block-knob-overlays: root.block-knob-overlays;
         chain-input-channels: root.chain-input-channels;
         chain-output-channels: root.chain-output-channels;
         status-message: root.status-message;
@@ -797,6 +818,10 @@ export component AppWindow inherits Window {
         buffer-size-options: root.buffer-size-options;
         bit-depth-options: root.bit-depth-options;
         project-devices: root.project-devices;
+        chain-editor-input-groups: root.chain-editor-input-groups;
+        chain-editor-output-groups: root.chain-editor-output-groups;
+        chain-editor-is-create-mode: root.chain-editor-is-create-mode;
+        chain-editor-selected-instrument-index <=> root.chain-editor-selected-instrument-index;
         toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
         toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
         update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
@@ -860,6 +885,13 @@ export component AppWindow inherits Window {
         update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
         update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
         update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
+        edit-chain-input(index) => { root.edit-chain-input(index); }
+        remove-chain-input(index) => { root.remove-chain-input(index); }
+        add-chain-input => { root.add-chain-input(); }
+        edit-chain-output(index) => { root.edit-chain-output(index); }
+        remove-chain-output(index) => { root.remove-chain-output(index); }
+        add-chain-output => { root.add-chain-output(); }
+        select-chain-instrument(index) => { root.select-chain-instrument(index); }
     }
 
     if touch-optimized : TouchMain {
@@ -872,6 +904,7 @@ export component AppWindow inherits Window {
         show-project-settings: root.show-project-settings;
         project-dirty: root.project-dirty;
         auto-save: root.auto-save;
+        fullscreen: root.fullscreen;
         skip-launcher: root.skip-launcher;
         project-path-label: root.project-path-label;
         project-title: root.project-title;
