@@ -1,4 +1,4 @@
-// Shared dial knob — dark circle, dot indicator on edge, value in center.
+// Skeuomorphic dial knob — metallic 3D body, notch indicator, value display.
 // Used in both block_panel_editor and compact_chain_view.
 export component PanelKnob inherits Rectangle {
     in property <float> value;
@@ -8,54 +8,112 @@ export component PanelKnob inherits Rectangle {
     in property <string> path;
     callback changed(string, float);
 
-    private property <float> norm: root.preview-active ? (root.preview-val - root.min-val) / (root.max-val - root.min-val) : root.value / 100.0;
+    // Current displayed value (preview during drag, actual otherwise)
+    private property <float> current-val: root.preview-active ? root.preview-val : root.value;
+    // Normalized 0..1 — always uses (val - min) / (max - min)
+    private property <float> norm: root.max-val > root.min-val
+        ? Math.max(0.0, Math.min(1.0, (root.current-val - root.min-val) / (root.max-val - root.min-val)))
+        : 0.0;
     private property <float> drag-y0: 0;
     private property <float> drag-val0: 0;
     private property <bool> preview-active: false;
     private property <float> preview-val: 0;
-    // Angle: 225deg (min, 7:30) -> 495deg (max, 4:30)
-    private property <angle> dot-angle: 225deg + root.norm * 270deg;
-    private property <length> knob-size: Math.min(root.width, root.height);
-    private property <length> orbit: root.knob-size / 2 - 6px;
+    // Angle: 225deg (min, 7:30) → 495deg (max, 4:30) = 270deg arc
+    private property <angle> indicator-angle: 225deg + root.norm * 270deg;
+    private property <length> ks: Math.min(root.width, root.height);
+    private property <length> cx: root.width / 2;
+    private property <length> cy: root.height / 2;
 
     background: transparent;
 
-    // Dark circle base
+    // ── Drop shadow ──
     Rectangle {
-        x: (parent.width - root.knob-size) / 2;
-        y: (parent.height - root.knob-size) / 2;
-        width: root.knob-size;
-        height: root.knob-size;
-        border-radius: root.knob-size / 2;
-        background: #111;
-        border-width: ta.pressed ? 2.5px : ta.has-hover ? 2px : 1.5px;
-        border-color: ta.pressed ? #6688ff : ta.has-hover ? #4466bb : #333;
+        x: root.cx - root.ks / 2 + 1.5px;
+        y: root.cy - root.ks / 2 + 2px;
+        width: root.ks;
+        height: root.ks;
+        border-radius: root.ks / 2;
+        background: #00000055;
     }
 
-    // Dot indicator on circumference
+    // ── Outer bevel ring (metallic edge) ──
     Rectangle {
-        x: parent.width / 2 + Math.sin(root.dot-angle) * (root.orbit / 1px) * 1px - 4px;
-        y: parent.height / 2 - Math.cos(root.dot-angle) * (root.orbit / 1px) * 1px - 4px;
-        width: 8px;
-        height: 8px;
-        border-radius: 4px;
-        background: ta.pressed ? #ffffff : ta.has-hover ? #ddeeff : #aabbdd;
+        x: root.cx - root.ks / 2;
+        y: root.cy - root.ks / 2;
+        width: root.ks;
+        height: root.ks;
+        border-radius: root.ks / 2;
+        background: @linear-gradient(160deg, #505050 0%, #1c1c1c 45%, #3c3c3c 100%);
+        border-width: 0.5px;
+        border-color: #080808;
     }
 
-    // Value in center
+    // ── Knob body (recessed, 3D depth) ──
+    Rectangle {
+        property <length> body: root.ks - 5px;
+        x: root.cx - self.body / 2;
+        y: root.cy - self.body / 2;
+        width: self.body;
+        height: self.body;
+        border-radius: self.body / 2;
+        background: @linear-gradient(150deg, #363636 0%, #181818 55%, #282828 100%);
+        border-width: ta.pressed ? 1.5px : ta.has-hover ? 1px : 0.5px;
+        border-color: ta.pressed ? #5577cc : ta.has-hover ? #334488 : #0c0c0c;
+    }
+
+    // ── Top highlight (specular reflection) ──
+    Rectangle {
+        property <length> hl: root.ks * 0.65;
+        x: root.cx - self.hl / 2 - 2px;
+        y: root.cy - root.ks / 2 + 4px;
+        width: self.hl;
+        height: self.hl * 0.45;
+        border-radius: self.hl / 2;
+        background: @linear-gradient(175deg, #ffffff14 0%, #ffffff00 100%);
+    }
+
+    // ── Indicator notch (3 dots along radius = line effect) ──
+    // Outer dot (near edge)
+    Rectangle {
+        property <length> r1: root.ks / 2 - 7px;
+        x: root.cx + Math.sin(root.indicator-angle) * (self.r1 / 1px) * 1px - 2.5px;
+        y: root.cy - Math.cos(root.indicator-angle) * (self.r1 / 1px) * 1px - 2.5px;
+        width: 5px;
+        height: 5px;
+        border-radius: 2.5px;
+        background: ta.pressed ? #ffffff : ta.has-hover ? #e8ecff : #c8cee0;
+    }
+    // Middle dot
+    Rectangle {
+        property <length> r2: root.ks / 2 - 12px;
+        x: root.cx + Math.sin(root.indicator-angle) * (self.r2 / 1px) * 1px - 2px;
+        y: root.cy - Math.cos(root.indicator-angle) * (self.r2 / 1px) * 1px - 2px;
+        width: 4px;
+        height: 4px;
+        border-radius: 2px;
+        background: ta.pressed ? #ffffffcc : ta.has-hover ? #e0e4f0cc : #b8becccc;
+    }
+    // Inner dot (near center)
+    Rectangle {
+        property <length> r3: root.ks / 2 - 17px;
+        x: root.cx + Math.sin(root.indicator-angle) * (self.r3 / 1px) * 1px - 1.5px;
+        y: root.cy - Math.cos(root.indicator-angle) * (self.r3 / 1px) * 1px - 1.5px;
+        width: 3px;
+        height: 3px;
+        border-radius: 1.5px;
+        background: ta.pressed ? #ffffff99 : ta.has-hover ? #d8dcee99 : #a8b0c099;
+    }
+
+    // ── Value text ──
     Text {
-        x: (parent.width - root.knob-size) / 2;
-        y: (parent.height - root.knob-size) / 2;
-        width: root.knob-size;
-        height: root.knob-size;
-        text: root.preview-active
-            ? (root.step >= 1.0
-                ? Math.round(root.preview-val) + ""
-                : Math.round(root.preview-val * 10) / 10 + "")
-            : (root.step >= 1.0
-                ? Math.round(root.value) + ""
-                : Math.round(root.value * 10) / 10 + "");
-        color: ta.pressed ? #ffffff : ta.has-hover ? #ddeeff : #ccdde8;
+        x: root.cx - root.ks / 2;
+        y: root.cy - root.ks / 2;
+        width: root.ks;
+        height: root.ks;
+        text: root.step >= 1.0
+            ? Math.round(root.current-val) + ""
+            : Math.round(root.current-val * 10) / 10 + "";
+        color: ta.pressed ? #ffffff : ta.has-hover ? #e8ecff : #b0b8cc;
         font-family: "Bebas Neue";
         font-size: 11px;
         font-weight: 700;
@@ -63,6 +121,7 @@ export component PanelKnob inherits Rectangle {
         vertical-alignment: center;
     }
 
+    // ── Touch/drag interaction ──
     ta := TouchArea {
         mouse-cursor: ta.pressed ? none : ns-resize;
 
