@@ -1,6 +1,0 @@
-# OpenRig — restart OpenRig when USB audio interface connects or disconnects.
-# JACK is managed programmatically by OpenRig (ensure_jack_running), so
-# restarting openrig.service handles the full audio stack recovery.
-# Debounced by systemd (RestartSec=5 on openrig.service).
-ACTION=="add",    SUBSYSTEM=="sound", ATTRS{idVendor}!="", TAG+="systemd", RUN+="/bin/systemctl restart openrig.service"
-ACTION=="remove", SUBSYSTEM=="sound", TAG+="systemd", RUN+="/bin/systemctl restart openrig.service"
