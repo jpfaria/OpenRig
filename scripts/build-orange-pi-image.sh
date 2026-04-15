@@ -174,6 +174,13 @@ prepare_overlay() {
     # Stage rootfs overlay (etc, usr)
     run cp -r "$PROJECT_ROOT/platform/orange-pi/rootfs/." "$OVERLAY_DIR/"
 
+    # Stage chain presets — land at /etc/presets/ which is the default
+    # presets_path relative to the project file (/etc/openrig.yaml).
+    if [ -d "$PROJECT_ROOT/presets" ]; then
+        run mkdir -p "$OVERLAY_DIR/etc/presets"
+        run cp -r "$PROJECT_ROOT/presets/." "$OVERLAY_DIR/etc/presets/"
+    fi
+
     # Stage DTB overlay source for the Scarlett/USB-C TCPM workaround.
     # customize-image.sh compiles and installs it inside the chroot using
     # armbian-add-overlay so it lands in /boot/overlay-user/ and gets hooked
