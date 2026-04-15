@@ -64,15 +64,19 @@ update-alternatives --install \
     default.plymouth \
     /usr/share/plymouth/themes/openrig/openrig.plymouth \
     100
+# Load simpledrm in the initramfs so Plymouth has a DRM device to render on.
+# simpledrm provides a DRM interface over the U-Boot framebuffer — without it
+# Plymouth falls back to text mode and the logo never appears.
+# Must be set BEFORE update-alternatives so the initramfs rebuild triggered
+# by the alternatives change bakes simpledrm in.
+echo 'simpledrm' >> /etc/initramfs-tools/modules
+
 update-alternatives --set \
     default.plymouth \
     /usr/share/plymouth/themes/openrig/openrig.plymouth
 
-# Load simpledrm in the initramfs so Plymouth has a DRM device to render on.
-# simpledrm provides a DRM interface over the U-Boot framebuffer — without it
-# Plymouth falls back to text mode and the logo never appears.
-mkdir -p /etc/initramfs-tools/modules.d
-echo 'simpledrm' >> /etc/initramfs-tools/modules
+# Rebuild initramfs so Plymouth theme + simpledrm are baked in for early boot.
+update-initramfs -u -k all
 
 # ── 7. Create users with fixed passwords ─────────────────────────────────────
 echo ">>> [OpenRig] Creating openrig user and setting passwords..."
