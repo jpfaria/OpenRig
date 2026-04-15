@@ -29,6 +29,7 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     adwaita-icon-theme \
     plymouth \
     librsvg2-bin \
+    plymouth-themes \
     udev \
     locales \
     tzdata \
@@ -104,9 +105,10 @@ prereqs() { echo "$PREREQ"; }
 case "$1" in prereqs) prereqs; exit 0;; esac
 . /usr/share/initramfs-tools/hook-functions
 THEME_DIR=/usr/share/plymouth/themes/openrig
-for f in "$THEME_DIR"/*; do
-    [ -f "$f" ] && copy_file theme "$f"
-done
+DEST="${DESTDIR}/usr/share/plymouth/themes/openrig"
+mkdir -p "$DEST"
+cp -a "$THEME_DIR"/. "$DEST/"
+exit 0
 PLYHOOK
 chmod 755 /etc/initramfs-tools/hooks/openrig-plymouth
 
