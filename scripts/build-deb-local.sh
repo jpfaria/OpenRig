@@ -18,7 +18,7 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --version)  VERSION="$2"; shift 2 ;;
         --help|-h)
-            sed -n '/^#/p' "$0" | head -12 | sed 's/^# //'
+            sed -n '/^#/p' "$0" | head -10 | sed 's/^# //'
             exit 0
             ;;
         *) echo "Unknown argument: $1"; exit 1 ;;
@@ -29,9 +29,8 @@ mkdir -p "$OUTPUT_DIR"
 
 for ARCH in arm64 x86_64; do
     "$PROJECT_ROOT/scripts/build-linux-local.sh" \
-        --arch "$ARCH" --version "$VERSION" --format deb
-    # copy immediately — next arch build will wipe dist/
-    cp "$PROJECT_ROOT"/dist/openrig_*.deb "$OUTPUT_DIR/" 2>/dev/null || true
+        --arch "$ARCH" --version "$VERSION" --format deb \
+        --output-dir "$OUTPUT_DIR"
 done
 
 echo ""

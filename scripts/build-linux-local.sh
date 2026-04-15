@@ -4,18 +4,10 @@
 # Wraps scripts/package-linux.sh in the same Debian 12 container used by CI,
 # so output is identical to GitHub Actions.
 #
-# Requires Docker. On Apple Silicon, arm64 containers run natively.
-# x86_64 containers use Rosetta emulation (slower, but produces identical output).
-#
 # Usage:
-#   ./scripts/build-linux-local.sh [--arch arm64|x86_64] [--version V] [--format FORMAT]
+#   ./scripts/build-linux-local.sh [--arch arm64|x86_64] [--version V] [--format FORMAT] [--output-dir DIR]
 #
-# Formats (passed through to package-linux.sh):
-#   all       — .tar.gz + .deb + .rpm + .AppImage  (default)
-#   deb       — .deb only
-#   rpm       — .rpm only
-#   tarball   — .tar.gz only
-#   appimage  — .AppImage only
+# Default output: output/linux/
 
 set -euo pipefail
 
@@ -25,15 +17,17 @@ PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ARCH="$(uname -m)"
 VERSION="0.0.0-dev"
 FORMAT="all"
+OUTPUT_DIR="$PROJECT_ROOT/output/linux"
 
 # ── Parse args ────────────────────────────────────────────────────────────────
 while [ $# -gt 0 ]; do
     case "$1" in
-        --arch)     ARCH="$2"; shift 2 ;;
-        --version)  VERSION="$2"; shift 2 ;;
-        --format)   FORMAT="$2"; shift 2 ;;
+        --arch)       ARCH="$2"; shift 2 ;;
+        --version)    VERSION="$2"; shift 2 ;;
+        --format)     FORMAT="$2"; shift 2 ;;
+        --output-dir) OUTPUT_DIR="$2"; shift 2 ;;
         --help|-h)
-            sed -n '/^#/p' "$0" | head -20 | sed 's/^# //'
+            sed -n '/^#/p' "$0" | head -12 | sed 's/^# //'
             exit 0
             ;;
         *) echo "Unknown argument: $1"; exit 1 ;;
@@ -47,6 +41,14 @@ case "$ARCH" in
     *) echo "Unsupported arch: $ARCH"; exit 1 ;;
 esac
 
+# OUTPUT_DIR must be inside PROJECT_ROOT (Docker mount boundary)
+# Convert to path relative to PROJECT_ROOT for use inside the container
+REL_OUTPUT="${OUTPUT_DIR#$PROJECT_ROOT/}"
+if [[ "$REL_OUTPUT" == /* ]]; then
+    echo "ERROR: --output-dir must be inside the project root ($PROJECT_ROOT)"
+    exit 1
+fi
+
 DOCKER_IMAGE="openrig-linux-builder:${ARCH}"
 DOCKERFILE="$PROJECT_ROOT/docker/Dockerfile.linux-builder"
 
@@ -54,7 +56,7 @@ echo "OpenRig — Linux package builder (Docker)"
 echo "Arch:     $ARCH"
 echo "Version:  $VERSION"
 echo "Format:   $FORMAT"
-echo "Platform: $DOCKER_PLATFORM"
+echo "Output:   $OUTPUT_DIR"
 echo ""
 
 # ── Check prerequisites ───────────────────────────────────────────────────────
@@ -79,9 +81,5 @@ docker run --rm --platform "$DOCKER_PLATFORM" \
     -v "$PROJECT_ROOT:/workspace:delegated" \
     "$DOCKER_IMAGE" \
     bash -c "cd /workspace && ./scripts/package-linux.sh \
-        --arch ${ARCH} --version ${VERSION} --format ${FORMAT}"
-
-echo ""
-echo "Done. Packages in dist/:"
-ls -lh "$PROJECT_ROOT"/dist/openrig* "$PROJECT_ROOT"/dist/OpenRig* 2>/dev/null \
-    | awk '{print "  " $NF, $5}'
+        --arch ${ARCH} --version ${VERSION} --format ${FORMAT} \
+        --output-dir /workspace/${REL_OUTPUT}"
