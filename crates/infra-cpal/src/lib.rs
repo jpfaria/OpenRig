@@ -1263,7 +1263,6 @@ pub fn apply_device_settings(settings: &[DeviceSettings]) -> Result<()> {
         }
         return Ok(());
     }
-    Ok(())
 }
 
 pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
@@ -1366,11 +1365,13 @@ pub fn build_streams_for_project(
 ) -> Result<Vec<Stream>> {
     log::info!("building audio streams for project");
 
-    // When using direct JACK, no CPAL streams needed — streaming is handled
-    // entirely by the jack crate in build_active_chain_runtime.
+    // On Linux with JACK, no CPAL streams are ever needed — streaming is handled
+    // entirely by the jack crate in build_active_chain_runtime. Also, calling
+    // validate_channels_against_devices() here would probe ALSA PCM and trigger
+    // the scarlett2 driver to drop the Scarlett into standalone mode.
     #[cfg(all(target_os = "linux", feature = "jack"))]
-    if using_jack_direct() {
-        log::info!("JACK direct mode: no CPAL streams to build");
+    {
+        log::info!("Linux/JACK: no CPAL streams needed");
         return Ok(Vec::new());
     }
 
@@ -2024,16 +2025,20 @@ fn validate_chain_channels_against_devices(host: &cpal::Host, chain: &Chain) -> 
     Ok(())
 }
 
+#[cfg_attr(all(target_os = "linux", feature = "jack"), allow(unused_variables))]
 fn validate_input_channels_against_device(
     host: &cpal::Host,
     chain_id: &str,
     device_id: &str,
     channels: &[usize],
 ) -> Result<()> {
-    // When using direct JACK backend, skip CPAL-based channel validation.
-    // JACK manages port routing and will report errors at connect time.
-    if using_jack_direct() {
-        log::debug!("[validate_input_channels] skipping — JACK direct mode");
+    // On Linux with JACK, skip ALL ALSA channel validation — calling
+    // supported_input_configs() on the Scarlett triggers the scarlett2 driver
+    // to enter standalone mode (red LED), regardless of whether JACK is already
+    // running. JACK validates port counts at connect time.
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    {
+        log::debug!("[validate_input_channels] skipping — Linux/JACK (JACK validates at connect time)");
         return Ok(());
     }
     log::info!(
@@ -2064,14 +2069,16 @@ fn validate_input_channels_against_device(
     Ok(())
 }
 
+#[cfg_attr(all(target_os = "linux", feature = "jack"), allow(unused_variables))]
 fn validate_output_channels_against_device(
     host: &cpal::Host,
     chain_id: &str,
     device_id: &str,
     channels: &[usize],
 ) -> Result<()> {
-    if using_jack_direct() {
-        log::debug!("[validate_output_channels] skipping — JACK direct mode");
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    {
+        log::debug!("[validate_output_channels] skipping — Linux/JACK (JACK validates at connect time)");
         return Ok(());
     }
     log::info!(
