@@ -25,9 +25,6 @@ ExecStart=/usr/bin/weston \
 # Dismiss Plymouth once Weston is drawing — retain last frame to avoid flash.
 ExecStartPost=-/usr/bin/plymouth quit --retain-splash
 
-# Failsafe: ensure Plymouth is gone even if Weston crashes.
-ExecStopPost=-/usr/bin/plymouth quit
-
 Restart=on-failure
 RestartSec=3
 TimeoutStartSec=30
