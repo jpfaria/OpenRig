@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
-# Build an arm64 .deb package locally using Docker.
-#
-# Convenience wrapper around build-linux-local.sh for the Orange Pi deploy
-# workflow — produces only the .deb for arm64.
+# Build .deb packages for all Linux architectures (arm64 + x86_64) using Docker.
 #
 # Usage:
 #   ./scripts/build-deb-local.sh [--version V]
 #
 # Output:
 #   dist/openrig_{VERSION}_arm64.deb
+#   dist/openrig_{VERSION}_amd64.deb
 
 set -euo pipefail
 
@@ -26,5 +24,7 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-exec "$PROJECT_ROOT/scripts/build-linux-local.sh" \
-    --arch arm64 --version "$VERSION" --format deb
+for ARCH in arm64 x86_64; do
+    "$PROJECT_ROOT/scripts/build-linux-local.sh" \
+        --arch "$ARCH" --version "$VERSION" --format deb
+done
