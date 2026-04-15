@@ -68,6 +68,11 @@ update-alternatives --set \
     default.plymouth \
     /usr/share/plymouth/themes/openrig/openrig.plymouth
 
+# Write /etc/plymouth/plymouthd.conf — the initramfs Plymouth hook reads
+# this file (via `plymouth-set-default-theme`) to decide which theme files
+# to copy into the initramfs. update-alternatives alone does not write it.
+plymouth-set-default-theme openrig
+
 # ── 7. Create users with fixed passwords ─────────────────────────────────────
 echo ">>> [OpenRig] Creating openrig user and setting passwords..."
 for g in audio video tty input render plugdev dialout; do
