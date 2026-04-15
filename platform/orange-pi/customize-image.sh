@@ -108,6 +108,25 @@ chown -R openrig:openrig /home/openrig
 echo 'openrig:openrig' | chpasswd
 echo 'root:root'       | chpasswd
 
+# Pre-configure audio device settings for TEYUN Q26 via JACK.
+# Both input and output point to jack:system so OpenRig uses a single
+# clock and channels are selectable from first boot.
+mkdir -p /root/.config/OpenRig
+cat > /root/.config/OpenRig/gui-settings.yaml << 'GUI_SETTINGS'
+input_devices:
+- device_id: jack:system
+  name: TEYUN Q26 (JACK)
+  sample_rate: 48000
+  buffer_size_frames: 64
+  bit_depth: 32
+output_devices:
+- device_id: jack:system
+  name: TEYUN Q26 (JACK)
+  sample_rate: 48000
+  buffer_size_frames: 64
+  bit_depth: 32
+GUI_SETTINGS
+
 # Create the default project config that openrig.service uses
 # (ExecStart=/usr/bin/openrig --fullscreen --auto-save /etc/openrig.yaml).
 # OpenRig opens directly into the main view instead of the launcher.
@@ -122,14 +141,14 @@ chains:
         model: standard
         enabled: true
         entries:
-          - device_id: ""
+          - device_id: "jack:system"
             mode: mono
             channels: [0]
       - type: output
         model: standard
         enabled: true
         entries:
-          - device_id: ""
+          - device_id: "jack:system"
             mode: stereo
             channels: [0, 1]
 DEFAULT_PROJECT
