@@ -69,10 +69,12 @@ update-alternatives --set \
     default.plymouth \
     /usr/share/plymouth/themes/openrig/openrig.plymouth
 
-# Load simpledrm in the initramfs so Plymouth has a DRM device to render on.
-# simpledrm provides a DRM interface over the U-Boot framebuffer — without it
-# Plymouth falls back to text mode and the logo never appears.
-echo 'simpledrm' >> /etc/initramfs-tools/modules
+# Load rockchipdrm in the initramfs so Plymouth has a DRM device to render on.
+# simpledrm does NOT bind on RK3588 (no simple-framebuffer DT node). The actual
+# display driver is rockchipdrm — a .ko module that is not built into the kernel.
+# Adding it here causes initramfs-tools to include it (and all modprobe deps) in
+# the initramfs so /dev/dri/card1 is available before plymouthd starts.
+echo 'rockchipdrm' >> /etc/initramfs-tools/modules
 
 # The default Plymouth initramfs hook does NOT copy the 'script' plugin nor
 # the openrig theme files — it only copies the 'details' fallback. This custom
@@ -98,7 +100,7 @@ cp -a "\${THEME_SRC}/." "\${THEME_DST}/"
 HOOK_EOF
 chmod +x /etc/initramfs-tools/hooks/openrig-plymouth
 
-# Rebuild initramfs with simpledrm + script plugin + openrig theme baked in.
+# Rebuild initramfs with rockchipdrm + script plugin + openrig theme baked in.
 update-initramfs -u -k all
 
 # ── 7. Create users with fixed passwords ─────────────────────────────────────
