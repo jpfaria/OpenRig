@@ -68,11 +68,6 @@ update-alternatives --set \
     default.plymouth \
     /usr/share/plymouth/themes/openrig/openrig.plymouth
 
-# Write /etc/plymouth/plymouthd.conf — the initramfs Plymouth hook reads
-# this file (via `plymouth-set-default-theme`) to decide which theme files
-# to copy into the initramfs. update-alternatives alone does not write it.
-plymouth-set-default-theme openrig
-
 # ── 7. Create users with fixed passwords ─────────────────────────────────────
 echo ">>> [OpenRig] Creating openrig user and setting passwords..."
 for g in audio video tty input render plugdev dialout; do
@@ -198,7 +193,7 @@ fi
 # ── 11. Silent kiosk boot ────────────────────────────────────────────────────
 echo ">>> [OpenRig] Configuring silent kiosk boot..."
 
-KERNEL_ARGS='quiet splash loglevel=3 console=tty3 vt.global_cursor_default=0 consoleblank=0 systemd.show_status=false rd.systemd.show_status=false rd.udev.log_level=3'
+KERNEL_ARGS='quiet splash loglevel=3 rd.systemd.show_status=false rd.udev.log_level=3'
 if grep -q "^extraargs=" /boot/armbianEnv.txt 2>/dev/null; then
     sed -i "s|^extraargs=.*|extraargs=${KERNEL_ARGS}|" /boot/armbianEnv.txt
 else
