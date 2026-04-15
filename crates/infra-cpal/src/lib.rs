@@ -1173,85 +1173,95 @@ pub fn apply_device_settings(settings: &[DeviceSettings]) -> Result<()> {
     if settings.is_empty() {
         return Ok(());
     }
+    // On Linux with JACK, jackd is always launched with the correct sample_rate
+    // and buffer_size from gui-settings.yaml via ensure_jack_running(). Never
+    // probe the ALSA PCM here — on RK3588 xHCI, calling supported_input_configs()
+    // on the Scarlett triggers the scarlett2 driver to enter standalone mode (red LED).
     #[cfg(all(target_os = "linux", feature = "jack"))]
-    if using_jack_direct() {
-        log::info!("apply_device_settings: JACK mode — skipping (JACK controls device config)");
+    {
+        log::info!("apply_device_settings: Linux/JACK — skipping ALSA probe (jackd owns device config)");
         return Ok(());
     }
-    let host = get_host();
-    let mut needs_settle = false;
-    for ds in settings {
-        log::info!(
-            "apply_device_settings: configuring '{}' sr={} buf={}",
-            ds.device_id.0, ds.sample_rate, ds.buffer_size_frames
-        );
-        // Try as input device first — on macOS the same physical device
-        // often shares one AudioObjectID for both directions, so configuring
-        // the input side sets the sample rate for the whole device.
-        if let Ok(Some(device)) = find_input_device_by_id(host, &ds.device_id.0) {
-            // Check if device already at requested sample rate
-            let current_rate = device.default_input_config()
-                .map(|c| c.sample_rate())
-                .unwrap_or(0);
-            if current_rate == ds.sample_rate {
-                log::info!(
-                    "apply_device_settings: input '{}' already at sr={}, skipping",
-                    ds.device_id.0, ds.sample_rate
-                );
-                continue;
-            }
-            if let Ok(ranges) = device.supported_input_configs() {
-                let ranges: Vec<_> = ranges.collect();
-                if let Some(config) = ranges.iter()
-                    .filter(|r| r.channels() >= 1)
-                    .filter_map(|r| r.try_with_sample_rate(ds.sample_rate))
-                    .next()
-                {
-                    let stream_config = build_stream_config(
-                        config.channels(),
-                        ds.sample_rate,
-                        ds.buffer_size_frames,
+    // macOS / Windows path: build a temporary stream to force the CoreAudio /
+    // WASAPI driver to adopt the requested sample rate and buffer size.
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
+    {
+        let host = get_host();
+        let mut needs_settle = false;
+        for ds in settings {
+            log::info!(
+                "apply_device_settings: configuring '{}' sr={} buf={}",
+                ds.device_id.0, ds.sample_rate, ds.buffer_size_frames
+            );
+            // Try as input device first — on macOS the same physical device
+            // often shares one AudioObjectID for both directions, so configuring
+            // the input side sets the sample rate for the whole device.
+            if let Ok(Some(device)) = find_input_device_by_id(host, &ds.device_id.0) {
+                // Check if device already at requested sample rate
+                let current_rate = device.default_input_config()
+                    .map(|c| c.sample_rate())
+                    .unwrap_or(0);
+                if current_rate == ds.sample_rate {
+                    log::info!(
+                        "apply_device_settings: input '{}' already at sr={}, skipping",
+                        ds.device_id.0, ds.sample_rate
                     );
-                    match device.build_input_stream(
-                        &stream_config,
-                        |_data: &[f32], _| {},
-                        |err| log::warn!("apply_device_settings input error: {err}"),
-                        None,
-                    ) {
-                        Ok(stream) => {
-                            log::info!(
-                                "apply_device_settings: input device '{}' configured (sr={} buf={})",
-                                ds.device_id.0, ds.sample_rate, ds.buffer_size_frames
-                            );
-                            drop(stream);
-                        }
-                        Err(e) => {
-                            // USB devices like Scarlett may timeout during sample rate
-                            // change but still reconfigure successfully. Treat as warning.
-                            let msg = e.to_string();
-                            if msg.contains("timeout") {
+                    continue;
+                }
+                if let Ok(ranges) = device.supported_input_configs() {
+                    let ranges: Vec<_> = ranges.collect();
+                    if let Some(config) = ranges.iter()
+                        .filter(|r| r.channels() >= 1)
+                        .filter_map(|r| r.try_with_sample_rate(ds.sample_rate))
+                        .next()
+                    {
+                        let stream_config = build_stream_config(
+                            config.channels(),
+                            ds.sample_rate,
+                            ds.buffer_size_frames,
+                        );
+                        match device.build_input_stream(
+                            &stream_config,
+                            |_data: &[f32], _| {},
+                            |err| log::warn!("apply_device_settings input error: {err}"),
+                            None,
+                        ) {
+                            Ok(stream) => {
                                 log::info!(
-                                    "apply_device_settings: device '{}' sample rate change in progress (timeout is normal for USB devices)",
-                                    ds.device_id.0
+                                    "apply_device_settings: input device '{}' configured (sr={} buf={})",
+                                    ds.device_id.0, ds.sample_rate, ds.buffer_size_frames
                                 );
-                                needs_settle = true;
-                            } else {
-                                log::warn!(
-                                    "apply_device_settings: failed to configure input '{}': {e}",
-                                    ds.device_id.0
-                                );
+                                drop(stream);
+                            }
+                            Err(e) => {
+                                // USB devices like Scarlett may timeout during sample rate
+                                // change but still reconfigure successfully. Treat as warning.
+                                let msg = e.to_string();
+                                if msg.contains("timeout") {
+                                    log::info!(
+                                        "apply_device_settings: device '{}' sample rate change in progress (timeout is normal for USB devices)",
+                                        ds.device_id.0
+                                    );
+                                    needs_settle = true;
+                                } else {
+                                    log::warn!(
+                                        "apply_device_settings: failed to configure input '{}': {e}",
+                                        ds.device_id.0
+                                    );
+                                }
                             }
                         }
                     }
                 }
             }
         }
-    }
-    if needs_settle {
-        log::info!("apply_device_settings: waiting 3s for USB device to settle after sample rate change");
-        std::thread::sleep(std::time::Duration::from_secs(3));
-        // Invalidate device cache since supported configs may have changed
-        invalidate_device_cache();
+        if needs_settle {
+            log::info!("apply_device_settings: waiting 3s for USB device to settle after sample rate change");
+            std::thread::sleep(std::time::Duration::from_secs(3));
+            // Invalidate device cache since supported configs may have changed
+            invalidate_device_cache();
+        }
+        return Ok(());
     }
     Ok(())
 }
