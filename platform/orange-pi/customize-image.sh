@@ -59,15 +59,11 @@ rsvg-convert \
 
 # ── 6. Register and activate Plymouth theme ──────────────────────────────────
 echo ">>> [OpenRig] Activating Plymouth theme..."
-update-alternatives --install \
-    /usr/share/plymouth/themes/default.plymouth \
-    default.plymouth \
-    /usr/share/plymouth/themes/openrig/openrig.plymouth \
-    100
-
-update-alternatives --set \
-    default.plymouth \
-    /usr/share/plymouth/themes/openrig/openrig.plymouth
+# plymouth-set-default-theme writes Theme= to /etc/plymouth/plymouthd.conf
+# AND updates the alternatives symlink. update-alternatives alone only updates
+# the symlink — plymouthd.conf stays at default ("text") and Plymouth ignores
+# the symlink when plymouthd.conf has an explicit (or default) value.
+plymouth-set-default-theme openrig
 
 # Load rockchipdrm in the initramfs so Plymouth has a DRM device to render on.
 # simpledrm does NOT bind on RK3588 (no simple-framebuffer DT node). The actual
