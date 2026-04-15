@@ -115,7 +115,7 @@ if $BUILD_TARBALL; then
 fi
 
 if $BUILD_DEB; then
-    fpm -s dir -t deb \
+    fpm -s dir -t deb --force \
         -n openrig -v "${VERSION}" \
         --architecture "${DEB_ARCH}" \
         --description "OpenRig virtual guitar pedalboard" \
@@ -131,7 +131,7 @@ if $BUILD_DEB; then
 fi
 
 if $BUILD_RPM; then
-    fpm -s dir -t rpm \
+    fpm -s dir -t rpm --force \
         -n openrig -v "${VERSION}" \
         --architecture "${RPM_ARCH}" \
         --description "OpenRig virtual guitar pedalboard" \
