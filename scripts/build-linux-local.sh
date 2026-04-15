@@ -8,29 +8,32 @@
 # x86_64 containers use Rosetta emulation (slower, but produces identical output).
 #
 # Usage:
-#   ./scripts/build-linux-local.sh [--arch arm64|x86_64] [--version V]
+#   ./scripts/build-linux-local.sh [--arch arm64|x86_64] [--version V] [--format FORMAT]
 #
-# Output (in dist/):
-#   openrig-{VERSION}-linux-{arch}.tar.gz
-#   openrig_{VERSION}_{deb_arch}.deb
-#   openrig-{VERSION}-1.{rpm_arch}.rpm
-#   OpenRig-{VERSION}-linux-{arch}.AppImage
+# Formats (passed through to package-linux.sh):
+#   all       — .tar.gz + .deb + .rpm + .AppImage  (default)
+#   deb       — .deb only
+#   rpm       — .rpm only
+#   tarball   — .tar.gz only
+#   appimage  — .AppImage only
 
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
-ARCH="$(uname -m)"   # auto-detect native arch
+ARCH="$(uname -m)"
 VERSION="0.0.0-dev"
+FORMAT="all"
 
 # ── Parse args ────────────────────────────────────────────────────────────────
 while [ $# -gt 0 ]; do
     case "$1" in
         --arch)     ARCH="$2"; shift 2 ;;
         --version)  VERSION="$2"; shift 2 ;;
+        --format)   FORMAT="$2"; shift 2 ;;
         --help|-h)
-            sed -n '/^#/p' "$0" | head -18 | sed 's/^# //'
+            sed -n '/^#/p' "$0" | head -20 | sed 's/^# //'
             exit 0
             ;;
         *) echo "Unknown argument: $1"; exit 1 ;;
@@ -50,6 +53,7 @@ DOCKERFILE="$PROJECT_ROOT/docker/Dockerfile.linux-builder"
 echo "OpenRig — Linux package builder (Docker)"
 echo "Arch:     $ARCH"
 echo "Version:  $VERSION"
+echo "Format:   $FORMAT"
 echo "Platform: $DOCKER_PLATFORM"
 echo ""
 
@@ -74,7 +78,8 @@ echo "════════════════════════�
 docker run --rm --platform "$DOCKER_PLATFORM" \
     -v "$PROJECT_ROOT:/workspace:delegated" \
     "$DOCKER_IMAGE" \
-    bash -c "cd /workspace && ./scripts/package-linux.sh --arch ${ARCH} --version ${VERSION}"
+    bash -c "cd /workspace && ./scripts/package-linux.sh \
+        --arch ${ARCH} --version ${VERSION} --format ${FORMAT}"
 
 echo ""
 echo "Done. Packages in dist/:"
