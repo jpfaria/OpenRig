@@ -2825,7 +2825,7 @@ pub fn run_desktop_app(
 
                     // On Linux: if enabling and JACK is not running, start it
                     // asynchronously so the UI thread is not blocked for ~20s.
-                    #[cfg(all(target_os = "linux", feature = "jack"))]
+                    #[cfg(target_os = "linux")]
                     if will_enable && !infra_cpal::jack_is_running() {
                         let (sample_rate, buffer_size) = session
                             .project
