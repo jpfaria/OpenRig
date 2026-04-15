@@ -1091,6 +1091,38 @@ pub fn invalidate_device_cache() {
     log::info!("device descriptor cache invalidated");
 }
 
+/// Returns true if the JACK server is currently running.
+/// Fast, non-blocking check — safe to call from the UI thread.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+pub fn jack_is_running() -> bool {
+    jack_server_is_running()
+}
+
+/// Start JACK in a background thread and return a channel that resolves when
+/// JACK is ready (Ok) or failed (Err). Non-blocking — returns immediately.
+/// The caller should poll the receiver from a timer on the UI thread.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+pub fn start_jack_in_background(
+    sample_rate: u32,
+    buffer_size: u32,
+) -> std::sync::mpsc::Receiver<anyhow::Result<()>> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let result = (|| -> anyhow::Result<()> {
+            let card = detect_usb_audio_card().ok_or_else(|| {
+                anyhow::anyhow!(
+                    "no USB audio interface found — connect a device before enabling a chain"
+                )
+            })?;
+            launch_jackd(&card, sample_rate, buffer_size)?;
+            invalidate_device_cache();
+            Ok(())
+        })();
+        let _ = tx.send(result);
+    });
+    rx
+}
+
 /// Apply device settings (sample rate, buffer size) to hardware devices
 /// without requiring active chains. On macOS/CoreAudio, building a stream
 /// with the desired sample rate forces the driver to reconfigure the device.

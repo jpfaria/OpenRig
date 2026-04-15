@@ -2808,9 +2808,13 @@ pub fn run_desktop_app(
                 let weak_main = window.as_weak();
                 let weak_compact = compact_win.as_weak();
                 let toast_timer = toast_timer.clone();
+                // Guard against double-clicks while JACK is starting up
+                let jack_starting: Rc<std::cell::Cell<bool>> = Rc::new(std::cell::Cell::new(false));
                 compact_win.on_toggle_chain_enabled(move |ci| {
                     let Some(main_win) = weak_main.upgrade() else { return; };
                     let Some(cw) = weak_compact.upgrade() else { return; };
+                    // Block re-entrant clicks during async JACK startup
+                    if jack_starting.get() { return; }
                     let mut session_borrow = project_session.borrow_mut();
                     let Some(session) = session_borrow.as_mut() else { return; };
                     let chain_idx = ci as usize;
@@ -2818,6 +2822,90 @@ pub fn run_desktop_app(
                     let will_enable = !chain.enabled;
                     chain.enabled = will_enable;
                     let chain_id = chain.id.clone();
+
+                    // On Linux: if enabling and JACK is not running, start it
+                    // asynchronously so the UI thread is not blocked for ~20s.
+                    #[cfg(all(target_os = "linux", feature = "jack"))]
+                    if will_enable && !infra_cpal::jack_is_running() {
+                        let (sample_rate, buffer_size) = session
+                            .project
+                            .device_settings
+                            .first()
+                            .map(|ds| (ds.sample_rate, ds.buffer_size_frames))
+                            .unwrap_or((48000, 64));
+                        drop(session_borrow);
+
+                        jack_starting.set(true);
+                        set_status_info(&main_win, &toast_timer, "Starting audio...");
+
+                        let rx = Rc::new(std::cell::RefCell::new(
+                            infra_cpal::start_jack_in_background(sample_rate, buffer_size),
+                        ));
+                        let project_session_t = project_session.clone();
+                        let project_runtime_t = project_runtime.clone();
+                        let project_chains_t = project_chains.clone();
+                        let input_chain_devices_t = input_chain_devices.clone();
+                        let output_chain_devices_t = output_chain_devices.clone();
+                        let weak_main_t = weak_main.clone();
+                        let weak_compact_t = weak_compact.clone();
+                        let toast_timer_t = toast_timer.clone();
+                        let jack_starting_t = jack_starting.clone();
+                        let done = Rc::new(std::cell::Cell::new(false));
+                        let done_t = done.clone();
+                        let poll_timer = slint::Timer::default();
+                        poll_timer.start(
+                            slint::TimerMode::Repeated,
+                            std::time::Duration::from_millis(300),
+                            move || {
+                                if done_t.get() { return; }
+                                use std::sync::mpsc::TryRecvError;
+                                match rx.borrow().try_recv() {
+                                    Err(TryRecvError::Empty) => return,
+                                    Err(TryRecvError::Disconnected) => {
+                                        done_t.set(true);
+                                        jack_starting_t.set(false);
+                                        return;
+                                    }
+                                    Ok(Err(e)) => {
+                                        done_t.set(true);
+                                        jack_starting_t.set(false);
+                                        if let Some(win) = weak_main_t.upgrade() {
+                                            set_status_error(&win, &toast_timer_t, &e.to_string());
+                                        }
+                                        // Revert chain.enabled
+                                        let mut sb = project_session_t.borrow_mut();
+                                        if let Some(s) = sb.as_mut() {
+                                            if let Some(c) = s.project.chains.iter_mut().find(|c| c.id == chain_id) {
+                                                c.enabled = false;
+                                            }
+                                        }
+                                        return;
+                                    }
+                                    Ok(Ok(())) => {
+                                        done_t.set(true);
+                                        jack_starting_t.set(false);
+                                        let Some(win) = weak_main_t.upgrade() else { return; };
+                                        let Some(cw) = weak_compact_t.upgrade() else { return; };
+                                        let mut sb = project_session_t.borrow_mut();
+                                        let Some(session) = sb.as_mut() else { return; };
+                                        if let Err(e) = sync_live_chain_runtime(&project_runtime_t, session, &chain_id) {
+                                            set_status_error(&win, &toast_timer_t, &e.to_string());
+                                            if let Some(c) = session.project.chains.iter_mut().find(|c| c.id == chain_id) {
+                                                c.enabled = false;
+                                            }
+                                        } else {
+                                            replace_project_chains(&project_chains_t, &session.project, &*input_chain_devices_t.borrow(), &*output_chain_devices_t.borrow());
+                                            cw.set_chain_enabled(true);
+                                            set_status_info(&win, &toast_timer_t, "");
+                                        }
+                                    }
+                                }
+                            },
+                        );
+                        std::mem::forget(poll_timer);
+                        return;
+                    }
+
                     if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                         set_status_error(&main_win, &toast_timer, &error.to_string());
                         return;
