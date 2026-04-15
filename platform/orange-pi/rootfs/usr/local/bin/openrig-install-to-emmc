@@ -19,15 +19,20 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # ── Detect eMMC ───────────────────────────────────────────────────────────────
+# eMMC always exposes mmcblkXboot0/boot1 partitions — use that as the signal.
+# The SD card (current boot device) is excluded by checking /proc/mounts.
 EMMC=""
-for dev in /dev/mmcblk1 /dev/mmcblk2; do
-    if [ -b "$dev" ] && ! grep -q "^${dev}p" /proc/mounts 2>/dev/null; then
-        # Verify it's eMMC (not another SD card)
-        TYPE=$(cat "/sys/block/$(basename "$dev")/device/type" 2>/dev/null || echo "")
-        if [ "$TYPE" = "MMC" ] || [ -e "/sys/block/$(basename "$dev")/device/csd" ]; then
-            EMMC="$dev"
-            break
-        fi
+for dev in /dev/mmcblk0 /dev/mmcblk1 /dev/mmcblk2; do
+    [ -b "$dev" ] || continue
+    name=$(basename "$dev")
+    # Skip if currently mounted as root
+    if grep -q "^${dev}" /proc/mounts 2>/dev/null; then
+        continue
+    fi
+    # eMMC has boot partitions (mmcblkXboot0)
+    if [ -b "/dev/${name}boot0" ]; then
+        EMMC="$dev"
+        break
     fi
 done
 
