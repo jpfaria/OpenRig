@@ -545,7 +545,7 @@ struct ActiveChainRuntime {
     _input_streams: Vec<Stream>,
     _output_streams: Vec<Stream>,
     #[cfg(all(target_os = "linux", feature = "jack"))]
-    _jack_client: Option<jack::AsyncClient<(), JackProcessHandler>>,
+    _jack_client: Option<jack::AsyncClient<JackShutdownHandler, JackProcessHandler>>,
     /// DSP worker thread handle (Linux/JACK only). Dropped when chain stops.
     #[cfg(all(target_os = "linux", feature = "jack"))]
     _dsp_worker: Option<DspWorkerHandle>,
@@ -656,6 +656,25 @@ impl SpscRingBuffer {
         }
         self.read_pos.store(rp.wrapping_add(1), Ordering::Release);
         true
+    }
+}
+
+/// JACK notification handler that survives server shutdown without calling exit().
+/// When the JACK server dies (e.g. USB device unplugged), the default `()`
+/// notification handler calls `std::process::exit(0)`. This handler instead
+/// sets an atomic flag so the health-check timer can detect the disconnection
+/// and show "Audio device disconnected" without crashing the process.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+struct JackShutdownHandler {
+    shutdown_flag: Arc<std::sync::atomic::AtomicBool>,
+}
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
+impl jack::NotificationHandler for JackShutdownHandler {
+    unsafe fn shutdown(&mut self, status: jack::ClientStatus, reason: &str) {
+        log::warn!("JACK server shutdown: {:?} — {}", status, reason);
+        self.shutdown_flag.store(true, std::sync::atomic::Ordering::Release);
+        // Do NOT call std::process::exit() — let the health timer handle it.
     }
 }
 
@@ -791,7 +810,7 @@ fn build_jack_direct_chain(
     chain_id: &ChainId,
     chain: &Chain,
     runtime: Arc<ChainRuntimeState>,
-) -> Result<(jack::AsyncClient<(), JackProcessHandler>, DspWorkerHandle)> {
+) -> Result<(jack::AsyncClient<JackShutdownHandler, JackProcessHandler>, DspWorkerHandle)> {
     let client_name = format!("openrig_{}", chain_id.0);
     let (client, _status) = jack::Client::new(
         &client_name,
@@ -931,7 +950,9 @@ fn build_jack_direct_chain(
         thread: Some(thread),
     };
 
-    let active_client = client.activate_async((), handler)
+    let shutdown_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let notification_handler = JackShutdownHandler { shutdown_flag };
+    let active_client = client.activate_async(notification_handler, handler)
         .map_err(|e| anyhow!("failed to activate JACK client: {:?}", e))?;
 
     // Connect to system ports
