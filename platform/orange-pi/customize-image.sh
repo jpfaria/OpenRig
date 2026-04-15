@@ -9,11 +9,6 @@ RELEASE="$1"   # e.g. "bookworm"
 echo ">>> [OpenRig] Customizing image for release: $RELEASE"
 
 # ── 1. Install runtime dependencies ──────────────────────────────────────────
-# System-level packages that are NOT pulled in by the openrig .deb itself:
-# weston/plymouth (boot + display stack), jackd2 (audio server), librsvg2-bin
-# (used below to convert the logo to PNG for the boot splash). The openrig
-# .deb declares its own runtime deps (libasound2 etc.), which apt will
-# resolve when we install it in step 3.
 echo "jackd2 jackd/tweak_rt_limits boolean true" | debconf-set-selections
 DEBIAN_FRONTEND=noninteractive apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
@@ -29,7 +24,6 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     adwaita-icon-theme \
     plymouth \
     librsvg2-bin \
-    plymouth-themes \
     udev \
     locales \
     tzdata \
@@ -37,10 +31,6 @@ DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     console-setup
 
 # ── 2. Copy rootfs overlay (etc, usr) ────────────────────────────────────────
-# This overlay only contains hand-crafted system files: systemd units
-# (jackd.service, weston.service, openrig.service), environment.d, plymouth
-# theme, and the eMMC installer script. The OpenRig binary/libs/data/assets
-# are NOT in here — they come from the .deb in step 3.
 echo ">>> [OpenRig] Copying rootfs overlay (systemd, plymouth, helpers)..."
 cp -r /tmp/overlay/etc /
 cp -r /tmp/overlay/usr /
@@ -50,13 +40,6 @@ echo ">>> [OpenRig] Installing openrig.deb..."
 DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     /tmp/overlay/openrig.deb
 
-# The .deb stages shared libraries under /usr/lib/openrig/libs/ (per FHS),
-# but OpenRig resolves relative asset paths against `<exe>/../share/openrig`
-# (detect_data_root in infra-filesystem), which maps /usr/bin/openrig to
-# /usr/share/openrig. Without this symlink, LV2 and NAM shared libs would
-# not be found at runtime. This is a workaround for the current .deb
-# layout — remove it once the packaging stages libs under
-# /usr/share/openrig/libs/ directly.
 if [ ! -e /usr/share/openrig/libs ]; then
     ln -sf /usr/lib/openrig/libs /usr/share/openrig/libs
 fi
@@ -85,43 +68,7 @@ update-alternatives --set \
     default.plymouth \
     /usr/share/plymouth/themes/openrig/openrig.plymouth
 
-# plymouth-set-default-theme writes /etc/plymouth/plymouthd.conf which is
-# what the initramfs hook actually reads — update-alternatives alone is not
-# enough on Debian bookworm.
-plymouth-set-default-theme openrig
-
-# Enable framebuffer in initramfs so Plymouth can render on the RK3588 DRM.
-mkdir -p /etc/initramfs-tools/conf.d
-echo 'FRAMEBUFFER=y' > /etc/initramfs-tools/conf.d/plymouth
-
-# Custom initramfs hook: force-copy the OpenRig theme files into the
-# initramfs. The Debian Plymouth hook only copies the theme it resolves
-# at hook time — if the resolution is off the files are missing and Plymouth
-# shows nothing. This hook makes it unconditional.
-cat > /etc/initramfs-tools/hooks/openrig-plymouth << 'PLYHOOK'
-#!/bin/sh
-PREREQ="plymouth"
-prereqs() { echo "$PREREQ"; }
-case "$1" in prereqs) prereqs; exit 0;; esac
-. /usr/share/initramfs-tools/hook-functions
-THEME_DIR=/usr/share/plymouth/themes/openrig
-DEST="${DESTDIR}/usr/share/plymouth/themes/openrig"
-mkdir -p "$DEST"
-cp -a "$THEME_DIR"/. "$DEST/"
-exit 0
-PLYHOOK
-chmod 755 /etc/initramfs-tools/hooks/openrig-plymouth
-
-# Rebuild initramfs so Plymouth + theme are baked in for early boot splash.
-update-initramfs -u
-
 # ── 7. Create users with fixed passwords ─────────────────────────────────────
-# openrig: regular user with a real home so OpenRig can write projects,
-# presets and logs to /home/openrig. Groups cover everything audio/graphics
-# related on Armbian: audio (jack rtprio/memlock), video (DRM), tty/input/
-# render (logind seat access), plugdev (USB devices), dialout (serial).
-# Both accounts get simple fixed passwords so we can SSH/console in for
-# recovery — this is a dev/appliance image, not internet-facing.
 echo ">>> [OpenRig] Creating openrig user and setting passwords..."
 for g in audio video tty input render plugdev dialout; do
     groupadd -f "$g"
@@ -155,9 +102,7 @@ output_devices:
   bit_depth: 32
 GUI_SETTINGS
 
-# Create the default project config that openrig.service uses
-# (ExecStart=/usr/bin/openrig --fullscreen --auto-save /etc/openrig.yaml).
-# OpenRig opens directly into the main view instead of the launcher.
+# Create the default project config that openrig.service uses.
 cat > /etc/openrig.yaml << 'DEFAULT_PROJECT'
 version: 1
 name: My Rig
@@ -182,8 +127,6 @@ chains:
 DEFAULT_PROJECT
 
 # ── 8. Locale, keyboard, timezone ────────────────────────────────────────────
-# English UI, Brazilian ABNT2 keyboard, São Paulo time. All configured
-# directly so the Armbian first-run wizard has nothing left to ask.
 echo ">>> [OpenRig] Configuring locale (en_US.UTF-8), keyboard (br-abnt2), timezone (America/Sao_Paulo)..."
 
 sed -i 's/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
@@ -203,17 +146,11 @@ echo 'America/Sao_Paulo' > /etc/timezone
 dpkg-reconfigure -f noninteractive tzdata || true
 
 # ── 8b. Audio RT capabilities ────────────────────────────────────────────────
-# JACK needs real-time scheduling and memory locking for glitch-free audio.
-# setcap grants these without running jackd as a privileged systemd service
-# (JACK is now launched as a background process by OpenRig).
 echo ">>> [OpenRig] Setting JACK RT capabilities and audio group membership..."
 setcap cap_sys_nice,cap_ipc_lock=ep /usr/bin/jackd || true
 usermod -aG audio root
 
 # ── 9. Enable systemd services ───────────────────────────────────────────────
-# JACK is managed programmatically by OpenRig (ensure_jack_running in
-# infra-cpal), NOT by systemd. Mask jackd.service to prevent accidental
-# activation. The jackd2 package is still installed for /usr/bin/jackd.
 echo ">>> [OpenRig] Enabling services, masking jackd..."
 systemctl disable jackd.service  2>/dev/null || true
 systemctl mask    jackd.service  2>/dev/null || true
@@ -222,6 +159,13 @@ systemctl enable openrig.service
 systemctl enable openrig-irq-affinity.service
 systemctl enable openrig-audio-watchdog.service
 
+# ── 9a. Plymouth quit failsafe ────────────────────────────────────────────────
+echo ">>> [OpenRig] Capping plymouth-quit-wait timeout at 10s..."
+mkdir -p /etc/systemd/system/plymouth-quit-wait.service.d/
+cat > /etc/systemd/system/plymouth-quit-wait.service.d/openrig-timeout.conf << 'EOF'
+[Service]
+TimeoutStartSec=10
+EOF
 
 # ── 10. Set permissions on install script ────────────────────────────────────
 chmod 755 /usr/local/bin/openrig-install-to-emmc
@@ -229,30 +173,11 @@ chmod 755 /usr/local/bin/openrig-reset-audio
 chmod 755 /usr/local/bin/openrig-audio-watchdog
 
 # ── 10a. USB-C TCPM workaround (RK3588 USB-C port stability) ─────────────────
-# Root cause (issue #225): the FUSB302/TCPM stack on the RK3588 USB-C port
-# sporadically misreads CC lines as 0V under sustained USB traffic and cuts
-# VBUS via the vbus_typec regulator, which tears down xhci-hcd.7.auto and
-# drops whatever device was plugged in. Affects ANY USB device on the USB-C
-# port, not a single vendor — we reproduced it with a Focusrite Scarlett 2i2
-# Gen 4 only because isoc audio is the workload OpenRig always runs.
-# /sys/kernel/debug/usb/tcpm-6-0022/log shows the exact sequence: "CC1: 2
-# -> 0, CC2: 1 -> 0 [disconnected]" → "VBUS off" on a working, actively
-# streaming device.
-#
-# Fix: ship a DTB overlay (orange-pi/dtbo/openrig-usbc-host.dts) that disables
-# the FUSB302 node, pins vbus_typec hard on, and forces DWC3 @fc000000 into
-# pure host mode. Fully reversible by removing it from armbianEnv.txt.
-#
-# armbian-add-overlay compiles the .dts with dtc, installs the .dtbo into
-# /boot/overlay-user/ and appends the overlay name to the user_overlays= line
-# in /boot/armbianEnv.txt.
 echo ">>> [OpenRig] Installing USB-C host-mode DTB overlay (Scarlett stability)..."
 if command -v armbian-add-overlay >/dev/null 2>&1; then
     armbian-add-overlay /tmp/overlay/openrig-usbc-host.dts || \
         echo ">>> [OpenRig] WARNING: armbian-add-overlay failed, skipping USB-C overlay"
 else
-    # Fallback: compile with dtc and edit armbianEnv.txt by hand. This path is
-    # only exercised if armbian-bsp-cli is ever dropped from the base image.
     echo ">>> [OpenRig] armbian-add-overlay missing, falling back to manual dtc"
     mkdir -p /boot/overlay-user
     dtc -I dts -O dtb -o /boot/overlay-user/openrig-usbc-host.dtbo \
@@ -265,25 +190,21 @@ else
     fi
 fi
 
-# ── 11. Boot configuration (silent kiosk mode) ───────────────────────────────
-# Silent boot: Plymouth splash on tty3, kernel messages suppressed.
-# Gettys on tty1/tty2 masked so the display is owned by Weston on tty1.
+# ── 11. Silent kiosk boot ────────────────────────────────────────────────────
 echo ">>> [OpenRig] Configuring silent kiosk boot..."
 
-KERNEL_ARGS='quiet splash loglevel=3 console=tty3 consoleblank=0'
+KERNEL_ARGS='quiet splash loglevel=3 console=tty3 vt.global_cursor_default=0 consoleblank=0 systemd.show_status=false rd.systemd.show_status=false rd.udev.log_level=3'
 if grep -q "^extraargs=" /boot/armbianEnv.txt 2>/dev/null; then
     sed -i "s|^extraargs=.*|extraargs=${KERNEL_ARGS}|" /boot/armbianEnv.txt
 else
     echo "extraargs=${KERNEL_ARGS}" >> /boot/armbianEnv.txt
 fi
 
-# Mask gettys on tty1/tty2 so Weston owns the display uncontested.
-systemctl mask getty@tty1.service 2>/dev/null || true
-systemctl mask getty@tty2.service 2>/dev/null || true
+sed -i 's/^verbosity=.*/verbosity=0/' /boot/armbianEnv.txt 2>/dev/null || true
+sed -i 's/^console=.*/console=serial/' /boot/armbianEnv.txt 2>/dev/null || true
+sed -i 's/^bootlogo=.*/bootlogo=true/' /boot/armbianEnv.txt 2>/dev/null || true
 
-# Armbian first-run wizard and filesystem resize — disable all of it.
-# armbian-resize-filesystem.service hangs on noble despite the marker file;
-# mask it explicitly so it never runs (SD card keeps image partition size).
+# Armbian first-run wizard and filesystem resize.
 rm -f /root/.not_logged_in_yet
 touch /root/.no_rootfs_resize_at_firstboot
 systemctl disable armbian-firstrun.service              2>/dev/null || true
@@ -294,5 +215,13 @@ systemctl mask    armbian-firstrun-config.service       2>/dev/null || true
 systemctl mask    armbian-resize-filesystem.service     2>/dev/null || true
 rm -f /etc/profile.d/armbian-check-first-run.sh
 rm -f /etc/update-motd.d/30-armbian-sysinfo             2>/dev/null || true
+
+# Mask gettys so no text login prompt appears on any tty.
+for tty in 1 2 3 4 5 6; do
+    systemctl disable "getty@tty${tty}.service" 2>/dev/null || true
+    systemctl mask    "getty@tty${tty}.service" 2>/dev/null || true
+done
+systemctl disable serial-getty@ttyS0.service  2>/dev/null || true
+systemctl mask    serial-getty@ttyS0.service  2>/dev/null || true
 
 echo ">>> [OpenRig] Image customization complete."

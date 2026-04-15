@@ -1,6 +1,10 @@
 [Unit]
 Description=Weston Wayland Compositor (kiosk)
-After=local-fs.target plymouth-start.service
+# Chain weston directly after plymouth-start so the splash is visible from
+# early boot all the way until weston owns the framebuffer — no blank/text
+# gap. We dismiss plymouth ourselves in ExecStartPre/Post so we do NOT depend
+# on plymouth-quit-wait (which would create a visible handoff).
+After=plymouth-start.service local-fs.target
 Requires=local-fs.target
 Before=plymouth-quit-wait.service
 
@@ -12,12 +16,19 @@ Group=root
 RuntimeDirectory=weston
 Environment=XDG_RUNTIME_DIR=/run/weston
 
+# Tell plymouth to release the framebuffer (but keep its logo as the current
+# image) right before weston opens DRM.
 ExecStartPre=-/usr/bin/plymouth deactivate
+
 ExecStart=/usr/bin/weston \
     --backend=drm-backend.so \
     --tty=1 \
     --log=/var/log/weston.log
+
+# Once weston is drawing, let plymouth fully exit.
 ExecStartPost=-/usr/bin/plymouth quit --retain-splash
+
+# Failsafe: if weston stops for any reason, ensure Plymouth has quit.
 ExecStopPost=-/usr/bin/plymouth quit
 
 Restart=on-failure
