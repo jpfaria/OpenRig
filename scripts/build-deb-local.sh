@@ -54,35 +54,9 @@ echo "════════════════════════�
 echo "  1/4  Preparing Docker build environment"
 echo "══════════════════════════════════════════"
 
-DOCKERFILE="$PROJECT_ROOT/scripts/Dockerfile.deb-builder"
-cat > "$DOCKERFILE" <<'DKEOF'
-FROM debian:12
+DOCKERFILE="$PROJECT_ROOT/docker/Dockerfile.linux-builder"
 
-ENV DEBIAN_FRONTEND=noninteractive
-ENV CARGO_TERM_COLOR=always
-
-# Build deps for Debian 12 (Bookworm) — glibc 2.36 compatible
-RUN apt-get update && apt-get install -y \
-    curl \
-    libasound2-dev libudev-dev pkg-config \
-    libfontconfig1-dev libseat-dev \
-    libxkbcommon-dev libinput-dev libgbm-dev \
-    libjack-jackd2-dev \
-    cmake git \
-    fakeroot rpm ruby-dev build-essential \
-    librsvg2-bin imagemagick \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN gem install fpm --no-document
-
-# Install Rust (stable)
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
-
-WORKDIR /workspace
-DKEOF
-
-docker build --platform linux/arm64 -t "$DOCKER_IMAGE" -f "$DOCKERFILE" "$PROJECT_ROOT/scripts"
+docker build --platform linux/arm64 -t "$DOCKER_IMAGE" -f "$DOCKERFILE" "$PROJECT_ROOT/docker"
 
 # ── Build inside Docker ──────────────────────────────────────────────────────
 echo ""
