@@ -21,6 +21,8 @@ Environment=JACK_NO_AUDIO_RESERVATION=1
 # is also symlinked in customize-image.sh for the OpenRig data-root lookup.
 Environment=LD_LIBRARY_PATH=/usr/lib/openrig/libs/nam/linux-aarch64:/usr/lib/openrig/libs/lv2/linux-aarch64
 Environment=GDK_BACKEND=wayland
+# Kiosk mode: touch-optimized UI (in-app preset picker, virtual keyboard)
+Environment=OPENRIG_APP_MODE=pedalboard
 
 # Wait for weston to create the Wayland socket before starting.
 ExecStartPre=/bin/sh -c 'for i in $(seq 1 15); do [ -S /run/weston/wayland-1 ] && exit 0; sleep 1; done; exit 1'
