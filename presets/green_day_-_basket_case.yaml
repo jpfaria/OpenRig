@@ -1,0 +1,52 @@
+id: green_day_-_basket_case
+name: Green Day - Basket Case
+blocks:
+- type: utility
+  enabled: false
+  model: tuner_chromatic
+  params:
+    mute_signal: true
+    reference_hz: 440.0
+- type: filter
+  enabled: true
+  model: native_guitar_eq
+  params:
+    high_cut: 100.0
+    low_cut: 100.0
+- type: dynamics
+  enabled: true
+  model: gate_basic
+  params:
+    attack_ms: 1.0
+    release_ms: 100.0
+    threshold: 42.0
+- type: gain
+  enabled: true
+  model: nam_ibanez_ts9
+  params:
+    drive: 7.0
+    level: 7.0
+    tone: 7.0
+- type: amp
+  enabled: true
+  model: bogner_ecstasy
+  params:
+    cabinet: 4x12_v30
+    gain: drive
+- type: dynamics
+  enabled: true
+  model: limiter_brickwall
+  params:
+    ceiling: -0.10000000149011612
+    release_ms: 50.0
+    threshold: -1.0
+- type: gain
+  enabled: true
+  model: volume
+  params:
+    mute: false
+    volume: 80.0
+- type: utility
+  enabled: true
+  model: spectrum_analyzer
+  params: {}
