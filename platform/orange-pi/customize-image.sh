@@ -84,6 +84,15 @@ update-alternatives --set \
     default.plymouth \
     /usr/share/plymouth/themes/openrig/openrig.plymouth
 
+# plymouth-set-default-theme writes /etc/plymouth/plymouthd.conf which is
+# what the initramfs hook actually reads — update-alternatives alone is not
+# enough on Debian bookworm.
+plymouth-set-default-theme openrig
+
+# Enable framebuffer in initramfs so Plymouth can render on the RK3588 DRM.
+mkdir -p /etc/initramfs-tools/conf.d
+echo 'FRAMEBUFFER=y' > /etc/initramfs-tools/conf.d/plymouth
+
 # Rebuild initramfs so Plymouth + theme are baked in for early boot splash.
 update-initramfs -u
 
