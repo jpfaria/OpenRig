@@ -30,11 +30,9 @@ mkdir -p "$OUTPUT_DIR"
 for ARCH in arm64 x86_64; do
     "$PROJECT_ROOT/scripts/build-linux-local.sh" \
         --arch "$ARCH" --version "$VERSION" --format deb
+    # copy immediately — next arch build will wipe dist/
+    cp "$PROJECT_ROOT"/dist/openrig_*.deb "$OUTPUT_DIR/" 2>/dev/null || true
 done
-
-# Copy .deb files to output/deb/ (canonical local output location)
-cp "$PROJECT_ROOT"/dist/openrig_*_arm64.deb  "$OUTPUT_DIR/" 2>/dev/null || true
-cp "$PROJECT_ROOT"/dist/openrig_*_amd64.deb  "$OUTPUT_DIR/" 2>/dev/null || true
 
 echo ""
 echo "Done. Packages in output/deb/:"
