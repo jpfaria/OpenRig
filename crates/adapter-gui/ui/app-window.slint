@@ -781,6 +781,7 @@ export component AppWindow inherits Window {
     callback chain-io-groups-cancel();
     callback chain-io-groups-toggle-enabled();
     callback chain-io-groups-delete-block();
+    callback virtual-key-pressed(string);
     title: "OpenRig";
     min-width: 860px;
     min-height: 540px;
@@ -1075,6 +1076,7 @@ export component AppWindow inherits Window {
         update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
         update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
         update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
+        virtual-key-pressed(label) => { root.virtual-key-pressed(label); }
     }
 
     in-out property <string> toast-message;

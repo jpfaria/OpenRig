@@ -2,6 +2,8 @@ import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, MultiSliderPoint, CurveEditorPoint } from "models.slint";
 import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage } from "pages/pages.slint";
+import { SKeyBoard } from "modules/surrealism-ui/index.slint";
+import { SKeyItem, KeyBoardType } from "modules/surrealism-ui/use/index.slint";
 
 export component TouchMain inherits Rectangle {
     in property <bool> show-project-launcher;
@@ -123,6 +125,9 @@ export component TouchMain inherits Rectangle {
     callback update-project-sample-rate(int, string);
     callback update-project-buffer-size(int, string);
     callback update-project-bit-depth(int, string);
+    callback virtual-key-pressed(string);
+
+    private property <bool> keyboard-visible: false;
 
     background: root.show-project-launcher ? #1e1f22 : Theme.palette.background-gradient;
 
@@ -241,6 +246,50 @@ export component TouchMain inherits Rectangle {
         update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
         update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
         update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
+    }
+
+    // Virtual keyboard overlay (sits on top of all other content)
+    if root.keyboard-visible : Rectangle {
+        x: 0;
+        y: root.height - 270px;
+        width: root.width;
+        height: 270px;
+        background: #1a1b1e;
+        drop-shadow-blur: 16px;
+        drop-shadow-offset-y: -4px;
+        drop-shadow-color: #000000c0;
+        SKeyBoard {
+            width: parent.width;
+            height: parent.height;
+            keyboard-type: KeyBoardType.Computer;
+            clicked(key) => {
+                root.virtual-key-pressed(key.label);
+            }
+        }
+    }
+
+    // Keyboard toggle button (floating, bottom-right, hidden on launcher)
+    if !root.show-project-launcher : Rectangle {
+        x: root.width - 56px;
+        y: root.height - (root.keyboard-visible ? 326px : 56px);
+        width: 48px;
+        height: 48px;
+        border-radius: 24px;
+        background: root.keyboard-visible ? #3c7ded : #2d2e32;
+        drop-shadow-blur: 8px;
+        drop-shadow-offset-y: 2px;
+        drop-shadow-color: #00000080;
+        TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.keyboard-visible = !root.keyboard-visible; }
+            Text {
+                text: "⌨";
+                font-size: 22px;
+                color: #ffffff;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
     }
 
 }

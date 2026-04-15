@@ -7376,6 +7376,22 @@ pub fn run_desktop_app(
         );
     }
 
+    // Virtual keyboard: dispatch key events to the focused element
+    {
+        let weak_window = window.as_weak();
+        window.on_virtual_key_pressed(move |label| {
+            let Some(win) = weak_window.upgrade() else { return; };
+            let text: slint::SharedString = match label.as_str() {
+                "⌫" => slint::platform::Key::Backspace.into(),
+                "⏎" => slint::platform::Key::Return.into(),
+                "⎵" => " ".into(),
+                s => s.into(),
+            };
+            let _ = win.window().dispatch_event(slint::platform::WindowEvent::KeyPressed { text: text.clone() });
+            let _ = win.window().dispatch_event(slint::platform::WindowEvent::KeyReleased { text });
+        });
+    }
+
     window.run().map_err(|error| anyhow!(error.to_string()))
 }
 fn resolve_project_paths() -> ProjectPaths {
