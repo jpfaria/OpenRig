@@ -786,6 +786,7 @@ export component AppWindow inherits Window {
     in property <[string]> preset-picker-items;
     in-out property <int> preset-picker-chain-index: -1;
     callback preset-picker-confirm(int);
+    callback preset-picker-delete(int);
     callback preset-picker-cancel();
     title: "OpenRig";
     min-width: 860px;
@@ -1086,6 +1087,7 @@ export component AppWindow inherits Window {
         preset-picker-items: root.preset-picker-items;
         preset-picker-chain-index <=> root.preset-picker-chain-index;
         preset-picker-confirm(i) => { root.preset-picker-confirm(i); }
+        preset-picker-delete(i) => { root.preset-picker-delete(i); }
         preset-picker-cancel => { root.preset-picker-cancel(); }
     }
 

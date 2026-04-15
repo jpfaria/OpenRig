@@ -130,6 +130,7 @@ export component TouchMain inherits Rectangle {
     in property <[string]> preset-picker-items;
     in-out property <int> preset-picker-chain-index: -1;
     callback preset-picker-confirm(int);
+    callback preset-picker-delete(int);
     callback preset-picker-cancel();
 
     private property <bool> keyboard-visible: false;
@@ -329,14 +330,36 @@ export component TouchMain inherits Rectangle {
                             background: item-area.has-hover ? #3c7ded : #2d2e32;
                             item-area := TouchArea {
                                 mouse-cursor: pointer;
+                                width: parent.width - 52px;
                                 clicked => { root.preset-picker-confirm(i); }
                             }
                             Text {
                                 x: 12px;
+                                width: parent.width - 64px;
                                 text: item;
                                 font-size: 14px;
                                 color: #ffffff;
                                 vertical-alignment: center;
+                                overflow: elide;
+                            }
+                            Rectangle {
+                                x: parent.width - 44px;
+                                y: 2px;
+                                width: 40px;
+                                height: 40px;
+                                border-radius: 6px;
+                                background: del-area.has-hover ? #c0392b : transparent;
+                                del-area := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.preset-picker-delete(i); }
+                                }
+                                Text {
+                                    text: "✕";
+                                    font-size: 16px;
+                                    color: #cc4444;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
                             }
                         }
                     }

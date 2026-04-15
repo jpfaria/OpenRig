@@ -2353,6 +2353,36 @@ pub fn run_desktop_app(
     }
     {
         let weak_window = window.as_weak();
+        let preset_file_list = preset_file_list.clone();
+        let toast_timer = toast_timer.clone();
+        window.on_preset_picker_delete(move |preset_index| {
+            let Some(window) = weak_window.upgrade() else { return; };
+            let mut files = preset_file_list.borrow_mut();
+            let Some(path) = files.get(preset_index as usize).cloned() else { return; };
+            match std::fs::remove_file(&path) {
+                Ok(()) => {
+                    files.remove(preset_index as usize);
+                    let names: Vec<slint::SharedString> = files
+                        .iter()
+                        .map(|p| {
+                            p.file_stem()
+                                .and_then(|s| s.to_str())
+                                .unwrap_or("")
+                                .replace('_', " ")
+                                .into()
+                        })
+                        .collect();
+                    window.set_preset_picker_items(
+                        slint::ModelRc::from(Rc::new(slint::VecModel::from(names)))
+                    );
+                    set_status_info(&window, &toast_timer, "Preset removido.");
+                }
+                Err(error) => set_status_error(&window, &toast_timer, &error.to_string()),
+            }
+        });
+    }
+    {
+        let weak_window = window.as_weak();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
         let project_runtime = project_runtime.clone();
