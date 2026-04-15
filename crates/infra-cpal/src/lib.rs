@@ -334,9 +334,9 @@ fn launch_jackd(card: &str, sample_rate: u32, buffer_size: u32) -> Result<()> {
 
     log::info!("launch_jackd: jackd spawned with PID {}", child.id());
 
-    // Wait for the JACK socket to appear (up to 15 seconds).
-    // Orange Pi 5B / RK3588 USB init can take longer than desktop hardware.
-    for i in 0..150 {
+    // Wait for the JACK socket to appear (up to 30 seconds).
+    // Orange Pi 5B / RK3588 with USB audio (Q26) takes 17-20s on first init.
+    for i in 0..300 {
         if jack_server_is_running() {
             log::info!("launch_jackd: JACK ready after {}ms", i * 100);
             invalidate_jack_meta_cache();
@@ -345,7 +345,7 @@ fn launch_jackd(card: &str, sample_rate: u32, buffer_size: u32) -> Result<()> {
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
 
-    bail!("jackd was launched but did not become ready within 15 seconds")
+    bail!("jackd was launched but did not become ready within 30 seconds")
 }
 
 /// Ensure JACK is running with the correct parameters. If JACK is not running,
