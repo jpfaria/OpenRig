@@ -84,6 +84,9 @@ update-alternatives --set \
     default.plymouth \
     /usr/share/plymouth/themes/openrig/openrig.plymouth
 
+# Rebuild initramfs so Plymouth + theme are baked in for early boot splash.
+update-initramfs -u
+
 # ── 7. Create users with fixed passwords ─────────────────────────────────────
 # openrig: regular user with a real home so OpenRig can write projects,
 # presets and logs to /home/openrig. Groups cover everything audio/graphics
