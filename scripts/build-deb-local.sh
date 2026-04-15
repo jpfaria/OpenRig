@@ -5,12 +5,13 @@
 #   ./scripts/build-deb-local.sh [--version V]
 #
 # Output:
-#   dist/openrig_{VERSION}_arm64.deb
-#   dist/openrig_{VERSION}_amd64.deb
+#   output/deb/openrig_{VERSION}_arm64.deb
+#   output/deb/openrig_{VERSION}_amd64.deb
 
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+OUTPUT_DIR="$PROJECT_ROOT/output/deb"
 VERSION="0.0.0-dev"
 
 while [ $# -gt 0 ]; do
@@ -24,11 +25,20 @@ while [ $# -gt 0 ]; do
     esac
 done
 
+mkdir -p "$OUTPUT_DIR"
+
 for ARCH in arm64 x86_64; do
     "$PROJECT_ROOT/scripts/build-linux-local.sh" \
         --arch "$ARCH" --version "$VERSION" --format deb
 done
 
+# Copy .deb files to output/deb/ (canonical local output location)
+cp "$PROJECT_ROOT"/dist/openrig_*_arm64.deb  "$OUTPUT_DIR/" 2>/dev/null || true
+cp "$PROJECT_ROOT"/dist/openrig_*_amd64.deb  "$OUTPUT_DIR/" 2>/dev/null || true
+
+echo ""
+echo "Done. Packages in output/deb/:"
+ls -lh "$OUTPUT_DIR"/openrig_*.deb 2>/dev/null | awk '{print "  " $NF, $5}'
 echo ""
 echo "To build the Orange Pi image:"
-echo "  ./scripts/build-orange-pi-image.sh --local-deb dist/openrig_${VERSION}_arm64.deb"
+echo "  ./scripts/build-orange-pi-image.sh --local-deb $OUTPUT_DIR/openrig_${VERSION}_arm64.deb"
