@@ -86,13 +86,11 @@ else
     sync
 
     echo ""
-    echo "Updating partition UUIDs..."
-    # Randomize eMMC partition UUID to avoid conflicts with SD card
-    if command -v tune2fs >/dev/null 2>&1; then
-        for part in "${EMMC}"p*; do
-            [ -b "$part" ] && tune2fs -U random "$part" 2>/dev/null || true
-        done
-    fi
+    echo "Running filesystem check on eMMC partitions..."
+    for part in "${EMMC}"p*; do
+        [ -b "$part" ] || continue
+        fsck -y "$part" 2>/dev/null || true
+    done
 fi
 
 echo ""
