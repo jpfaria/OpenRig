@@ -3192,9 +3192,11 @@ pub fn run_desktop_app(
                         &chain_input_channels,
                         channel_items.clone(),
                     );
-                    // Fullscreen: sync channels to inline endpoint editor
+                    // Fullscreen: sync channels to inline endpoint editor.
+                    // Re-assign the same shared Rc<VecModel> so toggle handlers
+                    // continue to operate on the same model the UI is bound to.
                     if window.get_fullscreen() {
-                        window.set_chain_io_channels(ModelRc::from(Rc::new(VecModel::from(channel_items))));
+                        window.set_chain_io_channels(ModelRc::from(chain_input_channels.clone()));
                     }
                 }
                 if let Some(chain_window) = chain_editor_window_ref.borrow().as_ref() {
@@ -3264,9 +3266,11 @@ pub fn run_desktop_app(
                         &chain_output_channels,
                         channel_items.clone(),
                     );
-                    // Fullscreen: sync channels to inline endpoint editor
+                    // Fullscreen: sync channels to inline endpoint editor.
+                    // Re-assign the same shared Rc<VecModel> so toggle handlers
+                    // continue to operate on the same model the UI is bound to.
                     if window.get_fullscreen() {
-                        window.set_chain_io_channels(ModelRc::from(Rc::new(VecModel::from(channel_items))));
+                        window.set_chain_io_channels(ModelRc::from(chain_output_channels.clone()));
                     }
                 }
                 if let Some(chain_window) = chain_editor_window_ref.borrow().as_ref() {
