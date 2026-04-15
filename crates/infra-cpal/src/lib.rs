@@ -282,6 +282,44 @@ fn invalidate_jack_meta_cache() {
     }
 }
 
+/// Enumerate all ALSA sound cards by reading /proc/asound/cards without opening
+/// any PCM device. Safe to call even when a fragile USB audio device is present
+/// (e.g. Scarlett 2i2 on RK3588 xHCI) — CPAL's ALSA device.supported_input_configs()
+/// opens the PCM and can trigger the scarlett2 driver to drop the device into
+/// standalone mode (red LED). This function avoids that by never touching ALSA PCM.
+/// Channel count is a conservative default of 2 (sufficient for device listing UI).
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn enumerate_alsa_cards_from_proc() -> Vec<AudioDeviceDescriptor> {
+    let content = match std::fs::read_to_string("/proc/asound/cards") {
+        Ok(c) => c,
+        Err(_) => return Vec::new(),
+    };
+    let mut devices = Vec::new();
+    for line in content.lines() {
+        let trimmed = line.trim_start();
+        // Lines look like: " 0 [HDMI           ]: simple-card - hdmi0"
+        //                  " 2 [Scarlett2i2    ]: USB-Audio - Scarlett 2i2 USB"
+        if !trimmed.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+            continue;
+        }
+        let card_num = match trimmed.split_whitespace().next() {
+            Some(n) => n.to_string(),
+            None => continue,
+        };
+        let hw_name = if let Some(pos) = trimmed.find(" - ") {
+            trimmed[pos + 3..].trim().to_string()
+        } else {
+            format!("Card {}", card_num)
+        };
+        devices.push(AudioDeviceDescriptor {
+            id: format!("hw:{}", card_num),
+            name: hw_name,
+            channels: 2,
+        });
+    }
+    devices
+}
+
 /// Detect the first USB audio ALSA card number by scanning /proc/asound/cards.
 /// Returns the card index (e.g. "1") or None if no USB audio card is present.
 #[cfg(all(target_os = "linux", feature = "jack"))]
@@ -1246,10 +1284,16 @@ fn enumerate_input_devices_uncached() -> Result<Vec<AudioDeviceDescriptor>> {
         if jack_server_is_running() {
             return jack_enumerate_input_devices();
         }
-        // JACK not running — fall through to ALSA enumeration so the UI can
-        // still show available hardware devices for configuration.
+        // JACK not running — read /proc/asound/cards without opening any PCM.
+        // Never use CPAL's ALSA enumeration here: device.supported_input_configs()
+        // opens the PCM and on RK3588 xHCI this triggers the scarlett2 driver to
+        // put the Scarlett into standalone mode (red LED). Proc read is instant and
+        // does not touch ALSA at all.
         invalidate_jack_meta_cache();
-        log::info!("JACK not running, falling back to ALSA enumeration for input devices");
+        log::info!("JACK not running, reading /proc/asound/cards for input devices (no PCM probe)");
+        let cards = enumerate_alsa_cards_from_proc();
+        log::info!("[enumerate_input] proc cards: {} devices", cards.len());
+        return Ok(cards);
     }
 
     #[allow(unreachable_code)]
@@ -1280,7 +1324,10 @@ fn enumerate_output_devices_uncached() -> Result<Vec<AudioDeviceDescriptor>> {
             return jack_enumerate_output_devices();
         }
         invalidate_jack_meta_cache();
-        log::info!("JACK not running, falling back to ALSA enumeration for output devices");
+        log::info!("JACK not running, reading /proc/asound/cards for output devices (no PCM probe)");
+        let cards = enumerate_alsa_cards_from_proc();
+        log::info!("[enumerate_output] proc cards: {} devices", cards.len());
+        return Ok(cards);
     }
 
     #[allow(unreachable_code)]
