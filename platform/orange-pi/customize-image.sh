@@ -93,6 +93,23 @@ plymouth-set-default-theme openrig
 mkdir -p /etc/initramfs-tools/conf.d
 echo 'FRAMEBUFFER=y' > /etc/initramfs-tools/conf.d/plymouth
 
+# Custom initramfs hook: force-copy the OpenRig theme files into the
+# initramfs. The Debian Plymouth hook only copies the theme it resolves
+# at hook time — if the resolution is off the files are missing and Plymouth
+# shows nothing. This hook makes it unconditional.
+cat > /etc/initramfs-tools/hooks/openrig-plymouth << 'PLYHOOK'
+#!/bin/sh
+PREREQ="plymouth"
+prereqs() { echo "$PREREQ"; }
+case "$1" in prereqs) prereqs; exit 0;; esac
+. /usr/share/initramfs-tools/hook-functions
+THEME_DIR=/usr/share/plymouth/themes/openrig
+for f in "$THEME_DIR"/*; do
+    [ -f "$f" ] && copy_file theme "$f"
+done
+PLYHOOK
+chmod 755 /etc/initramfs-tools/hooks/openrig-plymouth
+
 # Rebuild initramfs so Plymouth + theme are baked in for early boot splash.
 update-initramfs -u
 
