@@ -1,4 +1,4 @@
-import { VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { VerticalBox, HorizontalBox, ScrollView } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, MultiSliderPoint, CurveEditorPoint } from "models.slint";
 import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage } from "pages/pages.slint";
@@ -126,6 +126,11 @@ export component TouchMain inherits Rectangle {
     callback update-project-buffer-size(int, string);
     callback update-project-bit-depth(int, string);
     callback virtual-key-pressed(string);
+    in property <bool> show-preset-picker: false;
+    in property <[string]> preset-picker-items;
+    in-out property <int> preset-picker-chain-index: -1;
+    callback preset-picker-confirm(int);
+    callback preset-picker-cancel();
 
     private property <bool> keyboard-visible: false;
 
@@ -288,6 +293,70 @@ export component TouchMain inherits Rectangle {
                 color: #ffffff;
                 horizontal-alignment: center;
                 vertical-alignment: center;
+            }
+        }
+    }
+
+    // Preset picker overlay (replaces FileDialog on kiosk)
+    if root.show-preset-picker : Rectangle {
+        x: 0; y: 0;
+        width: root.width; height: root.height;
+        background: #000000a0;
+        Rectangle {
+            x: root.width * 0.1;
+            y: root.height * 0.1;
+            width: root.width * 0.8;
+            height: root.height * 0.8;
+            background: #1e1f22;
+            border-radius: 10px;
+            VerticalBox {
+                padding: 16px;
+                spacing: 8px;
+                Text {
+                    text: "Carregar Preset";
+                    font-size: 16px;
+                    color: #ffffff;
+                    font-weight: 700;
+                }
+                // Scrollable preset list
+                ScrollView {
+                    vertical-stretch: 1;
+                    VerticalBox {
+                        spacing: 4px;
+                        for item[i] in root.preset-picker-items : Rectangle {
+                            height: 44px;
+                            border-radius: 6px;
+                            background: item-area.has-hover ? #3c7ded : #2d2e32;
+                            item-area := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => { root.preset-picker-confirm(i); }
+                            }
+                            Text {
+                                x: 12px;
+                                text: item;
+                                font-size: 14px;
+                                color: #ffffff;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+                Rectangle {
+                    height: 44px;
+                    border-radius: 6px;
+                    background: cancel-area.has-hover ? #444 : #2d2e32;
+                    cancel-area := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.preset-picker-cancel(); }
+                    }
+                    Text {
+                        text: "Cancelar";
+                        font-size: 14px;
+                        color: #aaaaaa;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
             }
         }
     }

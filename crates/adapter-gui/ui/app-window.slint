@@ -782,6 +782,11 @@ export component AppWindow inherits Window {
     callback chain-io-groups-toggle-enabled();
     callback chain-io-groups-delete-block();
     callback virtual-key-pressed(string);
+    in property <bool> show-preset-picker: false;
+    in property <[string]> preset-picker-items;
+    in-out property <int> preset-picker-chain-index: -1;
+    callback preset-picker-confirm(int);
+    callback preset-picker-cancel();
     title: "OpenRig";
     min-width: 860px;
     min-height: 540px;
@@ -1077,6 +1082,11 @@ export component AppWindow inherits Window {
         update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
         update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
         virtual-key-pressed(label) => { root.virtual-key-pressed(label); }
+        show-preset-picker: root.show-preset-picker;
+        preset-picker-items: root.preset-picker-items;
+        preset-picker-chain-index <=> root.preset-picker-chain-index;
+        preset-picker-confirm(i) => { root.preset-picker-confirm(i); }
+        preset-picker-cancel => { root.preset-picker-cancel(); }
     }
 
     in-out property <string> toast-message;
