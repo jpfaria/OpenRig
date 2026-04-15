@@ -28,3 +28,7 @@ for ARCH in arm64 x86_64; do
     "$PROJECT_ROOT/scripts/build-linux-local.sh" \
         --arch "$ARCH" --version "$VERSION" --format deb
 done
+
+echo ""
+echo "To build the Orange Pi image:"
+echo "  ./scripts/build-orange-pi-image.sh --local-deb dist/openrig_${VERSION}_arm64.deb"
