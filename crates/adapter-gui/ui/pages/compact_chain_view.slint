@@ -28,6 +28,18 @@ component CompactBlockRow inherits Rectangle {
     border-color: root.block-data.enabled ? root.block-data.panel-bg.darker(0.3) : #252830;
     opacity: root.block-data.enabled ? 1.0 : 0.5;
     border-radius: 4px;
+    clip: true;
+
+    // Subtle metal texture overlay
+    Image {
+        x: 0; y: 0;
+        width: parent.width;
+        height: parent.height;
+        source: @image-url("../assets/sprites/rack-texture.png");
+        image-fit: fill;
+        image-rendering: smooth;
+        opacity: 0.3;
+    }
 
     // ── 1. Block enable (footswitch sprite) ──
     FootSwitch {
