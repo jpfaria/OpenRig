@@ -432,7 +432,7 @@ impl ChainYaml {
         Ok(Self {
             description: chain.description.clone(),
             instrument: chain.instrument.clone(),
-            enabled: chain.enabled,
+            enabled: false, // chains always start disabled on project load, regardless of saved state
             inputs: Vec::new(),
             outputs: Vec::new(),
             input_device_id: None,
