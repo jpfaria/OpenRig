@@ -2081,10 +2081,15 @@ export component ProjectChainsPage inherits Rectangle {
         property <length> eq-widget-height:
             root.curve-editor-points.length > 0 ? 200px :
             root.multi-slider-points.length > 0 ? 180px : 0px;
+        property <bool> has-stream-data:
+            root.block-stream-data.stream-kind != ""
+            && root.block-stream-data.stream-kind != "spectrum";
         property <length> eq-extra-height:
             has-eq-widget ? (48px + 60px + 8px + eq-widget-height + 8px) : 275px;
         property <length> panel-height:
-            use-panel-editor ? eq-extra-height : parent.height;
+            use-panel-editor
+                ? (has-stream-data ? Math.max(420px, eq-extra-height) : eq-extra-height)
+                : parent.height;
 
         TouchArea {
             x: 0px;
