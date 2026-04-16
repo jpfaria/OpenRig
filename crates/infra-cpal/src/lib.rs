@@ -104,7 +104,6 @@ pub fn log_audio_status(context: &str) {
     #[cfg(target_os = "linux")]
     {
         let alsa_cards = read_proc_asound_cards_for_status();
-        let usb_audio = read_usb_audio_devices_for_status();
 
         #[cfg(feature = "jack")]
         let jack_running = jack_server_is_running();
@@ -112,11 +111,10 @@ pub fn log_audio_status(context: &str) {
         let jack_running = false;
 
         log::info!(
-            "[AUDIO-STATUS] ctx='{}' jack_running={} alsa_cards=[{}] usb_audio=[{}]",
+            "[AUDIO-STATUS] ctx='{}' jack_running={} alsa_cards=[{}]",
             context,
             jack_running,
             alsa_cards.join(" | "),
-            usb_audio.join(" | "),
         );
     }
     #[cfg(not(target_os = "linux"))]
@@ -147,55 +145,6 @@ fn read_proc_asound_cards_for_status() -> Vec<String> {
         .unwrap_or_default()
 }
 
-#[cfg(target_os = "linux")]
-fn read_usb_audio_devices_for_status() -> Vec<String> {
-    let root = std::path::Path::new("/sys/bus/usb/devices");
-    let Ok(entries) = std::fs::read_dir(root) else {
-        return Vec::new();
-    };
-
-    let mut out = Vec::new();
-    for entry in entries.flatten() {
-        let path = entry.path();
-        let node = entry.file_name().to_string_lossy().into_owned();
-        // Skip interface nodes (they contain ':'); we only want device nodes.
-        if node.contains(':') {
-            continue;
-        }
-        // Keep only devices that expose at least one audio-class interface (01).
-        let is_audio = std::fs::read_dir(&path)
-            .ok()
-            .map(|sub| {
-                sub.flatten().any(|s| {
-                    let sn = s.file_name();
-                    let sn = sn.to_string_lossy();
-                    if !sn.contains(':') {
-                        return false;
-                    }
-                    std::fs::read_to_string(s.path().join("bInterfaceClass"))
-                        .map(|v| v.trim() == "01")
-                        .unwrap_or(false)
-                })
-            })
-            .unwrap_or(false);
-        if !is_audio {
-            continue;
-        }
-
-        let vendor = std::fs::read_to_string(path.join("idVendor"))
-            .map(|s| s.trim().to_string())
-            .unwrap_or_default();
-        let product = std::fs::read_to_string(path.join("idProduct"))
-            .map(|s| s.trim().to_string())
-            .unwrap_or_default();
-        let product_name = std::fs::read_to_string(path.join("product"))
-            .map(|s| s.trim().to_string())
-            .unwrap_or_else(|_| "?".to_string());
-
-        out.push(format!("{}:{} {} @{}", vendor, product, product_name, node));
-    }
-    out
-}
 
 /// Select the CPAL audio host for device enumeration (non-JACK path only).
 ///
