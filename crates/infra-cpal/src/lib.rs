@@ -411,6 +411,66 @@ fn read_card_channels(card: &str) -> (u32, u32) {
     (capture, playback)
 }
 
+/// Set ALSA mixer levels for a USB audio card after JACK has started.
+/// Skips Scarlett/Focusrite devices — their mixer is managed via USB vendor
+/// commands and calling amixer can trigger firmware disconnect cycles.
+/// For standard USB Audio Class devices, sets capture and playback to 100%.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn configure_alsa_mixer(card: &UsbAudioCard) {
+    log::info!("configure_alsa_mixer: card {} ({})", card.card_num, card.display_name);
+    let c = &card.card_num;
+    let is_scarlett = card.display_name.to_lowercase().contains("scarlett")
+        || card.display_name.to_lowercase().contains("focusrite");
+
+    if is_scarlett {
+        // Scarlett routing: send raw analogue inputs to PCM (for OpenRig to process),
+        // and route PCM outputs (OpenRig's processed signal) to the analogue outputs.
+        // Direct monitor must be Off to avoid the guitar feeding back through hardware.
+        //
+        // PCM 01/02 Capture = Analogue 1/2 (raw guitar → OpenRig)
+        amixer_cset(c, "name='PCM 01 Capture Enum'", "1");   // Analogue 1
+        amixer_cset(c, "name='PCM 02 Capture Enum'", "2");   // Analogue 2
+        // Analogue Output 01/02 = PCM 1/2 (OpenRig processed signal → headphones/speakers)
+        amixer_cset(c, "name='Analogue Output 01 Playback Enum'", "9");  // PCM 1
+        amixer_cset(c, "name='Analogue Output 02 Playback Enum'", "10"); // PCM 2
+        // Direct Monitor Off — prevents raw guitar from bleeding into output hardware
+        amixer_cset(c, "name='Direct Monitor Playback Enum'", "0"); // Off
+        log::info!("configure_alsa_mixer: Scarlett routing set (Analogue→PCM capture, PCM→Analogue output, Direct Monitor Off)");
+        return;
+    }
+
+    // Standard USB Audio Class devices: set all volume controls to 100%.
+    if let Ok(output) = std::process::Command::new("amixer")
+        .args(["-c", c, "controls"])
+        .output()
+    {
+        for line in String::from_utf8_lossy(&output.stdout).lines() {
+            if !line.contains("iface=MIXER") { continue; }
+            if let Some(numid_str) = line.split("numid=").nth(1).and_then(|s| s.split(',').next()) {
+                if line.to_lowercase().contains("volume") {
+                    amixer_cset(c, &format!("numid={}", numid_str), "100%,100%");
+                }
+            }
+        }
+    }
+}
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn amixer_cset(card_num: &str, control: &str, value: &str) {
+    let status = std::process::Command::new("amixer")
+        .args(["-c", card_num, "cset", control, value])
+        .output();
+    match status {
+        Ok(out) if out.status.success() =>
+            log::debug!("amixer cset '{}' {} → ok", control, value),
+        Ok(out) =>
+            log::warn!("amixer cset '{}' {} → {}", control, value,
+                String::from_utf8_lossy(&out.stderr).trim()),
+        Err(e) =>
+            log::warn!("amixer cset '{}' {} → error: {}", control, value, e),
+    }
+}
+
 /// Launch jackd for a specific USB audio card and wait for it to become ready.
 /// Uses `jackd -n <server_name>` so each interface gets its own named server.
 /// Channel counts are read dynamically from /proc/asound/card{N}/stream0.
@@ -500,6 +560,7 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
             );
             std::thread::sleep(std::time::Duration::from_millis(600));
             log::info!("launch_jackd: server '{}' ready", card.server_name);
+            configure_alsa_mixer(card);
             invalidate_jack_meta_cache_for(&card.server_name);
             return Ok(());
         }

@@ -9,8 +9,8 @@ const SELECT_SELECTED_BLOCK_ID: &str = "__select.selected_block_id";
 use application::validate::validate_project;
 use domain::ids::{BlockId, DeviceId, ChainId};
 use infra_cpal::{
-    list_input_device_descriptors, list_output_device_descriptors, AudioDeviceDescriptor,
-    ProjectRuntimeController,
+    invalidate_device_cache, list_input_device_descriptors, list_output_device_descriptors,
+    AudioDeviceDescriptor, ProjectRuntimeController,
 };
 use infra_filesystem::{
     AppConfig, FilesystemStorage, GuiAudioDeviceSettings, GuiAudioSettings, RecentProjectEntry,
@@ -48,7 +48,7 @@ mod ui_state;
 mod visual_config;
 slint::include_modules!();
 const DEFAULT_SAMPLE_RATE: u32 = 48_000;
-const DEFAULT_BUFFER_SIZE_FRAMES: u32 = 256;
+const DEFAULT_BUFFER_SIZE_FRAMES: u32 = 64;
 const DEFAULT_BIT_DEPTH: u32 = 32;
 const SUPPORTED_SAMPLE_RATES: &[u32] = &[44_100, 48_000, 88_200, 96_000];
 const SUPPORTED_BUFFER_SIZES: &[u32] = &[32, 64, 128, 256, 512, 1024];
@@ -1999,6 +1999,8 @@ pub fn run_desktop_app(
             let Some(settings_window) = project_settings_window.upgrade() else {
                 return;
             };
+            // Invalidate device cache so newly connected/disconnected interfaces appear.
+            invalidate_device_cache();
             let fresh_input = refresh_input_devices(&chain_input_device_options);
             let fresh_output = refresh_output_devices(&chain_output_device_options);
             let session_borrow = project_session.borrow();
