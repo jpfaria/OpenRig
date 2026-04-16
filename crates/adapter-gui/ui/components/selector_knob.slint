@@ -29,7 +29,7 @@ export component SelectorKnob inherits Rectangle {
         clip: true;
 
         Image {
-            source: @image-url("../assets/sprites/knob-strip.png");
+            source: @image-url("../assets/sprites/selector-knob-strip.png");
             x: -root.frame-index * root.ks;
             y: 0;
             width: root.frame-count * root.ks;
@@ -61,8 +61,8 @@ export component SelectorKnob inherits Rectangle {
             width: root.lw;
             height: 14px;
             text: root.labels.length > 0 ? root.labels[0] : "";
-            color: 0 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.6);
-            font-size: 11px;
+            color: 0 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.7);
+            font-size: 12px;
             font-weight: 0 == root.selected-index ? 700 : 400;
             horizontal-alignment: right;
             overflow: elide;
@@ -73,8 +73,8 @@ export component SelectorKnob inherits Rectangle {
             width: root.lw;
             height: 14px;
             text: root.labels.length > 1 ? root.labels[1] : "";
-            color: 1 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.6);
-            font-size: 11px;
+            color: 1 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.7);
+            font-size: 12px;
             font-weight: 1 == root.selected-index ? 700 : 400;
             horizontal-alignment: left;
             overflow: elide;
@@ -95,21 +95,21 @@ export component SelectorKnob inherits Rectangle {
             width: root.lw;
             height: 14px;
             text: root.labels.length > 0 ? root.labels[0] : "";
-            color: 0 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.6);
-            font-size: 11px;
+            color: 0 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.7);
+            font-size: 12px;
             font-weight: 0 == root.selected-index ? 700 : 400;
             horizontal-alignment: right;
             overflow: elide;
         }
         // Option 1 — top-center (12 o'clock), close to knob
         Text {
-            x: root.cx - 40px;
+            x: root.cx - 60px;
             y: root.cy - root.ks / 2 - 14px;
-            width: 80px;
+            width: 120px;
             height: 14px;
             text: root.labels.length > 1 ? root.labels[1] : "";
-            color: 1 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.6);
-            font-size: 11px;
+            color: 1 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.7);
+            font-size: 12px;
             font-weight: 1 == root.selected-index ? 700 : 400;
             horizontal-alignment: center;
             overflow: elide;
@@ -121,14 +121,14 @@ export component SelectorKnob inherits Rectangle {
             width: root.lw;
             height: 14px;
             text: root.labels.length > 2 ? root.labels[2] : "";
-            color: 2 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.6);
-            font-size: 11px;
+            color: 2 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.7);
+            font-size: 12px;
             font-weight: 2 == root.selected-index ? 700 : 400;
             horizontal-alignment: left;
             overflow: elide;
         }
         TouchArea { x: 0; y: root.cy + root.ks / 2 - 4px; width: root.lw; height: 14px; mouse-cursor: pointer; clicked => { root.select(0); } }
-        TouchArea { x: root.cx - 40px; y: root.cy - root.ks / 2 - 14px; width: 80px; height: 14px; mouse-cursor: pointer; clicked => { root.select(1); } }
+        TouchArea { x: root.cx - 60px; y: root.cy - root.ks / 2 - 14px; width: 120px; height: 14px; mouse-cursor: pointer; clicked => { root.select(1); } }
         TouchArea { x: root.cx + root.ks / 2 + 2px; y: root.cy + root.ks / 2 - 4px; width: root.lw; height: 14px; mouse-cursor: pointer; clicked => { root.select(2); } }
     }
 
@@ -143,8 +143,8 @@ export component SelectorKnob inherits Rectangle {
             width: root.lw;
             height: 14px;
             text: root.labels.length > 0 ? root.labels[0] : "";
-            color: 0 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.6);
-            font-size: 11px;
+            color: 0 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.7);
+            font-size: 12px;
             font-weight: 0 == root.selected-index ? 700 : 400;
             horizontal-alignment: right;
             overflow: elide;
@@ -156,8 +156,8 @@ export component SelectorKnob inherits Rectangle {
             width: root.lw;
             height: 14px;
             text: root.labels.length > 1 ? root.labels[1] : "";
-            color: 1 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.6);
-            font-size: 11px;
+            color: 1 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.7);
+            font-size: 12px;
             font-weight: 1 == root.selected-index ? 700 : 400;
             horizontal-alignment: right;
             overflow: elide;
@@ -169,8 +169,8 @@ export component SelectorKnob inherits Rectangle {
             width: root.lw;
             height: 14px;
             text: root.labels.length > 2 ? root.labels[2] : "";
-            color: 2 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.6);
-            font-size: 11px;
+            color: 2 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.7);
+            font-size: 12px;
             font-weight: 2 == root.selected-index ? 700 : 400;
             horizontal-alignment: left;
             overflow: elide;
@@ -182,8 +182,8 @@ export component SelectorKnob inherits Rectangle {
             width: root.lw;
             height: 14px;
             text: root.labels.length > 3 ? root.labels[3] : "";
-            color: 3 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.6);
-            font-size: 11px;
+            color: 3 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.7);
+            font-size: 12px;
             font-weight: 3 == root.selected-index ? 700 : 400;
             horizontal-alignment: left;
             overflow: elide;
