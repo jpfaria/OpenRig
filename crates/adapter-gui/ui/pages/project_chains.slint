@@ -1037,7 +1037,7 @@ component ChainRow inherits Rectangle {
     property <int> last-block-row: root.chain.blocks.length == 0 ? 0 : Math.floor((root.chain.blocks.length - 1) / root.blocks-per-row);
     // Out sempre fixo na borda direita da linha do último bloco
     property <length> out-chip-x: root.width - 108px;
-    property <length> out-chip-y: root.last-block-row * 108px + 24px;
+    property <length> out-chip-y: root.last-block-row * 108px + 86px;
     out property <bool> any-chip-hovered: in-chip.is-hovered || out-chip.is-hovered;
 
     pure function slot-index-for-position(pointer-x: float, pointer-y: float) -> int {
@@ -1351,7 +1351,7 @@ component ChainRow inherits Rectangle {
 
         in-chip := ChainEndpointChip {
             x: 0px;
-            y: 15px;
+            y: 86px;
             is-input: true;
             label: root.chain.input_label;
             tooltip: root.chain.input_tooltip;
@@ -1369,7 +1369,7 @@ component ChainRow inherits Rectangle {
 
         if root.chain.latency_ms > 0 : Rectangle {
             x: root.out-chip-x + 4px;
-            y: root.out-chip-y + 56px;
+            y: root.out-chip-y - 26px;
             width: 64px;
             height: 22px;
             border-radius: 4px;
@@ -1415,7 +1415,7 @@ component ChainRow inherits Rectangle {
         // In chip tooltip — aparece à direita do chip In
         if in-chip.is-hovered && root.chain.input_tooltip != "" : Rectangle {
             x: 76px;
-            y: 8px;
+            y: 86px;
             width: 312px;
             height: Math.max(92px, input-tooltip-text.preferred-height + 42px);
             background: #0e1218f7;
