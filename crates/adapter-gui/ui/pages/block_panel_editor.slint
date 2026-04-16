@@ -629,10 +629,10 @@ export component BlockPanelEditor inherits Rectangle {
                 && root.curve-editor-points.length == 0
                 && root.multi-slider-points.length == 0;
             alignment: stretch;
-            padding-left: parent.has-stream ? parent.width - 220px : 60px;
+            padding-left: 60px;
             padding-right: 8px;
             x: 0;
-            y: parent.height * 0.54;
+            y: parent.has-stream ? parent.height * 0.72 : parent.height * 0.54;
             width: parent.width;
             height: 90px;
 
@@ -958,7 +958,7 @@ export component BlockPanelEditor inherits Rectangle {
     // ── Realtime stream display — positioned between POWER (left) and Reference (right) ──
     if root.block-stream-data.stream-kind != "" && root.block-stream-data.stream-kind != "spectrum" : Rectangle {
         x: 56px;
-        y: root.header-height + root.brand-strip-height + root.panel-height * 0.52;
+        y: root.header-height + root.brand-strip-height + root.panel-height * 0.15;
         width: parent.width - 56px - 260px;
         height: root.panel-height * 0.46;
 
