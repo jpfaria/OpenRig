@@ -649,8 +649,8 @@ export component BlockPanelEditor inherits Rectangle {
 
                 // ── Enum ≤4 options (selector knob) ──
                 if param.widget_kind == "enum" && param.option_labels.length <= 4 : SelectorKnob {
-                    x: (parent.width - 56px) / 2; y: 16px;
-                    width: 56px; height: 56px;
+                    x: (parent.width - 80px) / 2; y: 6px;
+                    width: 80px; height: 66px;
                     num-options: param.option_labels.length;
                     selected-index: param.selected_option_index;
                     labels: param.option_labels;

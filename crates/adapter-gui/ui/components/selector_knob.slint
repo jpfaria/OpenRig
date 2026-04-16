@@ -1,8 +1,9 @@
 // Rotary selector knob — same sprite as PanelKnob but snapped to discrete positions.
-// Labels displayed below the knob.
+// Labels positioned around the knob matching the indicator line direction.
+// Knob rotation: frame 0 = 7 o'clock (bottom-left), frame 64 = 5 o'clock (bottom-right).
 export component SelectorKnob inherits Rectangle {
-    in property <int> num-options;       // 2, 3, or 4
-    in property <int> selected-index;    // 0-based
+    in property <int> num-options;
+    in property <int> selected-index;
     in property <[string]> labels;
     callback select(int);
 
@@ -10,14 +11,14 @@ export component SelectorKnob inherits Rectangle {
     private property <int> frame-index:
         root.num-options <= 1 ? 0
         : Math.min(Math.max(Math.round(root.selected-index * (root.frame-count - 1) / (root.num-options - 1)), 0), root.frame-count - 1);
-    private property <length> ks: Math.min(root.width, root.height - 16px);
+    private property <length> ks: 36px;
 
     background: transparent;
 
-    // ── Knob sprite ──
+    // ── Knob sprite (centered) ──
     Rectangle {
         x: (root.width - root.ks) / 2;
-        y: 0;
+        y: (root.height - root.ks) / 2;
         width: root.ks;
         height: root.ks;
         clip: true;
@@ -33,10 +34,10 @@ export component SelectorKnob inherits Rectangle {
         }
     }
 
-    // ── Click on knob cycles to next option ──
+    // Click on knob cycles
     TouchArea {
         x: (root.width - root.ks) / 2;
-        y: 0;
+        y: (root.height - root.ks) / 2;
         width: root.ks;
         height: root.ks;
         mouse-cursor: pointer;
@@ -45,34 +46,205 @@ export component SelectorKnob inherits Rectangle {
         }
     }
 
-    // ── Labels below knob ──
-    HorizontalLayout {
-        x: 0;
-        y: root.ks + 1px;
-        width: root.width;
-        height: 14px;
+    // ═══════════════════════════════════════════
+    // Labels positioned around the knob arc.
+    // 2 options: bottom-left, bottom-right
+    // 3 options: bottom-left, top-center, bottom-right
+    // 4 options: bottom-left, left-top, right-top, bottom-right
+    // ═══════════════════════════════════════════
 
-        for label[i] in root.labels : Rectangle {
-            horizontal-stretch: 1;
-            height: parent.height;
+    // ── 2 OPTIONS ──
+    if root.num-options == 2 : Rectangle {
+        // Option 0 — bottom-left (7 o'clock)
+        Text {
+            x: (root.width / 2) - root.ks - 4px;
+            y: (root.height / 2) + 8px;
+            width: root.ks;
+            height: 12px;
+            text: root.labels.length > 0 ? root.labels[0] : "";
+            color: 0 == root.selected-index ? #ffaa44 : #889098;
+            font-size: 8px;
+            font-weight: 0 == root.selected-index ? 700 : 400;
+            horizontal-alignment: right;
+            overflow: elide;
+        }
+        // Option 1 — bottom-right (5 o'clock)
+        Text {
+            x: (root.width / 2) + 4px;
+            y: (root.height / 2) + 8px;
+            width: root.ks;
+            height: 12px;
+            text: root.labels.length > 1 ? root.labels[1] : "";
+            color: 1 == root.selected-index ? #ffaa44 : #889098;
+            font-size: 8px;
+            font-weight: 1 == root.selected-index ? 700 : 400;
+            horizontal-alignment: left;
+            overflow: elide;
+        }
+        // Clickable areas for labels
+        TouchArea {
+            x: (root.width / 2) - root.ks - 4px;
+            y: (root.height / 2) + 8px;
+            width: root.ks; height: 12px;
+            mouse-cursor: pointer;
+            clicked => { root.select(0); }
+        }
+        TouchArea {
+            x: (root.width / 2) + 4px;
+            y: (root.height / 2) + 8px;
+            width: root.ks; height: 12px;
+            mouse-cursor: pointer;
+            clicked => { root.select(1); }
+        }
+    }
 
-            Text {
-                width: parent.width;
-                height: parent.height;
-                text: label;
-                color: i == root.selected-index ? #ff8833 : #8090a0;
-                font-size: 7px;
-                font-weight: i == root.selected-index ? 700 : 400;
-                letter-spacing: 0.3px;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-                overflow: elide;
-            }
+    // ── 3 OPTIONS ──
+    if root.num-options == 3 : Rectangle {
+        // Option 0 — bottom-left (7 o'clock)
+        Text {
+            x: (root.width / 2) - root.ks - 4px;
+            y: (root.height / 2) + 8px;
+            width: root.ks;
+            height: 12px;
+            text: root.labels.length > 0 ? root.labels[0] : "";
+            color: 0 == root.selected-index ? #ffaa44 : #889098;
+            font-size: 8px;
+            font-weight: 0 == root.selected-index ? 700 : 400;
+            horizontal-alignment: right;
+            overflow: elide;
+        }
+        // Option 1 — top-center (12 o'clock)
+        Text {
+            x: (root.width - root.ks) / 2;
+            y: (root.height / 2) - root.ks / 2 - 14px;
+            width: root.ks;
+            height: 12px;
+            text: root.labels.length > 1 ? root.labels[1] : "";
+            color: 1 == root.selected-index ? #ffaa44 : #889098;
+            font-size: 8px;
+            font-weight: 1 == root.selected-index ? 700 : 400;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+        // Option 2 — bottom-right (5 o'clock)
+        Text {
+            x: (root.width / 2) + 4px;
+            y: (root.height / 2) + 8px;
+            width: root.ks;
+            height: 12px;
+            text: root.labels.length > 2 ? root.labels[2] : "";
+            color: 2 == root.selected-index ? #ffaa44 : #889098;
+            font-size: 8px;
+            font-weight: 2 == root.selected-index ? 700 : 400;
+            horizontal-alignment: left;
+            overflow: elide;
+        }
+        // Clickable areas
+        TouchArea {
+            x: (root.width / 2) - root.ks - 4px;
+            y: (root.height / 2) + 8px;
+            width: root.ks; height: 12px;
+            mouse-cursor: pointer;
+            clicked => { root.select(0); }
+        }
+        TouchArea {
+            x: (root.width - root.ks) / 2;
+            y: (root.height / 2) - root.ks / 2 - 14px;
+            width: root.ks; height: 12px;
+            mouse-cursor: pointer;
+            clicked => { root.select(1); }
+        }
+        TouchArea {
+            x: (root.width / 2) + 4px;
+            y: (root.height / 2) + 8px;
+            width: root.ks; height: 12px;
+            mouse-cursor: pointer;
+            clicked => { root.select(2); }
+        }
+    }
 
-            TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.select(i); }
-            }
+    // ── 4 OPTIONS ──
+    if root.num-options == 4 : Rectangle {
+        // Option 0 — bottom-left (7 o'clock)
+        Text {
+            x: (root.width / 2) - root.ks - 4px;
+            y: (root.height / 2) + 8px;
+            width: root.ks;
+            height: 12px;
+            text: root.labels.length > 0 ? root.labels[0] : "";
+            color: 0 == root.selected-index ? #ffaa44 : #889098;
+            font-size: 8px;
+            font-weight: 0 == root.selected-index ? 700 : 400;
+            horizontal-alignment: right;
+            overflow: elide;
+        }
+        // Option 1 — upper-left (9-10 o'clock)
+        Text {
+            x: (root.width / 2) - root.ks - 4px;
+            y: (root.height / 2) - 16px;
+            width: root.ks;
+            height: 12px;
+            text: root.labels.length > 1 ? root.labels[1] : "";
+            color: 1 == root.selected-index ? #ffaa44 : #889098;
+            font-size: 8px;
+            font-weight: 1 == root.selected-index ? 700 : 400;
+            horizontal-alignment: right;
+            overflow: elide;
+        }
+        // Option 2 — upper-right (2-3 o'clock)
+        Text {
+            x: (root.width / 2) + 4px;
+            y: (root.height / 2) - 16px;
+            width: root.ks;
+            height: 12px;
+            text: root.labels.length > 2 ? root.labels[2] : "";
+            color: 2 == root.selected-index ? #ffaa44 : #889098;
+            font-size: 8px;
+            font-weight: 2 == root.selected-index ? 700 : 400;
+            horizontal-alignment: left;
+            overflow: elide;
+        }
+        // Option 3 — bottom-right (5 o'clock)
+        Text {
+            x: (root.width / 2) + 4px;
+            y: (root.height / 2) + 8px;
+            width: root.ks;
+            height: 12px;
+            text: root.labels.length > 3 ? root.labels[3] : "";
+            color: 3 == root.selected-index ? #ffaa44 : #889098;
+            font-size: 8px;
+            font-weight: 3 == root.selected-index ? 700 : 400;
+            horizontal-alignment: left;
+            overflow: elide;
+        }
+        // Clickable areas
+        TouchArea {
+            x: (root.width / 2) - root.ks - 4px;
+            y: (root.height / 2) + 8px;
+            width: root.ks; height: 12px;
+            mouse-cursor: pointer;
+            clicked => { root.select(0); }
+        }
+        TouchArea {
+            x: (root.width / 2) - root.ks - 4px;
+            y: (root.height / 2) - 16px;
+            width: root.ks; height: 12px;
+            mouse-cursor: pointer;
+            clicked => { root.select(1); }
+        }
+        TouchArea {
+            x: (root.width / 2) + 4px;
+            y: (root.height / 2) - 16px;
+            width: root.ks; height: 12px;
+            mouse-cursor: pointer;
+            clicked => { root.select(2); }
+        }
+        TouchArea {
+            x: (root.width / 2) + 4px;
+            y: (root.height / 2) + 8px;
+            width: root.ks; height: 12px;
+            mouse-cursor: pointer;
+            clicked => { root.select(3); }
         }
     }
 }
