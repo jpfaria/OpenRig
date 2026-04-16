@@ -411,6 +411,55 @@ fn read_card_channels(card: &str) -> (u32, u32) {
     (capture, playback)
 }
 
+/// Set ALSA mixer levels for a USB audio card after JACK has started.
+/// Skips Scarlett/Focusrite devices — their mixer is managed via USB vendor
+/// commands and calling amixer can trigger firmware disconnect cycles.
+/// For standard USB Audio Class devices, sets capture and playback to 100%.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn configure_alsa_mixer(card: &UsbAudioCard) {
+    // Scarlett devices use proprietary USB vendor protocol — skip entirely.
+    if card.display_name.to_lowercase().contains("scarlett")
+        || card.display_name.to_lowercase().contains("focusrite")
+    {
+        log::debug!("configure_alsa_mixer: skipping Scarlett/Focusrite device '{}'", card.display_name);
+        return;
+    }
+    log::info!("configure_alsa_mixer: setting mixer levels for card {} ({})", card.card_num, card.display_name);
+    let card_arg = format!("hw:{}", card.card_num);
+    // Set all capture controls to 100%
+    for control in &["Mic Capture Volume", "Capture Volume", "Input Volume"] {
+        let _ = std::process::Command::new("amixer")
+            .args(["-c", &card.card_num, "sset", control, "100%,100%", "-q"])
+            .output();
+    }
+    // Set playback to 100%
+    for control in &["PCM Playback Volume", "Playback Volume", "Master Playback Volume"] {
+        let _ = std::process::Command::new("amixer")
+            .args(["-c", &card.card_num, "sset", control, "100%,100%", "-q"])
+            .output();
+    }
+    // Fallback: use amixer -c cardN to dump all controls and set INTEGER ones to max
+    if let Ok(output) = std::process::Command::new("amixer")
+        .args(["-c", &card.card_num, "controls"])
+        .output()
+    {
+        for line in String::from_utf8_lossy(&output.stdout).lines() {
+            // Lines look like: numid=5,iface=MIXER,name='Mic Capture Volume'
+            if !line.contains("iface=MIXER") { continue; }
+            if let Some(numid_str) = line.split("numid=").nth(1).and_then(|s| s.split(',').next()) {
+                // Check if it's a volume control (contains "Volume") and set to max
+                if line.to_lowercase().contains("volume") {
+                    let _ = std::process::Command::new("amixer")
+                        .args(["-c", &card.card_num, "cset", &format!("numid={}", numid_str), "100%,100%"])
+                        .output();
+                    log::debug!("configure_alsa_mixer: set numid={} to 100%", numid_str);
+                }
+            }
+        }
+    }
+    let _ = card_arg; // used implicitly via card.card_num above
+}
+
 /// Launch jackd for a specific USB audio card and wait for it to become ready.
 /// Uses `jackd -n <server_name>` so each interface gets its own named server.
 /// Channel counts are read dynamically from /proc/asound/card{N}/stream0.
@@ -500,6 +549,7 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
             );
             std::thread::sleep(std::time::Duration::from_millis(600));
             log::info!("launch_jackd: server '{}' ready", card.server_name);
+            configure_alsa_mixer(card);
             invalidate_jack_meta_cache_for(&card.server_name);
             return Ok(());
         }
