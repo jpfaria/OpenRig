@@ -6,6 +6,7 @@ import { FootSwitch } from "../components/foot_switch.slint";
 import { PowerSwitch } from "../components/power_switch.slint";
 import { ToggleSwitch } from "../components/toggle_switch.slint";
 import { PanelSlider } from "../components/panel_slider.slint";
+import { SelectorKnob } from "../components/selector_knob.slint";
 import { CurveEditorControl } from "curve_editor_control.slint";
 import { MultiSliderControl } from "multi_slider_control.slint";
 
@@ -646,39 +647,14 @@ export component BlockPanelEditor inherits Rectangle {
                     overflow: elide;
                 }
 
-                // ── Enum ≤4 options (segmented control) ──
-                if param.widget_kind == "enum" && param.option_labels.length <= 4 : Rectangle {
-                    x: 4px; y: 20px;
-                    width: parent.width - 8px; height: 32px;
-                    border-radius: 6px;
-                    background: #00000030;
-                    border-width: 1px; border-color: #ffffff10;
-
-                    for option[oi] in param.option_labels : Rectangle {
-                        x: oi * (parent.width / param.option_labels.length);
-                        y: 0;
-                        width: parent.width / param.option_labels.length;
-                        height: parent.height;
-                        border-radius: 5px;
-                        background: oi == param.selected_option_index ? #3366cc : (seg-ta.has-hover ? #ffffff10 : transparent);
-
-                        Text {
-                            x: 4px; width: parent.width - 8px; height: parent.height;
-                            text: option;
-                            color: oi == param.selected_option_index ? #ffffff : #8090a0;
-                            font-size: 9px;
-                            font-weight: oi == param.selected_option_index ? 800 : 500;
-                            letter-spacing: 0.5px;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                            overflow: elide;
-                        }
-
-                        seg-ta := TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => { root.select-block-parameter-option(param.path, oi); }
-                        }
-                    }
+                // ── Enum ≤4 options (selector knob) ──
+                if param.widget_kind == "enum" && param.option_labels.length <= 4 : SelectorKnob {
+                    x: (parent.width - 56px) / 2; y: 16px;
+                    width: 56px; height: 56px;
+                    num-options: param.option_labels.length;
+                    selected-index: param.selected_option_index;
+                    labels: param.option_labels;
+                    select(i) => { root.select-block-parameter-option(param.path, i); }
                 }
 
                 // ── Enum 5+ options (dropdown select) ──
