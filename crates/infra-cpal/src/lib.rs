@@ -462,15 +462,21 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
         card.server_name, card.card_num, sample_rate, buffer_size, capture_ch, playback_ch
     );
 
-    // Clean up stale sockets left by a previous failed run for this server.
+    // Clean up stale sockets and semaphore files left by a previous run for
+    // this server. jackd leaves behind jack_<name>_* sockets AND
+    // jack_sem.*_<name>_* semaphore files that must be removed before a fresh
+    // start — stale semaphores cause "Broken pipe" on the next startup attempt.
     let socket_prefix = format!("jack_{}_", card.server_name);
+    let sem_infix = format!("_{}_", card.server_name);
     if let Ok(entries) = std::fs::read_dir("/dev/shm") {
         for entry in entries.filter_map(|e| e.ok()) {
             let name = entry.file_name();
             let s = name.to_string_lossy();
-            if s.starts_with(&socket_prefix) {
+            let stale = s.starts_with(&socket_prefix)
+                || (s.starts_with("jack_sem.") && s.contains(&*sem_infix));
+            if stale {
                 let _ = std::fs::remove_file(entry.path());
-                log::info!("launch_jackd: removed stale socket {}", s);
+                log::info!("launch_jackd: removed stale file {}", s);
             }
         }
     }
@@ -603,7 +609,33 @@ fn ensure_jack_running(project: &Project) -> Result<bool> {
             }
         }
 
-        launch_jackd(card, desired_sr, desired_buf)?;
+        // Retry up to 3 times — the ALSA device occasionally needs a moment to
+        // settle after a USB reconnect or a previous jackd exit. "Broken pipe"
+        // on the first attempt is normal; the second or third attempt succeeds.
+        let mut last_err = anyhow!("no attempt made");
+        let mut started = false;
+        for attempt in 1u32..=3 {
+            match launch_jackd(card, desired_sr, desired_buf) {
+                Ok(()) => {
+                    started = true;
+                    break;
+                }
+                Err(e) => {
+                    log::warn!(
+                        "ensure_jack_running: attempt {}/3 for '{}' failed: {}",
+                        attempt, card.server_name, e
+                    );
+                    last_err = e;
+                    if attempt < 3 {
+                        let _ = std::process::Command::new("killall").args(["jackd"]).output();
+                        std::thread::sleep(std::time::Duration::from_secs(2));
+                    }
+                }
+            }
+        }
+        if !started {
+            return Err(last_err);
+        }
         any_started = true;
     }
 

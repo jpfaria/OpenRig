@@ -250,7 +250,7 @@ struct ChainYaml {
     description: Option<String>,
     #[serde(default = "default_instrument")]
     instrument: String,
-    #[serde(default, skip_serializing)]
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     enabled: bool,
     // Legacy multi-input/output fields — kept for backward-compatible deserialization, skipped on serialization
     #[serde(default, skip_serializing)]
@@ -277,7 +277,7 @@ struct ChainYaml {
 impl ChainYaml {
     fn into_chain(self, index: usize) -> Result<Chain> {
         let chain_id = generated_chain_id(index);
-        log::debug!("deserializing chain index={}, description={:?}, instrument='{}'", index, self.description, self.instrument);
+        log::debug!("deserializing chain index={}, description={:?}, instrument='{}', enabled={}", index, self.description, self.instrument, self.enabled);
 
         // Parse all blocks from the blocks array (new format may include input/output blocks inline)
         let parsed_blocks: Vec<AudioBlock> = self
