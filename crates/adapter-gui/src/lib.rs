@@ -2019,10 +2019,10 @@ pub fn run_desktop_app(
                 .set_project_name_draft(session.project.name.clone().unwrap_or_default().into());
             settings_window.set_status_message("".into());
             clear_status(&window, &toast_timer);
-            window.set_show_project_settings(true);
             if fullscreen {
                 // In fullscreen mode, render inline — set project-devices on main window
                 window.set_project_devices(settings_window.get_project_devices());
+                window.set_show_project_settings(true);
             } else {
                 show_child_window(window.window(), settings_window.window());
             }
