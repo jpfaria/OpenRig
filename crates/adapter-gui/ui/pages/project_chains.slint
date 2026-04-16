@@ -1055,9 +1055,9 @@ component ChainRow inherits Rectangle {
         background: transparent;
 
         PowerSwitch {
-            x: 10px;
+            x: 16px;
             y: (58px - 22px) / 2;
-            width: 56px; height: 22px;
+            width: 40px; height: 22px;
             enabled: root.chain.enabled;
             clicked => { root.toggle-chain-enabled(root.chain-index); }
         }
