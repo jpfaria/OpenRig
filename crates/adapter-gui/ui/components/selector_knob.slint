@@ -12,7 +12,7 @@ export component SelectorKnob inherits Rectangle {
     private property <int> frame-index:
         root.num-options <= 1 ? 0
         : Math.min(Math.max(Math.round(root.selected-index * (root.frame-count - 1) / (root.num-options - 1)), 0), root.frame-count - 1);
-    private property <length> ks: 48px;
+    private property <length> ks: 40px;
     private property <length> cx: root.width / 2;
     private property <length> cy: root.ks / 2 + 16px;
     private property <length> lw: (root.width - root.ks) / 2 - 4px;

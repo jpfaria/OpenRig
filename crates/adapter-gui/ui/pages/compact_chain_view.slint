@@ -267,8 +267,11 @@ component CompactBlockRow inherits Rectangle {
 
         for param[pi] in root.block-data.parameter-items : Rectangle {
             visible: param.widget_kind != "";
-            min-width: param.widget_kind == "bool" ? 44px : 56px;
-            preferred-width: param.widget_kind == "enum" && param.option_labels.length > 4 ? 140px
+            min-width: param.widget_kind == "enum" && param.option_labels.length <= 4 ? 100px
+                : param.widget_kind == "bool" ? 44px
+                : 56px;
+            preferred-width: param.widget_kind == "enum" && param.option_labels.length <= 4 ? 110px
+                : param.widget_kind == "enum" && param.option_labels.length > 4 ? 140px
                 : param.widget_kind == "bool" ? 48px
                 : 62px;
             height: 90px;
