@@ -634,23 +634,25 @@ export component BlockPanelEditor inherits Rectangle {
                 horizontal-stretch: param.widget_kind == "enum" ? 2 : 1;
                 height: 72px;
 
-                // Label (shared by all widget types)
+                // Label (shared by all widget types) — small caption for enum selectors, normal for others
                 Text {
-                    x: 0; y: 0; width: parent.width; height: 14px;
+                    x: 0; y: 0; width: parent.width;
+                    height: param.widget_kind == "enum" && param.option_labels.length <= 4 ? 11px : 14px;
                     text: param.label;
-                    color: root.panel-text;
+                    color: param.widget_kind == "enum" && param.option_labels.length <= 4
+                        ? root.panel-text.with-alpha(0.5) : root.panel-text;
                     font-family: "Bebas Neue";
-                    font-size: 10px;
-                    font-weight: 700;
-                    letter-spacing: 1.5px;
+                    font-size: param.widget_kind == "enum" && param.option_labels.length <= 4 ? 8px : 10px;
+                    font-weight: param.widget_kind == "enum" && param.option_labels.length <= 4 ? 400 : 700;
+                    letter-spacing: param.widget_kind == "enum" && param.option_labels.length <= 4 ? 2.5px : 1.5px;
                     horizontal-alignment: center;
                     overflow: elide;
                 }
 
                 // ── Enum ≤4 options (selector knob) ──
                 if param.widget_kind == "enum" && param.option_labels.length <= 4 : SelectorKnob {
-                    x: 0; y: 6px;
-                    width: parent.width; height: 64px;
+                    x: 0; y: 4px;
+                    width: parent.width; height: 66px;
                     num-options: param.option_labels.length;
                     selected-index: param.selected_option_index;
                     labels: param.option_labels;

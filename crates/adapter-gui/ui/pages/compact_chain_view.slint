@@ -281,11 +281,15 @@ component CompactBlockRow inherits Rectangle {
             Text {
                 x: 0;
                 y: param.widget_kind == "enum" && param.option_labels.length <= 4 ? 0 : 9px;
-                width: parent.width; height: 12px;
+                width: parent.width;
+                height: param.widget_kind == "enum" && param.option_labels.length <= 4 ? 10px : 12px;
                 text: param.label;
-                color: root.block-data.panel-text;
+                color: param.widget_kind == "enum" && param.option_labels.length <= 4
+                    ? root.block-data.panel-text.with-alpha(0.5) : root.block-data.panel-text;
                 font-family: "Bebas Neue";
-                font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+                font-size: param.widget_kind == "enum" && param.option_labels.length <= 4 ? 8px : 10px;
+                font-weight: param.widget_kind == "enum" && param.option_labels.length <= 4 ? 400 : 700;
+                letter-spacing: param.widget_kind == "enum" && param.option_labels.length <= 4 ? 2.5px : 1.5px;
                 horizontal-alignment: center;
                 overflow: elide;
             }
