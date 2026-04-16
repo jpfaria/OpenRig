@@ -919,10 +919,10 @@ export component BlockPanelEditor inherits Rectangle {
 
                 // ── Boolean toggle (sprite) ──
                 if param.widget_kind == "bool" : ToggleSwitch {
-                    x: (parent.width - 33px) / 2;
-                    y: 6px;
-                    width: 33px;
-                    height: 66px;
+                    x: (parent.width - 44px) / 2;
+                    y: 2px;
+                    width: 44px;
+                    height: 88px;
                     checked: param.bool_value;
                     toggled => { root.update-block-parameter-bool(param.path, !param.bool_value); }
                 }
