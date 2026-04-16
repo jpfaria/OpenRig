@@ -15,9 +15,20 @@ export component SelectorKnob inherits Rectangle {
     private property <length> ks: 40px;
     private property <length> cx: root.width / 2;
     private property <length> cy: root.ks / 2 + 16px;
-    private property <length> lw: (root.width - root.ks) / 2 - 4px;
+    private property <length> lw: Math.max((root.width - root.ks) / 2 - 4px, 0px);
 
     background: transparent;
+
+    // DEBUG: show component dimensions to diagnose label invisibility
+    Text {
+        x: 0; y: root.cy + root.ks / 2;
+        width: root.width; height: 20px;
+        text: "w=" + Math.round(root.width / 1px) + " lw=" + Math.round(root.lw / 1px) + " n=" + root.num-options;
+        color: #ff0000;
+        font-size: 11px;
+        font-weight: 700;
+        horizontal-alignment: center;
+    }
 
     // ── Knob sprite ──
     Rectangle {
