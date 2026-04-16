@@ -5,6 +5,7 @@ import { BrandLogo } from "../components/brand_logo.slint";
 import { PanelKnob } from "../components/panel_knob.slint";
 import { FootSwitch } from "../components/foot_switch.slint";
 import { ToggleSwitch } from "../components/toggle_switch.slint";
+import { PanelSlider } from "../components/panel_slider.slint";
 
 import "../fonts/BebasNeue.ttf";
 
@@ -273,8 +274,20 @@ component CompactBlockRow inherits Rectangle {
                 overflow: elide;
             }
 
-            // ── Numeric knob/stepper/slider ──
-            if param.widget_kind == "stepper" || param.widget_kind == "slider" || param.widget_kind == "knob" : PanelKnob {
+            // ── Numeric knob/stepper ──
+            if param.widget_kind == "stepper" || param.widget_kind == "knob" : PanelKnob {
+                x: 2px; y: 14px;
+                width: 58px; height: 76px;
+                value: param.numeric_value;
+                min-val: param.numeric_min;
+                max-val: param.numeric_max;
+                step: param.numeric_step;
+                path: param.path;
+                changed(p, v) => { root.update-parameter-number(root.block-data.chain-index, root.block-data.block-index, p, v); }
+            }
+
+            // ── Numeric slider (fader) ──
+            if param.widget_kind == "slider" : PanelSlider {
                 x: 2px; y: 14px;
                 width: 58px; height: 76px;
                 value: param.numeric_value;

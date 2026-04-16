@@ -4,6 +4,7 @@ import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { PanelKnob } from "../components/panel_knob.slint";
 import { FootSwitch } from "../components/foot_switch.slint";
 import { ToggleSwitch } from "../components/toggle_switch.slint";
+import { PanelSlider } from "../components/panel_slider.slint";
 import { CurveEditorControl } from "curve_editor_control.slint";
 import { MultiSliderControl } from "multi_slider_control.slint";
 
@@ -806,8 +807,22 @@ export component BlockPanelEditor inherits Rectangle {
                     }
                 }
 
-                // ── Numeric knob/stepper/slider ──
-                if param.widget_kind == "stepper" || param.widget_kind == "slider" || param.widget_kind == "knob" : PanelKnob {
+                // ── Numeric knob/stepper ──
+                if param.widget_kind == "stepper" || param.widget_kind == "knob" : PanelKnob {
+                    x: (parent.width - 58px) / 2;
+                    y: 14px;
+                    width: 58px;
+                    height: 76px;
+                    value: param.numeric_value;
+                    min-val: param.numeric_min;
+                    max-val: param.numeric_max;
+                    step: param.numeric_step;
+                    path: param.path;
+                    changed(p, v) => { root.update-block-parameter-number(p, v); }
+                }
+
+                // ── Numeric slider (fader) ──
+                if param.widget_kind == "slider" : PanelSlider {
                     x: (parent.width - 58px) / 2;
                     y: 14px;
                     width: 58px;
