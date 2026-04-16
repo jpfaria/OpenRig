@@ -1,5 +1,5 @@
 // Sprite-based power switch (on/off).
-// Vertical strip: 56×56 px, 2 frames (each 56×28). Top=off, bottom=on.
+// Horizontal strip: 180×35 px, 2 frames (each 90×35). Left=off, right=on.
 export component PowerSwitch inherits Rectangle {
     in property <bool> enabled;
     callback clicked();
@@ -14,10 +14,10 @@ export component PowerSwitch inherits Rectangle {
 
         Image {
             source: @image-url("../assets/sprites/power-switch.png");
-            x: 0;
-            y: root.enabled ? -parent.height : 0;
-            width: parent.width;
-            height: 2 * parent.height;
+            x: root.enabled ? -parent.width : 0;
+            y: 0;
+            width: 2 * parent.width;
+            height: parent.height;
             image-fit: fill;
             image-rendering: smooth;
         }
