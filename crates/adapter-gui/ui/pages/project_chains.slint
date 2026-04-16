@@ -958,43 +958,43 @@ component BlockInsertSlot inherits Rectangle {
 
     if !root.empty-slot : Rectangle {
         x: 0px;
-        y: 14px;
+        y: 11px;
         width: parent.width;
         height: 2px;
-        background: @linear-gradient(180deg, #6a9ab0, #4a7a90 50%, #3a6a80);
+        background: #3b4250;
         border-radius: 1px;
     }
 
     if root.empty-slot || root.active-drop-target || (!root.move-target && hover-area.has-hover && !root.suppress-hover-affordance) : Rectangle {
-        x: (parent.width - 28px) / 2;
-        y: 1px;
-        width: 28px;
-        height: 28px;
-        background: root.empty-slot || root.active-drop-target ? #1a2030 : #1e2838;
-        border-width: 2px;
-        border-color: root.active-drop-target ? #6a9ab0 : root.empty-slot ? #3a5a70 : #4a7a90;
-        border-radius: 14px;
+        x: (parent.width - 24px) / 2;
+        y: 0px;
+        width: 24px;
+        height: 24px;
+        background: root.empty-slot || root.active-drop-target ? #20252d : #252a33;
+        border-width: 1px;
+        border-color: root.active-drop-target ? #a9b2bf : root.empty-slot ? #5a6577 : #7c8798;
+        border-radius: 12px;
 
         if root.active-drop-target : Image {
             x: 2px;
             y: 2px;
-            width: 24px;
-            height: 24px;
+            width: 20px;
+            height: 20px;
             source: @image-url("../assets/block-drop-target.svg");
             image-fit: contain;
         }
 
         if !root.active-drop-target : Text {
             x: 0px;
-            y: 0px;
+            y: -1px;
             width: parent.width;
             height: parent.height;
             text: "+";
-            color: #6a9ab0;
+            color: #eef2f8;
             horizontal-alignment: center;
             vertical-alignment: center;
-            font-size: 18px;
-            font-weight: 800;
+            font-size: 15px;
+            font-weight: 700;
         }
     }
 
@@ -1163,16 +1163,14 @@ component ChainRow inherits Rectangle {
         // on Linux/software-renderer, preventing ChainEndpointChip clicks.
         // The suppress-insert-hover reset it provided is non-critical (drag UX polish).
 
-        // Routing cable — subtle signal line
-        // pedal center is at y = 52px + row * 108px
-
+        // Routing lines — pedal center is at y = 52px + row * 108px
         // Row 0 horizontal (starts after in-chip)
         Rectangle {
             x: 98px;
             y: 52px;
             width: root.block-row-count == 1 ? (root.out-chip-x - 98px) : (parent.width - 98px);
             height: 2px;
-            background: @linear-gradient(180deg, #6a9ab0, #4a7a90 50%, #3a6a80);
+            background: #3b4250;
             border-radius: 1px;
         }
 
@@ -1181,16 +1179,24 @@ component ChainRow inherits Rectangle {
             x: parent.width - 2px;
             y: 52px;
             width: 2px;
-            height: 110px;
-            background: @linear-gradient(90deg, #6a9ab0, #4a7a90 50%, #3a6a80);
+            height: 56px;
+            background: #3b4250;
             border-radius: 1px;
         }
         if root.block-row-count > 1 : Rectangle {
             x: 0px;
-            y: 160px;
+            y: 106px;
             width: parent.width;
             height: 2px;
-            background: @linear-gradient(180deg, #6a9ab0, #4a7a90 50%, #3a6a80);
+            background: #3b4250;
+            border-radius: 1px;
+        }
+        if root.block-row-count > 1 : Rectangle {
+            x: 0px;
+            y: 106px;
+            width: 2px;
+            height: 54px;
+            background: #3b4250;
             border-radius: 1px;
         }
 
@@ -1200,7 +1206,7 @@ component ChainRow inherits Rectangle {
             y: 160px;
             width: root.block-row-count == 2 ? root.out-chip-x : parent.width;
             height: 2px;
-            background: @linear-gradient(180deg, #6a9ab0, #4a7a90 50%, #3a6a80);
+            background: #3b4250;
             border-radius: 1px;
         }
 
@@ -1209,16 +1215,24 @@ component ChainRow inherits Rectangle {
             x: parent.width - 2px;
             y: 160px;
             width: 2px;
-            height: 110px;
-            background: @linear-gradient(90deg, #6a9ab0, #4a7a90 50%, #3a6a80);
+            height: 56px;
+            background: #3b4250;
             border-radius: 1px;
         }
         if root.block-row-count > 2 : Rectangle {
             x: 0px;
-            y: 268px;
+            y: 214px;
             width: parent.width;
             height: 2px;
-            background: @linear-gradient(180deg, #6a9ab0, #4a7a90 50%, #3a6a80);
+            background: #3b4250;
+            border-radius: 1px;
+        }
+        if root.block-row-count > 2 : Rectangle {
+            x: 0px;
+            y: 214px;
+            width: 2px;
+            height: 54px;
+            background: #3b4250;
             border-radius: 1px;
         }
 
@@ -1228,7 +1242,7 @@ component ChainRow inherits Rectangle {
             y: 268px;
             width: root.block-row-count == 3 ? root.out-chip-x : parent.width;
             height: 2px;
-            background: @linear-gradient(180deg, #6a9ab0, #4a7a90 50%, #3a6a80);
+            background: #3b4250;
             border-radius: 1px;
         }
 
@@ -1237,16 +1251,24 @@ component ChainRow inherits Rectangle {
             x: parent.width - 2px;
             y: 268px;
             width: 2px;
-            height: 110px;
-            background: @linear-gradient(90deg, #6a9ab0, #4a7a90 50%, #3a6a80);
+            height: 56px;
+            background: #3b4250;
             border-radius: 1px;
         }
         if root.block-row-count > 3 : Rectangle {
             x: 0px;
-            y: 376px;
+            y: 322px;
             width: parent.width;
             height: 2px;
-            background: @linear-gradient(180deg, #6a9ab0, #4a7a90 50%, #3a6a80);
+            background: #3b4250;
+            border-radius: 1px;
+        }
+        if root.block-row-count > 3 : Rectangle {
+            x: 0px;
+            y: 322px;
+            width: 2px;
+            height: 54px;
+            background: #3b4250;
             border-radius: 1px;
         }
 
@@ -1256,7 +1278,7 @@ component ChainRow inherits Rectangle {
             y: 376px;
             width: root.out-chip-x;
             height: 2px;
-            background: @linear-gradient(180deg, #6a9ab0, #4a7a90 50%, #3a6a80);
+            background: #3b4250;
             border-radius: 1px;
         }
 

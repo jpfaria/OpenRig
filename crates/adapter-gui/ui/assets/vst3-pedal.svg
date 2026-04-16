@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 80" width="64" height="80">
+  <defs>
+    <linearGradient id="body" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#3a3a42"/>
+      <stop offset="50%" stop-color="#28282f"/>
+      <stop offset="100%" stop-color="#1a1a22"/>
+    </linearGradient>
+  </defs>
+  <!-- Pedal body -->
+  <rect x="6" y="4" width="52" height="72" rx="6" fill="url(#body)" stroke="#505058" stroke-width="1.2"/>
+  <!-- Top panel -->
+  <rect x="10" y="8" width="44" height="28" rx="3" fill="#1a1a22" stroke="#404048" stroke-width="0.8"/>
+  <!-- VST3 text -->
+  <text x="32" y="26" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" font-weight="bold" fill="#d0d0d8">VST3</text>
+  <!-- Knob -->
+  <circle cx="32" cy="48" r="8" fill="#222228" stroke="#505058" stroke-width="1"/>
+  <circle cx="32" cy="48" r="5" fill="#2a2a32" stroke="#606068" stroke-width="0.8"/>
+  <line x1="32" y1="43" x2="32" y2="46" stroke="#909098" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Footswitch -->
+  <rect x="22" y="62" width="20" height="8" rx="2" fill="#333338" stroke="#505058" stroke-width="0.8"/>
+  <!-- LED -->
+  <circle cx="32" cy="40" r="2" fill="#cc3333" opacity="0.8"/>
+</svg>
