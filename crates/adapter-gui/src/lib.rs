@@ -2823,10 +2823,11 @@ pub fn run_desktop_app(
                     chain.enabled = will_enable;
                     let chain_id = chain.id.clone();
 
-                    // On Linux: if enabling and JACK is not running, start it
-                    // asynchronously so the UI thread is not blocked for ~20s.
-                    #[cfg(target_os = "linux")]
-                    if will_enable && !infra_cpal::jack_is_running() {
+                    // On Linux: always start JACK asynchronously when enabling a chain.
+                    // This prevents blocking the UI thread regardless of whether JACK
+                    // is already running or needs to be started.
+                    #[cfg(all(target_os = "linux", feature = "jack"))]
+                    if will_enable {
                         let (sample_rate, buffer_size) = session
                             .project
                             .device_settings

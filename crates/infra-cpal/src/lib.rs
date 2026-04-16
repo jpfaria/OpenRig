@@ -520,8 +520,10 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
         child.id(), card.server_name
     );
 
-    // Wait for this server's socket to appear (up to 30 seconds).
-    for i in 0..300 {
+    // Wait up to 8 seconds for the server socket to appear.
+    // If not ready by then, read stderr to detect a fast failure (e.g. "Broken pipe")
+    // and return an error immediately so the caller can retry.
+    for i in 0..80 {
         if jack_server_is_running_for(&card.server_name) {
             log::info!(
                 "launch_jackd: server '{}' ready after {}ms",
@@ -531,6 +533,23 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
             return Ok(());
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
+
+        // After 2 seconds, check stderr for a definitive failure message so we
+        // bail out early instead of waiting the full 8 seconds.
+        if i == 20 {
+            if let Ok(stderr_content) = std::fs::read_to_string(&stderr_log) {
+                let failed = stderr_content.contains("Broken pipe")
+                    || stderr_content.contains("Cannot start driver")
+                    || stderr_content.contains("Failed to start server");
+                if failed {
+                    log::warn!(
+                        "launch_jackd: server '{}' failed early, aborting wait",
+                        card.server_name
+                    );
+                    break;
+                }
+            }
+        }
     }
 
     // Log stderr to help diagnose the failure.
@@ -541,7 +560,7 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
     }
 
     bail!(
-        "jackd server '{}' was launched but did not become ready within 30 seconds",
+        "jackd server '{}' failed to start",
         card.server_name
     )
 }
@@ -1391,7 +1410,30 @@ pub fn start_jack_in_background(
                     );
                     continue;
                 }
-                launch_jackd(card, sample_rate, buffer_size)?;
+                // Retry up to 3 times. The first attempt sometimes fails with
+                // "Broken pipe" when the ALSA device needs a moment to settle
+                // after a previous jackd exit or USB reconnect.
+                let mut last_err = anyhow::anyhow!("no attempt made");
+                for attempt in 1u32..=3 {
+                    match launch_jackd(card, sample_rate, buffer_size) {
+                        Ok(()) => { last_err = anyhow::anyhow!("ok"); break; }
+                        Err(e) => {
+                            log::warn!(
+                                "start_jack_in_background: attempt {}/3 for '{}' failed: {}",
+                                attempt, card.server_name, e
+                            );
+                            last_err = e;
+                            if attempt < 3 {
+                                // Kill any orphan jackd and wait 1s before retry
+                                let _ = std::process::Command::new("killall").args(["jackd"]).output();
+                                std::thread::sleep(std::time::Duration::from_secs(1));
+                            }
+                        }
+                    }
+                }
+                if !jack_server_is_running_for(&card.server_name) {
+                    return Err(last_err);
+                }
             }
             invalidate_device_cache();
             Ok(())
