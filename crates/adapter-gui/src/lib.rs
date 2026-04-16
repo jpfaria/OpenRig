@@ -48,7 +48,7 @@ mod ui_state;
 mod visual_config;
 slint::include_modules!();
 const DEFAULT_SAMPLE_RATE: u32 = 48_000;
-const DEFAULT_BUFFER_SIZE_FRAMES: u32 = 256;
+const DEFAULT_BUFFER_SIZE_FRAMES: u32 = 64;
 const DEFAULT_BIT_DEPTH: u32 = 32;
 const SUPPORTED_SAMPLE_RATES: &[u32] = &[44_100, 48_000, 88_200, 96_000];
 const SUPPORTED_BUFFER_SIZES: &[u32] = &[32, 64, 128, 256, 512, 1024];
