@@ -155,7 +155,7 @@ component CompactBlockRow inherits Rectangle {
 
     // ── 5. Brand logo (branded) or native model illustration ──
     BrandLogo {
-        x: 422px;
+        x: 432px;
         y: (parent.height - 28px) / 2;
         width: 60px;
         height: 28px;
@@ -164,7 +164,7 @@ component CompactBlockRow inherits Rectangle {
     }
     // Native models: show model illustration SVG
     if root.block-data.brand == "" : Image {
-        x: 422px; y: (parent.height - 40px) / 2; width: 40px; height: 40px;
+        x: 432px; y: (parent.height - 40px) / 2; width: 40px; height: 40px;
         source: root.block-data.model-id == "gate_basic" ? @image-url("../../../../assets/models/gate_basic.svg")
             : root.block-data.model-id == "compressor_studio_clean" ? @image-url("../../../../assets/models/compressor_studio_clean.svg")
             : root.block-data.model-id == "analog_warm" ? @image-url("../../../../assets/models/analog_warm.svg")
