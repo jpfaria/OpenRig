@@ -90,6 +90,19 @@ for part in "${EMMC}"p*; do
 done
 
 echo ""
+echo "Expanding root partition to fill the full eMMC (${EMMC_SIZE})..."
+# Fix GPT backup header that dd left at the wrong location (SD card size)
+printf "w\nY\n" | fdisk "$EMMC" > /dev/null 2>&1 || true
+# Resize the root partition (p1) to 100% of the device
+yes | parted "$EMMC" ---pretend-input-tty resizepart 1 100% 2>/dev/null
+partprobe "$EMMC" 2>/dev/null || true
+# Expand the filesystem on the root partition
+EMMC_ROOT="${EMMC}p1"
+resize2fs "$EMMC_ROOT"
+NEW_SIZE=$(df -h "$EMMC_ROOT" 2>/dev/null | awk 'NR==2{print $4}')
+echo "Root filesystem expanded — ${NEW_SIZE} available."
+
+echo ""
 echo "Installation complete."
 echo "Remove the SD card and reboot:"
 echo "  reboot"
