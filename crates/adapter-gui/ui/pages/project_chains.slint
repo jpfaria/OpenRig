@@ -958,43 +958,43 @@ component BlockInsertSlot inherits Rectangle {
 
     if !root.empty-slot : Rectangle {
         x: 0px;
-        y: 11px;
+        y: 13px;
         width: parent.width;
-        height: 2px;
-        background: #3b4250;
-        border-radius: 1px;
+        height: 4px;
+        background: @linear-gradient(180deg, #a8d8ea, #6ab0d0 50%, #4a90b0);
+        border-radius: 2px;
     }
 
     if root.empty-slot || root.active-drop-target || (!root.move-target && hover-area.has-hover && !root.suppress-hover-affordance) : Rectangle {
-        x: (parent.width - 24px) / 2;
-        y: 0px;
-        width: 24px;
-        height: 24px;
-        background: root.empty-slot || root.active-drop-target ? #20252d : #252a33;
-        border-width: 1px;
-        border-color: root.active-drop-target ? #a9b2bf : root.empty-slot ? #5a6577 : #7c8798;
-        border-radius: 12px;
+        x: (parent.width - 28px) / 2;
+        y: 1px;
+        width: 28px;
+        height: 28px;
+        background: root.empty-slot || root.active-drop-target ? #1a2030 : #1e2838;
+        border-width: 2px;
+        border-color: root.active-drop-target ? #a8d8ea : root.empty-slot ? #4a7898 : #6ab0d0;
+        border-radius: 14px;
 
         if root.active-drop-target : Image {
             x: 2px;
             y: 2px;
-            width: 20px;
-            height: 20px;
+            width: 24px;
+            height: 24px;
             source: @image-url("../assets/block-drop-target.svg");
             image-fit: contain;
         }
 
         if !root.active-drop-target : Text {
             x: 0px;
-            y: -1px;
+            y: 0px;
             width: parent.width;
             height: parent.height;
             text: "+";
-            color: #eef2f8;
+            color: #a8d8ea;
             horizontal-alignment: center;
             vertical-alignment: center;
-            font-size: 15px;
-            font-weight: 700;
+            font-size: 18px;
+            font-weight: 800;
         }
     }
 
@@ -1163,121 +1163,122 @@ component ChainRow inherits Rectangle {
         // on Linux/software-renderer, preventing ChainEndpointChip clicks.
         // The suppress-insert-hover reset it provided is non-critical (drag UX polish).
 
-        // Routing cable — 3D baby blue cable with rounded U-turns
-        // Cable: 4px thick, fully rounded, gradient for 3D depth
+        // Routing cable — baby blue 3D cable, simple straight lines
         // pedal center is at y = 52px + row * 108px
-        // U-turn radius: 18px rounded rectangle outline (border only, no fill)
 
         // Row 0 horizontal
         Rectangle {
             x: 72px;
             y: 51px;
-            width: root.block-row-count == 1 ? (root.out-chip-x - 72px) : (parent.width - 90px);
+            width: root.block-row-count == 1 ? (root.out-chip-x - 72px) : (parent.width - 72px);
             height: 4px;
             background: @linear-gradient(180deg, #a8d8ea, #6ab0d0 50%, #4a90b0);
             border-radius: 2px;
         }
 
-        // U-turn row 0 → row 1 (right side — rounded corner via border-only rect)
+        // U-turn row 0 → row 1
         if root.block-row-count > 1 : Rectangle {
-            x: parent.width - 36px;
+            x: parent.width - 4px;
             y: 51px;
-            width: 36px;
+            width: 4px;
             height: 113px;
-            background: transparent;
-            border-width: 4px;
-            border-color: #6ab0d0;
-            border-radius: 18px;
+            background: @linear-gradient(90deg, #a8d8ea, #6ab0d0 50%, #4a90b0);
+            border-radius: 2px;
         }
-        // Left side U-turn connector
         if root.block-row-count > 1 : Rectangle {
             x: 0px;
             y: 106px;
-            width: 36px;
-            height: 58px;
-            background: transparent;
-            border-width: 4px;
-            border-color: #6ab0d0;
-            border-radius: 18px;
+            width: parent.width;
+            height: 4px;
+            background: @linear-gradient(180deg, #a8d8ea, #6ab0d0 50%, #4a90b0);
+            border-radius: 2px;
         }
-        // Cover inner edges with background to keep only outer curve
         if root.block-row-count > 1 : Rectangle {
-            x: 4px;
-            y: 110px;
-            width: 28px;
-            height: 50px;
-            background: transparent;
+            x: 0px;
+            y: 106px;
+            width: 4px;
+            height: 56px;
+            background: @linear-gradient(90deg, #a8d8ea, #6ab0d0 50%, #4a90b0);
+            border-radius: 2px;
         }
 
         // Row 1 horizontal
         if root.block-row-count > 1 : Rectangle {
-            x: 32px;
+            x: 0px;
             y: 158px;
-            width: root.block-row-count == 2 ? (root.out-chip-x - 32px) : (parent.width - 68px);
+            width: root.block-row-count == 2 ? root.out-chip-x : parent.width;
             height: 4px;
             background: @linear-gradient(180deg, #a8d8ea, #6ab0d0 50%, #4a90b0);
             border-radius: 2px;
         }
 
-        // U-turn row 1 → row 2 (right side)
+        // U-turn row 1 → row 2
         if root.block-row-count > 2 : Rectangle {
-            x: parent.width - 36px;
+            x: parent.width - 4px;
             y: 158px;
-            width: 36px;
+            width: 4px;
             height: 113px;
-            background: transparent;
-            border-width: 4px;
-            border-color: #6ab0d0;
-            border-radius: 18px;
+            background: @linear-gradient(90deg, #a8d8ea, #6ab0d0 50%, #4a90b0);
+            border-radius: 2px;
         }
         if root.block-row-count > 2 : Rectangle {
             x: 0px;
             y: 214px;
-            width: 36px;
-            height: 58px;
-            background: transparent;
-            border-width: 4px;
-            border-color: #6ab0d0;
-            border-radius: 18px;
+            width: parent.width;
+            height: 4px;
+            background: @linear-gradient(180deg, #a8d8ea, #6ab0d0 50%, #4a90b0);
+            border-radius: 2px;
+        }
+        if root.block-row-count > 2 : Rectangle {
+            x: 0px;
+            y: 214px;
+            width: 4px;
+            height: 56px;
+            background: @linear-gradient(90deg, #a8d8ea, #6ab0d0 50%, #4a90b0);
+            border-radius: 2px;
         }
 
         // Row 2 horizontal
         if root.block-row-count > 2 : Rectangle {
-            x: 32px;
+            x: 0px;
             y: 266px;
-            width: root.block-row-count == 3 ? (root.out-chip-x - 32px) : (parent.width - 68px);
+            width: root.block-row-count == 3 ? root.out-chip-x : parent.width;
             height: 4px;
             background: @linear-gradient(180deg, #a8d8ea, #6ab0d0 50%, #4a90b0);
             border-radius: 2px;
         }
 
-        // U-turn row 2 → row 3 (right side)
+        // U-turn row 2 → row 3
         if root.block-row-count > 3 : Rectangle {
-            x: parent.width - 36px;
+            x: parent.width - 4px;
             y: 266px;
-            width: 36px;
+            width: 4px;
             height: 113px;
-            background: transparent;
-            border-width: 4px;
-            border-color: #6ab0d0;
-            border-radius: 18px;
+            background: @linear-gradient(90deg, #a8d8ea, #6ab0d0 50%, #4a90b0);
+            border-radius: 2px;
         }
         if root.block-row-count > 3 : Rectangle {
             x: 0px;
             y: 322px;
-            width: 36px;
-            height: 58px;
-            background: transparent;
-            border-width: 4px;
-            border-color: #6ab0d0;
-            border-radius: 18px;
+            width: parent.width;
+            height: 4px;
+            background: @linear-gradient(180deg, #a8d8ea, #6ab0d0 50%, #4a90b0);
+            border-radius: 2px;
+        }
+        if root.block-row-count > 3 : Rectangle {
+            x: 0px;
+            y: 322px;
+            width: 4px;
+            height: 56px;
+            background: @linear-gradient(90deg, #a8d8ea, #6ab0d0 50%, #4a90b0);
+            border-radius: 2px;
         }
 
         // Row 3 horizontal
         if root.block-row-count > 3 : Rectangle {
-            x: 32px;
+            x: 0px;
             y: 374px;
-            width: root.out-chip-x - 32px;
+            width: root.out-chip-x;
             height: 4px;
             background: @linear-gradient(180deg, #a8d8ea, #6ab0d0 50%, #4a90b0);
             border-radius: 2px;
