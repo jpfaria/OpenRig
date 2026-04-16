@@ -955,7 +955,7 @@ export component BlockPanelEditor inherits Rectangle {
     if root.block-stream-data.stream-kind != "" && root.block-stream-data.stream-kind != "spectrum" : Rectangle {
         x: 56px;
         y: root.header-height + root.brand-strip-height + root.panel-height * 0.52;
-        width: parent.width - 56px - 230px;
+        width: Math.min(parent.width - 56px - 230px, 240px);
         height: root.panel-height * 0.46;
 
         // Waiting for signal — shown until pitch is detected
