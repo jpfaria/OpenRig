@@ -1,5 +1,0 @@
-# OpenRig — restart JACK when USB audio interface connects or disconnects.
-# This makes audio device hot-swap transparent to the user.
-# Debounced by systemd (RestartSec=3 on jackd.service).
-ACTION=="add",    SUBSYSTEM=="sound", ATTRS{idVendor}!="", TAG+="systemd", RUN+="/bin/systemctl restart jackd.service"
-ACTION=="remove", SUBSYSTEM=="sound", TAG+="systemd", RUN+="/bin/systemctl restart jackd.service"

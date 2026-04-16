@@ -5,11 +5,18 @@
 # permanently to internal storage. The SD card will no longer be needed.
 #
 # Usage (as root):
-#   openrig-install-to-emmc
-#
-# This script uses Armbian's built-in installer (armbian-install).
+#   openrig-install-to-emmc          # interactive (asks for confirmation)
+#   openrig-install-to-emmc --yes    # non-interactive (skip confirmation, SSH-friendly)
 
 set -euo pipefail
+
+# ── Parse flags ───────────────────────────────────────────────────────────────
+AUTO_YES=false
+for arg in "$@"; do
+    case "$arg" in
+        --yes|-y) AUTO_YES=true ;;
+    esac
+done
 
 # ── Check root ────────────────────────────────────────────────────────────────
 if [ "$(id -u)" -ne 0 ]; then
@@ -19,15 +26,20 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 # ── Detect eMMC ───────────────────────────────────────────────────────────────
+# eMMC always exposes mmcblkXboot0/boot1 partitions — use that as the signal.
+# The SD card (current boot device) is excluded by checking /proc/mounts.
 EMMC=""
-for dev in /dev/mmcblk1 /dev/mmcblk2; do
-    if [ -b "$dev" ] && ! grep -q "^${dev}p" /proc/mounts 2>/dev/null; then
-        # Verify it's eMMC (not another SD card)
-        TYPE=$(cat "/sys/block/$(basename "$dev")/device/type" 2>/dev/null || echo "")
-        if [ "$TYPE" = "MMC" ] || [ -e "/sys/block/$(basename "$dev")/device/csd" ]; then
-            EMMC="$dev"
-            break
-        fi
+for dev in /dev/mmcblk0 /dev/mmcblk1 /dev/mmcblk2; do
+    [ -b "$dev" ] || continue
+    name=$(basename "$dev")
+    # Skip if currently mounted as root
+    if grep -q "^${dev}" /proc/mounts 2>/dev/null; then
+        continue
+    fi
+    # eMMC has boot partitions (mmcblkXboot0)
+    if [ -b "/dev/${name}boot0" ]; then
+        EMMC="$dev"
+        break
     fi
 done
 
@@ -37,60 +49,47 @@ if [ -z "$EMMC" ]; then
     exit 1
 fi
 
+SOURCE_DEV=$(findmnt -n -o SOURCE / | sed 's/p[0-9]*$//')
+if [ -z "$SOURCE_DEV" ]; then
+    echo "ERROR: Could not detect source SD card device."
+    exit 1
+fi
+
 EMMC_SIZE=$(lsblk -dno SIZE "$EMMC" 2>/dev/null || echo "unknown size")
+SOURCE_SIZE=$(lsblk -dno SIZE "$SOURCE_DEV" 2>/dev/null || echo "unknown size")
+
 echo "OpenRig — Install to eMMC"
 echo ""
-echo "Source:      SD card (current boot device)"
+echo "Source:      $SOURCE_DEV ($SOURCE_SIZE — current boot device)"
 echo "Destination: $EMMC ($EMMC_SIZE onboard eMMC)"
 echo ""
 echo "WARNING: ALL DATA ON $EMMC WILL BE ERASED."
 echo "         This will install OpenRig permanently to internal storage."
 echo ""
-read -rp "Type YES to continue: " CONFIRM
 
-if [ "$CONFIRM" != "YES" ]; then
-    echo "Aborted."
-    exit 0
-fi
-
-# ── Use armbian-install if available ──────────────────────────────────────────
-if command -v armbian-install >/dev/null 2>&1; then
-    echo ""
-    echo "Running armbian-install..."
-    echo "Select eMMC ($EMMC) when prompted."
-    echo ""
-    armbian-install
-else
-    # Fallback: manual dd copy
-    echo ""
-    echo "armbian-install not found — using direct copy..."
-    echo ""
-
-    SOURCE_DEV=$(findmnt -n -o SOURCE / | sed 's/p[0-9]*$//')
-    if [ -z "$SOURCE_DEV" ]; then
-        echo "ERROR: Could not detect source SD card device."
-        exit 1
-    fi
-
-    SOURCE_SIZE=$(lsblk -dno SIZE "$SOURCE_DEV")
-    echo "Copying $SOURCE_DEV ($SOURCE_SIZE) → $EMMC ($EMMC_SIZE)"
-    echo "This may take 5-15 minutes..."
-    echo ""
-
-    dd if="$SOURCE_DEV" of="$EMMC" bs=4M status=progress conv=fsync
-    sync
-
-    echo ""
-    echo "Updating partition UUIDs..."
-    # Randomize eMMC partition UUID to avoid conflicts with SD card
-    if command -v tune2fs >/dev/null 2>&1; then
-        for part in "${EMMC}"p*; do
-            [ -b "$part" ] && tune2fs -U random "$part" 2>/dev/null || true
-        done
+if [ "$AUTO_YES" = false ]; then
+    read -rp "Type YES to continue: " CONFIRM
+    if [ "$CONFIRM" != "YES" ]; then
+        echo "Aborted."
+        exit 0
     fi
 fi
 
 echo ""
+echo "Copying $SOURCE_DEV → $EMMC (this may take 5-15 minutes)..."
+echo ""
+
+dd if="$SOURCE_DEV" of="$EMMC" bs=4M status=progress conv=fsync
+sync
+
+echo ""
+echo "Running filesystem check on eMMC partitions..."
+for part in "${EMMC}"p*; do
+    [ -b "$part" ] || continue
+    fsck -y "$part" 2>/dev/null || true
+done
+
+echo ""
 echo "Installation complete."
 echo "Remove the SD card and reboot:"
-echo "  sudo reboot"
+echo "  reboot"
