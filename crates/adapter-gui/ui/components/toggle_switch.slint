@@ -1,4 +1,4 @@
-// Sprite-based toggle switch (on/off) with LED indicator.
+// Sprite-based toggle switch (on/off) with LED indicator below.
 // Toggle: 66×45 px, 2 frames horizontal (each 33×45). Left=off, right=on.
 // LED: 64×32 px, 2 frames horizontal (each 32×32). Left=off, right=on.
 export component ToggleSwitch inherits Rectangle {
@@ -11,16 +11,16 @@ export component ToggleSwitch inherits Rectangle {
 
     background: transparent;
 
-    // ── LED indicator above switch ──
+    // ── Toggle switch ──
     Rectangle {
-        x: (root.width - root.led-size) / 2;
+        x: 0;
         y: 0;
-        width: root.led-size;
-        height: root.led-size;
+        width: root.sw-width;
+        height: root.sw-height;
         clip: true;
 
         Image {
-            source: @image-url("../assets/sprites/led-red.png");
+            source: @image-url("../assets/sprites/toggleswitch.png");
             x: root.checked ? -parent.width : 0;
             y: 0;
             width: 2 * parent.width;
@@ -30,16 +30,16 @@ export component ToggleSwitch inherits Rectangle {
         }
     }
 
-    // ── Toggle switch ──
+    // ── LED indicator below switch ──
     Rectangle {
-        x: 0;
-        y: root.led-size + 2px;
-        width: root.sw-width;
-        height: root.sw-height;
+        x: (root.width - root.led-size) / 2;
+        y: root.sw-height + 4px;
+        width: root.led-size;
+        height: root.led-size;
         clip: true;
 
         Image {
-            source: @image-url("../assets/sprites/toggleswitch.png");
+            source: @image-url("../assets/sprites/led-red.png");
             x: root.checked ? -parent.width : 0;
             y: 0;
             width: 2 * parent.width;
