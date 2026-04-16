@@ -435,7 +435,26 @@ fn configure_alsa_mixer(card: &UsbAudioCard) {
         amixer_cset(c, "name='Analogue Output 02 Playback Enum'", "10"); // PCM 2
         // Direct Monitor Off — prevents raw guitar from bleeding into output hardware
         amixer_cset(c, "name='Direct Monitor Playback Enum'", "0"); // Off
-        log::info!("configure_alsa_mixer: Scarlett routing set (Analogue→PCM capture, PCM→Analogue output, Direct Monitor Off)");
+        // Headphone monitor mix: zero all Monitor 1/2 Mix A/B inputs, then route
+        // PCM 1 → headphone L (Monitor 1 Mix A Input 03) and
+        // PCM 2 → headphone R (Monitor 2 Mix A Input 04).
+        // This prevents raw guitar (Analogue 1) from being hardware-monitored in
+        // the headphones alongside the processed signal, which causes acoustic feedback.
+        for name in [
+            "Monitor 1 Mix A Input 01", "Monitor 1 Mix A Input 02",
+            "Monitor 1 Mix A Input 03", "Monitor 1 Mix A Input 04",
+            "Monitor 1 Mix B Input 01", "Monitor 1 Mix B Input 02",
+            "Monitor 1 Mix B Input 03", "Monitor 1 Mix B Input 04",
+            "Monitor 2 Mix A Input 01", "Monitor 2 Mix A Input 02",
+            "Monitor 2 Mix A Input 03", "Monitor 2 Mix A Input 04",
+            "Monitor 2 Mix B Input 01", "Monitor 2 Mix B Input 02",
+            "Monitor 2 Mix B Input 03", "Monitor 2 Mix B Input 04",
+        ] {
+            amixer_cset(c, &format!("name='{} Playback Volume'", name), "0");
+        }
+        amixer_cset(c, "name='Monitor 1 Mix A Input 03 Playback Volume'", "160"); // PCM 1 → headphone L (0 dB)
+        amixer_cset(c, "name='Monitor 2 Mix A Input 04 Playback Volume'", "160"); // PCM 2 → headphone R (0 dB)
+        log::info!("configure_alsa_mixer: Scarlett routing set (Analogue→PCM capture, PCM→Analogue output, Direct Monitor Off, headphone monitor = PCM 1/2 only)");
         return;
     }
 
