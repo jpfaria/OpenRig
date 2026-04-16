@@ -251,11 +251,7 @@ export component BlockPanelEditor inherits Rectangle {
     private property <length> brand-strip-height: 0px;
     // EQ blocks: compact panel (no brand strip, just POWER button pinned to top).
     private property <bool> has-eq-widget: root.curve-editor-points.length > 0 || root.multi-slider-points.length > 0;
-    private property <bool> has-stream: root.block-stream-data.stream-kind != ""
-        && root.block-stream-data.stream-kind != "spectrum";
-    private property <length> panel-height: self.has-eq-widget ? 76px
-        : self.has-stream ? Math.max(260px, root.width / 4)
-        : root.width / 4;
+    private property <length> panel-height: self.has-eq-widget ? 76px : root.width / 4;
     private property <length> footer-height: root.block-drawer-edit-mode ? 0px : 52px;
 
     background: #0a0a0e;
@@ -621,7 +617,7 @@ export component BlockPanelEditor inherits Rectangle {
         }
 
         // ── All parameters (distributed like table columns, when no knob overlays) ──
-        // When stream data is active (tuner etc.), params go BELOW stream data — never overlap
+        // When stream data is active (tuner etc.), push params to right side
         property <bool> has-stream: root.block-stream-data.stream-kind != ""
             && root.block-stream-data.stream-kind != "spectrum";
         HorizontalLayout {
@@ -629,10 +625,10 @@ export component BlockPanelEditor inherits Rectangle {
                 && root.curve-editor-points.length == 0
                 && root.multi-slider-points.length == 0;
             alignment: stretch;
-            padding-left: 60px;
+            padding-left: parent.has-stream ? parent.width - 220px : 60px;
             padding-right: 8px;
             x: 0;
-            y: parent.has-stream ? parent.height * 0.65 : parent.height * 0.54;
+            y: parent.height * 0.54;
             width: parent.width;
             height: 90px;
 
@@ -955,11 +951,11 @@ export component BlockPanelEditor inherits Rectangle {
         update-parameter(path, value) => { root.update-block-parameter-number(path, value); }
     }
 
-    // ── Realtime stream display — top area; params go below, never overlap ──
+    // ── Realtime stream display — positioned between POWER (left) and Reference (right) ──
     if root.block-stream-data.stream-kind != "" && root.block-stream-data.stream-kind != "spectrum" : Rectangle {
         x: 56px;
-        y: root.header-height + root.brand-strip-height + root.panel-height * 0.15;
-        width: parent.width - 112px;
+        y: root.header-height + root.brand-strip-height + root.panel-height * 0.52;
+        width: parent.width - 56px - 260px;
         height: root.panel-height * 0.46;
 
         // Waiting for signal — shown until pitch is detected
