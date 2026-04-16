@@ -4,6 +4,7 @@ import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { BrandLogo } from "../components/brand_logo.slint";
 import { PanelKnob } from "../components/panel_knob.slint";
 import { FootSwitch } from "../components/foot_switch.slint";
+import { PowerSwitch } from "../components/power_switch.slint";
 import { ToggleSwitch } from "../components/toggle_switch.slint";
 import { PanelSlider } from "../components/panel_slider.slint";
 
@@ -28,11 +29,11 @@ component CompactBlockRow inherits Rectangle {
     opacity: root.block-data.enabled ? 1.0 : 0.5;
     border-radius: 4px;
 
-    // ── 1. Power switch (footswitch sprite) ──
-    FootSwitch {
+    // ── 1. Power switch ──
+    PowerSwitch {
         x: 10px;
-        y: (parent.height - 66px) / 2;
-        width: 48px; height: 66px;
+        y: (parent.height - 48px) / 2;
+        width: 48px; height: 48px;
         enabled: root.block-data.enabled;
         clicked => { root.toggle-enabled(root.block-data.chain-index, root.block-data.block-index); }
     }
