@@ -627,12 +627,12 @@ export component BlockPanelEditor inherits Rectangle {
             x: 0;
             y: parent.height * 0.54;
             width: parent.width;
-            height: 110px;
+            height: 90px;
 
             for param[pi] in root.block-parameter-items : Rectangle {
                 visible: param.widget_kind != "";
                 horizontal-stretch: 1;
-                height: 110px;
+                height: 90px;
 
                 // Label
                 Text {
@@ -650,15 +650,15 @@ export component BlockPanelEditor inherits Rectangle {
 
                 // ── Enum ≤4 options (selector knob + inline labels) ──
                 if param.widget_kind == "enum" && param.option_labels.length <= 4 : Rectangle {
-                    x: 0; y: 20px;
-                    width: parent.width; height: 90px;
+                    x: 0; y: 14px;
+                    width: parent.width; height: 76px;
                     background: transparent;
 
-                    property <length> ks: 52px;
+                    property <length> ks: 46px;
                     property <length> cx: self.width / 2;
-                    property <length> top-row: 4px;
-                    property <length> knob-y: 20px;
-                    property <length> bot-row: self.knob-y + self.ks + 4px;
+                    property <length> top-row: 0px;
+                    property <length> knob-y: 14px;
+                    property <length> bot-row: self.knob-y + self.ks + 2px;
                     property <length> lw: Math.max((self.width - self.ks) / 2 - 4px, 0px);
                     property <int> n: param.option_labels.length;
                     property <int> sel: param.selected_option_index;
