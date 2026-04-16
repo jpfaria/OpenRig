@@ -640,10 +640,10 @@ export component BlockPanelEditor inherits Rectangle {
                     height: param.widget_kind == "enum" && param.option_labels.length <= 4 ? 11px : 14px;
                     text: param.label;
                     color: param.widget_kind == "enum" && param.option_labels.length <= 4
-                        ? root.panel-text.with-alpha(0.5) : root.panel-text;
+                        ? root.panel-text.with-alpha(0.65) : root.panel-text;
                     font-family: "Bebas Neue";
-                    font-size: param.widget_kind == "enum" && param.option_labels.length <= 4 ? 8px : 10px;
-                    font-weight: param.widget_kind == "enum" && param.option_labels.length <= 4 ? 400 : 700;
+                    font-size: param.widget_kind == "enum" && param.option_labels.length <= 4 ? 9px : 10px;
+                    font-weight: 700;
                     letter-spacing: param.widget_kind == "enum" && param.option_labels.length <= 4 ? 2.5px : 1.5px;
                     horizontal-alignment: center;
                     overflow: elide;
