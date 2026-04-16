@@ -1,0 +1,33 @@
+// Sprite-based footswitch (on/off toggle).
+// Vertical strip: 88×176 px, 2 frames (each 88×88).
+// Top frame = off, bottom frame = on.
+export component FootSwitch inherits Rectangle {
+    in property <bool> enabled;
+    callback clicked();
+
+    background: transparent;
+
+    Rectangle {
+        x: (root.width - root.width) / 2;
+        y: (root.height - root.width) / 2;
+        width: root.width;
+        height: root.width;
+        clip: true;
+
+        Image {
+            source: @image-url("../assets/sprites/footswitch.png");
+            x: 0;
+            // Off = top frame (y: 0), On = bottom frame (y: -width)
+            y: root.enabled ? -parent.height : 0;
+            width: parent.width;
+            height: 2 * parent.height;
+            image-fit: fill;
+            image-rendering: smooth;
+        }
+    }
+
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}

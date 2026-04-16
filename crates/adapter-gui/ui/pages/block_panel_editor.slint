@@ -2,6 +2,7 @@ import { BlockTypePickerItem, BlockModelPickerItem, BlockKnobOverlay, BlockParam
 import { BrandLogo } from "../components/brand_logo.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { PanelKnob } from "../components/panel_knob.slint";
+import { FootSwitch } from "../components/foot_switch.slint";
 import { CurveEditorControl } from "curve_editor_control.slint";
 import { MultiSliderControl } from "multi_slider_control.slint";
 
@@ -1027,43 +1028,12 @@ export component BlockPanelEditor inherits Rectangle {
     // Falls to 62% when knob overlays are present so it sits alongside the knobs.
     private property <length> power-y: root.header-height + root.brand-strip-height + 4px;
 
-    Rectangle {
-        x: 10px;
-        y: root.power-y;
-        width: 32px;
-        height: 40px;
-        border-radius: 3px;
-        background: #0a0a0a;
-        border-width: 1.5px;
-        border-color: #404040;
-
-        Rectangle {
-            x: 6px;
-            y: root.block-drawer-enabled ? 4px : 20px;
-            width: 20px;
-            height: 16px;
-            border-radius: 2px;
-            background: root.block-drawer-enabled ? #cc2222 : #1a0808;
-            border-width: 1px;
-            border-color: root.block-drawer-enabled ? #ee4444 : #331111;
-        }
-
-        ta-power := TouchArea {
-            mouse-cursor: pointer;
-            clicked => { root.toggle-block-drawer-enabled(); }
-        }
-    }
-
-    Text {
+    FootSwitch {
         x: 8px;
-        y: root.power-y + 44px;
+        y: root.power-y;
         width: 36px;
-        height: 12px;
-        text: "POWER";
-        color: root.panel-text;
-        font-size: 7px;
-        font-weight: 700;
-        letter-spacing: 0.5px;
-        horizontal-alignment: center;
+        height: 36px;
+        enabled: root.block-drawer-enabled;
+        clicked => { root.toggle-block-drawer-enabled(); }
     }
 }
