@@ -627,12 +627,12 @@ export component BlockPanelEditor inherits Rectangle {
             x: 0;
             y: parent.height * 0.54;
             width: parent.width;
-            height: 90px;
+            height: 110px;
 
             for param[pi] in root.block-parameter-items : Rectangle {
                 visible: param.widget_kind != "";
                 horizontal-stretch: 1;
-                height: 90px;
+                height: 110px;
 
                 // Label
                 Text {
@@ -650,13 +650,15 @@ export component BlockPanelEditor inherits Rectangle {
 
                 // ── Enum ≤4 options (selector knob + inline labels) ──
                 if param.widget_kind == "enum" && param.option_labels.length <= 4 : Rectangle {
-                    x: 0; y: 14px;
-                    width: parent.width; height: 76px;
+                    x: 0; y: 20px;
+                    width: parent.width; height: 90px;
                     background: transparent;
 
-                    property <length> ks: 40px;
+                    property <length> ks: 52px;
                     property <length> cx: self.width / 2;
-                    property <length> cy: self.ks / 2 + 16px;
+                    property <length> top-row: 4px;
+                    property <length> knob-y: 20px;
+                    property <length> bot-row: self.knob-y + self.ks + 4px;
                     property <length> lw: Math.max((self.width - self.ks) / 2 - 4px, 0px);
                     property <int> n: param.option_labels.length;
                     property <int> sel: param.selected_option_index;
@@ -664,7 +666,7 @@ export component BlockPanelEditor inherits Rectangle {
 
                     SelectorKnob {
                         x: parent.cx - parent.ks / 2;
-                        y: parent.cy - parent.ks / 2;
+                        y: parent.knob-y;
                         width: parent.ks; height: parent.ks;
                         num-options: parent.n;
                         selected-index: parent.sel;
@@ -674,8 +676,7 @@ export component BlockPanelEditor inherits Rectangle {
                     // ── Bottom-left label (7h) — option 0 ──
                     Text {
                         visible: parent.n >= 2;
-                        x: 0;
-                        y: parent.n == 4 ? parent.cy + parent.ks / 2 + 2px : parent.cy + parent.ks / 2 - 2px;
+                        x: 0; y: parent.bot-row;
                         width: parent.lw; height: 14px;
                         text: param.option_labels.length > 0 ? param.option_labels[0] : "";
                         color: 0 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
@@ -686,8 +687,7 @@ export component BlockPanelEditor inherits Rectangle {
                     }
                     TouchArea {
                         visible: parent.n >= 2;
-                        x: 0;
-                        y: parent.n == 4 ? parent.cy + parent.ks / 2 + 2px : parent.cy + parent.ks / 2 - 2px;
+                        x: 0; y: parent.bot-row;
                         width: parent.lw; height: 14px;
                         mouse-cursor: pointer;
                         clicked => { root.select-block-parameter-option(param.path, 0); }
@@ -696,8 +696,7 @@ export component BlockPanelEditor inherits Rectangle {
                     // ── Bottom-right label (5h) — last option ──
                     Text {
                         visible: parent.n >= 2;
-                        x: parent.cx + parent.ks / 2 + 4px;
-                        y: parent.n == 4 ? parent.cy + parent.ks / 2 + 2px : parent.cy + parent.ks / 2 - 2px;
+                        x: parent.cx + parent.ks / 2 + 4px; y: parent.bot-row;
                         width: parent.lw; height: 14px;
                         text: parent.n == 2 ? (param.option_labels.length > 1 ? param.option_labels[1] : "")
                             : parent.n == 3 ? (param.option_labels.length > 2 ? param.option_labels[2] : "")
@@ -711,8 +710,7 @@ export component BlockPanelEditor inherits Rectangle {
                     }
                     TouchArea {
                         visible: parent.n >= 2;
-                        x: parent.cx + parent.ks / 2 + 4px;
-                        y: parent.n == 4 ? parent.cy + parent.ks / 2 + 2px : parent.cy + parent.ks / 2 - 2px;
+                        x: parent.cx + parent.ks / 2 + 4px; y: parent.bot-row;
                         width: parent.lw; height: 14px;
                         mouse-cursor: pointer;
                         clicked => { root.select-block-parameter-option(param.path, parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3); }
@@ -721,7 +719,7 @@ export component BlockPanelEditor inherits Rectangle {
                     // ── Top-center label (12h) — option 1 for 3-opt ──
                     Text {
                         visible: parent.n == 3;
-                        x: parent.cx - 55px; y: 0;
+                        x: parent.cx - 55px; y: parent.top-row;
                         width: 110px; height: 14px;
                         text: param.option_labels.length > 1 ? param.option_labels[1] : "";
                         color: 1 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
@@ -732,7 +730,7 @@ export component BlockPanelEditor inherits Rectangle {
                     }
                     TouchArea {
                         visible: parent.n == 3;
-                        x: parent.cx - 55px; y: 0; width: 110px; height: 14px;
+                        x: parent.cx - 55px; y: parent.top-row; width: 110px; height: 14px;
                         mouse-cursor: pointer;
                         clicked => { root.select-block-parameter-option(param.path, 1); }
                     }
@@ -740,7 +738,7 @@ export component BlockPanelEditor inherits Rectangle {
                     // ── Upper-left label (10h) — option 1 for 4-opt ──
                     Text {
                         visible: parent.n == 4;
-                        x: 0; y: 0;
+                        x: 0; y: parent.top-row;
                         width: parent.lw; height: 14px;
                         text: param.option_labels.length > 1 ? param.option_labels[1] : "";
                         color: 1 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
@@ -751,7 +749,7 @@ export component BlockPanelEditor inherits Rectangle {
                     }
                     TouchArea {
                         visible: parent.n == 4;
-                        x: 0; y: 0; width: parent.lw; height: 14px;
+                        x: 0; y: parent.top-row; width: parent.lw; height: 14px;
                         mouse-cursor: pointer;
                         clicked => { root.select-block-parameter-option(param.path, 1); }
                     }
@@ -759,7 +757,7 @@ export component BlockPanelEditor inherits Rectangle {
                     // ── Upper-right label (2h) — option 2 for 4-opt ──
                     Text {
                         visible: parent.n == 4;
-                        x: parent.cx + parent.ks / 2 + 4px; y: 0;
+                        x: parent.cx + parent.ks / 2 + 4px; y: parent.top-row;
                         width: parent.lw; height: 14px;
                         text: param.option_labels.length > 2 ? param.option_labels[2] : "";
                         color: 2 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
@@ -770,7 +768,7 @@ export component BlockPanelEditor inherits Rectangle {
                     }
                     TouchArea {
                         visible: parent.n == 4;
-                        x: parent.cx + parent.ks / 2 + 4px; y: 0; width: parent.lw; height: 14px;
+                        x: parent.cx + parent.ks / 2 + 4px; y: parent.top-row; width: parent.lw; height: 14px;
                         mouse-cursor: pointer;
                         clicked => { root.select-block-parameter-option(param.path, 2); }
                     }
@@ -919,10 +917,10 @@ export component BlockPanelEditor inherits Rectangle {
 
                 // ── Boolean toggle (sprite) ──
                 if param.widget_kind == "bool" : ToggleSwitch {
-                    x: (parent.width - 44px) / 2;
-                    y: 2px;
-                    width: 44px;
-                    height: 88px;
+                    x: (parent.width - 33px) / 2;
+                    y: 6px;
+                    width: 33px;
+                    height: 66px;
                     checked: param.bool_value;
                     toggled => { root.update-block-parameter-bool(param.path, !param.bool_value); }
                 }
