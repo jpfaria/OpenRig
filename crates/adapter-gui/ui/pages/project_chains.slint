@@ -1036,7 +1036,7 @@ component ChainRow inherits Rectangle {
     property <int> last-block-col: root.chain.blocks.length == 0 ? 0 : Math.mod(root.chain.blocks.length - 1, root.blocks-per-row);
     property <int> last-block-row: root.chain.blocks.length == 0 ? 0 : Math.floor((root.chain.blocks.length - 1) / root.blocks-per-row);
     // Out sempre fixo na borda direita da linha do último bloco
-    property <length> out-chip-x: root.width - 128px;
+    property <length> out-chip-x: root.width - 160px;
     property <length> out-chip-y: root.last-block-row * 108px + 24px;
     out property <bool> any-chip-hovered: in-chip.is-hovered || out-chip.is-hovered;
 
