@@ -504,7 +504,7 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
             "-d", &format!("hw:{}", card.card_num),
             "-r", &sample_rate.to_string(),
             "-p", &buffer_size.to_string(),
-            "-n", "2",
+            "-n", "3",
             "-i", &capture_ch.to_string(),
             "-o", &playback_ch.to_string(),
         ])
