@@ -9,8 +9,8 @@ const SELECT_SELECTED_BLOCK_ID: &str = "__select.selected_block_id";
 use application::validate::validate_project;
 use domain::ids::{BlockId, DeviceId, ChainId};
 use infra_cpal::{
-    list_input_device_descriptors, list_output_device_descriptors, AudioDeviceDescriptor,
-    ProjectRuntimeController,
+    invalidate_device_cache, list_input_device_descriptors, list_output_device_descriptors,
+    AudioDeviceDescriptor, ProjectRuntimeController,
 };
 use infra_filesystem::{
     AppConfig, FilesystemStorage, GuiAudioDeviceSettings, GuiAudioSettings, RecentProjectEntry,
@@ -1999,6 +1999,8 @@ pub fn run_desktop_app(
             let Some(settings_window) = project_settings_window.upgrade() else {
                 return;
             };
+            // Invalidate device cache so newly connected/disconnected interfaces appear.
+            invalidate_device_cache();
             let fresh_input = refresh_input_devices(&chain_input_device_options);
             let fresh_output = refresh_output_devices(&chain_output_device_options);
             let session_borrow = project_session.borrow();
