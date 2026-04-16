@@ -599,8 +599,8 @@ export component CompactChainViewPage inherits Rectangle {
         // Chain power toggle (sprite)
         PowerSwitch {
             x: 8px;
-            y: (parent.height - 16px) / 2;
-            width: 36px; height: 16px;
+            y: (parent.height - 24px) / 2;
+            width: 50px; height: 24px;
             enabled: root.chain-enabled;
             clicked => { root.toggle-chain-enabled(root.chain-index); }
         }
