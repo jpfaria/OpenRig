@@ -56,6 +56,7 @@ export component SelectorKnob inherits Rectangle {
     // 2 OPTIONS: bottom-left (7h), bottom-right (5h)
     // ═══════════════════════════════════════════
     if root.num-options == 2 : Rectangle {
+        x: 0; y: 0; width: root.width; height: root.height;
         Text {
             x: 0;
             y: root.cy + root.ks / 2 - 2px;
@@ -88,6 +89,7 @@ export component SelectorKnob inherits Rectangle {
     // 3 OPTIONS: bottom-left (7h), top-center (12h), bottom-right (5h)
     // ═══════════════════════════════════════════
     if root.num-options == 3 : Rectangle {
+        x: 0; y: 0; width: root.width; height: root.height;
         // Option 0 — bottom-left (7 o'clock)
         Text {
             x: 0;
@@ -136,6 +138,7 @@ export component SelectorKnob inherits Rectangle {
     // 4 OPTIONS: bottom-left (7h), upper-left (10h), upper-right (2h), bottom-right (5h)
     // ═══════════════════════════════════════════
     if root.num-options == 4 : Rectangle {
+        x: 0; y: 0; width: root.width; height: root.height;
         // Option 0 — bottom-left (7 o'clock)
         Text {
             x: 0;
