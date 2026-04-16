@@ -654,6 +654,7 @@ export component BlockPanelEditor inherits Rectangle {
                     num-options: param.option_labels.length;
                     selected-index: param.selected_option_index;
                     labels: param.option_labels;
+                    text-color: root.panel-text;
                     select(i) => { root.select-block-parameter-option(param.path, i); }
                 }
 

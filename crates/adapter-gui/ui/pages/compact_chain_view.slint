@@ -277,9 +277,11 @@ component CompactBlockRow inherits Rectangle {
                 : 56px;
             height: 90px;
 
-            // Label
+            // Label (top for non-enum, bottom for enum selector)
             Text {
-                x: 0; y: 9px; width: parent.width; height: 12px;
+                x: 0;
+                y: param.widget_kind == "enum" && param.option_labels.length <= 4 ? 0 : 9px;
+                width: parent.width; height: 12px;
                 text: param.label;
                 color: root.block-data.panel-text;
                 font-family: "Bebas Neue";
@@ -302,11 +304,12 @@ component CompactBlockRow inherits Rectangle {
 
             // ── Enum ≤4 options (selector knob) ──
             if param.widget_kind == "enum" && param.option_labels.length <= 4 : SelectorKnob {
-                x: 0; y: 14px;
-                width: parent.width; height: 72px;
+                x: 0; y: 12px;
+                width: parent.width; height: 78px;
                 num-options: param.option_labels.length;
                 selected-index: param.selected_option_index;
                 labels: param.option_labels;
+                text-color: root.block-data.panel-text;
                 select(i) => { root.select-parameter-option(root.block-data.chain-index, root.block-data.block-index, param.path, i); }
             }
 
