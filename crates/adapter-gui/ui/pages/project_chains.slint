@@ -625,19 +625,16 @@ component ChainEndpointChip inherits Rectangle {
     callback clicked();
     out property <bool> is-hovered: hover-area.has-hover;
 
-    width: 72px;
+    width: root.is-input ? 72px : 90px;
     height: 72px;
-    background: hover-area.has-hover ? #1e2530e0 : #141820e0;
-    border-width: 1px;
-    border-color: hover-area.has-hover ? #5a7fa8 : #364050;
-    border-radius: 10px;
+    background: transparent;
 
     // Connector photo (XLR female for input, P10 jack for output)
     Image {
-        x: (parent.width - 44px) / 2;
-        y: 4px;
-        width: 44px;
-        height: 44px;
+        x: root.is-input ? (parent.width - 56px) / 2 : (parent.width - 72px) / 2;
+        y: root.is-input ? 2px : 10px;
+        width: root.is-input ? 56px : 72px;
+        height: root.is-input ? 52px : 36px;
         source: root.is-input
             ? @image-url("../assets/connector-input.png")
             : @image-url("../assets/connector-output.png");
@@ -649,7 +646,7 @@ component ChainEndpointChip inherits Rectangle {
     // Label
     Text {
         x: 4px;
-        y: 46px;
+        y: root.is-input ? 54px : 48px;
         width: parent.width - 8px;
         height: 16px;
         text: root.label;
