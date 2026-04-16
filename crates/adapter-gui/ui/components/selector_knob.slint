@@ -1,0 +1,87 @@
+// Rotary selector knob using switchbox sprite sheets.
+// 2-position: 274×149, 2 frames horizontal (137px each)
+// 3-position: 411×149, 3 frames horizontal (137px each)
+export component SelectorKnob inherits Rectangle {
+    in property <int> num-options;       // 2 or 3
+    in property <int> selected-index;    // 0-based
+    in property <[string]> labels;
+    callback select(int);
+
+    background: transparent;
+
+    // Knob area (square, centered horizontally)
+    Rectangle {
+        x: (parent.width - self.width) / 2;
+        y: 0;
+        width: root.height - 16px;
+        height: root.height - 16px;
+        clip: true;
+
+        // 3-option sprite
+        if root.num-options == 3 : Image {
+            source: @image-url("../assets/sprites/selector-knob-3.png");
+            y: 0;
+            x: root.selected-index == 0 ? 0
+                : root.selected-index == 1 ? -parent.width
+                : -2 * parent.width;
+            width: 3 * parent.width;
+            height: parent.height;
+            image-fit: fill;
+            image-rendering: smooth;
+        }
+
+        // 2-option sprite
+        if root.num-options == 2 : Image {
+            source: @image-url("../assets/sprites/selector-knob-2.png");
+            y: 0;
+            x: root.selected-index == 0 ? 0 : -parent.width;
+            width: 2 * parent.width;
+            height: parent.height;
+            image-fit: fill;
+            image-rendering: smooth;
+        }
+    }
+
+    // Labels below knob
+    HorizontalLayout {
+        x: 0;
+        y: root.height - 14px;
+        width: root.width;
+        height: 14px;
+
+        for label[i] in root.labels : Rectangle {
+            horizontal-stretch: 1;
+            height: parent.height;
+
+            Text {
+                width: parent.width;
+                height: parent.height;
+                text: label;
+                color: i == root.selected-index ? #ff8833 : #8090a0;
+                font-size: 8px;
+                font-weight: i == root.selected-index ? 700 : 400;
+                letter-spacing: 0.5px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.select(i); }
+            }
+        }
+    }
+
+    // Click on knob cycles through options
+    TouchArea {
+        x: (parent.width - (root.height - 16px)) / 2;
+        y: 0;
+        width: root.height - 16px;
+        height: root.height - 16px;
+        mouse-cursor: pointer;
+        clicked => {
+            root.select(Math.mod(root.selected-index + 1, root.num-options));
+        }
+    }
+}
