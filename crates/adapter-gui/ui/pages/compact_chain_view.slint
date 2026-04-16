@@ -494,10 +494,11 @@ component CompactBlockRow inherits Rectangle {
     }
 
     // ── Stream data display (tuner readings, meter, etc.) ──
+    // Width stops before parameter knobs on the right (~180px reserved for params)
     if root.block-data.stream-data.stream-kind != "" && root.block-data.stream-data.stream-kind != "spectrum" : Rectangle {
         x: 470px;
         y: 4px;
-        width: parent.width - 510px;
+        width: parent.width - 470px - 180px;
         height: parent.height - 8px;
         background: transparent;
 

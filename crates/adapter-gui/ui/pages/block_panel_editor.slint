@@ -251,11 +251,7 @@ export component BlockPanelEditor inherits Rectangle {
     private property <length> brand-strip-height: 0px;
     // EQ blocks: compact panel (no brand strip, just POWER button pinned to top).
     private property <bool> has-eq-widget: root.curve-editor-points.length > 0 || root.multi-slider-points.length > 0;
-    private property <bool> has-stream: root.block-stream-data.stream-kind != ""
-        && root.block-stream-data.stream-kind != "spectrum";
-    private property <length> panel-height: self.has-eq-widget ? 76px
-        : self.has-stream ? Math.max(260px, root.width / 4)
-        : root.width / 4;
+    private property <length> panel-height: self.has-eq-widget ? 76px : root.width / 4;
     private property <length> footer-height: root.block-drawer-edit-mode ? 0px : 52px;
 
     background: #0a0a0e;
@@ -959,7 +955,7 @@ export component BlockPanelEditor inherits Rectangle {
     if root.block-stream-data.stream-kind != "" && root.block-stream-data.stream-kind != "spectrum" : Rectangle {
         x: 56px;
         y: root.header-height + root.brand-strip-height + root.panel-height * 0.52;
-        width: parent.width - 56px - 260px;
+        width: Math.min(parent.width - 56px - 230px, 240px);
         height: root.panel-height * 0.46;
 
         // Waiting for signal — shown until pitch is detected
