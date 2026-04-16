@@ -617,12 +617,15 @@ export component BlockPanelEditor inherits Rectangle {
         }
 
         // ── All parameters (distributed like table columns, when no knob overlays) ──
+        // When stream data is active (tuner etc.), push params to right side
+        property <bool> has-stream: root.block-stream-data.stream-kind != ""
+            && root.block-stream-data.stream-kind != "spectrum";
         HorizontalLayout {
             visible: root.block-knob-overlays.length == 0
                 && root.curve-editor-points.length == 0
                 && root.multi-slider-points.length == 0;
             alignment: stretch;
-            padding-left: 60px;
+            padding-left: parent.has-stream ? parent.width - 220px : 60px;
             padding-right: 8px;
             x: 0;
             y: parent.height * 0.54;
