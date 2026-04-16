@@ -302,8 +302,8 @@ component CompactBlockRow inherits Rectangle {
 
             // ── Enum ≤4 options (selector knob) ──
             if param.widget_kind == "enum" && param.option_labels.length <= 4 : SelectorKnob {
-                x: -10px; y: 14px;
-                width: 76px; height: 76px;
+                x: 0; y: 14px;
+                width: parent.width; height: 72px;
                 num-options: param.option_labels.length;
                 selected-index: param.selected_option_index;
                 labels: param.option_labels;
