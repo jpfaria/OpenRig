@@ -296,6 +296,7 @@ pub enum BiquadKind {
     HighShelf,
     HighPass,
     LowPass,
+    Notch,
 }
 
 impl BiquadFilter {
@@ -360,6 +361,17 @@ impl BiquadFilter {
                     (1.0 - cos_w0) / 2.0,
                     1.0 - cos_w0,
                     (1.0 - cos_w0) / 2.0,
+                    1.0 + alpha,
+                    -2.0 * cos_w0,
+                    1.0 - alpha,
+                )
+            }
+            BiquadKind::Notch => {
+                let alpha = sin_w0 / (2.0 * q.max(0.01));
+                (
+                    1.0,
+                    -2.0 * cos_w0,
+                    1.0,
                     1.0 + alpha,
                     -2.0 * cos_w0,
                     1.0 - alpha,
