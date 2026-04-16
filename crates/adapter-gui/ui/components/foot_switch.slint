@@ -1,5 +1,5 @@
 // Sprite-based footswitch with LED indicator.
-// Footswitch: 88×176 px, 2 frames vertical (each 88×88). Top=off, bottom=on.
+// Footswitch: 88×176 px, 2 frames vertical (each 88×88). Top=on(pressed), bottom=off(released).
 // LED: 64×32 px, 2 frames horizontal (each 32×32). Left=off, right=on.
 export component FootSwitch inherits Rectangle {
     in property <bool> enabled;
@@ -40,7 +40,7 @@ export component FootSwitch inherits Rectangle {
         Image {
             source: @image-url("../assets/sprites/footswitch.png");
             x: 0;
-            y: root.enabled ? -parent.height : 0;
+            y: root.enabled ? 0 : -parent.height;
             width: parent.width;
             height: 2 * parent.height;
             image-fit: fill;
