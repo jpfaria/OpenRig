@@ -1,4 +1,5 @@
 import { CurveEditorPoint } from "../models.slint";
+import { PanelSlider } from "../components/panel_slider.slint";
 
 export component CurveEditorControl inherits Rectangle {
     in property <[CurveEditorPoint]> points;
@@ -38,81 +39,25 @@ export component CurveEditorControl inherits Rectangle {
 
     // Per-band vertical sliders
     for point[i] in root.points : Rectangle {
-        private property <float> norm: (point.y-value - point.y-min) / Math.max(0.001, point.y-max - point.y-min);
-
-        property <length> slider-w: Math.max(4px, (root.width - 2px) / Math.max(1, root.points.length) - 1px);
-        x: i * (self.slider-w + 1px);
+        property <length> slider-w: Math.max(24px, (root.width - 16px) / Math.max(1, root.points.length));
+        property <length> fader-w: Math.min(self.slider-w - 8px, 36px);
+        x: 8px + i * self.slider-w;
         y: 0;
         width: self.slider-w;
         height: parent.height;
 
-        // Full-column touch area — absolute mouse-y → value.
-        // Guard moved with self.pressed: in Slint 1.x moved fires on hover too.
-        TouchArea {
-            mouse-cursor: ns-resize;
-            moved => {
-                if (self.pressed) {
-                    let track-top = 4.0;
-                    let track-h = root.chart-h / 1px - 8.0;
-                    let norm = Math.clamp(1.0 - (self.mouse-y / 1px - track-top) / track-h, 0.0, 1.0);
-                    let new-gain = Math.clamp(
-                        point.y-min + norm * (point.y-max - point.y-min),
-                        point.y-min, point.y-max);
-                    root.update-parameter(point.y-path, new-gain);
-                }
-            }
-            clicked => {
-                let track-top = 4.0;
-                let track-h = root.chart-h / 1px - 8.0;
-                let norm = Math.clamp(1.0 - (self.mouse-y / 1px - track-top) / track-h, 0.0, 1.0);
-                let new-gain = Math.clamp(
-                    point.y-min + norm * (point.y-max - point.y-min),
-                    point.y-min, point.y-max);
-                root.update-parameter(point.y-path, new-gain);
-            }
-        }
-
-        // Track
-        Rectangle {
-            x: parent.width / 2 - 1px;
+        // PanelSlider sprite
+        PanelSlider {
+            x: (parent.width - parent.fader-w) / 2;
             y: 4px;
-            width: 2px;
+            width: parent.fader-w;
             height: root.chart-h - 8px;
-            background: #ffffff15;
-        }
-
-        // Fill from 0 dB to current gain
-        Rectangle {
-            property <float> center-norm: (0.0 - point.y-min) / Math.max(0.001, point.y-max - point.y-min);
-            property <length> center-y: (1.0 - parent.norm) * (root.chart-h - 8px) + 4px;
-            property <length> zero-y: (1.0 - self.center-norm) * (root.chart-h - 8px) + 4px;
-            x: parent.width / 2 - 2px;
-            y: Math.min(self.center-y, self.zero-y);
-            width: 4px;
-            height: Math.abs(self.center-y - self.zero-y);
-            background: #4488ff80;
-        }
-
-        // Thumb (visual only — interaction is on TouchArea above)
-        Rectangle {
-            property <length> thumb-w: Math.min(parent.width - 8px, 48px);
-            x: (parent.width - self.thumb-w) / 2;
-            y: (1.0 - parent.norm) * (root.chart-h - 8px) + 4px - 4px;
-            width: self.thumb-w;
-            height: 8px;
-            border-radius: 4px;
-            background: #88aaff;
-        }
-
-        // Gain label above thumb
-        Text {
-            x: 0;
-            y: (1.0 - parent.norm) * (root.chart-h - 8px) + 4px - 16px;
-            width: parent.width;
-            text: point.y-label;
-            color: #ffffffa0;
-            font-size: 9px;
-            horizontal-alignment: center;
+            value: point.y-value;
+            min-val: point.y-min;
+            max-val: point.y-max;
+            step: 0.1;
+            path: point.y-path;
+            changed(p, v) => { root.update-parameter(p, v); }
         }
 
         // Frequency label at bottom

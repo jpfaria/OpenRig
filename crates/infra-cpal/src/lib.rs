@@ -488,15 +488,18 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
         child.id(), card.server_name
     );
 
-    // Wait up to 8 seconds for the server socket to appear.
-    // If not ready by then, read stderr to detect a fast failure (e.g. "Broken pipe")
-    // and return an error immediately so the caller can retry.
+    // Wait up to 8 seconds for the server socket to appear, then add a fixed
+    // 600ms delay for the shm segments to be fully initialized.
+    // The UNIX socket appears before the shm is ready — without this delay,
+    // the first client connection attempt fails with "Cannot open shm segment".
     for i in 0..80 {
         if jack_server_is_running_for(&card.server_name) {
             log::info!(
-                "launch_jackd: server '{}' ready after {}ms",
+                "launch_jackd: server '{}' socket ready after {}ms, waiting 600ms for shm",
                 card.server_name, i * 100
             );
+            std::thread::sleep(std::time::Duration::from_millis(600));
+            log::info!("launch_jackd: server '{}' ready", card.server_name);
             invalidate_jack_meta_cache_for(&card.server_name);
             return Ok(());
         }
@@ -1080,11 +1083,33 @@ fn build_jack_direct_chain(
     );
 
     let client_name = format!("openrig_{}", chain_id.0);
-    let _lock = JACK_CONNECT_LOCK.lock().unwrap();
-    std::env::set_var("JACK_DEFAULT_SERVER", &server_name);
-    let result = jack::Client::new(&client_name, jack::ClientOptions::NO_START_SERVER);
-    std::env::remove_var("JACK_DEFAULT_SERVER");
-    drop(_lock);
+    // Retry up to 5 times with 200ms between attempts.
+    // The JACK UNIX socket appears before the shm segments are fully initialized,
+    // so the first connection attempt can fail with "Cannot open shm segment".
+    let result = (|| {
+        for attempt in 0..5u32 {
+            let _lock = JACK_CONNECT_LOCK.lock().unwrap();
+            std::env::set_var("JACK_DEFAULT_SERVER", &server_name);
+            let r = jack::Client::new(&client_name, jack::ClientOptions::NO_START_SERVER);
+            std::env::remove_var("JACK_DEFAULT_SERVER");
+            drop(_lock);
+            match r {
+                Ok(ok) => return Ok(ok),
+                Err(e) => {
+                    if attempt < 4 {
+                        log::warn!(
+                            "JACK client '{}' connect attempt {} failed ({:?}), retrying in 200ms",
+                            client_name, attempt + 1, e
+                        );
+                        std::thread::sleep(std::time::Duration::from_millis(200));
+                    } else {
+                        return Err(e);
+                    }
+                }
+            }
+        }
+        unreachable!()
+    })();
     let (client, _status) = result
         .map_err(|e| anyhow!("failed to create JACK client for server '{}': {:?}", server_name, e))?;
 
@@ -1559,15 +1584,20 @@ fn enumerate_input_devices_uncached() -> Result<Vec<AudioDeviceDescriptor>> {
         if jack_server_is_running() {
             return jack_enumerate_input_devices();
         }
-        // JACK not running — read /proc/asound/cards without opening any PCM.
-        // Never use CPAL's ALSA enumeration here: device.supported_input_configs()
-        // opens the PCM and on RK3588 xHCI this triggers the scarlett2 driver to
-        // put the Scarlett into standalone mode (red LED). Proc read is instant and
-        // does not touch ALSA at all.
+        // JACK not running — detect USB audio cards from /proc/asound/cards and
+        // return them with jack:<name> device IDs, matching what is stored in
+        // project YAML. This avoids calling supported_input_configs() (which
+        // opens the PCM and triggers scarlett2 disconnects) and ensures device_id
+        // consistency regardless of ALSA card numbering order (hw:0 vs hw:1).
         invalidate_jack_meta_cache();
-        log::info!("JACK not running, reading /proc/asound/cards for input devices (no PCM probe)");
-        let cards = enumerate_alsa_cards_from_proc();
-        log::info!("[enumerate_input] proc cards: {} devices", cards.len());
+        log::info!("JACK not running, detecting USB audio cards for input devices (no PCM probe)");
+        let usb_cards = detect_all_usb_audio_cards();
+        let cards: Vec<AudioDeviceDescriptor> = usb_cards.iter().map(|c| AudioDeviceDescriptor {
+            id: c.device_id.clone(),
+            name: c.display_name.clone(),
+            channels: 2,
+        }).collect();
+        log::info!("[enumerate_input] usb cards: {} devices", cards.len());
         return Ok(cards);
     }
 
@@ -1599,9 +1629,14 @@ fn enumerate_output_devices_uncached() -> Result<Vec<AudioDeviceDescriptor>> {
             return jack_enumerate_output_devices();
         }
         invalidate_jack_meta_cache();
-        log::info!("JACK not running, reading /proc/asound/cards for output devices (no PCM probe)");
-        let cards = enumerate_alsa_cards_from_proc();
-        log::info!("[enumerate_output] proc cards: {} devices", cards.len());
+        log::info!("JACK not running, detecting USB audio cards for output devices (no PCM probe)");
+        let usb_cards = detect_all_usb_audio_cards();
+        let cards: Vec<AudioDeviceDescriptor> = usb_cards.iter().map(|c| AudioDeviceDescriptor {
+            id: c.device_id.clone(),
+            name: c.display_name.clone(),
+            channels: 2,
+        }).collect();
+        log::info!("[enumerate_output] usb cards: {} devices", cards.len());
         return Ok(cards);
     }
 

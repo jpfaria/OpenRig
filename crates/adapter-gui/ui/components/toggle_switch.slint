@@ -1,0 +1,56 @@
+// Sprite-based toggle switch (on/off) with LED indicator below.
+// Toggle: 66×45 px, 2 frames horizontal (each 33×45). Left=off, right=on.
+// LED: 64×32 px, 2 frames horizontal (each 32×32). Left=off, right=on.
+export component ToggleSwitch inherits Rectangle {
+    in property <bool> checked;
+    callback toggled();
+
+    private property <length> sw-width: root.width;
+    private property <length> sw-height: root.width * 45 / 33;
+    private property <length> led-size: root.width * 0.3;
+
+    background: transparent;
+
+    // ── Toggle switch ──
+    Rectangle {
+        x: 0;
+        y: 0;
+        width: root.sw-width;
+        height: root.sw-height;
+        clip: true;
+
+        Image {
+            source: @image-url("../assets/sprites/toggleswitch.png");
+            x: root.checked ? -parent.width : 0;
+            y: 0;
+            width: 2 * parent.width;
+            height: parent.height;
+            image-fit: fill;
+            image-rendering: smooth;
+        }
+    }
+
+    // ── LED indicator below switch ──
+    Rectangle {
+        x: (root.width - root.led-size) / 2;
+        y: root.sw-height + 4px;
+        width: root.led-size;
+        height: root.led-size;
+        clip: true;
+
+        Image {
+            source: @image-url("../assets/sprites/led-red.png");
+            x: root.checked ? 0 : -parent.width;
+            y: 0;
+            width: 2 * parent.width;
+            height: parent.height;
+            image-fit: fill;
+            image-rendering: smooth;
+        }
+    }
+
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.toggled(); }
+    }
+}

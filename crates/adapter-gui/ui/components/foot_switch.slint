@@ -1,0 +1,55 @@
+// Sprite-based footswitch with LED indicator.
+// Footswitch: 88×176 px, 2 frames vertical (each 88×88). Top=off, bottom=on.
+// LED: 64×32 px, 2 frames horizontal (each 32×32). Left=off, right=on.
+export component FootSwitch inherits Rectangle {
+    in property <bool> enabled;
+    callback clicked();
+
+    private property <length> btn-size: root.width;
+    private property <length> led-size: root.width * 0.3;
+
+    background: transparent;
+
+    // ── LED indicator above button ──
+    Rectangle {
+        x: (root.width - root.led-size) / 2;
+        y: 0;
+        width: root.led-size;
+        height: root.led-size;
+        clip: true;
+
+        Image {
+            source: @image-url("../assets/sprites/led-red.png");
+            x: root.enabled ? 0 : -parent.width;
+            y: 0;
+            width: 2 * parent.width;
+            height: parent.height;
+            image-fit: fill;
+            image-rendering: smooth;
+        }
+    }
+
+    // ── Footswitch button ──
+    Rectangle {
+        x: 0;
+        y: root.led-size + 2px;
+        width: root.btn-size;
+        height: root.btn-size;
+        clip: true;
+
+        Image {
+            source: @image-url("../assets/sprites/footswitch.png");
+            x: 0;
+            y: root.enabled ? -parent.height : 0;
+            width: parent.width;
+            height: 2 * parent.height;
+            image-fit: fill;
+            image-rendering: smooth;
+        }
+    }
+
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
