@@ -498,6 +498,7 @@ pub fn run_desktop_app(
     let output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>> = Rc::new(RefCell::new(
         if needs_audio_settings { list_output_device_descriptors().unwrap_or_default() } else { Vec::new() }
     ));
+    let preset_file_list: Rc<RefCell<Vec<std::path::PathBuf>>> = Rc::new(RefCell::new(Vec::new()));
     let window = AppWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     window.window().set_size(slint::WindowSize::Logical(slint::LogicalSize {
         width: 1100.0,
@@ -647,29 +648,6 @@ pub fn run_desktop_app(
                 window.set_show_project_chains(true);
                 window.set_skip_launcher(true);
                 log::info!("CLI: opened {:?}", canonical_path);
-
-                // Auto-start enabled chains at startup (needed for Orange Pi auto-boot)
-                {
-                    let session_borrow = project_session.borrow();
-                    if let Some(session) = session_borrow.as_ref() {
-                        let has_enabled = session.project.chains.iter().any(|c| c.enabled);
-                        if has_enabled {
-                            drop(session_borrow);
-                            let mut session_borrow = project_session.borrow_mut();
-                            if let Some(session) = session_borrow.as_mut() {
-                                for chain in &session.project.chains {
-                                    if chain.enabled {
-                                        let chain_id = chain.id.clone();
-                                        log::info!("auto-starting enabled chain '{}'", chain_id.0);
-                                        if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                                            log::error!("failed to auto-start chain '{}': {}", chain_id.0, e);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
             }
             Err(e) => {
                 log::error!("CLI project open failed, falling back to launcher: {e}");
@@ -2144,14 +2122,22 @@ pub fn run_desktop_app(
                 .unwrap_or_else(|| format!("chain_{}", index + 1))
                 .replace(' ', "_")
                 .to_lowercase();
-            let Some(path) = FileDialog::new()
-                .add_filter("OpenRig Preset", &["yaml", "yml"])
-                .set_title("Salvar preset")
-                .set_directory(&session.presets_path)
-                .set_file_name(format!("{default_name}.yaml"))
-                .save_file()
-            else {
-                return;
+            let path = if window.get_touch_optimized() {
+                // Kiosk: auto-save to presets dir, no dialog
+                let _ = std::fs::create_dir_all(&session.presets_path);
+                session.presets_path.join(format!("{default_name}.yaml"))
+            } else {
+                // Desktop: use file dialog
+                let Some(p) = FileDialog::new()
+                    .add_filter("OpenRig Preset", &["yaml", "yml"])
+                    .set_title("Salvar preset")
+                    .set_directory(&session.presets_path)
+                    .set_file_name(format!("{default_name}.yaml"))
+                    .save_file()
+                else {
+                    return;
+                };
+                p
             };
             match save_chain_blocks_to_preset(chain, &path) {
                 Ok(()) => set_status_info(&window, &toast_timer, "Preset salvo."),
@@ -2169,6 +2155,7 @@ pub fn run_desktop_app(
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         let toast_timer = toast_timer.clone();
+        let preset_file_list = preset_file_list.clone();
         window.on_configure_chain_preset(move |index| {
             let Some(window) = weak_window.upgrade() else {
                 return;
@@ -2178,6 +2165,41 @@ pub fn run_desktop_app(
                 set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
                 return;
             };
+            if window.get_touch_optimized() {
+                // Kiosk: scan presets dir and show in-app picker
+                let mut files: Vec<std::path::PathBuf> = Vec::new();
+                let mut names: Vec<slint::SharedString> = Vec::new();
+                if let Ok(entries) = std::fs::read_dir(&session.presets_path) {
+                    let mut sorted: Vec<_> = entries
+                        .filter_map(|e| e.ok())
+                        .filter(|e| {
+                            e.path()
+                                .extension()
+                                .map(|x| x == "yaml" || x == "yml")
+                                .unwrap_or(false)
+                        })
+                        .collect();
+                    sorted.sort_by_key(|e| e.file_name());
+                    for entry in sorted {
+                        let path = entry.path();
+                        let name = path
+                            .file_stem()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("")
+                            .replace('_', " ");
+                        names.push(name.into());
+                        files.push(path);
+                    }
+                }
+                *preset_file_list.borrow_mut() = files;
+                window.set_preset_picker_items(slint::ModelRc::from(Rc::new(
+                    slint::VecModel::from(names),
+                )));
+                window.set_preset_picker_chain_index(index);
+                window.set_show_preset_picker(true);
+                return;
+            }
+            // Desktop: use file dialog
             let Some(path) = FileDialog::new()
                 .add_filter("OpenRig Preset", &["yaml", "yml"])
                 .set_title("Carregar preset na chain")
@@ -2189,7 +2211,30 @@ pub fn run_desktop_app(
             match load_preset_file(&path) {
                 Ok(preset) => {
                     if let Some(chain) = session.project.chains.get_mut(index as usize) {
-                        chain.blocks = preset.blocks;
+                        // Preserve I/O blocks (device config is per-machine, not per-preset).
+                        // Keep the first Input and last Output; replace everything between.
+                        let first_input = chain
+                            .blocks
+                            .iter()
+                            .find(|b| matches!(b.kind, AudioBlockKind::Input(_)))
+                            .cloned();
+                        let last_output = chain
+                            .blocks
+                            .iter()
+                            .rev()
+                            .find(|b| matches!(b.kind, AudioBlockKind::Output(_)))
+                            .cloned();
+                        let mut new_blocks: Vec<AudioBlock> = Vec::new();
+                        if let Some(input) = first_input {
+                            new_blocks.push(input);
+                        }
+                        new_blocks.extend(preset.blocks.into_iter().filter(|b| {
+                            !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_))
+                        }));
+                        if let Some(output) = last_output {
+                            new_blocks.push(output);
+                        }
+                        chain.blocks = new_blocks;
                         assign_new_block_ids(chain);
                         let chain_id = chain.id.clone();
                         if let Err(error) =
@@ -2213,6 +2258,124 @@ pub fn run_desktop_app(
                         );
                         clear_status(&window, &toast_timer);
                     }
+                }
+                Err(error) => set_status_error(&window, &toast_timer, &error.to_string()),
+            }
+        });
+    }
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        let project_chains = project_chains.clone();
+        let project_runtime = project_runtime.clone();
+        let saved_project_snapshot = saved_project_snapshot.clone();
+        let project_dirty = project_dirty.clone();
+        let input_chain_devices = input_chain_devices.clone();
+        let output_chain_devices = output_chain_devices.clone();
+        let toast_timer = toast_timer.clone();
+        let preset_file_list = preset_file_list.clone();
+        window.on_preset_picker_confirm(move |preset_index| {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            window.set_show_preset_picker(false);
+            let files = preset_file_list.borrow();
+            let Some(path) = files.get(preset_index as usize) else {
+                return;
+            };
+            let path = path.clone();
+            drop(files);
+            let mut session_borrow = project_session.borrow_mut();
+            let Some(session) = session_borrow.as_mut() else {
+                return;
+            };
+            let chain_index = window.get_preset_picker_chain_index();
+            match load_preset_file(&path) {
+                Ok(preset) => {
+                    if let Some(chain) = session.project.chains.get_mut(chain_index as usize) {
+                        let first_input = chain
+                            .blocks
+                            .iter()
+                            .find(|b| matches!(b.kind, AudioBlockKind::Input(_)))
+                            .cloned();
+                        let last_output = chain
+                            .blocks
+                            .iter()
+                            .rev()
+                            .find(|b| matches!(b.kind, AudioBlockKind::Output(_)))
+                            .cloned();
+                        let mut new_blocks: Vec<AudioBlock> = Vec::new();
+                        if let Some(input) = first_input {
+                            new_blocks.push(input);
+                        }
+                        new_blocks.extend(preset.blocks.into_iter().filter(|b| {
+                            !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_))
+                        }));
+                        if let Some(output) = last_output {
+                            new_blocks.push(output);
+                        }
+                        chain.blocks = new_blocks;
+                        assign_new_block_ids(chain);
+                        let chain_id = chain.id.clone();
+                        if let Err(error) =
+                            sync_live_chain_runtime(&project_runtime, session, &chain_id)
+                        {
+                            set_status_error(&window, &toast_timer, &error.to_string());
+                            return;
+                        }
+                        replace_project_chains(
+                            &project_chains,
+                            &session.project,
+                            &*input_chain_devices.borrow(),
+                            &*output_chain_devices.borrow(),
+                        );
+                        sync_project_dirty(
+                            &window,
+                            session,
+                            &saved_project_snapshot,
+                            &project_dirty,
+                            auto_save,
+                        );
+                        clear_status(&window, &toast_timer);
+                    }
+                }
+                Err(error) => set_status_error(&window, &toast_timer, &error.to_string()),
+            }
+        });
+    }
+    {
+        let weak_window = window.as_weak();
+        window.on_preset_picker_cancel(move || {
+            if let Some(window) = weak_window.upgrade() {
+                window.set_show_preset_picker(false);
+            }
+        });
+    }
+    {
+        let weak_window = window.as_weak();
+        let preset_file_list = preset_file_list.clone();
+        let toast_timer = toast_timer.clone();
+        window.on_preset_picker_delete(move |preset_index| {
+            let Some(window) = weak_window.upgrade() else { return; };
+            let mut files = preset_file_list.borrow_mut();
+            let Some(path) = files.get(preset_index as usize).cloned() else { return; };
+            match std::fs::remove_file(&path) {
+                Ok(()) => {
+                    files.remove(preset_index as usize);
+                    let names: Vec<slint::SharedString> = files
+                        .iter()
+                        .map(|p| {
+                            p.file_stem()
+                                .and_then(|s| s.to_str())
+                                .unwrap_or("")
+                                .replace('_', " ")
+                                .into()
+                        })
+                        .collect();
+                    window.set_preset_picker_items(
+                        slint::ModelRc::from(Rc::new(slint::VecModel::from(names)))
+                    );
+                    set_status_info(&window, &toast_timer, "Preset removido.");
                 }
                 Err(error) => set_status_error(&window, &toast_timer, &error.to_string()),
             }
@@ -2645,9 +2808,13 @@ pub fn run_desktop_app(
                 let weak_main = window.as_weak();
                 let weak_compact = compact_win.as_weak();
                 let toast_timer = toast_timer.clone();
+                // Guard against double-clicks while JACK is starting up
+                let jack_starting: Rc<std::cell::Cell<bool>> = Rc::new(std::cell::Cell::new(false));
                 compact_win.on_toggle_chain_enabled(move |ci| {
                     let Some(main_win) = weak_main.upgrade() else { return; };
                     let Some(cw) = weak_compact.upgrade() else { return; };
+                    // Block re-entrant clicks during async JACK startup
+                    if jack_starting.get() { return; }
                     let mut session_borrow = project_session.borrow_mut();
                     let Some(session) = session_borrow.as_mut() else { return; };
                     let chain_idx = ci as usize;
@@ -2655,6 +2822,91 @@ pub fn run_desktop_app(
                     let will_enable = !chain.enabled;
                     chain.enabled = will_enable;
                     let chain_id = chain.id.clone();
+
+                    // On Linux: always start JACK asynchronously when enabling a chain.
+                    // This prevents blocking the UI thread regardless of whether JACK
+                    // is already running or needs to be started.
+                    #[cfg(target_os = "linux")]
+                    if will_enable {
+                        let (sample_rate, buffer_size) = session
+                            .project
+                            .device_settings
+                            .first()
+                            .map(|ds| (ds.sample_rate, ds.buffer_size_frames))
+                            .unwrap_or((48000, 64));
+                        drop(session_borrow);
+
+                        jack_starting.set(true);
+                        set_status_info(&main_win, &toast_timer, "Starting audio...");
+
+                        let rx = Rc::new(std::cell::RefCell::new(
+                            infra_cpal::start_jack_in_background(sample_rate, buffer_size),
+                        ));
+                        let project_session_t = project_session.clone();
+                        let project_runtime_t = project_runtime.clone();
+                        let project_chains_t = project_chains.clone();
+                        let input_chain_devices_t = input_chain_devices.clone();
+                        let output_chain_devices_t = output_chain_devices.clone();
+                        let weak_main_t = weak_main.clone();
+                        let weak_compact_t = weak_compact.clone();
+                        let toast_timer_t = toast_timer.clone();
+                        let jack_starting_t = jack_starting.clone();
+                        let done = Rc::new(std::cell::Cell::new(false));
+                        let done_t = done.clone();
+                        let poll_timer = slint::Timer::default();
+                        poll_timer.start(
+                            slint::TimerMode::Repeated,
+                            std::time::Duration::from_millis(300),
+                            move || {
+                                if done_t.get() { return; }
+                                use std::sync::mpsc::TryRecvError;
+                                match rx.borrow().try_recv() {
+                                    Err(TryRecvError::Empty) => return,
+                                    Err(TryRecvError::Disconnected) => {
+                                        done_t.set(true);
+                                        jack_starting_t.set(false);
+                                        return;
+                                    }
+                                    Ok(Err(e)) => {
+                                        done_t.set(true);
+                                        jack_starting_t.set(false);
+                                        if let Some(win) = weak_main_t.upgrade() {
+                                            set_status_error(&win, &toast_timer_t, &e.to_string());
+                                        }
+                                        // Revert chain.enabled
+                                        let mut sb = project_session_t.borrow_mut();
+                                        if let Some(s) = sb.as_mut() {
+                                            if let Some(c) = s.project.chains.iter_mut().find(|c| c.id == chain_id) {
+                                                c.enabled = false;
+                                            }
+                                        }
+                                        return;
+                                    }
+                                    Ok(Ok(())) => {
+                                        done_t.set(true);
+                                        jack_starting_t.set(false);
+                                        let Some(win) = weak_main_t.upgrade() else { return; };
+                                        let Some(cw) = weak_compact_t.upgrade() else { return; };
+                                        let mut sb = project_session_t.borrow_mut();
+                                        let Some(session) = sb.as_mut() else { return; };
+                                        if let Err(e) = sync_live_chain_runtime(&project_runtime_t, session, &chain_id) {
+                                            set_status_error(&win, &toast_timer_t, &e.to_string());
+                                            if let Some(c) = session.project.chains.iter_mut().find(|c| c.id == chain_id) {
+                                                c.enabled = false;
+                                            }
+                                        } else {
+                                            replace_project_chains(&project_chains_t, &session.project, &*input_chain_devices_t.borrow(), &*output_chain_devices_t.borrow());
+                                            cw.set_chain_enabled(true);
+                                            set_status_info(&win, &toast_timer_t, "");
+                                        }
+                                    }
+                                }
+                            },
+                        );
+                        std::mem::forget(poll_timer);
+                        return;
+                    }
+
                     if let Err(error) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
                         set_status_error(&main_win, &toast_timer, &error.to_string());
                         return;
@@ -3215,9 +3467,11 @@ pub fn run_desktop_app(
                         &chain_input_channels,
                         channel_items.clone(),
                     );
-                    // Fullscreen: sync channels to inline endpoint editor
+                    // Fullscreen: sync channels to inline endpoint editor.
+                    // Re-assign the same shared Rc<VecModel> so toggle handlers
+                    // continue to operate on the same model the UI is bound to.
                     if window.get_fullscreen() {
-                        window.set_chain_io_channels(ModelRc::from(Rc::new(VecModel::from(channel_items))));
+                        window.set_chain_io_channels(ModelRc::from(chain_input_channels.clone()));
                     }
                 }
                 if let Some(chain_window) = chain_editor_window_ref.borrow().as_ref() {
@@ -3287,9 +3541,11 @@ pub fn run_desktop_app(
                         &chain_output_channels,
                         channel_items.clone(),
                     );
-                    // Fullscreen: sync channels to inline endpoint editor
+                    // Fullscreen: sync channels to inline endpoint editor.
+                    // Re-assign the same shared Rc<VecModel> so toggle handlers
+                    // continue to operate on the same model the UI is bound to.
                     if window.get_fullscreen() {
-                        window.set_chain_io_channels(ModelRc::from(Rc::new(VecModel::from(channel_items))));
+                        window.set_chain_io_channels(ModelRc::from(chain_output_channels.clone()));
                     }
                 }
                 if let Some(chain_window) = chain_editor_window_ref.borrow().as_ref() {
@@ -7395,6 +7651,22 @@ pub fn run_desktop_app(
         );
     }
 
+    // Virtual keyboard: dispatch key events to the focused element
+    {
+        let weak_window = window.as_weak();
+        window.on_virtual_key_pressed(move |label| {
+            let Some(win) = weak_window.upgrade() else { return; };
+            let text: slint::SharedString = match label.as_str() {
+                "⌫" => slint::platform::Key::Backspace.into(),
+                "⏎" => slint::platform::Key::Return.into(),
+                "⎵" => " ".into(),
+                s => s.into(),
+            };
+            let _ = win.window().dispatch_event(slint::platform::WindowEvent::KeyPressed { text: text.clone() });
+            let _ = win.window().dispatch_event(slint::platform::WindowEvent::KeyReleased { text });
+        });
+    }
+
     window.run().map_err(|error| anyhow!(error.to_string()))
 }
 fn resolve_project_paths() -> ProjectPaths {
@@ -8992,10 +9264,16 @@ fn save_project_session(session: &ProjectSession, project_path: &PathBuf) -> Res
     Ok(())
 }
 fn save_chain_blocks_to_preset(chain: &Chain, path: &Path) -> Result<()> {
+    let effect_blocks = chain
+        .blocks
+        .iter()
+        .filter(|b| !matches!(b.kind, AudioBlockKind::Input(_) | AudioBlockKind::Output(_)))
+        .cloned()
+        .collect();
     let preset = ChainBlocksPreset {
         id: preset_id_from_path(path)?,
         name: chain.description.clone(),
-        blocks: chain.blocks.clone(),
+        blocks: effect_blocks,
     };
     save_chain_preset_file(path, &preset)
 }

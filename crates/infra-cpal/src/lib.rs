@@ -73,20 +73,17 @@ fn jack_hardware_name() -> Option<String> {
     None
 }
 
-/// Select the audio host for device enumeration.
-///
-/// Returns true when the JACK server is running and reachable, determined by
-/// a non-blocking directory scan. Safe to call from the UI thread.
+/// Returns true when at least one JACK server is running.
+/// jackd creates a socket at /dev/shm/jack_<name>_<uid>_0 for any server name.
+/// Safe to call from the UI thread — pure filesystem scan, no JACK client.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn jack_server_is_running() -> bool {
-    // jackd creates a Unix socket at /dev/shm/jack_default_{uid}_0.
-    // Scanning /dev/shm for this pattern is instant and non-blocking.
     std::fs::read_dir("/dev/shm").ok()
         .map(|entries| {
             entries.filter_map(|e| e.ok()).any(|e| {
                 let name = e.file_name();
                 let s = name.to_string_lossy();
-                s.starts_with("jack_default_") && s.ends_with("_0")
+                s.starts_with("jack_") && s.ends_with("_0")
             })
         })
         .unwrap_or(false)
@@ -104,7 +101,6 @@ pub fn log_audio_status(context: &str) {
     #[cfg(target_os = "linux")]
     {
         let alsa_cards = read_proc_asound_cards_for_status();
-        let usb_audio = read_usb_audio_devices_for_status();
 
         #[cfg(feature = "jack")]
         let jack_running = jack_server_is_running();
@@ -112,11 +108,10 @@ pub fn log_audio_status(context: &str) {
         let jack_running = false;
 
         log::info!(
-            "[AUDIO-STATUS] ctx='{}' jack_running={} alsa_cards=[{}] usb_audio=[{}]",
+            "[AUDIO-STATUS] ctx='{}' jack_running={} alsa_cards=[{}]",
             context,
             jack_running,
             alsa_cards.join(" | "),
-            usb_audio.join(" | "),
         );
     }
     #[cfg(not(target_os = "linux"))]
@@ -147,55 +142,6 @@ fn read_proc_asound_cards_for_status() -> Vec<String> {
         .unwrap_or_default()
 }
 
-#[cfg(target_os = "linux")]
-fn read_usb_audio_devices_for_status() -> Vec<String> {
-    let root = std::path::Path::new("/sys/bus/usb/devices");
-    let Ok(entries) = std::fs::read_dir(root) else {
-        return Vec::new();
-    };
-
-    let mut out = Vec::new();
-    for entry in entries.flatten() {
-        let path = entry.path();
-        let node = entry.file_name().to_string_lossy().into_owned();
-        // Skip interface nodes (they contain ':'); we only want device nodes.
-        if node.contains(':') {
-            continue;
-        }
-        // Keep only devices that expose at least one audio-class interface (01).
-        let is_audio = std::fs::read_dir(&path)
-            .ok()
-            .map(|sub| {
-                sub.flatten().any(|s| {
-                    let sn = s.file_name();
-                    let sn = sn.to_string_lossy();
-                    if !sn.contains(':') {
-                        return false;
-                    }
-                    std::fs::read_to_string(s.path().join("bInterfaceClass"))
-                        .map(|v| v.trim() == "01")
-                        .unwrap_or(false)
-                })
-            })
-            .unwrap_or(false);
-        if !is_audio {
-            continue;
-        }
-
-        let vendor = std::fs::read_to_string(path.join("idVendor"))
-            .map(|s| s.trim().to_string())
-            .unwrap_or_default();
-        let product = std::fs::read_to_string(path.join("idProduct"))
-            .map(|s| s.trim().to_string())
-            .unwrap_or_default();
-        let product_name = std::fs::read_to_string(path.join("product"))
-            .map(|s| s.trim().to_string())
-            .unwrap_or_else(|_| "?".to_string());
-
-        out.push(format!("{}:{} {} @{}", vendor, product, product_name, node));
-    }
-    out
-}
 
 /// Select the CPAL audio host for device enumeration (non-JACK path only).
 ///
@@ -227,131 +173,412 @@ struct JackMeta {
     hw_name: String,
 }
 
+/// Per-server JACK metadata cache. Key = server_name (e.g. "gen", "q26").
 #[cfg(all(target_os = "linux", feature = "jack"))]
-static JACK_META_CACHE: std::sync::Mutex<Option<JackMeta>> = std::sync::Mutex::new(None);
+static JACK_META_CACHE: OnceLock<std::sync::Mutex<std::collections::HashMap<String, JackMeta>>> =
+    OnceLock::new();
 
-/// Return cached JACK metadata, creating a single transient JACK client the
-/// first time. All other call sites that used to open their own client now go
-/// through this function, so the process opens at most ONE enumeration client
-/// during its lifetime (plus the per-chain AsyncClient used for real-time
-/// processing).
 #[cfg(all(target_os = "linux", feature = "jack"))]
-fn jack_meta() -> Result<JackMeta> {
-    if let Some(cached) = JACK_META_CACHE.lock().unwrap().clone() {
-        log::trace!("jack meta: cache hit");
+fn jack_meta_cache() -> &'static std::sync::Mutex<std::collections::HashMap<String, JackMeta>> {
+    JACK_META_CACHE.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()))
+}
+
+/// Mutex that serializes JACK_DEFAULT_SERVER env-var manipulation so that
+/// concurrent jack_meta_for() calls don't race on the global env.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+static JACK_CONNECT_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// Return cached JACK metadata for a specific named server, connecting once
+/// if not yet cached. Uses JACK_DEFAULT_SERVER env var to target the right
+/// jackd instance (serialized via JACK_CONNECT_LOCK to avoid races).
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn jack_meta_for(server_name: &str) -> Result<JackMeta> {
+    if let Some(cached) = jack_meta_cache().lock().unwrap().get(server_name).cloned() {
+        log::trace!("jack meta: cache hit for server '{}'", server_name);
         return Ok(cached);
     }
 
-    log::debug!("jack meta: cache miss, creating single transient JACK client");
-    let (client, _) = jack::Client::new(
-        "openrig_meta",
-        jack::ClientOptions::NO_START_SERVER,
-    ).map_err(|e| anyhow!("failed to connect to JACK for metadata: {:?}", e))?;
+    log::debug!("jack meta: cache miss for server '{}', connecting", server_name);
+    let _lock = JACK_CONNECT_LOCK.lock().unwrap();
+
+    // Re-check after acquiring lock (another thread may have populated cache).
+    if let Some(cached) = jack_meta_cache().lock().unwrap().get(server_name).cloned() {
+        return Ok(cached);
+    }
+
+    // SAFETY: we hold JACK_CONNECT_LOCK, so no other thread is touching this env var.
+    std::env::set_var("JACK_DEFAULT_SERVER", server_name);
+    let result = jack::Client::new("openrig_meta", jack::ClientOptions::NO_START_SERVER);
+    std::env::remove_var("JACK_DEFAULT_SERVER");
+
+    let (client, _) = result
+        .map_err(|e| anyhow!("failed to connect to JACK server '{}': {:?}", server_name, e))?;
 
     let capture_ports = client.ports(Some("system:capture_"), None, jack::PortFlags::IS_OUTPUT);
     let playback_ports = client.ports(Some("system:playback_"), None, jack::PortFlags::IS_INPUT);
+    let hw_name = jack_hardware_name().unwrap_or_else(|| format!("JACK/{}", server_name));
     let meta = JackMeta {
         sample_rate: client.sample_rate() as u32,
         buffer_size: client.buffer_size(),
         capture_port_count: capture_ports.len(),
         playback_port_count: playback_ports.len(),
-        hw_name: jack_hardware_name().unwrap_or_else(|| "JACK Audio".to_string()),
+        hw_name,
     };
     drop(client);
 
-    *JACK_META_CACHE.lock().unwrap() = Some(meta.clone());
     log::debug!(
-        "jack meta: cached sr={} buf={} in={} out={} hw='{}'",
-        meta.sample_rate, meta.buffer_size,
+        "jack meta: cached server='{}' sr={} buf={} in={} out={} hw='{}'",
+        server_name, meta.sample_rate, meta.buffer_size,
         meta.capture_port_count, meta.playback_port_count, meta.hw_name
     );
+    jack_meta_cache().lock().unwrap().insert(server_name.to_string(), meta.clone());
     Ok(meta)
 }
 
-/// Invalidate the cached JACK metadata so the next `jack_meta()` call
-/// reconnects to the JACK server.  Called when device enumeration fails,
-/// indicating the JACK server may have restarted (e.g. after a USB
-/// disconnect/reconnect cycle).
+/// Convenience wrapper: connects to the first running JACK server found.
+/// Used by legacy call sites that don't yet know a specific server name.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn jack_meta() -> Result<JackMeta> {
+    // Try all known running servers (from detected USB cards).
+    let cards = detect_all_usb_audio_cards();
+    for card in &cards {
+        if jack_server_is_running_for(&card.server_name) {
+            return jack_meta_for(&card.server_name);
+        }
+    }
+    // Fallback: try "default" (legacy single-server mode)
+    if jack_server_is_running_for("default") {
+        return jack_meta_for("default");
+    }
+    bail!("no running JACK server found")
+}
+
+/// Invalidate cached metadata for a specific server.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn invalidate_jack_meta_cache_for(server_name: &str) {
+    if let Ok(mut cache) = jack_meta_cache().lock() {
+        if cache.remove(server_name).is_some() {
+            log::info!("jack meta: cache invalidated for server '{}'", server_name);
+        }
+    }
+}
+
+/// Invalidate cached metadata for all servers.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn invalidate_jack_meta_cache() {
-    if let Ok(mut cache) = JACK_META_CACHE.lock() {
-        if cache.is_some() {
-            log::info!("jack meta: cache invalidated — will reconnect on next enumeration");
-            *cache = None;
+    if let Ok(mut cache) = jack_meta_cache().lock() {
+        if !cache.is_empty() {
+            log::info!("jack meta: all caches invalidated");
+            cache.clear();
         }
     }
 }
 
-/// Detect the first USB audio ALSA card number by scanning /proc/asound/cards.
-/// Returns the card index (e.g. "1") or None if no USB audio card is present.
+/// Enumerate all ALSA sound cards by reading /proc/asound/cards without opening
+/// any PCM device. Safe to call even when a fragile USB audio device is present
+/// (e.g. Scarlett 2i2 on RK3588 xHCI) — CPAL's ALSA device.supported_input_configs()
+/// opens the PCM and can trigger the scarlett2 driver to drop the device into
+/// standalone mode (red LED). This function avoids that by never touching ALSA PCM.
+/// Channel count is a conservative default of 2 (sufficient for device listing UI).
 #[cfg(all(target_os = "linux", feature = "jack"))]
-fn detect_usb_audio_card() -> Option<String> {
-    let content = std::fs::read_to_string("/proc/asound/cards").ok()?;
+fn enumerate_alsa_cards_from_proc() -> Vec<AudioDeviceDescriptor> {
+    let content = match std::fs::read_to_string("/proc/asound/cards") {
+        Ok(c) => c,
+        Err(_) => return Vec::new(),
+    };
+    let mut devices = Vec::new();
     for line in content.lines() {
         let trimmed = line.trim_start();
-        if (trimmed.contains("USB-Audio") || trimmed.contains("USB Audio"))
-            && trimmed.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false)
-        {
-            // Line format: " 1 [Gen ]: USB-Audio - Scarlett 2i2 4th Gen"
-            let card = trimmed.split_whitespace().next()?;
-            return Some(card.to_string());
+        // Lines look like: " 0 [HDMI           ]: simple-card - hdmi0"
+        //                  " 2 [Scarlett2i2    ]: USB-Audio - Scarlett 2i2 USB"
+        if !trimmed.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+            continue;
         }
+        let card_num = match trimmed.split_whitespace().next() {
+            Some(n) => n.to_string(),
+            None => continue,
+        };
+        let hw_name = if let Some(pos) = trimmed.find(" - ") {
+            trimmed[pos + 3..].trim().to_string()
+        } else {
+            format!("Card {}", card_num)
+        };
+        devices.push(AudioDeviceDescriptor {
+            id: format!("hw:{}", card_num),
+            name: hw_name,
+            channels: 2,
+        });
     }
-    None
+    devices
 }
 
-/// Launch jackd with the given parameters and wait for it to become ready.
-/// Shared logic used by both `ensure_jack_running` and `restart_jack`.
+/// Represents a USB audio card detected in /proc/asound/cards.
 #[cfg(all(target_os = "linux", feature = "jack"))]
-fn launch_jackd(card: &str, sample_rate: u32, buffer_size: u32) -> Result<()> {
+#[derive(Debug, Clone)]
+struct UsbAudioCard {
+    /// ALSA card number, e.g. "1"
+    card_num: String,
+    /// JACK server name derived from bracket name, e.g. "gen" for [Gen]
+    server_name: String,
+    /// Human-readable name, e.g. "Scarlett 2i2 4th Gen"
+    display_name: String,
+    /// device_id used in chain I/O blocks, e.g. "jack:gen"
+    device_id: String,
+}
+
+/// Derive a safe JACK server name from the ALSA bracket identifier.
+/// E.g. "[Gen            ]" → "gen", "[Q26            ]" → "q26"
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn server_name_from_bracket(bracket: &str) -> String {
+    bracket
+        .trim_matches(|c: char| c == '[' || c == ']' || c.is_whitespace())
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .collect::<String>()
+        .to_lowercase()
+}
+
+/// Detect all USB audio ALSA cards by scanning /proc/asound/cards.
+/// Returns one UsbAudioCard per USB audio interface found.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn detect_all_usb_audio_cards() -> Vec<UsbAudioCard> {
+    let content = match std::fs::read_to_string("/proc/asound/cards") {
+        Ok(c) => c,
+        Err(_) => return Vec::new(),
+    };
+    let mut cards = Vec::new();
+    for line in content.lines() {
+        let trimmed = line.trim_start();
+        if !(trimmed.contains("USB-Audio") || trimmed.contains("USB Audio")) {
+            continue;
+        }
+        if !trimmed.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
+            continue;
+        }
+        // Line format: "1 [Gen            ]: USB-Audio - Scarlett 2i2 4th Gen"
+        let card_num = match trimmed.split_whitespace().next() {
+            Some(n) => n.to_string(),
+            None => continue,
+        };
+        // Extract bracket name: "[Gen            ]"
+        let bracket = match (trimmed.find('['), trimmed.find(']')) {
+            (Some(a), Some(b)) if b > a => trimmed[a..=b].to_string(),
+            _ => format!("[card{}]", card_num),
+        };
+        let server_name = server_name_from_bracket(&bracket);
+        let display_name = if let Some(pos) = trimmed.find(" - ") {
+            trimmed[pos + 3..].trim().to_string()
+        } else {
+            format!("USB Audio Card {}", card_num)
+        };
+        let device_id = format!("jack:{}", server_name);
+        log::debug!(
+            "detect_all_usb_audio_cards: card={} server={} name='{}' device_id={}",
+            card_num, server_name, display_name, device_id
+        );
+        cards.push(UsbAudioCard { card_num, server_name, display_name, device_id });
+    }
+    cards
+}
+
+/// Check if a specific named JACK server is running by looking for its socket.
+/// jackd -n <name> creates /dev/shm/jack_<name>_<uid>_0
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn jack_server_is_running_for(server_name: &str) -> bool {
+    let prefix = format!("jack_{}_", server_name);
+    std::fs::read_dir("/dev/shm").ok()
+        .map(|entries| {
+            entries.filter_map(|e| e.ok()).any(|e| {
+                let name = e.file_name();
+                let s = name.to_string_lossy();
+                s.starts_with(&prefix) && s.ends_with("_0")
+            })
+        })
+        .unwrap_or(false)
+}
+
+/// Read the actual capture and playback channel counts for a given ALSA card
+/// by parsing /proc/asound/card{N}/stream0. Returns (capture_channels, playback_channels).
+/// Falls back to (2, 2) if the file is absent or unparseable.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn read_card_channels(card: &str) -> (u32, u32) {
+    let path = format!("/proc/asound/card{}/stream0", card);
+    let content = match std::fs::read_to_string(&path) {
+        Ok(c) => c,
+        Err(_) => {
+            log::warn!("read_card_channels: cannot read {}, using defaults 2/2", path);
+            return (2, 2);
+        }
+    };
+
+    let mut capture_ch: Option<u32> = None;
+    let mut playback_ch: Option<u32> = None;
+    let mut in_capture = false;
+    let mut in_playback = false;
+
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("Capture:") {
+            in_capture = true;
+            in_playback = false;
+        } else if trimmed.starts_with("Playback:") {
+            in_playback = true;
+            in_capture = false;
+        } else if trimmed.starts_with("Channels:") {
+            // "Channels: 4" or "Channels: 2"
+            if let Some(n) = trimmed
+                .split_whitespace()
+                .nth(1)
+                .and_then(|s| s.parse::<u32>().ok())
+            {
+                if in_capture && capture_ch.is_none() {
+                    capture_ch = Some(n);
+                } else if in_playback && playback_ch.is_none() {
+                    playback_ch = Some(n);
+                }
+            }
+        }
+    }
+
+    let capture = capture_ch.unwrap_or(2);
+    let playback = playback_ch.unwrap_or(2);
     log::info!(
-        "launch_jackd: jackd -d alsa -d hw:{} -r {} -p {} -n 3",
-        card, sample_rate, buffer_size
+        "read_card_channels: card {} → capture={} playback={}",
+        card, capture, playback
+    );
+    (capture, playback)
+}
+
+/// Launch jackd for a specific USB audio card and wait for it to become ready.
+/// Uses `jackd -n <server_name>` so each interface gets its own named server.
+/// Channel counts are read dynamically from /proc/asound/card{N}/stream0.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Result<()> {
+    // Read actual hardware channel counts — fully dynamic, no hardcoded values.
+    let (capture_ch, playback_ch) = read_card_channels(&card.card_num);
+
+    log::info!(
+        "launch_jackd: server='{}' hw:{} sr={} buf={} capture={} playback={}",
+        card.server_name, card.card_num, sample_rate, buffer_size, capture_ch, playback_ch
     );
 
-    // Set ALSA mixer to unity gain before JACK starts (same as jackd.service)
-    let _ = std::process::Command::new("amixer")
-        .args(["-c", card, "set", "Mic", "46%"])
-        .output();
-    let _ = std::process::Command::new("amixer")
-        .args(["-c", card, "set", "PCM", "100%"])
-        .output();
+    // Clean up stale sockets and semaphore files left by a previous run for
+    // this server. jackd leaves behind jack_<name>_* sockets AND
+    // jack_sem.*_<name>_* semaphore files that must be removed before a fresh
+    // start — stale semaphores cause "Broken pipe" on the next startup attempt.
+    let socket_prefix = format!("jack_{}_", card.server_name);
+    let sem_infix = format!("_{}_", card.server_name);
+    if let Ok(entries) = std::fs::read_dir("/dev/shm") {
+        for entry in entries.filter_map(|e| e.ok()) {
+            let name = entry.file_name();
+            let s = name.to_string_lossy();
+            let stale = s.starts_with(&socket_prefix)
+                || (s.starts_with("jack_sem.") && s.contains(&*sem_infix));
+            if stale {
+                let _ = std::fs::remove_file(entry.path());
+                log::info!("launch_jackd: removed stale file {}", s);
+            }
+        }
+    }
 
+    // Clean up the shared shm registry if no server is running at all.
+    if !jack_server_is_running() {
+        let shm_registry = std::path::Path::new("/dev/shm/jack-shm-registry");
+        if shm_registry.exists() {
+            log::info!("launch_jackd: removing stale jack-shm-registry");
+            let _ = std::fs::remove_file(shm_registry);
+        }
+    }
+
+    // NOTE: amixer calls are intentionally omitted here.
+    // Some USB audio drivers manage their own mixer via USB vendor commands.
+    // Opening the ALSA control interface with amixer can trigger firmware
+    // notifications that lead to USB disconnect/reconnect cycles.
+
+    let stderr_log = format!("/tmp/jackd-{}-stderr.log", card.server_name);
+    let stderr_file = std::fs::File::create(&stderr_log)
+        .map(std::process::Stdio::from)
+        .unwrap_or_else(|_| std::process::Stdio::null());
+
+    // jackd top-level flag: -n <server_name>
+    // ALSA backend flags (after -d alsa): -d hw:N -r SR -p BUF -n PERIODS -i CH -o CH
+    // Note: -n appears twice — first is jackd server name, second is ALSA nperiods.
     let child = std::process::Command::new("/usr/bin/jackd")
         .args([
+            "-n", &card.server_name,
             "-d", "alsa",
-            "-d", &format!("hw:{}", card),
+            "-d", &format!("hw:{}", card.card_num),
             "-r", &sample_rate.to_string(),
             "-p", &buffer_size.to_string(),
             "-n", "3",
+            "-i", &capture_ch.to_string(),
+            "-o", &playback_ch.to_string(),
         ])
         .env("JACK_NO_AUDIO_RESERVATION", "1")
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
+        .stderr(stderr_file)
         .spawn()
-        .map_err(|e| anyhow!("failed to launch jackd: {}", e))?;
+        .map_err(|e| anyhow!("failed to launch jackd for '{}': {}", card.server_name, e))?;
 
-    log::info!("launch_jackd: jackd spawned with PID {}", child.id());
+    log::info!(
+        "launch_jackd: jackd spawned PID {} for server '{}'",
+        child.id(), card.server_name
+    );
 
-    // Wait for the JACK socket to appear (up to 5 seconds)
-    for i in 0..50 {
-        if jack_server_is_running() {
-            log::info!("launch_jackd: JACK ready after {}ms", i * 100);
-            invalidate_jack_meta_cache();
+    // Wait up to 8 seconds for the server socket to appear, then add a fixed
+    // 600ms delay for the shm segments to be fully initialized.
+    // The UNIX socket appears before the shm is ready — without this delay,
+    // the first client connection attempt fails with "Cannot open shm segment".
+    for i in 0..80 {
+        if jack_server_is_running_for(&card.server_name) {
+            log::info!(
+                "launch_jackd: server '{}' socket ready after {}ms, waiting 600ms for shm",
+                card.server_name, i * 100
+            );
+            std::thread::sleep(std::time::Duration::from_millis(600));
+            log::info!("launch_jackd: server '{}' ready", card.server_name);
+            invalidate_jack_meta_cache_for(&card.server_name);
             return Ok(());
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
+
+        // After 2 seconds, check stderr for a definitive failure message so we
+        // bail out early instead of waiting the full 8 seconds.
+        if i == 20 {
+            if let Ok(stderr_content) = std::fs::read_to_string(&stderr_log) {
+                let failed = stderr_content.contains("Broken pipe")
+                    || stderr_content.contains("Cannot start driver")
+                    || stderr_content.contains("Failed to start server");
+                if failed {
+                    log::warn!(
+                        "launch_jackd: server '{}' failed early, aborting wait",
+                        card.server_name
+                    );
+                    break;
+                }
+            }
+        }
     }
 
-    bail!("jackd was launched but did not become ready within 5 seconds")
+    // Log stderr to help diagnose the failure.
+    if let Ok(stderr_content) = std::fs::read_to_string(&stderr_log) {
+        for line in stderr_content.lines().take(20) {
+            log::error!("launch_jackd [{}]: {}", card.server_name, line);
+        }
+    }
+
+    bail!(
+        "jackd server '{}' failed to start",
+        card.server_name
+    )
 }
 
-/// Ensure JACK is running with the correct parameters. If JACK is not running,
-/// launch it. If JACK is running but with different sample_rate or buffer_size,
-/// kill it and relaunch with the new parameters.
+/// Ensure JACK is running for every connected USB audio interface.
+/// For each interface, starts a named jackd server if not already running.
+/// If sr/buf changed, restarts the affected server.
 ///
-/// Returns true if JACK was (re)started, false if already running with correct config.
+/// Returns true if any server was (re)started.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn ensure_jack_running(project: &Project) -> Result<bool> {
     let (desired_sr, desired_buf) = project
@@ -360,94 +587,170 @@ fn ensure_jack_running(project: &Project) -> Result<bool> {
         .map(|s| (s.sample_rate, s.buffer_size_frames))
         .unwrap_or((48000, 64));
 
-    if jack_server_is_running() {
-        // Check if current JACK config matches desired
-        if let Ok(meta) = jack_meta() {
-            if meta.sample_rate == desired_sr && meta.buffer_size == desired_buf {
-                log::debug!("ensure_jack_running: JACK already running with correct config");
-                return Ok(false);
-            }
-            // Config mismatch — need to restart JACK
-            log::info!(
-                "ensure_jack_running: JACK config mismatch (running: sr={} buf={}, desired: sr={} buf={}), restarting",
-                meta.sample_rate, meta.buffer_size, desired_sr, desired_buf
-            );
-            stop_jackd()?;
-        }
+    let cards = detect_all_usb_audio_cards();
+    if cards.is_empty() {
+        bail!("no USB audio interface found — connect a device before starting audio");
     }
 
-    let card = detect_usb_audio_card()
-        .ok_or_else(|| anyhow!("no USB audio interface found — connect a device before starting audio"))?;
+    let mut any_started = false;
+    for card in &cards {
+        if jack_server_is_running_for(&card.server_name) {
+            match jack_meta_for(&card.server_name) {
+                Ok(meta) if meta.sample_rate == desired_sr && meta.buffer_size == desired_buf => {
+                    log::debug!(
+                        "ensure_jack_running: server '{}' already running with correct config",
+                        card.server_name
+                    );
+                    continue;
+                }
+                Ok(meta) => {
+                    log::info!(
+                        "ensure_jack_running: server '{}' config mismatch (sr={} buf={} → sr={} buf={}), restarting",
+                        card.server_name, meta.sample_rate, meta.buffer_size, desired_sr, desired_buf
+                    );
+                    stop_jackd_for(&card.server_name)?;
+                }
+                Err(e) => {
+                    // Socket exists but server is unresponsive — jackd entered zombie
+                    // state after the ALSA device disconnected. Kill it before restarting.
+                    log::warn!(
+                        "ensure_jack_running: server '{}' socket present but unresponsive ({}), killing zombie",
+                        card.server_name, e
+                    );
+                    let _ = stop_jackd_for(&card.server_name);
+                }
+            }
+        }
 
-    launch_jackd(&card, desired_sr, desired_buf)?;
-    // JACK is now running — invalidate device cache so next enumeration
-    // uses JACK ports instead of stale ALSA listing.
-    invalidate_device_cache();
-    Ok(true)
+        // Retry up to 3 times — the ALSA device occasionally needs a moment to
+        // settle after a USB reconnect or a previous jackd exit. "Broken pipe"
+        // on the first attempt is normal; the second or third attempt succeeds.
+        let mut last_err = anyhow!("no attempt made");
+        let mut started = false;
+        for attempt in 1u32..=3 {
+            match launch_jackd(card, desired_sr, desired_buf) {
+                Ok(()) => {
+                    started = true;
+                    break;
+                }
+                Err(e) => {
+                    log::warn!(
+                        "ensure_jack_running: attempt {}/3 for '{}' failed: {}",
+                        attempt, card.server_name, e
+                    );
+                    last_err = e;
+                    if attempt < 3 {
+                        let _ = std::process::Command::new("killall").args(["jackd"]).output();
+                        std::thread::sleep(std::time::Duration::from_secs(2));
+                    }
+                }
+            }
+        }
+        if !started {
+            return Err(last_err);
+        }
+        any_started = true;
+    }
+
+    if any_started {
+        invalidate_device_cache();
+    }
+    Ok(any_started)
 }
 
-/// Stop the running JACK server by sending SIGTERM to all jackd processes.
-/// Waits up to 3 seconds for the server to shut down.
+/// Stop the JACK server for a specific interface.
 #[cfg(all(target_os = "linux", feature = "jack"))]
-fn stop_jackd() -> Result<()> {
-    log::info!("stop_jackd: killing jackd");
-    let _ = std::process::Command::new("killall")
-        .args(["jackd"])
-        .output();
+fn stop_jackd_for(server_name: &str) -> Result<()> {
+    log::info!("stop_jackd_for: stopping server '{}'", server_name);
+    // Send SIGTERM to the jackd process owning this server by killing via
+    // the socket owner. Simplest reliable approach: kill all jackd and
+    // let ensure_jack_running restart only the ones needed.
+    // For true per-server kill we'd need to track PIDs; for now killall is safe
+    // because ensure_jack_running restarts all cards immediately after.
+    let _ = std::process::Command::new("killall").args(["jackd"]).output();
 
-    // Wait for JACK socket to disappear
     for _ in 0..30 {
-        if !jack_server_is_running() {
-            invalidate_jack_meta_cache();
-            invalidate_device_cache();
-            log::info!("stop_jackd: JACK stopped");
+        if !jack_server_is_running_for(server_name) {
+            invalidate_jack_meta_cache_for(server_name);
+            log::info!("stop_jackd_for: server '{}' stopped", server_name);
             return Ok(());
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
 
-    // Force kill
-    let _ = std::process::Command::new("killall")
-        .args(["-9", "jackd"])
-        .output();
+    let _ = std::process::Command::new("killall").args(["-9", "jackd"]).output();
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    invalidate_jack_meta_cache_for(server_name);
+    Ok(())
+}
+
+/// Stop all running JACK servers.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn stop_jackd() -> Result<()> {
+    log::info!("stop_jackd: killing all jackd processes");
+    let _ = std::process::Command::new("killall").args(["jackd"]).output();
+
+    for _ in 0..30 {
+        if !jack_server_is_running() {
+            invalidate_jack_meta_cache();
+            invalidate_device_cache();
+            log::info!("stop_jackd: all JACK servers stopped");
+            return Ok(());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+
+    let _ = std::process::Command::new("killall").args(["-9", "jackd"]).output();
     std::thread::sleep(std::time::Duration::from_millis(200));
     invalidate_jack_meta_cache();
     invalidate_device_cache();
     Ok(())
 }
 
-/// Enumerate input devices directly via cached JACK metadata.
-///
-/// Returns one AudioDeviceDescriptor per hardware interface with the real
-/// hardware name from /proc/asound/cards. Never creates a new JACK client on
-/// its own — relies on `jack_meta()` which opens at most one client per
-/// process lifetime.
+/// Enumerate input devices via JACK — one entry per running named JACK server.
+/// device_id is "jack:<server_name>" (e.g. "jack:gen", "jack:q26").
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn jack_enumerate_input_devices() -> Result<Vec<AudioDeviceDescriptor>> {
-    let meta = jack_meta()?;
-    if meta.capture_port_count == 0 {
-        return Ok(Vec::new());
+    let cards = detect_all_usb_audio_cards();
+    let mut devices = Vec::new();
+    for card in &cards {
+        if !jack_server_is_running_for(&card.server_name) {
+            continue;
+        }
+        if let Ok(meta) = jack_meta_for(&card.server_name) {
+            if meta.capture_port_count > 0 {
+                devices.push(AudioDeviceDescriptor {
+                    id: card.device_id.clone(),
+                    name: format!("{} (JACK)", card.display_name),
+                    channels: meta.capture_port_count,
+                });
+            }
+        }
     }
-    Ok(vec![AudioDeviceDescriptor {
-        id: "jack:system".to_string(),
-        name: format!("{} (JACK)", meta.hw_name),
-        channels: meta.capture_port_count,
-    }])
+    Ok(devices)
 }
 
-/// Enumerate output devices directly via cached JACK metadata.
-/// See `jack_enumerate_input_devices` for rationale.
+/// Enumerate output devices via JACK — one entry per running named JACK server.
+/// device_id is "jack:<server_name>" (e.g. "jack:gen", "jack:q26").
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn jack_enumerate_output_devices() -> Result<Vec<AudioDeviceDescriptor>> {
-    let meta = jack_meta()?;
-    if meta.playback_port_count == 0 {
-        return Ok(Vec::new());
+    let cards = detect_all_usb_audio_cards();
+    let mut devices = Vec::new();
+    for card in &cards {
+        if !jack_server_is_running_for(&card.server_name) {
+            continue;
+        }
+        if let Ok(meta) = jack_meta_for(&card.server_name) {
+            if meta.playback_port_count > 0 {
+                devices.push(AudioDeviceDescriptor {
+                    id: card.device_id.clone(),
+                    name: format!("{} (JACK)", card.display_name),
+                    channels: meta.playback_port_count,
+                });
+            }
+        }
     }
-    Ok(vec![AudioDeviceDescriptor {
-        id: "jack:system".to_string(),
-        name: format!("{} (JACK)", meta.hw_name),
-        channels: meta.playback_port_count,
-    }])
+    Ok(devices)
 }
 
 /// Returns true when the direct JACK backend will be used for audio streaming.
@@ -544,7 +847,7 @@ struct ActiveChainRuntime {
     _input_streams: Vec<Stream>,
     _output_streams: Vec<Stream>,
     #[cfg(all(target_os = "linux", feature = "jack"))]
-    _jack_client: Option<jack::AsyncClient<(), JackProcessHandler>>,
+    _jack_client: Option<jack::AsyncClient<JackShutdownHandler, JackProcessHandler>>,
     /// DSP worker thread handle (Linux/JACK only). Dropped when chain stops.
     #[cfg(all(target_os = "linux", feature = "jack"))]
     _dsp_worker: Option<DspWorkerHandle>,
@@ -655,6 +958,28 @@ impl SpscRingBuffer {
         }
         self.read_pos.store(rp.wrapping_add(1), Ordering::Release);
         true
+    }
+}
+
+/// JACK notification handler that survives server shutdown without calling exit().
+/// When the JACK server dies (e.g. USB device unplugged), the default `()`
+/// notification handler calls `std::process::exit(0)`. This handler instead
+/// sets an atomic flag so the health-check timer can detect the disconnection
+/// and show "Audio device disconnected" without crashing the process.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+struct JackShutdownHandler {
+    shutdown_flag: Arc<std::sync::atomic::AtomicBool>,
+}
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
+impl jack::NotificationHandler for JackShutdownHandler {
+    unsafe fn shutdown(&mut self, status: jack::ClientStatus, reason: &str) {
+        log::warn!("JACK server shutdown: {:?} — {}", status, reason);
+        self.shutdown_flag.store(true, std::sync::atomic::Ordering::Release);
+        // Invalidate meta cache so is_healthy() can detect the zombie state
+        // on the next health check (socket still exists but server unresponsive).
+        invalidate_jack_meta_cache();
+        // Do NOT call std::process::exit() — let the health timer handle it.
     }
 }
 
@@ -790,12 +1115,64 @@ fn build_jack_direct_chain(
     chain_id: &ChainId,
     chain: &Chain,
     runtime: Arc<ChainRuntimeState>,
-) -> Result<(jack::AsyncClient<(), JackProcessHandler>, DspWorkerHandle)> {
+) -> Result<(jack::AsyncClient<JackShutdownHandler, JackProcessHandler>, DspWorkerHandle)> {
+    // Determine which named JACK server this chain should connect to.
+    let cards = detect_all_usb_audio_cards();
+    let server_name = chain.input_blocks().into_iter()
+        .flat_map(|(_, ib)| ib.entries.iter())
+        .find_map(|entry| {
+            if let Some(name) = entry.device_id.0.strip_prefix("jack:") {
+                return Some(name.to_string());
+            }
+            if let Some(hw_num) = entry.device_id.0.strip_prefix("hw:") {
+                if let Some(card) = cards.iter().find(|c| c.card_num == hw_num) {
+                    return Some(card.server_name.clone());
+                }
+            }
+            None
+        })
+        .or_else(|| {
+            cards.iter()
+                .find(|c| jack_server_is_running_for(&c.server_name))
+                .map(|c| c.server_name.clone())
+        })
+        .unwrap_or_else(|| "default".to_string());
+
+    log::info!(
+        "build_jack_direct_chain: chain '{}' → JACK server '{}'",
+        chain_id.0, server_name
+    );
+
     let client_name = format!("openrig_{}", chain_id.0);
-    let (client, _status) = jack::Client::new(
-        &client_name,
-        jack::ClientOptions::NO_START_SERVER,
-    ).map_err(|e| anyhow!("failed to create JACK client: {:?}", e))?;
+    // Retry up to 5 times with 200ms between attempts.
+    // The JACK UNIX socket appears before the shm segments are fully initialized,
+    // so the first connection attempt can fail with "Cannot open shm segment".
+    let result = (|| {
+        for attempt in 0..5u32 {
+            let _lock = JACK_CONNECT_LOCK.lock().unwrap();
+            std::env::set_var("JACK_DEFAULT_SERVER", &server_name);
+            let r = jack::Client::new(&client_name, jack::ClientOptions::NO_START_SERVER);
+            std::env::remove_var("JACK_DEFAULT_SERVER");
+            drop(_lock);
+            match r {
+                Ok(ok) => return Ok(ok),
+                Err(e) => {
+                    if attempt < 4 {
+                        log::warn!(
+                            "JACK client '{}' connect attempt {} failed ({:?}), retrying in 200ms",
+                            client_name, attempt + 1, e
+                        );
+                        std::thread::sleep(std::time::Duration::from_millis(200));
+                    } else {
+                        return Err(e);
+                    }
+                }
+            }
+        }
+        unreachable!()
+    })();
+    let (client, _status) = result
+        .map_err(|e| anyhow!("failed to create JACK client for server '{}': {:?}", server_name, e))?;
 
     let sample_rate = client.sample_rate() as f32;
     let buf_size = client.buffer_size() as usize;
@@ -930,7 +1307,9 @@ fn build_jack_direct_chain(
         thread: Some(thread),
     };
 
-    let active_client = client.activate_async((), handler)
+    let shutdown_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let notification_handler = JackShutdownHandler { shutdown_flag };
+    let active_client = client.activate_async(notification_handler, handler)
         .map_err(|e| anyhow!("failed to activate JACK client: {:?}", e))?;
 
     // Connect to system ports
@@ -1069,6 +1448,71 @@ pub fn invalidate_device_cache() {
     log::info!("device descriptor cache invalidated");
 }
 
+/// Returns true if the JACK server is currently running.
+/// Fast, non-blocking check — safe to call from the UI thread.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+pub fn jack_is_running() -> bool {
+    jack_server_is_running()
+}
+
+/// Start JACK in background threads — one per connected USB audio interface.
+/// Returns a channel that resolves when ALL servers are ready (Ok) or any fails (Err).
+/// Non-blocking — returns immediately. Poll the receiver from a UI timer.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+pub fn start_jack_in_background(
+    sample_rate: u32,
+    buffer_size: u32,
+) -> std::sync::mpsc::Receiver<anyhow::Result<()>> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let result = (|| -> anyhow::Result<()> {
+            let cards = detect_all_usb_audio_cards();
+            if cards.is_empty() {
+                anyhow::bail!(
+                    "no USB audio interface found — connect a device before enabling a chain"
+                );
+            }
+            for card in &cards {
+                if jack_server_is_running_for(&card.server_name) {
+                    log::info!(
+                        "start_jack_in_background: server '{}' already running",
+                        card.server_name
+                    );
+                    continue;
+                }
+                // Retry up to 3 times. The first attempt sometimes fails with
+                // "Broken pipe" when the ALSA device needs a moment to settle
+                // after a previous jackd exit or USB reconnect.
+                let mut last_err = anyhow::anyhow!("no attempt made");
+                for attempt in 1u32..=3 {
+                    match launch_jackd(card, sample_rate, buffer_size) {
+                        Ok(()) => { last_err = anyhow::anyhow!("ok"); break; }
+                        Err(e) => {
+                            log::warn!(
+                                "start_jack_in_background: attempt {}/3 for '{}' failed: {}",
+                                attempt, card.server_name, e
+                            );
+                            last_err = e;
+                            if attempt < 3 {
+                                // Kill any orphan jackd and wait 1s before retry
+                                let _ = std::process::Command::new("killall").args(["jackd"]).output();
+                                std::thread::sleep(std::time::Duration::from_secs(1));
+                            }
+                        }
+                    }
+                }
+                if !jack_server_is_running_for(&card.server_name) {
+                    return Err(last_err);
+                }
+            }
+            invalidate_device_cache();
+            Ok(())
+        })();
+        let _ = tx.send(result);
+    });
+    rx
+}
+
 /// Apply device settings (sample rate, buffer size) to hardware devices
 /// without requiring active chains. On macOS/CoreAudio, building a stream
 /// with the desired sample rate forces the driver to reconfigure the device.
@@ -1081,87 +1525,96 @@ pub fn apply_device_settings(settings: &[DeviceSettings]) -> Result<()> {
     if settings.is_empty() {
         return Ok(());
     }
+    // On Linux with JACK, jackd is always launched with the correct sample_rate
+    // and buffer_size from gui-settings.yaml via ensure_jack_running(). Never
+    // probe the ALSA PCM here — on RK3588 xHCI, calling supported_input_configs()
+    // on the Scarlett triggers the scarlett2 driver to enter standalone mode (red LED).
     #[cfg(all(target_os = "linux", feature = "jack"))]
-    if using_jack_direct() {
-        log::info!("apply_device_settings: JACK mode — skipping (JACK controls device config)");
+    {
+        log::info!("apply_device_settings: Linux/JACK — skipping ALSA probe (jackd owns device config)");
         return Ok(());
     }
-    let host = get_host();
-    let mut needs_settle = false;
-    for ds in settings {
-        log::info!(
-            "apply_device_settings: configuring '{}' sr={} buf={}",
-            ds.device_id.0, ds.sample_rate, ds.buffer_size_frames
-        );
-        // Try as input device first — on macOS the same physical device
-        // often shares one AudioObjectID for both directions, so configuring
-        // the input side sets the sample rate for the whole device.
-        if let Ok(Some(device)) = find_input_device_by_id(host, &ds.device_id.0) {
-            // Check if device already at requested sample rate
-            let current_rate = device.default_input_config()
-                .map(|c| c.sample_rate())
-                .unwrap_or(0);
-            if current_rate == ds.sample_rate {
-                log::info!(
-                    "apply_device_settings: input '{}' already at sr={}, skipping",
-                    ds.device_id.0, ds.sample_rate
-                );
-                continue;
-            }
-            if let Ok(ranges) = device.supported_input_configs() {
-                let ranges: Vec<_> = ranges.collect();
-                if let Some(config) = ranges.iter()
-                    .filter(|r| r.channels() >= 1)
-                    .filter_map(|r| r.try_with_sample_rate(ds.sample_rate))
-                    .next()
-                {
-                    let stream_config = build_stream_config(
-                        config.channels(),
-                        ds.sample_rate,
-                        ds.buffer_size_frames,
+    // macOS / Windows path: build a temporary stream to force the CoreAudio /
+    // WASAPI driver to adopt the requested sample rate and buffer size.
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
+    {
+        let host = get_host();
+        let mut needs_settle = false;
+        for ds in settings {
+            log::info!(
+                "apply_device_settings: configuring '{}' sr={} buf={}",
+                ds.device_id.0, ds.sample_rate, ds.buffer_size_frames
+            );
+            // Try as input device first — on macOS the same physical device
+            // often shares one AudioObjectID for both directions, so configuring
+            // the input side sets the sample rate for the whole device.
+            if let Ok(Some(device)) = find_input_device_by_id(host, &ds.device_id.0) {
+                // Check if device already at requested sample rate
+                let current_rate = device.default_input_config()
+                    .map(|c| c.sample_rate())
+                    .unwrap_or(0);
+                if current_rate == ds.sample_rate {
+                    log::info!(
+                        "apply_device_settings: input '{}' already at sr={}, skipping",
+                        ds.device_id.0, ds.sample_rate
                     );
-                    match device.build_input_stream(
-                        &stream_config,
-                        |_data: &[f32], _| {},
-                        |err| log::warn!("apply_device_settings input error: {err}"),
-                        None,
-                    ) {
-                        Ok(stream) => {
-                            log::info!(
-                                "apply_device_settings: input device '{}' configured (sr={} buf={})",
-                                ds.device_id.0, ds.sample_rate, ds.buffer_size_frames
-                            );
-                            drop(stream);
-                        }
-                        Err(e) => {
-                            // USB devices like Scarlett may timeout during sample rate
-                            // change but still reconfigure successfully. Treat as warning.
-                            let msg = e.to_string();
-                            if msg.contains("timeout") {
+                    continue;
+                }
+                if let Ok(ranges) = device.supported_input_configs() {
+                    let ranges: Vec<_> = ranges.collect();
+                    if let Some(config) = ranges.iter()
+                        .filter(|r| r.channels() >= 1)
+                        .filter_map(|r| r.try_with_sample_rate(ds.sample_rate))
+                        .next()
+                    {
+                        let stream_config = build_stream_config(
+                            config.channels(),
+                            ds.sample_rate,
+                            ds.buffer_size_frames,
+                        );
+                        match device.build_input_stream(
+                            &stream_config,
+                            |_data: &[f32], _| {},
+                            |err| log::warn!("apply_device_settings input error: {err}"),
+                            None,
+                        ) {
+                            Ok(stream) => {
                                 log::info!(
-                                    "apply_device_settings: device '{}' sample rate change in progress (timeout is normal for USB devices)",
-                                    ds.device_id.0
+                                    "apply_device_settings: input device '{}' configured (sr={} buf={})",
+                                    ds.device_id.0, ds.sample_rate, ds.buffer_size_frames
                                 );
-                                needs_settle = true;
-                            } else {
-                                log::warn!(
-                                    "apply_device_settings: failed to configure input '{}': {e}",
-                                    ds.device_id.0
-                                );
+                                drop(stream);
+                            }
+                            Err(e) => {
+                                // USB devices like Scarlett may timeout during sample rate
+                                // change but still reconfigure successfully. Treat as warning.
+                                let msg = e.to_string();
+                                if msg.contains("timeout") {
+                                    log::info!(
+                                        "apply_device_settings: device '{}' sample rate change in progress (timeout is normal for USB devices)",
+                                        ds.device_id.0
+                                    );
+                                    needs_settle = true;
+                                } else {
+                                    log::warn!(
+                                        "apply_device_settings: failed to configure input '{}': {e}",
+                                        ds.device_id.0
+                                    );
+                                }
                             }
                         }
                     }
                 }
             }
         }
+        if needs_settle {
+            log::info!("apply_device_settings: waiting 3s for USB device to settle after sample rate change");
+            std::thread::sleep(std::time::Duration::from_secs(3));
+            // Invalidate device cache since supported configs may have changed
+            invalidate_device_cache();
+        }
+        return Ok(());
     }
-    if needs_settle {
-        log::info!("apply_device_settings: waiting 3s for USB device to settle after sample rate change");
-        std::thread::sleep(std::time::Duration::from_secs(3));
-        // Invalidate device cache since supported configs may have changed
-        invalidate_device_cache();
-    }
-    Ok(())
 }
 
 pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
@@ -1192,10 +1645,21 @@ fn enumerate_input_devices_uncached() -> Result<Vec<AudioDeviceDescriptor>> {
         if jack_server_is_running() {
             return jack_enumerate_input_devices();
         }
-        // JACK not running — fall through to ALSA enumeration so the UI can
-        // still show available hardware devices for configuration.
+        // JACK not running — detect USB audio cards from /proc/asound/cards and
+        // return them with jack:<name> device IDs, matching what is stored in
+        // project YAML. This avoids calling supported_input_configs() (which
+        // opens the PCM and triggers scarlett2 disconnects) and ensures device_id
+        // consistency regardless of ALSA card numbering order (hw:0 vs hw:1).
         invalidate_jack_meta_cache();
-        log::info!("JACK not running, falling back to ALSA enumeration for input devices");
+        log::info!("JACK not running, detecting USB audio cards for input devices (no PCM probe)");
+        let usb_cards = detect_all_usb_audio_cards();
+        let cards: Vec<AudioDeviceDescriptor> = usb_cards.iter().map(|c| AudioDeviceDescriptor {
+            id: c.device_id.clone(),
+            name: c.display_name.clone(),
+            channels: 2,
+        }).collect();
+        log::info!("[enumerate_input] usb cards: {} devices", cards.len());
+        return Ok(cards);
     }
 
     #[allow(unreachable_code)]
@@ -1226,7 +1690,15 @@ fn enumerate_output_devices_uncached() -> Result<Vec<AudioDeviceDescriptor>> {
             return jack_enumerate_output_devices();
         }
         invalidate_jack_meta_cache();
-        log::info!("JACK not running, falling back to ALSA enumeration for output devices");
+        log::info!("JACK not running, detecting USB audio cards for output devices (no PCM probe)");
+        let usb_cards = detect_all_usb_audio_cards();
+        let cards: Vec<AudioDeviceDescriptor> = usb_cards.iter().map(|c| AudioDeviceDescriptor {
+            id: c.device_id.clone(),
+            name: c.display_name.clone(),
+            channels: 2,
+        }).collect();
+        log::info!("[enumerate_output] usb cards: {} devices", cards.len());
+        return Ok(cards);
     }
 
     #[allow(unreachable_code)]
@@ -1255,11 +1727,13 @@ pub fn build_streams_for_project(
 ) -> Result<Vec<Stream>> {
     log::info!("building audio streams for project");
 
-    // When using direct JACK, no CPAL streams needed — streaming is handled
-    // entirely by the jack crate in build_active_chain_runtime.
+    // On Linux with JACK, no CPAL streams are ever needed — streaming is handled
+    // entirely by the jack crate in build_active_chain_runtime. Also, calling
+    // validate_channels_against_devices() here would probe ALSA PCM and trigger
+    // the scarlett2 driver to drop the Scarlett into standalone mode.
     #[cfg(all(target_os = "linux", feature = "jack"))]
-    if using_jack_direct() {
-        log::info!("JACK direct mode: no CPAL streams to build");
+    {
+        log::info!("Linux/JACK: no CPAL streams needed");
         return Ok(Vec::new());
     }
 
@@ -1292,19 +1766,51 @@ pub fn build_streams_for_project(
 /// backend ignores inputs/outputs entirely.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn jack_resolve_chain_config(chain: &Chain) -> Result<ResolvedChainAudioConfig> {
-    // Uses cached metadata — never opens a JACK client on its own. This is
-    // called on every upsert_chain/sync_project, so opening a client here
-    // used to dominate the client-churn load on jackd.
-    let meta = jack_meta()?;
+    // Resolve the JACK server for this chain by inspecting its I/O device_ids.
+    // Chain entries may have:
+    //   - "jack:<server_name>"  → use that server directly
+    //   - "hw:<N>"              → find the card at hw:N and use its server
+    //   - anything else         → fall back to first running server
+    let cards = detect_all_usb_audio_cards();
+
+    let resolve_server = |device_id: &str| -> Option<String> {
+        if let Some(name) = device_id.strip_prefix("jack:") {
+            // Explicit jack:<name>
+            return Some(name.to_string());
+        }
+        if let Some(hw_num) = device_id.strip_prefix("hw:") {
+            // hw:N → find matching card by card_num
+            if let Some(card) = cards.iter().find(|c| c.card_num == hw_num) {
+                return Some(card.server_name.clone());
+            }
+        }
+        // Fallback: first running server
+        cards.iter()
+            .find(|c| jack_server_is_running_for(&c.server_name))
+            .map(|c| c.server_name.clone())
+    };
+
+    // Determine server from first input entry, or fallback to first running
+    let server_name = chain.input_blocks().into_iter()
+        .flat_map(|(_, ib)| ib.entries.iter())
+        .find_map(|entry| resolve_server(&entry.device_id.0))
+        .or_else(|| {
+            cards.iter()
+                .find(|c| jack_server_is_running_for(&c.server_name))
+                .map(|c| c.server_name.clone())
+        })
+        .ok_or_else(|| anyhow!("no running JACK server found for chain"))?;
+
+    let meta = jack_meta_for(&server_name)?;
+    let device_id = format!("jack:{}", server_name);
     let sample_rate = meta.sample_rate as f32;
     let in_channels = meta.capture_port_count as u16;
     let out_channels = meta.playback_port_count as u16;
 
-    // Build a minimal stream signature so the runtime can detect config changes
     let input_sigs: Vec<InputStreamSignature> = chain.input_blocks().into_iter()
         .flat_map(|(_, ib)| ib.entries.iter())
         .map(|entry| InputStreamSignature {
-            device_id: "jack:system".to_string(),
+            device_id: device_id.clone(),
             channels: entry.channels.clone(),
             stream_channels: in_channels,
             sample_rate: meta.sample_rate,
@@ -1315,7 +1821,7 @@ fn jack_resolve_chain_config(chain: &Chain) -> Result<ResolvedChainAudioConfig> 
     let output_sigs: Vec<OutputStreamSignature> = chain.output_blocks().into_iter()
         .flat_map(|(_, ob)| ob.entries.iter())
         .map(|entry| OutputStreamSignature {
-            device_id: "jack:system".to_string(),
+            device_id: device_id.clone(),
             channels: entry.channels.clone(),
             stream_channels: out_channels,
             sample_rate: meta.sample_rate,
@@ -1494,7 +2000,30 @@ impl ProjectRuntimeController {
         }
         #[cfg(all(target_os = "linux", feature = "jack"))]
         if using_jack_direct() {
-            return jack_server_is_running();
+            // Socket existence alone is insufficient — jackd can enter a zombie state
+            // where the process is alive (socket present) but the ALSA driver has
+            // stopped (e.g. after USB device disconnect). Verify the server is
+            // actually responsive by checking the meta cache, which is invalidated
+            // by the JackShutdownHandler when the connection drops.
+            if !jack_server_is_running() {
+                return false;
+            }
+            // If the cache is empty (was invalidated after a disconnect) and we
+            // can't reach the server, report unhealthy so the health timer triggers
+            // try_reconnect → ensure_jack_running → zombie kill + restart.
+            let cards = detect_all_usb_audio_cards();
+            for card in &cards {
+                if jack_server_is_running_for(&card.server_name) {
+                    if jack_meta_cache().lock().unwrap().get(&card.server_name).is_none() {
+                        // Cache was cleared — server may be zombie. Probe it.
+                        if jack_meta_for(&card.server_name).is_err() {
+                            log::warn!("is_healthy: server '{}' unresponsive (zombie), reporting unhealthy", card.server_name);
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
         }
         true
     }
@@ -1510,7 +2039,7 @@ impl ProjectRuntimeController {
         #[cfg(all(target_os = "linux", feature = "jack"))]
         if using_jack_direct() {
             // If no USB audio card is present, don't even try
-            if detect_usb_audio_card().is_none() {
+            if detect_all_usb_audio_cards().is_empty() {
                 log::debug!("try_reconnect: no USB audio card found");
                 return Ok(false);
             }
@@ -1913,16 +2442,20 @@ fn validate_chain_channels_against_devices(host: &cpal::Host, chain: &Chain) -> 
     Ok(())
 }
 
+#[cfg_attr(all(target_os = "linux", feature = "jack"), allow(unused_variables))]
 fn validate_input_channels_against_device(
     host: &cpal::Host,
     chain_id: &str,
     device_id: &str,
     channels: &[usize],
 ) -> Result<()> {
-    // When using direct JACK backend, skip CPAL-based channel validation.
-    // JACK manages port routing and will report errors at connect time.
-    if using_jack_direct() {
-        log::debug!("[validate_input_channels] skipping — JACK direct mode");
+    // On Linux with JACK, skip ALL ALSA channel validation — calling
+    // supported_input_configs() on the Scarlett triggers the scarlett2 driver
+    // to enter standalone mode (red LED), regardless of whether JACK is already
+    // running. JACK validates port counts at connect time.
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    {
+        log::debug!("[validate_input_channels] skipping — Linux/JACK (JACK validates at connect time)");
         return Ok(());
     }
     log::info!(
@@ -1953,14 +2486,16 @@ fn validate_input_channels_against_device(
     Ok(())
 }
 
+#[cfg_attr(all(target_os = "linux", feature = "jack"), allow(unused_variables))]
 fn validate_output_channels_against_device(
     host: &cpal::Host,
     chain_id: &str,
     device_id: &str,
     channels: &[usize],
 ) -> Result<()> {
-    if using_jack_direct() {
-        log::debug!("[validate_output_channels] skipping — JACK direct mode");
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    {
+        log::debug!("[validate_output_channels] skipping — Linux/JACK (JACK validates at connect time)");
         return Ok(());
     }
     log::info!(

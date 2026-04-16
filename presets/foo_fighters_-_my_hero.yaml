@@ -1,0 +1,44 @@
+id: foo_fighters_-_my_hero
+name: Foo Fighters - My Hero
+blocks:
+- type: utility
+  enabled: true
+  model: tuner_chromatic
+  params:
+    mute_signal: true
+    reference_hz: 440.0
+- type: filter
+  enabled: true
+  model: native_guitar_eq
+  params:
+    high_cut: 100.0
+    low_cut: 88.0
+- type: amp
+  enabled: true
+  model: vox_ac30
+  params:
+    character: standard
+- type: reverb
+  enabled: true
+  model: room
+  params:
+    damping: 70.0
+    mix: 8.0
+    room_size: 20.0
+- type: dynamics
+  enabled: true
+  model: limiter_brickwall
+  params:
+    ceiling: -0.10000000149011612
+    release_ms: 50.0
+    threshold: -1.0
+- type: gain
+  enabled: true
+  model: volume
+  params:
+    mute: false
+    volume: 80.0
+- type: utility
+  enabled: true
+  model: spectrum_analyzer
+  params: {}

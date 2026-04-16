@@ -1,0 +1,70 @@
+id: freak_-_silverchair
+name: Freak - Silverchair
+blocks:
+- type: utility
+  enabled: false
+  model: tuner_chromatic
+  params:
+    mute_signal: false
+    reference_hz: 440.0
+- type: dynamics
+  enabled: true
+  model: gate_basic
+  params:
+    attack_ms: 0.10000000149011612
+    release_ms: 100.0
+    threshold: 55.0
+- type: dynamics
+  enabled: true
+  model: compressor_studio_clean
+  params:
+    attack_ms: 15.0
+    makeup_gain: 50.0
+    mix: 80.0
+    ratio: 2.0
+    release_ms: 100.0
+    threshold: 60.0
+- type: gain
+  enabled: false
+  model: bluesbreaker
+  params:
+    eq:
+      bass: 5.0
+      enabled: true
+      middle: 5.0
+      treble: 5.0
+    input_db: 0.0
+    noise_gate:
+      enabled: true
+      threshold_db: -80.0
+    output_db: 0.0
+- type: amp
+  enabled: true
+  model: nam_mesa_rectifier
+  params:
+    cabinet: 4x12_v30
+    gain: drive_red
+- type: reverb
+  enabled: true
+  model: room
+  params:
+    damping: 70.0
+    mix: 15.0
+    room_size: 25.0
+- type: gain
+  enabled: true
+  model: volume
+  params:
+    mute: false
+    volume: 80.0
+- type: dynamics
+  enabled: true
+  model: limiter_brickwall
+  params:
+    ceiling: -0.10000000149011612
+    release_ms: 50.0
+    threshold: -1.0
+- type: utility
+  enabled: true
+  model: spectrum_analyzer
+  params: {}
