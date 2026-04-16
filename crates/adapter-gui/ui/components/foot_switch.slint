@@ -20,7 +20,7 @@ export component FootSwitch inherits Rectangle {
 
         Image {
             source: @image-url("../assets/sprites/led-red.png");
-            x: root.enabled ? -parent.width : 0;
+            x: root.enabled ? 0 : -parent.width;
             y: 0;
             width: 2 * parent.width;
             height: parent.height;
