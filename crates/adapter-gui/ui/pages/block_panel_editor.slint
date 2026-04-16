@@ -632,7 +632,7 @@ export component BlockPanelEditor inherits Rectangle {
             for param[pi] in root.block-parameter-items : Rectangle {
                 visible: param.widget_kind != "";
                 horizontal-stretch: param.widget_kind == "enum" ? 2 : 1;
-                height: 72px;
+                height: 92px;
 
                 // Label (shared by all widget types) — small caption for enum selectors, normal for others
                 Text {
@@ -652,7 +652,7 @@ export component BlockPanelEditor inherits Rectangle {
                 // ── Enum ≤4 options (selector knob) ──
                 if param.widget_kind == "enum" && param.option_labels.length <= 4 : SelectorKnob {
                     x: 0; y: 4px;
-                    width: parent.width; height: 66px;
+                    width: parent.width; height: 82px;
                     num-options: param.option_labels.length;
                     selected-index: param.selected_option_index;
                     labels: param.option_labels;
