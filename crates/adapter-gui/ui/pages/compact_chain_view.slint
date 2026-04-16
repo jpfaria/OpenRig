@@ -4,6 +4,7 @@ import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { BrandLogo } from "../components/brand_logo.slint";
 import { PanelKnob } from "../components/panel_knob.slint";
 import { FootSwitch } from "../components/foot_switch.slint";
+import { ToggleSwitch } from "../components/toggle_switch.slint";
 
 import "../fonts/BebasNeue.ttf";
 
@@ -366,30 +367,12 @@ component CompactBlockRow inherits Rectangle {
                 }
             }
 
-            // ── Bool toggle ──
-            if param.widget_kind == "bool" : Rectangle {
-                x: (parent.width - 44px) / 2; y: 14px;
-                width: 44px; height: 24px;
-                border-radius: 12px;
-                background: param.bool_value ? #4488dd : #333;
-                border-width: 1px;
-                border-color: param.bool_value ? #4488dd : #555;
-                animate background { duration: 150ms; }
-
-                Rectangle {
-                    x: param.bool_value ? parent.width - 22px : 2px;
-                    y: 2px;
-                    width: 20px;
-                    height: 20px;
-                    border-radius: 10px;
-                    background: #ffffff;
-                    animate x { duration: 150ms; }
-                }
-
-                TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => { root.update-parameter-bool(root.block-data.chain-index, root.block-data.block-index, param.path, !param.bool_value); }
-                }
+            // ── Bool toggle (sprite) ──
+            if param.widget_kind == "bool" : ToggleSwitch {
+                x: (parent.width - 30px) / 2; y: 14px;
+                width: 30px; height: 41px;
+                checked: param.bool_value;
+                toggled => { root.update-parameter-bool(root.block-data.chain-index, root.block-data.block-index, param.path, !param.bool_value); }
             }
         }
     }

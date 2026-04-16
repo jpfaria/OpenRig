@@ -1,0 +1,33 @@
+// Sprite-based toggle switch (on/off).
+// Horizontal strip: 66×45 px, 2 frames (each 33×45).
+// Left frame = off, right frame = on.
+export component ToggleSwitch inherits Rectangle {
+    in property <bool> checked;
+    callback toggled();
+
+    background: transparent;
+
+    Rectangle {
+        x: (root.width - root.width) / 2;
+        y: (root.height - root.height * 45 / 33) / 2;
+        width: root.width;
+        height: root.width * 45 / 33;
+        clip: true;
+
+        Image {
+            source: @image-url("../assets/sprites/toggleswitch.png");
+            // Off = left frame (x: 0), On = right frame (x: -width)
+            x: root.checked ? -parent.width : 0;
+            y: 0;
+            width: 2 * parent.width;
+            height: parent.height;
+            image-fit: fill;
+            image-rendering: smooth;
+        }
+    }
+
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.toggled(); }
+    }
+}
