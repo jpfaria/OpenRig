@@ -1,5 +1,6 @@
 // Rotary selector knob — same sprite as PanelKnob but snapped to discrete positions.
-// Labels positioned around the knob matching the indicator line direction.
+// ALL option labels are always visible at fixed arc positions around the knob.
+// Selected label is highlighted in orange; unselected labels are dimmed.
 // Knob rotation: frame 0 = 7 o'clock (bottom-left), frame 64 = 5 o'clock (bottom-right).
 export component SelectorKnob inherits Rectangle {
     in property <int> num-options;
@@ -14,24 +15,10 @@ export component SelectorKnob inherits Rectangle {
         : Math.min(Math.max(Math.round(root.selected-index * (root.frame-count - 1) / (root.num-options - 1)), 0), root.frame-count - 1);
     private property <length> ks: 32px;
     private property <length> cx: root.width / 2;
-    private property <length> cy: root.height / 2 + 4px;
+    private property <length> cy: root.height / 2;
     private property <length> lw: (root.width - root.ks) / 2 - 2px;
 
     background: transparent;
-
-    // ── Selected value display (above knob) ──
-    Text {
-        x: 0; y: 0;
-        width: root.width; height: 14px;
-        text: root.selected-index >= 0 && root.selected-index < root.labels.length
-            ? root.labels[root.selected-index] : "";
-        color: root.text-color;
-        font-size: 10px;
-        font-weight: 700;
-        letter-spacing: 0.5px;
-        horizontal-alignment: center;
-        overflow: elide;
-    }
 
     // ── Knob sprite (centered) ──
     Rectangle {
@@ -75,7 +62,7 @@ export component SelectorKnob inherits Rectangle {
             height: 14px;
             text: root.labels.length > 0 ? root.labels[0] : "";
             color: 0 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.6);
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 0 == root.selected-index ? 700 : 400;
             horizontal-alignment: right;
             overflow: elide;
@@ -87,7 +74,7 @@ export component SelectorKnob inherits Rectangle {
             height: 14px;
             text: root.labels.length > 1 ? root.labels[1] : "";
             color: 1 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.6);
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 1 == root.selected-index ? 700 : 400;
             horizontal-alignment: left;
             overflow: elide;
@@ -97,10 +84,11 @@ export component SelectorKnob inherits Rectangle {
     }
 
     // ═══════════════════════════════════════════
-    // 3 OPTIONS: bottom-left (7h), top hidden (shown above), bottom-right (5h)
+    // 3 OPTIONS: bottom-left (7h), top-center (12h), bottom-right (5h)
+    // All 3 labels always visible at fixed positions.
     // ═══════════════════════════════════════════
     if root.num-options == 3 : Rectangle {
-        // Option 0 — bottom-left
+        // Option 0 — bottom-left (7 o'clock)
         Text {
             x: 0;
             y: root.cy + root.ks / 2 - 4px;
@@ -108,12 +96,25 @@ export component SelectorKnob inherits Rectangle {
             height: 14px;
             text: root.labels.length > 0 ? root.labels[0] : "";
             color: 0 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.6);
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 0 == root.selected-index ? 700 : 400;
             horizontal-alignment: right;
             overflow: elide;
         }
-        // Option 2 — bottom-right
+        // Option 1 — top-center (12 o'clock), close to knob
+        Text {
+            x: root.cx - 40px;
+            y: root.cy - root.ks / 2 - 14px;
+            width: 80px;
+            height: 14px;
+            text: root.labels.length > 1 ? root.labels[1] : "";
+            color: 1 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.6);
+            font-size: 11px;
+            font-weight: 1 == root.selected-index ? 700 : 400;
+            horizontal-alignment: center;
+            overflow: elide;
+        }
+        // Option 2 — bottom-right (5 o'clock)
         Text {
             x: root.cx + root.ks / 2 + 2px;
             y: root.cy + root.ks / 2 - 4px;
@@ -121,12 +122,13 @@ export component SelectorKnob inherits Rectangle {
             height: 14px;
             text: root.labels.length > 2 ? root.labels[2] : "";
             color: 2 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.6);
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 2 == root.selected-index ? 700 : 400;
             horizontal-alignment: left;
             overflow: elide;
         }
         TouchArea { x: 0; y: root.cy + root.ks / 2 - 4px; width: root.lw; height: 14px; mouse-cursor: pointer; clicked => { root.select(0); } }
+        TouchArea { x: root.cx - 40px; y: root.cy - root.ks / 2 - 14px; width: 80px; height: 14px; mouse-cursor: pointer; clicked => { root.select(1); } }
         TouchArea { x: root.cx + root.ks / 2 + 2px; y: root.cy + root.ks / 2 - 4px; width: root.lw; height: 14px; mouse-cursor: pointer; clicked => { root.select(2); } }
     }
 
@@ -142,7 +144,7 @@ export component SelectorKnob inherits Rectangle {
             height: 14px;
             text: root.labels.length > 0 ? root.labels[0] : "";
             color: 0 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.6);
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 0 == root.selected-index ? 700 : 400;
             horizontal-alignment: right;
             overflow: elide;
@@ -155,7 +157,7 @@ export component SelectorKnob inherits Rectangle {
             height: 14px;
             text: root.labels.length > 1 ? root.labels[1] : "";
             color: 1 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.6);
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 1 == root.selected-index ? 700 : 400;
             horizontal-alignment: right;
             overflow: elide;
@@ -168,7 +170,7 @@ export component SelectorKnob inherits Rectangle {
             height: 14px;
             text: root.labels.length > 2 ? root.labels[2] : "";
             color: 2 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.6);
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 2 == root.selected-index ? 700 : 400;
             horizontal-alignment: left;
             overflow: elide;
@@ -181,7 +183,7 @@ export component SelectorKnob inherits Rectangle {
             height: 14px;
             text: root.labels.length > 3 ? root.labels[3] : "";
             color: 3 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.6);
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 3 == root.selected-index ? 700 : 400;
             horizontal-alignment: left;
             overflow: elide;
