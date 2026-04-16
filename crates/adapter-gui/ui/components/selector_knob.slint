@@ -131,13 +131,13 @@ export component SelectorKnob inherits Rectangle {
     }
 
     // ═══════════════════════════════════════════
-    // 4 OPTIONS: bottom-left (7h), left (9h), right (3h), bottom-right (5h)
+    // 4 OPTIONS: bottom-left (7h), upper-left (10h), upper-right (2h), bottom-right (5h)
     // ═══════════════════════════════════════════
     if root.num-options == 4 : Rectangle {
-        // Option 0 — bottom-left
+        // Option 0 — bottom-left (7 o'clock)
         Text {
             x: 0;
-            y: root.cy + root.ks / 2 - 4px;
+            y: root.cy + root.ks / 2 + 2px;
             width: root.lw;
             height: 14px;
             text: root.labels.length > 0 ? root.labels[0] : "";
@@ -147,10 +147,10 @@ export component SelectorKnob inherits Rectangle {
             horizontal-alignment: right;
             overflow: elide;
         }
-        // Option 1 — left (9 o'clock)
+        // Option 1 — upper-left (10 o'clock)
         Text {
             x: 0;
-            y: root.cy - 7px;
+            y: root.cy - root.ks / 2 - 14px;
             width: root.lw;
             height: 14px;
             text: root.labels.length > 1 ? root.labels[1] : "";
@@ -160,10 +160,10 @@ export component SelectorKnob inherits Rectangle {
             horizontal-alignment: right;
             overflow: elide;
         }
-        // Option 2 — right (3 o'clock)
+        // Option 2 — upper-right (2 o'clock)
         Text {
             x: root.cx + root.ks / 2 + 2px;
-            y: root.cy - 7px;
+            y: root.cy - root.ks / 2 - 14px;
             width: root.lw;
             height: 14px;
             text: root.labels.length > 2 ? root.labels[2] : "";
@@ -173,10 +173,10 @@ export component SelectorKnob inherits Rectangle {
             horizontal-alignment: left;
             overflow: elide;
         }
-        // Option 3 — bottom-right
+        // Option 3 — bottom-right (5 o'clock)
         Text {
             x: root.cx + root.ks / 2 + 2px;
-            y: root.cy + root.ks / 2 - 4px;
+            y: root.cy + root.ks / 2 + 2px;
             width: root.lw;
             height: 14px;
             text: root.labels.length > 3 ? root.labels[3] : "";
@@ -186,9 +186,9 @@ export component SelectorKnob inherits Rectangle {
             horizontal-alignment: left;
             overflow: elide;
         }
-        TouchArea { x: 0; y: root.cy + root.ks / 2 - 4px; width: root.lw; height: 14px; mouse-cursor: pointer; clicked => { root.select(0); } }
-        TouchArea { x: 0; y: root.cy - 7px; width: root.lw; height: 14px; mouse-cursor: pointer; clicked => { root.select(1); } }
-        TouchArea { x: root.cx + root.ks / 2 + 2px; y: root.cy - 7px; width: root.lw; height: 14px; mouse-cursor: pointer; clicked => { root.select(2); } }
-        TouchArea { x: root.cx + root.ks / 2 + 2px; y: root.cy + root.ks / 2 - 4px; width: root.lw; height: 14px; mouse-cursor: pointer; clicked => { root.select(3); } }
+        TouchArea { x: 0; y: root.cy + root.ks / 2 + 2px; width: root.lw; height: 14px; mouse-cursor: pointer; clicked => { root.select(0); } }
+        TouchArea { x: 0; y: root.cy - root.ks / 2 - 14px; width: root.lw; height: 14px; mouse-cursor: pointer; clicked => { root.select(1); } }
+        TouchArea { x: root.cx + root.ks / 2 + 2px; y: root.cy - root.ks / 2 - 14px; width: root.lw; height: 14px; mouse-cursor: pointer; clicked => { root.select(2); } }
+        TouchArea { x: root.cx + root.ks / 2 + 2px; y: root.cy + root.ks / 2 + 2px; width: root.lw; height: 14px; mouse-cursor: pointer; clicked => { root.select(3); } }
     }
 }
