@@ -296,13 +296,25 @@ fn launch_jackd(card: &str, sample_rate: u32, buffer_size: u32) -> Result<()> {
         card, sample_rate, buffer_size
     );
 
-    // Set ALSA mixer to unity gain before JACK starts (same as jackd.service)
-    let _ = std::process::Command::new("amixer")
-        .args(["-c", card, "set", "Mic", "46%"])
-        .output();
-    let _ = std::process::Command::new("amixer")
-        .args(["-c", card, "set", "PCM", "100%"])
-        .output();
+    // Remove any stale JACK shared-memory registry left by a previous failed run.
+    // If jack-shm-registry exists without an active server, JACK2 may refuse to start.
+    let shm_registry = std::path::Path::new("/dev/shm/jack-shm-registry");
+    if shm_registry.exists() {
+        log::info!("launch_jackd: removing stale jack-shm-registry");
+        let _ = std::fs::remove_file(shm_registry);
+    }
+
+    // NOTE: amixer calls are intentionally omitted for Scarlett Gen 4.
+    // The scarlett2 kernel driver manages its own mixer exclusively via USB
+    // vendor commands. Opening the ALSA control interface with amixer causes
+    // the firmware to send notification 0x20000000 ("Unhandled notification"),
+    // which leads to a USB disconnect/reconnect cycle. JACK works correctly
+    // without pre-setting these mixer controls.
+
+    let stderr_log = std::path::Path::new("/tmp/jackd-stderr.log");
+    let stderr_file = std::fs::File::create(stderr_log)
+        .map(std::process::Stdio::from)
+        .unwrap_or_else(|_| std::process::Stdio::null());
 
     let child = std::process::Command::new("/usr/bin/jackd")
         .args([
@@ -315,7 +327,7 @@ fn launch_jackd(card: &str, sample_rate: u32, buffer_size: u32) -> Result<()> {
         .env("JACK_NO_AUDIO_RESERVATION", "1")
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
+        .stderr(stderr_file)
         .spawn()
         .map_err(|e| anyhow!("failed to launch jackd: {}", e))?;
 
@@ -330,6 +342,13 @@ fn launch_jackd(card: &str, sample_rate: u32, buffer_size: u32) -> Result<()> {
             return Ok(());
         }
         std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+
+    // Log jackd's error output to help diagnose the failure.
+    if let Ok(stderr_content) = std::fs::read_to_string(stderr_log) {
+        for line in stderr_content.lines().take(20) {
+            log::error!("launch_jackd [jackd stderr]: {}", line);
+        }
     }
 
     bail!("jackd was launched but did not become ready within 30 seconds")
