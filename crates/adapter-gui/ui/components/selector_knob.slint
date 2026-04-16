@@ -1,39 +1,22 @@
 // Rotary selector knob — chicken-head pointer sprite, snapped to discrete positions.
-// ALL option labels always visible at fixed arc positions. No conditional Rectangle wrappers.
+// Knob-only: sprite + click cycling. Labels are rendered by the parent.
 // Knob rotation: frame 0 = 7 o'clock, frame 64 = 5 o'clock.
 export component SelectorKnob inherits Rectangle {
     in property <int> num-options;
     in property <int> selected-index;
-    in property <[string]> labels;
-    in property <color> text-color: #c0c8d0;
     callback select(int);
 
     private property <int> frame-count: 65;
     private property <int> frame-index:
         root.num-options <= 1 ? 0
         : Math.min(Math.max(Math.round(root.selected-index * (root.frame-count - 1) / (root.num-options - 1)), 0), root.frame-count - 1);
-    private property <length> ks: 40px;
-    private property <length> cx: root.width / 2;
-    private property <length> cy: root.ks / 2 + 16px;
-    private property <length> lw: Math.max((root.width - root.ks) / 2 - 4px, 0px);
+    private property <length> ks: root.width;
 
     background: transparent;
 
-    // DEBUG: show component dimensions to diagnose label invisibility
-    Text {
-        x: 0; y: root.cy + root.ks / 2;
-        width: root.width; height: 20px;
-        text: "w=" + Math.round(root.width / 1px) + " lw=" + Math.round(root.lw / 1px) + " n=" + root.num-options;
-        color: #ff0000;
-        font-size: 11px;
-        font-weight: 700;
-        horizontal-alignment: center;
-    }
-
     // ── Knob sprite ──
     Rectangle {
-        x: root.cx - root.ks / 2;
-        y: root.cy - root.ks / 2;
+        x: 0; y: 0;
         width: root.ks;
         height: root.ks;
         clip: true;
@@ -51,125 +34,12 @@ export component SelectorKnob inherits Rectangle {
 
     // Click on knob cycles
     TouchArea {
-        x: root.cx - root.ks / 2;
-        y: root.cy - root.ks / 2;
+        x: 0; y: 0;
         width: root.ks;
         height: root.ks;
         mouse-cursor: pointer;
         clicked => {
             root.select(root.selected-index >= root.num-options - 1 ? 0 : root.selected-index + 1);
         }
-    }
-
-    // ── Bottom-left label (7h) — used by 2/3/4 options ──
-    Text {
-        visible: root.num-options >= 2;
-        x: 0;
-        y: root.num-options == 4 ? root.cy + root.ks / 2 + 2px : root.cy + root.ks / 2 - 2px;
-        width: root.lw;
-        height: 14px;
-        text: root.labels.length > 0 ? root.labels[0] : "";
-        color: 0 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.7);
-        font-size: 12px;
-        font-weight: 0 == root.selected-index ? 700 : 400;
-        horizontal-alignment: right;
-        overflow: elide;
-    }
-    TouchArea {
-        visible: root.num-options >= 2;
-        x: 0;
-        y: root.num-options == 4 ? root.cy + root.ks / 2 + 2px : root.cy + root.ks / 2 - 2px;
-        width: root.lw; height: 14px;
-        mouse-cursor: pointer;
-        clicked => { root.select(0); }
-    }
-
-    // ── Bottom-right label (5h) — option 1 for 2-opt, option 2 for 3-opt, option 3 for 4-opt ──
-    Text {
-        visible: root.num-options >= 2;
-        x: root.cx + root.ks / 2 + 4px;
-        y: root.num-options == 4 ? root.cy + root.ks / 2 + 2px : root.cy + root.ks / 2 - 2px;
-        width: root.lw;
-        height: 14px;
-        text: root.num-options == 2 ? (root.labels.length > 1 ? root.labels[1] : "")
-            : root.num-options == 3 ? (root.labels.length > 2 ? root.labels[2] : "")
-            : (root.labels.length > 3 ? root.labels[3] : "");
-        color: (root.num-options == 2 ? 1 : root.num-options == 3 ? 2 : 3) == root.selected-index
-            ? #ffaa44 : root.text-color.with-alpha(0.7);
-        font-size: 12px;
-        font-weight: (root.num-options == 2 ? 1 : root.num-options == 3 ? 2 : 3) == root.selected-index ? 700 : 400;
-        horizontal-alignment: left;
-        overflow: elide;
-    }
-    TouchArea {
-        visible: root.num-options >= 2;
-        x: root.cx + root.ks / 2 + 4px;
-        y: root.num-options == 4 ? root.cy + root.ks / 2 + 2px : root.cy + root.ks / 2 - 2px;
-        width: root.lw; height: 14px;
-        mouse-cursor: pointer;
-        clicked => { root.select(root.num-options == 2 ? 1 : root.num-options == 3 ? 2 : 3); }
-    }
-
-    // ── Top-center label (12h) — option 1 for 3-opt ──
-    Text {
-        visible: root.num-options == 3;
-        x: root.cx - 60px;
-        y: 0;
-        width: 120px;
-        height: 14px;
-        text: root.labels.length > 1 ? root.labels[1] : "";
-        color: 1 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.7);
-        font-size: 12px;
-        font-weight: 1 == root.selected-index ? 700 : 400;
-        horizontal-alignment: center;
-        overflow: elide;
-    }
-    TouchArea {
-        visible: root.num-options == 3;
-        x: root.cx - 60px; y: 0; width: 120px; height: 14px;
-        mouse-cursor: pointer;
-        clicked => { root.select(1); }
-    }
-
-    // ── Upper-left label (10h) — option 1 for 4-opt ──
-    Text {
-        visible: root.num-options == 4;
-        x: 0;
-        y: 0;
-        width: root.lw;
-        height: 14px;
-        text: root.labels.length > 1 ? root.labels[1] : "";
-        color: 1 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.7);
-        font-size: 12px;
-        font-weight: 1 == root.selected-index ? 700 : 400;
-        horizontal-alignment: right;
-        overflow: elide;
-    }
-    TouchArea {
-        visible: root.num-options == 4;
-        x: 0; y: 0; width: root.lw; height: 14px;
-        mouse-cursor: pointer;
-        clicked => { root.select(1); }
-    }
-
-    // ── Upper-right label (2h) — option 2 for 4-opt ──
-    Text {
-        visible: root.num-options == 4;
-        x: root.cx + root.ks / 2 + 4px;
-        y: 0;
-        width: root.lw;
-        height: 14px;
-        text: root.labels.length > 2 ? root.labels[2] : "";
-        color: 2 == root.selected-index ? #ffaa44 : root.text-color.with-alpha(0.7);
-        font-size: 12px;
-        font-weight: 2 == root.selected-index ? 700 : 400;
-        horizontal-alignment: left;
-        overflow: elide;
-    }
-    TouchArea {
-        visible: root.num-options == 4;
-        x: root.cx + root.ks / 2 + 4px; y: 0; width: root.lw; height: 14px;
-        mouse-cursor: pointer;
-        clicked => { root.select(2); }
     }
 }

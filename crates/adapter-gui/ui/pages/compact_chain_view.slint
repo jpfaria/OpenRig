@@ -304,15 +304,132 @@ component CompactBlockRow inherits Rectangle {
                 changed(p, v) => { root.update-parameter-number(root.block-data.chain-index, root.block-data.block-index, p, v); }
             }
 
-            // ── Enum ≤4 options (selector knob) ──
-            if param.widget_kind == "enum" && param.option_labels.length <= 4 : SelectorKnob {
+            // ── Enum ≤4 options (selector knob + inline labels) ──
+            if param.widget_kind == "enum" && param.option_labels.length <= 4 : Rectangle {
                 x: 0; y: 14px;
                 width: parent.width; height: 76px;
-                num-options: param.option_labels.length;
-                selected-index: param.selected_option_index;
-                labels: param.option_labels;
-                text-color: root.block-data.panel-text;
-                select(i) => { root.select-parameter-option(root.block-data.chain-index, root.block-data.block-index, param.path, i); }
+                background: transparent;
+
+                property <length> ks: 40px;
+                property <length> cx: self.width / 2;
+                property <length> cy: self.ks / 2 + 16px;
+                property <length> lw: Math.max((self.width - self.ks) / 2 - 4px, 0px);
+                property <int> n: param.option_labels.length;
+                property <int> sel: param.selected_option_index;
+                property <color> tc: root.block-data.panel-text;
+
+                SelectorKnob {
+                    x: parent.cx - parent.ks / 2;
+                    y: parent.cy - parent.ks / 2;
+                    width: parent.ks; height: parent.ks;
+                    num-options: parent.n;
+                    selected-index: parent.sel;
+                    select(i) => { root.select-parameter-option(root.block-data.chain-index, root.block-data.block-index, param.path, i); }
+                }
+
+                // ── Bottom-left label (7h) — option 0 ──
+                Text {
+                    visible: parent.n >= 2;
+                    x: 0;
+                    y: parent.n == 4 ? parent.cy + parent.ks / 2 + 2px : parent.cy + parent.ks / 2 - 2px;
+                    width: parent.lw; height: 14px;
+                    text: param.option_labels.length > 0 ? param.option_labels[0] : "";
+                    color: 0 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
+                    font-size: 11px;
+                    font-weight: 0 == parent.sel ? 700 : 400;
+                    horizontal-alignment: right;
+                    overflow: elide;
+                }
+                TouchArea {
+                    visible: parent.n >= 2;
+                    x: 0;
+                    y: parent.n == 4 ? parent.cy + parent.ks / 2 + 2px : parent.cy + parent.ks / 2 - 2px;
+                    width: parent.lw; height: 14px;
+                    mouse-cursor: pointer;
+                    clicked => { root.select-parameter-option(root.block-data.chain-index, root.block-data.block-index, param.path, 0); }
+                }
+
+                // ── Bottom-right label (5h) — last option ──
+                Text {
+                    visible: parent.n >= 2;
+                    x: parent.cx + parent.ks / 2 + 4px;
+                    y: parent.n == 4 ? parent.cy + parent.ks / 2 + 2px : parent.cy + parent.ks / 2 - 2px;
+                    width: parent.lw; height: 14px;
+                    text: parent.n == 2 ? (param.option_labels.length > 1 ? param.option_labels[1] : "")
+                        : parent.n == 3 ? (param.option_labels.length > 2 ? param.option_labels[2] : "")
+                        : (param.option_labels.length > 3 ? param.option_labels[3] : "");
+                    color: (parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3) == parent.sel
+                        ? #ffaa44 : parent.tc.with-alpha(0.7);
+                    font-size: 11px;
+                    font-weight: (parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3) == parent.sel ? 700 : 400;
+                    horizontal-alignment: left;
+                    overflow: elide;
+                }
+                TouchArea {
+                    visible: parent.n >= 2;
+                    x: parent.cx + parent.ks / 2 + 4px;
+                    y: parent.n == 4 ? parent.cy + parent.ks / 2 + 2px : parent.cy + parent.ks / 2 - 2px;
+                    width: parent.lw; height: 14px;
+                    mouse-cursor: pointer;
+                    clicked => { root.select-parameter-option(root.block-data.chain-index, root.block-data.block-index, param.path, parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3); }
+                }
+
+                // ── Top-center label (12h) — option 1 for 3-opt ──
+                Text {
+                    visible: parent.n == 3;
+                    x: parent.cx - 55px; y: 0;
+                    width: 110px; height: 14px;
+                    text: param.option_labels.length > 1 ? param.option_labels[1] : "";
+                    color: 1 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
+                    font-size: 11px;
+                    font-weight: 1 == parent.sel ? 700 : 400;
+                    horizontal-alignment: center;
+                    overflow: elide;
+                }
+                TouchArea {
+                    visible: parent.n == 3;
+                    x: parent.cx - 55px; y: 0; width: 110px; height: 14px;
+                    mouse-cursor: pointer;
+                    clicked => { root.select-parameter-option(root.block-data.chain-index, root.block-data.block-index, param.path, 1); }
+                }
+
+                // ── Upper-left label (10h) — option 1 for 4-opt ──
+                Text {
+                    visible: parent.n == 4;
+                    x: 0; y: 0;
+                    width: parent.lw; height: 14px;
+                    text: param.option_labels.length > 1 ? param.option_labels[1] : "";
+                    color: 1 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
+                    font-size: 11px;
+                    font-weight: 1 == parent.sel ? 700 : 400;
+                    horizontal-alignment: right;
+                    overflow: elide;
+                }
+                TouchArea {
+                    visible: parent.n == 4;
+                    x: 0; y: 0; width: parent.lw; height: 14px;
+                    mouse-cursor: pointer;
+                    clicked => { root.select-parameter-option(root.block-data.chain-index, root.block-data.block-index, param.path, 1); }
+                }
+
+                // ── Upper-right label (2h) — option 2 for 4-opt ──
+                Text {
+                    visible: parent.n == 4;
+                    x: parent.cx + parent.ks / 2 + 4px; y: 0;
+                    width: parent.lw; height: 14px;
+                    text: param.option_labels.length > 2 ? param.option_labels[2] : "";
+                    color: 2 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
+                    font-size: 11px;
+                    font-weight: 2 == parent.sel ? 700 : 400;
+                    horizontal-alignment: left;
+                    overflow: elide;
+                }
+                TouchArea {
+                    visible: parent.n == 4;
+                    x: parent.cx + parent.ks / 2 + 4px; y: 0; width: parent.lw; height: 14px;
+                    mouse-cursor: pointer;
+                    clicked => { root.select-parameter-option(root.block-data.chain-index, root.block-data.block-index, param.path, 2); }
+                }
             }
 
             // ── Enum 5+ options (dropdown) ──
