@@ -323,8 +323,8 @@ fn launch_jackd(card: &str, sample_rate: u32, buffer_size: u32) -> Result<()> {
             "-r", &sample_rate.to_string(),
             "-p", &buffer_size.to_string(),
             "-n", "2",   // 2 periods — USB isochronous 125µs; 3 causes EPIPE on Scarlett Gen 4
-            "-i", "2",   // explicit capture channels (hardware exposes 4 but JACK needs symmetric 2)
-            "-o", "2",   // explicit playback channels
+            "-i", "4",   // Scarlett 2i2 Gen 4 capture = exactly 4 channels (hardware constraint)
+            "-o", "2",   // Scarlett 2i2 Gen 4 playback = exactly 2 channels
         ])
         .env("JACK_NO_AUDIO_RESERVATION", "1")
         .stdin(std::process::Stdio::null())
