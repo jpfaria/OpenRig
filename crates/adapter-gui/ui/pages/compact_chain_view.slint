@@ -261,11 +261,11 @@ component CompactBlockRow inherits Rectangle {
                 : param.widget_kind == "enum" && param.option_labels.length > 4 ? 200px
                 : param.widget_kind == "bool" ? 56px
                 : 62px;
-            height: 72px;
+            height: 90px;
 
             // Label
             Text {
-                x: 0; y: 0; width: parent.width; height: 12px;
+                x: 0; y: 9px; width: parent.width; height: 12px;
                 text: param.label;
                 color: root.block-data.panel-text;
                 font-family: "Bebas Neue";
@@ -276,7 +276,7 @@ component CompactBlockRow inherits Rectangle {
 
             // ── Numeric knob/stepper/slider ──
             if param.widget_kind == "stepper" || param.widget_kind == "slider" || param.widget_kind == "knob" : PanelKnob {
-                x: 2px; y: 14px;
+                x: 2px; y: 23px;
                 width: 58px; height: 76px;
                 value: param.numeric_value;
                 min-val: param.numeric_min;
@@ -288,7 +288,7 @@ component CompactBlockRow inherits Rectangle {
 
             // ── Enum ≤4 options (segmented control) ──
             if param.widget_kind == "enum" && param.option_labels.length <= 4 : Rectangle {
-                x: 0; y: 14px;
+                x: 0; y: 23px;
                 width: parent.width;
                 height: 30px;
                 border-radius: 5px;
@@ -370,8 +370,8 @@ component CompactBlockRow inherits Rectangle {
 
             // ── Bool toggle (sprite) ──
             if param.widget_kind == "bool" : ToggleSwitch {
-                x: (parent.width - 54px) / 2; y: 2px;
-                width: 54px; height: 90px;
+                x: (parent.width - 28px) / 2; y: 22px;
+                width: 28px; height: 56px;
                 checked: param.bool_value;
                 toggled => { root.update-parameter-bool(root.block-data.chain-index, root.block-data.block-index, param.path, !param.bool_value); }
             }
