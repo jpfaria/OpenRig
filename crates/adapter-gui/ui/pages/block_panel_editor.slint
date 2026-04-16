@@ -631,7 +631,7 @@ export component BlockPanelEditor inherits Rectangle {
 
             for param[pi] in root.block-parameter-items : Rectangle {
                 visible: param.widget_kind != "";
-                horizontal-stretch: param.widget_kind == "enum" ? 2 : 1;
+                horizontal-stretch: 1;
                 height: 90px;
 
                 // Label
