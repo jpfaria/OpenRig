@@ -274,44 +274,6 @@ fn invalidate_jack_meta_cache() {
     }
 }
 
-/// Enumerate all ALSA sound cards by reading /proc/asound/cards without opening
-/// any PCM device. Safe to call even when a fragile USB audio device is present
-/// (e.g. Scarlett 2i2 on RK3588 xHCI) — CPAL's ALSA device.supported_input_configs()
-/// opens the PCM and can trigger the scarlett2 driver to drop the device into
-/// standalone mode (red LED). This function avoids that by never touching ALSA PCM.
-/// Channel count is a conservative default of 2 (sufficient for device listing UI).
-#[cfg(all(target_os = "linux", feature = "jack"))]
-fn enumerate_alsa_cards_from_proc() -> Vec<AudioDeviceDescriptor> {
-    let content = match std::fs::read_to_string("/proc/asound/cards") {
-        Ok(c) => c,
-        Err(_) => return Vec::new(),
-    };
-    let mut devices = Vec::new();
-    for line in content.lines() {
-        let trimmed = line.trim_start();
-        // Lines look like: " 0 [HDMI           ]: simple-card - hdmi0"
-        //                  " 2 [Scarlett2i2    ]: USB-Audio - Scarlett 2i2 USB"
-        if !trimmed.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
-            continue;
-        }
-        let card_num = match trimmed.split_whitespace().next() {
-            Some(n) => n.to_string(),
-            None => continue,
-        };
-        let hw_name = if let Some(pos) = trimmed.find(" - ") {
-            trimmed[pos + 3..].trim().to_string()
-        } else {
-            format!("Card {}", card_num)
-        };
-        devices.push(AudioDeviceDescriptor {
-            id: format!("hw:{}", card_num),
-            name: hw_name,
-            channels: 2,
-        });
-    }
-    devices
-}
-
 /// Represents a USB audio card detected in /proc/asound/cards.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 #[derive(Debug, Clone)]
@@ -678,29 +640,6 @@ fn stop_jackd_for(server_name: &str) -> Result<()> {
     let _ = std::process::Command::new("killall").args(["-9", "jackd"]).output();
     std::thread::sleep(std::time::Duration::from_millis(200));
     invalidate_jack_meta_cache_for(server_name);
-    Ok(())
-}
-
-/// Stop all running JACK servers.
-#[cfg(all(target_os = "linux", feature = "jack"))]
-fn stop_jackd() -> Result<()> {
-    log::info!("stop_jackd: killing all jackd processes");
-    let _ = std::process::Command::new("killall").args(["jackd"]).output();
-
-    for _ in 0..30 {
-        if !jack_server_is_running() {
-            invalidate_jack_meta_cache();
-            invalidate_device_cache();
-            log::info!("stop_jackd: all JACK servers stopped");
-            return Ok(());
-        }
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-
-    let _ = std::process::Command::new("killall").args(["-9", "jackd"]).output();
-    std::thread::sleep(std::time::Duration::from_millis(200));
-    invalidate_jack_meta_cache();
-    invalidate_device_cache();
     Ok(())
 }
 
@@ -1686,6 +1625,7 @@ fn enumerate_output_devices_uncached() -> Result<Vec<AudioDeviceDescriptor>> {
     devices.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(devices)
 }
+#[allow(unreachable_code)]
 pub fn build_streams_for_project(
     project: &Project,
     runtime_graph: &RuntimeGraph,
@@ -1698,7 +1638,8 @@ pub fn build_streams_for_project(
     // the scarlett2 driver to drop the Scarlett into standalone mode.
     #[cfg(all(target_os = "linux", feature = "jack"))]
     {
-        log::info!("Linux/JACK: no CPAL streams needed");
+        let _ = project;       // not needed on Linux/JACK
+        let _ = runtime_graph; // not needed on Linux/JACK: all streaming handled by jack crate
         return Ok(Vec::new());
     }
 
@@ -2407,6 +2348,7 @@ fn validate_chain_channels_against_devices(host: &cpal::Host, chain: &Chain) -> 
     Ok(())
 }
 
+#[allow(unreachable_code)]
 #[cfg_attr(all(target_os = "linux", feature = "jack"), allow(unused_variables))]
 fn validate_input_channels_against_device(
     host: &cpal::Host,
@@ -2451,6 +2393,7 @@ fn validate_input_channels_against_device(
     Ok(())
 }
 
+#[allow(unreachable_code)]
 #[cfg_attr(all(target_os = "linux", feature = "jack"), allow(unused_variables))]
 fn validate_output_channels_against_device(
     host: &cpal::Host,

@@ -492,11 +492,13 @@ pub fn run_desktop_app(
     let inline_stream_timer: Rc<RefCell<Option<Timer>>> = Rc::new(RefCell::new(None));
     let open_compact_window: Rc<RefCell<Option<(usize, slint::Weak<CompactChainViewWindow>)>>> = Rc::new(RefCell::new(None));
     let audio_settings_mode = Rc::new(RefCell::new(AudioSettingsMode::Gui));
+    // Always load device descriptors so chain tooltips can resolve device names,
+    // even when audio settings are already complete (needs_audio_settings = false).
     let input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>> = Rc::new(RefCell::new(
-        if needs_audio_settings { list_input_device_descriptors().unwrap_or_default() } else { Vec::new() }
+        list_input_device_descriptors().unwrap_or_default()
     ));
     let output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>> = Rc::new(RefCell::new(
-        if needs_audio_settings { list_output_device_descriptors().unwrap_or_default() } else { Vec::new() }
+        list_output_device_descriptors().unwrap_or_default()
     ));
     let preset_file_list: Rc<RefCell<Vec<std::path::PathBuf>>> = Rc::new(RefCell::new(Vec::new()));
     let window = AppWindow::new().map_err(|error| anyhow!(error.to_string()))?;
@@ -9700,13 +9702,50 @@ fn normalized_chain_description(name: &str) -> Option<String> {
 }
 fn chain_from_draft(draft: &ChainDraft, existing_chain: Option<&Chain>) -> Chain {
     if let Some(existing) = existing_chain {
-        // Edit mode: only update name and instrument, preserve all blocks as-is
+        // Edit mode: update name, instrument, and I/O device entries from draft;
+        // preserve all other blocks (effects, DSP) as-is.
+        let mut blocks = existing.blocks.clone();
+        // Update first InputBlock entries from draft
+        if let Some(pos) = blocks.iter().position(|b| matches!(b.kind, AudioBlockKind::Input(_))) {
+            let new_entries: Vec<InputEntry> = draft.inputs.iter()
+                .filter(|ig| ig.device_id.is_some() && !ig.channels.is_empty())
+                .map(|ig| InputEntry {
+                    device_id: DeviceId(ig.device_id.clone().unwrap_or_default()),
+                    mode: ig.mode,
+                    channels: ig.channels.clone(),
+                })
+                .collect();
+            if !new_entries.is_empty() {
+                if let AudioBlockKind::Input(ref mut ib) = blocks[pos].kind {
+                    ib.entries = new_entries;
+                }
+            }
+        }
+        // Update last OutputBlock entries from draft
+        let last_output_pos = blocks.iter().enumerate().rev()
+            .find(|(_, b)| matches!(b.kind, AudioBlockKind::Output(_)))
+            .map(|(i, _)| i);
+        if let Some(pos) = last_output_pos {
+            let new_entries: Vec<OutputEntry> = draft.outputs.iter()
+                .filter(|og| og.device_id.is_some() && !og.channels.is_empty())
+                .map(|og| OutputEntry {
+                    device_id: DeviceId(og.device_id.clone().unwrap_or_default()),
+                    mode: og.mode,
+                    channels: og.channels.clone(),
+                })
+                .collect();
+            if !new_entries.is_empty() {
+                if let AudioBlockKind::Output(ref mut ob) = blocks[pos].kind {
+                    ob.entries = new_entries;
+                }
+            }
+        }
         Chain {
             id: existing.id.clone(),
             description: normalized_chain_description(&draft.name),
             instrument: draft.instrument.clone(),
             enabled: existing.enabled,
-            blocks: existing.blocks.clone(),
+            blocks,
         }
     } else {
         // Create mode: build initial I/O blocks from draft
