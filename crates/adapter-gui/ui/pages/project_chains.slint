@@ -4,6 +4,7 @@ import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { BlockPanelEditor } from "block_panel_editor.slint";
 import { CurveEditorControl } from "curve_editor_control.slint";
 import { MultiSliderControl } from "multi_slider_control.slint";
+import { PowerSwitch } from "../components/power_switch.slint";
 
 component ToolbarButton inherits Rectangle {
     in property <string> label;
@@ -1053,9 +1054,10 @@ component ChainRow inherits Rectangle {
         height: 58px;
         background: transparent;
 
-        ChainPowerToggle {
-            x: 18px;
-            y: 14px;
+        PowerSwitch {
+            x: 12px;
+            y: (58px - 36px) / 2;
+            width: 36px; height: 36px;
             enabled: root.chain.enabled;
             clicked => { root.toggle-chain-enabled(root.chain-index); }
         }

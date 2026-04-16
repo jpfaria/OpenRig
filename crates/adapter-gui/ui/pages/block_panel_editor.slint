@@ -1015,11 +1015,11 @@ export component BlockPanelEditor inherits Rectangle {
     // Falls to 62% when knob overlays are present so it sits alongside the knobs.
     private property <length> power-y: root.header-height + root.brand-strip-height + 4px;
 
-    PowerSwitch {
+    FootSwitch {
         x: 8px;
         y: root.power-y;
-        width: 56px;
-        height: 56px;
+        width: 48px;
+        height: 66px;
         enabled: root.block-drawer-enabled;
         clicked => { root.toggle-block-drawer-enabled(); }
     }
