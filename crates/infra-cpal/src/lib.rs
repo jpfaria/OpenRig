@@ -423,19 +423,18 @@ fn configure_alsa_mixer(card: &UsbAudioCard) {
         || card.display_name.to_lowercase().contains("focusrite");
 
     if is_scarlett {
-        // Scarlett routing: send raw analogue inputs to PCM (for OpenRig to process),
-        // and route PCM outputs (OpenRig's processed signal) to the analogue outputs.
-        // Direct monitor must be Off to avoid the guitar feeding back through hardware.
+        // Scarlett PCM capture routing: send raw analogue inputs to PCM so JACK
+        // can read the guitar signal. JACK owns all output routing — we must NOT
+        // touch Analogue Output Playback Enum here because writing those controls
+        // triggers scarlett2_notify 0x20000000 which causes the device to
+        // USB-disconnect ~30 seconds later (confirmed via dmesg on RK3588 xHCI).
         //
-        // PCM 01/02 Capture = Analogue 1/2 (raw guitar → OpenRig)
+        // PCM 01/02 Capture = Analogue 1/2 (raw guitar → JACK/OpenRig)
         amixer_cset(c, "name='PCM 01 Capture Enum'", "1");   // Analogue 1
         amixer_cset(c, "name='PCM 02 Capture Enum'", "2");   // Analogue 2
-        // Analogue Output 01/02 = PCM 1/2 (OpenRig processed signal → headphones/speakers)
-        amixer_cset(c, "name='Analogue Output 01 Playback Enum'", "9");  // PCM 1
-        amixer_cset(c, "name='Analogue Output 02 Playback Enum'", "10"); // PCM 2
         // Direct Monitor Off — prevents raw guitar from bleeding into output hardware
         amixer_cset(c, "name='Direct Monitor Playback Enum'", "0"); // Off
-        log::info!("configure_alsa_mixer: Scarlett routing set (Analogue→PCM capture, PCM→Analogue output, Direct Monitor Off)");
+        log::info!("configure_alsa_mixer: Scarlett capture routing set (Analogue→PCM, Direct Monitor Off)");
         return;
     }
 
