@@ -13,6 +13,8 @@ pub const MODEL_ID: &str = "spectrum_analyzer";
 pub const DISPLAY_NAME: &str = "Spectrum Analyzer";
 
 const FFT_SIZE: usize = 8192;
+// 75% overlap → update rate = sample_rate / HOP_SIZE ≈ 23 Hz at 48 kHz (fluid)
+const HOP_SIZE: usize = 2048;
 const N_BANDS: usize = 63;
 
 // Center frequencies for 63 logarithmic bands (Hz): f[i] = 20 * 2^(i/6), 1/6-octave spacing.
@@ -91,8 +93,8 @@ struct BandSmoother {
 
 impl BandSmoother {
     fn new(sample_rate: f32) -> Self {
-        // dt = time per FFT frame; tau = 0.5s decay time constant
-        let dt = FFT_SIZE as f32 / sample_rate;
+        // dt = time per hop (update rate); tau = 0.5s decay time constant
+        let dt = HOP_SIZE as f32 / sample_rate;
         let decay_factor = (-dt / 0.5_f32).exp();
         Self {
             levels: [0.0; N_BANDS],
@@ -125,7 +127,7 @@ struct PeakHolder {
 
 impl PeakHolder {
     fn new(sample_rate: f32) -> Self {
-        let dt = FFT_SIZE as f32 / sample_rate;
+        let dt = HOP_SIZE as f32 / sample_rate;
         Self {
             peaks: [0.0; N_BANDS],
             decay_factor: (-dt / PEAK_DECAY_TAU).exp(),
@@ -223,7 +225,11 @@ impl SpectrumWorker {
 }
 
 pub struct SpectrumAnalyzer {
-    buffer: Vec<f32>,
+    // Ring buffer always holds the last FFT_SIZE samples
+    ring: Vec<f32>,
+    write_pos: usize,
+    // Counts new samples since last FFT dispatch
+    hop_count: usize,
     tx: std::sync::mpsc::SyncSender<Vec<f32>>,
 }
 
@@ -242,7 +248,9 @@ impl SpectrumAnalyzer {
             .expect("spawn spectrum worker");
 
         Self {
-            buffer: Vec::with_capacity(FFT_SIZE),
+            ring: vec![0.0; FFT_SIZE],
+            write_pos: 0,
+            hop_count: 0,
             tx,
         }
     }
@@ -250,13 +258,22 @@ impl SpectrumAnalyzer {
 
 impl MonoProcessor for SpectrumAnalyzer {
     fn process_sample(&mut self, input: f32) -> f32 {
-        self.buffer.push(input);
-        if self.buffer.len() >= FFT_SIZE {
-            let buf = std::mem::replace(&mut self.buffer, Vec::with_capacity(FFT_SIZE));
-            // Non-blocking send: drop frame if worker is busy
+        self.ring[self.write_pos] = input;
+        self.write_pos = (self.write_pos + 1) % FFT_SIZE;
+        self.hop_count += 1;
+
+        if self.hop_count >= HOP_SIZE {
+            self.hop_count = 0;
+            // Copy ring buffer in chronological order (oldest sample first)
+            let read_start = self.write_pos;
+            let mut buf = Vec::with_capacity(FFT_SIZE);
+            for i in 0..FFT_SIZE {
+                buf.push(self.ring[(read_start + i) % FFT_SIZE]);
+            }
+            // Non-blocking: drop frame if worker is still busy with previous
             let _ = self.tx.try_send(buf);
         }
-        input // pass through unchanged
+        input
     }
 }
 
