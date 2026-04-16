@@ -31,8 +31,8 @@ component CompactBlockRow inherits Rectangle {
     // ── 1. Power switch (footswitch sprite) ──
     FootSwitch {
         x: 10px;
-        y: (parent.height - 48px) / 2;
-        width: 48px; height: 48px;
+        y: (parent.height - 66px) / 2;
+        width: 48px; height: 66px;
         enabled: root.block-data.enabled;
         clicked => { root.toggle-enabled(root.block-data.chain-index, root.block-data.block-index); }
     }
@@ -382,8 +382,8 @@ component CompactBlockRow inherits Rectangle {
 
             // ── Bool toggle (sprite) ──
             if param.widget_kind == "bool" : ToggleSwitch {
-                x: (parent.width - 30px) / 2; y: 14px;
-                width: 30px; height: 41px;
+                x: (parent.width - 44px) / 2; y: 6px;
+                width: 44px; height: 78px;
                 checked: param.bool_value;
                 toggled => { root.update-parameter-bool(root.block-data.chain-index, root.block-data.block-index, param.path, !param.bool_value); }
             }
