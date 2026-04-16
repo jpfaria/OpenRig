@@ -592,20 +592,30 @@ fn ensure_jack_running(project: &Project) -> Result<bool> {
     let mut any_started = false;
     for card in &cards {
         if jack_server_is_running_for(&card.server_name) {
-            // Check config match
-            if let Ok(meta) = jack_meta_for(&card.server_name) {
-                if meta.sample_rate == desired_sr && meta.buffer_size == desired_buf {
+            match jack_meta_for(&card.server_name) {
+                Ok(meta) if meta.sample_rate == desired_sr && meta.buffer_size == desired_buf => {
                     log::debug!(
                         "ensure_jack_running: server '{}' already running with correct config",
                         card.server_name
                     );
                     continue;
                 }
-                log::info!(
-                    "ensure_jack_running: server '{}' config mismatch (sr={} buf={} → sr={} buf={}), restarting",
-                    card.server_name, meta.sample_rate, meta.buffer_size, desired_sr, desired_buf
-                );
-                stop_jackd_for(&card.server_name)?;
+                Ok(meta) => {
+                    log::info!(
+                        "ensure_jack_running: server '{}' config mismatch (sr={} buf={} → sr={} buf={}), restarting",
+                        card.server_name, meta.sample_rate, meta.buffer_size, desired_sr, desired_buf
+                    );
+                    stop_jackd_for(&card.server_name)?;
+                }
+                Err(e) => {
+                    // Socket exists but server is unresponsive — jackd entered zombie
+                    // state after the ALSA device disconnected. Kill it before restarting.
+                    log::warn!(
+                        "ensure_jack_running: server '{}' socket present but unresponsive ({}), killing zombie",
+                        card.server_name, e
+                    );
+                    let _ = stop_jackd_for(&card.server_name);
+                }
             }
         }
 
@@ -963,6 +973,9 @@ impl jack::NotificationHandler for JackShutdownHandler {
     unsafe fn shutdown(&mut self, status: jack::ClientStatus, reason: &str) {
         log::warn!("JACK server shutdown: {:?} — {}", status, reason);
         self.shutdown_flag.store(true, std::sync::atomic::Ordering::Release);
+        // Invalidate meta cache so is_healthy() can detect the zombie state
+        // on the next health check (socket still exists but server unresponsive).
+        invalidate_jack_meta_cache();
         // Do NOT call std::process::exit() — let the health timer handle it.
     }
 }
@@ -1952,7 +1965,30 @@ impl ProjectRuntimeController {
         }
         #[cfg(all(target_os = "linux", feature = "jack"))]
         if using_jack_direct() {
-            return jack_server_is_running();
+            // Socket existence alone is insufficient — jackd can enter a zombie state
+            // where the process is alive (socket present) but the ALSA driver has
+            // stopped (e.g. after USB device disconnect). Verify the server is
+            // actually responsive by checking the meta cache, which is invalidated
+            // by the JackShutdownHandler when the connection drops.
+            if !jack_server_is_running() {
+                return false;
+            }
+            // If the cache is empty (was invalidated after a disconnect) and we
+            // can't reach the server, report unhealthy so the health timer triggers
+            // try_reconnect → ensure_jack_running → zombie kill + restart.
+            let cards = detect_all_usb_audio_cards();
+            for card in &cards {
+                if jack_server_is_running_for(&card.server_name) {
+                    if jack_meta_cache().lock().unwrap().get(&card.server_name).is_none() {
+                        // Cache was cleared — server may be zombie. Probe it.
+                        if jack_meta_for(&card.server_name).is_err() {
+                            log::warn!("is_healthy: server '{}' unresponsive (zombie), reporting unhealthy", card.server_name);
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
         }
         true
     }
