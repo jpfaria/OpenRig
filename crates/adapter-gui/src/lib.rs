@@ -9594,22 +9594,31 @@ fn build_input_channel_items(
         return Vec::new();
     };
     let device_id = &device.id;
-    let used_channels = project
-        .chains
-        .iter()
-        .enumerate()
-        .filter(|(index, chain)| {
-            chain.enabled
-                && draft.editing_index != Some(*index)
-        })
-        .flat_map(|(_, chain)| {
-            chain.input_blocks().into_iter()
-                .flat_map(|(_, inp)| inp.entries.iter())
-                .filter(|entry| entry.device_id.0 == *device_id)
-                .flat_map(|entry| entry.channels.iter().copied().collect::<Vec<_>>())
-                .collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>();
+    // A disabled chain can claim any channel — it is not running so there is no
+    // real conflict. Only show conflicts when the chain being edited is enabled.
+    let editing_chain_enabled = draft.editing_index
+        .and_then(|i| project.chains.get(i))
+        .map(|c| c.enabled)
+        .unwrap_or(true); // new chains (no editing_index) behave as enabled for conflict purposes
+    let used_channels: Vec<usize> = if !editing_chain_enabled {
+        Vec::new()
+    } else {
+        project
+            .chains
+            .iter()
+            .enumerate()
+            .filter(|(index, chain)| {
+                chain.enabled && draft.editing_index != Some(*index)
+            })
+            .flat_map(|(_, chain)| {
+                chain.input_blocks().into_iter()
+                    .flat_map(|(_, inp)| inp.entries.iter())
+                    .filter(|entry| entry.device_id.0 == *device_id)
+                    .flat_map(|entry| entry.channels.iter().copied().collect::<Vec<_>>())
+                    .collect::<Vec<_>>()
+            })
+            .collect()
+    };
     (0..device.channels)
         .map(|channel| ChannelOptionItem {
             index: channel as i32,
