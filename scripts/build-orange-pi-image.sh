@@ -22,10 +22,9 @@ ARMBIAN_BRANCH="main"
 BOARD="orangepi5b"
 # BRANCH=current → stable 6.x LTS kernel. edge (7.0-rc) does NOT boot
 # on RK3588 as of 2026-04-12 (confirmed with official Armbian image).
-# current = stable 6.x LTS kernel (edge 7.0-rc does NOT boot on RK3588)
-# noble  = Ubuntu 24.04 LTS (glibc 2.39 required by OpenRig binary)
+# bookworm = Debian 12 — confirmed working with OpenRig binary (glibc 2.36 is sufficient)
 BRANCH="current"
-RELEASE="noble"
+RELEASE="bookworm"
 OUTPUT_DIR="$PROJECT_ROOT/output/orange-pi"
 USERPATCHES_DIR="$ARMBIAN_DIR/userpatches"
 OVERLAY_DIR="$USERPATCHES_DIR/overlay"
@@ -174,6 +173,13 @@ prepare_overlay() {
 
     # Stage rootfs overlay (etc, usr)
     run cp -r "$PROJECT_ROOT/platform/orange-pi/rootfs/." "$OVERLAY_DIR/"
+
+    # Stage chain presets — land at /etc/presets/ which is the default
+    # presets_path relative to the project file (/etc/openrig.yaml).
+    if [ -d "$PROJECT_ROOT/presets" ]; then
+        run mkdir -p "$OVERLAY_DIR/etc/presets"
+        run cp -r "$PROJECT_ROOT/presets/." "$OVERLAY_DIR/etc/presets/"
+    fi
 
     # Stage DTB overlay source for the Scarlett/USB-C TCPM workaround.
     # customize-image.sh compiles and installs it inside the chroot using

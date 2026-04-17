@@ -10,7 +10,7 @@ export { PluginInfoWindow }
 
 export component ProjectSettingsWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Cooper Hewitt";
+    default-font-family: "Bebas Neue";
     default-font-size: 13px;
     in-out property <string> project-name-draft;
     in-out property <string> status-message;
@@ -53,7 +53,7 @@ export component ProjectSettingsWindow inherits Window {
 
 export component ChainEditorWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Cooper Hewitt";
+    default-font-family: "Bebas Neue";
     default-font-size: 13px;
     in property <string> editor-title;
     in property <string> editor-save-label;
@@ -166,7 +166,7 @@ export component ChainEditorWindow inherits Window {
 
 export component ChainInputWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Cooper Hewitt";
+    default-font-family: "Bebas Neue";
     default-font-size: 13px;
     in property <[string]> device-options;
     in-out property <int> selected-device-index;
@@ -206,7 +206,7 @@ export component ChainInputWindow inherits Window {
 
 export component ChainOutputWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Cooper Hewitt";
+    default-font-family: "Bebas Neue";
     default-font-size: 13px;
     in property <[string]> device-options;
     in-out property <int> selected-device-index;
@@ -246,7 +246,7 @@ export component ChainOutputWindow inherits Window {
 
 export component ChainInputGroupsWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Cooper Hewitt";
+    default-font-family: "Bebas Neue";
     default-font-size: 13px;
     in property <[IoGroupItem]> groups;
     in-out property <string> status-message;
@@ -287,7 +287,7 @@ export component ChainInputGroupsWindow inherits Window {
 
 export component ChainOutputGroupsWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Cooper Hewitt";
+    default-font-family: "Bebas Neue";
     default-font-size: 13px;
     in property <[IoGroupItem]> groups;
     in-out property <string> status-message;
@@ -328,7 +328,7 @@ export component ChainOutputGroupsWindow inherits Window {
 
 export component ChainInsertWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Cooper Hewitt";
+    default-font-family: "Bebas Neue";
     default-font-size: 13px;
     // Send (output devices)
     in property <[string]> send-device-options;
@@ -393,7 +393,7 @@ export component ChainInsertWindow inherits Window {
 
 export component BlockEditorWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Cooper Hewitt";
+    default-font-family: "Bebas Neue";
     default-font-size: 13px;
     in property <[BlockTypePickerItem]> block-type-options;
     in property <[BlockModelPickerItem]> block-model-options;
@@ -547,7 +547,7 @@ export component BlockEditorWindow inherits Window {
 
 export component CompactChainViewWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Cooper Hewitt";
+    default-font-family: "Bebas Neue";
     default-font-size: 13px;
     title: "OpenRig \u{00B7} Chain";
     min-width: 800px;
@@ -607,7 +607,7 @@ export component CompactChainViewWindow inherits Window {
 
 export component AppWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
-    default-font-family: "Cooper Hewitt";
+    default-font-family: "Bebas Neue";
     default-font-size: 13px;
     in property <string> app-version;
     in property <bool> show-project-launcher;
@@ -781,6 +781,13 @@ export component AppWindow inherits Window {
     callback chain-io-groups-cancel();
     callback chain-io-groups-toggle-enabled();
     callback chain-io-groups-delete-block();
+    callback virtual-key-pressed(string);
+    in property <bool> show-preset-picker: false;
+    in property <[string]> preset-picker-items;
+    in-out property <int> preset-picker-chain-index: -1;
+    callback preset-picker-confirm(int);
+    callback preset-picker-delete(int);
+    callback preset-picker-cancel();
     title: "OpenRig";
     min-width: 860px;
     min-height: 540px;
@@ -1075,6 +1082,55 @@ export component AppWindow inherits Window {
         update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
         update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
         update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
+        virtual-key-pressed(label) => { root.virtual-key-pressed(label); }
+        show-preset-picker: root.show-preset-picker;
+        preset-picker-items: root.preset-picker-items;
+        preset-picker-chain-index <=> root.preset-picker-chain-index;
+        preset-picker-confirm(i) => { root.preset-picker-confirm(i); }
+        preset-picker-delete(i) => { root.preset-picker-delete(i); }
+        preset-picker-cancel => { root.preset-picker-cancel(); }
+        // Inline chain editor
+        chain-editor-input-groups: root.chain-editor-input-groups;
+        chain-editor-output-groups: root.chain-editor-output-groups;
+        chain-editor-is-create-mode: root.chain-editor-is-create-mode;
+        chain-editor-selected-instrument-index <=> root.chain-editor-selected-instrument-index;
+        edit-chain-input(index) => { root.edit-chain-input(index); }
+        remove-chain-input(index) => { root.remove-chain-input(index); }
+        add-chain-input => { root.add-chain-input(); }
+        edit-chain-output(index) => { root.edit-chain-output(index); }
+        remove-chain-output(index) => { root.remove-chain-output(index); }
+        add-chain-output => { root.add-chain-output(); }
+        select-chain-instrument(index) => { root.select-chain-instrument(index); }
+        // Inline I/O groups
+        show-chain-io-groups: root.show-chain-io-groups;
+        chain-io-groups-title: root.chain-io-groups-title;
+        chain-io-groups-add-label: root.chain-io-groups-add-label;
+        chain-io-groups-items: root.chain-io-groups-items;
+        chain-io-groups-status <=> root.chain-io-groups-status;
+        chain-io-groups-show-block-controls: root.chain-io-groups-show-block-controls;
+        chain-io-groups-block-enabled: root.chain-io-groups-block-enabled;
+        chain-io-groups-edit(index) => { root.chain-io-groups-edit(index); }
+        chain-io-groups-remove(index) => { root.chain-io-groups-remove(index); }
+        chain-io-groups-add => { root.chain-io-groups-add(); }
+        chain-io-groups-save => { root.chain-io-groups-save(); }
+        chain-io-groups-cancel => { root.chain-io-groups-cancel(); }
+        chain-io-groups-toggle-enabled => { root.chain-io-groups-toggle-enabled(); }
+        chain-io-groups-delete-block => { root.chain-io-groups-delete-block(); }
+        // Inline I/O endpoint editor
+        show-chain-io-editor: root.show-chain-io-editor;
+        chain-io-editor-title: root.chain-io-editor-title;
+        chain-io-device-options: root.chain-io-device-options;
+        chain-io-selected-device-index <=> root.chain-io-selected-device-index;
+        chain-io-channels: root.chain-io-channels;
+        chain-io-editor-status <=> root.chain-io-editor-status;
+        chain-io-show-mode-selector: root.chain-io-show-mode-selector;
+        chain-io-mode-labels: root.chain-io-mode-labels;
+        chain-io-selected-mode-index <=> root.chain-io-selected-mode-index;
+        chain-io-select-device(index) => { root.chain-io-select-device(index); }
+        chain-io-toggle-channel(index, selected) => { root.chain-io-toggle-channel(index, selected); }
+        chain-io-select-mode(index) => { root.chain-io-select-mode(index); }
+        chain-io-save => { root.chain-io-save(); }
+        chain-io-cancel => { root.chain-io-cancel(); }
     }
 
     in-out property <string> toast-message;

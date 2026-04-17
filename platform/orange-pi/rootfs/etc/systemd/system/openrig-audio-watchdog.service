@@ -1,12 +1,10 @@
 [Unit]
 Description=OpenRig Audio Zombie Watchdog
 Documentation=https://github.com/jpfaria/OpenRig
-# We want to start once jackd.service has been touched by systemd, but we
-# should NOT bind our lifecycle to it: when we detect a failure and trigger
-# openrig-reset-audio, the reset stops jackd briefly. A BindsTo= would kill
-# the watchdog in the middle of recovery. Just an ordering hint is enough.
-After=jackd.service
-Wants=jackd.service
+# Start after OpenRig since JACK is now launched programmatically by OpenRig
+# via ensure_jack_running(). The watchdog monitors jackd journal output for
+# zombie states (device disconnected but process alive) and triggers recovery.
+After=openrig.service
 
 [Service]
 Type=simple

@@ -739,8 +739,9 @@ Filter blocks shape the frequency spectrum of the signal using equalization and 
 
 | Model Name        | Brand | Backend | Description                    |
 |-------------------|-------|---------|--------------------------------|
-| Three Band EQ     | --    | Native  | 3-band parametric EQ           |
-| Guitar EQ         | --    | Native  | Low-cut + high-cut EQ for guitar |
+| Three Band EQ          | --    | Native  | 3-band parametric EQ                       |
+| Guitar EQ              | --    | Native  | Low-cut + high-cut EQ for guitar           |
+| 8-Band Parametric EQ   | --    | Native  | 8 independent bands, full parametric control |
 | TAP Equalizer     | TAP   | LV2     | Parametric EQ                  |
 | TAP Equalizer/BW  | TAP   | LV2     | Butterworth EQ                 |
 | ZamEQ2            | ZAM   | LV2     | 2-band parametric EQ           |
@@ -768,6 +769,56 @@ Cuts the two frequency ranges known to cause noise and mud in guitar signals. Ea
 |-----------|---------|---------------|------------------------------------------------------|
 | low_cut   | 0--100% | 0 to -12 dB   | Low-shelf cut below 80 Hz (rumble, stage noise, mud) |
 | high_cut  | 0--100% | 0 to -12 dB   | High-shelf cut above 8 kHz (hiss, pick fizz)         |
+
+### Parameters -- 8-Band Parametric EQ
+
+Eight independent biquad filter stages in cascade. Each band is separately configurable. Default frequencies: 62, 125, 250, 500, 1k, 2k, 4k, 8kHz (all Peak, 0 dB).
+
+Each band `{N}` (1–8) exposes five parameters:
+
+| Parameter        | Type   | Range          | Default | Description                                        |
+|------------------|--------|----------------|---------|----------------------------------------------------|
+| `band{N}_enabled`| bool   | on/off         | on      | Bypass this band when off                          |
+| `band{N}_type`   | enum   | see below      | peak    | Filter shape                                       |
+| `band{N}_freq`   | float  | 20–20000 Hz    | *       | Center / corner frequency                          |
+| `band{N}_gain`   | float  | -24 to +24 dB  | 0       | Boost or cut (ignored by LP/HP/Notch)              |
+| `band{N}_q`      | float  | 0.1–10         | 1.0     | Bandwidth / resonance (higher = narrower)          |
+
+Band types:
+
+| Value        | Name        | Description                               |
+|--------------|-------------|-------------------------------------------|
+| `peak`       | Peak        | Bell-shaped boost or cut                  |
+| `low_shelf`  | Low Shelf   | Boost/cut all frequencies below `freq`    |
+| `high_shelf` | High Shelf  | Boost/cut all frequencies above `freq`    |
+| `low_pass`   | Low Pass    | Attenuates frequencies above `freq`       |
+| `high_pass`  | High Pass   | Attenuates frequencies below `freq`       |
+| `notch`      | Notch       | Narrow cut at `freq` (gain ignored)       |
+
+Example YAML:
+
+```yaml
+- type: filter
+  model: eq_eight_band_parametric
+  enabled: true
+  params:
+    band1_enabled: true
+    band1_type: high_pass
+    band1_freq: 80.0
+    band1_gain: 0.0
+    band1_q: 0.707
+    band2_enabled: true
+    band2_type: low_shelf
+    band2_freq: 200.0
+    band2_gain: 3.0
+    band2_q: 0.707
+    band3_enabled: true
+    band3_type: peak
+    band3_freq: 500.0
+    band3_gain: -2.0
+    band3_q: 2.0
+    # bands 4–8 follow the same pattern
+```
 
 ---
 
@@ -893,7 +944,7 @@ The NAM Loader block is a generic Neural Amp Modeler capture loader that allows 
 | Reverb      | 19      | Native, LV2              |
 | Modulation  | 16      | Native, LV2              |
 | Dynamics    | 9       | Native, LV2              |
-| Filter      | 11      | Native, LV2              |
+| Filter      | 13      | Native, LV2              |
 | Wah         | 2       | Native, LV2              |
 | Utility     | 2       | Native                   |
 | Pitch       | 4       | LV2                      |
@@ -901,6 +952,6 @@ The NAM Loader block is a generic Neural Amp Modeler capture loader that allows 
 | Full Rig    | 12      | NAM                      |
 | IR Loader   | 1       | Native                   |
 | NAM Loader  | 1       | NAM                      |
-| **Total**   | **329** |                          |
+| **Total**   | **331** |                          |
 
 > Gain includes 2 Native models, 43 NAM captures, and 46 LV2 plugins (including 33 Guitarix models). NAM captures reproduce specific hardware settings at capture time; parameters are fixed per capture variant rather than continuously variable.
