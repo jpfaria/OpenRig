@@ -181,6 +181,11 @@ echo ">>> [OpenRig] Setting JACK RT capabilities and audio group membership..."
 setcap cap_sys_nice,cap_ipc_lock=ep /usr/bin/jackd || true
 usermod -aG audio root
 
+# ── 8b. Remove deprecated platform files ─────────────────────────────────────
+# Explicitly delete files that were removed from the repo to prevent stale
+# copies from surviving across image upgrades (dd installs don't clean old files).
+rm -f /etc/udev/rules.d/90-openrig-audio-hotswap.rules
+
 # ── 9. Enable systemd services ───────────────────────────────────────────────
 echo ">>> [OpenRig] Enabling services, masking jackd..."
 systemctl disable jackd.service  2>/dev/null || true
