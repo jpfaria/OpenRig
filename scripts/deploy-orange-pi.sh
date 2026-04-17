@@ -2,28 +2,33 @@
 # Build .deb for arm64 and deploy to Orange Pi.
 #
 # Usage:
-#   ./scripts/deploy-orange-pi.sh [--version V] [--host H]
+#   ./scripts/deploy-orange-pi.sh --host USER@IP [--version V]
 #
-# Defaults:
-#   version: 0.0.0-dev
-#   host:    root@192.168.15.145
+# Options:
+#   --host     (required) SSH target, e.g. root@192.168.1.42
+#   --version  (optional) package version, default: 0.0.0-dev
 
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="0.0.0-dev"
-HOST="root@192.168.15.145"
+HOST=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
         --version) VERSION="$2"; shift 2 ;;
         --host)    HOST="$2";    shift 2 ;;
         --help|-h)
-            sed -n '1,8p' "$0" | grep '^#' | sed 's/^# \?//'
+            sed -n '1,10p' "$0" | grep '^#' | sed 's/^# \?//'
             exit 0 ;;
         *) echo "Unknown option: $1" >&2; exit 1 ;;
     esac
 done
+
+if [ -z "$HOST" ]; then
+    echo "Error: --host is required. Example: --host root@192.168.1.42" >&2
+    exit 1
+fi
 
 DEB="$PROJECT_ROOT/output/deb/openrig_${VERSION}_arm64.deb"
 
