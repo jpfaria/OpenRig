@@ -850,34 +850,13 @@ component BlockChip inherits Rectangle {
         image-fit: contain;
     }
 
-    if !root.block.has-thumbnail && root.block.icon-kind == "vst3" : Image {
-        x: 0px; y: 17px; width: parent.width; height: 72px;
-        source: @image-url("../assets/vst3-plugin.svg");
-        image-fit: contain;
-        colorize: root.dragging ? #8b95a5 : root.block.enabled ? root.accent-color : #5c6678;
-    }
-    if !root.block.has-thumbnail && root.block.icon-kind == "input" : Image {
-        x: 0px; y: 17px; width: parent.width; height: 72px;
-        source: @image-url("../assets/connector-input.png");
-        image-fit: contain;
-    }
-    if !root.block.has-thumbnail && root.block.icon-kind == "output" : Image {
-        x: 0px; y: 17px; width: parent.width; height: 72px;
-        source: @image-url("../assets/connector-output.png");
-        image-fit: contain;
-    }
-    if !root.block.has-thumbnail && root.block.icon-kind == "insert" : Image {
-        x: 0px; y: 17px; width: parent.width; height: 72px;
-        source: @image-url("../assets/insert-pedalboard.png");
-        image-fit: contain;
-    }
-    if !root.block.has-thumbnail && root.block.icon-kind != "vst3" && root.block.icon-kind != "input" && root.block.icon-kind != "output" && root.block.icon-kind != "insert" : EffectTypeIcon {
+    if !root.block.has-thumbnail : EffectTypeIcon {
         x: 0px;
         y: 17px;
         width: parent.width;
         height: 72px;
         icon-kind: root.block.icon-kind;
-        tint: root.dragging ? #8b95a5 : root.block.enabled ? #f3f6fb : #5c6678;
+        tint: root.dragging ? #8b95a5 : root.block.enabled ? root.accent-color : #5c6678;
     }
 
     // White hover outline — hugs the actual rendered thumbnail
