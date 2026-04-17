@@ -9,8 +9,8 @@ const SELECT_SELECTED_BLOCK_ID: &str = "__select.selected_block_id";
 use application::validate::validate_project;
 use domain::ids::{BlockId, DeviceId, ChainId};
 use infra_cpal::{
-    invalidate_device_cache, list_input_device_descriptors, list_output_device_descriptors,
-    AudioDeviceDescriptor, ProjectRuntimeController,
+    has_new_devices, invalidate_device_cache, list_input_device_descriptors,
+    list_output_device_descriptors, AudioDeviceDescriptor, ProjectRuntimeController,
 };
 use infra_filesystem::{
     AppConfig, FilesystemStorage, GuiAudioDeviceSettings, GuiAudioSettings, RecentProjectEntry,
@@ -730,19 +730,31 @@ pub fn run_desktop_app(
 
     // Audio health check timer — detects device disconnects (JACK server
     // down on Linux, CoreAudio device removed on macOS) and auto-reconnects
-    // when the backend becomes available again.
+    // when the backend becomes available again. Also detects USB audio
+    // interfaces plugged in after app start and refreshes the device lists.
     {
         let weak_window = window.as_weak();
         let toast_timer_health = toast_timer.clone();
         let runtime_health = project_runtime.clone();
         let session_health = project_session.clone();
         let disconnected = Rc::new(RefCell::new(false));
+        let input_opts_health = chain_input_device_options.clone();
+        let output_opts_health = chain_output_device_options.clone();
         let health_timer = Timer::default();
         health_timer.start(
             slint::TimerMode::Repeated,
             std::time::Duration::from_secs(2),
             move || {
                 let Some(win) = weak_window.upgrade() else { return; };
+
+                // Hotplug detection: refresh device lists when new interfaces appear.
+                if has_new_devices() {
+                    invalidate_device_cache();
+                    refresh_input_devices(&input_opts_health);
+                    refresh_output_devices(&output_opts_health);
+                    log::info!("health timer: new audio device detected, device list refreshed");
+                }
+
                 let mut rt_borrow = runtime_health.borrow_mut();
                 let Some(rt) = rt_borrow.as_mut() else { return; };
                 if !rt.is_running() {
