@@ -4,39 +4,10 @@
 export component EffectTypeIcon inherits Rectangle {
     in property <string> icon-kind;
     in property <color> tint: #ffffff;
-    // When true, always use flat colorized SVG (e.g. block type selector).
-    // When false (default), photos are used for input/output/insert/vst3 (chain view).
-    in property <bool> force-flat: false;
 
     background: transparent;
 
-    if !root.force-flat && root.icon-kind == "input" : Image {
-        width: 100%; height: 100%;
-        source: @image-url("../assets/connector-input.png");
-        image-fit: contain;
-    }
-
-    if !root.force-flat && root.icon-kind == "output" : Image {
-        width: 100%; height: 100%;
-        source: @image-url("../assets/connector-output.png");
-        image-fit: contain;
-    }
-
-    if !root.force-flat && root.icon-kind == "insert" : Image {
-        width: 100%; height: 100%;
-        source: @image-url("../assets/insert-pedalboard.png");
-        image-fit: contain;
-    }
-
-    if !root.force-flat && root.icon-kind == "vst3" : Image {
-        width: 100%; height: 100%;
-        source: @image-url("../assets/vst3-pedal.png");
-        image-fit: contain;
-    }
-
-    // Flat colorized SVG: used for all types when force-flat=true,
-    // and for types without dedicated photos when force-flat=false.
-    if root.force-flat || (root.icon-kind != "input" && root.icon-kind != "output" && root.icon-kind != "insert" && root.icon-kind != "vst3") : Image {
+    Image {
         width: 100%;
         height: 100%;
         source: root.icon-kind == "vst3"         ? @image-url("../assets/vst3-plugin.svg")
