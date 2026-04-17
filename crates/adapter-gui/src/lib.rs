@@ -4762,7 +4762,7 @@ pub fn run_desktop_app(
                             let Some(runtime) = runtime_borrow.as_ref() else {
                                 poll_count += 1;
                                 if poll_count % 40 == 0 {
-                                    log::warn!("[block-editor-stream] runtime not available (poll #{})", poll_count);
+                                    log::debug!("[block-editor-stream] runtime not available (poll #{})", poll_count);
                                 }
                                 return;
                             };
@@ -5335,6 +5335,16 @@ pub fn run_desktop_app(
                         *selected_block.borrow_mut() = None;
                         set_selected_block(&main, None, None);
                         let _ = win.hide();
+                    });
+                }
+                // Clean up stream timer when block editor is closed via the window X button.
+                {
+                    let open_block_windows_close = open_block_windows.clone();
+                    win.window().on_close_requested(move || {
+                        open_block_windows_close.borrow_mut().retain(|bw| {
+                            bw.chain_index != ci || bw.block_index != bi
+                        });
+                        slint::CloseRequestResponse::HideWindow
                     });
                 }
                 show_child_window(window.window(), win.window());
