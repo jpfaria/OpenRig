@@ -27,14 +27,12 @@ use project::catalog::{
     supported_block_type, supported_block_types,
 };
 use project::device::DeviceSettings;
-use project::param::{CurveEditorRole, ParameterDomain, ParameterSet, ParameterUnit, ParameterWidget};
+use project::param::{ParameterDomain, ParameterSet, ParameterUnit, ParameterWidget};
 use project::project::Project;
 use project::block::{InputBlock, InputEntry, OutputBlock, OutputEntry};
 use project::chain::{Chain, ChainInputMode, ChainOutputMode};
 use rfd::FileDialog;
-use serde::{Deserialize, Serialize};
 use slint::{Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
-use std::fmt::Display;
 use std::rc::Rc;
 use std::{
     cell::RefCell,
@@ -44,32 +42,30 @@ use std::{
 };
 use ui_openrig::{AppRuntimeMode, InteractionMode, UiRuntimeContext};
 use ui_state::{block_drawer_state, block_family_for_kind, chain_routing_summary};
+mod eq;
+mod helpers;
+mod state;
 mod ui_state;
 mod visual_config;
 slint::include_modules!();
+use state::{
+    ProjectPaths, AppConfigYaml, ProjectSession, InputGroupDraft, OutputGroupDraft,
+    ChainDraft, SelectedBlock, BlockEditorDraft, IoBlockInsertDraft, InsertDraft,
+    BlockEditorData, SelectOptionEditorItem, ChainEditorMode, AudioSettingsMode,
+    ConfigYaml, UNTITLED_PROJECT_NAME, BlockWindow,
+};
+use eq::{compute_eq_curves, build_multi_slider_points, build_curve_editor_points};
+use helpers::{
+    log_gui_message, log_gui_error, show_child_window, use_inline_block_editor,
+    set_status_with_toast, set_status_error, set_status_info, set_status_warning,
+    clear_status, sync_block_editor_window,
+};
 const DEFAULT_SAMPLE_RATE: u32 = 48_000;
 const DEFAULT_BUFFER_SIZE_FRAMES: u32 = 64;
 const DEFAULT_BIT_DEPTH: u32 = 32;
 const SUPPORTED_SAMPLE_RATES: &[u32] = &[44_100, 48_000, 88_200, 96_000];
 const SUPPORTED_BUFFER_SIZES: &[u32] = &[32, 64, 128, 256, 512, 1024];
 const SUPPORTED_BIT_DEPTHS: &[u32] = &[16, 24, 32];
-fn log_gui_message(context: &str, message: &str) {
-    log::info!("[adapter-gui] {context}: {message}");
-}
-fn log_gui_error(context: &str, error: impl Display) {
-    log::error!("[adapter-gui] {context}: {error}");
-}
-fn show_child_window(parent_window: &slint::Window, child_window: &slint::Window) {
-    let pos = parent_window.position();
-    log::warn!("[UI] show_child_window: parent_pos=({},{})", pos.x, pos.y);
-    child_window.set_position(slint::WindowPosition::Physical(
-        slint::PhysicalPosition { x: pos.x + 40, y: pos.y + 40 },
-    ));
-    match child_window.show() {
-        Ok(_) => log::warn!("[UI] show_child_window: success"),
-        Err(e) => log::error!("[UI] show_child_window: FAILED: {e}"),
-    }
-}
 fn refresh_input_devices(
     device_options_model: &Rc<VecModel<SharedString>>,
 ) -> Vec<AudioDeviceDescriptor> {
@@ -102,83 +98,6 @@ fn ensure_devices_loaded(
     if output.borrow().is_empty() {
         *output.borrow_mut() = list_output_device_descriptors().unwrap_or_default();
     }
-}
-fn use_inline_block_editor(window: &AppWindow) -> bool {
-    window.get_fullscreen()
-        || (window.get_touch_optimized()
-            && window
-                .get_interaction_mode_label()
-                .to_string()
-                .to_lowercase()
-                .contains("touch"))
-}
-/// Sets a toast notification on the main window and starts the auto-dismiss timer.
-/// Also sets `status_message` for backward compatibility with pages that still reference it.
-fn set_status_with_toast(
-    window: &AppWindow,
-    toast_timer: &Timer,
-    message: &str,
-    level: &str,
-) {
-    window.set_status_message(message.into());
-    window.set_toast_message(message.into());
-    window.set_toast_level(level.into());
-    if !message.is_empty() {
-        match level {
-            "error" => {
-                log::error!("{}", message);
-                eprintln!("[ERROR] {}", message);
-            }
-            "warning" => {
-                log::warn!("{}", message);
-                eprintln!("[WARN] {}", message);
-            }
-            _ => {
-                log::info!("{}", message);
-                eprintln!("[INFO] {}", message);
-            }
-        }
-        let weak = window.as_weak();
-        toast_timer.start(TimerMode::SingleShot, Duration::from_secs(3), move || {
-            if let Some(window) = weak.upgrade() {
-                window.set_toast_message("".into());
-                window.set_toast_level("info".into());
-                window.set_status_message("".into());
-            }
-        });
-    }
-}
-fn set_status_error(window: &AppWindow, toast_timer: &Timer, message: &str) {
-    set_status_with_toast(window, toast_timer, message, "error");
-}
-fn set_status_info(window: &AppWindow, toast_timer: &Timer, message: &str) {
-    set_status_with_toast(window, toast_timer, message, "info");
-}
-fn set_status_warning(window: &AppWindow, toast_timer: &Timer, message: &str) {
-    set_status_with_toast(window, toast_timer, message, "warning");
-}
-fn clear_status(window: &AppWindow, toast_timer: &Timer) {
-    toast_timer.stop();
-    window.set_status_message("".into());
-    window.set_toast_message("".into());
-    window.set_toast_level("info".into());
-}
-fn sync_block_editor_window(window: &AppWindow, block_editor_window: &BlockEditorWindow) {
-    block_editor_window.set_block_type_options(window.get_block_type_options());
-    block_editor_window.set_block_model_options(window.get_block_model_options());
-    block_editor_window.set_block_model_option_labels(window.get_block_model_option_labels());
-    block_editor_window.set_block_drawer_title(window.get_block_drawer_title());
-    block_editor_window.set_block_drawer_confirm_label(window.get_block_drawer_confirm_label());
-    block_editor_window.set_block_drawer_status_message(window.get_block_drawer_status_message());
-    block_editor_window.set_block_drawer_edit_mode(window.get_block_drawer_edit_mode());
-    block_editor_window.set_block_drawer_selected_type_index(
-        window.get_block_drawer_selected_type_index(),
-    );
-    block_editor_window.set_block_drawer_selected_model_index(
-        window.get_block_drawer_selected_model_index(),
-    );
-    block_editor_window.set_block_drawer_enabled(window.get_block_drawer_enabled());
-    block_editor_window.set_block_parameter_items(window.get_block_parameter_items());
 }
 #[allow(clippy::too_many_arguments)]
 fn schedule_block_editor_persist(
@@ -280,124 +199,6 @@ fn schedule_block_editor_persist_for_block_win(
             main_window.set_block_drawer_status_message(error.to_string().into());
         }
     });
-}
-#[derive(Debug, Clone)]
-struct ProjectPaths {
-    default_config_path: PathBuf,
-}
-#[derive(Debug, Deserialize, Serialize, Default)]
-struct AppConfigYaml {
-    #[serde(default)]
-    presets_path: Option<PathBuf>,
-}
-#[derive(Debug, Clone)]
-struct ProjectSession {
-    project: Project,
-    project_path: Option<PathBuf>,
-    config_path: Option<PathBuf>,
-    presets_path: PathBuf,
-}
-#[derive(Debug, Clone)]
-struct InputGroupDraft {
-    device_id: Option<String>,
-    channels: Vec<usize>,
-    mode: ChainInputMode,
-}
-#[derive(Debug, Clone)]
-struct OutputGroupDraft {
-    device_id: Option<String>,
-    channels: Vec<usize>,
-    mode: ChainOutputMode,
-}
-#[derive(Debug, Clone)]
-struct ChainDraft {
-    editing_index: Option<usize>,
-    name: String,
-    instrument: String,
-    inputs: Vec<InputGroupDraft>,
-    outputs: Vec<OutputGroupDraft>,
-    editing_input_index: Option<usize>,
-    editing_output_index: Option<usize>,
-    /// Which block in chain.blocks is being edited by the I/O groups window.
-    /// None = editing the fixed chip (first input / last output).
-    /// Some(idx) = editing a specific I/O block at chain.blocks[idx].
-    editing_io_block_index: Option<usize>,
-    /// True when a new input entry was added as placeholder and the input config
-    /// window is open. If the user cancels, the placeholder should be removed.
-    adding_new_input: bool,
-    /// True when a new output entry was added as placeholder and the output config
-    /// window is open. If the user cancels, the placeholder should be removed.
-    adding_new_output: bool,
-}
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct SelectedBlock {
-    chain_index: usize,
-    block_index: usize,
-}
-#[derive(Debug, Clone)]
-struct BlockEditorDraft {
-    chain_index: usize,
-    block_index: Option<usize>,
-    before_index: usize,
-    instrument: String,
-    effect_type: String,
-    model_id: String,
-    enabled: bool,
-    is_select: bool,
-}
-/// Transient state for inserting an I/O block via the block type picker.
-#[derive(Debug, Clone)]
-struct IoBlockInsertDraft {
-    chain_index: usize,
-    before_index: usize,
-    kind: String, // "input" or "output"
-}
-/// Transient state for editing an Insert block's send/return endpoints.
-#[derive(Debug, Clone)]
-struct InsertDraft {
-    chain_index: usize,
-    block_index: usize,
-    send_device_id: Option<String>,
-    send_channels: Vec<usize>,
-    send_mode: ChainInputMode,
-    return_device_id: Option<String>,
-    return_channels: Vec<usize>,
-    return_mode: ChainInputMode,
-}
-struct BlockEditorData {
-    effect_type: String,
-    model_id: String,
-    params: ParameterSet,
-    enabled: bool,
-    is_select: bool,
-    select_options: Vec<SelectOptionEditorItem>,
-    selected_select_option_block_id: Option<String>,
-}
-struct SelectOptionEditorItem {
-    block_id: String,
-    label: String,
-}
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ChainEditorMode {
-    Create,
-    Edit,
-}
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum AudioSettingsMode {
-    Gui,
-    Project,
-}
-#[derive(Debug, Serialize)]
-struct ConfigYaml {
-    presets_path: String,
-}
-const UNTITLED_PROJECT_NAME: &str = "UNTITLED PROJECT";
-struct BlockWindow {
-    chain_index: usize,
-    block_index: usize,
-    window: BlockEditorWindow,
-    #[allow(dead_code)]
-    stream_timer: Option<Rc<Timer>>,
 }
 fn build_knob_overlays(knob_layout: &[block_core::KnobLayoutEntry], param_items: &[BlockParameterItem]) -> Vec<BlockKnobOverlay> {
     knob_layout
@@ -8749,162 +8550,7 @@ fn numeric_widget_kind(min: f32, max: f32, step: f32, integer: bool) -> &'static
     let _ = integer;
     "slider"
 }
-const BAND_COLORS: &[slint::Color] = &[
-    slint::Color::from_argb_u8(255, 232, 77, 77),    // red
-    slint::Color::from_argb_u8(255, 77, 184, 232),   // cyan
-    slint::Color::from_argb_u8(255, 119, 232, 77),   // green
-    slint::Color::from_argb_u8(255, 232, 184, 77),   // orange
-    slint::Color::from_argb_u8(255, 184, 77, 232),   // purple
-    slint::Color::from_argb_u8(255, 77, 232, 184),   // teal
-    slint::Color::from_argb_u8(255, 232, 77, 184),   // pink
-    slint::Color::from_argb_u8(255, 184, 232, 77),   // lime
-];
 
-fn build_multi_slider_points(
-    effect_type: &str,
-    model_id: &str,
-    params: &ParameterSet,
-) -> Vec<MultiSliderPoint> {
-    let Ok(schema) = schema_for_block_model(effect_type, model_id) else {
-        return Vec::new();
-    };
-    schema
-        .parameters
-        .iter()
-        .filter(|spec| matches!(spec.widget, ParameterWidget::MultiSlider))
-        .map(|spec| {
-            let current = params
-                .get(&spec.path)
-                .and_then(|v| v.as_f32())
-                .or_else(|| spec.default_value.as_ref().and_then(|v| v.as_f32()))
-                .unwrap_or(0.0);
-            let (min, max, step) = match &spec.domain {
-                ParameterDomain::FloatRange { min, max, step } => (*min, *max, *step),
-                _ => (0.0, 1.0, 0.0),
-            };
-            MultiSliderPoint {
-                path: spec.path.clone().into(),
-                label: spec.label.clone().into(),
-                value: current,
-                min_val: min,
-                max_val: max,
-                step,
-            }
-        })
-        .collect()
-}
-
-fn build_curve_editor_points(
-    effect_type: &str,
-    model_id: &str,
-    params: &ParameterSet,
-) -> Vec<CurveEditorPoint> {
-    let Ok(schema) = schema_for_block_model(effect_type, model_id) else {
-        return Vec::new();
-    };
-
-    // Group CurveEditor params by group name
-    let mut groups: Vec<String> = Vec::new();
-    for spec in &schema.parameters {
-        if let ParameterWidget::CurveEditor { .. } = &spec.widget {
-            let group = spec.group.clone().unwrap_or_default();
-            if !groups.contains(&group) {
-                groups.push(group);
-            }
-        }
-    }
-
-    groups
-        .iter()
-        .enumerate()
-        .map(|(i, group)| {
-            let band_color = BAND_COLORS[i % BAND_COLORS.len()];
-            let mut point = CurveEditorPoint {
-                group: group.clone().into(),
-                band_color,
-                y_path: "".into(),
-                y_value: 0.0,
-                y_min: 0.0,
-                y_max: 0.0,
-                y_step: 0.0,
-                y_label: "".into(),
-                has_x: false,
-                x_path: "".into(),
-                x_value: 0.0,
-                x_min: 0.0,
-                x_max: 0.0,
-                x_step: 0.0,
-                x_label: "".into(),
-                has_width: false,
-                width_path: "".into(),
-                width_value: 0.0,
-                width_min: 0.0,
-                width_max: 0.0,
-                width_step: 0.0,
-            };
-
-            for spec in &schema.parameters {
-                let spec_group = spec.group.as_deref().unwrap_or("");
-                if spec_group != group {
-                    continue;
-                }
-                let ParameterWidget::CurveEditor { role } = &spec.widget else {
-                    continue;
-                };
-                let current = params
-                    .get(&spec.path)
-                    .and_then(|v| v.as_f32())
-                    .or_else(|| spec.default_value.as_ref().and_then(|v| v.as_f32()))
-                    .unwrap_or(0.0);
-                let (min, max, step) = match &spec.domain {
-                    ParameterDomain::FloatRange { min, max, step } => (*min, *max, *step),
-                    _ => (0.0, 1.0, 0.0),
-                };
-                match role {
-                    CurveEditorRole::Y => {
-                        point.y_path = spec.path.clone().into();
-                        point.y_value = current;
-                        point.y_min = min;
-                        point.y_max = max;
-                        point.y_step = step;
-                    }
-                    CurveEditorRole::X => {
-                        point.has_x = true;
-                        point.x_path = spec.path.clone().into();
-                        point.x_value = current;
-                        point.x_min = min;
-                        point.x_max = max;
-                        point.x_step = step;
-                    }
-                    CurveEditorRole::Width => {
-                        point.has_width = true;
-                        point.width_path = spec.path.clone().into();
-                        point.width_value = current;
-                        point.width_min = min;
-                        point.width_max = max;
-                        point.width_step = step;
-                    }
-                }
-            }
-            // Compute display labels
-            point.y_label = if point.y_value >= 0.0 {
-                format!("+{:.1}", point.y_value).into()
-            } else {
-                format!("{:.1}", point.y_value).into()
-            };
-            point.x_label = if point.has_x {
-                if point.x_value >= 1000.0 {
-                    format!("{:.1}k", point.x_value / 1000.0).into()
-                } else {
-                    format!("{}Hz", point.x_value as i32).into()
-                }
-            } else {
-                "".into()
-            };
-            point
-        })
-        .collect()
-}
 
 fn build_params_from_items(items: &Rc<VecModel<BlockParameterItem>>) -> ParameterSet {
     let mut params = ParameterSet::default();
@@ -8921,142 +8567,6 @@ fn build_params_from_items(items: &Rc<VecModel<BlockParameterItem>>) -> Paramete
     params
 }
 
-/// Number of frequency points for EQ curve rendering (20Hz–20kHz).
-const EQ_CURVE_POINTS: usize = 200;
-/// Sample rate assumed for EQ visualization.
-const EQ_VIZ_SAMPLE_RATE: f32 = 48_000.0;
-/// SVG viewbox width (must match Slint CurveEditorControl viewbox).
-const EQ_SVG_W: f32 = 1000.0;
-/// SVG viewbox height.
-const EQ_SVG_H: f32 = 200.0;
-/// Frequency range.
-const EQ_FREQ_MIN: f32 = 20.0;
-const EQ_FREQ_MAX: f32 = 20_000.0;
-/// Gain range in dB (symmetric around 0).
-const EQ_GAIN_MIN: f32 = -24.0;
-const EQ_GAIN_MAX: f32 = 24.0;
-
-fn freq_to_x(freq: f32) -> f32 {
-    let norm = (freq / EQ_FREQ_MIN).log(EQ_FREQ_MAX / EQ_FREQ_MIN);
-    (norm.clamp(0.0, 1.0) * EQ_SVG_W).round()
-}
-
-fn gain_to_y(gain_db: f32) -> f32 {
-    let norm = 1.0 - (gain_db - EQ_GAIN_MIN) / (EQ_GAIN_MAX - EQ_GAIN_MIN);
-    (norm.clamp(0.0, 1.0) * EQ_SVG_H).round()
-}
-
-fn db_to_linear(db: f32) -> f32 { 10.0_f32.powf(db / 20.0) }
-fn linear_to_db(lin: f32) -> f32 { 20.0 * lin.max(1e-10).log10() }
-
-fn biquad_kind_for_group(group: &str) -> block_core::BiquadKind {
-    let lower = group.to_lowercase();
-    if lower.contains("low") {
-        block_core::BiquadKind::LowShelf
-    } else if lower.contains("high") {
-        block_core::BiquadKind::HighShelf
-    } else {
-        block_core::BiquadKind::Peak
-    }
-}
-
-/// Log-spaced frequency points for the curve.
-fn eq_frequencies() -> Vec<f32> {
-    (0..EQ_CURVE_POINTS)
-        .map(|i| {
-            let t = i as f32 / (EQ_CURVE_POINTS - 1) as f32;
-            EQ_FREQ_MIN * (EQ_FREQ_MAX / EQ_FREQ_MIN).powf(t)
-        })
-        .collect()
-}
-
-fn db_vec_to_svg_path(dbs: &[f32]) -> String {
-    let freqs = eq_frequencies();
-    let mut path = String::with_capacity(dbs.len() * 12);
-    for (i, (&db, &freq)) in dbs.iter().zip(freqs.iter()).enumerate() {
-        let x = freq_to_x(freq);
-        let y = gain_to_y(db);
-        if i == 0 {
-            path.push_str(&format!("M {x} {y}"));
-        } else {
-            path.push_str(&format!(" L {x} {y}"));
-        }
-    }
-    path
-}
-
-/// Compute band and total SVG path strings for CurveEditor EQ blocks.
-/// Returns (total_curve, band_curves).
-fn compute_eq_curves(
-    effect_type: &str,
-    model_id: &str,
-    params: &ParameterSet,
-) -> (String, Vec<String>) {
-    let Ok(schema) = schema_for_block_model(effect_type, model_id) else {
-        return (String::new(), Vec::new());
-    };
-
-    // Collect groups in order
-    let mut groups: Vec<String> = Vec::new();
-    for spec in &schema.parameters {
-        if let ParameterWidget::CurveEditor { .. } = &spec.widget {
-            let group = spec.group.clone().unwrap_or_default();
-            if !groups.contains(&group) {
-                groups.push(group);
-            }
-        }
-    }
-    if groups.is_empty() {
-        return (String::new(), Vec::new());
-    }
-
-    let freqs = eq_frequencies();
-    let mut total_linear = vec![1.0_f32; EQ_CURVE_POINTS];
-    let mut band_paths = Vec::with_capacity(groups.len());
-
-    for group in &groups {
-        // Extract Y (gain), X (freq), Width (Q) for this group
-        let mut gain_db = 0.0_f32;
-        let mut freq_hz = 1000.0_f32;
-        let mut q = 1.0_f32;
-
-        for spec in &schema.parameters {
-            if spec.group.as_deref().unwrap_or("") != group {
-                continue;
-            }
-            let ParameterWidget::CurveEditor { role } = &spec.widget else { continue };
-            let val = params
-                .get(&spec.path)
-                .and_then(|v| v.as_f32())
-                .or_else(|| spec.default_value.as_ref().and_then(|v| v.as_f32()))
-                .unwrap_or(0.0);
-            match role {
-                CurveEditorRole::Y => gain_db = val,
-                CurveEditorRole::X => freq_hz = val,
-                CurveEditorRole::Width => q = val,
-            }
-        }
-
-        let kind = biquad_kind_for_group(group);
-        let filter = block_core::BiquadFilter::new(kind, freq_hz, gain_db, q.max(0.01), EQ_VIZ_SAMPLE_RATE);
-
-        let band_dbs: Vec<f32> = freqs.iter()
-            .map(|&f| filter.magnitude_db(f, EQ_VIZ_SAMPLE_RATE))
-            .collect();
-
-        // Accumulate linear magnitudes for total curve
-        for (lin, &db) in total_linear.iter_mut().zip(band_dbs.iter()) {
-            *lin *= db_to_linear(db);
-        }
-
-        band_paths.push(db_vec_to_svg_path(&band_dbs));
-    }
-
-    let total_dbs: Vec<f32> = total_linear.iter().map(|&lin| linear_to_db(lin)).collect();
-    let total_path = db_vec_to_svg_path(&total_dbs);
-
-    (total_path, band_paths)
-}
 
 fn set_block_parameter_option(
     model: &Rc<VecModel<BlockParameterItem>>,
@@ -11440,93 +10950,6 @@ mod tests {
         assert_eq!(unit_label(&ParameterUnit::Semitones), "st");
     }
 
-    // --- db_to_linear / linear_to_db ---
-
-    use super::{db_to_linear, linear_to_db};
-
-    #[test]
-    fn db_to_linear_zero_db_is_unity() {
-        let result = db_to_linear(0.0);
-        assert!((result - 1.0).abs() < 1e-6);
-    }
-
-    #[test]
-    fn db_to_linear_minus_20_is_point_one() {
-        let result = db_to_linear(-20.0);
-        assert!((result - 0.1).abs() < 1e-6);
-    }
-
-    #[test]
-    fn db_to_linear_plus_20_is_ten() {
-        let result = db_to_linear(20.0);
-        assert!((result - 10.0).abs() < 1e-4);
-    }
-
-    #[test]
-    fn linear_to_db_roundtrip() {
-        for db in [-12.0_f32, -6.0, 0.0, 3.0, 6.0, 12.0] {
-            let lin = db_to_linear(db);
-            let back = linear_to_db(lin);
-            assert!((back - db).abs() < 1e-4, "roundtrip failed for {} dB: got {}", db, back);
-        }
-    }
-
-    // --- freq_to_x / gain_to_y ---
-
-    use super::{freq_to_x, gain_to_y};
-
-    #[test]
-    fn freq_to_x_min_freq_returns_zero() {
-        let x = freq_to_x(20.0);
-        assert_eq!(x, 0.0);
-    }
-
-    #[test]
-    fn freq_to_x_max_freq_returns_svg_width() {
-        let x = freq_to_x(20_000.0);
-        assert_eq!(x, 1000.0);
-    }
-
-    #[test]
-    fn gain_to_y_zero_db_returns_mid_height() {
-        let y = gain_to_y(0.0);
-        assert_eq!(y, 100.0); // EQ_SVG_H / 2
-    }
-
-    #[test]
-    fn gain_to_y_max_gain_returns_zero() {
-        let y = gain_to_y(24.0);
-        assert_eq!(y, 0.0);
-    }
-
-    #[test]
-    fn gain_to_y_min_gain_returns_svg_height() {
-        let y = gain_to_y(-24.0);
-        assert_eq!(y, 200.0);
-    }
-
-    // --- biquad_kind_for_group ---
-
-    use super::biquad_kind_for_group;
-
-    #[test]
-    fn biquad_kind_low_group_returns_low_shelf() {
-        assert!(matches!(biquad_kind_for_group("Low Band"), block_core::BiquadKind::LowShelf));
-        assert!(matches!(biquad_kind_for_group("low"), block_core::BiquadKind::LowShelf));
-    }
-
-    #[test]
-    fn biquad_kind_high_group_returns_high_shelf() {
-        assert!(matches!(biquad_kind_for_group("High Band"), block_core::BiquadKind::HighShelf));
-        assert!(matches!(biquad_kind_for_group("HIGH"), block_core::BiquadKind::HighShelf));
-    }
-
-    #[test]
-    fn biquad_kind_mid_group_returns_peak() {
-        assert!(matches!(biquad_kind_for_group("Mid"), block_core::BiquadKind::Peak));
-        assert!(matches!(biquad_kind_for_group(""), block_core::BiquadKind::Peak));
-    }
-
     // --- insert_mode_to_index / insert_mode_from_index ---
 
     use super::{insert_mode_to_index, insert_mode_from_index};
@@ -12197,55 +11620,6 @@ mod tests {
         };
         let tooltip = chain_outputs_tooltip(&chain, &project, &[]);
         assert_eq!(tooltip, "No output configured");
-    }
-
-    // --- eq_frequencies ---
-
-    use super::eq_frequencies;
-
-    #[test]
-    fn eq_frequencies_returns_200_points() {
-        let freqs = eq_frequencies();
-        assert_eq!(freqs.len(), 200);
-    }
-
-    #[test]
-    fn eq_frequencies_starts_at_20_hz_ends_at_20k_hz() {
-        let freqs = eq_frequencies();
-        assert!((freqs[0] - 20.0).abs() < 0.1);
-        assert!((freqs[199] - 20_000.0).abs() < 1.0);
-    }
-
-    #[test]
-    fn eq_frequencies_monotonically_increasing() {
-        let freqs = eq_frequencies();
-        for i in 1..freqs.len() {
-            assert!(freqs[i] > freqs[i - 1], "freq[{}]={} must be > freq[{}]={}", i, freqs[i], i - 1, freqs[i - 1]);
-        }
-    }
-
-    // --- db_vec_to_svg_path ---
-
-    use super::db_vec_to_svg_path;
-
-    #[test]
-    fn db_vec_to_svg_path_starts_with_move_command() {
-        let dbs = vec![0.0; 200];
-        let path = db_vec_to_svg_path(&dbs);
-        assert!(path.starts_with("M "), "SVG path should start with M: {}", &path[..20]);
-    }
-
-    #[test]
-    fn db_vec_to_svg_path_contains_line_commands() {
-        let dbs = vec![0.0; 200];
-        let path = db_vec_to_svg_path(&dbs);
-        assert!(path.contains(" L "), "SVG path should contain L commands");
-    }
-
-    #[test]
-    fn db_vec_to_svg_path_empty_dbs_returns_empty() {
-        let path = db_vec_to_svg_path(&[]);
-        assert!(path.is_empty());
     }
 
     // --- block_model_index ---
