@@ -1,4 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
-  <rect x="14" y="74" width="228" height="108" rx="18" stroke="#E8E8E8" stroke-width="10"/>
-  <text x="128" y="156" font-family="Georgia,Times New Roman,serif" font-size="68" font-weight="bold" fill="#E8E8E8" text-anchor="middle">VST3</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 66" fill="none">
+  <rect x="1.5" y="1.5" width="97" height="63" rx="9" stroke="currentColor" stroke-width="3"/>
+  <text x="50" y="43" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="36" font-weight="bold" fill="currentColor">VST</text>
+  <rect x="37" y="49" width="26" height="9" rx="3" fill="currentColor"/>
+  <rect x="31" y="46" width="6" height="7" rx="1.5" fill="currentColor"/>
+  <rect x="63" y="46" width="6" height="7" rx="1.5" fill="currentColor"/>
 </svg>
