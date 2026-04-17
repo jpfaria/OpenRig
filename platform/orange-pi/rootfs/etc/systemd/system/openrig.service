@@ -1,0 +1,43 @@
+[Unit]
+Description=OpenRig Guitar Pedalboard
+Documentation=https://github.com/jpfaria/OpenRig
+After=openrig-irq-affinity.service weston.service
+Wants=openrig-irq-affinity.service
+Requires=weston.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+
+Environment=WAYLAND_DISPLAY=wayland-1
+Environment=XDG_RUNTIME_DIR=/run/weston
+Environment=RUST_LOG=info
+Environment=JACK_NO_AUDIO_RESERVATION=1
+# Native libs (NAM + LV2 bundles) are shipped by the openrig .deb under
+# /usr/lib/openrig/libs/ (per FHS). Some LV2 plugins have bundled side
+# libraries that must also be resolvable by the dynamic linker, so both
+# directories are added here. /usr/share/openrig/libs -> /usr/lib/openrig/libs
+# is also symlinked in customize-image.sh for the OpenRig data-root lookup.
+Environment=LD_LIBRARY_PATH=/usr/lib/openrig/libs/nam/linux-aarch64:/usr/lib/openrig/libs/lv2/linux-aarch64
+Environment=GDK_BACKEND=wayland
+# Kiosk mode: touch-optimized UI (in-app preset picker, virtual keyboard)
+Environment=OPENRIG_APP_MODE=pedalboard
+
+# Wait for weston to create the Wayland socket before starting.
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 15); do [ -S /run/weston/wayland-1 ] && exit 0; sleep 1; done; exit 1'
+
+# JACK is no longer started by systemd — OpenRig manages it programmatically
+# via ensure_jack_running() in infra-cpal. When a chain is enabled, OpenRig
+# detects the USB audio card, reads sample_rate/buffer_size from
+# gui-settings.yaml, and launches jackd with the correct parameters. This
+# avoids the old race condition where jackd.service started with hardcoded
+# settings before OpenRig could configure it.
+
+ExecStart=/usr/bin/openrig --fullscreen --auto-save /etc/openrig.yaml
+Restart=always
+RestartSec=5
+TimeoutStartSec=30
+
+[Install]
+WantedBy=multi-user.target

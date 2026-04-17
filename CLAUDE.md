@@ -156,7 +156,7 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 | **Reverb** | Ambiência e simulação de espaço | 19 | Hall, Plate Foundation, Room, Spring (native); Dragonfly Hall/Room/Plate/Early, CAPS Plate/X2/Scape, TAP Reflector/Reverberator, MDA Ambience, MVerb, B Reverb, Roomy, Shiroverb, Floaty (LV2) |
 | **Modulation** | Chorus, flanger, tremolo, vibrato | 16 | Classic/Stereo/Ensemble Chorus, Sine Tremolo, Vibrato (native); TAP Chorus/Flanger/Tremolo/Rotary, MDA Leslie/RingMod/ThruZero, FOMP CS Chorus/Phaser, CAPS Phaser II, Harmless, Larynx (LV2) |
 | **Dynamics** | Compressor e gate | 9 | Studio Clean Compressor, Noise Gate, Brick Wall Limiter (native); TAP DeEsser/Dynamics/Limiter, ZamComp, ZamGate, ZaMultiComp (LV2) |
-| **Filter** | EQ e moldagem tonal | 12 | Three Band EQ, Guitar EQ (native); TAP Equalizer/BW, ZamEQ2, ZamGEQ31, CAPS AutoFilter, FOMP Auto-Wah, MOD HPF/LPF, Filta, Mud (LV2) |
+| **Filter** | EQ e moldagem tonal | 13 | Three Band EQ, Guitar EQ, 8-Band Parametric EQ (native); TAP Equalizer/BW, ZamEQ2, ZamGEQ31, CAPS AutoFilter, FOMP Auto-Wah, MOD HPF/LPF, Filta, Mud (LV2) |
 | **Wah** | Pedal wah-wah | 2 | Cry Classic (native); GxQuack (LV2) |
 | **Utility** | Ferramentas | 2 | Chromatic Tuner, Spectrum Analyzer (native) |
 | **Body** | Ressonância de corpo acústico | 114 | Martin (45), Taylor (30), Gibson (10), Yamaha (5), Guild (4), Takamine (4), Cort (4), Emerald (2), Rainsong (2), Lowden (2) + outros boutique (IR) |
@@ -168,7 +168,7 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 | **Output** | Saída de áudio (device + channels) | — | standard |
 | **Insert** | Loop de efeito externo (send/return) | — | external_loop |
 
-**Total: 361+ modelos em 16 tipos de bloco processadores (5 backends: Native 34, NAM 89, IR 127, LV2 105, VST3 6).**
+**Total: 362+ modelos em 16 tipos de bloco processadores (5 backends: Native 35, NAM 89, IR 127, LV2 105, VST3 6).**
 
 ### Parâmetros comuns
 
@@ -178,7 +178,8 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 - **Reverb**: room_size, damping, mix (0-100%)
 - **Compressor**: threshold, ratio, attack_ms, release_ms, makeup_gain, mix
 - **Gate**: threshold, attack_ms, release_ms
-- **EQ**: low, mid, high (0-100% → -24dB a +24dB)
+- **EQ (Three Band / Guitar EQ)**: low, mid, high (0-100% → -24dB a +24dB)
+- **8-Band Parametric EQ** (`eq_eight_band_parametric`): por banda — `band{N}_enabled` (bool), `band{N}_type` (peak/low_shelf/high_shelf/low_pass/high_pass/notch), `band{N}_freq` (20–20000 Hz), `band{N}_gain` (-24/+24 dB), `band{N}_q` (0.1–10). Freqs padrão: 62/125/250/500/1k/2k/4k/8kHz. Suporta todos os instrumentos. DualMono.
 - **Gain pedals**: drive, tone, level
 - **Volume**: volume (0-100%), mute (on/off)
 - **Tuner**: reference_hz (400-480Hz, default 440)
@@ -225,9 +226,40 @@ Input, Output e Insert são variantes de `AudioBlockKind` (`InputBlock`, `Output
 - Devices: input e output independentes (podem ser devices diferentes)
 - Sample rates: 44.1kHz, 48kHz, 88.2kHz, 96kHz
 - Buffer sizes: 32, 64, 128, 256, 512, 1024 samples
+- Bit depths: 16, 24, 32 bits
 - **YAML (novo formato)**: todos os blocos I/O ficam inline no array `blocks:` (sem seções `inputs:`/`outputs:` separadas)
 - **YAML (formato antigo)**: seções `inputs:` / `outputs:` separadas ainda são suportadas por backward compatibility — na deserialização tudo é reunido no vetor `blocks`
 - **Migração**: YAML antigo com `input_device_id`/`output_device_id` (campos únicos) é migrado automaticamente para o formato novo ao carregar
+
+#### Per-machine device settings (gui-settings.yaml)
+
+Device settings (sample rate, buffer size, bit depth) são **per-machine**, não per-project. Ficam em `gui-settings.yaml` no diretório de configuração do OS:
+- macOS: `~/Library/Application Support/OpenRig/gui-settings.yaml`
+- Windows: `%APPDATA%\OpenRig\gui-settings.yaml`
+- Linux: `~/.config/OpenRig/gui-settings.yaml`
+
+**Fluxo:**
+1. `load_project_session()` lê `gui-settings.yaml` e popula `project.device_settings` em memória
+2. Settings UI lê/grava de `gui-settings.yaml` via `FilesystemStorage`
+3. `infra-cpal` lê `project.device_settings` (já populado) para resolver devices
+4. YAML do projeto **não persiste** `device_settings` (campo tem `skip_serializing`)
+5. YAML antigo com `device_settings` ainda deserializa (backward compat)
+
+#### JACK lifecycle management (Linux)
+
+No Linux com feature `jack`, o OpenRig controla o ciclo de vida do JACK:
+
+- **Auto-launch**: quando uma chain é habilitada e JACK não está rodando, `ensure_jack_running()` em infra-cpal:
+  1. Detecta a placa USB audio via `/proc/asound/cards`
+  2. Lê sample_rate e buffer_size do `project.device_settings` (gui-settings.yaml)
+  3. Configura mixer ALSA (Mic 46%, PCM 100% = unity gain)
+  4. Lança `jackd -d alsa -d hw:$CARD -r $SR -p $BUF -n 3` como processo background
+  5. Espera até 5s pelo socket JACK aparecer em `/dev/shm/`
+- **Auto-reconnect**: timer de 2s no adapter-gui (`health_timer`) verifica `is_healthy()`:
+  - Se JACK caiu (USB desconectou, service reiniciou) → mostra "Audio device disconnected"
+  - Tenta `try_reconnect()` a cada 2s → quando JACK volta, reconecta chains automaticamente
+  - Mostra "Audio device reconnected" quando sucesso
+- **Sem impacto em macOS/Windows**: `ensure_jack_running()` e `is_healthy()` são `#[cfg(all(target_os = "linux", feature = "jack"))]`
 
 ---
 

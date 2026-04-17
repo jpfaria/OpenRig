@@ -4,6 +4,7 @@ import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { BlockPanelEditor } from "block_panel_editor.slint";
 import { CurveEditorControl } from "curve_editor_control.slint";
 import { MultiSliderControl } from "multi_slider_control.slint";
+import { PowerSwitch } from "../components/power_switch.slint";
 
 component ToolbarButton inherits Rectangle {
     in property <string> label;
@@ -624,30 +625,26 @@ component ChainEndpointChip inherits Rectangle {
     callback clicked();
     out property <bool> is-hovered: hover-area.has-hover;
 
-    width: 72px;
-    height: 52px;
-    background: hover-area.has-hover ? #1e2530e0 : #141820e0;
-    border-width: 1px;
-    border-color: hover-area.has-hover ? #5a7fa8 : #364050;
-    border-radius: 10px;
+    width: root.is-input ? 72px : 90px;
+    height: 72px;
+    background: transparent;
 
-    // Ícone de entrada ou saída
     Image {
-        x: (parent.width - 18px) / 2;
-        y: 8px;
-        width: 18px;
-        height: 18px;
+        x: (parent.width - 48px) / 2;
+        y: 4px;
+        width: 48px;
+        height: 48px;
         source: root.is-input
-            ? @image-url("../assets/chain-input.svg")
-            : @image-url("../assets/chain-output.svg");
+            ? @image-url("../assets/input_arrow.svg")
+            : @image-url("../assets/output_arrow.svg");
         image-fit: contain;
-        colorize: hover-area.has-hover ? #a8c8f0 : #6a8aaa;
+        colorize: hover-area.has-hover ? #d0e4f8 : #5a8aab;
     }
 
-    // Label (nome do dispositivo/canal)
+    // Label
     Text {
         x: 4px;
-        y: 29px;
+        y: 54px;
         width: parent.width - 8px;
         height: 16px;
         text: root.label;
@@ -663,7 +660,10 @@ component ChainEndpointChip inherits Rectangle {
         width: parent.width;
         height: parent.height;
         mouse-cursor: pointer;
-        clicked => { root.clicked(); }
+        clicked => {
+            debug("ChainEndpointChip clicked", root.is-input, root.label);
+            root.clicked();
+        }
     }
 }
 
@@ -883,14 +883,23 @@ component BlockChip inherits Rectangle {
         border-radius: 4px;
     }
 
-    // LED status dot
+    // LED status indicator (sprite: 64x32, 2 frames of 32x32, left=off right=on)
     Rectangle {
-        x: parent.width - 10px;
+        x: (parent.width - 12px) / 2;
         y: parent.height - 10px;
-        width: 5px;
-        height: 5px;
-        background: root.block.enabled ? #29df85 : #697382;
-        border-radius: 3px;
+        width: 12px;
+        height: 12px;
+        clip: true;
+
+        Image {
+            source: @image-url("../assets/sprites/led-red.png");
+            x: root.block.enabled ? 0px : -12px;
+            y: 0;
+            width: 24px;
+            height: 12px;
+            image-fit: fill;
+            image-rendering: smooth;
+        }
     }
 
     hover-area := TouchArea {
@@ -1050,9 +1059,10 @@ component ChainRow inherits Rectangle {
         height: 58px;
         background: transparent;
 
-        ChainPowerToggle {
-            x: 18px;
-            y: 14px;
+        PowerSwitch {
+            x: 10px;
+            y: (58px - 44px) / 2;
+            width: 44px; height: 44px;
             enabled: root.chain.enabled;
             clicked => { root.toggle-chain-enabled(root.chain-index); }
         }
@@ -1147,24 +1157,16 @@ component ChainRow inherits Rectangle {
         height: root.block-row-count * 108px;
         background: transparent;
 
-        TouchArea {
-            x: 0px;
-            y: 0px;
-            width: parent.width;
-            height: parent.height;
-            moved => {
-                if !self.pressed {
-                    root.suppress-insert-hover = false;
-                }
-            }
-        }
+        // NOTE: background TouchArea removed — it was consuming click events
+        // on Linux/software-renderer, preventing ChainEndpointChip clicks.
+        // The suppress-insert-hover reset it provided is non-critical (drag UX polish).
 
         // Routing lines — pedal center is at y = 52px + row * 108px
-        // Row 0 horizontal
+        // Row 0 horizontal (starts after in-chip)
         Rectangle {
-            x: 72px;
+            x: 98px;
             y: 52px;
-            width: root.block-row-count == 1 ? (root.out-chip-x - 72px) : (parent.width - 72px);
+            width: root.block-row-count == 1 ? (root.out-chip-x - 98px) : (parent.width - 98px);
             height: 2px;
             background: #3b4250;
             border-radius: 1px;
@@ -1346,8 +1348,8 @@ component ChainRow inherits Rectangle {
         }
 
         in-chip := ChainEndpointChip {
-            x: 0px;
-            y: 15px;
+            x: 24px;
+            y: 24px;
             is-input: true;
             label: root.chain.input_label;
             tooltip: root.chain.input_tooltip;
@@ -1365,7 +1367,7 @@ component ChainRow inherits Rectangle {
 
         if root.chain.latency_ms > 0 : Rectangle {
             x: root.out-chip-x + 4px;
-            y: root.out-chip-y + 56px;
+            y: root.out-chip-y - 12px;
             width: 64px;
             height: 22px;
             border-radius: 4px;
@@ -1411,7 +1413,7 @@ component ChainRow inherits Rectangle {
         // In chip tooltip — aparece à direita do chip In
         if in-chip.is-hovered && root.chain.input_tooltip != "" : Rectangle {
             x: 76px;
-            y: 8px;
+            y: 24px;
             width: 312px;
             height: Math.max(92px, input-tooltip-text.preferred-height + 42px);
             background: #0e1218f7;
@@ -2077,10 +2079,15 @@ export component ProjectChainsPage inherits Rectangle {
         property <length> eq-widget-height:
             root.curve-editor-points.length > 0 ? 200px :
             root.multi-slider-points.length > 0 ? 180px : 0px;
+        property <bool> has-stream-data:
+            root.block-stream-data.stream-kind != ""
+            && root.block-stream-data.stream-kind != "spectrum";
         property <length> eq-extra-height:
             has-eq-widget ? (48px + 60px + 8px + eq-widget-height + 8px) : 275px;
         property <length> panel-height:
-            use-panel-editor ? eq-extra-height : parent.height;
+            use-panel-editor
+                ? (has-stream-data ? Math.max(420px, eq-extra-height) : eq-extra-height)
+                : parent.height;
 
         TouchArea {
             x: 0px;

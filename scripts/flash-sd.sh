@@ -12,7 +12,7 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ARMBIAN_OUTPUT_DIR="$PROJECT_ROOT/.orange-pi-build/output/images"
+ARMBIAN_OUTPUT_DIR="$PROJECT_ROOT/output/orange-pi"
 
 # ── Find image ────────────────────────────────────────────────────────────────
 if [ $# -ge 1 ]; then

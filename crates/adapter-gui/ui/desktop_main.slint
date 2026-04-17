@@ -1,7 +1,7 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay } from "models.slint";
-import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage } from "pages/pages.slint";
+import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage } from "pages/pages.slint";
 
 export component DesktopMain inherits Rectangle {
     in property <string> app-version;
@@ -61,6 +61,7 @@ export component DesktopMain inherits Rectangle {
     in-out property <string> status-message;
     in property <[string]> sample-rate-options;
     in property <[string]> buffer-size-options;
+    in property <[string]> bit-depth-options;
     // Fullscreen inline project settings
     in property <[DeviceSelectionItem]> project-devices;
     // Fullscreen inline chain editor
@@ -131,6 +132,7 @@ export component DesktopMain inherits Rectangle {
     callback toggle-project-device(int, bool);
     callback update-project-sample-rate(int, string);
     callback update-project-buffer-size(int, string);
+    callback update-project-bit-depth(int, string);
     // Fullscreen inline chain editor callbacks
     callback edit-chain-input(int);
     callback remove-chain-input(int);
@@ -139,6 +141,36 @@ export component DesktopMain inherits Rectangle {
     callback remove-chain-output(int);
     callback add-chain-output();
     callback select-chain-instrument(int);
+    // Fullscreen inline I/O endpoint editor
+    in property <bool> show-chain-io-editor: false;
+    in property <string> chain-io-editor-title;
+    in property <[string]> chain-io-device-options;
+    in-out property <int> chain-io-selected-device-index: -1;
+    in property <[ChannelOptionItem]> chain-io-channels;
+    in-out property <string> chain-io-editor-status: "";
+    in property <bool> chain-io-show-mode-selector: false;
+    in property <[string]> chain-io-mode-labels;
+    in-out property <int> chain-io-selected-mode-index: 0;
+    callback chain-io-select-device(int);
+    callback chain-io-toggle-channel(int, bool);
+    callback chain-io-select-mode(int);
+    callback chain-io-save();
+    callback chain-io-cancel();
+    // Fullscreen inline I/O groups editor (list of input/output entries)
+    in property <bool> show-chain-io-groups: false;
+    in property <string> chain-io-groups-title;
+    in property <string> chain-io-groups-add-label;
+    in property <[IoGroupItem]> chain-io-groups-items;
+    in-out property <string> chain-io-groups-status: "";
+    in property <bool> chain-io-groups-show-block-controls: false;
+    in property <bool> chain-io-groups-block-enabled: true;
+    callback chain-io-groups-edit(int);
+    callback chain-io-groups-remove(int);
+    callback chain-io-groups-add();
+    callback chain-io-groups-save();
+    callback chain-io-groups-cancel();
+    callback chain-io-groups-toggle-enabled();
+    callback chain-io-groups-delete-block();
     private property <int> visible-device-count: wizard-step == 0 ? input-devices.length : output-devices.length;
     private property <length> wizard-page-height: 24px + 20px + 24px + ((visible-device-count * 44px) + (visible-device-count > 0 ? (visible-device-count - 1) * 8px : 0px)) + 24px + 44px + 24px;
 
@@ -247,6 +279,7 @@ export component DesktopMain inherits Rectangle {
             project-devices: root.project-devices;
             sample-rate-options: root.sample-rate-options;
             buffer-size-options: root.buffer-size-options;
+            bit-depth-options: root.bit-depth-options;
             status-message: root.status-message;
             update-project-name(value) => { root.update-project-name(value); }
             save-audio-settings => { root.save-audio-settings(); }
@@ -254,10 +287,11 @@ export component DesktopMain inherits Rectangle {
             toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
             update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
             update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
+            update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
         }
 
         // Fullscreen inline chain editor
-        if root.fullscreen && root.show-chain-editor : ChainEditorPage {
+        if root.fullscreen && root.show-chain-editor && !root.show-chain-io-editor && !root.show-chain-io-groups : ChainEditorPage {
             width: parent.width;
             height: parent.height;
             title: root.chain-editor-title;
@@ -280,11 +314,68 @@ export component DesktopMain inherits Rectangle {
             select-instrument(index) => { root.select-chain-instrument(index); }
         }
 
+        // Fullscreen inline I/O groups editor (list of input/output entries)
+        if root.fullscreen && root.show-chain-io-groups && !root.show-chain-io-editor : ChainIoGroupsPage {
+            width: parent.width;
+            height: parent.height;
+            title: root.chain-io-groups-title;
+            add-label: root.chain-io-groups-add-label;
+            groups: root.chain-io-groups-items;
+            status-message <=> root.chain-io-groups-status;
+            show-block-controls: root.chain-io-groups-show-block-controls;
+            block-enabled: root.chain-io-groups-block-enabled;
+            edit-group(index) => { root.chain-io-groups-edit(index); }
+            remove-group(index) => { root.chain-io-groups-remove(index); }
+            add-group => { root.chain-io-groups-add(); }
+            save => { root.chain-io-groups-save(); }
+            cancel => { root.chain-io-groups-cancel(); }
+            toggle-enabled => { root.chain-io-groups-toggle-enabled(); }
+            delete-block => { root.chain-io-groups-delete-block(); }
+        }
+
+        // Fullscreen inline I/O endpoint editor (input or output device selection)
+        if root.fullscreen && root.show-chain-io-editor : ChainEndpointEditorPage {
+            width: parent.width;
+            height: parent.height;
+            title: root.chain-io-editor-title;
+            device-options: root.chain-io-device-options;
+            selected-device-index <=> root.chain-io-selected-device-index;
+            channels: root.chain-io-channels;
+            status-message <=> root.chain-io-editor-status;
+            show-mode-selector: root.chain-io-show-mode-selector;
+            mode-labels: root.chain-io-mode-labels;
+            selected-mode-index <=> root.chain-io-selected-mode-index;
+            select-device(index) => { root.chain-io-select-device(index); }
+            toggle-channel(index, selected) => { root.chain-io-toggle-channel(index, selected); }
+            select-mode(index) => { root.chain-io-select-mode(index); }
+            save => { root.chain-io-save(); }
+            cancel => { root.chain-io-cancel(); }
+        }
+
         if !root.show-project-chains : Rectangle {
             width: parent.width;
             height: parent.height;
             background: transparent;
         }
     }
+
+    if root.show-project-settings : ProjectSettingsPage {
+        width: parent.width;
+        height: parent.height;
+        project-name-draft <=> root.project-name-draft;
+        status-message <=> root.status-message;
+        project-devices: root.project-devices;
+        sample-rate-options: root.sample-rate-options;
+        buffer-size-options: root.buffer-size-options;
+        bit-depth-options: root.bit-depth-options;
+        update-project-name(value) => { root.update-project-name(value); }
+        save-audio-settings => { root.save-audio-settings(); }
+        close-project-settings => { root.close-project-settings(); }
+        toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
+        update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
+        update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
+        update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
+    }
+
 }
 

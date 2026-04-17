@@ -4,14 +4,19 @@ version.workspace = true
 edition.workspace = true
 
 [features]
-jack = ["cpal/jack"]
+jack = ["cpal/jack", "dep:jack"]
 
 [dependencies]
 log.workspace = true
 anyhow.workspace = true
 cpal.workspace = true
+jack = { version = "0.13", optional = true }
+
 domain = { path = "../domain" }
 engine = { path = "../engine" }
 block-util = { path = "../block-util" }
 block-core = { path = "../block-core" }
 project = { path = "../project" }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
