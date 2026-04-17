@@ -6,7 +6,7 @@
 #
 # Options:
 #   --host      (required) SSH target, e.g. root@192.168.1.42
-#   --password  (required) SSH password, or set SSHPASS env var instead
+#   --password  (required) SSH password (or set SSHPASS env var)
 #   --version   (optional) package version, default: 0.0.0-dev
 
 set -euo pipefail
@@ -32,6 +32,7 @@ if [ -z "$HOST" ]; then
     echo "Error: --host is required. Example: --host root@192.168.1.42" >&2
     exit 1
 fi
+
 if [ -z "$PASSWORD" ]; then
     echo "Error: --password is required, or set SSHPASS env var." >&2
     exit 1
