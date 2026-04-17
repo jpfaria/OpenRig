@@ -629,24 +629,22 @@ component ChainEndpointChip inherits Rectangle {
     height: 72px;
     background: transparent;
 
-    // Connector photo (XLR female for input, P10 jack for output)
     Image {
-        x: root.is-input ? (parent.width - 56px) / 2 : 0px;
-        y: root.is-input ? 2px : 16px;
-        width: root.is-input ? 56px : 72px;
-        height: root.is-input ? 52px : 36px;
+        x: (parent.width - 48px) / 2;
+        y: 4px;
+        width: 48px;
+        height: 48px;
         source: root.is-input
-            ? @image-url("../assets/connector-input.png")
-            : @image-url("../assets/connector-output.png");
+            ? @image-url("../assets/input_arrow.svg")
+            : @image-url("../assets/output_arrow.svg");
         image-fit: contain;
-        image-rendering: smooth;
-        opacity: hover-area.has-hover ? 1.0 : 0.85;
+        colorize: hover-area.has-hover ? #d0e4f8 : #5a8aab;
     }
 
     // Label
     Text {
         x: 4px;
-        y: root.is-input ? 54px : 48px;
+        y: 54px;
         width: parent.width - 8px;
         height: 16px;
         text: root.label;

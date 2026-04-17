@@ -54,13 +54,13 @@ fn create_host() -> cpal::Host {
 ///
 /// JACK abstracts hardware so CPAL only exposes "cpal_client_in/out" as device
 /// names. This function reads the kernel's card list to find the actual hardware
-/// name (e.g. "Scarlett 2i2 4th Gen") and returns it for display purposes.
+/// name and returns it for display purposes.
 /// Returns None if no USB audio card is found or the file is unreadable.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn jack_hardware_name() -> Option<String> {
     let content = std::fs::read_to_string("/proc/asound/cards").ok()?;
     for line in content.lines() {
-        // Lines look like: " 1 [Gen ]: USB-Audio - Scarlett 2i2 4th Gen"
+        // Lines look like: " 1 [Gen ]: USB-Audio - USB Audio Interface"
         if line.contains("USB-Audio") || line.contains("USB Audio") {
             if let Some(pos) = line.find(" - ") {
                 let name = line[pos + 3..].trim().to_string();
@@ -96,7 +96,7 @@ fn jack_server_is_running() -> bool {
 ///
 /// Intended to be invoked after every user mutation so that `journalctl -fu
 /// openrig` can correlate UI actions with audio hardware state changes (e.g.
-/// Scarlett disconnects on RK3588 xHCI).
+/// USB audio disconnects on RK3588 xHCI).
 pub fn log_audio_status(context: &str) {
     #[cfg(target_os = "linux")]
     {
@@ -160,9 +160,8 @@ fn select_host_for_enumeration() -> &'static cpal::Host {
 /// every enumeration, sample-rate query and chain config resolution until the
 /// process exits or jackd is restarted. This eliminates the churn of opening
 /// a fresh JACK client on every UI interaction (device picker, block change,
-/// chain resync, etc.) — which on fragile USB audio stacks (Rockchip xHCI +
-/// Scarlett Gen 4) has been correlated with xHCI host controller resets and
-/// interface disconnects.
+/// chain resync, etc.) — which on fragile USB audio stacks (Rockchip xHCI)
+/// has been correlated with xHCI host controller resets and interface disconnects.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 #[derive(Clone)]
 struct JackMeta {
@@ -173,7 +172,7 @@ struct JackMeta {
     hw_name: String,
 }
 
-/// Per-server JACK metadata cache. Key = server_name (e.g. "gen", "q26").
+/// Per-server JACK metadata cache. Key = server_name (e.g. "gen", "card1").
 #[cfg(all(target_os = "linux", feature = "jack"))]
 static JACK_META_CACHE: OnceLock<std::sync::Mutex<std::collections::HashMap<String, JackMeta>>> =
     OnceLock::new();
@@ -282,14 +281,14 @@ struct UsbAudioCard {
     card_num: String,
     /// JACK server name derived from bracket name, e.g. "gen" for [Gen]
     server_name: String,
-    /// Human-readable name, e.g. "Scarlett 2i2 4th Gen"
+    /// Human-readable name, e.g. "USB Audio Interface"
     display_name: String,
     /// device_id used in chain I/O blocks, e.g. "jack:gen"
     device_id: String,
 }
 
 /// Derive a safe JACK server name from the ALSA bracket identifier.
-/// E.g. "[Gen            ]" → "gen", "[Q26            ]" → "q26"
+/// E.g. "[Gen            ]" → "gen", "[Card1          ]" → "card1"
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn server_name_from_bracket(bracket: &str) -> String {
     bracket
@@ -317,7 +316,7 @@ fn detect_all_usb_audio_cards() -> Vec<UsbAudioCard> {
         if !trimmed.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
             continue;
         }
-        // Line format: "1 [Gen            ]: USB-Audio - Scarlett 2i2 4th Gen"
+        // Line format: "1 [Gen            ]: USB-Audio - USB Audio Interface"
         let card_num = match trimmed.split_whitespace().next() {
             Some(n) => n.to_string(),
             None => continue,
@@ -411,34 +410,16 @@ fn read_card_channels(card: &str) -> (u32, u32) {
     (capture, playback)
 }
 
-/// Set ALSA mixer levels for a USB audio card after JACK has started.
-/// Skips Scarlett/Focusrite devices — their mixer is managed via USB vendor
-/// commands and calling amixer can trigger firmware disconnect cycles.
-/// For standard USB Audio Class devices, sets capture and playback to 100%.
+/// Set ALSA mixer volume controls to 100% for a USB audio card after JACK starts.
+/// Only touches controls named "volume" via numid — does not write routing enums
+/// or vendor-specific controls that could destabilize USB audio drivers.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn configure_alsa_mixer(card: &UsbAudioCard) {
     log::info!("configure_alsa_mixer: card {} ({})", card.card_num, card.display_name);
     let c = &card.card_num;
-    let is_scarlett = card.display_name.to_lowercase().contains("scarlett")
-        || card.display_name.to_lowercase().contains("focusrite");
 
-    if is_scarlett {
-        // Scarlett PCM capture routing: send raw analogue inputs to PCM so JACK
-        // can read the guitar signal. JACK owns all output routing — we must NOT
-        // touch Analogue Output Playback Enum here because writing those controls
-        // triggers scarlett2_notify 0x20000000 which causes the device to
-        // USB-disconnect ~30 seconds later (confirmed via dmesg on RK3588 xHCI).
-        //
-        // PCM 01/02 Capture = Analogue 1/2 (raw guitar → JACK/OpenRig)
-        amixer_cset(c, "name='PCM 01 Capture Enum'", "1");   // Analogue 1
-        amixer_cset(c, "name='PCM 02 Capture Enum'", "2");   // Analogue 2
-        // Direct Monitor Off — prevents raw guitar from bleeding into output hardware
-        amixer_cset(c, "name='Direct Monitor Playback Enum'", "0"); // Off
-        log::info!("configure_alsa_mixer: Scarlett capture routing set (Analogue→PCM, Direct Monitor Off)");
-        return;
-    }
-
-    // Standard USB Audio Class devices: set all volume controls to 100%.
+    // Set all volume controls to 100%. Only touches controls named "volume" —
+    // never writes routing enums or vendor-specific controls.
     if let Ok(output) = std::process::Command::new("amixer")
         .args(["-c", c, "controls"])
         .output()
@@ -707,7 +688,7 @@ fn stop_jackd_for(server_name: &str) -> Result<()> {
 }
 
 /// Enumerate input devices via JACK — one entry per running named JACK server.
-/// device_id is "jack:<server_name>" (e.g. "jack:gen", "jack:q26").
+/// device_id is "jack:<server_name>" (e.g. "jack:gen", "jack:card1").
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn jack_enumerate_input_devices() -> Result<Vec<AudioDeviceDescriptor>> {
     let cards = detect_all_usb_audio_cards();
@@ -730,7 +711,7 @@ fn jack_enumerate_input_devices() -> Result<Vec<AudioDeviceDescriptor>> {
 }
 
 /// Enumerate output devices via JACK — one entry per running named JACK server.
-/// device_id is "jack:<server_name>" (e.g. "jack:gen", "jack:q26").
+/// device_id is "jack:<server_name>" (e.g. "jack:gen", "jack:card1").
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn jack_enumerate_output_devices() -> Result<Vec<AudioDeviceDescriptor>> {
     let cards = detect_all_usb_audio_cards();
@@ -767,7 +748,7 @@ fn using_jack_direct() -> bool {
 
 /// Returns true when the given host is the ASIO host on Windows.
 /// ASIO devices report a fixed sample rate and buffer size configured externally
-/// (e.g. in Focusrite Control) — project settings must be ignored for those devices.
+/// via vendor software — project settings must be ignored for those devices.
 #[cfg(target_os = "windows")]
 fn is_asio_host(host: &cpal::Host) -> bool {
     host.id() == cpal::HostId::Asio
@@ -1395,7 +1376,7 @@ fn is_hardware_device(id: &str) -> bool {
     // cpal enumerates each card twice: once via HintIter (named form:
     // hw:CARD=Gen,DEV=0) and once via hardware scan (numeric form:
     // hw:CARD=1,DEV=0). The two forms may have slightly different device names
-    // ("Scarlett 2i2 4th Gen, USB Audio" vs "Scarlett 2i2 4th Gen"), defeating
+    // ("USB Audio Interface, USB Audio" vs "USB Audio Interface"), defeating
     // name-based deduplication. Reject numeric CARD= forms so only the named
     // form survives — it is stable (card numbers can change on reboot).
     #[cfg(target_os = "linux")]
@@ -1410,7 +1391,7 @@ fn is_hardware_device(id: &str) -> bool {
         // cpal enumerates each card twice: once via HintIter (named form:
         // hw:CARD=Gen,DEV=0) and once via hardware scan (numeric form:
         // hw:CARD=1,DEV=0). The two forms may have slightly different device names
-        // ("Scarlett 2i2 4th Gen, USB Audio" vs "Scarlett 2i2 4th Gen"), defeating
+        // ("USB Audio Interface, USB Audio" vs "USB Audio Interface"), defeating
         // name-based deduplication. Reject numeric CARD= forms so only the named
         // form survives — it is stable (card numbers can change on reboot).
         let pcm_id = id.split_once(':').map(|(_, d)| d).unwrap_or(id);
@@ -1445,6 +1426,56 @@ pub fn invalidate_device_cache() {
     *INPUT_DEVICE_CACHE.lock().unwrap() = None;
     *OUTPUT_DEVICE_CACHE.lock().unwrap() = None;
     log::info!("device descriptor cache invalidated");
+}
+
+// ── Hotplug detection ────────────────────────────────────────────────────────
+// Cheap device count used by the health timer to detect plug-in events without
+// running a full enumeration (no ALSA PCM probe, no JACK client connection).
+
+static LAST_KNOWN_DEVICE_COUNT: Mutex<Option<usize>> = Mutex::new(None);
+
+/// Returns `true` when the audio device count has increased since the last
+/// call, indicating that a new interface was plugged in.
+///
+/// Intentionally cheap — no ALSA probing, no JACK connection. Call from a
+/// periodic UI timer; on `true` follow up with `invalidate_device_cache()` and
+/// a full device-list refresh.
+pub fn has_new_devices() -> bool {
+    let current = count_devices_cheap();
+    let mut guard = LAST_KNOWN_DEVICE_COUNT.lock().unwrap();
+    match *guard {
+        None => {
+            *guard = Some(current);
+            false
+        }
+        Some(prev) if current > prev => {
+            *guard = Some(current);
+            log::info!("has_new_devices: count {} → {}", prev, current);
+            true
+        }
+        Some(prev) => {
+            if current != prev {
+                *guard = Some(current);
+            }
+            false
+        }
+    }
+}
+
+/// Count audio devices cheaply — no ALSA PCM probing, no JACK client.
+fn count_devices_cheap() -> usize {
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    {
+        // Pure /proc/asound/cards read — safe, no PCM open, no JACK connection.
+        return detect_all_usb_audio_cards().len();
+    }
+    #[allow(unreachable_code)]
+    {
+        let host = select_host_for_enumeration();
+        let input = host.input_devices().map(|it| it.count()).unwrap_or(0);
+        let output = host.output_devices().map(|it| it.count()).unwrap_or(0);
+        input + output
+    }
 }
 
 /// Returns true if the JACK server is currently running.
@@ -1517,7 +1548,7 @@ pub fn start_jack_in_background(
 /// with the desired sample rate forces the driver to reconfigure the device.
 /// The temporary stream is dropped immediately after configuration.
 ///
-/// USB audio devices (e.g., Scarlett) may take a few seconds to reconfigure.
+/// USB audio devices may take a few seconds to reconfigure.
 /// cpal may report a timeout even though the change succeeds — we treat
 /// timeouts as warnings and wait for the device to settle.
 pub fn apply_device_settings(settings: &[DeviceSettings]) -> Result<()> {
@@ -1527,7 +1558,7 @@ pub fn apply_device_settings(settings: &[DeviceSettings]) -> Result<()> {
     // On Linux with JACK, jackd is always launched with the correct sample_rate
     // and buffer_size from gui-settings.yaml via ensure_jack_running(). Never
     // probe the ALSA PCM here — on RK3588 xHCI, calling supported_input_configs()
-    // on the Scarlett triggers the scarlett2 driver to enter standalone mode (red LED).
+    // on Linux/JACK, probing the ALSA PCM can disturb USB audio devices.
     #[cfg(all(target_os = "linux", feature = "jack"))]
     {
         log::info!("apply_device_settings: Linux/JACK — skipping ALSA probe (jackd owns device config)");
@@ -1585,7 +1616,7 @@ pub fn apply_device_settings(settings: &[DeviceSettings]) -> Result<()> {
                                 drop(stream);
                             }
                             Err(e) => {
-                                // USB devices like Scarlett may timeout during sample rate
+                                // USB audio devices may timeout during sample rate
                                 // change but still reconfigure successfully. Treat as warning.
                                 let msg = e.to_string();
                                 if msg.contains("timeout") {
@@ -1647,7 +1678,7 @@ fn enumerate_input_devices_uncached() -> Result<Vec<AudioDeviceDescriptor>> {
         // JACK not running — detect USB audio cards from /proc/asound/cards and
         // return them with jack:<name> device IDs, matching what is stored in
         // project YAML. This avoids calling supported_input_configs() (which
-        // opens the PCM and triggers scarlett2 disconnects) and ensures device_id
+        // opens the PCM directly) and ensures device_id
         // consistency regardless of ALSA card numbering order (hw:0 vs hw:1).
         invalidate_jack_meta_cache();
         log::info!("JACK not running, detecting USB audio cards for input devices (no PCM probe)");
@@ -1729,8 +1760,8 @@ pub fn build_streams_for_project(
 
     // On Linux with JACK, no CPAL streams are ever needed — streaming is handled
     // entirely by the jack crate in build_active_chain_runtime. Also, calling
-    // validate_channels_against_devices() here would probe ALSA PCM and trigger
-    // the scarlett2 driver to drop the Scarlett into standalone mode.
+    // validate_channels_against_devices() here would probe ALSA PCM and disturb
+    // USB audio devices.
     #[cfg(all(target_os = "linux", feature = "jack"))]
     {
         let _ = project;       // not needed on Linux/JACK
@@ -2452,9 +2483,8 @@ fn validate_input_channels_against_device(
     channels: &[usize],
 ) -> Result<()> {
     // On Linux with JACK, skip ALL ALSA channel validation — calling
-    // supported_input_configs() on the Scarlett triggers the scarlett2 driver
-    // to enter standalone mode (red LED), regardless of whether JACK is already
-    // running. JACK validates port counts at connect time.
+    // supported_input_configs() can disturb USB audio devices regardless of
+    // whether JACK is already running. JACK validates port counts at connect time.
     #[cfg(all(target_os = "linux", feature = "jack"))]
     {
         log::debug!("[validate_input_channels] skipping — Linux/JACK (JACK validates at connect time)");
@@ -3148,11 +3178,11 @@ mod tests {
     fn audio_device_descriptor_construction_stores_fields() {
         let desc = AudioDeviceDescriptor {
             id: "coreaudio:abc123".to_string(),
-            name: "Focusrite Scarlett 2i2".to_string(),
+            name: "USB Audio Interface".to_string(),
             channels: 2,
         };
         assert_eq!(desc.id, "coreaudio:abc123");
-        assert_eq!(desc.name, "Focusrite Scarlett 2i2");
+        assert_eq!(desc.name, "USB Audio Interface");
         assert_eq!(desc.channels, 2);
     }
 
