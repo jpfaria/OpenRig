@@ -852,8 +852,9 @@ component BlockChip inherits Rectangle {
 
     if !root.block.has-thumbnail && root.block.icon-kind == "vst3" : Image {
         x: 0px; y: 17px; width: parent.width; height: 72px;
-        source: @image-url("../assets/vst3-pedal.png");
+        source: @image-url("../assets/vst3-plugin.svg");
         image-fit: contain;
+        colorize: root.dragging ? #8b95a5 : root.block.enabled ? root.accent-color : #5c6678;
     }
     if !root.block.has-thumbnail && root.block.icon-kind == "input" : Image {
         x: 0px; y: 17px; width: parent.width; height: 72px;
