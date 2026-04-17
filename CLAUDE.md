@@ -534,6 +534,44 @@ O Insert divide a chain em segmentos. Cada segmento tem sua própria lista de ef
 
 ---
 
+## Build e Deploy
+
+### Scripts principais
+
+| Script | O que faz |
+|--------|-----------|
+| `scripts/build-deb-local.sh` | Cross-compila .deb para arm64 + amd64 via Docker no Mac |
+| `scripts/build-linux-local.sh` | Build Linux (chamado pelo build-deb-local.sh) |
+| `scripts/build-orange-pi-image.sh` | Gera imagem SD completa para Orange Pi |
+| `scripts/flash-sd.sh` | Flasha imagem no SD card |
+| `scripts/coverage.sh` | Gera relatório HTML de cobertura em `coverage/` |
+| `scripts/package-macos.sh` | Empacota para macOS |
+| `scripts/build-lib.sh` | Build de libs externas |
+
+### Fluxo completo: branch → .deb → Orange Pi
+
+```bash
+# 1. Checkout e merge do develop
+git checkout feature/issue-{N}
+git merge origin/develop
+
+# 2. Build do .deb (requer Docker rodando)
+./scripts/build-deb-local.sh
+# Output: output/deb/openrig_0.0.0-dev_arm64.deb
+
+# 3. Deploy no Orange Pi (192.168.15.145)
+scp output/deb/openrig_0.0.0-dev_arm64.deb root@192.168.15.145:/tmp/
+ssh root@192.168.15.145 "dpkg -i /tmp/openrig_0.0.0-dev_arm64.deb && systemctl restart openrig.service"
+```
+
+### Regras de build
+
+- **NUNCA compilar na placa** — sempre cross-compile no Mac com `build-deb-local.sh`
+- **Docker obrigatorio** — o build usa container arm64; Docker Desktop precisa estar rodando
+- **Somente arm64 para Orange Pi** — o arquivo amd64 e para x86 Linux, nao para a placa
+
+---
+
 ## Pendencias / Proximos passos
 
 - [ ] **Overlay de knobs sobre controls.svg** — usar `svg_cx`/`svg_cy` do component.yaml para posicionar componentes Slint interativos por cima da imagem
