@@ -850,27 +850,7 @@ component BlockChip inherits Rectangle {
         image-fit: contain;
     }
 
-    if !root.block.has-thumbnail && root.block.icon-kind == "input" : Image {
-        x: 0px; y: 17px; width: parent.width; height: 72px;
-        source: @image-url("../assets/connector-input.png");
-        image-fit: contain;
-    }
-    if !root.block.has-thumbnail && root.block.icon-kind == "output" : Image {
-        x: 0px; y: 17px; width: parent.width; height: 72px;
-        source: @image-url("../assets/connector-output.png");
-        image-fit: contain;
-    }
-    if !root.block.has-thumbnail && root.block.icon-kind == "insert" : Image {
-        x: 0px; y: 17px; width: parent.width; height: 72px;
-        source: @image-url("../assets/insert-pedalboard.png");
-        image-fit: contain;
-    }
-    if !root.block.has-thumbnail && root.block.icon-kind == "vst3" : Image {
-        x: 0px; y: 17px; width: parent.width; height: 72px;
-        source: @image-url("../assets/vst3-pedal.png");
-        image-fit: contain;
-    }
-    if !root.block.has-thumbnail && root.block.icon-kind != "input" && root.block.icon-kind != "output" && root.block.icon-kind != "insert" && root.block.icon-kind != "vst3" : EffectTypeIcon {
+    if !root.block.has-thumbnail : EffectTypeIcon {
         x: 0px;
         y: 17px;
         width: parent.width;
