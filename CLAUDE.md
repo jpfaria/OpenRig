@@ -1,5 +1,13 @@
 # OpenRig — Contexto do Projeto para Claude Code
 
+## OBRIGATORIO — Superpowers
+
+**REQUIRED SUB-SKILL: Invoke `superpowers:using-superpowers` before ANY action in this project.**
+
+Isso se aplica a todos os agentes — locais e GitHub Actions. Sem exceção.
+
+---
+
 ## O que é o OpenRig
 
 Pedalboard/rig virtual para guitarra em Rust. Processa áudio em cadeia (chain) com blocos (blocks) de efeitos e amplificadores. Tem interface gráfica em Slint.

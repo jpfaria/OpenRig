@@ -7,9 +7,16 @@ description: "Use when writing, editing, or refactoring any Rust code in this pr
 
 Mandatory rules for writing code. Apply BEFORE writing, not after. No exceptions.
 
+## STEP 0 — ALWAYS FIRST (no exceptions)
+
+**REQUIRED SUB-SKILL: Invoke `superpowers:using-superpowers` before ANY other action in this project.**
+
+This applies to: new tasks, questions, explorations, code changes, debugging — everything.
+If you think "this is too simple to need superpowers", that's the rationalization. Invoke it anyway.
+
 ## MANDATORY — Load These Skills First
 
-Before doing ANYTHING, invoke the relevant superpowers skills using the Skill tool:
+After loading `superpowers:using-superpowers`, invoke the situation-specific skill:
 
 | Situation | Skill to invoke |
 |-----------|----------------|
