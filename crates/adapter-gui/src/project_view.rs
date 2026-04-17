@@ -12,7 +12,7 @@ use crate::{
 use crate::state::{BlockEditorData, SelectedBlock};
 use crate::block_editor::{block_editor_data, block_parameter_items_for_editor, build_knob_overlays};
 use crate::AppWindow;
-use ui_state::chain_routing_summary;
+use crate::ui_state::chain_routing_summary;
 
 pub(crate) fn chain_inputs_tooltip(
     chain: &Chain,
@@ -298,7 +298,7 @@ pub(crate) fn build_compact_blocks(
 
 pub(crate) fn chain_block_item_from_block(block: &project::block::AudioBlock) -> crate::ChainBlockItem {
     use crate::ChainBlockItem;
-    use ui_state::block_family_for_kind;
+    use crate::ui_state::block_family_for_kind;
     let (kind, label) = match &block.kind {
         AudioBlockKind::Input(_) => ("input".to_string(), "input".to_string()),
         AudioBlockKind::Output(_) => ("output".to_string(), "output".to_string()),
