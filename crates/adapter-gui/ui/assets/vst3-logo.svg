@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500">
+  <!-- White background -->
+  <rect width="800" height="500" fill="white"/>
+
+  <!-- Main badge border -->
+  <rect x="52" y="17" width="696" height="383" rx="44" ry="44"
+        fill="white" stroke="black" stroke-width="14"/>
+
+  <!-- V S T bold serif text -->
+  <text font-family="Georgia, 'Times New Roman', Times, serif"
+        font-size="305" font-weight="bold" fill="black">
+    <tspan x="72" y="352">V</tspan>
+    <tspan x="280" y="352">S</tspan>
+    <tspan x="498" y="352">T</tspan>
+  </text>
+
+  <!-- Plug connector ring (overlapping center letters) -->
+  <ellipse cx="393" cy="198" rx="55" ry="84" fill="black"/>
+  <ellipse cx="393" cy="198" rx="30" ry="55" fill="white"/>
+
+  <!-- Two prongs above the ring -->
+  <rect x="357" y="90" width="22" height="56" rx="11" fill="black"/>
+  <rect x="414" y="90" width="22" height="56" rx="11" fill="black"/>
+
+  <!-- Bottom connector body -->
+  <rect x="300" y="416" width="16" height="50" rx="4" fill="black"/>
+  <rect x="313" y="422" width="175" height="38" rx="8" fill="black"/>
+  <rect x="488" y="430" width="52" height="22" rx="5" fill="black"/>
+</svg>
