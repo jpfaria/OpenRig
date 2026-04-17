@@ -857,6 +857,7 @@ component BlockChip inherits Rectangle {
         height: 72px;
         icon-kind: root.block.icon-kind;
         tint: root.dragging ? #8b95a5 : root.block.enabled ? #f3f6fb : #5c6678;
+        in-chain: true;
     }
 
     // White hover outline — hugs the actual rendered thumbnail
