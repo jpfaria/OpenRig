@@ -380,13 +380,21 @@ component BlockTypeCard inherits Rectangle {
         vertical-alignment: center;
     }
 
-    Image {
+    if root.item.icon-kind == "vst3" : Image {
         x: 14px;
         y: 20px;
         width: 60px;
         height: 60px;
-        source: root.item.icon-kind == "vst3"         ? @image-url("../assets/vst3-plugin.svg")
-            : root.item.icon-kind == "input"          ? @image-url("../assets/input.svg")
+        source: @image-url("../assets/vst3-logo.png");
+        image-fit: contain;
+    }
+
+    if root.item.icon-kind != "vst3" : Image {
+        x: 14px;
+        y: 20px;
+        width: 60px;
+        height: 60px;
+        source: root.item.icon-kind == "input"        ? @image-url("../assets/input.svg")
             : root.item.icon-kind == "output"         ? @image-url("../assets/output.svg")
             : root.item.icon-kind == "insert"         ? @image-url("../assets/insert_loop.svg")
             : root.item.icon-kind == "preamp"         ? @image-url("../assets/amp-head.svg")
