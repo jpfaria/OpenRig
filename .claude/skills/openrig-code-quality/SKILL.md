@@ -1,6 +1,6 @@
 ---
 name: openrig-code-quality
-description: "Use when writing, editing, or refactoring any code. Prevents coupling, duplication, bad design. Apply BEFORE writing code, not after. Covers: data ownership, zero coupling, single source of truth, naming, UI rules, impact analysis, safe refactoring."
+description: "Use when writing, editing, or refactoring any Rust code in this project."
 ---
 
 # Code Quality — Architecture Checklist
@@ -76,7 +76,7 @@ Before doing ANYTHING, invoke the relevant superpowers skills using the Skill to
 - [ ] No workarounds/hacks
 - [ ] Renamed something? → ALL references updated (code + YAML data files + presets)
 
-### 7. Impact Analysis (NEW — from real failures)
+### 7. Impact Analysis (from real failures)
 
 Before making a change, verify:
 - [ ] **Build system**: Does `build.rs` depend on file names? (e.g., `starts_with("compressor_")` breaks if file renamed to `native_compressor_`)
@@ -91,6 +91,174 @@ Before making a change, verify:
 - [ ] **After changing struct fields**: update ALL modules that construct the struct
 - [ ] **Test visually** before committing UI changes — don't assume it looks right
 - [ ] **One concern per commit** — don't mix refactoring with feature changes
+
+### 9. Responsive UI
+
+- [ ] **All UI elements must be responsive** — never invade adjacent areas
+- [ ] Elements must adapt to window/panel size
+- [ ] No hardcoded absolute positions that break at different sizes
+- [ ] Test with minimum and maximum window sizes before committing
+- [ ] Overflow/clip must be handled — if content doesn't fit, it should scroll or truncate, never overflow
+
+### 10. File Organization — ONE RESPONSIBILITY PER FILE (ABSOLUTE)
+
+- [ ] **One concern per file — no exceptions.** If you can describe a file with "and", it has too many responsibilities
+- [ ] **500 lines max** — if a file exceeds 500 lines, it MUST be split before adding anything new
+- [ ] **lib.rs is for re-exports only** — NEVER implement logic in lib.rs; move it to a named module
+- [ ] Configuration files organized by component/domain (e.g., `visual_config/preamp.rs`, `visual_config/delay.rs`)
+- [ ] A file with a match/if that grows with every new model → **WRONG, split by component**
+- [ ] If a file has 50+ lines of match arms → it needs to be split immediately
+- [ ] **God files are forbidden** — a file that 10+ different features touch is a god file; split it
+- [ ] New feature? New file. Don't add to an existing file that already has a different concern
+
+**Known god files — never expand further (tracked in issue #276). Check current size with `wc -l <path>` before touching:**
+- `crates/adapter-gui/src/lib.rs` — split in progress
+- `crates/project/src/block.rs` — split in progress
+- `crates/block-core/src/lib.rs` — split in progress
+- `crates/block-core/src/param.rs` — split in progress
+
+**Anti-patterns:**
+```
+❌ Adding a new function to adapter-gui/src/lib.rs
+   // WRONG: already a god file. Create a new module instead.
+
+❌ lib.rs with 200 lines of business logic
+   // WRONG: lib.rs = re-exports only
+
+❌ A match arm in block.rs growing from 13 to 14 branches
+   // WRONG: the dispatch belongs in each block's own crate via trait
+
+✅ crates/adapter-gui/src/device.rs — only device management
+✅ crates/adapter-gui/src/project.rs — only project persistence
+✅ crates/adapter-gui/src/chain.rs — only chain editing
+```
+
+### 11. Documentation Always Up-to-Date
+
+- [ ] **CLAUDE.md must always reflect current state** — when creating, removing, or changing models, block types, parameters, features, or screens, update the corresponding section in CLAUDE.md
+- [ ] Added a new model? → update the "Tipos de bloco" table and parameter list
+- [ ] Added a new block type? → add it to the table with description and models
+- [ ] Changed parameters? → update "Parâmetros comuns" section
+- [ ] Added a new screen/feature? → update "Telas principais" section
+- [ ] Removed something? → remove from CLAUDE.md too, no stale documentation
+- [ ] Documentation is part of the task — not a separate step. If you change code, you change docs in the same commit
+
+### 12. Mandatory Documentation on Every Feature/Change
+
+- [ ] **Every PR must include doc updates** — CLAUDE.md and issue description
+- [ ] **New block types** → add to "Tipos de bloco" table in CLAUDE.md, update YAML examples
+- [ ] **New data model structs** → document in CLAUDE.md architecture section
+- [ ] **New audio processing behavior** → document in CLAUDE.md "Configuração de áudio" section
+- [ ] **Issue closed** → update issue with final status, what was done, what's pending
+- [ ] **Specs and plans** → keep in `docs/superpowers/specs/` and `docs/superpowers/plans/`, update when design changes
+- [ ] **NEVER close a PR without updating docs** — undocumented features are technical debt
+
+**Anti-Pattern:**
+```
+❌ Merge PR with 54 commits and no doc updates
+   // WRONG: features become invisible, next developer has no context
+
+✅ Every PR updates CLAUDE.md and closes the issue with summary
+   // RIGHT: docs always reflect current state
+```
+
+### 13. Test Coverage (OBRIGATORIO)
+
+- [ ] **Toda feature/bugfix DEVE ter testes** — sem exceção
+- [ ] Testes dentro do módulo: `#[cfg(test)] mod tests { ... }`
+- [ ] Nomenclatura: `<behavior>_<scenario>_<expected>` (ex: `validate_project_rejects_empty_chains`)
+- [ ] Sem frameworks externos — usar `assert!`, `assert_eq!`, `assert!(result.is_err())`
+- [ ] **DSP nativo**: testar com golden samples, tolerância `1e-4`
+- [ ] **NAM/LV2/IR builds**: marcar `#[ignore]` (dependem de assets externos)
+- [ ] **Registry tests** para block-* crates: iterar sobre TODOS os modelos via registry (schema, validate, build)
+- [ ] Helpers de teste no próprio módulo — sem crate de test-utils separado
+- [ ] `cargo test --workspace` DEVE passar antes de qualquer commit
+- [ ] Cobertura local: `scripts/coverage.sh` (requer `cargo-llvm-cov`)
+
+**Anti-Pattern (Testes):**
+```
+❌ Commitar código sem testes
+   // WRONG: código sem teste é dívida técnica
+
+❌ Testar build() de modelo IR/NAM/LV2 sem #[ignore]
+   // WRONG: depende de assets externos, falha no CI
+
+❌ Criar crate test-utils separado
+   // WRONG: cada crate deve ser autossuficiente em testes
+
+❌ Usar mockall ou frameworks de mock
+   // WRONG: testar código real, não mocks
+```
+
+### 14. Zero Warnings (OBRIGATORIO)
+
+- [ ] `cargo build` MUST produce zero warnings — no exceptions
+- [ ] Before committing: `cargo build 2>&1 | grep "^warning"` must return empty
+- [ ] Code that introduces warnings is not mergeable
+- [ ] `#[allow(dead_code)]` or `#[allow(unused)]` are NOT acceptable fixes — fix the root cause
+
+**Anti-Pattern:**
+```
+❌ cargo build  # with 3 warnings about unused variables
+   // WRONG: warnings are not acceptable, fix them
+
+❌ #[allow(dead_code)]
+   pub fn unused_helper() { ... }
+   // WRONG: suppress warning without fixing root cause
+
+✅ Remove or use the dead code
+✅ cargo build 2>&1 | grep "^warning"  # → empty output
+```
+
+### 15. Platform Isolation — cfg Guards (OBRIGATORIO)
+
+- [ ] Platform-specific code MUST be behind `#[cfg(target_os = "...")]` or feature flags
+- [ ] **NEVER refactor cross-platform code to fix a single platform** — this broke macOS audio once
+- [ ] Linux/JACK fixes must use `#[cfg(all(target_os = "linux", feature = "jack"))]`
+- [ ] Before any audio-related change: "does this break macOS audio?" If yes, add cfg guard
+- [ ] macOS/Windows behavior must not be affected by Linux-only changes
+
+**Anti-Pattern:**
+```
+❌ // Changing a cross-platform audio constant to fix Linux behavior
+   const BUFFER_SIZE: usize = 256;  // was 128, changed for JACK stability
+   // WRONG: affects macOS and Windows — use cfg guard
+
+✅ #[cfg(all(target_os = "linux", feature = "jack"))]
+   const BUFFER_SIZE: usize = 256;
+   #[cfg(not(all(target_os = "linux", feature = "jack")))]
+   const BUFFER_SIZE: usize = 128;
+```
+
+### 16. Distribution — No Hardcoded Paths (OBRIGATORIO)
+
+- [ ] **NEVER hardcode absolute or relative paths in code**
+- [ ] **NEVER assume dev environment** — code runs on the end user's machine, not the developer's
+- [ ] Use platform-specific config dirs via `dirs` crate or equivalent
+- [ ] LV2 libs, NAM captures, IR captures — ALL paths come from config, never hardcoded
+- [ ] Mental test before every path decision: "does this work if the user installs on Windows?" If no, don't do it
+
+**Platform paths:**
+| OS | Config dir |
+|----|-----------|
+| macOS | `~/Library/Application Support/OpenRig/` |
+| Windows | `%APPDATA%\OpenRig\` |
+| Linux | `~/.local/share/openrig/` |
+
+**Anti-Pattern:**
+```
+❌ let captures_dir = "/home/joao/.openrig/captures";
+   // WRONG: hardcoded absolute path
+
+❌ let lv2_path = "./lv2_plugins";
+   // WRONG: relative path assumes dev environment
+
+✅ let config_dir = dirs::data_dir()
+       .map(|d| d.join("OpenRig"))
+       .expect("could not resolve data dir");
+```
+
+---
 
 ## Anti-Patterns
 
@@ -132,8 +300,9 @@ Before making a change, verify:
    let type_label = catalog_entry.type_label;
 
 ✅ // Visual config from adapter-gui (NOT from business crate)
-   let visual = visual_config_for_model(&brand, &model_id);
-   let panel_bg = visual.panel_bg;
+   // crates/adapter-gui/src/visual_config/mod.rs
+   let vc = crate::visual_config::visual_config_for_model(&item.brand, &item.model_id);
+   let panel_bg = vc.panel_bg;
 
 ✅ // Model definition has ONLY business logic
    pub const MODEL_DEFINITION = PreampModelDefinition {
@@ -165,10 +334,10 @@ When renaming effect types, models, or identifiers:
 ## Review Trigger
 
 After writing code:
-1. Add new model WITHOUT touching adapter-gui? If no → coupling
-2. Change brand color WITHOUT touching Slint? If no → coupling
+1. Add new model WITHOUT touching adapter-gui? If yes → coupling
+2. Change brand color WITHOUT touching Slint? If yes → coupling
 3. File has match/if listing specific models? → coupling
-4. `cargo build` passes? → required before commit
+4. `cargo build` passes with zero warnings? → required before commit
 5. Visual result matches expectation? → test before commit
 
 ## Red Flags — STOP and Redesign
@@ -179,104 +348,11 @@ After writing code:
 - Same string appears in code AND Slint AND YAML
 - Feature flag enables something the UI can't handle
 - "Quick fix" that hardcodes a value
+- `cargo build` produces any warning
+- Path is hardcoded as string literal
+- Linux fix that touches cross-platform code without cfg guard
 
-### 9. Responsive UI
-
-- [ ] **All UI elements must be responsive** — never invade adjacent areas
-- [ ] Elements must adapt to window/panel size
-- [ ] No hardcoded absolute positions that break at different sizes
-- [ ] Test with minimum and maximum window sizes before committing
-- [ ] Overflow/clip must be handled — if content doesn't fit, it should scroll or truncate, never overflow
-
-### 10. File Organization — ONE RESPONSIBILITY PER FILE (ABSOLUTE)
-
-- [ ] **One concern per file — no exceptions.** If you can describe a file with "and", it has too many responsibilities
-- [ ] **500 lines max** — if a file exceeds 500 lines, it MUST be split before adding anything new
-- [ ] **lib.rs is for re-exports only** — NEVER implement logic in lib.rs; move it to a named module
-- [ ] Configuration files organized by component/domain (e.g., `visual_config/preamp.rs`, `visual_config/delay.rs`)
-- [ ] A file with a match/if that grows with every new model → **WRONG, split by component**
-- [ ] If a file has 50+ lines of match arms → it needs to be split immediately
-- [ ] **God files are forbidden** — a file that 10+ different features touch is a god file; split it
-- [ ] New feature? New file. Don't add to an existing file that already has a different concern
-
-**Known god files to never expand further (tracked in issue #276):**
-- `crates/adapter-gui/src/lib.rs` (9441 lines) — split in progress
-- `crates/project/src/block.rs` (1498 lines) — split in progress
-- `crates/block-core/src/lib.rs` (978 lines) — split in progress
-- `crates/block-core/src/param.rs` (1207 lines) — split in progress
-
-**Anti-patterns:**
-```
-❌ Adding a new function to adapter-gui/src/lib.rs
-   // WRONG: already a god file. Create a new module instead.
-
-❌ lib.rs with 200 lines of business logic
-   // WRONG: lib.rs = re-exports only
-
-❌ A match arm in block.rs growing from 13 to 14 branches
-   // WRONG: the dispatch belongs in each block's own crate via trait
-
-✅ crates/adapter-gui/src/device.rs — only device management
-✅ crates/adapter-gui/src/project.rs — only project persistence
-✅ crates/adapter-gui/src/chain.rs — only chain editing
-```
-
-### 11. Documentation Always Up-to-Date
-
-- [ ] **CLAUDE.md must always reflect current state** — when creating, removing, or changing models, block types, parameters, features, or screens, update the corresponding section in CLAUDE.md
-- [ ] Added a new model? → update the "Tipos de bloco" table and parameter list
-- [ ] Added a new block type? → add it to the table with description and models
-- [ ] Changed parameters? → update "Parâmetros comuns" section
-- [ ] Added a new screen/feature? → update "Telas principais" section
-- [ ] Removed something? → remove from CLAUDE.md too, no stale documentation
-- [ ] Documentation is part of the task — not a separate step. If you change code, you change docs in the same commit
-
-### 12. Mandatory Documentation on Every Feature/Change
-
-- [ ] **Every PR must include doc updates** — CLAUDE.md, AGENTS.md, issue description
-- [ ] **New block types** → add to "Tipos de bloco" table in CLAUDE.md, update YAML examples
-- [ ] **New data model structs** → document in CLAUDE.md architecture section and AGENTS.md
-- [ ] **New audio processing behavior** → document in CLAUDE.md "Configuração de áudio" section
-- [ ] **Issue closed** → update issue with final status, what was done, what's pending
-- [ ] **Specs and plans** → keep in `docs/superpowers/specs/` and `docs/superpowers/plans/`, update when design changes
-- [ ] **NEVER close a PR without updating docs** — undocumented features are technical debt
-
-### Anti-Pattern
-```
-❌ Merge PR with 54 commits and no doc updates
-   // WRONG: features become invisible, next developer has no context
-
-✅ Every PR updates CLAUDE.md, AGENTS.md, and closes the issue with summary
-   // RIGHT: docs always reflect current state
-```
-
-### 13. Test Coverage (OBRIGATORIO)
-
-- [ ] **Toda feature/bugfix DEVE ter testes** — sem exceção
-- [ ] Testes dentro do módulo: `#[cfg(test)] mod tests { ... }`
-- [ ] Nomenclatura: `<behavior>_<scenario>_<expected>` (ex: `validate_project_rejects_empty_chains`)
-- [ ] Sem frameworks externos — usar `assert!`, `assert_eq!`, `assert!(result.is_err())`
-- [ ] **DSP nativo**: testar com golden samples, tolerância `1e-4`
-- [ ] **NAM/LV2/IR builds**: marcar `#[ignore]` (dependem de assets externos)
-- [ ] **Registry tests** para block-* crates: iterar sobre TODOS os modelos via registry (schema, validate, build)
-- [ ] Helpers de teste no próprio módulo — sem crate de test-utils separado
-- [ ] `cargo test --workspace` DEVE passar antes de qualquer commit
-- [ ] Cobertura local: `scripts/coverage.sh` (requer `cargo-llvm-cov`)
-
-### Anti-Pattern (Testes)
-```
-❌ Commitar código sem testes
-   // WRONG: código sem teste é dívida técnica
-
-❌ Testar build() de modelo IR/NAM/LV2 sem #[ignore]
-   // WRONG: depende de assets externos, falha no CI
-
-❌ Criar crate test-utils separado
-   // WRONG: cada crate deve ser autossuficiente em testes
-
-❌ Usar mockall ou frameworks de mock
-   // WRONG: testar código real, não mocks
-```
+---
 
 ## Living Document
 
