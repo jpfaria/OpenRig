@@ -244,7 +244,7 @@ impl Lv2Plugin {
 
         // 5. Build options with stable heap addresses
         let options_min_block = Box::new(1i32);
-        let options_max_block = Box::new(128i32);
+        let options_max_block = Box::new(4096i32);
         let options_sample_rate = Box::new(sample_rate as f32);
 
         let options_array: Vec<LV2OptionsOption> = vec![

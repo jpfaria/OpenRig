@@ -10,7 +10,7 @@ use block_core::{AudioChannelLayout, BlockProcessor};
 
 pub const MODEL_ID: &str = "rr_golden_clone";
 pub const DISPLAY_NAME: &str = "Golden Clone";
-const BRAND: &str = "rr";
+const BRAND: &str = "klon";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 

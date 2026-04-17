@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 100" width="80" height="100">
+  <defs>
+    <linearGradient id="pedal-body" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#404048"/>
+      <stop offset="50%" stop-color="#2a2a32"/>
+      <stop offset="100%" stop-color="#1a1a22"/>
+    </linearGradient>
+  </defs>
+  <!-- Pedal body -->
+  <rect x="8" y="4" width="64" height="92" rx="8" fill="url(#pedal-body)" stroke="#555560" stroke-width="1.2"/>
+  <!-- Screen area with VST logo -->
+  <rect x="14" y="10" width="52" height="40" rx="4" fill="#f0f0f0" stroke="#888890" stroke-width="0.8"/>
+  <!-- VST Logo — official style with overlapping serif letters -->
+  <!-- V -->
+  <text x="27" y="42" font-family="Georgia,Times,serif" font-size="32" font-weight="bold" fill="#1a1a1a" letter-spacing="-3">V</text>
+  <!-- S -->
+  <text x="35" y="42" font-family="Georgia,Times,serif" font-size="32" font-weight="bold" fill="#1a1a1a" letter-spacing="-3">S</text>
+  <!-- T -->
+  <text x="45" y="42" font-family="Georgia,Times,serif" font-size="32" font-weight="bold" fill="#1a1a1a" letter-spacing="-3">T</text>
+  <!-- Plug symbol below letters -->
+  <rect x="33" y="43" width="14" height="5" rx="1" fill="#1a1a1a"/>
+  <rect x="30" y="41" width="3" height="4" rx="0.5" fill="#1a1a1a"/>
+  <rect x="47" y="41" width="3" height="4" rx="0.5" fill="#1a1a1a"/>
+  <rect x="37" y="47" width="6" height="3" rx="1" fill="#1a1a1a"/>
+  <!-- Knob -->
+  <circle cx="40" cy="64" r="9" fill="#222228" stroke="#505058" stroke-width="1"/>
+  <circle cx="40" cy="64" r="6" fill="#2a2a32" stroke="#606068" stroke-width="0.8"/>
+  <line x1="40" y1="58" x2="40" y2="61" stroke="#909098" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Footswitch -->
+  <rect x="26" y="80" width="28" height="10" rx="3" fill="#333338" stroke="#505058" stroke-width="0.8"/>
+  <!-- LED -->
+  <circle cx="40" cy="55" r="2" fill="#cc3333" opacity="0.8"/>
+</svg>

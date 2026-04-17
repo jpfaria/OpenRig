@@ -16,10 +16,13 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ARMBIAN_DIR="$PROJECT_ROOT/.orange-pi-build"
+ARMBIAN_DIR="$PROJECT_ROOT/output/armbian-build"
 ARMBIAN_REPO="https://github.com/armbian/build.git"
 ARMBIAN_BRANCH="main"
 BOARD="orangepi5b"
+# BRANCH=current → stable 6.x LTS kernel. edge (7.0-rc) does NOT boot
+# on RK3588 as of 2026-04-12 (confirmed with official Armbian image).
+# bookworm = Debian 12 — confirmed working with OpenRig binary (glibc 2.36 is sufficient)
 BRANCH="current"
 RELEASE="bookworm"
 OUTPUT_DIR="$PROJECT_ROOT/output/orange-pi"
@@ -28,6 +31,7 @@ OVERLAY_DIR="$USERPATCHES_DIR/overlay"
 GITHUB_REPO="jpfaria/OpenRig"
 
 VERSION="latest"
+LOCAL_DEB=""
 DRY_RUN=false
 
 # ── Parse args ────────────────────────────────────────────────────────────────
@@ -35,6 +39,10 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --version)
             VERSION="$2"
+            shift 2
+            ;;
+        --local-deb)
+            LOCAL_DEB="$2"
             shift 2
             ;;
         --dry-run)
@@ -87,47 +95,49 @@ check_prereqs() {
     fi
 }
 
-# ── Step 1: Download OpenRig release ─────────────────────────────────────────
+# ── Step 1: Download or use local OpenRig .deb ──────────────────────────────
 download_release() {
-    step "1/3  Downloading OpenRig linux-aarch64 release ($VERSION)"
+    if [ -n "$LOCAL_DEB" ]; then
+        step "1/3  Using local .deb: $LOCAL_DEB"
+        if [ ! -f "$LOCAL_DEB" ]; then
+            echo "ERROR: Local .deb not found: $LOCAL_DEB"
+            exit 1
+        fi
+        RELEASE_DEB="$LOCAL_DEB"
+        echo "  Package: $RELEASE_DEB"
+        return
+    fi
+
+    step "1/3  Downloading OpenRig arm64 .deb release ($VERSION)"
 
     local download_dir="$PROJECT_ROOT/output/orange-pi-release"
     run mkdir -p "$download_dir"
+    # Clean any previous downloads so the 'ls | head' below always picks up the
+    # package for the current version.
+    run sh -c "rm -f '$download_dir'/openrig_*_arm64.deb"
 
     if [ "$VERSION" = "latest" ]; then
         echo "  Fetching latest release from github.com/$GITHUB_REPO..."
         run gh release download \
             --repo "$GITHUB_REPO" \
-            --pattern "openrig-*-linux-aarch64.tar.gz" \
+            --pattern "openrig_*_arm64.deb" \
             --dir "$download_dir" \
             --clobber
     else
         echo "  Fetching release $VERSION from github.com/$GITHUB_REPO..."
         run gh release download "$VERSION" \
             --repo "$GITHUB_REPO" \
-            --pattern "openrig-*-linux-aarch64.tar.gz" \
+            --pattern "openrig_*_arm64.deb" \
             --dir "$download_dir" \
             --clobber
     fi
 
-    # Extract
-    local tarball
-    tarball=$(ls "$download_dir"/openrig-*-linux-aarch64.tar.gz 2>/dev/null | head -1)
-    if [ -z "$tarball" ]; then
-        echo "ERROR: No openrig-*-linux-aarch64.tar.gz found in $download_dir"
+    RELEASE_DEB=$(ls "$download_dir"/openrig_*_arm64.deb 2>/dev/null | head -1)
+    if [ -z "$RELEASE_DEB" ]; then
+        echo "ERROR: No openrig_*_arm64.deb found in $download_dir"
         exit 1
     fi
-
-    echo "  Extracting: $(basename "$tarball")"
-    run tar -xzf "$tarball" -C "$download_dir"
-
-    # Find extracted directory
-    RELEASE_DIR=$(ls -d "$download_dir"/openrig-*-linux-aarch64 2>/dev/null | head -1)
-    if [ -z "$RELEASE_DIR" ]; then
-        echo "ERROR: Could not find extracted release directory in $download_dir"
-        exit 1
-    fi
-    echo "  Release staged at: $RELEASE_DIR"
+    echo "  Package staged at: $RELEASE_DEB"
 }
 
 # ── Step 2: Prepare Armbian userpatches overlay ───────────────────────────────
@@ -145,24 +155,44 @@ prepare_overlay() {
 
     # Set up userpatches
     run mkdir -p "$USERPATCHES_DIR"
-    run cp "$PROJECT_ROOT/orange-pi/customize-image.sh" "$USERPATCHES_DIR/customize-image.sh"
+    run cp "$PROJECT_ROOT/platform/orange-pi/customize-image.sh" "$USERPATCHES_DIR/customize-image.sh"
     run chmod +x "$USERPATCHES_DIR/customize-image.sh"
 
-    # Stage release contents into overlay
-    run mkdir -p "$OVERLAY_DIR/openrig-release"
-    run cp -r "$RELEASE_DIR/." "$OVERLAY_DIR/openrig-release/"
+    # Stage the .deb package into the overlay. customize-image.sh will
+    # `apt install` it inside the chroot so all runtime dependencies are
+    # resolved by dpkg — no manual file copies.
+    run mkdir -p "$OVERLAY_DIR"
+    run sh -c "rm -f '$OVERLAY_DIR'/openrig.deb"
+    run cp "$RELEASE_DEB" "$OVERLAY_DIR/openrig.deb"
 
-    # Stage logo SVG (rsvg-convert inside Armbian chroot converts to PNG)
+    # Stage logo SVGs (rsvg-convert inside Armbian chroot converts to PNG)
     LOGO_SVG="$PROJECT_ROOT/crates/adapter-gui/ui/assets/openrig-logomark.svg"
+    LOGOTYPE_SVG="$PROJECT_ROOT/crates/adapter-gui/ui/assets/openrig-logotype.svg"
     run cp "$LOGO_SVG" "$OVERLAY_DIR/openrig-logomark.svg"
+    run cp "$LOGOTYPE_SVG" "$OVERLAY_DIR/openrig-logotype.svg"
 
     # Stage rootfs overlay (etc, usr)
-    run cp -r "$PROJECT_ROOT/orange-pi/rootfs/." "$OVERLAY_DIR/"
+    run cp -r "$PROJECT_ROOT/platform/orange-pi/rootfs/." "$OVERLAY_DIR/"
 
-    # Stage PREEMPT_RT kernel config fragment
-    run mkdir -p "$USERPATCHES_DIR/config/kernel"
-    run cp "$PROJECT_ROOT/orange-pi/kernel-config/orangepi5b-current.config" \
-        "$USERPATCHES_DIR/config/kernel/orangepi5b-current.config"
+    # Stage chain presets — land at /etc/presets/ which is the default
+    # presets_path relative to the project file (/etc/openrig.yaml).
+    if [ -d "$PROJECT_ROOT/presets" ]; then
+        run mkdir -p "$OVERLAY_DIR/etc/presets"
+        run cp -r "$PROJECT_ROOT/presets/." "$OVERLAY_DIR/etc/presets/"
+    fi
+
+    # Stage DTB overlay source for the Scarlett/USB-C TCPM workaround.
+    # customize-image.sh compiles and installs it inside the chroot using
+    # armbian-add-overlay so it lands in /boot/overlay-user/ and gets hooked
+    # into armbianEnv.txt automatically.
+    run cp "$PROJECT_ROOT/platform/orange-pi/dtbo/openrig-usbc-host.dts" \
+        "$OVERLAY_DIR/openrig-usbc-host.dts"
+
+    # PREEMPT_RT extension — Armbian calls custom_kernel_config__openrig_rt()
+    # after loading the base .config, so we only need to flip the RT flag.
+    run mkdir -p "$USERPATCHES_DIR/extensions"
+    run cp "$PROJECT_ROOT/platform/orange-pi/extensions/openrig-kernel-rt.sh" \
+        "$USERPATCHES_DIR/extensions/openrig-kernel-rt.sh"
 }
 
 # ── Step 3: Run Armbian build ─────────────────────────────────────────────────
@@ -171,6 +201,13 @@ run_armbian() {
 
     run mkdir -p "$OUTPUT_DIR"
 
+    # Armbian's Docker launcher bind-mounts its output/ directory. The dir
+    # must exist on the host BEFORE Docker starts, otherwise the bind mount
+    # fails with "source path does not exist".
+    run mkdir -p "$ARMBIAN_DIR/output/images"
+
+    # Armbian ignores OUTPUT_DIR when running inside Docker — images land
+    # in its own output/images/ dir.  We copy them to our OUTPUT_DIR after.
     run "${BASH:-bash}" "$ARMBIAN_DIR/compile.sh" \
         "BOARD=$BOARD" \
         "BRANCH=$BRANCH" \
@@ -179,13 +216,20 @@ run_armbian() {
         "BUILD_MINIMAL=yes" \
         "KERNEL_CONFIGURE=no" \
         "BOOT_LOGO=no" \
-        "COMPRESS_OUTPUTIMAGE=no" \
-        "OUTPUT_DIR=$OUTPUT_DIR"
+        "COMPRESS_OUTPUTIMAGE=no"
+
+    # Copy resulting image to our output dir
+    local armbian_images="$ARMBIAN_DIR/output/images"
+    if ls "$armbian_images"/Armbian*.img 1>/dev/null 2>&1; then
+        run cp "$armbian_images"/Armbian*.img "$OUTPUT_DIR/"
+        run cp "$armbian_images"/Armbian*.img.sha "$OUTPUT_DIR/" 2>/dev/null || true
+        run cp "$armbian_images"/Armbian*.img.txt "$OUTPUT_DIR/" 2>/dev/null || true
+    fi
 
     echo ""
     echo "Image written to: $OUTPUT_DIR/"
-    echo "Flash with Balena Etcher or:"
-    echo "  sudo dd if=\"$OUTPUT_DIR/Armbian_*.img\" of=/dev/sdX bs=4M status=progress"
+    echo "Flash with:"
+    echo "  ./scripts/flash-sd.sh $OUTPUT_DIR/Armbian*.img"
 }
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -194,6 +238,9 @@ echo "Repo:    github.com/$GITHUB_REPO"
 echo "Version: $VERSION"
 echo "Board:   $BOARD ($BRANCH, $RELEASE)"
 echo "DryRun:  $DRY_RUN"
+if [ -n "$LOCAL_DEB" ]; then
+    echo "LocalDeb: $LOCAL_DEB"
+fi
 echo ""
 
 check_prereqs

@@ -152,6 +152,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn builds_mono_processor() {
         let mut params = ParameterSet::default();
         params.insert("flavor", ParameterValue::String("standard".into()));

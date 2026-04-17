@@ -2,107 +2,21 @@ import { ScrollView } from "std-widgets.slint";
 import { CompactBlockItem, BlockKnobOverlay, BlockParameterItem, BlockTypePickerItem } from "../models.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { BrandLogo } from "../components/brand_logo.slint";
+import { PanelKnob } from "../components/panel_knob.slint";
+import { FootSwitch } from "../components/foot_switch.slint";
+import { PowerSwitch } from "../components/power_switch.slint";
+import { ToggleSwitch } from "../components/toggle_switch.slint";
+import { PanelSlider } from "../components/panel_slider.slint";
+import { SelectorKnob } from "../components/selector_knob.slint";
 
-// Dial knob — dark circle, dot indicator on edge, value in center
-// (duplicated from block_panel_editor.slint)
-component PanelKnob inherits Rectangle {
-    in property <float> value;
-    in property <float> min-val;
-    in property <float> max-val;
-    in property <float> step: 1.0;
-    in property <string> path;
-    callback changed(string, float);
-
-    private property <float> norm: root.preview-active ? (root.preview-val - root.min-val) / (root.max-val - root.min-val) : root.value / 100.0;
-    private property <float> drag-y0: 0;
-    private property <float> drag-val0: 0;
-    private property <bool> preview-active: false;
-    private property <float> preview-val: 0;
-    // Angle: 225deg (min, 7:30) -> 495deg (max, 4:30)
-    private property <angle> dot-angle: 225deg + root.norm * 270deg;
-    private property <length> knob-size: Math.min(root.width, root.height);
-    private property <length> orbit: root.knob-size / 2 - 6px;
-
-    background: transparent;
-
-    // Dark circle base
-    Rectangle {
-        x: (parent.width - root.knob-size) / 2;
-        y: (parent.height - root.knob-size) / 2;
-        width: root.knob-size;
-        height: root.knob-size;
-        border-radius: root.knob-size / 2;
-        background: #111;
-        border-width: ta.pressed ? 2.5px : ta.has-hover ? 2px : 1.5px;
-        border-color: ta.pressed ? #6688ff : ta.has-hover ? #4466bb : #333;
-    }
-
-    // Dot indicator on circumference
-    Rectangle {
-        x: parent.width / 2 + Math.sin(root.dot-angle) * (root.orbit / 1px) * 1px - 4px;
-        y: parent.height / 2 - Math.cos(root.dot-angle) * (root.orbit / 1px) * 1px - 4px;
-        width: 8px;
-        height: 8px;
-        border-radius: 4px;
-        background: ta.pressed ? #ffffff : ta.has-hover ? #ddeeff : #aabbdd;
-    }
-
-    // Value in center
-    Text {
-        x: (parent.width - root.knob-size) / 2;
-        y: (parent.height - root.knob-size) / 2;
-        width: root.knob-size;
-        height: root.knob-size;
-        text: root.preview-active
-            ? (root.step >= 1.0
-                ? Math.round(root.preview-val) + ""
-                : Math.round(root.preview-val * 10) / 10 + "")
-            : (root.step >= 1.0
-                ? Math.round(root.value) + ""
-                : Math.round(root.value * 10) / 10 + "");
-        color: ta.pressed ? #ffffff : ta.has-hover ? #ddeeff : #ccdde8;
-        font-size: 14px;
-        font-weight: 700;
-        horizontal-alignment: center;
-        vertical-alignment: center;
-    }
-
-    ta := TouchArea {
-        mouse-cursor: ns-resize;
-
-        pointer-event(ev) => {
-            if ev.kind == PointerEventKind.down {
-                root.drag-y0 = ta.mouse-y / 1px;
-                root.drag-val0 = root.value;
-                root.preview-active = true;
-                root.preview-val = root.value;
-            }
-            if ev.kind == PointerEventKind.up {
-                if root.preview-active {
-                    root.changed(root.path, root.preview-val);
-                    root.preview-active = false;
-                }
-            }
-        }
-
-        moved => {
-            if ta.pressed {
-                let delta = root.drag-y0 - ta.mouse-y / 1px;
-                let range = root.max-val - root.min-val;
-                let raw = root.drag-val0 + delta * range / 120.0;
-                let clamped = raw < root.min-val ? root.min-val : (raw > root.max-val ? root.max-val : raw);
-                let stepped = root.step > 0.0 ? Math.round(clamped / root.step) * root.step : clamped;
-                root.preview-val = stepped;
-            }
-        }
-    }
-}
+import "../fonts/BebasNeue.ttf";
 
 // Single block row
 component CompactBlockRow inherits Rectangle {
     in property <CompactBlockItem> block-data;
     callback toggle-enabled(int, int);
     callback update-parameter-number(int, int, string, float);
+    callback update-parameter-bool(int, int, string, bool);
     callback select-parameter-option(int, int, string, int);
     callback choose-model(int, int, int); // chain_index, block_index, model_index
     callback open-block-detail(int, int);
@@ -115,36 +29,31 @@ component CompactBlockRow inherits Rectangle {
     border-color: root.block-data.enabled ? root.block-data.panel-bg.darker(0.3) : #252830;
     opacity: root.block-data.enabled ? 1.0 : 0.5;
     border-radius: 4px;
+    clip: true;
 
-    // ── 1. Power switch (block style — rectangular with red LED) ──
-    Rectangle {
+    // Subtle metal texture overlay
+    Image {
+        x: 0; y: 0;
+        width: parent.width;
+        height: parent.height;
+        source: @image-url("../assets/sprites/rack-texture.png");
+        image-fit: fill;
+        image-rendering: smooth;
+        opacity: 0.3;
+    }
+
+    // ── 1. Block enable (footswitch sprite) ──
+    FootSwitch {
         x: 10px;
-        y: (parent.height - 40px) / 2;
-        width: 32px; height: 40px;
-        border-radius: 3px;
-        background: #0a0a0a;
-        border-width: 1.5px;
-        border-color: #404040;
-
-        Rectangle {
-            x: 6px;
-            y: root.block-data.enabled ? 4px : 20px;
-            width: 20px; height: 16px;
-            border-radius: 2px;
-            background: root.block-data.enabled ? #cc2222 : #1a0808;
-            border-width: 1px;
-            border-color: root.block-data.enabled ? #ee4444 : #331111;
-        }
-
-        TouchArea {
-            mouse-cursor: pointer;
-            clicked => { root.toggle-enabled(root.block-data.chain-index, root.block-data.block-index); }
-        }
+        y: (parent.height - 66px) / 2;
+        width: 48px; height: 66px;
+        enabled: root.block-data.enabled;
+        clicked => { root.toggle-enabled(root.block-data.chain-index, root.block-data.block-index); }
     }
 
     // ── 2. Type icon (always shown) ──
     EffectTypeIcon {
-        x: 48px;
+        x: 66px;
         y: (parent.height - 32px) / 2;
         width: 32px; height: 32px;
         icon-kind: root.block-data.icon-kind;
@@ -153,9 +62,9 @@ component CompactBlockRow inherits Rectangle {
 
     // ── 3. Block type label ──
     Text {
-        x: 86px;
+        x: 96px;
         y: (parent.height - 18px) / 2;
-        width: 70px;
+        width: 60px;
         height: 18px;
         text: root.block-data.display-label;
         color: root.block-data.panel-text;
@@ -167,7 +76,7 @@ component CompactBlockRow inherits Rectangle {
 
     // ── 4. Model selector dropdown (after type label) ──
     Rectangle {
-        x: 155px;
+        x: 158px;
         y: (parent.height - 32px) / 2;
         width: 260px;
         height: 32px;
@@ -260,7 +169,7 @@ component CompactBlockRow inherits Rectangle {
 
     // ── 5. Brand logo (branded) or native model illustration ──
     BrandLogo {
-        x: 422px;
+        x: 432px;
         y: (parent.height - 28px) / 2;
         width: 60px;
         height: 28px;
@@ -269,7 +178,7 @@ component CompactBlockRow inherits Rectangle {
     }
     // Native models: show model illustration SVG
     if root.block-data.brand == "" : Image {
-        x: 422px; y: (parent.height - 40px) / 2; width: 40px; height: 40px;
+        x: 432px; y: (parent.height - 40px) / 2; width: 40px; height: 40px;
         source: root.block-data.model-id == "gate_basic" ? @image-url("../../../../assets/models/gate_basic.svg")
             : root.block-data.model-id == "compressor_studio_clean" ? @image-url("../../../../assets/models/compressor_studio_clean.svg")
             : root.block-data.model-id == "analog_warm" ? @image-url("../../../../assets/models/analog_warm.svg")
@@ -311,29 +220,30 @@ component CompactBlockRow inherits Rectangle {
         visible: root.block-data.knob-overlays.length > 0;
         alignment: end;
         spacing: 4px;
-        padding-right: 8px;
+        padding-right: 34px;
         x: 0;
-        y: (parent.height - 72px) / 2;
+        y: (parent.height - 90px) / 2;
         width: parent.width;
-        height: 72px;
+        height: 90px;
 
         for knob[ki] in root.block-data.knob-overlays : Rectangle {
             min-width: 56px;
             preferred-width: 62px;
-            height: 72px;
+            height: 90px;
 
             Text {
                 x: 0; y: 0; width: parent.width; height: 12px;
                 text: knob.label;
                 color: root.block-data.panel-text;
-                font-size: 7px; font-weight: 700; letter-spacing: 0.5px;
+                font-family: "Bebas Neue";
+                font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
                 horizontal-alignment: center;
                 overflow: elide;
             }
 
             PanelKnob {
                 x: 2px; y: 14px;
-                width: 58px; height: 58px;
+                width: 58px; height: 76px;
                 value: knob.value;
                 min-val: knob.min_val;
                 max-val: knob.max_val;
@@ -344,41 +254,48 @@ component CompactBlockRow inherits Rectangle {
         }
     }
 
-    // ── All parameters (HorizontalLayout, right-aligned, when no knob overlays and no stream data) ──
+    // ── All parameters (HorizontalLayout, right-aligned) ──
     HorizontalLayout {
-        visible: root.block-data.knob-overlays.length == 0 && root.block-data.stream-data.stream-kind == "" && !root.block-data.has-external-gui;
+        visible: root.block-data.knob-overlays.length == 0 && !root.block-data.has-external-gui;
         alignment: end;
         spacing: 4px;
-        padding-right: 8px;
+        padding-right: 34px;
         x: 0;
-        y: (parent.height - 72px) / 2;
+        y: (parent.height - 90px) / 2;
         width: parent.width;
-        height: 72px;
+        height: 90px;
 
         for param[pi] in root.block-data.parameter-items : Rectangle {
-            visible: param.widget_kind != "" && param.widget_kind != "bool";
-            min-width: param.widget_kind == "enum" && param.option_labels.length <= 4 ? 120px
-                : param.widget_kind == "enum" && param.option_labels.length > 4 ? 140px
+            visible: param.widget_kind != "";
+            min-width: param.widget_kind == "enum" && param.option_labels.length <= 4 ? 100px
+                : param.widget_kind == "bool" ? 44px
                 : 56px;
-            preferred-width: param.widget_kind == "enum" && param.option_labels.length <= 4 ? Math.max(120px, param.option_labels.length * 56px)
-                : param.widget_kind == "enum" && param.option_labels.length > 4 ? 200px
+            preferred-width: param.widget_kind == "enum" && param.option_labels.length <= 4 ? 110px
+                : param.widget_kind == "enum" && param.option_labels.length > 4 ? 140px
+                : param.widget_kind == "bool" ? 48px
                 : 62px;
-            height: 72px;
+            height: 90px;
 
             // Label
             Text {
-                x: 0; y: 0; width: parent.width; height: 12px;
+                x: 0;
+                y: 0;
+                width: parent.width;
+                height: 14px;
                 text: param.label;
                 color: root.block-data.panel-text;
-                font-size: 7px; font-weight: 700; letter-spacing: 0.5px;
+                font-family: "Bebas Neue";
+                font-size: 10px;
+                font-weight: 700;
+                letter-spacing: 1.5px;
                 horizontal-alignment: center;
                 overflow: elide;
             }
 
             // ── Numeric knob/stepper/slider ──
             if param.widget_kind == "stepper" || param.widget_kind == "slider" || param.widget_kind == "knob" : PanelKnob {
-                x: 2px; y: 14px;
-                width: 58px; height: 58px;
+                x: 2px; y: 23px;
+                width: 52px; height: 68px;
                 value: param.numeric_value;
                 min-val: param.numeric_min;
                 max-val: param.numeric_max;
@@ -387,32 +304,129 @@ component CompactBlockRow inherits Rectangle {
                 changed(p, v) => { root.update-parameter-number(root.block-data.chain-index, root.block-data.block-index, p, v); }
             }
 
-            // ── Enum ≤4 options (segmented control) ──
+            // ── Enum ≤4 options (selector knob + inline labels) ──
             if param.widget_kind == "enum" && param.option_labels.length <= 4 : Rectangle {
                 x: 0; y: 14px;
-                width: parent.width;
-                height: 30px;
-                border-radius: 5px;
-                background: #00000030;
-                border-width: 1px; border-color: #ffffff10;
+                width: parent.width; height: 76px;
+                background: transparent;
 
-                for option[oi] in param.option_labels : Rectangle {
-                    x: oi * (parent.width / param.option_labels.length);
-                    width: parent.width / param.option_labels.length;
-                    height: parent.height;
-                    border-radius: 4px;
-                    background: oi == param.selected_option_index ? #3366cc : (seg-ta.has-hover ? #ffffff10 : transparent);
-                    Text {
-                        x: 4px; width: parent.width - 8px; height: parent.height;
-                        text: option;
-                        color: oi == param.selected_option_index ? #ffffff : #8090a0;
-                        font-size: 8px; font-weight: oi == param.selected_option_index ? 700 : 400;
-                        horizontal-alignment: center; vertical-alignment: center; overflow: elide;
-                    }
-                    seg-ta := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => { root.select-parameter-option(root.block-data.chain-index, root.block-data.block-index, param.path, oi); }
-                    }
+                property <length> ks: 48px;
+                property <length> cx: self.width / 2;
+                property <length> top-row: 4px;
+                property <length> knob-y: 16px;
+                property <length> bot-row: self.knob-y + self.ks + 2px;
+                property <length> lw: Math.max((self.width - self.ks) / 2 - 4px, 0px);
+                property <int> n: param.option_labels.length;
+                property <int> sel: param.selected_option_index;
+                property <color> tc: root.block-data.panel-text;
+
+                SelectorKnob {
+                    x: parent.cx - parent.ks / 2;
+                    y: parent.knob-y;
+                    width: parent.ks; height: parent.ks;
+                    num-options: parent.n;
+                    selected-index: parent.sel;
+                    select(i) => { root.select-parameter-option(root.block-data.chain-index, root.block-data.block-index, param.path, i); }
+                }
+
+                // ── Bottom-left label (7h) — option 0 ──
+                Text {
+                    visible: parent.n >= 2;
+                    x: 0; y: parent.bot-row;
+                    width: parent.lw; height: 14px;
+                    text: param.option_labels.length > 0 ? param.option_labels[0] : "";
+                    color: 0 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
+                    font-size: 11px;
+                    font-weight: 0 == parent.sel ? 700 : 400;
+                    horizontal-alignment: right;
+                    overflow: elide;
+                }
+                TouchArea {
+                    visible: parent.n >= 2;
+                    x: 0; y: parent.bot-row;
+                    width: parent.lw; height: 14px;
+                    mouse-cursor: pointer;
+                    clicked => { root.select-parameter-option(root.block-data.chain-index, root.block-data.block-index, param.path, 0); }
+                }
+
+                // ── Bottom-right label (5h) — last option ──
+                Text {
+                    visible: parent.n >= 2;
+                    x: parent.cx + parent.ks / 2 + 4px; y: parent.bot-row;
+                    width: parent.lw; height: 14px;
+                    text: parent.n == 2 ? (param.option_labels.length > 1 ? param.option_labels[1] : "")
+                        : parent.n == 3 ? (param.option_labels.length > 2 ? param.option_labels[2] : "")
+                        : (param.option_labels.length > 3 ? param.option_labels[3] : "");
+                    color: (parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3) == parent.sel
+                        ? #ffaa44 : parent.tc.with-alpha(0.7);
+                    font-size: 11px;
+                    font-weight: (parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3) == parent.sel ? 700 : 400;
+                    horizontal-alignment: left;
+                    overflow: elide;
+                }
+                TouchArea {
+                    visible: parent.n >= 2;
+                    x: parent.cx + parent.ks / 2 + 4px; y: parent.bot-row;
+                    width: parent.lw; height: 14px;
+                    mouse-cursor: pointer;
+                    clicked => { root.select-parameter-option(root.block-data.chain-index, root.block-data.block-index, param.path, parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3); }
+                }
+
+                // ── Top-center label (12h) — option 1 for 3-opt ──
+                Text {
+                    visible: parent.n == 3;
+                    x: parent.cx - 55px; y: parent.top-row;
+                    width: 110px; height: 14px;
+                    text: param.option_labels.length > 1 ? param.option_labels[1] : "";
+                    color: 1 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
+                    font-size: 11px;
+                    font-weight: 1 == parent.sel ? 700 : 400;
+                    horizontal-alignment: center;
+                    overflow: elide;
+                }
+                TouchArea {
+                    visible: parent.n == 3;
+                    x: parent.cx - 55px; y: parent.top-row; width: 110px; height: 14px;
+                    mouse-cursor: pointer;
+                    clicked => { root.select-parameter-option(root.block-data.chain-index, root.block-data.block-index, param.path, 1); }
+                }
+
+                // ── Upper-left label (10h) — option 1 for 4-opt ──
+                Text {
+                    visible: parent.n == 4;
+                    x: 0; y: parent.top-row;
+                    width: parent.lw; height: 14px;
+                    text: param.option_labels.length > 1 ? param.option_labels[1] : "";
+                    color: 1 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
+                    font-size: 11px;
+                    font-weight: 1 == parent.sel ? 700 : 400;
+                    horizontal-alignment: right;
+                    overflow: elide;
+                }
+                TouchArea {
+                    visible: parent.n == 4;
+                    x: 0; y: parent.top-row; width: parent.lw; height: 14px;
+                    mouse-cursor: pointer;
+                    clicked => { root.select-parameter-option(root.block-data.chain-index, root.block-data.block-index, param.path, 1); }
+                }
+
+                // ── Upper-right label (2h) — option 2 for 4-opt ──
+                Text {
+                    visible: parent.n == 4;
+                    x: parent.cx + parent.ks / 2 + 4px; y: parent.top-row;
+                    width: parent.lw; height: 14px;
+                    text: param.option_labels.length > 2 ? param.option_labels[2] : "";
+                    color: 2 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
+                    font-size: 11px;
+                    font-weight: 2 == parent.sel ? 700 : 400;
+                    horizontal-alignment: left;
+                    overflow: elide;
+                }
+                TouchArea {
+                    visible: parent.n == 4;
+                    x: parent.cx + parent.ks / 2 + 4px; y: parent.top-row; width: parent.lw; height: 14px;
+                    mouse-cursor: pointer;
+                    clicked => { root.select-parameter-option(root.block-data.chain-index, root.block-data.block-index, param.path, 2); }
                 }
             }
 
@@ -468,14 +482,23 @@ component CompactBlockRow inherits Rectangle {
                     }
                 }
             }
+
+            // ── Bool toggle (sprite) ──
+            if param.widget_kind == "bool" : ToggleSwitch {
+                x: (parent.width - 36px) / 2; y: 26px;
+                width: 36px; height: 62px;
+                checked: param.bool_value;
+                toggled => { root.update-parameter-bool(root.block-data.chain-index, root.block-data.block-index, param.path, !param.bool_value); }
+            }
         }
     }
 
     // ── Stream data display (tuner readings, meter, etc.) ──
+    // Width stops before parameter knobs on the right (~180px reserved for params)
     if root.block-data.stream-data.stream-kind != "" && root.block-data.stream-data.stream-kind != "spectrum" : Rectangle {
         x: 470px;
         y: 4px;
-        width: parent.width - 510px;
+        width: parent.width - 470px - 180px;
         height: parent.height - 8px;
         background: transparent;
 
@@ -641,6 +664,7 @@ export component CompactChainViewPage inherits Rectangle {
     callback toggle-chain-enabled(int);
     callback toggle-block-enabled(int, int);
     callback update-block-parameter-number(int, int, string, float);
+    callback update-block-parameter-bool(int, int, string, bool);
     callback select-block-parameter-option(int, int, string, int);
     callback choose-block-model(int, int, int);
     callback insert-block(int, int); // chain_index, before_index
@@ -650,6 +674,10 @@ export component CompactChainViewPage inherits Rectangle {
     callback choose-block-type(int, int, int); // chain_index, before_index, type_index
     callback remove-block(int, int); // chain_index, block_index
     callback open-plugin(string); // model-id, for VST3 blocks
+
+    // I/O device configuration (reuses the chain list's configure flow)
+    callback configure-input(int); // chain_index
+    callback configure-output(int); // chain_index
 
     // Type picker state
     in property <[BlockTypePickerItem]> block-type-options;
@@ -671,38 +699,76 @@ export component CompactChainViewPage inherits Rectangle {
         background: #12141a;
         border-width: 0px; border-color: #252830;
 
-        // Chain power toggle (same circle+bar as chain list)
-        Rectangle {
-            x: 12px;
-            y: (parent.height - 28px) / 2;
-            width: 28px; height: 28px;
-            background: chain-pwr-ta.has-hover ? #ffffff08 : transparent;
-
-            Rectangle {
-                x: 4px; y: 4px;
-                width: 20px; height: 20px;
-                border-width: 2px;
-                border-color: root.chain-enabled ? #29df85 : #6a7483;
-                border-radius: 10px;
-            }
-            Rectangle {
-                x: 13px; y: 3px;
-                width: 2px; height: 10px;
-                background: root.chain-enabled ? #29df85 : #6a7483;
-                border-radius: 1px;
-            }
-
-            chain-pwr-ta := TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.toggle-chain-enabled(root.chain-index); }
-            }
+        // Chain power toggle (sprite)
+        PowerSwitch {
+            x: 8px;
+            y: (parent.height - 40px) / 2;
+            width: 40px; height: 40px;
+            enabled: root.chain-enabled;
+            clicked => { root.toggle-chain-enabled(root.chain-index); }
         }
 
         Text {
-            x: 44px; width: parent.width - 60px; height: parent.height;
+            x: 44px; width: parent.width - 160px; height: parent.height;
             text: root.chain-title;
             color: #d8e0ff; font-size: 14px; font-weight: 700;
             vertical-alignment: center;
+        }
+
+        // IN button
+        Rectangle {
+            x: parent.width - 108px;
+            y: (parent.height - 28px) / 2;
+            width: 46px; height: 28px;
+            background: in-ta.has-hover ? #29df8520 : #29df8510;
+            border-width: 1px;
+            border-color: #29df8540;
+            border-radius: 4px;
+
+            Text {
+                width: 100%; height: 100%;
+                text: "IN";
+                color: #29df85;
+                font-size: 10px; font-weight: 800; letter-spacing: 1px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            in-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    debug("compact IN clicked", root.chain-index);
+                    root.configure-input(root.chain-index);
+                }
+            }
+        }
+
+        // OUT button
+        Rectangle {
+            x: parent.width - 56px;
+            y: (parent.height - 28px) / 2;
+            width: 46px; height: 28px;
+            background: out-ta.has-hover ? #e0704020 : #e0704010;
+            border-width: 1px;
+            border-color: #e0704040;
+            border-radius: 4px;
+
+            Text {
+                width: 100%; height: 100%;
+                text: "OUT";
+                color: #e07040;
+                font-size: 10px; font-weight: 800; letter-spacing: 1px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            out-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    debug("compact OUT clicked", root.chain-index);
+                    root.configure-output(root.chain-index);
+                }
+            }
         }
     }
 
@@ -759,6 +825,7 @@ export component CompactChainViewPage inherits Rectangle {
                 block-data: block-item;
                 toggle-enabled(ci, bi2) => { root.toggle-block-enabled(ci, bi2); }
                 update-parameter-number(ci, bi2, p, v) => { root.update-block-parameter-number(ci, bi2, p, v); }
+                update-parameter-bool(ci, bi2, p, v) => { root.update-block-parameter-bool(ci, bi2, p, v); }
                 select-parameter-option(ci, bi2, p, oi) => { root.select-block-parameter-option(ci, bi2, p, oi); }
                 choose-model(ci, bi2, mi) => { root.choose-block-model(ci, bi2, mi); }
                 open-block-detail(ci, bi2) => { root.open-block-detail(ci, bi2); }
@@ -938,4 +1005,5 @@ export component CompactChainViewPage inherits Rectangle {
             }
         }
     }
+
 }

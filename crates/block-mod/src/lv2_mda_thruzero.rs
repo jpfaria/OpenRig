@@ -10,7 +10,7 @@ pub const MODEL_ID: &str = "lv2_mda_thruzero";
 pub const DISPLAY_NAME: &str = "MDA ThruZero";
 const BRAND: &str = "mda";
 
-const PLUGIN_URI: &str = "http://moddevices.com/plugins/mda/ThruZero";
+const PLUGIN_URI: &str = "http://drobilla.net/plugins/mda/ThruZero";
 const PLUGIN_DIR: &str = "mod-mda-ThruZero";
 
 #[cfg(target_os = "macos")]

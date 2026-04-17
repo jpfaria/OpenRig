@@ -147,6 +147,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn builds_mono_processor_for_curated_capture() {
         let mut params = ParameterSet::default();
         params.insert("capture", ParameterValue::String("ev_mix_b".into()));

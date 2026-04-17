@@ -8,3 +8,6 @@ block-core = { path = "../block-core" }
 lv2 = { path = "../lv2" }
 vst3-host = { path = "../vst3" }
 log.workspace = true
+
+[dev-dependencies]
+domain = { path = "../domain" }

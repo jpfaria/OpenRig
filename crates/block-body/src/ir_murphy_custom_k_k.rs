@@ -7,7 +7,7 @@ use block_core::{AudioChannelLayout, ModelAudioMode, BlockProcessor};
 
 pub const MODEL_ID: &str = "murphy_custom_k_k";
 pub const DISPLAY_NAME: &str = "Murphy Custom K&K";
-const BRAND: &str = "";
+const BRAND: &str = "murphy";
 
 macro_rules! capture {
     ($p1:literal, $ir_file:literal) => {

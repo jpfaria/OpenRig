@@ -8,6 +8,9 @@ anyhow.workspace = true
 block-core = { path = "../block-core" }
 lv2 = { path = "../lv2" }
 
+[dev-dependencies]
+domain = { path = "../domain" }
+
 [build-dependencies]
 anyhow.workspace = true
 

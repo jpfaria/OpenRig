@@ -6,11 +6,14 @@ export component DeviceRow inherits Rectangle {
     in property <bool> selected;
     in property <string> sample-rate-text;
     in property <string> buffer-size-text;
+    in property <string> bit-depth-text;
     in property <[string]> sample-rate-options;
     in property <[string]> buffer-size-options;
+    in property <[string]> bit-depth-options;
     callback toggled(bool);
     callback sample-rate-selected(string);
     callback buffer-size-selected(string);
+    callback bit-depth-selected(string);
 
     height: root.selected ? 64px : 52px;
     background: root.selected ? Theme.palette.card-secondary : #0b0d13;
@@ -34,6 +37,13 @@ export component DeviceRow inherits Rectangle {
             : value == "512" ? 4
             : value == "1024" ? 5
             : 3;
+    }
+
+    pure function bit-depth-index(value: string) -> int {
+        return value == "16" ? 0
+            : value == "24" ? 1
+            : value == "32" ? 2
+            : 2;
     }
 
     HorizontalBox {
@@ -70,6 +80,15 @@ export component DeviceRow inherits Rectangle {
             current-index: root.buffer-size-index(root.buffer_size_text);
             selected(value) => {
                 root.buffer-size-selected(value);
+            }
+        }
+
+        if root.selected : ComboBox {
+            min-width: 90px;
+            model: root.bit-depth-options;
+            current-index: root.bit-depth-index(root.bit-depth-text);
+            selected(value) => {
+                root.bit-depth-selected(value);
             }
         }
     }

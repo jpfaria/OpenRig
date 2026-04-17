@@ -70,7 +70,7 @@ fn build(
     let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
 
     let control_ports = &[
-        (PORT_BYPASS, 0.0), // not bypassed
+        (PORT_BYPASS, 1.0), // lv2:enabled — 1.0 = active
         (PORT_DEPTH, depth),
         (PORT_DRIVE, drive),
         (PORT_GAIN, gain),

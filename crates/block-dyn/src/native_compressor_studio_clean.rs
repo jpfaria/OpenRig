@@ -195,10 +195,55 @@ fn build(
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn default_params() -> block_core::param::ParameterSet {
+        let schema = model_schema();
+        block_core::param::ParameterSet::default()
+            .normalized_against(&schema)
+            .expect("defaults should normalize")
+    }
+
+    #[test]
+    fn process_frame_silence_output_is_finite() {
+        let params = default_params();
+        let mut proc = build_processor(&params, 44100.0).unwrap();
+        for i in 0..1024 {
+            let out = proc.process_sample(0.0);
+            assert!(out.is_finite(), "non-finite at sample {i}: {out}");
+        }
+    }
+
+    #[test]
+    fn process_frame_sine_output_is_finite() {
+        let params = default_params();
+        let mut proc = build_processor(&params, 44100.0).unwrap();
+        for i in 0..1024 {
+            let input = (i as f32 / 44100.0 * 440.0 * std::f32::consts::TAU).sin() * 0.5;
+            let out = proc.process_sample(input);
+            assert!(out.is_finite(), "non-finite at sample {i}: {out}");
+        }
+    }
+
+    #[test]
+    fn process_block_1024_frames_all_finite() {
+        let params = default_params();
+        let mut proc = build_processor(&params, 44100.0).unwrap();
+        let mut buf: Vec<f32> = (0..1024)
+            .map(|i| (i as f32 / 44100.0 * 440.0 * std::f32::consts::TAU).sin() * 0.5)
+            .collect();
+        proc.process_block(&mut buf);
+        for (i, &s) in buf.iter().enumerate() {
+            assert!(s.is_finite(), "non-finite at index {i}: {s}");
+        }
+    }
+}
+
 pub const MODEL_DEFINITION: DynModelDefinition = DynModelDefinition {
     id: MODEL_ID,
     display_name: DISPLAY_NAME,
-    brand: "",
+    brand: block_core::BRAND_NATIVE,
     backend_kind: DynBackendKind::Native,
     schema,
     build,

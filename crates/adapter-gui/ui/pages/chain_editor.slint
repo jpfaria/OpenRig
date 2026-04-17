@@ -57,12 +57,11 @@ component FieldBox inherits Rectangle {
 }
 
 component IoGroupRow inherits Rectangle {
-    in property <string> group-name;
     in property <string> group-summary;
     callback edit-clicked();
     callback remove-clicked();
 
-    height: 52px;
+    height: 36px;
     background: transparent;
 
     property <bool> hovered: false;
@@ -77,24 +76,13 @@ component IoGroupRow inherits Rectangle {
 
     Text {
         x: 0px;
-        y: 6px;
+        y: 0px;
         width: parent.width - 60px;
-        height: 18px;
-        text: root.group-name;
+        height: parent.height;
+        text: root.group-summary;
         color: #edf2f9;
         font-size: 13px;
-        font-weight: 700;
-        vertical-alignment: center;
-    }
-
-    Text {
-        x: 0px;
-        y: 28px;
-        width: parent.width - 60px;
-        height: 18px;
-        text: root.group-summary;
-        color: #6b7786;
-        font-size: 12px;
+        font-weight: 600;
         overflow: elide;
         vertical-alignment: center;
     }
@@ -359,14 +347,13 @@ export component ChainEditorPage inherits Rectangle {
         x: 32px;
         y: 268px;
         width: parent.width - 64px;
-        height: Math.max(0px, root.input-groups.length * 52px);
+        height: Math.max(0px, root.input-groups.length * 36px);
         background: transparent;
 
         for group[index] in root.input-groups : IoGroupRow {
             x: 0px;
-            y: index * 52px;
+            y: index * 36px;
             width: parent.width;
-            group-name: group.name;
             group-summary: group.summary;
             edit-clicked => { root.edit-input(index); }
             remove-clicked => { root.remove-input(index); }
@@ -375,7 +362,7 @@ export component ChainEditorPage inherits Rectangle {
 
     AddGroupButton {
         x: 32px;
-        y: 268px + Math.max(0px, root.input-groups.length * 52px);
+        y: 268px + Math.max(0px, root.input-groups.length * 36px);
         width: parent.width - 64px;
         label: "+ Adicionar entrada";
         clicked => { root.add-input(); }
@@ -384,7 +371,7 @@ export component ChainEditorPage inherits Rectangle {
     // --- Separator between inputs and outputs ---
     Rectangle {
         x: 32px;
-        y: 316px + Math.max(0px, root.input-groups.length * 52px);
+        y: 316px + Math.max(0px, root.input-groups.length * 36px);
         width: parent.width - 64px;
         height: 1px;
         background: #2a2f38;
@@ -393,7 +380,7 @@ export component ChainEditorPage inherits Rectangle {
     // --- Outputs section ---
     Text {
         x: 32px;
-        y: 328px + Math.max(0px, root.input-groups.length * 52px);
+        y: 328px + Math.max(0px, root.input-groups.length * 36px);
         width: 120px;
         height: 16px;
         text: "Saidas";
@@ -404,16 +391,15 @@ export component ChainEditorPage inherits Rectangle {
 
     Rectangle {
         x: 32px;
-        y: 348px + Math.max(0px, root.input-groups.length * 52px);
+        y: 348px + Math.max(0px, root.input-groups.length * 36px);
         width: parent.width - 64px;
-        height: Math.max(0px, root.output-groups.length * 52px);
+        height: Math.max(0px, root.output-groups.length * 36px);
         background: transparent;
 
         for group[index] in root.output-groups : IoGroupRow {
             x: 0px;
-            y: index * 52px;
+            y: index * 36px;
             width: parent.width;
-            group-name: group.name;
             group-summary: group.summary;
             edit-clicked => { root.edit-output(index); }
             remove-clicked => { root.remove-output(index); }
@@ -422,7 +408,7 @@ export component ChainEditorPage inherits Rectangle {
 
     AddGroupButton {
         x: 32px;
-        y: 348px + Math.max(0px, root.input-groups.length * 52px) + Math.max(0px, root.output-groups.length * 52px);
+        y: 348px + Math.max(0px, root.input-groups.length * 36px) + Math.max(0px, root.output-groups.length * 36px);
         width: parent.width - 64px;
         label: "+ Adicionar saida";
         clicked => { root.add-output(); }
@@ -431,7 +417,7 @@ export component ChainEditorPage inherits Rectangle {
     // --- Separator before footer ---
     Rectangle {
         x: 32px;
-        y: 396px + Math.max(0px, root.input-groups.length * 52px) + Math.max(0px, root.output-groups.length * 52px);
+        y: 396px + Math.max(0px, root.input-groups.length * 36px) + Math.max(0px, root.output-groups.length * 36px);
         width: parent.width - 64px;
         height: 1px;
         background: #2a2f38;

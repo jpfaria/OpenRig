@@ -1,0 +1,33 @@
+[Unit]
+Description=Weston Wayland Compositor (kiosk)
+# Start after Plymouth is up so we can do a seamless handoff: Plymouth holds
+# the splash until Weston is ready, then we dismiss it from ExecStartPost.
+After=local-fs.target plymouth-start.service
+Requires=local-fs.target
+Before=plymouth-quit-wait.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+
+RuntimeDirectory=weston
+Environment=XDG_RUNTIME_DIR=/run/weston
+
+# Release the framebuffer so Weston can open DRM without conflict.
+ExecStartPre=-/usr/bin/plymouth deactivate
+
+ExecStart=/usr/bin/weston \
+    --backend=drm-backend.so \
+    --tty=1 \
+    --log=/var/log/weston.log
+
+# Dismiss Plymouth once Weston is drawing — retain last frame to avoid flash.
+ExecStartPost=-/usr/bin/plymouth quit --retain-splash
+
+Restart=on-failure
+RestartSec=3
+TimeoutStartSec=30
+
+[Install]
+WantedBy=multi-user.target

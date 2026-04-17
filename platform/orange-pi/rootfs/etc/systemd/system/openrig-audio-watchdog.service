@@ -1,0 +1,25 @@
+[Unit]
+Description=OpenRig Audio Zombie Watchdog
+Documentation=https://github.com/jpfaria/OpenRig
+# Start after OpenRig since JACK is now launched programmatically by OpenRig
+# via ensure_jack_running(). The watchdog monitors jackd journal output for
+# zombie states (device disconnected but process alive) and triggers recovery.
+After=openrig.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/openrig-audio-watchdog
+# Restart forever: if journalctl -f dies (e.g., systemd-journald restarted),
+# we need to start tailing again. 5s backoff is fine.
+Restart=always
+RestartSec=5
+# Send stdout/stderr to the journal so we can see the watchdog's own log
+# alongside the services it monitors.
+StandardOutput=journal
+StandardError=journal
+# Cooldown file lives in /run which is a tmpfs, so no cleanup needed across
+# reboots. Make sure we can write there.
+RuntimeDirectory=openrig-watchdog
+
+[Install]
+WantedBy=multi-user.target
