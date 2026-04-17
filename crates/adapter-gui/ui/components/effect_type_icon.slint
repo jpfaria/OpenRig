@@ -7,11 +7,17 @@ export component EffectTypeIcon inherits Rectangle {
 
     background: transparent;
 
-    Image {
+    if root.icon-kind == "vst3" : Image {
         width: 100%;
         height: 100%;
-        source: root.icon-kind == "vst3"         ? @image-url("../assets/vst3-logo.png")
-            : root.icon-kind == "preamp"         ? @image-url("../assets/amp-head.svg")
+        source: @image-url("../assets/vst3-logo.png");
+        image-fit: contain;
+    }
+
+    if root.icon-kind != "vst3" : Image {
+        width: 100%;
+        height: 100%;
+        source: root.icon-kind == "preamp"       ? @image-url("../assets/amp-head.svg")
             : root.icon-kind == "amp"            ? @image-url("../assets/amp-combo.svg")
             : root.icon-kind == "cab"            ? @image-url("../assets/cab.svg")
             : root.icon-kind == "body"           ? @image-url("../assets/body.svg")
@@ -32,6 +38,6 @@ export component EffectTypeIcon inherits Rectangle {
             : root.icon-kind == "insert"         ? @image-url("../assets/insert_loop.svg")
             : @image-url("../assets/gear.svg");
         image-fit: contain;
-        colorize: root.icon-kind == "vst3" ? transparent : root.tint;
+        colorize: root.tint;
     }
 }

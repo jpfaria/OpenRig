@@ -1,7 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 66" fill="none">
-  <rect x="1.5" y="1.5" width="97" height="63" rx="9" stroke="currentColor" stroke-width="3"/>
-  <text x="50" y="43" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="36" font-weight="bold" fill="currentColor">VST</text>
-  <rect x="37" y="49" width="26" height="9" rx="3" fill="currentColor"/>
-  <rect x="31" y="46" width="6" height="7" rx="1.5" fill="currentColor"/>
-  <rect x="63" y="46" width="6" height="7" rx="1.5" fill="currentColor"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120" fill="currentColor">
+  <!-- Border -->
+  <rect x="2" y="2" width="196" height="116" rx="12" fill="none" stroke="currentColor" stroke-width="4"/>
+  <!-- VST text -->
+  <text x="100" y="72" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="68" font-weight="900" fill="currentColor" letter-spacing="-2">VST</text>
+  <!-- Plug connector body -->
+  <rect x="82" y="82" width="36" height="14" rx="4" fill="currentColor"/>
+  <!-- Plug pins left -->
+  <rect x="68" y="85" width="14" height="5" rx="2" fill="currentColor"/>
+  <!-- Plug pins right -->
+  <rect x="118" y="85" width="14" height="5" rx="2" fill="currentColor"/>
 </svg>
