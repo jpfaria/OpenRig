@@ -387,6 +387,7 @@ component BlockTypeCard inherits Rectangle {
         height: 60px;
         source: @image-url("../assets/vst3-logo.svg");
         image-fit: contain;
+        colorize: root.accent-color;
     }
 
     if root.item.icon-kind != "vst3" : Image {
