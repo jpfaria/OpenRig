@@ -29,47 +29,47 @@ pub const CAPTURES: &[MarshallJvmCapture] = &[
     capture(
         "clean",
         "4x12_v30",
-        "captures/nam/amps/marshall_jvm/jvm_clean_4x12_v30.nam",
+        "amps/marshall_jvm/jvm_clean_4x12_v30.nam",
     ),
     capture(
         "clean",
         "4x12_greenback",
-        "captures/nam/amps/marshall_jvm/jvm_clean_4x12_greenback.nam",
+        "amps/marshall_jvm/jvm_clean_4x12_greenback.nam",
     ),
     capture(
         "clean",
         "4x12_g12t",
-        "captures/nam/amps/marshall_jvm/jvm_clean_4x12_g12t.nam",
+        "amps/marshall_jvm/jvm_clean_4x12_g12t.nam",
     ),
     capture(
         "crunch",
         "4x12_v30",
-        "captures/nam/amps/marshall_jvm/jvm_crunch_4x12_v30.nam",
+        "amps/marshall_jvm/jvm_crunch_4x12_v30.nam",
     ),
     capture(
         "crunch",
         "4x12_greenback",
-        "captures/nam/amps/marshall_jvm/jvm_crunch_4x12_greenback.nam",
+        "amps/marshall_jvm/jvm_crunch_4x12_greenback.nam",
     ),
     capture(
         "crunch",
         "4x12_g12t",
-        "captures/nam/amps/marshall_jvm/jvm_crunch_4x12_g12t.nam",
+        "amps/marshall_jvm/jvm_crunch_4x12_g12t.nam",
     ),
     capture(
         "drive",
         "4x12_v30",
-        "captures/nam/amps/marshall_jvm/jvm_drive_4x12_v30.nam",
+        "amps/marshall_jvm/jvm_drive_4x12_v30.nam",
     ),
     capture(
         "drive",
         "4x12_greenback",
-        "captures/nam/amps/marshall_jvm/jvm_drive_4x12_greenback.nam",
+        "amps/marshall_jvm/jvm_drive_4x12_greenback.nam",
     ),
     capture(
         "drive",
         "4x12_g12t",
-        "captures/nam/amps/marshall_jvm/jvm_drive_4x12_g12t.nam",
+        "amps/marshall_jvm/jvm_drive_4x12_g12t.nam",
     ),
 ];
 
@@ -105,7 +105,7 @@ pub fn build_processor_for_model(
 ) -> Result<BlockProcessor> {
     let capture = resolve_capture(params)?;
     build_processor_with_assets_for_layout(
-        capture.model_path,
+        &nam::resolve_nam_capture(capture.model_path)?,
         None,
         NAM_PLUGIN_FIXED_PARAMS,
         sample_rate,

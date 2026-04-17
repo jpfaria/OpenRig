@@ -90,8 +90,7 @@ export component PhoneNumber inherits Rectangle {
             ListView {
                 for s-item in root.signs: Rectangle {
                     height: item-height;
-                    width: parent.width - self.padding-right;
-                    padding-right: 6px;
+                    width: parent.width - 6px;
                     background: sign-area.has-hover ? UseSurrealismFn.get-color(root.theme, ColorLevel.Deepest) : UseSurrealismFn.get-color(root.theme, ColorLevel.Deeper);
                     sign-area := TouchArea {
                         mouse-cursor: pointer;
@@ -154,7 +153,6 @@ export component PhoneNumber inherits Rectangle {
                 spacing: 4px;
                 for t-item in root.tools: Rectangle {
                     height: item-height - parent.spacing;
-                    padding-right: 6px;
                     background: tool-area.has-hover ? UseSurrealismFn.get-color(root.theme, ColorLevel.Deepest) : UseSurrealismFn.get-color(root.theme, ColorLevel.Deeper);
                     tool-area := TouchArea {
                         mouse-cursor: pointer;

@@ -1,0 +1,252 @@
+#!/usr/bin/env bash
+# Build a minimal Linux image for Orange Pi 5B running OpenRig.
+#
+# Downloads the latest OpenRig release for linux-aarch64 from GitHub,
+# then generates a bootable Armbian image with OpenRig pre-installed.
+#
+# Usage:
+#   ./scripts/build-orange-pi-image.sh                        # use latest release
+#   ./scripts/build-orange-pi-image.sh --version v1.2.0      # use specific version
+#   ./scripts/build-orange-pi-image.sh --dry-run              # print steps, don't execute
+#
+# Prerequisites:
+#   - Docker   (for Armbian build)
+#   - gh       (GitHub CLI, for downloading releases)
+
+set -euo pipefail
+
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ARMBIAN_DIR="$PROJECT_ROOT/output/armbian-build"
+ARMBIAN_REPO="https://github.com/armbian/build.git"
+ARMBIAN_BRANCH="main"
+BOARD="orangepi5b"
+# BRANCH=current → stable 6.x LTS kernel. edge (7.0-rc) does NOT boot
+# on RK3588 as of 2026-04-12 (confirmed with official Armbian image).
+# bookworm = Debian 12 — confirmed working with OpenRig binary (glibc 2.36 is sufficient)
+BRANCH="current"
+RELEASE="bookworm"
+OUTPUT_DIR="$PROJECT_ROOT/output/orange-pi"
+USERPATCHES_DIR="$ARMBIAN_DIR/userpatches"
+OVERLAY_DIR="$USERPATCHES_DIR/overlay"
+GITHUB_REPO="jpfaria/OpenRig"
+
+VERSION="latest"
+LOCAL_DEB=""
+DRY_RUN=false
+
+# ── Parse args ────────────────────────────────────────────────────────────────
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --version)
+            VERSION="$2"
+            shift 2
+            ;;
+        --local-deb)
+            LOCAL_DEB="$2"
+            shift 2
+            ;;
+        --dry-run)
+            DRY_RUN=true
+            shift
+            ;;
+        --help|-h)
+            grep '^#' "$0" | head -12 | sed 's/^# //'
+            exit 0
+            ;;
+        *)
+            echo "Unknown argument: $1"
+            exit 1
+            ;;
+    esac
+done
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+run() {
+    echo "  $ $*"
+    $DRY_RUN || "$@"
+}
+
+step() {
+    echo ""
+    echo "══════════════════════════════════════════"
+    echo "  $*"
+    echo "══════════════════════════════════════════"
+}
+
+check_prereqs() {
+    local missing=()
+    command -v docker >/dev/null || missing+=("docker")
+    command -v gh     >/dev/null || missing+=("gh  (brew install gh)")
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo "ERROR: Missing prerequisites:"
+        printf '  - %s\n' "${missing[@]}"
+        exit 1
+    fi
+
+    # On macOS, Armbian requires Bash 5 — use homebrew bash if available
+    if [ "$(uname)" = "Darwin" ]; then
+        BASH5=/opt/homebrew/bin/bash
+        [ -x "$BASH5" ] || BASH5=$(brew --prefix 2>/dev/null)/bin/bash
+        if [ ! -x "$BASH5" ]; then
+            echo "ERROR: Bash 5 required on macOS. Run: brew install bash"
+            exit 1
+        fi
+        export BASH="$BASH5"
+    fi
+}
+
+# ── Step 1: Download or use local OpenRig .deb ──────────────────────────────
+download_release() {
+    if [ -n "$LOCAL_DEB" ]; then
+        step "1/3  Using local .deb: $LOCAL_DEB"
+        if [ ! -f "$LOCAL_DEB" ]; then
+            echo "ERROR: Local .deb not found: $LOCAL_DEB"
+            exit 1
+        fi
+        RELEASE_DEB="$LOCAL_DEB"
+        echo "  Package: $RELEASE_DEB"
+        return
+    fi
+
+    step "1/3  Downloading OpenRig arm64 .deb release ($VERSION)"
+
+    local download_dir="$PROJECT_ROOT/output/orange-pi-release"
+    run mkdir -p "$download_dir"
+    # Clean any previous downloads so the 'ls | head' below always picks up the
+    # package for the current version.
+    run sh -c "rm -f '$download_dir'/openrig_*_arm64.deb"
+
+    if [ "$VERSION" = "latest" ]; then
+        echo "  Fetching latest release from github.com/$GITHUB_REPO..."
+        run gh release download \
+            --repo "$GITHUB_REPO" \
+            --pattern "openrig_*_arm64.deb" \
+            --dir "$download_dir" \
+            --clobber
+    else
+        echo "  Fetching release $VERSION from github.com/$GITHUB_REPO..."
+        run gh release download "$VERSION" \
+            --repo "$GITHUB_REPO" \
+            --pattern "openrig_*_arm64.deb" \
+            --dir "$download_dir" \
+            --clobber
+    fi
+
+    RELEASE_DEB=$(ls "$download_dir"/openrig_*_arm64.deb 2>/dev/null | head -1)
+    if [ -z "$RELEASE_DEB" ]; then
+        echo "ERROR: No openrig_*_arm64.deb found in $download_dir"
+        exit 1
+    fi
+    echo "  Package staged at: $RELEASE_DEB"
+}
+
+# ── Step 2: Prepare Armbian userpatches overlay ───────────────────────────────
+prepare_overlay() {
+    step "2/3  Preparing Armbian userpatches overlay"
+
+    # Clone or update Armbian build repo
+    if [ ! -d "$ARMBIAN_DIR/.git" ]; then
+        echo "  Cloning Armbian build framework..."
+        run git clone --depth=1 --branch "$ARMBIAN_BRANCH" "$ARMBIAN_REPO" "$ARMBIAN_DIR"
+    else
+        echo "  Updating Armbian build framework..."
+        run git -C "$ARMBIAN_DIR" pull --ff-only
+    fi
+
+    # Set up userpatches
+    run mkdir -p "$USERPATCHES_DIR"
+    run cp "$PROJECT_ROOT/platform/orange-pi/customize-image.sh" "$USERPATCHES_DIR/customize-image.sh"
+    run chmod +x "$USERPATCHES_DIR/customize-image.sh"
+
+    # Stage the .deb package into the overlay. customize-image.sh will
+    # `apt install` it inside the chroot so all runtime dependencies are
+    # resolved by dpkg — no manual file copies.
+    run mkdir -p "$OVERLAY_DIR"
+    run sh -c "rm -f '$OVERLAY_DIR'/openrig.deb"
+    run cp "$RELEASE_DEB" "$OVERLAY_DIR/openrig.deb"
+
+    # Stage logo SVGs (rsvg-convert inside Armbian chroot converts to PNG)
+    LOGO_SVG="$PROJECT_ROOT/crates/adapter-gui/ui/assets/openrig-logomark.svg"
+    LOGOTYPE_SVG="$PROJECT_ROOT/crates/adapter-gui/ui/assets/openrig-logotype.svg"
+    run cp "$LOGO_SVG" "$OVERLAY_DIR/openrig-logomark.svg"
+    run cp "$LOGOTYPE_SVG" "$OVERLAY_DIR/openrig-logotype.svg"
+
+    # Stage rootfs overlay (etc, usr)
+    run cp -r "$PROJECT_ROOT/platform/orange-pi/rootfs/." "$OVERLAY_DIR/"
+
+    # Stage chain presets — land at /etc/presets/ which is the default
+    # presets_path relative to the project file (/etc/openrig.yaml).
+    if [ -d "$PROJECT_ROOT/presets" ]; then
+        run mkdir -p "$OVERLAY_DIR/etc/presets"
+        run cp -r "$PROJECT_ROOT/presets/." "$OVERLAY_DIR/etc/presets/"
+    fi
+
+    # Stage DTB overlay source for the Scarlett/USB-C TCPM workaround.
+    # customize-image.sh compiles and installs it inside the chroot using
+    # armbian-add-overlay so it lands in /boot/overlay-user/ and gets hooked
+    # into armbianEnv.txt automatically.
+    run cp "$PROJECT_ROOT/platform/orange-pi/dtbo/openrig-usbc-host.dts" \
+        "$OVERLAY_DIR/openrig-usbc-host.dts"
+
+    # PREEMPT_RT extension — Armbian calls custom_kernel_config__openrig_rt()
+    # after loading the base .config, so we only need to flip the RT flag.
+    run mkdir -p "$USERPATCHES_DIR/extensions"
+    run cp "$PROJECT_ROOT/platform/orange-pi/extensions/openrig-kernel-rt.sh" \
+        "$USERPATCHES_DIR/extensions/openrig-kernel-rt.sh"
+}
+
+# ── Step 3: Run Armbian build ─────────────────────────────────────────────────
+run_armbian() {
+    step "3/3  Running Armbian build (~30-60 min)"
+
+    run mkdir -p "$OUTPUT_DIR"
+
+    # Armbian's Docker launcher bind-mounts its output/ directory. The dir
+    # must exist on the host BEFORE Docker starts, otherwise the bind mount
+    # fails with "source path does not exist".
+    run mkdir -p "$ARMBIAN_DIR/output/images"
+
+    # Armbian ignores OUTPUT_DIR when running inside Docker — images land
+    # in its own output/images/ dir.  We copy them to our OUTPUT_DIR after.
+    run "${BASH:-bash}" "$ARMBIAN_DIR/compile.sh" \
+        "BOARD=$BOARD" \
+        "BRANCH=$BRANCH" \
+        "RELEASE=$RELEASE" \
+        "BUILD_DESKTOP=no" \
+        "BUILD_MINIMAL=yes" \
+        "KERNEL_CONFIGURE=no" \
+        "BOOT_LOGO=no" \
+        "COMPRESS_OUTPUTIMAGE=no"
+
+    # Copy resulting image to our output dir
+    local armbian_images="$ARMBIAN_DIR/output/images"
+    if ls "$armbian_images"/Armbian*.img 1>/dev/null 2>&1; then
+        run cp "$armbian_images"/Armbian*.img "$OUTPUT_DIR/"
+        run cp "$armbian_images"/Armbian*.img.sha "$OUTPUT_DIR/" 2>/dev/null || true
+        run cp "$armbian_images"/Armbian*.img.txt "$OUTPUT_DIR/" 2>/dev/null || true
+    fi
+
+    echo ""
+    echo "Image written to: $OUTPUT_DIR/"
+    echo "Flash with:"
+    echo "  ./scripts/flash-sd.sh $OUTPUT_DIR/Armbian*.img"
+}
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+echo "OpenRig — Orange Pi 5B Image Builder"
+echo "Repo:    github.com/$GITHUB_REPO"
+echo "Version: $VERSION"
+echo "Board:   $BOARD ($BRANCH, $RELEASE)"
+echo "DryRun:  $DRY_RUN"
+if [ -n "$LOCAL_DEB" ]; then
+    echo "LocalDeb: $LOCAL_DEB"
+fi
+echo ""
+
+check_prereqs
+download_release
+prepare_overlay
+run_armbian
+
+echo ""
+echo "Done."

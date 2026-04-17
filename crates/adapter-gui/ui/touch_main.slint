@@ -1,7 +1,7 @@
-import { VerticalBox, HorizontalBox } from "std-widgets.slint";
+import { VerticalBox, HorizontalBox, ScrollView } from "std-widgets.slint";
 import { Theme } from "theme.slint";
-import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem } from "models.slint";
-import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage } from "pages/pages.slint";
+import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint } from "models.slint";
+import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage } from "pages/pages.slint";
 
 export component TouchMain inherits Rectangle {
     in property <bool> show-project-launcher;
@@ -10,6 +10,9 @@ export component TouchMain inherits Rectangle {
     in property <bool> show-chain-editor;
     in property <bool> show-project-settings;
     in property <bool> project-dirty;
+    in property <bool> auto-save: false;
+    in property <bool> fullscreen: false;
+    in property <bool> skip-launcher: false;
     in property <string> project-path-label;
     in property <string> project-title;
     in-out property <string> project-name-draft;
@@ -46,11 +49,17 @@ export component TouchMain inherits Rectangle {
     in-out property <int> block-drawer-selected-model-index;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
+    in property <[MultiSliderPoint]> multi-slider-points;
+    in property <[CurveEditorPoint]> curve-editor-points;
+    in property <string> eq-total-curve;
+    in property <[string]> eq-band-curves;
     in property <[ChannelOptionItem]> chain-input-channels;
     in property <[ChannelOptionItem]> chain-output-channels;
     in-out property <string> status-message;
     in property <[string]> sample-rate-options;
     in property <[string]> buffer-size-options;
+    in property <[string]> bit-depth-options;
+    in property <[DeviceSelectionItem]> project-devices;
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
     callback update-input-sample-rate(int, string);
@@ -99,6 +108,7 @@ export component TouchMain inherits Rectangle {
     callback close-block-drawer();
     callback save-block-drawer();
     callback delete-block-drawer();
+    callback show-plugin-info(string, string);  // effect_type, model_id
     callback toggle-block-drawer-enabled();
     callback update-block-parameter-text(string, string);
     callback update-block-parameter-number(string, float);
@@ -106,8 +116,74 @@ export component TouchMain inherits Rectangle {
     callback update-block-parameter-bool(string, bool);
     callback select-block-parameter-option(string, int);
     callback pick-block-parameter-file(string);
+    callback open-vst3-editor(string); // model-id
     callback save-chain();
     callback cancel-chain();
+    callback toggle-project-device(int, bool);
+    callback update-project-sample-rate(int, string);
+    callback update-project-buffer-size(int, string);
+    callback update-project-bit-depth(int, string);
+    callback virtual-key-pressed(string);
+    // Fullscreen inline chain editor
+    in property <[IoGroupItem]> chain-editor-input-groups;
+    in property <[IoGroupItem]> chain-editor-output-groups;
+    in property <bool> chain-editor-is-create-mode: true;
+    in-out property <int> chain-editor-selected-instrument-index: 0;
+    callback edit-chain-input(int);
+    callback remove-chain-input(int);
+    callback add-chain-input();
+    callback edit-chain-output(int);
+    callback remove-chain-output(int);
+    callback add-chain-output();
+    callback select-chain-instrument(int);
+    // Fullscreen inline I/O groups editor
+    in property <bool> show-chain-io-groups: false;
+    in property <string> chain-io-groups-title;
+    in property <string> chain-io-groups-add-label;
+    in property <[IoGroupItem]> chain-io-groups-items;
+    in-out property <string> chain-io-groups-status: "";
+    in property <bool> chain-io-groups-show-block-controls: false;
+    in property <bool> chain-io-groups-block-enabled: true;
+    callback chain-io-groups-edit(int);
+    callback chain-io-groups-remove(int);
+    callback chain-io-groups-add();
+    callback chain-io-groups-save();
+    callback chain-io-groups-cancel();
+    callback chain-io-groups-toggle-enabled();
+    callback chain-io-groups-delete-block();
+    // Fullscreen inline I/O endpoint editor
+    in property <bool> show-chain-io-editor: false;
+    in property <string> chain-io-editor-title;
+    in property <[string]> chain-io-device-options;
+    in-out property <int> chain-io-selected-device-index: -1;
+    in property <[ChannelOptionItem]> chain-io-channels;
+    in-out property <string> chain-io-editor-status: "";
+    in property <bool> chain-io-show-mode-selector: false;
+    in property <[string]> chain-io-mode-labels;
+    in-out property <int> chain-io-selected-mode-index: 0;
+    callback chain-io-select-device(int);
+    callback chain-io-toggle-channel(int, bool);
+    callback chain-io-select-mode(int);
+    callback chain-io-save();
+    callback chain-io-cancel();
+    in property <bool> show-preset-picker: false;
+    in property <[string]> preset-picker-items;
+    in-out property <int> preset-picker-chain-index: -1;
+    callback preset-picker-confirm(int);
+    callback preset-picker-delete(int);
+    callback preset-picker-cancel();
+
+    private property <bool> keyboard-visible: false;
+    private property <bool> kb-shift: false;
+    private property <[string]> kb-row1: root.kb-shift
+        ? ["Q","W","E","R","T","Y","U","I","O","P"]
+        : ["q","w","e","r","t","y","u","i","o","p"];
+    private property <[string]> kb-row2: root.kb-shift
+        ? ["A","S","D","F","G","H","J","K","L"]
+        : ["a","s","d","f","g","h","j","k","l"];
+    private property <[string]> kb-row3: root.kb-shift
+        ? ["Z","X","C","V","B","N","M"]
+        : ["z","x","c","v","b","n","m"];
 
     background: root.show-project-launcher ? #1e1f22 : Theme.palette.background-gradient;
 
@@ -144,6 +220,9 @@ export component TouchMain inherits Rectangle {
             project-title: root.project-title;
             project-path-label: root.project-path-label;
             project-dirty: root.project-dirty;
+            auto-save: root.auto-save;
+            fullscreen: root.fullscreen;
+            skip-launcher: root.skip-launcher;
             project-chains: root.project-chains;
             selected-chain-block-chain-index: root.selected-chain-block-chain-index;
             selected-chain-block-index: root.selected-chain-block-index;
@@ -161,6 +240,10 @@ export component TouchMain inherits Rectangle {
             block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
             block-drawer-enabled: root.block-drawer-enabled;
             block-parameter-items: root.block-parameter-items;
+            multi-slider-points: root.multi-slider-points;
+            curve-editor-points: root.curve-editor-points;
+            eq-total-curve: root.eq-total-curve;
+            eq-band-curves: root.eq-band-curves;
             status-message: root.status-message;
             back-to-launcher => { root.back-to-launcher(); }
             add-chain => { root.add-chain(); }
@@ -185,6 +268,7 @@ export component TouchMain inherits Rectangle {
             close-block-drawer => { root.close-block-drawer(); }
             save-block-drawer => { root.save-block-drawer(); }
             delete-block-drawer => { root.delete-block-drawer(); }
+            show-plugin-info(effect_type, model_id) => { root.show-plugin-info(effect_type, model_id); }
             toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
             update-block-parameter-text(path, value) => { root.update-block-parameter-text(path, value); }
             update-block-parameter-number(path, value) => { root.update-block-parameter-number(path, value); }
@@ -192,6 +276,7 @@ export component TouchMain inherits Rectangle {
             update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
             select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
             pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
+            open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
         }
 
         if !root.show-project-chains : Rectangle {
@@ -200,4 +285,324 @@ export component TouchMain inherits Rectangle {
             background: transparent;
         }
     }
+
+    if root.show-project-settings : ProjectSettingsPage {
+        width: parent.width;
+        height: parent.height;
+        project-name-draft <=> root.project-name-draft;
+        status-message <=> root.status-message;
+        project-devices: root.project-devices;
+        sample-rate-options: root.sample-rate-options;
+        buffer-size-options: root.buffer-size-options;
+        bit-depth-options: root.bit-depth-options;
+        update-project-name(value) => { root.update-project-name(value); }
+        save-audio-settings => { root.save-audio-settings(); }
+        close-project-settings => { root.close-project-settings(); }
+        toggle-project-device(index, selected) => { root.toggle-project-device(index, selected); }
+        update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
+        update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
+        update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
+    }
+
+    // Inline chain editor overlay (fullscreen mode)
+    if root.fullscreen && root.show-chain-editor && !root.show-chain-io-editor && !root.show-chain-io-groups : ChainEditorPage {
+        x: 0; y: 0;
+        width: parent.width;
+        height: parent.height;
+        title: root.chain-editor-title;
+        save-label: root.chain-editor-save-label;
+        chain-name: root.chain-draft-name;
+        input-groups: root.chain-editor-input-groups;
+        output-groups: root.chain-editor-output-groups;
+        status-message: root.status-message;
+        is-create-mode: root.chain-editor-is-create-mode;
+        selected-instrument-index <=> root.chain-editor-selected-instrument-index;
+        update-chain-name(value) => { root.update-chain-name(value); }
+        edit-input(index) => { root.edit-chain-input(index); }
+        remove-input(index) => { root.remove-chain-input(index); }
+        add-input => { root.add-chain-input(); }
+        edit-output(index) => { root.edit-chain-output(index); }
+        remove-output(index) => { root.remove-chain-output(index); }
+        add-output => { root.add-chain-output(); }
+        save-chain => { root.save-chain(); }
+        cancel-chain => { root.cancel-chain(); }
+        select-instrument(index) => { root.select-chain-instrument(index); }
+    }
+
+    // Inline I/O groups overlay (fullscreen mode)
+    if root.fullscreen && root.show-chain-io-groups && !root.show-chain-io-editor : ChainIoGroupsPage {
+        x: 0; y: 0;
+        width: parent.width;
+        height: parent.height;
+        title: root.chain-io-groups-title;
+        add-label: root.chain-io-groups-add-label;
+        groups: root.chain-io-groups-items;
+        status-message <=> root.chain-io-groups-status;
+        show-block-controls: root.chain-io-groups-show-block-controls;
+        block-enabled: root.chain-io-groups-block-enabled;
+        edit-group(index) => { root.chain-io-groups-edit(index); }
+        remove-group(index) => { root.chain-io-groups-remove(index); }
+        add-group => { root.chain-io-groups-add(); }
+        save => { root.chain-io-groups-save(); }
+        cancel => { root.chain-io-groups-cancel(); }
+        toggle-enabled => { root.chain-io-groups-toggle-enabled(); }
+        delete-block => { root.chain-io-groups-delete-block(); }
+    }
+
+    // Inline I/O endpoint editor overlay (fullscreen mode)
+    if root.fullscreen && root.show-chain-io-editor : ChainEndpointEditorPage {
+        x: 0; y: 0;
+        width: parent.width;
+        height: parent.height;
+        title: root.chain-io-editor-title;
+        device-options: root.chain-io-device-options;
+        selected-device-index <=> root.chain-io-selected-device-index;
+        channels: root.chain-io-channels;
+        status-message <=> root.chain-io-editor-status;
+        show-mode-selector: root.chain-io-show-mode-selector;
+        mode-labels: root.chain-io-mode-labels;
+        selected-mode-index <=> root.chain-io-selected-mode-index;
+        select-device(index) => { root.chain-io-select-device(index); }
+        toggle-channel(index, selected) => { root.chain-io-toggle-channel(index, selected); }
+        select-mode(index) => { root.chain-io-select-mode(index); }
+        save => { root.chain-io-save(); }
+        cancel => { root.chain-io-cancel(); }
+    }
+
+    // Virtual keyboard overlay — custom keyboard with numbers row, shift, and lowercase/uppercase
+    if root.keyboard-visible : Rectangle {
+        x: 0;
+        y: root.height - 270px;
+        width: root.width;
+        height: 270px;
+        background: #1a1b1e;
+        drop-shadow-blur: 16px;
+        drop-shadow-offset-y: -4px;
+        drop-shadow-color: #000000c0;
+        VerticalLayout {
+            padding: 4px;
+            spacing: 3px;
+            // Row 0: numbers 1-0
+            HorizontalLayout {
+                spacing: 3px;
+                for num in ["1","2","3","4","5","6","7","8","9","0"] : Rectangle {
+                    horizontal-stretch: 1;
+                    border-radius: 4px;
+                    background: n-area.has-hover ? #3c7ded : #2d2e32;
+                    n-area := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.virtual-key-pressed(num); }
+                    }
+                    Text { text: num; font-size: 16px; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                }
+            }
+            // Row 1: QWERTY (lowercase/uppercase based on shift)
+            HorizontalLayout {
+                spacing: 3px;
+                for key in root.kb-row1 : Rectangle {
+                    horizontal-stretch: 1;
+                    border-radius: 4px;
+                    background: r1-area.has-hover ? #3c7ded : #2d2e32;
+                    r1-area := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.virtual-key-pressed(key); root.kb-shift = false; }
+                    }
+                    Text { text: key; font-size: 16px; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                }
+            }
+            // Row 2: ASDFGHJKL
+            HorizontalLayout {
+                spacing: 3px;
+                for key in root.kb-row2 : Rectangle {
+                    horizontal-stretch: 1;
+                    border-radius: 4px;
+                    background: r2-area.has-hover ? #3c7ded : #2d2e32;
+                    r2-area := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.virtual-key-pressed(key); root.kb-shift = false; }
+                    }
+                    Text { text: key; font-size: 16px; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                }
+            }
+            // Row 3: Shift + ZXCVBNM + Backspace
+            HorizontalLayout {
+                spacing: 3px;
+                // Shift key
+                Rectangle {
+                    horizontal-stretch: 1.5;
+                    border-radius: 4px;
+                    background: shift-area.has-hover ? #4a88f0 : (root.kb-shift ? #3c7ded : #3a3b40);
+                    shift-area := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.kb-shift = !root.kb-shift; }
+                    }
+                    Text { text: "⇧"; font-size: 16px; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                }
+                for key in root.kb-row3 : Rectangle {
+                    horizontal-stretch: 1;
+                    border-radius: 4px;
+                    background: r3-area.has-hover ? #3c7ded : #2d2e32;
+                    r3-area := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.virtual-key-pressed(key); root.kb-shift = false; }
+                    }
+                    Text { text: key; font-size: 16px; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                }
+                // Backspace key
+                Rectangle {
+                    horizontal-stretch: 1.5;
+                    border-radius: 4px;
+                    background: back-area.has-hover ? #3c7ded : #3a3b40;
+                    back-area := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.virtual-key-pressed("⌫"); }
+                    }
+                    Text { text: "⌫"; font-size: 16px; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                }
+            }
+            // Row 4: - . ⎵ ⏎
+            HorizontalLayout {
+                spacing: 3px;
+                Rectangle {
+                    horizontal-stretch: 1;
+                    border-radius: 4px;
+                    background: dash-area.has-hover ? #3c7ded : #2d2e32;
+                    dash-area := TouchArea { mouse-cursor: pointer; clicked => { root.virtual-key-pressed("-"); } }
+                    Text { text: "-"; font-size: 16px; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    border-radius: 4px;
+                    background: dot-area.has-hover ? #3c7ded : #2d2e32;
+                    dot-area := TouchArea { mouse-cursor: pointer; clicked => { root.virtual-key-pressed("."); } }
+                    Text { text: "."; font-size: 16px; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                }
+                Rectangle {
+                    horizontal-stretch: 4;
+                    border-radius: 4px;
+                    background: space-area.has-hover ? #3c7ded : #2d2e32;
+                    space-area := TouchArea { mouse-cursor: pointer; clicked => { root.virtual-key-pressed("⎵"); } }
+                    Text { text: "⎵"; font-size: 18px; color: #888888; horizontal-alignment: center; vertical-alignment: center; }
+                }
+                Rectangle {
+                    horizontal-stretch: 2;
+                    border-radius: 4px;
+                    background: enter-area.has-hover ? #4a88f0 : #3c7ded;
+                    enter-area := TouchArea { mouse-cursor: pointer; clicked => { root.virtual-key-pressed("⏎"); } }
+                    Text { text: "⏎"; font-size: 16px; color: #ffffff; horizontal-alignment: center; vertical-alignment: center; }
+                }
+            }
+        }
+    }
+
+    // Keyboard toggle button (floating, bottom-LEFT, hidden on launcher)
+    if !root.show-project-launcher : Rectangle {
+        x: 8px;
+        y: root.height - (root.keyboard-visible ? 326px : 56px);
+        width: 48px;
+        height: 48px;
+        border-radius: 24px;
+        background: root.keyboard-visible ? #3c7ded : #2d2e32;
+        drop-shadow-blur: 8px;
+        drop-shadow-offset-y: 2px;
+        drop-shadow-color: #00000080;
+        TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.keyboard-visible = !root.keyboard-visible; root.kb-shift = false; }
+            Text {
+                text: "⌨";
+                font-size: 22px;
+                color: #ffffff;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+    }
+
+    // Preset picker overlay (replaces FileDialog on kiosk)
+    if root.show-preset-picker : Rectangle {
+        x: 0; y: 0;
+        width: root.width; height: root.height;
+        background: #000000a0;
+        Rectangle {
+            x: root.width * 0.1;
+            y: root.height * 0.1;
+            width: root.width * 0.8;
+            height: root.height * 0.8;
+            background: #1e1f22;
+            border-radius: 10px;
+            VerticalBox {
+                padding: 16px;
+                spacing: 8px;
+                Text {
+                    text: "Carregar Preset";
+                    font-size: 16px;
+                    color: #ffffff;
+                    font-weight: 700;
+                }
+                // Scrollable preset list
+                ScrollView {
+                    vertical-stretch: 1;
+                    VerticalBox {
+                        spacing: 4px;
+                        for item[i] in root.preset-picker-items : Rectangle {
+                            height: 44px;
+                            border-radius: 6px;
+                            background: item-area.has-hover ? #3c7ded : #2d2e32;
+                            item-area := TouchArea {
+                                mouse-cursor: pointer;
+                                width: parent.width - 52px;
+                                clicked => { root.preset-picker-confirm(i); }
+                            }
+                            Text {
+                                x: 12px;
+                                width: parent.width - 64px;
+                                text: item;
+                                font-size: 14px;
+                                color: #ffffff;
+                                vertical-alignment: center;
+                                overflow: elide;
+                            }
+                            Rectangle {
+                                x: parent.width - 44px;
+                                y: 2px;
+                                width: 40px;
+                                height: 40px;
+                                border-radius: 6px;
+                                background: del-area.has-hover ? #c0392b : transparent;
+                                del-area := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => { root.preset-picker-delete(i); }
+                                }
+                                Text {
+                                    text: "✕";
+                                    font-size: 16px;
+                                    color: #cc4444;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                            }
+                        }
+                    }
+                }
+                Rectangle {
+                    height: 44px;
+                    border-radius: 6px;
+                    background: cancel-area.has-hover ? #444 : #2d2e32;
+                    cancel-area := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.preset-picker-cancel(); }
+                    }
+                    Text {
+                        text: "Cancelar";
+                        font-size: 14px;
+                        color: #aaaaaa;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+    }
+
 }

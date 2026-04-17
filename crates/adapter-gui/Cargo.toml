@@ -7,7 +7,6 @@ edition.workspace = true
 anyhow.workspace = true
 application = { path = "../application" }
 block-core = { path = "../block-core" }
-block-thumbnails = { path = "../block-thumbnails" }
 image = { version = "0.25", default-features = false, features = ["png"] }
 cpal = "0.17"
 domain = { path = "../domain" }
@@ -18,13 +17,18 @@ infra-yaml = { path = "../infra-yaml" }
 serde.workspace = true
 serde_yaml.workspace = true
 rfd = "0.15"
-slint.workspace = true
+slint = { workspace = true, features = ["backend-linuxkms", "renderer-software"] }
 log.workspace = true
 env_logger.workspace = true
 ureq.workspace = true
 serde_json.workspace = true
 project = { path = "../project" }
 ui-openrig = { path = "../ui-openrig" }
+webbrowser.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies.infra-cpal]
+path = "../infra-cpal"
+features = ["jack"]
 
 [build-dependencies]
 slint-build.workspace = true

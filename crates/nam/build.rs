@@ -30,10 +30,20 @@ fn main() {
     } else {
         // Compile from source
         println!("cargo:warning=Building NeuralAudioCAPI from source...");
-        let dst = cmake::Config::new(project_root.join("deps/neural-amp-modeler-lv2"))
-            .define("CMAKE_BUILD_TYPE", "Release")
-            .define("CMAKE_OSX_DEPLOYMENT_TARGET", "11.0")
-            .build();
+        let mut cmake_cfg = cmake::Config::new(project_root.join("deps/neural-amp-modeler-lv2"));
+        cmake_cfg.define("CMAKE_BUILD_TYPE", "Release");
+        cmake_cfg.define("CMAKE_OSX_DEPLOYMENT_TARGET", "11.0");
+
+        // aarch64-specific: enable NEON SIMD and aggressive optimization.
+        // Without these, NAM processing is too slow for real-time on ARM
+        // (constant JACK xruns even at 1024-frame buffer on RK3588).
+        let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
+        if target_arch == "aarch64" {
+            cmake_cfg.cflag("-O3 -march=armv8-a+simd -ffast-math");
+            cmake_cfg.cxxflag("-O3 -march=armv8-a+simd -ffast-math");
+        }
+
+        let dst = cmake_cfg.build();
 
         let lib_path = dst.join("build/src/NeuralAudio/NeuralAudioCAPI");
         if lib_path.exists() {
@@ -54,7 +64,12 @@ fn main() {
         };
     }
 
-    println!("cargo:rustc-link-lib=dylib=NeuralAudioCAPI");
+    // On Windows the extern block uses raw-dylib, so no link directive is needed.
+    // On other platforms we emit the standard dylib directive.
+    let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    if target_os != "windows" {
+        println!("cargo:rustc-link-lib=dylib=NeuralAudioCAPI");
+    }
 
     // Copy dylib to cargo's output directory so it's found at runtime
     copy_lib_to_target(&lib_source_dir, lib_name);
@@ -73,7 +88,7 @@ fn lib_filename() -> &'static str {
     if cfg!(target_os = "macos") {
         "libNeuralAudioCAPI.dylib"
     } else if cfg!(target_os = "windows") {
-        "NeuralAudioCAPI.dll"
+        "libNeuralAudioCAPI.dll"
     } else {
         "libNeuralAudioCAPI.so"
     }

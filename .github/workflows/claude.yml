@@ -5,10 +5,6 @@ on:
     types: [created]
   pull_request_review_comment:
     types: [created]
-  pull_request_review:
-    types: [submitted]
-  issues:
-    types: [opened, assigned, labeled]
 
 concurrency:
   group: claude-${{ github.event.issue.number || github.event.pull_request.number }}
@@ -17,15 +13,10 @@ concurrency:
 jobs:
   claude:
     if: |
-      github.event.sender.type != 'Bot' &&
-      (
-        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-        (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
-      )
+      !endsWith(github.event.sender.login, '[bot]') &&
+      contains(github.event.comment.body, '@claude')
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 300
     permissions:
       contents: write
       pull-requests: write
@@ -37,12 +28,50 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Checkout issue branch if exists
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+        run: |
+          git fetch origin
+          BRANCH="feature/issue-${ISSUE_NUMBER}"
+          if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null 2>&1; then
+            echo "Branch $BRANCH exists — checking out"
+            git checkout -B "$BRANCH" "origin/$BRANCH"
+          else
+            echo "Branch $BRANCH does not exist yet — will be created by Claude"
+          fi
+
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          assignee_trigger: "claude"
-          label_trigger: "claude"
           base_branch: "develop"
           branch_prefix: "feature/"
+          branch_name_template: "{{prefix}}issue-{{entityNumber}}"
           claude_args: "--max-turns 200"
+          additional_system_prompt: |
+            BRANCH NAMING — ABSOLUTE RULE:
+            Branch names MUST be exactly "feature/issue-{N}" or "bugfix/issue-{N}".
+            NEVER append suffixes like timestamps, descriptions, or version numbers.
+            FORBIDDEN examples: feature/issue-82-20260417-1802, feature/issue-82-fix, feature/issue-82-v2.
+            If the branch already exists, reuse it: git fetch origin && git checkout feature/issue-{N}.
+            NEVER create a second branch for the same issue.
+
+            ALWAYS SYNC DEVELOP BEFORE WORKING:
+            Before writing any code, always run:
+              git fetch origin
+              git merge origin/develop
+            This ensures the branch has the latest changes from develop.
+            Use merge, NEVER rebase.
+
+            MERGE CONFLICTS — DEVELOP ALWAYS WINS:
+            When merging origin/develop causes conflicts, develop takes priority.
+            Resolve conflicts by accepting develop's version:
+              git merge -X theirs origin/develop
+            The feature branch work must adapt to develop, never the other way around.
+
+            TRACEABILITY — MANDATORY ISSUE COMMENTS:
+            You MUST comment on the issue at two points:
+            1. BEFORE starting work: post a comment with your plan — what you intend to change and why.
+            2. AFTER finishing work: post a comment with what was actually done — files changed, decisions made, anything relevant for future reference.
+            This applies to ALL work, local or on GitHub. The issue is the source of truth for all changes.

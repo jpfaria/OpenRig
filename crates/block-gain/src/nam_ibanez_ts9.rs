@@ -33,15 +33,15 @@ struct Ts9Capture {
 }
 
 const CAPTURES: &[Ts9Capture] = &[
-    Ts9Capture { drive: 0,  tone: 6, level: 6,  model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 0 Tone 6 Level 6.nam" },
-    Ts9Capture { drive: 0,  tone: 7, level: 7,  model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 0 Tone 7 Level 7.nam" },
-    Ts9Capture { drive: 0,  tone: 9, level: 9,  model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 0 Tone 9 Level 9.nam" },
-    Ts9Capture { drive: 2,  tone: 7, level: 10, model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 2 Tone 7 Level 10.nam" },
-    Ts9Capture { drive: 7,  tone: 7, level: 7,  model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 7 Tone 7 Level 7.nam" },
-    Ts9Capture { drive: 7,  tone: 7, level: 9,  model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 7 Tone 7 Level 9.nam" },
-    Ts9Capture { drive: 8,  tone: 4, level: 5,  model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 8 Tone 4 Level 5.nam" },
-    Ts9Capture { drive: 8,  tone: 8, level: 8,  model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 8 Tone 8 Level 8.nam" },
-    Ts9Capture { drive: 10, tone: 9, level: 7,  model_path: "captures/nam/pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 10 Tone 9 Level 7.nam" },
+    Ts9Capture { drive: 0,  tone: 6, level: 6,  model_path: "pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 0 Tone 6 Level 6.nam" },
+    Ts9Capture { drive: 0,  tone: 7, level: 7,  model_path: "pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 0 Tone 7 Level 7.nam" },
+    Ts9Capture { drive: 0,  tone: 9, level: 9,  model_path: "pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 0 Tone 9 Level 9.nam" },
+    Ts9Capture { drive: 2,  tone: 7, level: 10, model_path: "pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 2 Tone 7 Level 10.nam" },
+    Ts9Capture { drive: 7,  tone: 7, level: 7,  model_path: "pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 7 Tone 7 Level 7.nam" },
+    Ts9Capture { drive: 7,  tone: 7, level: 9,  model_path: "pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 7 Tone 7 Level 9.nam" },
+    Ts9Capture { drive: 8,  tone: 4, level: 5,  model_path: "pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 8 Tone 4 Level 5.nam" },
+    Ts9Capture { drive: 8,  tone: 8, level: 8,  model_path: "pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 8 Tone 8 Level 8.nam" },
+    Ts9Capture { drive: 10, tone: 9, level: 7,  model_path: "pedals/ibanez_ts9_tube_screamer/Ibanez TS9 Tube Screamer Drive 10 Tone 9 Level 7.nam" },
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -63,7 +63,7 @@ pub fn build_processor_for_model(
     log::info!("NAM TS9: selected capture D{} T{} L{}", capture.drive, capture.tone, capture.level);
     let plugin_params = plugin_params_from_set_with_defaults(params, NAM_PLUGIN_DEFAULTS)?;
     build_processor_with_assets_for_layout(
-        capture.model_path,
+        &nam::resolve_nam_capture(capture.model_path)?,
         None,
         plugin_params,
         sample_rate,

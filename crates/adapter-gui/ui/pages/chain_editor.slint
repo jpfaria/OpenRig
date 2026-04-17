@@ -1,3 +1,6 @@
+import { ScrollView } from "std-widgets.slint";
+import { IoGroupItem } from "../models.slint";
+
 component FooterButton inherits Rectangle {
     in property <string> label;
     in property <bool> primary: false;
@@ -42,24 +45,23 @@ component FieldBox inherits Rectangle {
         x: 12px;
         width: parent.width - 24px;
         height: parent.height;
-        text: root.text;
+        text <=> root.text;
         color: #f3f6fb;
         single-line: true;
         vertical-alignment: center;
         font-size: 13px;
         edited => {
-            root.text = self.text;
             root.changed(self.text);
         }
     }
 }
 
-component EditRow inherits Rectangle {
-    in property <string> label;
-    in property <string> summary;
-    callback clicked();
+component IoGroupRow inherits Rectangle {
+    in property <string> group-summary;
+    callback edit-clicked();
+    callback remove-clicked();
 
-    height: 52px;
+    height: 36px;
     background: transparent;
 
     property <bool> hovered: false;
@@ -74,28 +76,44 @@ component EditRow inherits Rectangle {
 
     Text {
         x: 0px;
-        y: 6px;
-        width: parent.width - 24px;
-        height: 18px;
-        text: root.label;
+        y: 0px;
+        width: parent.width - 60px;
+        height: parent.height;
+        text: root.group-summary;
         color: #edf2f9;
         font-size: 13px;
-        font-weight: 700;
-        vertical-alignment: center;
-    }
-
-    Text {
-        x: 0px;
-        y: 28px;
-        width: parent.width - 24px;
-        height: 18px;
-        text: root.summary;
-        color: #6b7786;
-        font-size: 12px;
+        font-weight: 600;
         overflow: elide;
         vertical-alignment: center;
     }
 
+    // Remove button
+    Rectangle {
+        x: parent.width - 52px;
+        y: 10px;
+        width: 24px;
+        height: 32px;
+        border-radius: 4px;
+
+        Text {
+            width: parent.width;
+            height: parent.height;
+            text: "✕";
+            color: #5a6270;
+            font-size: 13px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+
+        TouchArea {
+            width: parent.width;
+            height: parent.height;
+            mouse-cursor: pointer;
+            clicked => { root.remove-clicked(); }
+        }
+    }
+
+    // Edit chevron
     Text {
         x: parent.width - 20px;
         y: 0px;
@@ -105,6 +123,50 @@ component EditRow inherits Rectangle {
         color: #4c5566;
         font-size: 18px;
         horizontal-alignment: right;
+        vertical-alignment: center;
+    }
+
+    TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width - 56px;
+        height: parent.height;
+        mouse-cursor: pointer;
+        pointer-event(e) => {
+            if (e.kind == PointerEventKind.move) {
+                root.hovered = true;
+            }
+        }
+        clicked => { root.edit-clicked(); }
+    }
+}
+
+component AddGroupButton inherits Rectangle {
+    in property <string> label;
+    callback clicked();
+
+    height: 36px;
+    background: transparent;
+    border-width: 1px;
+    border-color: #2a2f38;
+    border-radius: 6px;
+
+    property <bool> hovered: false;
+
+    states [
+        hovered when hovered: {
+            border-color: #45a7ff;
+        }
+    ]
+
+    Text {
+        width: parent.width;
+        height: parent.height;
+        text: root.label;
+        color: #45a7ff;
+        font-size: 12px;
+        font-weight: 600;
+        horizontal-alignment: center;
         vertical-alignment: center;
     }
 
@@ -125,15 +187,19 @@ export component ChainEditorPage inherits Rectangle {
     in property <string> title;
     in property <string> save-label;
     in-out property <string> chain-name;
-    in property <string> input-summary;
-    in property <string> output-summary;
+    in property <[IoGroupItem]> input-groups;
+    in property <[IoGroupItem]> output-groups;
     in-out property <string> status-message;
     in property <bool> is-create-mode: true;
     in-out property <int> selected-instrument-index: 0;
     in property <[string]> instrument-labels: ["Guitarra", "Violao", "Baixo", "Voz", "Teclado", "Bateria", "Outro"];
     callback update-chain-name(string);
-    callback open-input();
-    callback open-output();
+    callback edit-input(int);
+    callback remove-input(int);
+    callback add-input();
+    callback edit-output(int);
+    callback remove-output(int);
+    callback add-output();
     callback save-chain();
     callback cancel-chain();
     callback select-instrument(int);
@@ -265,35 +331,93 @@ export component ChainEditorPage inherits Rectangle {
         background: #2a2f38;
     }
 
-    EditRow {
+    // --- Inputs section ---
+    Text {
         x: 32px;
-        y: 244px;
-        width: parent.width - 64px;
-        label: "Entrada";
-        summary: root.input-summary;
-        clicked => { root.open-input(); }
+        y: 248px;
+        width: 120px;
+        height: 16px;
+        text: "Entradas";
+        color: #7a8694;
+        font-size: 11px;
+        font-weight: 600;
     }
 
     Rectangle {
         x: 32px;
-        y: 296px;
+        y: 268px;
+        width: parent.width - 64px;
+        height: Math.max(0px, root.input-groups.length * 36px);
+        background: transparent;
+
+        for group[index] in root.input-groups : IoGroupRow {
+            x: 0px;
+            y: index * 36px;
+            width: parent.width;
+            group-summary: group.summary;
+            edit-clicked => { root.edit-input(index); }
+            remove-clicked => { root.remove-input(index); }
+        }
+    }
+
+    AddGroupButton {
+        x: 32px;
+        y: 268px + Math.max(0px, root.input-groups.length * 36px);
+        width: parent.width - 64px;
+        label: "+ Adicionar entrada";
+        clicked => { root.add-input(); }
+    }
+
+    // --- Separator between inputs and outputs ---
+    Rectangle {
+        x: 32px;
+        y: 316px + Math.max(0px, root.input-groups.length * 36px);
         width: parent.width - 64px;
         height: 1px;
         background: #2a2f38;
     }
 
-    EditRow {
+    // --- Outputs section ---
+    Text {
         x: 32px;
-        y: 304px;
-        width: parent.width - 64px;
-        label: "Saída";
-        summary: root.output-summary;
-        clicked => { root.open-output(); }
+        y: 328px + Math.max(0px, root.input-groups.length * 36px);
+        width: 120px;
+        height: 16px;
+        text: "Saidas";
+        color: #7a8694;
+        font-size: 11px;
+        font-weight: 600;
     }
 
     Rectangle {
         x: 32px;
-        y: 356px;
+        y: 348px + Math.max(0px, root.input-groups.length * 36px);
+        width: parent.width - 64px;
+        height: Math.max(0px, root.output-groups.length * 36px);
+        background: transparent;
+
+        for group[index] in root.output-groups : IoGroupRow {
+            x: 0px;
+            y: index * 36px;
+            width: parent.width;
+            group-summary: group.summary;
+            edit-clicked => { root.edit-output(index); }
+            remove-clicked => { root.remove-output(index); }
+        }
+    }
+
+    AddGroupButton {
+        x: 32px;
+        y: 348px + Math.max(0px, root.input-groups.length * 36px) + Math.max(0px, root.output-groups.length * 36px);
+        width: parent.width - 64px;
+        label: "+ Adicionar saida";
+        clicked => { root.add-output(); }
+    }
+
+    // --- Separator before footer ---
+    Rectangle {
+        x: 32px;
+        y: 396px + Math.max(0px, root.input-groups.length * 36px) + Math.max(0px, root.output-groups.length * 36px);
         width: parent.width - 64px;
         height: 1px;
         background: #2a2f38;

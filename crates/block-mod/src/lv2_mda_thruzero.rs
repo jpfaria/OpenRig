@@ -1,0 +1,130 @@
+use crate::registry::ModModelDefinition;
+use crate::ModBackendKind;
+use anyhow::Result;
+use block_core::param::{
+    float_parameter, required_f32, ModelParameterSchema, ParameterSet, ParameterUnit,
+};
+use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode};
+
+pub const MODEL_ID: &str = "lv2_mda_thruzero";
+pub const DISPLAY_NAME: &str = "MDA ThruZero";
+const BRAND: &str = "mda";
+
+const PLUGIN_URI: &str = "http://drobilla.net/plugins/mda/ThruZero";
+const PLUGIN_DIR: &str = "mod-mda-ThruZero";
+
+#[cfg(target_os = "macos")]
+const PLUGIN_BINARY: &str = "ThruZero.dylib";
+#[cfg(target_os = "linux")]
+const PLUGIN_BINARY: &str = "ThruZero.so";
+#[cfg(target_os = "windows")]
+const PLUGIN_BINARY: &str = "ThruZero.dll";
+
+// LV2 port indices (from TTL)
+const PORT_RATE: usize = 0;
+const PORT_DEPTH: usize = 1;
+const PORT_MIX: usize = 2;
+const PORT_FEEDBACK: usize = 3;
+const PORT_DEPTH_MOD: usize = 4;
+const PORT_LEFT_IN: usize = 5;
+const PORT_RIGHT_IN: usize = 6;
+const PORT_LEFT_OUT: usize = 7;
+const PORT_RIGHT_OUT: usize = 8;
+
+pub fn model_schema() -> ModelParameterSchema {
+    ModelParameterSchema {
+        effect_type: block_core::EFFECT_TYPE_MODULATION.into(),
+        model: MODEL_ID.into(),
+        display_name: DISPLAY_NAME.into(),
+        audio_mode: ModelAudioMode::MonoToStereo,
+        parameters: vec![
+            float_parameter(
+                "rate",
+                "Rate",
+                None,
+                Some(0.3),
+                0.0,
+                1.0,
+                0.01,
+                ParameterUnit::None,
+            ),
+            float_parameter(
+                "depth",
+                "Depth",
+                None,
+                Some(0.43),
+                0.0,
+                1.0,
+                0.01,
+                ParameterUnit::None,
+            ),
+            float_parameter(
+                "mix",
+                "Mix",
+                None,
+                Some(0.47),
+                0.0,
+                1.0,
+                0.01,
+                ParameterUnit::None,
+            ),
+            float_parameter(
+                "feedback",
+                "Feedback",
+                None,
+                Some(0.3),
+                0.0,
+                1.0,
+                0.01,
+                ParameterUnit::None,
+            ),
+        ],
+    }
+}
+
+fn build(
+    params: &ParameterSet,
+    sample_rate: f32,
+    layout: AudioChannelLayout,
+) -> Result<BlockProcessor> {
+    let rate = required_f32(params, "rate").map_err(anyhow::Error::msg)?;
+    let depth = required_f32(params, "depth").map_err(anyhow::Error::msg)?;
+    let mix = required_f32(params, "mix").map_err(anyhow::Error::msg)?;
+    let feedback = required_f32(params, "feedback").map_err(anyhow::Error::msg)?;
+
+    let _ = layout;
+    let lib_path = lv2::resolve_lv2_lib(PLUGIN_BINARY)?;
+    let bundle_path = lv2::resolve_lv2_bundle(PLUGIN_DIR)?;
+
+    let processor = lv2::build_stereo_lv2_processor(
+        &lib_path,
+        PLUGIN_URI,
+        sample_rate as f64,
+        &bundle_path,
+        &[PORT_LEFT_IN, PORT_RIGHT_IN],
+        &[PORT_LEFT_OUT, PORT_RIGHT_OUT],
+        &[
+            (PORT_RATE, rate),
+            (PORT_DEPTH, depth),
+            (PORT_MIX, mix),
+            (PORT_FEEDBACK, feedback),
+            (PORT_DEPTH_MOD, 1.0),
+        ],
+    )?;
+    Ok(BlockProcessor::Stereo(Box::new(processor)))
+}
+
+fn schema() -> Result<ModelParameterSchema> {
+    Ok(model_schema())
+}
+
+pub const MODEL_DEFINITION: ModModelDefinition = ModModelDefinition {
+    id: MODEL_ID,
+    display_name: DISPLAY_NAME,
+    brand: BRAND,
+    backend_kind: ModBackendKind::Lv2,
+    schema,
+    build,
+    supported_instruments: block_core::ALL_INSTRUMENTS,
+    knob_layout: &[],
+};

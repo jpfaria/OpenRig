@@ -35,7 +35,7 @@ pub fn model_schema() -> ModelParameterSchema {
         effect_type: "modulation".to_string(),
         model: MODEL_ID.to_string(),
         display_name: DISPLAY_NAME.to_string(),
-        audio_mode: ModelAudioMode::DualMono,
+        audio_mode: ModelAudioMode::MonoToStereo,
         parameters: vec![
             float_parameter(
                 "rate_hz",
@@ -144,6 +144,13 @@ pub fn build_processor(params: &ParameterSet, sample_rate: f32) -> Result<Box<dy
     )))
 }
 
+fn build_processor_with_phase(params: &ParameterSet, sample_rate: f32, phase_offset: f32) -> Result<Box<dyn MonoProcessor>> {
+    let p = params_from_set(params)?;
+    let mut c = EnsembleChorus::new(p.rate_hz, p.depth / 100.0, p.mix / 100.0, sample_rate);
+    c.phase = phase_offset;
+    Ok(Box::new(c))
+}
+
 fn schema() -> Result<ModelParameterSchema> {
     Ok(model_schema())
 }
@@ -158,12 +165,12 @@ fn build(
             Ok(block_core::BlockProcessor::Mono(build_processor(params, sample_rate)?))
         }
         block_core::AudioChannelLayout::Stereo => {
-            struct DualMonoProcessor {
+            struct StereoEnsemble {
                 left: Box<dyn block_core::MonoProcessor>,
                 right: Box<dyn block_core::MonoProcessor>,
             }
 
-            impl block_core::StereoProcessor for DualMonoProcessor {
+            impl block_core::StereoProcessor for StereoEnsemble {
                 fn process_frame(&mut self, input: [f32; 2]) -> [f32; 2] {
                     [
                         self.left.process_sample(input[0]),
@@ -172,9 +179,9 @@ fn build(
                 }
             }
 
-            Ok(block_core::BlockProcessor::Stereo(Box::new(DualMonoProcessor {
+            Ok(block_core::BlockProcessor::Stereo(Box::new(StereoEnsemble {
                 left: build_processor(params, sample_rate)?,
-                right: build_processor(params, sample_rate)?,
+                right: build_processor_with_phase(params, sample_rate, std::f32::consts::PI)?,
             })))
         }
     }
@@ -183,10 +190,62 @@ fn build(
 pub const MODEL_DEFINITION: ModModelDefinition = ModModelDefinition {
     id: MODEL_ID,
     display_name: DISPLAY_NAME,
-    brand: "",
+    brand: block_core::BRAND_NATIVE,
     backend_kind: ModBackendKind::Native,
     schema,
     build,
     supported_instruments: block_core::ALL_INSTRUMENTS,
     knob_layout: &[],
 };
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn process_sample_silence_output_finite() {
+        let mut chorus = EnsembleChorus::new(0.5, 0.5, 0.5, 44_100.0);
+        for i in 0..1024 {
+            let out = MonoProcessor::process_sample(&mut chorus, 0.0);
+            assert!(out.is_finite(), "output not finite at sample {i}");
+        }
+    }
+
+    #[test]
+    fn process_sample_sine_output_finite_and_nonzero() {
+        let mut chorus = EnsembleChorus::new(0.5, 0.5, 0.5, 44_100.0);
+        let sr = 44_100.0_f32;
+        let mut any_nonzero = false;
+        for i in 0..1024 {
+            let input = (2.0 * std::f32::consts::PI * 440.0 * i as f32 / sr).sin();
+            let out = MonoProcessor::process_sample(&mut chorus, input);
+            assert!(out.is_finite(), "output not finite at sample {i}");
+            if out.abs() > 1e-10 {
+                any_nonzero = true;
+            }
+        }
+        assert!(any_nonzero, "expected non-zero output for sine input");
+    }
+
+    #[test]
+    fn process_block_all_finite() {
+        let mut chorus = EnsembleChorus::new(0.5, 0.5, 0.5, 44_100.0);
+        let sr = 44_100.0_f32;
+        let mut buffer: Vec<f32> = (0..1024)
+            .map(|i| (2.0 * std::f32::consts::PI * 440.0 * i as f32 / sr).sin())
+            .collect();
+        MonoProcessor::process_block(&mut chorus, &mut buffer);
+        for (i, s) in buffer.iter().enumerate() {
+            assert!(s.is_finite(), "output not finite at frame {i}");
+        }
+    }
+
+    #[test]
+    fn process_sample_silence_is_zero() {
+        let mut chorus = EnsembleChorus::new(0.5, 0.5, 0.5, 44_100.0);
+        for _ in 0..1024 {
+            let out = MonoProcessor::process_sample(&mut chorus, 0.0);
+            assert_eq!(out, 0.0, "silent input should produce silent output");
+        }
+    }
+}

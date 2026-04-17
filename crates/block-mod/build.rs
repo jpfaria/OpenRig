@@ -3,6 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 
 fn main() {
+    let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("manifest dir"));
     let src_dir = manifest_dir.join("src");
     let mut model_modules = Vec::new();
@@ -17,22 +18,33 @@ fn main() {
             continue;
         }
         let contents = fs::read_to_string(&path).expect("read source");
-        if contents.contains("MODEL_DEFINITION") {
-            model_modules.push((stem.to_string(), path.to_path_buf()));
+        if !contents.contains("MODEL_DEFINITION") {
+            continue;
         }
+
+        // Check for platform marker: `// @platform: <os>` restricts a file to
+        // a specific OS. Files without this marker are included on all platforms.
+        if let Some(line) = contents.lines().find(|l| l.trim().starts_with("// @platform:")) {
+            let platform = line.trim().trim_start_matches("// @platform:").trim();
+            if platform != target_os {
+                continue;
+            }
+        }
+
+        model_modules.push(stem.to_string());
     }
 
-    model_modules.sort_by(|a, b| a.0.cmp(&b.0));
+    model_modules.sort();
     let mut generated = String::new();
-    for (module_name, module_path) in &model_modules {
-        generated.push_str(&format!("#[path = {:?}]\nmod {};\n", module_path.to_string_lossy().to_string(), module_name));
+    for module_name in &model_modules {
+        generated.push_str(&format!("#[path = \"{}/{}.rs\"]\nmod {};\n", src_dir.to_string_lossy().replace("\\", "/"), module_name, module_name));
     }
     generated.push_str("\npub const SUPPORTED_MODELS: &[&str] = &[\n");
-    for (module_name, _) in &model_modules {
+    for module_name in &model_modules {
         generated.push_str(&format!("    {}::MODEL_DEFINITION.id,\n", module_name));
     }
     generated.push_str("];\n\nconst MODEL_DEFINITIONS: &[ModModelDefinition] = &[\n");
-    for (module_name, _) in &model_modules {
+    for module_name in &model_modules {
         generated.push_str(&format!("    {}::MODEL_DEFINITION,\n", module_name));
     }
     generated.push_str("];\n");

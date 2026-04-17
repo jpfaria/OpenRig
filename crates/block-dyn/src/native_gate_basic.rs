@@ -81,7 +81,10 @@ pub fn params_from_set(params: &ParameterSet) -> Result<GateParams> {
 
 pub struct BasicNoiseGate {
     threshold: f32,
+    /// Tracks signal level for threshold comparison.
     envelope: EnvelopeFollower,
+    /// Smooths the gate gain (0.0 → 1.0) to avoid clicks on threshold crossings.
+    gain_follower: EnvelopeFollower,
 }
 
 impl BasicNoiseGate {
@@ -89,6 +92,7 @@ impl BasicNoiseGate {
         Self {
             threshold: db_to_lin(threshold_db),
             envelope: EnvelopeFollower::from_ms(attack_ms, release_ms, sample_rate),
+            gain_follower: EnvelopeFollower::from_ms(attack_ms, release_ms, sample_rate),
         }
     }
 }
@@ -96,11 +100,11 @@ impl BasicNoiseGate {
 impl MonoProcessor for BasicNoiseGate {
     fn process_sample(&mut self, input: f32) -> f32 {
         let env = self.envelope.process(input.abs());
-        if env >= self.threshold {
-            input
-        } else {
-            0.0
-        }
+        // Target gain: fully open when above threshold, fully closed below.
+        let target = if env >= self.threshold { 1.0_f32 } else { 0.0_f32 };
+        // Smooth the gain transition — eliminates clicks on threshold crossings.
+        let gain = self.gain_follower.process(target);
+        input * gain
     }
 }
 
@@ -134,10 +138,67 @@ fn build(
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn default_params() -> block_core::param::ParameterSet {
+        let schema = model_schema();
+        block_core::param::ParameterSet::default()
+            .normalized_against(&schema)
+            .expect("defaults should normalize")
+    }
+
+    #[test]
+    fn process_frame_silence_output_is_finite() {
+        let params = default_params();
+        let mut proc = build_processor(&params, 44100.0).unwrap();
+        for i in 0..1024 {
+            let out = proc.process_sample(0.0);
+            assert!(out.is_finite(), "non-finite at sample {i}: {out}");
+        }
+    }
+
+    #[test]
+    fn process_frame_sine_output_is_finite() {
+        let params = default_params();
+        let mut proc = build_processor(&params, 44100.0).unwrap();
+        for i in 0..1024 {
+            let input = (i as f32 / 44100.0 * 440.0 * std::f32::consts::TAU).sin() * 0.5;
+            let out = proc.process_sample(input);
+            assert!(out.is_finite(), "non-finite at sample {i}: {out}");
+        }
+    }
+
+    #[test]
+    fn process_block_1024_frames_all_finite() {
+        let params = default_params();
+        let mut proc = build_processor(&params, 44100.0).unwrap();
+        let mut buf: Vec<f32> = (0..1024)
+            .map(|i| (i as f32 / 44100.0 * 440.0 * std::f32::consts::TAU).sin() * 0.5)
+            .collect();
+        proc.process_block(&mut buf);
+        for (i, &s) in buf.iter().enumerate() {
+            assert!(s.is_finite(), "non-finite at index {i}: {s}");
+        }
+    }
+
+    #[test]
+    fn process_gate_silence_stays_silent() {
+        let params = default_params();
+        let mut proc = build_processor(&params, 44100.0).unwrap();
+        let mut buf = vec![0.0_f32; 1024];
+        proc.process_block(&mut buf);
+        assert!(
+            buf.iter().all(|s| s.abs() < 1e-6),
+            "gate should not add energy to silence"
+        );
+    }
+}
+
 pub const MODEL_DEFINITION: DynModelDefinition = DynModelDefinition {
     id: MODEL_ID,
     display_name: DISPLAY_NAME,
-    brand: "",
+    brand: block_core::BRAND_NATIVE,
     backend_kind: DynBackendKind::Native,
     schema,
     build,

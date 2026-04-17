@@ -187,6 +187,10 @@ struct NeuralModel {
     _opaque: [u8; 0],
 }
 
+// On Windows use raw-dylib so no .lib import library is required — the DLL is
+// found by name at runtime.  On other platforms the build script emits the
+// standard dylib link directive.
+#[cfg_attr(target_os = "windows", link(name = "libNeuralAudioCAPI", kind = "raw-dylib"))]
 unsafe extern "C" {
     // wchar_t is u32 on macOS/Linux, u16 on Windows
     #[cfg(not(target_os = "windows"))]
@@ -257,6 +261,11 @@ impl NamProcessor {
     }
 }
 
+/// Diagnostic counter for periodic NAM audio health logging.
+/// Only compiled on Linux/aarch64 where NAM audio issues have been observed.
+#[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+static NAM_DIAG_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 impl MonoProcessor for NamProcessor {
     fn process_sample(&mut self, sample: f32) -> f32 {
         let input = [sample * self.input_gain];
@@ -278,6 +287,8 @@ impl MonoProcessor for NamProcessor {
         }
         // Process through neural model
         self.scratch_output.resize(buffer.len(), 0.0);
+        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+        let t0 = std::time::Instant::now();
         unsafe {
             Process(
                 self.model,
@@ -286,9 +297,32 @@ impl MonoProcessor for NamProcessor {
                 buffer.len(),
             );
         }
+        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+        let elapsed = t0.elapsed();
         // Apply output gain
         for (dst, src) in buffer.iter_mut().zip(self.scratch_output.iter()) {
             *dst = *src * self.output_gain;
+        }
+
+        // Periodic diagnostic logging on aarch64 to investigate NAM audio quality
+        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+        {
+            let count = NAM_DIAG_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            // Log every ~2 seconds at 48kHz/1024 ≈ 47 callbacks/sec → every 94 callbacks
+            if count % 94 == 0 {
+                let out_rms =
+                    (buffer.iter().map(|s| s * s).sum::<f32>() / buffer.len() as f32).sqrt();
+                let has_nan = buffer.iter().any(|s| s.is_nan());
+                let peak_out = buffer.iter().map(|s| s.abs()).fold(0.0f32, f32::max);
+                let elapsed_us = elapsed.as_micros();
+                let budget_us = (buffer.len() as u64 * 1_000_000) / 48000;
+                log::warn!(
+                    "[NAM-DIAG] blk={} len={} process_us={} budget_us={} load={:.0}% out_rms={:.4} peak={:.4} nan={}",
+                    count, buffer.len(), elapsed_us, budget_us,
+                    elapsed_us as f64 / budget_us as f64 * 100.0,
+                    out_rms, peak_out, has_nan,
+                );
+            }
         }
     }
 }
@@ -308,5 +342,77 @@ fn bool_or_default(params: &ParameterSet, path: &str, default: bool) -> Result<b
             .as_bool()
             .ok_or_else(|| anyhow::anyhow!("invalid bool parameter '{}'", path)),
         None => Ok(default),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use domain::value_objects::ParameterValue;
+
+    // ── float_or_default ────────────────────────────────────────────
+
+    #[test]
+    fn float_or_default_missing_key_returns_default() {
+        let ps = ParameterSet::default();
+        let val = float_or_default(&ps, "nonexistent", 42.0).unwrap();
+        assert_eq!(val, 42.0);
+    }
+
+    #[test]
+    fn float_or_default_present_key_returns_value() {
+        let mut ps = ParameterSet::default();
+        ps.insert("gain", ParameterValue::Float(7.5));
+        let val = float_or_default(&ps, "gain", 0.0).unwrap();
+        assert_eq!(val, 7.5);
+    }
+
+    #[test]
+    fn float_or_default_wrong_type_returns_error() {
+        let mut ps = ParameterSet::default();
+        ps.insert("gain", ParameterValue::String("not_a_float".into()));
+        let result = float_or_default(&ps, "gain", 0.0);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn float_or_default_int_value_converts_to_float() {
+        let mut ps = ParameterSet::default();
+        ps.insert("gain", ParameterValue::Int(10));
+        let val = float_or_default(&ps, "gain", 0.0).unwrap();
+        assert_eq!(val, 10.0);
+    }
+
+    // ── bool_or_default ─────────────────────────────────────────────
+
+    #[test]
+    fn bool_or_default_missing_key_returns_default() {
+        let ps = ParameterSet::default();
+        let val = bool_or_default(&ps, "enabled", true).unwrap();
+        assert!(val);
+    }
+
+    #[test]
+    fn bool_or_default_present_key_returns_value() {
+        let mut ps = ParameterSet::default();
+        ps.insert("enabled", ParameterValue::Bool(false));
+        let val = bool_or_default(&ps, "enabled", true).unwrap();
+        assert!(!val);
+    }
+
+    #[test]
+    fn bool_or_default_wrong_type_returns_error() {
+        let mut ps = ParameterSet::default();
+        ps.insert("enabled", ParameterValue::Float(1.0));
+        let result = bool_or_default(&ps, "enabled", false);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn bool_or_default_null_value_returns_error() {
+        let mut ps = ParameterSet::default();
+        ps.insert("enabled", ParameterValue::Null);
+        let result = bool_or_default(&ps, "enabled", false);
+        assert!(result.is_err());
     }
 }

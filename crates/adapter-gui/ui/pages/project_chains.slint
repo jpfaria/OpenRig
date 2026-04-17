@@ -1,6 +1,10 @@
 import { ComboBox, ScrollView, VerticalBox } from "std-widgets.slint";
-import { ProjectChainItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, ChainBlockItem } from "../models.slint";
+import { ProjectChainItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, ChainBlockItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockStreamEntry, BlockKnobOverlay } from "../models.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
+import { BlockPanelEditor } from "block_panel_editor.slint";
+import { CurveEditorControl } from "curve_editor_control.slint";
+import { MultiSliderControl } from "multi_slider_control.slint";
+import { PowerSwitch } from "../components/power_switch.slint";
 
 component ToolbarButton inherits Rectangle {
     in property <string> label;
@@ -621,30 +625,26 @@ component ChainEndpointChip inherits Rectangle {
     callback clicked();
     out property <bool> is-hovered: hover-area.has-hover;
 
-    width: 72px;
-    height: 52px;
-    background: hover-area.has-hover ? #1e2530e0 : #141820e0;
-    border-width: 1px;
-    border-color: hover-area.has-hover ? #5a7fa8 : #364050;
-    border-radius: 10px;
+    width: root.is-input ? 72px : 90px;
+    height: 72px;
+    background: transparent;
 
-    // Ícone de entrada ou saída
     Image {
-        x: (parent.width - 18px) / 2;
-        y: 8px;
-        width: 18px;
-        height: 18px;
+        x: (parent.width - 48px) / 2;
+        y: 4px;
+        width: 48px;
+        height: 48px;
         source: root.is-input
-            ? @image-url("../assets/chain-input.svg")
-            : @image-url("../assets/chain-output.svg");
+            ? @image-url("../assets/connector-input.png")
+            : @image-url("../assets/connector-output.png");
         image-fit: contain;
-        colorize: hover-area.has-hover ? #a8c8f0 : #6a8aaa;
+        opacity: hover-area.has-hover ? 1.0 : 0.7;
     }
 
-    // Label (nome do dispositivo/canal)
+    // Label
     Text {
         x: 4px;
-        y: 29px;
+        y: 54px;
         width: parent.width - 8px;
         height: 16px;
         text: root.label;
@@ -660,7 +660,10 @@ component ChainEndpointChip inherits Rectangle {
         width: parent.width;
         height: parent.height;
         mouse-cursor: pointer;
-        clicked => { root.clicked(); }
+        clicked => {
+            debug("ChainEndpointChip clicked", root.is-input, root.label);
+            root.clicked();
+        }
     }
 }
 
@@ -880,14 +883,23 @@ component BlockChip inherits Rectangle {
         border-radius: 4px;
     }
 
-    // LED status dot
+    // LED status indicator (sprite: 64x32, 2 frames of 32x32, left=off right=on)
     Rectangle {
-        x: parent.width - 10px;
+        x: (parent.width - 12px) / 2;
         y: parent.height - 10px;
-        width: 5px;
-        height: 5px;
-        background: root.block.enabled ? #29df85 : #697382;
-        border-radius: 3px;
+        width: 12px;
+        height: 12px;
+        clip: true;
+
+        Image {
+            source: @image-url("../assets/sprites/led-red.png");
+            x: root.block.enabled ? 0px : -12px;
+            y: 0;
+            width: 24px;
+            height: 12px;
+            image-fit: fill;
+            image-rendering: smooth;
+        }
     }
 
     hover-area := TouchArea {
@@ -999,6 +1011,7 @@ component ChainRow inherits Rectangle {
     in property <int> chain-index;
     in property <int> selected-block-chain-index;
     in property <int> selected-block-index;
+    in property <bool> fullscreen: false;
     callback toggle-chain-enabled(int);
     callback remove-chain(int);
     callback configure-chain(int);
@@ -1039,40 +1052,6 @@ component ChainRow inherits Rectangle {
     border-radius: 6px;
     height: 74px + (root.block-row-count * 108px);
 
-    // Drop shadow layers
-    Rectangle {
-        x: 2px; y: 4px;
-        width: parent.width - 4px;
-        height: parent.height;
-        border-radius: 10px;
-        background: #00000040;
-    }
-    Rectangle {
-        x: 1px; y: 2px;
-        width: parent.width - 2px;
-        height: parent.height;
-        border-radius: 8px;
-        background: #00000030;
-    }
-
-    // Main card with wood texture
-    Rectangle {
-        x: 0px; y: 0px;
-        width: parent.width;
-        height: parent.height;
-        border-radius: 6px;
-        clip: true;
-
-        Image {
-            x: 0px;
-            y: 0px;
-            width: parent.width;
-            height: parent.height;
-            source: @image-url("../../../../assets/backgrounds/pedalboard_wood.jpg");
-            image-fit: cover;
-        }
-    }
-
     Rectangle {
         x: 0px;
         y: 0px;
@@ -1080,9 +1059,10 @@ component ChainRow inherits Rectangle {
         height: 58px;
         background: transparent;
 
-        ChainPowerToggle {
-            x: 18px;
-            y: 14px;
+        PowerSwitch {
+            x: 10px;
+            y: (58px - 44px) / 2;
+            width: 44px; height: 44px;
             enabled: root.chain.enabled;
             clicked => { root.toggle-chain-enabled(root.chain-index); }
         }
@@ -1120,12 +1100,16 @@ component ChainRow inherits Rectangle {
             }
 
             title-ta := TouchArea {
-                mouse-cursor: pointer;
-                clicked => { root.open-compact-chain-view(root.chain-index); }
+                mouse-cursor: root.fullscreen ? default : pointer;
+                clicked => {
+                    if !root.fullscreen {
+                        root.open-compact-chain-view(root.chain-index);
+                    }
+                }
             }
         }
 
-        ChainActionIcon {
+        if !root.fullscreen : ChainActionIcon {
             x: parent.width - 196px;
             y: 14px;
             icon: @image-url("../assets/expand.svg");
@@ -1173,24 +1157,16 @@ component ChainRow inherits Rectangle {
         height: root.block-row-count * 108px;
         background: transparent;
 
-        TouchArea {
-            x: 0px;
-            y: 0px;
-            width: parent.width;
-            height: parent.height;
-            moved => {
-                if !self.pressed {
-                    root.suppress-insert-hover = false;
-                }
-            }
-        }
+        // NOTE: background TouchArea removed — it was consuming click events
+        // on Linux/software-renderer, preventing ChainEndpointChip clicks.
+        // The suppress-insert-hover reset it provided is non-critical (drag UX polish).
 
         // Routing lines — pedal center is at y = 52px + row * 108px
-        // Row 0 horizontal
+        // Row 0 horizontal (starts after in-chip)
         Rectangle {
-            x: 72px;
+            x: 98px;
             y: 52px;
-            width: root.block-row-count == 1 ? (root.out-chip-x - 72px) : (parent.width - 72px);
+            width: root.block-row-count == 1 ? (root.out-chip-x - 98px) : (parent.width - 98px);
             height: 2px;
             background: #3b4250;
             border-radius: 1px;
@@ -1372,8 +1348,8 @@ component ChainRow inherits Rectangle {
         }
 
         in-chip := ChainEndpointChip {
-            x: 0px;
-            y: 15px;
+            x: 24px;
+            y: 24px;
             is-input: true;
             label: root.chain.input_label;
             tooltip: root.chain.input_tooltip;
@@ -1391,7 +1367,7 @@ component ChainRow inherits Rectangle {
 
         if root.chain.latency_ms > 0 : Rectangle {
             x: root.out-chip-x + 4px;
-            y: root.out-chip-y + 56px;
+            y: root.out-chip-y - 12px;
             width: 64px;
             height: 22px;
             border-radius: 4px;
@@ -1437,9 +1413,9 @@ component ChainRow inherits Rectangle {
         // In chip tooltip — aparece à direita do chip In
         if in-chip.is-hovered && root.chain.input_tooltip != "" : Rectangle {
             x: 76px;
-            y: 8px;
+            y: 24px;
             width: 312px;
-            height: 92px;
+            height: Math.max(92px, input-tooltip-text.preferred-height + 42px);
             background: #0e1218f7;
             border-width: 1px;
             border-color: #4d5868;
@@ -1465,7 +1441,7 @@ component ChainRow inherits Rectangle {
                 }
             }
 
-            Text {
+            input-tooltip-text := Text {
                 x: 12px;
                 y: 34px;
                 width: parent.width - 24px;
@@ -1485,7 +1461,7 @@ component ChainRow inherits Rectangle {
             x: root.out-chip-x - 320px;
             y: root.out-chip-y;
             width: 312px;
-            height: 92px;
+            height: Math.max(92px, output-tooltip-text.preferred-height + 42px);
             background: #0e1218f7;
             border-width: 1px;
             border-color: #4d5868;
@@ -1511,7 +1487,7 @@ component ChainRow inherits Rectangle {
                 }
             }
 
-            Text {
+            output-tooltip-text := Text {
                 x: 12px;
                 y: 34px;
                 width: parent.width - 24px;
@@ -1541,10 +1517,15 @@ export component BlockEditorPanel inherits Rectangle {
     in-out property <int> block-drawer-selected-model-index;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
+    in property <[MultiSliderPoint]> multi-slider-points;
+    in property <[CurveEditorPoint]> curve-editor-points;
+    in property <string> eq-total-curve;
+    in property <[string]> eq-band-curves;
     callback choose-block-model(int);
     callback close-block-drawer();
     callback save-block-drawer();
     callback delete-block-drawer();
+    callback show-plugin-info(string, string);  // effect_type, model_id
     callback toggle-block-drawer-enabled();
     callback update-block-parameter-text(string, string);
     callback update-block-parameter-number(string, float);
@@ -1552,12 +1533,24 @@ export component BlockEditorPanel inherits Rectangle {
     callback update-block-parameter-bool(string, bool);
     callback select-block-parameter-option(string, int);
     callback pick-block-parameter-file(string);
+    callback open-vst3-editor(string); // model-id
+
+    // Realtime data stream from engine (tuner, spectrum analyzer, etc.)
+    in property <BlockStreamData> block-stream-data;
 
     // Computed helpers
     property <bool> is-preamp:
         root.block-drawer-selected-type-index >= 0
         && root.block-drawer-selected-type-index < root.block-type-options.length
         && root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "preamp";
+
+    // True when a tuner (or other non-spectrum stream) is the active block — show stream area even while silent
+    property <bool> has-tuner-stream: root.block-stream-data.stream-kind != "" && root.block-stream-data.stream-kind != "spectrum";
+
+    property <bool> is-vst3:
+        root.block-drawer-selected-type-index >= 0
+        && root.block-drawer-selected-type-index < root.block-type-options.length
+        && root.block-type-options[root.block-drawer-selected-type-index].icon_kind == "vst3";
 
     property <string> selected-model-id:
         root.block-drawer-selected-model-index >= 0
@@ -1673,37 +1666,154 @@ export component BlockEditorPanel inherits Rectangle {
         }
 
         // ── OUTROS TIPOS: layout original ───────────────────────
-        if !root.is-preamp : ScrollView {
+        if !root.is-preamp : ComboBox {
             x: 20px;
             y: 78px;
             width: parent.width - 40px;
-            height: parent.height - 98px;
+            height: 34px;
+            model: root.block-model-option-labels;
+            current-index <=> root.block-drawer-selected-model-index;
+            selected(_) => { root.choose-block-model(self.current-index); }
+        }
+
+        if !root.is-preamp && root.block-drawer-selected-model-index >= 0 && root.block-drawer-selected-model-index < root.block-model-options.length : Text {
+            x: 20px;
+            y: 118px;
+            width: parent.width - 40px;
+            height: 16px;
+            text: root.block-model-options[root.block-drawer-selected-model-index].subtitle;
+            color: #94a0b0;
+            font-size: 11px;
+        }
+
+        if !root.is-preamp && root.curve-editor-points.length > 0 : CurveEditorControl {
+            x: 8px;
+            y: 142px;
+            width: parent.width - 16px;
+            points: root.curve-editor-points;
+            total-curve: root.eq-total-curve;
+            band-curves: root.eq-band-curves;
+            update-parameter(path, val) => { root.update-block-parameter-number(path, val); }
+        }
+
+        if !root.is-preamp && root.multi-slider-points.length > 0 && root.curve-editor-points.length == 0 : MultiSliderControl {
+            x: 8px;
+            y: 142px;
+            width: parent.width - 16px;
+            points: root.multi-slider-points;
+            update-parameter(path, val) => { root.update-block-parameter-number(path, val); }
+        }
+
+        // ── Stream display (tuner, spectrum) — for non-preamp utility blocks ──
+        if !root.is-preamp && root.has-tuner-stream : Rectangle {
+            x: 20px;
+            y: 142px;
+            width: parent.width - 40px;
+            height: 200px;
+            background: #0a0c14;
+            border-radius: 8px;
+            border-width: 1px;
+            border-color: #2d3340;
+
+            // Waiting for signal — shown until pitch is detected
+            if !root.block-stream-data.active : Text {
+                x: 0; y: 0; width: parent.width; height: parent.height;
+                text: "–";
+                color: #3a4050;
+                font-size: 52px; font-weight: 900;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            for entry[ei] in root.block-stream-data.entries : Rectangle {
+                property <length> slot-w: parent.width / root.block-stream-data.entries.length;
+                x: ei * slot-w;
+                y: 0;
+                width: slot-w;
+                height: parent.height;
+                background: transparent;
+
+                Text {
+                    x: 0; y: 8px; width: parent.width; height: 12px;
+                    text: entry.key;
+                    color: #506070;
+                    font-size: 7px; font-weight: 700; letter-spacing: 1.5px;
+                    horizontal-alignment: center;
+                }
+
+                Text {
+                    x: 0; y: 20px; width: parent.width; height: parent.height - 48px;
+                    text: entry.text;
+                    color: entry.value > 0.5 ? #29df85 : #f3f6fb;
+                    font-size: entry.text.character-count <= 3 ? 52px : 20px;
+                    font-weight: 900;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+
+                if entry.key == "cents" : Rectangle {
+                    x: 16px; y: parent.height - 24px;
+                    width: parent.width - 32px; height: 8px;
+                    background: #1a1e28;
+                    border-radius: 4px;
+
+                    Rectangle {
+                        x: (parent.width - 1px) / 2;
+                        y: 0; width: 1px; height: parent.height;
+                        background: #405060;
+                    }
+
+                    Rectangle {
+                        property <float> norm: (entry.value / 50.0).clamp(-1.0, 1.0);
+                        x: (parent.width / 2) + self.norm * (parent.width / 2) - 4px;
+                        y: 0; width: 8px; height: parent.height;
+                        background: self.norm > -0.1 && self.norm < 0.1 ? #29df85 : #ff6a57;
+                        border-radius: 4px;
+                    }
+                }
+            }
+        }
+
+        if !root.is-preamp && root.block-stream-data.active && root.block-stream-data.stream-kind == "spectrum" : Rectangle {
+            x: 20px;
+            y: 142px;
+            width: parent.width - 40px;
+            height: 200px;
+            background: #06060e;
+            border-radius: 8px;
+            clip: true;
+
+            for entry[ei] in root.block-stream-data.entries : Rectangle {
+                property <length> bar-slot-w: parent.width / root.block-stream-data.entries.length;
+                x: ei * self.bar-slot-w;
+                y: 0;
+                width: self.bar-slot-w;
+                height: parent.height;
+                background: transparent;
+
+                Rectangle {
+                    property <length> bar-h: Math.max(1px, entry.value * parent.height);
+                    x: 1px;
+                    y: parent.height - self.bar-h;
+                    width: parent.width - 2px;
+                    height: self.bar-h;
+                    background: entry.value > 0.85 ? #ff4433 : entry.value > 0.65 ? #ffaa22 : entry.value > 0.3 ? #44cc88 : #4488ff;
+                    border-radius: 1px;
+                }
+            }
+        }
+
+        if !root.is-preamp && root.curve-editor-points.length == 0 && root.multi-slider-points.length == 0 : ScrollView {
+            x: 20px;
+            y: root.has-tuner-stream || (root.block-stream-data.active && root.block-stream-data.stream-kind == "spectrum") ? 354px : 138px;
+            width: parent.width - 40px;
+            height: root.has-tuner-stream || (root.block-stream-data.active && root.block-stream-data.stream-kind == "spectrum") ? (parent.height - 374px) : (parent.height - 158px);
             viewport-width: self.width;
-            viewport-height: 92px + (root.block-parameter-items.length * 96px);
-
-            ComboBox {
-                x: 0px;
-                y: 0px;
-                width: parent.width - 24px;
-                height: 34px;
-                model: root.block-model-option-labels;
-                current-index <=> root.block-drawer-selected-model-index;
-                selected(_) => { root.choose-block-model(self.current-index); }
-            }
-
-            if root.block-drawer-selected-model-index >= 0 && root.block-drawer-selected-model-index < root.block-model-options.length : Text {
-                x: 0px;
-                y: 40px;
-                width: parent.width - 24px;
-                height: 16px;
-                text: root.block-model-options[root.block-drawer-selected-model-index].subtitle;
-                color: #94a0b0;
-                font-size: 11px;
-            }
+            viewport-height: root.block-parameter-items.length * 96px;
 
             for param-item[index] in root.block-parameter-items : BlockParameterRow {
                 x: 0px;
-                y: 72px + (index * 96px);
+                y: index * 96px;
                 width: parent.width - 24px;
                 item: param-item;
                 text-changed(path, value) => { root.update-block-parameter-text(path, value); }
@@ -1730,6 +1840,9 @@ export component ProjectChainsPage inherits Rectangle {
     in property <string> project-title;
     in property <string> project-path-label;
     in property <bool> project-dirty;
+    in property <bool> auto-save: false;
+    in property <bool> fullscreen: false;
+    in property <bool> skip-launcher: false;
     in property <[ProjectChainItem]> project-chains;
     in property <int> selected-chain-block-chain-index;
     in property <int> selected-chain-block-index;
@@ -1747,6 +1860,12 @@ export component ProjectChainsPage inherits Rectangle {
     in-out property <int> block-drawer-selected-model-index;
     in property <bool> block-drawer-enabled;
     in property <[BlockParameterItem]> block-parameter-items;
+    in property <[MultiSliderPoint]> multi-slider-points;
+    in property <[CurveEditorPoint]> curve-editor-points;
+    in property <string> eq-total-curve;
+    in property <[string]> eq-band-curves;
+    in property <BlockStreamData> block-stream-data;
+    in property <[BlockKnobOverlay]> block-knob-overlays;
     in-out property <string> status-message;
     property <int> dragging-chain-index: -1;
     property <int> dragging-block-index: -1;
@@ -1774,6 +1893,7 @@ export component ProjectChainsPage inherits Rectangle {
     callback close-block-drawer();
     callback save-block-drawer();
     callback delete-block-drawer();
+    callback show-plugin-info(string, string);  // effect_type, model_id
     callback toggle-block-drawer-enabled();
     callback update-block-parameter-text(string, string);
     callback update-block-parameter-number(string, float);
@@ -1781,6 +1901,7 @@ export component ProjectChainsPage inherits Rectangle {
     callback update-block-parameter-bool(string, bool);
     callback select-block-parameter-option(string, int);
     callback pick-block-parameter-file(string);
+    callback open-vst3-editor(string); // model-id
 
     background: #1f2023;
 
@@ -1789,24 +1910,7 @@ export component ProjectChainsPage inherits Rectangle {
         y: 0px;
         width: parent.width;
         height: parent.height;
-        background: #1b1d22;
-
-        Image {
-            x: 0px;
-            y: 0px;
-            width: parent.width;
-            height: parent.height;
-            source: @image-url("../../../../assets/backgrounds/pedalboard_wood.jpg");
-            image-fit: cover;
-        }
-
-        Rectangle {
-            x: 0px;
-            y: 0px;
-            width: parent.width;
-            height: parent.height;
-            background: #000000aa;
-        }
+        background: @linear-gradient(135deg, #0d1a2e 0%, #08090d 65%);
 
         TouchArea {
             x: 0px;
@@ -1842,7 +1946,7 @@ export component ProjectChainsPage inherits Rectangle {
             vertical-alignment: center;
         }
 
-        HeaderIconAction {
+        if !root.skip-launcher : HeaderIconAction {
             x: parent.width - 160px;
             y: 14px;
             icon: @image-url("../assets/arrow-left.svg");
@@ -1851,14 +1955,14 @@ export component ProjectChainsPage inherits Rectangle {
         }
 
         HeaderIconAction {
-            x: parent.width - 120px;
+            x: root.auto-save ? parent.width - 80px : parent.width - 120px;
             y: 14px;
             icon: @image-url("../assets/gear.svg");
             tooltip: "Projeto";
             clicked => { root.configure-project(); }
         }
 
-        HeaderIconAction {
+        if !root.auto-save : HeaderIconAction {
             x: parent.width - 80px;
             y: 14px;
             icon: @image-url("../assets/save.svg");
@@ -1917,6 +2021,7 @@ export component ProjectChainsPage inherits Rectangle {
                 width: parent.width;
                 chain: chain;
                 chain-index: index;
+                fullscreen: root.fullscreen;
                 selected-block-chain-index: root.selected-chain-block-chain-index;
                 selected-block-index: root.selected-chain-block-index;
                 toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
@@ -1950,15 +2055,83 @@ export component ProjectChainsPage inherits Rectangle {
         height: parent.height;
         background: #0405068a;
 
+        // Same use-panel-editor logic as BlockEditorWindow
+        property <bool> use-panel-editor:
+            root.block-drawer-selected-type-index >= 0
+            && root.block-drawer-selected-type-index < root.block-type-options.length
+            && root.block-type-options[root.block-drawer-selected-type-index].use_panel_editor;
+
+        // Dynamic width matching BlockEditorWindow
+        property <int> param-count: root.block-parameter-items.length;
+        property <length> needed-width: param-count > 0 ? param-count * 64px + 80px : 520px;
+        property <bool> has-eq-widget:
+            root.curve-editor-points.length > 0 || root.multi-slider-points.length > 0;
+        property <length> eq-panel-width:
+            root.multi-slider-points.length > 0 ?
+                Math.max(600px, Math.min(1400px, root.multi-slider-points.length * 35px + 80px)) :
+            root.curve-editor-points.length > 0 ?
+                Math.max(600px, Math.min(1200px, root.curve-editor-points.length * 200px + 80px)) :
+                600px;
+        property <length> panel-width:
+            use-panel-editor ?
+                (has-eq-widget ? eq-panel-width : Math.max(900px, needed-width)) :
+                520px;
+        property <length> eq-widget-height:
+            root.curve-editor-points.length > 0 ? 200px :
+            root.multi-slider-points.length > 0 ? 180px : 0px;
+        property <bool> has-stream-data:
+            root.block-stream-data.stream-kind != ""
+            && root.block-stream-data.stream-kind != "spectrum";
+        property <length> eq-extra-height:
+            has-eq-widget ? (48px + 60px + 8px + eq-widget-height + 8px) : 275px;
+        property <length> panel-height:
+            use-panel-editor
+                ? (has-stream-data ? Math.max(420px, eq-extra-height) : eq-extra-height)
+                : parent.height;
+
         TouchArea {
             x: 0px;
             y: 0px;
-            width: parent.width - 420px;
+            width: parent.width;
             height: parent.height;
             clicked => { root.close-block-drawer(); }
         }
 
-        BlockEditorPanel {
+        // Panel editor (preamp/amp with knobs)
+        if use-panel-editor : BlockPanelEditor {
+            x: (parent.width - parent.panel-width) / 2;
+            y: (parent.height - parent.panel-height) / 2;
+            width: parent.panel-width;
+            height: parent.panel-height;
+            block-type-options: root.block-type-options;
+            block-model-options: root.block-model-options;
+            block-model-option-labels: root.block-model-option-labels;
+            block-drawer-selected-type-index: root.block-drawer-selected-type-index;
+            block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
+            block-drawer-edit-mode: root.block-drawer-edit-mode;
+            block-drawer-enabled: root.block-drawer-enabled;
+            block-knob-overlays: root.block-knob-overlays;
+            block-parameter-items: root.block-parameter-items;
+            multi-slider-points: root.multi-slider-points;
+            curve-editor-points: root.curve-editor-points;
+            eq-total-curve: root.eq-total-curve;
+            eq-band-curves: root.eq-band-curves;
+            block-drawer-confirm-label: root.block-drawer-confirm-label;
+            block-stream-data: root.block-stream-data;
+            choose-block-model(i) => { root.choose-block-model(i); }
+            close-block-drawer => { root.close-block-drawer(); }
+            save-block-drawer => { root.save-block-drawer(); }
+            delete-block-drawer => { root.delete-block-drawer(); }
+            show-plugin-info(effect_type, model_id) => { root.show-plugin-info(effect_type, model_id); }
+            toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
+            update-block-parameter-number(path, val) => { root.update-block-parameter-number(path, val); }
+            select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
+            pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
+            update-block-parameter-bool(path, val) => { root.update-block-parameter-bool(path, val); }
+        }
+
+        // Form editor (other block types)
+        if !use-panel-editor : BlockEditorPanel {
             x: parent.width - 520px;
             y: 0px;
             width: 520px;
@@ -1974,10 +2147,16 @@ export component ProjectChainsPage inherits Rectangle {
             block-drawer-selected-model-index <=> root.block-drawer-selected-model-index;
             block-drawer-enabled: root.block-drawer-enabled;
             block-parameter-items: root.block-parameter-items;
+            multi-slider-points: root.multi-slider-points;
+            curve-editor-points: root.curve-editor-points;
+            eq-total-curve: root.eq-total-curve;
+            eq-band-curves: root.eq-band-curves;
+            block-stream-data: root.block-stream-data;
             choose-block-model(index) => { root.choose-block-model(index); }
             close-block-drawer => { root.close-block-drawer(); }
             save-block-drawer => { root.save-block-drawer(); }
             delete-block-drawer => { root.delete-block-drawer(); }
+            show-plugin-info(effect_type, model_id) => { root.show-plugin-info(effect_type, model_id); }
             toggle-block-drawer-enabled => { root.toggle-block-drawer-enabled(); }
             update-block-parameter-text(path, value) => { root.update-block-parameter-text(path, value); }
             update-block-parameter-number(path, value) => { root.update-block-parameter-number(path, value); }
@@ -1985,6 +2164,7 @@ export component ProjectChainsPage inherits Rectangle {
             update-block-parameter-bool(path, value) => { root.update-block-parameter-bool(path, value); }
             select-block-parameter-option(path, index) => { root.select-block-parameter-option(path, index); }
             pick-block-parameter-file(path) => { root.pick-block-parameter-file(path); }
+            open-vst3-editor(model-id) => { root.open-vst3-editor(model-id); }
         }
     }
 

@@ -4,3 +4,4 @@ pub mod chain;
 pub mod device;
 pub mod param;
 pub mod project;
+pub mod vst3_editor;

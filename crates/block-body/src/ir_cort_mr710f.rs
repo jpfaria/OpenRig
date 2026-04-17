@@ -1,5 +1,4 @@
 use anyhow::{anyhow, bail, Result};
-use asset_runtime::{materialize, EmbeddedAsset};
 use ir::{build_mono_ir_processor_from_wav, IrAsset};
 use crate::registry::BodyModelDefinition;
 use crate::BodyBackendKind;
@@ -11,18 +10,10 @@ pub const DISPLAY_NAME: &str = "MR710F";
 const BRAND: &str = "cort";
 
 macro_rules! capture {
-    ($voicing:literal, $asset_id:literal, $relative_path:literal) => {
+    ($p1:literal, $ir_file:literal) => {
         CortMr710fCapture {
-            voicing: $voicing,
-            asset: EmbeddedAsset::new(
-                $asset_id,
-                $relative_path,
-                include_bytes!(concat!(
-                    env!("CARGO_MANIFEST_DIR"),
-                    "/../../",
-                    $relative_path
-                )),
-            ),
+            voicing: $p1,
+            ir_file: $ir_file,
         }
     };
 }
@@ -30,14 +21,14 @@ macro_rules! capture {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CortMr710fCapture {
     pub voicing: &'static str,
-    pub asset: EmbeddedAsset,
+    pub ir_file: &'static str,
 }
 
 pub const CAPTURES: &[CortMr710fCapture] = &[
-    capture!("cort_mr710f_48000", "body.cort_mr710f.cort_mr710f_48000", "captures/ir/body/cort_mr710f/cort_mr710f_48000.wav"),
-    capture!("cort_mr710f_48000_bld", "body.cort_mr710f.cort_mr710f_48000_bld", "captures/ir/body/cort_mr710f/cort_mr710f_48000_bld.wav"),
-    capture!("cort_mr710f_48000_jf_flavor", "body.cort_mr710f.cort_mr710f_48000_jf_flavor", "captures/ir/body/cort_mr710f/cort_mr710f_48000_jf_flavor.wav"),
-    capture!("cort_mr710f_48000_match", "body.cort_mr710f.cort_mr710f_48000_match", "captures/ir/body/cort_mr710f/cort_mr710f_48000_match.wav"),
+    capture!("cort_mr710f_48000", "body/cort_mr710f/cort_mr710f_48000.wav"),
+    capture!("cort_mr710f_48000_bld", "body/cort_mr710f/cort_mr710f_48000_bld.wav"),
+    capture!("cort_mr710f_48000_jf_flavor", "body/cort_mr710f/cort_mr710f_48000_jf_flavor.wav"),
+    capture!("cort_mr710f_48000_match", "body/cort_mr710f/cort_mr710f_48000_match.wav"),
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -69,9 +60,9 @@ pub fn build_processor_for_model(
     match layout {
         AudioChannelLayout::Mono => {
             let capture = resolve_capture(params)?;
-            let materialized_path = materialize(&capture.asset)?;
-            let materialized_path_str = materialized_path.to_string_lossy();
-            let ir = IrAsset::load_from_wav(&materialized_path_str)?;
+            let wav_path = ir::resolve_ir_capture(capture.ir_file)?;
+            
+            let ir = IrAsset::load_from_wav(&wav_path)?;
             if ir.channel_count() != 1 {
                 bail!(
                     "body model '{}' capture must be mono, got {} channels",
@@ -79,7 +70,7 @@ pub fn build_processor_for_model(
                     ir.channel_count()
                 );
             }
-            let processor = build_mono_ir_processor_from_wav(&materialized_path_str, sample_rate)?;
+            let processor = build_mono_ir_processor_from_wav(&wav_path, sample_rate)?;
             Ok(BlockProcessor::Mono(processor))
         }
         AudioChannelLayout::Stereo => bail!(
@@ -99,7 +90,7 @@ pub const MODEL_DEFINITION: BodyModelDefinition = BodyModelDefinition {
 };
 
 pub fn validate_params(params: &ParameterSet) -> Result<()> { resolve_capture(params).map(|_| ()) }
-pub fn asset_summary(params: &ParameterSet) -> Result<String> { let capture = resolve_capture(params)?; Ok(format!("asset_id='{}'", capture.asset.id)) }
+pub fn asset_summary(params: &ParameterSet) -> Result<String> { let capture = resolve_capture(params)?; Ok(format!("asset_id='{}'", capture.ir_file)) }
 
 fn resolve_capture(params: &ParameterSet) -> Result<&'static CortMr710fCapture> {
     let requested = required_string(params, "voicing").map_err(anyhow::Error::msg)?;
