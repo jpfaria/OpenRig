@@ -7,38 +7,34 @@ export component EffectTypeIcon inherits Rectangle {
 
     background: transparent;
 
-    // VST3 uses the full-color brand logo — no colorize
-    if root.icon-kind == "vst3" : Image {
+    Image {
         width: 100%;
         height: 100%;
-        source: @image-url("../assets/vst3-pedal.png");
-        image-fit: contain;
-    }
-
-    if root.icon-kind != "vst3" : Image {
-        width: 100%;
-        height: 100%;
-        source: root.icon-kind == "preamp" ? @image-url("../assets/amp-head.svg")
-            : root.icon-kind == "amp" ? @image-url("../assets/amp-combo.svg")
-            : root.icon-kind == "cab" ? @image-url("../assets/cab.svg")
-            : root.icon-kind == "body" ? @image-url("../assets/body.svg")
-            : root.icon-kind == "ir" ? @image-url("../assets/ir-loader.svg")
-            : root.icon-kind == "full_rig" ? @image-url("../assets/full-rig.svg")
-            : root.icon-kind == "gain" ? @image-url("../assets/gain.svg")
-            : root.icon-kind == "dynamics" ? @image-url("../assets/dyn.svg")
-            : root.icon-kind == "filter" ? @image-url("../assets/filter.svg")
-            : root.icon-kind == "wah" ? @image-url("../assets/expression.svg")
-            : root.icon-kind == "modulation" ? @image-url("../assets/mod.svg")
-            : root.icon-kind == "delay" ? @image-url("../assets/delay.svg")
-            : root.icon-kind == "reverb" ? @image-url("../assets/reverb.svg")
-            : root.icon-kind == "utility" ? @image-url("../assets/util.svg")
-            : root.icon-kind == "nam" ? @image-url("../assets/nam.svg")
-            : root.icon-kind == "pitch" ? @image-url("../assets/pitch.svg")
-            : root.icon-kind == "input" ? @image-url("../assets/input_arrow.svg")
-            : root.icon-kind == "output" ? @image-url("../assets/output_arrow.svg")
-            : root.icon-kind == "insert" ? @image-url("../assets/insert_loop.svg")
+        source: root.icon-kind == "input"      ? @image-url("../assets/connector-input.png")
+            : root.icon-kind == "output"       ? @image-url("../assets/connector-output.png")
+            : root.icon-kind == "insert"       ? @image-url("../assets/insert-pedalboard.png")
+            : root.icon-kind == "vst3"         ? @image-url("../assets/vst3-plugin.svg")
+            : root.icon-kind == "preamp"       ? @image-url("../assets/amp-head.svg")
+            : root.icon-kind == "amp"          ? @image-url("../assets/amp-combo.svg")
+            : root.icon-kind == "cab"          ? @image-url("../assets/cab.svg")
+            : root.icon-kind == "body"         ? @image-url("../assets/body.svg")
+            : root.icon-kind == "ir"           ? @image-url("../assets/ir-loader.svg")
+            : root.icon-kind == "full_rig"     ? @image-url("../assets/full-rig.svg")
+            : root.icon-kind == "gain"         ? @image-url("../assets/gain.svg")
+            : root.icon-kind == "dynamics"     ? @image-url("../assets/dyn.svg")
+            : root.icon-kind == "filter"       ? @image-url("../assets/filter.svg")
+            : root.icon-kind == "wah"          ? @image-url("../assets/expression.svg")
+            : root.icon-kind == "modulation"   ? @image-url("../assets/mod.svg")
+            : root.icon-kind == "delay"        ? @image-url("../assets/delay.svg")
+            : root.icon-kind == "reverb"       ? @image-url("../assets/reverb.svg")
+            : root.icon-kind == "utility"      ? @image-url("../assets/util.svg")
+            : root.icon-kind == "nam"          ? @image-url("../assets/nam.svg")
+            : root.icon-kind == "pitch"        ? @image-url("../assets/pitch.svg")
             : @image-url("../assets/gear.svg");
         image-fit: contain;
-        colorize: root.tint;
+        // Photos (input/output/insert) keep their natural colors; flat SVGs get tinted
+        colorize: root.icon-kind == "input" || root.icon-kind == "output" || root.icon-kind == "insert"
+            ? transparent
+            : root.tint;
     }
 }
