@@ -411,31 +411,16 @@ fn read_card_channels(card: &str) -> (u32, u32) {
     (capture, playback)
 }
 
-/// Set ALSA mixer levels for a USB audio card after JACK has started.
-/// Skips Scarlett/Focusrite devices — their mixer is managed via USB vendor
-/// commands and calling amixer can trigger firmware disconnect cycles.
-/// For standard USB Audio Class devices, sets capture and playback to 100%.
+/// Set ALSA mixer volume controls to 100% for a USB audio card after JACK starts.
+/// Only touches controls named "volume" via numid — does not write routing enums
+/// or vendor-specific controls that could destabilize USB audio drivers.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn configure_alsa_mixer(card: &UsbAudioCard) {
     log::info!("configure_alsa_mixer: card {} ({})", card.card_num, card.display_name);
     let c = &card.card_num;
-    let is_scarlett = card.display_name.to_lowercase().contains("scarlett")
-        || card.display_name.to_lowercase().contains("focusrite");
 
-    if is_scarlett {
-        // Scarlett/Focusrite devices must NOT be configured via amixer.
-        // Any write to mixer controls (Capture Enum, Output Enum, Direct Monitor)
-        // triggers scarlett2_notify 0x20000000 on the RK3588 xHCI stack, causing
-        // USB disconnect within ~30 seconds (LED turns red).
-        // The scarlett-gen2 kernel driver manages routing via its own USB vendor
-        // commands; settings persist in device NVRAM across power cycles.
-        // Configure the Scarlett once via Focusrite Control on Mac/Windows, then
-        // use it on Linux without any amixer intervention.
-        log::info!("configure_alsa_mixer: Scarlett detected — skipping all amixer calls to prevent scarlett2_notify disconnect");
-        return;
-    }
-
-    // Standard USB Audio Class devices: set all volume controls to 100%.
+    // Set all volume controls to 100%. Only touches controls named "volume" —
+    // never writes routing enums or vendor-specific controls.
     if let Ok(output) = std::process::Command::new("amixer")
         .args(["-c", c, "controls"])
         .output()
