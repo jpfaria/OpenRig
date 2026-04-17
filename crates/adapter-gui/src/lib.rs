@@ -8,8 +8,8 @@ const SELECT_SELECTED_BLOCK_ID: &str = "__select.selected_block_id";
 use application::validate::validate_project;
 use domain::ids::{BlockId, DeviceId, ChainId};
 use infra_cpal::{
-    has_new_devices, invalidate_device_cache, list_input_device_descriptors,
-    list_output_device_descriptors, AudioDeviceDescriptor, ProjectRuntimeController,
+    invalidate_device_cache, list_input_device_descriptors, list_output_device_descriptors,
+    AudioDeviceDescriptor, ProjectRuntimeController,
 };
 use infra_filesystem::{FilesystemStorage, GuiAudioSettings};
 use project::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry};
@@ -31,7 +31,7 @@ mod chain_editor;
 mod eq;
 mod helpers;
 mod io_groups;
-mod project;
+mod project_ops;
 mod project_view;
 mod state;
 mod ui_state;
@@ -74,7 +74,7 @@ use io_groups::{
     build_io_group_items, apply_chain_io_groups, apply_chain_input_window_state,
     apply_chain_output_window_state,
 };
-use project::{
+use project_ops::{
     open_cli_project, resolve_project_paths, load_and_sync_app_config, sync_recent_projects,
     canonical_project_path, register_recent_project, mark_recent_project_invalid,
     recent_project_items, project_display_name, parse_path_argument,
@@ -395,31 +395,19 @@ pub fn run_desktop_app(
 
     // Audio health check timer — detects device disconnects (JACK server
     // down on Linux, CoreAudio device removed on macOS) and auto-reconnects
-    // when the backend becomes available again. Also detects USB audio
-    // interfaces plugged in after app start and refreshes the device lists.
+    // when the backend becomes available again.
     {
         let weak_window = window.as_weak();
         let toast_timer_health = toast_timer.clone();
         let runtime_health = project_runtime.clone();
         let session_health = project_session.clone();
         let disconnected = Rc::new(RefCell::new(false));
-        let input_opts_health = chain_input_device_options.clone();
-        let output_opts_health = chain_output_device_options.clone();
         let health_timer = Timer::default();
         health_timer.start(
             slint::TimerMode::Repeated,
             std::time::Duration::from_secs(2),
             move || {
                 let Some(win) = weak_window.upgrade() else { return; };
-
-                // Hotplug detection: refresh device lists when new interfaces appear.
-                if has_new_devices() {
-                    invalidate_device_cache();
-                    refresh_input_devices(&input_opts_health);
-                    refresh_output_devices(&output_opts_health);
-                    log::info!("health timer: new audio device detected, device list refreshed");
-                }
-
                 let mut rt_borrow = runtime_health.borrow_mut();
                 let Some(rt) = rt_borrow.as_mut() else { return; };
                 if !rt.is_running() {

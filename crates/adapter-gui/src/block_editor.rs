@@ -11,7 +11,7 @@ use crate::{
     ProjectChainItem, SELECT_PATH_PREFIX, SELECT_SELECTED_BLOCK_ID,
 };
 use crate::state::{BlockEditorData, BlockEditorDraft, SelectOptionEditorItem};
-use crate::project::sync_project_dirty;
+use crate::project_ops::sync_project_dirty;
 use crate::project_view::replace_project_chains;
 use crate::helpers::log_gui_error;
 
