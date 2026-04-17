@@ -1428,6 +1428,56 @@ pub fn invalidate_device_cache() {
     log::info!("device descriptor cache invalidated");
 }
 
+// ── Hotplug detection ────────────────────────────────────────────────────────
+// Cheap device count used by the health timer to detect plug-in events without
+// running a full enumeration (no ALSA PCM probe, no JACK client connection).
+
+static LAST_KNOWN_DEVICE_COUNT: Mutex<Option<usize>> = Mutex::new(None);
+
+/// Returns `true` when the audio device count has increased since the last
+/// call, indicating that a new interface was plugged in.
+///
+/// Intentionally cheap — no ALSA probing, no JACK connection. Call from a
+/// periodic UI timer; on `true` follow up with `invalidate_device_cache()` and
+/// a full device-list refresh.
+pub fn has_new_devices() -> bool {
+    let current = count_devices_cheap();
+    let mut guard = LAST_KNOWN_DEVICE_COUNT.lock().unwrap();
+    match *guard {
+        None => {
+            *guard = Some(current);
+            false
+        }
+        Some(prev) if current > prev => {
+            *guard = Some(current);
+            log::info!("has_new_devices: count {} → {}", prev, current);
+            true
+        }
+        Some(prev) => {
+            if current != prev {
+                *guard = Some(current);
+            }
+            false
+        }
+    }
+}
+
+/// Count audio devices cheaply — no ALSA PCM probing, no JACK client.
+fn count_devices_cheap() -> usize {
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    {
+        // Pure /proc/asound/cards read — safe, no PCM open, no JACK connection.
+        return detect_all_usb_audio_cards().len();
+    }
+    #[allow(unreachable_code)]
+    {
+        let host = select_host_for_enumeration();
+        let input = host.input_devices().map(|it| it.count()).unwrap_or(0);
+        let output = host.output_devices().map(|it| it.count()).unwrap_or(0);
+        input + output
+    }
+}
+
 /// Returns true if the JACK server is currently running.
 /// Fast, non-blocking check — safe to call from the UI thread.
 #[cfg(all(target_os = "linux", feature = "jack"))]
