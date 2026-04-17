@@ -380,13 +380,34 @@ component BlockTypeCard inherits Rectangle {
         vertical-alignment: center;
     }
 
-    EffectTypeIcon {
+    Image {
         x: 14px;
         y: 20px;
         width: 60px;
         height: 60px;
-        icon-kind: root.item.icon-kind;
-        tint: root.accent-color;
+        source: root.item.icon-kind == "vst3"         ? @image-url("../assets/vst3-plugin.svg")
+            : root.item.icon-kind == "input"          ? @image-url("../assets/input.svg")
+            : root.item.icon-kind == "output"         ? @image-url("../assets/output.svg")
+            : root.item.icon-kind == "insert"         ? @image-url("../assets/insert_loop.svg")
+            : root.item.icon-kind == "preamp"         ? @image-url("../assets/amp-head.svg")
+            : root.item.icon-kind == "amp"            ? @image-url("../assets/amp-combo.svg")
+            : root.item.icon-kind == "cab"            ? @image-url("../assets/cab.svg")
+            : root.item.icon-kind == "body"           ? @image-url("../assets/body.svg")
+            : root.item.icon-kind == "ir"             ? @image-url("../assets/ir-loader.svg")
+            : root.item.icon-kind == "full_rig"       ? @image-url("../assets/full-rig.svg")
+            : root.item.icon-kind == "gain"           ? @image-url("../assets/gain.svg")
+            : root.item.icon-kind == "dynamics"       ? @image-url("../assets/dyn.svg")
+            : root.item.icon-kind == "filter"         ? @image-url("../assets/filter.svg")
+            : root.item.icon-kind == "wah"            ? @image-url("../assets/expression.svg")
+            : root.item.icon-kind == "modulation"     ? @image-url("../assets/mod.svg")
+            : root.item.icon-kind == "delay"          ? @image-url("../assets/delay.svg")
+            : root.item.icon-kind == "reverb"         ? @image-url("../assets/reverb.svg")
+            : root.item.icon-kind == "utility"        ? @image-url("../assets/util.svg")
+            : root.item.icon-kind == "nam"            ? @image-url("../assets/nam.svg")
+            : root.item.icon-kind == "pitch"          ? @image-url("../assets/pitch.svg")
+            : @image-url("../assets/gear.svg");
+        image-fit: contain;
+        colorize: root.accent-color;
     }
 
     TouchArea {
