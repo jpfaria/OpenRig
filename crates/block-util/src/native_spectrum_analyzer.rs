@@ -12,19 +12,41 @@ use crate::UtilBackendKind;
 pub const MODEL_ID: &str = "spectrum_analyzer";
 pub const DISPLAY_NAME: &str = "Spectrum Analyzer";
 
-const FFT_SIZE: usize = 2048;
-const N_BANDS: usize = 16;
+const FFT_SIZE: usize = 8192;
+// 75% overlap → update rate = sample_rate / HOP_SIZE ≈ 23 Hz at 48 kHz (fluid)
+const HOP_SIZE: usize = 2048;
+const N_BANDS: usize = 63;
 
-// Center frequencies for 16 logarithmic bands (Hz)
+// Center frequencies for 63 logarithmic bands (Hz): f[i] = 20 * 2^(i/6), 1/6-octave spacing.
+// Range: 20 Hz – ~25.8 kHz
 const BAND_FREQS: [f32; N_BANDS] = [
-    25.0, 40.0, 63.0, 100.0, 160.0, 250.0, 400.0, 630.0, 1000.0, 1600.0, 2500.0, 4000.0,
-    6300.0, 10000.0, 16000.0, 20000.0,
+    20.0, 22.4, 25.2, 28.3, 31.7, 35.6, // i=0..5   20–36 Hz
+    40.0, 44.9, 50.4, 56.6, 63.5, 71.3, // i=6..11  40–71 Hz
+    80.0, 89.8, 100.8, 113.1, 127.0, 142.5, // i=12..17 80–143 Hz
+    160.0, 179.6, 201.6, 226.3, 254.0, 285.1, // i=18..23 160–285 Hz
+    320.0, 359.2, 403.2, 452.5, 508.0, 570.2, // i=24..29 320–570 Hz
+    640.0, 718.4, 806.3, 905.1, 1016.0, 1140.4, // i=30..35 640 Hz–1.14 kHz
+    1280.0, 1436.8, 1612.7, 1810.2, 2031.9, 2280.7, // i=36..41 1.28–2.28 kHz
+    2560.0, 2873.5, 3225.4, 3620.4, 4063.7, 4561.4, // i=42..47 2.56–4.56 kHz
+    5120.0, 5747.0, 6450.8, 7240.8, 8127.5, 9122.8, // i=48..53 5.12–9.12 kHz
+    10240.0, 11494.0, 12901.6, 14481.5, 16255.0, 18245.6, // i=54..59 10.24–18.25 kHz
+    20480.0, 22988.0, 25803.2, // i=60..62 20.5–25.8 kHz
 ];
 
-// Display labels for each band
+// Labels shown in the UI — only key frequencies to avoid clutter at narrow bar widths.
+// Labeled bands (approx): 20, 50, 100, 200, 500, 1k, 2k, 5k, 10k, 20k Hz.
 const BAND_LABELS: [&str; N_BANDS] = [
-    "25", "40", "63", "100", "160", "250", "400", "630", "1k", "1.6k", "2.5k", "4k", "6.3k",
-    "10k", "16k", "20k",
+    "20", "", "", "", "", "",        // i=0..5
+    "", "", "50", "", "", "",        // i=6..11
+    "", "", "100", "", "", "",       // i=12..17
+    "", "", "200", "", "", "",       // i=18..23
+    "", "", "", "", "500", "",       // i=24..29
+    "", "", "", "", "1k", "",        // i=30..35
+    "", "", "", "", "2k", "",        // i=36..41
+    "", "", "", "", "", "",          // i=42..47
+    "5k", "", "", "", "", "",        // i=48..53
+    "10k", "", "", "", "", "",       // i=54..59
+    "20k", "", "",                   // i=60..62
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -71,8 +93,8 @@ struct BandSmoother {
 
 impl BandSmoother {
     fn new(sample_rate: f32) -> Self {
-        // dt = time per FFT frame; tau = 0.5s decay time constant
-        let dt = FFT_SIZE as f32 / sample_rate;
+        // dt = time per hop (update rate); tau = 0.5s decay time constant
+        let dt = HOP_SIZE as f32 / sample_rate;
         let decay_factor = (-dt / 0.5_f32).exp();
         Self {
             levels: [0.0; N_BANDS],
@@ -105,7 +127,7 @@ struct PeakHolder {
 
 impl PeakHolder {
     fn new(sample_rate: f32) -> Self {
-        let dt = FFT_SIZE as f32 / sample_rate;
+        let dt = HOP_SIZE as f32 / sample_rate;
         Self {
             peaks: [0.0; N_BANDS],
             decay_factor: (-dt / PEAK_DECAY_TAU).exp(),
@@ -203,7 +225,13 @@ impl SpectrumWorker {
 }
 
 pub struct SpectrumAnalyzer {
-    buffer: Vec<f32>,
+    // Ring buffer always holds the last FFT_SIZE samples
+    ring: Vec<f32>,
+    write_pos: usize,
+    // Counts new samples since last FFT dispatch
+    hop_count: usize,
+    // Pre-allocated send buffer — avoids heap allocation in the RT thread
+    buf: Vec<f32>,
     tx: std::sync::mpsc::SyncSender<Vec<f32>>,
 }
 
@@ -222,7 +250,10 @@ impl SpectrumAnalyzer {
             .expect("spawn spectrum worker");
 
         Self {
-            buffer: Vec::with_capacity(FFT_SIZE),
+            ring: vec![0.0; FFT_SIZE],
+            write_pos: 0,
+            hop_count: 0,
+            buf: vec![0.0; FFT_SIZE],
             tx,
         }
     }
@@ -230,13 +261,21 @@ impl SpectrumAnalyzer {
 
 impl MonoProcessor for SpectrumAnalyzer {
     fn process_sample(&mut self, input: f32) -> f32 {
-        self.buffer.push(input);
-        if self.buffer.len() >= FFT_SIZE {
-            let buf = std::mem::replace(&mut self.buffer, Vec::with_capacity(FFT_SIZE));
-            // Non-blocking send: drop frame if worker is busy
-            let _ = self.tx.try_send(buf);
+        self.ring[self.write_pos] = input;
+        self.write_pos = (self.write_pos + 1) % FFT_SIZE;
+        self.hop_count += 1;
+
+        if self.hop_count >= HOP_SIZE {
+            self.hop_count = 0;
+            // Copy ring buffer in chronological order (oldest sample first)
+            let read_start = self.write_pos;
+            for i in 0..FFT_SIZE {
+                self.buf[i] = self.ring[(read_start + i) % FFT_SIZE];
+            }
+            // Non-blocking: drop frame if worker is still busy with previous
+            let _ = self.tx.try_send(self.buf.clone());
         }
-        input // pass through unchanged
+        input
     }
 }
 

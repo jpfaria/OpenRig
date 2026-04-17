@@ -2,6 +2,11 @@ import { BlockTypePickerItem, BlockModelPickerItem, BlockKnobOverlay, BlockParam
 import { BrandLogo } from "../components/brand_logo.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { PanelKnob } from "../components/panel_knob.slint";
+import { FootSwitch } from "../components/foot_switch.slint";
+import { PowerSwitch } from "../components/power_switch.slint";
+import { ToggleSwitch } from "../components/toggle_switch.slint";
+import { PanelSlider } from "../components/panel_slider.slint";
+import { SelectorKnob } from "../components/selector_knob.slint";
 import { CurveEditorControl } from "curve_editor_control.slint";
 import { MultiSliderControl } from "multi_slider_control.slint";
 
@@ -250,7 +255,7 @@ export component BlockPanelEditor inherits Rectangle {
     private property <length> brand-strip-height: 0px;
     // EQ blocks: compact panel (no brand strip, just POWER button pinned to top).
     private property <bool> has-eq-widget: root.curve-editor-points.length > 0 || root.multi-slider-points.length > 0;
-    private property <length> panel-height: self.has-eq-widget ? 60px : root.width / 4;
+    private property <length> panel-height: self.has-eq-widget ? 76px : root.width / 4;
     private property <length> footer-height: root.block-drawer-edit-mode ? 0px : 52px;
 
     background: #0a0a0e;
@@ -616,13 +621,16 @@ export component BlockPanelEditor inherits Rectangle {
         }
 
         // ── All parameters (distributed like table columns, when no knob overlays) ──
+        // When stream data is active (tuner etc.), push params to right side
+        property <bool> has-stream: root.block-stream-data.stream-kind != ""
+            && root.block-stream-data.stream-kind != "spectrum";
         HorizontalLayout {
             visible: root.block-knob-overlays.length == 0
                 && root.curve-editor-points.length == 0
                 && root.multi-slider-points.length == 0
                 && !root.has-external-editor;
             alignment: stretch;
-            padding-left: 60px;
+            padding-left: parent.has-stream ? parent.width - 220px : 60px;
             padding-right: 8px;
             x: 0;
             y: parent.height * 0.54;
@@ -631,12 +639,13 @@ export component BlockPanelEditor inherits Rectangle {
 
             for param[pi] in root.block-parameter-items : Rectangle {
                 visible: param.widget_kind != "";
-                horizontal-stretch: param.widget_kind == "enum" ? 2 : 1;
-                height: 72px;
+                horizontal-stretch: 1;
+                height: 90px;
 
-                // Label (shared by all widget types)
+                // Label
                 Text {
-                    x: 0; y: 0; width: parent.width; height: 14px;
+                    x: 0; y: 0; width: parent.width;
+                    height: 14px;
                     text: param.label;
                     color: root.panel-text;
                     font-family: "Bebas Neue";
@@ -647,38 +656,129 @@ export component BlockPanelEditor inherits Rectangle {
                     overflow: elide;
                 }
 
-                // ── Enum ≤4 options (segmented control) ──
+                // ── Enum ≤4 options (selector knob + inline labels) ──
                 if param.widget_kind == "enum" && param.option_labels.length <= 4 : Rectangle {
-                    x: 4px; y: 20px;
-                    width: parent.width - 8px; height: 32px;
-                    border-radius: 6px;
-                    background: #00000030;
-                    border-width: 1px; border-color: #ffffff10;
+                    x: 0; y: 14px;
+                    width: parent.width; height: 76px;
+                    background: transparent;
 
-                    for option[oi] in param.option_labels : Rectangle {
-                        x: oi * (parent.width / param.option_labels.length);
-                        y: 0;
-                        width: parent.width / param.option_labels.length;
-                        height: parent.height;
-                        border-radius: 5px;
-                        background: oi == param.selected_option_index ? #3366cc : (seg-ta.has-hover ? #ffffff10 : transparent);
+                    property <length> ks: 46px;
+                    property <length> cx: self.width / 2;
+                    property <length> top-row: 0px;
+                    property <length> knob-y: 14px;
+                    property <length> bot-row: self.knob-y + self.ks + 2px;
+                    property <length> lw: Math.max((self.width - self.ks) / 2 - 4px, 0px);
+                    property <int> n: param.option_labels.length;
+                    property <int> sel: param.selected_option_index;
+                    property <color> tc: root.panel-text;
 
-                        Text {
-                            x: 4px; width: parent.width - 8px; height: parent.height;
-                            text: option;
-                            color: oi == param.selected_option_index ? #ffffff : #8090a0;
-                            font-size: 9px;
-                            font-weight: oi == param.selected_option_index ? 800 : 500;
-                            letter-spacing: 0.5px;
-                            horizontal-alignment: center;
-                            vertical-alignment: center;
-                            overflow: elide;
-                        }
+                    SelectorKnob {
+                        x: parent.cx - parent.ks / 2;
+                        y: parent.knob-y;
+                        width: parent.ks; height: parent.ks;
+                        num-options: parent.n;
+                        selected-index: parent.sel;
+                        select(i) => { root.select-block-parameter-option(param.path, i); }
+                    }
 
-                        seg-ta := TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => { root.select-block-parameter-option(param.path, oi); }
-                        }
+                    // ── Bottom-left label (7h) — option 0 ──
+                    Text {
+                        visible: parent.n >= 2;
+                        x: 0; y: parent.bot-row;
+                        width: parent.lw; height: 14px;
+                        text: param.option_labels.length > 0 ? param.option_labels[0] : "";
+                        color: 0 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
+                        font-size: 11px;
+                        font-weight: 0 == parent.sel ? 700 : 400;
+                        horizontal-alignment: right;
+                        overflow: elide;
+                    }
+                    TouchArea {
+                        visible: parent.n >= 2;
+                        x: 0; y: parent.bot-row;
+                        width: parent.lw; height: 14px;
+                        mouse-cursor: pointer;
+                        clicked => { root.select-block-parameter-option(param.path, 0); }
+                    }
+
+                    // ── Bottom-right label (5h) — last option ──
+                    Text {
+                        visible: parent.n >= 2;
+                        x: parent.cx + parent.ks / 2 + 4px; y: parent.bot-row;
+                        width: parent.lw; height: 14px;
+                        text: parent.n == 2 ? (param.option_labels.length > 1 ? param.option_labels[1] : "")
+                            : parent.n == 3 ? (param.option_labels.length > 2 ? param.option_labels[2] : "")
+                            : (param.option_labels.length > 3 ? param.option_labels[3] : "");
+                        color: (parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3) == parent.sel
+                            ? #ffaa44 : parent.tc.with-alpha(0.7);
+                        font-size: 11px;
+                        font-weight: (parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3) == parent.sel ? 700 : 400;
+                        horizontal-alignment: left;
+                        overflow: elide;
+                    }
+                    TouchArea {
+                        visible: parent.n >= 2;
+                        x: parent.cx + parent.ks / 2 + 4px; y: parent.bot-row;
+                        width: parent.lw; height: 14px;
+                        mouse-cursor: pointer;
+                        clicked => { root.select-block-parameter-option(param.path, parent.n == 2 ? 1 : parent.n == 3 ? 2 : 3); }
+                    }
+
+                    // ── Top-center label (12h) — option 1 for 3-opt ──
+                    Text {
+                        visible: parent.n == 3;
+                        x: parent.cx - 55px; y: parent.top-row;
+                        width: 110px; height: 14px;
+                        text: param.option_labels.length > 1 ? param.option_labels[1] : "";
+                        color: 1 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
+                        font-size: 11px;
+                        font-weight: 1 == parent.sel ? 700 : 400;
+                        horizontal-alignment: center;
+                        overflow: elide;
+                    }
+                    TouchArea {
+                        visible: parent.n == 3;
+                        x: parent.cx - 55px; y: parent.top-row; width: 110px; height: 14px;
+                        mouse-cursor: pointer;
+                        clicked => { root.select-block-parameter-option(param.path, 1); }
+                    }
+
+                    // ── Upper-left label (10h) — option 1 for 4-opt ──
+                    Text {
+                        visible: parent.n == 4;
+                        x: 0; y: parent.top-row;
+                        width: parent.lw; height: 14px;
+                        text: param.option_labels.length > 1 ? param.option_labels[1] : "";
+                        color: 1 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
+                        font-size: 11px;
+                        font-weight: 1 == parent.sel ? 700 : 400;
+                        horizontal-alignment: right;
+                        overflow: elide;
+                    }
+                    TouchArea {
+                        visible: parent.n == 4;
+                        x: 0; y: parent.top-row; width: parent.lw; height: 14px;
+                        mouse-cursor: pointer;
+                        clicked => { root.select-block-parameter-option(param.path, 1); }
+                    }
+
+                    // ── Upper-right label (2h) — option 2 for 4-opt ──
+                    Text {
+                        visible: parent.n == 4;
+                        x: parent.cx + parent.ks / 2 + 4px; y: parent.top-row;
+                        width: parent.lw; height: 14px;
+                        text: param.option_labels.length > 2 ? param.option_labels[2] : "";
+                        color: 2 == parent.sel ? #ffaa44 : parent.tc.with-alpha(0.7);
+                        font-size: 11px;
+                        font-weight: 2 == parent.sel ? 700 : 400;
+                        horizontal-alignment: left;
+                        overflow: elide;
+                    }
+                    TouchArea {
+                        visible: parent.n == 4;
+                        x: parent.cx + parent.ks / 2 + 4px; y: parent.top-row; width: parent.lw; height: 14px;
+                        mouse-cursor: pointer;
+                        clicked => { root.select-block-parameter-option(param.path, 2); }
                     }
                 }
 
@@ -823,30 +923,14 @@ export component BlockPanelEditor inherits Rectangle {
                     changed(p, v) => { root.update-block-parameter-number(p, v); }
                 }
 
-                // ── Boolean toggle ──
-                if param.widget_kind == "bool" : Rectangle {
-                    x: (parent.width - 48px) / 2;
-                    y: 24px;
-                    width: 48px;
-                    height: 24px;
-                    border-radius: 12px;
-                    background: param.bool_value ? #3366cc : #333;
-                    border-width: 1px;
-                    border-color: param.bool_value ? #4488dd : #555;
-
-                    Rectangle {
-                        x: param.bool_value ? parent.width - 22px : 2px;
-                        y: 2px;
-                        width: 20px;
-                        height: 20px;
-                        border-radius: 10px;
-                        background: #ffffff;
-                    }
-
-                    TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => { root.update-block-parameter-bool(param.path, !param.bool_value); }
-                    }
+                // ── Boolean toggle (sprite) ──
+                if param.widget_kind == "bool" : ToggleSwitch {
+                    x: (parent.width - 33px) / 2;
+                    y: 6px;
+                    width: 33px;
+                    height: 66px;
+                    checked: param.bool_value;
+                    toggled => { root.update-block-parameter-bool(param.path, !param.bool_value); }
                 }
             }
         }
@@ -876,7 +960,7 @@ export component BlockPanelEditor inherits Rectangle {
     if root.block-stream-data.stream-kind != "" && root.block-stream-data.stream-kind != "spectrum" : Rectangle {
         x: 56px;
         y: root.header-height + root.brand-strip-height + root.panel-height * 0.52;
-        width: parent.width - 56px - 100px;
+        width: Math.min(parent.width - 56px - 230px, 240px);
         height: root.panel-height * 0.46;
 
         // Waiting for signal — shown until pitch is detected
@@ -1032,43 +1116,12 @@ export component BlockPanelEditor inherits Rectangle {
     // Falls to 62% when knob overlays are present so it sits alongside the knobs.
     private property <length> power-y: root.header-height + root.brand-strip-height + 4px;
 
-    Rectangle {
-        x: 10px;
-        y: root.power-y;
-        width: 32px;
-        height: 40px;
-        border-radius: 3px;
-        background: #0a0a0a;
-        border-width: 1.5px;
-        border-color: #404040;
-
-        Rectangle {
-            x: 6px;
-            y: root.block-drawer-enabled ? 4px : 20px;
-            width: 20px;
-            height: 16px;
-            border-radius: 2px;
-            background: root.block-drawer-enabled ? #cc2222 : #1a0808;
-            border-width: 1px;
-            border-color: root.block-drawer-enabled ? #ee4444 : #331111;
-        }
-
-        ta-power := TouchArea {
-            mouse-cursor: pointer;
-            clicked => { root.toggle-block-drawer-enabled(); }
-        }
-    }
-
-    Text {
+    FootSwitch {
         x: 8px;
-        y: root.power-y + 44px;
-        width: 36px;
-        height: 12px;
-        text: "POWER";
-        color: root.panel-text;
-        font-size: 7px;
-        font-weight: 700;
-        letter-spacing: 0.5px;
-        horizontal-alignment: center;
+        y: root.power-y;
+        width: 48px;
+        height: 66px;
+        enabled: root.block-drawer-enabled;
+        clicked => { root.toggle-block-drawer-enabled(); }
     }
 }

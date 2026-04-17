@@ -54,8 +54,19 @@ trigger_reset() {
         log "jackd failure detected but still in cooldown, ignoring"
         return
     fi
+
+    # Wait 3s to see if jackd exits on its own (normal unplug).
+    # If jackd dies cleanly, OpenRig's health_timer handles reconnect — no
+    # reset needed. Only intervene if jackd is still alive (zombie state:
+    # process up but ALSA driver dead).
+    sleep 3
+    if ! pgrep -x jackd > /dev/null 2>&1; then
+        log "jackd exited cleanly after disconnect — OpenRig will auto-reconnect, skipping reset"
+        return
+    fi
+
     touch "$COOLDOWN_FILE"
-    log "jackd zombie detected — running $RESET_CMD"
+    log "jackd zombie detected (still running after disconnect) — running $RESET_CMD"
     if "$RESET_CMD"; then
         log "reset succeeded"
     else
@@ -68,7 +79,9 @@ log "starting (cooldown=${COOLDOWN_SECS}s, reset_cmd=$RESET_CMD)"
 # --since now: ignore any historical entries at startup (e.g., yesterday's
 # "capture device disconnected" that already got handled). -o cat: strip
 # the "HOSTNAME SERVICE[PID]:" prefix so we pattern-match the raw message.
-journalctl -f -u jackd.service --since now -o cat | while IFS= read -r line; do
+# JACK is now launched by OpenRig as a background process (not a systemd
+# service), so we filter by _COMM=jackd instead of -u jackd.service.
+journalctl -f _COMM=jackd --since now -o cat | while IFS= read -r line; do
     case "$line" in
         *"capture device disconnected"*|*"playback device disconnected"*|*"ProcessAsync: read error"*)
             trigger_reset
