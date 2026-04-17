@@ -1,10 +1,9 @@
 use anyhow::{anyhow, Result};
-use infra_cpal::AudioDeviceDescriptor;
 use infra_filesystem::{
     AppConfig, FilesystemStorage, GuiAudioDeviceSettings, RecentProjectEntry,
 };
 use infra_yaml::{load_chain_preset_file, save_chain_preset_file, ChainBlocksPreset, YamlProjectRepository};
-use project::block::{AudioBlock, AudioBlockKind};
+use project::block::AudioBlockKind;
 use project::chain::Chain;
 use project::device::DeviceSettings;
 use project::project::Project;

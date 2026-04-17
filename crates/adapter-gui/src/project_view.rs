@@ -9,7 +9,7 @@ use crate::{
     BlockModelPickerItem, BlockTypePickerItem, CompactBlockItem,
     ProjectChainItem,
 };
-use crate::state::{BlockEditorData, SelectedBlock};
+use crate::state::SelectedBlock;
 use crate::block_editor::{block_editor_data, block_parameter_items_for_editor, build_knob_overlays};
 use crate::AppWindow;
 use crate::ui_state::chain_routing_summary;

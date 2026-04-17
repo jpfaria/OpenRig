@@ -3,7 +3,7 @@ use infra_cpal::{AudioDeviceDescriptor, list_input_device_descriptors, list_outp
 use infra_filesystem::GuiAudioDeviceSettings;
 use project::device::DeviceSettings;
 use project::project::Project;
-use slint::{SharedString, VecModel};
+use slint::{Model, SharedString, VecModel};
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::{

@@ -1,4 +1,4 @@
-use slint::{Timer, TimerMode};
+use slint::{ComponentHandle, Timer, TimerMode};
 use std::fmt::Display;
 use std::time::Duration;
 use crate::{AppWindow, BlockEditorWindow};

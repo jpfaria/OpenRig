@@ -19,7 +19,8 @@ use project::device::DeviceSettings;
 use project::param::ParameterSet;
 use project::project::Project;
 use rfd::FileDialog;
-use slint::{Model, ModelRc, SharedString, Timer, TimerMode, VecModel};
+use slint::{Model, ModelRc, SharedString, Timer, VecModel};
+
 use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -54,20 +55,20 @@ use block_editor::{
     build_knob_overlays, schedule_block_editor_persist, schedule_block_editor_persist_for_block_win,
     block_editor_data, block_editor_data_with_selected, block_parameter_items_for_editor,
     block_parameter_items_for_model, set_block_parameter_text, set_block_parameter_bool,
-    set_block_parameter_number, persist_block_editor_draft, quantize_numeric_value,
-    numeric_widget_kind, set_block_parameter_option, block_parameter_extensions,
-    block_parameter_values, internal_block_parameter_value, build_params_from_items, unit_label,
+    set_block_parameter_number, persist_block_editor_draft,
+    set_block_parameter_option, block_parameter_extensions,
+    internal_block_parameter_value, build_params_from_items,
 };
 use chain_editor::{
     create_chain_draft, chain_draft_from_chain, chain_from_draft, instrument_index_to_string,
     input_mode_to_index, input_mode_from_index, output_mode_to_index, output_mode_from_index,
-    insert_mode_to_index, insert_mode_from_index, instrument_string_to_index, chain_editor_mode,
-    apply_chain_editor_labels, endpoint_summary, normalized_chain_description,
+    insert_mode_to_index, insert_mode_from_index, instrument_string_to_index,
+    apply_chain_editor_labels,
 };
 use eq::{compute_eq_curves, build_multi_slider_points, build_curve_editor_points};
 use helpers::{
-    log_gui_message, log_gui_error, show_child_window, use_inline_block_editor,
-    set_status_with_toast, set_status_error, set_status_info, set_status_warning,
+    log_gui_message, show_child_window, use_inline_block_editor,
+    set_status_error, set_status_info, set_status_warning,
     clear_status, sync_block_editor_window,
 };
 use io_groups::{
@@ -75,20 +76,20 @@ use io_groups::{
     apply_chain_output_window_state,
 };
 use project_ops::{
-    open_cli_project, resolve_project_paths, load_and_sync_app_config, sync_recent_projects,
+    open_cli_project, resolve_project_paths, load_and_sync_app_config,
     canonical_project_path, register_recent_project, mark_recent_project_invalid,
-    recent_project_items, project_display_name, parse_path_argument,
-    create_new_project_session, load_app_config, resolve_project_config_path,
+    recent_project_items, project_display_name,
+    create_new_project_session, resolve_project_config_path,
     build_device_settings_from_gui, load_project_session, project_session_snapshot,
     set_project_dirty, sync_project_dirty, save_project_session, save_chain_blocks_to_preset,
-    load_preset_file, preset_id_from_path, project_title_for_path,
+    load_preset_file, project_title_for_path,
 };
 use project_view::{
-    chain_inputs_tooltip, chain_outputs_tooltip, block_type_picker_items,
+    block_type_picker_items,
     block_model_picker_items, block_model_picker_labels, set_selected_block, block_type_index,
     block_model_index_from_items, block_model_index, build_compact_blocks,
-    chain_block_item_from_block, load_thumbnail_image, load_screenshot_image,
-    replace_project_chains, chain_endpoint_label, format_channel_list, real_block_index_to_ui,
+    load_screenshot_image,
+    replace_project_chains, real_block_index_to_ui,
 };
 const DEFAULT_SAMPLE_RATE: u32 = 48_000;
 const DEFAULT_BUFFER_SIZE_FRAMES: u32 = 64;
@@ -8657,7 +8658,7 @@ mod tests {
 
     // --- format_channel_list ---
 
-    use super::format_channel_list;
+    use super::project_view::format_channel_list;
 
     #[test]
     fn format_channel_list_empty_returns_dash() {
@@ -8678,7 +8679,7 @@ mod tests {
 
     // --- unit_label ---
 
-    use super::unit_label;
+    use super::block_editor::unit_label;
     use project::param::ParameterUnit;
 
     #[test]
@@ -8720,7 +8721,7 @@ mod tests {
 
     // --- normalized_chain_description ---
 
-    use super::normalized_chain_description;
+    use super::chain_editor::normalized_chain_description;
 
     #[test]
     fn normalized_chain_description_trims_whitespace() {
@@ -8735,7 +8736,7 @@ mod tests {
 
     // --- preset_id_from_path ---
 
-    use super::preset_id_from_path;
+    use super::project_ops::preset_id_from_path;
 
     #[test]
     fn preset_id_from_path_extracts_stem() {
@@ -8955,7 +8956,7 @@ mod tests {
 
     // --- chain_endpoint_label ---
 
-    use super::chain_endpoint_label;
+    use super::project_view::chain_endpoint_label;
 
     #[test]
     fn chain_endpoint_label_returns_prefix() {
@@ -9061,7 +9062,7 @@ mod tests {
 
     // --- sync_recent_projects ---
 
-    use super::sync_recent_projects;
+    use super::project_ops::sync_recent_projects;
     use infra_filesystem::{AppConfig, RecentProjectEntry};
 
     #[test]
@@ -9232,7 +9233,7 @@ mod tests {
 
     // --- chain_inputs_tooltip ---
 
-    use super::chain_inputs_tooltip;
+    use super::project_view::chain_inputs_tooltip;
 
     #[test]
     fn chain_inputs_tooltip_shows_device_name_and_channels() {
@@ -9286,7 +9287,7 @@ mod tests {
 
     // --- chain_outputs_tooltip ---
 
-    use super::chain_outputs_tooltip;
+    use super::project_view::chain_outputs_tooltip;
 
     #[test]
     fn chain_outputs_tooltip_shows_device_and_channels() {

@@ -745,7 +745,7 @@ mod tests {
     use domain::ids::BlockId;
     use project::catalog::supported_block_models;
     use project::block::{
-        schema_for_block_model, AudioBlock, AudioBlockKind, CoreBlock, SelectBlock,
+        AudioBlock, AudioBlockKind, CoreBlock, SelectBlock,
     };
     use project::param::ParameterSet;
     use slint::Model;
