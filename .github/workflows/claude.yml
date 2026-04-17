@@ -36,3 +36,23 @@ jobs:
           branch_prefix: "feature/"
           branch_name_template: "{{prefix}}issue-{{entityNumber}}"
           claude_args: "--max-turns 200"
+          additional_system_prompt: |
+            BRANCH NAMING — ABSOLUTE RULE:
+            Branch names MUST be exactly "feature/issue-{N}" or "bugfix/issue-{N}".
+            NEVER append suffixes like timestamps, descriptions, or version numbers.
+            FORBIDDEN examples: feature/issue-82-20260417-1802, feature/issue-82-fix, feature/issue-82-v2.
+            If the branch already exists, reuse it: git fetch origin && git checkout feature/issue-{N}.
+            NEVER create a second branch for the same issue.
+
+            ALWAYS SYNC DEVELOP BEFORE WORKING:
+            Before writing any code, always run:
+              git fetch origin
+              git merge origin/develop
+            This ensures the branch has the latest changes from develop.
+            Use merge, NEVER rebase.
+
+            MERGE CONFLICTS — DEVELOP ALWAYS WINS:
+            When merging origin/develop causes conflicts, develop takes priority.
+            Resolve conflicts by accepting develop's version:
+              git merge -X theirs origin/develop
+            The feature branch work must adapt to develop, never the other way around.
