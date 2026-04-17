@@ -788,6 +788,10 @@ export component AppWindow inherits Window {
     callback preset-picker-confirm(int);
     callback preset-picker-delete(int);
     callback preset-picker-cancel();
+    in property <bool> show-confirm-delete-block: false;
+    in property <string> confirm-delete-block-name: "";
+    callback confirm-delete-block();
+    callback cancel-delete-block();
     title: "OpenRig";
     min-width: 860px;
     min-height: 540px;
@@ -1131,6 +1135,81 @@ export component AppWindow inherits Window {
         chain-io-select-mode(index) => { root.chain-io-select-mode(index); }
         chain-io-save => { root.chain-io-save(); }
         chain-io-cancel => { root.chain-io-cancel(); }
+    }
+
+    if root.show-confirm-delete-block : Rectangle {
+        x: 0; y: 0;
+        width: root.width; height: root.height;
+        background: #000000b0;
+        TouchArea { }
+        Rectangle {
+            x: (root.width - self.width) / 2;
+            y: (root.height - self.height) / 2;
+            width: min(root.width * 0.7, 400px);
+            height: 170px;
+            background: #1e1f22;
+            border-radius: 10px;
+            drop-shadow-blur: 16px;
+            drop-shadow-offset-y: 4px;
+            drop-shadow-color: #000000c0;
+            VerticalLayout {
+                padding: 20px;
+                spacing: 12px;
+                Text {
+                    text: "Excluir bloco";
+                    font-size: 16px;
+                    color: #ffffff;
+                    font-weight: 700;
+                    horizontal-alignment: center;
+                }
+                Text {
+                    text: "Excluir \"" + root.confirm-delete-block-name + "\"?";
+                    font-size: 13px;
+                    color: #aaaaaa;
+                    horizontal-alignment: center;
+                    overflow: elide;
+                    wrap: no-wrap;
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        height: 40px;
+                        border-radius: 6px;
+                        background: dlg-cancel-area.has-hover ? #444 : #2d2e32;
+                        dlg-cancel-area := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.cancel-delete-block(); }
+                        }
+                        Text {
+                            text: "Cancelar";
+                            font-size: 13px;
+                            color: #aaaaaa;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        height: 40px;
+                        border-radius: 6px;
+                        background: dlg-confirm-area.has-hover ? #c0392b : #e74c3c;
+                        dlg-confirm-area := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.confirm-delete-block(); }
+                        }
+                        Text {
+                            text: "Excluir";
+                            font-size: 13px;
+                            color: #ffffff;
+                            font-weight: 700;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     in-out property <string> toast-message;
