@@ -1,6 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
-  <line x1="104" y1="68" x2="104" y2="116" stroke="currentColor" stroke-width="14" stroke-linecap="round"/>
-  <line x1="152" y1="68" x2="152" y2="116" stroke="currentColor" stroke-width="14" stroke-linecap="round"/>
-  <rect x="80" y="116" width="96" height="64" rx="14" stroke="currentColor" stroke-width="12"/>
-  <line x1="128" y1="180" x2="128" y2="212" stroke="currentColor" stroke-width="14" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 66" fill="none">
+  <rect x="1.5" y="1.5" width="97" height="63" rx="9" stroke="currentColor" stroke-width="3"/>
+  <text x="50" y="43" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="36" font-weight="bold" fill="currentColor">VST</text>
+  <rect x="37" y="49" width="26" height="9" rx="3" fill="currentColor"/>
+  <rect x="31" y="46" width="6" height="7" rx="1.5" fill="currentColor"/>
+  <rect x="63" y="46" width="6" height="7" rx="1.5" fill="currentColor"/>
 </svg>

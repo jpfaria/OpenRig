@@ -103,6 +103,16 @@ Ver `CONTRIBUTING.md` para detalhes completos.
 - **NUNCA editar workspace principal** — todo codigo vai em `.solvers/issue-{N}/`, a pasta principal e so leitura
 - **NUNCA sugerir `cd .solvers/`** — o usuario trabalha no workspace principal. Apos push, sugerir apenas `git checkout <branch> && git pull`
 - **Branch sem sufixo** — `feature/issue-{N}` ou `bugfix/issue-{N}`, NUNCA com sufixo descritivo
+- **Develop tem prioridade em conflitos** — ao mergear develop na feature branch, usar `git merge -X theirs origin/develop`
+
+### Rastreabilidade — comentarios obrigatorios na issue (OBRIGATORIO)
+
+Todo agent (local ou GitHub) DEVE comentar na issue em dois momentos:
+
+1. **Antes de comecar** — postar um comentario com o plano: o que pretende mudar e por que
+2. **Apos terminar** — postar um comentario com o que foi feito: arquivos alterados, decisoes tomadas, qualquer informacao relevante para rastreio futuro
+
+A issue e a fonte da verdade para todas as alteracoes de codigo. Sem esse rastreio, o historico de decisoes se perde.
 
 ### Premissa de distribuicao (OBRIGATORIO)
 
@@ -590,6 +600,44 @@ Internamente, a Chain tem um único vetor `blocks: Vec<AudioBlock>` onde:
 - `blocks[N-1]` = OutputBlock (fixo)
 
 O Insert divide a chain em segmentos. Cada segmento tem sua própria lista de effect blocks e output routes. Um Insert desabilitado funciona como bypass (sinal passa direto).
+
+---
+
+## Build e Deploy
+
+### Scripts principais
+
+| Script | O que faz |
+|--------|-----------|
+| `scripts/build-deb-local.sh` | Cross-compila .deb para arm64 + amd64 via Docker no Mac |
+| `scripts/build-linux-local.sh` | Build Linux (chamado pelo build-deb-local.sh) |
+| `scripts/build-orange-pi-image.sh` | Gera imagem SD completa para Orange Pi |
+| `scripts/flash-sd.sh` | Flasha imagem no SD card |
+| `scripts/coverage.sh` | Gera relatório HTML de cobertura em `coverage/` |
+| `scripts/package-macos.sh` | Empacota para macOS |
+| `scripts/build-lib.sh` | Build de libs externas |
+
+### Fluxo completo: branch → .deb → Orange Pi
+
+```bash
+# 1. Checkout e merge do develop
+git checkout feature/issue-{N}
+git merge origin/develop
+
+# 2. Build do .deb (requer Docker rodando)
+./scripts/build-deb-local.sh
+# Output: output/deb/openrig_0.0.0-dev_arm64.deb
+
+# 3. Deploy no Orange Pi (192.168.15.145)
+scp output/deb/openrig_0.0.0-dev_arm64.deb root@192.168.15.145:/tmp/
+ssh root@192.168.15.145 "dpkg -i /tmp/openrig_0.0.0-dev_arm64.deb && systemctl restart openrig.service"
+```
+
+### Regras de build
+
+- **NUNCA compilar na placa** — sempre cross-compile no Mac com `build-deb-local.sh`
+- **Docker obrigatorio** — o build usa container arm64; Docker Desktop precisa estar rodando
+- **Somente arm64 para Orange Pi** — o arquivo amd64 e para x86 Linux, nao para a placa
 
 ---
 
