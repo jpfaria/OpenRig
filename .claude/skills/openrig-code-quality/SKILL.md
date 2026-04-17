@@ -7,6 +7,24 @@ description: "Use when writing, editing, or refactoring any code. Prevents coupl
 
 Mandatory rules for writing code. Apply BEFORE writing, not after. No exceptions.
 
+## MANDATORY — Load These Skills First
+
+Before doing ANYTHING, invoke the relevant superpowers skills using the Skill tool:
+
+| Situation | Skill to invoke |
+|-----------|----------------|
+| Adding a feature or new behavior | `superpowers:brainstorming` |
+| Implementing a feature or bugfix | `superpowers:test-driven-development` |
+| Debugging a bug or test failure | `superpowers:systematic-debugging` |
+| Have a plan ready to execute | `superpowers:executing-plans` |
+| Work is complete, about to claim done | `superpowers:verification-before-completion` |
+| Received code review feedback | `superpowers:receiving-code-review` |
+| About to finish a branch | `superpowers:finishing-a-development-branch` |
+
+**These are not optional.** If you skip them, you are violating the project's development process.
+
+---
+
 ## STOP — Check Before You Code
 
 ### 1. Data Ownership
@@ -170,12 +188,38 @@ After writing code:
 - [ ] Test with minimum and maximum window sizes before committing
 - [ ] Overflow/clip must be handled — if content doesn't fit, it should scroll or truncate, never overflow
 
-### 10. File Organization
+### 10. File Organization — ONE RESPONSIBILITY PER FILE (ABSOLUTE)
 
-- [ ] **One concern per file** — never dump all configs into a single file
+- [ ] **One concern per file — no exceptions.** If you can describe a file with "and", it has too many responsibilities
+- [ ] **500 lines max** — if a file exceeds 500 lines, it MUST be split before adding anything new
+- [ ] **lib.rs is for re-exports only** — NEVER implement logic in lib.rs; move it to a named module
 - [ ] Configuration files organized by component/domain (e.g., `visual_config/preamp.rs`, `visual_config/delay.rs`)
 - [ ] A file with a match/if that grows with every new model → **WRONG, split by component**
-- [ ] If a file has 50+ lines of match arms → it needs to be split
+- [ ] If a file has 50+ lines of match arms → it needs to be split immediately
+- [ ] **God files are forbidden** — a file that 10+ different features touch is a god file; split it
+- [ ] New feature? New file. Don't add to an existing file that already has a different concern
+
+**Known god files to never expand further (tracked in issue #276):**
+- `crates/adapter-gui/src/lib.rs` (9441 lines) — split in progress
+- `crates/project/src/block.rs` (1498 lines) — split in progress
+- `crates/block-core/src/lib.rs` (978 lines) — split in progress
+- `crates/block-core/src/param.rs` (1207 lines) — split in progress
+
+**Anti-patterns:**
+```
+❌ Adding a new function to adapter-gui/src/lib.rs
+   // WRONG: already a god file. Create a new module instead.
+
+❌ lib.rs with 200 lines of business logic
+   // WRONG: lib.rs = re-exports only
+
+❌ A match arm in block.rs growing from 13 to 14 branches
+   // WRONG: the dispatch belongs in each block's own crate via trait
+
+✅ crates/adapter-gui/src/device.rs — only device management
+✅ crates/adapter-gui/src/project.rs — only project persistence
+✅ crates/adapter-gui/src/chain.rs — only chain editing
+```
 
 ### 11. Documentation Always Up-to-Date
 

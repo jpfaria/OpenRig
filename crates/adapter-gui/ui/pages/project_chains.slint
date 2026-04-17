@@ -635,10 +635,10 @@ component ChainEndpointChip inherits Rectangle {
         width: 48px;
         height: 48px;
         source: root.is-input
-            ? @image-url("../assets/input_arrow.svg")
-            : @image-url("../assets/output_arrow.svg");
+            ? @image-url("../assets/connector-input.png")
+            : @image-url("../assets/connector-output.png");
         image-fit: contain;
-        colorize: hover-area.has-hover ? #d0e4f8 : #5a8aab;
+        opacity: hover-area.has-hover ? 1.0 : 0.7;
     }
 
     // Label
