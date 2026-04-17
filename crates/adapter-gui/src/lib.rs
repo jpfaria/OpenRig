@@ -9,8 +9,8 @@ const SELECT_SELECTED_BLOCK_ID: &str = "__select.selected_block_id";
 use application::validate::validate_project;
 use domain::ids::{BlockId, DeviceId, ChainId};
 use infra_cpal::{
-    invalidate_device_cache, list_input_device_descriptors, list_output_device_descriptors,
-    AudioDeviceDescriptor, ProjectRuntimeController,
+    has_new_devices, invalidate_device_cache, list_input_device_descriptors,
+    list_output_device_descriptors, AudioDeviceDescriptor, ProjectRuntimeController,
 };
 use infra_filesystem::{
     AppConfig, FilesystemStorage, GuiAudioDeviceSettings, GuiAudioSettings, RecentProjectEntry,
@@ -730,19 +730,31 @@ pub fn run_desktop_app(
 
     // Audio health check timer — detects device disconnects (JACK server
     // down on Linux, CoreAudio device removed on macOS) and auto-reconnects
-    // when the backend becomes available again.
+    // when the backend becomes available again. Also detects USB audio
+    // interfaces plugged in after app start and refreshes the device lists.
     {
         let weak_window = window.as_weak();
         let toast_timer_health = toast_timer.clone();
         let runtime_health = project_runtime.clone();
         let session_health = project_session.clone();
         let disconnected = Rc::new(RefCell::new(false));
+        let input_opts_health = chain_input_device_options.clone();
+        let output_opts_health = chain_output_device_options.clone();
         let health_timer = Timer::default();
         health_timer.start(
             slint::TimerMode::Repeated,
             std::time::Duration::from_secs(2),
             move || {
                 let Some(win) = weak_window.upgrade() else { return; };
+
+                // Hotplug detection: refresh device lists when new interfaces appear.
+                if has_new_devices() {
+                    invalidate_device_cache();
+                    refresh_input_devices(&input_opts_health);
+                    refresh_output_devices(&output_opts_health);
+                    log::info!("health timer: new audio device detected, device list refreshed");
+                }
+
                 let mut rt_borrow = runtime_health.borrow_mut();
                 let Some(rt) = rt_borrow.as_mut() else { return; };
                 if !rt.is_running() {
@@ -6425,6 +6437,25 @@ pub fn run_desktop_app(
     }
     {
         let weak_window = window.as_weak();
+        let block_editor_draft = block_editor_draft.clone();
+        let block_editor_persist_timer = block_editor_persist_timer.clone();
+        window.on_delete_block_drawer(move || {
+            let Some(window) = weak_window.upgrade() else {
+                return;
+            };
+            block_editor_persist_timer.stop();
+            let Some(draft) = block_editor_draft.borrow().clone() else {
+                return;
+            };
+            if draft.block_index.is_none() {
+                return;
+            }
+            window.set_confirm_delete_block_name(draft.model_id.into());
+            window.set_show_confirm_delete_block(true);
+        });
+    }
+    {
+        let weak_window = window.as_weak();
         let selected_block = selected_block.clone();
         let block_editor_draft = block_editor_draft.clone();
         let block_model_options = block_model_options.clone();
@@ -6438,31 +6469,21 @@ pub fn run_desktop_app(
         let project_runtime = project_runtime.clone();
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
-        let block_editor_persist_timer = block_editor_persist_timer.clone();
         let weak_block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();
         let output_chain_devices = output_chain_devices.clone();
         let toast_timer = toast_timer.clone();
-        window.on_delete_block_drawer(move || {
+        window.on_confirm_delete_block(move || {
             let Some(window) = weak_window.upgrade() else {
                 return;
             };
-            block_editor_persist_timer.stop();
+            window.set_show_confirm_delete_block(false);
             let Some(draft) = block_editor_draft.borrow().clone() else {
                 return;
             };
             let Some(block_index) = draft.block_index else {
                 return;
             };
-            let confirmed = rfd::MessageDialog::new()
-                .set_title("Excluir bloco")
-                .set_description(format!("Excluir o bloco \"{}\"?", draft.model_id))
-                .set_buttons(rfd::MessageButtons::YesNo)
-                .set_level(rfd::MessageLevel::Warning)
-                .show();
-            if !matches!(confirmed, rfd::MessageDialogResult::Yes) {
-                return;
-            }
             log::info!("on_delete_block: chain_index={}, block_index={}, effect_type='{}', model_id='{}'", draft.chain_index, block_index, draft.effect_type, draft.model_id);
             let mut session_borrow = project_session.borrow_mut();
             let Some(session) = session_borrow.as_mut() else {
@@ -6506,6 +6527,14 @@ pub fn run_desktop_app(
             clear_status(&window, &toast_timer);
             if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
                 let _ = block_editor_window.hide();
+            }
+        });
+    }
+    {
+        let weak_window = window.as_weak();
+        window.on_cancel_delete_block(move || {
+            if let Some(window) = weak_window.upgrade() {
+                window.set_show_confirm_delete_block(false);
             }
         });
     }
