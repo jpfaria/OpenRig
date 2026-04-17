@@ -25,7 +25,13 @@ export component EffectTypeIcon inherits Rectangle {
         image-fit: contain;
     }
 
-    if root.icon-kind != "input" && root.icon-kind != "output" && root.icon-kind != "insert" : Image {
+    if root.icon-kind == "vst3" : Image {
+        width: 100%; height: 100%;
+        source: @image-url("../assets/vst3-logo.png");
+        image-fit: contain;
+    }
+
+    if root.icon-kind != "input" && root.icon-kind != "output" && root.icon-kind != "insert" && root.icon-kind != "vst3" : Image {
         width: 100%;
         height: 100%;
         source: root.icon-kind == "vst3"         ? @image-url("../assets/vst3-plugin.svg")
