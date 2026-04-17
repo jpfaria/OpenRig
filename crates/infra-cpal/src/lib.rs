@@ -423,18 +423,15 @@ fn configure_alsa_mixer(card: &UsbAudioCard) {
         || card.display_name.to_lowercase().contains("focusrite");
 
     if is_scarlett {
-        // Scarlett PCM capture routing: send raw analogue inputs to PCM so JACK
-        // can read the guitar signal. JACK owns all output routing — we must NOT
-        // touch Analogue Output Playback Enum here because writing those controls
-        // triggers scarlett2_notify 0x20000000 which causes the device to
-        // USB-disconnect ~30 seconds later (confirmed via dmesg on RK3588 xHCI).
-        //
-        // PCM 01/02 Capture = Analogue 1/2 (raw guitar → JACK/OpenRig)
-        amixer_cset(c, "name='PCM 01 Capture Enum'", "1");   // Analogue 1
-        amixer_cset(c, "name='PCM 02 Capture Enum'", "2");   // Analogue 2
-        // Direct Monitor Off — prevents raw guitar from bleeding into output hardware
-        amixer_cset(c, "name='Direct Monitor Playback Enum'", "0"); // Off
-        log::info!("configure_alsa_mixer: Scarlett capture routing set (Analogue→PCM, Direct Monitor Off)");
+        // Scarlett/Focusrite devices must NOT be configured via amixer.
+        // Any write to mixer controls (Capture Enum, Output Enum, Direct Monitor)
+        // triggers scarlett2_notify 0x20000000 on the RK3588 xHCI stack, causing
+        // USB disconnect within ~30 seconds (LED turns red).
+        // The scarlett-gen2 kernel driver manages routing via its own USB vendor
+        // commands; settings persist in device NVRAM across power cycles.
+        // Configure the Scarlett once via Focusrite Control on Mac/Windows, then
+        // use it on Linux without any amixer intervention.
+        log::info!("configure_alsa_mixer: Scarlett detected — skipping all amixer calls to prevent scarlett2_notify disconnect");
         return;
     }
 
