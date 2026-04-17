@@ -12,7 +12,7 @@ Group=root
 
 Environment=WAYLAND_DISPLAY=wayland-1
 Environment=XDG_RUNTIME_DIR=/run/weston
-Environment=RUST_LOG=warn
+Environment=RUST_LOG=info
 Environment=JACK_NO_AUDIO_RESERVATION=1
 # Native libs (NAM + LV2 bundles) are shipped by the openrig .deb under
 # /usr/lib/openrig/libs/ (per FHS). Some LV2 plugins have bundled side
