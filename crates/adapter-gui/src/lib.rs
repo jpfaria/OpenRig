@@ -9,8 +9,8 @@ const SELECT_SELECTED_BLOCK_ID: &str = "__select.selected_block_id";
 use application::validate::validate_project;
 use domain::ids::{BlockId, DeviceId, ChainId};
 use infra_cpal::{
-    invalidate_device_cache, list_input_device_descriptors, list_output_device_descriptors,
-    AudioDeviceDescriptor, ProjectRuntimeController,
+    has_new_devices, invalidate_device_cache, list_input_device_descriptors,
+    list_output_device_descriptors, AudioDeviceDescriptor, ProjectRuntimeController,
 };
 use infra_filesystem::{
     AppConfig, FilesystemStorage, GuiAudioDeviceSettings, GuiAudioSettings, RecentProjectEntry,
@@ -730,19 +730,31 @@ pub fn run_desktop_app(
 
     // Audio health check timer — detects device disconnects (JACK server
     // down on Linux, CoreAudio device removed on macOS) and auto-reconnects
-    // when the backend becomes available again.
+    // when the backend becomes available again. Also detects USB audio
+    // interfaces plugged in after app start and refreshes the device lists.
     {
         let weak_window = window.as_weak();
         let toast_timer_health = toast_timer.clone();
         let runtime_health = project_runtime.clone();
         let session_health = project_session.clone();
         let disconnected = Rc::new(RefCell::new(false));
+        let input_opts_health = chain_input_device_options.clone();
+        let output_opts_health = chain_output_device_options.clone();
         let health_timer = Timer::default();
         health_timer.start(
             slint::TimerMode::Repeated,
             std::time::Duration::from_secs(2),
             move || {
                 let Some(win) = weak_window.upgrade() else { return; };
+
+                // Hotplug detection: refresh device lists when new interfaces appear.
+                if has_new_devices() {
+                    invalidate_device_cache();
+                    refresh_input_devices(&input_opts_health);
+                    refresh_output_devices(&output_opts_health);
+                    log::info!("health timer: new audio device detected, device list refreshed");
+                }
+
                 let mut rt_borrow = runtime_health.borrow_mut();
                 let Some(rt) = rt_borrow.as_mut() else { return; };
                 if !rt.is_running() {
@@ -1013,6 +1025,7 @@ pub fn run_desktop_app(
     window.set_project_devices(ModelRc::from(project_devices.clone()));
     project_settings_window.set_sample_rate_options(window.get_sample_rate_options());
     project_settings_window.set_buffer_size_options(window.get_buffer_size_options());
+    project_settings_window.set_bit_depth_options(window.get_bit_depth_options());
     chain_input_window.set_device_options(ModelRc::from(chain_input_device_options.clone()));
     chain_input_window.set_channels(ModelRc::from(chain_input_channels.clone()));
     chain_input_window.set_selected_device_index(-1);
@@ -2019,10 +2032,10 @@ pub fn run_desktop_app(
                 .set_project_name_draft(session.project.name.clone().unwrap_or_default().into());
             settings_window.set_status_message("".into());
             clear_status(&window, &toast_timer);
-            window.set_show_project_settings(true);
             if fullscreen {
                 // In fullscreen mode, render inline — set project-devices on main window
                 window.set_project_devices(settings_window.get_project_devices());
+                window.set_show_project_settings(true);
             } else {
                 show_child_window(window.window(), settings_window.window());
             }
@@ -4761,7 +4774,7 @@ pub fn run_desktop_app(
                             let Some(runtime) = runtime_borrow.as_ref() else {
                                 poll_count += 1;
                                 if poll_count % 40 == 0 {
-                                    log::warn!("[block-editor-stream] runtime not available (poll #{})", poll_count);
+                                    log::debug!("[block-editor-stream] runtime not available (poll #{})", poll_count);
                                 }
                                 return;
                             };
@@ -5334,6 +5347,16 @@ pub fn run_desktop_app(
                         *selected_block.borrow_mut() = None;
                         set_selected_block(&main, None, None);
                         let _ = win.hide();
+                    });
+                }
+                // Clean up stream timer when block editor is closed via the window X button.
+                {
+                    let open_block_windows_close = open_block_windows.clone();
+                    win.window().on_close_requested(move || {
+                        open_block_windows_close.borrow_mut().retain(|bw| {
+                            bw.chain_index != ci || bw.block_index != bi
+                        });
+                        slint::CloseRequestResponse::HideWindow
                     });
                 }
                 show_child_window(window.window(), win.window());
