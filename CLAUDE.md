@@ -103,6 +103,16 @@ Ver `CONTRIBUTING.md` para detalhes completos.
 - **NUNCA editar workspace principal** — todo codigo vai em `.solvers/issue-{N}/`, a pasta principal e so leitura
 - **NUNCA sugerir `cd .solvers/`** — o usuario trabalha no workspace principal. Apos push, sugerir apenas `git checkout <branch> && git pull`
 - **Branch sem sufixo** — `feature/issue-{N}` ou `bugfix/issue-{N}`, NUNCA com sufixo descritivo
+- **Develop tem prioridade em conflitos** — ao mergear develop na feature branch, usar `git merge -X theirs origin/develop`
+
+### Rastreabilidade — comentarios obrigatorios na issue (OBRIGATORIO)
+
+Todo agent (local ou GitHub) DEVE comentar na issue em dois momentos:
+
+1. **Antes de comecar** — postar um comentario com o plano: o que pretende mudar e por que
+2. **Apos terminar** — postar um comentario com o que foi feito: arquivos alterados, decisoes tomadas, qualquer informacao relevante para rastreio futuro
+
+A issue e a fonte da verdade para todas as alteracoes de codigo. Sem esse rastreio, o historico de decisoes se perde.
 
 ### Premissa de distribuicao (OBRIGATORIO)
 

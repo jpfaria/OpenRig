@@ -28,6 +28,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Checkout issue branch if exists
+        env:
+          ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+        run: |
+          git fetch origin
+          BRANCH="feature/issue-${ISSUE_NUMBER}"
+          if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null 2>&1; then
+            echo "Branch $BRANCH exists — checking out"
+            git checkout -B "$BRANCH" "origin/$BRANCH"
+          else
+            echo "Branch $BRANCH does not exist yet — will be created by Claude"
+          fi
+
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
         with:
@@ -56,3 +69,9 @@ jobs:
             Resolve conflicts by accepting develop's version:
               git merge -X theirs origin/develop
             The feature branch work must adapt to develop, never the other way around.
+
+            TRACEABILITY — MANDATORY ISSUE COMMENTS:
+            You MUST comment on the issue at two points:
+            1. BEFORE starting work: post a comment with your plan — what you intend to change and why.
+            2. AFTER finishing work: post a comment with what was actually done — files changed, decisions made, anything relevant for future reference.
+            This applies to ALL work, local or on GitHub. The issue is the source of truth for all changes.
