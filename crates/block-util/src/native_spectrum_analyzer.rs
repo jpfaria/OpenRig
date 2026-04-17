@@ -230,6 +230,8 @@ pub struct SpectrumAnalyzer {
     write_pos: usize,
     // Counts new samples since last FFT dispatch
     hop_count: usize,
+    // Pre-allocated send buffer — avoids heap allocation in the RT thread
+    buf: Vec<f32>,
     tx: std::sync::mpsc::SyncSender<Vec<f32>>,
 }
 
@@ -251,6 +253,7 @@ impl SpectrumAnalyzer {
             ring: vec![0.0; FFT_SIZE],
             write_pos: 0,
             hop_count: 0,
+            buf: vec![0.0; FFT_SIZE],
             tx,
         }
     }
@@ -266,12 +269,11 @@ impl MonoProcessor for SpectrumAnalyzer {
             self.hop_count = 0;
             // Copy ring buffer in chronological order (oldest sample first)
             let read_start = self.write_pos;
-            let mut buf = Vec::with_capacity(FFT_SIZE);
             for i in 0..FFT_SIZE {
-                buf.push(self.ring[(read_start + i) % FFT_SIZE]);
+                self.buf[i] = self.ring[(read_start + i) % FFT_SIZE];
             }
             // Non-blocking: drop frame if worker is still busy with previous
-            let _ = self.tx.try_send(buf);
+            let _ = self.tx.try_send(self.buf.clone());
         }
         input
     }
