@@ -17,6 +17,24 @@ Sempre que escrever, editar ou revisar código Slint (`.slint`), invocar:
 
 - **`slint-best-practices`** — boas práticas de UI em Slint
 
+## OBRIGATORIO — Superpowers por Situação
+
+Invocar a skill correspondente à situação **antes** de agir:
+
+| Situação | Skill obrigatória |
+|---|---|
+| Adicionando feature ou comportamento novo | `superpowers:brainstorming` |
+| Implementando feature ou bugfix | `superpowers:test-driven-development` |
+| Debugando bug ou falha de teste | `superpowers:systematic-debugging` |
+| Executando plano já escrito | `superpowers:executing-plans` |
+| Trabalho completo, prestes a declarar "done" | `superpowers:verification-before-completion` |
+| Recebendo feedback de code review | `superpowers:receiving-code-review` |
+| Finalizando branch, prestes a abrir PR | `superpowers:finishing-a-development-branch` |
+| Criando nova skill | `superpowers:writing-skills` |
+| 2+ tarefas independentes em paralelo | `superpowers:dispatching-parallel-agents` |
+
+**Nenhuma dessas é opcional.** Pular é violar o processo do projeto.
+
 ---
 
 ## O que é o OpenRig
