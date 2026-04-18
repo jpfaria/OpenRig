@@ -28,7 +28,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Checkout issue branch if exists
+      - name: Checkout or create issue branch
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
         run: |
@@ -38,7 +38,9 @@ jobs:
             echo "Branch $BRANCH exists — checking out"
             git checkout -B "$BRANCH" "origin/$BRANCH"
           else
-            echo "Branch $BRANCH does not exist yet — will be created by Claude"
+            echo "Branch $BRANCH does not exist — creating from develop"
+            git checkout origin/develop -b "$BRANCH"
+            git push origin "$BRANCH"
           fi
 
       - name: Run Claude Code
