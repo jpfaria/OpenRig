@@ -25,6 +25,8 @@ Os arquivos abaixo contêm o conteúdo **completo e original** de cada capítulo
 | [chapter_07.md](chapter_07.md) | Type State Pattern — PhantomData, builder, state machine |
 | [chapter_08.md](chapter_08.md) | Comments vs Documentation — `//`, `///`, `//!`, TODOs, rustdoc lints |
 | [chapter_09.md](chapter_09.md) | Pointers — &T, Box, Rc, Arc, Mutex, RwLock, OnceLock, LazyLock |
+| [api-guidelines.md](api-guidelines.md) | Rust API Guidelines — naming, interop, type safety, future proofing, checklist completo |
+| [rust-analyzer-style.md](rust-analyzer-style.md) | Rust Analyzer Style Guide — imports, control flow, naming, perf, getters, constructors |
 
 **Quando precisar de detalhes completos com todos os exemplos, leia o chapter correspondente.**
 
