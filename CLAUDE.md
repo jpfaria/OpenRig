@@ -6,6 +6,17 @@
 
 Isso se aplica a todos os agentes — locais e GitHub Actions. Sem exceção.
 
+## OBRIGATORIO — Skills do Projeto
+
+Sempre que escrever, editar ou revisar código Rust, invocar obrigatoriamente:
+
+- **`openrig-code-quality`** — regras de qualidade específicas do OpenRig (file naming, zero warnings, zero acoplamento)
+- **`rust-best-practices`** — boas práticas gerais de Rust (Apollo handbook + Rust API Guidelines + Rust Analyzer style guide)
+
+Sempre que escrever, editar ou revisar código Slint (`.slint`), invocar:
+
+- **`slint-best-practices`** — boas práticas de UI em Slint
+
 ---
 
 ## O que é o OpenRig
