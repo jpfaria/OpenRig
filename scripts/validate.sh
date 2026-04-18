@@ -57,6 +57,7 @@ crates/adapter-gui/ui/app-window.slint
 crates/adapter-gui/ui/pages/block_panel_editor.slint
 crates/adapter-gui/ui/pages/compact_chain_view.slint
 crates/adapter-gui/ui/touch_main.slint
+crates/adapter-gui/ui/modules/surrealism-ui/use/schema.slint
 "
 
 is_debt() {
