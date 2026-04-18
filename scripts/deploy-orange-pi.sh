@@ -45,7 +45,7 @@ SCP="sshpass -e scp -o StrictHostKeyChecking=no"
 DEB="$PROJECT_ROOT/output/deb/openrig_${VERSION}_arm64.deb"
 
 echo "==> Building .deb arm64 (version $VERSION)..."
-"$PROJECT_ROOT/scripts/build-deb-local.sh" --version "$VERSION"
+"$PROJECT_ROOT/scripts/build-deb-local.sh" --arch arm64 --version "$VERSION"
 
 echo "==> Copying $DEB to $HOST:/tmp/..."
 $SCP "$DEB" "$HOST:/tmp/"

@@ -184,4 +184,4 @@ fi
 
 echo ""
 echo "Done. Packages in $OUTPUT_DIR:"
-ls -lh "$OUTPUT_DIR"/openrig* "$OUTPUT_DIR"/OpenRig* 2>/dev/null | awk '{print "  " $NF, $5}'
+ls -lh "$OUTPUT_DIR"/openrig* "$OUTPUT_DIR"/OpenRig* 2>/dev/null | awk '{print "  " $NF, $5}' || true
