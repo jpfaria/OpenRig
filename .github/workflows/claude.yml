@@ -47,6 +47,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          allowed_tools: "Bash(cargo fmt --all),Bash(cargo clippy*),Bash(cargo build*),Bash(cargo check*),Bash(cargo test*),Bash(rustfmt*)"
           base_branch: "develop"
           branch_prefix: "feature/"
           branch_name_template: "{{prefix}}issue-{{entityNumber}}"
