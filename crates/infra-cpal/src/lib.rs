@@ -416,6 +416,18 @@ fn read_card_channels(card: &str) -> (u32, u32) {
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn configure_alsa_mixer(card: &UsbAudioCard) {
     log::info!("configure_alsa_mixer: card {} ({})", card.card_num, card.display_name);
+
+    // Focusrite Scarlett (and likely other USB audio interfaces with vendor firmware)
+    // send a USB notification (0x20000000) in response to ANY amixer write — even
+    // simple volume controls. The RK3588 xHCI controller mishandles this notification
+    // and resets the USB device. Skip amixer entirely for these devices; their settings
+    // persist in NVRAM and can be configured once via the vendor app.
+    let name_lower = card.display_name.to_lowercase();
+    if name_lower.contains("scarlett") || name_lower.contains("focusrite") {
+        log::info!("configure_alsa_mixer: skipping amixer for Focusrite Scarlett (NVRAM settings)");
+        return;
+    }
+
     let c = &card.card_num;
 
     // Set all volume controls to 100%. Only touches controls named "volume" —
