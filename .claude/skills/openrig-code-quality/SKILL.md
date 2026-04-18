@@ -32,6 +32,46 @@ After loading `superpowers:using-superpowers`, invoke the situation-specific ski
 
 ---
 
+## MANDATORY — Run Static Validation on Every File You Touch
+
+After creating or modifying **any** `.rs` or `.slint` file, run:
+
+```bash
+./scripts/validate.sh path/to/file1.rs path/to/file2.slint ...
+```
+
+Or let it auto-detect changed files from git diff:
+
+```bash
+./scripts/validate.sh
+```
+
+**What it checks:**
+| Check | Rust | Slint |
+|---|---|---|
+| File size | ≤ 600 lines | ≤ 500 lines |
+| Formatting | `cargo fmt --check` | — |
+| Linting | `cargo clippy -D warnings` | — |
+| Compilation | — | `cargo check -p adapter-gui` |
+
+**Rules:**
+- `FAIL` (red) = hard violation — fix before committing, no exceptions
+- `WARN` (yellow) = known debt file — do NOT add more lines to it
+- If a file shows `WARN` and you need to add logic: refactor it into smaller modules first
+
+**Anti-pattern:**
+```
+❌ Modify crates/adapter-gui/src/lib.rs (9441 lines) and add 50 more lines
+   // WRONG: known debt file. Create a new module, move logic there first.
+
+✅ Extract the relevant logic to crates/adapter-gui/src/project.rs (new file)
+   then add your feature there
+```
+
+**Zero tolerance for FAIL:** A task is not done until `validate.sh` exits 0.
+
+---
+
 ## STOP — Check Before You Code
 
 ### 1. Data Ownership

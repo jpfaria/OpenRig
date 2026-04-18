@@ -1,7 +1,35 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 66" fill="none">
-  <rect x="1.5" y="1.5" width="97" height="63" rx="9" stroke="currentColor" stroke-width="3"/>
-  <text x="50" y="43" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="36" font-weight="bold" fill="currentColor">VST</text>
-  <rect x="37" y="49" width="26" height="9" rx="3" fill="currentColor"/>
-  <rect x="31" y="46" width="6" height="7" rx="1.5" fill="currentColor"/>
-  <rect x="63" y="46" width="6" height="7" rx="1.5" fill="currentColor"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 158" fill="currentColor">
+  <!-- Rounded rectangle border -->
+  <rect x="5" y="5" width="270" height="110" rx="14" fill="none" stroke="currentColor" stroke-width="8"/>
+
+  <!-- V: left arm -->
+  <polygon points="17,15 33,15 61,107 47,107"/>
+  <!-- V: right arm -->
+  <polygon points="85,15 101,15 73,107 59,107"/>
+  <!-- V: top serifs -->
+  <rect x="12" y="12" width="26" height="8" rx="1"/>
+  <rect x="81" y="12" width="26" height="8" rx="1"/>
+
+  <!-- S: bold bezier curve -->
+  <path d="M162,20 C182,20 184,50 154,64 C124,78 108,100 132,110"
+        fill="none" stroke="currentColor" stroke-width="18" stroke-linecap="butt"/>
+  <!-- S: top serif -->
+  <rect x="108" y="11" width="60" height="10" rx="1"/>
+  <!-- S: bottom serif -->
+  <rect x="106" y="110" width="58" height="10" rx="1"/>
+
+  <!-- T: top bar -->
+  <rect x="180" y="12" width="90" height="14" rx="2"/>
+  <!-- T: vertical stem -->
+  <rect x="214" y="26" width="22" height="82" rx="2"/>
+  <!-- T: bottom serif -->
+  <rect x="204" y="103" width="42" height="11" rx="2"/>
+
+  <!-- Cable: from S bottom down through border -->
+  <line x1="140" y1="120" x2="140" y2="133" stroke="currentColor" stroke-width="6" stroke-linecap="round"/>
+  <!-- Plug body -->
+  <rect x="126" y="133" width="28" height="14" rx="4"/>
+  <!-- Plug prongs -->
+  <rect x="131" y="147" width="6" height="10" rx="2"/>
+  <rect x="141" y="147" width="6" height="10" rx="2"/>
 </svg>
