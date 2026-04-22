@@ -59,19 +59,10 @@ fn create_host() -> cpal::Host {
 /// Returns None if no USB audio card is found or the file is unreadable.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn jack_hardware_name() -> Option<String> {
-    let content = std::fs::read_to_string("/proc/asound/cards").ok()?;
-    for line in content.lines() {
-        // Lines look like: " 1 [Gen ]: USB-Audio - USB Audio Interface"
-        if line.contains("USB-Audio") || line.contains("USB Audio") {
-            if let Some(pos) = line.find(" - ") {
-                let name = line[pos + 3..].trim().to_string();
-                if !name.is_empty() {
-                    return Some(name);
-                }
-            }
-        }
-    }
-    None
+    // Uses the serialized /proc cache. Direct /proc/asound/cards reads from
+    // multiple callsites can race and freeze the Scarlett 4th Gen on RK3588.
+    proc_cache_snapshot()
+        .and_then(|s| s.cards.first().map(|c| c.display_name.clone()))
 }
 
 /// Returns true when at least one JACK server is running.
