@@ -5,6 +5,7 @@ use cpal::{
     SupportedStreamConfigRange,
 };
 use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 // ── Cached host ─────────────────────────────────────────────────────────────
 // select_host() was called 8+ times per session (each creating a new CPAL
@@ -120,7 +121,17 @@ pub fn log_audio_status(context: &str) {
     }
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn read_proc_asound_cards_for_status() -> Vec<String> {
+    // Uses the serialized /proc cache so log_audio_status never issues an
+    // uncoordinated /proc/asound/cards read that could race with another
+    // reader and trigger the Scarlett 0x20000000 freeze.
+    proc_cache_snapshot()
+        .map(|s| s.raw_card_lines)
+        .unwrap_or_default()
+}
+
+#[cfg(all(target_os = "linux", not(feature = "jack")))]
 fn read_proc_asound_cards_for_status() -> Vec<String> {
     std::fs::read_to_string("/proc/asound/cards")
         .ok()
@@ -128,7 +139,6 @@ fn read_proc_asound_cards_for_status() -> Vec<String> {
             content
                 .lines()
                 .filter_map(|line| {
-                    // Only lines starting with a card index (e.g. " 0 [Headphones     ]: ...").
                     let trimmed = line.trim_start();
                     let first = trimmed.chars().next()?;
                     if first.is_ascii_digit() {
@@ -299,29 +309,68 @@ fn server_name_from_bracket(bracket: &str) -> String {
         .to_lowercase()
 }
 
-/// Detect all USB audio ALSA cards by scanning /proc/asound/cards.
-/// Returns one UsbAudioCard per USB audio interface found.
+// ── Serialized /proc/asound cache ───────────────────────────────────────────
+// On RK3588 + Scarlett 4th Gen, concurrent reads of /proc/asound/{cards,card*/
+// stream0} trigger scarlett2_notify 0x20000000 which freezes the device. All
+// reads must be serialized through a single mutex; requests that arrive while
+// another refresh is in progress return cached data instead of queueing.
+
 #[cfg(all(target_os = "linux", feature = "jack"))]
-fn detect_all_usb_audio_cards() -> Vec<UsbAudioCard> {
-    let content = match std::fs::read_to_string("/proc/asound/cards") {
-        Ok(c) => c,
-        Err(_) => return Vec::new(),
-    };
+const PROC_CACHE_TTL: Duration = Duration::from_millis(2000);
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
+#[derive(Clone)]
+struct ProcAsoundSnapshot {
+    cards: Vec<UsbAudioCard>,
+    /// card_num → (capture_channels, playback_channels)
+    channels: std::collections::HashMap<String, (u32, u32)>,
+    /// Raw trimmed lines from /proc/asound/cards starting with a digit (for log_audio_status).
+    raw_card_lines: Vec<String>,
+    fetched_at: Instant,
+}
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
+static PROC_CACHE: Mutex<Option<ProcAsoundSnapshot>> = Mutex::new(None);
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
+static PROC_REFRESH_LOCK: Mutex<()> = Mutex::new(());
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn invalidate_proc_cache() {
+    *PROC_CACHE.lock().unwrap() = None;
+}
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn proc_cache_is_fresh() -> bool {
+    PROC_CACHE
+        .lock()
+        .unwrap()
+        .as_ref()
+        .map(|s| s.fetched_at.elapsed() < PROC_CACHE_TTL)
+        .unwrap_or(false)
+}
+
+/// Read and parse /proc/asound/cards + card{N}/stream0 for each USB card.
+/// Direct filesystem I/O — only called under PROC_REFRESH_LOCK.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn read_proc_asound_snapshot() -> ProcAsoundSnapshot {
+    let content = std::fs::read_to_string("/proc/asound/cards").unwrap_or_default();
+    let mut raw_card_lines = Vec::new();
     let mut cards = Vec::new();
     for line in content.lines() {
         let trimmed = line.trim_start();
+        let Some(first) = trimmed.chars().next() else { continue };
+        if !first.is_ascii_digit() {
+            continue;
+        }
+        raw_card_lines.push(trimmed.to_string());
         if !(trimmed.contains("USB-Audio") || trimmed.contains("USB Audio")) {
             continue;
         }
-        if !trimmed.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) {
-            continue;
-        }
-        // Line format: "1 [Gen            ]: USB-Audio - USB Audio Interface"
         let card_num = match trimmed.split_whitespace().next() {
             Some(n) => n.to_string(),
             None => continue,
         };
-        // Extract bracket name: "[Gen            ]"
         let bracket = match (trimmed.find('['), trimmed.find(']')) {
             (Some(a), Some(b)) if b > a => trimmed[a..=b].to_string(),
             _ => format!("[card{}]", card_num),
@@ -333,13 +382,47 @@ fn detect_all_usb_audio_cards() -> Vec<UsbAudioCard> {
             format!("USB Audio Card {}", card_num)
         };
         let device_id = format!("jack:{}", server_name);
-        log::debug!(
-            "detect_all_usb_audio_cards: card={} server={} name='{}' device_id={}",
-            card_num, server_name, display_name, device_id
-        );
         cards.push(UsbAudioCard { card_num, server_name, display_name, device_id });
     }
-    cards
+    let mut channels = std::collections::HashMap::new();
+    for c in &cards {
+        channels.insert(c.card_num.clone(), read_card_channels_raw(&c.card_num));
+    }
+    ProcAsoundSnapshot {
+        cards,
+        channels,
+        raw_card_lines,
+        fetched_at: Instant::now(),
+    }
+}
+
+/// Non-blocking refresh: if another refresh is already running, skip. The
+/// caller who was blocked will simply read the existing cache afterwards.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn try_refresh_proc_cache() {
+    let Ok(_guard) = PROC_REFRESH_LOCK.try_lock() else {
+        return;
+    };
+    if proc_cache_is_fresh() {
+        return;
+    }
+    let snapshot = read_proc_asound_snapshot();
+    *PROC_CACHE.lock().unwrap() = Some(snapshot);
+}
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn proc_cache_snapshot() -> Option<ProcAsoundSnapshot> {
+    if !proc_cache_is_fresh() {
+        try_refresh_proc_cache();
+    }
+    PROC_CACHE.lock().unwrap().clone()
+}
+
+/// Detect all USB audio ALSA cards. Serialized + cached: concurrent callers
+/// receive a cached snapshot instead of hammering /proc/asound.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn detect_all_usb_audio_cards() -> Vec<UsbAudioCard> {
+    proc_cache_snapshot().map(|s| s.cards).unwrap_or_default()
 }
 
 /// Check if a specific named JACK server is running by looking for its socket.
@@ -358,16 +441,24 @@ fn jack_server_is_running_for(server_name: &str) -> bool {
         .unwrap_or(false)
 }
 
-/// Read the actual capture and playback channel counts for a given ALSA card
-/// by parsing /proc/asound/card{N}/stream0. Returns (capture_channels, playback_channels).
-/// Falls back to (2, 2) if the file is absent or unparseable.
+/// Cached lookup: capture and playback channel counts for a USB audio card.
+/// Uses the serialized /proc/asound cache — safe to call from any callsite.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn read_card_channels(card: &str) -> (u32, u32) {
+    proc_cache_snapshot()
+        .and_then(|s| s.channels.get(card).copied())
+        .unwrap_or((2, 2))
+}
+
+/// Direct /proc/asound/card{N}/stream0 read — only called from inside
+/// `read_proc_asound_snapshot` under PROC_REFRESH_LOCK.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn read_card_channels_raw(card: &str) -> (u32, u32) {
     let path = format!("/proc/asound/card{}/stream0", card);
     let content = match std::fs::read_to_string(&path) {
         Ok(c) => c,
         Err(_) => {
-            log::warn!("read_card_channels: cannot read {}, using defaults 2/2", path);
+            log::warn!("read_card_channels_raw: cannot read {}, using defaults 2/2", path);
             return (2, 2);
         }
     };
@@ -404,7 +495,7 @@ fn read_card_channels(card: &str) -> (u32, u32) {
     let capture = capture_ch.unwrap_or(2);
     let playback = playback_ch.unwrap_or(2);
     log::info!(
-        "read_card_channels: card {} → capture={} playback={}",
+        "read_card_channels_raw: card {} → capture={} playback={}",
         card, capture, playback
     );
     (capture, playback)
@@ -1437,6 +1528,8 @@ static OUTPUT_DEVICE_CACHE: Mutex<Option<Vec<AudioDeviceDescriptor>>> = Mutex::n
 pub fn invalidate_device_cache() {
     *INPUT_DEVICE_CACHE.lock().unwrap() = None;
     *OUTPUT_DEVICE_CACHE.lock().unwrap() = None;
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    invalidate_proc_cache();
     log::info!("device descriptor cache invalidated");
 }
 
