@@ -892,8 +892,18 @@ fn build_input_processing_state(
     block_indices: Option<&[usize]>,
     output_route_indices: Vec<usize>,
 ) -> Result<InputProcessingState> {
-    // Use both input and output channel info to determine processing layout
-    // (matches legacy behavior: mono input + stereo output = stereo processing)
+    // The processing bus layout is chosen by the combination of input and
+    // output channel count, matching `project::chain::processing_layout`:
+    //   - mono input + mono output  → Mono bus (cheaper: mono blocks skip
+    //     the mono→stereo→mono round-trip)
+    //   - mono input + stereo output → Stereo bus (upmix once, then stereo
+    //     downstream)
+    //   - stereo input               → Stereo bus
+    //   - dual mono                  → Stereo bus at the buffer level,
+    //     with L/R processed independently by `AudioProcessor::DualMono`
+    // DualMono is flattened to Stereo at the channel-layout level because
+    // the runtime tracks the independent L/R pipelines inside the processor
+    // itself; the buffer between blocks only needs two slots.
     let proc_layout = project::chain::processing_layout(
         &input.channels,
         output_channels,
@@ -903,14 +913,11 @@ fn build_input_processing_state(
         ChainInputMode::Mono => AudioChannelLayout::Mono,
         ChainInputMode::Stereo | ChainInputMode::DualMono => AudioChannelLayout::Stereo,
     };
-    // On aarch64 (Orange Pi), use mono processing when input is mono to halve
-    // NAM instances (DualMono→Mono). On x86 (Mac/Windows) keep stereo always
-    // to avoid any risk of changing the sound character.
-    #[cfg(target_arch = "aarch64")]
-    let processing_layout_channel = input_read_layout;
-    #[cfg(not(target_arch = "aarch64"))]
-    let processing_layout_channel = AudioChannelLayout::Stereo;
-    let _ = proc_layout;
+    let processing_layout_channel = match proc_layout {
+        project::chain::ProcessingLayout::Mono => AudioChannelLayout::Mono,
+        project::chain::ProcessingLayout::Stereo
+        | project::chain::ProcessingLayout::DualMono => AudioChannelLayout::Stereo,
+    };
     log::info!(
         "chain '{}' input entry processing layout: input_read={}, processing={:?} (channels={:?} mode={:?})",
         chain.id.0,
