@@ -2384,6 +2384,18 @@ impl ProjectRuntimeController {
             .map(|active| active.stream_signature != resolved.stream_signature)
             .unwrap_or(true);
 
+        // Tear down the previous ActiveChainRuntime BEFORE mutating shared
+        // runtime state or building the replacement. Otherwise HashMap::insert
+        // drops the old runtime only after the new one is fully constructed,
+        // which on JACK leaves the old client alive while the new one tries
+        // to register with the same name — the new client gets a suffixed
+        // name, connect_ports_by_name binds to the old client's ports, and
+        // when the old runtime is finally dropped the new client is orphaned.
+        // See issue #294.
+        if needs_stream_rebuild {
+            self.teardown_active_chain_for_rebuild(&chain.id);
+        }
+
         let elastic_targets = compute_elastic_targets_for_chain(chain, &resolved);
         let runtime = self.runtime_graph.upsert_chain(
             chain,
@@ -2398,6 +2410,24 @@ impl ProjectRuntimeController {
         }
 
         Ok(())
+    }
+
+    /// Drop the ActiveChainRuntime for `chain_id` so its JACK client / DSP
+    /// worker / CPAL streams release their resources before a replacement is
+    /// built. Drains the audio callback first (same dance as `remove_chain`)
+    /// so NAM C++ destructors don't fire mid-callback.
+    ///
+    /// No-op when no runtime is active for that chain. Leaves
+    /// `runtime_graph` untouched — the caller is about to re-upsert it.
+    fn teardown_active_chain_for_rebuild(&mut self, chain_id: &ChainId) {
+        if !self.active_chains.contains_key(chain_id) {
+            return;
+        }
+        if let Some(runtime) = self.runtime_graph.runtime_for_chain(chain_id) {
+            runtime.set_draining();
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        self.active_chains.remove(chain_id);
     }
 }
 
@@ -4182,5 +4212,65 @@ mod tests {
             active_chains: std::collections::HashMap::new(),
         };
         assert!(!controller.is_running());
+    }
+
+    // ── Regression tests for issue #294: stale JACK client on chain reconfigure ──
+    //
+    // Reconfiguring input channels on an active chain (e.g. unchecking a channel
+    // in a stereo input) used to leave the previous JACK client alive while the
+    // replacement client was being built, because HashMap::insert only dropped
+    // the old ActiveChainRuntime AFTER constructing the new one. On JACK, the
+    // new client would get a suffixed name while connect_ports_by_name still
+    // used the literal (unsuffixed) name — so the connections bound to the
+    // OLD client's ports, which then vanished when the old client was finally
+    // dropped, leaving the new client orphaned and audio silent.
+    //
+    // The fix tears down the existing ActiveChainRuntime BEFORE building the
+    // replacement (teardown_active_chain_for_rebuild), mirroring the pattern
+    // in remove_chain. These tests cover the teardown helper directly; the
+    // end-to-end "audio still flows after channel toggle" behavior is
+    // verifiable only on real JACK hardware and is exercised manually on the
+    // Orange Pi during regression testing.
+
+    #[test]
+    fn teardown_active_chain_for_rebuild_drops_entry_when_present() {
+        let chain_id = super::ChainId("chain:0".into());
+        let mut controller = ProjectRuntimeController {
+            runtime_graph: super::RuntimeGraph {
+                chains: std::collections::HashMap::new(),
+            },
+            active_chains: std::collections::HashMap::new(),
+        };
+        controller.active_chains.insert(chain_id.clone(), super::ActiveChainRuntime {
+            stream_signature: super::ChainStreamSignature { inputs: vec![], outputs: vec![] },
+            _input_streams: vec![],
+            _output_streams: vec![],
+            #[cfg(all(target_os = "linux", feature = "jack"))]
+            _jack_client: None,
+            #[cfg(all(target_os = "linux", feature = "jack"))]
+            _dsp_worker: None,
+        });
+        assert!(controller.active_chains.contains_key(&chain_id));
+
+        controller.teardown_active_chain_for_rebuild(&chain_id);
+
+        assert!(!controller.active_chains.contains_key(&chain_id),
+            "active_chains entry must be removed so the old JACK client/DSP worker are dropped \
+             before a replacement is built");
+    }
+
+    #[test]
+    fn teardown_active_chain_for_rebuild_is_noop_when_chain_absent() {
+        let chain_id = super::ChainId("chain:missing".into());
+        let mut controller = ProjectRuntimeController {
+            runtime_graph: super::RuntimeGraph {
+                chains: std::collections::HashMap::new(),
+            },
+            active_chains: std::collections::HashMap::new(),
+        };
+
+        controller.teardown_active_chain_for_rebuild(&chain_id);
+
+        assert!(controller.active_chains.is_empty());
     }
 }
