@@ -624,12 +624,6 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
 /// Returns true if any server was (re)started.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn ensure_jack_running(project: &Project) -> Result<bool> {
-    let (desired_sr, desired_buf) = project
-        .device_settings
-        .first()
-        .map(|s| (s.sample_rate, s.buffer_size_frames))
-        .unwrap_or((48000, 64));
-
     let cards = detect_all_usb_audio_cards();
     if cards.is_empty() {
         bail!("no USB audio interface found — connect a device before starting audio");
@@ -637,6 +631,16 @@ fn ensure_jack_running(project: &Project) -> Result<bool> {
 
     let mut any_started = false;
     for card in &cards {
+        // Sample rate and buffer size are per-device, not per-project. Look up
+        // the settings for this specific card by device_id; fall back to
+        // sensible defaults if the user hasn't configured this device yet.
+        let (desired_sr, desired_buf) = project
+            .device_settings
+            .iter()
+            .find(|s| s.device_id.0 == card.device_id)
+            .map(|s| (s.sample_rate, s.buffer_size_frames))
+            .unwrap_or((48000, 64));
+
         if jack_server_is_running_for(&card.server_name) {
             match jack_meta_for(&card.server_name) {
                 Ok(meta) if meta.sample_rate == desired_sr && meta.buffer_size == desired_buf => {
@@ -1602,8 +1606,7 @@ pub fn jack_is_running() -> bool {
 /// Non-blocking — returns immediately. Poll the receiver from a UI timer.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub fn start_jack_in_background(
-    sample_rate: u32,
-    buffer_size: u32,
+    device_settings: Vec<DeviceSettings>,
 ) -> std::sync::mpsc::Receiver<anyhow::Result<()>> {
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
@@ -1622,6 +1625,15 @@ pub fn start_jack_in_background(
                     );
                     continue;
                 }
+                // Sample rate and buffer size are per-device, not per-project.
+                // Look up the settings for this specific card by device_id; fall
+                // back to sensible defaults if the user hasn't configured this
+                // device yet.
+                let (sample_rate, buffer_size) = device_settings
+                    .iter()
+                    .find(|s| s.device_id.0 == card.device_id)
+                    .map(|s| (s.sample_rate, s.buffer_size_frames))
+                    .unwrap_or((48000, 64));
                 // Retry up to 3 times. The first attempt sometimes fails with
                 // "Broken pipe" when the ALSA device needs a moment to settle
                 // after a previous jackd exit or USB reconnect.

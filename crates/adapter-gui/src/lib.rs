@@ -2545,19 +2545,17 @@ pub fn run_desktop_app(
                     // is already running or needs to be started.
                     #[cfg(target_os = "linux")]
                     if will_enable {
-                        let (sample_rate, buffer_size) = session
-                            .project
-                            .device_settings
-                            .first()
-                            .map(|ds| (ds.sample_rate, ds.buffer_size_frames))
-                            .unwrap_or((48000, 64));
+                        // Pass the full per-device settings list; the background
+                        // thread will look up each card's configuration by
+                        // device_id when launching jackd for it.
+                        let device_settings = session.project.device_settings.clone();
                         drop(session_borrow);
 
                         jack_starting.set(true);
                         set_status_info(&main_win, &toast_timer, "Starting audio...");
 
                         let rx = Rc::new(std::cell::RefCell::new(
-                            infra_cpal::start_jack_in_background(sample_rate, buffer_size),
+                            infra_cpal::start_jack_in_background(device_settings),
                         ));
                         let project_session_t = project_session.clone();
                         let project_runtime_t = project_runtime.clone();
