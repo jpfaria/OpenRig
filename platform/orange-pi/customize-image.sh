@@ -181,18 +181,6 @@ echo ">>> [OpenRig] Setting JACK RT capabilities and audio group membership..."
 setcap cap_sys_nice,cap_ipc_lock=ep /usr/bin/jackd || true
 usermod -aG audio root
 
-# ── 8c. Scarlett USB quirks (RK3588 xHCI freeze prevention) ──────────────────
-# The Scarlett 2i2 4th Gen (1235:8219) sends vendor-specific interrupt transfers
-# (0x20000000) that trigger a bug in the RK3588 xHCI host controller, causing
-# a USB reset and audio freeze. Disabling autosuspend keeps the device always
-# active and prevents power-state transitions that exacerbate this behavior.
-# Note: usbcore is built-in on this kernel — modprobe.d quirks do not apply.
-echo ">>> [OpenRig] Configuring Scarlett USB power rules..."
-cat > /etc/udev/rules.d/99-scarlett-power.rules << 'EOF'
-# Scarlett 2i2 4th Gen - disable autosuspend to prevent xHCI freeze on RK3588
-ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="1235", ATTR{idProduct}=="8219", ATTR{power/autosuspend}="-1"
-EOF
-
 # ── 9. Enable systemd services ───────────────────────────────────────────────
 echo ">>> [OpenRig] Enabling services, masking jackd..."
 systemctl disable jackd.service  2>/dev/null || true
@@ -200,7 +188,6 @@ systemctl mask    jackd.service  2>/dev/null || true
 systemctl enable weston.service
 systemctl enable openrig.service
 systemctl enable openrig-irq-affinity.service
-systemctl enable openrig-audio-watchdog.service
 
 # ── 9a. Plymouth quit failsafe ────────────────────────────────────────────────
 echo ">>> [OpenRig] Capping plymouth-quit-wait timeout at 10s..."
@@ -212,8 +199,6 @@ EOF
 
 # ── 10. Set permissions on install script ────────────────────────────────────
 chmod 755 /usr/local/bin/openrig-install-to-emmc
-chmod 755 /usr/local/bin/openrig-reset-audio
-chmod 755 /usr/local/bin/openrig-audio-watchdog
 
 # ── 10a. USB-C TCPM workaround (RK3588 USB-C port stability) ─────────────────
 echo ">>> [OpenRig] Installing USB-C host-mode DTB overlay (Scarlett stability)..."

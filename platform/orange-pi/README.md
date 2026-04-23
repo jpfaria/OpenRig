@@ -112,8 +112,6 @@ Conecte a interface USB antes de ligar. O `jackd.service` aguarda até 10s por u
 
 Trade-off: nenhum recurso Type-C (DisplayPort alt-mode, USB-PD, role swap) funciona na porta USB-C, e o board não pode ser plugado numa máquina host pela USB-C. Como o appliance usa HDMI para display e só hospeda periféricos USB downstream, esses recursos não são necessários. Fonte: `orange-pi/dtbo/openrig-usbc-host.dts` (ver comentários no topo do arquivo para o root cause completo). Reversível removendo `openrig-usbc-host` da linha `user_overlays=` em `/boot/armbianEnv.txt` e reiniciando.
 
-**Watchdog de áudio (`openrig-audio-watchdog.service`):** rede de segurança reativa. Mesmo com o overlay aplicado, o watchdog continua acompanhando o journal do `jackd` em busca de sinais de zombie (`capture device disconnected`, `ProcessAsync: read error`) e, se detectar, chama `openrig-reset-audio` — que faz unbind/rebind do driver `xhci-hcd` que hospeda a interface de áudio. Cooldown de 60 s entre resets em `/run/openrig-audio-watchdog.cooldown` para evitar loop.
-
 ---
 
 ## 4. Instalar no eMMC (opcional)
@@ -166,11 +164,8 @@ orange-pi/
       systemd/system/jackd.service       ← JACK2 48 kHz/256/3 + IRQ affinity (xhci → CPU 4)
       systemd/system/weston.service      ← Wayland compositor (kiosk)
       systemd/system/openrig.service     ← auto-start do OpenRig (depende de jackd + weston)
-      systemd/system/openrig-audio-watchdog.service  ← jackd zombie auto-recovery
     usr/
       local/bin/openrig-install-to-emmc  ← instala SD → eMMC
-      local/bin/openrig-reset-audio      ← unbind/rebind xhci-hcd (recuperação manual)
-      local/bin/openrig-audio-watchdog   ← tail do journal jackd, dispara reset
       share/plymouth/themes/openrig/     ← boot splash (logo OpenRig)
 
 scripts/
