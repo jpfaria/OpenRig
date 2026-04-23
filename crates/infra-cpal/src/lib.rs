@@ -531,11 +531,6 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
         }
     }
 
-    // NOTE: amixer calls are intentionally omitted here.
-    // Some USB audio drivers manage their own mixer via USB vendor commands.
-    // Opening the ALSA control interface with amixer can trigger firmware
-    // notifications that lead to USB disconnect/reconnect cycles.
-
     let stderr_log = format!("/tmp/jackd-{}-stderr.log", card.server_name);
     let stderr_file = std::fs::File::create(&stderr_log)
         .map(std::process::Stdio::from)

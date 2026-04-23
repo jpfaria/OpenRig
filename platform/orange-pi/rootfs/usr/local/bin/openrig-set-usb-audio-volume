@@ -1,0 +1,36 @@
+#!/bin/sh
+# Set every "Playback Volume" control on an ALSA card to 100% (unity gain).
+#
+# Fired by a udev rule whenever a new /dev/snd/controlCN node appears, so any
+# USB audio interface that boots with an attenuated default PCM Playback
+# Volume (most class-compliant devices do — often 60/100) plays at the level
+# the user expects without having to run alsamixer.
+#
+# Generic: no vendor/model matching. Acts on any mixer control whose name
+# contains "playback volume".
+#
+# Usage: openrig-set-usb-audio-volume controlCN
+
+set -u
+
+DEVNAME="${1:-}"
+[ -z "$DEVNAME" ] && exit 0
+
+CARD="${DEVNAME#controlC}"
+case "$CARD" in
+    ''|*[!0-9]*)
+        exit 0
+        ;;
+esac
+
+command -v amixer >/dev/null 2>&1 || exit 0
+
+amixer -c "$CARD" controls 2>/dev/null |
+    grep -i "playback volume" |
+    sed 's/.*numid=\([0-9]*\).*/\1/' |
+    while read -r numid; do
+        [ -n "$numid" ] || continue
+        amixer -c "$CARD" cset "numid=$numid" 100% >/dev/null 2>&1 || true
+    done
+
+exit 0
