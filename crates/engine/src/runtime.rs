@@ -290,8 +290,42 @@ struct ChainProcessingState {
     input_states: Vec<InputProcessingState>,
     /// Maps CPAL input_index → Vec of input_states indices to process.
     input_to_segments: Vec<Vec<usize>>,
-    #[allow(dead_code)]
-    mixed_buffer: Vec<AudioFrame>,
+    /// Pre-allocated scratch buffers used by `process_input_f32`, indexed by
+    /// CPAL input_index. Reused across callbacks to avoid per-callback
+    /// allocations in the RT hot path.
+    input_scratches: Vec<InputCallbackScratch>,
+}
+
+/// Scratch buffers reused across audio callbacks for a single input_index.
+/// Each Vec/HashMap keeps its allocated capacity between callbacks; clearing
+/// leaves the backing storage in place.
+#[derive(Default)]
+struct InputCallbackScratch {
+    /// Mixed audio frames keyed by output route index, accumulated across
+    /// segments for the current callback.
+    mixed_per_route: HashMap<usize, Vec<AudioFrame>>,
+    /// Output route Arcs collected under the output lock for this callback.
+    route_arcs: Vec<(usize, Arc<Mutex<OutputRoutingState>>)>,
+    /// Buffer written by `process_single_segment` with the processed frames
+    /// of the current segment before they are mixed into `mixed_per_route`.
+    segment_processed: Vec<AudioFrame>,
+    /// Output route indices for the current segment, refreshed per segment.
+    segment_route_indices: Vec<usize>,
+    /// Segment indices belonging to the current input_index, refreshed per
+    /// callback from `input_to_segments`.
+    segment_indices: Vec<usize>,
+}
+
+impl InputCallbackScratch {
+    fn reset_for_callback(&mut self) {
+        for buf in self.mixed_per_route.values_mut() {
+            buf.clear();
+        }
+        self.route_arcs.clear();
+        self.segment_processed.clear();
+        self.segment_route_indices.clear();
+        self.segment_indices.clear();
+    }
 }
 
 struct OutputRoutingState {
@@ -458,11 +492,15 @@ pub fn build_chain_runtime_state(
         }
     }
 
+    let input_scratches = (0..input_to_segments.len())
+        .map(|_| InputCallbackScratch::default())
+        .collect();
+
     Ok(ChainRuntimeState {
         processing: Mutex::new(ChainProcessingState {
             input_states,
             input_to_segments,
-            mixed_buffer: Vec::with_capacity(1024),
+            input_scratches,
         }),
         output: Mutex::new(ChainOutputState { output_routes }),
         stream_handles: Mutex::new(stream_handles_map),
@@ -955,6 +993,12 @@ pub fn update_chain_runtime_state(
             }
         }
         processing.input_to_segments = new_mapping;
+        // Resize scratches to match the new input count, preserving existing
+        // allocated capacity for slots that still exist.
+        let new_len = processing.input_to_segments.len();
+        processing
+            .input_scratches
+            .resize_with(new_len, InputCallbackScratch::default);
     }
 
     {
@@ -1665,69 +1709,62 @@ pub fn process_input_f32(
     ensure_flush_to_zero();
     let num_frames = data.len() / input_total_channels;
 
-    // Get which segments this CPAL input feeds
-    let segment_indices: Vec<usize> = {
-        let processing = match runtime.processing.try_lock() {
-            Ok(guard) => guard,
-            Err(_) => return,
-        };
-        processing.input_to_segments
-            .get(input_index)
-            .cloned()
-            .unwrap_or_else(|| {
-                if input_index < processing.input_states.len() { vec![input_index] } else { vec![] }
-            })
+    let mut processing_guard = match runtime.processing.try_lock() {
+        Ok(guard) => guard,
+        Err(_) => return,
     };
+    let ChainProcessingState {
+        input_states,
+        input_to_segments,
+        input_scratches,
+    } = &mut *processing_guard;
 
-    // Process each segment, collect results keyed by output route
-    let mut mixed_per_route: HashMap<usize, Vec<AudioFrame>> = HashMap::new();
-    for &seg_idx in &segment_indices {
-        let result = {
-            let mut processing = match runtime.processing.try_lock() {
-                Ok(guard) => guard,
-                Err(_) => continue,
-            };
-            process_single_segment(&mut processing, seg_idx, data, input_total_channels, num_frames, &runtime.error_queue)
-        };
-        if let Some((processed, route_indices)) = result {
-            for &route_idx in &route_indices {
-                let buf = mixed_per_route.entry(route_idx).or_insert_with(Vec::new);
-                if buf.is_empty() {
-                    // First segment for this route — just copy
-                    *buf = processed.clone();
-                } else {
-                    // Sum with existing frames
-                    for (i, &frame) in processed.iter().enumerate() {
-                        if i < buf.len() {
-                            buf[i] = match (buf[i], frame) {
-                                (AudioFrame::Stereo([l1, r1]), AudioFrame::Stereo([l2, r2])) =>
-                                    AudioFrame::Stereo([l1 + l2, r1 + r2]),
-                                (AudioFrame::Mono(a), AudioFrame::Mono(b)) =>
-                                    AudioFrame::Mono(a + b),
-                                (AudioFrame::Stereo([l, r]), AudioFrame::Mono(m)) =>
-                                    AudioFrame::Stereo([l + m, r + m]),
-                                (AudioFrame::Mono(m), AudioFrame::Stereo([l, r])) =>
-                                    AudioFrame::Stereo([m + l, m + r]),
-                            };
-                        }
-                    }
-                }
-            }
-        }
+    // Temporarily take the scratch for this input_index to work around the
+    // aliasing rules: we'll put it back before returning. If the slot does
+    // not exist we fall back to a scratch allocated on the stack.
+    let mut scratch = match input_scratches.get_mut(input_index) {
+        Some(s) => std::mem::take(s),
+        None => InputCallbackScratch::default(),
+    };
+    scratch.reset_for_callback();
+
+    if let Some(segments) = input_to_segments.get(input_index) {
+        scratch.segment_indices.extend(segments.iter().copied());
+    } else if input_index < input_states.len() {
+        scratch.segment_indices.push(input_index);
     }
 
-    // Push mixed frames to output routes
-    let route_arcs: Vec<(usize, Arc<Mutex<OutputRoutingState>>)> = {
-        if let Ok(output) = runtime.output.try_lock() {
-            mixed_per_route.keys()
-                .filter_map(|&idx| output.output_routes.get(idx).map(|arc| (idx, Arc::clone(arc))))
-                .collect()
-        } else {
-            return;
+    // Process each segment, mixing into scratch.mixed_per_route.
+    for i in 0..scratch.segment_indices.len() {
+        let seg_idx = scratch.segment_indices[i];
+        process_single_segment(
+            input_states,
+            &mut scratch,
+            seg_idx,
+            data,
+            input_total_channels,
+            num_frames,
+            &runtime.error_queue,
+        );
+    }
+
+    // Collect output route Arcs under the output lock.
+    if let Ok(output) = runtime.output.try_lock() {
+        for route_idx in scratch.mixed_per_route.keys() {
+            if let Some(arc) = output.output_routes.get(*route_idx) {
+                scratch.route_arcs.push((*route_idx, Arc::clone(arc)));
+            }
         }
-    };
-    for (route_idx, route_arc) in &route_arcs {
-        if let Some(frames) = mixed_per_route.get(route_idx) {
+    } else {
+        if let Some(slot) = input_scratches.get_mut(input_index) {
+            *slot = scratch;
+        }
+        return;
+    }
+
+    // Push mixed frames to their output routes.
+    for (route_idx, route_arc) in &scratch.route_arcs {
+        if let Some(frames) = scratch.mixed_per_route.get(route_idx) {
             let mut route = match route_arc.lock() {
                 Ok(g) => g,
                 Err(e) => e.into_inner(),
@@ -1737,25 +1774,24 @@ pub fn process_input_f32(
             }
         }
     }
+
+    if let Some(slot) = input_scratches.get_mut(input_index) {
+        *slot = scratch;
+    }
 }
 
 fn process_single_segment(
-    processing: &mut ChainProcessingState,
+    input_states: &mut [InputProcessingState],
+    scratch: &mut InputCallbackScratch,
     seg_idx: usize,
     data: &[f32],
     input_total_channels: usize,
     num_frames: usize,
     error_queue: &Mutex<Vec<BlockError>>,
-) -> Option<(Vec<AudioFrame>, Vec<usize>)> {
-    let ChainProcessingState {
-        input_states,
-        input_to_segments: _,
-        mixed_buffer: _,
-    } = processing;
-
+) {
     let input_state = match input_states.get_mut(seg_idx) {
         Some(s) => s,
-        None => return None,
+        None => return,
     };
 
     let InputProcessingState {
@@ -1765,7 +1801,7 @@ fn process_single_segment(
         blocks,
         frame_buffer,
         fade_in_remaining,
-        output_route_indices: _,
+        output_route_indices,
     } = input_state;
 
     frame_buffer.clear();
@@ -1806,10 +1842,30 @@ fn process_single_segment(
         }
     }
 
-    let processed: Vec<AudioFrame> = input_state.frame_buffer.drain(..).collect();
-    let segment_routes = input_state.output_route_indices.clone();
-
-    Some((processed, segment_routes))
+    // Mix this segment's frame_buffer into scratch.mixed_per_route for each
+    // route this segment feeds. First segment into an empty bucket copies;
+    // subsequent segments sum.
+    for &route_idx in output_route_indices.iter() {
+        let buf = scratch.mixed_per_route.entry(route_idx).or_default();
+        if buf.is_empty() {
+            buf.extend_from_slice(frame_buffer);
+        } else {
+            for (i, &frame) in frame_buffer.iter().enumerate() {
+                if i < buf.len() {
+                    buf[i] = match (buf[i], frame) {
+                        (AudioFrame::Stereo([l1, r1]), AudioFrame::Stereo([l2, r2])) =>
+                            AudioFrame::Stereo([l1 + l2, r1 + r2]),
+                        (AudioFrame::Mono(a), AudioFrame::Mono(b)) =>
+                            AudioFrame::Mono(a + b),
+                        (AudioFrame::Stereo([l, r]), AudioFrame::Mono(m)) =>
+                            AudioFrame::Stereo([l + m, r + m]),
+                        (AudioFrame::Mono(m), AudioFrame::Stereo([l, r])) =>
+                            AudioFrame::Stereo([m + l, m + r]),
+                    };
+                }
+            }
+        }
+    }
 }
 
 fn process_audio_block(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame], error_queue: &Mutex<Vec<BlockError>>) {
