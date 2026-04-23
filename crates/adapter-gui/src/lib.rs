@@ -152,6 +152,11 @@ pub fn run_desktop_app(
     let selected_block = Rc::new(RefCell::new(None::<SelectedBlock>));
     let block_editor_draft = Rc::new(RefCell::new(None::<BlockEditorDraft>));
     let project_runtime = Rc::new(RefCell::new(None::<ProjectRuntimeController>));
+    // Per-chain-index probe expiry timestamps. A value means "show the
+    // measured latency for this chain until this instant". Populated on
+    // sonar button click, drained by the latency polling timer.
+    let probe_windows: Rc<RefCell<std::collections::HashMap<usize, std::time::Instant>>> =
+        Rc::new(RefCell::new(std::collections::HashMap::new()));
     let saved_project_snapshot = Rc::new(RefCell::new(None::<String>));
     let project_dirty = Rc::new(RefCell::new(false));
     let open_block_windows: Rc<RefCell<Vec<BlockWindow>>> = Rc::new(RefCell::new(Vec::new()));
@@ -1830,6 +1835,8 @@ pub fn run_desktop_app(
         let weak_window_probe = window.as_weak();
         let project_session_probe = project_session.clone();
         let project_runtime_probe = project_runtime.clone();
+        let project_chains_probe = project_chains.clone();
+        let probe_windows_arm = probe_windows.clone();
         window.on_probe_chain_latency(move |index| {
             let Some(_window) = weak_window_probe.upgrade() else { return; };
             let session_borrow = project_session_probe.borrow();
@@ -1838,6 +1845,21 @@ pub fn run_desktop_app(
             let chain_id = chain.id.clone();
             if let Some(rt) = project_runtime_probe.borrow().as_ref() {
                 rt.arm_latency_probe(&chain_id);
+            }
+            // Show the measured value for the next 10 s, then hide the badge.
+            let expiry =
+                std::time::Instant::now() + std::time::Duration::from_secs(10);
+            probe_windows_arm
+                .borrow_mut()
+                .insert(index as usize, expiry);
+            // Reset the displayed value so the badge stays hidden until the
+            // probe produces a fresh measurement (avoids showing a stale
+            // value from a previous probe for one poll tick).
+            if let Some(mut item) = project_chains_probe.row_data(index as usize) {
+                if item.latency_ms != 0.0 {
+                    item.latency_ms = 0.0;
+                    project_chains_probe.set_row_data(index as usize, item);
+                }
             }
         });
 
@@ -7341,13 +7363,17 @@ pub fn run_desktop_app(
         slint::CloseRequestResponse::HideWindow
     });
 
-    // Latency polling timer — reads measured latency from runtime and updates chain items
+    // Latency polling timer — reads measured latency from runtime and updates chain items.
+    // Only chains with an active probe window (sonar button pressed within
+    // the last 10 s) have their latency badge populated; once the window
+    // expires the badge is hidden again.
     let latency_timer = Timer::default();
     {
         let weak_window = window.as_weak();
         let project_runtime_lat = project_runtime.clone();
         let project_session_lat = project_session.clone();
         let project_chains_lat = project_chains.clone();
+        let probe_windows_lat = probe_windows.clone();
         latency_timer.start(
             slint::TimerMode::Repeated,
             std::time::Duration::from_millis(500),
@@ -7357,7 +7383,21 @@ pub fn run_desktop_app(
                 let Some(session) = session_borrow.as_ref() else { return; };
                 let rt_borrow = project_runtime_lat.borrow();
                 let Some(rt) = rt_borrow.as_ref() else { return; };
+                let now = std::time::Instant::now();
+                let mut expired: Vec<usize> = Vec::new();
+                let windows = probe_windows_lat.borrow();
                 for (i, chain) in session.project.chains.iter().enumerate() {
+                    let Some(expiry) = windows.get(&i).copied() else { continue };
+                    if now >= expiry {
+                        expired.push(i);
+                        if let Some(mut item) = project_chains_lat.row_data(i) {
+                            if item.latency_ms != 0.0 {
+                                item.latency_ms = 0.0;
+                                project_chains_lat.set_row_data(i, item);
+                            }
+                        }
+                        continue;
+                    }
                     if let Some(measured) = rt.measured_latency_ms(&chain.id) {
                         if measured > 0.1 {
                             if let Some(mut item) = project_chains_lat.row_data(i) {
@@ -7367,6 +7407,13 @@ pub fn run_desktop_app(
                                 }
                             }
                         }
+                    }
+                }
+                drop(windows);
+                if !expired.is_empty() {
+                    let mut w = probe_windows_lat.borrow_mut();
+                    for i in expired {
+                        w.remove(&i);
                     }
                 }
             },
