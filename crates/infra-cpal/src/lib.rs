@@ -2151,6 +2151,15 @@ impl ProjectRuntimeController {
             .map(|runtime| runtime.measured_latency_ms())
     }
 
+    /// Arms a latency probe on the given chain: the next input callback
+    /// injects a short beep, and the first output callback that sees it
+    /// updates `measured_latency_ms`. No-op if the chain has no runtime.
+    pub fn arm_latency_probe(&self, chain_id: &ChainId) {
+        if let Some(runtime) = self.runtime_graph.chains.get(chain_id) {
+            runtime.arm_latency_probe();
+        }
+    }
+
     fn upsert_chain_with_resolved(
         &mut self,
         chain: &Chain,
