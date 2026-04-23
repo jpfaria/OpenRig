@@ -29,9 +29,13 @@ use block_util::build_utility_processor_for_layout;
 use block_core::StreamHandle;
 use block_wah::build_wah_processor_for_layout;
 use std::any::Any;
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
+
+use arc_swap::ArcSwap;
+
+use crate::spsc::SpscRing;
 
 /// Floor for the elastic buffer target. Below this the buffer cannot absorb
 /// even minor scheduling jitter, regardless of how small the device buffer is.
@@ -75,38 +79,84 @@ impl AudioFrame {
 }
 
 /// Elastic audio buffer for clock drift compensation.
-/// Maintains a target queue level. On underrun, repeats the last frame.
-/// On overrun, discards the oldest frame gradually.
+///
+/// Lock-free single-producer / single-consumer. The producer is the input
+/// DSP path (`process_input_f32`); the consumer is the output callback
+/// (`process_output_f32`). Both call `push`/`pop` with `&self`, so there is
+/// no `Mutex` in the RT audio path.
+///
+/// On underrun `pop` returns the most recently pushed frame, providing a
+/// brief sustain instead of silence.
 struct ElasticBuffer {
-    pub queue: VecDeque<AudioFrame>,
+    ring: SpscRing<AudioFrame>,
+    #[allow(dead_code)]
     target_level: usize,
-    last_frame: AudioFrame,
+    layout: AudioChannelLayout,
+    /// Bit-packed last-pushed frame, used as the underrun fallback.
+    /// Mono: `f32` bits in the low 32 bits.
+    /// Stereo: left in low 32 bits, right in high 32 bits.
+    last_frame_bits: AtomicU64,
 }
 
 impl ElasticBuffer {
     fn new(target_level: usize, layout: AudioChannelLayout) -> Self {
+        let init = silent_frame(layout);
         Self {
-            queue: VecDeque::with_capacity(target_level * 2),
+            ring: SpscRing::new(target_level.saturating_mul(2), init),
             target_level,
-            last_frame: silent_frame(layout),
+            layout,
+            last_frame_bits: AtomicU64::new(frame_to_bits(init)),
         }
     }
 
-    fn push(&mut self, frame: AudioFrame) {
-        self.last_frame = frame;
-        self.queue.push_back(frame);
-        if self.queue.len() > self.target_level * 2 {
-            self.queue.pop_front();
+    fn push(&self, frame: AudioFrame) {
+        self.last_frame_bits
+            .store(frame_to_bits(frame), Ordering::Relaxed);
+        // Drop-newest when full — the consumer is behind and a single dropped
+        // sample is less disruptive than advancing the tail from the
+        // producer side (which would violate the SPSC invariant).
+        let _ = self.ring.push(frame);
+    }
+
+    fn pop(&self) -> AudioFrame {
+        match self.ring.pop() {
+            Some(frame) => frame,
+            None => bits_to_frame(
+                self.last_frame_bits.load(Ordering::Relaxed),
+                self.layout,
+            ),
         }
     }
 
-    fn pop(&mut self) -> AudioFrame {
-        self.queue.pop_front().unwrap_or(self.last_frame)
+    /// Seed the underrun fallback from another buffer's last pushed frame.
+    /// Used during chain rebuild so that a brief underrun on the new buffer
+    /// repeats the tail of the old buffer instead of jumping to silence.
+    fn seed_last_frame_from(&self, other: &ElasticBuffer) {
+        self.last_frame_bits
+            .store(other.last_frame_bits.load(Ordering::Relaxed), Ordering::Relaxed);
     }
 
     #[cfg(test)]
     fn len(&self) -> usize {
-        self.queue.len()
+        self.ring.len()
+    }
+}
+
+fn frame_to_bits(frame: AudioFrame) -> u64 {
+    match frame {
+        AudioFrame::Mono(s) => s.to_bits() as u64,
+        AudioFrame::Stereo([l, r]) => (l.to_bits() as u64) | ((r.to_bits() as u64) << 32),
+    }
+}
+
+fn bits_to_frame(bits: u64, layout: AudioChannelLayout) -> AudioFrame {
+    match layout {
+        AudioChannelLayout::Mono => AudioFrame::Mono(f32::from_bits(bits as u32)),
+        AudioChannelLayout::Stereo => {
+            let l = f32::from_bits(bits as u32);
+            let r = f32::from_bits((bits >> 32) as u32);
+            AudioFrame::Stereo([l, r])
+        }
     }
 }
 
@@ -223,7 +273,9 @@ pub struct BlockError {
 
 pub struct ChainRuntimeState {
     processing: Mutex<ChainProcessingState>,
-    output: Mutex<ChainOutputState>,
+    /// Per-route output state. Swapped atomically on chain rebuild so the
+    /// RT callback sees a fresh snapshot without taking any lock.
+    output_routes: ArcSwap<Vec<Arc<OutputRoutingState>>>,
     /// Stream handles published by block processors, polled by UI thread.
     stream_handles: Mutex<HashMap<BlockId, StreamHandle>>,
     /// Errors posted by the audio thread, drained by the UI thread.
@@ -304,8 +356,9 @@ struct InputCallbackScratch {
     /// Mixed audio frames keyed by output route index, accumulated across
     /// segments for the current callback.
     mixed_per_route: HashMap<usize, Vec<AudioFrame>>,
-    /// Output route Arcs collected under the output lock for this callback.
-    route_arcs: Vec<(usize, Arc<Mutex<OutputRoutingState>>)>,
+    /// Output route Arcs snapshotted from `runtime.output_routes` via
+    /// ArcSwap for this callback — no lock held.
+    route_arcs: Vec<(usize, Arc<OutputRoutingState>)>,
     /// Buffer written by `process_single_segment` with the processed frames
     /// of the current segment before they are mixed into `mixed_per_route`.
     segment_processed: Vec<AudioFrame>,
@@ -332,10 +385,6 @@ struct OutputRoutingState {
     output_channels: Vec<usize>,
     output_mixdown: ChainOutputMixdown,
     buffer: ElasticBuffer,
-}
-
-struct ChainOutputState {
-    output_routes: Vec<Arc<Mutex<OutputRoutingState>>>,
 }
 
 enum RuntimeProcessor {
@@ -477,9 +526,9 @@ pub fn build_chain_runtime_state(
         }
     }
 
-    let mut output_routes = Vec::with_capacity(eff_outputs.len());
+    let mut output_routes: Vec<Arc<OutputRoutingState>> = Vec::with_capacity(eff_outputs.len());
     for output in &eff_outputs {
-        output_routes.push(Arc::new(Mutex::new(build_output_routing_state(output, elastic_target))));
+        output_routes.push(Arc::new(build_output_routing_state(output, elastic_target)));
     }
 
     // Collect stream handles from all blocks across all input states
@@ -502,7 +551,7 @@ pub fn build_chain_runtime_state(
             input_to_segments,
             input_scratches,
         }),
-        output: Mutex::new(ChainOutputState { output_routes }),
+        output_routes: ArcSwap::from_pointee(output_routes),
         stream_handles: Mutex::new(stream_handles_map),
         error_queue: Mutex::new(Vec::new()),
         last_input_nanos: AtomicU64::new(0),
@@ -959,10 +1008,10 @@ pub fn update_chain_runtime_state(
         new_input_states.push(input_state);
     }
 
-    // Build new output routes wrapped in per-route mutexes
-    let new_output_routes: Vec<Arc<Mutex<OutputRoutingState>>> = effective_outs
+    // Build new output routes (no per-route Mutex — ElasticBuffer is lock-free).
+    let new_output_routes: Vec<Arc<OutputRoutingState>> = effective_outs
         .iter()
-        .map(|o| Arc::new(Mutex::new(build_output_routing_state(o, elastic_target))))
+        .map(|o| Arc::new(build_output_routing_state(o, elastic_target)))
         .collect();
 
     // Step 2.5: Refresh stream_handles — picks up new handles from rebuilt blocks
@@ -1001,18 +1050,19 @@ pub fn update_chain_runtime_state(
             .resize_with(new_len, InputCallbackScratch::default);
     }
 
-    {
-        let mut output = runtime.output.lock().expect("chain runtime poisoned");
-        // Preserve existing buffers where possible
-        let old_routes = std::mem::replace(&mut output.output_routes, new_output_routes);
-        for (new_route_arc, old_route_arc) in output.output_routes.iter().zip(old_routes.into_iter()) {
-            if !reset_output_queue {
-                let mut old_route = old_route_arc.lock().expect("old route poisoned");
-                let mut new_route = new_route_arc.lock().expect("new route poisoned");
-                std::mem::swap(&mut new_route.buffer, &mut old_route.buffer);
-            }
+    // Seed each new buffer with the previous buffer's last pushed frame so a
+    // brief underrun during the transition repeats the tail of the old audio
+    // rather than jumping to silence. We can't migrate queued frames across
+    // the swap without introducing locks, but the SPSC's underrun fallback
+    // plus a matching `last_frame` makes the seam inaudible for the target
+    // scenario (param tweaks that rebuild processors in place).
+    if !reset_output_queue {
+        let old_routes = runtime.output_routes.load();
+        for (new_route, old_route) in new_output_routes.iter().zip(old_routes.iter()) {
+            new_route.buffer.seed_last_frame_from(&old_route.buffer);
         }
     }
+    runtime.output_routes.store(Arc::new(new_output_routes));
 
     Ok(())
 }
@@ -1748,27 +1798,17 @@ pub fn process_input_f32(
         );
     }
 
-    // Collect output route Arcs under the output lock.
-    if let Ok(output) = runtime.output.try_lock() {
-        for route_idx in scratch.mixed_per_route.keys() {
-            if let Some(arc) = output.output_routes.get(*route_idx) {
-                scratch.route_arcs.push((*route_idx, Arc::clone(arc)));
-            }
+    // Snapshot current output routes via ArcSwap — no lock.
+    let routes = runtime.output_routes.load();
+    for route_idx in scratch.mixed_per_route.keys() {
+        if let Some(arc) = routes.get(*route_idx) {
+            scratch.route_arcs.push((*route_idx, Arc::clone(arc)));
         }
-    } else {
-        if let Some(slot) = input_scratches.get_mut(input_index) {
-            *slot = scratch;
-        }
-        return;
     }
 
-    // Push mixed frames to their output routes.
-    for (route_idx, route_arc) in &scratch.route_arcs {
+    // Push mixed frames to their output routes (lock-free via SPSC).
+    for (route_idx, route) in &scratch.route_arcs {
         if let Some(frames) = scratch.mixed_per_route.get(route_idx) {
-            let mut route = match route_arc.lock() {
-                Ok(g) => g,
-                Err(e) => e.into_inner(),
-            };
             for &frame in frames {
                 route.buffer.push(frame);
             }
@@ -1997,25 +2037,14 @@ pub fn process_output_f32(
         return;
     }
     ensure_flush_to_zero();
-    // Get the Arc for this specific route (brief lock on output state)
-    let route_arc = {
-        let output_state = match runtime.output.lock() {
-            Ok(g) => g,
-            Err(e) => e.into_inner(),
-        };
-        match output_state.output_routes.get(output_index) {
-            Some(r) => Arc::clone(r),
-            None => {
-                out.fill(0.0);
-                return;
-            }
+    // Snapshot the current routes via ArcSwap — no lock on the RT thread.
+    let routes = runtime.output_routes.load();
+    let route = match routes.get(output_index) {
+        Some(r) => r,
+        None => {
+            out.fill(0.0);
+            return;
         }
-    };
-    // Lock this route — brief wait while input pushes is acceptable,
-    // filling with silence on try_lock failure causes audible clicks.
-    let mut route = match route_arc.lock() {
-        Ok(g) => g,
-        Err(e) => e.into_inner(),
     };
     let num_frames = out.len() / output_total_channels;
     for frame in out.chunks_mut(output_total_channels).take(num_frames) {
@@ -2338,9 +2367,8 @@ mod tests {
 
         process_input_f32(&runtime, 0, &input, 1);
 
-        let output = runtime.output.lock().expect("runtime poisoned");
-        let route = output.output_routes[0].lock().expect("route poisoned");
-        assert!(route.buffer.len() <= DEFAULT_ELASTIC_TARGET * 2);
+        let routes = runtime.output_routes.load();
+        assert!(routes[0].buffer.len() <= DEFAULT_ELASTIC_TARGET * 2);
     }
 
     #[test]
@@ -2356,9 +2384,8 @@ mod tests {
         process_output_f32(&runtime, 0, &mut out, 1);
 
         assert_eq!(out, vec![0.25, 0.5, 0.75, 1.0]);
-        let output = runtime.output.lock().expect("runtime poisoned");
-        let route = output.output_routes[0].lock().expect("route poisoned");
-        assert!(route.buffer.queue.is_empty());
+        let routes = runtime.output_routes.load();
+        assert_eq!(routes[0].buffer.len(), 0);
     }
 
     #[test]
@@ -2677,7 +2704,7 @@ mod tests {
 
     #[test]
     fn elastic_buffer_push_pop_basic() {
-        let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
+        let buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
         buf.push(AudioFrame::Mono(0.5));
         buf.push(AudioFrame::Mono(0.7));
         assert_eq!(buf.len(), 2);
@@ -2689,7 +2716,7 @@ mod tests {
 
     #[test]
     fn elastic_buffer_underrun_repeats_last_frame() {
-        let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
+        let buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
         buf.push(AudioFrame::Mono(0.42));
         let _ = buf.pop(); // drain the one frame
         // Now empty — should repeat last frame, NOT silence
@@ -2699,30 +2726,32 @@ mod tests {
 
     #[test]
     fn elastic_buffer_underrun_before_any_push_returns_silence() {
-        let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Stereo);
+        let buf = ElasticBuffer::new(256, AudioChannelLayout::Stereo);
         let frame = buf.pop();
         assert!(matches!(frame, AudioFrame::Stereo([l, r]) if l.abs() < 1e-6 && r.abs() < 1e-6));
     }
 
     #[test]
-    fn elastic_buffer_overrun_discards_oldest() {
-        let target = 4; // small for testing
-        let mut buf = ElasticBuffer::new(target, AudioChannelLayout::Mono);
-        // Push 2x target + 1 = 9 frames
-        for i in 0..9 {
+    fn elastic_buffer_overrun_drops_newest() {
+        // The lock-free SPSC ring drops the newest frame when full (rather
+        // than advancing the tail from the producer side, which would break
+        // the single-producer invariant). Ring capacity is the next power of
+        // two at or above target_level * 2.
+        let target: usize = 4;
+        let capacity = (target * 2).next_power_of_two();
+        let buf = ElasticBuffer::new(target, AudioChannelLayout::Mono);
+        for i in 0..(capacity + 4) {
             buf.push(AudioFrame::Mono(i as f32));
         }
-        // Should have discarded oldest, keeping at most 2x target = 8
-        assert!(buf.len() <= target * 2);
-        // First frame should NOT be 0.0 (it was discarded)
-        let first = buf.pop();
-        assert!(matches!(first, AudioFrame::Mono(v) if v > 0.1));
+        assert_eq!(buf.len(), capacity);
+        // Oldest frames are retained — first pop returns the very first push.
+        assert!(matches!(buf.pop(), AudioFrame::Mono(v) if v == 0.0));
     }
 
     #[test]
     fn elastic_buffer_stabilizes_around_target() {
         let target = 256;
-        let mut buf = ElasticBuffer::new(target, AudioChannelLayout::Mono);
+        let buf = ElasticBuffer::new(target, AudioChannelLayout::Mono);
         // Simulate: push slightly faster than pop
         for _ in 0..10000 {
             buf.push(AudioFrame::Mono(1.0));
@@ -3059,7 +3088,7 @@ mod tests {
 
     #[test]
     fn elastic_buffer_target_one_limits_to_two() {
-        let mut buf = ElasticBuffer::new(1, AudioChannelLayout::Mono);
+        let buf = ElasticBuffer::new(1, AudioChannelLayout::Mono);
         buf.push(AudioFrame::Mono(1.0));
         buf.push(AudioFrame::Mono(2.0));
         buf.push(AudioFrame::Mono(3.0)); // should discard oldest
@@ -3068,7 +3097,7 @@ mod tests {
 
     #[test]
     fn elastic_buffer_stereo_push_pop_preserves_channels() {
-        let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Stereo);
+        let buf = ElasticBuffer::new(256, AudioChannelLayout::Stereo);
         buf.push(AudioFrame::Stereo([0.3, 0.7]));
         let frame = buf.pop();
         match frame {
@@ -3082,7 +3111,7 @@ mod tests {
 
     #[test]
     fn elastic_buffer_multiple_pops_on_empty_repeat_last() {
-        let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
+        let buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
         buf.push(AudioFrame::Mono(0.99));
         let _ = buf.pop(); // drain
         // Multiple pops should all return last frame
@@ -4380,7 +4409,7 @@ mod tests {
 
     #[test]
     fn elastic_buffer_fifo_order() {
-        let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
+        let buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
         for i in 0..10 {
             buf.push(AudioFrame::Mono(i as f32 * 0.1));
         }
