@@ -8,7 +8,7 @@ const SELECT_SELECTED_BLOCK_ID: &str = "__select.selected_block_id";
 use application::validate::validate_project;
 use domain::ids::{BlockId, DeviceId, ChainId};
 use infra_cpal::{
-    has_new_devices, invalidate_device_cache, list_input_device_descriptors,
+    invalidate_device_cache, list_input_device_descriptors,
     list_output_device_descriptors, AudioDeviceDescriptor, ProjectRuntimeController,
 };
 use infra_filesystem::{FilesystemStorage, GuiAudioSettings};
@@ -403,8 +403,8 @@ pub fn run_desktop_app(
         let runtime_health = project_runtime.clone();
         let session_health = project_session.clone();
         let disconnected = Rc::new(RefCell::new(false));
-        let input_opts_health = chain_input_device_options.clone();
-        let output_opts_health = chain_output_device_options.clone();
+        let _input_opts_health = chain_input_device_options.clone();
+        let _output_opts_health = chain_output_device_options.clone();
         let health_timer = Timer::default();
         health_timer.start(
             slint::TimerMode::Repeated,

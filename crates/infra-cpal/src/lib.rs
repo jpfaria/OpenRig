@@ -286,6 +286,12 @@ struct UsbAudioCard {
     display_name: String,
     /// device_id used in chain I/O blocks, e.g. "jack:gen"
     device_id: String,
+    /// Capture channel count read from /proc/asound/card{N}/stream0.
+    /// Read exactly once when the card is first observed on the USB bus.
+    capture_channels: u32,
+    /// Playback channel count read from /proc/asound/card{N}/stream0.
+    /// Read exactly once when the card is first observed on the USB bus.
+    playback_channels: u32,
 }
 
 /// Derive a safe JACK server name from the ALSA bracket identifier.
@@ -343,12 +349,45 @@ fn proc_cache_is_fresh() -> bool {
 
 /// Read and parse /proc/asound/cards + card{N}/stream0 for each USB card.
 /// Direct filesystem I/O — only called under PROC_REFRESH_LOCK.
+// Process-lifetime registry of channel counts per physical card. Keyed by
+// display_name (e.g. "Scarlett 2i2 4th Gen at usb-xhci-hcd.3.auto-1, ...")
+// so the lookup is stable across plug/unplug cycles. stream0 is read exactly
+// ONCE per distinct physical card that the app ever observes; the value is
+// kept in memory forever. Prevents the Scarlett firmware from seeing repeated
+// stream0 reads, which cause scarlett2_notify 0x20000000 → freeze.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+static CARD_CHANNELS_REGISTRY: Mutex<Option<std::collections::HashMap<String, (u32, u32)>>> =
+    Mutex::new(None);
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn lookup_or_cache_card_channels(display_name: &str, card_num: &str) -> (u32, u32) {
+    {
+        let guard = CARD_CHANNELS_REGISTRY.lock().unwrap();
+        if let Some(map) = guard.as_ref() {
+            if let Some(&ch) = map.get(display_name) {
+                return ch;
+            }
+        }
+    }
+    // First time we see this display_name — read stream0 once and store forever.
+    let ch = read_card_channels_raw(card_num);
+    let mut guard = CARD_CHANNELS_REGISTRY.lock().unwrap();
+    let map = guard.get_or_insert_with(std::collections::HashMap::new);
+    map.insert(display_name.to_string(), ch);
+    log::info!(
+        "[CARD-REGISTRY] learned '{}' → capture={} playback={}",
+        display_name, ch.0, ch.1
+    );
+    ch
+}
+
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn read_proc_asound_snapshot() -> ProcAsoundSnapshot {
     log::trace!("[PROC-CACHE] >>> OPEN /proc/asound/cards");
     let content = std::fs::read_to_string("/proc/asound/cards").unwrap_or_default();
     let mut raw_card_lines = Vec::new();
     let mut cards = Vec::new();
+    let mut channels = std::collections::HashMap::new();
     for line in content.lines() {
         let trimmed = line.trim_start();
         let Some(first) = trimmed.chars().next() else { continue };
@@ -374,17 +413,21 @@ fn read_proc_asound_snapshot() -> ProcAsoundSnapshot {
             format!("USB Audio Card {}", card_num)
         };
         let device_id = format!("jack:{}", server_name);
-        cards.push(UsbAudioCard { card_num, server_name, display_name, device_id });
+        let (capture_channels, playback_channels) =
+            lookup_or_cache_card_channels(&display_name, &card_num);
+        channels.insert(card_num.clone(), (capture_channels, playback_channels));
+        cards.push(UsbAudioCard {
+            card_num,
+            server_name,
+            display_name,
+            device_id,
+            capture_channels,
+            playback_channels,
+        });
     }
-    // NOTE: we deliberately do NOT read /proc/asound/card{N}/stream0 here.
-    // On the RK3588 + Scarlett 4th Gen stack, reading stream0 seems to kick
-    // the kernel USB audio driver into probing the device and the firmware
-    // reacts with scarlett2_notify 0x20000000 → freeze. stream0 channel
-    // counts are only needed by `launch_jackd` (once per JACK startup),
-    // so `read_card_channels` handles that as an on-demand read.
     ProcAsoundSnapshot {
         cards,
-        channels: std::collections::HashMap::new(),
+        channels,
         raw_card_lines,
         fetched_at: Instant::now(),
     }
@@ -443,17 +486,8 @@ fn jack_server_is_running_for(server_name: &str) -> bool {
         .unwrap_or(false)
 }
 
-/// Capture and playback channel counts for a USB audio card.
-/// Reads /proc/asound/card{N}/stream0 on every call. Only used by
-/// `launch_jackd` (once per JACK startup), so the cost is negligible and
-/// avoiding the cache keeps periodic refreshes from touching stream0.
-#[cfg(all(target_os = "linux", feature = "jack"))]
-fn read_card_channels(card: &str) -> (u32, u32) {
-    read_card_channels_raw(card)
-}
-
 /// Direct /proc/asound/card{N}/stream0 read — only called from inside
-/// `read_proc_asound_snapshot` under PROC_REFRESH_LOCK.
+/// `lookup_or_cache_card_channels` when a new card is first observed.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn read_card_channels_raw(card: &str) -> (u32, u32) {
     let path = format!("/proc/asound/card{}/stream0", card);
@@ -562,8 +596,10 @@ fn amixer_cset(card_num: &str, control: &str, value: &str) {
 /// Channel counts are read dynamically from /proc/asound/card{N}/stream0.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Result<()> {
-    // Read actual hardware channel counts — fully dynamic, no hardcoded values.
-    let (capture_ch, playback_ch) = read_card_channels(&card.card_num);
+    // Channel counts come from the card's cached values — learned once from
+    // /proc/asound/card{N}/stream0 when the device first appeared and kept in
+    // memory for the process lifetime via CARD_CHANNELS_REGISTRY.
+    let (capture_ch, playback_ch) = (card.capture_channels, card.playback_channels);
 
     log::info!(
         "launch_jackd: server='{}' hw:{} sr={} buf={} capture={} playback={}",
@@ -1872,7 +1908,7 @@ fn enumerate_input_devices_uncached() -> Result<Vec<AudioDeviceDescriptor>> {
         let cards: Vec<AudioDeviceDescriptor> = usb_cards.iter().map(|c| AudioDeviceDescriptor {
             id: c.device_id.clone(),
             name: c.display_name.clone(),
-            channels: 2,
+            channels: c.capture_channels as usize,
         }).collect();
         log::info!("[enumerate_input] usb cards: {} devices", cards.len());
         return Ok(cards);
@@ -1911,7 +1947,7 @@ fn enumerate_output_devices_uncached() -> Result<Vec<AudioDeviceDescriptor>> {
         let cards: Vec<AudioDeviceDescriptor> = usb_cards.iter().map(|c| AudioDeviceDescriptor {
             id: c.device_id.clone(),
             name: c.display_name.clone(),
-            channels: 2,
+            channels: c.playback_channels as usize,
         }).collect();
         log::info!("[enumerate_output] usb cards: {} devices", cards.len());
         return Ok(cards);
