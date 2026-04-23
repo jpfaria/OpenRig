@@ -345,7 +345,7 @@ fn proc_cache_is_fresh() -> bool {
 /// Direct filesystem I/O — only called under PROC_REFRESH_LOCK.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn read_proc_asound_snapshot() -> ProcAsoundSnapshot {
-    log::warn!("[PROC-CACHE] >>> OPEN /proc/asound/cards");
+    log::trace!("[PROC-CACHE] >>> OPEN /proc/asound/cards");
     let content = std::fs::read_to_string("/proc/asound/cards").unwrap_or_default();
     let mut raw_card_lines = Vec::new();
     let mut cards = Vec::new();
@@ -393,15 +393,15 @@ fn read_proc_asound_snapshot() -> ProcAsoundSnapshot {
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn try_refresh_proc_cache() {
     let Ok(_guard) = PROC_REFRESH_LOCK.try_lock() else {
-        log::warn!("[PROC-CACHE] try_refresh SKIPPED (another refresh in progress)");
+        log::debug!("[PROC-CACHE] try_refresh SKIPPED (another refresh in progress)");
         return;
     };
     if proc_cache_is_fresh() {
-        log::warn!("[PROC-CACHE] try_refresh SKIPPED (became fresh while waiting)");
+        log::debug!("[PROC-CACHE] try_refresh SKIPPED (became fresh while waiting)");
         return;
     }
     let caller = std::panic::Location::caller();
-    log::warn!("[PROC-CACHE] REFRESH /proc/asound — triggered from {}:{}", caller.file(), caller.line());
+    log::debug!("[PROC-CACHE] REFRESH /proc/asound — triggered from {}:{}", caller.file(), caller.line());
     let snapshot = read_proc_asound_snapshot();
     *PROC_CACHE.lock().unwrap() = Some(snapshot);
 }
@@ -412,7 +412,7 @@ fn proc_cache_snapshot() -> Option<ProcAsoundSnapshot> {
     let fresh = proc_cache_is_fresh();
     if !fresh {
         let caller = std::panic::Location::caller();
-        log::warn!("[PROC-CACHE] snapshot STALE — caller={}:{}", caller.file(), caller.line());
+        log::debug!("[PROC-CACHE] snapshot STALE — caller={}:{}", caller.file(), caller.line());
         try_refresh_proc_cache();
     }
     PROC_CACHE.lock().unwrap().clone()
@@ -455,7 +455,7 @@ fn read_card_channels(card: &str) -> (u32, u32) {
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn read_card_channels_raw(card: &str) -> (u32, u32) {
     let path = format!("/proc/asound/card{}/stream0", card);
-    log::warn!("[PROC-CACHE] >>> OPEN {}", path);
+    log::trace!("[PROC-CACHE] >>> OPEN {}", path);
     let content = match std::fs::read_to_string(&path) {
         Ok(c) => c,
         Err(_) => {
