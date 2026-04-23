@@ -412,13 +412,12 @@ pub fn run_desktop_app(
             move || {
                 let Some(win) = weak_window.upgrade() else { return; };
 
-                if has_new_devices() {
-                    invalidate_device_cache();
-                    refresh_input_devices(&input_opts_health);
-                    refresh_output_devices(&output_opts_health);
-                    log::info!("health timer: new audio device detected, device list refreshed");
-                }
-
+                // NOTE: device hot-plug detection moved OUT of the health timer.
+                // Periodically polling /proc/asound/cards while the Scarlett 4th Gen
+                // is on the USB-C OTG port triggers scarlett2_notify 0x20000000 and
+                // freezes the device. The device list now refreshes only when the
+                // user enters a UI surface that needs it (chain I/O editor, Settings,
+                // configure-project) — see the refresh_input_devices call sites.
                 let mut rt_borrow = runtime_health.borrow_mut();
                 let Some(rt) = rt_borrow.as_mut() else { return; };
                 if !rt.is_running() {
