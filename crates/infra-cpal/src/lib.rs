@@ -345,6 +345,7 @@ fn proc_cache_is_fresh() -> bool {
 /// Direct filesystem I/O — only called under PROC_REFRESH_LOCK.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn read_proc_asound_snapshot() -> ProcAsoundSnapshot {
+    log::warn!("[PROC-CACHE] >>> OPEN /proc/asound/cards");
     let content = std::fs::read_to_string("/proc/asound/cards").unwrap_or_default();
     let mut raw_card_lines = Vec::new();
     let mut cards = Vec::new();
@@ -454,6 +455,7 @@ fn read_card_channels(card: &str) -> (u32, u32) {
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn read_card_channels_raw(card: &str) -> (u32, u32) {
     let path = format!("/proc/asound/card{}/stream0", card);
+    log::warn!("[PROC-CACHE] >>> OPEN {}", path);
     let content = match std::fs::read_to_string(&path) {
         Ok(c) => c,
         Err(_) => {
