@@ -307,7 +307,7 @@ fn server_name_from_bracket(bracket: &str) -> String {
 // another refresh is in progress return cached data instead of queueing.
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
-const PROC_CACHE_TTL: Duration = Duration::from_millis(2000);
+const PROC_CACHE_TTL: Duration = Duration::from_secs(10);
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
 #[derive(Clone)]
