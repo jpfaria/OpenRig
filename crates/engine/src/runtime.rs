@@ -280,7 +280,12 @@ pub struct ChainRuntimeState {
     stream_handles: Mutex<HashMap<BlockId, StreamHandle>>,
     /// Errors posted by the audio thread, drained by the UI thread.
     error_queue: Mutex<Vec<BlockError>>,
-    #[allow(dead_code)]
+    /// Monotonic reference used to derive `u64` nanos for `last_input_nanos`
+    /// and the live latency measurement. Captured at state creation.
+    created_at: std::time::Instant,
+    /// Nanos-since-`created_at` stamped by `process_input_f32` on each
+    /// callback. `process_output_f32` reads it to compute the round-trip
+    /// latency of the processing pipeline (input callback → output callback).
     last_input_nanos: AtomicU64,
     measured_latency_nanos: AtomicU64,
     /// When true, the audio callback must not call any block processors.
@@ -554,6 +559,7 @@ pub fn build_chain_runtime_state(
         output_routes: ArcSwap::from_pointee(output_routes),
         stream_handles: Mutex::new(stream_handles_map),
         error_queue: Mutex::new(Vec::new()),
+        created_at: std::time::Instant::now(),
         last_input_nanos: AtomicU64::new(0),
         measured_latency_nanos: AtomicU64::new(0),
         draining: std::sync::atomic::AtomicBool::new(false),
@@ -1766,6 +1772,13 @@ pub fn process_input_f32(
     ensure_flush_to_zero();
     let num_frames = data.len() / input_total_channels;
 
+    // Stamp the moment this input callback started so process_output_f32
+    // can compute the real latency of the pipeline when it runs next.
+    let input_nanos = runtime.created_at.elapsed().as_nanos() as u64;
+    runtime
+        .last_input_nanos
+        .store(input_nanos, Ordering::Relaxed);
+
     let mut processing_guard = match runtime.processing.try_lock() {
         Ok(guard) => guard,
         Err(_) => return,
@@ -2044,6 +2057,22 @@ pub fn process_output_f32(
         return;
     }
     ensure_flush_to_zero();
+
+    // Compute the real processing latency as `now - last_input_stamp`.
+    // This captures the wall-clock interval from the most recent input
+    // callback to this output callback — i.e. the time the pipeline
+    // (ring → DSP → elastic → output fill) needed before the next output
+    // sample becomes audible. The measured value is smoothed by the UI
+    // poll (~500ms) and drives the per-chain latency display.
+    let last_input = runtime.last_input_nanos.load(Ordering::Relaxed);
+    if last_input > 0 {
+        let now = runtime.created_at.elapsed().as_nanos() as u64;
+        let delta = now.saturating_sub(last_input);
+        runtime
+            .measured_latency_nanos
+            .store(delta, Ordering::Relaxed);
+    }
+
     // Snapshot the current routes via ArcSwap — no lock on the RT thread.
     let routes = runtime.output_routes.load();
     let route = match routes.get(output_index) {
