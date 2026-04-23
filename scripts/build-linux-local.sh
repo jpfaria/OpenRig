@@ -79,6 +79,8 @@ echo "  2/2  Building packages inside Docker"
 echo "══════════════════════════════════════════"
 docker run --rm --platform "$DOCKER_PLATFORM" \
     -v "$PROJECT_ROOT:/workspace:delegated" \
+    -v "$HOME/.cargo/registry:/root/.cargo/registry:delegated" \
+    -v "$HOME/.cargo/git:/root/.cargo/git:delegated" \
     -e CARGO_NET_OFFLINE="${CARGO_NET_OFFLINE:-false}" \
     "$DOCKER_IMAGE" \
     bash -c "cd /workspace && ./scripts/package-linux.sh \

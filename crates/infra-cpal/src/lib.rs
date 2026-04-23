@@ -885,7 +885,7 @@ fn is_asio_host(host: &cpal::Host) -> bool {
     host.id() == cpal::HostId::Asio
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(not(target_os = "windows"), not(all(target_os = "linux", feature = "jack"))))]
 fn is_asio_host(_host: &cpal::Host) -> bool {
     false
 }
@@ -1501,6 +1501,7 @@ pub fn list_devices() -> Result<Vec<String>> {
 /// the device picker — they map 1:1 to physical cards.
 ///
 /// On other platforms this function always returns true (no filtering needed).
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn is_hardware_device(id: &str) -> bool {
     // cpal formats device IDs as "host:pcm_id", e.g. "alsa:hw:CARD=Gen,DEV=0".
     // On Linux/ALSA, only keep hw: entries — direct hardware, one per physical
@@ -2397,6 +2398,7 @@ pub fn resolve_project_chain_sample_rates(project: &Project) -> Result<HashMap<C
 }
 
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn resolve_input_device_for_chain_input(
     host: &cpal::Host,
     project: &Project,
@@ -2458,6 +2460,7 @@ fn resolve_input_device_for_chain_input(
     Ok(ResolvedInputDevice { settings, device, supported })
 }
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn resolve_output_device_for_chain_output(
     host: &cpal::Host,
     project: &Project,
@@ -2511,6 +2514,7 @@ fn resolve_output_device_for_chain_output(
     Ok(ResolvedOutputDevice { settings, device, supported })
 }
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn resolve_chain_inputs(
     host: &cpal::Host,
     project: &Project,
@@ -2544,6 +2548,7 @@ fn resolve_chain_inputs(
         .collect()
 }
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn resolve_chain_outputs(
     host: &cpal::Host,
     project: &Project,
@@ -2578,6 +2583,7 @@ fn resolve_chain_outputs(
 }
 
 /// Convert an InsertBlock's return endpoint to an InputEntry for stream resolution.
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn insert_return_as_input_entry(insert: &InsertBlock) -> InputEntry {
     InputEntry {
         device_id: insert.return_.device_id.clone(),
@@ -2587,6 +2593,7 @@ fn insert_return_as_input_entry(insert: &InsertBlock) -> InputEntry {
 }
 
 /// Convert an InsertBlock's send endpoint to an OutputEntry for stream resolution.
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn insert_send_as_output_entry(insert: &InsertBlock) -> OutputEntry {
     use project::chain::ChainOutputMode;
     OutputEntry {
@@ -2599,6 +2606,7 @@ fn insert_send_as_output_entry(insert: &InsertBlock) -> OutputEntry {
     }
 }
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn resolve_enabled_chain_audio_configs(
     host: &cpal::Host,
     project: &Project,
@@ -2617,6 +2625,7 @@ fn resolve_enabled_chain_audio_configs(
     Ok(resolved)
 }
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn resolve_chain_audio_config(
     host: &cpal::Host,
     project: &Project,
@@ -2638,6 +2647,7 @@ fn resolve_chain_audio_config(
     })
 }
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn validate_buffer_size(
     requested: u32,
     supported: &SupportedBufferSize,
@@ -2659,6 +2669,7 @@ fn validate_buffer_size(
     }
     Ok(())
 }
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn validate_channels_against_devices(project: &Project, host: &cpal::Host) -> Result<()> {
     for chain in &project.chains {
         if !chain.enabled {
@@ -2669,6 +2680,7 @@ fn validate_channels_against_devices(project: &Project, host: &cpal::Host) -> Re
     Ok(())
 }
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn validate_chain_channels_against_devices(host: &cpal::Host, chain: &Chain) -> Result<()> {
     for (_, input) in chain.input_blocks() {
         for entry in &input.entries {
@@ -2695,6 +2707,7 @@ fn validate_chain_channels_against_devices(host: &cpal::Host, chain: &Chain) -> 
     Ok(())
 }
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn validate_input_channels_against_device(
     host: &cpal::Host,
     chain_id: &str,
@@ -2741,6 +2754,7 @@ fn validate_input_channels_against_device(
     }
 }
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn validate_output_channels_against_device(
     host: &cpal::Host,
     chain_id: &str,
@@ -2783,6 +2797,7 @@ fn validate_output_channels_against_device(
         Ok(())
     }
 }
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn find_input_device_by_id(host: &cpal::Host, device_id: &str) -> Result<Option<cpal::Device>> {
     for device in host.input_devices()? {
         if device.id()?.to_string() == device_id {
@@ -2791,6 +2806,7 @@ fn find_input_device_by_id(host: &cpal::Host, device_id: &str) -> Result<Option<
     }
     Ok(None)
 }
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn find_output_device_by_id(host: &cpal::Host, device_id: &str) -> Result<Option<cpal::Device>> {
     for device in host.output_devices()? {
         if device.id()?.to_string() == device_id {
@@ -3115,6 +3131,7 @@ fn build_active_chain_runtime(
     })
 }
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn build_chain_stream_signature_multi(
     chain: &Chain,
     inputs: &[ResolvedInputDevice],
@@ -3216,6 +3233,7 @@ fn resolved_output_buffer_size_frames(resolved: &ResolvedOutputDevice) -> u32 {
         .unwrap_or(256)
 }
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn required_channel_count(channels: &[usize]) -> usize {
     channels
         .iter()
@@ -3225,6 +3243,7 @@ fn required_channel_count(channels: &[usize]) -> usize {
         .unwrap_or(0)
 }
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn select_supported_stream_config(
     default_config: &SupportedStreamConfig,
     supported_ranges: &[SupportedStreamConfigRange],
@@ -3275,6 +3294,7 @@ fn resolve_chain_runtime_sample_rate(
     Ok(input.sample_rate() as f32)
 }
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn resolve_multi_io_sample_rate(
     chain_id: &str,
     inputs: &[ResolvedInputDevice],
@@ -3313,6 +3333,7 @@ fn resolve_multi_io_sample_rate(
         .ok_or_else(|| anyhow!("chain '{}' has no inputs or outputs", chain_id))
 }
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn max_supported_input_channels(device: &cpal::Device) -> Result<usize> {
     let max_supported = match device.supported_input_configs() {
         Ok(configs) => {
@@ -3339,6 +3360,7 @@ fn max_supported_input_channels(device: &cpal::Device) -> Result<usize> {
     max_supported_channels(default_channels, max_supported)
 }
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn max_supported_output_channels(device: &cpal::Device) -> Result<usize> {
     let max_supported = match device.supported_output_configs() {
         Ok(configs) => {
@@ -3365,6 +3387,7 @@ fn max_supported_output_channels(device: &cpal::Device) -> Result<usize> {
     max_supported_channels(default_channels, max_supported)
 }
 
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
 fn max_supported_channels(
     default_channels: Option<usize>,
     max_supported_channels: Option<usize>,
@@ -3376,13 +3399,14 @@ fn max_supported_channels(
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        build_stream_config, max_supported_channels, required_channel_count,
-        resolve_chain_runtime_sample_rate, select_supported_stream_config, validate_buffer_size,
-        AudioDeviceDescriptor, ProjectRuntimeController,
-    };
-    use cpal::{BufferSize, SampleFormat, SupportedBufferSize, SupportedStreamConfigRange};
+    use super::{build_stream_config, resolve_chain_runtime_sample_rate, AudioDeviceDescriptor, ProjectRuntimeController};
+    use cpal::BufferSize;
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
+    use super::{max_supported_channels, required_channel_count, select_supported_stream_config, validate_buffer_size};
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
+    use cpal::{SampleFormat, SupportedBufferSize, SupportedStreamConfigRange};
 
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     fn supported_range(
         channels: u16,
         min_sample_rate: u32,
@@ -3466,6 +3490,7 @@ mod tests {
 
     // ── select_supported_stream_config ──────────────────────────────
 
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     #[test]
     fn select_supported_stream_config_accepts_non_default_sample_rate_when_device_supports_it() {
         let default_config = supported_range(2, 48_000, 48_000).with_max_sample_rate();
@@ -3487,6 +3512,7 @@ mod tests {
         assert_eq!(resolved.channels(), 2);
     }
 
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     #[test]
     fn select_supported_stream_config_no_requested_rate_uses_default() {
         let default_config = supported_range(2, 48_000, 48_000).with_max_sample_rate();
@@ -3504,6 +3530,7 @@ mod tests {
         assert_eq!(resolved.sample_rate(), 48_000);
     }
 
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     #[test]
     fn select_supported_stream_config_unsupported_rate_returns_error() {
         let default_config = supported_range(2, 48_000, 48_000).with_max_sample_rate();
@@ -3520,6 +3547,7 @@ mod tests {
         assert!(result.is_err());
     }
 
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     #[test]
     fn select_supported_stream_config_insufficient_channels_returns_error() {
         let default_config = supported_range(1, 48_000, 48_000).with_max_sample_rate();
@@ -3536,6 +3564,7 @@ mod tests {
         assert!(result.is_err());
     }
 
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     #[test]
     fn select_supported_stream_config_picks_minimum_channels_matching() {
         let default_config = supported_range(2, 48_000, 48_000).with_max_sample_rate();
@@ -3558,6 +3587,7 @@ mod tests {
 
     // ── resolve_chain_runtime_sample_rate ────────────────────────────
 
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     #[test]
     fn resolve_chain_runtime_sample_rate_rejects_mismatched_input_and_output_sample_rates() {
         let input = supported_range(2, 48_000, 48_000).with_max_sample_rate();
@@ -3569,6 +3599,7 @@ mod tests {
         assert!(error.to_string().contains("sample_rate"));
     }
 
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     #[test]
     fn resolve_chain_runtime_sample_rate_matching_rates_returns_rate() {
         let input = supported_range(2, 48_000, 48_000).with_max_sample_rate();
@@ -3581,6 +3612,7 @@ mod tests {
 
     // ── max_supported_channels ──────────────────────────────────────
 
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     #[test]
     fn max_supported_channels_prefers_supported_capacity_over_default() {
         let resolved =
@@ -3589,6 +3621,7 @@ mod tests {
         assert_eq!(resolved, 8);
     }
 
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     #[test]
     fn max_supported_channels_uses_default_when_supported_list_is_empty() {
         let resolved =
@@ -3597,12 +3630,14 @@ mod tests {
         assert_eq!(resolved, 2);
     }
 
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     #[test]
     fn max_supported_channels_both_none_returns_error() {
         let result = max_supported_channels(None, None);
         assert!(result.is_err());
     }
 
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     #[test]
     fn max_supported_channels_only_supported_uses_supported() {
         let resolved =
@@ -3612,26 +3647,31 @@ mod tests {
 
     // ── required_channel_count ──────────────────────────────────────
 
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     #[test]
     fn required_channel_count_empty_returns_zero() {
         assert_eq!(required_channel_count(&[]), 0);
     }
 
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     #[test]
     fn required_channel_count_single_channel_zero_returns_one() {
         assert_eq!(required_channel_count(&[0]), 1);
     }
 
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     #[test]
     fn required_channel_count_stereo_returns_two() {
         assert_eq!(required_channel_count(&[0, 1]), 2);
     }
 
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     #[test]
     fn required_channel_count_non_contiguous_returns_max_plus_one() {
         assert_eq!(required_channel_count(&[0, 3, 7]), 8);
     }
 
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     #[test]
     fn required_channel_count_single_high_channel_returns_correct() {
         assert_eq!(required_channel_count(&[5]), 6);
@@ -3639,6 +3679,7 @@ mod tests {
 
     // ── validate_buffer_size ────────────────────────────────────────
 
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     #[test]
     fn validate_buffer_size_within_range_succeeds() {
         let supported = SupportedBufferSize::Range { min: 64, max: 1024 };
@@ -3646,6 +3687,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     #[test]
     fn validate_buffer_size_at_min_boundary_succeeds() {
         let supported = SupportedBufferSize::Range { min: 64, max: 1024 };
@@ -3653,6 +3695,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     #[test]
     fn validate_buffer_size_at_max_boundary_succeeds() {
         let supported = SupportedBufferSize::Range { min: 64, max: 1024 };
@@ -3660,6 +3703,7 @@ mod tests {
         assert!(result.is_ok());
     }
 
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     #[test]
     fn validate_buffer_size_below_min_returns_error() {
         let supported = SupportedBufferSize::Range { min: 64, max: 1024 };
@@ -3668,6 +3712,7 @@ mod tests {
         assert!(result.unwrap_err().to_string().contains("outside supported range"));
     }
 
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     #[test]
     fn validate_buffer_size_above_max_returns_error() {
         let supported = SupportedBufferSize::Range { min: 64, max: 1024 };
@@ -3675,6 +3720,7 @@ mod tests {
         assert!(result.is_err());
     }
 
+    #[cfg(not(all(target_os = "linux", feature = "jack")))]
     #[test]
     fn validate_buffer_size_unknown_always_succeeds() {
         let supported = SupportedBufferSize::Unknown;
