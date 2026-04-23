@@ -392,18 +392,26 @@ fn read_proc_asound_snapshot() -> ProcAsoundSnapshot {
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn try_refresh_proc_cache() {
     let Ok(_guard) = PROC_REFRESH_LOCK.try_lock() else {
+        log::warn!("[PROC-CACHE] try_refresh SKIPPED (another refresh in progress)");
         return;
     };
     if proc_cache_is_fresh() {
+        log::warn!("[PROC-CACHE] try_refresh SKIPPED (became fresh while waiting)");
         return;
     }
+    let caller = std::panic::Location::caller();
+    log::warn!("[PROC-CACHE] REFRESH /proc/asound — triggered from {}:{}", caller.file(), caller.line());
     let snapshot = read_proc_asound_snapshot();
     *PROC_CACHE.lock().unwrap() = Some(snapshot);
 }
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
+#[track_caller]
 fn proc_cache_snapshot() -> Option<ProcAsoundSnapshot> {
-    if !proc_cache_is_fresh() {
+    let fresh = proc_cache_is_fresh();
+    if !fresh {
+        let caller = std::panic::Location::caller();
+        log::warn!("[PROC-CACHE] snapshot STALE — caller={}:{}", caller.file(), caller.line());
         try_refresh_proc_cache();
     }
     PROC_CACHE.lock().unwrap().clone()
