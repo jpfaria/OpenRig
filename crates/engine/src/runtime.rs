@@ -342,6 +342,15 @@ impl ChainRuntimeState {
         self.probe_state.load(std::sync::atomic::Ordering::Acquire) != PROBE_IDLE
     }
 
+    /// Reset the probe state to Idle. Used by the UI when the display
+    /// window expires so a probe that never completed (e.g. the beep was
+    /// consumed by a chain rebuild, or the chain was disabled before the
+    /// output callback ran) does not stay armed across sessions.
+    pub fn cancel_latency_probe(&self) {
+        self.probe_state
+            .store(PROBE_IDLE, std::sync::atomic::Ordering::Release);
+    }
+
     /// Returns stream data for a block by ID, or None if not found or empty.
     pub fn poll_stream(&self, block_id: &BlockId) -> Option<Vec<block_core::StreamEntry>> {
         let handles = self.stream_handles.lock().ok()?;
@@ -1088,6 +1097,12 @@ pub fn update_chain_runtime_state(
             }
         }
         processing.input_to_segments = new_mapping;
+        // Cancel any in-flight latency probe — its beep was pushed into
+        // the old queue that we're about to discard, so leaving the state
+        // Fired would wait forever for a detection that will never happen.
+        runtime
+            .probe_state
+            .store(PROBE_IDLE, std::sync::atomic::Ordering::Release);
         // Resize scratches to match the new input count, preserving existing
         // allocated capacity for slots that still exist.
         let new_len = processing.input_to_segments.len();
@@ -1805,6 +1820,15 @@ pub fn process_input_f32(
     ensure_flush_to_zero();
     let num_frames = data.len() / input_total_channels;
 
+    // Take the processing lock FIRST so we only commit the probe state
+    // transition when we are certain the beep will flow through the rest
+    // of the pipeline. If try_lock fails (config rebuild in flight) we
+    // leave the probe state Armed and retry on the next callback.
+    let mut processing_guard = match runtime.processing.try_lock() {
+        Ok(guard) => guard,
+        Err(_) => return,
+    };
+
     // If a latency probe is armed, replace the first portion of this
     // callback's input with a short sine beep and record the injection
     // time. Only the primary input (index 0) probes so we measure the
@@ -1816,9 +1840,9 @@ pub fn process_input_f32(
             runtime.last_input_nanos.store(injected_at, Ordering::Relaxed);
             let mut buf = data.to_vec();
             let beep_frames = PROBE_BEEP_FRAMES.min(num_frames);
-            // Ballpark sample rate using a conventional 48 kHz — the exact
-            // rate only shifts the pitch of the audible beep, it does not
-            // affect the measurement.
+            // The audible pitch of the beep is approximate — we use the
+            // nominal 48 kHz for the sine step. The measurement itself
+            // does not depend on the beep's frequency.
             let sr = 48_000.0_f32;
             for f in 0..beep_frames {
                 let t = f as f32 / sr;
@@ -1837,11 +1861,6 @@ pub fn process_input_f32(
     let data: &[f32] = match probe_buf.as_ref() {
         Some(b) => b.as_slice(),
         None => data,
-    };
-
-    let mut processing_guard = match runtime.processing.try_lock() {
-        Ok(guard) => guard,
-        Err(_) => return,
     };
     let ChainProcessingState {
         input_states,
