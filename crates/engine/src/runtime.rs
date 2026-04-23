@@ -310,8 +310,11 @@ const PROBE_FIRED: u8 = 2;
 const PROBE_BEEP_FRAMES: usize = 128;
 /// Frequency of the sine used for the probe beep, in Hz.
 const PROBE_BEEP_FREQ: f32 = 1000.0;
-/// Output sample amplitude that counts as "the probe arrived".
-const PROBE_DETECT_THRESHOLD: f32 = 0.25;
+/// Output sample amplitude that counts as "the probe arrived". Set low
+/// enough to catch the beep even through an amp model that attenuates
+/// or filters the 1 kHz sine, but well above a realistic digital noise
+/// floor so background hum does not false-trigger detection.
+const PROBE_DETECT_THRESHOLD: f32 = 0.05;
 
 impl ChainRuntimeState {
     /// Signal the audio callback to stop processing blocks.
@@ -1849,7 +1852,7 @@ pub fn process_input_f32(
                 let envelope =
                     (std::f32::consts::PI * f as f32 / beep_frames as f32).sin();
                 let sample =
-                    (2.0 * std::f32::consts::PI * PROBE_BEEP_FREQ * t).sin() * 0.7 * envelope;
+                    (2.0 * std::f32::consts::PI * PROBE_BEEP_FREQ * t).sin() * 0.95 * envelope;
                 for ch in 0..input_total_channels {
                     buf[f * input_total_channels + ch] = sample;
                 }
@@ -2168,15 +2171,17 @@ pub fn process_output_f32(
         let detected_at_idx = out
             .iter()
             .position(|s| s.abs() > PROBE_DETECT_THRESHOLD);
-        if let Some(idx) = detected_at_idx {
+        if detected_at_idx.is_some() {
             let now = runtime.created_at.elapsed().as_nanos() as u64;
             let injected_at = runtime.last_input_nanos.load(Ordering::Relaxed);
-            // Refine: add the intra-buffer offset where the beep leading
-            // edge landed inside this output buffer.
-            let frame_offset = idx / output_total_channels;
-            let sr = 48_000.0_f32;
-            let intra = (frame_offset as f32 / sr * 1_000_000_000.0) as u64;
-            let delta = now.saturating_sub(injected_at).saturating_add(intra);
+            // Measure wall-clock nanos from the input callback that
+            // injected the beep to this output callback that detected
+            // it. This is callback-level granularity; we intentionally
+            // do NOT add the intra-buffer offset because that couples
+            // the measurement to signal amplitude (through the
+            // threshold-crossing position) and inflates readings for
+            // chains that attenuate the signal.
+            let delta = now.saturating_sub(injected_at);
             runtime
                 .measured_latency_nanos
                 .store(delta, Ordering::Relaxed);
