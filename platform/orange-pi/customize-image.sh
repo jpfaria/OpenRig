@@ -188,6 +188,7 @@ systemctl mask    jackd.service  2>/dev/null || true
 systemctl enable weston.service
 systemctl enable openrig.service
 systemctl enable openrig-irq-affinity.service
+systemctl enable openrig-resize-rootfs.service
 
 # ── 9a. Plymouth quit failsafe ────────────────────────────────────────────────
 echo ">>> [OpenRig] Capping plymouth-quit-wait timeout at 10s..."
@@ -199,6 +200,7 @@ EOF
 
 # ── 10. Set permissions on install script ────────────────────────────────────
 chmod 755 /usr/local/bin/openrig-install-to-emmc
+chmod 755 /usr/local/bin/openrig-resize-rootfs
 
 # ── 10a. USB-C TCPM workaround (RK3588 USB-C port stability) ─────────────────
 echo ">>> [OpenRig] Installing USB-C host-mode DTB overlay (Scarlett stability)..."
