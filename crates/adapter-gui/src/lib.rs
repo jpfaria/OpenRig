@@ -7396,6 +7396,9 @@ pub fn run_desktop_app(
                                 project_chains_lat.set_row_data(i, item);
                             }
                         }
+                        // Clear any probe state that never produced a
+                        // detection so the next click starts fresh.
+                        rt.cancel_latency_probe(&chain.id);
                         continue;
                     }
                     if let Some(measured) = rt.measured_latency_ms(&chain.id) {

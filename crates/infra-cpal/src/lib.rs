@@ -2319,6 +2319,15 @@ impl ProjectRuntimeController {
         }
     }
 
+    /// Cancels any in-flight latency probe on the given chain. The UI
+    /// calls this when the on-screen probe display window expires so a
+    /// probe that never produced a detection does not stay armed.
+    pub fn cancel_latency_probe(&self, chain_id: &ChainId) {
+        if let Some(runtime) = self.runtime_graph.chains.get(chain_id) {
+            runtime.cancel_latency_probe();
+        }
+    }
+
     fn upsert_chain_with_resolved(
         &mut self,
         chain: &Chain,
