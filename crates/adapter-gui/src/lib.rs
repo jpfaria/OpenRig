@@ -7,10 +7,7 @@ const SELECT_PATH_PREFIX: &str = "__select.";
 const SELECT_SELECTED_BLOCK_ID: &str = "__select.selected_block_id";
 use application::validate::validate_project;
 use domain::ids::{BlockId, DeviceId, ChainId};
-use infra_cpal::{
-    invalidate_device_cache, list_input_device_descriptors,
-    list_output_device_descriptors, AudioDeviceDescriptor, ProjectRuntimeController,
-};
+use infra_cpal::{invalidate_device_cache, AudioDeviceDescriptor, ProjectRuntimeController};
 use infra_filesystem::{FilesystemStorage, GuiAudioSettings};
 use project::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry};
 use project::catalog::{model_brand, model_display_name, model_type_label};
@@ -158,14 +155,18 @@ pub fn run_desktop_app(
     let inline_stream_timer: Rc<RefCell<Option<Timer>>> = Rc::new(RefCell::new(None));
     let open_compact_window: Rc<RefCell<Option<(usize, slint::Weak<CompactChainViewWindow>)>>> = Rc::new(RefCell::new(None));
     let audio_settings_mode = Rc::new(RefCell::new(AudioSettingsMode::Gui));
-    // Always load device descriptors so chain tooltips can resolve device names,
-    // even when audio settings are already complete (needs_audio_settings = false).
-    let input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>> = Rc::new(RefCell::new(
-        list_input_device_descriptors().unwrap_or_default()
-    ));
-    let output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>> = Rc::new(RefCell::new(
-        list_output_device_descriptors().unwrap_or_default()
-    ));
+    // Start with empty device descriptors. Enumerating here would read
+    // /proc/asound/cards (and transitively /proc/asound/card*/stream0), which
+    // invokes the kernel snd-usb-audio proc handler and has been correlated
+    // with vendor-firmware notifications that destabilize USB audio interfaces
+    // on fragile xHCI controllers. Descriptors are populated lazily by
+    // refresh_input_devices / refresh_output_devices when the user actually
+    // opens a chain I/O editor or the Settings panel — i.e. when they
+    // explicitly ask the app to look at the hardware.
+    let input_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>> =
+        Rc::new(RefCell::new(Vec::new()));
+    let output_chain_devices: Rc<RefCell<Vec<AudioDeviceDescriptor>>> =
+        Rc::new(RefCell::new(Vec::new()));
     let preset_file_list: Rc<RefCell<Vec<std::path::PathBuf>>> = Rc::new(RefCell::new(Vec::new()));
     let window = AppWindow::new().map_err(|error| anyhow!(error.to_string()))?;
     window.window().set_size(slint::WindowSize::Logical(slint::LogicalSize {
