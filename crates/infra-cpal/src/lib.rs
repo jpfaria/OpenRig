@@ -151,6 +151,13 @@ fn send_signal_to_pid(pid: u32, signal: &str) -> bool {
 /// Return cached JACK metadata for a specific named server, connecting once
 /// if not yet cached. Uses JACK_DEFAULT_SERVER env var to target the right
 /// jackd instance (serialized via JACK_CONNECT_LOCK to avoid races).
+///
+/// Retries the client connection up to 5× with 200 ms between attempts. Right
+/// after jackd spawns, the UNIX socket is visible before the shm segments are
+/// fully initialized, so the first Client::new returns "Cannot open shm
+/// segment". Without retries, ensure_jack_running misreads this as a zombie
+/// jackd and enters a kill/respawn loop every time the user changes device
+/// settings. Same retry policy as build_jack_direct_chain.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn jack_meta_for(server_name: &str) -> Result<JackMeta> {
     if let Some(cached) = jack_meta_cache().lock().unwrap().get(server_name).cloned() {
@@ -168,11 +175,35 @@ fn jack_meta_for(server_name: &str) -> Result<JackMeta> {
 
     // SAFETY: we hold JACK_CONNECT_LOCK, so no other thread is touching this env var.
     std::env::set_var("JACK_DEFAULT_SERVER", server_name);
-    let result = jack::Client::new("openrig_meta", jack::ClientOptions::NO_START_SERVER);
+    let mut last_err: Option<jack::Error> = None;
+    let mut client_and_status = None;
+    for attempt in 0..5u32 {
+        match jack::Client::new("openrig_meta", jack::ClientOptions::NO_START_SERVER) {
+            Ok(cs) => {
+                client_and_status = Some(cs);
+                break;
+            }
+            Err(e) => {
+                if attempt < 4 {
+                    log::debug!(
+                        "jack_meta_for '{}' attempt {} failed ({:?}), retrying in 200ms",
+                        server_name, attempt + 1, e
+                    );
+                    std::thread::sleep(std::time::Duration::from_millis(200));
+                }
+                last_err = Some(e);
+            }
+        }
+    }
     std::env::remove_var("JACK_DEFAULT_SERVER");
 
-    let (client, _) = result
-        .map_err(|e| anyhow!("failed to connect to JACK server '{}': {:?}", server_name, e))?;
+    let (client, _) = client_and_status.ok_or_else(|| {
+        anyhow!(
+            "failed to connect to JACK server '{}': {:?}",
+            server_name,
+            last_err.expect("at least one attempt failed")
+        )
+    })?;
 
     let capture_ports = client.ports(Some("system:capture_"), None, jack::PortFlags::IS_OUTPUT);
     let playback_ports = client.ports(Some("system:playback_"), None, jack::PortFlags::IS_INPUT);
