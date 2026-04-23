@@ -716,6 +716,7 @@ export component AppWindow inherits Window {
     callback configure-chain-input(int);
     callback configure-chain-output(int);
     callback save-chain-preset(int);
+    callback probe-chain-latency(int);
     callback configure-chain-preset(int);
     callback open-compact-chain-view(int);
     callback update-chain-name(string);
@@ -920,6 +921,7 @@ export component AppWindow inherits Window {
         configure-chain-input(index) => { root.configure-chain-input(index); }
         configure-chain-output(index) => { root.configure-chain-output(index); }
         save-chain-preset(index) => { root.save-chain-preset(index); }
+        probe-chain-latency(index) => { root.probe-chain-latency(index); }
         configure-chain-preset(index) => { root.configure-chain-preset(index); }
         open-compact-chain-view(index) => { root.open-compact-chain-view(index); }
         update-chain-name(value) => { root.update-chain-name(value); }
@@ -1051,6 +1053,7 @@ export component AppWindow inherits Window {
         configure-chain-input(index) => { root.configure-chain-input(index); }
         configure-chain-output(index) => { root.configure-chain-output(index); }
         save-chain-preset(index) => { root.save-chain-preset(index); }
+        probe-chain-latency(index) => { root.probe-chain-latency(index); }
         configure-chain-preset(index) => { root.configure-chain-preset(index); }
         open-compact-chain-view(index) => { root.open-compact-chain-view(index); }
         update-chain-name(value) => { root.update-chain-name(value); }

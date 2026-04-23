@@ -280,19 +280,38 @@ pub struct ChainRuntimeState {
     stream_handles: Mutex<HashMap<BlockId, StreamHandle>>,
     /// Errors posted by the audio thread, drained by the UI thread.
     error_queue: Mutex<Vec<BlockError>>,
-    /// Monotonic reference used to derive `u64` nanos for `last_input_nanos`
-    /// and the live latency measurement. Captured at state creation.
+    /// Monotonic reference used to derive `u64` nanos for latency probes.
+    /// Captured at state creation.
     created_at: std::time::Instant,
-    /// Nanos-since-`created_at` stamped by `process_input_f32` on each
-    /// callback. `process_output_f32` reads it to compute the round-trip
-    /// latency of the processing pipeline (input callback → output callback).
+    /// Nanos-since-`created_at` of the moment a probe beep was injected
+    /// into the input stream. Written by `process_input_f32` when a probe
+    /// transitions Armed → Fired; read by `process_output_f32` when the
+    /// beep is detected at the output, to compute the measured latency.
     last_input_nanos: AtomicU64,
+    /// Measured end-to-end latency (ns) of the last completed probe.
+    /// Exposed to the UI via `measured_latency_ms()`.
     measured_latency_nanos: AtomicU64,
+    /// Latency probe state machine: Idle / Armed / Fired. Transitions are
+    /// Idle → Armed (user click), Armed → Fired (input callback injects
+    /// the beep), Fired → Idle (output callback detects the beep).
+    probe_state: std::sync::atomic::AtomicU8,
     /// When true, the audio callback must not call any block processors.
     /// Set before deactivating the JACK client to prevent use-after-free
     /// in C++ NAM destructors (terminate called without active exception).
     draining: std::sync::atomic::AtomicBool,
 }
+
+const PROBE_IDLE: u8 = 0;
+const PROBE_ARMED: u8 = 1;
+const PROBE_FIRED: u8 = 2;
+/// Number of audio frames the probe beep occupies. At 48 kHz this is
+/// 128 / 48000 ≈ 2.7 ms of a short 1 kHz sine burst — audible as a "tick"
+/// without being intrusive.
+const PROBE_BEEP_FRAMES: usize = 128;
+/// Frequency of the sine used for the probe beep, in Hz.
+const PROBE_BEEP_FREQ: f32 = 1000.0;
+/// Output sample amplitude that counts as "the probe arrived".
+const PROBE_DETECT_THRESHOLD: f32 = 0.25;
 
 impl ChainRuntimeState {
     /// Signal the audio callback to stop processing blocks.
@@ -308,6 +327,19 @@ impl ChainRuntimeState {
     pub fn measured_latency_ms(&self) -> f32 {
         let nanos = self.measured_latency_nanos.load(std::sync::atomic::Ordering::Relaxed);
         nanos as f32 / 1_000_000.0
+    }
+
+    /// Arm the latency probe. The next input callback will inject a short
+    /// beep into the signal path, and the first output callback to see it
+    /// arrive at the output stage records the measured latency. Safe to
+    /// call while audio is flowing; idempotent if already armed or fired.
+    pub fn arm_latency_probe(&self) {
+        self.probe_state
+            .store(PROBE_ARMED, std::sync::atomic::Ordering::Release);
+    }
+
+    pub fn probe_in_flight(&self) -> bool {
+        self.probe_state.load(std::sync::atomic::Ordering::Acquire) != PROBE_IDLE
     }
 
     /// Returns stream data for a block by ID, or None if not found or empty.
@@ -562,6 +594,7 @@ pub fn build_chain_runtime_state(
         created_at: std::time::Instant::now(),
         last_input_nanos: AtomicU64::new(0),
         measured_latency_nanos: AtomicU64::new(0),
+        probe_state: std::sync::atomic::AtomicU8::new(PROBE_IDLE),
         draining: std::sync::atomic::AtomicBool::new(false),
     })
 }
@@ -1772,12 +1805,39 @@ pub fn process_input_f32(
     ensure_flush_to_zero();
     let num_frames = data.len() / input_total_channels;
 
-    // Stamp the moment this input callback started so process_output_f32
-    // can compute the real latency of the pipeline when it runs next.
-    let input_nanos = runtime.created_at.elapsed().as_nanos() as u64;
-    runtime
-        .last_input_nanos
-        .store(input_nanos, Ordering::Relaxed);
+    // If a latency probe is armed, replace the first portion of this
+    // callback's input with a short sine beep and record the injection
+    // time. Only the primary input (index 0) probes so we measure the
+    // round-trip of the user-visible signal path.
+    let probe_buf: Option<Vec<f32>> =
+        if input_index == 0 && runtime.probe_state.load(Ordering::Acquire) == PROBE_ARMED {
+            runtime.probe_state.store(PROBE_FIRED, Ordering::Release);
+            let injected_at = runtime.created_at.elapsed().as_nanos() as u64;
+            runtime.last_input_nanos.store(injected_at, Ordering::Relaxed);
+            let mut buf = data.to_vec();
+            let beep_frames = PROBE_BEEP_FRAMES.min(num_frames);
+            // Ballpark sample rate using a conventional 48 kHz — the exact
+            // rate only shifts the pitch of the audible beep, it does not
+            // affect the measurement.
+            let sr = 48_000.0_f32;
+            for f in 0..beep_frames {
+                let t = f as f32 / sr;
+                let envelope =
+                    (std::f32::consts::PI * f as f32 / beep_frames as f32).sin();
+                let sample =
+                    (2.0 * std::f32::consts::PI * PROBE_BEEP_FREQ * t).sin() * 0.7 * envelope;
+                for ch in 0..input_total_channels {
+                    buf[f * input_total_channels + ch] = sample;
+                }
+            }
+            Some(buf)
+        } else {
+            None
+        };
+    let data: &[f32] = match probe_buf.as_ref() {
+        Some(b) => b.as_slice(),
+        None => data,
+    };
 
     let mut processing_guard = match runtime.processing.try_lock() {
         Ok(guard) => guard,
@@ -2058,21 +2118,6 @@ pub fn process_output_f32(
     }
     ensure_flush_to_zero();
 
-    // Compute the real processing latency as `now - last_input_stamp`.
-    // This captures the wall-clock interval from the most recent input
-    // callback to this output callback — i.e. the time the pipeline
-    // (ring → DSP → elastic → output fill) needed before the next output
-    // sample becomes audible. The measured value is smoothed by the UI
-    // poll (~500ms) and drives the per-chain latency display.
-    let last_input = runtime.last_input_nanos.load(Ordering::Relaxed);
-    if last_input > 0 {
-        let now = runtime.created_at.elapsed().as_nanos() as u64;
-        let delta = now.saturating_sub(last_input);
-        runtime
-            .measured_latency_nanos
-            .store(delta, Ordering::Relaxed);
-    }
-
     // Snapshot the current routes via ArcSwap — no lock on the RT thread.
     let routes = runtime.output_routes.load();
     let route = match routes.get(output_index) {
@@ -2092,6 +2137,34 @@ pub fn process_output_f32(
             frame,
             route.output_mixdown,
         );
+    }
+
+    // Latency probe detection: only the primary output (index 0) scans.
+    // When Fired, look for the leading edge of the injected beep. Measure
+    // wall-clock nanos from injection to detection; that is the real
+    // end-to-end latency of the signal path for the user.
+    if output_index == 0
+        && runtime.probe_state.load(Ordering::Acquire) == PROBE_FIRED
+    {
+        let detected_at_idx = out
+            .iter()
+            .position(|s| s.abs() > PROBE_DETECT_THRESHOLD);
+        if let Some(idx) = detected_at_idx {
+            let now = runtime.created_at.elapsed().as_nanos() as u64;
+            let injected_at = runtime.last_input_nanos.load(Ordering::Relaxed);
+            // Refine: add the intra-buffer offset where the beep leading
+            // edge landed inside this output buffer.
+            let frame_offset = idx / output_total_channels;
+            let sr = 48_000.0_f32;
+            let intra = (frame_offset as f32 / sr * 1_000_000_000.0) as u64;
+            let delta = now.saturating_sub(injected_at).saturating_add(intra);
+            runtime
+                .measured_latency_nanos
+                .store(delta, Ordering::Relaxed);
+            runtime
+                .probe_state
+                .store(PROBE_IDLE, Ordering::Release);
+        }
     }
 }
 

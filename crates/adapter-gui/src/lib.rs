@@ -1827,6 +1827,20 @@ pub fn run_desktop_app(
         });
     }
     {
+        let weak_window_probe = window.as_weak();
+        let project_session_probe = project_session.clone();
+        let project_runtime_probe = project_runtime.clone();
+        window.on_probe_chain_latency(move |index| {
+            let Some(_window) = weak_window_probe.upgrade() else { return; };
+            let session_borrow = project_session_probe.borrow();
+            let Some(session) = session_borrow.as_ref() else { return; };
+            let Some(chain) = session.project.chains.get(index as usize) else { return; };
+            let chain_id = chain.id.clone();
+            if let Some(rt) = project_runtime_probe.borrow().as_ref() {
+                rt.arm_latency_probe(&chain_id);
+            }
+        });
+
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
