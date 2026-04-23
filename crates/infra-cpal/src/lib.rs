@@ -775,8 +775,67 @@ fn is_asio_host(_host: &cpal::Host) -> bool {
 // Use using_jack_direct() to check if the direct JACK backend is active.
 
 use domain::ids::ChainId;
-use engine::runtime::{process_input_f32, process_output_f32, RuntimeGraph, ChainRuntimeState};
+use engine::runtime::{
+    elastic_target_for_buffer, process_input_f32, process_output_f32, ChainRuntimeState,
+    RuntimeGraph,
+};
 use engine;
+
+/// Backend-specific multiplier for the elastic buffer target.
+/// JACK uses a worker-thread DSP path on Linux; non-RT scheduling jitter
+/// needs more headroom than direct CPAL callbacks.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+const ELASTIC_MULTIPLIER: u8 = 8;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+const ELASTIC_MULTIPLIER: u8 = 2;
+
+/// Multiplier used for the elastic target of a regular output route.
+/// See `ELASTIC_MULTIPLIER` for the per-backend rationale.
+const ELASTIC_MULTIPLIER_REGULAR: u8 = ELASTIC_MULTIPLIER;
+/// Multiplier used for the elastic target of an Insert block's *send*
+/// endpoint. The main chain's elastic buffer already absorbs upstream
+/// jitter before the signal reaches the insert send, and the external
+/// hardware on the other side has its own driver buffering. Keeping the
+/// send's elastic at the default multiplier would be pure redundancy
+/// and roughly doubles the insert's round-trip latency; `1` trims that
+/// overhead while the shared `ELASTIC_TARGET_FLOOR` prevents pathologic
+/// sizing for tiny device buffers.
+const ELASTIC_MULTIPLIER_INSERT_SEND: u8 = 1;
+
+/// Compute per-output elastic targets for a chain. Regular outputs use
+/// the backend's default multiplier; Insert send endpoints use a leaner
+/// multiplier to avoid doubling the round-trip latency of the external
+/// effect loop. The order of the returned Vec matches
+/// `ResolvedChainAudioConfig::outputs`, which places regular outputs
+/// first and Insert sends last (mirroring `effective_outputs`).
+fn compute_elastic_targets_for_chain(
+    chain: &Chain,
+    resolved: &ResolvedChainAudioConfig,
+) -> Vec<usize> {
+    let regular_output_count: usize = chain
+        .blocks
+        .iter()
+        .filter(|b| b.enabled)
+        .filter_map(|b| match &b.kind {
+            AudioBlockKind::Output(ob) => Some(ob.entries.len()),
+            _ => None,
+        })
+        .sum();
+    resolved
+        .outputs
+        .iter()
+        .enumerate()
+        .map(|(idx, out)| {
+            let buf = resolved_output_buffer_size_frames(out);
+            let multiplier = if idx >= regular_output_count {
+                ELASTIC_MULTIPLIER_INSERT_SEND
+            } else {
+                ELASTIC_MULTIPLIER_REGULAR
+            };
+            elastic_target_for_buffer(buf, multiplier)
+        })
+        .collect()
+}
 use project::device::DeviceSettings;
 use project::project::Project;
 use project::block::{AudioBlockKind, InputEntry, InsertBlock, OutputEntry};
@@ -2130,6 +2189,24 @@ impl ProjectRuntimeController {
             .map(|runtime| runtime.measured_latency_ms())
     }
 
+    /// Arms a latency probe on the given chain: the next input callback
+    /// injects a short beep, and the first output callback that sees it
+    /// updates `measured_latency_ms`. No-op if the chain has no runtime.
+    pub fn arm_latency_probe(&self, chain_id: &ChainId) {
+        if let Some(runtime) = self.runtime_graph.chains.get(chain_id) {
+            runtime.arm_latency_probe();
+        }
+    }
+
+    /// Cancels any in-flight latency probe on the given chain. The UI
+    /// calls this when the on-screen probe display window expires so a
+    /// probe that never produced a detection does not stay armed.
+    pub fn cancel_latency_probe(&self, chain_id: &ChainId) {
+        if let Some(runtime) = self.runtime_graph.chains.get(chain_id) {
+            runtime.cancel_latency_probe();
+        }
+    }
+
     fn upsert_chain_with_resolved(
         &mut self,
         chain: &Chain,
@@ -2141,9 +2218,13 @@ impl ProjectRuntimeController {
             .map(|active| active.stream_signature != resolved.stream_signature)
             .unwrap_or(true);
 
-        let runtime =
-            self.runtime_graph
-                .upsert_chain(chain, resolved.sample_rate, needs_stream_rebuild)?;
+        let elastic_targets = compute_elastic_targets_for_chain(chain, &resolved);
+        let runtime = self.runtime_graph.upsert_chain(
+            chain,
+            resolved.sample_rate,
+            needs_stream_rebuild,
+            &elastic_targets,
+        )?;
 
         if needs_stream_rebuild {
             let active = build_active_chain_runtime(&chain.id, chain, resolved, runtime)?;

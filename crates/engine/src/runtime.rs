@@ -29,17 +29,38 @@ use block_util::build_utility_processor_for_layout;
 use block_core::StreamHandle;
 use block_wah::build_wah_processor_for_layout;
 use std::any::Any;
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-// Orange Pi (aarch64/JACK) needs a larger elastic buffer to absorb jitter
-// from the SPSC ring buffer + worker thread architecture. On macOS/Windows
-// the default 256 is fine — CPAL callbacks are tight and predictable.
-#[cfg(target_arch = "aarch64")]
-const ELASTIC_BUFFER_TARGET_LEVEL: usize = 2048;
-#[cfg(not(target_arch = "aarch64"))]
-const ELASTIC_BUFFER_TARGET_LEVEL: usize = 256;
+use arc_swap::ArcSwap;
+
+use crate::spsc::SpscRing;
+
+/// Floor for the elastic buffer target. Below this the buffer cannot absorb
+/// even minor scheduling jitter, regardless of how small the device buffer is.
+pub const ELASTIC_TARGET_FLOOR: usize = 64;
+
+/// Default elastic target used when no device-derived value is provided
+/// (tests, headless tools). Production callers in infra-cpal compute this
+/// from the resolved device buffer size via [`elastic_target_for_buffer`].
+pub const DEFAULT_ELASTIC_TARGET: usize = 256;
+
+/// Compute the elastic buffer target level (in frames) for a given device
+/// buffer size and backend multiplier.
+///
+/// The elastic buffer absorbs jitter between the producer (input + DSP path)
+/// and the consumer (output callback). Sizing it relative to the actual device
+/// buffer makes the latency proportional to the user's chosen buffer size
+/// instead of a hardcoded constant.
+///
+/// `multiplier` reflects backend-specific jitter:
+/// - `2` — direct CPAL callbacks (macOS/Windows/Linux ALSA): tight, predictable.
+/// - `8` — JACK with worker-thread DSP (Linux): non-RT worker adds variance.
+pub fn elastic_target_for_buffer(buffer_size_frames: u32, multiplier: u8) -> usize {
+    let target = (buffer_size_frames as usize).saturating_mul(multiplier as usize);
+    target.max(ELASTIC_TARGET_FLOOR)
+}
 static NEXT_BLOCK_INSTANCE_SERIAL: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Debug, Clone, Copy)]
@@ -58,38 +79,84 @@ impl AudioFrame {
 }
 
 /// Elastic audio buffer for clock drift compensation.
-/// Maintains a target queue level. On underrun, repeats the last frame.
-/// On overrun, discards the oldest frame gradually.
+///
+/// Lock-free single-producer / single-consumer. The producer is the input
+/// DSP path (`process_input_f32`); the consumer is the output callback
+/// (`process_output_f32`). Both call `push`/`pop` with `&self`, so there is
+/// no `Mutex` in the RT audio path.
+///
+/// On underrun `pop` returns the most recently pushed frame, providing a
+/// brief sustain instead of silence.
 struct ElasticBuffer {
-    pub queue: VecDeque<AudioFrame>,
+    ring: SpscRing<AudioFrame>,
+    #[allow(dead_code)]
     target_level: usize,
-    last_frame: AudioFrame,
+    layout: AudioChannelLayout,
+    /// Bit-packed last-pushed frame, used as the underrun fallback.
+    /// Mono: `f32` bits in the low 32 bits.
+    /// Stereo: left in low 32 bits, right in high 32 bits.
+    last_frame_bits: AtomicU64,
 }
 
 impl ElasticBuffer {
     fn new(target_level: usize, layout: AudioChannelLayout) -> Self {
+        let init = silent_frame(layout);
         Self {
-            queue: VecDeque::with_capacity(target_level * 2),
+            ring: SpscRing::new(target_level.saturating_mul(2), init),
             target_level,
-            last_frame: silent_frame(layout),
+            layout,
+            last_frame_bits: AtomicU64::new(frame_to_bits(init)),
         }
     }
 
-    fn push(&mut self, frame: AudioFrame) {
-        self.last_frame = frame;
-        self.queue.push_back(frame);
-        if self.queue.len() > self.target_level * 2 {
-            self.queue.pop_front();
+    fn push(&self, frame: AudioFrame) {
+        self.last_frame_bits
+            .store(frame_to_bits(frame), Ordering::Relaxed);
+        // Drop-newest when full — the consumer is behind and a single dropped
+        // sample is less disruptive than advancing the tail from the
+        // producer side (which would violate the SPSC invariant).
+        let _ = self.ring.push(frame);
+    }
+
+    fn pop(&self) -> AudioFrame {
+        match self.ring.pop() {
+            Some(frame) => frame,
+            None => bits_to_frame(
+                self.last_frame_bits.load(Ordering::Relaxed),
+                self.layout,
+            ),
         }
     }
 
-    fn pop(&mut self) -> AudioFrame {
-        self.queue.pop_front().unwrap_or(self.last_frame)
+    /// Seed the underrun fallback from another buffer's last pushed frame.
+    /// Used during chain rebuild so that a brief underrun on the new buffer
+    /// repeats the tail of the old buffer instead of jumping to silence.
+    fn seed_last_frame_from(&self, other: &ElasticBuffer) {
+        self.last_frame_bits
+            .store(other.last_frame_bits.load(Ordering::Relaxed), Ordering::Relaxed);
     }
 
     #[cfg(test)]
     fn len(&self) -> usize {
-        self.queue.len()
+        self.ring.len()
+    }
+}
+
+fn frame_to_bits(frame: AudioFrame) -> u64 {
+    match frame {
+        AudioFrame::Mono(s) => s.to_bits() as u64,
+        AudioFrame::Stereo([l, r]) => (l.to_bits() as u64) | ((r.to_bits() as u64) << 32),
+    }
+}
+
+fn bits_to_frame(bits: u64, layout: AudioChannelLayout) -> AudioFrame {
+    match layout {
+        AudioChannelLayout::Mono => AudioFrame::Mono(f32::from_bits(bits as u32)),
+        AudioChannelLayout::Stereo => {
+            let l = f32::from_bits(bits as u32);
+            let r = f32::from_bits((bits >> 32) as u32);
+            AudioFrame::Stereo([l, r])
+        }
     }
 }
 
@@ -206,19 +273,48 @@ pub struct BlockError {
 
 pub struct ChainRuntimeState {
     processing: Mutex<ChainProcessingState>,
-    output: Mutex<ChainOutputState>,
+    /// Per-route output state. Swapped atomically on chain rebuild so the
+    /// RT callback sees a fresh snapshot without taking any lock.
+    output_routes: ArcSwap<Vec<Arc<OutputRoutingState>>>,
     /// Stream handles published by block processors, polled by UI thread.
     stream_handles: Mutex<HashMap<BlockId, StreamHandle>>,
     /// Errors posted by the audio thread, drained by the UI thread.
     error_queue: Mutex<Vec<BlockError>>,
-    #[allow(dead_code)]
+    /// Monotonic reference used to derive `u64` nanos for latency probes.
+    /// Captured at state creation.
+    created_at: std::time::Instant,
+    /// Nanos-since-`created_at` of the moment a probe beep was injected
+    /// into the input stream. Written by `process_input_f32` when a probe
+    /// transitions Armed → Fired; read by `process_output_f32` when the
+    /// beep is detected at the output, to compute the measured latency.
     last_input_nanos: AtomicU64,
+    /// Measured end-to-end latency (ns) of the last completed probe.
+    /// Exposed to the UI via `measured_latency_ms()`.
     measured_latency_nanos: AtomicU64,
+    /// Latency probe state machine: Idle / Armed / Fired. Transitions are
+    /// Idle → Armed (user click), Armed → Fired (input callback injects
+    /// the beep), Fired → Idle (output callback detects the beep).
+    probe_state: std::sync::atomic::AtomicU8,
     /// When true, the audio callback must not call any block processors.
     /// Set before deactivating the JACK client to prevent use-after-free
     /// in C++ NAM destructors (terminate called without active exception).
     draining: std::sync::atomic::AtomicBool,
 }
+
+const PROBE_IDLE: u8 = 0;
+const PROBE_ARMED: u8 = 1;
+const PROBE_FIRED: u8 = 2;
+/// Number of audio frames the probe beep occupies. At 48 kHz this is
+/// 128 / 48000 ≈ 2.7 ms of a short 1 kHz sine burst — audible as a "tick"
+/// without being intrusive.
+const PROBE_BEEP_FRAMES: usize = 128;
+/// Frequency of the sine used for the probe beep, in Hz.
+const PROBE_BEEP_FREQ: f32 = 1000.0;
+/// Output sample amplitude that counts as "the probe arrived". Set low
+/// enough to catch the beep even through an amp model that attenuates
+/// or filters the 1 kHz sine, but well above a realistic digital noise
+/// floor so background hum does not false-trigger detection.
+const PROBE_DETECT_THRESHOLD: f32 = 0.05;
 
 impl ChainRuntimeState {
     /// Signal the audio callback to stop processing blocks.
@@ -234,6 +330,28 @@ impl ChainRuntimeState {
     pub fn measured_latency_ms(&self) -> f32 {
         let nanos = self.measured_latency_nanos.load(std::sync::atomic::Ordering::Relaxed);
         nanos as f32 / 1_000_000.0
+    }
+
+    /// Arm the latency probe. The next input callback will inject a short
+    /// beep into the signal path, and the first output callback to see it
+    /// arrive at the output stage records the measured latency. Safe to
+    /// call while audio is flowing; idempotent if already armed or fired.
+    pub fn arm_latency_probe(&self) {
+        self.probe_state
+            .store(PROBE_ARMED, std::sync::atomic::Ordering::Release);
+    }
+
+    pub fn probe_in_flight(&self) -> bool {
+        self.probe_state.load(std::sync::atomic::Ordering::Acquire) != PROBE_IDLE
+    }
+
+    /// Reset the probe state to Idle. Used by the UI when the display
+    /// window expires so a probe that never completed (e.g. the beep was
+    /// consumed by a chain rebuild, or the chain was disabled before the
+    /// output callback ran) does not stay armed across sessions.
+    pub fn cancel_latency_probe(&self) {
+        self.probe_state
+            .store(PROBE_IDLE, std::sync::atomic::Ordering::Release);
     }
 
     /// Returns stream data for a block by ID, or None if not found or empty.
@@ -273,18 +391,49 @@ struct ChainProcessingState {
     input_states: Vec<InputProcessingState>,
     /// Maps CPAL input_index → Vec of input_states indices to process.
     input_to_segments: Vec<Vec<usize>>,
-    #[allow(dead_code)]
-    mixed_buffer: Vec<AudioFrame>,
+    /// Pre-allocated scratch buffers used by `process_input_f32`, indexed by
+    /// CPAL input_index. Reused across callbacks to avoid per-callback
+    /// allocations in the RT hot path.
+    input_scratches: Vec<InputCallbackScratch>,
+}
+
+/// Scratch buffers reused across audio callbacks for a single input_index.
+/// Each Vec/HashMap keeps its allocated capacity between callbacks; clearing
+/// leaves the backing storage in place.
+#[derive(Default)]
+struct InputCallbackScratch {
+    /// Mixed audio frames keyed by output route index, accumulated across
+    /// segments for the current callback.
+    mixed_per_route: HashMap<usize, Vec<AudioFrame>>,
+    /// Output route Arcs snapshotted from `runtime.output_routes` via
+    /// ArcSwap for this callback — no lock held.
+    route_arcs: Vec<(usize, Arc<OutputRoutingState>)>,
+    /// Buffer written by `process_single_segment` with the processed frames
+    /// of the current segment before they are mixed into `mixed_per_route`.
+    segment_processed: Vec<AudioFrame>,
+    /// Output route indices for the current segment, refreshed per segment.
+    segment_route_indices: Vec<usize>,
+    /// Segment indices belonging to the current input_index, refreshed per
+    /// callback from `input_to_segments`.
+    segment_indices: Vec<usize>,
+}
+
+impl InputCallbackScratch {
+    fn reset_for_callback(&mut self) {
+        for buf in self.mixed_per_route.values_mut() {
+            buf.clear();
+        }
+        self.route_arcs.clear();
+        self.segment_processed.clear();
+        self.segment_route_indices.clear();
+        self.segment_indices.clear();
+    }
 }
 
 struct OutputRoutingState {
     output_channels: Vec<usize>,
     output_mixdown: ChainOutputMixdown,
     buffer: ElasticBuffer,
-}
-
-struct ChainOutputState {
-    output_routes: Vec<Arc<Mutex<OutputRoutingState>>>,
 }
 
 enum RuntimeProcessor {
@@ -347,6 +496,7 @@ pub struct RuntimeGraph {
 pub fn build_runtime_graph(
     project: &Project,
     chain_sample_rates: &HashMap<ChainId, f32>,
+    chain_elastic_targets: &HashMap<ChainId, Vec<usize>>,
 ) -> Result<RuntimeGraph> {
     let mut chains = HashMap::new();
     for chain in &project.chains {
@@ -356,13 +506,30 @@ pub fn build_runtime_graph(
         let sample_rate = *chain_sample_rates
             .get(&chain.id)
             .ok_or_else(|| anyhow!("chain '{}' has no resolved runtime sample rate", chain.id.0))?;
-        let state = build_chain_runtime_state(chain, sample_rate)?;
+        let default_targets: Vec<usize> = Vec::new();
+        let elastic_targets = chain_elastic_targets
+            .get(&chain.id)
+            .unwrap_or(&default_targets);
+        let state = build_chain_runtime_state(chain, sample_rate, elastic_targets)?;
         chains.insert(chain.id.clone(), Arc::new(state));
     }
     Ok(RuntimeGraph { chains })
 }
 
-pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<ChainRuntimeState> {
+/// Lookup the per-route elastic target, falling back to DEFAULT_ELASTIC_TARGET
+/// if the caller did not provide a value for this route index.
+fn target_for_route(elastic_targets: &[usize], route_idx: usize) -> usize {
+    elastic_targets
+        .get(route_idx)
+        .copied()
+        .unwrap_or(DEFAULT_ELASTIC_TARGET)
+}
+
+pub fn build_chain_runtime_state(
+    chain: &Chain,
+    sample_rate: f32,
+    elastic_targets: &[usize],
+) -> Result<ChainRuntimeState> {
     let (eff_inputs, eff_input_cpal_indices) = effective_inputs(chain);
     let eff_outputs = effective_outputs(chain);
     log::info!("=== CHAIN '{}' RUNTIME BUILD ===", chain.id.0);
@@ -417,9 +584,10 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
         }
     }
 
-    let mut output_routes = Vec::with_capacity(eff_outputs.len());
-    for output in &eff_outputs {
-        output_routes.push(Arc::new(Mutex::new(build_output_routing_state(output))));
+    let mut output_routes: Vec<Arc<OutputRoutingState>> = Vec::with_capacity(eff_outputs.len());
+    for (route_idx, output) in eff_outputs.iter().enumerate() {
+        let target = target_for_route(elastic_targets, route_idx);
+        output_routes.push(Arc::new(build_output_routing_state(output, target)));
     }
 
     // Collect stream handles from all blocks across all input states
@@ -432,17 +600,23 @@ pub fn build_chain_runtime_state(chain: &Chain, sample_rate: f32) -> Result<Chai
         }
     }
 
+    let input_scratches = (0..input_to_segments.len())
+        .map(|_| InputCallbackScratch::default())
+        .collect();
+
     Ok(ChainRuntimeState {
         processing: Mutex::new(ChainProcessingState {
             input_states,
             input_to_segments,
-            mixed_buffer: Vec::with_capacity(1024),
+            input_scratches,
         }),
-        output: Mutex::new(ChainOutputState { output_routes }),
+        output_routes: ArcSwap::from_pointee(output_routes),
         stream_handles: Mutex::new(stream_handles_map),
         error_queue: Mutex::new(Vec::new()),
+        created_at: std::time::Instant::now(),
         last_input_nanos: AtomicU64::new(0),
         measured_latency_nanos: AtomicU64::new(0),
+        probe_state: std::sync::atomic::AtomicU8::new(PROBE_IDLE),
         draining: std::sync::atomic::AtomicBool::new(false),
     })
 }
@@ -779,8 +953,18 @@ fn build_input_processing_state(
     block_indices: Option<&[usize]>,
     output_route_indices: Vec<usize>,
 ) -> Result<InputProcessingState> {
-    // Use both input and output channel info to determine processing layout
-    // (matches legacy behavior: mono input + stereo output = stereo processing)
+    // The processing bus layout is chosen by the combination of input and
+    // output channel count, matching `project::chain::processing_layout`:
+    //   - mono input + mono output  → Mono bus (cheaper: mono blocks skip
+    //     the mono→stereo→mono round-trip)
+    //   - mono input + stereo output → Stereo bus (upmix once, then stereo
+    //     downstream)
+    //   - stereo input               → Stereo bus
+    //   - dual mono                  → Stereo bus at the buffer level,
+    //     with L/R processed independently by `AudioProcessor::DualMono`
+    // DualMono is flattened to Stereo at the channel-layout level because
+    // the runtime tracks the independent L/R pipelines inside the processor
+    // itself; the buffer between blocks only needs two slots.
     let proc_layout = project::chain::processing_layout(
         &input.channels,
         output_channels,
@@ -790,14 +974,11 @@ fn build_input_processing_state(
         ChainInputMode::Mono => AudioChannelLayout::Mono,
         ChainInputMode::Stereo | ChainInputMode::DualMono => AudioChannelLayout::Stereo,
     };
-    // On aarch64 (Orange Pi), use mono processing when input is mono to halve
-    // NAM instances (DualMono→Mono). On x86 (Mac/Windows) keep stereo always
-    // to avoid any risk of changing the sound character.
-    #[cfg(target_arch = "aarch64")]
-    let processing_layout_channel = input_read_layout;
-    #[cfg(not(target_arch = "aarch64"))]
-    let processing_layout_channel = AudioChannelLayout::Stereo;
-    let _ = proc_layout;
+    let processing_layout_channel = match proc_layout {
+        project::chain::ProcessingLayout::Mono => AudioChannelLayout::Mono,
+        project::chain::ProcessingLayout::Stereo
+        | project::chain::ProcessingLayout::DualMono => AudioChannelLayout::Stereo,
+    };
     log::info!(
         "chain '{}' input entry processing layout: input_read={}, processing={:?} (channels={:?} mode={:?})",
         chain.id.0,
@@ -821,7 +1002,7 @@ fn build_input_processing_state(
     })
 }
 
-fn build_output_routing_state(output: &OutputEntry) -> OutputRoutingState {
+fn build_output_routing_state(output: &OutputEntry, elastic_target: usize) -> OutputRoutingState {
     let output_layout = if output.channels.len() >= 2 {
         match output.mode {
             ChainOutputMode::Stereo => AudioChannelLayout::Stereo,
@@ -833,7 +1014,7 @@ fn build_output_routing_state(output: &OutputEntry) -> OutputRoutingState {
     OutputRoutingState {
         output_channels: output.channels.clone(),
         output_mixdown: ChainOutputMixdown::Average,
-        buffer: ElasticBuffer::new(ELASTIC_BUFFER_TARGET_LEVEL, output_layout),
+        buffer: ElasticBuffer::new(elastic_target, output_layout),
     }
 }
 
@@ -842,6 +1023,7 @@ pub fn update_chain_runtime_state(
     chain: &Chain,
     sample_rate: f32,
     reset_output_queue: bool,
+    elastic_targets: &[usize],
 ) -> Result<()> {
     let (effective_ins, eff_input_cpal_indices) = effective_inputs(chain);
     let effective_outs = effective_outputs(chain);
@@ -894,10 +1076,14 @@ pub fn update_chain_runtime_state(
         new_input_states.push(input_state);
     }
 
-    // Build new output routes wrapped in per-route mutexes
-    let new_output_routes: Vec<Arc<Mutex<OutputRoutingState>>> = effective_outs
+    // Build new output routes (no per-route Mutex — ElasticBuffer is lock-free).
+    let new_output_routes: Vec<Arc<OutputRoutingState>> = effective_outs
         .iter()
-        .map(|o| Arc::new(Mutex::new(build_output_routing_state(o))))
+        .enumerate()
+        .map(|(route_idx, o)| {
+            let target = target_for_route(elastic_targets, route_idx);
+            Arc::new(build_output_routing_state(o, target))
+        })
         .collect();
 
     // Step 2.5: Refresh stream_handles — picks up new handles from rebuilt blocks
@@ -928,20 +1114,33 @@ pub fn update_chain_runtime_state(
             }
         }
         processing.input_to_segments = new_mapping;
+        // Cancel any in-flight latency probe — its beep was pushed into
+        // the old queue that we're about to discard, so leaving the state
+        // Fired would wait forever for a detection that will never happen.
+        runtime
+            .probe_state
+            .store(PROBE_IDLE, std::sync::atomic::Ordering::Release);
+        // Resize scratches to match the new input count, preserving existing
+        // allocated capacity for slots that still exist.
+        let new_len = processing.input_to_segments.len();
+        processing
+            .input_scratches
+            .resize_with(new_len, InputCallbackScratch::default);
     }
 
-    {
-        let mut output = runtime.output.lock().expect("chain runtime poisoned");
-        // Preserve existing buffers where possible
-        let old_routes = std::mem::replace(&mut output.output_routes, new_output_routes);
-        for (new_route_arc, old_route_arc) in output.output_routes.iter().zip(old_routes.into_iter()) {
-            if !reset_output_queue {
-                let mut old_route = old_route_arc.lock().expect("old route poisoned");
-                let mut new_route = new_route_arc.lock().expect("new route poisoned");
-                std::mem::swap(&mut new_route.buffer, &mut old_route.buffer);
-            }
+    // Seed each new buffer with the previous buffer's last pushed frame so a
+    // brief underrun during the transition repeats the tail of the old audio
+    // rather than jumping to silence. We can't migrate queued frames across
+    // the swap without introducing locks, but the SPSC's underrun fallback
+    // plus a matching `last_frame` makes the seam inaudible for the target
+    // scenario (param tweaks that rebuild processors in place).
+    if !reset_output_queue {
+        let old_routes = runtime.output_routes.load();
+        for (new_route, old_route) in new_output_routes.iter().zip(old_routes.iter()) {
+            new_route.buffer.seed_last_frame_from(&old_route.buffer);
         }
     }
+    runtime.output_routes.store(Arc::new(new_output_routes));
 
     Ok(())
 }
@@ -952,13 +1151,14 @@ impl RuntimeGraph {
         chain: &Chain,
         sample_rate: f32,
         reset_output_queue: bool,
+        elastic_targets: &[usize],
     ) -> Result<Arc<ChainRuntimeState>> {
         if let Some(runtime) = self.chains.get(&chain.id) {
-            update_chain_runtime_state(runtime, chain, sample_rate, reset_output_queue)?;
+            update_chain_runtime_state(runtime, chain, sample_rate, reset_output_queue, elastic_targets)?;
             return Ok(runtime.clone());
         }
 
-        let state = build_chain_runtime_state(chain, sample_rate)?;
+        let state = build_chain_runtime_state(chain, sample_rate, elastic_targets)?;
         let runtime = Arc::new(state);
         self.chains.insert(chain.id.clone(), runtime.clone());
         Ok(runtime)
@@ -1637,97 +1837,117 @@ pub fn process_input_f32(
     ensure_flush_to_zero();
     let num_frames = data.len() / input_total_channels;
 
-    // Get which segments this CPAL input feeds
-    let segment_indices: Vec<usize> = {
-        let processing = match runtime.processing.try_lock() {
-            Ok(guard) => guard,
-            Err(_) => return,
-        };
-        processing.input_to_segments
-            .get(input_index)
-            .cloned()
-            .unwrap_or_else(|| {
-                if input_index < processing.input_states.len() { vec![input_index] } else { vec![] }
-            })
+    // Take the processing lock FIRST so we only commit the probe state
+    // transition when we are certain the beep will flow through the rest
+    // of the pipeline. If try_lock fails (config rebuild in flight) we
+    // leave the probe state Armed and retry on the next callback.
+    let mut processing_guard = match runtime.processing.try_lock() {
+        Ok(guard) => guard,
+        Err(_) => return,
     };
 
-    // Process each segment, collect results keyed by output route
-    let mut mixed_per_route: HashMap<usize, Vec<AudioFrame>> = HashMap::new();
-    for &seg_idx in &segment_indices {
-        let result = {
-            let mut processing = match runtime.processing.try_lock() {
-                Ok(guard) => guard,
-                Err(_) => continue,
-            };
-            process_single_segment(&mut processing, seg_idx, data, input_total_channels, num_frames, &runtime.error_queue)
-        };
-        if let Some((processed, route_indices)) = result {
-            for &route_idx in &route_indices {
-                let buf = mixed_per_route.entry(route_idx).or_insert_with(Vec::new);
-                if buf.is_empty() {
-                    // First segment for this route — just copy
-                    *buf = processed.clone();
-                } else {
-                    // Sum with existing frames
-                    for (i, &frame) in processed.iter().enumerate() {
-                        if i < buf.len() {
-                            buf[i] = match (buf[i], frame) {
-                                (AudioFrame::Stereo([l1, r1]), AudioFrame::Stereo([l2, r2])) =>
-                                    AudioFrame::Stereo([l1 + l2, r1 + r2]),
-                                (AudioFrame::Mono(a), AudioFrame::Mono(b)) =>
-                                    AudioFrame::Mono(a + b),
-                                (AudioFrame::Stereo([l, r]), AudioFrame::Mono(m)) =>
-                                    AudioFrame::Stereo([l + m, r + m]),
-                                (AudioFrame::Mono(m), AudioFrame::Stereo([l, r])) =>
-                                    AudioFrame::Stereo([m + l, m + r]),
-                            };
-                        }
-                    }
+    // If a latency probe is armed, replace the first portion of this
+    // callback's input with a short sine beep and record the injection
+    // time. Only the primary input (index 0) probes so we measure the
+    // round-trip of the user-visible signal path.
+    let probe_buf: Option<Vec<f32>> =
+        if input_index == 0 && runtime.probe_state.load(Ordering::Acquire) == PROBE_ARMED {
+            runtime.probe_state.store(PROBE_FIRED, Ordering::Release);
+            let injected_at = runtime.created_at.elapsed().as_nanos() as u64;
+            runtime.last_input_nanos.store(injected_at, Ordering::Relaxed);
+            let mut buf = data.to_vec();
+            let beep_frames = PROBE_BEEP_FRAMES.min(num_frames);
+            // The audible pitch of the beep is approximate — we use the
+            // nominal 48 kHz for the sine step. The measurement itself
+            // does not depend on the beep's frequency.
+            let sr = 48_000.0_f32;
+            for f in 0..beep_frames {
+                let t = f as f32 / sr;
+                let envelope =
+                    (std::f32::consts::PI * f as f32 / beep_frames as f32).sin();
+                let sample =
+                    (2.0 * std::f32::consts::PI * PROBE_BEEP_FREQ * t).sin() * 0.95 * envelope;
+                for ch in 0..input_total_channels {
+                    buf[f * input_total_channels + ch] = sample;
                 }
             }
+            Some(buf)
+        } else {
+            None
+        };
+    let data: &[f32] = match probe_buf.as_ref() {
+        Some(b) => b.as_slice(),
+        None => data,
+    };
+    let ChainProcessingState {
+        input_states,
+        input_to_segments,
+        input_scratches,
+    } = &mut *processing_guard;
+
+    // Temporarily take the scratch for this input_index to work around the
+    // aliasing rules: we'll put it back before returning. If the slot does
+    // not exist we fall back to a scratch allocated on the stack.
+    let mut scratch = match input_scratches.get_mut(input_index) {
+        Some(s) => std::mem::take(s),
+        None => InputCallbackScratch::default(),
+    };
+    scratch.reset_for_callback();
+
+    if let Some(segments) = input_to_segments.get(input_index) {
+        scratch.segment_indices.extend(segments.iter().copied());
+    } else if input_index < input_states.len() {
+        scratch.segment_indices.push(input_index);
+    }
+
+    // Process each segment, mixing into scratch.mixed_per_route.
+    for i in 0..scratch.segment_indices.len() {
+        let seg_idx = scratch.segment_indices[i];
+        process_single_segment(
+            input_states,
+            &mut scratch,
+            seg_idx,
+            data,
+            input_total_channels,
+            num_frames,
+            &runtime.error_queue,
+        );
+    }
+
+    // Snapshot current output routes via ArcSwap — no lock.
+    let routes = runtime.output_routes.load();
+    for route_idx in scratch.mixed_per_route.keys() {
+        if let Some(arc) = routes.get(*route_idx) {
+            scratch.route_arcs.push((*route_idx, Arc::clone(arc)));
         }
     }
 
-    // Push mixed frames to output routes
-    let route_arcs: Vec<(usize, Arc<Mutex<OutputRoutingState>>)> = {
-        if let Ok(output) = runtime.output.try_lock() {
-            mixed_per_route.keys()
-                .filter_map(|&idx| output.output_routes.get(idx).map(|arc| (idx, Arc::clone(arc))))
-                .collect()
-        } else {
-            return;
-        }
-    };
-    for (route_idx, route_arc) in &route_arcs {
-        if let Some(frames) = mixed_per_route.get(route_idx) {
-            let mut route = match route_arc.lock() {
-                Ok(g) => g,
-                Err(e) => e.into_inner(),
-            };
+    // Push mixed frames to their output routes (lock-free via SPSC).
+    for (route_idx, route) in &scratch.route_arcs {
+        if let Some(frames) = scratch.mixed_per_route.get(route_idx) {
             for &frame in frames {
                 route.buffer.push(frame);
             }
         }
     }
+
+    if let Some(slot) = input_scratches.get_mut(input_index) {
+        *slot = scratch;
+    }
 }
 
 fn process_single_segment(
-    processing: &mut ChainProcessingState,
+    input_states: &mut [InputProcessingState],
+    scratch: &mut InputCallbackScratch,
     seg_idx: usize,
     data: &[f32],
     input_total_channels: usize,
     num_frames: usize,
     error_queue: &Mutex<Vec<BlockError>>,
-) -> Option<(Vec<AudioFrame>, Vec<usize>)> {
-    let ChainProcessingState {
-        input_states,
-        input_to_segments: _,
-        mixed_buffer: _,
-    } = processing;
-
+) {
     let input_state = match input_states.get_mut(seg_idx) {
         Some(s) => s,
-        None => return None,
+        None => return,
     };
 
     let InputProcessingState {
@@ -1737,7 +1957,7 @@ fn process_single_segment(
         blocks,
         frame_buffer,
         fade_in_remaining,
-        output_route_indices: _,
+        output_route_indices,
     } = input_state;
 
     frame_buffer.clear();
@@ -1778,10 +1998,30 @@ fn process_single_segment(
         }
     }
 
-    let processed: Vec<AudioFrame> = input_state.frame_buffer.drain(..).collect();
-    let segment_routes = input_state.output_route_indices.clone();
-
-    Some((processed, segment_routes))
+    // Mix this segment's frame_buffer into scratch.mixed_per_route for each
+    // route this segment feeds. First segment into an empty bucket copies;
+    // subsequent segments sum.
+    for &route_idx in output_route_indices.iter() {
+        let buf = scratch.mixed_per_route.entry(route_idx).or_default();
+        if buf.is_empty() {
+            buf.extend_from_slice(frame_buffer);
+        } else {
+            for (i, &frame) in frame_buffer.iter().enumerate() {
+                if i < buf.len() {
+                    buf[i] = match (buf[i], frame) {
+                        (AudioFrame::Stereo([l1, r1]), AudioFrame::Stereo([l2, r2])) =>
+                            AudioFrame::Stereo([l1 + l2, r1 + r2]),
+                        (AudioFrame::Mono(a), AudioFrame::Mono(b)) =>
+                            AudioFrame::Mono(a + b),
+                        (AudioFrame::Stereo([l, r]), AudioFrame::Mono(m)) =>
+                            AudioFrame::Stereo([l + m, r + m]),
+                        (AudioFrame::Mono(m), AudioFrame::Stereo([l, r])) =>
+                            AudioFrame::Stereo([m + l, m + r]),
+                    };
+                }
+            }
+        }
+    }
 }
 
 fn process_audio_block(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame], error_queue: &Mutex<Vec<BlockError>>) {
@@ -1913,25 +2153,15 @@ pub fn process_output_f32(
         return;
     }
     ensure_flush_to_zero();
-    // Get the Arc for this specific route (brief lock on output state)
-    let route_arc = {
-        let output_state = match runtime.output.lock() {
-            Ok(g) => g,
-            Err(e) => e.into_inner(),
-        };
-        match output_state.output_routes.get(output_index) {
-            Some(r) => Arc::clone(r),
-            None => {
-                out.fill(0.0);
-                return;
-            }
+
+    // Snapshot the current routes via ArcSwap — no lock on the RT thread.
+    let routes = runtime.output_routes.load();
+    let route = match routes.get(output_index) {
+        Some(r) => r,
+        None => {
+            out.fill(0.0);
+            return;
         }
-    };
-    // Lock this route — brief wait while input pushes is acceptable,
-    // filling with silence on try_lock failure causes audible clicks.
-    let mut route = match route_arc.lock() {
-        Ok(g) => g,
-        Err(e) => e.into_inner(),
     };
     let num_frames = out.len() / output_total_channels;
     for frame in out.chunks_mut(output_total_channels).take(num_frames) {
@@ -1943,6 +2173,36 @@ pub fn process_output_f32(
             frame,
             route.output_mixdown,
         );
+    }
+
+    // Latency probe detection: only the primary output (index 0) scans.
+    // When Fired, look for the leading edge of the injected beep. Measure
+    // wall-clock nanos from injection to detection; that is the real
+    // end-to-end latency of the signal path for the user.
+    if output_index == 0
+        && runtime.probe_state.load(Ordering::Acquire) == PROBE_FIRED
+    {
+        let detected_at_idx = out
+            .iter()
+            .position(|s| s.abs() > PROBE_DETECT_THRESHOLD);
+        if detected_at_idx.is_some() {
+            let now = runtime.created_at.elapsed().as_nanos() as u64;
+            let injected_at = runtime.last_input_nanos.load(Ordering::Relaxed);
+            // Measure wall-clock nanos from the input callback that
+            // injected the beep to this output callback that detected
+            // it. This is callback-level granularity; we intentionally
+            // do NOT add the intra-buffer offset because that couples
+            // the measurement to signal amplitude (through the
+            // threshold-crossing position) and inflates readings for
+            // chains that attenuate the signal.
+            let delta = now.saturating_sub(injected_at);
+            runtime
+                .measured_latency_nanos
+                .store(delta, Ordering::Relaxed);
+            runtime
+                .probe_state
+                .store(PROBE_IDLE, Ordering::Release);
+        }
     }
 }
 
@@ -2071,7 +2331,7 @@ mod tests {
         build_chain_runtime_state, build_runtime_graph, process_input_f32, process_output_f32,
         update_chain_runtime_state, split_chain_into_segments, effective_inputs, effective_outputs,
         AudioFrame, AudioProcessor, BlockError, BlockRuntimeNode, FadeState, ProcessorScratch, RuntimeProcessor,
-        ElasticBuffer, ELASTIC_BUFFER_TARGET_LEVEL, FADE_IN_FRAMES,
+        ElasticBuffer, DEFAULT_ELASTIC_TARGET, FADE_IN_FRAMES,
     };
     use block_core::AudioChannelLayout;
     use block_preamp::supported_models as supported_preamp_models;
@@ -2118,6 +2378,7 @@ mod tests {
         let runtime = build_runtime_graph(
             &project,
             &HashMap::from([(ChainId("chain:0".into()), 48_000.0)]),
+            &HashMap::new(),
         )
         .expect("runtime graph should build");
         assert_eq!(runtime.chains.len(), 1);
@@ -2151,6 +2412,7 @@ mod tests {
         let error = match build_runtime_graph(
             &project,
             &HashMap::from([(ChainId("chain:0".into()), 44_100.0)]),
+            &HashMap::new(),
         ) {
             Ok(_) => panic!("runtime graph should reject mismatched IR sample rate"),
             Err(error) => error,
@@ -2171,7 +2433,7 @@ mod tests {
         );
 
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime state should build"));
         let original_serials = {
             let locked = runtime.processing.lock().expect("runtime poisoned");
             locked
@@ -2187,7 +2449,7 @@ mod tests {
                 .insert("reference_hz", ParameterValue::Float(432.0));
         }
 
-        update_chain_runtime_state(&runtime, &chain, 48_000.0, false)
+        update_chain_runtime_state(&runtime, &chain, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET])
             .expect("runtime update should succeed");
 
         let updated_serials = {
@@ -2216,7 +2478,7 @@ mod tests {
         );
 
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime state should build"));
         let original_by_block_id = {
             let locked = runtime.processing.lock().expect("runtime poisoned");
             locked
@@ -2229,7 +2491,7 @@ mod tests {
 
         chain.blocks.swap(0, 1);
 
-        update_chain_runtime_state(&runtime, &chain, 48_000.0, false)
+        update_chain_runtime_state(&runtime, &chain, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET])
             .expect("runtime update should succeed");
 
         let reordered = runtime.processing.lock().expect("runtime poisoned");
@@ -2246,15 +2508,14 @@ mod tests {
     fn process_input_limits_buffered_output_frames() {
         let chain = tuner_track("chain:0", Vec::new());
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"));
-        let total_frames = ELASTIC_BUFFER_TARGET_LEVEL * 2 + 64;
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime state should build"));
+        let total_frames = DEFAULT_ELASTIC_TARGET * 2 + 64;
         let input = vec![0.25f32; total_frames];
 
         process_input_f32(&runtime, 0, &input, 1);
 
-        let output = runtime.output.lock().expect("runtime poisoned");
-        let route = output.output_routes[0].lock().expect("route poisoned");
-        assert!(route.buffer.len() <= ELASTIC_BUFFER_TARGET_LEVEL * 2);
+        let routes = runtime.output_routes.load();
+        assert!(routes[0].buffer.len() <= DEFAULT_ELASTIC_TARGET * 2);
     }
 
     #[test]
@@ -2262,7 +2523,7 @@ mod tests {
     fn process_output_drains_buffered_frames() {
         let chain = tuner_track("chain:0", Vec::new());
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime state should build"));
 
         process_input_f32(&runtime, 0, &[0.25, 0.5, 0.75, 1.0], 1);
 
@@ -2270,9 +2531,8 @@ mod tests {
         process_output_f32(&runtime, 0, &mut out, 1);
 
         assert_eq!(out, vec![0.25, 0.5, 0.75, 1.0]);
-        let output = runtime.output.lock().expect("runtime poisoned");
-        let route = output.output_routes[0].lock().expect("route poisoned");
-        assert!(route.buffer.queue.is_empty());
+        let routes = runtime.output_routes.load();
+        assert_eq!(routes[0].buffer.len(), 0);
     }
 
     #[test]
@@ -2315,7 +2575,7 @@ mod tests {
             ],
         };
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime state should build"));
 
         let mut input = vec![0.0f32; 256 * 2];
         for frame in input.chunks_mut(2) {
@@ -2376,7 +2636,7 @@ mod tests {
             ],
         };
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime state should build"));
 
         let mut input = vec![0.0f32; 256 * 2];
         for frame in input.chunks_mut(2) {
@@ -2404,7 +2664,7 @@ mod tests {
         let chain = select_delay_chain("chain:select", "delay_a");
 
         let runtime =
-            build_chain_runtime_state(&chain, 48_000.0).expect("select delay chain should build");
+            build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("select delay chain should build");
 
         let locked = runtime.processing.lock().expect("runtime poisoned");
         assert_eq!(locked.input_states[0].blocks.len(), 1);
@@ -2415,7 +2675,7 @@ mod tests {
     fn update_chain_runtime_state_preserves_select_instance_when_switching_active_option() {
         let mut chain = select_delay_chain("chain:select", "delay_a");
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime state should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime state should build"));
         let original_serial = {
             let locked = runtime.processing.lock().expect("runtime poisoned");
             locked.input_states[0].blocks[0].instance_serial
@@ -2425,7 +2685,7 @@ mod tests {
             select.selected_block_id = BlockId("chain:select:block:0::delay_b".into());
         }
 
-        update_chain_runtime_state(&runtime, &chain, 48_000.0, false)
+        update_chain_runtime_state(&runtime, &chain, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET])
             .expect("runtime update should succeed when switching select option");
 
         let updated_serial = {
@@ -2591,7 +2851,7 @@ mod tests {
 
     #[test]
     fn elastic_buffer_push_pop_basic() {
-        let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
+        let buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
         buf.push(AudioFrame::Mono(0.5));
         buf.push(AudioFrame::Mono(0.7));
         assert_eq!(buf.len(), 2);
@@ -2603,7 +2863,7 @@ mod tests {
 
     #[test]
     fn elastic_buffer_underrun_repeats_last_frame() {
-        let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
+        let buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
         buf.push(AudioFrame::Mono(0.42));
         let _ = buf.pop(); // drain the one frame
         // Now empty — should repeat last frame, NOT silence
@@ -2613,30 +2873,32 @@ mod tests {
 
     #[test]
     fn elastic_buffer_underrun_before_any_push_returns_silence() {
-        let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Stereo);
+        let buf = ElasticBuffer::new(256, AudioChannelLayout::Stereo);
         let frame = buf.pop();
         assert!(matches!(frame, AudioFrame::Stereo([l, r]) if l.abs() < 1e-6 && r.abs() < 1e-6));
     }
 
     #[test]
-    fn elastic_buffer_overrun_discards_oldest() {
-        let target = 4; // small for testing
-        let mut buf = ElasticBuffer::new(target, AudioChannelLayout::Mono);
-        // Push 2x target + 1 = 9 frames
-        for i in 0..9 {
+    fn elastic_buffer_overrun_drops_newest() {
+        // The lock-free SPSC ring drops the newest frame when full (rather
+        // than advancing the tail from the producer side, which would break
+        // the single-producer invariant). Ring capacity is the next power of
+        // two at or above target_level * 2.
+        let target: usize = 4;
+        let capacity = (target * 2).next_power_of_two();
+        let buf = ElasticBuffer::new(target, AudioChannelLayout::Mono);
+        for i in 0..(capacity + 4) {
             buf.push(AudioFrame::Mono(i as f32));
         }
-        // Should have discarded oldest, keeping at most 2x target = 8
-        assert!(buf.len() <= target * 2);
-        // First frame should NOT be 0.0 (it was discarded)
-        let first = buf.pop();
-        assert!(matches!(first, AudioFrame::Mono(v) if v > 0.1));
+        assert_eq!(buf.len(), capacity);
+        // Oldest frames are retained — first pop returns the very first push.
+        assert!(matches!(buf.pop(), AudioFrame::Mono(v) if v == 0.0));
     }
 
     #[test]
     fn elastic_buffer_stabilizes_around_target() {
         let target = 256;
-        let mut buf = ElasticBuffer::new(target, AudioChannelLayout::Mono);
+        let buf = ElasticBuffer::new(target, AudioChannelLayout::Mono);
         // Simulate: push slightly faster than pop
         for _ in 0..10000 {
             buf.push(AudioFrame::Mono(1.0));
@@ -2973,7 +3235,7 @@ mod tests {
 
     #[test]
     fn elastic_buffer_target_one_limits_to_two() {
-        let mut buf = ElasticBuffer::new(1, AudioChannelLayout::Mono);
+        let buf = ElasticBuffer::new(1, AudioChannelLayout::Mono);
         buf.push(AudioFrame::Mono(1.0));
         buf.push(AudioFrame::Mono(2.0));
         buf.push(AudioFrame::Mono(3.0)); // should discard oldest
@@ -2982,7 +3244,7 @@ mod tests {
 
     #[test]
     fn elastic_buffer_stereo_push_pop_preserves_channels() {
-        let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Stereo);
+        let buf = ElasticBuffer::new(256, AudioChannelLayout::Stereo);
         buf.push(AudioFrame::Stereo([0.3, 0.7]));
         let frame = buf.pop();
         match frame {
@@ -2996,7 +3258,7 @@ mod tests {
 
     #[test]
     fn elastic_buffer_multiple_pops_on_empty_repeat_last() {
-        let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
+        let buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
         buf.push(AudioFrame::Mono(0.99));
         let _ = buf.pop(); // drain
         // Multiple pops should all return last frame
@@ -3385,7 +3647,7 @@ mod tests {
             }],
         };
 
-        let runtime = build_runtime_graph(&project, &HashMap::new())
+        let runtime = build_runtime_graph(&project, &HashMap::new(), &HashMap::new())
             .expect("build should succeed with disabled chain");
         assert!(runtime.chains.is_empty(), "disabled chains should be skipped");
     }
@@ -3404,7 +3666,7 @@ mod tests {
             }],
         };
 
-        let result = build_runtime_graph(&project, &HashMap::new());
+        let result = build_runtime_graph(&project, &HashMap::new(), &HashMap::new());
         assert!(result.is_err(), "should error when chain has no sample rate");
     }
 
@@ -3420,7 +3682,7 @@ mod tests {
             device_settings: Vec::new(),
             chains: vec![chain],
         };
-        let mut graph = build_runtime_graph(&project, &rates).unwrap();
+        let mut graph = build_runtime_graph(&project, &rates, &HashMap::new()).unwrap();
         assert_eq!(graph.chains.len(), 1);
         graph.remove_chain(&ChainId("chain:remove".into()));
         assert!(graph.chains.is_empty());
@@ -3438,7 +3700,7 @@ mod tests {
         use super::RuntimeGraph;
         let mut graph = RuntimeGraph { chains: HashMap::new() };
         let chain = tuner_track("chain:new", Vec::new());
-        let result = graph.upsert_chain(&chain, 48_000.0, false);
+        let result = graph.upsert_chain(&chain, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET]);
         assert!(result.is_ok());
         assert_eq!(graph.chains.len(), 1);
     }
@@ -3448,10 +3710,10 @@ mod tests {
         use super::RuntimeGraph;
         let mut graph = RuntimeGraph { chains: HashMap::new() };
         let chain = tuner_track("chain:upsert", vec![tuner_block("b:0", 440.0)]);
-        graph.upsert_chain(&chain, 48_000.0, false).unwrap();
+        graph.upsert_chain(&chain, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET]).unwrap();
         // Update — should reuse existing entry
         let chain2 = tuner_track("chain:upsert", vec![tuner_block("b:0", 445.0)]);
-        let result = graph.upsert_chain(&chain2, 48_000.0, false);
+        let result = graph.upsert_chain(&chain2, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET]);
         assert!(result.is_ok());
         assert_eq!(graph.chains.len(), 1);
     }
@@ -3462,7 +3724,7 @@ mod tests {
     fn process_output_fills_silence_for_invalid_output_index() {
         let chain = io_passthrough_chain("chain:0");
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime should build"));
 
         let mut out = vec![1.0f32; 8];
         process_output_f32(&runtime, 999, &mut out, 1);
@@ -3475,7 +3737,7 @@ mod tests {
     fn process_output_underrun_repeats_last_frame() {
         let chain = io_passthrough_chain("chain:underrun");
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime should build"));
 
         // Push enough frames to get past the fade-in, then push our test frames
         let warmup = vec![0.0f32; FADE_IN_FRAMES + 16];
@@ -3502,14 +3764,14 @@ mod tests {
     #[test]
     fn measured_latency_ms_returns_zero_initially() {
         let chain = tuner_track("chain:0", Vec::new());
-        let runtime = build_chain_runtime_state(&chain, 48_000.0).unwrap();
+        let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).unwrap();
         assert!((runtime.measured_latency_ms() - 0.0).abs() < 1e-6);
     }
 
     #[test]
     fn poll_errors_drains_and_returns_all() {
         let chain = tuner_track("chain:0", Vec::new());
-        let runtime = build_chain_runtime_state(&chain, 48_000.0).unwrap();
+        let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).unwrap();
         // Manually push errors
         {
             let mut q = runtime.error_queue.lock().unwrap();
@@ -3526,7 +3788,7 @@ mod tests {
     #[test]
     fn poll_stream_returns_none_for_unknown_block() {
         let chain = tuner_track("chain:0", Vec::new());
-        let runtime = build_chain_runtime_state(&chain, 48_000.0).unwrap();
+        let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).unwrap();
         assert!(runtime.poll_stream(&BlockId("nonexistent".into())).is_none());
     }
 
@@ -3773,7 +4035,7 @@ mod tests {
             ],
         };
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime should build"));
 
         // Push enough frames to get past fade-in (interleaved stereo)
         let warmup = vec![0.0f32; (FADE_IN_FRAMES + 16) * 2];
@@ -3800,13 +4062,13 @@ mod tests {
     fn update_chain_runtime_state_with_reset_output_queue() {
         let chain = io_passthrough_chain("chain:0");
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime should build"));
 
         // Push some data
         process_input_f32(&runtime, 0, &[0.5, 0.7], 1);
 
         // Update with reset_output_queue=true should clear the buffer
-        update_chain_runtime_state(&runtime, &chain, 48_000.0, true)
+        update_chain_runtime_state(&runtime, &chain, 48_000.0, true, &[DEFAULT_ELASTIC_TARGET])
             .expect("update should succeed");
 
         let mut out = vec![0.0f32; 2];
@@ -3933,7 +4195,7 @@ mod tests {
             mode: ChainOutputMode::Mono,
             channels: vec![0],
         };
-        let state = build_output_routing_state(&output);
+        let state = build_output_routing_state(&output, DEFAULT_ELASTIC_TARGET);
         assert_eq!(state.output_channels, vec![0]);
     }
 
@@ -3945,7 +4207,7 @@ mod tests {
             mode: ChainOutputMode::Stereo,
             channels: vec![0, 1],
         };
-        let state = build_output_routing_state(&output);
+        let state = build_output_routing_state(&output, DEFAULT_ELASTIC_TARGET);
         assert_eq!(state.output_channels, vec![0, 1]);
     }
 
@@ -3957,7 +4219,7 @@ mod tests {
             mode: ChainOutputMode::Mono,
             channels: vec![0, 1],
         };
-        let _state = build_output_routing_state(&output);
+        let _state = build_output_routing_state(&output, DEFAULT_ELASTIC_TARGET);
         // Mono mode with 2 channels: layout should be Mono per the logic
         // Just verifying it doesn't panic and runs correctly
     }
@@ -4001,7 +4263,7 @@ mod tests {
         rates.insert(ChainId("chain:0".into()), 48_000.0);
         rates.insert(ChainId("chain:1".into()), 48_000.0);
 
-        let runtime = build_runtime_graph(&project, &rates)
+        let runtime = build_runtime_graph(&project, &rates, &HashMap::new())
             .expect("should build with multiple chains");
         assert_eq!(runtime.chains.len(), 2);
     }
@@ -4025,7 +4287,7 @@ mod tests {
         let mut rates = HashMap::new();
         rates.insert(ChainId("enabled".into()), 48_000.0);
 
-        let runtime = build_runtime_graph(&project, &rates).unwrap();
+        let runtime = build_runtime_graph(&project, &rates, &HashMap::new()).unwrap();
         assert_eq!(runtime.chains.len(), 1);
         assert!(runtime.chains.contains_key(&ChainId("enabled".into())));
     }
@@ -4036,7 +4298,7 @@ mod tests {
     fn process_input_with_empty_data_does_not_panic() {
         let chain = io_passthrough_chain("chain:0");
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime should build"));
         process_input_f32(&runtime, 0, &[], 1);
     }
 
@@ -4044,7 +4306,7 @@ mod tests {
     fn process_input_with_invalid_index_does_not_panic() {
         let chain = io_passthrough_chain("chain:0");
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime should build"));
         process_input_f32(&runtime, 999, &[0.5, 0.7], 1);
     }
 
@@ -4233,7 +4495,7 @@ mod tests {
             enabled: true,
             blocks: vec![tuner_block("b:0", 440.0)],
         };
-        let runtime = build_chain_runtime_state(&chain, 48_000.0);
+        let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]);
         assert!(runtime.is_ok(), "should build with fallback I/O");
     }
 
@@ -4243,7 +4505,7 @@ mod tests {
     fn passthrough_chain_round_trip_preserves_signal() {
         let chain = io_passthrough_chain("chain:rt");
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0).expect("runtime should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime should build"));
 
         // Warm up past fade-in
         let warmup = vec![0.0f32; FADE_IN_FRAMES + 64];
@@ -4268,7 +4530,7 @@ mod tests {
     #[test]
     fn measured_latency_ms_converts_nanos_correctly() {
         let chain = tuner_track("chain:lat", Vec::new());
-        let runtime = build_chain_runtime_state(&chain, 48_000.0).unwrap();
+        let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).unwrap();
         // Store 5ms worth of nanos
         runtime.measured_latency_nanos.store(5_000_000, std::sync::atomic::Ordering::Relaxed);
         let ms = runtime.measured_latency_ms();
@@ -4286,7 +4548,7 @@ mod tests {
             enabled: true,
             blocks: vec![],
         };
-        let runtime = build_chain_runtime_state(&chain, 48_000.0);
+        let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]);
         assert!(runtime.is_ok(), "empty chain should build successfully");
     }
 
@@ -4294,7 +4556,7 @@ mod tests {
 
     #[test]
     fn elastic_buffer_fifo_order() {
-        let mut buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
+        let buf = ElasticBuffer::new(256, AudioChannelLayout::Mono);
         for i in 0..10 {
             buf.push(AudioFrame::Mono(i as f32 * 0.1));
         }

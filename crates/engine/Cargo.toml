@@ -5,6 +5,7 @@ edition.workspace = true
 [dependencies]
 log.workspace = true
 anyhow.workspace = true
+arc-swap.workspace = true
 domain = { path = "../domain" }
 block-core = { path = "../block-core" }
 block-gain = { path = "../block-gain" }
