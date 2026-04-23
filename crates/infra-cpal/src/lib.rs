@@ -303,38 +303,19 @@ fn proc_cache_is_fresh() -> bool {
         .unwrap_or(false)
 }
 
-/// Read and parse /proc/asound/cards + card{N}/stream0 for each USB card.
-/// Direct filesystem I/O — only called under PROC_REFRESH_LOCK.
-// Process-lifetime registry of channel counts per physical card. Keyed by
-// display_name (e.g. "Scarlett 2i2 4th Gen at usb-xhci-hcd.3.auto-1, ...")
-// so the lookup is stable across plug/unplug cycles. stream0 is read exactly
-// ONCE per distinct physical card that the app ever observes; the value is
-// kept in memory forever. Prevents the Scarlett firmware from seeing repeated
-// stream0 reads, which cause scarlett2_notify 0x20000000 → freeze.
+/// Return (capture, playback) channel counts for a JACK server if it is
+/// already running and its metadata has been cached. Pure cache read — never
+/// creates a JACK client (client creation can itself hit the audio hardware).
+/// Returns None when the server hasn't been probed yet; callers should treat
+/// this as "unknown" and fall back to sensible defaults (0 → no probe, JACK
+/// will auto-discover on launch).
 #[cfg(all(target_os = "linux", feature = "jack"))]
-static CARD_CHANNELS_REGISTRY: Mutex<Option<std::collections::HashMap<String, (u32, u32)>>> =
-    Mutex::new(None);
-
-#[cfg(all(target_os = "linux", feature = "jack"))]
-fn lookup_or_cache_card_channels(display_name: &str, card_num: &str) -> (u32, u32) {
-    {
-        let guard = CARD_CHANNELS_REGISTRY.lock().unwrap();
-        if let Some(map) = guard.as_ref() {
-            if let Some(&ch) = map.get(display_name) {
-                return ch;
-            }
-        }
-    }
-    // First time we see this display_name — read stream0 once and store forever.
-    let ch = read_card_channels_raw(card_num);
-    let mut guard = CARD_CHANNELS_REGISTRY.lock().unwrap();
-    let map = guard.get_or_insert_with(std::collections::HashMap::new);
-    map.insert(display_name.to_string(), ch);
-    log::info!(
-        "[CARD-REGISTRY] learned '{}' → capture={} playback={}",
-        display_name, ch.0, ch.1
-    );
-    ch
+fn jack_channel_counts_for(server_name: &str) -> Option<(u32, u32)> {
+    jack_meta_cache()
+        .lock()
+        .ok()?
+        .get(server_name)
+        .map(|meta| (meta.capture_port_count as u32, meta.playback_port_count as u32))
 }
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
@@ -366,8 +347,13 @@ fn read_proc_asound_snapshot() -> ProcAsoundSnapshot {
             format!("USB Audio Card {}", card_num)
         };
         let device_id = format!("jack:{}", server_name);
+        // Channel counts discovered via JACK after jackd launches. Reading
+        // /proc/asound/card*/stream0 invokes the kernel USB audio driver's
+        // proc handler, which on some vendor firmwares issues a USB control
+        // read that makes the device emit an asynchronous state-change
+        // notification. Keep channels at 0 until JACK reports them.
         let (capture_channels, playback_channels) =
-            lookup_or_cache_card_channels(&display_name, &card_num);
+            jack_channel_counts_for(&server_name).unwrap_or((0, 0));
         cards.push(UsbAudioCard {
             card_num,
             server_name,
@@ -436,71 +422,15 @@ fn jack_server_is_running_for(server_name: &str) -> bool {
         .unwrap_or(false)
 }
 
-/// Direct /proc/asound/card{N}/stream0 read — only called from inside
-/// `lookup_or_cache_card_channels` when a new card is first observed.
-#[cfg(all(target_os = "linux", feature = "jack"))]
-fn read_card_channels_raw(card: &str) -> (u32, u32) {
-    let path = format!("/proc/asound/card{}/stream0", card);
-    log::trace!("[PROC-CACHE] >>> OPEN {}", path);
-    let content = match std::fs::read_to_string(&path) {
-        Ok(c) => c,
-        Err(_) => {
-            log::warn!("read_card_channels_raw: cannot read {}, using defaults 2/2", path);
-            return (2, 2);
-        }
-    };
-
-    let mut capture_ch: Option<u32> = None;
-    let mut playback_ch: Option<u32> = None;
-    let mut in_capture = false;
-    let mut in_playback = false;
-
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with("Capture:") {
-            in_capture = true;
-            in_playback = false;
-        } else if trimmed.starts_with("Playback:") {
-            in_playback = true;
-            in_capture = false;
-        } else if trimmed.starts_with("Channels:") {
-            // "Channels: 4" or "Channels: 2"
-            if let Some(n) = trimmed
-                .split_whitespace()
-                .nth(1)
-                .and_then(|s| s.parse::<u32>().ok())
-            {
-                if in_capture && capture_ch.is_none() {
-                    capture_ch = Some(n);
-                } else if in_playback && playback_ch.is_none() {
-                    playback_ch = Some(n);
-                }
-            }
-        }
-    }
-
-    let capture = capture_ch.unwrap_or(2);
-    let playback = playback_ch.unwrap_or(2);
-    log::info!(
-        "read_card_channels_raw: card {} → capture={} playback={}",
-        card, capture, playback
-    );
-    (capture, playback)
-}
-
 /// Launch jackd for a specific USB audio card and wait for it to become ready.
 /// Uses `jackd -n <server_name>` so each interface gets its own named server.
-/// Channel counts are read dynamically from /proc/asound/card{N}/stream0.
+/// Channel counts are left to jackd's ALSA backend autodetect — OpenRig never
+/// probes the device to discover them.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Result<()> {
-    // Channel counts come from the card's cached values — learned once from
-    // /proc/asound/card{N}/stream0 when the device first appeared and kept in
-    // memory for the process lifetime via CARD_CHANNELS_REGISTRY.
-    let (capture_ch, playback_ch) = (card.capture_channels, card.playback_channels);
-
     log::info!(
-        "launch_jackd: server='{}' hw:{} sr={} buf={} capture={} playback={}",
-        card.server_name, card.card_num, sample_rate, buffer_size, capture_ch, playback_ch
+        "launch_jackd: server='{}' hw:{} sr={} buf={} (channels autodetect)",
+        card.server_name, card.card_num, sample_rate, buffer_size
     );
 
     // Clean up stale sockets and semaphore files left by a previous run for
@@ -542,7 +472,12 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
         .unwrap_or_else(|_| std::process::Stdio::null());
 
     // jackd top-level flag: -n <server_name>
-    // ALSA backend flags (after -d alsa): -d hw:N -r SR -p BUF -n PERIODS -i CH -o CH
+    // ALSA backend flags (after -d alsa): -d hw:N -r SR -p BUF -n PERIODS.
+    // We intentionally do NOT pass -i/-o: jackd's ALSA backend autodetects the
+    // device's channel counts from the kernel when opening the PCM. Passing
+    // explicit -i/-o requires knowing the counts in advance, which would force
+    // a prior /proc/asound/card*/stream0 read — that proc read invokes the
+    // scarlett2 driver's handler and can destabilize the device on RK3588 xHCI.
     // Note: -n appears twice — first is jackd server name, second is ALSA nperiods.
     let child = std::process::Command::new("/usr/bin/jackd")
         .args([
@@ -552,8 +487,6 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
             "-r", &sample_rate.to_string(),
             "-p", &buffer_size.to_string(),
             "-n", "3",
-            "-i", &capture_ch.to_string(),
-            "-o", &playback_ch.to_string(),
         ])
         .env("JACK_NO_AUDIO_RESERVATION", "1")
         .stdin(std::process::Stdio::null())
