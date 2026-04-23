@@ -319,8 +319,6 @@ const PROC_CACHE_TTL: Duration = Duration::from_secs(10);
 #[derive(Clone)]
 struct ProcAsoundSnapshot {
     cards: Vec<UsbAudioCard>,
-    /// card_num → (capture_channels, playback_channels)
-    channels: std::collections::HashMap<String, (u32, u32)>,
     /// Raw trimmed lines from /proc/asound/cards starting with a digit (for log_audio_status).
     raw_card_lines: Vec<String>,
     fetched_at: Instant,
@@ -387,7 +385,6 @@ fn read_proc_asound_snapshot() -> ProcAsoundSnapshot {
     let content = std::fs::read_to_string("/proc/asound/cards").unwrap_or_default();
     let mut raw_card_lines = Vec::new();
     let mut cards = Vec::new();
-    let mut channels = std::collections::HashMap::new();
     for line in content.lines() {
         let trimmed = line.trim_start();
         let Some(first) = trimmed.chars().next() else { continue };
@@ -415,7 +412,6 @@ fn read_proc_asound_snapshot() -> ProcAsoundSnapshot {
         let device_id = format!("jack:{}", server_name);
         let (capture_channels, playback_channels) =
             lookup_or_cache_card_channels(&display_name, &card_num);
-        channels.insert(card_num.clone(), (capture_channels, playback_channels));
         cards.push(UsbAudioCard {
             card_num,
             server_name,
@@ -427,7 +423,6 @@ fn read_proc_asound_snapshot() -> ProcAsoundSnapshot {
     }
     ProcAsoundSnapshot {
         cards,
-        channels,
         raw_card_lines,
         fetched_at: Instant::now(),
     }
