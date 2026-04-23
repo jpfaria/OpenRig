@@ -775,8 +775,29 @@ fn is_asio_host(_host: &cpal::Host) -> bool {
 // Use using_jack_direct() to check if the direct JACK backend is active.
 
 use domain::ids::ChainId;
-use engine::runtime::{process_input_f32, process_output_f32, RuntimeGraph, ChainRuntimeState};
+use engine::runtime::{
+    elastic_target_for_buffer, process_input_f32, process_output_f32, ChainRuntimeState,
+    RuntimeGraph,
+};
 use engine;
+
+/// Backend-specific multiplier for the elastic buffer target.
+/// JACK uses a worker-thread DSP path on Linux; non-RT scheduling jitter
+/// needs more headroom than direct CPAL callbacks.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+const ELASTIC_MULTIPLIER: u8 = 8;
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+const ELASTIC_MULTIPLIER: u8 = 2;
+
+fn compute_elastic_target_for_chain(resolved: &ResolvedChainAudioConfig) -> usize {
+    let max_buf = resolved
+        .outputs
+        .iter()
+        .map(resolved_output_buffer_size_frames)
+        .max()
+        .unwrap_or(256);
+    elastic_target_for_buffer(max_buf, ELASTIC_MULTIPLIER)
+}
 use project::device::DeviceSettings;
 use project::project::Project;
 use project::block::{AudioBlockKind, InputEntry, InsertBlock, OutputEntry};
@@ -2141,9 +2162,13 @@ impl ProjectRuntimeController {
             .map(|active| active.stream_signature != resolved.stream_signature)
             .unwrap_or(true);
 
-        let runtime =
-            self.runtime_graph
-                .upsert_chain(chain, resolved.sample_rate, needs_stream_rebuild)?;
+        let elastic_target = compute_elastic_target_for_chain(&resolved);
+        let runtime = self.runtime_graph.upsert_chain(
+            chain,
+            resolved.sample_rate,
+            needs_stream_rebuild,
+            elastic_target,
+        )?;
 
         if needs_stream_rebuild {
             let active = build_active_chain_runtime(&chain.id, chain, resolved, runtime)?;
