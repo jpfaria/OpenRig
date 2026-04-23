@@ -273,9 +273,13 @@ fn server_name_from_bracket(bracket: &str) -> String {
 // another refresh is in progress return cached data instead of queueing.
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
+const PROC_CACHE_TTL: Duration = Duration::from_secs(10);
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
 #[derive(Clone)]
 struct ProcAsoundSnapshot {
     cards: Vec<UsbAudioCard>,
+    fetched_at: Instant,
 }
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
@@ -284,13 +288,6 @@ static PROC_CACHE: Mutex<Option<ProcAsoundSnapshot>> = Mutex::new(None);
 #[cfg(all(target_os = "linux", feature = "jack"))]
 static PROC_REFRESH_LOCK: Mutex<()> = Mutex::new(());
 
-/// Invalidate the /proc/asound/cards snapshot so the next lookup re-reads it.
-/// Call this only on genuine USB hot-plug events (JACK shutdown notification,
-/// explicit reconnect attempts). Never call it on UI interactions — we
-/// intentionally do not poll /proc/asound on a TTL because reading that file
-/// invokes the kernel snd-usb-audio proc handler, which on some vendor
-/// firmwares triggers an asynchronous USB notification that can destabilize
-/// the device on fragile xHCI controllers.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn invalidate_proc_cache() {
     *PROC_CACHE.lock().unwrap() = None;
@@ -298,7 +295,12 @@ fn invalidate_proc_cache() {
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn proc_cache_is_fresh() -> bool {
-    PROC_CACHE.lock().unwrap().is_some()
+    PROC_CACHE
+        .lock()
+        .unwrap()
+        .as_ref()
+        .map(|s| s.fetched_at.elapsed() < PROC_CACHE_TTL)
+        .unwrap_or(false)
 }
 
 /// Return (capture, playback) channel counts for a JACK server if it is
@@ -361,7 +363,10 @@ fn read_proc_asound_snapshot() -> ProcAsoundSnapshot {
             playback_channels,
         });
     }
-    ProcAsoundSnapshot { cards }
+    ProcAsoundSnapshot {
+        cards,
+        fetched_at: Instant::now(),
+    }
 }
 
 /// Non-blocking refresh: if another refresh is already running, skip. The
@@ -973,11 +978,6 @@ impl jack::NotificationHandler for JackShutdownHandler {
         // Invalidate meta cache so is_healthy() can detect the zombie state
         // on the next health check (socket still exists but server unresponsive).
         invalidate_jack_meta_cache();
-        // Also invalidate the /proc/asound snapshot: a JACK shutdown is the
-        // primary signal that the underlying USB audio device was disconnected,
-        // so on the next access we must re-read the card list to pick up the
-        // topology change.
-        invalidate_proc_cache();
         // Do NOT call std::process::exit() — let the health timer handle it.
     }
 }
