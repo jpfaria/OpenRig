@@ -1,4 +1,4 @@
-import { ComboBox, ScrollView, VerticalBox } from "std-widgets.slint";
+import { ComboBox, ListView, ScrollView } from "std-widgets.slint";
 import { ProjectChainItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, ChainBlockItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockStreamEntry, BlockKnobOverlay } from "../models.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { BlockPanelEditor } from "block_panel_editor.slint";
@@ -2043,21 +2043,24 @@ export component ProjectChainsPage inherits Rectangle {
         }
     }
 
-    ScrollView {
+    // Virtualized chains list: ListView only instantiates ChainRow instances
+    // visible in the viewport. Each row is wrapped in a Rectangle to add 12px
+    // of bottom spacing (ListView does not support `spacing` like VerticalBox).
+    // Fixes #290 — previous ScrollView + for instantiated every ChainRow upfront,
+    // causing heavy SVG rasterization per frame on macOS retina during scroll.
+    ListView {
         x: 24px;
         y: 96px;
         width: parent.width - 48px;
         height: parent.height - 96px;
-        viewport-height: chains-column.preferred-height;
-        viewport-width: chains-column.width;
 
-        chains-column := VerticalBox {
-            x: 0px;
-            y: 0px;
-            width: parent.width - 18px;
-            spacing: 12px;
+        for chain[index] in root.project-chains : Rectangle {
+            background: transparent;
+            height: row.height + 12px;
 
-            for chain[index] in root.project-chains : ChainRow {
+            row := ChainRow {
+                x: 0px;
+                y: 0px;
                 width: parent.width;
                 chain: chain;
                 chain-index: index;
