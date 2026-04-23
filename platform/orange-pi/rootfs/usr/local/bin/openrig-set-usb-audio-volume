@@ -8,8 +8,12 @@
 #
 # Defaults (percent of each control's range — exact dB depends on device):
 #   - "playback volume" → 100% (unity / max; e.g. Q-26: 0 dB)
-#   - "capture volume"  → 90%  (hot-enough default for instrument-level
-#                               inputs; e.g. Q-26: +22 dB)
+#   - "capture volume"  → 46%  (0 dB unity on the Q-26 — peaks land
+#                               around −6 dBFS for a passive humbucker
+#                               played hard, safe headroom, no ADC
+#                               clipping. Higher gains (e.g. 90% → +22 dB
+#                               on the Q-26) saturated the ADC before
+#                               the signal reached NAM.)
 #
 # Generic: no vendor/model matching. Acts on any mixer control whose name
 # contains "playback volume" or "capture volume". User preferences are
@@ -45,6 +49,6 @@ set_controls_matching() {
 }
 
 set_controls_matching "playback volume" "100%"
-set_controls_matching "capture volume"  "90%"
+set_controls_matching "capture volume"  "46%"
 
 exit 0
