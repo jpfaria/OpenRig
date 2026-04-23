@@ -184,15 +184,10 @@ usermod -aG audio root
 # ── 8c. Scarlett USB quirks (RK3588 xHCI freeze prevention) ──────────────────
 # The Scarlett 2i2 4th Gen (1235:8219) sends vendor-specific interrupt transfers
 # (0x20000000) that trigger a bug in the RK3588 xHCI host controller, causing
-# a USB reset and audio freeze. Disabling autosuspend prevents the device from
-# entering power states that exacerbate this behavior.
-echo ">>> [OpenRig] Configuring Scarlett USB quirks..."
-cat > /etc/modprobe.d/scarlett-quirks.conf << 'EOF'
-# Scarlett 2i2 4th Gen (1235:8219) - prevent xHCI reset on RK3588
-# USB_QUIRK_IGNORE_REMOTE_WAKEUP (0x200)
-options usbcore quirks=1235:8219:0x200
-EOF
-
+# a USB reset and audio freeze. Disabling autosuspend keeps the device always
+# active and prevents power-state transitions that exacerbate this behavior.
+# Note: usbcore is built-in on this kernel — modprobe.d quirks do not apply.
+echo ">>> [OpenRig] Configuring Scarlett USB power rules..."
 cat > /etc/udev/rules.d/99-scarlett-power.rules << 'EOF'
 # Scarlett 2i2 4th Gen - disable autosuspend to prevent xHCI freeze on RK3588
 ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="1235", ATTR{idProduct}=="8219", ATTR{power/autosuspend}="-1"
