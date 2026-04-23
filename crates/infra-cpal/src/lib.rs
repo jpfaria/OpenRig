@@ -2065,11 +2065,24 @@ impl ProjectRuntimeController {
     pub fn sync_project(&mut self, project: &Project) -> Result<()> {
         log::debug!("syncing project runtime with {} chains", project.chains.len());
 
-        // On Linux with JACK feature, always ensure JACK is running first.
-        // ensure_jack_running will start JACK if it's not already running,
-        // then using_jack_direct() will return true and we use the JACK path.
+        // On Linux with JACK feature, only start jackd when the project has
+        // at least one enabled chain that actually needs audio. Launching
+        // jackd opens the ALSA PCM for each card, which exercises the USB
+        // audio stack — we must not do that passively while the user is just
+        // editing chain settings with everything bypassed.
         #[cfg(all(target_os = "linux", feature = "jack"))]
         {
+            let needs_audio = project.chains.iter().any(|c| c.enabled);
+            if !needs_audio {
+                log::debug!(
+                    "sync_project: no enabled chains, skipping ensure_jack_running"
+                );
+                if !self.active_chains.is_empty() {
+                    log::info!("sync_project: no enabled chains, tearing down runtime");
+                    self.stop();
+                }
+                return Ok(());
+            }
             let jack_restarted = ensure_jack_running(project)?;
             if jack_restarted && !self.active_chains.is_empty() {
                 log::info!("sync_project: JACK restarted, tearing down all chains");
