@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Decouple OpenRig's UI from its domain by routing every interaction through a typed `CommandDispatcher`. Enable headless operation, remote control over gRPC, MIDI/OSC/BLE-MIDI controllers, and a scriptable CLI — all consuming the same fine-grained `Command`/`Event` vocabulary.
+**Goal:** Decouple OpenRig's UI from its domain by routing every interaction through a typed `CommandDispatcher`. Enable headless operation, remote control over gRPC, MIDI/OSC/BLE-MIDI controllers, a scriptable CLI, and **AI integration via MCP** — all consuming the same fine-grained `Command`/`Event` vocabulary.
 
 ---
 
@@ -13,6 +13,7 @@ Today `crates/adapter-gui/src/lib.rs` (~9.5k lines) wires every Slint `on_*` cal
 - **No headless mode.** Engine and GUI are baked into one binary. Cannot run engine on Orange Pi and control from a tablet.
 - **No external controllers.** A footswitch, expression pedal, or BLE-MIDI device cannot drive the same operations the GUI does.
 - **No scripting.** Show automation, preset switching from external software, integration with QLab/Ableton — none possible.
+- **No AI integration.** An LLM cannot drive OpenRig as a tool (build presets conversationally, diagnose chains, automate tone hunting).
 - **Hard to test.** Interaction logic only runs inside a live Slint window.
 - **Coupling.** Any new transport would re-invent its own command shape.
 
@@ -20,9 +21,9 @@ Today `crates/adapter-gui/src/lib.rs` (~9.5k lines) wires every Slint `on_*` cal
 
 ## Solution
 
-A single, internal command bus. Every state change in OpenRig is expressed as a typed `Command`. Every observable change is emitted as a typed `Event`. Anything that wants to drive the rig (the GUI, gRPC, MIDI, CLI) produces `Command`s. Anything that wants to react to the rig (the GUI, remote clients, MIDI feedback) consumes `Event`s.
+A single, internal command bus. Every state change in OpenRig is expressed as a typed `Command`. Every observable change is emitted as a typed `Event`. Anything that wants to drive the rig (the GUI, gRPC, MIDI, CLI, MCP/AI) produces `Command`s. Anything that wants to react to the rig (the GUI, remote clients, MIDI feedback, AI clients) consumes `Event`s.
 
-Rolled out in 4 phases, one GitHub issue each:
+Rolled out in 5 phases, one GitHub issue each:
 
 | Phase | Issue | Scope |
 |-------|-------|-------|
@@ -30,8 +31,9 @@ Rolled out in 4 phases, one GitHub issue each:
 | 2 | [#296](https://github.com/jpfaria/OpenRig/issues/296) | gRPC transport, `--server` / `--client` modes, `RemoteDispatcher` |
 | 3 | [#297](https://github.com/jpfaria/OpenRig/issues/297) | MIDI/OSC adapter (incl. BLE-MIDI), YAML mapping, daemon |
 | 4 | [#298](https://github.com/jpfaria/OpenRig/issues/298) | `openrig-cli` over gRPC for scripting and automation |
+| 5 | [#299](https://github.com/jpfaria/OpenRig/issues/299) | MCP server — every `Command` becomes an AI-callable tool |
 
-Phase 1 is the foundation. Phases 2–4 each depend only on Phase 1 (and Phase 4 also on Phase 2).
+Phase 1 is the foundation. Phases 2, 3, 5 depend only on Phase 1 and can land in parallel. Phase 4 also depends on Phase 2.
 
 ---
 
@@ -103,11 +105,12 @@ The `CommandDispatcher` trait is the only abstraction the rest of OpenRig sees. 
 ```
 GUI (Slint on_* callback)  ─┐
 MIDI/OSC daemon            ─┤
-openrig-cli                ─┼──► CommandDispatcher.dispatch(cmd) ──► Vec<Event>
+openrig-cli                ─┤
+MCP server (AI tool calls) ─┼──► CommandDispatcher.dispatch(cmd) ──► Vec<Event>
 gRPC server (from clients) ─┤                                              │
                             └──► (LocalDispatcher mutates ProjectSession)  │
                                                                            ▼
-                                              Subscribers (GUI, gRPC clients, MIDI feedback)
+                                  Subscribers (GUI, gRPC clients, MIDI feedback, MCP notifications)
 ```
 
 ---
@@ -241,6 +244,60 @@ BLE-MIDI is the standard wireless protocol for music controllers (every modern f
 
 ---
 
+## Phase 5 — MCP Server (Issue #299)
+
+**Goal:** expose every `Command` as an MCP (Model Context Protocol) tool so any MCP-capable AI client (Claude Desktop, Claude Code, Cursor, custom agents) can drive OpenRig.
+
+### Why MCP belongs in this design
+
+MCP is the emerging standard for plugging tools/resources/prompts into LLMs. Once `Command` is a typed first-class enum (Phase 1), each variant trivially becomes a tool definition with auto-derived JSON schema. Each `Event` becomes a subscribable resource or notification. The marginal cost on top of Phase 1 is small; the value (AI-driven preset building, tone hunting, chain diagnosis) is large.
+
+### Why a separate adapter (not folded into gRPC)
+
+MCP and gRPC are different protocols with different audiences:
+
+- **gRPC (Phase 2)** — typed, low-latency, client/server within one trusted operator (the user's own GUI on a tablet talking to their own engine).
+- **MCP (Phase 5)** — schema-discoverable, designed for LLM tool use, runs over stdio or SSE, wired to AI clients.
+
+Folding both into one would compromise both. They share the underlying `Command`/`Event` vocabulary from Phase 1 — that is enough.
+
+### Steps
+
+1. Create `crates/adapter-mcp` using a Rust MCP SDK (or thin JSON-RPC implementation if no mature SDK exists when this lands).
+2. Use `schemars` (or equivalent) to derive JSON Schema for each `Command` variant. Generate one MCP **tool** per variant. Tool handler builds the `Command` and calls `dispatcher.dispatch(cmd)`.
+3. Expose MCP **resources** for read-only state inspection:
+   - `openrig://project` — current project YAML
+   - `openrig://chain/{idx}` — single chain state
+   - `openrig://block/{chain}/{block}` — single block + parameters
+   - `openrig://devices` — available audio devices
+   - `openrig://models/{block_kind}` — available models per block kind, with metadata so the AI can pick wisely
+4. Expose MCP **prompts** for common workflows (initial set; expand later):
+   - `tune_tone` — "given a target tone description, suggest parameter changes"
+   - `diagnose_chain` — "walk the current chain and report issues"
+   - `build_preset` — "build a preset matching this description from scratch"
+5. Subscribe to the dispatcher's event stream and surface relevant events as MCP notifications (optional v1).
+6. Document client wiring: example `claude_desktop_config.json` snippet, Claude Code MCP config, etc.
+
+### Transport
+
+- v1: **stdio** (the default for desktop AI clients; trivial to spawn).
+- Optional follow-up: **HTTP/SSE** for remote AI clients (mirrors how Phase 2's gRPC enables remote GUI clients).
+
+### Operating modes
+
+- **Embedded mode** — MCP server runs in-process with `LocalDispatcher`. AI client spawns the OpenRig binary in `--mcp` mode; one OpenRig process per AI session.
+- **Remote mode** — MCP server runs as a thin proxy holding a `RemoteDispatcher` that connects via gRPC (Phase 2) to the actual engine. Lets one engine be shared by multiple AI clients on different machines.
+
+The remote mode is a nice-to-have; v1 ships embedded mode only.
+
+### Out of scope
+
+- Authentication beyond what stdio/local transport already implies.
+- AI model invocation from inside OpenRig (this is a server; the AI runs in the client).
+- Custom MCP sampling features beyond standard tools/resources/prompts.
+
+---
+
 ## Operational Notes
 
 ### Wi-Fi hotspot pattern (Orange Pi)
@@ -271,8 +328,9 @@ The chosen path: **Wi-Fi hotspot for gRPC, Bluetooth only for BLE-MIDI in Phase 
 - **Phase 2:** integration tests with the gRPC server in the same process as a `RemoteDispatcher` client; round-trip every `Command` variant. Latency benchmark documented.
 - **Phase 3:** unit tests for the YAML mapping parser; integration tests with a fake MIDI source stubbed in front of the daemon.
 - **Phase 4:** integration tests that boot the gRPC server and exercise each subcommand end-to-end.
+- **Phase 5:** integration tests that spawn the MCP server, list tools, invoke a representative subset, and verify state changes via resources. Schema-derivation tests that lock the tool schema to the `Command` enum shape (regression guard).
 
-All four phases preserve the project's zero-warnings rule.
+All five phases preserve the project's zero-warnings rule.
 
 ---
 
@@ -293,3 +351,4 @@ All four phases preserve the project's zero-warnings rule.
 - Issue #296 — Phase 2, gRPC transport
 - Issue #297 — Phase 3, MIDI/OSC + BLE-MIDI
 - Issue #298 — Phase 4, `openrig-cli`
+- Issue #299 — Phase 5, MCP server
