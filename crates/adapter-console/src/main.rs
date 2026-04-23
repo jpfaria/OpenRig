@@ -5,6 +5,7 @@ use engine::runtime::build_runtime_graph;
 use infra_cpal::{build_streams_for_project, list_devices, resolve_project_chain_sample_rates};
 use infra_yaml::YamlProjectRepository;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::env;
 use std::path::PathBuf;
 use std::thread;
@@ -31,7 +32,7 @@ fn main() -> Result<()> {
     println!("=== Project ===");
     println!("chains={}", project.chains.len());
     let chain_sample_rates = resolve_project_chain_sample_rates(&project)?;
-    let runtime_graph = build_runtime_graph(&project, &chain_sample_rates)?;
+    let runtime_graph = build_runtime_graph(&project, &chain_sample_rates, &HashMap::new())?;
     let streams = build_streams_for_project(&project, &runtime_graph)?;
     for stream in &streams {
         stream.play()?;

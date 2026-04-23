@@ -1049,6 +1049,7 @@ component ChainRow inherits Rectangle {
     callback configure-chain-output(int);
     callback configure-chain-preset(int);
     callback save-chain-preset(int);
+    callback probe-chain-latency(int);
     callback select-chain-block(int, int);
     callback toggle-chain-block-enabled(int, int);
     callback start-block-insert(int, int);
@@ -1145,6 +1146,14 @@ component ChainRow inherits Rectangle {
             icon: @image-url("../assets/expand.svg");
             tooltip: "Expandir blocos";
             clicked => { root.open-compact-chain-view(root.chain-index); }
+        }
+
+        ChainActionIcon {
+            x: parent.width - 236px;
+            y: 14px;
+            icon: @image-url("../assets/sonar.svg");
+            tooltip: "Medir latência real (emite um bipe)";
+            clicked => { root.probe-chain-latency(root.chain-index); }
         }
 
         ChainActionIcon {
@@ -1911,6 +1920,7 @@ export component ProjectChainsPage inherits Rectangle {
     callback configure-chain-output(int);
     callback configure-chain-preset(int);
     callback save-chain-preset(int);
+    callback probe-chain-latency(int);
     callback open-compact-chain-view(int);
     callback select-chain-block(int, int);
     callback clear-chain-block();
@@ -2064,6 +2074,7 @@ export component ProjectChainsPage inherits Rectangle {
                 configure-chain-output(index) => { root.configure-chain-output(index); }
                 configure-chain-preset(index) => { root.configure-chain-preset(index); }
                 save-chain-preset(index) => { root.save-chain-preset(index); }
+                probe-chain-latency(index) => { root.probe-chain-latency(index); }
                 open-compact-chain-view(index) => { root.open-compact-chain-view(index); }
                 select-chain-block(chain-index, block-index) => { root.select-chain-block(chain-index, block-index); }
                 toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }
