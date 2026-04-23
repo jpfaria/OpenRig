@@ -496,7 +496,7 @@ pub struct RuntimeGraph {
 pub fn build_runtime_graph(
     project: &Project,
     chain_sample_rates: &HashMap<ChainId, f32>,
-    chain_elastic_targets: &HashMap<ChainId, usize>,
+    chain_elastic_targets: &HashMap<ChainId, Vec<usize>>,
 ) -> Result<RuntimeGraph> {
     let mut chains = HashMap::new();
     for chain in &project.chains {
@@ -506,20 +506,29 @@ pub fn build_runtime_graph(
         let sample_rate = *chain_sample_rates
             .get(&chain.id)
             .ok_or_else(|| anyhow!("chain '{}' has no resolved runtime sample rate", chain.id.0))?;
-        let elastic_target = chain_elastic_targets
+        let default_targets: Vec<usize> = Vec::new();
+        let elastic_targets = chain_elastic_targets
             .get(&chain.id)
-            .copied()
-            .unwrap_or(DEFAULT_ELASTIC_TARGET);
-        let state = build_chain_runtime_state(chain, sample_rate, elastic_target)?;
+            .unwrap_or(&default_targets);
+        let state = build_chain_runtime_state(chain, sample_rate, elastic_targets)?;
         chains.insert(chain.id.clone(), Arc::new(state));
     }
     Ok(RuntimeGraph { chains })
 }
 
+/// Lookup the per-route elastic target, falling back to DEFAULT_ELASTIC_TARGET
+/// if the caller did not provide a value for this route index.
+fn target_for_route(elastic_targets: &[usize], route_idx: usize) -> usize {
+    elastic_targets
+        .get(route_idx)
+        .copied()
+        .unwrap_or(DEFAULT_ELASTIC_TARGET)
+}
+
 pub fn build_chain_runtime_state(
     chain: &Chain,
     sample_rate: f32,
-    elastic_target: usize,
+    elastic_targets: &[usize],
 ) -> Result<ChainRuntimeState> {
     let (eff_inputs, eff_input_cpal_indices) = effective_inputs(chain);
     let eff_outputs = effective_outputs(chain);
@@ -576,8 +585,9 @@ pub fn build_chain_runtime_state(
     }
 
     let mut output_routes: Vec<Arc<OutputRoutingState>> = Vec::with_capacity(eff_outputs.len());
-    for output in &eff_outputs {
-        output_routes.push(Arc::new(build_output_routing_state(output, elastic_target)));
+    for (route_idx, output) in eff_outputs.iter().enumerate() {
+        let target = target_for_route(elastic_targets, route_idx);
+        output_routes.push(Arc::new(build_output_routing_state(output, target)));
     }
 
     // Collect stream handles from all blocks across all input states
@@ -1013,7 +1023,7 @@ pub fn update_chain_runtime_state(
     chain: &Chain,
     sample_rate: f32,
     reset_output_queue: bool,
-    elastic_target: usize,
+    elastic_targets: &[usize],
 ) -> Result<()> {
     let (effective_ins, eff_input_cpal_indices) = effective_inputs(chain);
     let effective_outs = effective_outputs(chain);
@@ -1069,7 +1079,11 @@ pub fn update_chain_runtime_state(
     // Build new output routes (no per-route Mutex — ElasticBuffer is lock-free).
     let new_output_routes: Vec<Arc<OutputRoutingState>> = effective_outs
         .iter()
-        .map(|o| Arc::new(build_output_routing_state(o, elastic_target)))
+        .enumerate()
+        .map(|(route_idx, o)| {
+            let target = target_for_route(elastic_targets, route_idx);
+            Arc::new(build_output_routing_state(o, target))
+        })
         .collect();
 
     // Step 2.5: Refresh stream_handles — picks up new handles from rebuilt blocks
@@ -1137,14 +1151,14 @@ impl RuntimeGraph {
         chain: &Chain,
         sample_rate: f32,
         reset_output_queue: bool,
-        elastic_target: usize,
+        elastic_targets: &[usize],
     ) -> Result<Arc<ChainRuntimeState>> {
         if let Some(runtime) = self.chains.get(&chain.id) {
-            update_chain_runtime_state(runtime, chain, sample_rate, reset_output_queue, elastic_target)?;
+            update_chain_runtime_state(runtime, chain, sample_rate, reset_output_queue, elastic_targets)?;
             return Ok(runtime.clone());
         }
 
-        let state = build_chain_runtime_state(chain, sample_rate, elastic_target)?;
+        let state = build_chain_runtime_state(chain, sample_rate, elastic_targets)?;
         let runtime = Arc::new(state);
         self.chains.insert(chain.id.clone(), runtime.clone());
         Ok(runtime)
@@ -2419,7 +2433,7 @@ mod tests {
         );
 
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0, DEFAULT_ELASTIC_TARGET).expect("runtime state should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime state should build"));
         let original_serials = {
             let locked = runtime.processing.lock().expect("runtime poisoned");
             locked
@@ -2435,7 +2449,7 @@ mod tests {
                 .insert("reference_hz", ParameterValue::Float(432.0));
         }
 
-        update_chain_runtime_state(&runtime, &chain, 48_000.0, false, DEFAULT_ELASTIC_TARGET)
+        update_chain_runtime_state(&runtime, &chain, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET])
             .expect("runtime update should succeed");
 
         let updated_serials = {
@@ -2464,7 +2478,7 @@ mod tests {
         );
 
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0, DEFAULT_ELASTIC_TARGET).expect("runtime state should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime state should build"));
         let original_by_block_id = {
             let locked = runtime.processing.lock().expect("runtime poisoned");
             locked
@@ -2477,7 +2491,7 @@ mod tests {
 
         chain.blocks.swap(0, 1);
 
-        update_chain_runtime_state(&runtime, &chain, 48_000.0, false, DEFAULT_ELASTIC_TARGET)
+        update_chain_runtime_state(&runtime, &chain, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET])
             .expect("runtime update should succeed");
 
         let reordered = runtime.processing.lock().expect("runtime poisoned");
@@ -2494,7 +2508,7 @@ mod tests {
     fn process_input_limits_buffered_output_frames() {
         let chain = tuner_track("chain:0", Vec::new());
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0, DEFAULT_ELASTIC_TARGET).expect("runtime state should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime state should build"));
         let total_frames = DEFAULT_ELASTIC_TARGET * 2 + 64;
         let input = vec![0.25f32; total_frames];
 
@@ -2509,7 +2523,7 @@ mod tests {
     fn process_output_drains_buffered_frames() {
         let chain = tuner_track("chain:0", Vec::new());
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0, DEFAULT_ELASTIC_TARGET).expect("runtime state should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime state should build"));
 
         process_input_f32(&runtime, 0, &[0.25, 0.5, 0.75, 1.0], 1);
 
@@ -2561,7 +2575,7 @@ mod tests {
             ],
         };
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0, DEFAULT_ELASTIC_TARGET).expect("runtime state should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime state should build"));
 
         let mut input = vec![0.0f32; 256 * 2];
         for frame in input.chunks_mut(2) {
@@ -2622,7 +2636,7 @@ mod tests {
             ],
         };
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0, DEFAULT_ELASTIC_TARGET).expect("runtime state should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime state should build"));
 
         let mut input = vec![0.0f32; 256 * 2];
         for frame in input.chunks_mut(2) {
@@ -2650,7 +2664,7 @@ mod tests {
         let chain = select_delay_chain("chain:select", "delay_a");
 
         let runtime =
-            build_chain_runtime_state(&chain, 48_000.0, DEFAULT_ELASTIC_TARGET).expect("select delay chain should build");
+            build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("select delay chain should build");
 
         let locked = runtime.processing.lock().expect("runtime poisoned");
         assert_eq!(locked.input_states[0].blocks.len(), 1);
@@ -2661,7 +2675,7 @@ mod tests {
     fn update_chain_runtime_state_preserves_select_instance_when_switching_active_option() {
         let mut chain = select_delay_chain("chain:select", "delay_a");
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0, DEFAULT_ELASTIC_TARGET).expect("runtime state should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime state should build"));
         let original_serial = {
             let locked = runtime.processing.lock().expect("runtime poisoned");
             locked.input_states[0].blocks[0].instance_serial
@@ -2671,7 +2685,7 @@ mod tests {
             select.selected_block_id = BlockId("chain:select:block:0::delay_b".into());
         }
 
-        update_chain_runtime_state(&runtime, &chain, 48_000.0, false, DEFAULT_ELASTIC_TARGET)
+        update_chain_runtime_state(&runtime, &chain, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET])
             .expect("runtime update should succeed when switching select option");
 
         let updated_serial = {
@@ -3686,7 +3700,7 @@ mod tests {
         use super::RuntimeGraph;
         let mut graph = RuntimeGraph { chains: HashMap::new() };
         let chain = tuner_track("chain:new", Vec::new());
-        let result = graph.upsert_chain(&chain, 48_000.0, false, DEFAULT_ELASTIC_TARGET);
+        let result = graph.upsert_chain(&chain, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET]);
         assert!(result.is_ok());
         assert_eq!(graph.chains.len(), 1);
     }
@@ -3696,10 +3710,10 @@ mod tests {
         use super::RuntimeGraph;
         let mut graph = RuntimeGraph { chains: HashMap::new() };
         let chain = tuner_track("chain:upsert", vec![tuner_block("b:0", 440.0)]);
-        graph.upsert_chain(&chain, 48_000.0, false, DEFAULT_ELASTIC_TARGET).unwrap();
+        graph.upsert_chain(&chain, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET]).unwrap();
         // Update — should reuse existing entry
         let chain2 = tuner_track("chain:upsert", vec![tuner_block("b:0", 445.0)]);
-        let result = graph.upsert_chain(&chain2, 48_000.0, false, DEFAULT_ELASTIC_TARGET);
+        let result = graph.upsert_chain(&chain2, 48_000.0, false, &[DEFAULT_ELASTIC_TARGET]);
         assert!(result.is_ok());
         assert_eq!(graph.chains.len(), 1);
     }
@@ -3710,7 +3724,7 @@ mod tests {
     fn process_output_fills_silence_for_invalid_output_index() {
         let chain = io_passthrough_chain("chain:0");
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0, DEFAULT_ELASTIC_TARGET).expect("runtime should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime should build"));
 
         let mut out = vec![1.0f32; 8];
         process_output_f32(&runtime, 999, &mut out, 1);
@@ -3723,7 +3737,7 @@ mod tests {
     fn process_output_underrun_repeats_last_frame() {
         let chain = io_passthrough_chain("chain:underrun");
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0, DEFAULT_ELASTIC_TARGET).expect("runtime should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime should build"));
 
         // Push enough frames to get past the fade-in, then push our test frames
         let warmup = vec![0.0f32; FADE_IN_FRAMES + 16];
@@ -3750,14 +3764,14 @@ mod tests {
     #[test]
     fn measured_latency_ms_returns_zero_initially() {
         let chain = tuner_track("chain:0", Vec::new());
-        let runtime = build_chain_runtime_state(&chain, 48_000.0, DEFAULT_ELASTIC_TARGET).unwrap();
+        let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).unwrap();
         assert!((runtime.measured_latency_ms() - 0.0).abs() < 1e-6);
     }
 
     #[test]
     fn poll_errors_drains_and_returns_all() {
         let chain = tuner_track("chain:0", Vec::new());
-        let runtime = build_chain_runtime_state(&chain, 48_000.0, DEFAULT_ELASTIC_TARGET).unwrap();
+        let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).unwrap();
         // Manually push errors
         {
             let mut q = runtime.error_queue.lock().unwrap();
@@ -3774,7 +3788,7 @@ mod tests {
     #[test]
     fn poll_stream_returns_none_for_unknown_block() {
         let chain = tuner_track("chain:0", Vec::new());
-        let runtime = build_chain_runtime_state(&chain, 48_000.0, DEFAULT_ELASTIC_TARGET).unwrap();
+        let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).unwrap();
         assert!(runtime.poll_stream(&BlockId("nonexistent".into())).is_none());
     }
 
@@ -4021,7 +4035,7 @@ mod tests {
             ],
         };
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0, DEFAULT_ELASTIC_TARGET).expect("runtime should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime should build"));
 
         // Push enough frames to get past fade-in (interleaved stereo)
         let warmup = vec![0.0f32; (FADE_IN_FRAMES + 16) * 2];
@@ -4048,13 +4062,13 @@ mod tests {
     fn update_chain_runtime_state_with_reset_output_queue() {
         let chain = io_passthrough_chain("chain:0");
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0, DEFAULT_ELASTIC_TARGET).expect("runtime should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime should build"));
 
         // Push some data
         process_input_f32(&runtime, 0, &[0.5, 0.7], 1);
 
         // Update with reset_output_queue=true should clear the buffer
-        update_chain_runtime_state(&runtime, &chain, 48_000.0, true, DEFAULT_ELASTIC_TARGET)
+        update_chain_runtime_state(&runtime, &chain, 48_000.0, true, &[DEFAULT_ELASTIC_TARGET])
             .expect("update should succeed");
 
         let mut out = vec![0.0f32; 2];
@@ -4284,7 +4298,7 @@ mod tests {
     fn process_input_with_empty_data_does_not_panic() {
         let chain = io_passthrough_chain("chain:0");
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0, DEFAULT_ELASTIC_TARGET).expect("runtime should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime should build"));
         process_input_f32(&runtime, 0, &[], 1);
     }
 
@@ -4292,7 +4306,7 @@ mod tests {
     fn process_input_with_invalid_index_does_not_panic() {
         let chain = io_passthrough_chain("chain:0");
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0, DEFAULT_ELASTIC_TARGET).expect("runtime should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime should build"));
         process_input_f32(&runtime, 999, &[0.5, 0.7], 1);
     }
 
@@ -4481,7 +4495,7 @@ mod tests {
             enabled: true,
             blocks: vec![tuner_block("b:0", 440.0)],
         };
-        let runtime = build_chain_runtime_state(&chain, 48_000.0, DEFAULT_ELASTIC_TARGET);
+        let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]);
         assert!(runtime.is_ok(), "should build with fallback I/O");
     }
 
@@ -4491,7 +4505,7 @@ mod tests {
     fn passthrough_chain_round_trip_preserves_signal() {
         let chain = io_passthrough_chain("chain:rt");
         let runtime =
-            Arc::new(build_chain_runtime_state(&chain, 48_000.0, DEFAULT_ELASTIC_TARGET).expect("runtime should build"));
+            Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime should build"));
 
         // Warm up past fade-in
         let warmup = vec![0.0f32; FADE_IN_FRAMES + 64];
@@ -4516,7 +4530,7 @@ mod tests {
     #[test]
     fn measured_latency_ms_converts_nanos_correctly() {
         let chain = tuner_track("chain:lat", Vec::new());
-        let runtime = build_chain_runtime_state(&chain, 48_000.0, DEFAULT_ELASTIC_TARGET).unwrap();
+        let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).unwrap();
         // Store 5ms worth of nanos
         runtime.measured_latency_nanos.store(5_000_000, std::sync::atomic::Ordering::Relaxed);
         let ms = runtime.measured_latency_ms();
@@ -4534,7 +4548,7 @@ mod tests {
             enabled: true,
             blocks: vec![],
         };
-        let runtime = build_chain_runtime_state(&chain, 48_000.0, DEFAULT_ELASTIC_TARGET);
+        let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]);
         assert!(runtime.is_ok(), "empty chain should build successfully");
     }
 
