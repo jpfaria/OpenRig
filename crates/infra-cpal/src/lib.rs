@@ -57,7 +57,9 @@ fn create_host() -> cpal::Host {
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn jack_hardware_name() -> Option<String> {
     // Uses the serialized /proc cache. Direct /proc/asound/cards reads from
-    // multiple callsites can race and freeze the Scarlett 4th Gen on RK3588.
+    // multiple callsites can race and destabilize USB audio devices whose
+    // firmware mirrors kernel-side control access into the USB interrupt
+    // endpoint.
     proc_cache_snapshot()
         .and_then(|s| s.cards.first().map(|c| c.display_name.clone()))
 }
@@ -77,69 +79,6 @@ fn jack_server_is_running() -> bool {
         })
         .unwrap_or(false)
 }
-
-/// Snapshot hardware audio status (JACK + ALSA cards + USB audio devices) and
-/// emit it as a single structured log line. Safe to call from the UI thread on
-/// any platform: the Linux implementation is pure filesystem scans (no JACK
-/// client, no ALSA open, no CPAL host); other platforms are no-ops.
-///
-/// Intended to be invoked after every user mutation so that `journalctl -fu
-/// openrig` can correlate UI actions with audio hardware state changes (e.g.
-/// USB audio disconnects on RK3588 xHCI).
-pub fn log_audio_status(context: &str) {
-    #[cfg(target_os = "linux")]
-    {
-        let alsa_cards = read_proc_asound_cards_for_status();
-
-        #[cfg(feature = "jack")]
-        let jack_running = jack_server_is_running();
-        #[cfg(not(feature = "jack"))]
-        let jack_running = false;
-
-        log::info!(
-            "[AUDIO-STATUS] ctx='{}' jack_running={} alsa_cards=[{}]",
-            context,
-            jack_running,
-            alsa_cards.join(" | "),
-        );
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-        let _ = context;
-    }
-}
-
-#[cfg(all(target_os = "linux", feature = "jack"))]
-fn read_proc_asound_cards_for_status() -> Vec<String> {
-    // Uses the serialized /proc cache so log_audio_status never issues an
-    // uncoordinated /proc/asound/cards read that could race with another
-    // reader and trigger the Scarlett 0x20000000 freeze.
-    proc_cache_snapshot()
-        .map(|s| s.raw_card_lines)
-        .unwrap_or_default()
-}
-
-#[cfg(all(target_os = "linux", not(feature = "jack")))]
-fn read_proc_asound_cards_for_status() -> Vec<String> {
-    std::fs::read_to_string("/proc/asound/cards")
-        .ok()
-        .map(|content| {
-            content
-                .lines()
-                .filter_map(|line| {
-                    let trimmed = line.trim_start();
-                    let first = trimmed.chars().next()?;
-                    if first.is_ascii_digit() {
-                        Some(trimmed.to_string())
-                    } else {
-                        None
-                    }
-                })
-                .collect()
-        })
-        .unwrap_or_default()
-}
-
 
 /// Select the CPAL audio host for device enumeration (non-JACK path only).
 ///
@@ -184,6 +123,30 @@ fn jack_meta_cache() -> &'static std::sync::Mutex<std::collections::HashMap<Stri
 /// concurrent jack_meta_for() calls don't race on the global env.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 static JACK_CONNECT_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// Per-server jackd PIDs. Populated by launch_jackd, consumed by stop_jackd_for
+/// to kill a specific server's process without disturbing other running jackd
+/// instances (multiple interfaces, multiple chains on the same interface, etc).
+#[cfg(all(target_os = "linux", feature = "jack"))]
+static JACKD_PIDS: OnceLock<std::sync::Mutex<std::collections::HashMap<String, u32>>> =
+    OnceLock::new();
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn jackd_pids() -> &'static std::sync::Mutex<std::collections::HashMap<String, u32>> {
+    JACKD_PIDS.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()))
+}
+
+/// Send a signal to a jackd PID, returning true if the process was still alive
+/// and the signal was delivered. Uses the generic `kill` command — no
+/// device-specific logic.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn send_signal_to_pid(pid: u32, signal: &str) -> bool {
+    std::process::Command::new("kill")
+        .args([signal, &pid.to_string()])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
 
 /// Return cached JACK metadata for a specific named server, connecting once
 /// if not yet cached. Uses JACK_DEFAULT_SERVER env var to target the right
@@ -316,8 +279,6 @@ const PROC_CACHE_TTL: Duration = Duration::from_secs(10);
 #[derive(Clone)]
 struct ProcAsoundSnapshot {
     cards: Vec<UsbAudioCard>,
-    /// Raw trimmed lines from /proc/asound/cards starting with a digit (for log_audio_status).
-    raw_card_lines: Vec<String>,
     fetched_at: Instant,
 }
 
@@ -380,7 +341,6 @@ fn lookup_or_cache_card_channels(display_name: &str, card_num: &str) -> (u32, u3
 fn read_proc_asound_snapshot() -> ProcAsoundSnapshot {
     log::trace!("[PROC-CACHE] >>> OPEN /proc/asound/cards");
     let content = std::fs::read_to_string("/proc/asound/cards").unwrap_or_default();
-    let mut raw_card_lines = Vec::new();
     let mut cards = Vec::new();
     for line in content.lines() {
         let trimmed = line.trim_start();
@@ -388,7 +348,6 @@ fn read_proc_asound_snapshot() -> ProcAsoundSnapshot {
         if !first.is_ascii_digit() {
             continue;
         }
-        raw_card_lines.push(trimmed.to_string());
         if !(trimmed.contains("USB-Audio") || trimmed.contains("USB Audio")) {
             continue;
         }
@@ -420,7 +379,6 @@ fn read_proc_asound_snapshot() -> ProcAsoundSnapshot {
     }
     ProcAsoundSnapshot {
         cards,
-        raw_card_lines,
         fetched_at: Instant::now(),
     }
 }
@@ -530,59 +488,6 @@ fn read_card_channels_raw(card: &str) -> (u32, u32) {
     (capture, playback)
 }
 
-/// Set ALSA mixer volume controls to 100% for a USB audio card after JACK starts.
-/// Only touches controls named "volume" via numid — does not write routing enums
-/// or vendor-specific controls that could destabilize USB audio drivers.
-#[cfg(all(target_os = "linux", feature = "jack"))]
-fn configure_alsa_mixer(card: &UsbAudioCard) {
-    log::info!("configure_alsa_mixer: card {} ({})", card.card_num, card.display_name);
-
-    // Focusrite Scarlett (and likely other USB audio interfaces with vendor firmware)
-    // send a USB notification (0x20000000) in response to ANY amixer write — even
-    // simple volume controls. The RK3588 xHCI controller mishandles this notification
-    // and resets the USB device. Skip amixer entirely for these devices; their settings
-    // persist in NVRAM and can be configured once via the vendor app.
-    let name_lower = card.display_name.to_lowercase();
-    if name_lower.contains("scarlett") || name_lower.contains("focusrite") {
-        log::info!("configure_alsa_mixer: skipping amixer for Focusrite Scarlett (NVRAM settings)");
-        return;
-    }
-
-    let c = &card.card_num;
-
-    // Set all volume controls to 100%. Only touches controls named "volume" —
-    // never writes routing enums or vendor-specific controls.
-    if let Ok(output) = std::process::Command::new("amixer")
-        .args(["-c", c, "controls"])
-        .output()
-    {
-        for line in String::from_utf8_lossy(&output.stdout).lines() {
-            if !line.contains("iface=MIXER") { continue; }
-            if let Some(numid_str) = line.split("numid=").nth(1).and_then(|s| s.split(',').next()) {
-                if line.to_lowercase().contains("volume") {
-                    amixer_cset(c, &format!("numid={}", numid_str), "100%,100%");
-                }
-            }
-        }
-    }
-}
-
-#[cfg(all(target_os = "linux", feature = "jack"))]
-fn amixer_cset(card_num: &str, control: &str, value: &str) {
-    let status = std::process::Command::new("amixer")
-        .args(["-c", card_num, "cset", control, value])
-        .output();
-    match status {
-        Ok(out) if out.status.success() =>
-            log::debug!("amixer cset '{}' {} → ok", control, value),
-        Ok(out) =>
-            log::warn!("amixer cset '{}' {} → {}", control, value,
-                String::from_utf8_lossy(&out.stderr).trim()),
-        Err(e) =>
-            log::warn!("amixer cset '{}' {} → error: {}", control, value, e),
-    }
-}
-
 /// Launch jackd for a specific USB audio card and wait for it to become ready.
 /// Uses `jackd -n <server_name>` so each interface gets its own named server.
 /// Channel counts are read dynamically from /proc/asound/card{N}/stream0.
@@ -657,10 +562,12 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
         .spawn()
         .map_err(|e| anyhow!("failed to launch jackd for '{}': {}", card.server_name, e))?;
 
+    let pid = child.id();
     log::info!(
         "launch_jackd: jackd spawned PID {} for server '{}'",
-        child.id(), card.server_name
+        pid, card.server_name
     );
+    jackd_pids().lock().unwrap().insert(card.server_name.clone(), pid);
 
     // Wait up to 8 seconds for the server socket to appear, then add a fixed
     // 600ms delay for the shm segments to be fully initialized.
@@ -674,7 +581,6 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
             );
             std::thread::sleep(std::time::Duration::from_millis(600));
             log::info!("launch_jackd: server '{}' ready", card.server_name);
-            configure_alsa_mixer(card);
             invalidate_jack_meta_cache_for(&card.server_name);
             return Ok(());
         }
@@ -777,7 +683,10 @@ fn ensure_jack_running(project: &Project) -> Result<bool> {
                     );
                     last_err = e;
                     if attempt < 3 {
-                        let _ = std::process::Command::new("killall").args(["jackd"]).output();
+                        // Kill only this server's orphan jackd (if one was spawned
+                        // and its socket did not appear). Do NOT killall — other
+                        // interfaces or chains may have healthy jackd processes.
+                        let _ = stop_jackd_for(&card.server_name);
                         std::thread::sleep(std::time::Duration::from_secs(2));
                     }
                 }
@@ -795,19 +704,35 @@ fn ensure_jack_running(project: &Project) -> Result<bool> {
     Ok(any_started)
 }
 
-/// Stop the JACK server for a specific interface.
+/// Stop the jackd process owning `server_name` without disturbing any other
+/// jackd instances (other interfaces, other chains sharing the same interface
+/// on different channels, etc).
+///
+/// Kills the specific PID recorded in `JACKD_PIDS` at launch time — never
+/// uses `killall`. If the PID is unknown (e.g. jackd was started by another
+/// process) we still best-effort wait for the socket to clear, but do not
+/// affect other servers.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn stop_jackd_for(server_name: &str) -> Result<()> {
     log::info!("stop_jackd_for: stopping server '{}'", server_name);
-    // Send SIGTERM to the jackd process owning this server by killing via
-    // the socket owner. Simplest reliable approach: kill all jackd and
-    // let ensure_jack_running restart only the ones needed.
-    // For true per-server kill we'd need to track PIDs; for now killall is safe
-    // because ensure_jack_running restarts all cards immediately after.
-    let _ = std::process::Command::new("killall").args(["jackd"]).output();
+
+    let pid = jackd_pids().lock().unwrap().get(server_name).copied();
+    match pid {
+        Some(pid) => {
+            log::info!("stop_jackd_for: sending SIGTERM to PID {} (server '{}')", pid, server_name);
+            send_signal_to_pid(pid, "-TERM");
+        }
+        None => {
+            log::warn!(
+                "stop_jackd_for: no tracked PID for server '{}' — waiting for socket to clear",
+                server_name
+            );
+        }
+    }
 
     for _ in 0..30 {
         if !jack_server_is_running_for(server_name) {
+            jackd_pids().lock().unwrap().remove(server_name);
             invalidate_jack_meta_cache_for(server_name);
             log::info!("stop_jackd_for: server '{}' stopped", server_name);
             return Ok(());
@@ -815,8 +740,12 @@ fn stop_jackd_for(server_name: &str) -> Result<()> {
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
 
-    let _ = std::process::Command::new("killall").args(["-9", "jackd"]).output();
+    if let Some(pid) = pid {
+        log::warn!("stop_jackd_for: PID {} didn't exit after SIGTERM, sending SIGKILL", pid);
+        send_signal_to_pid(pid, "-KILL");
+    }
     std::thread::sleep(std::time::Duration::from_millis(200));
+    jackd_pids().lock().unwrap().remove(server_name);
     invalidate_jack_meta_cache_for(server_name);
     Ok(())
 }
@@ -1707,8 +1636,10 @@ pub fn start_jack_in_background(
                             );
                             last_err = e;
                             if attempt < 3 {
-                                // Kill any orphan jackd and wait 1s before retry
-                                let _ = std::process::Command::new("killall").args(["jackd"]).output();
+                                // Kill only this server's orphan jackd — never
+                                // killall, since other interfaces/chains may be
+                                // running their own healthy jackd.
+                                let _ = stop_jackd_for(&card.server_name);
                                 std::thread::sleep(std::time::Duration::from_secs(1));
                             }
                         }
