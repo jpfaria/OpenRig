@@ -1518,17 +1518,38 @@ fn is_hardware_device(id: &str) -> bool {
 // Device enumeration (CPAL or JACK) is expensive — on macOS CoreAudio takes
 // 200-500ms, on Linux/JACK the first connection takes similar time. The UI
 // calls refresh_input/output_devices on every click (30+ call sites). Cache
-// the result so enumeration only happens once; callers that need fresh data
-// can call invalidate_device_cache() first.
+// the result with a TTL so a click storm produces at most one enumeration
+// per window. Concurrent refreshes coalesce via try_lock — extra callers
+// receive the current snapshot rather than queueing another enumeration.
 
-static INPUT_DEVICE_CACHE: Mutex<Option<Vec<AudioDeviceDescriptor>>> = Mutex::new(None);
-static OUTPUT_DEVICE_CACHE: Mutex<Option<Vec<AudioDeviceDescriptor>>> = Mutex::new(None);
+const DEVICE_CACHE_TTL: Duration = Duration::from_secs(10);
 
-/// Clear the device cache so the next list_*_device_descriptors() call
-/// re-enumerates. Call this when a device connect/disconnect is detected.
+#[derive(Clone)]
+struct TimedDeviceCache {
+    devices: Option<Vec<AudioDeviceDescriptor>>,
+    fetched_at: Option<Instant>,
+}
+
+impl TimedDeviceCache {
+    const fn new() -> Self {
+        Self { devices: None, fetched_at: None }
+    }
+    fn is_fresh(&self) -> bool {
+        self.fetched_at.map(|t| t.elapsed() < DEVICE_CACHE_TTL).unwrap_or(false)
+    }
+}
+
+static INPUT_DEVICE_CACHE: Mutex<TimedDeviceCache> = Mutex::new(TimedDeviceCache::new());
+static OUTPUT_DEVICE_CACHE: Mutex<TimedDeviceCache> = Mutex::new(TimedDeviceCache::new());
+static INPUT_REFRESH_LOCK: Mutex<()> = Mutex::new(());
+static OUTPUT_REFRESH_LOCK: Mutex<()> = Mutex::new(());
+
+/// Force-stale the device cache so the next list_*_device_descriptors() call
+/// re-enumerates even if the TTL has not elapsed. Call this when we know the
+/// topology changed (hot-plug detected).
 pub fn invalidate_device_cache() {
-    *INPUT_DEVICE_CACHE.lock().unwrap() = None;
-    *OUTPUT_DEVICE_CACHE.lock().unwrap() = None;
+    *INPUT_DEVICE_CACHE.lock().unwrap() = TimedDeviceCache::new();
+    *OUTPUT_DEVICE_CACHE.lock().unwrap() = TimedDeviceCache::new();
     #[cfg(all(target_os = "linux", feature = "jack"))]
     invalidate_proc_cache();
     log::info!("device descriptor cache invalidated");
@@ -1754,25 +1775,82 @@ pub fn apply_device_settings(settings: &[DeviceSettings]) -> Result<()> {
 }
 
 pub fn list_input_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
-    if let Some(cached) = INPUT_DEVICE_CACHE.lock().unwrap().clone() {
-        log::trace!("list_input_device_descriptors: cache hit ({} devices)", cached.len());
-        return Ok(cached);
+    // Fast path: TTL still fresh, return the cached copy.
+    let fresh = {
+        let cache = INPUT_DEVICE_CACHE.lock().unwrap();
+        if cache.is_fresh() {
+            cache.devices.clone()
+        } else {
+            None
+        }
+    };
+    if let Some(devices) = fresh {
+        log::trace!("list_input_device_descriptors: cache hit ({} devices)", devices.len());
+        return Ok(devices);
     }
-    log::info!("list_input_device_descriptors: cache miss, enumerating...");
-    let devices = enumerate_input_devices_uncached()?;
-    *INPUT_DEVICE_CACHE.lock().unwrap() = Some(devices.clone());
-    Ok(devices)
+    // Slow path: try to acquire the refresh lock. If another thread is
+    // already refreshing, return whatever stale copy we have instead of
+    // running a concurrent enumeration.
+    match INPUT_REFRESH_LOCK.try_lock() {
+        Ok(_guard) => {
+            // Double-check in case a concurrent refresh just finished.
+            let already_fresh = {
+                let cache = INPUT_DEVICE_CACHE.lock().unwrap();
+                if cache.is_fresh() { cache.devices.clone() } else { None }
+            };
+            if let Some(devices) = already_fresh {
+                return Ok(devices);
+            }
+            log::info!("list_input_device_descriptors: cache stale, enumerating...");
+            let devices = enumerate_input_devices_uncached()?;
+            *INPUT_DEVICE_CACHE.lock().unwrap() = TimedDeviceCache {
+                devices: Some(devices.clone()),
+                fetched_at: Some(Instant::now()),
+            };
+            Ok(devices)
+        }
+        Err(_) => {
+            log::debug!("list_input_device_descriptors: refresh in progress, returning stale snapshot");
+            Ok(INPUT_DEVICE_CACHE.lock().unwrap().devices.clone().unwrap_or_default())
+        }
+    }
 }
 
 pub fn list_output_device_descriptors() -> Result<Vec<AudioDeviceDescriptor>> {
-    if let Some(cached) = OUTPUT_DEVICE_CACHE.lock().unwrap().clone() {
-        log::trace!("list_output_device_descriptors: cache hit ({} devices)", cached.len());
-        return Ok(cached);
+    let fresh = {
+        let cache = OUTPUT_DEVICE_CACHE.lock().unwrap();
+        if cache.is_fresh() {
+            cache.devices.clone()
+        } else {
+            None
+        }
+    };
+    if let Some(devices) = fresh {
+        log::trace!("list_output_device_descriptors: cache hit ({} devices)", devices.len());
+        return Ok(devices);
     }
-    log::info!("list_output_device_descriptors: cache miss, enumerating...");
-    let devices = enumerate_output_devices_uncached()?;
-    *OUTPUT_DEVICE_CACHE.lock().unwrap() = Some(devices.clone());
-    Ok(devices)
+    match OUTPUT_REFRESH_LOCK.try_lock() {
+        Ok(_guard) => {
+            let already_fresh = {
+                let cache = OUTPUT_DEVICE_CACHE.lock().unwrap();
+                if cache.is_fresh() { cache.devices.clone() } else { None }
+            };
+            if let Some(devices) = already_fresh {
+                return Ok(devices);
+            }
+            log::info!("list_output_device_descriptors: cache stale, enumerating...");
+            let devices = enumerate_output_devices_uncached()?;
+            *OUTPUT_DEVICE_CACHE.lock().unwrap() = TimedDeviceCache {
+                devices: Some(devices.clone()),
+                fetched_at: Some(Instant::now()),
+            };
+            Ok(devices)
+        }
+        Err(_) => {
+            log::debug!("list_output_device_descriptors: refresh in progress, returning stale snapshot");
+            Ok(OUTPUT_DEVICE_CACHE.lock().unwrap().devices.clone().unwrap_or_default())
+        }
+    }
 }
 
 fn enumerate_input_devices_uncached() -> Result<Vec<AudioDeviceDescriptor>> {
