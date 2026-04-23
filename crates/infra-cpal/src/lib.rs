@@ -1,9 +1,12 @@
-use anyhow::{anyhow, bail, Context, Result};
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{
-    BufferSize, SampleFormat, Stream, StreamConfig, SupportedBufferSize, SupportedStreamConfig,
-    SupportedStreamConfigRange,
-};
+use anyhow::{anyhow, bail, Result};
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+use anyhow::Context;
+use cpal::traits::{DeviceTrait, StreamTrait};
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+use cpal::traits::HostTrait;
+use cpal::{BufferSize, SampleFormat, Stream, StreamConfig, SupportedStreamConfig};
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+use cpal::{SupportedBufferSize, SupportedStreamConfigRange};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
@@ -919,7 +922,9 @@ fn compute_elastic_target_for_chain(resolved: &ResolvedChainAudioConfig) -> usiz
 }
 use project::device::DeviceSettings;
 use project::project::Project;
-use project::block::{AudioBlockKind, InputEntry, InsertBlock, OutputEntry};
+use project::block::{AudioBlockKind, InputEntry, OutputEntry};
+#[cfg(not(all(target_os = "linux", feature = "jack")))]
+use project::block::InsertBlock;
 use project::chain::Chain;
 use std::collections::HashMap;
 use std::sync::Arc;
