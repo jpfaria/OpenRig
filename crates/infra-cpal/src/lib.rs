@@ -376,13 +376,15 @@ fn read_proc_asound_snapshot() -> ProcAsoundSnapshot {
         let device_id = format!("jack:{}", server_name);
         cards.push(UsbAudioCard { card_num, server_name, display_name, device_id });
     }
-    let mut channels = std::collections::HashMap::new();
-    for c in &cards {
-        channels.insert(c.card_num.clone(), read_card_channels_raw(&c.card_num));
-    }
+    // NOTE: we deliberately do NOT read /proc/asound/card{N}/stream0 here.
+    // On the RK3588 + Scarlett 4th Gen stack, reading stream0 seems to kick
+    // the kernel USB audio driver into probing the device and the firmware
+    // reacts with scarlett2_notify 0x20000000 → freeze. stream0 channel
+    // counts are only needed by `launch_jackd` (once per JACK startup),
+    // so `read_card_channels` handles that as an on-demand read.
     ProcAsoundSnapshot {
         cards,
-        channels,
+        channels: std::collections::HashMap::new(),
         raw_card_lines,
         fetched_at: Instant::now(),
     }
@@ -441,13 +443,13 @@ fn jack_server_is_running_for(server_name: &str) -> bool {
         .unwrap_or(false)
 }
 
-/// Cached lookup: capture and playback channel counts for a USB audio card.
-/// Uses the serialized /proc/asound cache — safe to call from any callsite.
+/// Capture and playback channel counts for a USB audio card.
+/// Reads /proc/asound/card{N}/stream0 on every call. Only used by
+/// `launch_jackd` (once per JACK startup), so the cost is negligible and
+/// avoiding the cache keeps periodic refreshes from touching stream0.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn read_card_channels(card: &str) -> (u32, u32) {
-    proc_cache_snapshot()
-        .and_then(|s| s.channels.get(card).copied())
-        .unwrap_or((2, 2))
+    read_card_channels_raw(card)
 }
 
 /// Direct /proc/asound/card{N}/stream0 read — only called from inside
