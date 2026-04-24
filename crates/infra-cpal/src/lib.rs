@@ -710,6 +710,57 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
     )
 }
 
+/// Check whether calling `ensure_jack_running(project)` would trigger a
+/// stop+restart of any jackd server (config mismatch or zombie server).
+///
+/// Side-effect-free — used by `sync_project` to decide whether to tear
+/// down the in-process `ActiveChainRuntime`s (which each hold a jack
+/// `AsyncClient` bound to the current jackd's shm) BEFORE the server is
+/// killed. Dropping AsyncClients AFTER the kill leaves the jack-rs
+/// library in a confused state where new `jack::Client::new` calls fail
+/// with `ClientStatus(FAILURE | SERVER_ERROR)` even though the new jackd
+/// is alive and responsive to external clients like `jack_lsp`.
+///
+/// Returns true when at least one card's running server needs a restart
+/// (config mismatch or zombie) OR has no server and needs a first launch.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn jack_restart_would_be_triggered(project: &Project) -> bool {
+    let cards = detect_all_usb_audio_cards();
+    for card in &cards {
+        let (desired_sr, desired_buf) = project
+            .device_settings
+            .iter()
+            .find(|s| s.device_id.0 == card.device_id)
+            .map(|s| (s.sample_rate, s.buffer_size_frames))
+            .unwrap_or((48000, 64));
+
+        if jack_server_is_running_for(&card.server_name) {
+            match jack_meta_for(&card.server_name) {
+                Ok(meta) if meta.sample_rate == desired_sr && meta.buffer_size == desired_buf => {
+                    // Healthy and matches — no restart needed for this card.
+                    continue;
+                }
+                _ => {
+                    // Either mismatch or unresponsive (zombie) — restart path
+                    // will fire.
+                    return true;
+                }
+            }
+        } else {
+            // No server running for this card — launch path will fire, but
+            // since there's no AsyncClient to tear down, no need to force
+            // the "restart-aware" branch.
+            //
+            // (Exception: if we ever run multiple cards and one has a
+            // running server with an AsyncClient while another needs first
+            // launch, the caller should still tear down to avoid the
+            // jack-rs global-state race. Signal by returning true.)
+            return true;
+        }
+    }
+    false
+}
+
 /// Ensure JACK is running for every connected USB audio interface.
 /// For each interface, starts a named jackd server if not already running.
 /// If sr/buf changed, restarts the affected server.
@@ -2232,9 +2283,23 @@ impl ProjectRuntimeController {
                 }
                 return Ok(());
             }
+            // Tear down active chains BEFORE ensure_jack_running kills the
+            // current jackd. If we drop the AsyncClients after the server
+            // died, jack-rs global state ends up confused and new client
+            // connections fail with FAILURE|SERVER_ERROR even though the
+            // fresh jackd is alive and accepting external clients. See
+            // jack_restart_would_be_triggered() doc-comment.
+            if !self.active_chains.is_empty() && jack_restart_would_be_triggered(project) {
+                log::info!("sync_project: JACK restart imminent, tearing down chains first");
+                self.stop();
+            }
             let jack_restarted = ensure_jack_running(project)?;
             if jack_restarted && !self.active_chains.is_empty() {
-                log::info!("sync_project: JACK restarted, tearing down all chains");
+                // Should never happen now that the teardown above runs first,
+                // but kept as a safety net: if a card was added mid-run and a
+                // fresh launch happened without the predicate catching it,
+                // drop anything still around before the upsert re-registers.
+                log::info!("sync_project: JACK restarted with active chains still present, tearing down");
                 self.stop();
             }
             return self.sync_project_jack_direct(project);
@@ -2321,9 +2386,15 @@ impl ProjectRuntimeController {
 
         #[cfg(all(target_os = "linux", feature = "jack"))]
         {
+            // Same ordering as sync_project: drop AsyncClients BEFORE the
+            // jackd they reference gets killed inside ensure_jack_running.
+            if !self.active_chains.is_empty() && jack_restart_would_be_triggered(project) {
+                log::info!("upsert_chain: JACK restart imminent, tearing down chains first");
+                self.stop();
+            }
             let jack_restarted = ensure_jack_running(project)?;
             if jack_restarted && !self.active_chains.is_empty() {
-                log::info!("upsert_chain: JACK restarted, tearing down all chains");
+                log::info!("upsert_chain: JACK restarted with active chains still present, tearing down");
                 self.stop();
             }
             let resolved = jack_resolve_chain_config(chain)?;
