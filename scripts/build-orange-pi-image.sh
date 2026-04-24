@@ -279,9 +279,16 @@ echo ">>> Binding /dev /proc /sys for chroot + DNS for apt..."
 mount --bind /dev  /mnt/img/dev
 mount --bind /proc /mnt/img/proc
 mount --bind /sys  /mnt/img/sys
-# Keep a copy of the image resolv.conf so we can restore it after
-if [ -f /mnt/img/etc/resolv.conf ]; then
-    cp /mnt/img/etc/resolv.conf /mnt/img/etc/resolv.conf.bak
+# Armbian images ship /etc/resolv.conf as a dangling symlink pointing at
+# /run/systemd/resolve/stub-resolv.conf (systemd-resolved) which doesnt
+# exist in the offline chroot. Record the target so we can restore it
+# before unmounting, then replace with a real file that makes apt work.
+RESOLV_SYMLINK_TARGET=""
+if [ -L /mnt/img/etc/resolv.conf ]; then
+    RESOLV_SYMLINK_TARGET=$(readlink /mnt/img/etc/resolv.conf)
+    rm /mnt/img/etc/resolv.conf
+elif [ -f /mnt/img/etc/resolv.conf ]; then
+    mv /mnt/img/etc/resolv.conf /mnt/img/etc/resolv.conf.bak
 fi
 cp /etc/resolv.conf /mnt/img/etc/resolv.conf
 
@@ -293,9 +300,12 @@ chroot /mnt/img /tmp/customize-image.sh "$RELEASE"
 echo ">>> Cleaning up inside image..."
 rm -rf /mnt/img/tmp/overlay
 rm -f /mnt/img/tmp/customize-image.sh
-# Restore the original (empty/symlink) resolv.conf so network config at boot
-# uses the target systems own resolver, not the orchestrator hosts.
-if [ -f /mnt/img/etc/resolv.conf.bak ]; then
+# Restore the original resolv.conf (symlink target) so the target system
+# uses its own resolver at boot, not the orchestrator hosts cached entries.
+rm -f /mnt/img/etc/resolv.conf
+if [ -n "$RESOLV_SYMLINK_TARGET" ]; then
+    ln -s "$RESOLV_SYMLINK_TARGET" /mnt/img/etc/resolv.conf
+elif [ -f /mnt/img/etc/resolv.conf.bak ]; then
     mv /mnt/img/etc/resolv.conf.bak /mnt/img/etc/resolv.conf
 else
     : > /mnt/img/etc/resolv.conf
