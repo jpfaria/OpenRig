@@ -1464,17 +1464,20 @@ pub fn start_jack_in_background(
                 jack_supervisor::LiveJackBackend::new(),
             );
             for card in &cards {
-                let (sample_rate, buffer_size) = device_settings
+                let matched = device_settings
                     .iter()
-                    .find(|s| s.device_id.0 == card.device_id)
-                    .map(|s| (s.sample_rate, s.buffer_size_frames))
-                    .unwrap_or((48000, 64));
+                    .find(|s| s.device_id.0 == card.device_id);
+                let sample_rate = matched.map(|s| s.sample_rate).unwrap_or(48_000);
+                let buffer_size = matched.map(|s| s.buffer_size_frames).unwrap_or(64);
+                let nperiods = matched.map(|s| s.nperiods).unwrap_or(3);
+                let realtime = matched.map(|s| s.realtime).unwrap_or(false);
+                let rt_priority = matched.map(|s| s.rt_priority).unwrap_or(70);
                 let config = jack_supervisor::JackConfig {
                     sample_rate,
                     buffer_size,
-                    nperiods: 3,
-                    realtime: false,
-                    rt_priority: 70,
+                    nperiods,
+                    realtime,
+                    rt_priority,
                     card_num: card.card_num.parse().unwrap_or(0),
                     capture_channels: card.capture_channels,
                     playback_channels: card.playback_channels,
@@ -1920,18 +1923,21 @@ impl ProjectRuntimeController {
         card: &UsbAudioCard,
         project: &Project,
     ) -> jack_supervisor::JackConfig {
-        let (sample_rate, buffer_size) = project
+        let matched = project
             .device_settings
             .iter()
-            .find(|s| s.device_id.0 == card.device_id)
-            .map(|s| (s.sample_rate, s.buffer_size_frames))
-            .unwrap_or((48_000, 64));
+            .find(|s| s.device_id.0 == card.device_id);
+        let sample_rate = matched.map(|s| s.sample_rate).unwrap_or(48_000);
+        let buffer_size = matched.map(|s| s.buffer_size_frames).unwrap_or(64);
+        let nperiods = matched.map(|s| s.nperiods).unwrap_or(3);
+        let realtime = matched.map(|s| s.realtime).unwrap_or(false);
+        let rt_priority = matched.map(|s| s.rt_priority).unwrap_or(70);
         jack_supervisor::JackConfig {
             sample_rate,
             buffer_size,
-            nperiods: 3,
-            realtime: false,
-            rt_priority: 70,
+            nperiods,
+            realtime,
+            rt_priority,
             card_num: card.card_num.parse().unwrap_or(0),
             capture_channels: card.capture_channels,
             playback_channels: card.playback_channels,
@@ -4254,5 +4260,75 @@ mod tests {
         controller.teardown_active_chain_for_rebuild(&chain_id);
 
         assert!(controller.active_chains.is_empty());
+    }
+
+    // ── jack_config_for_card reads DeviceSettings (#308) ─────────────────
+    //
+    // Guarded to Linux+jack because that is the only cfg the function is
+    // compiled for. On macOS/Windows these tests are compiled out — same
+    // as the function itself.
+
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    fn test_card(device_id: &str) -> super::UsbAudioCard {
+        super::UsbAudioCard {
+            card_num: "4".into(),
+            server_name: "openrig_hw4".into(),
+            display_name: "test card".into(),
+            device_id: device_id.into(),
+            capture_channels: 2,
+            playback_channels: 2,
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    fn empty_project() -> project::Project {
+        project::Project {
+            name: None,
+            device_settings: Vec::new(),
+            chains: Vec::new(),
+        }
+    }
+
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    #[test]
+    fn jack_config_for_card_uses_device_settings_values() {
+        use domain::ids::DeviceId;
+        use project::device::DeviceSettings;
+
+        let card = test_card("hw:4");
+        let mut project = empty_project();
+        project.device_settings.push(DeviceSettings {
+            device_id: DeviceId("hw:4".into()),
+            sample_rate: 48_000,
+            buffer_size_frames: 64,
+            bit_depth: 32,
+            realtime: true,
+            rt_priority: 80,
+            nperiods: 2,
+        });
+
+        let config = ProjectRuntimeController::jack_config_for_card(&card, &project);
+
+        assert!(config.realtime);
+        assert_eq!(config.rt_priority, 80);
+        assert_eq!(config.nperiods, 2);
+        assert_eq!(config.sample_rate, 48_000);
+        assert_eq!(config.buffer_size, 64);
+    }
+
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    #[test]
+    fn jack_config_for_card_falls_back_to_defaults_when_no_match() {
+        let card = test_card("hw:4");
+        // No matching device_settings — defaults must preserve prior behaviour.
+        let project = empty_project();
+
+        let config = ProjectRuntimeController::jack_config_for_card(&card, &project);
+
+        assert!(!config.realtime);
+        assert_eq!(config.rt_priority, 70);
+        assert_eq!(config.nperiods, 3);
+        assert_eq!(config.sample_rate, 48_000);
+        assert_eq!(config.buffer_size, 64);
     }
 }
