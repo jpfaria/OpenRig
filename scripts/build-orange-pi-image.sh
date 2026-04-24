@@ -109,7 +109,8 @@ stage_deb() {
     if [ -n "$LOCAL_DEB" ]; then
         step "1/4  Using local OpenRig .deb"
         [ -f "$LOCAL_DEB" ] || { echo "ERROR: Local .deb not found: $LOCAL_DEB"; exit 1; }
-        RELEASE_DEB="$LOCAL_DEB"
+        # Absolutize so docker -v gets a valid bind-mount path
+        RELEASE_DEB="$(cd "$(dirname "$LOCAL_DEB")" && pwd)/$(basename "$LOCAL_DEB")"
         echo "  Package: $RELEASE_DEB"
         return
     fi
