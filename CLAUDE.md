@@ -217,6 +217,45 @@ OpenRig e um produto para distribuir em **macOS, Windows e Linux**. Toda decisao
 - **Paths por plataforma** — macOS (`~/Library/Application Support/OpenRig/`), Windows (`%APPDATA%\OpenRig\`), Linux (`~/.local/share/openrig/`)
 - **Teste mental obrigatorio** — antes de qualquer decisao, pergunte: "isso funciona se o usuario instalar no Windows?" Se nao, nao faca
 
+### Premissa de documentacao (OBRIGATORIO)
+
+A documentacao e parte da tarefa, nao um passo separado. Se voce mudou codigo, muda os docs no mesmo commit.
+
+- **CLAUDE.md sempre reflete o estado atual** — ao criar, remover ou mudar modelos, block types, parametros, features ou telas, atualizar a secao correspondente
+- **Novo modelo** → atualizar tabela "Tipos de bloco" e lista de parametros
+- **Novo block type** → adicionar a tabela com descricao e modelos
+- **Mudanca em parametros** → atualizar "Parametros comuns"
+- **Nova tela/feature** → atualizar "Telas principais"
+- **Removeu algo** → remover do CLAUDE.md tambem, sem documentacao vencida
+- **Comportamento novo de audio** → documentar em "Configuracao de audio"
+- **Struct nova de modelo de dados** → documentar em "Arquitetura"
+- **NUNCA encerrar uma branch sem atualizar docs** — feature nao documentada e divida tecnica
+
+### Premissa de alteracoes no SO da placa (OBRIGATORIO)
+
+Toda alteracao aplicada no sistema operacional da placa (Orange Pi) — via SSH, edicao manual de arquivos em `/`, ou ajuste de runtime — TEM que ter equivalente em `platform/orange-pi/` do projeto antes de encerrar o trabalho. Um patch que so vive na placa evapora no proximo flash de imagem, e quem gerar a proxima imagem de producao perde o fix silenciosamente.
+
+**Mapeamento obrigatorio — onde cada tipo de alteracao mora no projeto:**
+
+| Alteracao na placa | Arquivo no projeto |
+|---|---|
+| Kernel cmdline / boot args (`/boot/armbianEnv.txt extraargs=...`) | `platform/orange-pi/customize-image.sh` — variavel `KERNEL_ARGS` + bloco que grava em `armbianEnv.txt` |
+| Systemd unit (`/etc/systemd/system/*.service`) | `platform/orange-pi/rootfs/etc/systemd/system/` |
+| Systemd drop-in (`/etc/systemd/system/*.service.d/*.conf`) | `platform/orange-pi/rootfs/etc/systemd/system/<unit>.d/` |
+| Config em `/etc/` (sysctl, security, udev) | `platform/orange-pi/rootfs/etc/` |
+| Binario/helper em `/usr/local/bin/` | `platform/orange-pi/rootfs/usr/local/bin/` |
+| Overlay de Device Tree | `platform/orange-pi/dtbo/` |
+| Mudanca de runtime (chown, groupadd, setcap, mkdir) | bloco equivalente em `customize-image.sh` |
+
+**Ordem obrigatoria quando a alteracao e planejada:**
+
+1. Alterar primeiro no projeto (`.solvers/issue-N/`)
+2. Commit + push
+3. Aplicar na placa via SSH
+4. Validar
+
+**Quando o patch na placa foi experimental (diagnostico):** aceitavel alterar primeiro na placa para testar, MAS ao confirmar que funciona voltar ao projeto, commitar e empurrar — nunca encerrar o trabalho com config "so na placa". Regra de validacao: antes de declarar uma issue resolvida, responder mentalmente "se o usuario flashar uma imagem nova agora, o fix continua la?". Se nao, falta espelhamento.
+
 ---
 
 ## O Produto (visão do usuário)
