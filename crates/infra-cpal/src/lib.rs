@@ -865,7 +865,7 @@ fn pin_thread_to_cpus(cpus: &[usize]) {
 /// Returns CPU indices sorted by max frequency (highest first).
 /// Falls back to CPUs 4-7 if sysfs is unavailable.
 #[cfg(all(target_os = "linux", feature = "jack"))]
-fn detect_big_cores() -> Vec<usize> {
+pub(crate) fn detect_big_cores() -> Vec<usize> {
     let mut cpu_freqs: Vec<(usize, u64)> = Vec::new();
     for cpu in 0..16 {
         let path = format!("/sys/devices/system/cpu/cpu{}/cpufreq/cpuinfo_max_freq", cpu);

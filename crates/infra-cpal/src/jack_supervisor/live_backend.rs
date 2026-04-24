@@ -326,6 +326,35 @@ impl JackBackend for LiveJackBackend {
         .stdout(Stdio::null())
         .stderr(stderr_file);
 
+        // Pin jackd to the big cores so its RT callback thread shares a
+        // scheduling domain with the DSP worker (also pinned). Required when
+        // the kernel cmdline has isolcpus=4-7 (issue #310): without an
+        // explicit affinity, the child inherits the parent's default mask
+        // (which excludes isolated cores under isolcpus), and the JACK RT
+        // callback ends up on the little cores — re-introducing the
+        // UI-vs-audio contention the isolation was meant to eliminate.
+        //
+        // sched_setaffinity is async-signal-safe per POSIX, so calling it
+        // from the post-fork pre-execve hook is sound.
+        let big_cores = crate::detect_big_cores();
+        if !big_cores.is_empty() {
+            use std::os::unix::process::CommandExt;
+            unsafe {
+                cmd.pre_exec(move || {
+                    let mut set: libc::cpu_set_t = std::mem::zeroed();
+                    for &cpu in &big_cores {
+                        libc::CPU_SET(cpu, &mut set);
+                    }
+                    let _ = libc::sched_setaffinity(
+                        0,
+                        std::mem::size_of::<libc::cpu_set_t>(),
+                        &set,
+                    );
+                    Ok(())
+                });
+            }
+        }
+
         let mut child = cmd
             .spawn()
             .map_err(|e| anyhow!("failed to launch jackd for '{}': {}", name, e))?;
