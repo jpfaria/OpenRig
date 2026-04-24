@@ -44,12 +44,15 @@ const DRIVER_FAILURE_MARKERS: &[&str] = &[
     "Failed to start server",
 ];
 
-/// Number of client-open retries inside `probe_meta`. The shm segments are
-/// still being written when `spawn` returns, so the first `Client::new` often
-/// returns "Cannot open shm segment" — retrying always clears that.
-const PROBE_RETRIES: u32 = 5;
+/// Number of client-open retries inside `probe_meta`. Kept low — the
+/// transient shm-init race typically clears in 1-2 retries; beyond that a
+/// persistent "Cannot open shm segment" signals libjack process-wide state
+/// corruption (issue #294 / #308) which no amount of retrying recovers in
+/// the same process lifetime. Capping at 3 keeps the UI freeze under 450ms
+/// when a restart fails, instead of burning a full second of retries.
+const PROBE_RETRIES: u32 = 3;
 
-const PROBE_RETRY_DELAY: Duration = Duration::from_millis(200);
+const PROBE_RETRY_DELAY: Duration = Duration::from_millis(150);
 
 /// Process-wide lock that serialises writes to the `JACK_DEFAULT_SERVER`
 /// environment variable. Shared with `build_jack_direct_chain` so the client
@@ -98,6 +101,46 @@ impl LiveJackBackend {
                     let _ = std::fs::remove_file(entry.path());
                     log::info!("LiveJackBackend: removed stale /dev/shm entry {}", s);
                 }
+            }
+        }
+    }
+
+    /// Aggressive cleanup for the "no jackd running anywhere" case — removes
+    /// the process-wide shm registry + data segments + jack_db directory.
+    /// After a jackd restart cycle, libjack clients in our own process can
+    /// end up stuck on stale inode handles even though external tools
+    /// (`jack_lsp`) reach the new server fine. Removing these files before
+    /// the next spawn forces libjack to rebuild its cached mappings on the
+    /// next `Client::new`.
+    ///
+    /// Only safe to call when NO jackd server of any name is running — the
+    /// files are global across servers.
+    fn nuke_process_wide_jack_shm() {
+        let Ok(entries) = std::fs::read_dir("/dev/shm") else {
+            return;
+        };
+        for entry in entries.filter_map(|e| e.ok()) {
+            let fname = entry.file_name();
+            let s = fname.to_string_lossy();
+            // Match every jack-* / jackdb* / jack_db* variant libjack
+            // and jackd create. "jack_<name>_*_0" sockets are already
+            // handled by cleanup_stale_dev_shm; here we widen to the
+            // global files.
+            let is_jack = s == "jack-shm-registry"
+                || s.starts_with("jack-")
+                || s.starts_with("jackdb_")
+                || s.starts_with("jack_db");
+            if !is_jack {
+                continue;
+            }
+            let path = entry.path();
+            let removed = if path.is_dir() {
+                std::fs::remove_dir_all(&path).is_ok()
+            } else {
+                std::fs::remove_file(&path).is_ok()
+            };
+            if removed {
+                log::info!("LiveJackBackend: nuked process-wide shm entry {}", s);
             }
         }
     }
@@ -234,14 +277,16 @@ impl JackBackend for LiveJackBackend {
         // on the next startup.
         Self::cleanup_stale_dev_shm(name);
 
-        // If no jack server is running at all, prune the global shm registry
-        // too. This is the crumb that accumulates when jackd is SIGKILLed.
+        // If no jack server is running at all, nuke ALL jackd-related /dev/shm
+        // files — registry, data segments, jack_db dir, etc. After a restart
+        // cycle our own process's libjack state can remain tied to stale
+        // inodes even though `jack_lsp` externally reaches the new server
+        // fine (documented in issue #294 / #308 — "Cannot open shm segment
+        // (Invalid argument)" on the first Client::new after restart).
+        // Clearing the on-disk state forces libjack to rebuild its cached
+        // mappings when the next client opens.
         if !Self::any_jack_socket_present() {
-            let registry = std::path::Path::new("/dev/shm/jack-shm-registry");
-            if registry.exists() {
-                log::info!("LiveJackBackend::spawn: removing stale jack-shm-registry");
-                let _ = std::fs::remove_file(registry);
-            }
+            Self::nuke_process_wide_jack_shm();
         }
 
         let stderr_log = Self::stderr_log_path(name);

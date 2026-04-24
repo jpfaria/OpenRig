@@ -38,11 +38,19 @@ use super::types::{
     SupervisorEvent,
 };
 
-/// Maximum number of spawn attempts per `ensure_server` call.
-const MAX_SPAWN_ATTEMPTS: u32 = 3;
+/// Maximum number of spawn attempts per `ensure_server` call. Kept low —
+/// libjack state corruption (the "Cannot open shm segment" regression from
+/// issue #294) is not recoverable within the same process lifetime, so
+/// burning 10+ seconds of retry cycles before bailing just freezes the UI
+/// for no gain. If the first attempt fails the user sees Failed quickly and
+/// can restart the app.
+const MAX_SPAWN_ATTEMPTS: u32 = 2;
 
-/// Wall-clock delay between spawn retries.
-const SPAWN_RETRY_DELAY: Duration = Duration::from_secs(2);
+/// Wall-clock delay between spawn retries. Kept short so the UI doesn't
+/// hang — 500 ms is enough for ALSA to release the PCM after a failed
+/// jackd exit, and much beyond that the user starts perceiving the app
+/// as frozen.
+const SPAWN_RETRY_DELAY: Duration = Duration::from_millis(500);
 
 /// Upper bound on the buffer-size fallback growth. `buf=64` that trips
 /// "Broken pipe" gets bumped to 128, then 256, then 512, then 1024 — beyond

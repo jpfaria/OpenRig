@@ -1777,6 +1777,15 @@ impl ProjectRuntimeController {
                 self.active_chains.len()
             );
             self.stop();
+            // Give libjack's client-side threads a moment to finish winding
+            // down after `jack_deactivate` / `jack_client_close`. Without
+            // this, killing jackd immediately after dropping AsyncClients
+            // has been observed to leave libjack process-wide state confused
+            // and the next `Client::new` fails with "Cannot open shm
+            // segment" (issue #294 / #308). 500 ms is the shortest delay
+            // that reliably clears the residual threads on the deployment
+            // targets we test against.
+            std::thread::sleep(std::time::Duration::from_millis(500));
         }
 
         for (name, config) in &configs {
