@@ -191,6 +191,30 @@ Ver `CONTRIBUTING.md` para detalhes completos.
 - **Branch sem sufixo** — `feature/issue-{N}` ou `bugfix/issue-{N}`, NUNCA com sufixo descritivo
 - **Develop tem prioridade em conflitos** — ao mergear develop na feature branch, usar `git merge -X theirs origin/develop`
 
+### Issues irmãs — merge antes de implementar (OBRIGATORIO)
+
+Quando duas (ou mais) issues estão em paralelo e tocam os mesmos arquivos — crates, módulos, systemd units, docs — elas são **irmãs** e co-evoluem. Ignorar isso leva a conflito na hora do merge ou a trabalho duplicado.
+
+**Regra:** antes de começar QUALQUER nova implementação numa issue irmã:
+
+```bash
+git fetch origin
+git log origin/feature/issue-<atual>..origin/feature/issue-<irma> --oneline
+# Se existir commit novo:
+git merge origin/feature/issue-<irma> --no-edit
+cargo build --workspace   # verificar que o merge não quebrou
+```
+
+**Como identificar issues irmãs:**
+- Commentário no topo de cada issue relacionada listando a outra
+- Overlap de arquivos/crates modificados nos últimos commits
+- Quando em dúvida, pergunte ao usuário ou consulte `gh issue view <N>` e `gh issue view <M>`
+
+**Frequência:** a cada passo significativo do trabalho — não só no começo da sessão. Enquanto as duas branches estão vivas, refetch antes de cada novo commit lógico.
+
+**Pares ativos hoje:**
+- #308 (JACK supervisor / audio tuning / UI settings) ↔ #310 (CPU isolation / big-core pin)
+
 ### Rastreabilidade — comentarios obrigatorios na issue (OBRIGATORIO)
 
 A issue do GitHub e o log de auditoria do trabalho. Commits mostram o "o que"; decisoes intermediarias, conflitos, mudancas de rumo, problemas encontrados, hipoteses descartadas, analises feitas, respostas dadas a perguntas tecnicas — tudo fica perdido se nao for registrado na issue.
