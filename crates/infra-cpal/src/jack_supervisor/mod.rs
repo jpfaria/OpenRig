@@ -41,7 +41,7 @@ pub mod live_backend;
 // so they only count as "used" when someone actually imports them — keeps the
 // warning surface minimal on non-Linux builds.
 pub use supervisor::JackSupervisor;
-pub use types::{HealthStatus, JackConfig, JackMeta, JackServerState, ServerName};
+pub use types::{HealthStatus, JackConfig, JackServerState, ServerName};
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub use live_backend::LiveJackBackend;
