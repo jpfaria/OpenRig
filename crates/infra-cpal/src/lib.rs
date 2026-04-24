@@ -558,11 +558,16 @@ fn stream_signatures_require_client_rebuild(
     if old.inputs.len() != new.inputs.len() || old.outputs.len() != new.outputs.len() {
         return true;
     }
+    // buffer_size_frames intentionally excluded — a soft resize via
+    // jack_set_buffer_size changes n_frames on the live client without
+    // rebuilding. The JackProcessHandler pre-allocates its ring buffer and
+    // scratch at MAX_JACK_FRAMES so larger callbacks don't require a realloc
+    // in the RT path. sample_rate still forces a rebuild because jackd has
+    // no live SR change API.
     for (a, b) in old.inputs.iter().zip(new.inputs.iter()) {
         if a.device_id != b.device_id
             || a.stream_channels != b.stream_channels
             || a.sample_rate != b.sample_rate
-            || a.buffer_size_frames != b.buffer_size_frames
         {
             return true;
         }
@@ -571,13 +576,19 @@ fn stream_signatures_require_client_rebuild(
         if a.device_id != b.device_id
             || a.stream_channels != b.stream_channels
             || a.sample_rate != b.sample_rate
-            || a.buffer_size_frames != b.buffer_size_frames
         {
             return true;
         }
     }
     false
 }
+
+/// Upper bound we size the JACK-side ring buffer + scratch against, so a
+/// `jack_set_buffer_size` that grows `n_frames` at runtime does not force a
+/// reallocation in the real-time process callback. 4096 covers every buffer
+/// the Settings UI exposes (32-2048) with headroom.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+const MAX_JACK_FRAMES: usize = 4096;
 
 struct ResolvedChainAudioConfig {
     inputs: Vec<ResolvedInputDevice>,
@@ -1033,16 +1044,23 @@ fn build_jack_direct_chain(
         output_ports.push(port);
     }
 
-    // Set up DSP worker thread with ring buffer
-    let samples_per_buffer = buf_size * max_in_ch;
+    // Set up DSP worker thread with ring buffer. Size the slot for the
+    // largest buffer the UI can pick (MAX_JACK_FRAMES = 4096) × port count,
+    // so a live `jack_set_buffer_size` that grows `n_frames` at runtime
+    // never triggers a realloc in the RT callback. Memory cost is bounded
+    // (4096 × max_in_ch × 4 bytes × 8 slots ≈ 1 MB worst-case).
+    let samples_per_buffer = MAX_JACK_FRAMES * max_in_ch;
     // 8 slots: enough headroom for JACK to write while worker processes
     let ring = Arc::new(SpscRingBuffer::new(8, samples_per_buffer));
     let wake = Arc::new((std::sync::Mutex::new(false), std::sync::Condvar::new()));
     let stop_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
 
     let handler = JackProcessHandler {
-        input_buf: vec![0.0f32; buf_size * input_ports.len().max(1)],
-        output_buf: vec![0.0f32; buf_size * output_ports.len().max(1)],
+        // Scratch buffers pre-sized for MAX_JACK_FRAMES so
+        // JackProcessHandler::process never reallocates when jackd raises
+        // the per-callback `n_frames` via jack_set_buffer_size.
+        input_buf: vec![0.0f32; MAX_JACK_FRAMES * input_ports.len().max(1)],
+        output_buf: vec![0.0f32; MAX_JACK_FRAMES * output_ports.len().max(1)],
         input_ports,
         output_ports,
         runtime: Arc::clone(&runtime),

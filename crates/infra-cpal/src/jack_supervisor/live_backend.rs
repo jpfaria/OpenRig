@@ -327,15 +327,15 @@ impl JackBackend for LiveJackBackend {
         .stderr(stderr_file);
 
         // Pin jackd to the big cores so its RT callback thread shares a
-        // scheduling domain with the DSP worker (also pinned to big cores).
-        // Required when the kernel cmdline has isolcpus=4-7: without an
+        // scheduling domain with the DSP worker (also pinned). Required when
+        // the kernel cmdline has isolcpus=4-7 (issue #310): without an
         // explicit affinity, the child inherits the parent's default mask
-        // (0-3 on an isolated system), which puts the JACK RT callback on
-        // the little cores and re-introduces the UI-vs-audio contention
-        // isolcpus was meant to eliminate.
+        // (which excludes isolated cores under isolcpus), and the JACK RT
+        // callback ends up on the little cores — re-introducing the
+        // UI-vs-audio contention the isolation was meant to eliminate.
         //
         // sched_setaffinity is async-signal-safe per POSIX, so calling it
-        // from pre_exec (between fork and exec) is sound.
+        // from the post-fork pre-execve hook is sound.
         let big_cores = crate::detect_big_cores();
         if !big_cores.is_empty() {
             use std::os::unix::process::CommandExt;
