@@ -560,6 +560,54 @@ impl<B: JackBackend> JackSupervisor<B> {
     }
 
     fn emit(&self, event: SupervisorEvent) {
+        // Log every state transition/observation so journalctl has a
+        // single-line summary of everything the supervisor did, even when
+        // no subscriber is attached. On hardware the log is the primary
+        // debugging channel for audio-stream incidents.
+        match &event {
+            SupervisorEvent::ServerSpawning { name, config } => {
+                log::info!(
+                    "supervisor: '{}' spawning (sr={} buf={} nperiods={})",
+                    name,
+                    config.sample_rate,
+                    config.buffer_size,
+                    config.nperiods
+                );
+            }
+            SupervisorEvent::ServerReady { name, meta } => {
+                log::info!(
+                    "supervisor: '{}' ready (sr={} buf={} in={} out={})",
+                    name,
+                    meta.sample_rate,
+                    meta.buffer_size,
+                    meta.capture_port_count,
+                    meta.playback_port_count
+                );
+            }
+            SupervisorEvent::ServerFailed { name, error } => {
+                log::error!("supervisor: '{}' failed: {}", name, error);
+            }
+            SupervisorEvent::ServerDied { name } => {
+                log::warn!("supervisor: '{}' died post-ready", name);
+            }
+            SupervisorEvent::ServerStopped { name } => {
+                log::info!("supervisor: '{}' stopped", name);
+            }
+            SupervisorEvent::RestartRequested { name, reason } => {
+                log::info!("supervisor: '{}' restart requested ({:?})", name, reason);
+            }
+            SupervisorEvent::BufferClampedTo { name, from, to } => {
+                log::warn!(
+                    "supervisor: '{}' buffer clamped {} → {} (driver rejected requested size)",
+                    name,
+                    from,
+                    to
+                );
+            }
+            SupervisorEvent::TeardownRequested { name } => {
+                log::info!("supervisor: '{}' teardown hook firing", name);
+            }
+        }
         let mut subs = self.subscribers.lock().unwrap();
         subs.retain(|tx| tx.send(event.clone()).is_ok());
     }
@@ -707,6 +755,47 @@ mod tests {
             .position(|c| matches!(c, MockCall::Spawn(_, _)))
             .expect("adoption mismatch must spawn after terminate");
         assert!(terminate_idx < spawn_idx, "terminate must precede spawn");
+    }
+
+    // Full controller-recreation scenario: supervisor A spawns jackd and is
+    // dropped without calling shutdown_all (the GUI path). Supervisor B is
+    // created with a backend that sees the same running server and must
+    // adopt it without spawning. This is the end-to-end shape of the issue
+    // #308 hardware regression.
+    #[test]
+    fn supervisor_b_adopts_jackd_left_running_by_dropped_supervisor_a() {
+        use super::super::backend::MockBackendInner;
+        use std::sync::Arc as StdArc;
+        let shared_inner = StdArc::new(std::sync::Mutex::new(MockBackendInner::default()));
+        let backend_a = MockBackend { inner: shared_inner.clone() };
+        let backend_b = MockBackend { inner: shared_inner.clone() };
+
+        let mut sup_a = JackSupervisor::new(backend_a);
+        let config = JackConfig::test_default();
+        sup_a.ensure_server(&name(), &config, &mut noop_hook()).unwrap();
+        assert!(sup_a.state(&name()).unwrap().is_ready());
+
+        // Drop A WITHOUT shutting down — the shared backend keeps `running`
+        // populated, simulating a jackd that survived the controller drop.
+        drop(sup_a);
+        assert!(shared_inner.lock().unwrap().running.contains(&name()));
+
+        // Clear the recorded calls so we can assert cleanly against B alone.
+        shared_inner.lock().unwrap().calls.clear();
+
+        let mut sup_b = JackSupervisor::new(backend_b);
+        let meta = sup_b.ensure_server(&name(), &config, &mut noop_hook()).unwrap();
+        assert_eq!(meta.sample_rate, config.sample_rate);
+
+        let calls = sup_b.backend.calls();
+        assert!(
+            !calls.iter().any(|c| matches!(c, MockCall::Spawn(_, _))),
+            "supervisor B must adopt — not spawn"
+        );
+        assert!(
+            calls.iter().any(|c| matches!(c, MockCall::ProbeMeta(_))),
+            "supervisor B must probe during adoption"
+        );
     }
 
     // Adoption when the socket is present but the server is unresponsive
