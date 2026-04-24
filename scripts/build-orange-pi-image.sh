@@ -289,9 +289,15 @@ echo ">>> Growing filesystem..."
 e2fsck -f -y "$ROOT_PART" || true
 resize2fs "$ROOT_PART"
 
-echo ">>> Mounting..."
+echo ">>> Mounting (errors=continue to survive transient Docker VM I/O errors)..."
 mkdir -p /mnt/img
-mount "$ROOT_PART" /mnt/img
+# Default ext4 mount option errors=remount-ro flips the filesystem to RO on
+# the first I/O error, breaking the entire rest of the chroot even when the
+# error is a transient hiccup from Docker Desktops virtiofs layer under
+# write pressure from apt install. errors=continue logs the error and
+# keeps going. For a single-use image that will be flashed once, losing
+# strict error-handling is an acceptable trade for a build that finishes.
+mount -o errors=continue "$ROOT_PART" /mnt/img
 
 echo ">>> Staging overlay (matches customize-image.sh /tmp/overlay/ contract)..."
 mkdir -p /mnt/img/tmp/overlay
