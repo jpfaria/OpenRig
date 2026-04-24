@@ -1176,8 +1176,11 @@ pub fn run_desktop_app(
                             sample_rate: device.sample_rate,
                             buffer_size_frames: device.buffer_size_frames,
                             bit_depth: device.bit_depth,
+                            #[cfg(target_os = "linux")]
                             realtime: device.realtime,
+                            #[cfg(target_os = "linux")]
                             rt_priority: device.rt_priority,
+                            #[cfg(target_os = "linux")]
                             nperiods: device.nperiods,
                         })
                         .collect();
@@ -1295,8 +1298,11 @@ pub fn run_desktop_app(
                             sample_rate: device.sample_rate,
                             buffer_size_frames: device.buffer_size_frames,
                             bit_depth: device.bit_depth,
+                            #[cfg(target_os = "linux")]
                             realtime: device.realtime,
+                            #[cfg(target_os = "linux")]
                             rt_priority: device.rt_priority,
+                            #[cfg(target_os = "linux")]
                             nperiods: device.nperiods,
                         })
                         .collect();

@@ -1469,7 +1469,7 @@ pub fn start_jack_in_background(
                     .find(|s| s.device_id.0 == card.device_id);
                 let sample_rate = matched.map(|s| s.sample_rate).unwrap_or(48_000);
                 let buffer_size = matched.map(|s| s.buffer_size_frames).unwrap_or(64);
-                let nperiods = matched.map(|s| s.nperiods).unwrap_or(2);
+                let nperiods = matched.map(|s| s.nperiods).unwrap_or(3);
                 let realtime = matched.map(|s| s.realtime).unwrap_or(true);
                 let rt_priority = matched.map(|s| s.rt_priority).unwrap_or(70);
                 let config = jack_supervisor::JackConfig {
@@ -1929,7 +1929,7 @@ impl ProjectRuntimeController {
             .find(|s| s.device_id.0 == card.device_id);
         let sample_rate = matched.map(|s| s.sample_rate).unwrap_or(48_000);
         let buffer_size = matched.map(|s| s.buffer_size_frames).unwrap_or(64);
-        let nperiods = matched.map(|s| s.nperiods).unwrap_or(2);
+        let nperiods = matched.map(|s| s.nperiods).unwrap_or(3);
         let realtime = matched.map(|s| s.realtime).unwrap_or(true);
         let rt_priority = matched.map(|s| s.rt_priority).unwrap_or(70);
         jack_supervisor::JackConfig {
@@ -4318,18 +4318,20 @@ mod tests {
 
     #[cfg(all(target_os = "linux", feature = "jack"))]
     #[test]
-    fn jack_config_for_card_falls_back_to_low_latency_defaults_when_no_match() {
+    fn jack_config_for_card_falls_back_to_realtime_defaults_when_no_match() {
         let card = test_card("hw:4");
-        // No matching device_settings — defaults are low-latency out of the box
-        // (realtime + nperiods=2) because the kernel/systemd isolation from
-        // #310 is assumed to be present on the target hardware.
+        // No matching device_settings — defaults are realtime + nperiods=3.
+        // We ship nperiods=3 (not 2) because nperiods=2 triggered ALSA Broken
+        // pipe on Q26 USB audio + RK3588 in hardware validation; the extra
+        // period gives the USB driver enough slack without meaningfully
+        // increasing latency (one period at 128 frames / 48kHz ≈ 2.7ms).
         let project = empty_project();
 
         let config = ProjectRuntimeController::jack_config_for_card(&card, &project);
 
         assert!(config.realtime);
         assert_eq!(config.rt_priority, 70);
-        assert_eq!(config.nperiods, 2);
+        assert_eq!(config.nperiods, 3);
         assert_eq!(config.sample_rate, 48_000);
         assert_eq!(config.buffer_size, 64);
     }

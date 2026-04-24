@@ -5,16 +5,19 @@ fn default_bit_depth() -> u32 {
     32
 }
 
+#[cfg(target_os = "linux")]
 fn default_realtime() -> bool {
     true
 }
 
+#[cfg(target_os = "linux")]
 fn default_rt_priority() -> u8 {
     70
 }
 
+#[cfg(target_os = "linux")]
 fn default_nperiods() -> u32 {
-    2
+    3
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -24,13 +27,16 @@ pub struct DeviceSettings {
     pub buffer_size_frames: u32,
     #[serde(default = "default_bit_depth")]
     pub bit_depth: u32,
-    // JACK-only tuning (Linux). Fields are always present for YAML
-    // portability across platforms, but consumed exclusively by
-    // infra-cpal's jack supervisor on Linux — no-op on macOS/Windows.
+    // JACK-only tuning (Linux). Consumed exclusively by infra-cpal's jack
+    // supervisor; absent from the struct and YAML on macOS/Windows where
+    // cpal backends (CoreAudio/WASAPI) don't honour these knobs.
+    #[cfg(target_os = "linux")]
     #[serde(default = "default_realtime")]
     pub realtime: bool,
+    #[cfg(target_os = "linux")]
     #[serde(default = "default_rt_priority")]
     pub rt_priority: u8,
+    #[cfg(target_os = "linux")]
     #[serde(default = "default_nperiods")]
     pub nperiods: u32,
 }
@@ -45,9 +51,12 @@ mod tests {
             sample_rate: 48000,
             buffer_size_frames: 256,
             bit_depth: 32,
+            #[cfg(target_os = "linux")]
             realtime: true,
+            #[cfg(target_os = "linux")]
             rt_priority: 70,
-            nperiods: 2,
+            #[cfg(target_os = "linux")]
+            nperiods: 3,
         }
     }
 
@@ -58,9 +67,12 @@ mod tests {
         assert_eq!(settings.sample_rate, 48000);
         assert_eq!(settings.buffer_size_frames, 256);
         assert_eq!(settings.bit_depth, 32);
-        assert!(settings.realtime);
-        assert_eq!(settings.rt_priority, 70);
-        assert_eq!(settings.nperiods, 2);
+        #[cfg(target_os = "linux")]
+        {
+            assert!(settings.realtime);
+            assert_eq!(settings.rt_priority, 70);
+            assert_eq!(settings.nperiods, 3);
+        }
     }
 
     #[test]
@@ -144,6 +156,7 @@ mod tests {
         }
     }
 
+    #[cfg(target_os = "linux")]
     #[test]
     fn device_settings_realtime_toggle() {
         let on = sample();
@@ -154,6 +167,7 @@ mod tests {
         assert_ne!(off, on);
     }
 
+    #[cfg(target_os = "linux")]
     #[test]
     fn device_settings_nperiods_range() {
         for n in [2, 3, 4] {
