@@ -515,6 +515,48 @@ impl JackBackend for LiveJackBackend {
     }
 }
 
+/// Change the buffer size of an already-running jackd without restarting it.
+/// Opens a transient libjack client, calls `jack_set_buffer_size`, and drops
+/// the client.
+///
+/// Motivation: restarting jackd to change the buffer size triggers the
+/// documented libjack process-wide state corruption (issue #294 / #308 bug
+/// 1) on some Linux deployments — even with ordered teardown. Using the
+/// live `jack_set_buffer_size` API sidesteps the problem entirely, because
+/// jackd never dies. The JACK driver adjusts period_size in place and the
+/// existing process callback just starts receiving a different `n_frames`.
+///
+/// Only works when the desired change is buffer-only. Sample rate / card /
+/// channel-count changes still require a real restart.
+pub(crate) fn set_live_buffer_size(name: &ServerName, new_buffer: u32) -> Result<()> {
+    let _lock = JACK_DEFAULT_SERVER_LOCK.lock().unwrap();
+    std::env::set_var("JACK_DEFAULT_SERVER", name.as_str());
+    let open = jack::Client::new("openrig_buf_resize", jack::ClientOptions::NO_START_SERVER);
+    std::env::remove_var("JACK_DEFAULT_SERVER");
+    let (client, _status) = open.map_err(|e| {
+        anyhow!(
+            "set_live_buffer_size: could not open transient client for '{}': {:?}",
+            name,
+            e
+        )
+    })?;
+    client.set_buffer_size(new_buffer).map_err(|e| {
+        anyhow!(
+            "set_live_buffer_size: jackd '{}' refused set_buffer_size({}): {:?}",
+            name,
+            new_buffer,
+            e
+        )
+    })?;
+    log::info!(
+        "set_live_buffer_size: '{}' buffer_size applied in-place → {}",
+        name,
+        new_buffer
+    );
+    drop(client);
+    Ok(())
+}
+
 /// Probe a running named JACK server for its metadata without any caching.
 /// Shared between `LiveJackBackend::probe_meta` (for supervisor transitions)
 /// and free callers like `jack_enumerate_input_devices` that need to query

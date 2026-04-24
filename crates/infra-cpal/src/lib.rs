@@ -536,6 +536,49 @@ struct ChainStreamSignature {
     outputs: Vec<OutputStreamSignature>,
 }
 
+/// Linux/JACK decision: when does a stream-signature delta require tearing
+/// down and rebuilding the JACK `AsyncClient`, versus just updating the
+/// engine runtime in place?
+///
+/// Only port-shape changes (device id, sample rate, buffer size, device
+/// total-channel count, or adding/removing I/O entries) demand a new
+/// client. Selecting a different channel index on the same device is not
+/// a port-shape change — ports are pre-registered for the whole device,
+/// and the engine picks which index to read or write each callback.
+///
+/// Returning true here is what triggers `teardown_active_chain_for_rebuild`,
+/// and each teardown+rebuild risks the libjack "Cannot open shm segment"
+/// corruption documented in issue #294 / #308, so keep this predicate as
+/// narrow as the ports actually require.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn stream_signatures_require_client_rebuild(
+    old: &ChainStreamSignature,
+    new: &ChainStreamSignature,
+) -> bool {
+    if old.inputs.len() != new.inputs.len() || old.outputs.len() != new.outputs.len() {
+        return true;
+    }
+    for (a, b) in old.inputs.iter().zip(new.inputs.iter()) {
+        if a.device_id != b.device_id
+            || a.stream_channels != b.stream_channels
+            || a.sample_rate != b.sample_rate
+            || a.buffer_size_frames != b.buffer_size_frames
+        {
+            return true;
+        }
+    }
+    for (a, b) in old.outputs.iter().zip(new.outputs.iter()) {
+        if a.device_id != b.device_id
+            || a.stream_channels != b.stream_channels
+            || a.sample_rate != b.sample_rate
+            || a.buffer_size_frames != b.buffer_size_frames
+        {
+            return true;
+        }
+    }
+    false
+}
+
 struct ResolvedChainAudioConfig {
     inputs: Vec<ResolvedInputDevice>,
     outputs: Vec<ResolvedOutputDevice>,
@@ -889,7 +932,8 @@ fn build_jack_direct_chain(
         client_name, sample_rate, buf_size
     );
 
-    // Collect input channel requirements from chain
+    // Collect chain's configured input/output entries — used only to size the
+    // interleave scratch for the `max_in_ch / max_out_ch` picked below.
     let input_entries: Vec<&InputEntry> = chain.blocks.iter()
         .filter(|b| b.enabled)
         .filter_map(|b| match &b.kind {
@@ -899,12 +943,28 @@ fn build_jack_direct_chain(
         .flat_map(|ib| ib.entries.iter())
         .collect();
 
-    let max_in_ch = input_entries.iter()
+    // Register every port the physical device exposes, not just the channels
+    // the chain currently consumes. This keeps the AsyncClient stable across
+    // chain edits that toggle channel selection (mono[0] ↔ mono[1] ↔ stereo):
+    // port count never changes, so `upsert_chain_with_resolved` can keep the
+    // same client alive and sidestep the libjack state-corruption regression
+    // documented in issue #294 / #308 bug 1 ("Cannot open shm segment" after
+    // rebuild).
+    //
+    // Fall back to the chain's own max when the card cannot be looked up so
+    // degraded deployments (missing /proc/asound entry) still work.
+    let device_in_ch = cards
+        .iter()
+        .find(|c| c.server_name == server_name)
+        .map(|c| c.capture_channels as usize)
+        .unwrap_or(0);
+    let chain_max_in = input_entries.iter()
         .flat_map(|e| e.channels.iter())
         .copied()
         .max()
         .map(|m| m + 1)
         .unwrap_or(1);
+    let max_in_ch = device_in_ch.max(chain_max_in);
 
     // Collect output channel requirements from chain
     let output_entries: Vec<&OutputEntry> = chain.blocks.iter()
@@ -916,12 +976,18 @@ fn build_jack_direct_chain(
         .flat_map(|ob| ob.entries.iter())
         .collect();
 
-    let max_out_ch = output_entries.iter()
+    let device_out_ch = cards
+        .iter()
+        .find(|c| c.server_name == server_name)
+        .map(|c| c.playback_channels as usize)
+        .unwrap_or(0);
+    let chain_max_out = output_entries.iter()
         .flat_map(|e| e.channels.iter())
         .copied()
         .max()
         .map(|m| m + 1)
         .unwrap_or(2);
+    let max_out_ch = device_out_ch.max(chain_max_out);
 
     // Register JACK ports
     let mut input_ports = Vec::new();
@@ -2076,6 +2142,28 @@ impl ProjectRuntimeController {
         // hit that, widen this predicate for the specific edit that broke
         // flow, don't flip the whole thing back to unconditional rebuild
         // (that regresses block toggles on RT kernels).
+        // On Linux/JACK we register the DEVICE's max channels at client
+        // creation, not the chain's chosen subset — so a channel-selection
+        // change (mono[0] ↔ mono[1] ↔ stereo) does NOT change port count and
+        // does NOT require a client rebuild. Only device_id / sample_rate /
+        // buffer_size / port-total changes demand a new AsyncClient.
+        //
+        // Rebuilding the client on every channel toggle is what hits the
+        // libjack "Cannot open shm segment" regression from issue #294 /
+        // #308. Keeping the client alive sidesteps the corruption entirely.
+        #[cfg(all(target_os = "linux", feature = "jack"))]
+        let needs_stream_rebuild = self
+            .active_chains
+            .get(&chain.id)
+            .map(|active| {
+                stream_signatures_require_client_rebuild(
+                    &active.stream_signature,
+                    &resolved.stream_signature,
+                )
+            })
+            .unwrap_or(true);
+
+        #[cfg(not(all(target_os = "linux", feature = "jack")))]
         let needs_stream_rebuild = self
             .active_chains
             .get(&chain.id)
