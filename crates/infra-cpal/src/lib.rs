@@ -801,11 +801,40 @@ struct JackProcessHandler {
     /// every iteration regardless of jackd's actual buffer size, adding
     /// latency and wasting CPU on zero-padded tail samples.
     current_n_frames: Arc<std::sync::atomic::AtomicUsize>,
+    /// `true` once the RT thread has pinned itself to the big cores.
+    /// libjack spawns the thread that ends up calling `process` lazily
+    /// inside its own infrastructure, and there is no public hook to
+    /// configure its affinity at creation. We therefore pin on the first
+    /// call from the thread itself — a one-time write, no hot-path cost.
+    affinity_pinned: bool,
 }
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
 impl jack::ProcessHandler for JackProcessHandler {
     fn process(&mut self, _client: &jack::Client, ps: &jack::ProcessScope) -> jack::Control {
+        // libjack creates the RT callback thread inside our process when
+        // `Client::activate` runs. The thread inherits the process-wide
+        // CPU mask (set by systemd's CPUAffinity=0-3 in the service
+        // drop-in), which forces the audio-critical callback onto the
+        // little A55 cores where it competes with the Slint UI thread
+        // and the Mesa llvmpipe workers. On the first invocation from
+        // this thread we widen the mask to the big A76 cores so the
+        // callback runs alongside the DSP worker on the isolated RT
+        // cores instead. `sched_setaffinity` may widen beyond the
+        // service-level mask because systemd uses affinity — not a
+        // cgroup cpuset — to apply CPUAffinity=. Check-and-set is
+        // racy-safe here: the thread only calls itself.
+        if !self.affinity_pinned {
+            let big_cores = detect_big_cores();
+            if !big_cores.is_empty() {
+                pin_thread_to_cpus(&big_cores);
+                log::info!(
+                    "JackProcessHandler: RT callback thread pinned to big cores {:?}",
+                    big_cores
+                );
+            }
+            self.affinity_pinned = true;
+        }
         let n_frames = ps.n_frames() as usize;
         // Publish the current callback size so the DSP worker only processes
         // the real samples, not the ring-buffer padding. Relaxed ordering is
@@ -1086,6 +1115,7 @@ fn build_jack_direct_chain(
         input_ring: Some(Arc::clone(&ring)),
         worker_wake: Some(Arc::clone(&wake)),
         current_n_frames: Arc::clone(&current_n_frames),
+        affinity_pinned: false,
     };
 
     // Spawn DSP worker thread
