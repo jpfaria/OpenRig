@@ -195,6 +195,17 @@ Ver `CONTRIBUTING.md` para detalhes completos.
 
 Quando duas (ou mais) issues estão em paralelo e tocam os mesmos arquivos — crates, módulos, systemd units, docs — elas são **irmãs** e co-evoluem. Ignorar isso leva a conflito na hora do merge ou a trabalho duplicado.
 
+**Como identificar issues irmãs:** o **corpo** (não comentário) da issue começa com um bloco de quote marcado como:
+
+```markdown
+> **Sibling issues (co-evoluem neste ciclo):** #<outra>
+>
+> Tocam nos mesmos arquivos (...). Antes de implementar nesta branch, faça
+> `git fetch && git merge origin/feature/issue-<outra>`.
+```
+
+Comentários não valem — eles se perdem no histórico. O bloco fica no topo do `body` via `gh issue edit <N> --body-file`.
+
 **Regra:** antes de começar QUALQUER nova implementação numa issue irmã:
 
 ```bash
@@ -205,12 +216,9 @@ git merge origin/feature/issue-<irma> --no-edit
 cargo build --workspace   # verificar que o merge não quebrou
 ```
 
-**Como identificar issues irmãs:**
-- Commentário no topo de cada issue relacionada listando a outra
-- Overlap de arquivos/crates modificados nos últimos commits
-- Quando em dúvida, pergunte ao usuário ou consulte `gh issue view <N>` e `gh issue view <M>`
+**Quando criar o relacionamento:** ao descobrir overlap (via conflito de merge, grep em arquivos, ou comunicação do usuário), editar o body das DUAS issues envolvidas pra prepend o bloco acima — ambos os lados têm que ter a referência pra navegação simétrica.
 
-**Frequência:** a cada passo significativo do trabalho — não só no começo da sessão. Enquanto as duas branches estão vivas, refetch antes de cada novo commit lógico.
+**Frequência de sync durante o trabalho:** a cada passo significativo — não só no começo da sessão. Enquanto as duas branches estão vivas, refetch antes de cada novo commit lógico.
 
 **Pares ativos hoje:**
 - #308 (JACK supervisor / audio tuning / UI settings) ↔ #310 (CPU isolation / big-core pin)
