@@ -162,12 +162,14 @@ download_armbian() {
 
 # ── Step 3: Copy base image to output and grow filesystem headroom ────────────
 prepare_output_image() {
-    step "3/4  Preparing output image (+2G headroom for apt install)"
+    step "3/4  Preparing output image (+4G headroom for apt install)"
     run rm -f "$OUTPUT_IMG"
     run cp "$ARMBIAN_IMG" "$OUTPUT_IMG"
-    # Armbian minimal is ~1.6G with almost no slack. We need room for apt
-    # install of ~17 packages + openrig.deb (~160 MB). +2G is conservative.
-    run truncate -s +2G "$OUTPUT_IMG"
+    # Armbian minimal is ~1.6G with almost no slack. apt install of ~17
+    # packages downloads ~140 MB, unpacks to ~500 MB, plus openrig.deb
+    # (~160 MB download, ~400 MB installed). +2G filled mid-install and
+    # ext4 remounted read-only with errors=remount-ro. +4G leaves room.
+    run truncate -s +4G "$OUTPUT_IMG"
 }
 
 # ── Step 4: Customize image via Docker linux/arm64 chroot ─────────────────────
@@ -276,8 +278,13 @@ if [ -d /presets ]; then
     cp -r /presets/. /mnt/img/etc/presets/
 fi
 
-echo ">>> Binding /dev /proc /sys for chroot + DNS for apt..."
+echo ">>> Binding /dev /dev/pts /proc /sys for chroot + DNS for apt..."
 mount --bind /dev  /mnt/img/dev
+mkdir -p /mnt/img/dev/pts
+# devpts must be its own mount (not a bind of host /dev/pts) so debconf,
+# dpkg --configure and any package postinst can allocate PTYs via posix_openpt.
+# Without it the apt run prints "Can not write log (Is /dev/pts mounted?)".
+mount -t devpts devpts /mnt/img/dev/pts
 mount --bind /proc /mnt/img/proc
 mount --bind /sys  /mnt/img/sys
 # Armbian images ship /etc/resolv.conf as a dangling symlink pointing at
@@ -315,6 +322,7 @@ fi
 echo ">>> Unmounting..."
 umount /mnt/img/sys || true
 umount /mnt/img/proc || true
+umount /mnt/img/dev/pts || true
 umount /mnt/img/dev || true
 umount /mnt/img
 # kpartx -d releases the /dev/mapper/loopNp1 and the backing loop device
