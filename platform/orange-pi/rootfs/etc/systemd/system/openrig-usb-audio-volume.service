@@ -1,0 +1,18 @@
+[Unit]
+Description=Seed USB audio volume controls at boot (pre-existing devices)
+# udev's ACTION=="add" rule only fires for devices plugged in after the udev
+# daemon is running. Anything already connected when systemd-udevd starts has
+# no add event, so controls stay at the muted factory defaults. Run this
+# after alsa-restore.service so any user preferences from the last session
+# take precedence; if no state file exists (first boot from fresh image),
+# we seed the volumes at 0 dB unity.
+After=sound.target alsa-restore.service systemd-udev-settle.service
+Wants=sound.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/openrig-set-usb-audio-volume-boot
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

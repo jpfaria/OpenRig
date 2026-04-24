@@ -225,6 +225,9 @@ systemctl enable weston.service
 systemctl enable openrig.service
 systemctl enable openrig-irq-affinity.service
 systemctl enable openrig-resize-rootfs.service
+# Seed USB audio volumes at boot (udev rule only handles hotplug; devices
+# already plugged in never get an 'add' event so controlC* stays muted).
+systemctl enable openrig-usb-audio-volume.service
 
 # ── 9b. Kill stale ALSA mixer state ──────────────────────────────────────────
 # alsa-restore.service runs at boot and restores ALSA mixer controls from
@@ -249,6 +252,7 @@ EOF
 chmod 755 /usr/local/bin/openrig-install-to-emmc
 chmod 755 /usr/local/bin/openrig-resize-rootfs
 chmod 755 /usr/local/bin/openrig-set-usb-audio-volume
+chmod 755 /usr/local/bin/openrig-set-usb-audio-volume-boot
 
 # ── 10a. USB-C TCPM workaround (RK3588 USB-C port stability) ─────────────────
 echo ">>> [OpenRig] Installing USB-C host-mode DTB overlay (Scarlett stability)..."

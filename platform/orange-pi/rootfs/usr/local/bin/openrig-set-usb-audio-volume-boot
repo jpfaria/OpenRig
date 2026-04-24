@@ -1,0 +1,23 @@
+#!/bin/sh
+# Run the per-device volume setter for every controlC* already present at boot.
+#
+# The udev rule /etc/udev/rules.d/99-openrig-usb-audio-volume.rules fires only
+# on ACTION=="add", which never triggers for a USB audio interface that was
+# plugged in before the udev daemon started — the typical case on the Orange
+# Pi kiosk where the Q-26 is attached permanently. Without this oneshot, the
+# first boot of a fresh image leaves the Q-26 at -50 dB and there is no sound
+# until someone runs amixer by hand.
+#
+# Hotplug after boot is still covered by the udev rule. This script only
+# covers the pre-existing-at-boot case and is idempotent (safe to run
+# repeatedly; amixer simply re-sets the same dB value).
+
+set -u
+
+for ctl in /dev/snd/controlC*; do
+    [ -e "$ctl" ] || continue
+    name="${ctl##*/}"   # controlCN
+    /usr/local/bin/openrig-set-usb-audio-volume "$name" || true
+done
+
+exit 0
