@@ -192,7 +192,7 @@ IMG=/work/"$OUTPUT_IMG_BASENAME"
 
 echo ">>> Installing host tools in orchestrator container..."
 apt-get update -qq
-apt-get install -y --no-install-recommends util-linux parted e2fsprogs gdisk >/dev/null 2>&1
+apt-get install -y --no-install-recommends util-linux e2fsprogs gdisk kpartx dmsetup >/dev/null 2>&1
 
 echo ">>> Fixing GPT backup header after truncate..."
 # truncate +2G leaves the GPT backup header at the original (now middle) offset.
@@ -222,24 +222,35 @@ else
 fi
 sgdisk -e "$IMG"
 
-echo ">>> Loop-mounting image..."
-LOOP=$(losetup --find --show --partscan "$IMG")
-echo "  Loop device: $LOOP"
-
-# Wait for ${LOOP}p1 to appear. Inside a stripped container there is no
-# udev daemon to create the node synchronously, so we poll.
-ROOT_PART="${LOOP}p1"
-for i in 1 2 3 4 5 6 7 8 9 10; do
-    [ -e "$ROOT_PART" ] && break
-    sleep 1
-    partprobe "$LOOP" 2>/dev/null || true
-done
-
-if [ ! -e "$ROOT_PART" ]; then
-    echo "ERROR: $ROOT_PART did not appear after partprobe."
-    ls -la "${LOOP}"* || true
+echo ">>> Mapping partitions via kpartx..."
+# Docker Desktop on Mac runs inside a lightweight linuxkit VM whose loop
+# driver does not re-read the GPT after sgdisk rewrites it — losetup
+# --partscan and partprobe both keep the old table ("The kernel is still
+# using the old partition table"). kpartx sidesteps this by reading the
+# table directly from the file and registering device-mapper targets
+# at /dev/mapper/loopNp1 that point into the loop device.
+KPARTX_OUT=$(kpartx -av "$IMG")
+echo "$KPARTX_OUT"
+# Extract the mapper name (e.g. "loop3p1") from: "add map loop3p1 (253:0): 0 ..."
+MAPPED_NAME=$(echo "$KPARTX_OUT" | awk "/add map/ {print \$3; exit}")
+if [ -z "$MAPPED_NAME" ]; then
+    echo "ERROR: kpartx produced no mapping. Output above."
     exit 1
 fi
+ROOT_PART="/dev/mapper/$MAPPED_NAME"
+LOOP="/dev/$(echo "$MAPPED_NAME" | sed "s/p[0-9]*\$//")"
+
+# Give device-mapper a moment to materialize the node
+for i in 1 2 3 4 5; do
+    [ -e "$ROOT_PART" ] && break
+    sleep 1
+done
+if [ ! -e "$ROOT_PART" ]; then
+    echo "ERROR: $ROOT_PART did not materialize."
+    ls -la /dev/mapper/ || true
+    exit 1
+fi
+echo "  Loop device:    $LOOP"
 echo "  Root partition: $ROOT_PART"
 
 echo ">>> Growing filesystem..."
@@ -295,7 +306,9 @@ umount /mnt/img/sys || true
 umount /mnt/img/proc || true
 umount /mnt/img/dev || true
 umount /mnt/img
-losetup -d "$LOOP"
+# kpartx -d releases the /dev/mapper/loopNp1 and the backing loop device
+kpartx -dv "$IMG" || true
+losetup -d "$LOOP" 2>/dev/null || true
 sync
 
 echo ">>> Image customized successfully."
