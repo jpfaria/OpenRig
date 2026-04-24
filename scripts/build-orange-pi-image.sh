@@ -387,14 +387,16 @@ kpartx -dv "$IMG" || true
 losetup -d "$LOOP" 2>/dev/null || true
 sync
 
-echo ">>> Reclaiming sparseness (cp --sparse=always)..."
+echo ">>> Reclaiming sparseness (fallocate --dig-holes, in-place)..."
 # Random writes during apt install + ext4 journaling through the kpartx
 # device-mapper target go back to the host file via virtiofs and end up
 # allocating blocks all over the image — macOS APFS then reports the file
-# as consuming 10-15x its logical size on disk. Rewriting with
-# cp --sparse=always detects runs of zeros and re-emits them as holes.
-cp --sparse=always "$IMG" "$IMG.sparse"
-mv "$IMG.sparse" "$IMG"
+# as consuming 10-15x its logical size on disk.
+# cp --sparse=always needs 2x the disk because it writes a copy first,
+# which fails on tight disks. fallocate --dig-holes rewrites the same
+# file in place, converting runs of zeros back to holes with zero
+# additional disk usage.
+fallocate -d "$IMG"
 sync
 
 echo ">>> Image customized successfully."
