@@ -606,6 +606,55 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
                 card.server_name, i * 100
             );
             std::thread::sleep(std::time::Duration::from_millis(600));
+
+            // Issue #294: validate jackd is still alive AFTER the shm window.
+            // Scenario seen with Q26 at buffer_size=64 on RK3588: jackd opens
+            // its UNIX socket, we log "socket ready", sleep 600ms, log "ready"
+            // and return Ok — but in that same window ALSA reports "Broken
+            // pipe" and jackd exits. The caller then believes the server is
+            // healthy, sync_project tears down old chains in anticipation of
+            // rebuilding on the new server, and when it tries to connect the
+            // new client the socket is gone. Openrig ends up in a retry loop
+            // it can never escape without a full service restart.
+            //
+            // Two cheap checks close the window:
+            //   1. Is the socket still present? (jackd exiting cleanly removes
+            //      it.)
+            //   2. Does stderr show a definitive ALSA/driver failure?
+            if !jack_server_is_running_for(&card.server_name) {
+                log::warn!(
+                    "launch_jackd: server '{}' socket vanished after ready — jackd exited post-startup",
+                    card.server_name
+                );
+                if let Ok(stderr_content) = std::fs::read_to_string(&stderr_log) {
+                    for line in stderr_content.lines().take(20) {
+                        log::error!("launch_jackd [{}]: {}", card.server_name, line);
+                    }
+                }
+                bail!(
+                    "jackd server '{}' exited right after startup (likely ALSA/driver failure — check buffer size vs device)",
+                    card.server_name
+                );
+            }
+            if let Ok(stderr_content) = std::fs::read_to_string(&stderr_log) {
+                let failed = stderr_content.contains("Broken pipe")
+                    || stderr_content.contains("Cannot start driver")
+                    || stderr_content.contains("Failed to start server");
+                if failed {
+                    log::warn!(
+                        "launch_jackd: server '{}' stderr reports driver failure after ready",
+                        card.server_name
+                    );
+                    for line in stderr_content.lines().take(20) {
+                        log::error!("launch_jackd [{}]: {}", card.server_name, line);
+                    }
+                    bail!(
+                        "jackd server '{}' reported driver failure during startup (see stderr above)",
+                        card.server_name
+                    );
+                }
+            }
+
             log::info!("launch_jackd: server '{}' ready", card.server_name);
             invalidate_jack_meta_cache_for(&card.server_name);
             return Ok(());
@@ -977,6 +1026,12 @@ struct ResolvedChainAudioConfig {
 }
 
 struct ActiveChainRuntime {
+    // Kept for diagnostics only — issue #294 removed the signature-based
+    // soft-reconfig path because it silently broke audio flow. If future
+    // work reintroduces a soft-reconfig fast path, this field is the
+    // natural place to compare against to decide whether a rebuild is
+    // needed.
+    #[allow(dead_code)]
     stream_signature: ChainStreamSignature,
     _input_streams: Vec<Stream>,
     _output_streams: Vec<Stream>,
@@ -2409,11 +2464,17 @@ impl ProjectRuntimeController {
         chain: &Chain,
         resolved: ResolvedChainAudioConfig,
     ) -> Result<()> {
-        let needs_stream_rebuild = self
-            .active_chains
-            .get(&chain.id)
-            .map(|active| active.stream_signature != resolved.stream_signature)
-            .unwrap_or(true);
+        // Issue #294: always rebuild. The former soft-reconfig path
+        // (only when `stream_signature` matched) silently broke audio on
+        // JACK — callback kept running, DSP worker kept consuming buffers,
+        // but input samples never reached NAM/native DSP (out_rms stuck at
+        // the noise floor). The user workaround — toggle chain off then on,
+        // which goes through remove_chain + upsert_chain — always rebuilds.
+        // We match that guarantee here. The ~50 ms drain from teardown is
+        // the same gap the manual toggle produces. If you reintroduce soft
+        // reconfig for performance, first fix whatever desynchronizes the
+        // input buffer from the DSP pipeline during in-place block swap.
+        let needs_stream_rebuild = true;
 
         // Tear down the previous ActiveChainRuntime BEFORE mutating shared
         // runtime state or building the replacement. Otherwise HashMap::insert
@@ -2422,7 +2483,6 @@ impl ProjectRuntimeController {
         // to register with the same name — the new client gets a suffixed
         // name, connect_ports_by_name binds to the old client's ports, and
         // when the old runtime is finally dropped the new client is orphaned.
-        // See issue #294.
         if needs_stream_rebuild {
             self.teardown_active_chain_for_rebuild(&chain.id);
         }
