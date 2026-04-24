@@ -585,10 +585,13 @@ fn stream_signatures_require_client_rebuild(
 
 /// Upper bound we size the JACK-side ring buffer + scratch against, so a
 /// `jack_set_buffer_size` that grows `n_frames` at runtime does not force a
-/// reallocation in the real-time process callback. 4096 covers every buffer
-/// the Settings UI exposes (32-2048) with headroom.
+/// reallocation in the real-time process callback. The Settings UI today
+/// exposes buffer sizes up to 1024 frames; 2048 gives a 2x headroom while
+/// keeping the per-chain allocation bounded (~512 KB for 2048 × 8 ch ×
+/// 4 bytes × 8 slots). This constant is the ONLY place the cap is
+/// enforced — bump it if the UI ever exposes a larger selection.
 #[cfg(all(target_os = "linux", feature = "jack"))]
-const MAX_JACK_FRAMES: usize = 4096;
+const MAX_JACK_FRAMES: usize = 2048;
 
 struct ResolvedChainAudioConfig {
     inputs: Vec<ResolvedInputDevice>,
@@ -791,12 +794,25 @@ struct JackProcessHandler {
     input_ring: Option<Arc<SpscRingBuffer>>,
     /// Condvar to wake the worker thread when new input is available.
     worker_wake: Option<Arc<(std::sync::Mutex<bool>, std::sync::Condvar)>>,
+    /// Current n_frames from the JACK callback. Written by the RT thread
+    /// each callback (Relaxed store), read by the DSP worker (Relaxed load)
+    /// to know how many samples of `read_buf` are real vs ring padding.
+    /// Without this the worker would process `MAX_JACK_FRAMES * channels`
+    /// every iteration regardless of jackd's actual buffer size, adding
+    /// latency and wasting CPU on zero-padded tail samples.
+    current_n_frames: Arc<std::sync::atomic::AtomicUsize>,
 }
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
 impl jack::ProcessHandler for JackProcessHandler {
     fn process(&mut self, _client: &jack::Client, ps: &jack::ProcessScope) -> jack::Control {
         let n_frames = ps.n_frames() as usize;
+        // Publish the current callback size so the DSP worker only processes
+        // the real samples, not the ring-buffer padding. Relaxed ordering is
+        // enough — the wake-notify pair below provides the happens-before
+        // relationship; the worker just needs a recent value.
+        self.current_n_frames
+            .store(n_frames, std::sync::atomic::Ordering::Relaxed);
 
         // --- Input: read from JACK ports, interleave ---
         let total_in_ports = self.input_ports.len();
@@ -1054,6 +1070,9 @@ fn build_jack_direct_chain(
     let ring = Arc::new(SpscRingBuffer::new(8, samples_per_buffer));
     let wake = Arc::new((std::sync::Mutex::new(false), std::sync::Condvar::new()));
     let stop_flag = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    // Seed with current buffer size so the worker's first iteration slices
+    // read_buf correctly even if no callback has fired yet.
+    let current_n_frames = Arc::new(std::sync::atomic::AtomicUsize::new(buf_size));
 
     let handler = JackProcessHandler {
         // Scratch buffers pre-sized for MAX_JACK_FRAMES so
@@ -1066,6 +1085,7 @@ fn build_jack_direct_chain(
         runtime: Arc::clone(&runtime),
         input_ring: Some(Arc::clone(&ring)),
         worker_wake: Some(Arc::clone(&wake)),
+        current_n_frames: Arc::clone(&current_n_frames),
     };
 
     // Spawn DSP worker thread
@@ -1075,6 +1095,7 @@ fn build_jack_direct_chain(
     let worker_stop = Arc::clone(&stop_flag);
     let worker_channels = max_in_ch;
     let worker_chain_id = chain_id.0.clone();
+    let worker_current_frames = Arc::clone(&current_n_frames);
     let thread = std::thread::Builder::new()
         .name(format!("dsp-worker-{}", chain_id.0))
         .spawn(move || {
@@ -1101,11 +1122,21 @@ fn build_jack_direct_chain(
                     break;
                 }
 
-                // Process all available buffers
+                // Process all available buffers. Slice `read_buf` to the
+                // ACTUAL n_frames jackd is currently delivering so the
+                // engine never processes ring-buffer padding (which would
+                // add latency equal to padding/sample_rate and burn CPU on
+                // silence).
                 let mut processed_any = false;
                 while worker_ring.try_read(&mut read_buf) {
+                    let n_frames = worker_current_frames
+                        .load(std::sync::atomic::Ordering::Relaxed)
+                        .min(MAX_JACK_FRAMES)
+                        .max(1);
+                    let needed = (n_frames * worker_channels).min(read_buf.len());
+                    let real = &read_buf[..needed];
                     let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        process_input_f32(&worker_runtime, 0, &read_buf, worker_channels);
+                        process_input_f32(&worker_runtime, 0, real, worker_channels);
                     }));
                     processed_any = true;
                 }
