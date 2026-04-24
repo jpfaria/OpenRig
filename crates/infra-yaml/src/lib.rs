@@ -159,11 +159,37 @@ impl PresetYaml {
     }
 }
 
+fn default_yaml_bit_depth() -> u32 {
+    32
+}
+
+fn default_yaml_realtime() -> bool {
+    false
+}
+
+fn default_yaml_rt_priority() -> u8 {
+    70
+}
+
+fn default_yaml_nperiods() -> u32 {
+    3
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 struct DeviceSettingsYaml {
     device_id: String,
     sample_rate: u32,
     buffer_size_frames: u32,
+    #[serde(default = "default_yaml_bit_depth")]
+    bit_depth: u32,
+    // Linux JACK tuning — always present for YAML portability. Defaults
+    // preserve pre-existing behaviour on macOS/Windows.
+    #[serde(default = "default_yaml_realtime")]
+    realtime: bool,
+    #[serde(default = "default_yaml_rt_priority")]
+    rt_priority: u8,
+    #[serde(default = "default_yaml_nperiods")]
+    nperiods: u32,
 }
 
 impl From<DeviceSettingsYaml> for DeviceSettings {
@@ -172,7 +198,10 @@ impl From<DeviceSettingsYaml> for DeviceSettings {
             device_id: DeviceId(value.device_id),
             sample_rate: value.sample_rate,
             buffer_size_frames: value.buffer_size_frames,
-            bit_depth: 32,
+            bit_depth: value.bit_depth,
+            realtime: value.realtime,
+            rt_priority: value.rt_priority,
+            nperiods: value.nperiods,
         }
     }
 }
@@ -2283,6 +2312,9 @@ mode: clean
                     sample_rate: 48000,
                     buffer_size_frames: 256,
                     bit_depth: 32,
+                    realtime: false,
+                    rt_priority: 70,
+                    nperiods: 3,
                 },
             ],
             chains: Vec::new(),

@@ -230,6 +230,9 @@ pub(crate) fn build_device_settings_from_gui(
                 sample_rate: g.sample_rate,
                 buffer_size_frames: g.buffer_size_frames,
                 bit_depth: g.bit_depth,
+                realtime: g.realtime,
+                rt_priority: g.rt_priority,
+                nperiods: g.nperiods,
             });
         }
     }

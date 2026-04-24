@@ -1176,6 +1176,9 @@ pub fn run_desktop_app(
                             sample_rate: device.sample_rate,
                             buffer_size_frames: device.buffer_size_frames,
                             bit_depth: device.bit_depth,
+                            realtime: device.realtime,
+                            rt_priority: device.rt_priority,
+                            nperiods: device.nperiods,
                         })
                         .collect();
                     // Apply device config to hardware (works even without active chains)
@@ -1292,6 +1295,9 @@ pub fn run_desktop_app(
                             sample_rate: device.sample_rate,
                             buffer_size_frames: device.buffer_size_frames,
                             bit_depth: device.bit_depth,
+                            realtime: device.realtime,
+                            rt_priority: device.rt_priority,
+                            nperiods: device.nperiods,
                         })
                         .collect();
                     // Apply device config to hardware (works even without active chains)
@@ -9455,6 +9461,7 @@ mod tests {
             sample_rate: 48000,
             buffer_size_frames: 64,
             bit_depth: 16,
+            ..GuiAudioDeviceSettings::default()
         }];
         let output = vec![GuiAudioDeviceSettings {
             device_id: "alsa:hw:CARD=Q26,DEV=0".into(),
@@ -9462,6 +9469,7 @@ mod tests {
             sample_rate: 48000,
             buffer_size_frames: 64,
             bit_depth: 16,
+            ..GuiAudioDeviceSettings::default()
         }];
         let result = build_device_settings_from_gui(&input, &output);
         assert_eq!(result.len(), 1, "same device_id in input+output should produce 1 entry");
@@ -9477,6 +9485,7 @@ mod tests {
             sample_rate: 48000,
             buffer_size_frames: 64,
             bit_depth: 16,
+            ..GuiAudioDeviceSettings::default()
         }];
         let output = vec![GuiAudioDeviceSettings {
             device_id: "alsa:hw:CARD=hdmi0,DEV=0".into(),
@@ -9484,6 +9493,7 @@ mod tests {
             sample_rate: 48000,
             buffer_size_frames: 128,
             bit_depth: 24,
+            ..GuiAudioDeviceSettings::default()
         }];
         let result = build_device_settings_from_gui(&input, &output);
         assert_eq!(result.len(), 2, "different device_ids should produce 2 entries");
@@ -9498,6 +9508,7 @@ mod tests {
             sample_rate: 48000,
             buffer_size_frames: 128,
             bit_depth: 24,
+            ..GuiAudioDeviceSettings::default()
         }];
         let output = vec![GuiAudioDeviceSettings {
             device_id: "alsa:hw:CARD=Q26,DEV=0".into(),
@@ -9505,6 +9516,7 @@ mod tests {
             sample_rate: 44100,
             buffer_size_frames: 64,
             bit_depth: 16,
+            ..GuiAudioDeviceSettings::default()
         }];
         let result = build_device_settings_from_gui(&input, &output);
         assert_eq!(result.len(), 1);
