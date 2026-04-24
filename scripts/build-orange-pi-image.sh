@@ -186,6 +186,7 @@ customize_image() {
         -e OPENRIG_DEB_NAME="$(basename "$RELEASE_DEB")" \
         -e OUTPUT_IMG_BASENAME="$(basename "$OUTPUT_IMG")" \
         -e RELEASE="$RELEASE" \
+        -e OPENRIG_SKIP_INITRAMFS=1 \
         debian:trixie bash -eu -c '
 set -eu
 IMG=/work/"$OUTPUT_IMG_BASENAME"

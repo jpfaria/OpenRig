@@ -97,7 +97,34 @@ HOOK_EOF
 chmod +x /etc/initramfs-tools/hooks/openrig-plymouth
 
 # Rebuild initramfs with rockchipdrm + script plugin + openrig theme baked in.
-update-initramfs -u -k all
+# OPENRIG_SKIP_INITRAMFS=1 is set when this script runs inside a qemu-user
+# chroot (the "official image" Docker pipeline) because update-initramfs
+# emulated under qemu can produce a broken initrd that fails to boot. In
+# that case we keep the initrd that Armbians maintainers shipped with the
+# official image, and defer this rebuild to a first-boot oneshot on the
+# board itself.
+if [ "${OPENRIG_SKIP_INITRAMFS:-0}" = "1" ]; then
+    echo ">>> [OpenRig] Skipping update-initramfs (runs on first boot instead)"
+    cat > /etc/systemd/system/openrig-initramfs-rebuild.service << 'UNIT_EOF'
+[Unit]
+Description=Rebuild initramfs on first boot (OpenRig Plymouth theme + rockchipdrm)
+DefaultDependencies=yes
+Before=multi-user.target
+ConditionPathExists=!/var/lib/openrig-initramfs-done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/update-initramfs -u -k all
+ExecStartPost=/bin/sh -c 'touch /var/lib/openrig-initramfs-done'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+UNIT_EOF
+    systemctl enable openrig-initramfs-rebuild.service
+else
+    update-initramfs -u -k all
+fi
 
 # ── 7. Create users with fixed passwords ─────────────────────────────────────
 echo ">>> [OpenRig] Creating openrig user and setting passwords..."
