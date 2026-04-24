@@ -1,38 +1,46 @@
 #!/usr/bin/env bash
-# Build a minimal Linux image for Orange Pi 5B running OpenRig.
+# Build an OpenRig-customized Orange Pi 5B image from official Armbian trixie.
 #
-# Downloads the latest OpenRig release for linux-aarch64 from GitHub,
-# then generates a bootable Armbian image with OpenRig pre-installed.
+# Downloads the latest OpenRig .deb (or uses --local-deb), downloads the
+# official Armbian community image for Orangepi5b trixie + vendor kernel
+# 6.1.115, then injects OpenRig via Docker linux/arm64 chroot.
+#
+# Fast: no kernel compilation. Kernel comes prebuilt by Armbian maintainers.
+# Total runtime: ~5-10 min (mostly download + apt install inside chroot).
 #
 # Usage:
-#   ./scripts/build-orange-pi-image.sh                        # use latest release
-#   ./scripts/build-orange-pi-image.sh --version v1.2.0      # use specific version
-#   ./scripts/build-orange-pi-image.sh --dry-run              # print steps, don't execute
+#   ./scripts/build-orange-pi-image.sh                     # latest GH release
+#   ./scripts/build-orange-pi-image.sh --version v1.2.0    # specific release
+#   ./scripts/build-orange-pi-image.sh --local-deb ...     # local .deb
+#   ./scripts/build-orange-pi-image.sh --dry-run           # print steps only
 #
 # Prerequisites:
-#   - Docker   (for Armbian build)
-#   - gh       (GitHub CLI, for downloading releases)
+#   - Docker Desktop running (uses linux/arm64 via qemu)
+#   - gh       (only if not using --local-deb)
+#   - xz, curl (both standard on macOS)
 
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-ARMBIAN_DIR="$PROJECT_ROOT/output/armbian-build"
-ARMBIAN_REPO="https://github.com/armbian/build.git"
-ARMBIAN_BRANCH="main"
-BOARD="orangepi5b"
-# BRANCH=current → stable 6.x LTS kernel. edge (7.0-rc) does NOT boot
-# on RK3588 as of 2026-04-12 (confirmed with official Armbian image).
-# trixie = Debian 13 — Mesa 25.0+ ships panthor_dri.so, enabling Mali-G610
-# hardware acceleration on RK3588 (issue #312). Bookworm's Mesa 22.3 has no
-# Panthor driver, so userspace falls back to llvmpipe (software GL) and caps
-# the UI at 2-5 FPS. glibc 2.41 in trixie is forward-compat with the OpenRig
-# .deb cross-compiled on bookworm Docker (glibc 2.36).
-BRANCH="current"
-RELEASE="trixie"
 OUTPUT_DIR="$PROJECT_ROOT/output/orange-pi"
-USERPATCHES_DIR="$ARMBIAN_DIR/userpatches"
-OVERLAY_DIR="$USERPATCHES_DIR/overlay"
 GITHUB_REPO="jpfaria/OpenRig"
+
+# Official Armbian community build — kernel vendor 6.1.115 (stable RK3588 LTS,
+# equivalent to what BRANCH=current would produce), trixie = Debian 13 which
+# ships Mesa 25.0+ with panthor_dri.so, enabling Mali-G610 hardware
+# acceleration on RK3588 (issue #312). Bookworm's Mesa 22.3 lacks Panthor, so
+# the UI fell back to llvmpipe software rendering at 2-5 FPS.
+# glibc 2.41 in trixie is forward-compatible with the OpenRig .deb that is
+# cross-compiled on bookworm Docker (glibc 2.36).
+BOARD="orangepi5b"
+RELEASE="trixie"
+KERNEL_TAG="vendor_6.1.115"
+ARMBIAN_RELEASE="26.2.0-trunk.792"
+ARMBIAN_IMG_NAME="Armbian_community_${ARMBIAN_RELEASE}_Orangepi5b_${RELEASE}_${KERNEL_TAG}_minimal.img"
+ARMBIAN_URL="https://github.com/armbian/community/releases/download/${ARMBIAN_RELEASE}/${ARMBIAN_IMG_NAME}.xz"
+ARMBIAN_XZ="$OUTPUT_DIR/$ARMBIAN_IMG_NAME.xz"
+ARMBIAN_IMG="$OUTPUT_DIR/$ARMBIAN_IMG_NAME"
+OUTPUT_IMG="$OUTPUT_DIR/Armbian_openrig_${RELEASE}.img"
 
 VERSION="latest"
 LOCAL_DEB=""
@@ -54,7 +62,7 @@ while [ $# -gt 0 ]; do
             shift
             ;;
         --help|-h)
-            grep '^#' "$0" | head -12 | sed 's/^# //'
+            grep '^#' "$0" | head -20 | sed 's/^# //'
             exit 0
             ;;
         *)
@@ -79,56 +87,45 @@ step() {
 
 check_prereqs() {
     local missing=()
-    command -v docker >/dev/null || missing+=("docker")
-    command -v gh     >/dev/null || missing+=("gh  (brew install gh)")
+    command -v docker >/dev/null || missing+=("docker (Docker Desktop)")
+    command -v curl   >/dev/null || missing+=("curl")
+    command -v xz     >/dev/null || missing+=("xz")
+    if [ -z "$LOCAL_DEB" ]; then
+        command -v gh >/dev/null || missing+=("gh (brew install gh)")
+    fi
     if [ ${#missing[@]} -gt 0 ]; then
         echo "ERROR: Missing prerequisites:"
         printf '  - %s\n' "${missing[@]}"
         exit 1
     fi
-
-    # On macOS, Armbian requires Bash 5 — use homebrew bash if available
-    if [ "$(uname)" = "Darwin" ]; then
-        BASH5=/opt/homebrew/bin/bash
-        [ -x "$BASH5" ] || BASH5=$(brew --prefix 2>/dev/null)/bin/bash
-        if [ ! -x "$BASH5" ]; then
-            echo "ERROR: Bash 5 required on macOS. Run: brew install bash"
-            exit 1
-        fi
-        export BASH="$BASH5"
+    if ! docker info >/dev/null 2>&1; then
+        echo "ERROR: Docker daemon not running. Start Docker Desktop."
+        exit 1
     fi
 }
 
-# ── Step 1: Download or use local OpenRig .deb ──────────────────────────────
-download_release() {
+# ── Step 1: Stage OpenRig .deb ────────────────────────────────────────────────
+stage_deb() {
     if [ -n "$LOCAL_DEB" ]; then
-        step "1/3  Using local .deb: $LOCAL_DEB"
-        if [ ! -f "$LOCAL_DEB" ]; then
-            echo "ERROR: Local .deb not found: $LOCAL_DEB"
-            exit 1
-        fi
+        step "1/4  Using local OpenRig .deb"
+        [ -f "$LOCAL_DEB" ] || { echo "ERROR: Local .deb not found: $LOCAL_DEB"; exit 1; }
         RELEASE_DEB="$LOCAL_DEB"
         echo "  Package: $RELEASE_DEB"
         return
     fi
 
-    step "1/3  Downloading OpenRig arm64 .deb release ($VERSION)"
-
+    step "1/4  Downloading OpenRig arm64 .deb ($VERSION)"
     local download_dir="$PROJECT_ROOT/output/orange-pi-release"
     run mkdir -p "$download_dir"
-    # Clean any previous downloads so the 'ls | head' below always picks up the
-    # package for the current version.
     run sh -c "rm -f '$download_dir'/openrig_*_arm64.deb"
 
     if [ "$VERSION" = "latest" ]; then
-        echo "  Fetching latest release from github.com/$GITHUB_REPO..."
         run gh release download \
             --repo "$GITHUB_REPO" \
             --pattern "openrig_*_arm64.deb" \
             --dir "$download_dir" \
             --clobber
     else
-        echo "  Fetching release $VERSION from github.com/$GITHUB_REPO..."
         run gh release download "$VERSION" \
             --repo "$GITHUB_REPO" \
             --pattern "openrig_*_arm64.deb" \
@@ -137,127 +134,159 @@ download_release() {
     fi
 
     RELEASE_DEB=$(ls "$download_dir"/openrig_*_arm64.deb 2>/dev/null | head -1)
-    if [ -z "$RELEASE_DEB" ]; then
-        echo "ERROR: No openrig_*_arm64.deb found in $download_dir"
-        exit 1
-    fi
-    echo "  Package staged at: $RELEASE_DEB"
+    [ -n "$RELEASE_DEB" ] || { echo "ERROR: No .deb downloaded"; exit 1; }
+    echo "  Staged: $RELEASE_DEB"
 }
 
-# ── Step 2: Prepare Armbian userpatches overlay ───────────────────────────────
-prepare_overlay() {
-    step "2/3  Preparing Armbian userpatches overlay"
-
-    # Clone or update Armbian build repo
-    if [ ! -d "$ARMBIAN_DIR/.git" ]; then
-        echo "  Cloning Armbian build framework..."
-        run git clone --depth=1 --branch "$ARMBIAN_BRANCH" "$ARMBIAN_REPO" "$ARMBIAN_DIR"
-    else
-        echo "  Updating Armbian build framework..."
-        run git -C "$ARMBIAN_DIR" pull --ff-only
-    fi
-
-    # Set up userpatches
-    run mkdir -p "$USERPATCHES_DIR"
-    run cp "$PROJECT_ROOT/platform/orange-pi/customize-image.sh" "$USERPATCHES_DIR/customize-image.sh"
-    run chmod +x "$USERPATCHES_DIR/customize-image.sh"
-
-    # Stage the .deb package into the overlay. customize-image.sh will
-    # `apt install` it inside the chroot so all runtime dependencies are
-    # resolved by dpkg — no manual file copies.
-    run mkdir -p "$OVERLAY_DIR"
-    run sh -c "rm -f '$OVERLAY_DIR'/openrig.deb"
-    run cp "$RELEASE_DEB" "$OVERLAY_DIR/openrig.deb"
-
-    # Stage logo SVGs (rsvg-convert inside Armbian chroot converts to PNG)
-    LOGO_SVG="$PROJECT_ROOT/crates/adapter-gui/ui/assets/openrig-logomark.svg"
-    LOGOTYPE_SVG="$PROJECT_ROOT/crates/adapter-gui/ui/assets/openrig-logotype.svg"
-    run cp "$LOGO_SVG" "$OVERLAY_DIR/openrig-logomark.svg"
-    run cp "$LOGOTYPE_SVG" "$OVERLAY_DIR/openrig-logotype.svg"
-
-    # Stage rootfs overlay (etc, usr)
-    run cp -r "$PROJECT_ROOT/platform/orange-pi/rootfs/." "$OVERLAY_DIR/"
-
-    # Stage chain presets — land at /etc/presets/ which is the default
-    # presets_path relative to the project file (/etc/openrig.yaml).
-    if [ -d "$PROJECT_ROOT/presets" ]; then
-        run mkdir -p "$OVERLAY_DIR/etc/presets"
-        run cp -r "$PROJECT_ROOT/presets/." "$OVERLAY_DIR/etc/presets/"
-    fi
-
-    # Stage DTB overlay source for the Scarlett/USB-C TCPM workaround.
-    # customize-image.sh compiles and installs it inside the chroot using
-    # armbian-add-overlay so it lands in /boot/overlay-user/ and gets hooked
-    # into armbianEnv.txt automatically.
-    run cp "$PROJECT_ROOT/platform/orange-pi/dtbo/openrig-usbc-host.dts" \
-        "$OVERLAY_DIR/openrig-usbc-host.dts"
-
-    # PREEMPT_RT extension — Armbian calls custom_kernel_config__openrig_rt()
-    # after loading the base .config, so we only need to flip the RT flag.
-    run mkdir -p "$USERPATCHES_DIR/extensions"
-    run cp "$PROJECT_ROOT/platform/orange-pi/extensions/openrig-kernel-rt.sh" \
-        "$USERPATCHES_DIR/extensions/openrig-kernel-rt.sh"
-}
-
-# ── Step 3: Run Armbian build ─────────────────────────────────────────────────
-run_armbian() {
-    step "3/3  Running Armbian build (~30-60 min)"
-
+# ── Step 2: Obtain the official Armbian trixie image (cached) ─────────────────
+download_armbian() {
+    step "2/4  Obtaining official Armbian trixie image"
     run mkdir -p "$OUTPUT_DIR"
 
-    # Armbian's Docker launcher bind-mounts its output/ directory. The dir
-    # must exist on the host BEFORE Docker starts, otherwise the bind mount
-    # fails with "source path does not exist".
-    run mkdir -p "$ARMBIAN_DIR/output/images"
-
-    # Clear images from previous runs. Armbian keeps accumulating older
-    # kernel builds in its output/images dir, and the cp wildcard below
-    # would copy every one of them into OUTPUT_DIR — producing "duas
-    # imagens" (or more) when the user expects exactly one.
-    local armbian_images="$ARMBIAN_DIR/output/images"
-    run sh -c "rm -f '$armbian_images'/Armbian*.img '$armbian_images'/Armbian*.img.sha '$armbian_images'/Armbian*.img.txt"
-    run sh -c "rm -f '$OUTPUT_DIR'/Armbian*.img '$OUTPUT_DIR'/Armbian*.img.sha '$OUTPUT_DIR'/Armbian*.img.txt"
-
-    # Armbian ignores OUTPUT_DIR when running inside Docker — images land
-    # in its own output/images/ dir.  We copy them to our OUTPUT_DIR after.
-    run "${BASH:-bash}" "$ARMBIAN_DIR/compile.sh" \
-        "BOARD=$BOARD" \
-        "BRANCH=$BRANCH" \
-        "RELEASE=$RELEASE" \
-        "BUILD_DESKTOP=no" \
-        "BUILD_MINIMAL=yes" \
-        "KERNEL_CONFIGURE=no" \
-        "BOOT_LOGO=no" \
-        "COMPRESS_OUTPUTIMAGE=no"
-
-    # Copy resulting image to our output dir.
-    if ls "$armbian_images"/Armbian*.img 1>/dev/null 2>&1; then
-        run cp "$armbian_images"/Armbian*.img "$OUTPUT_DIR/"
-        run cp "$armbian_images"/Armbian*.img.sha "$OUTPUT_DIR/" 2>/dev/null || true
-        run cp "$armbian_images"/Armbian*.img.txt "$OUTPUT_DIR/" 2>/dev/null || true
+    if [ -f "$ARMBIAN_IMG" ]; then
+        echo "  Using cached image: $(basename "$ARMBIAN_IMG")"
+    else
+        if [ ! -f "$ARMBIAN_XZ" ]; then
+            echo "  Downloading (~288 MB compressed)..."
+            echo "  $ARMBIAN_URL"
+            run curl -L -f -o "$ARMBIAN_XZ" "$ARMBIAN_URL"
+        else
+            echo "  Using cached .xz: $(basename "$ARMBIAN_XZ")"
+        fi
+        echo "  Decompressing (keep .xz for cache)..."
+        run xz -d -k -v "$ARMBIAN_XZ"
     fi
+    $DRY_RUN || ls -lh "$ARMBIAN_IMG"
+}
 
-    echo ""
-    echo "Image written to: $OUTPUT_DIR/"
-    echo "Flash with:"
-    echo "  ./scripts/flash-sd.sh $OUTPUT_DIR/Armbian*.img"
+# ── Step 3: Copy base image to output and grow filesystem headroom ────────────
+prepare_output_image() {
+    step "3/4  Preparing output image (+2G headroom for apt install)"
+    run rm -f "$OUTPUT_IMG"
+    run cp "$ARMBIAN_IMG" "$OUTPUT_IMG"
+    # Armbian minimal is ~1.6G with almost no slack. We need room for apt
+    # install of ~17 packages + openrig.deb (~160 MB). +2G is conservative.
+    run truncate -s +2G "$OUTPUT_IMG"
+}
+
+# ── Step 4: Customize image via Docker linux/arm64 chroot ─────────────────────
+customize_image() {
+    step "4/4  Customizing image via Docker linux/arm64 chroot"
+
+    # The chroot script runs inside an arm64 container via qemu emulation so
+    # the apt install, dpkg -i and initramfs rebuild all execute native ARM
+    # binaries — exactly what will run on the Orange Pi.
+    run docker run --rm --privileged --platform linux/arm64 \
+        -v "$OUTPUT_DIR:/work" \
+        -v "$PROJECT_ROOT/platform/orange-pi:/platform:ro" \
+        -v "$PROJECT_ROOT/crates/adapter-gui/ui/assets:/ui-assets:ro" \
+        -v "$(dirname "$RELEASE_DEB"):/debs:ro" \
+        -v "$PROJECT_ROOT/presets:/presets:ro" \
+        -e OPENRIG_DEB_NAME="$(basename "$RELEASE_DEB")" \
+        -e OUTPUT_IMG_BASENAME="$(basename "$OUTPUT_IMG")" \
+        -e RELEASE="$RELEASE" \
+        debian:trixie bash -eu -c '
+set -eu
+IMG=/work/"$OUTPUT_IMG_BASENAME"
+
+echo ">>> Installing host tools in orchestrator container..."
+apt-get update -qq
+apt-get install -y --no-install-recommends util-linux parted e2fsprogs >/dev/null 2>&1
+
+echo ">>> Resizing partition to fill appended space..."
+parted -s "$IMG" "resizepart 1 100%" || true
+
+echo ">>> Loop-mounting image..."
+LOOP=$(losetup --find --show --partscan "$IMG")
+echo "  Loop device: $LOOP"
+sleep 1
+partprobe "$LOOP" || true
+
+ROOT_PART="${LOOP}p1"
+[ -e "$ROOT_PART" ] || ROOT_PART="$LOOP"
+echo "  Root partition: $ROOT_PART"
+
+echo ">>> Growing filesystem..."
+e2fsck -f -y "$ROOT_PART" || true
+resize2fs "$ROOT_PART"
+
+echo ">>> Mounting..."
+mkdir -p /mnt/img
+mount "$ROOT_PART" /mnt/img
+
+echo ">>> Staging overlay (matches customize-image.sh /tmp/overlay/ contract)..."
+mkdir -p /mnt/img/tmp/overlay
+cp -r /platform/rootfs/etc /mnt/img/tmp/overlay/
+cp -r /platform/rootfs/usr /mnt/img/tmp/overlay/
+cp /debs/"$OPENRIG_DEB_NAME" /mnt/img/tmp/overlay/openrig.deb
+cp /ui-assets/openrig-logomark.svg /mnt/img/tmp/overlay/
+cp /ui-assets/openrig-logotype.svg /mnt/img/tmp/overlay/
+cp /platform/dtbo/openrig-usbc-host.dts /mnt/img/tmp/overlay/
+
+if [ -d /presets ]; then
+    mkdir -p /mnt/img/etc/presets
+    cp -r /presets/. /mnt/img/etc/presets/
+fi
+
+echo ">>> Binding /dev /proc /sys for chroot + DNS for apt..."
+mount --bind /dev  /mnt/img/dev
+mount --bind /proc /mnt/img/proc
+mount --bind /sys  /mnt/img/sys
+# Keep a copy of the image resolv.conf so we can restore it after
+if [ -f /mnt/img/etc/resolv.conf ]; then
+    cp /mnt/img/etc/resolv.conf /mnt/img/etc/resolv.conf.bak
+fi
+cp /etc/resolv.conf /mnt/img/etc/resolv.conf
+
+echo ">>> Executing customize-image.sh in chroot..."
+cp /platform/customize-image.sh /mnt/img/tmp/customize-image.sh
+chmod +x /mnt/img/tmp/customize-image.sh
+chroot /mnt/img /tmp/customize-image.sh "$RELEASE"
+
+echo ">>> Cleaning up inside image..."
+rm -rf /mnt/img/tmp/overlay
+rm -f /mnt/img/tmp/customize-image.sh
+# Restore the original (empty/symlink) resolv.conf so network config at boot
+# uses the target systems own resolver, not the orchestrator hosts.
+if [ -f /mnt/img/etc/resolv.conf.bak ]; then
+    mv /mnt/img/etc/resolv.conf.bak /mnt/img/etc/resolv.conf
+else
+    : > /mnt/img/etc/resolv.conf
+fi
+
+echo ">>> Unmounting..."
+umount /mnt/img/sys || true
+umount /mnt/img/proc || true
+umount /mnt/img/dev || true
+umount /mnt/img
+losetup -d "$LOOP"
+sync
+
+echo ">>> Image customized successfully."
+'
 }
 
 # ── Main ──────────────────────────────────────────────────────────────────────
-echo "OpenRig — Orange Pi 5B Image Builder"
-echo "Repo:    github.com/$GITHUB_REPO"
-echo "Version: $VERSION"
-echo "Board:   $BOARD ($BRANCH, $RELEASE)"
-echo "DryRun:  $DRY_RUN"
-if [ -n "$LOCAL_DEB" ]; then
-    echo "LocalDeb: $LOCAL_DEB"
-fi
+echo "OpenRig — Orange Pi 5B Image Builder (official Armbian trixie base)"
+echo "Repo:     github.com/$GITHUB_REPO"
+echo "Board:    $BOARD"
+echo "Release:  $RELEASE (Debian 13, Mesa 25+ with panthor_dri.so)"
+echo "Kernel:   $KERNEL_TAG (Armbian community prebuilt)"
+echo "Version:  $VERSION"
+echo "DryRun:   $DRY_RUN"
+[ -n "$LOCAL_DEB" ] && echo "LocalDeb: $LOCAL_DEB"
 echo ""
 
 check_prereqs
-download_release
-prepare_overlay
-run_armbian
+stage_deb
+download_armbian
+prepare_output_image
+customize_image
 
 echo ""
-echo "Done."
+echo "══════════════════════════════════════════"
+echo "  Done"
+echo "══════════════════════════════════════════"
+echo "Image ready: $OUTPUT_IMG"
+echo ""
+echo "Flash with:  ./scripts/flash-sd.sh $OUTPUT_IMG"
