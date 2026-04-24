@@ -313,6 +313,24 @@ impl<B: JackBackend> JackSupervisor<B> {
         Ok(())
     }
 
+    /// Side-effect-free predicate — returns true when the next
+    /// `ensure_server(name, desired)` would trigger a `Ready → Restarting`
+    /// transition. Callers use this to drop their `AsyncClient` handles
+    /// *before* the supervisor kills jackd, preventing the libjack global
+    /// state from ending up in the `ClientStatus(FAILURE | SERVER_ERROR)`
+    /// limbo that bugfix/issue-294 documented.
+    ///
+    /// Returns false when the server is `NotStarted`, `Failed`, or
+    /// `Ready` with a matching config. The latter two cases are handled
+    /// in-place by `ensure_server` without needing a pre-kill teardown.
+    pub fn would_restart(&self, name: &ServerName, desired: &JackConfig) -> bool {
+        matches!(
+            self.servers.get(name).map(|s| &s.state),
+            Some(JackServerState::Ready { launched_config, .. })
+                if launched_config != desired
+        )
+    }
+
     /// Record that a new libjack client was opened against `name`. The
     /// supervisor uses the count to decide whether the teardown hook needs to
     /// run on the next restart. Caller guarantees: every `register_client`
@@ -752,6 +770,34 @@ mod tests {
         assert_eq!(sup.client_count(&name()), 0);
         sup.unregister_client(&name()); // saturating
         assert_eq!(sup.client_count(&name()), 0);
+    }
+
+    // would_restart is side-effect-free and only returns true for
+    // Ready(config mismatch) — the case where callers must drop AsyncClients.
+    #[test]
+    fn would_restart_distinguishes_mismatch_from_unseen_or_terminal_states() {
+        let mut sup = make_supervisor();
+        let config = JackConfig::test_default();
+
+        // Unknown server — no restart needed, ensure_server will spawn.
+        assert!(!sup.would_restart(&name(), &config));
+
+        // After start, matching config → no restart.
+        sup.ensure_server(&name(), &config, &mut noop_hook()).unwrap();
+        assert!(!sup.would_restart(&name(), &config));
+
+        // Mismatched config → restart required.
+        let different = JackConfig {
+            buffer_size: 256,
+            ..config.clone()
+        };
+        assert!(sup.would_restart(&name(), &different));
+
+        // Still no backend calls — would_restart is pure.
+        let calls_before = sup.backend.call_count();
+        let _ = sup.would_restart(&name(), &different);
+        let _ = sup.would_restart(&name(), &different);
+        assert_eq!(sup.backend.call_count(), calls_before);
     }
 
     // Basic sanity: each subscriber gets its own event stream.

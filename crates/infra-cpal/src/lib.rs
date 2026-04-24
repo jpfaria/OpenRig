@@ -1603,6 +1603,11 @@ fn build_jack_direct_chain(
 pub struct ProjectRuntimeController {
     runtime_graph: RuntimeGraph,
     active_chains: HashMap<ChainId, ActiveChainRuntime>,
+    /// Single owner of every jackd process openrig controls on Linux. Replaces
+    /// the former ensure_jack_running / stop_jackd_for / jack_meta_for set of
+    /// free functions with an explicit state machine (issue #308).
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    supervisor: jack_supervisor::JackSupervisor<jack_supervisor::LiveJackBackend>,
 }
 pub fn list_devices() -> Result<Vec<String>> {
     log::trace!("listing all audio devices");
@@ -2179,44 +2184,56 @@ pub fn build_streams_for_project(
 /// No CPAL or ALSA access. The resolved config is only used to provide
 /// sample_rate and stream_signature to the runtime graph — the direct JACK
 /// backend ignores inputs/outputs entirely.
+///
+/// Consumes cached meta from the supervisor — callers must guarantee that
+/// `ensure_jack_servers` ran beforehand so every active card is in the
+/// `Ready` state.
 #[cfg(all(target_os = "linux", feature = "jack"))]
-fn jack_resolve_chain_config(chain: &Chain) -> Result<ResolvedChainAudioConfig> {
+fn jack_resolve_chain_config(
+    chain: &Chain,
+    supervisor: &jack_supervisor::JackSupervisor<jack_supervisor::LiveJackBackend>,
+) -> Result<ResolvedChainAudioConfig> {
     // Resolve the JACK server for this chain by inspecting its I/O device_ids.
     // Chain entries may have:
     //   - "jack:<server_name>"  → use that server directly
     //   - "hw:<N>"              → find the card at hw:N and use its server
-    //   - anything else         → fall back to first running server
+    //   - anything else         → fall back to first supervised running server
     let cards = detect_all_usb_audio_cards();
+
+    let supervisor_has_ready = |name: &str| {
+        matches!(
+            supervisor.state(&jack_supervisor::ServerName::from(name)),
+            Some(jack_supervisor::JackServerState::Ready { .. })
+        )
+    };
 
     let resolve_server = |device_id: &str| -> Option<String> {
         if let Some(name) = device_id.strip_prefix("jack:") {
-            // Explicit jack:<name>
             return Some(name.to_string());
         }
         if let Some(hw_num) = device_id.strip_prefix("hw:") {
-            // hw:N → find matching card by card_num
             if let Some(card) = cards.iter().find(|c| c.card_num == hw_num) {
                 return Some(card.server_name.clone());
             }
         }
-        // Fallback: first running server
         cards.iter()
-            .find(|c| jack_server_is_running_for(&c.server_name))
+            .find(|c| supervisor_has_ready(&c.server_name))
             .map(|c| c.server_name.clone())
     };
 
-    // Determine server from first input entry, or fallback to first running
+    // Determine server from first input entry, or fallback to first
+    // supervisor-ready card.
     let server_name = chain.input_blocks().into_iter()
         .flat_map(|(_, ib)| ib.entries.iter())
         .find_map(|entry| resolve_server(&entry.device_id.0))
         .or_else(|| {
             cards.iter()
-                .find(|c| jack_server_is_running_for(&c.server_name))
+                .find(|c| supervisor_has_ready(&c.server_name))
                 .map(|c| c.server_name.clone())
         })
         .ok_or_else(|| anyhow!("no running JACK server found for chain"))?;
 
-    let meta = jack_meta_for(&server_name)?;
+    let meta = supervisor.meta(&jack_supervisor::ServerName::from(server_name.clone()))?;
     let device_id = format!("jack:{}", server_name);
     let sample_rate = meta.sample_rate as f32;
     let in_channels = meta.capture_port_count as u16;
@@ -2263,9 +2280,82 @@ impl ProjectRuntimeController {
                 chains: HashMap::new(),
             },
             active_chains: HashMap::new(),
+            #[cfg(all(target_os = "linux", feature = "jack"))]
+            supervisor: jack_supervisor::JackSupervisor::new(
+                jack_supervisor::LiveJackBackend::new(),
+            ),
         };
         controller.sync_project(project)?;
         Ok(controller)
+    }
+
+    /// Translate a detected USB audio card + project-level device settings
+    /// into a [`jack_supervisor::JackConfig`] suitable for `ensure_server`.
+    /// Kept as a free helper on the controller so `sync_project` and
+    /// `upsert_chain` share the same translation.
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    fn jack_config_for_card(
+        card: &UsbAudioCard,
+        project: &Project,
+    ) -> jack_supervisor::JackConfig {
+        let (sample_rate, buffer_size) = project
+            .device_settings
+            .iter()
+            .find(|s| s.device_id.0 == card.device_id)
+            .map(|s| (s.sample_rate, s.buffer_size_frames))
+            .unwrap_or((48_000, 64));
+        jack_supervisor::JackConfig {
+            sample_rate,
+            buffer_size,
+            nperiods: 3,
+            realtime: false,
+            rt_priority: 70,
+            card_num: card.card_num.parse().unwrap_or(0),
+            capture_channels: card.capture_channels,
+            playback_channels: card.playback_channels,
+        }
+    }
+
+    /// Ensure every connected card has its jackd in the desired config. When
+    /// a restart will be triggered for any card that still has active chains,
+    /// drop the chains first — dropping an `AsyncClient` after its jackd has
+    /// been SIGTERMed leaves the libjack global state in the
+    /// `ClientStatus(FAILURE | SERVER_ERROR)` limbo documented in issue #294.
+    #[cfg(all(target_os = "linux", feature = "jack"))]
+    fn ensure_jack_servers(&mut self, project: &Project) -> Result<()> {
+        let cards = detect_all_usb_audio_cards();
+        if cards.is_empty() {
+            bail!("no USB audio interface found — connect a device before starting audio");
+        }
+
+        let configs: Vec<(jack_supervisor::ServerName, jack_supervisor::JackConfig)> = cards
+            .iter()
+            .map(|card| {
+                (
+                    jack_supervisor::ServerName::from(card.server_name.clone()),
+                    Self::jack_config_for_card(card, project),
+                )
+            })
+            .collect();
+
+        let any_would_restart = configs
+            .iter()
+            .any(|(name, cfg)| self.supervisor.would_restart(name, cfg));
+        if any_would_restart && !self.active_chains.is_empty() {
+            log::info!(
+                "ensure_jack_servers: JACK restart imminent, tearing down {} chain(s) first",
+                self.active_chains.len()
+            );
+            self.stop();
+        }
+
+        for (name, config) in &configs {
+            // The predictive teardown above already cleared any active chains
+            // bound to a restarting server. The hook is a safety net.
+            let mut hook = |_: &jack_supervisor::ServerName| {};
+            self.supervisor.ensure_server(name, config, &mut hook)?;
+        }
+        Ok(())
     }
 
     pub fn sync_project(&mut self, project: &Project) -> Result<()> {
@@ -2280,34 +2370,20 @@ impl ProjectRuntimeController {
         {
             let needs_audio = project.chains.iter().any(|c| c.enabled);
             if !needs_audio {
-                log::debug!(
-                    "sync_project: no enabled chains, skipping ensure_jack_running"
-                );
+                log::debug!("sync_project: no enabled chains, idling supervisor");
                 if !self.active_chains.is_empty() {
                     log::info!("sync_project: no enabled chains, tearing down runtime");
                     self.stop();
                 }
+                if let Err(e) = self.supervisor.shutdown_all() {
+                    log::warn!("sync_project: supervisor.shutdown_all failed: {}", e);
+                }
                 return Ok(());
             }
-            // Tear down active chains BEFORE ensure_jack_running kills the
-            // current jackd. If we drop the AsyncClients after the server
-            // died, jack-rs global state ends up confused and new client
-            // connections fail with FAILURE|SERVER_ERROR even though the
-            // fresh jackd is alive and accepting external clients. See
-            // jack_restart_would_be_triggered() doc-comment.
-            if !self.active_chains.is_empty() && jack_restart_would_be_triggered(project) {
-                log::info!("sync_project: JACK restart imminent, tearing down chains first");
-                self.stop();
-            }
-            let jack_restarted = ensure_jack_running(project)?;
-            if jack_restarted && !self.active_chains.is_empty() {
-                // Should never happen now that the teardown above runs first,
-                // but kept as a safety net: if a card was added mid-run and a
-                // fresh launch happened without the predicate catching it,
-                // drop anything still around before the upsert re-registers.
-                log::info!("sync_project: JACK restarted with active chains still present, tearing down");
-                self.stop();
-            }
+            // The supervisor drives the ordered teardown for us: ensure_jack_servers
+            // calls would_restart to check the pre-kill condition and tears down
+            // active chains before SIGTERM. See issue #308 for the invariants.
+            self.ensure_jack_servers(project)?;
             return self.sync_project_jack_direct(project);
         }
 
@@ -2376,7 +2452,7 @@ impl ProjectRuntimeController {
             if !chain.enabled {
                 continue;
             }
-            let resolved = jack_resolve_chain_config(chain)?;
+            let resolved = jack_resolve_chain_config(chain, &self.supervisor)?;
             self.upsert_chain_with_resolved(chain, resolved)?;
         }
 
@@ -2392,18 +2468,11 @@ impl ProjectRuntimeController {
 
         #[cfg(all(target_os = "linux", feature = "jack"))]
         {
-            // Same ordering as sync_project: drop AsyncClients BEFORE the
-            // jackd they reference gets killed inside ensure_jack_running.
-            if !self.active_chains.is_empty() && jack_restart_would_be_triggered(project) {
-                log::info!("upsert_chain: JACK restart imminent, tearing down chains first");
-                self.stop();
-            }
-            let jack_restarted = ensure_jack_running(project)?;
-            if jack_restarted && !self.active_chains.is_empty() {
-                log::info!("upsert_chain: JACK restarted with active chains still present, tearing down");
-                self.stop();
-            }
-            let resolved = jack_resolve_chain_config(chain)?;
+            // Delegate the ordered teardown + jackd spawn to the supervisor —
+            // ensure_jack_servers handles would_restart + self.stop() + the
+            // ensure_server retry loop.
+            self.ensure_jack_servers(project)?;
+            let resolved = jack_resolve_chain_config(chain, &self.supervisor)?;
             return self.upsert_chain_with_resolved(chain, resolved);
         }
 
@@ -2444,66 +2513,55 @@ impl ProjectRuntimeController {
     ///
     /// On macOS/Windows (CoreAudio/WASAPI): always returns true — device loss
     /// is detected through stream error callbacks, not polling.
-    pub fn is_healthy(&self) -> bool {
+    pub fn is_healthy(&mut self) -> bool {
         if self.active_chains.is_empty() {
             return true;
         }
         #[cfg(all(target_os = "linux", feature = "jack"))]
         if using_jack_direct() {
-            // Socket existence alone is insufficient — jackd can enter a zombie state
-            // where the process is alive (socket present) but the ALSA driver has
-            // stopped (e.g. after USB device disconnect). Verify the server is
-            // actually responsive by checking the meta cache, which is invalidated
-            // by the JackShutdownHandler when the connection drops.
-            if !jack_server_is_running() {
-                return false;
-            }
-            // If the cache is empty (was invalidated after a disconnect) and we
-            // can't reach the server, report unhealthy so the health timer triggers
-            // try_reconnect → ensure_jack_running → zombie kill + restart.
-            let cards = detect_all_usb_audio_cards();
-            for card in &cards {
-                if jack_server_is_running_for(&card.server_name) {
-                    if jack_meta_cache().lock().unwrap().get(&card.server_name).is_none() {
-                        // Cache was cleared — server may be zombie. Probe it.
-                        if jack_meta_for(&card.server_name).is_err() {
-                            log::warn!("is_healthy: server '{}' unresponsive (zombie), reporting unhealthy", card.server_name);
-                            return false;
-                        }
-                    }
-                }
-            }
-            return true;
+            // Delegate to the supervisor. health_check is non-destructive —
+            // any verdict other than Healthy triggers the reconnect path in
+            // the health timer (adapter-gui), which calls try_reconnect. The
+            // next ensure_server fires a fresh spawn for any zombie or
+            // not-running server.
+            let verdicts = self.supervisor.health_check();
+            return verdicts
+                .values()
+                .all(|v| matches!(v, jack_supervisor::HealthStatus::Healthy));
         }
         true
     }
 
     /// Attempt to reconnect after the audio backend became unhealthy.
     ///
-    /// Tears down all active chains, invalidates caches, and re-syncs the
-    /// project. Returns Ok(true) if reconnection succeeded, Ok(false) if the
-    /// backend is not yet available (no USB device, JACK not ready).
+    /// Tears down all active chains, forces the supervisor to stop every
+    /// tracked jackd, and re-syncs the project. Returns Ok(true) if
+    /// reconnection succeeded, Ok(false) if the backend is not yet available
+    /// (no USB device).
     pub fn try_reconnect(&mut self, project: &Project) -> Result<bool> {
         log::info!("try_reconnect: checking if audio backend is available");
 
         #[cfg(all(target_os = "linux", feature = "jack"))]
-        if using_jack_direct() {
-            // If no USB audio card is present, don't even try
-            if detect_all_usb_audio_cards().is_empty() {
-                log::debug!("try_reconnect: no USB audio card found");
-                return Ok(false);
-            }
-            invalidate_jack_meta_cache();
+        if using_jack_direct() && detect_all_usb_audio_cards().is_empty() {
+            log::debug!("try_reconnect: no USB audio card found");
+            return Ok(false);
         }
 
-        // Tear down everything cleanly
+        // Tear down everything cleanly. On Linux this includes forcing the
+        // supervisor to drop its tracked jackd — sync_project's ensure_server
+        // then re-spawns with the desired config.
         self.stop();
+        #[cfg(all(target_os = "linux", feature = "jack"))]
+        if let Err(e) = self.supervisor.shutdown_all() {
+            log::warn!("try_reconnect: supervisor.shutdown_all failed: {}", e);
+        }
 
-        // Re-sync from scratch — sync_project will call ensure_jack_running
-        // on Linux, which launches jackd if needed
         match self.sync_project(project) {
             Ok(()) => {
-                log::info!("try_reconnect: successfully reconnected with {} chains", self.active_chains.len());
+                log::info!(
+                    "try_reconnect: successfully reconnected with {} chains",
+                    self.active_chains.len()
+                );
                 Ok(true)
             }
             Err(e) => {
@@ -4387,11 +4445,15 @@ mod tests {
 
     #[test]
     fn is_healthy_returns_true_when_no_chains_active() {
-        let controller = ProjectRuntimeController {
+        let mut controller = ProjectRuntimeController {
             runtime_graph: super::RuntimeGraph {
                 chains: std::collections::HashMap::new(),
             },
             active_chains: std::collections::HashMap::new(),
+            #[cfg(all(target_os = "linux", feature = "jack"))]
+            supervisor: super::jack_supervisor::JackSupervisor::new(
+                super::jack_supervisor::LiveJackBackend::new(),
+            ),
         };
         assert!(controller.is_healthy());
     }
@@ -4403,6 +4465,10 @@ mod tests {
                 chains: std::collections::HashMap::new(),
             },
             active_chains: std::collections::HashMap::new(),
+            #[cfg(all(target_os = "linux", feature = "jack"))]
+            supervisor: super::jack_supervisor::JackSupervisor::new(
+                super::jack_supervisor::LiveJackBackend::new(),
+            ),
         };
         assert!(!controller.is_running());
     }
@@ -4433,6 +4499,10 @@ mod tests {
                 chains: std::collections::HashMap::new(),
             },
             active_chains: std::collections::HashMap::new(),
+            #[cfg(all(target_os = "linux", feature = "jack"))]
+            supervisor: super::jack_supervisor::JackSupervisor::new(
+                super::jack_supervisor::LiveJackBackend::new(),
+            ),
         };
         controller.active_chains.insert(chain_id.clone(), super::ActiveChainRuntime {
             stream_signature: super::ChainStreamSignature { inputs: vec![], outputs: vec![] },
@@ -4460,6 +4530,10 @@ mod tests {
                 chains: std::collections::HashMap::new(),
             },
             active_chains: std::collections::HashMap::new(),
+            #[cfg(all(target_os = "linux", feature = "jack"))]
+            supervisor: super::jack_supervisor::JackSupervisor::new(
+                super::jack_supervisor::LiveJackBackend::new(),
+            ),
         };
 
         controller.teardown_active_chain_for_rebuild(&chain_id);
