@@ -193,19 +193,30 @@ Ver `CONTRIBUTING.md` para detalhes completos.
 
 ### Rastreabilidade — comentarios obrigatorios na issue (OBRIGATORIO)
 
-A issue do GitHub e o log de auditoria do trabalho. Commits mostram o "o que"; decisoes intermediarias, conflitos, mudancas de rumo e problemas ficam perdidos se nao forem registrados. Todo agent (local ou GitHub) DEVE comentar na issue em TODOS os momentos abaixo — nao so no comeco e no fim:
+A issue do GitHub e o log de auditoria do trabalho. Commits mostram o "o que"; decisoes intermediarias, conflitos, mudancas de rumo, problemas encontrados, hipoteses descartadas, analises feitas, respostas dadas a perguntas tecnicas — tudo fica perdido se nao for registrado na issue.
+
+**Regra geral (sem excecoes):** toda vez que a conversa produz informacao util pra rastrear o trabalho depois, comentar na issue. NAO esperar o usuario pedir. NAO esperar o fim do trabalho. NAO julgar se \"vale a pena\" — se a informacao foi produzida no contexto da issue, ela e parte do log.
+
+**Momentos obrigatorios de comentario:**
 
 1. **Antes de comecar** — plano: o que pretende mudar, por que, arquivos provaveis, premissas
 2. **A cada push** — commit hash(es), arquivos alterados, decisoes pontuais, resultado de build/teste local
 3. **A cada mudanca de plano** — se o escopo ou a abordagem mudar (nova premissa, conflito de merge, refactor de outra issue), comentar o porque ANTES de executar o novo caminho
 4. **A cada problema encontrado** — erro de build, teste que falhou, workaround aplicado, hipotese descartada — com evidencia minima (mensagem de erro, comando que reproduz, como foi resolvido)
-5. **Merges em feature branches** — o que foi trazido, quais conflitos surgiram, como foram resolvidos, quais partes precisaram reaplicacao manual
-6. **Validacao em hardware** — quando o usuario testar na placa, registrar o resultado (cliques sumiram? latencia caiu? xrun zero por N minutos?)
-7. **Apos terminar** — resumo final: arquivos alterados, decisoes tomadas, checklists marcados, comandos de validacao pro usuario
+5. **A cada analise tecnica** — perf, diagnostico, leitura de logs, investigacao de codigo, interpretacao de telemetria — os achados vao na issue mesmo que sejam intermediarios e nao virem commit. Se voce analisou, a issue registra a analise.
+6. **A cada resposta tecnica relevante** — quando o usuario pergunta algo tecnico sobre a issue (\"precisa reiniciar?\", \"afeta macOS?\", \"qual o impacto?\") e voce responde, registrar a resposta na issue. Perguntas tecnicas sao parte do raciocinio do trabalho.
+7. **Merges em feature branches** — o que foi trazido, quais conflitos surgiram, como foram resolvidos, quais partes precisaram reaplicacao manual
+8. **Validacao em hardware** — quando o usuario testar na placa, registrar o resultado (cliques sumiram? latencia caiu? xrun zero por N minutos?)
+9. **Apos terminar** — resumo final: arquivos alterados, decisoes tomadas, checklists marcados, comandos de validacao pro usuario
 
-**Regra pratica:** depois de todo `git push` numa branch de issue, o proximo comando DEVE ser `gh issue comment <N>` com o resumo daquele push. Nunca pular, mesmo em push pequeno de correcao — se o push valeu um commit, vale um comentario.
+**Regras praticas:**
 
-Sem esse rastreio, o historico de decisoes se perde e seis meses depois ninguem consegue reconstruir por que uma escolha foi feita.
+- Depois de todo `git push` numa branch de issue, o proximo comando DEVE ser `gh issue comment <N>`. Nunca pular, mesmo em push pequeno de correcao — se o push valeu um commit, vale um comentario.
+- Depois de toda analise tecnica nao-trivial (perf, leitura de codigo, diagnostico via SSH, hipotese nova), o proximo comando DEVE ser `gh issue comment <N>` com o achado. Nao esperar acumular.
+- Depois de toda resposta a pergunta tecnica do usuario na conversa, registrar a resposta na issue. \"Resposta util no chat\" != \"resposta registrada\".
+- Quando em duvida se algo merece comentario, comentar. Excesso de rastreio tem custo zero; ausencia custa o trabalho de reconstruir decisoes no futuro.
+
+Sem esse rastreio, o historico de decisoes se perde e seis meses depois ninguem consegue reconstruir por que uma escolha foi feita. O usuario nao deve precisar pedir a cada passo.
 
 ### Premissa de distribuicao (OBRIGATORIO)
 

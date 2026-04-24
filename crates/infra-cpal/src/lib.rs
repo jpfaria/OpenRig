@@ -1142,9 +1142,29 @@ fn build_jack_direct_chain(
                 }
 
                 if !processed_any {
-                    // Wait for wake signal (with timeout to check stop flag)
-                    let lock = worker_wake.0.lock().unwrap();
-                    let _ = worker_wake.1.wait_timeout(lock, std::time::Duration::from_millis(10));
+                    // Wait for wake signal. Must check the flag before
+                    // waiting: Condvar::notify_one() with no waiter is LOST
+                    // (POSIX semantics), so if jackd wrote to the ring AND
+                    // notified between `try_read` returning empty and here,
+                    // blocking unconditionally would miss the wake and stall
+                    // the worker for the full timeout. Consuming the flag
+                    // after the wait also closes the race window going
+                    // forward.
+                    //
+                    // Timeout is kept short (2ms) as a safety net so the stop
+                    // flag is still polled quickly on shutdown. At 64 samples
+                    // @ 48 kHz the audio period is 1.33 ms; any wait longer
+                    // than ~1 period risks swallowing multiple buffers on a
+                    // missed notification and producing an audible click.
+                    let mut flag = worker_wake.0.lock().unwrap();
+                    if !*flag {
+                        let (new_flag, _) = worker_wake
+                            .1
+                            .wait_timeout(flag, std::time::Duration::from_millis(2))
+                            .unwrap();
+                        flag = new_flag;
+                    }
+                    *flag = false;
                 }
             }
             log::info!("DSP worker '{}': stopped", worker_chain_id);
