@@ -6,7 +6,15 @@ fn default_bit_depth() -> u32 {
 }
 
 fn default_realtime() -> bool {
-    false
+    // RT audio is the point of this product. Without SCHED_FIFO the JACK
+    // callback thread is preempted by any UI work and xruns become
+    // unavoidable on every mouse movement. setcap cap_sys_nice on
+    // /usr/bin/jackd + audio group membership are already configured in
+    // platform/orange-pi/customize-image.sh, so realtime can start on by
+    // default without additional privilege elevation. On macOS/Windows
+    // this field is ignored (CoreAudio/WASAPI have their own priority
+    // mechanisms).
+    true
 }
 
 fn default_rt_priority() -> u8 {
