@@ -493,6 +493,54 @@ impl<B: JackBackend> JackSupervisor<B> {
         )
     }
 
+    /// Check whether `desired` differs from the current `Ready` state on a
+    /// single axis: `buffer_size`. Used by `ensure_jack_servers` to route
+    /// buffer-only deltas through `jack_set_buffer_size` on a live client
+    /// instead of the terminate+spawn path (which risks libjack state
+    /// corruption on some Linux deployments — issue #294 / #308 bug 1).
+    ///
+    /// Returns false when anything else differs (sample_rate, card, channel
+    /// counts, nperiods, realtime flags), when the server is not `Ready`, or
+    /// when the buffer size already matches.
+    pub fn only_buffer_changed(&self, name: &ServerName, desired: &JackConfig) -> bool {
+        let Some(JackServerState::Ready { launched_config, .. }) =
+            self.servers.get(name).map(|s| &s.state)
+        else {
+            return false;
+        };
+        launched_config.buffer_size != desired.buffer_size
+            && launched_config.sample_rate == desired.sample_rate
+            && launched_config.card_num == desired.card_num
+            && launched_config.capture_channels == desired.capture_channels
+            && launched_config.playback_channels == desired.playback_channels
+            && launched_config.nperiods == desired.nperiods
+            && launched_config.realtime == desired.realtime
+            && launched_config.rt_priority == desired.rt_priority
+    }
+
+    /// Update the supervisor's cached launched_config + meta to reflect a
+    /// successful in-place buffer resize. Call this AFTER a client's
+    /// `set_buffer_size` succeeded, so `would_restart` stops reporting a
+    /// mismatch on the next `ensure_server` tick.
+    pub fn mark_buffer_resized(&mut self, name: &ServerName, new_buffer: u32) {
+        if let Some(server) = self.servers.get_mut(name) {
+            if let JackServerState::Ready {
+                meta,
+                launched_config,
+                ..
+            } = &mut server.state
+            {
+                meta.buffer_size = new_buffer;
+                launched_config.buffer_size = new_buffer;
+                log::info!(
+                    "supervisor: '{}' launched_config buffer_size → {} (live resize)",
+                    name,
+                    new_buffer
+                );
+            }
+        }
+    }
+
     /// Record that a new libjack client was opened against `name`. The
     /// supervisor uses the count to decide whether the teardown hook needs to
     /// run on the next restart. Caller guarantees: every `register_client`

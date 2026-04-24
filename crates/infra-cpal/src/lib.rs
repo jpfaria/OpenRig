@@ -603,6 +603,33 @@ struct ActiveChainRuntime {
     _dsp_worker: Option<DspWorkerHandle>,
 }
 
+#[cfg(all(target_os = "linux", feature = "jack"))]
+impl ActiveChainRuntime {
+    /// Ask jackd to resize its buffer via the already-connected live client.
+    /// This is the soft-reconfig path for buffer changes: no terminate, no
+    /// respawn, no libjack state corruption. The JACK driver adjusts the
+    /// ALSA period in place and future process callbacks start receiving a
+    /// different `n_frames`.
+    ///
+    /// Returns `Ok(())` only when the server actually applied the resize;
+    /// any error is bubbled up so the caller can fall back to a full
+    /// restart path.
+    fn set_live_buffer_size(&self, new_frames: u32) -> Result<()> {
+        let Some(client) = self._jack_client.as_ref() else {
+            bail!("set_live_buffer_size: chain has no active JACK client");
+        };
+        client
+            .as_client()
+            .set_buffer_size(new_frames)
+            .map_err(|e| anyhow!("set_live_buffer_size: jackd refused {} frames: {:?}", new_frames, e))?;
+        log::info!(
+            "set_live_buffer_size: applied in-place on live client → {} frames",
+            new_frames
+        );
+        Ok(())
+    }
+}
+
 /// Handle to the DSP worker thread. Setting the stop flag and joining on drop.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 struct DspWorkerHandle {
@@ -1834,7 +1861,53 @@ impl ProjectRuntimeController {
             })
             .collect();
 
-        let any_would_restart = configs
+        // Fast path — buffer-only deltas go through jack_set_buffer_size
+        // on a live client, no jackd restart, no libjack state corruption.
+        // This is the behaviour the user already has on macOS/CoreAudio:
+        // change the buffer and audio continues without interruption.
+        let mut remaining: Vec<(&jack_supervisor::ServerName, &jack_supervisor::JackConfig)> =
+            Vec::with_capacity(configs.len());
+        for (name, cfg) in &configs {
+            if self.supervisor.only_buffer_changed(name, cfg) {
+                let server_device_id = format!("jack:{}", name);
+                let live_client = self.active_chains.values().find(|ac| {
+                    ac.stream_signature
+                        .inputs
+                        .first()
+                        .map(|s| s.device_id.as_str() == server_device_id)
+                        .unwrap_or(false)
+                });
+                match live_client {
+                    Some(ac) => match ac.set_live_buffer_size(cfg.buffer_size) {
+                        Ok(()) => {
+                            self.supervisor.mark_buffer_resized(name, cfg.buffer_size);
+                            log::info!(
+                                "ensure_jack_servers: '{}' buffer_size → {} applied live (no restart)",
+                                name,
+                                cfg.buffer_size
+                            );
+                            continue;
+                        }
+                        Err(e) => {
+                            log::warn!(
+                                "ensure_jack_servers: live buffer resize failed on '{}' ({}), falling back to restart",
+                                name,
+                                e
+                            );
+                        }
+                    },
+                    None => {
+                        log::debug!(
+                            "ensure_jack_servers: no live client bound to '{}', skipping soft resize",
+                            name
+                        );
+                    }
+                }
+            }
+            remaining.push((name, cfg));
+        }
+
+        let any_would_restart = remaining
             .iter()
             .any(|(name, cfg)| self.supervisor.would_restart(name, cfg));
         if any_would_restart && !self.active_chains.is_empty() {
@@ -1854,7 +1927,7 @@ impl ProjectRuntimeController {
             std::thread::sleep(std::time::Duration::from_millis(500));
         }
 
-        for (name, config) in &configs {
+        for (name, config) in remaining {
             // The predictive teardown above already cleared any active chains
             // bound to a restarting server. The hook is a safety net.
             let mut hook = |_: &jack_supervisor::ServerName| {};
