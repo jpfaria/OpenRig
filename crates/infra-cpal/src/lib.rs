@@ -2491,17 +2491,24 @@ impl ProjectRuntimeController {
         chain: &Chain,
         resolved: ResolvedChainAudioConfig,
     ) -> Result<()> {
-        // Issue #294: always rebuild. The former soft-reconfig path
-        // (only when `stream_signature` matched) silently broke audio on
-        // JACK — callback kept running, DSP worker kept consuming buffers,
-        // but input samples never reached NAM/native DSP (out_rms stuck at
-        // the noise floor). The user workaround — toggle chain off then on,
-        // which goes through remove_chain + upsert_chain — always rebuilds.
-        // We match that guarantee here. The ~50 ms drain from teardown is
-        // the same gap the manual toggle produces. If you reintroduce soft
-        // reconfig for performance, first fix whatever desynchronizes the
-        // input buffer from the DSP pipeline during in-place block swap.
-        let needs_stream_rebuild = true;
+        // Rebuild the JACK client + DSP worker only when the I/O layout
+        // actually changed (input/output channels, mode, sample rate, etc).
+        // A block toggle / param edit keeps the same stream_signature and
+        // goes through the soft-reconfig path so we don't drop audio every
+        // time the user tweaks a knob. A channel (un)check flips the
+        // signature and triggers teardown+rebuild (issue #294 original).
+        //
+        // Known caveat: some edits that DO preserve the signature have been
+        // observed to leave the in-place block pipeline reading silence on
+        // Linux/JACK. The workaround is toggling the chain off+on — if you
+        // hit that, widen this predicate for the specific edit that broke
+        // flow, don't flip the whole thing back to unconditional rebuild
+        // (that regresses block toggles on RT kernels).
+        let needs_stream_rebuild = self
+            .active_chains
+            .get(&chain.id)
+            .map(|active| active.stream_signature != resolved.stream_signature)
+            .unwrap_or(true);
 
         // Tear down the previous ActiveChainRuntime BEFORE mutating shared
         // runtime state or building the replacement. Otherwise HashMap::insert
