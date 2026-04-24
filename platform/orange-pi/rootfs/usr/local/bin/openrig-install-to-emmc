@@ -49,18 +49,22 @@ if [ -z "$EMMC" ]; then
     exit 1
 fi
 
-SOURCE_DEV=$(findmnt -n -o SOURCE / | sed 's/p[0-9]*$//')
-if [ -z "$SOURCE_DEV" ]; then
-    echo "ERROR: Could not detect source SD card device."
+# Source is the parent block device of the current root (SD card).
+SOURCE_ROOT=$(findmnt -n -o SOURCE /)
+SOURCE_DEV="/dev/$(lsblk -no PKNAME "$SOURCE_ROOT")"
+SOURCE_PART_NUM=$(lsblk -no PARTN "$SOURCE_ROOT")
+if [ -z "$SOURCE_DEV" ] || [ ! -b "$SOURCE_DEV" ] || [ -z "$SOURCE_PART_NUM" ]; then
+    echo "ERROR: Could not detect source SD card device (root=$SOURCE_ROOT)."
     exit 1
 fi
 
 EMMC_SIZE=$(lsblk -dno SIZE "$EMMC" 2>/dev/null || echo "unknown size")
+EMMC_BYTES=$(lsblk -dbno SIZE "$EMMC" 2>/dev/null || echo 0)
 SOURCE_SIZE=$(lsblk -dno SIZE "$SOURCE_DEV" 2>/dev/null || echo "unknown size")
 
 echo "OpenRig — Install to eMMC"
 echo ""
-echo "Source:      $SOURCE_DEV ($SOURCE_SIZE — current boot device)"
+echo "Source:      $SOURCE_DEV ($SOURCE_SIZE — current boot device, rootfs on p${SOURCE_PART_NUM})"
 echo "Destination: $EMMC ($EMMC_SIZE onboard eMMC)"
 echo ""
 echo "WARNING: ALL DATA ON $EMMC WILL BE ERASED."
@@ -89,18 +93,63 @@ for part in "${EMMC}"p*; do
     fsck -y "$part" 2>/dev/null || true
 done
 
+# ── Expand root partition + filesystem ────────────────────────────────────────
+# After `dd` from a smaller SD to a bigger eMMC, the GPT backup header still
+# points to the SD-sized end-of-disk and the partition itself only covers the
+# original SD layout. We need to relocate the backup header, resize the root
+# partition to 100%, make the kernel re-read the partition table, then grow
+# the filesystem.
+
+EMMC_ROOT="${EMMC}p${SOURCE_PART_NUM}"
+if [ ! -b "$EMMC_ROOT" ]; then
+    echo "ERROR: Target root partition $EMMC_ROOT not present after dd."
+    exit 1
+fi
+
 echo ""
-echo "Expanding root partition to fill the full eMMC (${EMMC_SIZE})..."
-# Fix GPT backup header that dd left at the wrong location (SD card size)
-printf "w\nY\n" | fdisk "$EMMC" > /dev/null 2>&1 || true
-# Resize the root partition (p1) to 100% of the device
-yes | parted "$EMMC" ---pretend-input-tty resizepart 1 100% 2>/dev/null
-partprobe "$EMMC" 2>/dev/null || true
-# Expand the filesystem on the root partition
-EMMC_ROOT="${EMMC}p1"
+echo "Expanding root partition $EMMC_ROOT to fill the full eMMC (${EMMC_SIZE})..."
+
+# sgdisk -e is the correct GPT tool for relocating the backup header to the
+# true end-of-disk. fdisk w/Y works on MBR and on some GPT implementations
+# but is unreliable — use it only as a last-resort fallback.
+if command -v sgdisk >/dev/null; then
+    sgdisk -e "$EMMC"
+else
+    echo "WARN: sgdisk not installed, falling back to fdisk for GPT repair"
+    printf "w\nY\n" | fdisk "$EMMC" >/dev/null 2>&1 || true
+fi
+
+parted -s "$EMMC" resizepart "$SOURCE_PART_NUM" 100%
+partprobe "$EMMC" || true
+sleep 2
+
+# Validate that the kernel picked up the new partition size before resize2fs.
+NEW_PART_BYTES=$(lsblk -bno SIZE "$EMMC_ROOT" 2>/dev/null || echo 0)
+SLACK=$((500 * 1024 * 1024))  # 500 MiB — allow for GPT overhead + alignment
+if [ "$((EMMC_BYTES - NEW_PART_BYTES))" -gt "$SLACK" ]; then
+    echo "ERROR: Partition did not expand. Kernel sees $NEW_PART_BYTES B, expected near $EMMC_BYTES B."
+    echo "       Inspect with: lsblk $EMMC; parted $EMMC print"
+    exit 1
+fi
+
 resize2fs "$EMMC_ROOT"
-NEW_SIZE=$(df -h "$EMMC_ROOT" 2>/dev/null | awk 'NR==2{print $4}')
-echo "Root filesystem expanded — ${NEW_SIZE} available."
+
+# Validate final filesystem size. We check block count × block size against
+# the partition size rather than `df`, because the partition isn't mounted.
+FS_BYTES=$(tune2fs -l "$EMMC_ROOT" 2>/dev/null | awk '
+    /^Block count:/ { bc = $NF }
+    /^Block size:/  { bs = $NF }
+    END { if (bc && bs) printf("%d\n", bc * bs); else print 0 }
+')
+if [ "$FS_BYTES" -gt 0 ] && [ "$((NEW_PART_BYTES - FS_BYTES))" -gt "$SLACK" ]; then
+    echo "ERROR: Filesystem did not grow to fill partition."
+    echo "       Partition: $NEW_PART_BYTES B, filesystem: $FS_BYTES B"
+    echo "       Try manually: resize2fs $EMMC_ROOT"
+    exit 1
+fi
+
+HUMAN=$(lsblk -dno SIZE "$EMMC_ROOT" 2>/dev/null || echo "?")
+echo "Root partition+filesystem expanded — $HUMAN available on $EMMC_ROOT."
 
 echo ""
 echo "Installation complete."

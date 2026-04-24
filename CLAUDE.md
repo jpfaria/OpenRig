@@ -37,6 +37,55 @@ Invocar a skill correspondente à situação **antes** de agir:
 
 ---
 
+## OBRIGATORIO — Prioridades de Produto (Non-Regression)
+
+OpenRig é um processador de áudio em tempo real. **Qualidade sonora e latência são os valores centrais do produto.** Toda feature, fix, refactor ou mudança de dependência DEVE provar que não degrada nenhuma das propriedades abaixo antes de ser mergeada. Essas prioridades se sobrepõem a conveniência de código, velocidade de entrega e até a features novas.
+
+### Invariantes que NUNCA podem piorar
+
+1. **Latência round-trip** — tempo entre input e output
+2. **Qualidade de áudio** — fidelidade sonora dos blocos (ruído, aliasing, THD, resposta em frequência)
+3. **Estabilidade do stream** — zero xruns, dropouts, cliques, glitches ou pops
+4. **Jitter do callback** — tempo de processamento estável, sem picos
+5. **Custo de CPU no audio thread** — cada bloco mantém ou reduz seu custo; regressão de CPU vira xrun
+6. **Zero alocação, lock, syscall ou I/O no audio thread** — sem exceção
+7. **Determinismo numérico** — golden samples continuam passando dentro da tolerância
+
+### Checklist obrigatório antes do PR/merge
+
+Se a mudança tocar audio thread, DSP, roteamento, I/O ou cadeia de blocos, responder explicitamente no corpo do PR ou comentário da issue:
+
+- [ ] Afeta o audio thread? Medi CPU/callback antes e depois? Escutei ≥60s sem glitch?
+- [ ] Afeta latência? Qual o delta em ms? Justificado?
+- [ ] Afeta o som de algum bloco? Golden tests passando? Fiz A/B auditivo?
+- [ ] Introduz alocação, lock, syscall ou lazy init no hot path? Se sim, reverter.
+
+### Red flags — PARAR e reportar ao usuário
+
+Se durante a implementação aparecer qualquer um destes sintomas, **parar imediatamente** e reportar antes de continuar:
+
+- Novo xrun, dropout ou clique audível
+- Latência sobe > 1ms sem justificativa documentada
+- Golden sample tests falham com tolerância atual
+- Pico de tempo de callback acima do buffer period
+- Necessidade de `Mutex`/`RwLock`/`Arc::clone`/log/print/file I/O no processamento
+- "Em macOS/Windows/Linux o som mudou" → é regressão, não compatibilidade
+
+### Hierarquia de trade-offs
+
+Quando houver conflito, esta é a ordem de prioridade (do mais alto para o mais baixo):
+
+1. **Qualidade do som** e **estabilidade do stream** (empate no topo)
+2. **Latência**
+3. **Custo de CPU no audio thread**
+4. **Compatibilidade cross-platform**
+5. **Ergonomia de código / facilidade de manutenção**
+6. **Funcionalidade nova**
+
+Feature nova **não justifica** regressão nos invariantes acima. Se a mudança implicar trade-off nesses eixos, **discutir com o usuário antes** de implementar — não decidir sozinho.
+
+---
+
 ## O que é o OpenRig
 
 Pedalboard/rig virtual para guitarra em Rust. Processa áudio em cadeia (chain) com blocos (blocks) de efeitos e amplificadores. Tem interface gráfica em Slint.

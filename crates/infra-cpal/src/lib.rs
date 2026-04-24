@@ -151,6 +151,13 @@ fn send_signal_to_pid(pid: u32, signal: &str) -> bool {
 /// Return cached JACK metadata for a specific named server, connecting once
 /// if not yet cached. Uses JACK_DEFAULT_SERVER env var to target the right
 /// jackd instance (serialized via JACK_CONNECT_LOCK to avoid races).
+///
+/// Retries the client connection up to 5× with 200 ms between attempts. Right
+/// after jackd spawns, the UNIX socket is visible before the shm segments are
+/// fully initialized, so the first Client::new returns "Cannot open shm
+/// segment". Without retries, ensure_jack_running misreads this as a zombie
+/// jackd and enters a kill/respawn loop every time the user changes device
+/// settings. Same retry policy as build_jack_direct_chain.
 #[cfg(all(target_os = "linux", feature = "jack"))]
 fn jack_meta_for(server_name: &str) -> Result<JackMeta> {
     if let Some(cached) = jack_meta_cache().lock().unwrap().get(server_name).cloned() {
@@ -168,11 +175,35 @@ fn jack_meta_for(server_name: &str) -> Result<JackMeta> {
 
     // SAFETY: we hold JACK_CONNECT_LOCK, so no other thread is touching this env var.
     std::env::set_var("JACK_DEFAULT_SERVER", server_name);
-    let result = jack::Client::new("openrig_meta", jack::ClientOptions::NO_START_SERVER);
+    let mut last_err: Option<jack::Error> = None;
+    let mut client_and_status = None;
+    for attempt in 0..5u32 {
+        match jack::Client::new("openrig_meta", jack::ClientOptions::NO_START_SERVER) {
+            Ok(cs) => {
+                client_and_status = Some(cs);
+                break;
+            }
+            Err(e) => {
+                if attempt < 4 {
+                    log::debug!(
+                        "jack_meta_for '{}' attempt {} failed ({:?}), retrying in 200ms",
+                        server_name, attempt + 1, e
+                    );
+                    std::thread::sleep(std::time::Duration::from_millis(200));
+                }
+                last_err = Some(e);
+            }
+        }
+    }
     std::env::remove_var("JACK_DEFAULT_SERVER");
 
-    let (client, _) = result
-        .map_err(|e| anyhow!("failed to connect to JACK server '{}': {:?}", server_name, e))?;
+    let (client, _) = client_and_status.ok_or_else(|| {
+        anyhow!(
+            "failed to connect to JACK server '{}': {:?}",
+            server_name,
+            last_err.expect("at least one attempt failed")
+        )
+    })?;
 
     let capture_ports = client.ports(Some("system:capture_"), None, jack::PortFlags::IS_OUTPUT);
     let playback_ports = client.ports(Some("system:playback_"), None, jack::PortFlags::IS_INPUT);
@@ -539,7 +570,7 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
     // jackd top-level flag: -n <server_name>
     // ALSA backend flags (after -d alsa): -d hw:N -r SR -p BUF -n PERIODS -i CH -o CH
     // Note: -n appears twice — first is jackd server name, second is ALSA nperiods.
-    let child = std::process::Command::new("/usr/bin/jackd")
+    let mut child = std::process::Command::new("/usr/bin/jackd")
         .args([
             "-n", &card.server_name,
             "-d", "alsa",
@@ -564,6 +595,24 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
     );
     jackd_pids().lock().unwrap().insert(card.server_name.clone(), pid);
 
+    // Reap the child when it eventually exits (SIGTERM from stop_jackd_for,
+    // ALSA failure, or user kill). Without this, Command::spawn returned a
+    // `Child` handle that nobody ever calls `.wait()` on, so every jackd
+    // restart leaves a `<defunct>` entry in ps until the parent process
+    // exits — they accumulate across Settings buffer/sample-rate toggles.
+    // The detached thread just blocks on wait() and reaps silently.
+    let server_name_for_reaper = card.server_name.clone();
+    std::thread::Builder::new()
+        .name(format!("jackd-reaper-{}", server_name_for_reaper))
+        .spawn(move || {
+            let result = child.wait();
+            log::debug!(
+                "launch_jackd: reaper for server '{}' PID {} saw exit ({:?})",
+                server_name_for_reaper, pid, result
+            );
+        })
+        .map_err(|e| anyhow!("failed to spawn jackd reaper thread: {}", e))?;
+
     // Wait up to 8 seconds for the server socket to appear, then add a fixed
     // 600ms delay for the shm segments to be fully initialized.
     // The UNIX socket appears before the shm is ready — without this delay,
@@ -575,6 +624,55 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
                 card.server_name, i * 100
             );
             std::thread::sleep(std::time::Duration::from_millis(600));
+
+            // Issue #294: validate jackd is still alive AFTER the shm window.
+            // Scenario seen with Q26 at buffer_size=64 on RK3588: jackd opens
+            // its UNIX socket, we log "socket ready", sleep 600ms, log "ready"
+            // and return Ok — but in that same window ALSA reports "Broken
+            // pipe" and jackd exits. The caller then believes the server is
+            // healthy, sync_project tears down old chains in anticipation of
+            // rebuilding on the new server, and when it tries to connect the
+            // new client the socket is gone. Openrig ends up in a retry loop
+            // it can never escape without a full service restart.
+            //
+            // Two cheap checks close the window:
+            //   1. Is the socket still present? (jackd exiting cleanly removes
+            //      it.)
+            //   2. Does stderr show a definitive ALSA/driver failure?
+            if !jack_server_is_running_for(&card.server_name) {
+                log::warn!(
+                    "launch_jackd: server '{}' socket vanished after ready — jackd exited post-startup",
+                    card.server_name
+                );
+                if let Ok(stderr_content) = std::fs::read_to_string(&stderr_log) {
+                    for line in stderr_content.lines().take(20) {
+                        log::error!("launch_jackd [{}]: {}", card.server_name, line);
+                    }
+                }
+                bail!(
+                    "jackd server '{}' exited right after startup (likely ALSA/driver failure — check buffer size vs device)",
+                    card.server_name
+                );
+            }
+            if let Ok(stderr_content) = std::fs::read_to_string(&stderr_log) {
+                let failed = stderr_content.contains("Broken pipe")
+                    || stderr_content.contains("Cannot start driver")
+                    || stderr_content.contains("Failed to start server");
+                if failed {
+                    log::warn!(
+                        "launch_jackd: server '{}' stderr reports driver failure after ready",
+                        card.server_name
+                    );
+                    for line in stderr_content.lines().take(20) {
+                        log::error!("launch_jackd [{}]: {}", card.server_name, line);
+                    }
+                    bail!(
+                        "jackd server '{}' reported driver failure during startup (see stderr above)",
+                        card.server_name
+                    );
+                }
+            }
+
             log::info!("launch_jackd: server '{}' ready", card.server_name);
             invalidate_jack_meta_cache_for(&card.server_name);
             return Ok(());
@@ -610,6 +708,57 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
         "jackd server '{}' failed to start",
         card.server_name
     )
+}
+
+/// Check whether calling `ensure_jack_running(project)` would trigger a
+/// stop+restart of any jackd server (config mismatch or zombie server).
+///
+/// Side-effect-free — used by `sync_project` to decide whether to tear
+/// down the in-process `ActiveChainRuntime`s (which each hold a jack
+/// `AsyncClient` bound to the current jackd's shm) BEFORE the server is
+/// killed. Dropping AsyncClients AFTER the kill leaves the jack-rs
+/// library in a confused state where new `jack::Client::new` calls fail
+/// with `ClientStatus(FAILURE | SERVER_ERROR)` even though the new jackd
+/// is alive and responsive to external clients like `jack_lsp`.
+///
+/// Returns true when at least one card's running server needs a restart
+/// (config mismatch or zombie) OR has no server and needs a first launch.
+#[cfg(all(target_os = "linux", feature = "jack"))]
+fn jack_restart_would_be_triggered(project: &Project) -> bool {
+    let cards = detect_all_usb_audio_cards();
+    for card in &cards {
+        let (desired_sr, desired_buf) = project
+            .device_settings
+            .iter()
+            .find(|s| s.device_id.0 == card.device_id)
+            .map(|s| (s.sample_rate, s.buffer_size_frames))
+            .unwrap_or((48000, 64));
+
+        if jack_server_is_running_for(&card.server_name) {
+            match jack_meta_for(&card.server_name) {
+                Ok(meta) if meta.sample_rate == desired_sr && meta.buffer_size == desired_buf => {
+                    // Healthy and matches — no restart needed for this card.
+                    continue;
+                }
+                _ => {
+                    // Either mismatch or unresponsive (zombie) — restart path
+                    // will fire.
+                    return true;
+                }
+            }
+        } else {
+            // No server running for this card — launch path will fire, but
+            // since there's no AsyncClient to tear down, no need to force
+            // the "restart-aware" branch.
+            //
+            // (Exception: if we ever run multiple cards and one has a
+            // running server with an AsyncClient while another needs first
+            // launch, the caller should still tear down to avoid the
+            // jack-rs global-state race. Signal by returning true.)
+            return true;
+        }
+    }
+    false
 }
 
 /// Ensure JACK is running for every connected USB audio interface.
@@ -946,6 +1095,12 @@ struct ResolvedChainAudioConfig {
 }
 
 struct ActiveChainRuntime {
+    // Kept for diagnostics only — issue #294 removed the signature-based
+    // soft-reconfig path because it silently broke audio flow. If future
+    // work reintroduces a soft-reconfig fast path, this field is the
+    // natural place to compare against to decide whether a rebuild is
+    // needed.
+    #[allow(dead_code)]
     stream_signature: ChainStreamSignature,
     _input_streams: Vec<Stream>,
     _output_streams: Vec<Stream>,
@@ -2128,9 +2283,23 @@ impl ProjectRuntimeController {
                 }
                 return Ok(());
             }
+            // Tear down active chains BEFORE ensure_jack_running kills the
+            // current jackd. If we drop the AsyncClients after the server
+            // died, jack-rs global state ends up confused and new client
+            // connections fail with FAILURE|SERVER_ERROR even though the
+            // fresh jackd is alive and accepting external clients. See
+            // jack_restart_would_be_triggered() doc-comment.
+            if !self.active_chains.is_empty() && jack_restart_would_be_triggered(project) {
+                log::info!("sync_project: JACK restart imminent, tearing down chains first");
+                self.stop();
+            }
             let jack_restarted = ensure_jack_running(project)?;
             if jack_restarted && !self.active_chains.is_empty() {
-                log::info!("sync_project: JACK restarted, tearing down all chains");
+                // Should never happen now that the teardown above runs first,
+                // but kept as a safety net: if a card was added mid-run and a
+                // fresh launch happened without the predicate catching it,
+                // drop anything still around before the upsert re-registers.
+                log::info!("sync_project: JACK restarted with active chains still present, tearing down");
                 self.stop();
             }
             return self.sync_project_jack_direct(project);
@@ -2217,9 +2386,15 @@ impl ProjectRuntimeController {
 
         #[cfg(all(target_os = "linux", feature = "jack"))]
         {
+            // Same ordering as sync_project: drop AsyncClients BEFORE the
+            // jackd they reference gets killed inside ensure_jack_running.
+            if !self.active_chains.is_empty() && jack_restart_would_be_triggered(project) {
+                log::info!("upsert_chain: JACK restart imminent, tearing down chains first");
+                self.stop();
+            }
             let jack_restarted = ensure_jack_running(project)?;
             if jack_restarted && !self.active_chains.is_empty() {
-                log::info!("upsert_chain: JACK restarted, tearing down all chains");
+                log::info!("upsert_chain: JACK restarted with active chains still present, tearing down");
                 self.stop();
             }
             let resolved = jack_resolve_chain_config(chain)?;
@@ -2378,11 +2553,35 @@ impl ProjectRuntimeController {
         chain: &Chain,
         resolved: ResolvedChainAudioConfig,
     ) -> Result<()> {
+        // Rebuild the JACK client + DSP worker only when the I/O layout
+        // actually changed (input/output channels, mode, sample rate, etc).
+        // A block toggle / param edit keeps the same stream_signature and
+        // goes through the soft-reconfig path so we don't drop audio every
+        // time the user tweaks a knob. A channel (un)check flips the
+        // signature and triggers teardown+rebuild (issue #294 original).
+        //
+        // Known caveat: some edits that DO preserve the signature have been
+        // observed to leave the in-place block pipeline reading silence on
+        // Linux/JACK. The workaround is toggling the chain off+on — if you
+        // hit that, widen this predicate for the specific edit that broke
+        // flow, don't flip the whole thing back to unconditional rebuild
+        // (that regresses block toggles on RT kernels).
         let needs_stream_rebuild = self
             .active_chains
             .get(&chain.id)
             .map(|active| active.stream_signature != resolved.stream_signature)
             .unwrap_or(true);
+
+        // Tear down the previous ActiveChainRuntime BEFORE mutating shared
+        // runtime state or building the replacement. Otherwise HashMap::insert
+        // drops the old runtime only after the new one is fully constructed,
+        // which on JACK leaves the old client alive while the new one tries
+        // to register with the same name — the new client gets a suffixed
+        // name, connect_ports_by_name binds to the old client's ports, and
+        // when the old runtime is finally dropped the new client is orphaned.
+        if needs_stream_rebuild {
+            self.teardown_active_chain_for_rebuild(&chain.id);
+        }
 
         let elastic_targets = compute_elastic_targets_for_chain(chain, &resolved);
         let runtime = self.runtime_graph.upsert_chain(
@@ -2398,6 +2597,24 @@ impl ProjectRuntimeController {
         }
 
         Ok(())
+    }
+
+    /// Drop the ActiveChainRuntime for `chain_id` so its JACK client / DSP
+    /// worker / CPAL streams release their resources before a replacement is
+    /// built. Drains the audio callback first (same dance as `remove_chain`)
+    /// so NAM C++ destructors don't fire mid-callback.
+    ///
+    /// No-op when no runtime is active for that chain. Leaves
+    /// `runtime_graph` untouched — the caller is about to re-upsert it.
+    fn teardown_active_chain_for_rebuild(&mut self, chain_id: &ChainId) {
+        if !self.active_chains.contains_key(chain_id) {
+            return;
+        }
+        if let Some(runtime) = self.runtime_graph.runtime_for_chain(chain_id) {
+            runtime.set_draining();
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        self.active_chains.remove(chain_id);
     }
 }
 
@@ -4182,5 +4399,65 @@ mod tests {
             active_chains: std::collections::HashMap::new(),
         };
         assert!(!controller.is_running());
+    }
+
+    // ── Regression tests for issue #294: stale JACK client on chain reconfigure ──
+    //
+    // Reconfiguring input channels on an active chain (e.g. unchecking a channel
+    // in a stereo input) used to leave the previous JACK client alive while the
+    // replacement client was being built, because HashMap::insert only dropped
+    // the old ActiveChainRuntime AFTER constructing the new one. On JACK, the
+    // new client would get a suffixed name while connect_ports_by_name still
+    // used the literal (unsuffixed) name — so the connections bound to the
+    // OLD client's ports, which then vanished when the old client was finally
+    // dropped, leaving the new client orphaned and audio silent.
+    //
+    // The fix tears down the existing ActiveChainRuntime BEFORE building the
+    // replacement (teardown_active_chain_for_rebuild), mirroring the pattern
+    // in remove_chain. These tests cover the teardown helper directly; the
+    // end-to-end "audio still flows after channel toggle" behavior is
+    // verifiable only on real JACK hardware and is exercised manually on the
+    // Orange Pi during regression testing.
+
+    #[test]
+    fn teardown_active_chain_for_rebuild_drops_entry_when_present() {
+        let chain_id = super::ChainId("chain:0".into());
+        let mut controller = ProjectRuntimeController {
+            runtime_graph: super::RuntimeGraph {
+                chains: std::collections::HashMap::new(),
+            },
+            active_chains: std::collections::HashMap::new(),
+        };
+        controller.active_chains.insert(chain_id.clone(), super::ActiveChainRuntime {
+            stream_signature: super::ChainStreamSignature { inputs: vec![], outputs: vec![] },
+            _input_streams: vec![],
+            _output_streams: vec![],
+            #[cfg(all(target_os = "linux", feature = "jack"))]
+            _jack_client: None,
+            #[cfg(all(target_os = "linux", feature = "jack"))]
+            _dsp_worker: None,
+        });
+        assert!(controller.active_chains.contains_key(&chain_id));
+
+        controller.teardown_active_chain_for_rebuild(&chain_id);
+
+        assert!(!controller.active_chains.contains_key(&chain_id),
+            "active_chains entry must be removed so the old JACK client/DSP worker are dropped \
+             before a replacement is built");
+    }
+
+    #[test]
+    fn teardown_active_chain_for_rebuild_is_noop_when_chain_absent() {
+        let chain_id = super::ChainId("chain:missing".into());
+        let mut controller = ProjectRuntimeController {
+            runtime_graph: super::RuntimeGraph {
+                chains: std::collections::HashMap::new(),
+            },
+            active_chains: std::collections::HashMap::new(),
+        };
+
+        controller.teardown_active_chain_for_rebuild(&chain_id);
+
+        assert!(controller.active_chains.is_empty());
     }
 }
