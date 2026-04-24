@@ -24,36 +24,45 @@ if [ ! -b "$PARENT_DEV" ]; then
     exit 0
 fi
 
-FS_BYTES=$(df -B1 --output=size / | tail -1 | tr -d ' ')
-PART_BYTES=$(lsblk -bno SIZE "$ROOT_DEV" 2>/dev/null || echo 0)
-DEV_BYTES=$(lsblk -bno SIZE "$PARENT_DEV" 2>/dev/null || echo 0)
-
 SLACK=$((100 * 1024 * 1024))  # 100 MiB — ext4 metadata + FS rounding
 
-# If the filesystem is already close to the partition size, repair any
-# trailing GPT the dd copy may have left behind and then bail out.
-if [ "$((PART_BYTES - FS_BYTES))" -lt "$SLACK" ]; then
-    echo "openrig-resize-rootfs: root fs ($FS_BYTES B) already fills partition ($PART_BYTES B) — skip"
-    systemctl disable openrig-resize-rootfs.service 2>/dev/null || true
-    exit 0
-fi
+# Helper: re-read sizes from kernel (call after any partprobe).
+refresh_sizes() {
+    FS_BYTES=$(df -B1 --output=size / | tail -1 | tr -d ' ')
+    PART_BYTES=$(lsblk -bno SIZE "$ROOT_DEV" 2>/dev/null || echo 0)
+    DEV_BYTES=$(lsblk -bno SIZE "$PARENT_DEV" 2>/dev/null || echo 0)
+}
 
-# If the partition itself is smaller than the disk (common after dd from a
-# smaller card to a bigger eMMC), expand the partition to 100% first.
+refresh_sizes
+echo "openrig-resize-rootfs: root=$ROOT_DEV parent=$PARENT_DEV fs=${FS_BYTES}B part=${PART_BYTES}B dev=${DEV_BYTES}B"
+
+# Step 1: If the partition is smaller than the disk (common after dd from a
+# smaller card to a bigger eMMC/SD), expand the partition to 100% first.
+# Must happen BEFORE the fs-vs-partition check, otherwise `dd` of a full
+# SD image to a bigger card (where FS == PART) would early-exit without
+# ever growing the partition.
 if [ "$((DEV_BYTES - PART_BYTES))" -gt "$SLACK" ]; then
-    echo "openrig-resize-rootfs: partition ($PART_BYTES B) smaller than disk ($DEV_BYTES B) — expanding"
+    echo "openrig-resize-rootfs: partition (${PART_BYTES}B) smaller than disk (${DEV_BYTES}B) — expanding"
     # Fix GPT backup header that may be at the wrong offset after a dd from a
     # smaller device. sgdisk -e relocates it to the end of the disk.
     if command -v sgdisk >/dev/null; then
-        sgdisk -e "$PARENT_DEV" >/dev/null 2>&1 || true
+        sgdisk -e "$PARENT_DEV" || echo "openrig-resize-rootfs: sgdisk -e failed (continuing anyway)"
     else
         printf "w\nY\n" | fdisk "$PARENT_DEV" >/dev/null 2>&1 || true
     fi
 
     PART_NUM=$(lsblk -no PARTN "$ROOT_DEV" 2>/dev/null || echo "1")
-    yes | parted "$PARENT_DEV" ---pretend-input-tty resizepart "$PART_NUM" 100% 2>/dev/null || true
-    partprobe "$PARENT_DEV" 2>/dev/null || true
+    parted -s "$PARENT_DEV" resizepart "$PART_NUM" 100%
+    partprobe "$PARENT_DEV" || true
     sleep 1
+    refresh_sizes
+fi
+
+# Step 2: Grow the filesystem to fill the partition, if needed.
+if [ "$((PART_BYTES - FS_BYTES))" -lt "$SLACK" ]; then
+    echo "openrig-resize-rootfs: root fs (${FS_BYTES}B) already fills partition (${PART_BYTES}B) — skip"
+    systemctl disable openrig-resize-rootfs.service 2>/dev/null || true
+    exit 0
 fi
 
 echo "openrig-resize-rootfs: growing ext4 on $ROOT_DEV"
