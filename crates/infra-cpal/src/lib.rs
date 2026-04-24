@@ -577,14 +577,9 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
     //   -d hw:N           ALSA device
     //   -r SR             sample rate
     //   -p BUF            period size (frames)
-    //   -n 2              periods per buffer. 2 is the lowest jackd accepts
-    //                     and cuts round-trip latency by a third compared to
-    //                     3. RT priority (-R -P 70) is what makes 2 stable on
-    //                     the RK3588 USB stack — without RT, SCHED_OTHER jitter
-    //                     caused Broken pipe on Q26 at 2 periods. If a future
-    //                     device regresses, bump to 3 here as a fallback, not
-    //                     1 (1 is too tight for any USB audio class-compliant
-    //                     interface).
+    //   -n 3              periods per buffer (3 = safe default, survives USB
+    //                     jitter on RK3588; dropping to 2 lowers latency but
+    //                     causes Broken pipe on Q26/Orange Pi 5B)
     //   -i / -o           channel counts
     //
     // Note: -n appears twice — first is jackd server name, second is nperiods.
@@ -604,7 +599,7 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
             "-d", &format!("hw:{}", card.card_num),
             "-r", &sample_rate.to_string(),
             "-p", &buffer_size.to_string(),
-            "-n", "2",
+            "-n", "3",
             "-i", &capture_ch.to_string(),
             "-o", &playback_ch.to_string(),
         ])
