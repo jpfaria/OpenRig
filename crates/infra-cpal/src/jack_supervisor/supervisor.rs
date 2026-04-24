@@ -182,11 +182,30 @@ impl<B: JackBackend> JackSupervisor<B> {
                     };
                     // Terminate the running jackd — no teardown hook, we
                     // didn't register this server and no client is ours.
+                    // Propagate termination failures up: ignoring them and
+                    // falling through to spawn guarantees the safety check
+                    // inside spawn will refuse, burying the real diagnostic
+                    // ("a jackd we can't control is holding the device") in
+                    // a "spawn refused" error.
                     self.emit(SupervisorEvent::RestartRequested {
                         name: name.clone(),
                         reason,
                     });
-                    let _ = self.backend.terminate(name);
+                    if let Err(e) = self.backend.terminate(name) {
+                        self.backend.forget(name);
+                        self.set_state(
+                            name,
+                            JackServerState::Failed {
+                                last_error: e.to_string(),
+                                attempts: 0,
+                            },
+                        );
+                        self.emit(SupervisorEvent::ServerFailed {
+                            name: name.clone(),
+                            error: e.to_string(),
+                        });
+                        return Err(e);
+                    }
                     self.backend.forget(name);
                 }
                 Err(e) => {
@@ -199,7 +218,21 @@ impl<B: JackBackend> JackSupervisor<B> {
                         name: name.clone(),
                         reason: RestartReason::Zombie,
                     });
-                    let _ = self.backend.terminate(name);
+                    if let Err(e) = self.backend.terminate(name) {
+                        self.backend.forget(name);
+                        self.set_state(
+                            name,
+                            JackServerState::Failed {
+                                last_error: e.to_string(),
+                                attempts: 0,
+                            },
+                        );
+                        self.emit(SupervisorEvent::ServerFailed {
+                            name: name.clone(),
+                            error: e.to_string(),
+                        });
+                        return Err(e);
+                    }
                     self.backend.forget(name);
                 }
             }
@@ -281,11 +314,12 @@ impl<B: JackBackend> JackSupervisor<B> {
                     self.emit(SupervisorEvent::ServerDied { name: name.clone() });
                     self.backend.forget(name);
                     // Buffer was very likely too small — bump for next attempt.
+                    let previous = attempt_config.buffer_size;
                     attempt_config = bump_buffer(&attempt_config);
-                    if attempt_config.buffer_size != desired.buffer_size {
+                    if attempt_config.buffer_size != previous {
                         self.emit(SupervisorEvent::BufferClampedTo {
                             name: name.clone(),
-                            from: desired.buffer_size,
+                            from: previous,
                             to: attempt_config.buffer_size,
                         });
                     }
@@ -299,11 +333,12 @@ impl<B: JackBackend> JackSupervisor<B> {
                     last_error = Some(format!("ALSA/driver failure: {}", detail));
                     self.emit(SupervisorEvent::ServerDied { name: name.clone() });
                     self.backend.forget(name);
+                    let previous = attempt_config.buffer_size;
                     attempt_config = bump_buffer(&attempt_config);
-                    if attempt_config.buffer_size != desired.buffer_size {
+                    if attempt_config.buffer_size != previous {
                         self.emit(SupervisorEvent::BufferClampedTo {
                             name: name.clone(),
-                            from: desired.buffer_size,
+                            from: previous,
                             to: attempt_config.buffer_size,
                         });
                     }
@@ -399,7 +434,26 @@ impl<B: JackBackend> JackSupervisor<B> {
         }
 
         self.set_state(name, JackServerState::Restarting { reason });
-        self.backend.terminate(name)?;
+        if let Err(e) = self.backend.terminate(name) {
+            // Leaving state as Restarting on failure was confusing — the
+            // fast-path `if state is Ready` check would miss, spawn_with_
+            // retries would run, and the user would get a "spawn refused:
+            // socket present" burying the real cause. Transition to Failed
+            // with the terminate error so the caller sees the truth.
+            self.backend.forget(name);
+            self.set_state(
+                name,
+                JackServerState::Failed {
+                    last_error: e.to_string(),
+                    attempts: 0,
+                },
+            );
+            self.emit(SupervisorEvent::ServerFailed {
+                name: name.clone(),
+                error: e.to_string(),
+            });
+            return Err(e);
+        }
         self.backend.forget(name);
         self.set_state(name, JackServerState::NotStarted);
         Ok(())

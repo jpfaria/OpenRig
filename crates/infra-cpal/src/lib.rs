@@ -1929,6 +1929,13 @@ impl ProjectRuntimeController {
         log::info!("stopping project runtime controller");
         self.active_chains.clear();
         self.runtime_graph.chains.clear();
+        // NOTE: supervisor.client_count is NOT decremented here. The
+        // supervisor's register_client / unregister_client API is unused on
+        // this call path — ordered teardown is driven by the caller via
+        // `would_restart` + `self.stop()` in `ensure_jack_servers`, not by
+        // the supervisor's internal hook. If a future change starts calling
+        // register_client inside build_active_chain_runtime, add the
+        // matching unregister_client calls here to keep the count honest.
     }
 
     pub fn is_running(&self) -> bool {

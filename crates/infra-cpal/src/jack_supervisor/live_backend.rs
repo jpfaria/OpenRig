@@ -386,6 +386,23 @@ impl JackBackend for LiveJackBackend {
             );
             Self::send_signal(pid, "-KILL");
             std::thread::sleep(Duration::from_millis(200));
+        } else {
+            // No pid ever resolved — can't signal the process, so the socket
+            // we see is either a stale file (harmless) or a live jackd whose
+            // cmdline doesn't match our discover_pid_for_server pattern
+            // (harmful: cleaning the socket tricks the next spawn into
+            // running while the process still holds /dev/snd/*). Return Err
+            // so the supervisor surfaces a real error instead of entering a
+            // respawn loop against a jackd we can't touch.
+            if Self::socket_is_present(name) {
+                bail!(
+                    "LiveJackBackend::terminate refused to clear socket for '{}' — no PID \
+                     could be discovered and the socket is still present. This usually means a \
+                     jackd process was started outside this openrig binary with a cmdline we \
+                     can't recognise. Stop it manually (e.g. `pkill jackd`) and retry.",
+                    name
+                );
+            }
         }
 
         // After SIGKILL the kernel leaves any shm segments the process had
@@ -396,6 +413,16 @@ impl JackBackend for LiveJackBackend {
                 "LiveJackBackend::terminate: socket still present after kill — removing stale files"
             );
             Self::cleanup_stale_dev_shm(name);
+            // Verify cleanup actually worked — if the file reappears (some
+            // other process races in, e.g. another jackd with the same -n)
+            // we mustn't pretend termination succeeded.
+            if Self::socket_is_present(name) {
+                bail!(
+                    "LiveJackBackend::terminate: '{}' socket persists after cleanup. \
+                     A non-supervised jackd may be racing against us.",
+                    name
+                );
+            }
         }
         Ok(())
     }
