@@ -85,6 +85,29 @@ step() {
     echo "══════════════════════════════════════════"
 }
 
+# ── Automatic cleanup on exit (success or failure) ────────────────────────────
+# Keep on disk after each run:
+#   - output/orange-pi/Armbian_openrig_${RELEASE}.img  (the artifact to flash)
+#   - output/orange-pi/*.img.xz                       (cache, regenerates the base in ~2 min)
+#   - output/deb/*.deb                                (build input)
+# Remove:
+#   - decompressed base image (1.6 GB, regeneratable from .xz)
+#   - any *.sparse temp files from the cp --sparse=always rewrite
+#   - Docker build cache that accumulated during this run
+cleanup_on_exit() {
+    local rc=$?
+    echo ""
+    echo "══════════════════════════════════════════"
+    echo "  Post-run cleanup"
+    echo "══════════════════════════════════════════"
+    rm -f "$ARMBIAN_IMG" 2>/dev/null || true
+    rm -f "$OUTPUT_DIR"/*.sparse 2>/dev/null || true
+    docker builder prune -a -f >/dev/null 2>&1 || true
+    echo "  Kept: $(ls -1 "$OUTPUT_DIR" 2>/dev/null | tr '\n' ' ')"
+    exit $rc
+}
+trap cleanup_on_exit EXIT
+
 check_prereqs() {
     local missing=()
     command -v docker >/dev/null || missing+=("docker (Docker Desktop)")
@@ -362,6 +385,16 @@ umount /mnt/img
 # kpartx -d releases the /dev/mapper/loopNp1 and the backing loop device
 kpartx -dv "$IMG" || true
 losetup -d "$LOOP" 2>/dev/null || true
+sync
+
+echo ">>> Reclaiming sparseness (cp --sparse=always)..."
+# Random writes during apt install + ext4 journaling through the kpartx
+# device-mapper target go back to the host file via virtiofs and end up
+# allocating blocks all over the image — macOS APFS then reports the file
+# as consuming 10-15x its logical size on disk. Rewriting with
+# cp --sparse=always detects runs of zeros and re-emits them as holes.
+cp --sparse=always "$IMG" "$IMG.sparse"
+mv "$IMG.sparse" "$IMG"
 sync
 
 echo ">>> Image customized successfully."
