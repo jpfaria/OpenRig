@@ -209,6 +209,47 @@ Before making a change, verify:
    // RIGHT: docs always reflect current state
 ```
 
+### 12c. OS-Level Changes MUST Mirror Into the Project (OBRIGATORIO)
+
+Qualquer alteração aplicada no sistema operacional da placa (Orange Pi) — seja via SSH, edição manual de arquivos em `/`, ou ajuste de runtime — TEM que ter equivalente no `platform/orange-pi/` do projeto antes de encerrar o trabalho. Um patch que só vive na placa evapora no próximo flash de imagem, e quem gerar a próxima imagem de produção perde o fix silenciosamente.
+
+**Mapeamento obrigatório — onde cada tipo de alteração mora no projeto:**
+
+| Alteração na placa | Arquivo no projeto |
+|---|---|
+| Kernel cmdline / boot args (`/boot/armbianEnv.txt extraargs=...`) | `platform/orange-pi/customize-image.sh` — variável `KERNEL_ARGS` + bloco que grava em `armbianEnv.txt` |
+| Systemd unit (`/etc/systemd/system/*.service`) | `platform/orange-pi/rootfs/etc/systemd/system/` |
+| Systemd drop-in (`/etc/systemd/system/*.service.d/*.conf`) | `platform/orange-pi/rootfs/etc/systemd/system/<unit>.d/` |
+| Config em `/etc/` (sysctl, security, udev) | `platform/orange-pi/rootfs/etc/` |
+| Binário/helper em `/usr/local/bin/` | `platform/orange-pi/rootfs/usr/local/bin/` |
+| Overlay de Device Tree | `platform/orange-pi/dtbo/` |
+| Mudança de runtime (chown, groupadd, setcap, mkdir) | bloco equivalente em `customize-image.sh` |
+
+**Ordem obrigatória quando a alteração é planejada:**
+
+1. Alterar primeiro no projeto (`.solvers/issue-N/`)
+2. Commit + push
+3. Aplicar na placa via SSH
+4. Validar
+
+**Quando o patch na placa foi experimental (descoberta/diagnóstico):**
+
+Aceitável alterar primeiro na placa para testar, MAS ao confirmar que funciona voltar ao projeto, commitar, e empurrar — nunca encerrar o trabalho com config "só na placa".
+
+- [ ] **Toda modificação em `/etc/`, `/boot/`, `/usr/local/`, `/root/` ou qualquer path do SO tem equivalente em `platform/orange-pi/`**
+- [ ] **Nunca deixar a placa com config que não existe no projeto**
+- [ ] **Flash de imagem fresca deve reproduzir o comportamento validado via SSH** — se não reproduz, falta espelhamento
+- [ ] **Regra de validação**: antes de declarar uma issue resolvida, responder mentalmente: "se o usuário flashar uma imagem nova agora, o fix continua lá?"
+
+**Anti-Pattern:**
+```
+❌ "vou patchar só na placa pra validar, depois vejo se vale commitar"
+   // WRONG: validou, funciona, próxima imagem não tem o fix → regressão silenciosa
+
+✅ SSH na placa = patch TEMPORÁRIO. Termina a issue com o mesmo patch em platform/orange-pi/
+   // RIGHT: flash novo reproduz o comportamento validado
+```
+
 ### 13. Test Coverage (OBRIGATORIO)
 
 - [ ] **Toda feature/bugfix DEVE ter testes** — sem exceção
