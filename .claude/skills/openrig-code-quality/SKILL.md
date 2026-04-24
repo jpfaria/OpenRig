@@ -7,28 +7,7 @@ description: "Use when writing, editing, or refactoring any Rust code in this pr
 
 Mandatory rules for writing code. Apply BEFORE writing, not after. No exceptions.
 
-## STEP 0 — ALWAYS FIRST (no exceptions)
-
-**REQUIRED SUB-SKILL: Invoke `superpowers:using-superpowers` before ANY other action in this project.**
-
-This applies to: new tasks, questions, explorations, code changes, debugging — everything.
-If you think "this is too simple to need superpowers", that's the rationalization. Invoke it anyway.
-
-## MANDATORY — Load These Skills First
-
-After loading `superpowers:using-superpowers`, invoke the situation-specific skill:
-
-| Situation | Skill to invoke |
-|-----------|----------------|
-| Adding a feature or new behavior | `superpowers:brainstorming` |
-| Implementing a feature or bugfix | `superpowers:test-driven-development` |
-| Debugging a bug or test failure | `superpowers:systematic-debugging` |
-| Have a plan ready to execute | `superpowers:executing-plans` |
-| Work is complete, about to claim done | `superpowers:verification-before-completion` |
-| Received code review feedback | `superpowers:receiving-code-review` |
-| About to finish a branch | `superpowers:finishing-a-development-branch` |
-
-**These are not optional.** If you skip them, you are violating the project's development process.
+Premissas gerais do projeto (Superpowers obrigatórios por situação, rastreabilidade de issue, distribuição cross-platform, alterações no SO da placa, atualização de documentação) vivem em `CLAUDE.md` na raiz do projeto e são carregadas automaticamente em toda conversa. Esta skill cobre apenas as regras específicas de qualidade de código Rust/Slint.
 
 ---
 
@@ -180,36 +159,7 @@ Before making a change, verify:
 ✅ crates/adapter-gui/src/chain.rs — only chain editing
 ```
 
-### 11. Documentation Always Up-to-Date
-
-- [ ] **CLAUDE.md must always reflect current state** — when creating, removing, or changing models, block types, parameters, features, or screens, update the corresponding section in CLAUDE.md
-- [ ] Added a new model? → update the "Tipos de bloco" table and parameter list
-- [ ] Added a new block type? → add it to the table with description and models
-- [ ] Changed parameters? → update "Parâmetros comuns" section
-- [ ] Added a new screen/feature? → update "Telas principais" section
-- [ ] Removed something? → remove from CLAUDE.md too, no stale documentation
-- [ ] Documentation is part of the task — not a separate step. If you change code, you change docs in the same commit
-
-### 12. Mandatory Documentation on Every Feature/Change
-
-- [ ] **Every PR must include doc updates** — CLAUDE.md and issue description
-- [ ] **New block types** → add to "Tipos de bloco" table in CLAUDE.md, update YAML examples
-- [ ] **New data model structs** → document in CLAUDE.md architecture section
-- [ ] **New audio processing behavior** → document in CLAUDE.md "Configuração de áudio" section
-- [ ] **Issue closed** → update issue with final status, what was done, what's pending
-- [ ] **Specs and plans** → keep in `docs/superpowers/specs/` and `docs/superpowers/plans/`, update when design changes
-- [ ] **NEVER close a PR without updating docs** — undocumented features are technical debt
-
-**Anti-Pattern:**
-```
-❌ Merge PR with 54 commits and no doc updates
-   // WRONG: features become invisible, next developer has no context
-
-✅ Every PR updates CLAUDE.md and closes the issue with summary
-   // RIGHT: docs always reflect current state
-```
-
-### 13. Test Coverage (OBRIGATORIO)
+### 11. Test Coverage (OBRIGATORIO)
 
 - [ ] **Toda feature/bugfix DEVE ter testes** — sem exceção
 - [ ] Testes dentro do módulo: `#[cfg(test)] mod tests { ... }`
@@ -237,7 +187,7 @@ Before making a change, verify:
    // WRONG: testar código real, não mocks
 ```
 
-### 14. Zero Warnings (OBRIGATORIO)
+### 12. Zero Warnings (OBRIGATORIO)
 
 - [ ] `cargo build` MUST produce zero warnings — no exceptions
 - [ ] Before committing: `cargo build 2>&1 | grep "^warning"` must return empty
@@ -257,12 +207,12 @@ Before making a change, verify:
 ✅ cargo build 2>&1 | grep "^warning"  # → empty output
 ```
 
-### 15. Platform Isolation — cfg Guards (OBRIGATORIO)
+### 13. Platform Isolation — cfg Guards (técnica Rust)
+
+Premissa geral de isolamento por plataforma (nunca quebrar áudio em outro SO) vive em `CLAUDE.md` → "Prioridades de Produto" e "Premissa de distribuicao". Esta seção cobre apenas a técnica Rust pra aplicar a premissa.
 
 - [ ] Platform-specific code MUST be behind `#[cfg(target_os = "...")]` or feature flags
-- [ ] **NEVER refactor cross-platform code to fix a single platform** — this broke macOS audio once
 - [ ] Linux/JACK fixes must use `#[cfg(all(target_os = "linux", feature = "jack"))]`
-- [ ] Before any audio-related change: "does this break macOS audio?" If yes, add cfg guard
 - [ ] macOS/Windows behavior must not be affected by Linux-only changes
 
 **Anti-Pattern:**
@@ -275,34 +225,6 @@ Before making a change, verify:
    const BUFFER_SIZE: usize = 256;
    #[cfg(not(all(target_os = "linux", feature = "jack")))]
    const BUFFER_SIZE: usize = 128;
-```
-
-### 16. Distribution — No Hardcoded Paths (OBRIGATORIO)
-
-- [ ] **NEVER hardcode absolute or relative paths in code**
-- [ ] **NEVER assume dev environment** — code runs on the end user's machine, not the developer's
-- [ ] Use platform-specific config dirs via `dirs` crate or equivalent
-- [ ] LV2 libs, NAM captures, IR captures — ALL paths come from config, never hardcoded
-- [ ] Mental test before every path decision: "does this work if the user installs on Windows?" If no, don't do it
-
-**Platform paths:**
-| OS | Config dir |
-|----|-----------|
-| macOS | `~/Library/Application Support/OpenRig/` |
-| Windows | `%APPDATA%\OpenRig\` |
-| Linux | `~/.local/share/openrig/` |
-
-**Anti-Pattern:**
-```
-❌ let captures_dir = "/home/joao/.openrig/captures";
-   // WRONG: hardcoded absolute path
-
-❌ let lv2_path = "./lv2_plugins";
-   // WRONG: relative path assumes dev environment
-
-✅ let config_dir = dirs::data_dir()
-       .map(|d| d.join("OpenRig"))
-       .expect("could not resolve data dir");
 ```
 
 ---
