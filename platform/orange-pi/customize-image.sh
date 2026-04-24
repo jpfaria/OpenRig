@@ -109,7 +109,12 @@ if [ "${OPENRIG_SKIP_INITRAMFS:-0}" = "1" ]; then
 [Unit]
 Description=Rebuild initramfs on first boot (OpenRig Plymouth theme + rockchipdrm)
 DefaultDependencies=yes
-Before=multi-user.target
+# After (not Before) multi-user.target so the boot completes even if
+# update-initramfs takes minutes or stalls — the board reaches SSH/network
+# first, then the rebuild runs in the background. Next boot picks up the
+# rebuilt initramfs. This avoids blocking a first boot on a chroot-assembled
+# initramfs whose only purpose is to upgrade cosmetic Plymouth branding.
+After=multi-user.target
 ConditionPathExists=!/var/lib/openrig-initramfs-done
 
 [Service]
