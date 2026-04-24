@@ -143,21 +143,26 @@ stage_deb() {
 cleanup_stale_artifacts() {
     step "Cleaning stale .img artifacts in $OUTPUT_DIR"
     run mkdir -p "$OUTPUT_DIR"
-    # Remove previous customized outputs (safe: always regenerated)
-    for f in "$OUTPUT_DIR"/Armbian_openrig_*.img \
-             "$OUTPUT_DIR"/Armbian_openrig_*.img.sha \
-             "$OUTPUT_DIR"/Armbian_openrig_*.img.txt; do
-        [ -e "$f" ] && run rm -f "$f"
-    done
-    # Remove previous decompressed Armbian base images if the compressed .xz
-    # cache is still there (we can decompress again in seconds; keeping a
-    # 1.6G .img around costs 10-15x more disk than the 288M .xz).
-    for f in "$OUTPUT_DIR"/Armbian_community_*.img \
-             "$OUTPUT_DIR"/Armbian_trixie.img; do
-        if [ -e "$f" ] && [ -e "$f.xz" ]; then
-            run rm -f "$f"
+
+    # Whitelist approach: everything in $OUTPUT_DIR that is NOT the base
+    # Armbian image for the current release (or its compressed cache) is
+    # stale by definition — the customized output is regenerated every
+    # run, any earlier base image or leftover from a previous pipeline
+    # is dead weight. This cleans up orphans that heuristics missed
+    # (e.g. arbitrary names from manual curl, outputs from crashed runs).
+    local keep_img="$ARMBIAN_IMG_NAME"
+    local keep_xz="$ARMBIAN_IMG_NAME.xz"
+    for f in "$OUTPUT_DIR"/*.img "$OUTPUT_DIR"/*.img.xz \
+             "$OUTPUT_DIR"/*.img.sha "$OUTPUT_DIR"/*.img.txt; do
+        [ -e "$f" ] || continue
+        local base
+        base="$(basename "$f")"
+        if [ "$base" = "$keep_img" ] || [ "$base" = "$keep_xz" ]; then
+            continue
         fi
+        run rm -f "$f"
     done
+
     # Legacy leftovers from the old armbian/build based pipeline
     [ -d "$PROJECT_ROOT/output/armbian-build" ] && run rm -rf "$PROJECT_ROOT/output/armbian-build"
     true
