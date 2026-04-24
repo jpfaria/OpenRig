@@ -22,9 +22,13 @@ ARMBIAN_BRANCH="main"
 BOARD="orangepi5b"
 # BRANCH=current → stable 6.x LTS kernel. edge (7.0-rc) does NOT boot
 # on RK3588 as of 2026-04-12 (confirmed with official Armbian image).
-# bookworm = Debian 12 — confirmed working with OpenRig binary (glibc 2.36 is sufficient)
+# trixie = Debian 13 — Mesa 25.0+ ships panthor_dri.so, enabling Mali-G610
+# hardware acceleration on RK3588 (issue #312). Bookworm's Mesa 22.3 has no
+# Panthor driver, so userspace falls back to llvmpipe (software GL) and caps
+# the UI at 2-5 FPS. glibc 2.41 in trixie is forward-compat with the OpenRig
+# .deb cross-compiled on bookworm Docker (glibc 2.36).
 BRANCH="current"
-RELEASE="bookworm"
+RELEASE="trixie"
 OUTPUT_DIR="$PROJECT_ROOT/output/orange-pi"
 USERPATCHES_DIR="$ARMBIAN_DIR/userpatches"
 OVERLAY_DIR="$USERPATCHES_DIR/overlay"
