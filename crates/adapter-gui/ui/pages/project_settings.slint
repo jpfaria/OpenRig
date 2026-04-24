@@ -225,6 +225,13 @@ export component ProjectSettingsPage inherits Rectangle {
     in property <[string]> sample-rate-options;
     in property <[string]> buffer-size-options;
     in property <[string]> bit-depth-options;
+    // JACK tuning (Linux). On macOS/Windows the values persist but the
+    // cpal backends ignore them; the panel is hidden when jack-panel-visible
+    // is false, which adapter-gui drives from cfg!(target_os = "linux").
+    in property <bool> jack-panel-visible: false;
+    in-out property <bool> jack-realtime;
+    in-out property <int> jack-rt-priority: 70;
+    in-out property <int> jack-nperiods: 3;
     callback update-project-name(string);
     callback save-audio-settings();
     callback close-project-settings();
@@ -232,6 +239,15 @@ export component ProjectSettingsPage inherits Rectangle {
     callback update-project-sample-rate(int, string);
     callback update-project-buffer-size(int, string);
     callback update-project-bit-depth(int, string);
+    callback toggle-jack-realtime(bool);
+    callback update-jack-rt-priority(int);
+    callback update-jack-nperiods(int);
+
+    property <[string]> nperiods-options: ["2", "3", "4"];
+
+    pure function nperiods-index(n: int) -> int {
+        return n == 2 ? 0 : n == 4 ? 2 : 1;
+    }
 
     background: #171a1f;
 
@@ -278,7 +294,7 @@ export component ProjectSettingsPage inherits Rectangle {
         x: 32px;
         y: 138px;
         width: parent.width - 64px;
-        height: parent.height - 200px;
+        height: parent.height - 200px - (root.jack-panel-visible ? 100px : 0px);
         viewport-height: root.project-devices.length * 48px;
 
         for device[index] in root.project-devices : DeviceRow {
@@ -293,6 +309,98 @@ export component ProjectSettingsPage inherits Rectangle {
             sample-rate-selected(value) => { root.update-project-sample-rate(index, value); }
             buffer-size-selected(value) => { root.update-project-buffer-size(index, value); }
             bit-depth-selected(value) => { root.update-project-bit-depth(index, value); }
+        }
+    }
+
+    if root.jack-panel-visible : Rectangle {
+        x: 32px;
+        y: parent.height - 148px;
+        width: parent.width - 64px;
+        height: 88px;
+        background: transparent;
+
+        // Section label
+        Text {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: 20px;
+            text: "JACK audio tuning (Linux)";
+            color: #7a8694;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        // Realtime toggle
+        CheckBox {
+            x: 0px;
+            y: 28px;
+            width: 180px;
+            height: 24px;
+            text: "Realtime priority";
+            checked: root.jack-realtime;
+            toggled => { root.toggle-jack-realtime(self.checked); }
+        }
+
+        // Priority field
+        Text {
+            x: 200px;
+            y: 28px;
+            width: 50px;
+            height: 24px;
+            text: "Priority";
+            color: #6b7786;
+            font-size: 11px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+
+        FieldBox {
+            x: 254px;
+            y: 24px;
+            width: 64px;
+            height: 32px;
+            text: root.jack-rt-priority;
+            changed(value) => {
+                root.update-jack-rt-priority(value.to-float());
+            }
+        }
+
+        // Nperiods dropdown
+        Text {
+            x: 330px;
+            y: 28px;
+            width: 54px;
+            height: 24px;
+            text: "Periods";
+            color: #6b7786;
+            font-size: 11px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+
+        ComboBox {
+            x: 388px;
+            y: 24px;
+            width: 70px;
+            height: 32px;
+            model: root.nperiods-options;
+            current-index: root.nperiods-index(root.jack-nperiods);
+            selected(value) => {
+                root.update-jack-nperiods(value.to-float());
+            }
+        }
+
+        // Hint
+        Text {
+            x: 0px;
+            y: 62px;
+            width: parent.width;
+            height: 16px;
+            text: "Lower periods = lower latency. Realtime priority needs CPU isolation (issue #310) to avoid jitter.";
+            color: #5d6875;
+            font-size: 10px;
+            vertical-alignment: center;
         }
     }
 
