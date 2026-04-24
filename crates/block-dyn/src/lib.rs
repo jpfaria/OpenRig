@@ -36,11 +36,15 @@ pub fn dyn_model_visual(model_id: &str) -> Option<ModelVisualData> {
 }
 
 pub fn dyn_display_name(model: &str) -> &'static str {
-    registry::find_model_definition(model).map(|d| d.display_name).unwrap_or("")
+    registry::find_model_definition(model)
+        .map(|d| d.display_name)
+        .unwrap_or("")
 }
 
 pub fn dyn_brand(model: &str) -> &'static str {
-    registry::find_model_definition(model).map(|d| d.brand).unwrap_or("")
+    registry::find_model_definition(model)
+        .map(|d| d.brand)
+        .unwrap_or("")
 }
 
 pub fn dyn_type_label(model: &str) -> &'static str {
@@ -382,6 +386,8 @@ mod tests {
         assert!(param_names.contains(&"threshold"));
         assert!(param_names.contains(&"release_ms"));
         assert!(param_names.contains(&"ceiling"));
+        assert!(param_names.contains(&"lookahead_ms"));
+        assert!(param_names.contains(&"knee_db"));
     }
 
     #[test]
@@ -413,15 +419,16 @@ mod tests {
     }
 
     #[test]
-    fn limiter_brickwall_build_stereo_fails() {
+    fn limiter_brickwall_build_stereo_succeeds() {
         let params = default_params_for("limiter_brickwall");
-        let result = build_dynamics_processor_for_layout(
+        let proc = build_dynamics_processor_for_layout(
             "limiter_brickwall",
             &params,
             48_000.0,
             AudioChannelLayout::Stereo,
-        );
-        assert!(result.is_err());
+        )
+        .expect("stereo build");
+        assert!(matches!(proc, BlockProcessor::Stereo(_)));
     }
 
     #[test]
@@ -509,16 +516,11 @@ mod tests {
             match &mut proc {
                 BlockProcessor::Mono(ref mut p) => {
                     let mut buf: Vec<f32> = (0..1024)
-                        .map(|i| {
-                            (i as f32 / 44100.0 * 440.0 * std::f32::consts::TAU).sin() * 0.5
-                        })
+                        .map(|i| (i as f32 / 44100.0 * 440.0 * std::f32::consts::TAU).sin() * 0.5)
                         .collect();
                     p.process_block(&mut buf);
                     for (i, &s) in buf.iter().enumerate() {
-                        assert!(
-                            s.is_finite(),
-                            "{model} block sine non-finite at {i}: {s}"
-                        );
+                        assert!(s.is_finite(), "{model} block sine non-finite at {i}: {s}");
                     }
                 }
                 _ => panic!("{model} expected Mono processor"),
@@ -530,7 +532,10 @@ mod tests {
 
     #[test]
     fn dyn_display_name_returns_correct_values() {
-        assert_eq!(dyn_display_name("compressor_studio_clean"), "Studio Clean Compressor");
+        assert_eq!(
+            dyn_display_name("compressor_studio_clean"),
+            "Studio Clean Compressor"
+        );
         assert_eq!(dyn_display_name("gate_basic"), "Noise Gate");
         assert_eq!(dyn_display_name("limiter_brickwall"), "Brick Wall Limiter");
     }
