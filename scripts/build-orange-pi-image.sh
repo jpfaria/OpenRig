@@ -139,6 +139,30 @@ stage_deb() {
     echo "  Staged: $RELEASE_DEB"
 }
 
+# ── Step 1.5: Sweep stale .img artifacts so the disk doesnt grow without bound
+cleanup_stale_artifacts() {
+    step "Cleaning stale .img artifacts in $OUTPUT_DIR"
+    run mkdir -p "$OUTPUT_DIR"
+    # Remove previous customized outputs (safe: always regenerated)
+    for f in "$OUTPUT_DIR"/Armbian_openrig_*.img \
+             "$OUTPUT_DIR"/Armbian_openrig_*.img.sha \
+             "$OUTPUT_DIR"/Armbian_openrig_*.img.txt; do
+        [ -e "$f" ] && run rm -f "$f"
+    done
+    # Remove previous decompressed Armbian base images if the compressed .xz
+    # cache is still there (we can decompress again in seconds; keeping a
+    # 1.6G .img around costs 10-15x more disk than the 288M .xz).
+    for f in "$OUTPUT_DIR"/Armbian_community_*.img \
+             "$OUTPUT_DIR"/Armbian_trixie.img; do
+        if [ -e "$f" ] && [ -e "$f.xz" ]; then
+            run rm -f "$f"
+        fi
+    done
+    # Legacy leftovers from the old armbian/build based pipeline
+    [ -d "$PROJECT_ROOT/output/armbian-build" ] && run rm -rf "$PROJECT_ROOT/output/armbian-build"
+    true
+}
+
 # ── Step 2: Obtain the official Armbian trixie image (cached) ─────────────────
 download_armbian() {
     step "2/4  Obtaining official Armbian trixie image"
@@ -347,6 +371,7 @@ echo ""
 
 check_prereqs
 stage_deb
+cleanup_stale_artifacts
 download_armbian
 prepare_output_image
 customize_image
