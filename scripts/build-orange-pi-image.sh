@@ -40,7 +40,7 @@ ARMBIAN_IMG_NAME="Armbian_community_${ARMBIAN_RELEASE}_Orangepi5b_${RELEASE}_${K
 ARMBIAN_URL="https://github.com/armbian/community/releases/download/${ARMBIAN_RELEASE}/${ARMBIAN_IMG_NAME}.xz"
 ARMBIAN_XZ="$OUTPUT_DIR/$ARMBIAN_IMG_NAME.xz"
 ARMBIAN_IMG="$OUTPUT_DIR/$ARMBIAN_IMG_NAME"
-OUTPUT_IMG="$OUTPUT_DIR/Armbian_openrig_${RELEASE}.img"
+OUTPUT_IMG_XZ="$OUTPUT_DIR/Armbian_openrig_${RELEASE}.img.xz"
 
 VERSION="latest"
 LOCAL_DEB=""
@@ -168,19 +168,18 @@ cleanup_stale_artifacts() {
     run mkdir -p "$OUTPUT_DIR"
 
     # Whitelist approach: everything in $OUTPUT_DIR that is NOT the base
-    # Armbian image for the current release (or its compressed cache) is
-    # stale by definition — the customized output is regenerated every
-    # run, any earlier base image or leftover from a previous pipeline
-    # is dead weight. This cleans up orphans that heuristics missed
-    # (e.g. arbitrary names from manual curl, outputs from crashed runs).
-    local keep_img="$ARMBIAN_IMG_NAME"
-    local keep_xz="$ARMBIAN_IMG_NAME.xz"
+    # Armbian image cache is stale by definition — the customized output
+    # .img.xz is regenerated every run. Explicitly remove any bloated
+    # legacy Armbian_openrig_*.img from previous pipeline versions that
+    # stored raw 4-6 GB images.
+    local keep_base_img="$ARMBIAN_IMG_NAME"
+    local keep_base_xz="$ARMBIAN_IMG_NAME.xz"
     for f in "$OUTPUT_DIR"/*.img "$OUTPUT_DIR"/*.img.xz \
              "$OUTPUT_DIR"/*.img.sha "$OUTPUT_DIR"/*.img.txt; do
         [ -e "$f" ] || continue
         local base
         base="$(basename "$f")"
-        if [ "$base" = "$keep_img" ] || [ "$base" = "$keep_xz" ]; then
+        if [ "$base" = "$keep_base_img" ] || [ "$base" = "$keep_base_xz" ]; then
             continue
         fi
         run rm -f "$f"
@@ -212,41 +211,53 @@ download_armbian() {
     $DRY_RUN || ls -lh "$ARMBIAN_IMG"
 }
 
-# ── Step 3: Copy base image to output and grow filesystem headroom ────────────
-prepare_output_image() {
-    step "3/4  Preparing output image (+4G headroom for apt install)"
-    run rm -f "$OUTPUT_IMG"
-    run cp "$ARMBIAN_IMG" "$OUTPUT_IMG"
-    # Armbian minimal is ~1.6G with almost no slack. apt install of ~17
-    # packages downloads ~140 MB, unpacks to ~500 MB, plus openrig.deb
-    # (~160 MB download, ~400 MB installed). +2G filled mid-install and
-    # ext4 remounted read-only with errors=remount-ro. +4G leaves room.
-    run truncate -s +4G "$OUTPUT_IMG"
-}
-
-# ── Step 4: Customize image via Docker linux/arm64 chroot ─────────────────────
+# ── Step 3: Customize image via Docker linux/arm64 chroot (all in tmpfs) ──────
+#
+# Critical: the .img file is kept ENTIRELY inside the containers tmpfs
+# (/scratch, RAM-backed) for the whole build. It never touches the virtiofs
+# bind mount at /work. This is because Docker Desktop on macOS routes writes
+# from the container through virtiofs, and virtiofs on APFS does not honor
+# sparse writes — every random write into a 6 GB image allocates blocks all
+# over, so a logical 4 GB .img ends up consuming 70-170 GB of physical disk.
+#
+# After the build finishes inside /scratch, we stream-compress the .img
+# directly to a .img.xz in /work. xz collapses runs of zeros to near-nothing,
+# so the file that actually lands on macOS APFS is ~400 MB — no sparse-in-a-
+# bind-mount problem, no disk inflation.
 customize_image() {
-    step "4/4  Customizing image via Docker linux/arm64 chroot"
+    step "3/3  Customizing image via Docker linux/arm64 chroot (tmpfs + .xz out)"
 
-    # The chroot script runs inside an arm64 container via qemu emulation so
-    # the apt install, dpkg -i and initramfs rebuild all execute native ARM
-    # binaries — exactly what will run on the Orange Pi.
+    # Resolve tmpfs size from env (default 6G — enough for 1.6G base + 4G
+    # headroom + ~400 MB slack). Docker Desktop default RAM is 8 GB; if the
+    # user has reduced RAM below 6 GB, bump the Docker Desktop RAM or lower
+    # TMPFS_SIZE.
+    local tmpfs_size="${OPENRIG_BUILD_TMPFS:-6g}"
+
     run docker run --rm --privileged --platform linux/arm64 \
+        --tmpfs "/scratch:size=${tmpfs_size},mode=1777" \
         -v "$OUTPUT_DIR:/work" \
         -v "$PROJECT_ROOT/platform/orange-pi:/platform:ro" \
         -v "$PROJECT_ROOT/crates/adapter-gui/ui/assets:/ui-assets:ro" \
         -v "$(dirname "$RELEASE_DEB"):/debs:ro" \
         -v "$PROJECT_ROOT/presets:/presets:ro" \
         -e OPENRIG_DEB_NAME="$(basename "$RELEASE_DEB")" \
-        -e OUTPUT_IMG_BASENAME="$(basename "$OUTPUT_IMG")" \
+        -e ARMBIAN_IMG_BASENAME="$(basename "$ARMBIAN_IMG")" \
+        -e OUTPUT_XZ_BASENAME="$(basename "$OUTPUT_IMG_XZ")" \
         -e RELEASE="$RELEASE" \
         debian:trixie bash -eu -c '
 set -eu
-IMG=/work/"$OUTPUT_IMG_BASENAME"
+IMG=/scratch/image.img
 
 echo ">>> Installing host tools in orchestrator container..."
 apt-get update -qq
-apt-get install -y --no-install-recommends util-linux e2fsprogs gdisk kpartx dmsetup >/dev/null 2>&1
+apt-get install -y --no-install-recommends util-linux e2fsprogs gdisk kpartx dmsetup xz-utils pigz >/dev/null 2>&1
+
+echo ">>> Copying Armbian base into tmpfs + growing +4G..."
+# Copy the base image into tmpfs. From here until the final xz step, every
+# read/write touches only /scratch — never the /work virtiofs mount. This
+# is what keeps APFS from accumulating allocated blocks during apt install.
+cp "/work/$ARMBIAN_IMG_BASENAME" "$IMG"
+truncate -s +4G "$IMG"
 
 echo ">>> Fixing GPT backup header after truncate..."
 # truncate +2G leaves the GPT backup header at the original (now middle) offset.
@@ -442,19 +453,17 @@ fi
 sgdisk -e "$IMG"
 sync
 
-echo ">>> Reclaiming any remaining sparse blocks (fallocate --dig-holes)..."
-# Random writes during apt install + ext4 journaling through the kpartx
-# device-mapper target go back to the host file via virtiofs and end up
-# allocating blocks all over the image — macOS APFS then reports the file
-# as consuming 10-15x its logical size on disk.
-# cp --sparse=always needs 2x the disk because it writes a copy first,
-# which fails on tight disks. fallocate --dig-holes rewrites the same
-# file in place, converting runs of zeros back to holes with zero
-# additional disk usage.
-fallocate -d "$IMG"
+echo ">>> Stream-compressing image to .img.xz on host..."
+# Stream xz directly to /work — the only moment we touch the virtiofs bind
+# mount. xz -T0 uses all CPU cores; -0 is the fastest preset (we care about
+# time, not max compression — the 4 GB image is mostly zeros anyway so even
+# -0 takes it down to ~400 MB).
+rm -f "/work/$OUTPUT_XZ_BASENAME"
+xz -T0 -0 -c "$IMG" > "/work/$OUTPUT_XZ_BASENAME"
 sync
 
-echo ">>> Image customized successfully."
+echo ">>> Image customized + compressed successfully."
+ls -lh "/work/$OUTPUT_XZ_BASENAME"
 '
 }
 
@@ -473,13 +482,13 @@ check_prereqs
 stage_deb
 cleanup_stale_artifacts
 download_armbian
-prepare_output_image
 customize_image
 
 echo ""
 echo "══════════════════════════════════════════"
 echo "  Done"
 echo "══════════════════════════════════════════"
-echo "Image ready: $OUTPUT_IMG"
+echo "Image ready: $OUTPUT_IMG_XZ"
 echo ""
-echo "Flash with:  ./scripts/flash-sd.sh $OUTPUT_IMG"
+echo "Flash with:  ./scripts/flash-sd.sh $OUTPUT_IMG_XZ"
+echo "(flash-sd.sh detects .xz and streams xzcat | dd — no decompress step needed)"

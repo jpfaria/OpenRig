@@ -2,12 +2,14 @@
 # Flash the OpenRig Orange Pi image to an SD card.
 #
 # Usage:
-#   ./scripts/flash-sd.sh               # auto-detect latest .img
+#   ./scripts/flash-sd.sh                     # auto-detect latest image
 #   ./scripts/flash-sd.sh path/to/image.img
+#   ./scripts/flash-sd.sh path/to/image.img.xz   # .xz streamed via xzcat
 #
 # Prerequisites:
 #   - macOS
-#   - The .img file in output/orange-pi/ (run build-orange-pi-image.sh first)
+#   - An image in output/orange-pi/ (run build-orange-pi-image.sh first)
+#   - xz (standard on macOS) if flashing a .img.xz
 
 set -euo pipefail
 
@@ -15,12 +17,17 @@ PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ARMBIAN_OUTPUT_DIR="$PROJECT_ROOT/output/orange-pi"
 
 # ── Find image ────────────────────────────────────────────────────────────────
+# Prefer the customized output (Armbian_openrig_*.img.xz) over any base
+# Armbian_community_*.img.xz that lives in the same dir as a cache.
 if [ $# -ge 1 ]; then
     IMAGE="$1"
 else
-    IMAGE=$(ls -t "$ARMBIAN_OUTPUT_DIR"/Armbian*.img 2>/dev/null | head -1)
+    IMAGE=$(ls -t "$ARMBIAN_OUTPUT_DIR"/Armbian_openrig_*.img.xz \
+                   "$ARMBIAN_OUTPUT_DIR"/Armbian_openrig_*.img \
+                   "$ARMBIAN_OUTPUT_DIR"/Armbian*.img.xz \
+                   "$ARMBIAN_OUTPUT_DIR"/Armbian*.img 2>/dev/null | head -1)
     if [ -z "$IMAGE" ]; then
-        echo "ERROR: No .img found in $ARMBIAN_OUTPUT_DIR"
+        echo "ERROR: No image found in $ARMBIAN_OUTPUT_DIR"
         echo "       Run ./scripts/build-orange-pi-image.sh first."
         exit 1
     fi
@@ -72,7 +79,17 @@ echo "Unmounting $DISK_DEV..."
 diskutil unmountDisk "$DISK_DEV"
 
 echo "Flashing... (this takes a few minutes)"
-sudo dd if="$IMAGE" of="$RAW_DEV" bs=4m status=progress
+case "$IMAGE" in
+    *.xz)
+        # Stream decompress directly into dd — no temporary decompressed file,
+        # no extra disk usage on the host.
+        command -v xz >/dev/null || { echo "ERROR: xz not installed"; exit 1; }
+        sudo sh -c "xzcat '$IMAGE' | dd of='$RAW_DEV' bs=4m status=progress"
+        ;;
+    *)
+        sudo dd if="$IMAGE" of="$RAW_DEV" bs=4m status=progress
+        ;;
+esac
 
 echo ""
 echo "Flushing buffers..."
