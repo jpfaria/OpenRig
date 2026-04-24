@@ -418,18 +418,27 @@ PART_NAME2=$(printf "%s" "$PART_INFO2" | awk -F\" "/Partition name/ {print \$2}"
 # New partition end sector: start + fs_bytes / 512 (round up)
 NEW_PART_SECTORS=$(( (TARGET_FS_BYTES + 511) / 512 ))
 NEW_END_SECTOR=$(( START2 + NEW_PART_SECTORS - 1 ))
-GPT_FOOTER_SECTORS=34
-NEW_IMG_SECTORS=$(( NEW_END_SECTOR + GPT_FOOTER_SECTORS + 1 ))
+# The GPT secondary header + partition table needs ~33 sectors, but sgdisk
+# aligns to 2048-sector boundaries and complains "Secondary partition table
+# overlaps" with anything less than ~2048 sectors of slack. 2048 sectors
+# = 1 MiB which is negligible compared to the 2 GB image.
+GPT_TRAILER_SECTORS=2048
+NEW_IMG_SECTORS=$(( NEW_END_SECTOR + GPT_TRAILER_SECTORS + 1 ))
 NEW_IMG_BYTES=$(( NEW_IMG_SECTORS * 512 ))
 echo "  new_part_end_sector=$NEW_END_SECTOR new_img_bytes=$NEW_IMG_BYTES"
 
+# Order: truncate the file FIRST so sgdisk sees the new disk size when it
+# writes both the primary and the backup tables. Writing the partition with
+# the old (larger) file size causes the backup GPT to land beyond where
+# we will truncate, and sgdisk -e fails to relocate it into the shrunken
+# trailer.
+truncate -s "$NEW_IMG_BYTES" "$IMG"
 sgdisk -d 1 "$IMG"
 if [ -n "$PART_NAME2" ]; then
     sgdisk -n "1:${START2}:${NEW_END_SECTOR}" -t "1:${TYPE_CODE2}" -u "1:${PART_UUID2}" -c "1:${PART_NAME2}" "$IMG"
 else
     sgdisk -n "1:${START2}:${NEW_END_SECTOR}" -t "1:${TYPE_CODE2}" -u "1:${PART_UUID2}" "$IMG"
 fi
-truncate -s "$NEW_IMG_BYTES" "$IMG"
 sgdisk -e "$IMG"
 sync
 
