@@ -1,0 +1,5 @@
+# Set PCM Playback Volume to 100% on any USB audio card the moment its ALSA
+# control device appears. Without this, many class-compliant devices boot at
+# -20 dB or lower and the user gets attenuated output vs. their hardware
+# direct-monitor path. Generic — no vendor/model matching.
+ACTION=="add", SUBSYSTEM=="sound", KERNEL=="controlC[0-9]*", RUN+="/usr/local/bin/openrig-set-usb-audio-volume %k"

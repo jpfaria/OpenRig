@@ -1,4 +1,4 @@
-import { ComboBox, ScrollView, VerticalBox } from "std-widgets.slint";
+import { ComboBox, ListView, ScrollView } from "std-widgets.slint";
 import { ProjectChainItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, ChainBlockItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockStreamEntry, BlockKnobOverlay } from "../models.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { BlockPanelEditor } from "block_panel_editor.slint";
@@ -1049,6 +1049,7 @@ component ChainRow inherits Rectangle {
     callback configure-chain-output(int);
     callback configure-chain-preset(int);
     callback save-chain-preset(int);
+    callback probe-chain-latency(int);
     callback select-chain-block(int, int);
     callback toggle-chain-block-enabled(int, int);
     callback start-block-insert(int, int);
@@ -1145,6 +1146,14 @@ component ChainRow inherits Rectangle {
             icon: @image-url("../assets/expand.svg");
             tooltip: "Expandir blocos";
             clicked => { root.open-compact-chain-view(root.chain-index); }
+        }
+
+        ChainActionIcon {
+            x: parent.width - 236px;
+            y: 14px;
+            icon: @image-url("../assets/sonar.svg");
+            tooltip: "Medir latência real (emite um bipe)";
+            clicked => { root.probe-chain-latency(root.chain-index); }
         }
 
         ChainActionIcon {
@@ -1911,6 +1920,7 @@ export component ProjectChainsPage inherits Rectangle {
     callback configure-chain-output(int);
     callback configure-chain-preset(int);
     callback save-chain-preset(int);
+    callback probe-chain-latency(int);
     callback open-compact-chain-view(int);
     callback select-chain-block(int, int);
     callback clear-chain-block();
@@ -2033,21 +2043,24 @@ export component ProjectChainsPage inherits Rectangle {
         }
     }
 
-    ScrollView {
+    // Virtualized chains list: ListView only instantiates ChainRow instances
+    // visible in the viewport. Each row is wrapped in a Rectangle to add 12px
+    // of bottom spacing (ListView does not support `spacing` like VerticalBox).
+    // Fixes #290 — previous ScrollView + for instantiated every ChainRow upfront,
+    // causing heavy SVG rasterization per frame on macOS retina during scroll.
+    ListView {
         x: 24px;
         y: 96px;
         width: parent.width - 48px;
         height: parent.height - 96px;
-        viewport-height: chains-column.preferred-height;
-        viewport-width: chains-column.width;
 
-        chains-column := VerticalBox {
-            x: 0px;
-            y: 0px;
-            width: parent.width - 18px;
-            spacing: 12px;
+        for chain[index] in root.project-chains : Rectangle {
+            background: transparent;
+            height: row.height + 12px;
 
-            for chain[index] in root.project-chains : ChainRow {
+            row := ChainRow {
+                x: 0px;
+                y: 0px;
                 width: parent.width;
                 chain: chain;
                 chain-index: index;
@@ -2061,6 +2074,7 @@ export component ProjectChainsPage inherits Rectangle {
                 configure-chain-output(index) => { root.configure-chain-output(index); }
                 configure-chain-preset(index) => { root.configure-chain-preset(index); }
                 save-chain-preset(index) => { root.save-chain-preset(index); }
+                probe-chain-latency(index) => { root.probe-chain-latency(index); }
                 open-compact-chain-view(index) => { root.open-compact-chain-view(index); }
                 select-chain-block(chain-index, block-index) => { root.select-chain-block(chain-index, block-index); }
                 toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }

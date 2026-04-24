@@ -188,7 +188,18 @@ systemctl mask    jackd.service  2>/dev/null || true
 systemctl enable weston.service
 systemctl enable openrig.service
 systemctl enable openrig-irq-affinity.service
-systemctl enable openrig-audio-watchdog.service
+systemctl enable openrig-resize-rootfs.service
+
+# ── 9b. Kill stale ALSA mixer state ──────────────────────────────────────────
+# alsa-restore.service runs at boot and restores ALSA mixer controls from
+# /var/lib/alsa/asound.state if present. A state file produced during image
+# build or baked into the base rootfs can resurrect attenuated defaults
+# (e.g. Q-26 boots with PCM Playback at 60/100 = -20 dB instead of unity)
+# and overrides the udev rule that sets USB audio PCM to 100% on attach.
+# Wipe the file so the udev rule wins the race; alsa-store on shutdown
+# will repopulate it with whatever the user actually chose at runtime.
+echo ">>> [OpenRig] Removing stale ALSA mixer state to let udev rule win..."
+rm -f /var/lib/alsa/asound.state
 
 # ── 9a. Plymouth quit failsafe ────────────────────────────────────────────────
 echo ">>> [OpenRig] Capping plymouth-quit-wait timeout at 10s..."
@@ -200,8 +211,8 @@ EOF
 
 # ── 10. Set permissions on install script ────────────────────────────────────
 chmod 755 /usr/local/bin/openrig-install-to-emmc
-chmod 755 /usr/local/bin/openrig-reset-audio
-chmod 755 /usr/local/bin/openrig-audio-watchdog
+chmod 755 /usr/local/bin/openrig-resize-rootfs
+chmod 755 /usr/local/bin/openrig-set-usb-audio-volume
 
 # ── 10a. USB-C TCPM workaround (RK3588 USB-C port stability) ─────────────────
 echo ">>> [OpenRig] Installing USB-C host-mode DTB overlay (Scarlett stability)..."

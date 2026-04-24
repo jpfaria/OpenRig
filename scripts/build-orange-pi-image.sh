@@ -206,6 +206,14 @@ run_armbian() {
     # fails with "source path does not exist".
     run mkdir -p "$ARMBIAN_DIR/output/images"
 
+    # Clear images from previous runs. Armbian keeps accumulating older
+    # kernel builds in its output/images dir, and the cp wildcard below
+    # would copy every one of them into OUTPUT_DIR — producing "duas
+    # imagens" (or more) when the user expects exactly one.
+    local armbian_images="$ARMBIAN_DIR/output/images"
+    run sh -c "rm -f '$armbian_images'/Armbian*.img '$armbian_images'/Armbian*.img.sha '$armbian_images'/Armbian*.img.txt"
+    run sh -c "rm -f '$OUTPUT_DIR'/Armbian*.img '$OUTPUT_DIR'/Armbian*.img.sha '$OUTPUT_DIR'/Armbian*.img.txt"
+
     # Armbian ignores OUTPUT_DIR when running inside Docker — images land
     # in its own output/images/ dir.  We copy them to our OUTPUT_DIR after.
     run "${BASH:-bash}" "$ARMBIAN_DIR/compile.sh" \
@@ -218,8 +226,7 @@ run_armbian() {
         "BOOT_LOGO=no" \
         "COMPRESS_OUTPUTIMAGE=no"
 
-    # Copy resulting image to our output dir
-    local armbian_images="$ARMBIAN_DIR/output/images"
+    # Copy resulting image to our output dir.
     if ls "$armbian_images"/Armbian*.img 1>/dev/null 2>&1; then
         run cp "$armbian_images"/Armbian*.img "$OUTPUT_DIR/"
         run cp "$armbian_images"/Armbian*.img.sha "$OUTPUT_DIR/" 2>/dev/null || true
