@@ -341,9 +341,9 @@ mod tests {
             sample_rate: 48000,
             buffer_size_frames: 256,
             bit_depth: 32,
-            realtime: false,
+            realtime: true,
             rt_priority: 70,
-            nperiods: 3,
+            nperiods: 2,
         }
     }
 
@@ -628,9 +628,9 @@ mod tests {
             sample_rate: 48000,
             buffer_size_frames: 256,
             bit_depth: 32,
-            realtime: false,
+            realtime: true,
             rt_priority: 70,
-            nperiods: 3,
+            nperiods: 2,
         });
         let err = validate_project(&project).unwrap_err();
         assert!(err.to_string().contains("missing device_id"));
@@ -1140,9 +1140,9 @@ mod tests {
             sample_rate: 48000,
             buffer_size_frames: 256,
             bit_depth: 32,
-            realtime: false,
+            realtime: true,
             rt_priority: 70,
-            nperiods: 3,
+            nperiods: 2,
         }];
         let project = Project {
             name: Some("test".to_string()),

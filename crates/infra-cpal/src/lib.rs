@@ -1439,8 +1439,8 @@ pub fn start_jack_in_background(
                     .find(|s| s.device_id.0 == card.device_id);
                 let sample_rate = matched.map(|s| s.sample_rate).unwrap_or(48_000);
                 let buffer_size = matched.map(|s| s.buffer_size_frames).unwrap_or(64);
-                let nperiods = matched.map(|s| s.nperiods).unwrap_or(3);
-                let realtime = matched.map(|s| s.realtime).unwrap_or(false);
+                let nperiods = matched.map(|s| s.nperiods).unwrap_or(2);
+                let realtime = matched.map(|s| s.realtime).unwrap_or(true);
                 let rt_priority = matched.map(|s| s.rt_priority).unwrap_or(70);
                 let config = jack_supervisor::JackConfig {
                     sample_rate,
@@ -1899,8 +1899,8 @@ impl ProjectRuntimeController {
             .find(|s| s.device_id.0 == card.device_id);
         let sample_rate = matched.map(|s| s.sample_rate).unwrap_or(48_000);
         let buffer_size = matched.map(|s| s.buffer_size_frames).unwrap_or(64);
-        let nperiods = matched.map(|s| s.nperiods).unwrap_or(3);
-        let realtime = matched.map(|s| s.realtime).unwrap_or(false);
+        let nperiods = matched.map(|s| s.nperiods).unwrap_or(2);
+        let realtime = matched.map(|s| s.realtime).unwrap_or(true);
         let rt_priority = matched.map(|s| s.rt_priority).unwrap_or(70);
         jack_supervisor::JackConfig {
             sample_rate,
@@ -4288,16 +4288,18 @@ mod tests {
 
     #[cfg(all(target_os = "linux", feature = "jack"))]
     #[test]
-    fn jack_config_for_card_falls_back_to_defaults_when_no_match() {
+    fn jack_config_for_card_falls_back_to_low_latency_defaults_when_no_match() {
         let card = test_card("hw:4");
-        // No matching device_settings — defaults must preserve prior behaviour.
+        // No matching device_settings — defaults are low-latency out of the box
+        // (realtime + nperiods=2) because the kernel/systemd isolation from
+        // #310 is assumed to be present on the target hardware.
         let project = empty_project();
 
         let config = ProjectRuntimeController::jack_config_for_card(&card, &project);
 
-        assert!(!config.realtime);
+        assert!(config.realtime);
         assert_eq!(config.rt_priority, 70);
-        assert_eq!(config.nperiods, 3);
+        assert_eq!(config.nperiods, 2);
         assert_eq!(config.sample_rate, 48_000);
         assert_eq!(config.buffer_size, 64);
     }

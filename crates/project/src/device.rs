@@ -6,7 +6,7 @@ fn default_bit_depth() -> u32 {
 }
 
 fn default_realtime() -> bool {
-    false
+    true
 }
 
 fn default_rt_priority() -> u8 {
@@ -14,7 +14,7 @@ fn default_rt_priority() -> u8 {
 }
 
 fn default_nperiods() -> u32 {
-    3
+    2
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -45,9 +45,9 @@ mod tests {
             sample_rate: 48000,
             buffer_size_frames: 256,
             bit_depth: 32,
-            realtime: false,
+            realtime: true,
             rt_priority: 70,
-            nperiods: 3,
+            nperiods: 2,
         }
     }
 
@@ -58,9 +58,9 @@ mod tests {
         assert_eq!(settings.sample_rate, 48000);
         assert_eq!(settings.buffer_size_frames, 256);
         assert_eq!(settings.bit_depth, 32);
-        assert!(!settings.realtime);
+        assert!(settings.realtime);
         assert_eq!(settings.rt_priority, 70);
-        assert_eq!(settings.nperiods, 3);
+        assert_eq!(settings.nperiods, 2);
     }
 
     #[test]
@@ -146,9 +146,9 @@ mod tests {
 
     #[test]
     fn device_settings_realtime_toggle() {
-        let off = sample();
-        let on = DeviceSettings {
-            realtime: true,
+        let on = sample();
+        let off = DeviceSettings {
+            realtime: false,
             ..sample()
         };
         assert_ne!(off, on);

@@ -164,7 +164,7 @@ fn default_yaml_bit_depth() -> u32 {
 }
 
 fn default_yaml_realtime() -> bool {
-    false
+    true
 }
 
 fn default_yaml_rt_priority() -> u8 {
@@ -172,7 +172,7 @@ fn default_yaml_rt_priority() -> u8 {
 }
 
 fn default_yaml_nperiods() -> u32 {
-    3
+    2
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -2312,9 +2312,9 @@ mode: clean
                     sample_rate: 48000,
                     buffer_size_frames: 256,
                     bit_depth: 32,
-                    realtime: false,
+                    realtime: true,
                     rt_priority: 70,
-                    nperiods: 3,
+                    nperiods: 2,
                 },
             ],
             chains: Vec::new(),

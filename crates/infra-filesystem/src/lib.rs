@@ -237,7 +237,7 @@ fn default_bit_depth() -> u32 {
 }
 
 fn default_realtime() -> bool {
-    false
+    true
 }
 
 fn default_rt_priority() -> u8 {
@@ -245,7 +245,7 @@ fn default_rt_priority() -> u8 {
 }
 
 fn default_nperiods() -> u32 {
-    3
+    2
 }
 
 fn default_true() -> bool {
@@ -431,9 +431,9 @@ mod tests {
             sample_rate: 48_000,
             buffer_size_frames: 256,
             bit_depth: 32,
-            realtime: false,
+            realtime: true,
             rt_priority: 70,
-            nperiods: 3,
+            nperiods: 2,
         }
     }
 
@@ -769,9 +769,9 @@ mod tests {
             sample_rate: 48_000,
             buffer_size_frames: 64,
             bit_depth: 24,
-            realtime: false,
+            realtime: true,
             rt_priority: 70,
-            nperiods: 3,
+            nperiods: 2,
         };
         let yaml = serde_yaml::to_string(&dev).unwrap();
         let restored: GuiAudioDeviceSettings = serde_yaml::from_str(&yaml).unwrap();
@@ -780,10 +780,10 @@ mod tests {
     }
 
     #[test]
-    fn gui_audio_device_settings_defaults_realtime_false() {
+    fn gui_audio_device_settings_defaults_realtime_true() {
         let yaml = "device_id: x\nname: X\n";
         let dev: GuiAudioDeviceSettings = serde_yaml::from_str(yaml).unwrap();
-        assert!(!dev.realtime);
+        assert!(dev.realtime);
     }
 
     #[test]
@@ -794,10 +794,10 @@ mod tests {
     }
 
     #[test]
-    fn gui_audio_device_settings_defaults_nperiods_3() {
+    fn gui_audio_device_settings_defaults_nperiods_2() {
         let yaml = "device_id: x\nname: X\n";
         let dev: GuiAudioDeviceSettings = serde_yaml::from_str(yaml).unwrap();
-        assert_eq!(dev.nperiods, 3);
+        assert_eq!(dev.nperiods, 2);
     }
 
     #[test]
