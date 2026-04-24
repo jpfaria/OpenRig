@@ -852,6 +852,54 @@ mod tests {
         );
     }
 
+    // When adoption needs to terminate a mismatched jackd but terminate
+    // fails (e.g. we can't discover the PID and the socket persists),
+    // ensure_server MUST propagate the terminate error as a Failed state,
+    // not silently fall through to spawn (which would retry and hit its
+    // safety check, masking the real diagnostic).
+    #[test]
+    fn ensure_server_propagates_terminate_failure_on_adoption_mismatch() {
+        let mut sup = make_supervisor();
+        sup.backend.inner.lock().unwrap().running.insert(name());
+        sup.backend.set_default_meta(
+            &name(),
+            JackMeta {
+                sample_rate: 48_000,
+                buffer_size: 128,
+                capture_port_count: 2,
+                playback_port_count: 2,
+                hw_name: "external".into(),
+            },
+        );
+        // Script the terminate of the adopted server to fail.
+        sup.backend.queue_terminate_result(Err("socket persists after kill".into()));
+
+        let desired = JackConfig {
+            buffer_size: 256,
+            ..JackConfig::test_default()
+        };
+        let err = sup
+            .ensure_server(&name(), &desired, &mut noop_hook())
+            .expect_err("terminate failure must surface as an error");
+        assert!(err.to_string().contains("socket persists"));
+
+        // State must be Failed, never Restarting or NotStarted — so the next
+        // ensure_server has a truthful ground-zero to recover from.
+        match sup.state(&name()) {
+            Some(JackServerState::Failed { last_error, .. }) => {
+                assert!(last_error.contains("socket persists"));
+            }
+            other => panic!("expected Failed, got {:?}", other),
+        }
+
+        // No spawn was attempted after the failed terminate — important so
+        // the live backend's spawn safety check doesn't bury the real cause.
+        assert!(
+            !sup.backend.calls().iter().any(|c| matches!(c, MockCall::Spawn(_, _))),
+            "spawn must not run after adoption terminate fails"
+        );
+    }
+
     // Adoption when the socket is present but the server is unresponsive
     // (zombie) must terminate+respawn, never leave the supervisor stuck.
     #[test]

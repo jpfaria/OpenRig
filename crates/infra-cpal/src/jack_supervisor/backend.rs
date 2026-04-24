@@ -89,6 +89,9 @@ pub struct MockBackendInner {
     pub meta_for: std::collections::HashMap<ServerName, JackMeta>,
     /// Queue of spawn outcomes. Pop one per spawn call; if empty, success.
     pub spawn_script: std::collections::VecDeque<std::result::Result<(), String>>,
+    /// Queue of terminate outcomes. Empty ⇒ always succeed. Used to
+    /// exercise the supervisor's failure-propagation paths.
+    pub terminate_script: std::collections::VecDeque<std::result::Result<(), String>>,
     /// Queue of post-ready outcomes per server.
     pub post_ready_script: std::collections::HashMap<ServerName, std::collections::VecDeque<PostReadyStatus>>,
     /// Queue of probe_meta outcomes — if empty we return the default meta.
@@ -109,6 +112,12 @@ impl MockBackend {
     /// makes the spawn fail with that message.
     pub fn queue_spawn_result(&self, result: std::result::Result<(), String>) {
         self.inner.lock().unwrap().spawn_script.push_back(result);
+    }
+
+    /// Queue a terminate outcome. `Err(msg)` simulates a real-world
+    /// termination failure (e.g. jackd we can't discover the PID of).
+    pub fn queue_terminate_result(&self, result: std::result::Result<(), String>) {
+        self.inner.lock().unwrap().terminate_script.push_back(result);
     }
 
     /// Queue a post-ready verdict for a server. The next `post_ready_status`
@@ -174,8 +183,22 @@ impl JackBackend for MockBackend {
     fn terminate(&mut self, name: &ServerName) -> Result<()> {
         let mut inner = self.inner.lock().unwrap();
         inner.calls.push(MockCall::Terminate(name.clone()));
-        inner.running.remove(name);
-        Ok(())
+        // Consume a scripted outcome first so tests can exercise the
+        // error-propagation paths. On Err we keep `running` populated so
+        // the supervisor's follow-up `is_socket_present` still sees the
+        // zombie — matching the real-world case where we couldn't SIGKILL.
+        if let Some(outcome) = inner.terminate_script.pop_front() {
+            match outcome {
+                Ok(()) => {
+                    inner.running.remove(name);
+                    Ok(())
+                }
+                Err(msg) => Err(anyhow::anyhow!(msg)),
+            }
+        } else {
+            inner.running.remove(name);
+            Ok(())
+        }
     }
 
     fn probe_meta(&mut self, name: &ServerName) -> Result<JackMeta> {
