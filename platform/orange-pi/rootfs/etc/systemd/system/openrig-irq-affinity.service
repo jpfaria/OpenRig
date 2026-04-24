@@ -1,5 +1,5 @@
 [Unit]
-Description=Pin xHCI USB IRQs to big A76 core for audio jitter reduction
+Description=Pin xHCI USB IRQs to a little A55 core (keep big cores free for RT audio)
 After=systemd-udev-settle.service
 Before=openrig.service
 
@@ -7,11 +7,17 @@ Before=openrig.service
 Type=oneshot
 RemainAfterExit=yes
 
-# Pin xHCI USB host IRQs to a big A76 core (CPU 4 = mask 0x10) to reduce audio jitter.
+# Pin xHCI USB host IRQs to a single A55 little core (CPU 3 = mask 0x08).
 # RK3588S topology: CPUs 0-3 = A55 (little), CPUs 4-7 = A76 (big).
+#
+# Rationale: the kernel cmdline sets irqaffinity=0-3 (default all IRQs to little
+# cores) plus isolcpus/nohz_full/rcu_nocbs=4-7 (big cores exclusive for RT audio:
+# DSP worker + jackd RT callback). Pinning xHCI to a single specific little core
+# preserves cache locality (one core owns every USB audio interrupt instead of
+# bouncing between cores) while keeping the big cores free of IRQ jitter.
 ExecStart=/bin/sh -c '\
   for irq in $(grep -E "xhci-hcd" /proc/interrupts 2>/dev/null | awk -F: "{print \$1}" | tr -d " "); do \
-    echo 10 > /proc/irq/$irq/smp_affinity 2>/dev/null || true; \
+    echo 8 > /proc/irq/$irq/smp_affinity 2>/dev/null || true; \
   done; true'
 
 [Install]

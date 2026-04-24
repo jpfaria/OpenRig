@@ -570,21 +570,51 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
     // jackd top-level flag: -n <server_name>
     // ALSA backend flags (after -d alsa): -d hw:N -r SR -p BUF -n PERIODS -i CH -o CH
     // Note: -n appears twice — first is jackd server name, second is ALSA nperiods.
-    let mut child = std::process::Command::new("/usr/bin/jackd")
-        .args([
-            "-n", &card.server_name,
-            "-d", "alsa",
-            "-d", &format!("hw:{}", card.card_num),
-            "-r", &sample_rate.to_string(),
-            "-p", &buffer_size.to_string(),
-            "-n", "3",
-            "-i", &capture_ch.to_string(),
-            "-o", &playback_ch.to_string(),
-        ])
-        .env("JACK_NO_AUDIO_RESERVATION", "1")
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(stderr_file)
+    let mut cmd = std::process::Command::new("/usr/bin/jackd");
+    cmd.args([
+        "-n", &card.server_name,
+        "-d", "alsa",
+        "-d", &format!("hw:{}", card.card_num),
+        "-r", &sample_rate.to_string(),
+        "-p", &buffer_size.to_string(),
+        "-n", "3",
+        "-i", &capture_ch.to_string(),
+        "-o", &playback_ch.to_string(),
+    ])
+    .env("JACK_NO_AUDIO_RESERVATION", "1")
+    .stdin(std::process::Stdio::null())
+    .stdout(std::process::Stdio::null())
+    .stderr(stderr_file);
+
+    // Pin jackd to the big cores so its RT callback thread shares a scheduling
+    // domain with the DSP worker (also pinned to big cores). Required when the
+    // kernel cmdline has isolcpus=4-7: without an explicit affinity, the child
+    // inherits the parent's default mask (0-3 on an isolated system), which
+    // puts the JACK RT callback on the little cores and re-introduces the UI-
+    // vs-audio contention isolcpus was meant to eliminate.
+    //
+    // sched_setaffinity is async-signal-safe per POSIX, so calling it from
+    // pre_exec (between fork and exec) is sound.
+    let big_cores = detect_big_cores();
+    if !big_cores.is_empty() {
+        use std::os::unix::process::CommandExt;
+        unsafe {
+            cmd.pre_exec(move || {
+                let mut set: libc::cpu_set_t = std::mem::zeroed();
+                for &cpu in &big_cores {
+                    libc::CPU_SET(cpu, &mut set);
+                }
+                let _ = libc::sched_setaffinity(
+                    0,
+                    std::mem::size_of::<libc::cpu_set_t>(),
+                    &set,
+                );
+                Ok(())
+            });
+        }
+    }
+
+    let mut child = cmd
         .spawn()
         .map_err(|e| anyhow!("failed to launch jackd for '{}': {}", card.server_name, e))?;
 
