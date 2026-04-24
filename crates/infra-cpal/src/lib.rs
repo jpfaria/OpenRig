@@ -595,6 +595,24 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
     );
     jackd_pids().lock().unwrap().insert(card.server_name.clone(), pid);
 
+    // Reap the child when it eventually exits (SIGTERM from stop_jackd_for,
+    // ALSA failure, or user kill). Without this, Command::spawn returned a
+    // `Child` handle that nobody ever calls `.wait()` on, so every jackd
+    // restart leaves a `<defunct>` entry in ps until the parent process
+    // exits — they accumulate across Settings buffer/sample-rate toggles.
+    // The detached thread just blocks on wait() and reaps silently.
+    let server_name_for_reaper = card.server_name.clone();
+    std::thread::Builder::new()
+        .name(format!("jackd-reaper-{}", server_name_for_reaper))
+        .spawn(move || {
+            let result = child.wait();
+            log::debug!(
+                "launch_jackd: reaper for server '{}' PID {} saw exit ({:?})",
+                server_name_for_reaper, pid, result
+            );
+        })
+        .map_err(|e| anyhow!("failed to spawn jackd reaper thread: {}", e))?;
+
     // Wait up to 8 seconds for the server socket to appear, then add a fixed
     // 600ms delay for the shm segments to be fully initialized.
     // The UNIX socket appears before the shm is ready — without this delay,
