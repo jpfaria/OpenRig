@@ -12,9 +12,15 @@ pub mod backend;
 pub mod supervisor;
 pub mod types;
 
+#[cfg(all(target_os = "linux", feature = "jack"))]
+pub mod live_backend;
+
 pub use backend::{JackBackend, MockBackend, PostReadyStatus};
 pub use supervisor::JackSupervisor;
 pub use types::{
     HealthStatus, JackConfig, JackMeta, JackServerState, RestartReason, ServerName,
     SupervisorEvent,
 };
+
+#[cfg(all(target_os = "linux", feature = "jack"))]
+pub use live_backend::LiveJackBackend;
