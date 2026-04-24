@@ -376,18 +376,64 @@ else
     : > /mnt/img/etc/resolv.conf
 fi
 
-echo ">>> Unmounting..."
+echo ">>> Unmounting bind mounts..."
 umount /mnt/img/sys || true
 umount /mnt/img/proc || true
 umount /mnt/img/dev/pts || true
 umount /mnt/img/dev || true
 umount /mnt/img
-# kpartx -d releases the /dev/mapper/loopNp1 and the backing loop device
+
+echo ">>> Shrinking filesystem to minimum + slack..."
+# The +4G headroom needed during apt install is wasted space in the final
+# image. Shrink ext4 to the smallest size that fits current contents, then
+# add 200 MB of slack for first-boot writes (update-initramfs already ran
+# in the chroot, but apt-get auto-cleanup / logs / tmp on the board still
+# need room). Produces a ~2 GB .img instead of 5.6 GB — similar to the
+# original Armbian minimal footprint before any customization.
+e2fsck -f -y "$ROOT_PART" || true
+resize2fs -M "$ROOT_PART"
+# Query the resulting block count + block size
+BLOCK_COUNT=$(dumpe2fs -h "$ROOT_PART" 2>/dev/null | awk -F: "/Block count/ {print \$2}" | tr -d " ")
+BLOCK_SIZE=$(dumpe2fs -h "$ROOT_PART"  2>/dev/null | awk -F: "/Block size/  {print \$2}" | tr -d " ")
+MIN_BYTES=$((BLOCK_COUNT * BLOCK_SIZE))
+SLACK_BYTES=$((200 * 1024 * 1024))
+TARGET_FS_BYTES=$((MIN_BYTES + SLACK_BYTES))
+TARGET_FS_BLOCKS=$((TARGET_FS_BYTES / BLOCK_SIZE))
+echo "  fs_min=$MIN_BYTES bytes -> grow to $TARGET_FS_BYTES bytes ($TARGET_FS_BLOCKS blocks of ${BLOCK_SIZE}B)"
+resize2fs "$ROOT_PART" "$TARGET_FS_BLOCKS"
+
+echo ">>> Releasing kpartx / loop..."
 kpartx -dv "$IMG" || true
 losetup -d "$LOOP" 2>/dev/null || true
 sync
 
-echo ">>> Reclaiming sparseness (fallocate --dig-holes, in-place)..."
+echo ">>> Shrinking partition 1 and truncating image file..."
+# Recreate partition 1 with the new (smaller) end sector, keeping start +
+# type + UUID + name identical so PARTUUID references dont break.
+PART_INFO2=$(sgdisk -i 1 "$IMG")
+START2=$(printf "%s" "$PART_INFO2"     | awk "/First sector/ {print \$3}")
+TYPE_CODE2=$(printf "%s" "$PART_INFO2" | awk "/Partition GUID code/ {print \$4}")
+PART_UUID2=$(printf "%s" "$PART_INFO2" | awk "/Partition unique GUID/ {print \$4}")
+PART_NAME2=$(printf "%s" "$PART_INFO2" | awk -F\" "/Partition name/ {print \$2}")
+# New partition end sector: start + fs_bytes / 512 (round up)
+NEW_PART_SECTORS=$(( (TARGET_FS_BYTES + 511) / 512 ))
+NEW_END_SECTOR=$(( START2 + NEW_PART_SECTORS - 1 ))
+GPT_FOOTER_SECTORS=34
+NEW_IMG_SECTORS=$(( NEW_END_SECTOR + GPT_FOOTER_SECTORS + 1 ))
+NEW_IMG_BYTES=$(( NEW_IMG_SECTORS * 512 ))
+echo "  new_part_end_sector=$NEW_END_SECTOR new_img_bytes=$NEW_IMG_BYTES"
+
+sgdisk -d 1 "$IMG"
+if [ -n "$PART_NAME2" ]; then
+    sgdisk -n "1:${START2}:${NEW_END_SECTOR}" -t "1:${TYPE_CODE2}" -u "1:${PART_UUID2}" -c "1:${PART_NAME2}" "$IMG"
+else
+    sgdisk -n "1:${START2}:${NEW_END_SECTOR}" -t "1:${TYPE_CODE2}" -u "1:${PART_UUID2}" "$IMG"
+fi
+truncate -s "$NEW_IMG_BYTES" "$IMG"
+sgdisk -e "$IMG"
+sync
+
+echo ">>> Reclaiming any remaining sparse blocks (fallocate --dig-holes)..."
 # Random writes during apt install + ext4 journaling through the kpartx
 # device-mapper target go back to the host file via virtiofs and end up
 # allocating blocks all over the image — macOS APFS then reports the file
