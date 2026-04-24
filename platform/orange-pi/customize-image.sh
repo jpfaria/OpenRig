@@ -71,6 +71,10 @@ plymouth-set-default-theme openrig
 # Adding it here causes initramfs-tools to include it (and all modprobe deps) in
 # the initramfs so /dev/dri/card1 is available before plymouthd starts.
 echo 'rockchipdrm' >> /etc/initramfs-tools/modules
+# panthor is the Mali-G610 userspace driver match (Mesa 25+ panthor_dri.so).
+# Without it loaded the GPU is never used and all Mesa clients fall back to
+# llvmpipe software rendering (issue #312).
+echo 'panthor' >> /etc/initramfs-tools/modules
 
 # The default Plymouth initramfs hook does NOT copy the 'script' plugin nor
 # the openrig theme files — it only copies the 'details' fallback. This custom
