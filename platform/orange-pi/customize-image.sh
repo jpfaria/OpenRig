@@ -190,6 +190,17 @@ systemctl enable openrig.service
 systemctl enable openrig-irq-affinity.service
 systemctl enable openrig-resize-rootfs.service
 
+# ── 9b. Kill stale ALSA mixer state ──────────────────────────────────────────
+# alsa-restore.service runs at boot and restores ALSA mixer controls from
+# /var/lib/alsa/asound.state if present. A state file produced during image
+# build or baked into the base rootfs can resurrect attenuated defaults
+# (e.g. Q-26 boots with PCM Playback at 60/100 = -20 dB instead of unity)
+# and overrides the udev rule that sets USB audio PCM to 100% on attach.
+# Wipe the file so the udev rule wins the race; alsa-store on shutdown
+# will repopulate it with whatever the user actually chose at runtime.
+echo ">>> [OpenRig] Removing stale ALSA mixer state to let udev rule win..."
+rm -f /var/lib/alsa/asound.state
+
 # ── 9a. Plymouth quit failsafe ────────────────────────────────────────────────
 echo ">>> [OpenRig] Capping plymouth-quit-wait timeout at 10s..."
 mkdir -p /etc/systemd/system/plymouth-quit-wait.service.d/
