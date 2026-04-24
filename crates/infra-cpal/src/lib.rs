@@ -10,6 +10,12 @@ use cpal::{SupportedBufferSize, SupportedStreamConfigRange};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
+// Phase 1 scaffold for issue #308 — consumed by RuntimeController in Phase 3.
+// Dead-code allow-listed until the call-site migration wires it up.
+#[cfg(feature = "jack")]
+#[allow(dead_code, unused_imports)]
+mod jack_supervisor;
+
 // ── Cached host ─────────────────────────────────────────────────────────────
 // select_host() was called 8+ times per session (each creating a new CPAL
 // host, which on JACK means a new client connection).  Cache it once.
