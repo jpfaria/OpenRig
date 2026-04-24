@@ -567,12 +567,34 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
         .map(std::process::Stdio::from)
         .unwrap_or_else(|_| std::process::Stdio::null());
 
-    // jackd top-level flag: -n <server_name>
-    // ALSA backend flags (after -d alsa): -d hw:N -r SR -p BUF -n PERIODS -i CH -o CH
-    // Note: -n appears twice — first is jackd server name, second is ALSA nperiods.
+    // jackd top-level flags:
+    //   -n <server_name>  named server (lets us run one jackd per USB interface)
+    //   -R                run the server in realtime mode (SCHED_FIFO)
+    //   -P 70             realtime priority (standard for pro-audio; the ALSA
+    //                     driver thread gets a slightly higher prio internally)
+    //
+    // ALSA backend flags (after -d alsa):
+    //   -d hw:N           ALSA device
+    //   -r SR             sample rate
+    //   -p BUF            period size (frames)
+    //   -n 3              periods per buffer (3 = safe default, survives USB
+    //                     jitter on RK3588; dropping to 2 lowers latency but
+    //                     causes Broken pipe on Q26/Orange Pi 5B)
+    //   -i / -o           channel counts
+    //
+    // Note: -n appears twice — first is jackd server name, second is nperiods.
+    //
+    // Realtime is required to keep round-trip latency at the theoretical
+    // floor (period × nperiods × 2 / sr). Without -R, SCHED_OTHER jitter
+    // adds ~5-10 ms on a loaded Pi; issue #294 saw 11 ms wall-clock at
+    // buf=128, which is roughly the -n 3 theoretical bound plus that
+    // jitter. The openrig service runs as root, so we already have the
+    // CAP_SYS_NICE bit needed to enter RT.
     let child = std::process::Command::new("/usr/bin/jackd")
         .args([
             "-n", &card.server_name,
+            "-R",
+            "-P", "70",
             "-d", "alsa",
             "-d", &format!("hw:{}", card.card_num),
             "-r", &sample_rate.to_string(),
