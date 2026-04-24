@@ -28,12 +28,14 @@ Rolled out in 5 phases, one GitHub issue each:
 | Phase | Issue | Scope |
 |-------|-------|-------|
 | 1 | [#295](https://github.com/jpfaria/OpenRig/issues/295) | Internal command bus, `LocalDispatcher`, refactor of all GUI callbacks |
-| 2 | [#296](https://github.com/jpfaria/OpenRig/issues/296) | gRPC transport, `--server` / `--client` modes, `RemoteDispatcher` |
-| 3 | [#297](https://github.com/jpfaria/OpenRig/issues/297) | MIDI/OSC adapter (incl. BLE-MIDI), YAML mapping, daemon |
+| 2 | [#42](https://github.com/jpfaria/OpenRig/issues/42) | gRPC transport, `--server` / `--client` modes, `RemoteDispatcher` |
+| 3 | [#22](https://github.com/jpfaria/OpenRig/issues/22) | MIDI/OSC adapter (incl. BLE-MIDI), YAML mapping, daemon |
 | 4 | [#298](https://github.com/jpfaria/OpenRig/issues/298) | `openrig-cli` over gRPC for scripting and automation |
-| 5 | [#299](https://github.com/jpfaria/OpenRig/issues/299) | MCP server — every `Command` becomes an AI-callable tool |
+| 5 | [#165](https://github.com/jpfaria/OpenRig/issues/165) | MCP server — every `Command` becomes an AI-callable tool |
 
 Phase 1 is the foundation. Phases 2, 3, 5 depend only on Phase 1 and can land in parallel. Phase 4 also depends on Phase 2.
+
+> **Note on issue numbering:** issues #42, #22, and #165 pre-existed this design and already captured the intent for gRPC transport, MIDI control, and MCP server respectively. The issues #296, #297, #299 (created earlier in this design's history) were closed as duplicates and their technical detail merged into the originals.
 
 ---
 
@@ -142,7 +144,7 @@ gRPC server (from clients) ─┤                                              �
 
 ---
 
-## Phase 2 — gRPC Transport (Issue #296)
+## Phase 2 — gRPC Transport (Issue #42)
 
 **Goal:** allow the engine to run headless on one machine and the GUI on another, communicating over gRPC.
 
@@ -183,7 +185,7 @@ gRPC over BLE is **not** in scope. Bluetooth control happens via BLE-MIDI in Pha
 
 ---
 
-## Phase 3 — MIDI/OSC + BLE-MIDI Adapter (Issue #297)
+## Phase 3 — MIDI/OSC + BLE-MIDI Adapter (Issue #22)
 
 **Goal:** physical and wireless controllers (footswitches, expression pedals, iPads, BLE-MIDI devices, OSC apps) drive the same `Command`s the GUI uses.
 
@@ -244,7 +246,7 @@ BLE-MIDI is the standard wireless protocol for music controllers (every modern f
 
 ---
 
-## Phase 5 — MCP Server (Issue #299)
+## Phase 5 — MCP Server (Issue #165)
 
 **Goal:** expose every `Command` as an MCP (Model Context Protocol) tool so any MCP-capable AI client (Claude Desktop, Claude Code, Cursor, custom agents) can drive OpenRig.
 
@@ -348,7 +350,9 @@ All five phases preserve the project's zero-warnings rule.
 ## Cross-references
 
 - Issue #295 — Phase 1, command bus
-- Issue #296 — Phase 2, gRPC transport
-- Issue #297 — Phase 3, MIDI/OSC + BLE-MIDI
+- Issue #42  — Phase 2, gRPC transport
+- Issue #22  — Phase 3, MIDI/OSC + BLE-MIDI
 - Issue #298 — Phase 4, `openrig-cli`
-- Issue #299 — Phase 5, MCP server
+- Issue #165 — Phase 5, MCP server
+- Issue #163 — AI timbre generator (consumes the MCP server from #165)
+- Issue #164 — Audio analysis from reference (consumes the MCP server from #165)
