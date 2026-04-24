@@ -207,6 +207,44 @@ Before making a change, verify:
 ✅ cargo build 2>&1 | grep "^warning"  # → empty output
 ```
 
+### 14. Cargo Clean em `.solvers/` — OBRIGATORIO antes de build
+
+Workspaces em `.solvers/issue-N/` acumulam estado inconsistente no `target/` ao longo de merges, edições em vários crates, troca de branches, ou uso compartilhado com o Docker builder. Sintomas clássicos:
+
+- `error[E0460]: possibly newer version of crate X which Y depends on`
+- `error[E0463]: can't find crate for <crate>`
+- `rustc panicked at rmeta/decoder.rs ... no encoded ident for item` (ICE)
+- Build parece verde mas run-time dispara "fn X not found" em símbolo que existe
+
+**Regra:** antes de rodar QUALQUER build que o usuário vá consumir (teste local, `build-linux-local.sh`, `build-deb-local.sh`, `build-orange-pi-image.sh`), executar `cargo clean` na raiz do workspace `.solvers/issue-N/` primeiro.
+
+**Quando é obrigatório:**
+- [ ] Após `git merge` de qualquer branch (develop, feature irmã, develop→feature)
+- [ ] Após editar struct/enum fields em mais de 1 crate na mesma sessão
+- [ ] Após `#[cfg(...)]` adicionado/removido em qualquer struct público
+- [ ] Antes do PRIMEIRO `build-*local.sh` numa sessão nova (sempre)
+- [ ] Antes de sugerir o comando pro usuário executar na máquina dele
+
+**Anti-pattern:**
+```
+❌ cargo build --workspace   # após 3 merges sem cargo clean
+   // WRONG: cache inconsistente. Pode passar localmente e quebrar no Docker
+   
+❌ Sugerir "./scripts/build-deb-local.sh" sem prefixo de cargo clean
+   // WRONG: quase sempre falha com E0460/E0463 no Docker
+```
+
+**Correct pattern:**
+```
+✅ cd .solvers/issue-N && cargo clean && cargo build --workspace
+✅ cd .solvers/issue-N && cargo clean && ./scripts/build-linux-local.sh --clean ...
+✅ Sugerir pro usuário: "cargo clean && ./scripts/build-deb-local.sh --clean"
+```
+
+O flag `--clean` (ou `--nuke`) do build-linux-local.sh/build-deb-local.sh já cobre a limpeza DENTRO do Docker. Mas cargo clean LOCAL é ainda mais rápido e deve ser reflexo.
+
+**Red flag:** se você rodou `cargo build` e deu verde sem ter feito `cargo clean` após merges ou cfg changes, NÃO confie no resultado. Refaça com clean.
+
 ### 13. Platform Isolation — cfg Guards (técnica Rust)
 
 Premissa geral de isolamento por plataforma (nunca quebrar áudio em outro SO) vive em `CLAUDE.md` → "Prioridades de Produto" e "Premissa de distribuicao". Esta seção cobre apenas a técnica Rust pra aplicar a premissa.
