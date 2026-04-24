@@ -15,7 +15,7 @@
 use anyhow::{anyhow, bail, Result};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
+use std::process::{Command, Stdio};
 use std::sync::Mutex;
 use std::thread::JoinHandle;
 use std::time::Duration;
@@ -325,67 +325,7 @@ impl JackBackend for LiveJackBackend {
     }
 
     fn probe_meta(&mut self, name: &ServerName) -> Result<JackMeta> {
-        let _lock = JACK_DEFAULT_SERVER_LOCK.lock().unwrap();
-        // SAFETY: lock serialises access to the env var.
-        std::env::set_var("JACK_DEFAULT_SERVER", name.as_str());
-
-        let mut last_err: Option<jack::Error> = None;
-        let mut client_and_status = None;
-        for attempt in 0..PROBE_RETRIES {
-            match jack::Client::new("openrig_meta", jack::ClientOptions::NO_START_SERVER) {
-                Ok(cs) => {
-                    client_and_status = Some(cs);
-                    break;
-                }
-                Err(e) => {
-                    if attempt + 1 < PROBE_RETRIES {
-                        log::debug!(
-                            "LiveJackBackend::probe_meta: '{}' attempt {} failed ({:?})",
-                            name,
-                            attempt + 1,
-                            e
-                        );
-                        std::thread::sleep(PROBE_RETRY_DELAY);
-                    }
-                    last_err = Some(e);
-                }
-            }
-        }
-        std::env::remove_var("JACK_DEFAULT_SERVER");
-
-        let (client, _) = client_and_status.ok_or_else(|| {
-            anyhow!(
-                "failed to connect to JACK server '{}': {:?}",
-                name,
-                last_err.expect("at least one attempt")
-            )
-        })?;
-
-        let capture_ports =
-            client.ports(Some("system:capture_"), None, jack::PortFlags::IS_OUTPUT);
-        let playback_ports =
-            client.ports(Some("system:playback_"), None, jack::PortFlags::IS_INPUT);
-        // We cannot reach the USB card's display name from inside the backend
-        // without the proc-cache. The supervisor overwrites `hw_name` with
-        // the caller-provided card name before exposing the meta; here we
-        // just leave a generic placeholder so the contract is honoured.
-        let meta = JackMeta {
-            sample_rate: client.sample_rate() as u32,
-            buffer_size: client.buffer_size(),
-            capture_port_count: capture_ports.len(),
-            playback_port_count: playback_ports.len(),
-            hw_name: format!("JACK/{}", name),
-        };
-        drop(client);
-        log::debug!(
-            "LiveJackBackend::probe_meta: server='{}' sr={} buf={} in={} out={}",
-            name,
-            meta.sample_rate,
-            meta.buffer_size,
-            meta.capture_port_count,
-            meta.playback_port_count
-        );
-        Ok(meta)
+        probe_server_meta(name)
     }
 
     fn is_socket_present(&self, name: &ServerName) -> bool {
@@ -425,6 +365,74 @@ impl JackBackend for LiveJackBackend {
             let _ = std::fs::remove_file(&s.stderr_log);
         }
     }
+}
+
+/// Probe a running named JACK server for its metadata without any caching.
+/// Shared between `LiveJackBackend::probe_meta` (for supervisor transitions)
+/// and free callers like `jack_enumerate_input_devices` that need to query
+/// port counts for device enumeration without instantiating a full
+/// supervisor.
+///
+/// Retries the libjack connection up to [`PROBE_RETRIES`] times — the UNIX
+/// socket appears before the shm segments finish initialising, so the first
+/// `Client::new` immediately after spawn often fails with "Cannot open shm
+/// segment".
+pub(crate) fn probe_server_meta(name: &ServerName) -> Result<JackMeta> {
+    let _lock = JACK_DEFAULT_SERVER_LOCK.lock().unwrap();
+    // SAFETY: lock serialises access to the env var.
+    std::env::set_var("JACK_DEFAULT_SERVER", name.as_str());
+
+    let mut last_err: Option<jack::Error> = None;
+    let mut client_and_status = None;
+    for attempt in 0..PROBE_RETRIES {
+        match jack::Client::new("openrig_meta", jack::ClientOptions::NO_START_SERVER) {
+            Ok(cs) => {
+                client_and_status = Some(cs);
+                break;
+            }
+            Err(e) => {
+                if attempt + 1 < PROBE_RETRIES {
+                    log::debug!(
+                        "probe_server_meta: '{}' attempt {} failed ({:?})",
+                        name,
+                        attempt + 1,
+                        e
+                    );
+                    std::thread::sleep(PROBE_RETRY_DELAY);
+                }
+                last_err = Some(e);
+            }
+        }
+    }
+    std::env::remove_var("JACK_DEFAULT_SERVER");
+
+    let (client, _) = client_and_status.ok_or_else(|| {
+        anyhow!(
+            "failed to connect to JACK server '{}': {:?}",
+            name,
+            last_err.expect("at least one attempt")
+        )
+    })?;
+
+    let capture_ports = client.ports(Some("system:capture_"), None, jack::PortFlags::IS_OUTPUT);
+    let playback_ports = client.ports(Some("system:playback_"), None, jack::PortFlags::IS_INPUT);
+    let meta = JackMeta {
+        sample_rate: client.sample_rate() as u32,
+        buffer_size: client.buffer_size(),
+        capture_port_count: capture_ports.len(),
+        playback_port_count: playback_ports.len(),
+        hw_name: format!("JACK/{}", name),
+    };
+    drop(client);
+    log::debug!(
+        "probe_server_meta: server='{}' sr={} buf={} in={} out={}",
+        name,
+        meta.sample_rate,
+        meta.buffer_size,
+        meta.capture_port_count,
+        meta.playback_port_count
+    );
+    Ok(meta)
 }
 
 #[cfg(test)]

@@ -15,12 +15,13 @@ pub mod types;
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub mod live_backend;
 
-pub use backend::{JackBackend, MockBackend, PostReadyStatus};
+// Re-exports used by `crate::ProjectRuntimeController`. Internal types
+// (`JackBackend`, `MockBackend`, `PostReadyStatus`, `RestartReason`,
+// `SupervisorEvent`, `JackMeta`) stay reachable via their defining submodules
+// so they only count as "used" when someone actually imports them — keeps the
+// warning surface minimal on non-Linux builds.
 pub use supervisor::JackSupervisor;
-pub use types::{
-    HealthStatus, JackConfig, JackMeta, JackServerState, RestartReason, ServerName,
-    SupervisorEvent,
-};
+pub use types::{HealthStatus, JackConfig, JackServerState, ServerName};
 
 #[cfg(all(target_os = "linux", feature = "jack"))]
 pub use live_backend::LiveJackBackend;

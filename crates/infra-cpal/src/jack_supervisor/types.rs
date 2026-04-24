@@ -6,6 +6,13 @@
 //! describe is the one we test against, and the live JACK backend is simply
 //! one of its implementations. The supervisor code in `supervisor.rs` owns all
 //! the control logic; the types here only describe facts.
+//!
+//! Fields and methods that are part of the testable / observable surface but
+//! not yet read by a production consumer are `dead_code`-allowed at the file
+//! level; Rust's dead-code analysis doesn't count usage through the `Debug`
+//! derive (logs) or through pattern-match destructuring in tests.
+
+#![allow(dead_code)]
 
 use std::fmt;
 use std::time::Instant;
@@ -144,7 +151,12 @@ impl JackServerState {
 
 /// Why a server transitioned from `Ready` back into `Restarting`. Emitted as a
 /// `SupervisorEvent::RestartRequested` so the UI layer can explain the gap.
+///
+/// `dead_code` is allow-listed because several variants are observable API
+/// surface used by the event stream (subscribed by the UI in a later
+/// milestone) rather than constructed/read in the current code path.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum RestartReason {
     /// The user (or another change in project state) picked a different
     /// sample rate or buffer size.
@@ -169,7 +181,12 @@ pub enum RestartReason {
 /// Observable event emitted on every state transition. Consumers (UI, logging)
 /// subscribe via `JackSupervisor::events()` which hands out a new `mpsc`
 /// receiver per caller.
+///
+/// `dead_code` is allow-listed: every field is part of the event API that
+/// downstream UI/log consumers pattern-match on, even when no code in the
+/// current revision reads them directly.
 #[derive(Clone, Debug)]
+#[allow(dead_code)]
 pub enum SupervisorEvent {
     ServerSpawning {
         name: ServerName,

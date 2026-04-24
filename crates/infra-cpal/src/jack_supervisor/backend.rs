@@ -5,6 +5,13 @@
 //!
 //! The real backend lives in `live_backend.rs` (phase 2). All logic about
 //! transitions, ordering, retries and event emission stays in the supervisor.
+//!
+//! `dead_code` is allowed at the file level because `MockBackend` +
+//! `MockCall` only have consumers in `#[cfg(test)]`; on a production Linux
+//! release build the trait is only observed through its concrete
+//! `LiveJackBackend` implementation, which uses concrete dispatch.
+
+#![allow(dead_code)]
 
 use anyhow::Result;
 use std::sync::{Arc, Mutex};

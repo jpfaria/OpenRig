@@ -5,6 +5,12 @@
 //! deterministic exercises of the transitions. In production the
 //! `LiveJackBackend` performs real `jackd` spawns and libjack probes.
 //!
+//! `dead_code` is allowed at the file level — `register_client`,
+//! `unregister_client`, `events` and related APIs are part of the observable
+//! surface tested via MockBackend but not yet consumed by a production path.
+
+#![allow(dead_code)]
+//!
 //! Invariants the supervisor enforces (none of these can be bypassed by the
 //! backend or the caller):
 //!
