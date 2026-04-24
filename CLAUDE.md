@@ -224,7 +224,7 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 - **Delay**: time_ms (1-2000ms), feedback (0-100%), mix (0-100%)
 - **Reverb**: room_size, damping, mix (0-100%)
 - **Compressor**: threshold, ratio, attack_ms, release_ms, makeup_gain, mix
-- **Gate**: threshold, attack_ms, release_ms
+- **Gate** (`gate_basic`): threshold (%, -96 a 0 dB), attack_ms (0.1-100), release_ms (1-500), **hold_ms** (0-2000, default 150 — quanto tempo a gate fica aberta após o sinal cair abaixo do threshold de fechamento; evita cortar decay de nota), **hysteresis_db** (0-20, default 6 — diferença entre threshold de abrir e fechar; evita chattering na zona limite)
 - **EQ (Three Band / Guitar EQ)**: low, mid, high (0-100% → -24dB a +24dB)
 - **8-Band Parametric EQ** (`eq_eight_band_parametric`): por banda — `band{N}_enabled` (bool), `band{N}_type` (peak/low_shelf/high_shelf/low_pass/high_pass/notch), `band{N}_freq` (20–20000 Hz), `band{N}_gain` (-24/+24 dB), `band{N}_q` (0.1–10). Freqs padrão: 62/125/250/500/1k/2k/4k/8kHz. Suporta todos os instrumentos. DualMono.
 - **Gain pedals**: drive, tone, level
