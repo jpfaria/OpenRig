@@ -570,7 +570,7 @@ fn launch_jackd(card: &UsbAudioCard, sample_rate: u32, buffer_size: u32) -> Resu
     // jackd top-level flag: -n <server_name>
     // ALSA backend flags (after -d alsa): -d hw:N -r SR -p BUF -n PERIODS -i CH -o CH
     // Note: -n appears twice — first is jackd server name, second is ALSA nperiods.
-    let child = std::process::Command::new("/usr/bin/jackd")
+    let mut child = std::process::Command::new("/usr/bin/jackd")
         .args([
             "-n", &card.server_name,
             "-d", "alsa",
