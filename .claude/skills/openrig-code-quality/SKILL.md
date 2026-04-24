@@ -209,33 +209,6 @@ Before making a change, verify:
    // RIGHT: docs always reflect current state
 ```
 
-### 12b. Issue is the Audit Log — Comment at Every Milestone (OBRIGATORIO)
-
-A issue do GitHub é o log de auditoria do trabalho. Commits mostram o "o quê"; decisões intermediárias, conflitos resolvidos, mudanças de rumo e problemas encontrados ficam perdidos na conversa se não forem registrados na issue. Comentar (`gh issue comment <N>`) em TODOS os momentos abaixo — não só no início e no fim:
-
-- [ ] **Antes de começar** — postar o plano: o que pretende mudar, por quê, arquivos prováveis, premissas
-- [ ] **A cada push** — commit hash(es), arquivos alterados naquele push, decisões pontuais, resultado de build/teste local
-- [ ] **A cada mudança de plano** — se o escopo ou a abordagem mudar no meio do trabalho (nova premissa descoberta, refactor de outra issue afeta o caminho, merge trouxe conflito estrutural, benchmark inesperado), comentar o porquê da mudança ANTES de executar o novo caminho
-- [ ] **A cada problema encontrado** — erro de build que exigiu investigação, teste que falhou e foi corrigido, workaround aplicado, hipótese descartada — tudo documentado com evidência mínima (mensagem de erro, comando que reproduz, como foi resolvido)
-- [ ] **Merges em feature branches** — quando mergear outra feature/develop na branch da issue, comentar: o que foi trazido, quais conflitos surgiram, como foram resolvidos, quais partes precisaram reaplicação manual
-- [ ] **Validação em hardware** — quando o usuário testar na placa ou reportar resultado, registrar o resultado (cliques desapareceram? latência caiu? xrun zero por N minutos?) na issue
-- [ ] **Após terminar** — resumo final: arquivos alterados, decisões tomadas, checklists marcados, comandos de validação pro usuário
-
-**Anti-Pattern:**
-```
-❌ Commit → push → só comenta no final "feito, PR aberto"
-   // WRONG: conflitos, workarounds e mudanças de rumo ficam invisíveis
-
-❌ "Deixa eu resolver esse bug antes de comentar"
-   // WRONG: problemas sem registro = decisões irreproduzíveis
-
-✅ Toda etapa visível na issue em ordem cronológica:
-   plano → push 1 → problema X → push 2 → merge → push 3 → validação → resumo final
-   // RIGHT: seis meses depois, alguém lê a issue e entende cada decisão
-```
-
-**Regra prática:** depois de todo `git push` numa branch de issue, o próximo comando DEVE ser `gh issue comment <N>` com o resumo daquele push. Nunca pular, mesmo em push pequeno de correção — se o push valeu um commit, vale um comentário.
-
 ### 13. Test Coverage (OBRIGATORIO)
 
 - [ ] **Toda feature/bugfix DEVE ter testes** — sem exceção
