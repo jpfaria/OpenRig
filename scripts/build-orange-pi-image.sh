@@ -192,19 +192,37 @@ IMG=/work/"$OUTPUT_IMG_BASENAME"
 
 echo ">>> Installing host tools in orchestrator container..."
 apt-get update -qq
-apt-get install -y --no-install-recommends util-linux parted e2fsprogs >/dev/null 2>&1
+apt-get install -y --no-install-recommends util-linux parted e2fsprogs gdisk >/dev/null 2>&1
 
-echo ">>> Resizing partition to fill appended space..."
-parted -s "$IMG" "resizepart 1 100%" || true
+echo ">>> Fixing GPT backup header after truncate..."
+# truncate +2G leaves the GPT backup header at the original (now middle) offset.
+# sgdisk -e moves it to the real end of the device so parted/losetup can
+# actually use the extra space. Without this, resizepart fails with
+# "Unable to satisfy all constraints" and losetup --partscan ends up
+# creating only the whole-disk loop node, not ${LOOP}p1.
+sgdisk -e "$IMG"
+
+echo ">>> Resizing partition 1 to fill the image..."
+parted -s "$IMG" "resizepart 1 100%"
 
 echo ">>> Loop-mounting image..."
 LOOP=$(losetup --find --show --partscan "$IMG")
 echo "  Loop device: $LOOP"
-sleep 1
-partprobe "$LOOP" || true
 
+# Wait for ${LOOP}p1 to appear. Inside a stripped container there is no
+# udev daemon to create the node synchronously, so we poll.
 ROOT_PART="${LOOP}p1"
-[ -e "$ROOT_PART" ] || ROOT_PART="$LOOP"
+for i in 1 2 3 4 5 6 7 8 9 10; do
+    [ -e "$ROOT_PART" ] && break
+    sleep 1
+    partprobe "$LOOP" 2>/dev/null || true
+done
+
+if [ ! -e "$ROOT_PART" ]; then
+    echo "ERROR: $ROOT_PART did not appear after partprobe."
+    ls -la "${LOOP}"* || true
+    exit 1
+fi
 echo "  Root partition: $ROOT_PART"
 
 echo ">>> Growing filesystem..."
