@@ -165,6 +165,40 @@ impl LiveJackBackend {
             .map(|o| o.status.success())
             .unwrap_or(false)
     }
+
+    /// Discover the PID of a jackd server we didn't spawn ourselves by
+    /// scanning `/proc/<pid>/cmdline` for the `-n <server_name>` flag. Used
+    /// by `terminate` on the adoption-of-zombie path — without this we'd be
+    /// unable to SIGTERM an externally-launched jackd and the supervisor
+    /// would get stuck in a "socket present, can't spawn" loop.
+    ///
+    /// Returns None if nothing matches (e.g. jackd died between the socket
+    /// check and this scan, or the cmdline uses a different argv format).
+    fn discover_pid_for_server(name: &ServerName) -> Option<u32> {
+        let target_flag = format!("-n\0{}", name.as_str());
+        let entries = std::fs::read_dir("/proc").ok()?;
+        for entry in entries.filter_map(|e| e.ok()) {
+            let fname = entry.file_name();
+            let s = fname.to_string_lossy();
+            if !s.chars().all(|c| c.is_ascii_digit()) {
+                continue;
+            }
+            let Ok(pid) = s.parse::<u32>() else { continue };
+            let cmdline_path = entry.path().join("cmdline");
+            let Ok(cmdline) = std::fs::read(&cmdline_path) else { continue };
+            let cmdline_str = String::from_utf8_lossy(&cmdline);
+            // /proc/<pid>/cmdline separates args with NUL bytes.
+            let is_jackd = cmdline_str.starts_with("jackd\0")
+                || cmdline_str.starts_with("/usr/bin/jackd\0");
+            if !is_jackd {
+                continue;
+            }
+            if cmdline_str.contains(&target_flag) {
+                return Some(pid);
+            }
+        }
+        None
+    }
 }
 
 impl JackBackend for LiveJackBackend {
@@ -180,6 +214,20 @@ impl JackBackend for LiveJackBackend {
             config.capture_channels,
             config.playback_channels
         );
+
+        // Defense-in-depth: the supervisor is responsible for adopting or
+        // terminating a running jackd before asking the backend to spawn.
+        // Refuse to proceed if a socket is still present — otherwise our
+        // `cleanup_stale_dev_shm` below would delete a live server's UNIX
+        // socket + semaphores, orphaning it and causing the subsequent spawn
+        // to fail with ALSA "device already in use".
+        if Self::socket_is_present(name) {
+            bail!(
+                "LiveJackBackend::spawn refused: a jackd socket for '{}' is still present. \
+                 The supervisor must adopt or terminate the running server before spawning.",
+                name
+            );
+        }
 
         // Remove any lingering sockets/semaphores from a prior jackd for
         // this server — stale semaphores are a common cause of "Broken pipe"
@@ -290,7 +338,25 @@ impl JackBackend for LiveJackBackend {
 
     fn terminate(&mut self, name: &ServerName) -> Result<()> {
         log::info!("LiveJackBackend::terminate: server='{}'", name);
-        let pid = self.servers.get(name).map(|s| s.pid);
+        // Discover the PID via /proc when we didn't spawn the server
+        // ourselves (adoption path). A tracked PID always wins — we captured
+        // it at spawn time and may have metadata that /proc can't recover.
+        let pid = self.servers.get(name).map(|s| s.pid).or_else(|| {
+            let discovered = Self::discover_pid_for_server(name);
+            if let Some(p) = discovered {
+                log::info!(
+                    "LiveJackBackend::terminate: discovered pid {} via /proc scan for '{}'",
+                    p,
+                    name
+                );
+            } else {
+                log::warn!(
+                    "LiveJackBackend::terminate: no tracked pid and /proc scan found nothing for '{}'",
+                    name
+                );
+            }
+            discovered
+        });
         match pid {
             Some(pid) => {
                 log::info!("LiveJackBackend::terminate: SIGTERM pid {} server='{}'", pid, name);
@@ -298,7 +364,7 @@ impl JackBackend for LiveJackBackend {
             }
             None => {
                 log::warn!(
-                    "LiveJackBackend::terminate: no tracked pid for '{}' — best-effort wait",
+                    "LiveJackBackend::terminate: no pid available for '{}' — best-effort wait",
                     name
                 );
             }
@@ -319,8 +385,18 @@ impl JackBackend for LiveJackBackend {
                 pid
             );
             Self::send_signal(pid, "-KILL");
+            std::thread::sleep(Duration::from_millis(200));
         }
-        std::thread::sleep(Duration::from_millis(200));
+
+        // After SIGKILL the kernel leaves any shm segments the process had
+        // open hanging around (unlike AF_UNIX sockets). Clean them up so the
+        // next `spawn` doesn't trip its own safety check on a zombie socket.
+        if Self::socket_is_present(name) {
+            log::warn!(
+                "LiveJackBackend::terminate: socket still present after kill — removing stale files"
+            );
+            Self::cleanup_stale_dev_shm(name);
+        }
         Ok(())
     }
 

@@ -119,6 +119,92 @@ impl<B: JackBackend> JackSupervisor<B> {
                 .insert(name.clone(), JackServer::new(name.clone()));
         }
 
+        // Adoption path: when the supervisor state is NotStarted but a jackd
+        // socket is already present for `name`, an externally-launched server
+        // is running (e.g. start_jack_in_background at boot, or a previous
+        // openrig controller that was recreated by the GUI). Probe the
+        // running server: if the config matches `desired`, adopt it without
+        // spawning; if not, terminate it cleanly (and let the spawn loop
+        // relaunch under our supervision).
+        //
+        // Skipping this step is what caused the issue #308 hardware
+        // regression "toggle chain off+on makes audio stop": the GUI
+        // recreates the controller, the new supervisor had NotStarted state,
+        // `spawn` cleaned up /dev/shm/jack_*_0 sockets (thinking they were
+        // stale) and hosed the still-running jackd, and the retry failed
+        // with "device already in use (jackd PID N)".
+        if matches!(
+            self.servers.get(name).map(|s| &s.state),
+            Some(JackServerState::NotStarted)
+        ) && self.backend.is_socket_present(name)
+        {
+            log::info!(
+                "supervisor::ensure_server: adopting running jackd for '{}'",
+                name
+            );
+            match self.backend.probe_meta(name) {
+                Ok(meta) => {
+                    if meta.sample_rate == desired.sample_rate
+                        && meta.buffer_size == desired.buffer_size
+                    {
+                        self.set_state(
+                            name,
+                            JackServerState::Ready {
+                                meta: meta.clone(),
+                                launched_config: desired.clone(),
+                                ready_at: Instant::now(),
+                            },
+                        );
+                        if let Some(s) = self.servers.get_mut(name) {
+                            s.last_health = Some(HealthStatus::Healthy);
+                        }
+                        self.emit(SupervisorEvent::ServerReady {
+                            name: name.clone(),
+                            meta: meta.clone(),
+                        });
+                        return Ok(meta);
+                    }
+                    log::info!(
+                        "supervisor::ensure_server: adopted jackd config mismatch for '{}' (sr={} buf={} → sr={} buf={}), restarting",
+                        name,
+                        meta.sample_rate,
+                        meta.buffer_size,
+                        desired.sample_rate,
+                        desired.buffer_size
+                    );
+                    let reason = RestartReason::ConfigMismatch {
+                        old: JackConfig {
+                            sample_rate: meta.sample_rate,
+                            buffer_size: meta.buffer_size,
+                            ..desired.clone()
+                        },
+                        new: desired.clone(),
+                    };
+                    // Terminate the running jackd — no teardown hook, we
+                    // didn't register this server and no client is ours.
+                    self.emit(SupervisorEvent::RestartRequested {
+                        name: name.clone(),
+                        reason,
+                    });
+                    let _ = self.backend.terminate(name);
+                    self.backend.forget(name);
+                }
+                Err(e) => {
+                    log::warn!(
+                        "supervisor::ensure_server: socket present but probe failed for '{}' ({}), killing zombie",
+                        name,
+                        e
+                    );
+                    self.emit(SupervisorEvent::RestartRequested {
+                        name: name.clone(),
+                        reason: RestartReason::Zombie,
+                    });
+                    let _ = self.backend.terminate(name);
+                    self.backend.forget(name);
+                }
+            }
+        }
+
         let needs_restart = matches!(
             self.servers.get(name).map(|s| &s.state),
             Some(JackServerState::Ready { launched_config, .. })
@@ -537,6 +623,109 @@ mod tests {
         let before = sup.backend.call_count();
         sup.ensure_server(&name(), &config, &mut noop_hook()).unwrap();
         assert_eq!(sup.backend.call_count(), before, "no extra backend calls");
+    }
+
+    // When the supervisor state is NotStarted but a jackd socket is already
+    // present (externally launched — e.g. start_jack_in_background at boot,
+    // or a previous controller whose handle was dropped without terminating
+    // jackd), ensure_server must ADOPT the running server, not try to spawn
+    // a new one. This is the fix for the issue #308 hardware regression
+    // where toggling a chain off+on recreated the controller, the new
+    // supervisor didn't know about the running jackd, and spawn tried to
+    // nuke /dev/shm/jack_* sockets as "stale".
+    #[test]
+    fn ensure_server_adopts_running_jackd_with_matching_config() {
+        let mut sup = make_supervisor();
+        let config = JackConfig::test_default();
+        // Simulate an externally-launched jackd by seeding the mock
+        // backend's running set + meta, without calling supervisor.ensure.
+        sup.backend.inner.lock().unwrap().running.insert(name());
+        sup.backend.set_default_meta(
+            &name(),
+            JackMeta {
+                sample_rate: config.sample_rate,
+                buffer_size: config.buffer_size,
+                capture_port_count: 2,
+                playback_port_count: 2,
+                hw_name: "external".into(),
+            },
+        );
+
+        let meta = sup.ensure_server(&name(), &config, &mut noop_hook()).unwrap();
+        assert_eq!(meta.sample_rate, config.sample_rate);
+
+        // Adoption must NOT have triggered a spawn — the backend should have
+        // seen probe_meta (the adoption check) but no Spawn call.
+        let calls = sup.backend.calls();
+        assert!(
+            calls.iter().any(|c| matches!(c, MockCall::ProbeMeta(_))),
+            "adoption must probe the running server"
+        );
+        assert!(
+            !calls.iter().any(|c| matches!(c, MockCall::Spawn(_, _))),
+            "adoption must not spawn a new jackd"
+        );
+        assert!(
+            !calls.iter().any(|c| matches!(c, MockCall::Terminate(_))),
+            "adoption with matching config must not terminate"
+        );
+        assert!(sup.state(&name()).unwrap().is_ready());
+    }
+
+    // Adoption with mismatched config must cleanly terminate the running
+    // jackd and then spawn a fresh one under supervision.
+    #[test]
+    fn ensure_server_adopts_and_restarts_on_config_mismatch() {
+        let mut sup = make_supervisor();
+        sup.backend.inner.lock().unwrap().running.insert(name());
+        // External jackd running at buf=128; we want buf=256.
+        sup.backend.set_default_meta(
+            &name(),
+            JackMeta {
+                sample_rate: 48_000,
+                buffer_size: 128,
+                capture_port_count: 2,
+                playback_port_count: 2,
+                hw_name: "external".into(),
+            },
+        );
+
+        let desired = JackConfig {
+            buffer_size: 256,
+            ..JackConfig::test_default()
+        };
+        let meta = sup.ensure_server(&name(), &desired, &mut noop_hook()).unwrap();
+        assert_eq!(meta.buffer_size, 256);
+
+        let calls = sup.backend.calls();
+        let terminate_idx = calls
+            .iter()
+            .position(|c| matches!(c, MockCall::Terminate(_)))
+            .expect("adoption mismatch must terminate");
+        let spawn_idx = calls
+            .iter()
+            .position(|c| matches!(c, MockCall::Spawn(_, _)))
+            .expect("adoption mismatch must spawn after terminate");
+        assert!(terminate_idx < spawn_idx, "terminate must precede spawn");
+    }
+
+    // Adoption when the socket is present but the server is unresponsive
+    // (zombie) must terminate+respawn, never leave the supervisor stuck.
+    #[test]
+    fn ensure_server_adopts_zombie_by_terminating_and_respawning() {
+        let mut sup = make_supervisor();
+        sup.backend.inner.lock().unwrap().running.insert(name());
+        // Script the first probe (the adoption probe) to fail.
+        sup.backend.queue_probe_result(&name(), Err("zombie unresponsive".into()));
+
+        let meta = sup
+            .ensure_server(&name(), &JackConfig::test_default(), &mut noop_hook())
+            .expect("supervisor must recover from a zombie adoption");
+        assert_eq!(meta.sample_rate, 48_000);
+
+        let calls = sup.backend.calls();
+        assert!(calls.iter().any(|c| matches!(c, MockCall::Terminate(_))));
+        assert!(calls.iter().any(|c| matches!(c, MockCall::Spawn(_, _))));
     }
 
     // When desired config changes and clients are registered, the pre-kill
