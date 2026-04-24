@@ -147,6 +147,14 @@ impl<B: JackBackend> JackSupervisor<B> {
                     if meta.sample_rate == desired.sample_rate
                         && meta.buffer_size == desired.buffer_size
                     {
+                        log::info!(
+                            "supervisor::ensure_server: adopted '{}' (sr={} buf={} in={} out={}) — no spawn needed",
+                            name,
+                            meta.sample_rate,
+                            meta.buffer_size,
+                            meta.capture_port_count,
+                            meta.playback_port_count
+                        );
                         self.set_state(
                             name,
                             JackServerState::Ready {
