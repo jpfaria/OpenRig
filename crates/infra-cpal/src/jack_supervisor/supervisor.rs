@@ -399,10 +399,14 @@ impl<B: JackBackend> JackSupervisor<B> {
         }
     }
 
-    /// Non-destructive check. Uses cheap fs + cached-meta probing; backends
-    /// may still do a libjack client open if their socket check is thin.
-    /// Result is recorded on the server so the next `ensure_server` can act
-    /// on it (e.g. trigger a restart when verdict is `Zombie`).
+    /// Non-destructive check. Uses ONLY the cheap filesystem-level
+    /// `is_socket_present` probe — opening a real libjack client on every
+    /// health tick was observed to interfere with audio on fragile USB audio
+    /// stacks (Rockchip xHCI), which is the exact pathology the supervisor
+    /// exists to avoid. A missing socket flips state to `NotRunning`; a
+    /// present socket is treated as `Healthy` optimistically. Zombie
+    /// detection happens implicitly on the next `ensure_server` retry when
+    /// a new client fails to connect.
     pub fn health_check(&mut self) -> HashMap<ServerName, HealthStatus> {
         let mut out = HashMap::new();
         let names: Vec<ServerName> = self.servers.keys().cloned().collect();
@@ -426,11 +430,9 @@ impl<B: JackBackend> JackSupervisor<B> {
             }
             Some(JackServerState::Ready { .. }) => {
                 if !self.backend.is_socket_present(name) {
-                    return HealthStatus::NotRunning;
-                }
-                match self.backend.probe_meta(name) {
-                    Ok(_) => HealthStatus::Healthy,
-                    Err(_) => HealthStatus::Zombie,
+                    HealthStatus::NotRunning
+                } else {
+                    HealthStatus::Healthy
                 }
             }
         }
@@ -698,20 +700,49 @@ mod tests {
         assert_eq!(meta.sample_rate, 48_000);
     }
 
-    // Health check on a Ready server whose probe fails classifies the server
-    // as Zombie. Next ensure_server does NOT automatically restart (that
-    // policy is owned by the caller), but meta() still returns the cached
-    // value because we haven't changed state.
+    // Health check on a Ready server whose socket has vanished (simulated
+    // by the mock backend clearing `running`) transitions the verdict to
+    // NotRunning. The supervisor intentionally avoids opening a libjack
+    // client on every tick — the next ensure_server retry is what diagnoses
+    // a zombie, not the health check.
     #[test]
-    fn health_check_classifies_unresponsive_server_as_zombie() {
+    fn health_check_reports_not_running_when_socket_vanishes() {
         let mut sup = make_supervisor();
         sup.ensure_server(&name(), &JackConfig::test_default(), &mut noop_hook())
             .unwrap();
-        sup.backend
-            .queue_probe_result(&name(), Err("probe failure".into()));
+        // Simulate the jackd socket disappearing (e.g. USB disconnect).
+        sup.backend.inner.lock().unwrap().running.remove(&name());
 
         let verdicts = sup.health_check();
-        assert_eq!(verdicts.get(&name()), Some(&HealthStatus::Zombie));
+        assert_eq!(verdicts.get(&name()), Some(&HealthStatus::NotRunning));
+    }
+
+    // Health check is pure filesystem introspection — it must not open any
+    // libjack client. The old implementation did a `probe_meta` per tick,
+    // which destabilised USB audio stacks on RK3588 and was the proximate
+    // cause of the test-3 audio-stop regression during issue #308 hardware
+    // validation.
+    #[test]
+    fn health_check_does_not_call_probe_meta() {
+        let mut sup = make_supervisor();
+        sup.ensure_server(&name(), &JackConfig::test_default(), &mut noop_hook())
+            .unwrap();
+        let probes_before = sup
+            .backend
+            .calls()
+            .iter()
+            .filter(|c| matches!(c, MockCall::ProbeMeta(_)))
+            .count();
+        let _ = sup.health_check();
+        let _ = sup.health_check();
+        let _ = sup.health_check();
+        let probes_after = sup
+            .backend
+            .calls()
+            .iter()
+            .filter(|c| matches!(c, MockCall::ProbeMeta(_)))
+            .count();
+        assert_eq!(probes_before, probes_after, "health_check must not probe_meta");
     }
 
     // Health check on a server that was never started returns NotRunning.
