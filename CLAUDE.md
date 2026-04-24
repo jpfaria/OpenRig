@@ -193,12 +193,19 @@ Ver `CONTRIBUTING.md` para detalhes completos.
 
 ### Rastreabilidade — comentarios obrigatorios na issue (OBRIGATORIO)
 
-Todo agent (local ou GitHub) DEVE comentar na issue em dois momentos:
+A issue do GitHub e o log de auditoria do trabalho. Commits mostram o "o que"; decisoes intermediarias, conflitos, mudancas de rumo e problemas ficam perdidos se nao forem registrados. Todo agent (local ou GitHub) DEVE comentar na issue em TODOS os momentos abaixo — nao so no comeco e no fim:
 
-1. **Antes de comecar** — postar um comentario com o plano: o que pretende mudar e por que
-2. **Apos terminar** — postar um comentario com o que foi feito: arquivos alterados, decisoes tomadas, qualquer informacao relevante para rastreio futuro
+1. **Antes de comecar** — plano: o que pretende mudar, por que, arquivos provaveis, premissas
+2. **A cada push** — commit hash(es), arquivos alterados, decisoes pontuais, resultado de build/teste local
+3. **A cada mudanca de plano** — se o escopo ou a abordagem mudar (nova premissa, conflito de merge, refactor de outra issue), comentar o porque ANTES de executar o novo caminho
+4. **A cada problema encontrado** — erro de build, teste que falhou, workaround aplicado, hipotese descartada — com evidencia minima (mensagem de erro, comando que reproduz, como foi resolvido)
+5. **Merges em feature branches** — o que foi trazido, quais conflitos surgiram, como foram resolvidos, quais partes precisaram reaplicacao manual
+6. **Validacao em hardware** — quando o usuario testar na placa, registrar o resultado (cliques sumiram? latencia caiu? xrun zero por N minutos?)
+7. **Apos terminar** — resumo final: arquivos alterados, decisoes tomadas, checklists marcados, comandos de validacao pro usuario
 
-A issue e a fonte da verdade para todas as alteracoes de codigo. Sem esse rastreio, o historico de decisoes se perde.
+**Regra pratica:** depois de todo `git push` numa branch de issue, o proximo comando DEVE ser `gh issue comment <N>` com o resumo daquele push. Nunca pular, mesmo em push pequeno de correcao — se o push valeu um commit, vale um comentario.
+
+Sem esse rastreio, o historico de decisoes se perde e seis meses depois ninguem consegue reconstruir por que uma escolha foi feita.
 
 ### Premissa de distribuicao (OBRIGATORIO)
 
