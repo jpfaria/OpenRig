@@ -193,12 +193,30 @@ Ver `CONTRIBUTING.md` para detalhes completos.
 
 ### Rastreabilidade — comentarios obrigatorios na issue (OBRIGATORIO)
 
-Todo agent (local ou GitHub) DEVE comentar na issue em dois momentos:
+A issue do GitHub e o log de auditoria do trabalho. Commits mostram o "o que"; decisoes intermediarias, conflitos, mudancas de rumo, problemas encontrados, hipoteses descartadas, analises feitas, respostas dadas a perguntas tecnicas — tudo fica perdido se nao for registrado na issue.
 
-1. **Antes de comecar** — postar um comentario com o plano: o que pretende mudar e por que
-2. **Apos terminar** — postar um comentario com o que foi feito: arquivos alterados, decisoes tomadas, qualquer informacao relevante para rastreio futuro
+**Regra geral (sem excecoes):** toda vez que a conversa produz informacao util pra rastrear o trabalho depois, comentar na issue. NAO esperar o usuario pedir. NAO esperar o fim do trabalho. NAO julgar se \"vale a pena\" — se a informacao foi produzida no contexto da issue, ela e parte do log.
 
-A issue e a fonte da verdade para todas as alteracoes de codigo. Sem esse rastreio, o historico de decisoes se perde.
+**Momentos obrigatorios de comentario:**
+
+1. **Antes de comecar** — plano: o que pretende mudar, por que, arquivos provaveis, premissas
+2. **A cada push** — commit hash(es), arquivos alterados, decisoes pontuais, resultado de build/teste local
+3. **A cada mudanca de plano** — se o escopo ou a abordagem mudar (nova premissa, conflito de merge, refactor de outra issue), comentar o porque ANTES de executar o novo caminho
+4. **A cada problema encontrado** — erro de build, teste que falhou, workaround aplicado, hipotese descartada — com evidencia minima (mensagem de erro, comando que reproduz, como foi resolvido)
+5. **A cada analise tecnica** — perf, diagnostico, leitura de logs, investigacao de codigo, interpretacao de telemetria — os achados vao na issue mesmo que sejam intermediarios e nao virem commit. Se voce analisou, a issue registra a analise.
+6. **A cada resposta tecnica relevante** — quando o usuario pergunta algo tecnico sobre a issue (\"precisa reiniciar?\", \"afeta macOS?\", \"qual o impacto?\") e voce responde, registrar a resposta na issue. Perguntas tecnicas sao parte do raciocinio do trabalho.
+7. **Merges em feature branches** — o que foi trazido, quais conflitos surgiram, como foram resolvidos, quais partes precisaram reaplicacao manual
+8. **Validacao em hardware** — quando o usuario testar na placa, registrar o resultado (cliques sumiram? latencia caiu? xrun zero por N minutos?)
+9. **Apos terminar** — resumo final: arquivos alterados, decisoes tomadas, checklists marcados, comandos de validacao pro usuario
+
+**Regras praticas:**
+
+- Depois de todo `git push` numa branch de issue, o proximo comando DEVE ser `gh issue comment <N>`. Nunca pular, mesmo em push pequeno de correcao — se o push valeu um commit, vale um comentario.
+- Depois de toda analise tecnica nao-trivial (perf, leitura de codigo, diagnostico via SSH, hipotese nova), o proximo comando DEVE ser `gh issue comment <N>` com o achado. Nao esperar acumular.
+- Depois de toda resposta a pergunta tecnica do usuario na conversa, registrar a resposta na issue. \"Resposta util no chat\" != \"resposta registrada\".
+- Quando em duvida se algo merece comentario, comentar. Excesso de rastreio tem custo zero; ausencia custa o trabalho de reconstruir decisoes no futuro.
+
+Sem esse rastreio, o historico de decisoes se perde e seis meses depois ninguem consegue reconstruir por que uma escolha foi feita. O usuario nao deve precisar pedir a cada passo.
 
 ### Premissa de distribuicao (OBRIGATORIO)
 
@@ -209,6 +227,45 @@ OpenRig e um produto para distribuir em **macOS, Windows e Linux**. Toda decisao
 - **Paths de assets via config central** — LV2 libs, LV2 bundles, NAM captures, IR captures, tudo vem de config
 - **Paths por plataforma** — macOS (`~/Library/Application Support/OpenRig/`), Windows (`%APPDATA%\OpenRig\`), Linux (`~/.local/share/openrig/`)
 - **Teste mental obrigatorio** — antes de qualquer decisao, pergunte: "isso funciona se o usuario instalar no Windows?" Se nao, nao faca
+
+### Premissa de documentacao (OBRIGATORIO)
+
+A documentacao e parte da tarefa, nao um passo separado. Se voce mudou codigo, muda os docs no mesmo commit.
+
+- **CLAUDE.md sempre reflete o estado atual** — ao criar, remover ou mudar modelos, block types, parametros, features ou telas, atualizar a secao correspondente
+- **Novo modelo** → atualizar tabela "Tipos de bloco" e lista de parametros
+- **Novo block type** → adicionar a tabela com descricao e modelos
+- **Mudanca em parametros** → atualizar "Parametros comuns"
+- **Nova tela/feature** → atualizar "Telas principais"
+- **Removeu algo** → remover do CLAUDE.md tambem, sem documentacao vencida
+- **Comportamento novo de audio** → documentar em "Configuracao de audio"
+- **Struct nova de modelo de dados** → documentar em "Arquitetura"
+- **NUNCA encerrar uma branch sem atualizar docs** — feature nao documentada e divida tecnica
+
+### Premissa de alteracoes no SO da placa (OBRIGATORIO)
+
+Toda alteracao aplicada no sistema operacional da placa (Orange Pi) — via SSH, edicao manual de arquivos em `/`, ou ajuste de runtime — TEM que ter equivalente em `platform/orange-pi/` do projeto antes de encerrar o trabalho. Um patch que so vive na placa evapora no proximo flash de imagem, e quem gerar a proxima imagem de producao perde o fix silenciosamente.
+
+**Mapeamento obrigatorio — onde cada tipo de alteracao mora no projeto:**
+
+| Alteracao na placa | Arquivo no projeto |
+|---|---|
+| Kernel cmdline / boot args (`/boot/armbianEnv.txt extraargs=...`) | `platform/orange-pi/customize-image.sh` — variavel `KERNEL_ARGS` + bloco que grava em `armbianEnv.txt` |
+| Systemd unit (`/etc/systemd/system/*.service`) | `platform/orange-pi/rootfs/etc/systemd/system/` |
+| Systemd drop-in (`/etc/systemd/system/*.service.d/*.conf`) | `platform/orange-pi/rootfs/etc/systemd/system/<unit>.d/` |
+| Config em `/etc/` (sysctl, security, udev) | `platform/orange-pi/rootfs/etc/` |
+| Binario/helper em `/usr/local/bin/` | `platform/orange-pi/rootfs/usr/local/bin/` |
+| Overlay de Device Tree | `platform/orange-pi/dtbo/` |
+| Mudanca de runtime (chown, groupadd, setcap, mkdir) | bloco equivalente em `customize-image.sh` |
+
+**Ordem obrigatoria quando a alteracao e planejada:**
+
+1. Alterar primeiro no projeto (`.solvers/issue-N/`)
+2. Commit + push
+3. Aplicar na placa via SSH
+4. Validar
+
+**Quando o patch na placa foi experimental (diagnostico):** aceitavel alterar primeiro na placa para testar, MAS ao confirmar que funciona voltar ao projeto, commitar e empurrar — nunca encerrar o trabalho com config "so na placa". Regra de validacao: antes de declarar uma issue resolvida, responder mentalmente "se o usuario flashar uma imagem nova agora, o fix continua la?". Se nao, falta espelhamento.
 
 ---
 

@@ -18,6 +18,10 @@ export component ProjectSettingsWindow inherits Window {
     in property <[string]> sample-rate-options;
     in property <[string]> buffer-size-options;
     in property <[string]> bit-depth-options;
+    in property <bool> jack-panel-visible: false;
+    in-out property <bool> jack-realtime;
+    in-out property <int> jack-rt-priority: 70;
+    in-out property <int> jack-nperiods: 3;
     callback update-project-name(string);
     callback save-audio-settings();
     callback close-project-settings();
@@ -25,6 +29,9 @@ export component ProjectSettingsWindow inherits Window {
     callback update-project-sample-rate(int, string);
     callback update-project-buffer-size(int, string);
     callback update-project-bit-depth(int, string);
+    callback toggle-jack-realtime(bool);
+    callback update-jack-rt-priority(int);
+    callback update-jack-nperiods(int);
     title: "OpenRig · Configurar projeto";
     min-width: 860px;
     min-height: 540px;
@@ -41,6 +48,10 @@ export component ProjectSettingsWindow inherits Window {
         buffer-size-options: root.buffer-size-options;
         bit-depth-options: root.bit-depth-options;
         status-message: root.status-message;
+        jack-panel-visible: root.jack-panel-visible;
+        jack-realtime <=> root.jack-realtime;
+        jack-rt-priority <=> root.jack-rt-priority;
+        jack-nperiods <=> root.jack-nperiods;
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
         close-project-settings => { root.close-project-settings(); }
@@ -48,6 +59,9 @@ export component ProjectSettingsWindow inherits Window {
         update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
         update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
         update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
+        toggle-jack-realtime(on) => { root.toggle-jack-realtime(on); }
+        update-jack-rt-priority(value) => { root.update-jack-rt-priority(value); }
+        update-jack-nperiods(value) => { root.update-jack-nperiods(value); }
     }
 }
 
@@ -670,6 +684,11 @@ export component AppWindow inherits Window {
     in property <[string]> sample-rate-options: ["44100", "48000", "88200", "96000"];
     in property <[string]> buffer-size-options: ["32", "64", "128", "256", "512", "1024"];
     in property <[string]> bit-depth-options: ["16", "24", "32"];
+    // JACK tuning (Linux-only; adapter-gui toggles visibility from cfg)
+    in property <bool> jack-panel-visible: false;
+    in-out property <bool> jack-realtime;
+    in-out property <int> jack-rt-priority: 70;
+    in-out property <int> jack-nperiods: 3;
     // Fullscreen inline project settings
     in property <[DeviceSelectionItem]> project-devices;
     // Fullscreen inline chain editor
@@ -699,6 +718,9 @@ export component AppWindow inherits Window {
     callback update-project-name(string);
     callback save-audio-settings();
     callback close-project-settings();
+    callback toggle-jack-realtime(bool);
+    callback update-jack-rt-priority(int);
+    callback update-jack-nperiods(int);
     callback open-project-file();
     callback create-project-file();
     callback confirm-new-project();
@@ -861,6 +883,10 @@ export component AppWindow inherits Window {
         buffer-size-options: root.buffer-size-options;
         bit-depth-options: root.bit-depth-options;
         project-devices: root.project-devices;
+        jack-panel-visible: root.jack-panel-visible;
+        jack-realtime <=> root.jack-realtime;
+        jack-rt-priority <=> root.jack-rt-priority;
+        jack-nperiods <=> root.jack-nperiods;
         chain-editor-input-groups: root.chain-editor-input-groups;
         chain-editor-output-groups: root.chain-editor-output-groups;
         chain-editor-is-create-mode: root.chain-editor-is-create-mode;
@@ -904,6 +930,9 @@ export component AppWindow inherits Window {
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
         close-project-settings => { root.close-project-settings(); }
+        toggle-jack-realtime(on) => { root.toggle-jack-realtime(on); }
+        update-jack-rt-priority(value) => { root.update-jack-rt-priority(value); }
+        update-jack-nperiods(value) => { root.update-jack-nperiods(value); }
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }
         confirm-new-project => { root.confirm-new-project(); }
@@ -1025,6 +1054,10 @@ export component AppWindow inherits Window {
         buffer-size-options: root.buffer-size-options;
         bit-depth-options: root.bit-depth-options;
         project-devices: root.project-devices;
+        jack-panel-visible: root.jack-panel-visible;
+        jack-realtime <=> root.jack-realtime;
+        jack-rt-priority <=> root.jack-rt-priority;
+        jack-nperiods <=> root.jack-nperiods;
         toggle-input-device(index, selected) => { root.toggle-input-device(index, selected); }
         toggle-output-device(index, selected) => { root.toggle-output-device(index, selected); }
         update-input-sample-rate(index, value) => { root.update-input-sample-rate(index, value); }
@@ -1036,6 +1069,9 @@ export component AppWindow inherits Window {
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
         close-project-settings => { root.close-project-settings(); }
+        toggle-jack-realtime(on) => { root.toggle-jack-realtime(on); }
+        update-jack-rt-priority(value) => { root.update-jack-rt-priority(value); }
+        update-jack-nperiods(value) => { root.update-jack-nperiods(value); }
         open-project-file => { root.open-project-file(); }
         create-project-file => { root.create-project-file(); }
         confirm-new-project => { root.confirm-new-project(); }
