@@ -149,6 +149,40 @@ git branch -d feature/issue-{N}-short-description
 git worktree list
 ```
 
+## Product Priorities (Non-Regression)
+
+OpenRig is a real-time audio processor. **Sound quality and latency are the core product values.** No feature, fix, refactor, or dependency bump may be merged unless it proves it does not degrade any of the properties below. These priorities override code ergonomics, delivery speed, and even new features.
+
+### Invariants that MUST NOT regress
+
+1. **Round-trip latency** — time between input and output
+2. **Audio quality** — block fidelity (noise floor, aliasing, THD, frequency response)
+3. **Stream stability** — zero xruns, dropouts, clicks, glitches, pops
+4. **Callback jitter** — stable processing time, no spikes
+5. **Audio-thread CPU cost** — each block keeps or reduces its cost
+6. **Zero allocation, lock, syscall, or I/O in the audio thread** — no exceptions
+7. **Numerical determinism** — golden samples keep passing within tolerance
+
+### Mandatory PR/merge checklist
+
+If the change touches the audio thread, DSP, routing, I/O, or the block chain, the PR body or issue comment MUST answer explicitly:
+
+- [ ] Does it affect the audio thread? Measured CPU/callback before and after? Listened ≥60s without glitches?
+- [ ] Does it affect latency? What is the delta in ms? Justified?
+- [ ] Does it affect any block's sound? Golden tests passing? A/B listening test done?
+- [ ] Does it introduce allocation, lock, syscall, or lazy init in the hot path? If yes, revert.
+
+### Trade-off priority (highest to lowest)
+
+1. Sound quality AND stream stability (tied at the top)
+2. Latency
+3. Audio-thread CPU cost
+4. Cross-platform compatibility
+5. Code ergonomics / maintainability
+6. New functionality
+
+A new feature **does not justify** regressing the invariants above. Real conflicts must be discussed with the maintainer before implementation.
+
 ## Code Quality
 
 - **Zero warnings** — `cargo build` must produce no warnings
