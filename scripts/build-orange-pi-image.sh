@@ -196,14 +196,31 @@ apt-get install -y --no-install-recommends util-linux parted e2fsprogs gdisk >/d
 
 echo ">>> Fixing GPT backup header after truncate..."
 # truncate +2G leaves the GPT backup header at the original (now middle) offset.
-# sgdisk -e moves it to the real end of the device so parted/losetup can
-# actually use the extra space. Without this, resizepart fails with
-# "Unable to satisfy all constraints" and losetup --partscan ends up
-# creating only the whole-disk loop node, not ${LOOP}p1.
+# sgdisk -e moves it to the real end of the device so the extra space
+# becomes addressable.
 sgdisk -e "$IMG"
 
-echo ">>> Resizing partition 1 to fill the image..."
-parted -s "$IMG" "resizepart 1 100%"
+echo ">>> Resizing partition 1 via sgdisk (delete + recreate, preserving identity)..."
+# parted -s ignores the "Fix/Ignore" GPT-alignment prompt and silently
+# skips the resize, leaving the partition unchanged. Use sgdisk to
+# delete and recreate partition 1 covering the whole disk, preserving
+# start sector, type code, partition UUID and label so /etc/fstab and
+# armbianEnv.txt references (which use PARTUUID) keep working.
+PART_INFO=$(sgdisk -i 1 "$IMG")
+START=$(printf "%s" "$PART_INFO"   | awk "/First sector/ {print \$3}")
+TYPE_CODE=$(printf "%s" "$PART_INFO" | awk "/Partition GUID code/ {print \$4}")
+PART_UUID=$(printf "%s" "$PART_INFO" | awk "/Partition unique GUID/ {print \$4}")
+PART_NAME=$(printf "%s" "$PART_INFO" | awk -F\" "/Partition name/ {print \$2}")
+
+echo "  start=$START type=$TYPE_CODE uuid=$PART_UUID name=$PART_NAME"
+
+sgdisk -d 1 "$IMG"
+if [ -n "$PART_NAME" ]; then
+    sgdisk -n "1:${START}:0" -t "1:${TYPE_CODE}" -u "1:${PART_UUID}" -c "1:${PART_NAME}" "$IMG"
+else
+    sgdisk -n "1:${START}:0" -t "1:${TYPE_CODE}" -u "1:${PART_UUID}" "$IMG"
+fi
+sgdisk -e "$IMG"
 
 echo ">>> Loop-mounting image..."
 LOOP=$(losetup --find --show --partscan "$IMG")
