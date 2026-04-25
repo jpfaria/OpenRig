@@ -3,6 +3,14 @@ FROM debian:12
 ENV DEBIAN_FRONTEND=noninteractive
 ENV CARGO_TERM_COLOR=always
 
+# Cortex-A72 is plain ARMv8.0-A: no LSE atomics, no SVE, no crypto extensions
+# that newer rustc would otherwise emit. Necessary for builds running under
+# qemu-aarch64-user inside Docker Desktop on macOS — proc-macros and other
+# host-side rust binaries compiled with newer ISA features hit SIGILL on the
+# emulator (e.g. tracing-attributes). The RK3588 (A55 little + A76 big) is
+# fully backward-compatible with this baseline at runtime.
+ENV CARGO_BUILD_RUSTFLAGS="-C target-cpu=cortex-a72"
+
 # Build deps for Debian 12 (Bookworm) — glibc 2.36 compatible
 # libegl-dev / libgles2-mesa-dev / libfreetype6-dev added for Slints
 # renderer-femtovg backend, which pulls in EGL + GLES2 + freetype headers.
