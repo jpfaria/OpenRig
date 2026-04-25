@@ -34,7 +34,15 @@ GITHUB_REPO="jpfaria/OpenRig"
 # cross-compiled on bookworm Docker (glibc 2.36).
 BOARD="orangepi5b"
 RELEASE="trixie"
-KERNEL_TAG="vendor_6.1.115"
+# Armbian "edge" branch tracks mainline (6.8+ / 7.x), in which the RK3588
+# device tree exposes the Mali-G610 with the rockchip,rk3588-mali compat
+# string and panthor.ko binds against it — exposing /dev/dri/card1 as a
+# real GPU. The "vendor" branch (6.1.x BSP) does NOT instantiate the GPU
+# in DT (card1 ends up being the RKNPU instead), so panthor.ko loads but
+# stays unbound and Mesa falls back to llvmpipe forever. issue #312.
+# Edge 7.0.0-rc7 had bootability issues a few weeks ago (PROJECT memory)
+# but 7.0.1 is the released kernel and is what Armbian ships now.
+KERNEL_TAG="edge_7.0.1"
 ARMBIAN_RELEASE="26.2.0-trunk.792"
 ARMBIAN_IMG_NAME="Armbian_community_${ARMBIAN_RELEASE}_Orangepi5b_${RELEASE}_${KERNEL_TAG}_minimal.img"
 ARMBIAN_URL="https://github.com/armbian/community/releases/download/${ARMBIAN_RELEASE}/${ARMBIAN_IMG_NAME}.xz"
