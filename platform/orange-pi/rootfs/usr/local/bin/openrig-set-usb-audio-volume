@@ -23,43 +23,62 @@
 #   - playback volumes → 0 dB (unity); fallback 100%
 #   - capture volumes  → 0 dB (unity); fallback 46% (Q-26 unity is at 46%)
 #
-# Usage: openrig-set-usb-audio-volume controlCN
+# Usage:
+#   openrig-set-usb-audio-volume              # seed every controlC* present
+#   openrig-set-usb-audio-volume controlCN    # seed only that one card
+#
+# udev passes %k → "controlCN" (single device, hotplug). The systemd boot
+# oneshot calls the script with no arg → walk every node currently present
+# under /dev/snd/, which catches devices that were already attached when
+# the udev daemon started (no add event fires for those).
 
 set -u
-
-DEVNAME="${1:-}"
-[ -z "$DEVNAME" ] && exit 0
-
-CARD="${DEVNAME#controlC}"
-case "$CARD" in
-    ''|*[!0-9]*)
-        exit 0
-        ;;
-esac
 
 command -v amixer >/dev/null 2>&1 || exit 0
 
 set_by_name() {
-    name="$1"
-    db="$2"
-    pct="$3"
-    amixer -c "$CARD" sset "$name" "$db"  >/dev/null 2>&1 \
-        || amixer -c "$CARD" sset "$name" "$pct" >/dev/null 2>&1 \
+    card="$1"
+    name="$2"
+    db="$3"
+    pct="$4"
+    amixer -c "$card" sset "$name" "$db"  >/dev/null 2>&1 \
+        || amixer -c "$card" sset "$name" "$pct" >/dev/null 2>&1 \
         || true
 }
 
-# Walk every simple mixer control and seed playback/capture volumes
-# according to what the control actually exposes. Robust across vendors.
-amixer -c "$CARD" scontrols 2>/dev/null \
-    | sed -n "s/^Simple mixer control '\\([^']*\\)'.*/\\1/p" \
-    | while read -r ctl; do
-        info=$(amixer -c "$CARD" sget "$ctl" 2>/dev/null)
-        case "$info" in
-            *Playback*Volume*) set_by_name "$ctl" "0dB" "100%" ;;
-        esac
-        case "$info" in
-            *Capture*Volume*)  set_by_name "$ctl" "0dB" "46%"  ;;
-        esac
+seed_card() {
+    card="$1"
+    # Walk every simple mixer control and seed playback/capture volumes
+    # according to what the control actually exposes. Robust across vendors.
+    amixer -c "$card" scontrols 2>/dev/null \
+        | sed -n "s/^Simple mixer control '\\([^']*\\)'.*/\\1/p" \
+        | while read -r ctl; do
+            info=$(amixer -c "$card" sget "$ctl" 2>/dev/null)
+            case "$info" in
+                *Playback*Volume*) set_by_name "$card" "$ctl" "0dB" "100%" ;;
+            esac
+            case "$info" in
+                *Capture*Volume*)  set_by_name "$card" "$ctl" "0dB" "46%"  ;;
+            esac
+        done
+}
+
+DEVNAME="${1:-}"
+if [ -n "$DEVNAME" ]; then
+    # Single-card mode (udev): expect "controlCN"
+    card="${DEVNAME#controlC}"
+    case "$card" in
+        ''|*[!0-9]*) exit 0 ;;
+    esac
+    seed_card "$card"
+else
+    # Sweep mode (boot): every controlC* currently present
+    for ctl in /dev/snd/controlC*; do
+        [ -e "$ctl" ] || continue
+        name="${ctl##*/}"           # controlCN
+        card="${name#controlC}"
+        seed_card "$card"
     done
+fi
 
 exit 0

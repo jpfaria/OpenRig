@@ -252,7 +252,6 @@ EOF
 chmod 755 /usr/local/bin/openrig-install-to-emmc
 chmod 755 /usr/local/bin/openrig-resize-rootfs
 chmod 755 /usr/local/bin/openrig-set-usb-audio-volume
-chmod 755 /usr/local/bin/openrig-set-usb-audio-volume-boot
 
 # ── 10a. USB-C TCPM workaround (RK3588 USB-C port stability) ─────────────────
 echo ">>> [OpenRig] Installing USB-C host-mode DTB overlay (Scarlett stability)..."

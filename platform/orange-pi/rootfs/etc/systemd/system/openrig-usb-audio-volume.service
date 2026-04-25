@@ -11,7 +11,7 @@ Wants=sound.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/openrig-set-usb-audio-volume-boot
+ExecStart=/usr/local/bin/openrig-set-usb-audio-volume
 RemainAfterExit=yes
 
 [Install]
