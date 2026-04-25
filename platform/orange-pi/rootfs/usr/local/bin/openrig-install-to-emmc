@@ -52,7 +52,7 @@ fi
 # Source is the parent block device of the current root (SD card).
 SOURCE_ROOT=$(findmnt -n -o SOURCE /)
 SOURCE_DEV="/dev/$(lsblk -no PKNAME "$SOURCE_ROOT")"
-SOURCE_PART_NUM=$(lsblk -no PARTN "$SOURCE_ROOT")
+SOURCE_PART_NUM=$(lsblk -no PARTN "$SOURCE_ROOT" | tr -d '[:space:]')
 if [ -z "$SOURCE_DEV" ] || [ ! -b "$SOURCE_DEV" ] || [ -z "$SOURCE_PART_NUM" ]; then
     echo "ERROR: Could not detect source SD card device (root=$SOURCE_ROOT)."
     exit 1
