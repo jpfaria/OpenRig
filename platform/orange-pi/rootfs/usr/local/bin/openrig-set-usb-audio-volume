@@ -1,24 +1,27 @@
 #!/bin/sh
-# Set ALSA volume controls to 0 dB (unity) on USB audio card hotplug.
+# Seed ALSA mixer controls to unity gain on USB audio cards.
 #
-# Fired by a udev rule whenever a new /dev/snd/controlCN node appears, so any
-# USB audio interface that boots with attenuated defaults (most class-
-# compliant devices do) plays at the level the user expects without having
-# to run alsamixer manually.
+# Fired by a udev rule (ACTION=="add" on controlC*) for hotplug, and at boot
+# time by openrig-usb-audio-volume.service for devices already attached when
+# udev started.
 #
-# Uses dB values (not percentages) so the result is device-independent:
-# a Q-26, a Scarlett, and a Behringer all land on 0 dB unity regardless of
-# their individual dB ranges. If the control can't represent exactly 0 dB,
-# ALSA snaps to the nearest step.
+# Why this exists at all: most class-compliant USB audio interfaces ship
+# with attenuated factory defaults. The Q-26 in particular boots with
+# PCM Playback at -50 dB (0%) — silent — and there is no sound until
+# someone runs amixer by hand.
 #
-#   - "playback volume" → 0 dB (unity)
-#   - "capture volume"  → 0 dB (unity; hot enough for a passive humbucker,
-#                               safe headroom against ADC clipping)
+# Why we do NOT use `amixer cset numid=N 0dB`:
+# Many devices (including the Q-26) accept that command, return success,
+# and silently parse "0dB" as the integer 0 — i.e. minimum volume. Tested
+# live on the Q-26 with kernel 6.1.115 + alsa-utils 1.2.x. The control
+# reports back values=0,0 and the dB shows -50.00, the exact opposite of
+# what we want. cset only honors the dB suffix when the control declares
+# a TLV dB scale AND the parser handles the suffix; cleaner is to use sset
+# by control name, which always understands "0dB", and to fall back to a
+# percentage if the device refuses dB units.
 #
-# Generic: no vendor/model matching. Acts on any mixer control whose name
-# contains "playback volume" or "capture volume". User preferences are
-# persisted by alsa-store on shutdown and restored by alsa-restore on the
-# next boot — this script only seeds the very first boot from a fresh image.
+#   - playback volumes → 0 dB (unity); fallback 100%
+#   - capture volumes  → 0 dB (unity); fallback 46% (Q-26 unity is at 46%)
 #
 # Usage: openrig-set-usb-audio-volume controlCN
 
@@ -36,19 +39,27 @@ esac
 
 command -v amixer >/dev/null 2>&1 || exit 0
 
-set_controls_matching() {
-    pattern="$1"
-    value="$2"
-    amixer -c "$CARD" controls 2>/dev/null |
-        grep -i "$pattern" |
-        sed 's/.*numid=\([0-9]*\).*/\1/' |
-        while read -r numid; do
-            [ -n "$numid" ] || continue
-            amixer -c "$CARD" cset "numid=$numid" "$value" >/dev/null 2>&1 || true
-        done
+set_by_name() {
+    name="$1"
+    db="$2"
+    pct="$3"
+    amixer -c "$CARD" sset "$name" "$db"  >/dev/null 2>&1 \
+        || amixer -c "$CARD" sset "$name" "$pct" >/dev/null 2>&1 \
+        || true
 }
 
-set_controls_matching "playback volume" "0dB"
-set_controls_matching "capture volume"  "0dB"
+# Walk every simple mixer control and seed playback/capture volumes
+# according to what the control actually exposes. Robust across vendors.
+amixer -c "$CARD" scontrols 2>/dev/null \
+    | sed -n "s/^Simple mixer control '\\([^']*\\)'.*/\\1/p" \
+    | while read -r ctl; do
+        info=$(amixer -c "$CARD" sget "$ctl" 2>/dev/null)
+        case "$info" in
+            *Playback*Volume*) set_by_name "$ctl" "0dB" "100%" ;;
+        esac
+        case "$info" in
+            *Capture*Volume*)  set_by_name "$ctl" "0dB" "46%"  ;;
+        esac
+    done
 
 exit 0
