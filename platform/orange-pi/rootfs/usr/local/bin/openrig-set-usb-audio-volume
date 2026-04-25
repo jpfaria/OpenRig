@@ -12,8 +12,11 @@
 # ALSA snaps to the nearest step.
 #
 #   - "playback volume" → 0 dB (unity)
-#   - "capture volume"  → 0 dB (unity; hot enough for a passive humbucker,
-#                               safe headroom against ADC clipping)
+#   - "capture volume"  → +12 dB (passive humbuckers/single-coils land near
+#                                 -inf at 0 dB unity on the Q-26; +12 dB is
+#                                 the level confirmed in hardware with guitar
+#                                 plugged. Still leaves 12 dB of headroom
+#                                 on devices with +24 dB max range.)
 #
 # Generic: no vendor/model matching. Acts on any mixer control whose name
 # contains "playback volume" or "capture volume". User preferences are
@@ -49,6 +52,6 @@ set_controls_matching() {
 }
 
 set_controls_matching "playback volume" "0dB"
-set_controls_matching "capture volume"  "0dB"
+set_controls_matching "capture volume"  "12dB"
 
 exit 0
