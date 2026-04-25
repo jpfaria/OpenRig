@@ -4,11 +4,14 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV CARGO_TERM_COLOR=always
 
 # Build deps for Debian 12 (Bookworm) — glibc 2.36 compatible
+# libegl-dev / libgles2-mesa-dev / libfreetype6-dev added for Slints
+# renderer-femtovg backend, which pulls in EGL + GLES2 + freetype headers.
 RUN apt-get update && apt-get install -y \
     curl \
     libasound2-dev libudev-dev pkg-config \
     libfontconfig1-dev libseat-dev \
     libxkbcommon-dev libinput-dev libgbm-dev \
+    libegl-dev libgles2-mesa-dev libfreetype6-dev \
     libjack-jackd2-dev \
     cmake git \
     fakeroot rpm ruby-dev build-essential \
