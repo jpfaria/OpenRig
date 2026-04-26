@@ -10,37 +10,12 @@ use std::sync::mpsc::{sync_channel, SyncSender};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+use crate::pitch_yin::{PitchDetector, PitchUpdate, BUFFER_SIZE, DEFAULT_REFERENCE_HZ};
 use crate::registry::UtilModelDefinition;
 use crate::UtilBackendKind;
 
 pub const MODEL_ID: &str = "tuner_chromatic";
 pub const DISPLAY_NAME: &str = "Chromatic Tuner";
-
-// --- YIN constants ---
-// 4096 samples ≈ 85ms at 48kHz; reliable for strings down to A1 (55Hz, ~18ms period).
-// Detection runs on a background thread so buffer size does not affect callback latency.
-const BUFFER_SIZE: usize = 4096;
-const MIN_DETECTION: usize = 2048;
-const MIN_FREQ: f32 = 55.0; // A1
-const MAX_FREQ: f32 = 1200.0;
-const RMS_SILENCE_THRESHOLD: f32 = 0.005;
-const YIN_ABSOLUTE_THRESHOLD: f32 = 0.15;
-const YIN_REJECT_THRESHOLD: f32 = 0.4;
-
-// --- Smoothing / debounce ---
-const EMA_ALPHA: f32 = 0.25;
-const SNAP_RATIO: f32 = 1.06; // one semitone — snap immediately on large jumps
-const DEBOUNCE_COUNT: u32 = 1;
-
-// --- Silence timeout (detection rounds with no result before clearing) ---
-// At 48kHz, each buffer ≈ 85ms. 12 silent rounds ≈ ~1 second.
-const SILENCE_TIMEOUT_ROUNDS: usize = 12;
-
-const DEFAULT_REFERENCE_HZ: f32 = 440.0;
-
-const NOTES: [&str; 12] = [
-    "A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#",
-];
 
 pub fn model_schema() -> ModelParameterSchema {
     ModelParameterSchema {
@@ -66,220 +41,6 @@ pub fn model_schema() -> ModelParameterSchema {
     }
 }
 
-/// Frequency to note name and cents offset.
-fn freq_to_note(frequency: f32, reference_hz: f32) -> (&'static str, f32) {
-    let semitones_from_a4 = 12.0 * (frequency / reference_hz).log2();
-    let note_number = semitones_from_a4.round() as i32;
-    let cents = (semitones_from_a4 - note_number as f32) * 100.0;
-    let note_index = note_number.rem_euclid(12) as usize;
-    (NOTES[note_index], cents)
-}
-
-// ---------------------------------------------------------------------------
-// Detection engine — runs on the background thread
-// ---------------------------------------------------------------------------
-
-struct DetectionEngine {
-    sample_rate: usize,
-    reference_hz: f32,
-    smoothed_freq: Option<f32>,
-    current_note: Option<String>,
-    pending_note: Option<String>,
-    pending_count: u32,
-    silent_rounds: usize,
-}
-
-impl DetectionEngine {
-    fn new(sample_rate: usize, reference_hz: f32) -> Self {
-        Self {
-            sample_rate,
-            reference_hz,
-            smoothed_freq: None,
-            current_note: None,
-            pending_note: None,
-            pending_count: 0,
-            silent_rounds: 0,
-        }
-    }
-
-    fn yin_difference(buf: &[f32], max_tau: usize) -> Vec<f32> {
-        let n = buf.len();
-        let mut d = vec![0.0_f32; max_tau];
-        for tau in 1..max_tau {
-            let mut sum = 0.0;
-            for i in 0..(n - tau) {
-                let diff = buf[i] - buf[i + tau];
-                sum += diff * diff;
-            }
-            d[tau] = sum;
-        }
-        d
-    }
-
-    fn yin_cmnd(d: &[f32]) -> Vec<f32> {
-        let mut d_prime = vec![0.0_f32; d.len()];
-        d_prime[0] = 1.0;
-        let mut running_sum = 0.0;
-        for tau in 1..d.len() {
-            running_sum += d[tau];
-            if running_sum > 0.0 {
-                d_prime[tau] = d[tau] * tau as f32 / running_sum;
-            } else {
-                d_prime[tau] = 1.0;
-            }
-        }
-        d_prime
-    }
-
-    fn yin_find_tau(d_prime: &[f32], min_tau: usize, max_tau: usize) -> Option<(usize, f32)> {
-        let upper = max_tau.min(d_prime.len());
-        let mut tau = min_tau;
-        while tau < upper {
-            if d_prime[tau] < YIN_ABSOLUTE_THRESHOLD {
-                while tau + 1 < upper && d_prime[tau + 1] < d_prime[tau] {
-                    tau += 1;
-                }
-                return Some((tau, d_prime[tau]));
-            }
-            tau += 1;
-        }
-        let mut best_tau = None;
-        let mut best_val = f32::MAX;
-        for tau in min_tau..upper {
-            if d_prime[tau] < best_val {
-                best_val = d_prime[tau];
-                best_tau = Some(tau);
-            }
-        }
-        if best_val < YIN_REJECT_THRESHOLD {
-            best_tau.map(|t| (t, best_val))
-        } else {
-            None
-        }
-    }
-
-    fn parabolic_interpolation(d_prime: &[f32], tau: usize) -> f32 {
-        if tau < 1 || tau + 1 >= d_prime.len() {
-            return tau as f32;
-        }
-        let s0 = d_prime[tau - 1];
-        let s1 = d_prime[tau];
-        let s2 = d_prime[tau + 1];
-        let denom = 2.0 * s1 - s2 - s0;
-        if denom.abs() < 1e-12 {
-            tau as f32
-        } else {
-            tau as f32 + (s2 - s0) / (2.0 * denom)
-        }
-    }
-
-    fn octave_check(d_prime: &[f32], best_tau: usize, sample_rate: usize) -> usize {
-        let sub_tau = best_tau * 2;
-        if sub_tau >= d_prime.len() {
-            return best_tau;
-        }
-        let sub_freq = sample_rate as f32 / sub_tau as f32;
-        if sub_freq < MIN_FREQ {
-            return best_tau;
-        }
-        if d_prime[sub_tau] < d_prime[best_tau] * 1.5 {
-            sub_tau
-        } else {
-            best_tau
-        }
-    }
-
-    fn detect_pitch(&self, buf: &[f32]) -> Option<f32> {
-        let n = buf.len();
-        if n < MIN_DETECTION {
-            return None;
-        }
-        let rms = (buf.iter().map(|s| s * s).sum::<f32>() / n as f32).sqrt();
-        if rms < RMS_SILENCE_THRESHOLD {
-            return None;
-        }
-        let min_tau = (self.sample_rate as f32 / MAX_FREQ).ceil() as usize;
-        let max_tau = ((self.sample_rate as f32 / MIN_FREQ).floor() as usize).min(n / 2);
-        if min_tau >= max_tau {
-            return None;
-        }
-        let d = Self::yin_difference(buf, max_tau + 1);
-        let d_prime = Self::yin_cmnd(&d);
-        let (best_tau, _) = Self::yin_find_tau(&d_prime, min_tau, max_tau)?;
-        let checked_tau = Self::octave_check(&d_prime, best_tau, self.sample_rate);
-        let refined_tau = Self::parabolic_interpolation(&d_prime, checked_tau);
-        if refined_tau <= 0.0 {
-            return None;
-        }
-        let freq = self.sample_rate as f32 / refined_tau;
-        if freq < MIN_FREQ || freq > MAX_FREQ { None } else { Some(freq) }
-    }
-
-    fn smooth_frequency(&mut self, raw_freq: f32) -> f32 {
-        match self.smoothed_freq {
-            None => {
-                self.smoothed_freq = Some(raw_freq);
-                raw_freq
-            }
-            Some(prev) => {
-                let ratio = raw_freq / prev;
-                if ratio > SNAP_RATIO || ratio < 1.0 / SNAP_RATIO {
-                    self.smoothed_freq = Some(raw_freq);
-                    raw_freq
-                } else {
-                    let smoothed = prev * (1.0 - EMA_ALPHA) + raw_freq * EMA_ALPHA;
-                    self.smoothed_freq = Some(smoothed);
-                    smoothed
-                }
-            }
-        }
-    }
-
-    fn debounce_note(&mut self, note_str: &str) {
-        if self.pending_note.as_deref() == Some(note_str) {
-            self.pending_count += 1;
-        } else {
-            self.pending_note = Some(note_str.to_string());
-            self.pending_count = 1;
-        }
-        if self.pending_count >= DEBOUNCE_COUNT {
-            self.current_note = Some(note_str.to_string());
-        }
-    }
-
-    /// Process one buffer of samples; update the stream handle with the result.
-    fn process_buffer(&mut self, buf: &[f32], stream: &StreamHandle) {
-        match self.detect_pitch(buf) {
-            Some(raw_freq) => {
-                self.silent_rounds = 0;
-                let freq = self.smooth_frequency(raw_freq);
-                let (note_name, cents) = freq_to_note(freq, self.reference_hz);
-                self.debounce_note(note_name);
-                if let Some(ref current) = self.current_note {
-                    if let Ok(mut entries) = stream.lock() {
-                        entries.clear();
-                        entries.push(StreamEntry { key: "note".to_string(), value: 0.0, text: current.clone(), peak: 0.0 });
-                        entries.push(StreamEntry { key: "cents".to_string(), value: cents, text: format!("{cents:+.1}"), peak: 0.0 });
-                        entries.push(StreamEntry { key: "frequency".to_string(), value: freq, text: format!("{freq:.1} Hz"), peak: 0.0 });
-                    }
-                }
-            }
-            None => {
-                self.silent_rounds += 1;
-                if self.silent_rounds >= SILENCE_TIMEOUT_ROUNDS {
-                    self.smoothed_freq = None;
-                    self.current_note = None;
-                    self.pending_note = None;
-                    self.pending_count = 0;
-                    if let Ok(mut entries) = stream.lock() {
-                        entries.clear();
-                    }
-                }
-            }
-        }
-    }
-}
-
 // ---------------------------------------------------------------------------
 // ChromaticTuner — audio-thread facing, minimal work per frame
 // ---------------------------------------------------------------------------
@@ -295,7 +56,12 @@ pub struct ChromaticTuner {
 }
 
 impl ChromaticTuner {
-    pub fn new(sample_rate: usize, reference_hz: f32, mute_signal: bool, stream: StreamHandle) -> Self {
+    pub fn new(
+        sample_rate: usize,
+        reference_hz: f32,
+        mute_signal: bool,
+        stream: StreamHandle,
+    ) -> Self {
         // Channel capacity 1: audio thread drops the buffer if detection is still running.
         // This prevents any blocking on the audio thread.
         let (tx, rx) = sync_channel::<Vec<f32>>(1);
@@ -304,9 +70,9 @@ impl ChromaticTuner {
         let handle = thread::Builder::new()
             .name("tuner-detection".to_string())
             .spawn(move || {
-                let mut engine = DetectionEngine::new(sample_rate, reference_hz);
+                let mut detector = PitchDetector::new(sample_rate, reference_hz);
                 while let Ok(buf) = rx.recv() {
-                    engine.process_buffer(&buf, &stream_for_thread);
+                    publish(&mut detector, &buf, &stream_for_thread);
                 }
             })
             .expect("failed to spawn tuner detection thread");
@@ -335,7 +101,46 @@ impl StereoProcessor for ChromaticTuner {
             let _ = self.detection_tx.try_send(buf);
         }
 
-        if self.mute_signal { [0.0, 0.0] } else { [left, right] }
+        if self.mute_signal {
+            [0.0, 0.0]
+        } else {
+            [left, right]
+        }
+    }
+}
+
+/// Translate one detector update into stream entries the GUI consumes.
+fn publish(detector: &mut PitchDetector, buf: &[f32], stream: &StreamHandle) {
+    match detector.process_buffer(buf) {
+        PitchUpdate::Update { note, cents, freq } => {
+            if let Ok(mut entries) = stream.lock() {
+                entries.clear();
+                entries.push(StreamEntry {
+                    key: "note".to_string(),
+                    value: 0.0,
+                    text: note.to_string(),
+                    peak: 0.0,
+                });
+                entries.push(StreamEntry {
+                    key: "cents".to_string(),
+                    value: cents,
+                    text: format!("{cents:+.1}"),
+                    peak: 0.0,
+                });
+                entries.push(StreamEntry {
+                    key: "frequency".to_string(),
+                    value: freq,
+                    text: format!("{freq:.1} Hz"),
+                    peak: 0.0,
+                });
+            }
+        }
+        PitchUpdate::Silence => {
+            if let Ok(mut entries) = stream.lock() {
+                entries.clear();
+            }
+        }
+        PitchUpdate::NoChange => {}
     }
 }
 
@@ -456,7 +261,11 @@ mod tests {
         let stream: StreamHandle = Arc::new(Mutex::new(Vec::new()));
         let mut tuner = ChromaticTuner::new(44100, 440.0, false, Arc::clone(&stream));
         let output = tuner.process_frame([0.5, 0.3]);
-        assert_eq!(output, [0.5, 0.3], "Passthrough tuner should preserve both channels");
+        assert_eq!(
+            output,
+            [0.5, 0.3],
+            "Passthrough tuner should preserve both channels"
+        );
     }
 
     #[test]

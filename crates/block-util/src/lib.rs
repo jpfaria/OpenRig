@@ -1,6 +1,7 @@
 //! Utility implementations.
 mod processor;
 mod registry;
+pub mod pitch_yin;
 
 use anyhow::Result;
 use block_core::param::{ModelParameterSchema, ParameterSet};
