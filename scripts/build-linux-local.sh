@@ -107,7 +107,7 @@ if [ "$NUKE" = "1" ]; then
     DOCKER_BUILD_ARGS+=(--no-cache)
 fi
 docker build --platform "$DOCKER_PLATFORM" -t "$DOCKER_IMAGE" \
-    "${DOCKER_BUILD_ARGS[@]}" \
+    "${DOCKER_BUILD_ARGS[@]+"${DOCKER_BUILD_ARGS[@]}"}" \
     -f "$DOCKERFILE" "$PROJECT_ROOT/docker"
 
 # ── Run package-linux.sh inside Docker ───────────────────────────────────────
