@@ -1082,6 +1082,13 @@ component ChainRow inherits Rectangle {
     property <length> out-chip-x: root.width - 108px;
     property <length> out-chip-y: root.last-block-row * 108px + 24px;
     out property <bool> any-chip-hovered: in-chip.is-hovered || out-chip.is-hovered;
+    // Tracks the cursor inside the entire row regardless of which inner
+    // widget owns the actual hover. Used to lift the row above neighbours
+    // so any child tooltip (chips, action icons, power toggle) escapes the
+    // ListView's row-clipping wrapper. The TouchArea is declared first so
+    // child TouchAreas (action icons, chips, blocks) still receive clicks
+    // — Slint dispatches to the deepest TouchArea under the pointer.
+    out property <bool> any-tooltip-source-hovered: row-hover-tracker.has-hover;
 
     pure function slot-index-for-position(pointer-x: float, pointer-y: float) -> int {
         // Blocks start at x=120, each 116px wide.
@@ -1095,11 +1102,20 @@ component ChainRow inherits Rectangle {
 
     background: transparent;
     border-radius: 6px;
-    // Lift the whole row above neighbouring rows while a chip is hovered so
-    // the chip's tooltip card (and any other in-row tooltip) is not clipped
-    // by the next chain row in the list (#329).
-    z: root.any-chip-hovered ? 1000 : 0;
+    // Lift the whole row above neighbouring rows while ANY descendant
+    // (chip, action icon, power toggle) is hovered so its tooltip is not
+    // clipped or covered by the next chain row in the list (#329).
+    z: root.any-tooltip-source-hovered ? 1000 : 0;
     height: 74px + (root.block-row-count * 108px);
+
+    // Hover-only tracker — no clicked handler so children TouchAreas keep
+    // ownership of clicks; we only read its has-hover.
+    row-hover-tracker := TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+    }
 
     Rectangle {
         x: 0px;
