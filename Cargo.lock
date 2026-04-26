@@ -134,6 +134,7 @@ dependencies = [
  "domain",
  "engine",
  "env_logger",
+ "feature-dsp",
  "image",
  "infra-cpal",
  "infra-filesystem",

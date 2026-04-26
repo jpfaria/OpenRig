@@ -1,0 +1,176 @@
+// TunerWindow — top-bar feature replacing the chromatic_tuner plugin block.
+// One row per active input channel of each enabled chain.
+
+export struct TunerRow {
+    label: string,
+    note: string,
+    cents: float,
+    frequency: float,
+    active: bool,
+}
+
+component TunerCard inherits Rectangle {
+    in property <TunerRow> row;
+
+    height: 84px;
+    border-radius: 10px;
+    background: #1c1f24;
+    border-width: 1px;
+    border-color: row.active ? #2a3340 : #2a2f38;
+
+    // ── Label (left, vertical text) ──────────────────────────────────────
+    Text {
+        x: 16px; y: 14px;
+        width: 220px;
+        height: 18px;
+        text: root.row.label;
+        color: #b0b9c5;
+        font-family: "Bebas Neue";
+        font-size: 11px;
+        letter-spacing: 1.2px;
+        overflow: elide;
+    }
+
+    Text {
+        x: 16px; y: 36px;
+        width: 220px;
+        height: 14px;
+        text: root.row.active ? root.row.frequency >= 1.0 ? root.row.frequency + " Hz" : "—" : "—";
+        color: #6a7280;
+        font-size: 10px;
+        font-family: "Inter";
+    }
+
+    // ── Note (huge, center) ──────────────────────────────────────────────
+    Text {
+        x: 240px; y: 14px;
+        width: 120px;
+        height: 56px;
+        text: root.row.active ? root.row.note : "—";
+        color: in-tune.is-tuned ? #88ffaa : #edf2f9;
+        font-family: "Bebas Neue";
+        font-size: 56px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    // ── In-tune indicator data ───────────────────────────────────────────
+    in-tune := Rectangle {
+        property <bool> is-tuned: root.row.active && Math.abs(root.row.cents) < 5.0;
+        x: 0; y: 0; width: 0; height: 0;
+        visible: false;
+    }
+
+    // ── Cents bar (right) ────────────────────────────────────────────────
+    Rectangle {
+        x: parent.width - 200px - 16px;
+        y: 30px;
+        width: 200px;
+        height: 24px;
+        background: #0c0e12;
+        border-radius: 4px;
+        border-width: 1px;
+        border-color: #2a2f38;
+
+        // Center marker
+        Rectangle {
+            x: parent.width / 2 - 1px;
+            y: 0; width: 2px;
+            height: parent.height;
+            background: #4a525e;
+        }
+
+        // Cents indicator
+        if root.row.active : Rectangle {
+            // cents in [-50, +50] → x in [0, parent.width]
+            x: (parent.width / 2) + (root.row.cents / 50.0 * (parent.width / 2 - 6px)) - 4px;
+            y: 4px;
+            width: 8px;
+            height: parent.height - 8px;
+            border-radius: 3px;
+            background: in-tune.is-tuned ? #88ffaa : (Math.abs(root.row.cents) < 15.0 ? #ffcc66 : #ff8877);
+        }
+    }
+
+    // ── Cents readout (numeric, below bar) ───────────────────────────────
+    Text {
+        x: parent.width - 200px - 16px;
+        y: 58px;
+        width: 200px;
+        height: 14px;
+        text: root.row.active ? (root.row.cents >= 0 ? "+" + Math.round(root.row.cents) + " ¢" : Math.round(root.row.cents) + " ¢") : "";
+        color: #6a7280;
+        font-size: 10px;
+        font-family: "Inter";
+        horizontal-alignment: center;
+    }
+}
+
+export component TunerWindow inherits Window {
+    icon: @image-url("../assets/openrig-logomark.svg");
+    default-font-family: "Bebas Neue";
+    default-font-size: 13px;
+    title: "OpenRig · Tuner";
+    min-width: 600px;
+    min-height: 240px;
+    preferred-width: 720px;
+    preferred-height: 360px;
+    background: #0a0c10;
+
+    in property <[TunerRow]> tuner-rows;
+    callback close-tuner-window();
+
+    // ── Header ───────────────────────────────────────────────────────────
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width; height: 44px;
+        background: #15181d;
+        border-width: 1px;
+        border-color: #1f242b;
+
+        Text {
+            x: 16px; y: 0;
+            width: 200px; height: parent.height;
+            text: "TUNER";
+            color: #d4dae3;
+            font-size: 14px;
+            letter-spacing: 2.4px;
+            vertical-alignment: center;
+        }
+
+        Text {
+            x: 220px; y: 0;
+            width: parent.width - 240px; height: parent.height;
+            text: root.tuner-rows.length + (root.tuner-rows.length == 1 ? " input" : " inputs");
+            color: #6a7280;
+            font-size: 11px;
+            vertical-alignment: center;
+        }
+    }
+
+    // ── Empty state ──────────────────────────────────────────────────────
+    if root.tuner-rows.length == 0 : Text {
+        x: 0; y: 80px;
+        width: parent.width; height: 40px;
+        text: "No active inputs";
+        color: #4a525e;
+        font-size: 14px;
+        letter-spacing: 1.4px;
+        horizontal-alignment: center;
+    }
+
+    // ── Tuner list ───────────────────────────────────────────────────────
+    if root.tuner-rows.length > 0 : ScrollView {
+        x: 12px; y: 56px;
+        width: parent.width - 24px;
+        height: parent.height - 68px;
+        viewport-height: root.tuner-rows.length * 92px;
+
+        for row[index] in root.tuner-rows : TunerCard {
+            x: 0;
+            y: index * 92px;
+            width: parent.width - 8px;
+            row: row;
+        }
+    }
+}

@@ -1,5 +1,6 @@
 mod thumbnails;
 mod plugin_info;
+mod tuner_session;
 
 use anyhow::{anyhow, Result};
 
@@ -199,6 +200,11 @@ pub fn run_desktop_app(
     let insert_return_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
     let block_editor_window =
         BlockEditorWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    let tuner_window =
+        TunerWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    let tuner_session: Rc<RefCell<Option<tuner_session::TunerSession>>> =
+        Rc::new(RefCell::new(None));
+    let tuner_timer = Rc::new(Timer::default());
     window.set_app_version(env!("CARGO_PKG_VERSION").into());
     window.set_show_project_launcher(true);
     window.set_show_project_setup(false);
@@ -2176,6 +2182,52 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let project_settings_window = project_settings_window.as_weak();
+        // ── Tuner window — top-bar feature, replaces tuner block ──
+        {
+            let project_session_for_tuner = project_session.clone();
+            let project_runtime_for_tuner = project_runtime.clone();
+            let tuner_window_weak = tuner_window.as_weak();
+            let tuner_session_for_open = tuner_session.clone();
+            let tuner_timer_for_open = tuner_timer.clone();
+            window.on_open_tuner_window(move || {
+                let Some(tw) = tuner_window_weak.upgrade() else { return; };
+                let session_borrow = project_session_for_tuner.borrow();
+                let Some(session) = session_borrow.as_ref() else { return; };
+                let runtime_borrow = project_runtime_for_tuner.borrow();
+                let Some(runtime) = runtime_borrow.as_ref() else { return; };
+                let new_session = tuner_session::TunerSession::build(&session.project, runtime);
+                tw.set_tuner_rows(new_session.rows_model_rc());
+                let _ = tw.show();
+                *tuner_session_for_open.borrow_mut() = Some(new_session);
+
+                // Start polling timer (~30 Hz). Each tick drains the rings,
+                // runs detection in fixed-size chunks, and updates the row
+                // model — UI thread only, no impact on the audio path.
+                let session_for_tick = tuner_session_for_open.clone();
+                tuner_timer_for_open.start(
+                    slint::TimerMode::Repeated,
+                    std::time::Duration::from_millis(33),
+                    move || {
+                        if let Some(session) = session_for_tick.borrow_mut().as_mut() {
+                            session.tick();
+                        }
+                    },
+                );
+            });
+        }
+        {
+            let project_runtime_for_close = project_runtime.clone();
+            let tuner_session_for_close = tuner_session.clone();
+            let tuner_timer_for_close = tuner_timer.clone();
+            tuner_window.on_close_tuner_window(move || {
+                tuner_timer_for_close.stop();
+                *tuner_session_for_close.borrow_mut() = None;
+                if let Some(runtime) = project_runtime_for_close.borrow().as_ref() {
+                    runtime.prune_dead_input_taps();
+                }
+            });
+        }
+
         let chain_editor_window = chain_editor_window.clone();
         let block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();

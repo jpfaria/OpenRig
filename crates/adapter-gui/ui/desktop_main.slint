@@ -91,6 +91,7 @@ export component DesktopMain inherits Rectangle {
     callback add-chain();
     callback save-project();
     callback configure-project();
+    callback open-tuner-window();
     callback remove-chain(int);
     callback toggle-chain-enabled(int);
     callback configure-chain(int);
@@ -243,6 +244,7 @@ export component DesktopMain inherits Rectangle {
             add-chain => { root.add-chain(); }
             save-project => { root.save-project(); }
             configure-project => { root.configure-project(); }
+            open-tuner-window => { root.open-tuner-window(); }
             remove-chain(index) => { root.remove-chain(index); }
             toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
             configure-chain(index) => { root.configure-chain(index); }

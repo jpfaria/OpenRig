@@ -2,11 +2,11 @@ import "fonts/CooperHewitt-Semibold.ttf";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem, MultiSliderPoint, CurveEditorPoint } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
-import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage } from "pages/pages.slint";
+import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage, TunerWindow, TunerRow } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
 import { PluginInfoWindow } from "pages/plugin_info_window.slint";
 
-export { PluginInfoWindow }
+export { PluginInfoWindow, TunerWindow, TunerRow }
 
 export component ProjectSettingsWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
@@ -712,6 +712,7 @@ export component AppWindow inherits Window {
     callback add-chain();
     callback save-project();
     callback configure-project();
+    callback open-tuner-window();
     callback remove-chain(int);
     callback toggle-chain-enabled(int);
     callback configure-chain(int);
@@ -918,6 +919,7 @@ export component AppWindow inherits Window {
         add-chain => { root.add-chain(); }
         save-project => { root.save-project(); }
         configure-project => { root.configure-project(); }
+        open-tuner-window => { root.open-tuner-window(); }
         remove-chain(index) => { root.remove-chain(index); }
         toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
         configure-chain(index) => { root.configure-chain(index); }
@@ -1051,6 +1053,7 @@ export component AppWindow inherits Window {
         add-chain => { root.add-chain(); }
         save-project => { root.save-project(); }
         configure-project => { root.configure-project(); }
+        open-tuner-window => { root.open-tuner-window(); }
         remove-chain(index) => { root.remove-chain(index); }
         toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
         configure-chain(index) => { root.configure-chain(index); }

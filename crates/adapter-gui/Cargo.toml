@@ -11,6 +11,7 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 cpal = "0.17"
 domain = { path = "../domain" }
 engine = { path = "../engine" }
+feature-dsp = { path = "../feature-dsp" }
 infra-cpal = { path = "../infra-cpal" }
 infra-filesystem = { path = "../infra-filesystem" }
 infra-yaml = { path = "../infra-yaml" }
