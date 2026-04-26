@@ -165,10 +165,6 @@ impl TunerSession {
         ModelRc::from(self.rows_model.clone())
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.row_states.is_empty()
-    }
-
     /// Drain rings, run the detector when enough samples accumulated, and
     /// update the row model. Call from a UI timer (~30 Hz is plenty).
     pub fn tick(&mut self) {

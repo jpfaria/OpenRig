@@ -1,5 +1,6 @@
 // TunerWindow — top-bar feature replacing the chromatic_tuner plugin block.
 // One row per active input channel of each enabled chain.
+import { ScrollView } from "std-widgets.slint";
 
 export struct TunerRow {
     label: string,
@@ -10,20 +11,20 @@ export struct TunerRow {
 }
 
 component TunerCard inherits Rectangle {
-    in property <TunerRow> row;
+    in property <TunerRow> data;
 
     height: 84px;
     border-radius: 10px;
     background: #1c1f24;
     border-width: 1px;
-    border-color: row.active ? #2a3340 : #2a2f38;
+    border-color: data.active ? #2a3340 : #2a2f38;
 
     // ── Label (left, vertical text) ──────────────────────────────────────
     Text {
         x: 16px; y: 14px;
         width: 220px;
         height: 18px;
-        text: root.row.label;
+        text: root.data.label;
         color: #b0b9c5;
         font-family: "Bebas Neue";
         font-size: 11px;
@@ -35,7 +36,7 @@ component TunerCard inherits Rectangle {
         x: 16px; y: 36px;
         width: 220px;
         height: 14px;
-        text: root.row.active ? root.row.frequency >= 1.0 ? root.row.frequency + " Hz" : "—" : "—";
+        text: root.data.active ? root.data.frequency >= 1.0 ? root.data.frequency + " Hz" : "—" : "—";
         color: #6a7280;
         font-size: 10px;
         font-family: "Inter";
@@ -46,7 +47,7 @@ component TunerCard inherits Rectangle {
         x: 240px; y: 14px;
         width: 120px;
         height: 56px;
-        text: root.row.active ? root.row.note : "—";
+        text: root.data.active ? root.data.note : "—";
         color: in-tune.is-tuned ? #88ffaa : #edf2f9;
         font-family: "Bebas Neue";
         font-size: 56px;
@@ -56,7 +57,7 @@ component TunerCard inherits Rectangle {
 
     // ── In-tune indicator data ───────────────────────────────────────────
     in-tune := Rectangle {
-        property <bool> is-tuned: root.row.active && Math.abs(root.row.cents) < 5.0;
+        property <bool> is-tuned: root.data.active && Math.abs(root.data.cents) < 5.0;
         x: 0; y: 0; width: 0; height: 0;
         visible: false;
     }
@@ -81,14 +82,14 @@ component TunerCard inherits Rectangle {
         }
 
         // Cents indicator
-        if root.row.active : Rectangle {
+        if root.data.active : Rectangle {
             // cents in [-50, +50] → x in [0, parent.width]
-            x: (parent.width / 2) + (root.row.cents / 50.0 * (parent.width / 2 - 6px)) - 4px;
+            x: (parent.width / 2) + (root.data.cents / 50.0 * (parent.width / 2 - 6px)) - 4px;
             y: 4px;
             width: 8px;
             height: parent.height - 8px;
             border-radius: 3px;
-            background: in-tune.is-tuned ? #88ffaa : (Math.abs(root.row.cents) < 15.0 ? #ffcc66 : #ff8877);
+            background: in-tune.is-tuned ? #88ffaa : (Math.abs(root.data.cents) < 15.0 ? #ffcc66 : #ff8877);
         }
     }
 
@@ -98,7 +99,7 @@ component TunerCard inherits Rectangle {
         y: 58px;
         width: 200px;
         height: 14px;
-        text: root.row.active ? (root.row.cents >= 0 ? "+" + Math.round(root.row.cents) + " ¢" : Math.round(root.row.cents) + " ¢") : "";
+        text: root.data.active ? (root.data.cents >= 0 ? "+" + Math.round(root.data.cents) + " ¢" : Math.round(root.data.cents) + " ¢") : "";
         color: #6a7280;
         font-size: 10px;
         font-family: "Inter";
@@ -170,7 +171,7 @@ export component TunerWindow inherits Window {
             x: 0;
             y: index * 92px;
             width: parent.width - 8px;
-            row: row;
+            data: row;
         }
     }
 }
