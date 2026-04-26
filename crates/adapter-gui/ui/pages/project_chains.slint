@@ -602,6 +602,11 @@ component ChainActionIcon inherits Rectangle {
     width: 24px;
     height: 24px;
     background: hover-area.has-hover ? #ffffff10 : transparent;
+    // Lift the whole icon (and its tooltip child) above sibling cards while
+    // hovered. Slint's `z` only orders within the same parent; setting it on
+    // the icon itself moves both the icon and its child tooltip Rectangle
+    // above any neighbour declared after it in the parent. Issue #329.
+    z: hover-area.has-hover ? 1000 : 0;
 
     Image {
         x: 2px;
@@ -658,6 +663,9 @@ component ChainEndpointChip inherits Rectangle {
     width: root.is-input ? 72px : 90px;
     height: 72px;
     background: transparent;
+    // Lift while hovered so the chip's tooltip card (rendered by the parent
+    // ChainRow) stays above sibling chain rows declared after this one (#329).
+    z: hover-area.has-hover ? 1000 : 0;
 
     Image {
         x: (parent.width - 48px) / 2;
@@ -705,6 +713,9 @@ component ChainPowerToggle inherits Rectangle {
     width: 28px;
     height: 28px;
     background: hover-area.has-hover ? #ffffff08 : transparent;
+    // Lift while hovered so the tooltip child stays above sibling toggles
+    // and chain cards declared after this one (#329).
+    z: hover-area.has-hover ? 1000 : 0;
 
     Rectangle {
         x: 4px;
@@ -771,6 +782,9 @@ component HeaderIconAction inherits Rectangle {
     width: 24px;
     height: 24px;
     background: action-area.has-hover ? #ffffff10 : transparent;
+    // Lift while hovered so the tooltip child stays above sibling header
+    // actions and any panel/page content declared after this one (#329).
+    z: action-area.has-hover ? 1000 : 0;
 
     Image {
         x: 2px;
@@ -1081,6 +1095,10 @@ component ChainRow inherits Rectangle {
 
     background: transparent;
     border-radius: 6px;
+    // Lift the whole row above neighbouring rows while a chip is hovered so
+    // the chip's tooltip card (and any other in-row tooltip) is not clipped
+    // by the next chain row in the list (#329).
+    z: root.any-chip-hovered ? 1000 : 0;
     height: 74px + (root.block-row-count * 108px);
 
     Rectangle {
