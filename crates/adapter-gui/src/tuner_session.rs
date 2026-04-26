@@ -20,6 +20,12 @@ use std::rc::Rc;
 
 use crate::TunerRow;
 
+/// Tuner default reference (440 Hz). Per-row reference would require a UI control.
+const REFERENCE_HZ: f32 = 440.0;
+/// Capacity per channel ring: ≥ BUFFER_SIZE × 2 so we never lose samples between
+/// UI ticks under any reasonable timer cadence.
+const RING_CAPACITY: usize = BUFFER_SIZE * 4;
+
 /// One pitch-detection pipeline per (chain, input, channel).
 struct RowState {
     ring: Arc<SpscRing<f32>>,
@@ -37,49 +43,77 @@ impl RowState {
     }
 }
 
-/// Initial empty TunerRow — `active=false`, "—" placeholders.
 fn placeholder_row(label: String) -> TunerRow {
     TunerRow {
         label: label.into(),
         note: SharedString::from("—"),
+        octave: 0,
         cents: 0.0,
         frequency: 0.0,
         active: false,
     }
 }
 
+/// Compute the octave number (scientific pitch notation, A4 = octave 4) from
+/// a frequency. Uses the configured reference Hz so 432 Hz tuning still maps
+/// "A" to octave 4 around 432.
+fn freq_to_octave(freq: f32, reference_hz: f32) -> i32 {
+    if freq <= 0.0 {
+        return 0;
+    }
+    let semitones_from_a4 = 12.0 * (freq / reference_hz).log2();
+    let midi = (69.0 + semitones_from_a4.round()) as i32;
+    midi / 12 - 1
+}
+
+/// Stable signature of every (chain, input, channel) the tuner cares about.
+/// Compared at every tick to detect when the user enables/disables chains
+/// or edits an InputBlock so we can tear down and rebuild the session
+/// without forcing the user to close and reopen the window.
+fn project_input_fingerprint(project: &Project) -> String {
+    let mut s = String::new();
+    for chain in &project.chains {
+        if !chain.enabled {
+            continue;
+        }
+        s.push_str(&chain.id.0);
+        s.push('@');
+        let mut input_index = 0_usize;
+        for block in &chain.blocks {
+            if let AudioBlockKind::Input(input) = &block.kind {
+                for entry in &input.entries {
+                    s.push_str(&format!("[{}/{}/", input_index, entry.device_id.0));
+                    for ch in &entry.channels {
+                        s.push_str(&format!("{},", ch));
+                    }
+                    s.push_str(&format!("/{:?}]", entry.mode));
+                    input_index += 1;
+                }
+            }
+        }
+        s.push(';');
+    }
+    s
+}
+
 pub struct TunerSession {
     rows_model: Rc<VecModel<TunerRow>>,
     row_states: Vec<RowState>,
+    fingerprint: String,
 }
 
 impl TunerSession {
     /// Build a tuner session for the given project: subscribe taps for every
     /// active input channel of every enabled chain.
-    ///
-    /// Returns `None` if no chains are running (no runtimes registered yet).
-    pub fn build(
-        project: &Project,
-        controller: &ProjectRuntimeController,
-    ) -> Self {
-        let rows: Vec<TunerRow> = Vec::new();
-        let rows_model: Rc<VecModel<TunerRow>> = Rc::new(VecModel::from(rows));
+    pub fn build(project: &Project, controller: &ProjectRuntimeController) -> Self {
+        let rows_model: Rc<VecModel<TunerRow>> = Rc::new(VecModel::from(Vec::<TunerRow>::new()));
         let mut row_states: Vec<RowState> = Vec::new();
-
-        // Tuner default reference (440 Hz). Could later read from a global
-        // setting; per-row reference would require a UI control.
-        const REFERENCE_HZ: f32 = 440.0;
-        // Capacity per channel ring: ≥ BUFFER_SIZE × 2 so we never lose
-        // samples between UI ticks under any reasonable timer cadence.
-        const RING_CAPACITY: usize = BUFFER_SIZE * 4;
 
         for chain in &project.chains {
             if !chain.enabled {
                 continue;
             }
 
-            // Sample rate per chain: most projects share one rate. Default
-            // to 48 kHz if device_settings has no entry.
             let sample_rate = chain
                 .blocks
                 .iter()
@@ -95,10 +129,7 @@ impl TunerSession {
                 })
                 .unwrap_or(48_000) as usize;
 
-            // Track input_index across InputBlock entries (Insert returns
-            // come after, but we don't tap them — only real Inputs).
             let mut input_index = 0_usize;
-
             for block in &chain.blocks {
                 if let AudioBlockKind::Input(input) = &block.kind {
                     for entry in &input.entries {
@@ -109,7 +140,6 @@ impl TunerSession {
                         let max_channel = *entry.channels.iter().max().unwrap_or(&0);
                         let total_channels = max_channel + 1;
 
-                        // Subscribe one ring per channel.
                         let rings = controller.subscribe_input_tap(
                             &chain.id,
                             input_index,
@@ -123,11 +153,8 @@ impl TunerSession {
                             .clone()
                             .unwrap_or_else(|| chain.id.0.clone());
 
-                        for (ch_pos, (channel, ring)) in entry
-                            .channels
-                            .iter()
-                            .zip(rings.into_iter())
-                            .enumerate()
+                        for (ch_pos, (channel, ring)) in
+                            entry.channels.iter().zip(rings.into_iter()).enumerate()
                         {
                             let ch_label = if entry.channels.len() == 1 {
                                 String::new()
@@ -139,8 +166,8 @@ impl TunerSession {
                                 format!(" · ch{}", ch_pos + 1)
                             };
                             let label = format!(
-                                "{}  ·  in {}  ·  ch {}{}",
-                                chain_label,
+                                "{}  ·  IN {}  ·  CH {}{}",
+                                chain_label.to_uppercase(),
                                 input_index + 1,
                                 channel + 1,
                                 ch_label
@@ -158,6 +185,7 @@ impl TunerSession {
         Self {
             rows_model,
             row_states,
+            fingerprint: project_input_fingerprint(project),
         }
     }
 
@@ -165,30 +193,30 @@ impl TunerSession {
         ModelRc::from(self.rows_model.clone())
     }
 
+    /// Cheap re-fingerprint check. Returns `true` when the input topology
+    /// changed (chain enable/disable, input edit, channel change) since
+    /// this session was built — the caller should rebuild.
+    pub fn needs_rebuild(&self, project: &Project) -> bool {
+        self.fingerprint != project_input_fingerprint(project)
+    }
+
     /// Drain rings, run the detector when enough samples accumulated, and
     /// update the row model. Call from a UI timer (~30 Hz is plenty).
     pub fn tick(&mut self) {
         for (idx, state) in self.row_states.iter_mut().enumerate() {
-            // Drain the entire ring into the accumulator. Cap the buffer
-            // at 2× BUFFER_SIZE so a slow consumer or a paused timer
-            // doesn't grow it unbounded.
             while let Some(s) = state.ring.pop() {
                 if state.sample_buf.len() >= BUFFER_SIZE * 2 {
                     state.sample_buf.drain(..BUFFER_SIZE);
                 }
                 state.sample_buf.push(s);
             }
-            // Run detection in fixed-size chunks while we have enough.
             while state.sample_buf.len() >= BUFFER_SIZE {
                 let buf: Vec<f32> = state.sample_buf.drain(..BUFFER_SIZE).collect();
                 match state.detector.process_buffer(&buf) {
-                    PitchUpdate::Update {
-                        note,
-                        cents,
-                        freq,
-                    } => {
+                    PitchUpdate::Update { note, cents, freq } => {
                         if let Some(mut row) = self.rows_model.row_data(idx) {
                             row.note = note.into();
+                            row.octave = freq_to_octave(freq, REFERENCE_HZ);
                             row.cents = cents;
                             row.frequency = freq;
                             row.active = true;
@@ -198,6 +226,7 @@ impl TunerSession {
                     PitchUpdate::Silence => {
                         if let Some(mut row) = self.rows_model.row_data(idx) {
                             row.note = SharedString::from("—");
+                            row.octave = 0;
                             row.cents = 0.0;
                             row.frequency = 0.0;
                             row.active = false;

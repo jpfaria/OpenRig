@@ -304,6 +304,10 @@ pub struct ChainRuntimeState {
     /// windows). Empty by default. Hot-swapped via ArcSwap so the audio
     /// thread reads without locking. See `crate::input_tap::InputTap`.
     input_taps: ArcSwap<Vec<Arc<InputTap>>>,
+    /// When true, the output stage zeros every frame before publishing.
+    /// Used by the Tuner window's "Mute output" toggle so the user can
+    /// tune silently. Auto-cleared when the window closes.
+    tuner_mute: std::sync::atomic::AtomicBool,
 }
 
 const PROBE_IDLE: u8 = 0;
@@ -381,6 +385,17 @@ impl ChainRuntimeState {
         new_taps.push(Arc::new(tap));
         self.input_taps.store(Arc::new(new_taps));
         handles
+    }
+
+    /// Toggle the tuner-mute flag. When `true`, `process_output_f32`
+    /// zeros every output frame so the user can tune silently. Cheap
+    /// (single atomic store) and safe to call from any thread.
+    pub fn set_tuner_mute(&self, mute: bool) {
+        self.tuner_mute.store(mute, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    pub fn is_tuner_muted(&self) -> bool {
+        self.tuner_mute.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// Drop input taps that no longer have any external `SpscRing` handles
@@ -698,6 +713,7 @@ pub fn build_chain_runtime_state(
         probe_state: std::sync::atomic::AtomicU8::new(PROBE_IDLE),
         draining: std::sync::atomic::AtomicBool::new(false),
         input_taps: ArcSwap::from_pointee(Vec::new()),
+        tuner_mute: std::sync::atomic::AtomicBool::new(false),
     })
 }
 
@@ -2281,6 +2297,15 @@ pub fn process_output_f32(
             frame,
             route.output_mixdown,
         );
+    }
+
+    // Tuner-mute: silence the entire output stage when the user has
+    // toggled the mute on the Tuner window. Single atomic load — cheap.
+    if runtime
+        .tuner_mute
+        .load(std::sync::atomic::Ordering::Relaxed)
+    {
+        out.fill(0.0);
     }
 
     // Latency probe detection: only the primary output (index 0) scans.

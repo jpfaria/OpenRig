@@ -2337,6 +2337,15 @@ impl ProjectRuntimeController {
         }
     }
 
+    /// Toggle the tuner-mute flag on every chain runtime. When true,
+    /// the output stage zeros every frame — used by the Tuner window
+    /// so the user can tune silently. Auto-cleared on window close.
+    pub fn set_tuner_mute(&self, mute: bool) {
+        for runtime in self.runtime_graph.chains.values() {
+            runtime.set_tuner_mute(mute);
+        }
+    }
+
     fn upsert_chain_with_resolved(
         &mut self,
         chain: &Chain,

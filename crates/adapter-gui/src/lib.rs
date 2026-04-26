@@ -2208,19 +2208,54 @@ pub fn run_desktop_app(
                     let empty: Rc<VecModel<TunerRow>> = Rc::new(VecModel::from(Vec::new()));
                     tw.set_tuner_rows(ModelRc::from(empty));
                 }
+                tw.set_mute_active(false);
                 let _ = tw.show();
                 *tuner_session_for_open.borrow_mut() = new_session;
 
-                // Start polling timer (~30 Hz). Each tick drains the rings,
-                // runs detection in fixed-size chunks, and updates the row
-                // model — UI thread only, no impact on the audio path.
+                // Start polling timer (~30 Hz). Each tick:
+                //   1. Drains the per-row rings, runs YIN detection in
+                //      BUFFER_SIZE chunks, updates the row model.
+                //   2. Re-fingerprints the project; if the user enabled
+                //      a chain or changed an input layout while the window
+                //      is open, the session is rebuilt and the model swap
+                //      is reflected without the user having to close and
+                //      reopen the window.
+                // Both phases run on the UI thread; the audio path is
+                // untouched.
                 let session_for_tick = tuner_session_for_open.clone();
+                let project_session_for_tick = project_session_for_tuner.clone();
+                let project_runtime_for_tick = project_runtime_for_tuner.clone();
+                let tw_weak_for_tick = tuner_window_weak.clone();
                 tuner_timer_for_open.start(
                     slint::TimerMode::Repeated,
                     std::time::Duration::from_millis(33),
                     move || {
+                        // ── 1. Drain + detect ──
                         if let Some(session) = session_for_tick.borrow_mut().as_mut() {
                             session.tick();
+                        }
+                        // ── 2. Rebuild on topology change ──
+                        let needs_rebuild = {
+                            let pj = project_session_for_tick.borrow();
+                            let session_borrow = session_for_tick.borrow();
+                            match (pj.as_ref(), session_borrow.as_ref()) {
+                                (Some(s), Some(sess)) => sess.needs_rebuild(&s.project),
+                                (Some(_), None) => true,
+                                _ => false,
+                            }
+                        };
+                        if needs_rebuild {
+                            let pj = project_session_for_tick.borrow();
+                            let rt = project_runtime_for_tick.borrow();
+                            if let (Some(s), Some(rt)) = (pj.as_ref(), rt.as_ref()) {
+                                let new_session =
+                                    tuner_session::TunerSession::build(&s.project, rt);
+                                if let Some(tw) = tw_weak_for_tick.upgrade() {
+                                    tw.set_tuner_rows(new_session.rows_model_rc());
+                                }
+                                *session_for_tick.borrow_mut() = Some(new_session);
+                                rt.prune_dead_input_taps();
+                            }
                         }
                     },
                 );
@@ -2230,11 +2265,25 @@ pub fn run_desktop_app(
             let project_runtime_for_close = project_runtime.clone();
             let tuner_session_for_close = tuner_session.clone();
             let tuner_timer_for_close = tuner_timer.clone();
+            let tuner_window_for_close = tuner_window.as_weak();
             tuner_window.on_close_tuner_window(move || {
                 tuner_timer_for_close.stop();
                 *tuner_session_for_close.borrow_mut() = None;
                 if let Some(runtime) = project_runtime_for_close.borrow().as_ref() {
                     runtime.prune_dead_input_taps();
+                    runtime.set_tuner_mute(false);
+                }
+                if let Some(tw) = tuner_window_for_close.upgrade() {
+                    tw.set_mute_active(false);
+                    let _ = tw.hide();
+                }
+            });
+        }
+        {
+            let project_runtime_for_mute = project_runtime.clone();
+            tuner_window.on_toggle_mute(move |muted| {
+                if let Some(runtime) = project_runtime_for_mute.borrow().as_ref() {
+                    runtime.set_tuner_mute(muted);
                 }
             });
         }

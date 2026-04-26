@@ -1,108 +1,198 @@
 // TunerWindow — top-bar feature replacing the chromatic_tuner plugin block.
 // One row per active input channel of each enabled chain.
+//
+// Visual inspiration: Korg Pitch Black + Boss TU-3 + Polytune — large note
+// glyph, scientific-pitch octave subscript, horizontal cents needle with
+// tick marks, color flips green when |cents| < 5.
 import { ScrollView } from "std-widgets.slint";
 
 export struct TunerRow {
     label: string,
     note: string,
+    octave: int,
     cents: float,
     frequency: float,
     active: bool,
 }
 
-component TunerCard inherits Rectangle {
-    in property <TunerRow> data;
+// ── Header mute pill ─────────────────────────────────────────────────────
+component MutePill inherits Rectangle {
+    in-out property <bool> muted;
+    callback toggled(bool);
 
-    height: 84px;
-    border-radius: 10px;
-    background: #1c1f24;
+    width: 110px;
+    height: 28px;
+    border-radius: 14px;
+    background: root.muted ? #5a1818 : #1c2028;
     border-width: 1px;
-    border-color: data.active ? #2a3340 : #2a2f38;
+    border-color: root.muted ? #ff5050 : #2c323d;
 
-    // ── Label (left, vertical text) ──────────────────────────────────────
+    // Indicator dot
+    Rectangle {
+        x: 8px;
+        y: 9px;
+        width: 10px;
+        height: 10px;
+        border-radius: 5px;
+        background: root.muted ? #ff7878 : #4a525e;
+    }
+
     Text {
-        x: 16px; y: 14px;
-        width: 220px;
-        height: 18px;
-        text: root.data.label;
-        color: #b0b9c5;
+        x: 26px; y: 0;
+        width: parent.width - 36px; height: parent.height;
+        text: root.muted ? "MUTED" : "MUTE OUT";
+        color: root.muted ? #ffe0e0 : #c5cdd9;
         font-family: "Bebas Neue";
         font-size: 11px;
-        letter-spacing: 1.2px;
-        overflow: elide;
-    }
-
-    Text {
-        x: 16px; y: 36px;
-        width: 220px;
-        height: 14px;
-        text: root.data.active ? root.data.frequency >= 1.0 ? root.data.frequency + " Hz" : "—" : "—";
-        color: #6a7280;
-        font-size: 10px;
-        font-family: "Inter";
-    }
-
-    // ── Note (huge, center) ──────────────────────────────────────────────
-    Text {
-        x: 240px; y: 14px;
-        width: 120px;
-        height: 56px;
-        text: root.data.active ? root.data.note : "—";
-        color: in-tune.is-tuned ? #88ffaa : #edf2f9;
-        font-family: "Bebas Neue";
-        font-size: 56px;
-        horizontal-alignment: center;
+        letter-spacing: 1.5px;
         vertical-alignment: center;
     }
 
-    // ── In-tune indicator data ───────────────────────────────────────────
-    in-tune := Rectangle {
-        property <bool> is-tuned: root.data.active && Math.abs(root.data.cents) < 5.0;
-        x: 0; y: 0; width: 0; height: 0;
-        visible: false;
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => {
+            root.muted = !root.muted;
+            root.toggled(root.muted);
+        }
     }
+}
 
-    // ── Cents bar (right) ────────────────────────────────────────────────
+// ── Cents bar with tick marks ────────────────────────────────────────────
+component CentsBar inherits Rectangle {
+    in property <float> cents;
+    in property <bool> active;
+
+    property <bool> in-tune: root.active && Math.abs(root.cents) < 5.0;
+    property <bool> close: root.active && Math.abs(root.cents) < 15.0;
+
+    height: 36px;
+    background: #08090c;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: #1f242b;
+
+    // Tick marks at -50, -25, 0 (center, bigger), +25, +50
     Rectangle {
-        x: parent.width - 200px - 16px;
-        y: 30px;
-        width: 200px;
-        height: 24px;
-        background: #0c0e12;
-        border-radius: 4px;
-        border-width: 1px;
-        border-color: #2a2f38;
-
-        // Center marker
-        Rectangle {
-            x: parent.width / 2 - 1px;
-            y: 0; width: 2px;
-            height: parent.height;
-            background: #4a525e;
-        }
-
-        // Cents indicator
-        if root.data.active : Rectangle {
-            // cents in [-50, +50] → x in [0, parent.width]
-            x: (parent.width / 2) + (root.data.cents / 50.0 * (parent.width / 2 - 6px)) - 4px;
-            y: 4px;
-            width: 8px;
-            height: parent.height - 8px;
-            border-radius: 3px;
-            background: in-tune.is-tuned ? #88ffaa : (Math.abs(root.data.cents) < 15.0 ? #ffcc66 : #ff8877);
-        }
+        x: parent.width / 2 - 1px; y: 6px;
+        width: 2px; height: parent.height - 12px;
+        background: root.in-tune ? #88ffaa66 : #4a525e;
+    }
+    for tick in [-50, -25, 25, 50] : Rectangle {
+        x: (parent.width / 2) + (tick / 50.0 * (parent.width / 2 - 8px)) - 0.5px;
+        y: 8px;
+        width: 1px; height: 8px;
+        background: #2a2f38;
     }
 
-    // ── Cents readout (numeric, below bar) ───────────────────────────────
+    // Sub-tick marks at -10, -5, +5, +10 — short, near center
+    for tick in [-10, -5, 5, 10] : Rectangle {
+        x: (parent.width / 2) + (tick / 50.0 * (parent.width / 2 - 8px)) - 0.5px;
+        y: 24px;
+        width: 1px; height: 6px;
+        background: #354154;
+    }
+
+    // Needle
+    if root.active : Rectangle {
+        x: (parent.width / 2) + (Math.clamp(root.cents, -50.0, 50.0) / 50.0 * (parent.width / 2 - 8px)) - 3px;
+        y: 4px;
+        width: 6px;
+        height: parent.height - 8px;
+        border-radius: 3px;
+        background: root.in-tune ? #6dffa3 : root.close ? #ffcc66 : #ff8877;
+
+        // Glow
+        Rectangle {
+            x: -2px; y: 0;
+            width: parent.width + 4px;
+            height: parent.height;
+            border-radius: 5px;
+            background: parent.background;
+            opacity: 0.35;
+        }
+    }
+}
+
+// ── Single-row tuner card ────────────────────────────────────────────────
+component TunerCard inherits Rectangle {
+    in property <TunerRow> data;
+
+    property <bool> in-tune: data.active && Math.abs(data.cents) < 5.0;
+
+    height: 132px;
+    border-radius: 14px;
+    background: @linear-gradient(180deg, #14181f 0%, #0e1116 100%);
+    border-width: 1px;
+    border-color: in-tune ? #2e6a45 : (data.active ? #2a3340 : #1c2028);
+    drop-shadow-blur: 12px;
+    drop-shadow-color: #00000060;
+
+    // ── Top: label + (right) Hz readout ─────────────────────────────────
     Text {
-        x: parent.width - 200px - 16px;
-        y: 58px;
-        width: 200px;
-        height: 14px;
-        text: root.data.active ? (root.data.cents >= 0 ? "+" + Math.round(root.data.cents) + " ¢" : Math.round(root.data.cents) + " ¢") : "";
-        color: #6a7280;
-        font-size: 10px;
+        x: 20px; y: 14px;
+        width: parent.width - 40px - 130px;
+        height: 16px;
+        text: data.label;
+        color: #8a95a5;
+        font-family: "Bebas Neue";
+        font-size: 11px;
+        letter-spacing: 1.6px;
+        overflow: elide;
+    }
+    Text {
+        x: parent.width - 150px; y: 14px;
+        width: 130px; height: 16px;
+        text: data.active && data.frequency > 0.0 ? Math.round(data.frequency * 100) / 100 + " Hz" : "";
+        color: in-tune ? #88ffaa : #6a7280;
         font-family: "Inter";
+        font-size: 11px;
+        font-weight: 600;
+        horizontal-alignment: right;
+    }
+
+    // ── Big note + octave (left side) ───────────────────────────────────
+    Text {
+        x: 20px; y: 36px;
+        width: 140px;
+        height: 72px;
+        text: data.active ? data.note : "—";
+        color: in-tune ? #88ffaa : #f0f4fa;
+        font-family: "Bebas Neue";
+        font-size: 76px;
+        horizontal-alignment: left;
+        vertical-alignment: center;
+    }
+    // Octave subscript
+    if data.active : Text {
+        x: 100px; y: 64px;
+        width: 60px; height: 30px;
+        text: data.octave + "";
+        color: in-tune ? #88ffaa : #8a95a5;
+        font-family: "Bebas Neue";
+        font-size: 28px;
+        font-weight: 400;
+        horizontal-alignment: left;
+        vertical-alignment: center;
+    }
+
+    // ── Cents bar (right side) ──────────────────────────────────────────
+    CentsBar {
+        x: 180px; y: 50px;
+        width: parent.width - 180px - 20px;
+        cents: data.cents;
+        active: data.active;
+    }
+
+    // ── Cents readout (right side, below bar) ───────────────────────────
+    Text {
+        x: 180px; y: 92px;
+        width: parent.width - 180px - 20px;
+        height: 18px;
+        text: data.active ? (data.cents >= 0 ? "+" + Math.round(data.cents) + " ¢" : Math.round(data.cents) + " ¢") : "";
+        color: in-tune ? #6dffa3 : (Math.abs(data.cents) < 15.0 ? #ffcc66 : #ff8877);
+        font-family: "Bebas Neue";
+        font-size: 16px;
+        letter-spacing: 1.4px;
         horizontal-alignment: center;
     }
 }
@@ -112,64 +202,117 @@ export component TunerWindow inherits Window {
     default-font-family: "Bebas Neue";
     default-font-size: 13px;
     title: "OpenRig · Tuner";
-    min-width: 600px;
-    min-height: 240px;
-    preferred-width: 720px;
-    preferred-height: 360px;
-    background: #0a0c10;
+    min-width: 720px;
+    min-height: 280px;
+    preferred-width: 880px;
+    preferred-height: 480px;
+    background: @linear-gradient(180deg, #08090d 0%, #050608 100%);
 
     in property <[TunerRow]> tuner-rows;
+    in property <bool> mute-active;
     callback close-tuner-window();
+    callback toggle-mute(bool);
 
-    // ── Header ───────────────────────────────────────────────────────────
+    // ── Header bar ───────────────────────────────────────────────────────
     Rectangle {
         x: 0; y: 0;
-        width: parent.width; height: 44px;
-        background: #15181d;
-        border-width: 1px;
-        border-color: #1f242b;
+        width: parent.width;
+        height: 56px;
+        background: #0c0e12;
 
-        Text {
-            x: 16px; y: 0;
-            width: 200px; height: parent.height;
-            text: "TUNER";
-            color: #d4dae3;
-            font-size: 14px;
-            letter-spacing: 2.4px;
-            vertical-alignment: center;
+        // Bottom border
+        Rectangle {
+            x: 0; y: parent.height - 1px;
+            width: parent.width; height: 1px;
+            background: #1c2028;
+        }
+
+        // Logo dot (left)
+        Rectangle {
+            x: 20px; y: 18px;
+            width: 20px; height: 20px;
+            border-radius: 10px;
+            background: @radial-gradient(circle, #5cffaa 0%, #1a8855 60%, #08382a 100%);
         }
 
         Text {
-            x: 220px; y: 0;
-            width: parent.width - 240px; height: parent.height;
-            text: root.tuner-rows.length + (root.tuner-rows.length == 1 ? " input" : " inputs");
-            color: #6a7280;
-            font-size: 11px;
+            x: 50px; y: 0;
+            width: 160px; height: parent.height;
+            text: "TUNER";
+            color: #e5ebf2;
+            font-family: "Bebas Neue";
+            font-size: 18px;
+            letter-spacing: 3.0px;
             vertical-alignment: center;
+        }
+
+        // Input count chip
+        if root.tuner-rows.length > 0 : Rectangle {
+            x: 130px; y: 18px;
+            width: 70px; height: 20px;
+            border-radius: 10px;
+            background: #1a2230;
+            border-width: 1px;
+            border-color: #2a3340;
+
+            Text {
+                x: 0; y: 0;
+                width: parent.width; height: parent.height;
+                text: root.tuner-rows.length + (root.tuner-rows.length == 1 ? " INPUT" : " INPUTS");
+                color: #88a3c7;
+                font-family: "Bebas Neue";
+                font-size: 10px;
+                letter-spacing: 1.4px;
+                vertical-alignment: center;
+                horizontal-alignment: center;
+            }
+        }
+
+        // Mute pill (right)
+        MutePill {
+            x: parent.width - 130px; y: 14px;
+            muted: root.mute-active;
+            toggled(m) => { root.toggle-mute(m); }
         }
     }
 
     // ── Empty state ──────────────────────────────────────────────────────
-    if root.tuner-rows.length == 0 : Text {
-        x: 0; y: 80px;
-        width: parent.width; height: 40px;
-        text: "No active inputs";
-        color: #4a525e;
-        font-size: 14px;
-        letter-spacing: 1.4px;
-        horizontal-alignment: center;
+    if root.tuner-rows.length == 0 : Rectangle {
+        x: 0; y: 56px;
+        width: parent.width;
+        height: parent.height - 56px;
+
+        Text {
+            x: 0; y: parent.height / 2 - 32px;
+            width: parent.width; height: 24px;
+            text: "NO ACTIVE INPUTS";
+            color: #4a525e;
+            font-family: "Bebas Neue";
+            font-size: 16px;
+            letter-spacing: 2.4px;
+            horizontal-alignment: center;
+        }
+        Text {
+            x: 0; y: parent.height / 2 - 4px;
+            width: parent.width; height: 20px;
+            text: "Enable a chain with a configured input to see its tuners here.";
+            color: #4a525e;
+            font-family: "Inter";
+            font-size: 11px;
+            horizontal-alignment: center;
+        }
     }
 
-    // ── Tuner list ───────────────────────────────────────────────────────
+    // ── Tuner cards ──────────────────────────────────────────────────────
     if root.tuner-rows.length > 0 : ScrollView {
-        x: 12px; y: 56px;
-        width: parent.width - 24px;
-        height: parent.height - 68px;
-        viewport-height: root.tuner-rows.length * 92px;
+        x: 16px; y: 72px;
+        width: parent.width - 32px;
+        height: parent.height - 88px;
+        viewport-height: root.tuner-rows.length * 144px;
 
         for row[index] in root.tuner-rows : TunerCard {
             x: 0;
-            y: index * 92px;
+            y: index * 144px;
             width: parent.width - 8px;
             data: row;
         }
