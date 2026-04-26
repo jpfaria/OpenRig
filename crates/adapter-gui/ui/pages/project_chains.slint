@@ -842,6 +842,13 @@ component BlockChip inherits Rectangle {
     callback drag-moved(float, float);
     callback drag-finished(float, float);
     out property <bool> hovered: hover-area.has-hover;
+    // Lift the chip above sibling blocks within the same row while hovered
+    // so its tooltip — which renders ABOVE the chip, inside the row's own
+    // space, the same way the In/Out chip tooltips work — paints over the
+    // adjacent chips and the row header instead of behind them. Tooltip
+    // never crosses into the next ChainRow's space, so it cannot be
+    // covered by neighbouring rows in the ListView.
+    z: hover-area.has-hover ? 1000 : 0;
     property <bool> did-drag: false;
     property <bool> drag-origin-set: false;
     property <float> drag-origin-x: 0;
@@ -994,11 +1001,17 @@ component BlockChip inherits Rectangle {
         property <length> header-h: 36px;
         property <length> body-padding: 8px;
         property <int> entry-count: root.block.param_entries.length;
+        property <length> tooltip-h: header-h + body-padding + Math.max(1, entry-count) * row-height + body-padding;
 
+        // Anchor ABOVE the chip and inside the row's own space — same
+        // strategy the In/Out chip tooltips use. Going down would cross
+        // into the next ChainRow's space inside the ListView and get
+        // covered by that row's blocks (#333). Up stays within the row,
+        // so z-lift on the chip alone is enough to win the paint order.
         x: -118px;
-        y: parent.height + 6px;
+        y: -tooltip-h - 6px;
         width: 320px;
-        height: header-h + body-padding + Math.max(1, entry-count) * row-height + body-padding;
+        height: tooltip-h;
         background: #0e1218f5;
         border-width: 1px;
         border-color: #4d5868;
@@ -1218,14 +1231,6 @@ component ChainRow inherits Rectangle {
     property <length> out-chip-x: root.width - 108px;
     property <length> out-chip-y: root.last-block-row * 108px + 24px;
     out property <bool> any-chip-hovered: in-chip.is-hovered || out-chip.is-hovered;
-    // Tracks the cursor anywhere inside the row regardless of which inner
-    // widget actually owns the hover. Drives the row-level z lift so a
-    // BlockChip's tooltip — which hangs below the chip and crosses into
-    // the next row's space inside the ListView — paints above the
-    // neighbouring chain rows instead of behind them. Slint dispatches
-    // clicks to the deepest TouchArea, so this passive tracker does not
-    // steal events from the chips, action icons, blocks, or power toggle.
-    out property <bool> row-hovered: row-hover-tracker.has-hover;
 
     pure function slot-index-for-position(pointer-x: float, pointer-y: float) -> int {
         // Blocks start at x=120, each 116px wide.
@@ -1240,21 +1245,6 @@ component ChainRow inherits Rectangle {
     background: transparent;
     border-radius: 6px;
     height: 74px + (root.block-row-count * 108px);
-    // Lift the whole row above neighbouring rows whenever the cursor is
-    // inside it, so any descendant tooltip (chips, action icons, blocks)
-    // paints above the next chain row in the ListView instead of behind
-    // its blocks (#329, #333).
-    z: row-hover-tracker.has-hover ? 1000 : 0;
-
-    // Hover-only tracker. No clicked handler — children TouchAreas
-    // (PowerSwitch, action icons, chips, blocks) keep ownership of clicks
-    // because Slint dispatches to the deepest TouchArea under the pointer.
-    row-hover-tracker := TouchArea {
-        x: 0px;
-        y: 0px;
-        width: parent.width;
-        height: parent.height;
-    }
 
     Rectangle {
         x: 0px;
