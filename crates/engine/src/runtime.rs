@@ -34,8 +34,16 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use arc_swap::ArcSwap;
+use crossbeam_queue::ArrayQueue;
 
 use crate::spsc::SpscRing;
+
+/// Bounded capacity for the lock-free error queue. The audio thread drops
+/// new errors silently when the queue is full; the UI drains every 200 ms,
+/// so 64 slots covers ~13s of one-error-per-frame at 48k/64-frame buffers
+/// before the audio side starts losing reports — far more than any
+/// reasonable error storm.
+const ERROR_QUEUE_CAPACITY: usize = 64;
 
 /// Floor for the elastic buffer target. Below this the buffer cannot absorb
 /// even minor scheduling jitter, regardless of how small the device buffer is.
@@ -279,7 +287,11 @@ pub struct ChainRuntimeState {
     /// Stream handles published by block processors, polled by UI thread.
     stream_handles: Mutex<HashMap<BlockId, StreamHandle>>,
     /// Errors posted by the audio thread, drained by the UI thread.
-    error_queue: Mutex<Vec<BlockError>>,
+    /// Lock-free SPSC bounded queue: audio thread `push` is wait-free,
+    /// UI thread `pop` is wait-free. Audio thread never blocks on UI
+    /// contention. When full, audio drops new errors silently — the
+    /// queue is sized for any plausible burst.
+    error_queue: ArrayQueue<BlockError>,
     /// Monotonic reference used to derive `u64` nanos for latency probes.
     /// Captured at state creation.
     created_at: std::time::Instant,
@@ -374,11 +386,15 @@ impl ChainRuntimeState {
     }
 
     /// Drains and returns all block errors posted since the last call.
+    ///
+    /// Wait-free against the audio thread: each `pop()` is lock-free, and
+    /// the audio thread is never blocked even if the UI is mid-drain.
     pub fn poll_errors(&self) -> Vec<BlockError> {
-        match self.error_queue.lock() {
-            Ok(mut q) => std::mem::take(&mut *q),
-            Err(_) => vec![],
+        let mut out = Vec::new();
+        while let Some(err) = self.error_queue.pop() {
+            out.push(err);
         }
+        out
     }
 }
 
@@ -623,7 +639,7 @@ pub fn build_chain_runtime_state(
         }),
         output_routes: ArcSwap::from_pointee(output_routes),
         stream_handles: Mutex::new(stream_handles_map),
-        error_queue: Mutex::new(Vec::new()),
+        error_queue: ArrayQueue::new(ERROR_QUEUE_CAPACITY),
         created_at: std::time::Instant::now(),
         last_input_nanos: AtomicU64::new(0),
         measured_latency_nanos: AtomicU64::new(0),
@@ -1954,7 +1970,7 @@ fn process_single_segment(
     data: &[f32],
     input_total_channels: usize,
     num_frames: usize,
-    error_queue: &Mutex<Vec<BlockError>>,
+    error_queue: &ArrayQueue<BlockError>,
 ) {
     let input_state = match input_states.get_mut(seg_idx) {
         Some(s) => s,
@@ -2035,7 +2051,7 @@ fn process_single_segment(
     }
 }
 
-fn process_audio_block(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame], error_queue: &Mutex<Vec<BlockError>>) {
+fn process_audio_block(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame], error_queue: &ArrayQueue<BlockError>) {
     // Copy the fade state (it's Copy) so we can call apply_block_processor without
     // holding a borrow into block.fade_state at the same time.
     match block.fade_state {
@@ -2096,7 +2112,7 @@ fn process_audio_block(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame], 
     }
 }
 
-fn apply_block_processor(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame], error_queue: &Mutex<Vec<BlockError>>) {
+fn apply_block_processor(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame], error_queue: &ArrayQueue<BlockError>) {
     if block.faulted {
         return;
     }
@@ -2112,9 +2128,15 @@ fn apply_block_processor(block: &mut BlockRuntimeNode, frames: &mut [AudioFrame]
                 }
                 let msg = downcast_panic_message(payload);
                 log::error!("block '{}' panicked — permanently bypassed: {}", block.block_id.0, msg);
-                if let Ok(mut q) = error_queue.try_lock() {
-                    q.push(BlockError { block_id: block.block_id.clone(), message: msg });
-                }
+                // Lock-free push. If the queue is full (UI hasn't drained
+                // for a long time), the error is dropped silently — this
+                // path is only reached on processor panic, which already
+                // logs above and faults the block. Losing the queued copy
+                // is far better than blocking the audio thread.
+                let _ = error_queue.push(BlockError {
+                    block_id: block.block_id.clone(),
+                    message: msg,
+                });
             }
         }
         RuntimeProcessor::Select(select) => {
@@ -2342,8 +2364,9 @@ mod tests {
         build_chain_runtime_state, build_runtime_graph, process_input_f32, process_output_f32,
         update_chain_runtime_state, split_chain_into_segments, effective_inputs, effective_outputs,
         AudioFrame, AudioProcessor, BlockError, BlockRuntimeNode, FadeState, ProcessorScratch, RuntimeProcessor,
-        ElasticBuffer, DEFAULT_ELASTIC_TARGET, FADE_IN_FRAMES,
+        ElasticBuffer, DEFAULT_ELASTIC_TARGET, ERROR_QUEUE_CAPACITY, FADE_IN_FRAMES,
     };
+    use crossbeam_queue::ArrayQueue;
     use block_core::AudioChannelLayout;
     use block_preamp::supported_models as supported_preamp_models;
     use block_cab::{cab_backend_kind, supported_models as supported_cab_models, CabBackendKind};
@@ -3116,7 +3139,7 @@ mod tests {
     #[test]
     fn panicking_processor_does_not_crash_the_caller() {
         let mut block = panicking_block_node();
-        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
         let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
 
         // Must not panic
@@ -3126,7 +3149,7 @@ mod tests {
     #[test]
     fn panicking_processor_marks_block_as_faulted() {
         let mut block = panicking_block_node();
-        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
         let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
 
         apply_block_processor(&mut block, &mut frames, &error_queue);
@@ -3137,7 +3160,7 @@ mod tests {
     #[test]
     fn panicking_processor_zeroes_output_frames() {
         let mut block = panicking_block_node();
-        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
         let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
 
         apply_block_processor(&mut block, &mut frames, &error_queue);
@@ -3156,15 +3179,15 @@ mod tests {
     #[test]
     fn panicking_processor_posts_error_to_queue() {
         let mut block = panicking_block_node();
-        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
         let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
 
         apply_block_processor(&mut block, &mut frames, &error_queue);
 
-        let errors = error_queue.lock().unwrap();
-        assert_eq!(errors.len(), 1, "exactly one error should be posted");
-        assert_eq!(errors[0].block_id.0, "test:panicking");
-        assert!(errors[0].message.contains("simulated plugin crash"), "error message should contain panic message");
+        assert_eq!(error_queue.len(), 1, "exactly one error should be posted");
+        let err = error_queue.pop().expect("error should be available");
+        assert_eq!(err.block_id.0, "test:panicking");
+        assert!(err.message.contains("simulated plugin crash"), "error message should contain panic message");
     }
 
     #[test]
@@ -3173,7 +3196,7 @@ mod tests {
         let mut block = counting_block_node(counter.clone());
         block.faulted = true; // pre-fault the block
 
-        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
         let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
 
         apply_block_processor(&mut block, &mut frames, &error_queue);
@@ -3185,16 +3208,16 @@ mod tests {
     #[test]
     fn second_call_after_panic_does_not_process_or_post_error() {
         let mut block = panicking_block_node();
-        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
         let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
 
         // First call: panics, marks faulted, posts error
         apply_block_processor(&mut block, &mut frames, &error_queue);
-        assert_eq!(error_queue.lock().unwrap().len(), 1);
+        assert_eq!(error_queue.len(), 1);
 
         // Second call: faulted — must not post another error
         apply_block_processor(&mut block, &mut frames, &error_queue);
-        assert_eq!(error_queue.lock().unwrap().len(), 1,
+        assert_eq!(error_queue.len(), 1,
             "no additional error should be posted for an already-faulted block");
     }
 
@@ -3204,7 +3227,7 @@ mod tests {
         let mut block = counting_block_node(counter.clone());
         block.fade_state = FadeState::Bypassed;
 
-        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
         let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
 
         process_audio_block(&mut block, &mut frames, &error_queue);
@@ -3219,7 +3242,7 @@ mod tests {
         let mut block = counting_block_node(counter.clone());
         block.fade_state = FadeState::FadingIn { frames_remaining: FADE_IN_FRAMES };
 
-        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
         let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
 
         process_audio_block(&mut block, &mut frames, &error_queue);
@@ -3287,7 +3310,7 @@ mod tests {
         let mut block = counting_block_node(counter.clone());
         block.fade_state = FadeState::FadingIn { frames_remaining: 16 };
 
-        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
         let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
 
         process_audio_block(&mut block, &mut frames, &error_queue);
@@ -3302,7 +3325,7 @@ mod tests {
         let mut block = counting_block_node(counter.clone());
         block.fade_state = FadeState::FadingIn { frames_remaining: 64 };
 
-        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
         let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
 
         process_audio_block(&mut block, &mut frames, &error_queue);
@@ -3321,7 +3344,7 @@ mod tests {
         let mut block = counting_block_node(counter.clone());
         block.fade_state = FadeState::FadingOut { frames_remaining: 16 };
 
-        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
         let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
 
         process_audio_block(&mut block, &mut frames, &error_queue);
@@ -3336,7 +3359,7 @@ mod tests {
         let mut block = counting_block_node(counter.clone());
         block.fade_state = FadeState::FadingOut { frames_remaining: 64 };
 
-        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
         let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
 
         process_audio_block(&mut block, &mut frames, &error_queue);
@@ -3355,7 +3378,7 @@ mod tests {
         let mut block = counting_block_node(counter.clone());
         block.fade_state = FadeState::FadingOut { frames_remaining: FADE_IN_FRAMES };
 
-        let error_queue = std::sync::Mutex::new(Vec::<BlockError>::new());
+        let error_queue = ArrayQueue::<BlockError>::new(ERROR_QUEUE_CAPACITY);
         let mut frames = vec![AudioFrame::Stereo([1.0, 1.0]); 16];
 
         process_audio_block(&mut block, &mut frames, &error_queue);
@@ -3784,11 +3807,8 @@ mod tests {
         let chain = tuner_track("chain:0", Vec::new());
         let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).unwrap();
         // Manually push errors
-        {
-            let mut q = runtime.error_queue.lock().unwrap();
-            q.push(BlockError { block_id: BlockId("err:1".into()), message: "oops".into() });
-            q.push(BlockError { block_id: BlockId("err:2".into()), message: "boom".into() });
-        }
+        runtime.error_queue.push(BlockError { block_id: BlockId("err:1".into()), message: "oops".into() }).unwrap();
+        runtime.error_queue.push(BlockError { block_id: BlockId("err:2".into()), message: "boom".into() }).unwrap();
         let errors = runtime.poll_errors();
         assert_eq!(errors.len(), 2);
         // Second call should be empty
