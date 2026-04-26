@@ -1,2 +1,3 @@
+pub mod input_tap;
 pub mod runtime;
-pub(crate) mod spsc;
+pub mod spsc;
