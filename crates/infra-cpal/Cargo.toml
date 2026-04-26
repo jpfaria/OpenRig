@@ -9,6 +9,7 @@ jack = ["cpal/jack", "dep:jack"]
 [dependencies]
 log.workspace = true
 anyhow.workspace = true
+arc-swap.workspace = true
 cpal.workspace = true
 jack = { version = "0.13", optional = true }
 

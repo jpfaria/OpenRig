@@ -199,6 +199,19 @@ pub struct GuiAudioDeviceSettings {
     pub buffer_size_frames: u32,
     #[serde(default = "default_bit_depth")]
     pub bit_depth: u32,
+    // Linux JACK tuning — only present on Linux builds. cpal backends on
+    // macOS (CoreAudio) and Windows (WASAPI/ASIO) don't honour realtime
+    // priority or ALSA nperiods, so the fields don't exist there and the
+    // YAML stays clean.
+    #[cfg(target_os = "linux")]
+    #[serde(default = "default_realtime")]
+    pub realtime: bool,
+    #[cfg(target_os = "linux")]
+    #[serde(default = "default_rt_priority")]
+    pub rt_priority: u8,
+    #[cfg(target_os = "linux")]
+    #[serde(default = "default_nperiods")]
+    pub nperiods: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -225,6 +238,21 @@ fn default_buffer_size_frames() -> u32 {
 
 fn default_bit_depth() -> u32 {
     32
+}
+
+#[cfg(target_os = "linux")]
+fn default_realtime() -> bool {
+    true
+}
+
+#[cfg(target_os = "linux")]
+fn default_rt_priority() -> u8 {
+    70
+}
+
+#[cfg(target_os = "linux")]
+fn default_nperiods() -> u32 {
+    3
 }
 
 fn default_true() -> bool {
@@ -254,6 +282,12 @@ impl From<LegacyGuiAudioSettings> for GuiAudioSettings {
                 sample_rate: value.sample_rate,
                 buffer_size_frames: value.buffer_size_frames,
                 bit_depth: default_bit_depth(),
+                #[cfg(target_os = "linux")]
+                realtime: default_realtime(),
+                #[cfg(target_os = "linux")]
+                rt_priority: default_rt_priority(),
+                #[cfg(target_os = "linux")]
+                nperiods: default_nperiods(),
             })
             .collect();
         let output_devices = value
@@ -265,6 +299,12 @@ impl From<LegacyGuiAudioSettings> for GuiAudioSettings {
                 sample_rate: value.sample_rate,
                 buffer_size_frames: value.buffer_size_frames,
                 bit_depth: default_bit_depth(),
+                #[cfg(target_os = "linux")]
+                realtime: default_realtime(),
+                #[cfg(target_os = "linux")]
+                rt_priority: default_rt_priority(),
+                #[cfg(target_os = "linux")]
+                nperiods: default_nperiods(),
             })
             .collect();
         Self {
@@ -404,6 +444,12 @@ mod tests {
             sample_rate: 48_000,
             buffer_size_frames: 256,
             bit_depth: 32,
+            #[cfg(target_os = "linux")]
+            realtime: true,
+            #[cfg(target_os = "linux")]
+            rt_priority: 70,
+            #[cfg(target_os = "linux")]
+            nperiods: 3,
         }
     }
 
@@ -739,11 +785,62 @@ mod tests {
             sample_rate: 48_000,
             buffer_size_frames: 64,
             bit_depth: 24,
+            #[cfg(target_os = "linux")]
+            realtime: true,
+            #[cfg(target_os = "linux")]
+            rt_priority: 70,
+            #[cfg(target_os = "linux")]
+            nperiods: 3,
         };
         let yaml = serde_yaml::to_string(&dev).unwrap();
         let restored: GuiAudioDeviceSettings = serde_yaml::from_str(&yaml).unwrap();
         assert_eq!(dev, restored);
         assert_eq!(restored.bit_depth, 24);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn gui_audio_device_settings_defaults_realtime_true() {
+        let yaml = "device_id: x\nname: X\n";
+        let dev: GuiAudioDeviceSettings = serde_yaml::from_str(yaml).unwrap();
+        assert!(dev.realtime);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn gui_audio_device_settings_defaults_rt_priority_70() {
+        let yaml = "device_id: x\nname: X\n";
+        let dev: GuiAudioDeviceSettings = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(dev.rt_priority, 70);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn gui_audio_device_settings_defaults_nperiods_3() {
+        let yaml = "device_id: x\nname: X\n";
+        let dev: GuiAudioDeviceSettings = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(dev.nperiods, 3);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn gui_audio_device_settings_roundtrip_with_jack_tuning() {
+        let dev = GuiAudioDeviceSettings {
+            device_id: "hw:4".into(),
+            name: "USB".into(),
+            sample_rate: 48_000,
+            buffer_size_frames: 64,
+            bit_depth: 32,
+            realtime: true,
+            rt_priority: 80,
+            nperiods: 2,
+        };
+        let yaml = serde_yaml::to_string(&dev).unwrap();
+        let restored: GuiAudioDeviceSettings = serde_yaml::from_str(&yaml).unwrap();
+        assert_eq!(dev, restored);
+        assert!(restored.realtime);
+        assert_eq!(restored.rt_priority, 80);
+        assert_eq!(restored.nperiods, 2);
     }
 
     // ── LegacyGuiAudioSettings migration ────────────────────────────────

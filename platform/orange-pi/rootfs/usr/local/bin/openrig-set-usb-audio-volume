@@ -1,0 +1,57 @@
+#!/bin/sh
+# Set ALSA volume controls to 0 dB (unity) on USB audio card hotplug.
+#
+# Fired by a udev rule whenever a new /dev/snd/controlCN node appears, so any
+# USB audio interface that boots with attenuated defaults (most class-
+# compliant devices do) plays at the level the user expects without having
+# to run alsamixer manually.
+#
+# Uses dB values (not percentages) so the result is device-independent:
+# a Q-26, a Scarlett, and a Behringer all land on 0 dB unity regardless of
+# their individual dB ranges. If the control can't represent exactly 0 dB,
+# ALSA snaps to the nearest step.
+#
+#   - "playback volume" → 0 dB (unity)
+#   - "capture volume"  → +12 dB (passive humbuckers/single-coils land near
+#                                 -inf at 0 dB unity on the Q-26; +12 dB is
+#                                 the level confirmed in hardware with guitar
+#                                 plugged. Still leaves 12 dB of headroom
+#                                 on devices with +24 dB max range.)
+#
+# Generic: no vendor/model matching. Acts on any mixer control whose name
+# contains "playback volume" or "capture volume". User preferences are
+# persisted by alsa-store on shutdown and restored by alsa-restore on the
+# next boot — this script only seeds the very first boot from a fresh image.
+#
+# Usage: openrig-set-usb-audio-volume controlCN
+
+set -u
+
+DEVNAME="${1:-}"
+[ -z "$DEVNAME" ] && exit 0
+
+CARD="${DEVNAME#controlC}"
+case "$CARD" in
+    ''|*[!0-9]*)
+        exit 0
+        ;;
+esac
+
+command -v amixer >/dev/null 2>&1 || exit 0
+
+set_controls_matching() {
+    pattern="$1"
+    value="$2"
+    amixer -c "$CARD" controls 2>/dev/null |
+        grep -i "$pattern" |
+        sed 's/.*numid=\([0-9]*\).*/\1/' |
+        while read -r numid; do
+            [ -n "$numid" ] || continue
+            amixer -c "$CARD" cset "numid=$numid" "$value" >/dev/null 2>&1 || true
+        done
+}
+
+set_controls_matching "playback volume" "0dB"
+set_controls_matching "capture volume"  "12dB"
+
+exit 0

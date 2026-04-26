@@ -436,22 +436,10 @@ pub(crate) fn replace_project_chains(
         .iter()
         .enumerate()
         .map(|(index, chain)| {
-            let input_settings = chain.first_input()
-                .and_then(|ib| ib.entries.first())
-                .and_then(|entry| {
-                    project.device_settings.iter().find(|s| s.device_id == entry.device_id)
-                });
-            let output_settings = chain.last_output()
-                .and_then(|ob| ob.entries.first())
-                .and_then(|entry| {
-                    project.device_settings.iter().find(|s| s.device_id == entry.device_id)
-                });
-            let input_buffer =
-                input_settings.map(|s| s.buffer_size_frames).unwrap_or(256) as f32;
-            let output_buffer =
-                output_settings.map(|s| s.buffer_size_frames).unwrap_or(256) as f32;
-            let sample_rate = input_settings.map(|s| s.sample_rate).unwrap_or(48000) as f32;
-            let latency_ms = (input_buffer + output_buffer) / sample_rate * 1000.0;
+            // Latency starts at 0 (badge hidden). The sonar probe populates
+            // `latency_ms` with a measured value for up to 10 s when the
+            // user clicks the probe button on the chain card.
+            let latency_ms = 0.0_f32;
             ProjectChainItem {
                 instrument: chain.instrument.clone().into(),
                 title: chain

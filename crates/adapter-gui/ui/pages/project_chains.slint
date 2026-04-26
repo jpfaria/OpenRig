@@ -1,4 +1,4 @@
-import { ComboBox, ScrollView, VerticalBox } from "std-widgets.slint";
+import { ComboBox, ListView, ScrollView } from "std-widgets.slint";
 import { ProjectChainItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, ChainBlockItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockStreamEntry, BlockKnobOverlay } from "../models.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { BlockPanelEditor } from "block_panel_editor.slint";
@@ -380,13 +380,43 @@ component BlockTypeCard inherits Rectangle {
         vertical-alignment: center;
     }
 
-    EffectTypeIcon {
+    if root.item.icon-kind == "vst3" : Image {
         x: 14px;
         y: 20px;
         width: 60px;
         height: 60px;
-        icon-kind: root.item.icon-kind;
-        tint: root.accent-color;
+        source: @image-url("../assets/vst3-logo.svg");
+        image-fit: contain;
+        colorize: root.accent-color;
+    }
+
+    if root.item.icon-kind != "vst3" : Image {
+        x: 14px;
+        y: 20px;
+        width: 60px;
+        height: 60px;
+        source: root.item.icon-kind == "input"        ? @image-url("../assets/input.svg")
+            : root.item.icon-kind == "output"         ? @image-url("../assets/output.svg")
+            : root.item.icon-kind == "insert"         ? @image-url("../assets/insert_loop.svg")
+            : root.item.icon-kind == "preamp"         ? @image-url("../assets/amp-head.svg")
+            : root.item.icon-kind == "amp"            ? @image-url("../assets/amp-combo.svg")
+            : root.item.icon-kind == "cab"            ? @image-url("../assets/cab.svg")
+            : root.item.icon-kind == "body"           ? @image-url("../assets/body.svg")
+            : root.item.icon-kind == "ir"             ? @image-url("../assets/ir-loader.svg")
+            : root.item.icon-kind == "full_rig"       ? @image-url("../assets/full-rig.svg")
+            : root.item.icon-kind == "gain"           ? @image-url("../assets/gain.svg")
+            : root.item.icon-kind == "dynamics"       ? @image-url("../assets/dyn.svg")
+            : root.item.icon-kind == "filter"         ? @image-url("../assets/filter.svg")
+            : root.item.icon-kind == "wah"            ? @image-url("../assets/expression.svg")
+            : root.item.icon-kind == "modulation"     ? @image-url("../assets/mod.svg")
+            : root.item.icon-kind == "delay"          ? @image-url("../assets/delay.svg")
+            : root.item.icon-kind == "reverb"         ? @image-url("../assets/reverb.svg")
+            : root.item.icon-kind == "utility"        ? @image-url("../assets/util.svg")
+            : root.item.icon-kind == "nam"            ? @image-url("../assets/nam.svg")
+            : root.item.icon-kind == "pitch"          ? @image-url("../assets/pitch.svg")
+            : @image-url("../assets/gear.svg");
+        image-fit: contain;
+        colorize: root.accent-color;
     }
 
     TouchArea {
@@ -856,7 +886,7 @@ component BlockChip inherits Rectangle {
         width: parent.width;
         height: 72px;
         icon-kind: root.block.icon-kind;
-        tint: root.dragging ? #8b95a5 : root.block.enabled ? #f3f6fb : #5c6678;
+        tint: root.dragging ? #8b95a5 : root.block.enabled ? root.accent-color : #5c6678;
     }
 
     // White hover outline — hugs the actual rendered thumbnail
@@ -1019,6 +1049,7 @@ component ChainRow inherits Rectangle {
     callback configure-chain-output(int);
     callback configure-chain-preset(int);
     callback save-chain-preset(int);
+    callback probe-chain-latency(int);
     callback select-chain-block(int, int);
     callback toggle-chain-block-enabled(int, int);
     callback start-block-insert(int, int);
@@ -1115,6 +1146,14 @@ component ChainRow inherits Rectangle {
             icon: @image-url("../assets/expand.svg");
             tooltip: "Expandir blocos";
             clicked => { root.open-compact-chain-view(root.chain-index); }
+        }
+
+        ChainActionIcon {
+            x: parent.width - 236px;
+            y: 14px;
+            icon: @image-url("../assets/sonar.svg");
+            tooltip: "Medir latência real (emite um bipe)";
+            clicked => { root.probe-chain-latency(root.chain-index); }
         }
 
         ChainActionIcon {
@@ -1881,6 +1920,7 @@ export component ProjectChainsPage inherits Rectangle {
     callback configure-chain-output(int);
     callback configure-chain-preset(int);
     callback save-chain-preset(int);
+    callback probe-chain-latency(int);
     callback open-compact-chain-view(int);
     callback select-chain-block(int, int);
     callback clear-chain-block();
@@ -2003,21 +2043,24 @@ export component ProjectChainsPage inherits Rectangle {
         }
     }
 
-    ScrollView {
+    // Virtualized chains list: ListView only instantiates ChainRow instances
+    // visible in the viewport. Each row is wrapped in a Rectangle to add 12px
+    // of bottom spacing (ListView does not support `spacing` like VerticalBox).
+    // Fixes #290 — previous ScrollView + for instantiated every ChainRow upfront,
+    // causing heavy SVG rasterization per frame on macOS retina during scroll.
+    ListView {
         x: 24px;
         y: 96px;
         width: parent.width - 48px;
         height: parent.height - 96px;
-        viewport-height: chains-column.preferred-height;
-        viewport-width: chains-column.width;
 
-        chains-column := VerticalBox {
-            x: 0px;
-            y: 0px;
-            width: parent.width - 18px;
-            spacing: 12px;
+        for chain[index] in root.project-chains : Rectangle {
+            background: transparent;
+            height: row.height + 12px;
 
-            for chain[index] in root.project-chains : ChainRow {
+            row := ChainRow {
+                x: 0px;
+                y: 0px;
                 width: parent.width;
                 chain: chain;
                 chain-index: index;
@@ -2031,6 +2074,7 @@ export component ProjectChainsPage inherits Rectangle {
                 configure-chain-output(index) => { root.configure-chain-output(index); }
                 configure-chain-preset(index) => { root.configure-chain-preset(index); }
                 save-chain-preset(index) => { root.save-chain-preset(index); }
+                probe-chain-latency(index) => { root.probe-chain-latency(index); }
                 open-compact-chain-view(index) => { root.open-compact-chain-view(index); }
                 select-chain-block(chain-index, block-index) => { root.select-chain-block(chain-index, block-index); }
                 toggle-chain-block-enabled(chain-index, block-index) => { root.toggle-chain-block-enabled(chain-index, block-index); }

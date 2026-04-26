@@ -1,27 +1,53 @@
 ---
 name: openrig-code-quality
-description: "Use when writing, editing, or refactoring any code. Prevents coupling, duplication, bad design. Apply BEFORE writing code, not after. Covers: data ownership, zero coupling, single source of truth, naming, UI rules, impact analysis, safe refactoring."
+description: "Use when writing, editing, or refactoring any Rust code in this project."
 ---
 
 # Code Quality — Architecture Checklist
 
 Mandatory rules for writing code. Apply BEFORE writing, not after. No exceptions.
 
-## MANDATORY — Load These Skills First
+Premissas gerais do projeto (Superpowers obrigatórios por situação, rastreabilidade de issue, distribuição cross-platform, alterações no SO da placa, atualização de documentação) vivem em `CLAUDE.md` na raiz do projeto e são carregadas automaticamente em toda conversa. Esta skill cobre apenas as regras específicas de qualidade de código Rust/Slint.
 
-Before doing ANYTHING, invoke the relevant superpowers skills using the Skill tool:
+---
 
-| Situation | Skill to invoke |
-|-----------|----------------|
-| Adding a feature or new behavior | `superpowers:brainstorming` |
-| Implementing a feature or bugfix | `superpowers:test-driven-development` |
-| Debugging a bug or test failure | `superpowers:systematic-debugging` |
-| Have a plan ready to execute | `superpowers:executing-plans` |
-| Work is complete, about to claim done | `superpowers:verification-before-completion` |
-| Received code review feedback | `superpowers:receiving-code-review` |
-| About to finish a branch | `superpowers:finishing-a-development-branch` |
+## MANDATORY — Run Static Validation on Every File You Touch
 
-**These are not optional.** If you skip them, you are violating the project's development process.
+After creating or modifying **any** `.rs` or `.slint` file, run:
+
+```bash
+./scripts/validate.sh path/to/file1.rs path/to/file2.slint ...
+```
+
+Or let it auto-detect changed files from git diff:
+
+```bash
+./scripts/validate.sh
+```
+
+**What it checks:**
+| Check | Rust | Slint |
+|---|---|---|
+| File size | ≤ 600 lines | ≤ 500 lines |
+| Formatting | `cargo fmt --check` | — |
+| Linting | `cargo clippy -D warnings` | — |
+| Compilation | — | `cargo check -p adapter-gui` |
+
+**Rules:**
+- `FAIL` (red) = hard violation — fix before committing, no exceptions
+- `WARN` (yellow) = known debt file — do NOT add more lines to it
+- If a file shows `WARN` and you need to add logic: refactor it into smaller modules first
+
+**Anti-pattern:**
+```
+❌ Modify crates/adapter-gui/src/lib.rs (9441 lines) and add 50 more lines
+   // WRONG: known debt file. Create a new module, move logic there first.
+
+✅ Extract the relevant logic to crates/adapter-gui/src/project.rs (new file)
+   then add your feature there
+```
+
+**Zero tolerance for FAIL:** A task is not done until `validate.sh` exits 0.
 
 ---
 
@@ -76,7 +102,7 @@ Before doing ANYTHING, invoke the relevant superpowers skills using the Skill to
 - [ ] No workarounds/hacks
 - [ ] Renamed something? → ALL references updated (code + YAML data files + presets)
 
-### 7. Impact Analysis (NEW — from real failures)
+### 7. Impact Analysis (from real failures)
 
 Before making a change, verify:
 - [ ] **Build system**: Does `build.rs` depend on file names? (e.g., `starts_with("compressor_")` breaks if file renamed to `native_compressor_`)
@@ -91,6 +117,155 @@ Before making a change, verify:
 - [ ] **After changing struct fields**: update ALL modules that construct the struct
 - [ ] **Test visually** before committing UI changes — don't assume it looks right
 - [ ] **One concern per commit** — don't mix refactoring with feature changes
+
+### 9. Responsive UI
+
+- [ ] **All UI elements must be responsive** — never invade adjacent areas
+- [ ] Elements must adapt to window/panel size
+- [ ] No hardcoded absolute positions that break at different sizes
+- [ ] Test with minimum and maximum window sizes before committing
+- [ ] Overflow/clip must be handled — if content doesn't fit, it should scroll or truncate, never overflow
+
+### 10. File Organization — ONE RESPONSIBILITY PER FILE (ABSOLUTE)
+
+- [ ] **One concern per file — no exceptions.** If you can describe a file with "and", it has too many responsibilities
+- [ ] **500 lines max** — if a file exceeds 500 lines, it MUST be split before adding anything new
+- [ ] **lib.rs is for re-exports only** — NEVER implement logic in lib.rs; move it to a named module
+- [ ] Configuration files organized by component/domain (e.g., `visual_config/preamp.rs`, `visual_config/delay.rs`)
+- [ ] A file with a match/if that grows with every new model → **WRONG, split by component**
+- [ ] If a file has 50+ lines of match arms → it needs to be split immediately
+- [ ] **God files are forbidden** — a file that 10+ different features touch is a god file; split it
+- [ ] New feature? New file. Don't add to an existing file that already has a different concern
+
+**Known god files — never expand further (tracked in issue #276). Check current size with `wc -l <path>` before touching:**
+- `crates/adapter-gui/src/lib.rs` — split in progress
+- `crates/project/src/block.rs` — split in progress
+- `crates/block-core/src/lib.rs` — split in progress
+- `crates/block-core/src/param.rs` — split in progress
+
+**Anti-patterns:**
+```
+❌ Adding a new function to adapter-gui/src/lib.rs
+   // WRONG: already a god file. Create a new module instead.
+
+❌ lib.rs with 200 lines of business logic
+   // WRONG: lib.rs = re-exports only
+
+❌ A match arm in block.rs growing from 13 to 14 branches
+   // WRONG: the dispatch belongs in each block's own crate via trait
+
+✅ crates/adapter-gui/src/device.rs — only device management
+✅ crates/adapter-gui/src/project.rs — only project persistence
+✅ crates/adapter-gui/src/chain.rs — only chain editing
+```
+
+### 11. Test Coverage (OBRIGATORIO)
+
+- [ ] **Toda feature/bugfix DEVE ter testes** — sem exceção
+- [ ] Testes dentro do módulo: `#[cfg(test)] mod tests { ... }`
+- [ ] Nomenclatura: `<behavior>_<scenario>_<expected>` (ex: `validate_project_rejects_empty_chains`)
+- [ ] Sem frameworks externos — usar `assert!`, `assert_eq!`, `assert!(result.is_err())`
+- [ ] **DSP nativo**: testar com golden samples, tolerância `1e-4`
+- [ ] **NAM/LV2/IR builds**: marcar `#[ignore]` (dependem de assets externos)
+- [ ] **Registry tests** para block-* crates: iterar sobre TODOS os modelos via registry (schema, validate, build)
+- [ ] Helpers de teste no próprio módulo — sem crate de test-utils separado
+- [ ] `cargo test --workspace` DEVE passar antes de qualquer commit
+- [ ] Cobertura local: `scripts/coverage.sh` (requer `cargo-llvm-cov`)
+
+**Anti-Pattern (Testes):**
+```
+❌ Commitar código sem testes
+   // WRONG: código sem teste é dívida técnica
+
+❌ Testar build() de modelo IR/NAM/LV2 sem #[ignore]
+   // WRONG: depende de assets externos, falha no CI
+
+❌ Criar crate test-utils separado
+   // WRONG: cada crate deve ser autossuficiente em testes
+
+❌ Usar mockall ou frameworks de mock
+   // WRONG: testar código real, não mocks
+```
+
+### 12. Zero Warnings (OBRIGATORIO)
+
+- [ ] `cargo build` MUST produce zero warnings — no exceptions
+- [ ] Before committing: `cargo build 2>&1 | grep "^warning"` must return empty
+- [ ] Code that introduces warnings is not mergeable
+- [ ] `#[allow(dead_code)]` or `#[allow(unused)]` are NOT acceptable fixes — fix the root cause
+
+**Anti-Pattern:**
+```
+❌ cargo build  # with 3 warnings about unused variables
+   // WRONG: warnings are not acceptable, fix them
+
+❌ #[allow(dead_code)]
+   pub fn unused_helper() { ... }
+   // WRONG: suppress warning without fixing root cause
+
+✅ Remove or use the dead code
+✅ cargo build 2>&1 | grep "^warning"  # → empty output
+```
+
+### 14. Cargo Clean em `.solvers/` — OBRIGATORIO antes de build
+
+Workspaces em `.solvers/issue-N/` acumulam estado inconsistente no `target/` ao longo de merges, edições em vários crates, troca de branches, ou uso compartilhado com o Docker builder. Sintomas clássicos:
+
+- `error[E0460]: possibly newer version of crate X which Y depends on`
+- `error[E0463]: can't find crate for <crate>`
+- `rustc panicked at rmeta/decoder.rs ... no encoded ident for item` (ICE)
+- Build parece verde mas run-time dispara "fn X not found" em símbolo que existe
+
+**Regra:** antes de rodar QUALQUER build que o usuário vá consumir (teste local, `build-linux-local.sh`, `build-deb-local.sh`, `build-orange-pi-image.sh`), executar `cargo clean` na raiz do workspace `.solvers/issue-N/` primeiro.
+
+**Quando é obrigatório:**
+- [ ] Após `git merge` de qualquer branch (develop, feature irmã, develop→feature)
+- [ ] Após editar struct/enum fields em mais de 1 crate na mesma sessão
+- [ ] Após `#[cfg(...)]` adicionado/removido em qualquer struct público
+- [ ] Antes do PRIMEIRO `build-*local.sh` numa sessão nova (sempre)
+- [ ] Antes de sugerir o comando pro usuário executar na máquina dele
+
+**Anti-pattern:**
+```
+❌ cargo build --workspace   # após 3 merges sem cargo clean
+   // WRONG: cache inconsistente. Pode passar localmente e quebrar no Docker
+   
+❌ Sugerir "./scripts/build-deb-local.sh" sem prefixo de cargo clean
+   // WRONG: quase sempre falha com E0460/E0463 no Docker
+```
+
+**Correct pattern:**
+```
+✅ cd .solvers/issue-N && cargo clean && cargo build --workspace
+✅ cd .solvers/issue-N && cargo clean && ./scripts/build-linux-local.sh --clean ...
+✅ Sugerir pro usuário: "cargo clean && ./scripts/build-deb-local.sh --clean"
+```
+
+O flag `--clean` (ou `--nuke`) do build-linux-local.sh/build-deb-local.sh já cobre a limpeza DENTRO do Docker. Mas cargo clean LOCAL é ainda mais rápido e deve ser reflexo.
+
+**Red flag:** se você rodou `cargo build` e deu verde sem ter feito `cargo clean` após merges ou cfg changes, NÃO confie no resultado. Refaça com clean.
+
+### 13. Platform Isolation — cfg Guards (técnica Rust)
+
+Premissa geral de isolamento por plataforma (nunca quebrar áudio em outro SO) vive em `CLAUDE.md` → "Prioridades de Produto" e "Premissa de distribuicao". Esta seção cobre apenas a técnica Rust pra aplicar a premissa.
+
+- [ ] Platform-specific code MUST be behind `#[cfg(target_os = "...")]` or feature flags
+- [ ] Linux/JACK fixes must use `#[cfg(all(target_os = "linux", feature = "jack"))]`
+- [ ] macOS/Windows behavior must not be affected by Linux-only changes
+
+**Anti-Pattern:**
+```
+❌ // Changing a cross-platform audio constant to fix Linux behavior
+   const BUFFER_SIZE: usize = 256;  // was 128, changed for JACK stability
+   // WRONG: affects macOS and Windows — use cfg guard
+
+✅ #[cfg(all(target_os = "linux", feature = "jack"))]
+   const BUFFER_SIZE: usize = 256;
+   #[cfg(not(all(target_os = "linux", feature = "jack")))]
+   const BUFFER_SIZE: usize = 128;
+```
+
+---
 
 ## Anti-Patterns
 
@@ -132,8 +307,9 @@ Before making a change, verify:
    let type_label = catalog_entry.type_label;
 
 ✅ // Visual config from adapter-gui (NOT from business crate)
-   let visual = visual_config_for_model(&brand, &model_id);
-   let panel_bg = visual.panel_bg;
+   // crates/adapter-gui/src/visual_config/mod.rs
+   let vc = crate::visual_config::visual_config_for_model(&item.brand, &item.model_id);
+   let panel_bg = vc.panel_bg;
 
 ✅ // Model definition has ONLY business logic
    pub const MODEL_DEFINITION = PreampModelDefinition {
@@ -165,10 +341,10 @@ When renaming effect types, models, or identifiers:
 ## Review Trigger
 
 After writing code:
-1. Add new model WITHOUT touching adapter-gui? If no → coupling
-2. Change brand color WITHOUT touching Slint? If no → coupling
+1. Add new model WITHOUT touching adapter-gui? If yes → coupling
+2. Change brand color WITHOUT touching Slint? If yes → coupling
 3. File has match/if listing specific models? → coupling
-4. `cargo build` passes? → required before commit
+4. `cargo build` passes with zero warnings? → required before commit
 5. Visual result matches expectation? → test before commit
 
 ## Red Flags — STOP and Redesign
@@ -179,104 +355,11 @@ After writing code:
 - Same string appears in code AND Slint AND YAML
 - Feature flag enables something the UI can't handle
 - "Quick fix" that hardcodes a value
+- `cargo build` produces any warning
+- Path is hardcoded as string literal
+- Linux fix that touches cross-platform code without cfg guard
 
-### 9. Responsive UI
-
-- [ ] **All UI elements must be responsive** — never invade adjacent areas
-- [ ] Elements must adapt to window/panel size
-- [ ] No hardcoded absolute positions that break at different sizes
-- [ ] Test with minimum and maximum window sizes before committing
-- [ ] Overflow/clip must be handled — if content doesn't fit, it should scroll or truncate, never overflow
-
-### 10. File Organization — ONE RESPONSIBILITY PER FILE (ABSOLUTE)
-
-- [ ] **One concern per file — no exceptions.** If you can describe a file with "and", it has too many responsibilities
-- [ ] **500 lines max** — if a file exceeds 500 lines, it MUST be split before adding anything new
-- [ ] **lib.rs is for re-exports only** — NEVER implement logic in lib.rs; move it to a named module
-- [ ] Configuration files organized by component/domain (e.g., `visual_config/preamp.rs`, `visual_config/delay.rs`)
-- [ ] A file with a match/if that grows with every new model → **WRONG, split by component**
-- [ ] If a file has 50+ lines of match arms → it needs to be split immediately
-- [ ] **God files are forbidden** — a file that 10+ different features touch is a god file; split it
-- [ ] New feature? New file. Don't add to an existing file that already has a different concern
-
-**Known god files to never expand further (tracked in issue #276):**
-- `crates/adapter-gui/src/lib.rs` (9441 lines) — split in progress
-- `crates/project/src/block.rs` (1498 lines) — split in progress
-- `crates/block-core/src/lib.rs` (978 lines) — split in progress
-- `crates/block-core/src/param.rs` (1207 lines) — split in progress
-
-**Anti-patterns:**
-```
-❌ Adding a new function to adapter-gui/src/lib.rs
-   // WRONG: already a god file. Create a new module instead.
-
-❌ lib.rs with 200 lines of business logic
-   // WRONG: lib.rs = re-exports only
-
-❌ A match arm in block.rs growing from 13 to 14 branches
-   // WRONG: the dispatch belongs in each block's own crate via trait
-
-✅ crates/adapter-gui/src/device.rs — only device management
-✅ crates/adapter-gui/src/project.rs — only project persistence
-✅ crates/adapter-gui/src/chain.rs — only chain editing
-```
-
-### 11. Documentation Always Up-to-Date
-
-- [ ] **CLAUDE.md must always reflect current state** — when creating, removing, or changing models, block types, parameters, features, or screens, update the corresponding section in CLAUDE.md
-- [ ] Added a new model? → update the "Tipos de bloco" table and parameter list
-- [ ] Added a new block type? → add it to the table with description and models
-- [ ] Changed parameters? → update "Parâmetros comuns" section
-- [ ] Added a new screen/feature? → update "Telas principais" section
-- [ ] Removed something? → remove from CLAUDE.md too, no stale documentation
-- [ ] Documentation is part of the task — not a separate step. If you change code, you change docs in the same commit
-
-### 12. Mandatory Documentation on Every Feature/Change
-
-- [ ] **Every PR must include doc updates** — CLAUDE.md, AGENTS.md, issue description
-- [ ] **New block types** → add to "Tipos de bloco" table in CLAUDE.md, update YAML examples
-- [ ] **New data model structs** → document in CLAUDE.md architecture section and AGENTS.md
-- [ ] **New audio processing behavior** → document in CLAUDE.md "Configuração de áudio" section
-- [ ] **Issue closed** → update issue with final status, what was done, what's pending
-- [ ] **Specs and plans** → keep in `docs/superpowers/specs/` and `docs/superpowers/plans/`, update when design changes
-- [ ] **NEVER close a PR without updating docs** — undocumented features are technical debt
-
-### Anti-Pattern
-```
-❌ Merge PR with 54 commits and no doc updates
-   // WRONG: features become invisible, next developer has no context
-
-✅ Every PR updates CLAUDE.md, AGENTS.md, and closes the issue with summary
-   // RIGHT: docs always reflect current state
-```
-
-### 13. Test Coverage (OBRIGATORIO)
-
-- [ ] **Toda feature/bugfix DEVE ter testes** — sem exceção
-- [ ] Testes dentro do módulo: `#[cfg(test)] mod tests { ... }`
-- [ ] Nomenclatura: `<behavior>_<scenario>_<expected>` (ex: `validate_project_rejects_empty_chains`)
-- [ ] Sem frameworks externos — usar `assert!`, `assert_eq!`, `assert!(result.is_err())`
-- [ ] **DSP nativo**: testar com golden samples, tolerância `1e-4`
-- [ ] **NAM/LV2/IR builds**: marcar `#[ignore]` (dependem de assets externos)
-- [ ] **Registry tests** para block-* crates: iterar sobre TODOS os modelos via registry (schema, validate, build)
-- [ ] Helpers de teste no próprio módulo — sem crate de test-utils separado
-- [ ] `cargo test --workspace` DEVE passar antes de qualquer commit
-- [ ] Cobertura local: `scripts/coverage.sh` (requer `cargo-llvm-cov`)
-
-### Anti-Pattern (Testes)
-```
-❌ Commitar código sem testes
-   // WRONG: código sem teste é dívida técnica
-
-❌ Testar build() de modelo IR/NAM/LV2 sem #[ignore]
-   // WRONG: depende de assets externos, falha no CI
-
-❌ Criar crate test-utils separado
-   // WRONG: cada crate deve ser autossuficiente em testes
-
-❌ Usar mockall ou frameworks de mock
-   // WRONG: testar código real, não mocks
-```
+---
 
 ## Living Document
 

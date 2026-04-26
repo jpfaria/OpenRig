@@ -1,5 +1,91 @@
 # OpenRig — Contexto do Projeto para Claude Code
 
+## OBRIGATORIO — Superpowers
+
+**REQUIRED SUB-SKILL: Invoke `superpowers:using-superpowers` before ANY action in this project.**
+
+Isso se aplica a todos os agentes — locais e GitHub Actions. Sem exceção.
+
+## OBRIGATORIO — Skills do Projeto
+
+Sempre que escrever, editar ou revisar código Rust, invocar obrigatoriamente:
+
+- **`openrig-code-quality`** — regras de qualidade específicas do OpenRig (file naming, zero warnings, zero acoplamento)
+- **`rust-best-practices`** — boas práticas gerais de Rust (Apollo handbook + Rust API Guidelines + Rust Analyzer style guide)
+
+Sempre que escrever, editar ou revisar código Slint (`.slint`), invocar:
+
+- **`slint-best-practices`** — boas práticas de UI em Slint
+
+## OBRIGATORIO — Superpowers por Situação
+
+Invocar a skill correspondente à situação **antes** de agir:
+
+| Situação | Skill obrigatória |
+|---|---|
+| Adicionando feature ou comportamento novo | `superpowers:brainstorming` |
+| Implementando feature ou bugfix | `superpowers:test-driven-development` |
+| Debugando bug ou falha de teste | `superpowers:systematic-debugging` |
+| Executando plano já escrito | `superpowers:executing-plans` |
+| Trabalho completo, prestes a declarar "done" | `superpowers:verification-before-completion` |
+| Recebendo feedback de code review | `superpowers:receiving-code-review` |
+| Finalizando branch, prestes a abrir PR | `superpowers:finishing-a-development-branch` |
+| Criando nova skill | `superpowers:writing-skills` |
+| 2+ tarefas independentes em paralelo | `superpowers:dispatching-parallel-agents` |
+
+**Nenhuma dessas é opcional.** Pular é violar o processo do projeto.
+
+---
+
+## OBRIGATORIO — Prioridades de Produto (Non-Regression)
+
+OpenRig é um processador de áudio em tempo real. **Qualidade sonora e latência são os valores centrais do produto.** Toda feature, fix, refactor ou mudança de dependência DEVE provar que não degrada nenhuma das propriedades abaixo antes de ser mergeada. Essas prioridades se sobrepõem a conveniência de código, velocidade de entrega e até a features novas.
+
+### Invariantes que NUNCA podem piorar
+
+1. **Latência round-trip** — tempo entre input e output
+2. **Qualidade de áudio** — fidelidade sonora dos blocos (ruído, aliasing, THD, resposta em frequência)
+3. **Estabilidade do stream** — zero xruns, dropouts, cliques, glitches ou pops
+4. **Jitter do callback** — tempo de processamento estável, sem picos
+5. **Custo de CPU no audio thread** — cada bloco mantém ou reduz seu custo; regressão de CPU vira xrun
+6. **Zero alocação, lock, syscall ou I/O no audio thread** — sem exceção
+7. **Determinismo numérico** — golden samples continuam passando dentro da tolerância
+
+### Checklist obrigatório antes do PR/merge
+
+Se a mudança tocar audio thread, DSP, roteamento, I/O ou cadeia de blocos, responder explicitamente no corpo do PR ou comentário da issue:
+
+- [ ] Afeta o audio thread? Medi CPU/callback antes e depois? Escutei ≥60s sem glitch?
+- [ ] Afeta latência? Qual o delta em ms? Justificado?
+- [ ] Afeta o som de algum bloco? Golden tests passando? Fiz A/B auditivo?
+- [ ] Introduz alocação, lock, syscall ou lazy init no hot path? Se sim, reverter.
+
+### Red flags — PARAR e reportar ao usuário
+
+Se durante a implementação aparecer qualquer um destes sintomas, **parar imediatamente** e reportar antes de continuar:
+
+- Novo xrun, dropout ou clique audível
+- Latência sobe > 1ms sem justificativa documentada
+- Golden sample tests falham com tolerância atual
+- Pico de tempo de callback acima do buffer period
+- Necessidade de `Mutex`/`RwLock`/`Arc::clone`/log/print/file I/O no processamento
+- "Em macOS/Windows/Linux o som mudou" → é regressão, não compatibilidade
+
+### Hierarquia de trade-offs
+
+Quando houver conflito, esta é a ordem de prioridade (do mais alto para o mais baixo):
+
+1. **Qualidade do som** e **estabilidade do stream** (empate no topo)
+2. **Latência**
+3. **Custo de CPU no audio thread**
+4. **Compatibilidade cross-platform**
+5. **Ergonomia de código / facilidade de manutenção**
+6. **Funcionalidade nova**
+
+Feature nova **não justifica** regressão nos invariantes acima. Se a mudança implicar trade-off nesses eixos, **discutir com o usuário antes** de implementar — não decidir sozinho.
+
+---
+
 ## O que é o OpenRig
 
 Pedalboard/rig virtual para guitarra em Rust. Processa áudio em cadeia (chain) com blocos (blocks) de efeitos e amplificadores. Tem interface gráfica em Slint.
@@ -105,14 +191,64 @@ Ver `CONTRIBUTING.md` para detalhes completos.
 - **Branch sem sufixo** — `feature/issue-{N}` ou `bugfix/issue-{N}`, NUNCA com sufixo descritivo
 - **Develop tem prioridade em conflitos** — ao mergear develop na feature branch, usar `git merge -X theirs origin/develop`
 
+### Issues irmãs — merge antes de implementar (OBRIGATORIO)
+
+Quando duas (ou mais) issues estão em paralelo e tocam os mesmos arquivos — crates, módulos, systemd units, docs — elas são **irmãs** e co-evoluem. Ignorar isso leva a conflito na hora do merge ou a trabalho duplicado.
+
+**Como identificar issues irmãs:** o **corpo** (não comentário) da issue começa com um bloco de quote marcado como:
+
+```markdown
+> **Sibling issues (co-evoluem neste ciclo):** #<outra>
+>
+> Tocam nos mesmos arquivos (...). Antes de implementar nesta branch, faça
+> `git fetch && git merge origin/feature/issue-<outra>`.
+```
+
+Comentários não valem — eles se perdem no histórico. O bloco fica no topo do `body` via `gh issue edit <N> --body-file`.
+
+**Regra:** antes de começar QUALQUER nova implementação numa issue irmã:
+
+```bash
+git fetch origin
+git log origin/feature/issue-<atual>..origin/feature/issue-<irma> --oneline
+# Se existir commit novo:
+git merge origin/feature/issue-<irma> --no-edit
+cargo build --workspace   # verificar que o merge não quebrou
+```
+
+**Quando criar o relacionamento:** ao descobrir overlap (via conflito de merge, grep em arquivos, ou comunicação do usuário), editar o body das DUAS issues envolvidas pra prepend o bloco acima — ambos os lados têm que ter a referência pra navegação simétrica.
+
+**Frequência de sync durante o trabalho:** a cada passo significativo — não só no começo da sessão. Enquanto as duas branches estão vivas, refetch antes de cada novo commit lógico.
+
+**Pares ativos hoje:**
+- #308 (JACK supervisor / audio tuning / UI settings) ↔ #310 (CPU isolation / big-core pin)
+
 ### Rastreabilidade — comentarios obrigatorios na issue (OBRIGATORIO)
 
-Todo agent (local ou GitHub) DEVE comentar na issue em dois momentos:
+A issue do GitHub e o log de auditoria do trabalho. Commits mostram o "o que"; decisoes intermediarias, conflitos, mudancas de rumo, problemas encontrados, hipoteses descartadas, analises feitas, respostas dadas a perguntas tecnicas — tudo fica perdido se nao for registrado na issue.
 
-1. **Antes de comecar** — postar um comentario com o plano: o que pretende mudar e por que
-2. **Apos terminar** — postar um comentario com o que foi feito: arquivos alterados, decisoes tomadas, qualquer informacao relevante para rastreio futuro
+**Regra geral (sem excecoes):** toda vez que a conversa produz informacao util pra rastrear o trabalho depois, comentar na issue. NAO esperar o usuario pedir. NAO esperar o fim do trabalho. NAO julgar se \"vale a pena\" — se a informacao foi produzida no contexto da issue, ela e parte do log.
 
-A issue e a fonte da verdade para todas as alteracoes de codigo. Sem esse rastreio, o historico de decisoes se perde.
+**Momentos obrigatorios de comentario:**
+
+1. **Antes de comecar** — plano: o que pretende mudar, por que, arquivos provaveis, premissas
+2. **A cada push** — commit hash(es), arquivos alterados, decisoes pontuais, resultado de build/teste local
+3. **A cada mudanca de plano** — se o escopo ou a abordagem mudar (nova premissa, conflito de merge, refactor de outra issue), comentar o porque ANTES de executar o novo caminho
+4. **A cada problema encontrado** — erro de build, teste que falhou, workaround aplicado, hipotese descartada — com evidencia minima (mensagem de erro, comando que reproduz, como foi resolvido)
+5. **A cada analise tecnica** — perf, diagnostico, leitura de logs, investigacao de codigo, interpretacao de telemetria — os achados vao na issue mesmo que sejam intermediarios e nao virem commit. Se voce analisou, a issue registra a analise.
+6. **A cada resposta tecnica relevante** — quando o usuario pergunta algo tecnico sobre a issue (\"precisa reiniciar?\", \"afeta macOS?\", \"qual o impacto?\") e voce responde, registrar a resposta na issue. Perguntas tecnicas sao parte do raciocinio do trabalho.
+7. **Merges em feature branches** — o que foi trazido, quais conflitos surgiram, como foram resolvidos, quais partes precisaram reaplicacao manual
+8. **Validacao em hardware** — quando o usuario testar na placa, registrar o resultado (cliques sumiram? latencia caiu? xrun zero por N minutos?)
+9. **Apos terminar** — resumo final: arquivos alterados, decisoes tomadas, checklists marcados, comandos de validacao pro usuario
+
+**Regras praticas:**
+
+- Depois de todo `git push` numa branch de issue, o proximo comando DEVE ser `gh issue comment <N>`. Nunca pular, mesmo em push pequeno de correcao — se o push valeu um commit, vale um comentario.
+- Depois de toda analise tecnica nao-trivial (perf, leitura de codigo, diagnostico via SSH, hipotese nova), o proximo comando DEVE ser `gh issue comment <N>` com o achado. Nao esperar acumular.
+- Depois de toda resposta a pergunta tecnica do usuario na conversa, registrar a resposta na issue. \"Resposta util no chat\" != \"resposta registrada\".
+- Quando em duvida se algo merece comentario, comentar. Excesso de rastreio tem custo zero; ausencia custa o trabalho de reconstruir decisoes no futuro.
+
+Sem esse rastreio, o historico de decisoes se perde e seis meses depois ninguem consegue reconstruir por que uma escolha foi feita. O usuario nao deve precisar pedir a cada passo.
 
 ### Premissa de distribuicao (OBRIGATORIO)
 
@@ -123,6 +259,45 @@ OpenRig e um produto para distribuir em **macOS, Windows e Linux**. Toda decisao
 - **Paths de assets via config central** — LV2 libs, LV2 bundles, NAM captures, IR captures, tudo vem de config
 - **Paths por plataforma** — macOS (`~/Library/Application Support/OpenRig/`), Windows (`%APPDATA%\OpenRig\`), Linux (`~/.local/share/openrig/`)
 - **Teste mental obrigatorio** — antes de qualquer decisao, pergunte: "isso funciona se o usuario instalar no Windows?" Se nao, nao faca
+
+### Premissa de documentacao (OBRIGATORIO)
+
+A documentacao e parte da tarefa, nao um passo separado. Se voce mudou codigo, muda os docs no mesmo commit.
+
+- **CLAUDE.md sempre reflete o estado atual** — ao criar, remover ou mudar modelos, block types, parametros, features ou telas, atualizar a secao correspondente
+- **Novo modelo** → atualizar tabela "Tipos de bloco" e lista de parametros
+- **Novo block type** → adicionar a tabela com descricao e modelos
+- **Mudanca em parametros** → atualizar "Parametros comuns"
+- **Nova tela/feature** → atualizar "Telas principais"
+- **Removeu algo** → remover do CLAUDE.md tambem, sem documentacao vencida
+- **Comportamento novo de audio** → documentar em "Configuracao de audio"
+- **Struct nova de modelo de dados** → documentar em "Arquitetura"
+- **NUNCA encerrar uma branch sem atualizar docs** — feature nao documentada e divida tecnica
+
+### Premissa de alteracoes no SO da placa (OBRIGATORIO)
+
+Toda alteracao aplicada no sistema operacional da placa (Orange Pi) — via SSH, edicao manual de arquivos em `/`, ou ajuste de runtime — TEM que ter equivalente em `platform/orange-pi/` do projeto antes de encerrar o trabalho. Um patch que so vive na placa evapora no proximo flash de imagem, e quem gerar a proxima imagem de producao perde o fix silenciosamente.
+
+**Mapeamento obrigatorio — onde cada tipo de alteracao mora no projeto:**
+
+| Alteracao na placa | Arquivo no projeto |
+|---|---|
+| Kernel cmdline / boot args (`/boot/armbianEnv.txt extraargs=...`) | `platform/orange-pi/customize-image.sh` — variavel `KERNEL_ARGS` + bloco que grava em `armbianEnv.txt` |
+| Systemd unit (`/etc/systemd/system/*.service`) | `platform/orange-pi/rootfs/etc/systemd/system/` |
+| Systemd drop-in (`/etc/systemd/system/*.service.d/*.conf`) | `platform/orange-pi/rootfs/etc/systemd/system/<unit>.d/` |
+| Config em `/etc/` (sysctl, security, udev) | `platform/orange-pi/rootfs/etc/` |
+| Binario/helper em `/usr/local/bin/` | `platform/orange-pi/rootfs/usr/local/bin/` |
+| Overlay de Device Tree | `platform/orange-pi/dtbo/` |
+| Mudanca de runtime (chown, groupadd, setcap, mkdir) | bloco equivalente em `customize-image.sh` |
+
+**Ordem obrigatoria quando a alteracao e planejada:**
+
+1. Alterar primeiro no projeto (`.solvers/issue-N/`)
+2. Commit + push
+3. Aplicar na placa via SSH
+4. Validar
+
+**Quando o patch na placa foi experimental (diagnostico):** aceitavel alterar primeiro na placa para testar, MAS ao confirmar que funciona voltar ao projeto, commitar e empurrar — nunca encerrar o trabalho com config "so na placa". Regra de validacao: antes de declarar uma issue resolvida, responder mentalmente "se o usuario flashar uma imagem nova agora, o fix continua la?". Se nao, falta espelhamento.
 
 ---
 
@@ -187,7 +362,7 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 - **Delay**: time_ms (1-2000ms), feedback (0-100%), mix (0-100%)
 - **Reverb**: room_size, damping, mix (0-100%)
 - **Compressor**: threshold, ratio, attack_ms, release_ms, makeup_gain, mix
-- **Gate**: threshold, attack_ms, release_ms
+- **Gate** (`gate_basic`): threshold (%, -96 a 0 dB), attack_ms (0.1-100), release_ms (1-500), **hold_ms** (0-2000, default 150 — quanto tempo a gate fica aberta após o sinal cair abaixo do threshold de fechamento; evita cortar decay de nota), **hysteresis_db** (0-20, default 6 — diferença entre threshold de abrir e fechar; evita chattering na zona limite)
 - **EQ (Three Band / Guitar EQ)**: low, mid, high (0-100% → -24dB a +24dB)
 - **8-Band Parametric EQ** (`eq_eight_band_parametric`): por banda — `band{N}_enabled` (bool), `band{N}_type` (peak/low_shelf/high_shelf/low_pass/high_pass/notch), `band{N}_freq` (20–20000 Hz), `band{N}_gain` (-24/+24 dB), `band{N}_q` (0.1–10). Freqs padrão: 62/125/250/500/1k/2k/4k/8kHz. Suporta todos os instrumentos. DualMono.
 - **Gain pedals**: drive, tone, level
@@ -641,3 +816,13 @@ ssh root@192.168.15.145 "dpkg -i /tmp/openrig_0.0.0-dev_arm64.deb && systemctl r
 | ir | 31 |
 | nam | 30 |
 | infra-cpal | 12 |
+
+## graphify
+
+This project has a graphify knowledge graph at graphify-out/.
+
+Rules:
+- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
+- If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
+- For cross-module "how does X relate to Y" questions, prefer `graphify query "<question>"`, `graphify path "<A>" "<B>"`, or `graphify explain "<concept>"` over grep — these traverse the graph's EXTRACTED + INFERRED edges instead of scanning files
+- After modifying code files in this session, run `graphify update .` to keep the graph current (AST-only, no API cost)

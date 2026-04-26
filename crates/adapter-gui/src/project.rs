@@ -231,6 +231,12 @@ pub(crate) fn build_device_settings_from_gui(
                 sample_rate: g.sample_rate,
                 buffer_size_frames: g.buffer_size_frames,
                 bit_depth: g.bit_depth,
+                #[cfg(target_os = "linux")]
+                realtime: g.realtime,
+                #[cfg(target_os = "linux")]
+                rt_priority: g.rt_priority,
+                #[cfg(target_os = "linux")]
+                nperiods: g.nperiods,
             });
         }
     }
@@ -294,17 +300,6 @@ pub(crate) fn sync_project_dirty(
     project_dirty: &std::rc::Rc<std::cell::RefCell<bool>>,
     auto_save: bool,
 ) {
-    // Snapshot audio hardware + JACK state for every UI-triggered mutation so we
-    // can correlate a specific user action (knob, device pick, chain edit) with
-    // downstream Scarlett/xHCI disconnects in the journal. The caller location
-    // identifies which UI callback fired this mutation.
-    let caller = std::panic::Location::caller();
-    infra_cpal::log_audio_status(&format!(
-        "sync_project_dirty from {}:{}",
-        caller.file(),
-        caller.line()
-    ));
-
     if auto_save {
         if let Some(ref path) = session.project_path {
             match save_project_session(session, path) {

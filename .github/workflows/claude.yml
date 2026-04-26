@@ -28,7 +28,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Checkout issue branch if exists
+      - name: Checkout or create issue branch
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
         run: |
@@ -38,16 +38,17 @@ jobs:
             echo "Branch $BRANCH exists — checking out"
             git checkout -B "$BRANCH" "origin/$BRANCH"
           else
-            echo "Branch $BRANCH does not exist yet — will be created by Claude"
+            echo "Branch $BRANCH does not exist — creating from develop"
+            git checkout origin/develop -b "$BRANCH"
+            git push origin "$BRANCH"
           fi
 
       - name: Run Claude Code
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          allowed_tools: "Bash(cargo fmt --all),Bash(cargo clippy*),Bash(cargo build*),Bash(cargo check*),Bash(cargo test*),Bash(rustfmt*)"
           base_branch: "develop"
-          branch_prefix: "feature/"
-          branch_name_template: "{{prefix}}issue-{{entityNumber}}"
           claude_args: "--max-turns 200"
           additional_system_prompt: |
             BRANCH NAMING — ABSOLUTE RULE:

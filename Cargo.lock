@@ -1703,6 +1703,7 @@ name = "engine"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "arc-swap",
  "block-amp",
  "block-body",
  "block-cab",
@@ -2914,6 +2915,7 @@ name = "infra-cpal"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "arc-swap",
  "block-core",
  "block-util",
  "cpal",

@@ -13,6 +13,7 @@ echo "jackd2 jackd/tweak_rt_limits boolean true" | debconf-set-selections
 DEBIAN_FRONTEND=noninteractive apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     alsa-utils \
+    gdisk \
     jackd2 \
     libfreetype6 \
     libfontconfig1 \
@@ -188,7 +189,18 @@ systemctl mask    jackd.service  2>/dev/null || true
 systemctl enable weston.service
 systemctl enable openrig.service
 systemctl enable openrig-irq-affinity.service
-systemctl enable openrig-audio-watchdog.service
+systemctl enable openrig-resize-rootfs.service
+
+# ── 9b. Kill stale ALSA mixer state ──────────────────────────────────────────
+# alsa-restore.service runs at boot and restores ALSA mixer controls from
+# /var/lib/alsa/asound.state if present. A state file produced during image
+# build or baked into the base rootfs can resurrect attenuated defaults
+# (e.g. Q-26 boots with PCM Playback at 60/100 = -20 dB instead of unity)
+# and overrides the udev rule that sets USB audio PCM to 100% on attach.
+# Wipe the file so the udev rule wins the race; alsa-store on shutdown
+# will repopulate it with whatever the user actually chose at runtime.
+echo ">>> [OpenRig] Removing stale ALSA mixer state to let udev rule win..."
+rm -f /var/lib/alsa/asound.state
 
 # ── 9a. Plymouth quit failsafe ────────────────────────────────────────────────
 echo ">>> [OpenRig] Capping plymouth-quit-wait timeout at 10s..."
@@ -200,8 +212,8 @@ EOF
 
 # ── 10. Set permissions on install script ────────────────────────────────────
 chmod 755 /usr/local/bin/openrig-install-to-emmc
-chmod 755 /usr/local/bin/openrig-reset-audio
-chmod 755 /usr/local/bin/openrig-audio-watchdog
+chmod 755 /usr/local/bin/openrig-resize-rootfs
+chmod 755 /usr/local/bin/openrig-set-usb-audio-volume
 
 # ── 10a. USB-C TCPM workaround (RK3588 USB-C port stability) ─────────────────
 echo ">>> [OpenRig] Installing USB-C host-mode DTB overlay (Scarlett stability)..."
@@ -221,10 +233,21 @@ else
     fi
 fi
 
-# ── 11. Silent kiosk boot ────────────────────────────────────────────────────
-echo ">>> [OpenRig] Configuring silent kiosk boot..."
+# ── 11. Silent kiosk boot + RT audio CPU isolation ──────────────────────────
+echo ">>> [OpenRig] Configuring silent kiosk boot and RT audio CPU isolation..."
 
-KERNEL_ARGS='quiet splash loglevel=3 rd.systemd.show_status=false rd.udev.log_level=3'
+# CPU isolation for RT audio (RK3588 big.LITTLE: 0-3 = A55 little, 4-7 = A76 big):
+#   isolcpus=4-7    Scheduler skips 4-7 by default; DSP worker and jackd get
+#                   exclusive use of the big cores via explicit sched_setaffinity.
+#   nohz_full=4-7   Disable scheduling-tick timer on 4-7 when only one task runs,
+#                   eliminating timer-interrupt jitter (sub-µs stability).
+#   rcu_nocbs=4-7   Keep RCU callbacks off the big cores so audio is never
+#                   preempted by kernel housekeeping bursts.
+#   irqaffinity=0-3 All IRQs default to the little cores, leaving the audio
+#                   path free of device-interrupt jitter.
+# Without this, UI repaints and kernel work share big cores with the DSP worker
+# and the JACK RT callback — mouse over blocks produces audible clicks.
+KERNEL_ARGS='quiet splash loglevel=3 rd.systemd.show_status=false rd.udev.log_level=3 isolcpus=4-7 nohz_full=4-7 rcu_nocbs=4-7 irqaffinity=0-3'
 if grep -q "^extraargs=" /boot/armbianEnv.txt 2>/dev/null; then
     sed -i "s|^extraargs=.*|extraargs=${KERNEL_ARGS}|" /boot/armbianEnv.txt
 else
