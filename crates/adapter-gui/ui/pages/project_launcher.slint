@@ -56,9 +56,10 @@ component IconLauncherButton inherits Rectangle {
         clicked => { root.clicked(); }
     }
 
+    // Tooltip below — launcher header sits at the top of the page (#329).
     if hover-area.has-hover && root.tooltip != "" : Rectangle {
         x: -18px;
-        y: -30px;
+        y: 44px;
         width: 76px;
         height: 24px;
         background: #11141ad9;

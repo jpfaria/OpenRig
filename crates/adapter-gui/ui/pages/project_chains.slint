@@ -622,9 +622,11 @@ component ChainActionIcon inherits Rectangle {
         clicked => { root.clicked(); }
     }
 
+    // Tooltip below the icon — anything above is covered by the project
+    // header, which paints last over the chain content. Issue #329.
     if hover-area.has-hover && root.tooltip != "" : Rectangle {
         x: -26px;
-        y: -30px;
+        y: 28px;
         width: 76px;
         height: 24px;
         background: #11141ad9;
@@ -735,9 +737,10 @@ component ChainPowerToggle inherits Rectangle {
         clicked => { root.clicked(); }
     }
 
+    // Tooltip below — anything above is covered by the project header (#329).
     if hover-area.has-hover && root.tooltip != "" : Rectangle {
         x: -24px;
-        y: -30px;
+        y: 32px;
         width: 76px;
         height: 24px;
         background: #11141ad9;
@@ -800,9 +803,11 @@ component HeaderIconAction inherits Rectangle {
         clicked => { root.clicked(); }
     }
 
+    // Tooltip below — header icons sit at the top of the page, tooltip
+    // above would be clipped by the window edge (#329).
     if action-area.has-hover && root.tooltip != "" : Rectangle {
         x: -30px;
-        y: -30px;
+        y: 28px;
         width: 84px;
         height: 24px;
         background: #11141ad9;
