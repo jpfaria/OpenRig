@@ -1,0 +1,148 @@
+// PopupWindow-based tooltips that escape the parent's stacking context.
+//
+// In Slint, an `if hovered : Rectangle { ... }` tooltip lives inside the
+// hovered widget's container. The `z` property only orders siblings within
+// the same parent, so any sibling card declared after the hovered one
+// renders on top of the tooltip — this was the bug behind issue #329 (mouse
+// hover balloons hidden under neighbouring cards on every screen).
+//
+// `PopupWindow` renders outside the regular item tree and on top of every
+// other item in the window. The tooltip body is a child of the popup, so
+// it inherits the popup's "always on top" placement automatically.
+//
+// API summary:
+// - `text`           : string to show. Empty string hides the tooltip.
+// - `show-tooltip`   : bool driven by the host's `TouchArea.has-hover`.
+//                      The `changed` handler calls `popup.show()` /
+//                      `popup.close()` so the user code stays declarative.
+// - `popup-x/y`      : offset from the parent where the tooltip anchors.
+// - `popup-width/height` (Compact only): pixel dimensions of the balloon.
+// - `header` (Card only): bold header text rendered in a darker strip.
+//
+// `close-policy: no-auto-close` keeps the popup alive while the cursor is
+// inside the source `TouchArea`; we close it explicitly when `has-hover`
+// flips back to false.
+
+component TooltipCompact {
+    in property <string> text;
+    in property <bool> show-tooltip;
+    in property <length> popup-x: 0px;
+    in property <length> popup-y: -30px;
+    in property <length> popup-width: 76px;
+    in property <length> popup-height: 24px;
+
+    changed show-tooltip => {
+        if (root.show-tooltip && root.text != "") {
+            popup.show();
+        } else {
+            popup.close();
+        }
+    }
+
+    popup := PopupWindow {
+        x: root.popup-x;
+        y: root.popup-y;
+        width: root.popup-width;
+        height: root.popup-height;
+        close-policy: no-auto-close;
+
+        Rectangle {
+            width: 100%;
+            height: 100%;
+            background: #11141ad9;
+            border-width: 1px;
+            border-color: #3b4250;
+            border-radius: 4px;
+
+            Text {
+                x: 6px;
+                y: 0px;
+                width: parent.width - 12px;
+                height: parent.height;
+                text: root.text;
+                color: #eef2f8;
+                font-size: 10px;
+                font-weight: 700;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
+component TooltipCard {
+    in property <string> header;
+    in property <string> text;
+    in property <bool> show-tooltip;
+    in property <length> popup-x;
+    in property <length> popup-y;
+    in property <length> popup-width: 312px;
+    // The body height grows with the wrapped text. A minimum keeps the card
+    // legible even when the description is a single line.
+    in property <length> popup-min-height: 92px;
+
+    changed show-tooltip => {
+        if (root.show-tooltip && root.text != "") {
+            popup.show();
+        } else {
+            popup.close();
+        }
+    }
+
+    popup := PopupWindow {
+        // The body Text drives the popup height: anchor it inside the popup
+        // and let `preferred-height` propagate up. Reaching INTO the popup
+        // from the enclosing component is rejected by Slint, so the height
+        // computation lives here, not on a parent property.
+        x: root.popup-x;
+        y: root.popup-y;
+        width: root.popup-width;
+        height: Math.max(root.popup-min-height, body-text.preferred-height + 42px);
+        close-policy: no-auto-close;
+
+        Rectangle {
+            width: 100%;
+            height: 100%;
+            background: #0e1218f7;
+            border-width: 1px;
+            border-color: #4d5868;
+            border-radius: 8px;
+
+            Rectangle {
+                x: 0px;
+                y: 0px;
+                width: parent.width;
+                height: 26px;
+                background: #171d26;
+                border-radius: 8px;
+
+                Text {
+                    x: 12px;
+                    width: parent.width - 24px;
+                    height: parent.height;
+                    text: root.header;
+                    color: #edf2f9;
+                    font-size: 12px;
+                    font-weight: 800;
+                    vertical-alignment: center;
+                }
+            }
+
+            body-text := Text {
+                x: 12px;
+                y: 34px;
+                width: parent.width - 24px;
+                height: parent.height - 42px;
+                text: root.text;
+                color: #dfe6f0;
+                font-size: 11px;
+                font-weight: 700;
+                wrap: word-wrap;
+                horizontal-alignment: left;
+                vertical-alignment: top;
+            }
+        }
+    }
+}
+
+export { TooltipCompact, TooltipCard }

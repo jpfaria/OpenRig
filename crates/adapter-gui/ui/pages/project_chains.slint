@@ -5,6 +5,7 @@ import { BlockPanelEditor } from "block_panel_editor.slint";
 import { CurveEditorControl } from "curve_editor_control.slint";
 import { MultiSliderControl } from "multi_slider_control.slint";
 import { PowerSwitch } from "../components/power_switch.slint";
+import { TooltipCompact, TooltipCard } from "../components/tooltip_popup.slint";
 
 component ToolbarButton inherits Rectangle {
     in property <string> label;
@@ -622,29 +623,11 @@ component ChainActionIcon inherits Rectangle {
         clicked => { root.clicked(); }
     }
 
-    if hover-area.has-hover && root.tooltip != "" : Rectangle {
-        x: -26px;
-        y: -30px;
-        width: 76px;
-        height: 24px;
-        background: #11141ad9;
-        border-width: 1px;
-        border-color: #3b4250;
-        border-radius: 4px;
-        z: 50;
-
-        Text {
-            x: 6px;
-            y: 0px;
-            width: parent.width - 12px;
-            height: parent.height;
-            text: root.tooltip;
-            color: #eef2f8;
-            font-size: 10px;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
+    TooltipCompact {
+        text: root.tooltip;
+        show-tooltip: hover-area.has-hover;
+        popup-x: -26px;
+        popup-y: -30px;
     }
 }
 
@@ -735,29 +718,11 @@ component ChainPowerToggle inherits Rectangle {
         clicked => { root.clicked(); }
     }
 
-    if hover-area.has-hover && root.tooltip != "" : Rectangle {
-        x: -24px;
-        y: -30px;
-        width: 76px;
-        height: 24px;
-        background: #11141ad9;
-        border-width: 1px;
-        border-color: #3b4250;
-        border-radius: 4px;
-        z: 50;
-
-        Text {
-            x: 6px;
-            y: 0px;
-            width: parent.width - 12px;
-            height: parent.height;
-            text: root.tooltip;
-            color: #eef2f8;
-            font-size: 10px;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
+    TooltipCompact {
+        text: root.tooltip;
+        show-tooltip: hover-area.has-hover;
+        popup-x: -24px;
+        popup-y: -30px;
     }
 }
 
@@ -800,29 +765,12 @@ component HeaderIconAction inherits Rectangle {
         clicked => { root.clicked(); }
     }
 
-    if action-area.has-hover && root.tooltip != "" : Rectangle {
-        x: -30px;
-        y: -30px;
-        width: 84px;
-        height: 24px;
-        background: #11141ad9;
-        border-width: 1px;
-        border-color: #3b4250;
-        border-radius: 4px;
-        z: 50;
-
-        Text {
-            x: 6px;
-            y: 0px;
-            width: parent.width - 12px;
-            height: parent.height;
-            text: root.tooltip;
-            color: #eef2f8;
-            font-size: 10px;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
+    TooltipCompact {
+        text: root.tooltip;
+        show-tooltip: action-area.has-hover;
+        popup-x: -30px;
+        popup-y: -30px;
+        popup-width: 84px;
     }
 }
 
@@ -1450,95 +1398,21 @@ component ChainRow inherits Rectangle {
         }
 
         // In chip tooltip — aparece à direita do chip In
-        if in-chip.is-hovered && root.chain.input_tooltip != "" : Rectangle {
-            x: 76px;
-            y: 24px;
-            width: 312px;
-            height: Math.max(92px, input-tooltip-text.preferred-height + 42px);
-            background: #0e1218f7;
-            border-width: 1px;
-            border-color: #4d5868;
-            border-radius: 8px;
-
-            Rectangle {
-                x: 0px;
-                y: 0px;
-                width: parent.width;
-                height: 26px;
-                background: #171d26;
-                border-radius: 8px;
-
-                Text {
-                    x: 12px;
-                    width: parent.width - 24px;
-                    height: parent.height;
-                    text: "Entrada";
-                    color: #edf2f9;
-                    font-size: 12px;
-                    font-weight: 800;
-                    vertical-alignment: center;
-                }
-            }
-
-            input-tooltip-text := Text {
-                x: 12px;
-                y: 34px;
-                width: parent.width - 24px;
-                height: parent.height - 42px;
-                text: root.chain.input_tooltip;
-                color: #dfe6f0;
-                font-size: 11px;
-                font-weight: 700;
-                wrap: word-wrap;
-                horizontal-alignment: left;
-                vertical-alignment: top;
-            }
+        TooltipCard {
+            header: "Entrada";
+            text: root.chain.input_tooltip;
+            show-tooltip: in-chip.is-hovered;
+            popup-x: 76px;
+            popup-y: 24px;
         }
 
         // Out chip tooltip — aparece à esquerda do chip Out (borda direita 8px antes do chip)
-        if out-chip.is-hovered && root.chain.output_tooltip != "" : Rectangle {
-            x: root.out-chip-x - 320px;
-            y: root.out-chip-y;
-            width: 312px;
-            height: Math.max(92px, output-tooltip-text.preferred-height + 42px);
-            background: #0e1218f7;
-            border-width: 1px;
-            border-color: #4d5868;
-            border-radius: 8px;
-
-            Rectangle {
-                x: 0px;
-                y: 0px;
-                width: parent.width;
-                height: 26px;
-                background: #171d26;
-                border-radius: 8px;
-
-                Text {
-                    x: 12px;
-                    width: parent.width - 24px;
-                    height: parent.height;
-                    text: "Saída";
-                    color: #edf2f9;
-                    font-size: 12px;
-                    font-weight: 800;
-                    vertical-alignment: center;
-                }
-            }
-
-            output-tooltip-text := Text {
-                x: 12px;
-                y: 34px;
-                width: parent.width - 24px;
-                height: parent.height - 42px;
-                text: root.chain.output_tooltip;
-                color: #dfe6f0;
-                font-size: 11px;
-                font-weight: 700;
-                wrap: word-wrap;
-                horizontal-alignment: left;
-                vertical-alignment: top;
-            }
+        TooltipCard {
+            header: "Saída";
+            text: root.chain.output_tooltip;
+            show-tooltip: out-chip.is-hovered;
+            popup-x: root.out-chip-x - 320px;
+            popup-y: root.out-chip-y;
         }
     }
 

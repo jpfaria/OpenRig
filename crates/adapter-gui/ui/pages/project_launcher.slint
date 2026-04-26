@@ -1,5 +1,6 @@
 import { ScrollView } from "std-widgets.slint";
 import { RecentProjectItem } from "../models.slint";
+import { TooltipCompact } from "../components/tooltip_popup.slint";
 
 component LauncherButton inherits Rectangle {
     in property <string> label;
@@ -56,29 +57,11 @@ component IconLauncherButton inherits Rectangle {
         clicked => { root.clicked(); }
     }
 
-    if hover-area.has-hover && root.tooltip != "" : Rectangle {
-        x: -18px;
-        y: -30px;
-        width: 76px;
-        height: 24px;
-        background: #11141ad9;
-        border-width: 1px;
-        border-color: #3b4250;
-        border-radius: 4px;
-        z: 50;
-
-        Text {
-            x: 6px;
-            y: 0px;
-            width: parent.width - 12px;
-            height: parent.height;
-            text: root.tooltip;
-            color: #eef2f8;
-            font-size: 10px;
-            font-weight: 700;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-        }
+    TooltipCompact {
+        text: root.tooltip;
+        show-tooltip: hover-area.has-hover;
+        popup-x: -18px;
+        popup-y: -30px;
     }
 }
 
