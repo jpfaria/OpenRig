@@ -124,6 +124,7 @@ export component TouchMain inherits Rectangle {
     callback update-project-sample-rate(int, string);
     callback update-project-buffer-size(int, string);
     callback update-project-bit-depth(int, string);
+    callback refresh-devices();
     callback virtual-key-pressed(string);
     // Fullscreen inline chain editor
     in property <[IoGroupItem]> chain-editor-input-groups;
@@ -304,6 +305,7 @@ export component TouchMain inherits Rectangle {
         update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
         update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
         update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
+        refresh-devices => { root.refresh-devices(); }
     }
 
     // Inline chain editor overlay (fullscreen mode)

@@ -1046,6 +1046,64 @@ pub fn run_desktop_app(
             update_device_bit_depth(&project_devices, index as usize, value);
         });
     }
+    // Refresh devices — re-enumerates audio interfaces after a USB hot-swap.
+    // Wired on both the standalone settings window and the inline (fullscreen)
+    // settings page on the main window. Safe to call: the underlying
+    // enumeration runs in the UI thread and is rate-limited by user clicks
+    // (no periodic polling — that triggered scarlett2_notify freezes on
+    // the Orange Pi USB-C OTG port).
+    {
+        let weak_window = window.as_weak();
+        let project_session = project_session.clone();
+        let project_devices = project_devices.clone();
+        let chain_input_device_options = chain_input_device_options.clone();
+        let chain_output_device_options = chain_output_device_options.clone();
+        let toast_timer = toast_timer.clone();
+        window.on_refresh_devices(move || {
+            invalidate_device_cache();
+            let fresh_input = refresh_input_devices(&chain_input_device_options);
+            let fresh_output = refresh_output_devices(&chain_output_device_options);
+            let Some(window) = weak_window.upgrade() else { return; };
+            let session_borrow = project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else { return; };
+            project_devices.set_vec(build_project_device_rows(
+                &fresh_input,
+                &fresh_output,
+                &session.project.device_settings,
+            ));
+            set_status_info(&window, &toast_timer, "Lista de dispositivos atualizada");
+        });
+    }
+    {
+        let project_settings_window_weak = project_settings_window.as_weak();
+        let main_window_weak = window.as_weak();
+        let project_session = project_session.clone();
+        let project_devices = project_devices.clone();
+        let chain_input_device_options = chain_input_device_options.clone();
+        let chain_output_device_options = chain_output_device_options.clone();
+        let toast_timer = toast_timer.clone();
+        project_settings_window.on_refresh_devices(move || {
+            invalidate_device_cache();
+            let fresh_input = refresh_input_devices(&chain_input_device_options);
+            let fresh_output = refresh_output_devices(&chain_output_device_options);
+            let session_borrow = project_session.borrow();
+            let Some(session) = session_borrow.as_ref() else { return; };
+            project_devices.set_vec(build_project_device_rows(
+                &fresh_input,
+                &fresh_output,
+                &session.project.device_settings,
+            ));
+            if let Some(window) = main_window_weak.upgrade() {
+                set_status_info(&window, &toast_timer, "Lista de dispositivos atualizada");
+            }
+            // Settings window has its own status field — the main-window toast is
+            // hidden when the standalone settings window is shown, so also clear
+            // any stale status on the settings window itself.
+            if let Some(sw) = project_settings_window_weak.upgrade() {
+                sw.set_status_message("Lista de dispositivos atualizada".into());
+            }
+        });
+    }
     {
         let weak_window = window.as_weak();
         let input_devices = input_devices.clone();
