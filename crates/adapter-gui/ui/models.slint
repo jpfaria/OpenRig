@@ -21,6 +21,15 @@ export struct ChainBlockItem {
     thumb_height: float,
     accent_color: color,
     icon_source: image,
+    // Hover tooltip fields — `display_name` is the human model name (e.g.
+    // "Marshall JCM 800 2203", "American Clean"); `backend_label` is the
+    // DSP backend in uppercase ("NATIVE", "NAM", "IR", "LV2");
+    // `params_summary` is a one-line "Param: value · Param: value" summary
+    // of the block's current parameter values. All three are empty for I/O
+    // and Insert blocks where the tooltip would add no signal.
+    display_name: string,
+    backend_label: string,
+    params_summary: string,
 }
 
 export struct ProjectChainItem {

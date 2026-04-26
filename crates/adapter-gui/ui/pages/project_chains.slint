@@ -976,6 +976,90 @@ component BlockChip inherits Rectangle {
             }
         }
     }
+
+    // Hover tooltip — appears below the chip showing backend chip + model
+    // name + parameter summary. Hidden for I/O / Insert blocks
+    // (display_name is empty there). Anchored below following the same rule
+    // as the action-icon tooltips: header always paints above, tooltips up
+    // would be clipped (#329, #333).
+    if hover-area.has-hover && root.block.display_name != "" : Rectangle {
+        x: -98px;
+        y: parent.height + 4px;
+        width: 280px;
+        height: tooltip-body.preferred-height + 38px;
+        background: #0e1218f7;
+        border-width: 1px;
+        border-color: #4d5868;
+        border-radius: 8px;
+        z: 100;
+
+        // Header strip: backend chip + model name on the same line.
+        Rectangle {
+            x: 0px;
+            y: 0px;
+            width: parent.width;
+            height: 28px;
+            background: #171d26;
+            border-radius: 8px;
+
+            // Backend pill — coloured background hints at the audio engine
+            // family. Width grows with text via preferred-width on the Text.
+            Rectangle {
+                x: 8px;
+                y: 6px;
+                width: backend-text.preferred-width + 14px;
+                height: 16px;
+                border-radius: 3px;
+                background:
+                    root.block.backend_label == "NATIVE" ? #1f6feb
+                    : root.block.backend_label == "NAM" ? #b5651d
+                    : root.block.backend_label == "IR" ? #6f42c1
+                    : root.block.backend_label == "LV2" ? #2f7d32
+                    : #4a5260;
+
+                backend-text := Text {
+                    x: 7px;
+                    y: 0px;
+                    height: parent.height;
+                    text: root.block.backend_label;
+                    color: #ffffff;
+                    font-size: 9px;
+                    font-weight: 800;
+                    letter-spacing: 0.6px;
+                    vertical-alignment: center;
+                }
+            }
+
+            Text {
+                x: 8px + backend-text.preferred-width + 14px + 8px;
+                y: 0px;
+                width: parent.width - (backend-text.preferred-width + 38px);
+                height: parent.height;
+                text: root.block.display_name;
+                color: #f4f7fb;
+                font-size: 12px;
+                font-weight: 700;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+        }
+
+        // Body — wrapped one-line summary of current parameter values.
+        // `params_summary` may be empty for blocks with no editable
+        // parameters; the body just renders nothing in that case.
+        tooltip-body := Text {
+            x: 12px;
+            y: 32px;
+            width: parent.width - 24px;
+            text: root.block.params_summary;
+            color: #c9d2e0;
+            font-size: 10px;
+            font-weight: 600;
+            wrap: word-wrap;
+            horizontal-alignment: left;
+            vertical-alignment: top;
+        }
+    }
 }
 
 component BlockInsertSlot inherits Rectangle {
