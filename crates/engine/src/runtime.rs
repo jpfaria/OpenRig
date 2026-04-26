@@ -327,6 +327,17 @@ impl ChainRuntimeState {
         self.draining.load(std::sync::atomic::Ordering::Acquire)
     }
 
+    /// Re-arm the audio callback after a teardown-and-rebuild cycle that
+    /// reuses this `ChainRuntimeState` (the Arc is kept alive in
+    /// `RuntimeGraph` across `infra_cpal::teardown_active_chain_for_rebuild`).
+    /// Without this reset the new CPAL/JACK streams attached to the same
+    /// runtime would see `is_draining()` return `true` on every callback and
+    /// silence audio indefinitely until the chain is fully removed and
+    /// re-added — issue #316.
+    pub fn clear_draining(&self) {
+        self.draining.store(false, std::sync::atomic::Ordering::Release);
+    }
+
     pub fn measured_latency_ms(&self) -> f32 {
         let nanos = self.measured_latency_nanos.load(std::sync::atomic::Ordering::Relaxed);
         nanos as f32 / 1_000_000.0
@@ -4535,6 +4546,28 @@ mod tests {
         runtime.measured_latency_nanos.store(5_000_000, std::sync::atomic::Ordering::Relaxed);
         let ms = runtime.measured_latency_ms();
         assert!((ms - 5.0).abs() < 1e-3, "expected ~5.0ms, got {ms}");
+    }
+
+    // ── Regression: clear_draining re-arms callback after teardown (#316) ────
+
+    #[test]
+    fn chain_runtime_state_clear_draining_resets_flag() {
+        // The draining flag is set by infra-cpal::teardown_active_chain_for_rebuild
+        // before dropping the old streams. The Arc<ChainRuntimeState> is then
+        // reused by the rebuild — without clear_draining the new streams' first
+        // callbacks observe is_draining()==true and silence audio for every
+        // segment (including sibling InputEntries on the same chain), until the
+        // chain is fully removed and re-added. See issue #316.
+        let chain = tuner_track("chain:drain", Vec::new());
+        let runtime = build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
+            .expect("runtime should build");
+        runtime.set_draining();
+        assert!(runtime.is_draining(), "set_draining should arm the flag");
+        runtime.clear_draining();
+        assert!(
+            !runtime.is_draining(),
+            "clear_draining must reset the flag so a runtime reused across a teardown+rebuild can resume audio (#316)"
+        );
     }
 
     // ── Empty chain builds successfully ─────────────────────────────────────
