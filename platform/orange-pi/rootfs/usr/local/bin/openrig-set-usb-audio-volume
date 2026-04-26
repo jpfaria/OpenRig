@@ -55,12 +55,27 @@ seed_card() {
                 *Playback*Volume*) set_by_name "$card" "$ctl" "0dB" "100%" ;;
             esac
             case "$info" in
-                *Capture*Volume*)  set_by_name "$card" "$ctl" "0dB" "46%"  ;;
+                *Capture*Volume*)  set_by_name "$card" "$ctl" "12dB" "70%" ;;
             esac
         done
 }
 
-set_controls_matching "playback volume" "0dB"
-set_controls_matching "capture volume"  "12dB"
+DEVNAME="${1:-}"
+if [ -n "$DEVNAME" ]; then
+    # Single-card mode (udev): expect "controlCN"
+    card="${DEVNAME#controlC}"
+    case "$card" in
+        ''|*[!0-9]*) exit 0 ;;
+    esac
+    seed_card "$card"
+else
+    # Sweep mode (boot): every controlC* currently present
+    for ctl in /dev/snd/controlC*; do
+        [ -e "$ctl" ] || continue
+        name="${ctl##*/}"           # controlCN
+        card="${name#controlC}"
+        seed_card "$card"
+    done
+fi
 
 exit 0
