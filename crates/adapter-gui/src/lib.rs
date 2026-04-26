@@ -205,12 +205,6 @@ pub fn run_desktop_app(
     window.set_show_project_chains(false);
     window.set_show_chain_editor(false);
     window.set_show_project_settings(false);
-    // JACK tuning panel is only meaningful on Linux (cpal backends on macOS/Windows
-    // ignore realtime/nperiods/rt_priority). Hide the section on non-Linux so the
-    // UI doesn't mislead the user into thinking the toggle has an effect.
-    let jack_panel_visible = cfg!(target_os = "linux");
-    window.set_jack_panel_visible(jack_panel_visible);
-    project_settings_window.set_jack_panel_visible(jack_panel_visible);
     window.set_project_dirty(false);
     window.set_project_path_label("".into());
     window.set_project_title("Projeto".into());
@@ -1052,86 +1046,6 @@ pub fn run_desktop_app(
             update_device_bit_depth(&project_devices, index as usize, value);
         });
     }
-    // JACK tuning callbacks — write the value onto the Slint property so the
-    // save path can read it back via window.get_jack_*(). Mirrored on both
-    // AppWindow and ProjectSettingsWindow because the panel is reused by the
-    // detached window variant.
-    {
-        let weak_window = window.as_weak();
-        let weak_settings = project_settings_window.as_weak();
-        window.on_toggle_jack_realtime(move |on| {
-            if let Some(w) = weak_window.upgrade() {
-                w.set_jack_realtime(on);
-            }
-            if let Some(w) = weak_settings.upgrade() {
-                w.set_jack_realtime(on);
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let weak_settings = project_settings_window.as_weak();
-        window.on_update_jack_rt_priority(move |value| {
-            let clamped = value.clamp(1, 99);
-            if let Some(w) = weak_window.upgrade() {
-                w.set_jack_rt_priority(clamped);
-            }
-            if let Some(w) = weak_settings.upgrade() {
-                w.set_jack_rt_priority(clamped);
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let weak_settings = project_settings_window.as_weak();
-        window.on_update_jack_nperiods(move |value| {
-            let clamped = if (2..=4).contains(&value) { value } else { 3 };
-            if let Some(w) = weak_window.upgrade() {
-                w.set_jack_nperiods(clamped);
-            }
-            if let Some(w) = weak_settings.upgrade() {
-                w.set_jack_nperiods(clamped);
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let weak_settings = project_settings_window.as_weak();
-        project_settings_window.on_toggle_jack_realtime(move |on| {
-            if let Some(w) = weak_window.upgrade() {
-                w.set_jack_realtime(on);
-            }
-            if let Some(w) = weak_settings.upgrade() {
-                w.set_jack_realtime(on);
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let weak_settings = project_settings_window.as_weak();
-        project_settings_window.on_update_jack_rt_priority(move |value| {
-            let clamped = value.clamp(1, 99);
-            if let Some(w) = weak_window.upgrade() {
-                w.set_jack_rt_priority(clamped);
-            }
-            if let Some(w) = weak_settings.upgrade() {
-                w.set_jack_rt_priority(clamped);
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let weak_settings = project_settings_window.as_weak();
-        project_settings_window.on_update_jack_nperiods(move |value| {
-            let clamped = if (2..=4).contains(&value) { value } else { 3 };
-            if let Some(w) = weak_window.upgrade() {
-                w.set_jack_nperiods(clamped);
-            }
-            if let Some(w) = weak_settings.upgrade() {
-                w.set_jack_nperiods(clamped);
-            }
-        });
-    }
     {
         let weak_window = window.as_weak();
         let input_devices = input_devices.clone();
@@ -1234,7 +1148,7 @@ pub fn run_desktop_app(
                     }
                 }
                 AudioSettingsMode::Project => {
-                    let mut project_device_settings =
+                    let project_device_settings =
                         match selected_device_settings(&project_devices, "device") {
                             Ok(devices) => devices,
                             Err(error) => {
@@ -1242,20 +1156,6 @@ pub fn run_desktop_app(
                                 return;
                             }
                         };
-                    // Overlay JACK tuning from the global panel onto every device.
-                    // The UI treats these as system-wide knobs even though the
-                    // underlying struct is per-device.
-                    let jack_realtime = window.get_jack_realtime();
-                    let jack_rt_priority = window.get_jack_rt_priority().clamp(1, 99) as u8;
-                    let jack_nperiods = {
-                        let n = window.get_jack_nperiods();
-                        if (2..=4).contains(&n) { n as u32 } else { 3 }
-                    };
-                    for dev in project_device_settings.iter_mut() {
-                        dev.realtime = jack_realtime;
-                        dev.rt_priority = jack_rt_priority;
-                        dev.nperiods = jack_nperiods;
-                    }
                     // Persist device settings to per-machine config
                     let gui_settings = GuiAudioSettings {
                         input_devices: project_device_settings.clone(),
@@ -1276,8 +1176,11 @@ pub fn run_desktop_app(
                             sample_rate: device.sample_rate,
                             buffer_size_frames: device.buffer_size_frames,
                             bit_depth: device.bit_depth,
+                            #[cfg(target_os = "linux")]
                             realtime: device.realtime,
+                            #[cfg(target_os = "linux")]
                             rt_priority: device.rt_priority,
+                            #[cfg(target_os = "linux")]
                             nperiods: device.nperiods,
                         })
                         .collect();
@@ -1330,7 +1233,7 @@ pub fn run_desktop_app(
             let Some(settings_window) = weak_settings.upgrade() else {
                 return;
             };
-            let mut project_device_settings = match selected_device_settings(&project_devices, "device")
+            let project_device_settings = match selected_device_settings(&project_devices, "device")
             {
                 Ok(devices) => devices,
                 Err(error) => {
@@ -1338,22 +1241,6 @@ pub fn run_desktop_app(
                     return;
                 }
             };
-            // Overlay JACK tuning from the global panel onto every device row.
-            // Read from settings_window — the detached window is the active UI
-            // in this handler. The two windows stay in sync via callback mirroring.
-            {
-                let jack_realtime = settings_window.get_jack_realtime();
-                let jack_rt_priority = settings_window.get_jack_rt_priority().clamp(1, 99) as u8;
-                let jack_nperiods = {
-                    let n = settings_window.get_jack_nperiods();
-                    if (2..=4).contains(&n) { n as u32 } else { 3 }
-                };
-                for dev in project_device_settings.iter_mut() {
-                    dev.realtime = jack_realtime;
-                    dev.rt_priority = jack_rt_priority;
-                    dev.nperiods = jack_nperiods;
-                }
-            }
             match *audio_settings_mode.borrow() {
                 AudioSettingsMode::Gui => {
                     let input_devices = match selected_device_settings(&input_devices, "input") {
@@ -1411,8 +1298,11 @@ pub fn run_desktop_app(
                             sample_rate: device.sample_rate,
                             buffer_size_frames: device.buffer_size_frames,
                             bit_depth: device.bit_depth,
+                            #[cfg(target_os = "linux")]
                             realtime: device.realtime,
+                            #[cfg(target_os = "linux")]
                             rt_priority: device.rt_priority,
+                            #[cfg(target_os = "linux")]
                             nperiods: device.nperiods,
                         })
                         .collect();
@@ -1817,21 +1707,6 @@ pub fn run_desktop_app(
                 &fresh_output,
                 &session.project.device_settings,
             ));
-            // Seed JACK tuning UI from the current project's first device entry,
-            // falling back to defaults when no entry exists yet. Values flow back
-            // to Rust via in-out properties + callbacks on save.
-            let (jack_realtime, jack_rt_priority, jack_nperiods) = session
-                .project
-                .device_settings
-                .first()
-                .map(|s| (s.realtime, s.rt_priority as i32, s.nperiods as i32))
-                .unwrap_or((false, 70, 3));
-            window.set_jack_realtime(jack_realtime);
-            window.set_jack_rt_priority(jack_rt_priority);
-            window.set_jack_nperiods(jack_nperiods);
-            settings_window.set_jack_realtime(jack_realtime);
-            settings_window.set_jack_rt_priority(jack_rt_priority);
-            settings_window.set_jack_nperiods(jack_nperiods);
             *audio_settings_mode.borrow_mut() = AudioSettingsMode::Project;
             window.set_project_name_draft(session.project.name.clone().unwrap_or_default().into());
             settings_window

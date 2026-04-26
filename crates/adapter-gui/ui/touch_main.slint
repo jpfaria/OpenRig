@@ -60,13 +60,6 @@ export component TouchMain inherits Rectangle {
     in property <[string]> buffer-size-options;
     in property <[string]> bit-depth-options;
     in property <[DeviceSelectionItem]> project-devices;
-    in property <bool> jack-panel-visible: false;
-    in-out property <bool> jack-realtime;
-    in-out property <int> jack-rt-priority: 70;
-    in-out property <int> jack-nperiods: 3;
-    callback toggle-jack-realtime(bool);
-    callback update-jack-rt-priority(int);
-    callback update-jack-nperiods(int);
     callback toggle-input-device(int, bool);
     callback toggle-output-device(int, bool);
     callback update-input-sample-rate(int, string);
@@ -304,10 +297,6 @@ export component TouchMain inherits Rectangle {
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
         bit-depth-options: root.bit-depth-options;
-        jack-panel-visible: root.jack-panel-visible;
-        jack-realtime <=> root.jack-realtime;
-        jack-rt-priority <=> root.jack-rt-priority;
-        jack-nperiods <=> root.jack-nperiods;
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
         close-project-settings => { root.close-project-settings(); }
@@ -315,9 +304,6 @@ export component TouchMain inherits Rectangle {
         update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
         update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
         update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
-        toggle-jack-realtime(on) => { root.toggle-jack-realtime(on); }
-        update-jack-rt-priority(value) => { root.update-jack-rt-priority(value); }
-        update-jack-nperiods(value) => { root.update-jack-nperiods(value); }
     }
 
     // Inline chain editor overlay (fullscreen mode)

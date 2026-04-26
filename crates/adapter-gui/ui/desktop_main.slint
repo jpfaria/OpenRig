@@ -64,10 +64,6 @@ export component DesktopMain inherits Rectangle {
     in property <[string]> bit-depth-options;
     // Fullscreen inline project settings
     in property <[DeviceSelectionItem]> project-devices;
-    in property <bool> jack-panel-visible: false;
-    in-out property <bool> jack-realtime;
-    in-out property <int> jack-rt-priority: 70;
-    in-out property <int> jack-nperiods: 3;
     // Fullscreen inline chain editor
     in property <[IoGroupItem]> chain-editor-input-groups;
     in property <[IoGroupItem]> chain-editor-output-groups;
@@ -84,9 +80,6 @@ export component DesktopMain inherits Rectangle {
     callback update-project-name(string);
     callback save-audio-settings();
     callback close-project-settings();
-    callback toggle-jack-realtime(bool);
-    callback update-jack-rt-priority(int);
-    callback update-jack-nperiods(int);
     callback open-project-file();
     callback create-project-file();
     callback confirm-new-project();
@@ -290,10 +283,6 @@ export component DesktopMain inherits Rectangle {
             buffer-size-options: root.buffer-size-options;
             bit-depth-options: root.bit-depth-options;
             status-message: root.status-message;
-            jack-panel-visible: root.jack-panel-visible;
-            jack-realtime <=> root.jack-realtime;
-            jack-rt-priority <=> root.jack-rt-priority;
-            jack-nperiods <=> root.jack-nperiods;
             update-project-name(value) => { root.update-project-name(value); }
             save-audio-settings => { root.save-audio-settings(); }
             close-project-settings => { root.close-project-settings(); }
@@ -301,9 +290,6 @@ export component DesktopMain inherits Rectangle {
             update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
             update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
             update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
-            toggle-jack-realtime(on) => { root.toggle-jack-realtime(on); }
-            update-jack-rt-priority(value) => { root.update-jack-rt-priority(value); }
-            update-jack-nperiods(value) => { root.update-jack-nperiods(value); }
         }
 
         // Fullscreen inline chain editor
@@ -384,10 +370,6 @@ export component DesktopMain inherits Rectangle {
         sample-rate-options: root.sample-rate-options;
         buffer-size-options: root.buffer-size-options;
         bit-depth-options: root.bit-depth-options;
-        jack-panel-visible: root.jack-panel-visible;
-        jack-realtime <=> root.jack-realtime;
-        jack-rt-priority <=> root.jack-rt-priority;
-        jack-nperiods <=> root.jack-nperiods;
         update-project-name(value) => { root.update-project-name(value); }
         save-audio-settings => { root.save-audio-settings(); }
         close-project-settings => { root.close-project-settings(); }
@@ -395,9 +377,6 @@ export component DesktopMain inherits Rectangle {
         update-project-sample-rate(index, value) => { root.update-project-sample-rate(index, value); }
         update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
         update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
-        toggle-jack-realtime(on) => { root.toggle-jack-realtime(on); }
-        update-jack-rt-priority(value) => { root.update-jack-rt-priority(value); }
-        update-jack-nperiods(value) => { root.update-jack-nperiods(value); }
     }
 
 }

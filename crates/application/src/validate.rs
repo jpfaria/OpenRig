@@ -341,8 +341,11 @@ mod tests {
             sample_rate: 48000,
             buffer_size_frames: 256,
             bit_depth: 32,
-            realtime: false,
+            #[cfg(target_os = "linux")]
+            realtime: true,
+            #[cfg(target_os = "linux")]
             rt_priority: 70,
+            #[cfg(target_os = "linux")]
             nperiods: 3,
         }
     }
@@ -628,8 +631,11 @@ mod tests {
             sample_rate: 48000,
             buffer_size_frames: 256,
             bit_depth: 32,
-            realtime: false,
+            #[cfg(target_os = "linux")]
+            realtime: true,
+            #[cfg(target_os = "linux")]
             rt_priority: 70,
+            #[cfg(target_os = "linux")]
             nperiods: 3,
         });
         let err = validate_project(&project).unwrap_err();
@@ -1140,8 +1146,11 @@ mod tests {
             sample_rate: 48000,
             buffer_size_frames: 256,
             bit_depth: 32,
-            realtime: false,
+            #[cfg(target_os = "linux")]
+            realtime: true,
+            #[cfg(target_os = "linux")]
             rt_priority: 70,
+            #[cfg(target_os = "linux")]
             nperiods: 3,
         }];
         let project = Project {

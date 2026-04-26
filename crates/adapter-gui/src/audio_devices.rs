@@ -87,8 +87,11 @@ pub(crate) fn build_project_device_rows(
                 sample_rate: setting.sample_rate,
                 buffer_size_frames: setting.buffer_size_frames,
                 bit_depth: setting.bit_depth,
+                #[cfg(target_os = "linux")]
                 realtime: setting.realtime,
+                #[cfg(target_os = "linux")]
                 rt_priority: setting.rt_priority,
+                #[cfg(target_os = "linux")]
                 nperiods: setting.nperiods,
             })
             .unwrap_or_else(|| default_device_settings(device.id.clone(), device.name.clone()));
@@ -286,11 +289,16 @@ pub(crate) fn selected_device_settings(
                     row.bit_depth_text.as_str(),
                     &format!("{}_bit_depth '{}'", device_kind, row.name),
                 )?,
-                // JACK tuning is not per-device in the UI — the Settings
-                // page overwrites these from a global panel before saving.
-                // Defaults here only apply if the panel never runs.
-                realtime: false,
+                // Low-latency defaults — JACK tuning isn't exposed in the UI;
+                // users get RT priority + nperiods=3 out of the box (nperiods=2
+                // triggered ALSA Broken pipe on Q26 USB audio + RK3588, so we
+                // stay on nperiods=3 until per-device profiles land). Override
+                // by editing gui-settings.yaml directly if needed.
+                #[cfg(target_os = "linux")]
+                realtime: true,
+                #[cfg(target_os = "linux")]
                 rt_priority: 70,
+                #[cfg(target_os = "linux")]
                 nperiods: 3,
             })
         })
@@ -304,8 +312,11 @@ pub(crate) fn default_device_settings(device_id: String, name: String) -> GuiAud
         sample_rate: DEFAULT_SAMPLE_RATE,
         buffer_size_frames: DEFAULT_BUFFER_SIZE_FRAMES,
         bit_depth: DEFAULT_BIT_DEPTH,
-        realtime: false,
+        #[cfg(target_os = "linux")]
+        realtime: true,
+        #[cfg(target_os = "linux")]
         rt_priority: 70,
+        #[cfg(target_os = "linux")]
         nperiods: 3,
     }
 }

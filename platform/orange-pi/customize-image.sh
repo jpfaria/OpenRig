@@ -13,6 +13,7 @@ echo "jackd2 jackd/tweak_rt_limits boolean true" | debconf-set-selections
 DEBIAN_FRONTEND=noninteractive apt-get update -qq
 DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     alsa-utils \
+    gdisk \
     jackd2 \
     libfreetype6 \
     libfontconfig1 \

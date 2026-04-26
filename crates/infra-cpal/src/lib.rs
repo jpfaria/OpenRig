@@ -1470,7 +1470,7 @@ pub fn start_jack_in_background(
                 let sample_rate = matched.map(|s| s.sample_rate).unwrap_or(48_000);
                 let buffer_size = matched.map(|s| s.buffer_size_frames).unwrap_or(64);
                 let nperiods = matched.map(|s| s.nperiods).unwrap_or(3);
-                let realtime = matched.map(|s| s.realtime).unwrap_or(false);
+                let realtime = matched.map(|s| s.realtime).unwrap_or(true);
                 let rt_priority = matched.map(|s| s.rt_priority).unwrap_or(70);
                 let config = jack_supervisor::JackConfig {
                     sample_rate,
@@ -1930,7 +1930,7 @@ impl ProjectRuntimeController {
         let sample_rate = matched.map(|s| s.sample_rate).unwrap_or(48_000);
         let buffer_size = matched.map(|s| s.buffer_size_frames).unwrap_or(64);
         let nperiods = matched.map(|s| s.nperiods).unwrap_or(3);
-        let realtime = matched.map(|s| s.realtime).unwrap_or(false);
+        let realtime = matched.map(|s| s.realtime).unwrap_or(true);
         let rt_priority = matched.map(|s| s.rt_priority).unwrap_or(70);
         jack_supervisor::JackConfig {
             sample_rate,
@@ -2382,15 +2382,30 @@ impl ProjectRuntimeController {
     ///
     /// No-op when no runtime is active for that chain. Leaves
     /// `runtime_graph` untouched — the caller is about to re-upsert it.
+    /// The draining flag set on the kept-alive `ChainRuntimeState` is cleared
+    /// after the old streams are dropped so the upcoming rebuild's new
+    /// CPAL/JACK callbacks don't inherit it and silence audio indefinitely
+    /// (issue #316).
     fn teardown_active_chain_for_rebuild(&mut self, chain_id: &ChainId) {
         if !self.active_chains.contains_key(chain_id) {
             return;
         }
-        if let Some(runtime) = self.runtime_graph.runtime_for_chain(chain_id) {
-            runtime.set_draining();
+        let runtime = self.runtime_graph.runtime_for_chain(chain_id);
+        if let Some(rt) = &runtime {
+            rt.set_draining();
             std::thread::sleep(std::time::Duration::from_millis(50));
         }
         self.active_chains.remove(chain_id);
+        // The Arc<ChainRuntimeState> stays alive in `runtime_graph` and is
+        // reused by the rebuild that follows. The new CPAL/JACK callbacks
+        // call `process_input_f32`, which short-circuits on `is_draining()`
+        // — so without this reset every rebuild after a signature change
+        // (e.g. toggling an input channel) silences audio for every segment
+        // on the chain, including sibling InputEntries that were not
+        // touched, until the chain is fully removed and re-added.
+        if let Some(rt) = runtime {
+            rt.clear_draining();
+        }
     }
 }
 
@@ -4262,6 +4277,83 @@ mod tests {
         assert!(controller.active_chains.is_empty());
     }
 
+    // ── Regression #316: teardown clears the draining flag for rebuild ──
+    //
+    // The JACK fix from #294 (this same `teardown_active_chain_for_rebuild`)
+    // calls `set_draining(true)` on the live `Arc<ChainRuntimeState>` so the
+    // audio callback bails out while the old CPAL/JACK streams are dropped.
+    // The Arc stays alive in `runtime_graph` because the caller is about to
+    // re-upsert it, and `RuntimeGraph::upsert_chain` reuses an existing
+    // entry instead of rebuilding the state. Without a matching reset the
+    // new streams' callbacks observe `is_draining()==true` from the very
+    // first invocation and silence every segment on the chain — including
+    // sibling InputEntries that were not touched by the channel edit. The
+    // user-visible symptom is "remove a channel from one entry → audio of
+    // the other entry on the same chain stops too" (issue #316). Toggling
+    // the chain off then on works because `remove_chain` drops the Arc, so
+    // the next enable rebuilds a fresh `ChainRuntimeState` with the flag
+    // already initialized to `false`.
+    #[test]
+    fn teardown_active_chain_for_rebuild_clears_draining_so_rebuild_can_resume_audio() {
+        use std::sync::Arc;
+        let chain_id = super::ChainId("chain:316".into());
+        let chain = project::chain::Chain {
+            id: chain_id.clone(),
+            description: None,
+            instrument: "electric_guitar".to_string(),
+            enabled: true,
+            blocks: vec![],
+        };
+        let runtime_arc = Arc::new(
+            engine::runtime::build_chain_runtime_state(&chain, 48_000.0, &[1024])
+                .expect("empty chain runtime should build"),
+        );
+
+        let mut graph = super::RuntimeGraph {
+            chains: std::collections::HashMap::new(),
+        };
+        graph.chains.insert(chain_id.clone(), Arc::clone(&runtime_arc));
+
+        let mut active_chains = std::collections::HashMap::new();
+        active_chains.insert(
+            chain_id.clone(),
+            super::ActiveChainRuntime {
+                stream_signature: super::ChainStreamSignature {
+                    inputs: vec![],
+                    outputs: vec![],
+                },
+                _input_streams: vec![],
+                _output_streams: vec![],
+                #[cfg(all(target_os = "linux", feature = "jack"))]
+                _jack_client: None,
+                #[cfg(all(target_os = "linux", feature = "jack"))]
+                _dsp_worker: None,
+            },
+        );
+
+        let mut controller = ProjectRuntimeController {
+            runtime_graph: graph,
+            active_chains,
+            #[cfg(all(target_os = "linux", feature = "jack"))]
+            supervisor: super::jack_supervisor::JackSupervisor::new(
+                super::jack_supervisor::LiveJackBackend::new(),
+            ),
+        };
+
+        assert!(!runtime_arc.is_draining(), "freshly built runtime starts un-drained");
+
+        controller.teardown_active_chain_for_rebuild(&chain_id);
+
+        assert!(
+            !runtime_arc.is_draining(),
+            "teardown_active_chain_for_rebuild must clear the draining flag — \
+             the Arc<ChainRuntimeState> is reused by the rebuild that follows, \
+             and leaving the flag set silences every CPAL/JACK callback on the \
+             chain (including sibling InputEntries) until the chain is fully \
+             removed and re-added (#316)"
+        );
+    }
+
     // ── jack_config_for_card reads DeviceSettings (#308) ─────────────────
     //
     // Guarded to Linux+jack because that is the only cfg the function is
@@ -4318,14 +4410,18 @@ mod tests {
 
     #[cfg(all(target_os = "linux", feature = "jack"))]
     #[test]
-    fn jack_config_for_card_falls_back_to_defaults_when_no_match() {
+    fn jack_config_for_card_falls_back_to_realtime_defaults_when_no_match() {
         let card = test_card("hw:4");
-        // No matching device_settings — defaults must preserve prior behaviour.
+        // No matching device_settings — defaults are realtime + nperiods=3.
+        // We ship nperiods=3 (not 2) because nperiods=2 triggered ALSA Broken
+        // pipe on Q26 USB audio + RK3588 in hardware validation; the extra
+        // period gives the USB driver enough slack without meaningfully
+        // increasing latency (one period at 128 frames / 48kHz ≈ 2.7ms).
         let project = empty_project();
 
         let config = ProjectRuntimeController::jack_config_for_card(&card, &project);
 
-        assert!(!config.realtime);
+        assert!(config.realtime);
         assert_eq!(config.rt_priority, 70);
         assert_eq!(config.nperiods, 3);
         assert_eq!(config.sample_rate, 48_000);

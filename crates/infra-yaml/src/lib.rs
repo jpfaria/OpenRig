@@ -163,14 +163,17 @@ fn default_yaml_bit_depth() -> u32 {
     32
 }
 
+#[cfg(target_os = "linux")]
 fn default_yaml_realtime() -> bool {
-    false
+    true
 }
 
+#[cfg(target_os = "linux")]
 fn default_yaml_rt_priority() -> u8 {
     70
 }
 
+#[cfg(target_os = "linux")]
 fn default_yaml_nperiods() -> u32 {
     3
 }
@@ -182,12 +185,16 @@ struct DeviceSettingsYaml {
     buffer_size_frames: u32,
     #[serde(default = "default_yaml_bit_depth")]
     bit_depth: u32,
-    // Linux JACK tuning — always present for YAML portability. Defaults
-    // preserve pre-existing behaviour on macOS/Windows.
+    // Linux JACK tuning — only emitted on Linux. On macOS/Windows these
+    // fields don't exist on DeviceSettings, so serialization skips them
+    // and deserialization ignores them if present in a foreign YAML.
+    #[cfg(target_os = "linux")]
     #[serde(default = "default_yaml_realtime")]
     realtime: bool,
+    #[cfg(target_os = "linux")]
     #[serde(default = "default_yaml_rt_priority")]
     rt_priority: u8,
+    #[cfg(target_os = "linux")]
     #[serde(default = "default_yaml_nperiods")]
     nperiods: u32,
 }
@@ -199,8 +206,11 @@ impl From<DeviceSettingsYaml> for DeviceSettings {
             sample_rate: value.sample_rate,
             buffer_size_frames: value.buffer_size_frames,
             bit_depth: value.bit_depth,
+            #[cfg(target_os = "linux")]
             realtime: value.realtime,
+            #[cfg(target_os = "linux")]
             rt_priority: value.rt_priority,
+            #[cfg(target_os = "linux")]
             nperiods: value.nperiods,
         }
     }
@@ -2312,8 +2322,11 @@ mode: clean
                     sample_rate: 48000,
                     buffer_size_frames: 256,
                     bit_depth: 32,
-                    realtime: false,
+                    #[cfg(target_os = "linux")]
+                    realtime: true,
+                    #[cfg(target_os = "linux")]
                     rt_priority: 70,
+                    #[cfg(target_os = "linux")]
                     nperiods: 3,
                 },
             ],
