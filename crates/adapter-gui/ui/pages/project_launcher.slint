@@ -42,9 +42,6 @@ component IconLauncherButton inherits Rectangle {
     border-width: 1px;
     border-color: #4c515b;
     border-radius: 4px;
-    // Lift while hovered so the tooltip child stays above sibling launcher
-    // controls and the rest of the launcher layout (#329).
-    z: hover-area.has-hover ? 1000 : 0;
 
     Image {
         x: 10px;
@@ -59,9 +56,10 @@ component IconLauncherButton inherits Rectangle {
         clicked => { root.clicked(); }
     }
 
+    // Tooltip below — launcher header sits at the top of the page (#329).
     if hover-area.has-hover && root.tooltip != "" : Rectangle {
         x: -18px;
-        y: -30px;
+        y: 44px;
         width: 76px;
         height: 24px;
         background: #11141ad9;

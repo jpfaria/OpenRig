@@ -602,11 +602,6 @@ component ChainActionIcon inherits Rectangle {
     width: 24px;
     height: 24px;
     background: hover-area.has-hover ? #ffffff10 : transparent;
-    // Lift the whole icon (and its tooltip child) above sibling cards while
-    // hovered. Slint's `z` only orders within the same parent; setting it on
-    // the icon itself moves both the icon and its child tooltip Rectangle
-    // above any neighbour declared after it in the parent. Issue #329.
-    z: hover-area.has-hover ? 1000 : 0;
 
     Image {
         x: 2px;
@@ -627,9 +622,11 @@ component ChainActionIcon inherits Rectangle {
         clicked => { root.clicked(); }
     }
 
+    // Tooltip below the icon — anything above is covered by the project
+    // header, which paints last over the chain content. Issue #329.
     if hover-area.has-hover && root.tooltip != "" : Rectangle {
         x: -26px;
-        y: -30px;
+        y: 28px;
         width: 76px;
         height: 24px;
         background: #11141ad9;
@@ -663,9 +660,6 @@ component ChainEndpointChip inherits Rectangle {
     width: root.is-input ? 72px : 90px;
     height: 72px;
     background: transparent;
-    // Lift while hovered so the chip's tooltip card (rendered by the parent
-    // ChainRow) stays above sibling chain rows declared after this one (#329).
-    z: hover-area.has-hover ? 1000 : 0;
 
     Image {
         x: (parent.width - 48px) / 2;
@@ -713,9 +707,6 @@ component ChainPowerToggle inherits Rectangle {
     width: 28px;
     height: 28px;
     background: hover-area.has-hover ? #ffffff08 : transparent;
-    // Lift while hovered so the tooltip child stays above sibling toggles
-    // and chain cards declared after this one (#329).
-    z: hover-area.has-hover ? 1000 : 0;
 
     Rectangle {
         x: 4px;
@@ -746,9 +737,10 @@ component ChainPowerToggle inherits Rectangle {
         clicked => { root.clicked(); }
     }
 
+    // Tooltip below — anything above is covered by the project header (#329).
     if hover-area.has-hover && root.tooltip != "" : Rectangle {
         x: -24px;
-        y: -30px;
+        y: 32px;
         width: 76px;
         height: 24px;
         background: #11141ad9;
@@ -782,9 +774,6 @@ component HeaderIconAction inherits Rectangle {
     width: 24px;
     height: 24px;
     background: action-area.has-hover ? #ffffff10 : transparent;
-    // Lift while hovered so the tooltip child stays above sibling header
-    // actions and any panel/page content declared after this one (#329).
-    z: action-area.has-hover ? 1000 : 0;
 
     Image {
         x: 2px;
@@ -814,9 +803,11 @@ component HeaderIconAction inherits Rectangle {
         clicked => { root.clicked(); }
     }
 
+    // Tooltip below — header icons sit at the top of the page, tooltip
+    // above would be clipped by the window edge (#329).
     if action-area.has-hover && root.tooltip != "" : Rectangle {
         x: -30px;
-        y: -30px;
+        y: 28px;
         width: 84px;
         height: 24px;
         background: #11141ad9;
@@ -1082,13 +1073,6 @@ component ChainRow inherits Rectangle {
     property <length> out-chip-x: root.width - 108px;
     property <length> out-chip-y: root.last-block-row * 108px + 24px;
     out property <bool> any-chip-hovered: in-chip.is-hovered || out-chip.is-hovered;
-    // Tracks the cursor inside the entire row regardless of which inner
-    // widget owns the actual hover. Used to lift the row above neighbours
-    // so any child tooltip (chips, action icons, power toggle) escapes the
-    // ListView's row-clipping wrapper. The TouchArea is declared first so
-    // child TouchAreas (action icons, chips, blocks) still receive clicks
-    // — Slint dispatches to the deepest TouchArea under the pointer.
-    out property <bool> any-tooltip-source-hovered: row-hover-tracker.has-hover;
 
     pure function slot-index-for-position(pointer-x: float, pointer-y: float) -> int {
         // Blocks start at x=120, each 116px wide.
@@ -1102,20 +1086,7 @@ component ChainRow inherits Rectangle {
 
     background: transparent;
     border-radius: 6px;
-    // Lift the whole row above neighbouring rows while ANY descendant
-    // (chip, action icon, power toggle) is hovered so its tooltip is not
-    // clipped or covered by the next chain row in the list (#329).
-    z: root.any-tooltip-source-hovered ? 1000 : 0;
     height: 74px + (root.block-row-count * 108px);
-
-    // Hover-only tracker — no clicked handler so children TouchAreas keep
-    // ownership of clicks; we only read its has-hover.
-    row-hover-tracker := TouchArea {
-        x: 0px;
-        y: 0px;
-        width: parent.width;
-        height: parent.height;
-    }
 
     Rectangle {
         x: 0px;
