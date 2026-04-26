@@ -341,30 +341,27 @@ pub(crate) fn chain_block_item_from_block(block: &project::block::AudioBlock) ->
     let accent_color = crate::ui_state::accent_color_for_icon_kind(&resolved_icon_kind);
 
     // Hover-tooltip metadata. Empty for I/O and Insert blocks — there is no
-    // model picker behind those, so showing a backend chip + parameter
-    // summary would be noise. For everything else, look up the model via
-    // the project catalog (which delegates to the right block-* crate per
-    // effect type) so we get the human-friendly name and the DSP backend
-    // label in uppercase (NATIVE/NAM/IR/LV2). Issue #333.
-    let (display_name, backend_label, params_summary) = if is_io {
-        (String::new(), String::new(), String::new())
+    // model picker behind those, so the tooltip would show no useful
+    // information. For everything else, the catalog delegates to the right
+    // block-* crate per effect type to give us the display name, DSP
+    // backend label (NATIVE/NAM/IR/LV2) and brand slug. The parameter
+    // summary uses the same formatter as the editor so units, precision
+    // and labels stay in sync without a parallel formatter. Issue #333.
+    let (display_name, backend_label, brand, param_entries) = if is_io {
+        (String::new(), String::new(), String::new(), Vec::new())
     } else {
         let name = project::catalog::model_display_name(&kind, &label).to_string();
         let backend = project::catalog::model_type_label(&kind, &label).to_uppercase();
-        // Reuse the editor's parameter formatter so the tooltip shows the
-        // exact same value strings the user sees while editing — units,
-        // precision and labels stay in sync without a parallel formatter.
-        // Pass an empty ParameterSet for non-Core blocks (NAM, Select, etc.)
-        // since the catalog covers their schemas via their block-* crates.
-        let summary = match block.model_ref() {
-            Some(model_ref) => format_block_params_summary(
+        let brand = project::catalog::model_brand(&kind, &label).to_string();
+        let entries = match block.model_ref() {
+            Some(model_ref) => collect_block_param_entries(
                 model_ref.effect_type,
                 model_ref.model,
                 model_ref.params,
             ),
-            None => String::new(),
+            None => Vec::new(),
         };
-        (name, backend, summary)
+        (name, backend, brand, entries)
     };
 
     ChainBlockItem {
@@ -383,31 +380,30 @@ pub(crate) fn chain_block_item_from_block(block: &project::block::AudioBlock) ->
         icon_source: slint::Image::default(),
         display_name: display_name.into(),
         backend_label: backend_label.into(),
-        params_summary: params_summary.into(),
+        brand: brand.into(),
+        param_entries: ModelRc::from(Rc::new(VecModel::from(param_entries))),
     }
 }
 
-/// Format the visible parameters of a block as a single-line tooltip
-/// summary like "Gain: 65% · Bass: 50% · Mid: 60%". Skips entries whose
-/// `value_text` is empty so the line stays informative.
-fn format_block_params_summary(
+/// Collect the visible parameters of a block as `(label, value, unit)`
+/// triples for the hover tooltip. Skips entries whose `value_text` is
+/// empty (e.g. unset optional fields) so the list stays informative.
+/// Reuses the editor's formatter so the tooltip values match the editor.
+fn collect_block_param_entries(
     effect_type: &str,
     model_id: &str,
     params: &project::param::ParameterSet,
-) -> String {
-    let items = block_parameter_items_for_model(effect_type, model_id, params);
-    items
-        .iter()
+) -> Vec<crate::BlockParamSummaryEntry> {
+    use crate::BlockParamSummaryEntry;
+    block_parameter_items_for_model(effect_type, model_id, params)
+        .into_iter()
         .filter(|item| !item.value_text.is_empty())
-        .map(|item| {
-            if item.unit_text.is_empty() {
-                format!("{}: {}", item.label, item.value_text)
-            } else {
-                format!("{}: {} {}", item.label, item.value_text, item.unit_text)
-            }
+        .map(|item| BlockParamSummaryEntry {
+            label: item.label.to_string().to_uppercase().into(),
+            value: item.value_text,
+            unit: item.unit_text,
         })
-        .collect::<Vec<_>>()
-        .join(" · ")
+        .collect()
 }
 
 pub(crate) fn load_thumbnail_image(effect_type: &str, model_id: &str) -> (slint::Image, bool, f32, f32) {

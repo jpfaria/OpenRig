@@ -1,10 +1,11 @@
 import { ComboBox, ListView, ScrollView } from "std-widgets.slint";
-import { ProjectChainItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, ChainBlockItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockStreamEntry, BlockKnobOverlay } from "../models.slint";
+import { ProjectChainItem, BlockModelPickerItem, BlockParameterItem, BlockParamSummaryEntry, BlockTypePickerItem, ChainBlockItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockStreamEntry, BlockKnobOverlay } from "../models.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { BlockPanelEditor } from "block_panel_editor.slint";
 import { CurveEditorControl } from "curve_editor_control.slint";
 import { MultiSliderControl } from "multi_slider_control.slint";
 import { PowerSwitch } from "../components/power_switch.slint";
+import { BrandLogo } from "../components/brand_logo.slint";
 
 component ToolbarButton inherits Rectangle {
     in property <string> label;
@@ -844,6 +845,11 @@ component BlockChip inherits Rectangle {
     property <bool> drag-origin-set: false;
     property <float> drag-origin-x: 0;
     property <float> drag-origin-y: 0;
+    // Lift the chip above sibling blocks while hovered so the tooltip
+    // hanging below the chip is not clipped by the next BlockChip in the
+    // for-loop. Slint's `z` orders within the same parent, which is what
+    // we want — siblings are the other blocks on the same chain row.
+    z: hover-area.has-hover ? 1000 : 0;
 
     width: 84px;
     height: 100px;
@@ -977,87 +983,146 @@ component BlockChip inherits Rectangle {
         }
     }
 
-    // Hover tooltip — appears below the chip showing backend chip + model
-    // name + parameter summary. Hidden for I/O / Insert blocks
-    // (display_name is empty there). Anchored below following the same rule
-    // as the action-icon tooltips: header always paints above, tooltips up
-    // would be clipped (#329, #333).
+    // Hover tooltip — appears below the chip with three vertically-stacked
+    // sections: header (backend pill + model name + brand logo), parameter
+    // table (LABEL on the left, value+unit on the right, one row per
+    // parameter), and rounded background. Hidden for I/O / Insert blocks
+    // (display_name is empty there). Anchored below — anything above is
+    // covered by the project header (#329).
+    //
+    // Sized to fit the parameter list with no clipping. 22px per row times
+    // entry count, plus 36px header + 16px top/bottom padding. The card
+    // grows the right amount whether the block has 2 or 12 parameters.
     if hover-area.has-hover && root.block.display_name != "" : Rectangle {
-        x: -98px;
-        y: parent.height + 4px;
-        width: 280px;
-        height: tooltip-body.preferred-height + 38px;
-        background: #0e1218f7;
+        property <length> row-height: 18px;
+        property <length> header-h: 36px;
+        property <length> body-padding: 8px;
+        property <int> entry-count: root.block.param_entries.length;
+
+        x: -118px;
+        y: parent.height + 6px;
+        width: 320px;
+        height: header-h + body-padding + Math.max(1, entry-count) * row-height + body-padding;
+        background: #0e1218f5;
         border-width: 1px;
         border-color: #4d5868;
         border-radius: 8px;
-        z: 100;
+        drop-shadow-blur: 18px;
+        drop-shadow-color: #000000a0;
+        drop-shadow-offset-y: 4px;
 
-        // Header strip: backend chip + model name on the same line.
+        // ── Header strip ──────────────────────────────────────────────
         Rectangle {
             x: 0px;
             y: 0px;
             width: parent.width;
-            height: 28px;
-            background: #171d26;
-            border-radius: 8px;
+            height: 36px;
+            background: #171d2c;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+        }
 
-            // Backend pill — coloured background hints at the audio engine
-            // family. Width grows with text via preferred-width on the Text.
-            Rectangle {
-                x: 8px;
-                y: 6px;
-                width: backend-text.preferred-width + 14px;
-                height: 16px;
-                border-radius: 3px;
-                background:
-                    root.block.backend_label == "NATIVE" ? #1f6feb
-                    : root.block.backend_label == "NAM" ? #b5651d
-                    : root.block.backend_label == "IR" ? #6f42c1
-                    : root.block.backend_label == "LV2" ? #2f7d32
-                    : #4a5260;
+        // Backend pill (NATIVE blue / NAM brown / IR purple / LV2 green).
+        Rectangle {
+            x: 10px;
+            y: 10px;
+            width: backend-text.preferred-width + 14px;
+            height: 16px;
+            border-radius: 3px;
+            background:
+                root.block.backend_label == "NATIVE" ? #1f6feb
+                : root.block.backend_label == "NAM" ? #b5651d
+                : root.block.backend_label == "IR" ? #6f42c1
+                : root.block.backend_label == "LV2" ? #2f7d32
+                : #4a5260;
 
-                backend-text := Text {
-                    x: 7px;
-                    y: 0px;
-                    height: parent.height;
-                    text: root.block.backend_label;
-                    color: #ffffff;
-                    font-size: 9px;
-                    font-weight: 800;
-                    letter-spacing: 0.6px;
-                    vertical-alignment: center;
-                }
-            }
-
-            Text {
-                x: 8px + backend-text.preferred-width + 14px + 8px;
+            backend-text := Text {
+                x: 7px;
                 y: 0px;
-                width: parent.width - (backend-text.preferred-width + 38px);
                 height: parent.height;
-                text: root.block.display_name;
-                color: #f4f7fb;
-                font-size: 12px;
-                font-weight: 700;
+                text: root.block.backend_label;
+                color: #ffffff;
+                font-size: 9px;
+                font-weight: 800;
+                letter-spacing: 0.6px;
                 vertical-alignment: center;
-                overflow: elide;
             }
         }
 
-        // Body — wrapped one-line summary of current parameter values.
-        // `params_summary` may be empty for blocks with no editable
-        // parameters; the body just renders nothing in that case.
-        tooltip-body := Text {
-            x: 12px;
-            y: 32px;
-            width: parent.width - 24px;
-            text: root.block.params_summary;
-            color: #c9d2e0;
-            font-size: 10px;
-            font-weight: 600;
-            wrap: word-wrap;
-            horizontal-alignment: left;
-            vertical-alignment: top;
+        // Model name — fills the gap between pill and brand logo.
+        Text {
+            x: 10px + backend-text.preferred-width + 14px + 8px;
+            y: 0px;
+            width: parent.width - (backend-text.preferred-width + 32px) - 78px;
+            height: 36px;
+            text: root.block.display_name;
+            color: #f4f7fb;
+            font-size: 13px;
+            font-weight: 700;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+
+        // Brand logo on the right — auto-hidden by BrandLogo for unknown
+        // brands, which keeps unbranded blocks (native, generic) clean.
+        BrandLogo {
+            x: parent.width - 70px;
+            y: 8px;
+            width: 60px;
+            height: 20px;
+            brand: root.block.brand;
+            tint: #e6ecf5;
+        }
+
+        // ── Parameter table ───────────────────────────────────────────
+        // Each entry is one row: LABEL (uppercase, dim) on the left,
+        // value (white) + unit (dim) on the right. Left and right
+        // columns split the body width 45/55 so labels rarely truncate.
+        for entry[i] in root.block.param_entries : Rectangle {
+            x: 0px;
+            y: 36px + 8px + i * 18px;
+            width: parent.width;
+            height: 18px;
+            background: transparent;
+
+            Text {
+                x: 12px;
+                y: 0px;
+                width: (parent.width - 24px) * 0.45;
+                height: parent.height;
+                text: entry.label;
+                color: #8fa0b6;
+                font-size: 10px;
+                font-weight: 700;
+                letter-spacing: 0.4px;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+
+            HorizontalLayout {
+                x: 12px + (parent.width - 24px) * 0.45;
+                y: 0px;
+                width: (parent.width - 24px) * 0.55;
+                height: parent.height;
+                spacing: 4px;
+                alignment: end;
+
+                Text {
+                    text: entry.value;
+                    color: #f4f7fb;
+                    font-size: 11px;
+                    font-weight: 700;
+                    vertical-alignment: center;
+                }
+
+                Text {
+                    text: entry.unit;
+                    color: #8fa0b6;
+                    font-size: 10px;
+                    font-weight: 600;
+                    vertical-alignment: center;
+                }
+            }
         }
     }
 }
