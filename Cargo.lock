@@ -799,6 +799,7 @@ dependencies = [
 name = "block-core"
 version = "0.1.0"
 dependencies = [
+ "arc-swap",
  "domain",
  "log",
  "serde",
@@ -1721,6 +1722,7 @@ dependencies = [
  "block-reverb",
  "block-util",
  "block-wah",
+ "crossbeam-queue",
  "domain",
  "log",
  "project",

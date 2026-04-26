@@ -378,11 +378,15 @@ impl ChainRuntimeState {
     }
 
     /// Returns stream data for a block by ID, or None if not found or empty.
+    ///
+    /// The inner read is wait-free (`ArcSwap::load`); only the outer
+    /// `stream_handles` HashMap takes a brief lock against rebuild paths
+    /// (also UI thread, never the RT callback).
     pub fn poll_stream(&self, block_id: &BlockId) -> Option<Vec<block_core::StreamEntry>> {
         let handles = self.stream_handles.lock().ok()?;
         let handle = handles.get(block_id)?;
-        let entries = handle.lock().ok()?;
-        if entries.is_empty() { None } else { Some(entries.clone()) }
+        let entries = handle.load();
+        if entries.is_empty() { None } else { Some((**entries).clone()) }
     }
 
     /// Drains and returns all block errors posted since the last call.

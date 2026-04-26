@@ -4,7 +4,7 @@ use block_core::{
     AudioChannelLayout, BlockProcessor, ModelAudioMode, MonoProcessor, StreamEntry, StreamHandle,
 };
 use rustfft::{num_complex::Complex, FftPlanner};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::registry::UtilModelDefinition;
 use crate::UtilBackendKind;
@@ -209,18 +209,20 @@ impl SpectrumWorker {
         self.smoother.update(&new_levels);
         self.peaks.update(&self.smoother.levels);
 
-        // Write to stream handle
-        if let Ok(mut entries) = self.stream.lock() {
-            entries.clear();
-            for (i, &level) in self.smoother.levels.iter().enumerate() {
-                entries.push(StreamEntry {
-                    key: format!("band_{i}"),
-                    value: level,
-                    text: BAND_LABELS[i].to_string(),
-                    peak: self.peaks.peaks[i],
-                });
-            }
+        // Publish snapshot via wait-free ArcSwap. Allocation here is fine
+        // — this runs on the spectrum-analyzer worker thread, not on the
+        // RT audio callback (which only fed us a buffer through a bounded
+        // channel earlier).
+        let mut entries = Vec::with_capacity(self.smoother.levels.len());
+        for (i, &level) in self.smoother.levels.iter().enumerate() {
+            entries.push(StreamEntry {
+                key: format!("band_{i}"),
+                value: level,
+                text: BAND_LABELS[i].to_string(),
+                peak: self.peaks.peaks[i],
+            });
         }
+        self.stream.store(Arc::new(entries));
     }
 }
 
@@ -286,7 +288,7 @@ fn build(
 ) -> Result<(BlockProcessor, Option<StreamHandle>)> {
     match layout {
         AudioChannelLayout::Mono => {
-            let stream: StreamHandle = Arc::new(Mutex::new(Vec::new()));
+            let stream: StreamHandle = block_core::new_stream_handle();
             let processor = SpectrumAnalyzer::new(sample_rate as f32, Arc::clone(&stream));
             Ok((BlockProcessor::Mono(Box::new(processor)), Some(stream)))
         }

@@ -1,9 +1,10 @@
 //! Core building blocks shared by OpenRig block families.
 pub mod param;
 
+use arc_swap::ArcSwap;
 use serde::{Deserialize, Serialize};
 use std::f32::consts::PI;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 /// A single key-value entry in a real-time data stream.
 /// Any block can publish stream entries for the GUI to display.
@@ -17,8 +18,22 @@ pub struct StreamEntry {
 }
 
 /// Shared handle for publishing stream data from a processor to the GUI.
-/// The processor writes entries during `process_block`; the GUI reads them via polling.
-pub type StreamHandle = Arc<Mutex<Vec<StreamEntry>>>;
+///
+/// Wait-free on both sides: the producer (block worker thread) does
+/// `stream.store(Arc::new(new_entries))` to publish a snapshot, and the
+/// GUI does `stream.load()` to read the latest snapshot atomically. No
+/// `Mutex`, no contention, no priority inversion. The producer's
+/// `Arc::new(...)` allocation is acceptable because it runs on a worker
+/// thread (e.g. `tuner-detection`, `spectrum-analyzer`) that the RT
+/// audio callback only feeds via a bounded channel — never on the RT
+/// callback path itself.
+pub type StreamHandle = Arc<ArcSwap<Vec<StreamEntry>>>;
+
+/// Construct a fresh, empty `StreamHandle`. Use this in block builders
+/// instead of `Arc::new(Mutex::new(Vec::new()))`.
+pub fn new_stream_handle() -> StreamHandle {
+    Arc::new(ArcSwap::from_pointee(Vec::new()))
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]

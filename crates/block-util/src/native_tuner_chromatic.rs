@@ -7,7 +7,7 @@ use block_core::{
     AudioChannelLayout, BlockProcessor, ModelAudioMode, StereoProcessor, StreamEntry, StreamHandle,
 };
 use std::sync::mpsc::{sync_channel, SyncSender};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::thread;
 
 use crate::registry::UtilModelDefinition;
@@ -256,12 +256,12 @@ impl DetectionEngine {
                 let (note_name, cents) = freq_to_note(freq, self.reference_hz);
                 self.debounce_note(note_name);
                 if let Some(ref current) = self.current_note {
-                    if let Ok(mut entries) = stream.lock() {
-                        entries.clear();
-                        entries.push(StreamEntry { key: "note".to_string(), value: 0.0, text: current.clone(), peak: 0.0 });
-                        entries.push(StreamEntry { key: "cents".to_string(), value: cents, text: format!("{cents:+.1}"), peak: 0.0 });
-                        entries.push(StreamEntry { key: "frequency".to_string(), value: freq, text: format!("{freq:.1} Hz"), peak: 0.0 });
-                    }
+                    let entries = vec![
+                        StreamEntry { key: "note".to_string(), value: 0.0, text: current.clone(), peak: 0.0 },
+                        StreamEntry { key: "cents".to_string(), value: cents, text: format!("{cents:+.1}"), peak: 0.0 },
+                        StreamEntry { key: "frequency".to_string(), value: freq, text: format!("{freq:.1} Hz"), peak: 0.0 },
+                    ];
+                    stream.store(std::sync::Arc::new(entries));
                 }
             }
             None => {
@@ -271,9 +271,7 @@ impl DetectionEngine {
                     self.current_note = None;
                     self.pending_note = None;
                     self.pending_count = 0;
-                    if let Ok(mut entries) = stream.lock() {
-                        entries.clear();
-                    }
+                    stream.store(std::sync::Arc::new(Vec::new()));
                 }
             }
         }
@@ -351,7 +349,7 @@ fn build(
     let reference_hz = required_f32(params, "reference_hz").map_err(Error::msg)?;
     let mute_signal = required_bool(params, "mute_signal").map_err(Error::msg)?;
 
-    let stream: StreamHandle = Arc::new(Mutex::new(Vec::new()));
+    let stream: StreamHandle = block_core::new_stream_handle();
     let tuner = ChromaticTuner::new(sample_rate, reference_hz, mute_signal, Arc::clone(&stream));
     Ok((BlockProcessor::Stereo(Box::new(tuner)), Some(stream)))
 }
@@ -387,7 +385,7 @@ mod tests {
         reference_hz: f32,
         mute: bool,
     ) -> (Vec<StreamEntry>, Vec<[f32; 2]>) {
-        let stream: StreamHandle = Arc::new(Mutex::new(Vec::new()));
+        let stream: StreamHandle = block_core::new_stream_handle();
         let mut tuner = ChromaticTuner::new(sample_rate, reference_hz, mute, Arc::clone(&stream));
 
         // Feed enough samples for multiple detection buffers
@@ -399,7 +397,7 @@ mod tests {
         drop(tuner);
         std::thread::sleep(std::time::Duration::from_millis(200));
 
-        let entries = stream.lock().unwrap().clone();
+        let entries = (**stream.load()).clone();
         (entries, frames)
     }
 
@@ -433,19 +431,19 @@ mod tests {
 
     #[test]
     fn silence_produces_no_reading() {
-        let stream: StreamHandle = Arc::new(Mutex::new(Vec::new()));
+        let stream: StreamHandle = block_core::new_stream_handle();
         let mut tuner = ChromaticTuner::new(44100, 440.0, true, Arc::clone(&stream));
         let mut silent_frames: Vec<[f32; 2]> = vec![[0.0, 0.0]; BUFFER_SIZE * 4];
         tuner.process_block(&mut silent_frames);
         drop(tuner);
         std::thread::sleep(std::time::Duration::from_millis(200));
-        let entries = stream.lock().unwrap();
+        let entries = stream.load();
         assert!(entries.is_empty(), "Silence should produce no stream entries");
     }
 
     #[test]
     fn mute_zeroes_output() {
-        let stream: StreamHandle = Arc::new(Mutex::new(Vec::new()));
+        let stream: StreamHandle = block_core::new_stream_handle();
         let mut tuner = ChromaticTuner::new(44100, 440.0, true, Arc::clone(&stream));
         let output = tuner.process_frame([0.5, 0.3]);
         assert_eq!(output, [0.0, 0.0], "Muted tuner should zero both channels");
@@ -453,7 +451,7 @@ mod tests {
 
     #[test]
     fn passthrough_preserves_signal() {
-        let stream: StreamHandle = Arc::new(Mutex::new(Vec::new()));
+        let stream: StreamHandle = block_core::new_stream_handle();
         let mut tuner = ChromaticTuner::new(44100, 440.0, false, Arc::clone(&stream));
         let output = tuner.process_frame([0.5, 0.3]);
         assert_eq!(output, [0.5, 0.3], "Passthrough tuner should preserve both channels");
