@@ -10,15 +10,24 @@
 # PCM Playback at -50 dB (0%) — silent — and there is no sound until
 # someone runs amixer by hand.
 #
-#   - "playback volume" → 0 dB (unity)
-#   - "capture volume"  → +12 dB (passive humbuckers/single-coils land near
-#                                 -inf at 0 dB unity on the Q-26; +12 dB is
-#                                 the level confirmed in hardware with guitar
-#                                 plugged. Still leaves 12 dB of headroom
-#                                 on devices with +24 dB max range.)
-#
 #   - playback volumes → 0 dB (unity); fallback 100%
-#   - capture volumes  → 0 dB (unity); fallback 46% (Q-26 unity is at 46%)
+#   - capture volumes  → 0 dB (unity); fallback 50%
+#
+# Match is by ALSA capability flags ('pvolume' / 'cvolume') from the
+# control's info, NOT by name strings ("Playback Volume", "Capture Volume").
+# The string approach (used previously) silently passed Scarlett-style
+# devices because they expose 'Line In 1 Gain' whose info has 'Capabilities:
+# cvolume' but never the literal 'Capture Volume' phrase — capture stayed
+# at firmware default (~+25 dB on Scarlett 4th Gen) and unused channels
+# captured EMI hum, producing audible noise floor (#332).
+#
+# Generic — no vendor/model matching. The conservative 50% fallback
+# means devices with very large ranges (Scarlett: 0-69 dB → 50% ~ +34 dB)
+# stay loud enough to play but unused channels do not blow up. Devices
+# with small ranges (Q-26: -23 to +27 dB → 0 dB unity = 46% step) come
+# in audible too. User's runtime tweaks are preserved by alsa-store
+# on shutdown / alsa-restore on next boot — this script only seeds
+# fresh-image / first-attach state.
 #
 # Usage:
 #   openrig-set-usb-audio-volume              # seed every controlC* present
@@ -52,10 +61,10 @@ seed_card() {
         | while read -r ctl; do
             info=$(amixer -c "$card" sget "$ctl" 2>/dev/null)
             case "$info" in
-                *Playback*Volume*) set_by_name "$card" "$ctl" "0dB" "100%" ;;
+                *Capabilities:*pvolume*) set_by_name "$card" "$ctl" "0dB" "100%" ;;
             esac
             case "$info" in
-                *Capture*Volume*)  set_by_name "$card" "$ctl" "12dB" "70%" ;;
+                *Capabilities:*cvolume*) set_by_name "$card" "$ctl" "0dB" "50%"  ;;
             esac
         done
 }
