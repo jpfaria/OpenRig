@@ -232,6 +232,7 @@ export component ProjectSettingsPage inherits Rectangle {
     callback update-project-sample-rate(int, string);
     callback update-project-buffer-size(int, string);
     callback update-project-bit-depth(int, string);
+    callback refresh-devices();
 
     background: #171a1f;
 
@@ -266,12 +267,39 @@ export component ProjectSettingsPage inherits Rectangle {
     Text {
         x: 32px;
         y: 114px;
-        width: parent.width - 64px;
+        width: parent.width - 96px;
         height: 20px;
         text: "Dispositivos de áudio";
         color: #7a8694;
         font-size: 11px;
         font-weight: 600;
+    }
+
+    // Refresh devices button — re-enumerates audio interfaces. Use after
+    // hot-swapping a USB audio interface so the new device appears in the list.
+    Rectangle {
+        x: parent.width - 60px;
+        y: 110px;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        background: refresh-ta.has-hover ? #2a3340 : #1e2229;
+        border-width: 1px;
+        border-color: #3d4450;
+
+        Image {
+            x: 6px;
+            y: 6px;
+            width: 16px;
+            height: 16px;
+            source: @image-url("../modules/surrealism-ui/icons/refresh.svg");
+            colorize: refresh-ta.has-hover ? #c5cdd9 : #8a95a5;
+        }
+
+        refresh-ta := TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.refresh-devices(); }
+        }
     }
 
     ScrollView {
