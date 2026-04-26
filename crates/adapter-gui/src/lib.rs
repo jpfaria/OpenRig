@@ -2191,14 +2191,25 @@ pub fn run_desktop_app(
             let tuner_timer_for_open = tuner_timer.clone();
             window.on_open_tuner_window(move || {
                 let Some(tw) = tuner_window_weak.upgrade() else { return; };
+
+                // Always show the window — empty state if no project/runtime yet.
                 let session_borrow = project_session_for_tuner.borrow();
-                let Some(session) = session_borrow.as_ref() else { return; };
                 let runtime_borrow = project_runtime_for_tuner.borrow();
-                let Some(runtime) = runtime_borrow.as_ref() else { return; };
-                let new_session = tuner_session::TunerSession::build(&session.project, runtime);
-                tw.set_tuner_rows(new_session.rows_model_rc());
+                let new_session = match (session_borrow.as_ref(), runtime_borrow.as_ref()) {
+                    (Some(session), Some(runtime)) => Some(
+                        tuner_session::TunerSession::build(&session.project, runtime),
+                    ),
+                    _ => None,
+                };
+
+                if let Some(ref session) = new_session {
+                    tw.set_tuner_rows(session.rows_model_rc());
+                } else {
+                    let empty: Rc<VecModel<TunerRow>> = Rc::new(VecModel::from(Vec::new()));
+                    tw.set_tuner_rows(ModelRc::from(empty));
+                }
                 let _ = tw.show();
-                *tuner_session_for_open.borrow_mut() = Some(new_session);
+                *tuner_session_for_open.borrow_mut() = new_session;
 
                 // Start polling timer (~30 Hz). Each tick drains the rings,
                 // runs detection in fixed-size chunks, and updates the row
