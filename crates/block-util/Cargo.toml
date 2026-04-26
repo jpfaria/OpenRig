@@ -6,4 +6,5 @@ edition.workspace = true
 anyhow.workspace = true
 arc-swap.workspace = true
 block-core = { path = "../block-core" }
+feature-dsp = { path = "../feature-dsp" }
 rustfft.workspace = true

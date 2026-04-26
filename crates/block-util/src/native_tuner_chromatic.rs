@@ -10,7 +10,7 @@ use std::sync::mpsc::{sync_channel, SyncSender};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use crate::pitch_yin::{PitchDetector, PitchUpdate, BUFFER_SIZE, DEFAULT_REFERENCE_HZ};
+use feature_dsp::pitch_yin::{PitchDetector, PitchUpdate, BUFFER_SIZE, DEFAULT_REFERENCE_HZ};
 use crate::registry::UtilModelDefinition;
 use crate::UtilBackendKind;
 

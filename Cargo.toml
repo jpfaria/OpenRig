@@ -14,6 +14,7 @@ members = [
   "crates/block-pitch",
   "crates/block-util",
   "crates/block-routing",
+  "crates/feature-dsp",
   "crates/nam",
   "crates/block-nam",
   "crates/block-preamp",
