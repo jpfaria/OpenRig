@@ -49,7 +49,7 @@ for A in "${ARCHS[@]}"; do
     "$PROJECT_ROOT/scripts/build-linux-local.sh" \
         --arch "$A" --version "$VERSION" --format deb \
         --output-dir "$OUTPUT_DIR" \
-        "${EXTRA_FLAGS[@]}"
+        "${EXTRA_FLAGS[@]+"${EXTRA_FLAGS[@]}"}"
 done
 
 echo ""
