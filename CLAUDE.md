@@ -314,6 +314,7 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 - **Compact Chain View** — visão compacta com power switches e troca rápida de modelo
 - **Settings** — dispositivos de áudio (input/output), sample rate, buffer size
 - **Chain Editor** — nome da chain, instrumento, I/O blocks (Input/Output como blocos na cadeia)
+- **Tuner** — janela independente com lista de tuners (1 por canal ativo de cada Input habilitado). Acesso pelo botão "Tuner" na toolbar da tela Chains. Implementação: `crates/feature-dsp/src/pitch_yin.rs` (YIN pitch detection) + `crates/engine/src/input_tap.rs` (lock-free per-channel SPSC tap pre-FX) + `crates/adapter-gui/src/tuner_session.rs` (UI side, drains rings em timer 30 Hz)
 
 **Tamanhos de janela:** Janela principal iniciada em 1100×620px (lógicos) para caber em telas de ~1300×700px (notebooks Windows). Tamanhos mínimos no Slint permitem redimensionamento livre.
 
@@ -343,7 +344,7 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 | **Dynamics** | Compressor e gate | 9 | Studio Clean Compressor, Noise Gate, Brick Wall Limiter (native); TAP DeEsser/Dynamics/Limiter, ZamComp, ZamGate, ZaMultiComp (LV2) |
 | **Filter** | EQ e moldagem tonal | 13 | Three Band EQ, Guitar EQ, 8-Band Parametric EQ (native); TAP Equalizer/BW, ZamEQ2, ZamGEQ31, CAPS AutoFilter, FOMP Auto-Wah, MOD HPF/LPF, Filta, Mud (LV2) |
 | **Wah** | Pedal wah-wah | 2 | Cry Classic (native); GxQuack (LV2) |
-| **Utility** | Ferramentas | 2 | Chromatic Tuner, Spectrum Analyzer (native) |
+| **Utility** | Ferramentas | 1 | Spectrum Analyzer (native) — Chromatic Tuner virou feature de toolbar (TunerWindow), não mais um bloco |
 | **Body** | Ressonância de corpo acústico | 114 | Martin (45), Taylor (30), Gibson (10), Yamaha (5), Guild (4), Takamine (4), Cort (4), Emerald (2), Rainsong (2), Lowden (2) + outros boutique (IR) |
 | **Pitch** | Pitch shifting e harmonização | 4 | Harmonizer, x42 Autotune, MDA Detune, MDA RePsycho (LV2) |
 | **Full Rig** | Rig completo com pedais + amp + cab | 0 | (reservado para capturas com cadeia completa incluindo pedais) |
@@ -353,7 +354,7 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 | **Output** | Saída de áudio (device + channels) | — | standard |
 | **Insert** | Loop de efeito externo (send/return) | — | external_loop |
 
-**Total: 362+ modelos em 16 tipos de bloco processadores (5 backends: Native 35, NAM 89, IR 127, LV2 105, VST3 6).**
+**Total: 361+ modelos em 16 tipos de bloco processadores (5 backends: Native 34, NAM 89, IR 127, LV2 105, VST3 6).**
 
 ### Parâmetros comuns
 
@@ -367,7 +368,6 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 - **8-Band Parametric EQ** (`eq_eight_band_parametric`): por banda — `band{N}_enabled` (bool), `band{N}_type` (peak/low_shelf/high_shelf/low_pass/high_pass/notch), `band{N}_freq` (20–20000 Hz), `band{N}_gain` (-24/+24 dB), `band{N}_q` (0.1–10). Freqs padrão: 62/125/250/500/1k/2k/4k/8kHz. Suporta todos os instrumentos. DualMono.
 - **Gain pedals**: drive, tone, level
 - **Volume**: volume (0-100%), mute (on/off)
-- **Tuner**: reference_hz (400-480Hz, default 440)
 - **Vibrato**: rate_hz (0.1-8.0Hz), depth (0-100%) — 100% wet, no dry signal
 - **Autotune Chromatic**: speed (0-100ms), mix (0-100%), detune (±50 cents), sensitivity (0-100%)
 - **Autotune Scale**: speed, mix, detune, sensitivity + key (C-B), scale (Major, Minor, Pentatonic Maj/Min, Harmonic Minor, Melodic Minor, Blues, Dorian)

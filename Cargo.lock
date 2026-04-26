@@ -934,7 +934,6 @@ dependencies = [
  "anyhow",
  "arc-swap",
  "block-core",
- "feature-dsp",
  "rustfft",
 ]
 
