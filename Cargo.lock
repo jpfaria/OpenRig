@@ -934,6 +934,7 @@ dependencies = [
  "anyhow",
  "arc-swap",
  "block-core",
+ "crossbeam-queue",
  "rustfft",
 ]
 

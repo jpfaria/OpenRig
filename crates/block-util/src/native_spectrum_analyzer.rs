@@ -232,21 +232,52 @@ pub struct SpectrumAnalyzer {
     write_pos: usize,
     // Counts new samples since last FFT dispatch
     hop_count: usize,
-    // Pre-allocated send buffer — avoids heap allocation in the RT thread
-    buf: Vec<f32>,
-    tx: std::sync::mpsc::SyncSender<Vec<f32>>,
+    // Outgoing buffers (RT → worker). Wait-free push.
+    to_worker: Arc<crossbeam_queue::ArrayQueue<Vec<f32>>>,
+    // Returning buffers (worker → RT). Wait-free pop. Pre-populated with
+    // both buffers at boot so the RT thread always has something to take
+    // when it is time to dispatch a frame.
+    from_worker: Arc<crossbeam_queue::ArrayQueue<Vec<f32>>>,
 }
 
 impl SpectrumAnalyzer {
     pub fn new(sample_rate: f32, stream: StreamHandle) -> Self {
-        let (tx, rx) = std::sync::mpsc::sync_channel::<Vec<f32>>(1);
+        // Two pre-allocated buffers cycled between RT and worker threads.
+        // No heap allocation happens in `process_sample` — the RT thread
+        // pops a buffer from `from_worker`, fills it from the ring, and
+        // pushes it to `to_worker`. The worker pops from `to_worker`,
+        // runs the FFT, and recycles the buffer back to `from_worker`.
+        let to_worker: Arc<crossbeam_queue::ArrayQueue<Vec<f32>>> =
+            Arc::new(crossbeam_queue::ArrayQueue::new(2));
+        let from_worker: Arc<crossbeam_queue::ArrayQueue<Vec<f32>>> =
+            Arc::new(crossbeam_queue::ArrayQueue::new(2));
+        // Seed both buffers into `from_worker` so the RT side has buffers
+        // available from the very first hop.
+        from_worker.push(vec![0.0; FFT_SIZE]).ok();
+        from_worker.push(vec![0.0; FFT_SIZE]).ok();
+
+        let to_worker_w = Arc::clone(&to_worker);
+        let from_worker_w = Arc::clone(&from_worker);
         let mut worker = SpectrumWorker::new(sample_rate, stream);
 
         std::thread::Builder::new()
             .name("spectrum-analyzer".to_string())
             .spawn(move || {
-                for buf in rx {
+                loop {
+                    // Block on a buffer arrival without busy-spinning. The
+                    // worker is allowed to sleep — only the RT side must
+                    // remain wait-free.
+                    let buf = loop {
+                        if let Some(b) = to_worker_w.pop() {
+                            break b;
+                        }
+                        std::thread::sleep(std::time::Duration::from_millis(2));
+                    };
                     worker.process(&buf);
+                    // Recycle the buffer back to the RT side. If the queue
+                    // is full (RT has not consumed both buffers yet),
+                    // drop — same behaviour as the old try_send path.
+                    from_worker_w.push(buf).ok();
                 }
             })
             .expect("spawn spectrum worker");
@@ -255,8 +286,8 @@ impl SpectrumAnalyzer {
             ring: vec![0.0; FFT_SIZE],
             write_pos: 0,
             hop_count: 0,
-            buf: vec![0.0; FFT_SIZE],
-            tx,
+            to_worker,
+            from_worker,
         }
     }
 }
@@ -269,13 +300,17 @@ impl MonoProcessor for SpectrumAnalyzer {
 
         if self.hop_count >= HOP_SIZE {
             self.hop_count = 0;
-            // Copy ring buffer in chronological order (oldest sample first)
-            let read_start = self.write_pos;
-            for i in 0..FFT_SIZE {
-                self.buf[i] = self.ring[(read_start + i) % FFT_SIZE];
+            // Take a recycled buffer from the worker. If none is
+            // available (worker has not finished processing the previous
+            // hop), drop this frame — same behaviour as the old try_send
+            // path, but now wait-free and zero-alloc on the RT side.
+            if let Some(mut buf) = self.from_worker.pop() {
+                let read_start = self.write_pos;
+                for i in 0..FFT_SIZE {
+                    buf[i] = self.ring[(read_start + i) % FFT_SIZE];
+                }
+                let _ = self.to_worker.push(buf);
             }
-            // Non-blocking: drop frame if worker is still busy with previous
-            let _ = self.tx.try_send(self.buf.clone());
         }
         input
     }
