@@ -841,15 +841,11 @@ component BlockChip inherits Rectangle {
     callback clicked();
     callback drag-moved(float, float);
     callback drag-finished(float, float);
+    out property <bool> hovered: hover-area.has-hover;
     property <bool> did-drag: false;
     property <bool> drag-origin-set: false;
     property <float> drag-origin-x: 0;
     property <float> drag-origin-y: 0;
-    // Lift the chip above sibling blocks while hovered so the tooltip
-    // hanging below the chip is not clipped by the next BlockChip in the
-    // for-loop. Slint's `z` orders within the same parent, which is what
-    // we want — siblings are the other blocks on the same chain row.
-    z: hover-area.has-hover ? 1000 : 0;
 
     width: 84px;
     height: 100px;
@@ -1222,6 +1218,14 @@ component ChainRow inherits Rectangle {
     property <length> out-chip-x: root.width - 108px;
     property <length> out-chip-y: root.last-block-row * 108px + 24px;
     out property <bool> any-chip-hovered: in-chip.is-hovered || out-chip.is-hovered;
+    // Tracks the cursor anywhere inside the row regardless of which inner
+    // widget actually owns the hover. Drives the row-level z lift so a
+    // BlockChip's tooltip — which hangs below the chip and crosses into
+    // the next row's space inside the ListView — paints above the
+    // neighbouring chain rows instead of behind them. Slint dispatches
+    // clicks to the deepest TouchArea, so this passive tracker does not
+    // steal events from the chips, action icons, blocks, or power toggle.
+    out property <bool> row-hovered: row-hover-tracker.has-hover;
 
     pure function slot-index-for-position(pointer-x: float, pointer-y: float) -> int {
         // Blocks start at x=120, each 116px wide.
@@ -1236,6 +1240,21 @@ component ChainRow inherits Rectangle {
     background: transparent;
     border-radius: 6px;
     height: 74px + (root.block-row-count * 108px);
+    // Lift the whole row above neighbouring rows whenever the cursor is
+    // inside it, so any descendant tooltip (chips, action icons, blocks)
+    // paints above the next chain row in the ListView instead of behind
+    // its blocks (#329, #333).
+    z: row-hover-tracker.has-hover ? 1000 : 0;
+
+    // Hover-only tracker. No clicked handler — children TouchAreas
+    // (PowerSwitch, action icons, chips, blocks) keep ownership of clicks
+    // because Slint dispatches to the deepest TouchArea under the pointer.
+    row-hover-tracker := TouchArea {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: parent.height;
+    }
 
     Rectangle {
         x: 0px;
