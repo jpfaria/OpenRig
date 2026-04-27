@@ -1,0 +1,23 @@
+label: MXR EVH 5150 Overdrive
+tone3000_tone_id: 34605
+tone3000_url: https://www.tone3000.com/tones/34605
+make: MXR EVH 5150 Overdrive
+title: MXR EVH 5150 Overdrive
+author: sabinocf
+downloads: 1379
+likes: 24
+tags:
+- '5150'
+- eddie van halen
+- evh
+- mxr
+- nam
+- van halen
+downloaded_at: '2026-04-27'
+models:
+- name: MXR EVH 5150 Overdrive Boost Off
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/2hrcu751rnf.nam
+- name: MXR EVH 5150 Overdrive Boost On
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/5tirovgtm5s.nam

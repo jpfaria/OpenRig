@@ -1,0 +1,89 @@
+label: Boss OD-3
+tone3000_tone_id: 39066
+tone3000_url: https://www.tone3000.com/tones/39066
+make: Boss OD-3 Overdrive
+title: Boss OD-3
+author: musiciswigglyair
+downloads: 925
+likes: 8
+tags:
+- boss
+- drive
+- nam
+- overdrive
+- overdrive pedal
+- rock
+downloaded_at: '2026-04-27'
+models:
+- name: BossOD3_HiDrive_CenterTone_nano
+  size: nano
+  url: https://api.tone3000.com/storage/v1/object/public/models/1hhirjopnpf.nam
+- name: BossOD3_HiDrive_HighTone_nano
+  size: nano
+  url: https://api.tone3000.com/storage/v1/object/public/models/0pbn6du2khyg.nam
+- name: BossOD3_LowDrive_HighTone_nano
+  size: nano
+  url: https://api.tone3000.com/storage/v1/object/public/models/g0bhql81ycm.nam
+- name: BossOD3_MidDrive_CenterTone_nano
+  size: nano
+  url: https://api.tone3000.com/storage/v1/object/public/models/75jlo1xcqg.nam
+- name: BossOD3_HiDrive_LowTone_nano
+  size: nano
+  url: https://api.tone3000.com/storage/v1/object/public/models/4bhs9ehmbl8.nam
+- name: BossOD3_LowDrive_LowTone_nano
+  size: nano
+  url: https://api.tone3000.com/storage/v1/object/public/models/ohl568u1xc.nam
+- name: BossOD3_LowDrive_CenterTone_nano
+  size: nano
+  url: https://api.tone3000.com/storage/v1/object/public/models/3wzshsfhuju.nam
+- name: BossOD3_NoDrive_CenterTone_nano
+  size: nano
+  url: https://api.tone3000.com/storage/v1/object/public/models/m8q3t3xgyv.nam
+- name: BossOD3_NoDrive_HighTone_nano
+  size: nano
+  url: https://api.tone3000.com/storage/v1/object/public/models/l2enax1mars.nam
+- name: BossOD3_MidDrive_LowTone_nano
+  size: nano
+  url: https://api.tone3000.com/storage/v1/object/public/models/o5rxa904yu.nam
+- name: BossOD3_NoDrive_LowTone_nano
+  size: nano
+  url: https://api.tone3000.com/storage/v1/object/public/models/vzjdbw9ig9o.nam
+- name: BossOD3_MidDrive_HighTone_nano
+  size: nano
+  url: https://api.tone3000.com/storage/v1/object/public/models/bc9ril9pw8k.nam
+- name: BossOD3_MidDrive_CenterTone
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/amoolnidh9n.nam
+- name: BossOD3_HiDrive_CenterTone
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/fe4m8rg4xwf.nam
+- name: BossOD3_NoDrive_LowTone
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/99ygxk3df7r.nam
+- name: BossOD3_MidDrive_HighTone
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/44nzyud7oze.nam
+- name: BossOD3_MidDrive_LowTone
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/miqtnd85cf.nam
+- name: BossOD3_HiDrive_HighTone
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/6a0amr6lp7y.nam
+- name: BossOD3_NoDrive_HighTone
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/kkbidr4ihjk.nam
+- name: BossOD3_LowDrive_LowTone
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/oebq7y5fe1n.nam
+- name: BossOD3_NoDrive_CenterTone
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/kpdgk9lwmc.nam
+- name: BossOD3_LowDrive_HighTone
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/jgklgbhm6yq.nam
+- name: BossOD3_LowDrive_CenterTone
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/4uhzl0bmgu5.nam
+- name: BossOD3_HiDrive_LowTone
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/4is5wfzpuud.nam

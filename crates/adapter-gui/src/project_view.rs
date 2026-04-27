@@ -10,7 +10,7 @@ use crate::{
     ProjectChainItem,
 };
 use crate::state::SelectedBlock;
-use crate::block_editor::{block_editor_data, block_parameter_items_for_editor, build_knob_overlays};
+use crate::block_editor::{block_editor_data, block_parameter_items_for_editor, block_parameter_items_for_model, build_knob_overlays};
 use crate::AppWindow;
 use crate::ui_state::chain_routing_summary;
 
@@ -339,6 +339,31 @@ pub(crate) fn chain_block_item_from_block(block: &project::block::AudioBlock) ->
     };
 
     let accent_color = crate::ui_state::accent_color_for_icon_kind(&resolved_icon_kind);
+
+    // Hover-tooltip metadata. Empty for I/O and Insert blocks — there is no
+    // model picker behind those, so the tooltip would show no useful
+    // information. For everything else, the catalog delegates to the right
+    // block-* crate per effect type to give us the display name, DSP
+    // backend label (NATIVE/NAM/IR/LV2) and brand slug. The parameter
+    // summary uses the same formatter as the editor so units, precision
+    // and labels stay in sync without a parallel formatter. Issue #333.
+    let (display_name, backend_label, brand, param_entries) = if is_io {
+        (String::new(), String::new(), String::new(), Vec::new())
+    } else {
+        let name = project::catalog::model_display_name(&kind, &label).to_string();
+        let backend = project::catalog::model_type_label(&kind, &label).to_uppercase();
+        let brand = project::catalog::model_brand(&kind, &label).to_string();
+        let entries = match block.model_ref() {
+            Some(model_ref) => collect_block_param_entries(
+                model_ref.effect_type,
+                model_ref.model,
+                model_ref.params,
+            ),
+            None => Vec::new(),
+        };
+        (name, backend, brand, entries)
+    };
+
     ChainBlockItem {
         kind: kind.into(),
         icon_kind: resolved_icon_kind.into(),
@@ -353,7 +378,32 @@ pub(crate) fn chain_block_item_from_block(block: &project::block::AudioBlock) ->
         thumb_height,
         accent_color,
         icon_source: slint::Image::default(),
+        display_name: display_name.into(),
+        backend_label: backend_label.into(),
+        brand: brand.into(),
+        param_entries: ModelRc::from(Rc::new(VecModel::from(param_entries))),
     }
+}
+
+/// Collect the visible parameters of a block as `(label, value, unit)`
+/// triples for the hover tooltip. Skips entries whose `value_text` is
+/// empty (e.g. unset optional fields) so the list stays informative.
+/// Reuses the editor's formatter so the tooltip values match the editor.
+fn collect_block_param_entries(
+    effect_type: &str,
+    model_id: &str,
+    params: &project::param::ParameterSet,
+) -> Vec<crate::BlockParamSummaryEntry> {
+    use crate::BlockParamSummaryEntry;
+    block_parameter_items_for_model(effect_type, model_id, params)
+        .into_iter()
+        .filter(|item| !item.value_text.is_empty())
+        .map(|item| BlockParamSummaryEntry {
+            label: item.label.to_string().to_uppercase().into(),
+            value: item.value_text,
+            unit: item.unit_text,
+        })
+        .collect()
 }
 
 pub(crate) fn load_thumbnail_image(effect_type: &str, model_id: &str) -> (slint::Image, bool, f32, f32) {

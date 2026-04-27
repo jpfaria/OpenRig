@@ -1,0 +1,25 @@
+label: Tube Driver
+tone3000_tone_id: 6311
+tone3000_url: https://www.tone3000.com/tones/6311
+make: TUBE DRIVER BUTLER
+title: TUBE DRIVER BUTLER BOOST AND DRIVE 400EP
+author: pinkflor
+downloads: 386
+likes: 15
+tags:
+- 1970s
+- analogue
+- blues
+- breakup
+- clean
+- guitar
+- nam
+- rock
+downloaded_at: '2026-04-27'
+models:
+- name: TUBE DRIVER BUTLER DRIVE SETTING 4386 400EP
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/9cad703001e9e27c.nam
+- name: TUBE DRIVER BUTLER BOOST SETTING 8481 400EP
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/aca4c006a61b1282.nam

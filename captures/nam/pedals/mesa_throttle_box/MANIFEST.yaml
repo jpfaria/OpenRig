@@ -1,0 +1,32 @@
+label: Mesa Throttle Box
+tone3000_tone_id: 2324
+tone3000_url: https://www.tone3000.com/tones/2324
+make: Mesa Throttle Box
+title: Mesa Throttle Box Distortion Pedal
+author: philvr
+downloads: 260
+likes: 22
+tags:
+- distortion
+- guitar
+- high-gain
+- metal
+- nam
+- pedal
+downloaded_at: '2026-04-27'
+models:
+- name: Mesa Throttle Box - High G50%
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/cbbc36ec15146840.nam
+- name: Mesa Throttle Box - Lo G75%
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/b453766cf02868b4.nam
+- name: Mesa Throttle Box - High G38%
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/3b0855a9ad49fa4c.nam
+- name: Mesa Throttle Box - Lo G38%
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/57e4848b7e7fdf64.nam
+- name: Mesa Throttle Box - High G75%
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/0906be8629bccfe7.nam

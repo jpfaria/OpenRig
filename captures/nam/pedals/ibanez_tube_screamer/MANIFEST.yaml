@@ -1,0 +1,43 @@
+label: Ibanez Tube Screamer (TS9/TS808/TS10/Mini)
+tone3000_tone_id: 6210
+tone3000_url: https://www.tone3000.com/tones/6210
+make: Fortin Modded TS808 Tube Screamer
+title: Fortin Modded TS808 Tube Screamer
+author: 2dor
+downloads: 775
+likes: 26
+tags:
+- djent
+- high-gain
+- metal
+- nam
+- pedal
+downloaded_at: '2026-04-27'
+models:
+- name: D@10_T@10_L@10
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/zfxx7kd0jka.nam
+- name: D@05_T@10_L@05
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/vchddm7a9kq.nam
+- name: D@05_T@08_L@05
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/nqozqyqole.nam
+- name: D@02_T@10_L@08
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/vjoqg4em8he.nam
+- name: D@02_T@08_L@08
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/dgrvubk3w8.nam
+- name: D@00_T@10_L@10
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/c94p8kk7aej.nam
+- name: D@00_T@08_L@10
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/gcigokktnh.nam
+- name: D@00_T@05_L@10
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/t82b219uq4b.nam
+- name: D@00_T@06_L@08
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/xd3dojsegcc.nam

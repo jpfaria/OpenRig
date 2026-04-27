@@ -1,0 +1,20 @@
+label: KSR Ceres
+tone3000_tone_id: 97
+tone3000_url: https://www.tone3000.com/tones/97
+make: KSR CERES
+title: KSR CERES
+author: jz
+downloads: 241
+likes: 19
+tags:
+- nam
+- pedal
+- solid-state
+downloaded_at: '2026-04-27'
+models:
+- name: Jason Z KSR CERES - purple channel - all noon EQ
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/63db3c61fc58863a.nam
+- name: Jason Z KSR CERES - light blue channel - all noon EQ
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/851467ba12f38456.nam

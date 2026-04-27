@@ -1,0 +1,46 @@
+label: Benson Preamp
+tone3000_tone_id: 2078
+tone3000_url: https://www.tone3000.com/tones/2078
+make: Benson Preamp
+title: Benson Preamp Pedal
+author: ideofunk
+downloads: 638
+likes: 66
+tags:
+- 2020s
+- boost
+- breakup
+- clean
+- nam
+- overdrive
+- pedal
+- preamp-only
+downloaded_at: '2026-04-27'
+models:
+- name: Benson Preamp 01 T6B6D3V6
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/4568d2ad454bca0b.nam
+- name: Benson Preamp 05 T9B3D6V6
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/b93feaccf950b23f.nam
+- name: Benson Preamp 02 T6B6D6V6
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/9e0dc2bb2281de93.nam
+- name: Benson Preamp 07 T4B8D3V6
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/7725fb9523a625bb.nam
+- name: Benson Preamp 09 T4B8D9V6
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/7cfac1a9cbfc8981.nam
+- name: Benson Preamp 06 T9B3D9V6
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/18f858f201c09091.nam
+- name: Benson Preamp 08 T4B8D6V6
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/8e4c9730fb181a36.nam
+- name: Benson Preamp 04 T9B3D3V6
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/a2827fc140ec4998.nam
+- name: Benson Preamp 03 T6B6D9V6
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/54c195358f0746cc.nam

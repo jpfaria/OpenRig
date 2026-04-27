@@ -1,0 +1,28 @@
+label: Nobels ODR-1
+tone3000_tone_id: 5136
+tone3000_url: https://www.tone3000.com/tones/5136
+make: Nobels ODR-1 Mini
+title: Nobels ODR-1 Mini
+author: dws2384
+downloads: 402
+likes: 23
+tags:
+- nam
+- pedal
+downloaded_at: '2026-04-27'
+models:
+- name: Nobels ODR Mini - G7_L5_T5
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/a10d17bdec7ab01c.nam
+- name: Nobels ODR Mini - G5_L5_T5
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/970f6650ad09048b.nam
+- name: Nobels ODR Mini - G3_L5_T5
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/7c3ad0fb572656e6.nam
+- name: Nobels ODR Mini - G4_L5_T5
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/8a93d874cab50b61.nam
+- name: Nobels ODR Mini - G6_L5_T5
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/8ee281f6852b4ba5.nam

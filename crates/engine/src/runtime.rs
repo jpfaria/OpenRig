@@ -36,6 +36,8 @@ use std::sync::{Arc, Mutex};
 use arc_swap::ArcSwap;
 use crossbeam_queue::ArrayQueue;
 
+use crate::input_tap::InputTap;
+use crate::stream_tap::StreamTap;
 use crate::spsc::SpscRing;
 
 /// Bounded capacity for the lock-free error queue. The audio thread drops
@@ -168,7 +170,7 @@ fn bits_to_frame(bits: u64, layout: AudioChannelLayout) -> AudioFrame {
     }
 }
 
-enum AudioProcessor {
+pub(crate) enum AudioProcessor {
     Mono(Box<dyn MonoProcessor>),
     DualMono {
         left: Box<dyn MonoProcessor>,
@@ -280,7 +282,7 @@ pub struct BlockError {
 }
 
 pub struct ChainRuntimeState {
-    processing: Mutex<ChainProcessingState>,
+    pub(crate) processing: Mutex<ChainProcessingState>,
     /// Per-route output state. Swapped atomically on chain rebuild so the
     /// RT callback sees a fresh snapshot without taking any lock.
     output_routes: ArcSwap<Vec<Arc<OutputRoutingState>>>,
@@ -311,6 +313,25 @@ pub struct ChainRuntimeState {
     /// Set before deactivating the JACK client to prevent use-after-free
     /// in C++ NAM destructors (terminate called without active exception).
     draining: std::sync::atomic::AtomicBool,
+    /// Per-channel sample taps published to consumers (Tuner / Spectrum
+    /// windows). Empty by default. Hot-swapped via ArcSwap so the audio
+    /// thread reads without locking. See `crate::input_tap::InputTap`.
+    input_taps: ArcSwap<Vec<Arc<InputTap>>>,
+    /// Per-stream sample taps published to consumers (Spectrum window).
+    /// A "stream" is one `InputProcessingState` — one input feeding one
+    /// parallel pipeline through the chain — so each tap publishes the
+    /// post-FX, pre-mixdown stereo signal of a single guitar / mic /
+    /// keyboard. Subscribing per-stream (instead of per-output-channel)
+    /// keeps the analyzer separate per input source even when several
+    /// inputs share an output device.
+    ///
+    /// The publish point is *before* the device-side `output_muted`
+    /// zero-fill, so muting the audio output does not blank the analyzer.
+    stream_taps: ArcSwap<Vec<Arc<StreamTap>>>,
+    /// When true, the output stage zeros every frame before publishing.
+    /// Toggled by any consumer that needs a silent output (e.g. the
+    /// Tuner window). Auto-cleared on consumer close.
+    output_muted: std::sync::atomic::AtomicBool,
 }
 
 const PROBE_IDLE: u8 = 0;
@@ -319,9 +340,9 @@ const PROBE_FIRED: u8 = 2;
 /// Number of audio frames the probe beep occupies. At 48 kHz this is
 /// 128 / 48000 ≈ 2.7 ms of a short 1 kHz sine burst — audible as a "tick"
 /// without being intrusive.
-const PROBE_BEEP_FRAMES: usize = 128;
+pub(crate) const PROBE_BEEP_FRAMES: usize = 128;
 /// Frequency of the sine used for the probe beep, in Hz.
-const PROBE_BEEP_FREQ: f32 = 1000.0;
+pub(crate) const PROBE_BEEP_FREQ: f32 = 1000.0;
 /// Output sample amplitude that counts as "the probe arrived". Set low
 /// enough to catch the beep even through an amp model that attenuates
 /// or filters the 1 kHz sine, but well above a realistic digital noise
@@ -353,6 +374,138 @@ impl ChainRuntimeState {
     pub fn measured_latency_ms(&self) -> f32 {
         let nanos = self.measured_latency_nanos.load(std::sync::atomic::Ordering::Relaxed);
         nanos as f32 / 1_000_000.0
+    }
+
+    /// Subscribe to raw pre-FX samples from one input. Returns one
+    /// [`SpscRing`] handle per requested channel, in the same order as
+    /// `subscribed_channels`. The audio thread starts pushing samples on
+    /// the next callback. Drop the returned handles to unsubscribe — the
+    /// tap is removed from the registry on the next subscription change.
+    ///
+    /// `total_channels` should match the input's actual interleaved channel
+    /// count (i.e. the `input_total_channels` argument the audio callback
+    /// receives). `capacity_per_channel` is the SPSC ring depth in samples;
+    /// pick a value comfortably larger than (consumer poll period) ×
+    /// (sample rate).
+    pub fn subscribe_input_tap(
+        &self,
+        input_index: usize,
+        total_channels: usize,
+        subscribed_channels: &[usize],
+        capacity_per_channel: usize,
+    ) -> Vec<Arc<SpscRing<f32>>> {
+        let (tap, handles) = InputTap::new(
+            input_index,
+            total_channels,
+            subscribed_channels,
+            capacity_per_channel,
+        );
+        let mut new_taps: Vec<Arc<InputTap>> = self
+            .input_taps
+            .load_full()
+            .iter()
+            .cloned()
+            .collect();
+        new_taps.push(Arc::new(tap));
+        self.input_taps.store(Arc::new(new_taps));
+        handles
+    }
+
+    /// Toggle the output-mute flag. When `true`, `process_output_f32`
+    /// zeros every output frame. Cheap (single atomic store) and safe
+    /// to call from any thread.
+    pub fn set_output_muted(&self, mute: bool) {
+        self.output_muted.store(mute, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    pub fn is_output_muted(&self) -> bool {
+        self.output_muted.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// Drop input taps that no longer have any external `SpscRing` handles
+    /// kept by consumers. Cheap to call; intended for periodic cleanup
+    /// from a UI timer (e.g. when the tuner window closes).
+    ///
+    /// Detection works because the audio thread only borrows the rings via
+    /// the `Arc<InputTap>`; if no consumer holds a handle, the channel
+    /// `Arc`s have refcount 1 (only the `InputTap` holds them).
+    pub fn prune_dead_input_taps(&self) {
+        let current = self.input_taps.load_full();
+        let mut kept: Vec<Arc<InputTap>> = Vec::with_capacity(current.len());
+        let mut changed = false;
+        for tap in current.iter() {
+            let has_consumer = tap
+                .channel_rings
+                .iter()
+                .filter_map(|r| r.as_ref())
+                .any(|ring| Arc::strong_count(ring) > 1);
+            if has_consumer {
+                kept.push(Arc::clone(tap));
+            } else {
+                changed = true;
+            }
+        }
+        if changed {
+            self.input_taps.store(Arc::new(kept));
+        }
+    }
+
+    /// Subscribe a consumer to the post-FX, pre-mixdown stereo samples
+    /// of stream `stream_index` (one input pipeline) in this chain.
+    /// Returns `[l_ring, r_ring]` — both rings always present because
+    /// every stream is internally stereo (mono inputs are upmixed
+    /// before the FX chain).
+    ///
+    /// Same lock-free semantics as `subscribe_input_tap`. The dispatch
+    /// happens before the device-side `output_muted` zero-fill so muting
+    /// the audio output does not blank the analyzer.
+    pub fn subscribe_stream_tap(
+        &self,
+        stream_index: usize,
+        capacity_per_channel: usize,
+    ) -> [Arc<SpscRing<f32>>; 2] {
+        let (tap, handles) = StreamTap::new(stream_index, capacity_per_channel);
+        let mut new_taps: Vec<Arc<StreamTap>> = self
+            .stream_taps
+            .load_full()
+            .iter()
+            .cloned()
+            .collect();
+        new_taps.push(Arc::new(tap));
+        self.stream_taps.store(Arc::new(new_taps));
+        handles
+    }
+
+    /// Drop stream taps whose consumer handles have all been released.
+    /// Mirrors `prune_dead_input_taps`.
+    pub fn prune_dead_stream_taps(&self) {
+        let current = self.stream_taps.load_full();
+        let mut kept: Vec<Arc<StreamTap>> = Vec::with_capacity(current.len());
+        let mut changed = false;
+        for tap in current.iter() {
+            // A consumer holds an Arc to either or both rings; if neither
+            // ring has any external Arc, this tap is dead.
+            let has_consumer =
+                Arc::strong_count(&tap.l_ring) > 1 || Arc::strong_count(&tap.r_ring) > 1;
+            if has_consumer {
+                kept.push(Arc::clone(tap));
+            } else {
+                changed = true;
+            }
+        }
+        if changed {
+            self.stream_taps.store(Arc::new(kept));
+        }
+    }
+
+    /// How many streams this chain currently runs (one per
+    /// `InputProcessingState`). Used by the UI to know how many
+    /// per-stream taps to subscribe.
+    pub fn stream_count(&self) -> usize {
+        self.processing
+            .lock()
+            .map(|p| p.input_states.len())
+            .unwrap_or(0)
     }
 
     /// Arm the latency probe. The next input callback will inject a short
@@ -405,11 +558,11 @@ impl ChainRuntimeState {
 /// Number of frames to fade in after a chain rebuild to avoid clicks/pops.
 const FADE_IN_FRAMES: usize = 128;
 
-struct InputProcessingState {
+pub(crate) struct InputProcessingState {
     input_read_layout: AudioChannelLayout,
     processing_layout: AudioChannelLayout,
     input_channels: Vec<usize>,
-    blocks: Vec<BlockRuntimeNode>,
+    pub(crate) blocks: Vec<BlockRuntimeNode>,
     frame_buffer: Vec<AudioFrame>,
     /// Remaining frames of fade-in after a rebuild (0 = no fade active).
     fade_in_remaining: usize,
@@ -418,8 +571,8 @@ struct InputProcessingState {
     output_route_indices: Vec<usize>,
 }
 
-struct ChainProcessingState {
-    input_states: Vec<InputProcessingState>,
+pub(crate) struct ChainProcessingState {
+    pub(crate) input_states: Vec<InputProcessingState>,
     /// Maps CPAL input_index → Vec of input_states indices to process.
     input_to_segments: Vec<Vec<usize>>,
     /// Pre-allocated scratch buffers used by `process_input_f32`, indexed by
@@ -467,10 +620,24 @@ struct OutputRoutingState {
     buffer: ElasticBuffer,
 }
 
-enum RuntimeProcessor {
+pub(crate) enum RuntimeProcessor {
     Audio(AudioProcessor),
     Select(SelectRuntimeState),
     Bypass,
+}
+
+impl RuntimeProcessor {
+    /// Stable label of the processor variant — for diagnostics. Keeps the
+    /// `AudioProcessor` and `SelectRuntimeState` types private to the
+    /// runtime module while letting sibling modules (e.g. the latency
+    /// probe) classify nodes without pattern-matching on the variants.
+    pub(crate) fn kind_label(&self) -> &'static str {
+        match self {
+            RuntimeProcessor::Audio(_) => "audio",
+            RuntimeProcessor::Select(_) => "select",
+            RuntimeProcessor::Bypass => "bypass",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -485,23 +652,23 @@ enum FadeState {
     Bypassed,
 }
 
-struct BlockRuntimeNode {
+pub(crate) struct BlockRuntimeNode {
     #[cfg_attr(not(test), allow(dead_code))]
     instance_serial: u64,
-    block_id: BlockId,
-    block_snapshot: project::block::AudioBlock,
+    pub(crate) block_id: BlockId,
+    pub(crate) block_snapshot: project::block::AudioBlock,
     input_layout: AudioChannelLayout,
     output_layout: AudioChannelLayout,
     scratch: ProcessorScratch,
-    processor: RuntimeProcessor,
+    pub(crate) processor: RuntimeProcessor,
     stream_handle: Option<StreamHandle>,
     fade_state: FadeState,
     /// Set to true if this block panicked during audio processing.
     /// Once faulted, the block is permanently bypassed to prevent repeated crashes.
-    faulted: bool,
+    pub(crate) faulted: bool,
 }
 
-struct SelectRuntimeState {
+pub(crate) struct SelectRuntimeState {
     selected_block_id: BlockId,
     options: Vec<BlockRuntimeNode>,
 }
@@ -649,6 +816,9 @@ pub fn build_chain_runtime_state(
         measured_latency_nanos: AtomicU64::new(0),
         probe_state: std::sync::atomic::AtomicU8::new(PROBE_IDLE),
         draining: std::sync::atomic::AtomicBool::new(false),
+        input_taps: ArcSwap::from_pointee(Vec::new()),
+        stream_taps: ArcSwap::from_pointee(Vec::new()),
+        output_muted: std::sync::atomic::AtomicBool::new(false),
     })
 }
 
@@ -1910,6 +2080,34 @@ pub fn process_input_f32(
         Some(b) => b.as_slice(),
         None => data,
     };
+
+    // ── Per-channel sample taps (pre-FX) ─────────────────────────────────
+    // Top-level features (Tuner / Spectrum windows) subscribe to raw input
+    // samples here. Empty Vec = zero subscribers; the early continue keeps
+    // the cost to a single ArcSwap load per callback.
+    {
+        let taps = runtime.input_taps.load();
+        if !taps.is_empty() {
+            for tap in taps.iter() {
+                if tap.input_index != input_index {
+                    continue;
+                }
+                for (ch_idx, ring_opt) in tap.channel_rings.iter().enumerate() {
+                    if let Some(ring) = ring_opt {
+                        if ch_idx >= input_total_channels {
+                            continue;
+                        }
+                        for f in 0..num_frames {
+                            // SpscRing::push drops on full — safe under
+                            // back-pressure from a slow consumer.
+                            let _ = ring.push(data[f * input_total_channels + ch_idx]);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     let ChainProcessingState {
         input_states,
         input_to_segments,
@@ -1932,6 +2130,7 @@ pub fn process_input_f32(
     }
 
     // Process each segment, mixing into scratch.mixed_per_route.
+    let stream_taps = runtime.stream_taps.load();
     for i in 0..scratch.segment_indices.len() {
         let seg_idx = scratch.segment_indices[i];
         process_single_segment(
@@ -1942,6 +2141,7 @@ pub fn process_input_f32(
             input_total_channels,
             num_frames,
             &runtime.error_queue,
+            &stream_taps,
         );
     }
 
@@ -1975,6 +2175,7 @@ fn process_single_segment(
     input_total_channels: usize,
     num_frames: usize,
     error_queue: &ArrayQueue<BlockError>,
+    stream_taps: &[Arc<StreamTap>],
 ) {
     let input_state = match input_states.get_mut(seg_idx) {
         Some(s) => s,
@@ -2013,6 +2214,34 @@ fn process_single_segment(
 
     for block in blocks.iter_mut() {
         process_audio_block(block, frame_buffer.as_mut_slice(), error_queue);
+    }
+
+    // Per-stream sample tap (post-FX, pre-mixdown). The Spectrum window
+    // subscribes per-stream so it can show one analyzer per input source
+    // even when several inputs share an output device. `frame_buffer`
+    // here holds this stream's processed signal in chronological order;
+    // we publish each frame's L+R into the matching tap's two SPSC
+    // rings. Mono frames are broadcast (L = R = sample) so the consumer
+    // sees stereo regardless of the stream's processing layout.
+    //
+    // Dispatch is `O(num_taps_for_this_stream × num_frames)` and uses
+    // only `SpscRing::push` (lock-free, allocation-free). When no taps
+    // are registered, `stream_taps` is empty and the loop is skipped —
+    // the cost on the audio thread is then a single `is_empty()` check.
+    if !stream_taps.is_empty() {
+        for tap in stream_taps.iter() {
+            if tap.stream_index != seg_idx {
+                continue;
+            }
+            for &frame in frame_buffer.iter() {
+                let (l, r) = match frame {
+                    AudioFrame::Mono(s) => (s, s),
+                    AudioFrame::Stereo([l, r]) => (l, r),
+                };
+                tap.l_ring.push(l);
+                tap.r_ring.push(r);
+            }
+        }
     }
 
     if *fade_in_remaining > 0 {
@@ -2212,6 +2441,15 @@ pub fn process_output_f32(
         );
     }
 
+    // Output mute: silence the entire output stage when toggled by any
+    // consumer (e.g. the Tuner window). Single atomic load — cheap.
+    if runtime
+        .output_muted
+        .load(std::sync::atomic::Ordering::Relaxed)
+    {
+        out.fill(0.0);
+    }
+
     // Latency probe detection: only the primary output (index 0) scans.
     // When Fired, look for the leading edge of the injected beep. Measure
     // wall-clock nanos from injection to detection; that is the real
@@ -2377,7 +2615,6 @@ mod tests {
     use block_delay::supported_models as supported_delay_models;
     use block_dyn::compressor_supported_models;
     use block_reverb::supported_models as supported_reverb_models;
-    use block_util::supported_models as supported_tuner_models;
     use domain::ids::{BlockId, DeviceId, ChainId};
     use domain::value_objects::ParameterValue;
     use project::block::{
@@ -2744,19 +2981,26 @@ mod tests {
         }
     }
 
+    /// Test helper — builds a generic processing block. Originally backed by
+    /// the (now removed) `chromatic_tuner` / `spectrum_analyzer` utility
+    /// blocks, but those were promoted to top-bar features (#319, #320).
+    /// We now back it with a delay block so the tests still have a real
+    /// `BlockProcessor` in their chains; `reference_hz` is preserved as a
+    /// dummy `time_ms` for the delay so unique values per block survive
+    /// the rename.
     fn tuner_block(block_id: &str, reference_hz: f32) -> AudioBlock {
-        let tuner_model = supported_tuner_models()
+        let delay_model = supported_delay_models()
             .first()
-            .expect("block-util must expose at least one tuner model")
+            .expect("block-delay must expose at least one model")
             .to_string();
         let mut params = ParameterSet::default();
-        params.insert("reference_hz", ParameterValue::Float(reference_hz));
+        params.insert("time_ms", ParameterValue::Float(reference_hz));
         AudioBlock {
             id: BlockId(block_id.into()),
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
-                effect_type: "utility".to_string(),
-                model: tuner_model,
+                effect_type: "delay".to_string(),
+                model: delay_model,
                 params,
             }),
         }
@@ -4343,6 +4587,237 @@ mod tests {
         let runtime =
             Arc::new(build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET]).expect("runtime should build"));
         process_input_f32(&runtime, 999, &[0.5, 0.7], 1);
+    }
+
+    // ── input tap ───────────────────────────────────────────────────────────
+
+    #[test]
+    fn subscribe_input_tap_receives_pre_fx_samples() {
+        let chain = io_passthrough_chain("chain:0");
+        let runtime = Arc::new(
+            build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
+                .expect("runtime should build"),
+        );
+
+        // Subscribe to input 0, channel 0 (mono input).
+        let rings = runtime.subscribe_input_tap(0, 1, &[0], 256);
+        assert_eq!(rings.len(), 1, "one ring per subscribed channel");
+
+        // Feed a known buffer through process_input_f32.
+        let data = [0.1_f32, 0.2, 0.3, 0.4];
+        process_input_f32(&runtime, 0, &data, 1);
+
+        // Drain the ring and confirm the same samples landed pre-FX.
+        let mut received = Vec::new();
+        while let Some(s) = rings[0].pop() {
+            received.push(s);
+        }
+        assert_eq!(received, vec![0.1, 0.2, 0.3, 0.4]);
+    }
+
+    #[test]
+    fn subscribe_input_tap_only_targets_matching_input_index() {
+        let chain = io_passthrough_chain("chain:0");
+        let runtime = Arc::new(
+            build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
+                .expect("runtime should build"),
+        );
+
+        let rings = runtime.subscribe_input_tap(0, 1, &[0], 256);
+
+        // Push to a *different* input index — tap should not see the samples.
+        process_input_f32(&runtime, 99, &[0.5, 0.6], 1);
+        assert!(rings[0].pop().is_none(), "tap on input 0 must ignore input 99");
+    }
+
+    #[test]
+    fn prune_dead_input_taps_removes_unused() {
+        let chain = io_passthrough_chain("chain:0");
+        let runtime = Arc::new(
+            build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
+                .expect("runtime should build"),
+        );
+
+        {
+            let rings = runtime.subscribe_input_tap(0, 1, &[0], 64);
+            assert_eq!(rings.len(), 1);
+            assert_eq!(runtime.input_taps.load().len(), 1);
+        }
+        // rings out of scope — only the runtime's InputTap holds the channel
+        // ring Arc, so its strong_count == 1 and prune drops it.
+        runtime.prune_dead_input_taps();
+        assert_eq!(runtime.input_taps.load().len(), 0);
+    }
+
+    // ── stream tap ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn subscribe_stream_tap_receives_post_fx_stereo() {
+        let chain = io_passthrough_chain("chain:0");
+        let runtime = Arc::new(
+            build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
+                .expect("runtime should build"),
+        );
+
+        // Subscribe to stream 0 (the chain's single input pipeline).
+        let [l_ring, r_ring] = runtime.subscribe_stream_tap(0, 256);
+
+        // Drive the chain so the segment's frame_buffer has known data.
+        process_input_f32(&runtime, 0, &[0.1_f32, 0.2, 0.3, 0.4], 1);
+
+        // Mono input is upmixed before FX → both rings receive the same
+        // samples after the (no-op) processing of the passthrough chain.
+        let mut left = Vec::new();
+        while let Some(s) = l_ring.pop() {
+            left.push(s);
+        }
+        let mut right = Vec::new();
+        while let Some(s) = r_ring.pop() {
+            right.push(s);
+        }
+        assert_eq!(left.len(), 4, "left ring got {left:?}");
+        assert_eq!(right.len(), 4, "right ring got {right:?}");
+    }
+
+    #[test]
+    fn subscribe_stream_tap_only_targets_matching_stream_index() {
+        let chain = io_passthrough_chain("chain:0");
+        let runtime = Arc::new(
+            build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
+                .expect("runtime should build"),
+        );
+
+        // Subscribe to a stream that does not exist (chain has only one).
+        let [l_ring, r_ring] = runtime.subscribe_stream_tap(99, 256);
+        process_input_f32(&runtime, 0, &[0.1_f32, 0.2, 0.3, 0.4], 1);
+        assert!(
+            l_ring.pop().is_none(),
+            "tap on stream 99 must ignore segment 0"
+        );
+        assert!(r_ring.pop().is_none());
+    }
+
+    #[test]
+    fn stream_tap_publishes_independent_of_output_mute() {
+        let chain = io_passthrough_chain("chain:0");
+        let runtime = Arc::new(
+            build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
+                .expect("runtime should build"),
+        );
+
+        let [l_ring, r_ring] = runtime.subscribe_stream_tap(0, 256);
+        // Mute the output — the device buffer will be zero, but the
+        // stream tap is dispatched **before** the output stage so the
+        // analyzer keeps receiving samples.
+        runtime.set_output_muted(true);
+        process_input_f32(&runtime, 0, &[0.1_f32, 0.2, 0.3, 0.4], 1);
+        let mut out = vec![0.0_f32; 4];
+        process_output_f32(&runtime, 0, &mut out, 1);
+
+        assert!(
+            out.iter().all(|&s| s == 0.0),
+            "muted device output must be zero, got {:?}",
+            out
+        );
+        // Stream tap kept feeding the analyzer.
+        let mut left = Vec::new();
+        while let Some(s) = l_ring.pop() {
+            left.push(s);
+        }
+        let mut right = Vec::new();
+        while let Some(s) = r_ring.pop() {
+            right.push(s);
+        }
+        assert_eq!(left.len(), 4);
+        assert_eq!(right.len(), 4);
+    }
+
+    #[test]
+    fn prune_dead_stream_taps_removes_unused() {
+        let chain = io_passthrough_chain("chain:0");
+        let runtime = Arc::new(
+            build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
+                .expect("runtime should build"),
+        );
+
+        {
+            let _rings = runtime.subscribe_stream_tap(0, 64);
+            assert_eq!(runtime.stream_taps.load().len(), 1);
+        }
+        runtime.prune_dead_stream_taps();
+        assert_eq!(runtime.stream_taps.load().len(), 0);
+    }
+
+    // ── output_muted flag ────────────────────────────────────────────────────
+
+    #[test]
+    fn output_muted_defaults_to_false() {
+        let chain = io_passthrough_chain("chain:0");
+        let runtime = Arc::new(
+            build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
+                .expect("runtime should build"),
+        );
+
+        assert!(!runtime.is_output_muted());
+    }
+
+    #[test]
+    fn set_output_muted_round_trips() {
+        let chain = io_passthrough_chain("chain:0");
+        let runtime = Arc::new(
+            build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
+                .expect("runtime should build"),
+        );
+
+        runtime.set_output_muted(true);
+        assert!(runtime.is_output_muted());
+
+        runtime.set_output_muted(false);
+        assert!(!runtime.is_output_muted());
+    }
+
+    #[test]
+    fn output_muted_zeros_process_output_buffer() {
+        let chain = io_passthrough_chain("chain:0");
+        let runtime = Arc::new(
+            build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
+                .expect("runtime should build"),
+        );
+
+        // Push some samples through the input so the chain has data
+        // available when process_output_f32 runs.
+        process_input_f32(&runtime, 0, &[0.1, 0.2, 0.3, 0.4], 1);
+
+        runtime.set_output_muted(true);
+        let mut out = vec![0.5_f32; 4];
+        process_output_f32(&runtime, 0, &mut out, 1);
+        assert!(
+            out.iter().all(|&s| s == 0.0),
+            "muted output must be all zero, got {:?}",
+            out
+        );
+    }
+
+    #[test]
+    fn output_muted_unset_does_not_zero_buffer() {
+        let chain = io_passthrough_chain("chain:0");
+        let runtime = Arc::new(
+            build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
+                .expect("runtime should build"),
+        );
+
+        // Drive a known signal through input → passthrough → output.
+        process_input_f32(&runtime, 0, &[0.1, 0.2, 0.3, 0.4], 1);
+        let mut out = vec![0.0_f32; 4];
+        process_output_f32(&runtime, 0, &mut out, 1);
+
+        // With the mute flag off, the output buffer must contain the
+        // forwarded samples — at least one frame is non-zero.
+        assert!(
+            out.iter().any(|&s| s != 0.0),
+            "unmuted passthrough output must have non-zero samples, got {:?}",
+            out
+        );
     }
 
     // ── effective_inputs with stereo entry does not split ────────────────────

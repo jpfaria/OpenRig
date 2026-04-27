@@ -1,0 +1,66 @@
+label: DOD 250 Overdrive
+tone3000_tone_id: 35206
+tone3000_url: https://www.tone3000.com/tones/35206
+make: DOD 250 Overdrive
+title: DOD 250 - 11.5dBu Send/Return - TTSV10 Input
+author: outmodedelectronics
+downloads: 449
+likes: 16
+tags:
+- dod
+- nam
+- overdrive
+- pedal
+downloaded_at: '2026-04-27'
+models:
+- name: DOD 250 G-6 L-8 TTSV10
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/2aqjoskmavz.nam
+- name: DOD 250 G-7 L-8 TTSV10
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/cme2xov6ubh.nam
+- name: DOD 250 G-8 L-8 TTSV10
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/rkwjsajd19.nam
+- name: DOD 250 G-5 L-10 TTSV10
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/dxa8n1hsgs.nam
+- name: DOD 250 G-3 L-10 TTSV10
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/sz09eevhfdr.nam
+- name: DOD 250 G-10 L-8 TTSV10
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/t7o32l1jm8j.nam
+- name: DOD 250 G-6 L-10 TTSV10
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/j129h78nd9j.nam
+- name: DOD 250 G-8 L-10 TTSV10
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/62ponrd8s9e.nam
+- name: DOD 250 G-4 L-10 TTSV10
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/le21ozsg8co.nam
+- name: DOD 250 G-10 L-10 TTSV10
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/tvu3srzw0a9.nam
+- name: DOD 250 G-7 L-10 TTSV10
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/pv2dcxtsod9.nam
+- name: DOD 250 G-5 L-8 TTSV10
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/uam51bdodce.nam
+- name: DOD 250 G-4 L-8 TTSV10
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/1rkph0nzlz7.nam
+- name: DOD 250 G-3 L-8 TTSV10
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/11rxzdwduxsl.nam
+- name: DOD 250 G-2 L-10 TTSV10
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/yummidl6iz.nam
+- name: DOD 250 G-0 L-10 TTSV10
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/4rn0dtj4elc.nam
+- name: DOD 250 G-2 L-8 TTSV10
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/8gsywvqbaww.nam

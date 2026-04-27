@@ -1,0 +1,36 @@
+label: Fulltone 69
+tone3000_tone_id: 5640
+tone3000_url: https://www.tone3000.com/tones/5640
+make: Fulltone 69
+title: Fulltone '69 Fuzz
+author: dahmanmusic
+downloads: 1039
+likes: 37
+tags:
+- fuzzy
+- nam
+- pedal
+- vintage
+downloaded_at: '2026-04-27'
+models:
+- name: 69 High Vol Mid Contour - Contour 12. Vol Bias and Fuzz Full, gain trim clockwise
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/cdd853b5e179d588.nam
+- name: 69 High Vol Low Contour - Contour off, Vol Bias and Fuzz Full
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/783f4987f303393f.nam
+- name: 69 High Vol Mid Contour - Contour 12, Vol Bias and Fuzz Full, gain trim counterclockwise
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/adcd626a4f3da77a.nam
+- name: 69 Stock Fuzzface - Vol 2, Contour Off, Bias and Fuzz Full
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/394dcef934793ba6.nam
+- name: 69 Hendrix '67 - Vol 2, Contour 12, Bias and Fuzz Full
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/3bc6fd2f44d5e0be.nam
+- name: 69 High Contour - Vol 2, Contour Bias and Fuzz Full
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/6e202b4c11fea13c.nam
+- name: 69 Maxx Fuzz - Vol Contour Bias and Fuzz Full, gain trim clockwise
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/0227a90abb70665f.nam

@@ -2302,6 +2302,85 @@ impl ProjectRuntimeController {
         }
     }
 
+    /// Subscribe to raw pre-FX samples from a chain's input. See
+    /// [`engine::runtime::ChainRuntimeState::subscribe_input_tap`] for the
+    /// full contract. Returns an empty `Vec` if the chain has no runtime.
+    ///
+    /// `total_channels` should be at least `max(subscribed_channels) + 1`;
+    /// any extra slots are unused. Pass the actual device-side channel
+    /// count if you know it, otherwise compute it from the input entry.
+    pub fn subscribe_input_tap(
+        &self,
+        chain_id: &ChainId,
+        input_index: usize,
+        total_channels: usize,
+        subscribed_channels: &[usize],
+        capacity_per_channel: usize,
+    ) -> Vec<Arc<engine::spsc::SpscRing<f32>>> {
+        match self.runtime_graph.chains.get(chain_id) {
+            Some(runtime) => runtime.subscribe_input_tap(
+                input_index,
+                total_channels,
+                subscribed_channels,
+                capacity_per_channel,
+            ),
+            None => Vec::new(),
+        }
+    }
+
+    /// Drop input taps with no surviving consumer handles across all
+    /// chains. Cheap; intended to be called from a UI timer or window
+    /// close handler.
+    pub fn prune_dead_input_taps(&self) {
+        for runtime in self.runtime_graph.chains.values() {
+            runtime.prune_dead_input_taps();
+        }
+    }
+
+    /// Subscribe to a per-stream stereo tap (post-FX, pre-mixdown) on a
+    /// chain. Returns `[l_ring, r_ring]` — both rings always present
+    /// because every stream is internally stereo. See
+    /// [`engine::runtime::ChainRuntimeState::subscribe_stream_tap`] for
+    /// the full contract. Returns rings that will stay empty if the
+    /// chain has no runtime.
+    pub fn subscribe_stream_tap(
+        &self,
+        chain_id: &ChainId,
+        stream_index: usize,
+        capacity_per_channel: usize,
+    ) -> Option<[Arc<engine::spsc::SpscRing<f32>>; 2]> {
+        self.runtime_graph
+            .chains
+            .get(chain_id)
+            .map(|runtime| runtime.subscribe_stream_tap(stream_index, capacity_per_channel))
+    }
+
+    /// How many streams (input pipelines) a chain currently runs. Empty
+    /// chains and chains without a runtime return 0.
+    pub fn stream_count(&self, chain_id: &ChainId) -> usize {
+        self.runtime_graph
+            .chains
+            .get(chain_id)
+            .map(|runtime| runtime.stream_count())
+            .unwrap_or(0)
+    }
+
+    /// Drop stream taps with no surviving consumer handles across all chains.
+    pub fn prune_dead_stream_taps(&self) {
+        for runtime in self.runtime_graph.chains.values() {
+            runtime.prune_dead_stream_taps();
+        }
+    }
+
+    /// Toggle the output-mute flag on every chain runtime. When true,
+    /// the output stage zeros every frame — used by the Tuner window
+    /// so the user can tune silently. Auto-cleared on window close.
+    pub fn set_output_muted(&self, mute: bool) {
+        for runtime in self.runtime_graph.chains.values() {
+            runtime.set_output_muted(mute);
+        }
+    }
+
     fn upsert_chain_with_resolved(
         &mut self,
         chain: &Chain,

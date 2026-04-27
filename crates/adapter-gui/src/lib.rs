@@ -1,5 +1,9 @@
 mod thumbnails;
 mod plugin_info;
+mod spectrum_session;
+mod spectrum_wiring;
+mod tuner_session;
+mod tuner_wiring;
 
 use anyhow::{anyhow, Result};
 
@@ -29,6 +33,7 @@ mod chain_editor;
 mod eq;
 mod helpers;
 mod io_groups;
+mod latency_probe;
 mod project_ops;
 mod project_view;
 mod state;
@@ -149,11 +154,7 @@ pub fn run_desktop_app(
     let selected_block = Rc::new(RefCell::new(None::<SelectedBlock>));
     let block_editor_draft = Rc::new(RefCell::new(None::<BlockEditorDraft>));
     let project_runtime = Rc::new(RefCell::new(None::<ProjectRuntimeController>));
-    // Per-chain-index probe expiry timestamps. A value means "show the
-    // measured latency for this chain until this instant". Populated on
-    // sonar button click, drained by the latency polling timer.
-    let probe_windows: Rc<RefCell<std::collections::HashMap<usize, std::time::Instant>>> =
-        Rc::new(RefCell::new(std::collections::HashMap::new()));
+    let probe_windows = latency_probe::new_windows();
     let saved_project_snapshot = Rc::new(RefCell::new(None::<String>));
     let project_dirty = Rc::new(RefCell::new(false));
     let open_block_windows: Rc<RefCell<Vec<BlockWindow>>> = Rc::new(RefCell::new(Vec::new()));
@@ -199,6 +200,16 @@ pub fn run_desktop_app(
     let insert_return_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
     let block_editor_window =
         BlockEditorWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    let tuner_window =
+        TunerWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    let tuner_session: Rc<RefCell<Option<tuner_session::TunerSession>>> =
+        Rc::new(RefCell::new(None));
+    let tuner_timer = Rc::new(Timer::default());
+    let spectrum_window =
+        SpectrumWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    let spectrum_session: Rc<RefCell<Option<spectrum_session::SpectrumSession>>> =
+        Rc::new(RefCell::new(None));
+    let spectrum_timer = Rc::new(Timer::default());
     window.set_app_version(env!("CARGO_PKG_VERSION").into());
     window.set_show_project_launcher(true);
     window.set_show_project_setup(false);
@@ -1901,38 +1912,13 @@ pub fn run_desktop_app(
             }
         });
     }
+    latency_probe::install_handler(
+        &window,
+        project_session.clone(),
+        project_chains.clone(),
+        probe_windows.clone(),
+    );
     {
-        let weak_window_probe = window.as_weak();
-        let project_session_probe = project_session.clone();
-        let project_runtime_probe = project_runtime.clone();
-        let project_chains_probe = project_chains.clone();
-        let probe_windows_arm = probe_windows.clone();
-        window.on_probe_chain_latency(move |index| {
-            let Some(_window) = weak_window_probe.upgrade() else { return; };
-            let session_borrow = project_session_probe.borrow();
-            let Some(session) = session_borrow.as_ref() else { return; };
-            let Some(chain) = session.project.chains.get(index as usize) else { return; };
-            let chain_id = chain.id.clone();
-            if let Some(rt) = project_runtime_probe.borrow().as_ref() {
-                rt.arm_latency_probe(&chain_id);
-            }
-            // Show the measured value for the next 10 s, then hide the badge.
-            let expiry =
-                std::time::Instant::now() + std::time::Duration::from_secs(10);
-            probe_windows_arm
-                .borrow_mut()
-                .insert(index as usize, expiry);
-            // Reset the displayed value so the badge stays hidden until the
-            // probe produces a fresh measurement (avoids showing a stale
-            // value from a previous probe for one poll tick).
-            if let Some(mut item) = project_chains_probe.row_data(index as usize) {
-                if item.latency_ms != 0.0 {
-                    item.latency_ms = 0.0;
-                    project_chains_probe.set_row_data(index as usize, item);
-                }
-            }
-        });
-
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
         let project_chains = project_chains.clone();
@@ -2176,6 +2162,28 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let project_settings_window = project_settings_window.as_weak();
+        // ── Tuner window — top-bar feature ──
+        // All open / close / mute / power callbacks + the polling timer
+        // live in `tuner_wiring`. lib.rs only knows how to call into it.
+        tuner_wiring::wire_tuner(
+            &window,
+            &tuner_window,
+            &project_session,
+            &project_runtime,
+            &tuner_session,
+            &tuner_timer,
+        );
+        // ── Spectrum window — top-bar feature ──
+        // Sibling of the tuner; same wiring shape, no mute path.
+        spectrum_wiring::wire_spectrum(
+            &window,
+            &spectrum_window,
+            &project_session,
+            &project_runtime,
+            &spectrum_session,
+            &spectrum_timer,
+        );
+
         let chain_editor_window = chain_editor_window.clone();
         let block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();
@@ -4388,18 +4396,16 @@ pub fn run_desktop_app(
                         let weak_win = window.as_weak();
                         let runtime = project_runtime.clone();
                         let bid = block_id_for_editor.clone();
-                        let stream_model = model_id.clone();
                         timer.start(
                             slint::TimerMode::Repeated,
                             std::time::Duration::from_millis(50),
                             move || {
                                 let Some(win) = weak_win.upgrade() else { return; };
                                 let runtime_borrow = runtime.borrow();
-                                let kind: slint::SharedString = if stream_model == "spectrum_analyzer" {
-                                    "spectrum".into()
-                                } else {
-                                    "stream".into()
-                                };
+                                // No utility block currently produces a "spectrum" stream
+                                // (the spectrum_analyzer block was promoted to a top-bar
+                                // feature in #320). Kept generic for future stream blocks.
+                                let kind: slint::SharedString = "stream".into();
                                 let Some(rt) = runtime_borrow.as_ref() else { return; };
                                 if let Some(entries) = rt.poll_stream(&bid) {
                                     let slint_entries: Vec<BlockStreamEntry> = entries.iter().map(|e| BlockStreamEntry {
@@ -4526,7 +4532,6 @@ pub fn run_desktop_app(
                     let weak_win_stream = win.as_weak();
                     let project_runtime_stream = project_runtime.clone();
                     let block_id_for_stream = block_id_for_editor.clone();
-                    let stream_model_id = model_id.clone();
                     let mut poll_count: u32 = 0;
                     stream_timer.start(
                         slint::TimerMode::Repeated,
@@ -4534,11 +4539,10 @@ pub fn run_desktop_app(
                         move || {
                             let Some(win) = weak_win_stream.upgrade() else { return; };
                             let runtime_borrow = project_runtime_stream.borrow();
-                            let kind: slint::SharedString = if stream_model_id == "spectrum_analyzer" {
-                                "spectrum".into()
-                            } else {
-                                "stream".into()
-                            };
+                            // No utility block currently produces a "spectrum" stream
+                            // (the spectrum_analyzer block was promoted to a top-bar
+                            // feature in #320). Kept generic for future stream blocks.
+                            let kind: slint::SharedString = "stream".into();
                             let Some(runtime) = runtime_borrow.as_ref() else {
                                 poll_count += 1;
                                 if poll_count % 40 == 0 {
@@ -7431,65 +7435,14 @@ pub fn run_desktop_app(
         slint::CloseRequestResponse::HideWindow
     });
 
-    // Latency polling timer — reads measured latency from runtime and updates chain items.
-    // Only chains with an active probe window (sonar button pressed within
-    // the last 10 s) have their latency badge populated; once the window
-    // expires the badge is hidden again.
-    let latency_timer = Timer::default();
-    {
-        let weak_window = window.as_weak();
-        let project_runtime_lat = project_runtime.clone();
-        let project_session_lat = project_session.clone();
-        let project_chains_lat = project_chains.clone();
-        let probe_windows_lat = probe_windows.clone();
-        latency_timer.start(
-            slint::TimerMode::Repeated,
-            std::time::Duration::from_millis(500),
-            move || {
-                let Some(_win) = weak_window.upgrade() else { return; };
-                let session_borrow = project_session_lat.borrow();
-                let Some(session) = session_borrow.as_ref() else { return; };
-                let rt_borrow = project_runtime_lat.borrow();
-                let Some(rt) = rt_borrow.as_ref() else { return; };
-                let now = std::time::Instant::now();
-                let mut expired: Vec<usize> = Vec::new();
-                let windows = probe_windows_lat.borrow();
-                for (i, chain) in session.project.chains.iter().enumerate() {
-                    let Some(expiry) = windows.get(&i).copied() else { continue };
-                    if now >= expiry {
-                        expired.push(i);
-                        if let Some(mut item) = project_chains_lat.row_data(i) {
-                            if item.latency_ms != 0.0 {
-                                item.latency_ms = 0.0;
-                                project_chains_lat.set_row_data(i, item);
-                            }
-                        }
-                        // Clear any probe state that never produced a
-                        // detection so the next click starts fresh.
-                        rt.cancel_latency_probe(&chain.id);
-                        continue;
-                    }
-                    if let Some(measured) = rt.measured_latency_ms(&chain.id) {
-                        if measured > 0.1 {
-                            if let Some(mut item) = project_chains_lat.row_data(i) {
-                                if (item.latency_ms - measured).abs() > 0.5 {
-                                    item.latency_ms = measured;
-                                    project_chains_lat.set_row_data(i, item);
-                                }
-                            }
-                        }
-                    }
-                }
-                drop(windows);
-                if !expired.is_empty() {
-                    let mut w = probe_windows_lat.borrow_mut();
-                    for i in expired {
-                        w.remove(&i);
-                    }
-                }
-            },
-        );
-    }
+    // Per-chain latency badge: measurement is taken synchronously by
+    // `latency_probe::install_handler`; this timer only clears each
+    // badge after its 10-second display window expires.
+    let _latency_timer = latency_probe::install_expiry_timer(
+        window.as_weak(),
+        project_chains.clone(),
+        probe_windows.clone(),
+    );
 
     // Virtual keyboard: dispatch key events to the focused element
     {

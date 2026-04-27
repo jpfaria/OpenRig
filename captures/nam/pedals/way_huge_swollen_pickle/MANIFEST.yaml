@@ -1,0 +1,41 @@
+label: Way Huge Swollen Pickle
+tone3000_tone_id: 1924
+tone3000_url: https://www.tone3000.com/tones/1924
+make: Boss OS2 GCI Jugendstil Pepers Pedals Rot Pepers Pedals Wendigo Way Huge Swollen
+  Pickle
+title: Distorted Dreams
+author: helgab
+downloads: 638
+likes: 51
+tags:
+- distortion
+- nam
+downloaded_at: '2026-04-27'
+models:
+- name: PP Wendigo
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/8633ae2abb40c78d.nam
+- name: Boss OS-2
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/825daf91ad0d6d1a.nam
+- name: PP Rot Mid Scoop
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/fe141d5b09c4976d.nam
+- name: Buxom Boost 1
+  size: feather
+  url: https://api.tone3000.com/storage/v1/object/public/models/bd18aa1d2357955e.nam
+- name: GCI Jugendstil
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/38d59a5a39435caa.nam
+- name: Buxom Boost 3
+  size: feather
+  url: https://api.tone3000.com/storage/v1/object/public/models/fc5845fce6470538.nam
+- name: Swollen Pickle
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/1e124f93e4c54c53.nam
+- name: PP Rot Mid Boost
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/5ae07de8e2757d7f.nam
+- name: Buxom Boost 2
+  size: feather
+  url: https://api.tone3000.com/storage/v1/object/public/models/3913e48e769d01f2.nam

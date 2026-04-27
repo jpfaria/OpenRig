@@ -1,0 +1,24 @@
+label: Foxx Tone Machine
+tone3000_tone_id: 17472
+tone3000_url: https://www.tone3000.com/tones/17472
+make: Foxx Tone Machine fuzz clone 2012
+title: Foxx Tone Machine
+author: ibodog
+downloads: 180
+likes: 3
+tags:
+- nam
+downloaded_at: '2026-04-27'
+models:
+- name: Fox Tone Machine HG 8va
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/j7cruno3kxa.nam
+- name: Fox Tone Machine 8va
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/lnmbly13le.nam
+- name: Fox Tone Machine HG
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/o2pwgj5jtx.nam
+- name: Fox Tone Machine LG
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/ltcf828cuec.nam

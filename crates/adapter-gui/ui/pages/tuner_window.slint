@@ -1,0 +1,433 @@
+// TunerWindow — top-bar feature replacing the chromatic_tuner plugin block.
+// One row per active input channel of each enabled chain.
+//
+// Visual: stompbox-style card with amber LCD à la x42 Tuna / Korg / Boss.
+// Card paints `tuner-box.png` (scratched-black pedal texture, lifted from
+// the LV2 tuna plugin assets) as background, then floats an LCD rectangle
+// in front. LCD goes amber (#ccaa66) when active, vivid green (#ccff66)
+// when in tune, dim ochre (#776633) when no signal.
+import { ScrollView } from "std-widgets.slint";
+
+// Power footswitch — same sprite + size used by block FootSwitch
+// (see components/foot_switch.slint). No label, no LED.
+component PowerFootSwitch inherits Rectangle {
+    in property <bool> active;
+    callback toggled();
+
+    width: 48px;
+    height: 48px;
+    clip: true;
+
+    // Sprite is vertical: 88×176 px, two 88×88 frames stacked.
+    // Top = pressed/on, bottom = released/off.
+    Image {
+        source: @image-url("../assets/sprites/footswitch.png");
+        x: 0;
+        y: root.active ? -parent.height : 0;
+        width: parent.width;
+        height: 2 * parent.height;
+        image-fit: fill;
+        image-rendering: smooth;
+    }
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.toggled(); }
+    }
+}
+
+// Mute switch — label "MUTE" on top, vintage toggle below, red LED on
+// the right of the toggle. Disabled (dimmed, non-interactive) when
+// the tuner is powered off.
+component MuteSwitch inherits Rectangle {
+    in property <bool> active;
+    in property <bool> enabled: true;
+    callback toggled();
+
+    width: 50px;
+    height: 52px;
+    opacity: root.enabled ? 1.0 : 0.35;
+
+    // Label aligned over the toggle sprite only — not the toggle+LED row.
+    Text {
+        x: 4px; y: 0;
+        width: 26px; height: 12px;
+        text: "MUTE";
+        color: root.active ? #ff7878 : #8a95a5;
+        font-family: "Bebas Neue";
+        font-size: 9px;
+        letter-spacing: 1.2px;
+        horizontal-alignment: center;
+    }
+
+    // Toggle sprite — left side of the row below the label.
+    Rectangle {
+        x: 4px; y: 16px;
+        width: 26px; height: 34px;
+        clip: true;
+        Image {
+            source: @image-url("../assets/sprites/toggleswitch.png");
+            x: root.active ? -parent.width : 0;
+            y: 0;
+            width: 2 * parent.width;
+            height: parent.height;
+            image-fit: fill;
+            image-rendering: smooth;
+        }
+        TouchArea {
+            mouse-cursor: root.enabled ? MouseCursor.pointer : MouseCursor.default;
+            clicked => {
+                if (root.enabled) {
+                    root.toggled();
+                }
+            }
+        }
+    }
+
+    // Red LED on the right of the toggle, vertically centered with it.
+    Rectangle {
+        x: 36px; y: 26px;
+        width: 14px; height: 14px;
+        clip: true;
+        Image {
+            source: @image-url("../assets/sprites/led-red.png");
+            x: root.active ? 0 : -parent.width;
+            y: 0;
+            width: 2 * parent.width;
+            height: parent.height;
+            image-fit: fill;
+            image-rendering: smooth;
+        }
+    }
+}
+
+export struct TunerRow {
+    label: string,
+    note: string,
+    octave: int,
+    cents: float,
+    frequency: float,
+    active: bool,
+}
+
+// ── Single-row tuner card — stompbox + LCD ───────────────────────────────
+component TunerCard inherits Rectangle {
+    in property <TunerRow> data;
+
+    property <bool> in-tune: data.active && Math.abs(data.cents) < 5.0;
+    property <color> lcd-bg: !data.active
+        ? #776633
+        : in-tune
+            ? #ccff66
+            : #ccaa66;
+    property <color> needle-color: !data.active
+        ? #4a3a1a
+        : in-tune
+            ? #2a6633
+            : Math.abs(data.cents) < 15.0 ? #b87a1a : #a02828;
+
+    // Card IS the LCD — amber/green display floating on the dark window
+    // background, no metallic frame.
+    height: 96px;
+    border-radius: 6px;
+    background: root.lcd-bg;
+    border-width: 1px;
+    border-color: #00000099;
+    clip: true;
+    drop-shadow-blur: 6px;
+    drop-shadow-color: #00000080;
+
+    // Inner shadow — top + left dark bands to fake glass depth
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width; height: 2px;
+        background: #00000044;
+    }
+    Rectangle {
+        x: 0; y: 0;
+        width: 2px; height: parent.height;
+        background: #00000044;
+    }
+
+    // Channel label (top-left, small)
+    Text {
+        x: 14px; y: 8px;
+        width: parent.width - 130px;
+        height: 14px;
+        text: root.data.label;
+        color: #2a1f0a;
+        font-family: "Bebas Neue";
+        font-size: 10px;
+        letter-spacing: 1.4px;
+        overflow: elide;
+    }
+
+    // Hz readout (top-right)
+    Text {
+        x: parent.width - 110px; y: 8px;
+        width: 96px; height: 14px;
+        text: root.data.active && root.data.frequency > 0.0
+            ? Math.round(root.data.frequency * 100) / 100 + " Hz"
+            : "----- Hz";
+        color: #1a1206;
+        font-family: "Bebas Neue";
+        font-size: 11px;
+        letter-spacing: 1.2px;
+        horizontal-alignment: right;
+    }
+
+    // Note glyph (left, huge)
+    Text {
+        x: 18px; y: 22px;
+        width: 100px; height: 64px;
+        text: root.data.active ? root.data.note : "—";
+        color: #1a1206;
+        font-family: "Bebas Neue";
+        font-size: 56px;
+        horizontal-alignment: left;
+        vertical-alignment: center;
+    }
+    // Octave subscript
+    if root.data.active : Text {
+        x: 78px; y: 36px;
+        width: 40px; height: 26px;
+        text: root.data.octave + "";
+        color: #1a1206;
+        font-family: "Bebas Neue";
+        font-size: 22px;
+        horizontal-alignment: left;
+        vertical-alignment: center;
+    }
+
+    // Cents bar (right)
+    Rectangle {
+        x: parent.width - 220px;
+        y: 30px;
+        width: 200px;
+        height: 22px;
+        background: #00000033;
+        border-radius: 3px;
+        border-width: 1px;
+        border-color: #00000066;
+
+        // Center marker
+        Rectangle {
+            x: parent.width / 2 - 1px;
+            y: 3px;
+            width: 2px;
+            height: parent.height - 6px;
+            background: #1a120688;
+        }
+
+        // Major ticks
+        for tick in [-50, -25, 25, 50] : Rectangle {
+            x: (parent.width / 2) + (tick / 50.0 * (parent.width / 2 - 6px)) - 0.5px;
+            y: 4px;
+            width: 1px;
+            height: 6px;
+            background: #1a120666;
+        }
+        // Sub-ticks
+        for tick in [-10, -5, 5, 10] : Rectangle {
+            x: (parent.width / 2) + (tick / 50.0 * (parent.width / 2 - 6px)) - 0.5px;
+            y: parent.height - 9px;
+            width: 1px;
+            height: 5px;
+            background: #1a120666;
+        }
+        // Needle
+        if root.data.active : Rectangle {
+            x: (parent.width / 2)
+                + (Math.clamp(root.data.cents, -50.0, 50.0) / 50.0 * (parent.width / 2 - 6px))
+                - 3px;
+            y: 2px;
+            width: 6px;
+            height: parent.height - 4px;
+            border-radius: 3px;
+            background: root.needle-color;
+        }
+    }
+
+    // Cents readout
+    Text {
+        x: parent.width - 220px;
+        y: 56px;
+        width: 200px;
+        height: 16px;
+        text: root.data.active
+            ? (root.data.cents >= 0
+                ? "+" + Math.round(root.data.cents) + " ¢"
+                : Math.round(root.data.cents) + " ¢")
+            : "-- ¢";
+        color: #1a1206;
+        font-family: "Bebas Neue";
+        font-size: 14px;
+        letter-spacing: 1.4px;
+        horizontal-alignment: center;
+    }
+}
+
+// ── TunerPanel — reusable content (used in both Window and inline modes) ──
+// In windowed mode, TunerWindow wraps this in a separate native Window.
+// In fullscreen / touch mode, DesktopMain and TouchMain render this inline
+// over the chain page (same pattern as ProjectSettingsPage).
+export component TunerPanel inherits Rectangle {
+    in property <[TunerRow]> tuner-rows;
+    in property <bool> mute-active;
+    in property <bool> tuner-enabled: false;
+    in property <bool> show-close-button: false;
+    callback close-tuner();
+    callback toggle-mute(bool);
+    callback toggle-enabled(bool);
+
+    background: @linear-gradient(180deg, #08090d 0%, #050608 100%);
+
+    // ── Header bar ───────────────────────────────────────────────────────
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width;
+        height: 72px;
+        background: #0c0e12;
+
+        Rectangle {
+            x: 0; y: parent.height - 1px;
+            width: parent.width; height: 1px;
+            background: #1c2028;
+        }
+
+        // Power footswitch — first thing in the header. Same size as the
+        // FootSwitch used inside chain blocks. No LED, no label.
+        PowerFootSwitch {
+            x: 14px; y: (72px - self.height) / 2;
+            active: root.tuner-enabled;
+            toggled => { root.toggle-enabled(!root.tuner-enabled); }
+        }
+
+        // Tuner icon
+        Image {
+            x: 78px; y: 24px;
+            width: 24px; height: 24px;
+            source: @image-url("../assets/tuner.svg");
+            colorize: #c5cdd9;
+        }
+
+        Text {
+            x: 110px; y: 0;
+            width: 80px; height: parent.height;
+            text: "TUNER";
+            color: #e5ebf2;
+            font-family: "Bebas Neue";
+            font-size: 18px;
+            letter-spacing: 3.0px;
+            vertical-alignment: center;
+        }
+
+        // Close button (inline mode only)
+        if root.show-close-button : Rectangle {
+            x: parent.width - 40px; y: 22px;
+            width: 28px; height: 28px;
+            border-radius: 14px;
+            background: close-ta.has-hover ? #2a3340 : #1c2028;
+            border-width: 1px;
+            border-color: #2c323d;
+
+            Text {
+                x: 0; y: 0;
+                width: parent.width; height: parent.height;
+                text: "✕";
+                color: #c5cdd9;
+                font-family: "Inter";
+                font-size: 14px;
+                vertical-alignment: center;
+                horizontal-alignment: center;
+            }
+
+            close-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.close-tuner(); }
+            }
+        }
+
+        // Mute switch (right side) — label "MUTE" on top, toggle + LED below.
+        // Only interactive while the tuner is powered on; dimmed otherwise.
+        MuteSwitch {
+            x: root.show-close-button ? parent.width - 102px : parent.width - 62px;
+            y: (72px - self.height) / 2;
+            active: root.mute-active;
+            enabled: root.tuner-enabled;
+            toggled => { root.toggle-mute(!root.mute-active); }
+        }
+    }
+
+    // ── Empty state ──────────────────────────────────────────────────────
+    if root.tuner-rows.length == 0 : Rectangle {
+        x: 0; y: 72px;
+        width: parent.width;
+        height: parent.height - 72px;
+
+        Text {
+            x: 0; y: parent.height / 2 - 32px;
+            width: parent.width; height: 24px;
+            text: "NO ACTIVE INPUTS";
+            color: #4a525e;
+            font-family: "Bebas Neue";
+            font-size: 16px;
+            letter-spacing: 2.4px;
+            horizontal-alignment: center;
+        }
+        Text {
+            x: 0; y: parent.height / 2 - 4px;
+            width: parent.width; height: 20px;
+            text: "Enable a chain with a configured input to see its tuners here.";
+            color: #4a525e;
+            font-family: "Inter";
+            font-size: 11px;
+            horizontal-alignment: center;
+        }
+    }
+
+    // ── Tuner cards ──────────────────────────────────────────────────────
+    if root.tuner-rows.length > 0 : ScrollView {
+        x: 16px; y: 88px;
+        width: parent.width - 32px;
+        height: parent.height - 104px;
+        viewport-height: root.tuner-rows.length * 108px;
+
+        for row[index] in root.tuner-rows : TunerCard {
+            x: 0;
+            y: index * 108px;
+            width: parent.width - 8px;
+            data: row;
+        }
+    }
+}
+
+export component TunerWindow inherits Window {
+    icon: @image-url("../assets/openrig-logomark.svg");
+    default-font-family: "Bebas Neue";
+    default-font-size: 13px;
+    title: "OpenRig · Tuner";
+    min-width: 480px;
+    min-height: 220px;
+    preferred-width: 560px;
+    preferred-height: 380px;
+    background: #050608;
+
+    in property <[TunerRow]> tuner-rows;
+    in property <bool> mute-active;
+    in property <bool> tuner-enabled: false;
+    callback close-tuner-window();
+    callback toggle-mute(bool);
+    callback toggle-enabled(bool);
+
+    TunerPanel {
+        width: 100%;
+        height: 100%;
+        tuner-rows: root.tuner-rows;
+        mute-active: root.mute-active;
+        tuner-enabled: root.tuner-enabled;
+        show-close-button: false;
+        close-tuner => { root.close-tuner-window(); }
+        toggle-mute(m) => { root.toggle-mute(m); }
+        toggle-enabled(e) => { root.toggle-enabled(e); }
+    }
+}

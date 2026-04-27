@@ -9,3 +9,6 @@ output/
 dist/
 coverage/
 .claude/scheduled_tasks.lock
+.playwright-mcp/
+tools/__pycache__/
+*.pyc
