@@ -151,65 +151,108 @@ impl SpectrumSession {
                 .clone()
                 .unwrap_or_else(|| chain.id.0.clone());
 
-            // Each InputEntry produces one stream. The engine's stream
-            // index lines up with the order InputEntries are seen here
-            // (see `effective_inputs` / `process_single_segment` in
-            // `engine::runtime`).
-            let mut stream_index = 0_usize;
+            // Engine-side stream count. The engine `effective_inputs`
+            // expansion can split a single mono multi-channel `InputEntry`
+            // into several streams (one per channel), so iterating
+            // `chain.blocks` would under-count. We ask the runtime
+            // directly so the subscribe loop is always aligned with the
+            // engine's `seg_idx` space.
+            let stream_count = controller.stream_count(&chain.id);
+            log::info!(
+                "spectrum_session: chain '{}' has {} streams",
+                chain.id.0,
+                stream_count
+            );
+
+            // Best-effort device label for each stream — picks the input
+            // entries in declaration order, falling back to the chain id
+            // if there are more streams than entries (e.g. mono splits).
+            let mut entry_labels: Vec<String> = Vec::new();
             for block in &chain.blocks {
                 if let AudioBlockKind::Input(input) = &block.kind {
                     for entry in &input.entries {
-                        let sample_rate = project
+                        let label = short_device_label(&entry.device_id.0);
+                        if matches!(
+                            entry.mode,
+                            project::chain::ChainInputMode::Mono
+                        ) && entry.channels.len() > 1
+                        {
+                            // The engine splits this mono entry into one
+                            // stream per channel — produce a per-channel
+                            // label so the spectrum rows stay readable.
+                            for &ch in &entry.channels {
+                                entry_labels.push(format!("{label} CH {}", ch + 1));
+                            }
+                        } else {
+                            entry_labels.push(label);
+                        }
+                    }
+                }
+            }
+
+            let sample_rate = chain
+                .blocks
+                .iter()
+                .find_map(|b| match &b.kind {
+                    AudioBlockKind::Input(input) => input.entries.first().and_then(|entry| {
+                        project
                             .device_settings
                             .iter()
                             .find(|d| d.device_id == entry.device_id)
                             .map(|d| d.sample_rate as usize)
-                            .unwrap_or(48_000);
+                    }),
+                    _ => None,
+                })
+                .unwrap_or(48_000);
 
-                        let device_label = short_device_label(&entry.device_id.0);
+            for stream_index in 0..stream_count {
+                let device_label = entry_labels
+                    .get(stream_index)
+                    .cloned()
+                    .unwrap_or_else(|| format!("stream {}", stream_index + 1));
 
-                        let rings = controller
-                            .subscribe_stream_tap(&chain.id, stream_index, RING_CAPACITY);
-                        let Some([l_ring, r_ring]) = rings else {
-                            stream_index += 1;
-                            continue;
-                        };
+                let rings = controller
+                    .subscribe_stream_tap(&chain.id, stream_index, RING_CAPACITY);
+                let Some([l_ring, r_ring]) = rings else {
+                    log::warn!(
+                        "spectrum_session: subscribe_stream_tap returned None for chain '{}' stream {}",
+                        chain.id.0,
+                        stream_index
+                    );
+                    continue;
+                };
 
-                        // L row
-                        let l_levels = make_zero_band_model();
-                        let l_peaks = make_zero_band_model();
-                        rows_model.push(SpectrumRow {
-                            label: format!(
-                                "{}  ·  IN: {}  ·  L",
-                                chain_label.to_uppercase(),
-                                device_label
-                            )
-                            .into(),
-                            levels: ModelRc::from(l_levels.clone()),
-                            peaks: ModelRc::from(l_peaks.clone()),
-                            active: false,
-                        });
-                        row_states.push(RowState::new(l_ring, sample_rate, l_levels, l_peaks));
+                // L row
+                let l_levels = make_zero_band_model();
+                let l_peaks = make_zero_band_model();
+                rows_model.push(SpectrumRow {
+                    label: format!(
+                        "{}  ·  IN: {}  ·  L",
+                        chain_label.to_uppercase(),
+                        device_label
+                    )
+                    .into(),
+                    levels: ModelRc::from(l_levels.clone()),
+                    peaks: ModelRc::from(l_peaks.clone()),
+                    active: false,
+                });
+                row_states.push(RowState::new(l_ring, sample_rate, l_levels, l_peaks));
 
-                        // R row
-                        let r_levels = make_zero_band_model();
-                        let r_peaks = make_zero_band_model();
-                        rows_model.push(SpectrumRow {
-                            label: format!(
-                                "{}  ·  IN: {}  ·  R",
-                                chain_label.to_uppercase(),
-                                device_label
-                            )
-                            .into(),
-                            levels: ModelRc::from(r_levels.clone()),
-                            peaks: ModelRc::from(r_peaks.clone()),
-                            active: false,
-                        });
-                        row_states.push(RowState::new(r_ring, sample_rate, r_levels, r_peaks));
-
-                        stream_index += 1;
-                    }
-                }
+                // R row
+                let r_levels = make_zero_band_model();
+                let r_peaks = make_zero_band_model();
+                rows_model.push(SpectrumRow {
+                    label: format!(
+                        "{}  ·  IN: {}  ·  R",
+                        chain_label.to_uppercase(),
+                        device_label
+                    )
+                    .into(),
+                    levels: ModelRc::from(r_levels.clone()),
+                    peaks: ModelRc::from(r_peaks.clone()),
+                    active: false,
+                });
+                row_states.push(RowState::new(r_ring, sample_rate, r_levels, r_peaks));
             }
         }
 
