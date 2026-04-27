@@ -5,6 +5,13 @@ use std::path::PathBuf;
 fn main() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("manifest dir"));
     let src_dir = manifest_dir.join("src");
+
+    // Invalidate the registry whenever any source file is added, renamed, or deleted.
+    // Without this, deleting a `nam_*.rs` (or any module file) leaves a stale
+    // generated_registry.rs in target/, which produces "module file not found"
+    // errors until `cargo clean -p block-gain` is run manually.
+    println!("cargo:rerun-if-changed=src");
+
     let mut model_modules = Vec::new();
 
     for entry in fs::read_dir(&src_dir).expect("read src dir") {
