@@ -841,14 +841,13 @@ component BlockChip inherits Rectangle {
     callback clicked();
     callback drag-moved(float, float);
     callback drag-finished(float, float);
+    callback hover-state-changed(bool);
     out property <bool> hovered: hover-area.has-hover;
-    // Lift the chip above sibling blocks within the same row while hovered
-    // so its tooltip — which renders ABOVE the chip, inside the row's own
-    // space, the same way the In/Out chip tooltips work — paints over the
-    // adjacent chips and the row header instead of behind them. Tooltip
-    // never crosses into the next ChainRow's space, so it cannot be
-    // covered by neighbouring rows in the ListView.
-    z: hover-area.has-hover ? 1000 : 0;
+    // The tooltip itself is rendered by ChainRow (declared AFTER all
+    // BlockChips so it paints on top of every sibling), not by this chip.
+    // We just emit the hover state so the row knows which block is
+    // active and where to anchor the tooltip card.
+    changed hovered => { root.hover-state-changed(self.hovered); }
     property <bool> did-drag: false;
     property <bool> drag-origin-set: false;
     property <float> drag-origin-x: 0;
@@ -985,165 +984,6 @@ component BlockChip inherits Rectangle {
             }
         }
     }
-
-    // Hover tooltip — appears below the chip with three vertically-stacked
-    // sections: header (backend pill + model name + brand logo), parameter
-    // table (LABEL on the left, value+unit on the right, one row per
-    // parameter), and rounded background. Hidden for I/O / Insert blocks
-    // (display_name is empty there). Anchored below — anything above is
-    // covered by the project header (#329).
-    //
-    // Sized to fit the parameter list with no clipping. 22px per row times
-    // entry count, plus 36px header + 16px top/bottom padding. The card
-    // grows the right amount whether the block has 2 or 12 parameters.
-    if hover-area.has-hover && root.block.display_name != "" : Rectangle {
-        property <length> row-height: 18px;
-        property <length> header-h: 36px;
-        property <length> body-padding: 8px;
-        property <int> entry-count: root.block.param_entries.length;
-        property <length> tooltip-h: header-h + body-padding + Math.max(1, entry-count) * row-height + body-padding;
-
-        // Anchor LATERAL to the chip, inside the row's own block-row
-        // band — same strategy as the In/Out chip tooltips. Going up
-        // collides with the project header (always paints on top); going
-        // down crosses into the next ChainRow's space and the next
-        // chain's blocks paint over it. Lateral keeps everything inside
-        // the row and z-lift on the chip wins the paint order against
-        // sibling blocks (#333).
-        //
-        // Width 320px overlaps ~3 sibling blocks horizontally — the
-        // z-lift covers them. The tooltip starts to the right of the
-        // chip and rises just above the chip's top so its taller body
-        // does not get clipped by the chip itself.
-        x: parent.width + 6px;
-        y: -tooltip-h + parent.height;
-        width: 320px;
-        height: tooltip-h;
-        background: #0e1218f5;
-        border-width: 1px;
-        border-color: #4d5868;
-        border-radius: 8px;
-        drop-shadow-blur: 18px;
-        drop-shadow-color: #000000a0;
-        drop-shadow-offset-y: 4px;
-
-        // ── Header strip ──────────────────────────────────────────────
-        Rectangle {
-            x: 0px;
-            y: 0px;
-            width: parent.width;
-            height: 36px;
-            background: #171d2c;
-            border-top-left-radius: 8px;
-            border-top-right-radius: 8px;
-        }
-
-        // Backend pill (NATIVE blue / NAM brown / IR purple / LV2 green).
-        Rectangle {
-            x: 10px;
-            y: 10px;
-            width: backend-text.preferred-width + 14px;
-            height: 16px;
-            border-radius: 3px;
-            background:
-                root.block.backend_label == "NATIVE" ? #1f6feb
-                : root.block.backend_label == "NAM" ? #b5651d
-                : root.block.backend_label == "IR" ? #6f42c1
-                : root.block.backend_label == "LV2" ? #2f7d32
-                : #4a5260;
-
-            backend-text := Text {
-                x: 7px;
-                y: 0px;
-                height: parent.height;
-                text: root.block.backend_label;
-                color: #ffffff;
-                font-size: 9px;
-                font-weight: 800;
-                letter-spacing: 0.6px;
-                vertical-alignment: center;
-            }
-        }
-
-        // Model name — fills the gap between pill and brand logo.
-        Text {
-            x: 10px + backend-text.preferred-width + 14px + 8px;
-            y: 0px;
-            width: parent.width - (backend-text.preferred-width + 32px) - 78px;
-            height: 36px;
-            text: root.block.display_name;
-            color: #f4f7fb;
-            font-size: 13px;
-            font-weight: 700;
-            vertical-alignment: center;
-            overflow: elide;
-        }
-
-        // Brand logo on the right — auto-hidden by BrandLogo for unknown
-        // brands, which keeps unbranded blocks (native, generic) clean.
-        BrandLogo {
-            x: parent.width - 70px;
-            y: 8px;
-            width: 60px;
-            height: 20px;
-            brand: root.block.brand;
-            tint: #e6ecf5;
-        }
-
-        // ── Parameter table ───────────────────────────────────────────
-        // Each entry is one row: LABEL (uppercase, dim) on the left,
-        // value (white) + unit (dim) on the right. Hardcoded widths
-        // because referencing `parent.width` from inside a `for` loop
-        // returned 0 in Slint, collapsing the label column and hiding
-        // the value column entirely. With the tooltip width fixed at
-        // 320px, hardcoding the columns is safe and explicit.
-        for entry[i] in root.block.param_entries : Rectangle {
-            x: 0px;
-            y: 36px + 8px + i * 18px;
-            width: 320px;
-            height: 18px;
-            background: transparent;
-
-            Text {
-                x: 12px;
-                y: 0px;
-                width: 140px;
-                height: 18px;
-                text: entry.label;
-                color: #8fa0b6;
-                font-size: 10px;
-                font-weight: 700;
-                letter-spacing: 0.4px;
-                vertical-alignment: center;
-                overflow: elide;
-            }
-
-            HorizontalLayout {
-                x: 156px;
-                y: 0px;
-                width: 152px;
-                height: 18px;
-                spacing: 4px;
-                alignment: end;
-
-                Text {
-                    text: entry.value;
-                    color: #f4f7fb;
-                    font-size: 11px;
-                    font-weight: 700;
-                    vertical-alignment: center;
-                }
-
-                Text {
-                    text: entry.unit;
-                    color: #8fa0b6;
-                    font-size: 10px;
-                    font-weight: 600;
-                    vertical-alignment: center;
-                }
-            }
-        }
-    }
 }
 
 component BlockInsertSlot inherits Rectangle {
@@ -1209,6 +1049,154 @@ component BlockInsertSlot inherits Rectangle {
     }
 }
 
+// Hover tooltip card for a chain block. Lives in ChainRow, declared after
+// the BlockChip for-loop so the natural paint order keeps it above every
+// sibling block (the per-chip z-lift attempt did not work because z only
+// orders within the same parent — the tooltip was a child of the chip,
+// not a sibling of the next chip). Rendered only when ChainRow has a
+// hovered block; ChainRow drives `block`, `anchor-x` and `anchor-y`.
+component BlockHoverTooltip inherits Rectangle {
+    in property <ChainBlockItem> block;
+    in property <length> anchor-x;
+    in property <length> anchor-y;
+    in property <length> chip-width;
+    in property <length> chip-height;
+
+    property <length> row-height: 18px;
+    property <length> header-h: 36px;
+    property <length> body-padding: 8px;
+    property <int> entry-count: root.block.param_entries.length;
+    property <length> tooltip-h: header-h + body-padding + Math.max(1, entry-count) * row-height + body-padding;
+
+    // Anchor lateral to the chip — `anchor-x` is the chip's x in the
+    // blocks container, `anchor-y` is the chip's y. The tooltip starts
+    // 6px to the right of the chip and rises so its bottom aligns with
+    // the chip's bottom. Inside the row's block-row band, never above
+    // it (which collides with the project header) or below (next row).
+    x: root.anchor-x + root.chip-width + 6px;
+    y: root.anchor-y + root.chip-height - root.tooltip-h;
+    width: 320px;
+    height: root.tooltip-h;
+    background: #0e1218f5;
+    border-width: 1px;
+    border-color: #4d5868;
+    border-radius: 8px;
+    drop-shadow-blur: 18px;
+    drop-shadow-color: #000000a0;
+    drop-shadow-offset-y: 4px;
+
+    // Header strip
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: 36px;
+        background: #171d2c;
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
+    }
+
+    // Backend pill (NATIVE blue / NAM brown / IR purple / LV2 green).
+    Rectangle {
+        x: 10px;
+        y: 10px;
+        width: backend-text.preferred-width + 14px;
+        height: 16px;
+        border-radius: 3px;
+        background:
+            root.block.backend_label == "NATIVE" ? #1f6feb
+            : root.block.backend_label == "NAM" ? #b5651d
+            : root.block.backend_label == "IR" ? #6f42c1
+            : root.block.backend_label == "LV2" ? #2f7d32
+            : #4a5260;
+
+        backend-text := Text {
+            x: 7px;
+            y: 0px;
+            height: parent.height;
+            text: root.block.backend_label;
+            color: #ffffff;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.6px;
+            vertical-alignment: center;
+        }
+    }
+
+    // Model name — fills the gap between pill and brand logo.
+    Text {
+        x: 10px + backend-text.preferred-width + 14px + 8px;
+        y: 0px;
+        width: 320px - (backend-text.preferred-width + 32px) - 78px;
+        height: 36px;
+        text: root.block.display_name;
+        color: #f4f7fb;
+        font-size: 13px;
+        font-weight: 700;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    // Brand logo on the right — auto-hidden by BrandLogo for unknown brands.
+    BrandLogo {
+        x: 320px - 70px;
+        y: 8px;
+        width: 60px;
+        height: 20px;
+        brand: root.block.brand;
+        tint: #e6ecf5;
+    }
+
+    // Parameter table — one row per entry, fixed column widths because
+    // referencing parent.width inside a `for` loop returned 0.
+    for entry[i] in root.block.param_entries : Rectangle {
+        x: 0px;
+        y: 36px + 8px + i * 18px;
+        width: 320px;
+        height: 18px;
+        background: transparent;
+
+        Text {
+            x: 12px;
+            y: 0px;
+            width: 140px;
+            height: 18px;
+            text: entry.label;
+            color: #8fa0b6;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+
+        HorizontalLayout {
+            x: 156px;
+            y: 0px;
+            width: 152px;
+            height: 18px;
+            spacing: 4px;
+            alignment: end;
+
+            Text {
+                text: entry.value;
+                color: #f4f7fb;
+                font-size: 11px;
+                font-weight: 700;
+                vertical-alignment: center;
+            }
+
+            Text {
+                text: entry.unit;
+                color: #8fa0b6;
+                font-size: 10px;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
 component ChainRow inherits Rectangle {
     in property <ProjectChainItem> chain;
     in property <int> chain-index;
@@ -1241,6 +1229,13 @@ component ChainRow inherits Rectangle {
     property <length> out-chip-x: root.width - 108px;
     property <length> out-chip-y: root.last-block-row * 108px + 24px;
     out property <bool> any-chip-hovered: in-chip.is-hovered || out-chip.is-hovered;
+    // Tracks which BlockChip in the for-loop is currently hovered. -1
+    // means no block is hovered. Updated by `hover-state-changed` from
+    // each BlockChip — set when entering, clear only if the leaving chip
+    // is the current hovered one (so a fast move from one chip to the
+    // next does not flicker through -1 in between). Drives the
+    // BlockHoverTooltip render below the for-loop.
+    property <int> hovered-block-index: -1;
 
     pure function slot-index-for-position(pointer-x: float, pointer-y: float) -> int {
         // Blocks start at x=120, each 116px wide.
@@ -1521,6 +1516,13 @@ component ChainRow inherits Rectangle {
                 : root.selected-block-chain-index == root.chain-index && root.selected-block-index == block-index;
             dragging: root.dragging-chain-index == root.chain-index && root.dragging-block-index == block-index;
             clicked => { root.select-chain-block(root.chain-index, block-index); }
+            hover-state-changed(is-hovered) => {
+                if (is-hovered) {
+                    root.hovered-block-index = block-index;
+                } else if (root.hovered-block-index == block-index) {
+                    root.hovered-block-index = -1;
+                }
+            }
             drag-moved(pointer-x, pointer-y) => {
                 root.suppress-insert-hover = false;
                 root.dragging-chain-index = root.chain-index;
@@ -1538,6 +1540,22 @@ component ChainRow inherits Rectangle {
                     root.suppress-insert-hover = true;
                 }
             }
+        }
+
+        // Hover tooltip for the currently hovered block — declared AFTER
+        // the BlockChip and BlockInsertSlot for-loops so the natural
+        // paint order keeps it on top of every sibling block. Hidden when
+        // no block is hovered or when the hovered block has no model
+        // (I/O / Insert blocks have empty display_name). Issue #333.
+        if root.hovered-block-index >= 0
+            && root.hovered-block-index < root.chain.blocks.length
+            && root.chain.blocks[root.hovered-block-index].display_name != ""
+            : BlockHoverTooltip {
+            block: root.chain.blocks[root.hovered-block-index];
+            anchor-x: 120px + Math.mod(root.hovered-block-index, root.blocks-per-row) * 116px;
+            anchor-y: Math.floor(root.hovered-block-index / root.blocks-per-row) * 108px;
+            chip-width: 84px;
+            chip-height: 100px;
         }
 
         for block[block-index] in root.chain.blocks : BlockInsertSlot {
