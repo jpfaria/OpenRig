@@ -1061,21 +1061,30 @@ component BlockHoverTooltip inherits Rectangle {
     in property <length> anchor-y;
     in property <length> chip-width;
     in property <length> chip-height;
+    in property <length> container-width;
 
     property <length> row-height: 18px;
     property <length> header-h: 36px;
     property <length> body-padding: 8px;
     property <int> entry-count: root.block.param_entries.length;
     property <length> tooltip-h: header-h + body-padding + Math.max(1, entry-count) * row-height + body-padding;
+    property <length> tooltip-w: 320px;
+    property <length> gap: 6px;
 
-    // Anchor lateral to the chip — `anchor-x` is the chip's x in the
-    // blocks container, `anchor-y` is the chip's y. The tooltip starts
-    // 6px to the right of the chip and rises so its bottom aligns with
-    // the chip's bottom. Inside the row's block-row band, never above
-    // it (which collides with the project header) or below (next row).
-    x: root.anchor-x + root.chip-width + 6px;
+    // Pick the side that fits inside the row's blocks container. Right
+    // is the default (cards on the left of the chain are usually amps
+    // and benefit from seeing what comes after); flip to the left when
+    // the chip is close enough to the container edge that the tooltip
+    // would be clipped on the right (e.g. last block in the chain).
+    property <bool> fits-right:
+        root.anchor-x + root.chip-width + root.gap + root.tooltip-w
+            <= root.container-width;
+
+    x: root.fits-right
+        ? root.anchor-x + root.chip-width + root.gap
+        : root.anchor-x - root.gap - root.tooltip-w;
     y: root.anchor-y + root.chip-height - root.tooltip-h;
-    width: 320px;
+    width: root.tooltip-w;
     height: root.tooltip-h;
     background: #0e1218f5;
     border-width: 1px;
@@ -1579,6 +1588,10 @@ component ChainRow inherits Rectangle {
             anchor-y: Math.floor(root.hovered-block-index / root.blocks-per-row) * 108px;
             chip-width: 84px;
             chip-height: 100px;
+            // Pass the blocks-container width so the tooltip can flip to
+            // the left side when the chip is too close to the right edge
+            // (e.g. last chip in the row) and the card would overflow.
+            container-width: parent.width;
         }
 
         for block[block-index] in root.chain.blocks : BlockInsertSlot {
