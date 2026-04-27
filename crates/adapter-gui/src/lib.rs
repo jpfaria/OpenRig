@@ -32,6 +32,7 @@ mod block_picker_wiring;
 mod block_drawer_close_wiring;
 mod block_delete_wiring;
 mod vst3_editor_wiring;
+mod block_drawer_save_delete_wiring;
 pub(crate) use chain_editor_callbacks::setup_chain_editor_callbacks;
 
 use anyhow::{anyhow, Result};
@@ -3400,99 +3401,32 @@ pub fn run_desktop_app(
         vst3_editor_handles_for_on_open.clone(),
         vst3_sample_rate,
     );
-    {
-        let weak_window = window.as_weak();
-        let selected_block = selected_block.clone();
-        let block_editor_draft = block_editor_draft.clone();
-        let block_model_options = block_model_options.clone();
-        let filtered_block_model_options = filtered_block_model_options.clone();
-        let block_model_option_labels = block_model_option_labels.clone();
-        let block_parameter_items = block_parameter_items.clone();
-        let multi_slider_points = multi_slider_points.clone();
-        let curve_editor_points = curve_editor_points.clone();
-        let eq_band_curves = eq_band_curves.clone();
-        let project_session = project_session.clone();
-        let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
-        let block_editor_persist_timer = block_editor_persist_timer.clone();
-        let weak_block_editor_window = block_editor_window.as_weak();
-        let input_chain_devices = input_chain_devices.clone();
-        let output_chain_devices = output_chain_devices.clone();
-        let open_compact_window_save = open_compact_window.clone();
-        let project_session_save = project_session.clone();
-        window.on_save_block_drawer(move || {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            block_editor_persist_timer.stop();
-            let Some(draft) = block_editor_draft.borrow().clone() else {
-                return;
-            };
-            if let Err(error) = persist_block_editor_draft(
-                &window,
-                &draft,
-                &block_parameter_items,
-                &project_session,
-                &project_chains,
-                &project_runtime,
-                &saved_project_snapshot,
-                &project_dirty,
-                &*input_chain_devices.borrow(),
-                &*output_chain_devices.borrow(),
-                true,
-                auto_save,
-            ) {
-                log::error!("[adapter-gui] block-drawer.save: {error}");
-                window.set_block_drawer_status_message(error.to_string().into());
-                return;
-            }
-            *selected_block.borrow_mut() = None;
-            set_selected_block(&window, None, None);
-            *block_editor_draft.borrow_mut() = None;
-            block_model_options.set_vec(Vec::new());
-            filtered_block_model_options.set_vec(Vec::new());
-            block_model_option_labels.set_vec(Vec::new());
-            block_parameter_items.set_vec(Vec::new());
-            multi_slider_points.set_vec(Vec::new());
-            curve_editor_points.set_vec(Vec::new());
-            eq_band_curves.set_vec(Vec::new());
-            window.set_eq_total_curve("".into());
-            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
-                let _ = block_editor_window.hide();
-            }
-            // Refresh compact chain view if open
-            if let Some((ci, weak_cw)) = open_compact_window_save.borrow().as_ref() {
-                if let Some(cw) = weak_cw.upgrade() {
-                    let session_borrow = project_session_save.borrow();
-                    if let Some(session) = session_borrow.as_ref() {
-                        let blocks = build_compact_blocks(&session.project, *ci);
-                        cw.set_compact_blocks(ModelRc::from(Rc::new(VecModel::from(blocks))));
-                    }
-                }
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let block_editor_draft = block_editor_draft.clone();
-        let block_editor_persist_timer = block_editor_persist_timer.clone();
-        window.on_delete_block_drawer(move || {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            block_editor_persist_timer.stop();
-            let Some(draft) = block_editor_draft.borrow().clone() else {
-                return;
-            };
-            if draft.block_index.is_none() {
-                return;
-            }
-            window.set_confirm_delete_block_name(draft.model_id.into());
-            window.set_show_confirm_delete_block(true);
-        });
-    }
+    // --- Block drawer save+delete callbacks (extracted to block_drawer_save_delete_wiring) ---
+    crate::block_drawer_save_delete_wiring::wire(
+        &window,
+        &block_editor_window,
+        crate::block_drawer_save_delete_wiring::BlockDrawerSaveDeleteCtx {
+            selected_block: selected_block.clone(),
+            block_editor_draft: block_editor_draft.clone(),
+            block_model_options: block_model_options.clone(),
+            filtered_block_model_options: filtered_block_model_options.clone(),
+            block_model_option_labels: block_model_option_labels.clone(),
+            block_parameter_items: block_parameter_items.clone(),
+            multi_slider_points: multi_slider_points.clone(),
+            curve_editor_points: curve_editor_points.clone(),
+            eq_band_curves: eq_band_curves.clone(),
+            project_session: project_session.clone(),
+            project_chains: project_chains.clone(),
+            project_runtime: project_runtime.clone(),
+            saved_project_snapshot: saved_project_snapshot.clone(),
+            project_dirty: project_dirty.clone(),
+            block_editor_persist_timer: block_editor_persist_timer.clone(),
+            input_chain_devices: input_chain_devices.clone(),
+            output_chain_devices: output_chain_devices.clone(),
+            open_compact_window: open_compact_window.clone(),
+            auto_save,
+        },
+    );
     // --- Block delete confirm/cancel callbacks (extracted to block_delete_wiring) ---
     crate::block_delete_wiring::wire(
         &window,
