@@ -50,17 +50,32 @@ component PowerFootSwitch inherits Rectangle {
     }
 }
 
-// Mute switch — vintage toggle sprite + red LED on the right + label below.
+// Mute switch — label on the left, vintage toggle sprite, red LED on the right.
+// All three elements share a single horizontal line so the label sits next to
+// the toggle, not below it.
 component MuteSwitch inherits Rectangle {
     in property <bool> active;
     callback toggled();
 
-    width: 60px;
-    height: 56px;
+    width: 86px;
+    height: 34px;
+
+    // Label — vertically centered against the 34 px toggle.
+    Text {
+        x: 0; y: (parent.height - self.height) / 2;
+        width: 36px; height: 14px;
+        text: "MUTE";
+        color: root.active ? #ff7878 : #8a95a5;
+        font-family: "Bebas Neue";
+        font-size: 9px;
+        letter-spacing: 1.2px;
+        horizontal-alignment: right;
+        vertical-alignment: center;
+    }
 
     // Toggle sprite
     Rectangle {
-        x: 4px; y: 0;
+        x: 42px; y: 0;
         width: 26px; height: 34px;
         clip: true;
         Image {
@@ -80,7 +95,7 @@ component MuteSwitch inherits Rectangle {
 
     // Red LED on the right of the toggle
     Rectangle {
-        x: 36px; y: 10px;
+        x: 72px; y: (parent.height - self.height) / 2;
         width: 14px; height: 14px;
         clip: true;
         Image {
@@ -92,18 +107,6 @@ component MuteSwitch inherits Rectangle {
             image-fit: fill;
             image-rendering: smooth;
         }
-    }
-
-    // Label below the whole group
-    Text {
-        x: 0; y: 38px;
-        width: parent.width; height: 14px;
-        text: "MUTE";
-        color: root.active ? #ff7878 : #8a95a5;
-        font-family: "Bebas Neue";
-        font-size: 9px;
-        letter-spacing: 1.2px;
-        horizontal-alignment: center;
     }
 }
 
@@ -376,10 +379,11 @@ export component TunerPanel inherits Rectangle {
             }
         }
 
-        // Mute switch (right side)
+        // Mute switch (right side) — label, toggle and LED on a single
+        // horizontal line. Vertically centered against the 72 px header.
         MuteSwitch {
-            x: root.show-close-button ? parent.width - 110px : parent.width - 70px;
-            y: 8px;
+            x: root.show-close-button ? parent.width - 138px : parent.width - 98px;
+            y: (72px - self.height) / 2;
             active: root.mute-active;
             toggled => { root.toggle-mute(!root.mute-active); }
         }
