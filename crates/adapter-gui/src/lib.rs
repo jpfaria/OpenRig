@@ -31,6 +31,7 @@ mod block_model_search_wiring;
 mod block_picker_wiring;
 mod block_drawer_close_wiring;
 mod block_delete_wiring;
+mod vst3_editor_wiring;
 pub(crate) use chain_editor_callbacks::setup_chain_editor_callbacks;
 
 use anyhow::{anyhow, Result};
@@ -3393,16 +3394,12 @@ pub fn run_desktop_app(
             }
         });
     }
-    {
-        let vst3_handles = vst3_editor_handles_for_on_open.clone();
-        let vst3_sr = vst3_sample_rate;
-        window.on_open_vst3_editor(move |model_id| {
-            match project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr) {
-                Ok(handle) => { vst3_handles.borrow_mut().push(handle); }
-                Err(e) => { log::error!("VST3 editor: failed to open '{}': {}", model_id, e); }
-            }
-        });
-    }
+    // --- VST3 editor open (extracted to vst3_editor_wiring) ---
+    crate::vst3_editor_wiring::wire(
+        &window,
+        vst3_editor_handles_for_on_open.clone(),
+        vst3_sample_rate,
+    );
     {
         let weak_window = window.as_weak();
         let selected_block = selected_block.clone();
