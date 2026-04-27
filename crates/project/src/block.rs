@@ -66,6 +66,22 @@ pub enum AudioBlockKind {
     Insert(InsertBlock),
 }
 
+impl AudioBlockKind {
+    /// Stable lowercase label for the variant — for diagnostics, logs,
+    /// and debug surfaces. Adding a new variant fails to compile here,
+    /// not at every callsite.
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::Nam(_) => "nam",
+            Self::Core(_) => "core",
+            Self::Select(_) => "select",
+            Self::Input(_) => "input",
+            Self::Output(_) => "output",
+            Self::Insert(_) => "insert",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InputEntry {
     pub device_id: DeviceId,
