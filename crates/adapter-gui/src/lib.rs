@@ -10,6 +10,7 @@ mod chain_io_picker_wiring;
 mod block_editor_window_wiring;
 mod recent_projects_wiring;
 mod project_file_dialog_wiring;
+mod device_refresh_wiring;
 
 use anyhow::{anyhow, Result};
 
@@ -583,58 +584,18 @@ pub fn run_desktop_app(
     // enumeration runs in the UI thread and is rate-limited by user clicks
     // (no periodic polling — that triggered scarlett2_notify freezes on
     // the Orange Pi USB-C OTG port).
-    {
-        let weak_window = window.as_weak();
-        let project_session = project_session.clone();
-        let project_devices = project_devices.clone();
-        let chain_input_device_options = chain_input_device_options.clone();
-        let chain_output_device_options = chain_output_device_options.clone();
-        let toast_timer = toast_timer.clone();
-        window.on_refresh_devices(move || {
-            invalidate_device_cache();
-            let fresh_input = refresh_input_devices(&chain_input_device_options);
-            let fresh_output = refresh_output_devices(&chain_output_device_options);
-            let Some(window) = weak_window.upgrade() else { return; };
-            let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else { return; };
-            project_devices.set_vec(build_project_device_rows(
-                &fresh_input,
-                &fresh_output,
-                &session.project.device_settings,
-            ));
-            set_status_info(&window, &toast_timer, "Lista de dispositivos atualizada");
-        });
-    }
-    {
-        let project_settings_window_weak = project_settings_window.as_weak();
-        let main_window_weak = window.as_weak();
-        let project_session = project_session.clone();
-        let project_devices = project_devices.clone();
-        let chain_input_device_options = chain_input_device_options.clone();
-        let chain_output_device_options = chain_output_device_options.clone();
-        let toast_timer = toast_timer.clone();
-        project_settings_window.on_refresh_devices(move || {
-            invalidate_device_cache();
-            let fresh_input = refresh_input_devices(&chain_input_device_options);
-            let fresh_output = refresh_output_devices(&chain_output_device_options);
-            let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else { return; };
-            project_devices.set_vec(build_project_device_rows(
-                &fresh_input,
-                &fresh_output,
-                &session.project.device_settings,
-            ));
-            if let Some(window) = main_window_weak.upgrade() {
-                set_status_info(&window, &toast_timer, "Lista de dispositivos atualizada");
-            }
-            // Settings window has its own status field — the main-window toast is
-            // hidden when the standalone settings window is shown, so also clear
-            // any stale status on the settings window itself.
-            if let Some(sw) = project_settings_window_weak.upgrade() {
-                sw.set_status_message("Lista de dispositivos atualizada".into());
-            }
-        });
-    }
+    // --- Refresh devices callbacks (extracted to device_refresh_wiring) ---
+    crate::device_refresh_wiring::wire(
+        &window,
+        &project_settings_window,
+        crate::device_refresh_wiring::DeviceRefreshCtx {
+            project_session: project_session.clone(),
+            project_devices: project_devices.clone(),
+            chain_input_device_options: chain_input_device_options.clone(),
+            chain_output_device_options: chain_output_device_options.clone(),
+            toast_timer: toast_timer.clone(),
+        },
+    );
     {
         let weak_window = window.as_weak();
         let input_devices = input_devices.clone();
