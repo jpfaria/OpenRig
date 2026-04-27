@@ -33,6 +33,7 @@ mod block_drawer_close_wiring;
 mod block_delete_wiring;
 mod vst3_editor_wiring;
 mod block_drawer_save_delete_wiring;
+mod block_parameter_wiring;
 pub(crate) use chain_editor_callbacks::setup_chain_editor_callbacks;
 
 use anyhow::{anyhow, Result};
@@ -83,12 +84,12 @@ use audio_devices::{
     default_device_settings, normalize_device_settings, mark_unselected_devices,
 };
 use block_editor::{
-    build_knob_overlays, schedule_block_editor_persist, schedule_block_editor_persist_for_block_win,
-    block_editor_data, block_editor_data_with_selected, block_parameter_items_for_editor,
-    block_parameter_items_for_model, set_block_parameter_text, set_block_parameter_bool,
-    set_block_parameter_number, persist_block_editor_draft,
-    set_block_parameter_option, block_parameter_extensions,
-    internal_block_parameter_value, build_params_from_items,
+    block_editor_data, block_parameter_extensions,
+    block_parameter_items_for_editor, block_parameter_items_for_model, build_knob_overlays,
+    build_params_from_items, persist_block_editor_draft,
+    schedule_block_editor_persist, schedule_block_editor_persist_for_block_win,
+    set_block_parameter_bool, set_block_parameter_number, set_block_parameter_option,
+    set_block_parameter_text,
 };
 use chain_editor::{
     chain_draft_from_chain, chain_from_draft,
@@ -97,7 +98,7 @@ use chain_editor::{
 };
 use eq::{compute_eq_curves, build_multi_slider_points, build_curve_editor_points};
 use helpers::{
-    log_gui_message, show_child_window, use_inline_block_editor,
+    show_child_window, use_inline_block_editor,
     set_status_error, set_status_info, set_status_warning,
     clear_status, sync_block_editor_window,
 };
@@ -3028,373 +3029,27 @@ pub fn run_desktop_app(
             inline_stream_timer: inline_stream_timer.clone(),
         },
     );
-    {
-        let weak_window = window.as_weak();
-        let block_editor_draft = block_editor_draft.clone();
-        let block_parameter_items = block_parameter_items.clone();
-        let project_session = project_session.clone();
-        let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
-        let block_editor_persist_timer = block_editor_persist_timer.clone();
-        let input_chain_devices = input_chain_devices.clone();
-        let output_chain_devices = output_chain_devices.clone();
-        window.on_update_block_parameter_number_text(move |path, value_text| {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let normalized = value_text.replace(',', ".");
-            let Ok(value) = normalized.parse::<f32>() else {
-                log_gui_message("block-drawer.number-text", "Valor numérico inválido.");
-                return;
-            };
-            set_block_parameter_number(&block_parameter_items, path.as_str(), value);
-            window.set_block_drawer_status_message("".into());
-            if let Some(draft) = block_editor_draft.borrow().as_ref() {
-                if draft.block_index.is_some() {
-                    schedule_block_editor_persist(
-                        &block_editor_persist_timer,
-                        weak_window.clone(),
-                        block_editor_draft.clone(),
-                        block_parameter_items.clone(),
-                        project_session.clone(),
-                        project_chains.clone(),
-                        project_runtime.clone(),
-                        saved_project_snapshot.clone(),
-                        project_dirty.clone(),
-                        input_chain_devices.clone(),
-                        output_chain_devices.clone(),
-                        "block-drawer.number-text",
-                    auto_save,
-                    );
-                }
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let block_editor_draft = block_editor_draft.clone();
-        let block_parameter_items = block_parameter_items.clone();
-        let project_session = project_session.clone();
-        let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
-        let block_editor_persist_timer = block_editor_persist_timer.clone();
-        let weak_block_editor_window = block_editor_window.as_weak();
-        let input_chain_devices = input_chain_devices.clone();
-        let output_chain_devices = output_chain_devices.clone();
-        window.on_toggle_block_drawer_enabled(move || {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let mut draft_borrow = block_editor_draft.borrow_mut();
-            let Some(draft) = draft_borrow.as_mut() else {
-                return;
-            };
-            draft.enabled = !draft.enabled;
-            log::info!("[toggle_block_drawer_enabled] chain_index={}, block_index={:?}, enabled={}, effect_type='{}', model_id='{}'",
-                draft.chain_index, draft.block_index, draft.enabled, draft.effect_type, draft.model_id);
-            window.set_block_drawer_enabled(draft.enabled);
-            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
-                block_editor_window.set_block_drawer_enabled(draft.enabled);
-            }
-            if draft.block_index.is_some() {
-                schedule_block_editor_persist(
-                    &block_editor_persist_timer,
-                    weak_window.clone(),
-                    block_editor_draft.clone(),
-                    block_parameter_items.clone(),
-                    project_session.clone(),
-                    project_chains.clone(),
-                    project_runtime.clone(),
-                    saved_project_snapshot.clone(),
-                    project_dirty.clone(),
-                    input_chain_devices.clone(),
-                    output_chain_devices.clone(),
-                    "block-drawer.toggle-enabled",
-                auto_save,
-                );
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let block_editor_draft = block_editor_draft.clone();
-        let block_parameter_items = block_parameter_items.clone();
-        let project_session = project_session.clone();
-        let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
-        let block_editor_persist_timer = block_editor_persist_timer.clone();
-        let weak_block_editor_window = block_editor_window.as_weak();
-        let input_chain_devices = input_chain_devices.clone();
-        let output_chain_devices = output_chain_devices.clone();
-        window.on_update_block_parameter_text(move |path, value| {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            set_block_parameter_text(&block_parameter_items, path.as_str(), value.as_str());
-            window.set_block_drawer_status_message("".into());
-            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
-                block_editor_window.set_block_drawer_status_message("".into());
-            }
-            if let Some(draft) = block_editor_draft.borrow().as_ref() {
-                if draft.block_index.is_some() {
-                    schedule_block_editor_persist(
-                        &block_editor_persist_timer,
-                        weak_window.clone(),
-                        block_editor_draft.clone(),
-                        block_parameter_items.clone(),
-                        project_session.clone(),
-                        project_chains.clone(),
-                        project_runtime.clone(),
-                        saved_project_snapshot.clone(),
-                        project_dirty.clone(),
-                        input_chain_devices.clone(),
-                        output_chain_devices.clone(),
-                        "block-drawer.text",
-                    auto_save,
-                    );
-                }
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let block_editor_draft = block_editor_draft.clone();
-        let block_parameter_items = block_parameter_items.clone();
-        let eq_band_curves = eq_band_curves.clone();
-        let project_session = project_session.clone();
-        let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
-        let block_editor_persist_timer = block_editor_persist_timer.clone();
-        let weak_block_editor_window = block_editor_window.as_weak();
-        let input_chain_devices = input_chain_devices.clone();
-        let output_chain_devices = output_chain_devices.clone();
-        window.on_update_block_parameter_number(move |path, value| {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            set_block_parameter_number(&block_parameter_items, path.as_str(), value);
-            window.set_block_drawer_status_message("".into());
-            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
-                block_editor_window.set_block_drawer_status_message("".into());
-            }
-            if let Some(draft) = block_editor_draft.borrow().as_ref() {
-                let params = build_params_from_items(&block_parameter_items);
-                let (eq_total, eq_bands) = compute_eq_curves(&draft.effect_type, &draft.model_id, &params);
-                eq_band_curves.set_vec(eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>());
-                window.set_eq_total_curve(eq_total.into());
-                if draft.block_index.is_some() {
-                    schedule_block_editor_persist(
-                        &block_editor_persist_timer,
-                        weak_window.clone(),
-                        block_editor_draft.clone(),
-                        block_parameter_items.clone(),
-                        project_session.clone(),
-                        project_chains.clone(),
-                        project_runtime.clone(),
-                        saved_project_snapshot.clone(),
-                        project_dirty.clone(),
-                        input_chain_devices.clone(),
-                        output_chain_devices.clone(),
-                        "block-drawer.number",
-                    auto_save,
-                    );
-                }
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let block_editor_draft = block_editor_draft.clone();
-        let block_parameter_items = block_parameter_items.clone();
-        let project_session = project_session.clone();
-        let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
-        let block_editor_persist_timer = block_editor_persist_timer.clone();
-        let weak_block_editor_window = block_editor_window.as_weak();
-        let input_chain_devices = input_chain_devices.clone();
-        let output_chain_devices = output_chain_devices.clone();
-        window.on_update_block_parameter_bool(move |path, value| {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            set_block_parameter_bool(&block_parameter_items, path.as_str(), value);
-            window.set_block_drawer_status_message("".into());
-            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
-                block_editor_window.set_block_drawer_status_message("".into());
-            }
-            if let Some(draft) = block_editor_draft.borrow().as_ref() {
-                if draft.block_index.is_some() {
-                    schedule_block_editor_persist(
-                        &block_editor_persist_timer,
-                        weak_window.clone(),
-                        block_editor_draft.clone(),
-                        block_parameter_items.clone(),
-                        project_session.clone(),
-                        project_chains.clone(),
-                        project_runtime.clone(),
-                        saved_project_snapshot.clone(),
-                        project_dirty.clone(),
-                        input_chain_devices.clone(),
-                        output_chain_devices.clone(),
-                        "block-drawer.bool",
-                    auto_save,
-                    );
-                }
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let block_editor_draft = block_editor_draft.clone();
-        let select_block_model_options = block_model_options.clone();
-        let select_block_model_option_labels = block_model_option_labels.clone();
-        let block_parameter_items = block_parameter_items.clone();
-        let project_session = project_session.clone();
-        let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
-        let block_editor_persist_timer = block_editor_persist_timer.clone();
-        let input_chain_devices = input_chain_devices.clone();
-        let output_chain_devices = output_chain_devices.clone();
-        window.on_select_block_parameter_option(move |path, index| {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            set_block_parameter_option(&block_parameter_items, path.as_str(), index);
-            if path.as_str() == SELECT_SELECTED_BLOCK_ID {
-                let selected_option_block_id =
-                    internal_block_parameter_value(&block_parameter_items, SELECT_SELECTED_BLOCK_ID);
-                if let (Some(draft), Some(selected_option_block_id)) = (
-                    block_editor_draft.borrow_mut().as_mut(),
-                    selected_option_block_id,
-                ) {
-                    if draft.is_select {
-                        if let Some(session) = project_session.borrow().as_ref() {
-                            if let Some(block_index) = draft.block_index {
-                                if let Some(block) = session
-                                    .project
-                                    .chains
-                                    .get(draft.chain_index)
-                                    .and_then(|chain| chain.blocks.get(block_index))
-                                {
-                                    if let Some(editor_data) = block_editor_data_with_selected(
-                                        block,
-                                        Some(&selected_option_block_id),
-                                    ) {
-                                        draft.effect_type = editor_data.effect_type.clone();
-                                        draft.model_id = editor_data.model_id.clone();
-                                        let items = block_model_picker_items(&editor_data.effect_type, &draft.instrument);
-                                        select_block_model_option_labels
-                                            .set_vec(block_model_picker_labels(&items));
-                                        select_block_model_options.set_vec(items);
-                                        block_parameter_items
-                                            .set_vec(block_parameter_items_for_editor(&editor_data));
-                                        window.set_block_drawer_selected_type_index(block_type_index(
-                                            &editor_data.effect_type,
-                                            &draft.instrument,
-                                        ));
-                                        window.set_block_drawer_selected_model_index(
-                                            block_model_index(
-                                                &editor_data.effect_type,
-                                                &editor_data.model_id,
-                                                &draft.instrument,
-                                            ),
-                                        );
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            window.set_block_drawer_status_message("".into());
-            if let Some(draft) = block_editor_draft.borrow().as_ref() {
-                if draft.block_index.is_some() {
-                    schedule_block_editor_persist(
-                        &block_editor_persist_timer,
-                        weak_window.clone(),
-                        block_editor_draft.clone(),
-                        block_parameter_items.clone(),
-                        project_session.clone(),
-                        project_chains.clone(),
-                        project_runtime.clone(),
-                        saved_project_snapshot.clone(),
-                        project_dirty.clone(),
-                        input_chain_devices.clone(),
-                        output_chain_devices.clone(),
-                        "block-drawer.option",
-                    auto_save,
-                    );
-                }
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let block_editor_draft = block_editor_draft.clone();
-        let block_parameter_items = block_parameter_items.clone();
-        let project_session = project_session.clone();
-        let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
-        let block_editor_persist_timer = block_editor_persist_timer.clone();
-        let input_chain_devices = input_chain_devices.clone();
-        let output_chain_devices = output_chain_devices.clone();
-        window.on_pick_block_parameter_file(move |path| {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let extensions = block_parameter_extensions(&block_parameter_items, path.as_str());
-            let mut dialog = FileDialog::new();
-            if !extensions.is_empty() {
-                let refs = extensions
-                    .iter()
-                    .map(|value| value.as_str())
-                    .collect::<Vec<_>>();
-                dialog = dialog.add_filter("Arquivos suportados", &refs);
-            }
-            let Some(file) = dialog.pick_file() else {
-                return;
-            };
-            set_block_parameter_text(
-                &block_parameter_items,
-                path.as_str(),
-                file.to_string_lossy().as_ref(),
-            );
-            window.set_block_drawer_status_message("".into());
-            if let Some(draft) = block_editor_draft.borrow().as_ref() {
-                if draft.block_index.is_some() {
-                    schedule_block_editor_persist(
-                        &block_editor_persist_timer,
-                        weak_window.clone(),
-                        block_editor_draft.clone(),
-                        block_parameter_items.clone(),
-                        project_session.clone(),
-                        project_chains.clone(),
-                        project_runtime.clone(),
-                        saved_project_snapshot.clone(),
-                        project_dirty.clone(),
-                        input_chain_devices.clone(),
-                        output_chain_devices.clone(),
-                        "block-drawer.file",
-                    auto_save,
-                    );
-                }
-            }
-        });
-    }
+    // --- Block parameter callbacks (extracted to block_parameter_wiring) ---
+    crate::block_parameter_wiring::wire(
+        &window,
+        &block_editor_window,
+        crate::block_parameter_wiring::BlockParameterCtx {
+            block_editor_draft: block_editor_draft.clone(),
+            block_parameter_items: block_parameter_items.clone(),
+            block_model_options: block_model_options.clone(),
+            block_model_option_labels: block_model_option_labels.clone(),
+            eq_band_curves: eq_band_curves.clone(),
+            project_session: project_session.clone(),
+            project_chains: project_chains.clone(),
+            project_runtime: project_runtime.clone(),
+            saved_project_snapshot: saved_project_snapshot.clone(),
+            project_dirty: project_dirty.clone(),
+            block_editor_persist_timer: block_editor_persist_timer.clone(),
+            input_chain_devices: input_chain_devices.clone(),
+            output_chain_devices: output_chain_devices.clone(),
+            auto_save,
+        },
+    );
     // --- VST3 editor open (extracted to vst3_editor_wiring) ---
     crate::vst3_editor_wiring::wire(
         &window,
