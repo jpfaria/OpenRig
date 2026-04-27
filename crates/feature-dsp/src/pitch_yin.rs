@@ -16,9 +16,20 @@ pub const BUFFER_SIZE: usize = 4096;
 const MIN_DETECTION: usize = 2048;
 const MIN_FREQ: f32 = 55.0; // A1
 const MAX_FREQ: f32 = 1200.0;
-const RMS_SILENCE_THRESHOLD: f32 = 0.005;
-const YIN_ABSOLUTE_THRESHOLD: f32 = 0.15;
-const YIN_REJECT_THRESHOLD: f32 = 0.4;
+/// RMS below which we treat the buffer as silence and skip detection.
+/// Tuned for instrument-level inputs read pre-FX from the audio tap —
+/// a clean guitar plucked softly sits around 0.005-0.02 RMS, so we set
+/// the floor low enough to keep detecting on quiet decay but high
+/// enough that idle hum (~0.0005) does not trigger false detections.
+const RMS_SILENCE_THRESHOLD: f32 = 0.0015;
+/// YIN difference threshold: candidates below this are "good enough" without
+/// looking for a global minimum. Slightly more permissive than 0.15 so the
+/// detector picks up notes earlier on the attack envelope.
+const YIN_ABSOLUTE_THRESHOLD: f32 = 0.20;
+/// YIN absolute fallback: if no candidate beat the absolute threshold but the
+/// global minimum is below this, accept it. More lax than the original 0.4
+/// to reduce missed detections on noisy/quiet signals.
+const YIN_REJECT_THRESHOLD: f32 = 0.55;
 
 const EMA_ALPHA: f32 = 0.25;
 const SNAP_RATIO: f32 = 1.06; // ~one semitone — snap on large jumps

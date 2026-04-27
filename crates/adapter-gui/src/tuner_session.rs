@@ -211,7 +211,24 @@ impl TunerSession {
                 state.sample_buf.push(s);
             }
             while state.sample_buf.len() >= BUFFER_SIZE {
-                let buf: Vec<f32> = state.sample_buf.drain(..BUFFER_SIZE).collect();
+                let mut buf: Vec<f32> = state.sample_buf.drain(..BUFFER_SIZE).collect();
+                // Auto-gain: the tap reads instrument-level signal pre-FX,
+                // typically -20 dBFS or quieter. Normalize the buffer to a
+                // target peak (~0.3) so YIN sees a strong, consistent
+                // amplitude regardless of the user's pickup output level
+                // or device input gain. Cap the gain at 30 dB so a noisy
+                // silence does not get amplified into spurious detections.
+                let peak = buf
+                    .iter()
+                    .fold(0.0_f32, |a, &s| a.max(s.abs()));
+                if peak > 0.001 {
+                    const TARGET_PEAK: f32 = 0.3;
+                    const MAX_GAIN: f32 = 32.0; // ≈ 30 dB
+                    let gain = (TARGET_PEAK / peak).min(MAX_GAIN);
+                    for s in buf.iter_mut() {
+                        *s *= gain;
+                    }
+                }
                 match state.detector.process_buffer(&buf) {
                     PitchUpdate::Update { note, cents, freq } => {
                         if let Some(mut row) = self.rows_model.row_data(idx) {
