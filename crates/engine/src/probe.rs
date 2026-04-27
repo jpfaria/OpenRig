@@ -68,9 +68,35 @@ pub fn measure_chain_dsp_latency_ms(
         }
     }
 
+    // Diagnostic: log the chain shape and elapsed time so the user can
+    // sanity-check that the probe is exercising every enabled block, not
+    // short-circuiting somewhere. UI thread; eprintln is fine here.
+    let enabled_blocks: Vec<&str> = chain
+        .blocks
+        .iter()
+        .filter(|b| b.enabled)
+        .map(|b| match &b.kind {
+            project::block::AudioBlockKind::Nam(_) => "nam",
+            project::block::AudioBlockKind::Core(_) => "core",
+            project::block::AudioBlockKind::Select(_) => "select",
+            project::block::AudioBlockKind::Input(_) => "input",
+            project::block::AudioBlockKind::Output(_) => "output",
+            project::block::AudioBlockKind::Insert(_) => "insert",
+        })
+        .collect();
+
     let start = std::time::Instant::now();
     process_input_f32(&runtime, 0, &data, PROBE_BUFFER_CHANNELS);
     let elapsed = start.elapsed();
 
-    elapsed.as_nanos() as f32 / 1_000_000.0
+    let ms = elapsed.as_nanos() as f32 / 1_000_000.0;
+    eprintln!(
+        "[probe] chain={} sr={} buf_frames={} enabled_blocks={:?} elapsed={:.3}ms",
+        chain.id.0,
+        sample_rate,
+        buffer_frames,
+        enabled_blocks,
+        ms
+    );
+    ms
 }
