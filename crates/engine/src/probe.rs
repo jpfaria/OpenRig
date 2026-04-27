@@ -26,10 +26,12 @@ use crate::runtime::{
 use project::chain::Chain;
 use std::sync::Arc;
 
-/// Channel count for the probe input. Mono is sufficient — every chain
-/// has a primary input on channel 0, and the chain's own routing handles
-/// the mono → stereo upsample if any block needs stereo.
-const PROBE_BUFFER_CHANNELS: usize = 1;
+/// Channel count of the probe data buffer. Stereo so that chains
+/// configured for stereo input (`AudioChannelLayout::Stereo`) read the
+/// pulse on BOTH channels — feeding a mono buffer leaves channel 1 at
+/// zero, which lets some processors (notably NAM) take fast silence
+/// shortcuts and produces an artificially low DSP reading.
+const PROBE_BUFFER_CHANNELS: usize = 2;
 
 /// Build a temporary runtime for `chain`, run a 1 kHz pulse through it,
 /// and return the elapsed DSP time in milliseconds.
