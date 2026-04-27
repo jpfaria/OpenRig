@@ -24,6 +24,7 @@ mod chain_row_wiring;
 mod chain_editor_forwarders_wiring;
 mod chain_block_crud_wiring;
 mod virtual_keyboard_wiring;
+mod chain_name_wiring;
 
 use anyhow::{anyhow, Result};
 
@@ -1534,19 +1535,8 @@ pub fn run_desktop_app(
             show_child_window(window.window(), compact_win.window());
         });
     }
-    {
-        let weak_window = window.as_weak();
-        let chain_draft = chain_draft.clone();
-        window.on_update_chain_name(move |value| {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            if let Some(draft) = chain_draft.borrow_mut().as_mut() {
-                draft.name = value.to_string();
-                window.set_chain_draft_name(value);
-            }
-        });
-    }
+    // --- Chain name edit callback (extracted to chain_name_wiring) ---
+    crate::chain_name_wiring::wire(&window, chain_draft.clone());
     // --- Chain I/O main-window callbacks (extracted to chain_io_main_wiring) ---
     crate::chain_io_main_wiring::wire(
         &window,
