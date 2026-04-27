@@ -11,7 +11,7 @@ use std::rc::Rc;
 use infra_cpal::ProjectRuntimeController;
 use slint::{ComponentHandle, ModelRc, Timer, TimerMode, VecModel};
 
-use crate::helpers::use_inline_block_editor;
+use crate::helpers::{show_child_window, use_inline_block_editor};
 use crate::spectrum_session::SpectrumSession;
 use crate::state::ProjectSession;
 use crate::{AppWindow, SpectrumRow, SpectrumWindow};
@@ -70,7 +70,11 @@ fn wire_open(window: &AppWindow, spectrum_window: &SpectrumWindow) {
         } else {
             sw.set_spectrum_rows(empty);
             sw.set_spectrum_enabled(false);
-            let _ = sw.show();
+            // Same window-opening pattern as the Block Editor: position
+            // the child window relative to the main window so the user
+            // sees it appear next to where they clicked instead of at
+            // an OS-default location.
+            show_child_window(main_w.window(), sw.window());
         }
     });
 }

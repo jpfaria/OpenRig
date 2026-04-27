@@ -11,7 +11,7 @@ use std::rc::Rc;
 use infra_cpal::ProjectRuntimeController;
 use slint::{ComponentHandle, ModelRc, Timer, TimerMode, VecModel};
 
-use crate::helpers::use_inline_block_editor;
+use crate::helpers::{show_child_window, use_inline_block_editor};
 use crate::state::ProjectSession;
 use crate::tuner_session::TunerSession;
 use crate::{AppWindow, TunerRow, TunerWindow};
@@ -70,7 +70,9 @@ fn wire_open(window: &AppWindow, tuner_window: &TunerWindow) {
             tw.set_tuner_rows(empty);
             tw.set_mute_active(false);
             tw.set_tuner_enabled(false);
-            let _ = tw.show();
+            // Same window-opening pattern as the Block Editor: position
+            // the child window relative to the main window.
+            show_child_window(main_w.window(), tw.window());
         }
     });
 }
