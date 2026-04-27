@@ -8,6 +8,7 @@ mod insert_wiring;
 mod device_settings_wiring;
 mod chain_io_picker_wiring;
 mod block_editor_window_wiring;
+mod recent_projects_wiring;
 
 use anyhow::{anyhow, Result};
 
@@ -84,7 +85,7 @@ use io_groups::{
 };
 use project_ops::{
     open_cli_project, resolve_project_paths, load_and_sync_app_config,
-    canonical_project_path, register_recent_project, mark_recent_project_invalid,
+    canonical_project_path, register_recent_project,
     recent_project_items, project_display_name,
     create_new_project_session, resolve_project_config_path,
     build_device_settings_from_gui, load_project_session, project_session_snapshot,
@@ -1140,131 +1141,22 @@ pub fn run_desktop_app(
             }
         });
     }
-    {
-        let weak_window = window.as_weak();
-        let app_config = app_config.clone();
-        let recent_projects = recent_projects.clone();
-        window.on_filter_recent_projects(move |query| {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            recent_projects.set_vec(recent_project_items(
-                &app_config.borrow().recent_projects,
-                query.as_str(),
-            ));
-            window.set_recent_project_search(query);
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let app_config = app_config.clone();
-        let project_session = project_session.clone();
-        let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
-        let recent_projects = recent_projects.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
-        let input_chain_devices = input_chain_devices.clone();
-        let output_chain_devices = output_chain_devices.clone();
-        let toast_timer = toast_timer.clone();
-        window.on_open_recent_project(move |index| {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            ensure_devices_loaded(&input_chain_devices, &output_chain_devices);
-            let Some(recent) = app_config
-                .borrow()
-                .recent_projects
-                .get(index as usize)
-                .cloned()
-            else {
-                set_status_error(&window, &toast_timer, "Projeto recente inválido.");
-                return;
-            };
-            if !recent.is_valid {
-                set_status_error(&window, &toast_timer, &recent .invalid_reason .unwrap_or_else(|| "Projeto inválido.".to_string()) );
-                return;
-            }
-            let path = PathBuf::from(&recent.project_path);
-            match load_project_session(&path, &resolve_project_config_path(&path)) {
-                Ok(session) => {
-                    let canonical_path = canonical_project_path(&path).unwrap_or(path.clone());
-                    let title = project_title_for_path(Some(&canonical_path), &session.project);
-                    let display_name = project_display_name(&session.project);
-                    stop_project_runtime(&project_runtime);
-                    replace_project_chains(
-                        &project_chains,
-                        &session.project,
-                        &*input_chain_devices.borrow(),
-                        &*output_chain_devices.borrow(),
-                    );
-                    let snapshot = project_session_snapshot(&session).ok();
-                    *project_session.borrow_mut() = Some(session);
-                    *saved_project_snapshot.borrow_mut() = snapshot;
-                    register_recent_project(
-                        &mut app_config.borrow_mut(),
-                        &canonical_path,
-                        &display_name,
-                    );
-                    let _ = FilesystemStorage::save_app_config(&app_config.borrow());
-                    recent_projects.set_vec(recent_project_items(
-                        &app_config.borrow().recent_projects,
-                        window.get_recent_project_search().as_str(),
-                    ));
-                    set_project_dirty(&window, &project_dirty, false);
-                    clear_status(&window, &toast_timer);
-                    window.set_project_title(title.into());
-                    window.set_project_name_draft(
-                        project_session
-                            .borrow()
-                            .as_ref()
-                            .and_then(|session| session.project.name.clone())
-                            .unwrap_or_default()
-                            .into(),
-                    );
-                    window.set_project_path_label(
-                        format!("Projeto: {}", canonical_path.display()).into(),
-                    );
-                    window.set_show_project_launcher(false);
-                    window.set_show_project_chains(true);
-                    window.set_show_chain_editor(false);
-                    window.set_show_project_settings(false);
-                }
-                Err(error) => {
-                    mark_recent_project_invalid(
-                        &mut app_config.borrow_mut(),
-                        &path,
-                        &error.to_string(),
-                    );
-                    let _ = FilesystemStorage::save_app_config(&app_config.borrow());
-                    recent_projects.set_vec(recent_project_items(
-                        &app_config.borrow().recent_projects,
-                        window.get_recent_project_search().as_str(),
-                    ));
-                    set_status_error(&window, &toast_timer, "Projeto inválido. Corrija ou remova da lista.");
-                }
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let app_config = app_config.clone();
-        let recent_projects = recent_projects.clone();
-        window.on_remove_recent_project(move |index| {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let mut config = app_config.borrow_mut();
-            if (index as usize) < config.recent_projects.len() {
-                config.recent_projects.remove(index as usize);
-                let _ = FilesystemStorage::save_app_config(&config);
-                recent_projects.set_vec(recent_project_items(
-                    &config.recent_projects,
-                    window.get_recent_project_search().as_str(),
-                ));
-            }
-        });
-    }
+    // --- Recent projects callbacks (extracted to recent_projects_wiring) ---
+    crate::recent_projects_wiring::wire(
+        &window,
+        crate::recent_projects_wiring::RecentProjectsCtx {
+            app_config: app_config.clone(),
+            recent_projects: recent_projects.clone(),
+            project_session: project_session.clone(),
+            project_chains: project_chains.clone(),
+            project_runtime: project_runtime.clone(),
+            saved_project_snapshot: saved_project_snapshot.clone(),
+            project_dirty: project_dirty.clone(),
+            input_chain_devices: input_chain_devices.clone(),
+            output_chain_devices: output_chain_devices.clone(),
+            toast_timer: toast_timer.clone(),
+        },
+    );
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
@@ -7093,7 +6985,7 @@ pub fn run_desktop_app(
 
     window.run().map_err(|error| anyhow!(error.to_string()))
 }
-fn stop_project_runtime(project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>) {
+pub(crate) fn stop_project_runtime(project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>) {
     if let Some(mut runtime) = project_runtime.borrow_mut().take() {
         runtime.stop();
     }
@@ -8902,7 +8794,7 @@ mod tests {
 
     // --- mark_recent_project_invalid ---
 
-    use super::mark_recent_project_invalid;
+    use crate::project_ops::mark_recent_project_invalid;
 
     #[test]
     fn mark_recent_project_invalid_sets_flag_and_reason() {
