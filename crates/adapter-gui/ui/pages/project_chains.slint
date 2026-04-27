@@ -1084,6 +1084,11 @@ component BlockHoverTooltip inherits Rectangle {
     drop-shadow-blur: 18px;
     drop-shadow-color: #000000a0;
     drop-shadow-offset-y: 4px;
+    // Literal z — covers any sibling declared after the tooltip in the
+    // blocks container (insert-slot dashes, U-turn ticks, secondary
+    // routing artwork) that would otherwise paint a hairline through
+    // the card. Slint accepts literal z on for-loop-free elements.
+    z: 999;
 
     // Header strip
     Rectangle {
@@ -1123,11 +1128,29 @@ component BlockHoverTooltip inherits Rectangle {
         }
     }
 
-    // Model name — fills the gap between pill and brand logo.
-    Text {
+    // Brand text in dim small caps before the model name — helps even
+    // when the BrandLogo is absent for the brand. Empty string for
+    // unbranded models (native, generic) keeps the line clean.
+    brand-text := Text {
         x: 10px + backend-text.preferred-width + 14px + 8px;
         y: 0px;
-        width: 320px - (backend-text.preferred-width + 32px) - 78px;
+        height: 36px;
+        text: root.block.brand == "" || root.block.brand == "native" || root.block.brand == "generic"
+            ? ""
+            : root.block.brand;
+        color: #8fa0b6;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.6px;
+        vertical-alignment: center;
+    }
+
+    // Model name — sits to the right of the brand text, fills the
+    // remaining header space.
+    Text {
+        x: brand-text.x + brand-text.preferred-width + (brand-text.text == "" ? 0px : 6px);
+        y: 0px;
+        width: 320px - (brand-text.x + brand-text.preferred-width + 78px);
         height: 36px;
         text: root.block.display_name;
         color: #f4f7fb;
