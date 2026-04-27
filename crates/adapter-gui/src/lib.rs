@@ -45,6 +45,8 @@ mod select_chain_block_callback;
 mod block_editor_window_setup;
 mod block_editor_window_params;
 mod block_editor_window_lifecycle;
+mod cli;
+pub use cli::parse_cli_args_from;
 pub(crate) use chain_editor_callbacks::setup_chain_editor_callbacks;
 pub(crate) use runtime_lifecycle::{
     assign_new_block_ids, remove_live_chain_runtime, stop_project_runtime,
@@ -111,22 +113,6 @@ const DEFAULT_BIT_DEPTH: u32 = 32;
 const SUPPORTED_SAMPLE_RATES: &[u32] = &[44_100, 48_000, 88_200, 96_000];
 const SUPPORTED_BUFFER_SIZES: &[u32] = &[32, 64, 128, 256, 512, 1024];
 const SUPPORTED_BIT_DEPTHS: &[u32] = &[16, 24, 32];
-
-pub fn parse_cli_args_from(args: &[&str]) -> (Option<PathBuf>, bool, bool) {
-    let mut project_path: Option<PathBuf> = None;
-    let mut auto_save = false;
-    let mut fullscreen = false;
-    for arg in args.iter().skip(1) {
-        if *arg == "--auto-save" {
-            auto_save = true;
-        } else if *arg == "--fullscreen" {
-            fullscreen = true;
-        } else if !arg.starts_with('-') {
-            project_path = Some(PathBuf::from(arg));
-        }
-    }
-    (project_path, auto_save, fullscreen)
-}
 
 pub fn run_desktop_app(
     runtime_mode: AppRuntimeMode,
