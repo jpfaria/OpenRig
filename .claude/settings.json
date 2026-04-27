@@ -1,5 +1,15 @@
 {
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -n '{hookSpecificOutput:{hookEventName:\"SessionStart\",additionalContext:\"OpenRig CLAUDE.md ordena que estas skills sejam carregadas sempre que houver código Rust ou Slint envolvido. Invoque-as via Skill tool no início da sessão, em uma única mensagem com chamadas paralelas: openrig-code-quality, rust-best-practices, slint-best-practices. As skills situacionais (superpowers:brainstorming, test-driven-development, systematic-debugging, executing-plans, verification-before-completion, receiving-code-review, finishing-a-development-branch, writing-skills, dispatching-parallel-agents) permanecem sob demanda quando a situação correspondente surgir, conforme CLAUDE.md.\"}}'"
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Glob|Grep",
