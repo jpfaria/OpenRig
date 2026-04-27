@@ -1,0 +1,302 @@
+// SpectrumWindow — top-bar feature replacing the spectrum_analyzer block.
+// One row per terminal output entry of every enabled chain.
+//
+// Visual: dark card per row, 63 vertical bars per analyzer (1/6-octave),
+// labelled at decade markers. Peak hold drawn as a 1-px line above each bar.
+import { ScrollView } from "std-widgets.slint";
+
+// Power footswitch — same sprite + size used by block FootSwitch
+// (see components/foot_switch.slint). No LED, no label.
+component PowerFootSwitch inherits Rectangle {
+    in property <bool> active;
+    callback toggled();
+
+    width: 48px;
+    height: 48px;
+    clip: true;
+
+    Image {
+        source: @image-url("../assets/sprites/footswitch.png");
+        x: 0;
+        y: root.active ? -parent.height : 0;
+        width: parent.width;
+        height: 2 * parent.height;
+        image-fit: fill;
+        image-rendering: smooth;
+    }
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.toggled(); }
+    }
+}
+
+export struct SpectrumRow {
+    label: string,
+    // 63-band level array (0.0..1.0). When the row is inactive (chain
+    // off / spectrum powered off) the array stays at zeros.
+    levels: [float],
+    // 63-band peak holds (0.0..1.0). Same length as `levels`.
+    peaks: [float],
+    active: bool,
+}
+
+// ── Single-row spectrum card — vertical bars on a dark canvas ──────────
+component SpectrumCard inherits Rectangle {
+    in property <SpectrumRow> data;
+
+    height: 132px;
+    border-radius: 8px;
+    background: @linear-gradient(180deg, #14181f 0%, #0e1116 100%);
+    border-width: 1px;
+    border-color: #1f2632;
+    clip: true;
+    drop-shadow-blur: 6px;
+    drop-shadow-color: #00000080;
+
+    // Channel label (top-left)
+    Text {
+        x: 14px; y: 8px;
+        width: parent.width - 32px;
+        height: 14px;
+        text: root.data.label;
+        color: #c5cdd9;
+        font-family: "Bebas Neue";
+        font-size: 11px;
+        letter-spacing: 1.4px;
+        overflow: elide;
+    }
+
+    // Inactive state ribbon
+    if !root.data.active : Text {
+        x: 0; y: parent.height / 2 - 6px;
+        width: parent.width; height: 14px;
+        text: "—";
+        color: #2a3340;
+        font-family: "Bebas Neue";
+        font-size: 14px;
+        horizontal-alignment: center;
+    }
+
+    // Bars — uniform width with small gap, anchored to the baseline.
+    // Slint can't iterate `int` ranges directly, so pre-compute the
+    // (level, peak) tuples server-side and feed `data.levels` /
+    // `data.peaks` (already 63-element arrays).
+    if root.data.active : Rectangle {
+        x: 12px;
+        y: 30px;
+        width: parent.width - 24px;
+        height: parent.height - 50px;
+
+        // 63 bars + 62 gaps. Bar stride derives from the available width.
+        property <length> bar-stride: parent.width / 63;
+        property <length> bar-width: bar-stride - 1px;
+
+        for level[i] in root.data.levels : Rectangle {
+            x: i * parent.bar-stride;
+            y: parent.height * (1.0 - level);
+            width: parent.bar-width;
+            height: parent.height * level;
+            background: level > 0.85 ? #ff7878 : (level > 0.6 ? #ffc266 : #4ade80);
+            border-radius: 1px;
+        }
+
+        // Peak hold — 1 px line per band, sits at peak position.
+        for peak[i] in root.data.peaks : Rectangle {
+            x: i * parent.bar-stride;
+            y: parent.height * (1.0 - peak) - 1px;
+            width: parent.bar-width;
+            height: 1px;
+            background: #f5f7ff;
+            opacity: 0.65;
+        }
+    }
+
+    // Decade labels at the bottom (20 / 100 / 1k / 10k / 20k).
+    // Drawn at fixed positions — labels on bands 0, 14, 34, 54, 60
+    // (matches `feature_dsp::spectrum_fft::BAND_LABELS`).
+    Rectangle {
+        x: 12px;
+        y: parent.height - 18px;
+        width: parent.width - 24px;
+        height: 14px;
+
+        property <length> bar-stride: parent.width / 63;
+
+        Text {
+            x: 0 * parent.bar-stride; y: 0; width: 20px;
+            text: "20"; color: #4a525e;
+            font-family: "Bebas Neue"; font-size: 9px;
+            letter-spacing: 0.8px;
+        }
+        Text {
+            x: 14 * parent.bar-stride - 6px; y: 0; width: 20px;
+            text: "100"; color: #4a525e;
+            font-family: "Bebas Neue"; font-size: 9px;
+            letter-spacing: 0.8px;
+        }
+        Text {
+            x: 34 * parent.bar-stride - 6px; y: 0; width: 20px;
+            text: "1k"; color: #4a525e;
+            font-family: "Bebas Neue"; font-size: 9px;
+            letter-spacing: 0.8px;
+        }
+        Text {
+            x: 54 * parent.bar-stride - 6px; y: 0; width: 20px;
+            text: "10k"; color: #4a525e;
+            font-family: "Bebas Neue"; font-size: 9px;
+            letter-spacing: 0.8px;
+        }
+        Text {
+            x: 60 * parent.bar-stride - 4px; y: 0; width: 20px;
+            text: "20k"; color: #4a525e;
+            font-family: "Bebas Neue"; font-size: 9px;
+            letter-spacing: 0.8px;
+        }
+    }
+}
+
+// ── SpectrumPanel — reusable content (used in both Window and inline modes) ──
+export component SpectrumPanel inherits Rectangle {
+    in property <[SpectrumRow]> spectrum-rows;
+    in property <bool> spectrum-enabled: false;
+    in property <bool> show-close-button: false;
+    callback close-spectrum();
+    callback toggle-enabled(bool);
+
+    background: @linear-gradient(180deg, #08090d 0%, #050608 100%);
+
+    // ── Header bar ───────────────────────────────────────────────────────
+    Rectangle {
+        x: 0; y: 0;
+        width: parent.width;
+        height: 72px;
+        background: #0c0e12;
+
+        Rectangle {
+            x: 0; y: parent.height - 1px;
+            width: parent.width; height: 1px;
+            background: #1c2028;
+        }
+
+        // Power footswitch — first element. Centered vertically.
+        PowerFootSwitch {
+            x: 14px; y: (72px - self.height) / 2;
+            active: root.spectrum-enabled;
+            toggled => { root.toggle-enabled(!root.spectrum-enabled); }
+        }
+
+        // Spectrum icon
+        Image {
+            x: 78px; y: 24px;
+            width: 24px; height: 24px;
+            source: @image-url("../assets/spectrum.svg");
+            colorize: #c5cdd9;
+        }
+
+        Text {
+            x: 110px; y: 0;
+            width: 140px; height: parent.height;
+            text: "SPECTRUM";
+            color: #e5ebf2;
+            font-family: "Bebas Neue";
+            font-size: 18px;
+            letter-spacing: 3.0px;
+            vertical-alignment: center;
+        }
+
+        // Close button (inline mode only)
+        if root.show-close-button : Rectangle {
+            x: parent.width - 40px; y: 22px;
+            width: 28px; height: 28px;
+            border-radius: 14px;
+            background: close-ta.has-hover ? #2a3340 : #1c2028;
+            border-width: 1px;
+            border-color: #2c323d;
+
+            Text {
+                x: 0; y: 0;
+                width: parent.width; height: parent.height;
+                text: "✕";
+                color: #c5cdd9;
+                font-family: "Inter";
+                font-size: 14px;
+                vertical-alignment: center;
+                horizontal-alignment: center;
+            }
+
+            close-ta := TouchArea {
+                mouse-cursor: pointer;
+                clicked => { root.close-spectrum(); }
+            }
+        }
+    }
+
+    // ── Empty state ──────────────────────────────────────────────────────
+    if root.spectrum-rows.length == 0 : Rectangle {
+        x: 0; y: 72px;
+        width: parent.width;
+        height: parent.height - 72px;
+
+        Text {
+            x: 0; y: parent.height / 2 - 32px;
+            width: parent.width; height: 24px;
+            text: "NO ACTIVE OUTPUTS";
+            color: #4a525e;
+            font-family: "Bebas Neue";
+            font-size: 16px;
+            letter-spacing: 2.4px;
+            horizontal-alignment: center;
+        }
+        Text {
+            x: 0; y: parent.height / 2 - 4px;
+            width: parent.width; height: 20px;
+            text: "Power on the spectrum and enable a chain with a configured output.";
+            color: #4a525e;
+            font-family: "Inter";
+            font-size: 11px;
+            horizontal-alignment: center;
+        }
+    }
+
+    // ── Spectrum cards ──────────────────────────────────────────────────
+    if root.spectrum-rows.length > 0 : ScrollView {
+        x: 16px; y: 88px;
+        width: parent.width - 32px;
+        height: parent.height - 104px;
+        viewport-height: root.spectrum-rows.length * 144px;
+
+        for row[index] in root.spectrum-rows : SpectrumCard {
+            x: 0;
+            y: index * 144px;
+            width: parent.width - 8px;
+            data: row;
+        }
+    }
+}
+
+export component SpectrumWindow inherits Window {
+    icon: @image-url("../assets/openrig-logomark.svg");
+    default-font-family: "Bebas Neue";
+    default-font-size: 13px;
+    title: "OpenRig · Spectrum";
+    min-width: 560px;
+    min-height: 280px;
+    preferred-width: 720px;
+    preferred-height: 480px;
+    background: #050608;
+
+    in property <[SpectrumRow]> spectrum-rows;
+    in property <bool> spectrum-enabled: false;
+    callback close-spectrum-window();
+    callback toggle-enabled(bool);
+
+    SpectrumPanel {
+        width: 100%;
+        height: 100%;
+        spectrum-rows: root.spectrum-rows;
+        spectrum-enabled: root.spectrum-enabled;
+        show-close-button: false;
+        close-spectrum => { root.close-spectrum-window(); }
+        toggle-enabled(e) => { root.toggle-enabled(e); }
+    }
+}

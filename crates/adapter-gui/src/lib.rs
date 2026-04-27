@@ -1,5 +1,7 @@
 mod thumbnails;
 mod plugin_info;
+mod spectrum_session;
+mod spectrum_wiring;
 mod tuner_session;
 mod tuner_wiring;
 
@@ -206,6 +208,11 @@ pub fn run_desktop_app(
     let tuner_session: Rc<RefCell<Option<tuner_session::TunerSession>>> =
         Rc::new(RefCell::new(None));
     let tuner_timer = Rc::new(Timer::default());
+    let spectrum_window =
+        SpectrumWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    let spectrum_session: Rc<RefCell<Option<spectrum_session::SpectrumSession>>> =
+        Rc::new(RefCell::new(None));
+    let spectrum_timer = Rc::new(Timer::default());
     window.set_app_version(env!("CARGO_PKG_VERSION").into());
     window.set_show_project_launcher(true);
     window.set_show_project_setup(false);
@@ -2193,6 +2200,16 @@ pub fn run_desktop_app(
             &project_runtime,
             &tuner_session,
             &tuner_timer,
+        );
+        // ── Spectrum window — top-bar feature ──
+        // Sibling of the tuner; same wiring shape, no mute path.
+        spectrum_wiring::wire_spectrum(
+            &window,
+            &spectrum_window,
+            &project_session,
+            &project_runtime,
+            &spectrum_session,
+            &spectrum_timer,
         );
 
         let chain_editor_window = chain_editor_window.clone();

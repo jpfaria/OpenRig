@@ -2124,6 +2124,7 @@ export component ProjectChainsPage inherits Rectangle {
     callback save-project();
     callback configure-project();
     callback open-tuner-window();
+    callback open-spectrum-window();
     callback remove-chain(int);
     callback toggle-chain-enabled(int);
     callback configure-chain(int);
@@ -2198,7 +2199,7 @@ export component ProjectChainsPage inherits Rectangle {
         }
 
         if !root.skip-launcher : HeaderIconAction {
-            x: parent.width - 200px;
+            x: parent.width - 240px;
             y: 14px;
             icon: @image-url("../assets/arrow-left.svg");
             tooltip: "Voltar";
@@ -2206,7 +2207,15 @@ export component ProjectChainsPage inherits Rectangle {
         }
 
         HeaderIconAction {
-            x: root.skip-launcher ? parent.width - 160px : parent.width - 160px;
+            x: parent.width - 200px;
+            y: 14px;
+            icon: @image-url("../assets/spectrum.svg");
+            tooltip: "Spectrum";
+            clicked => { root.open-spectrum-window(); }
+        }
+
+        HeaderIconAction {
+            x: parent.width - 160px;
             y: 14px;
             icon: @image-url("../assets/tuner.svg");
             tooltip: "Tuner";
