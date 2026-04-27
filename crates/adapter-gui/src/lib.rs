@@ -12,6 +12,7 @@ mod recent_projects_wiring;
 mod project_file_dialog_wiring;
 mod device_refresh_wiring;
 mod audio_wizard_wiring;
+mod project_settings_wiring;
 
 use anyhow::{anyhow, Result};
 
@@ -19,7 +20,7 @@ const SELECT_PATH_PREFIX: &str = "__select.";
 const SELECT_SELECTED_BLOCK_ID: &str = "__select.selected_block_id";
 use application::validate::validate_project;
 use domain::ids::{BlockId, DeviceId, ChainId};
-use infra_cpal::{invalidate_device_cache, AudioDeviceDescriptor, ProjectRuntimeController};
+use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use infra_filesystem::{FilesystemStorage, GuiAudioSettings};
 use project::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry};
 use project::catalog::{model_brand, model_display_name, model_type_label};
@@ -892,126 +893,23 @@ pub fn run_desktop_app(
             toast_timer: toast_timer.clone(),
         },
     );
-    {
-        let weak_window = window.as_weak();
-        let project_session = project_session.clone();
-        let project_devices = project_devices.clone();
-        let chain_input_device_options = chain_input_device_options.clone();
-        let chain_output_device_options = chain_output_device_options.clone();
-        let audio_settings_mode = audio_settings_mode.clone();
-        let project_settings_window = project_settings_window.as_weak();
-        let toast_timer = toast_timer.clone();
-        window.on_configure_project(move || {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let Some(settings_window) = project_settings_window.upgrade() else {
-                return;
-            };
-            // Invalidate device cache so newly connected/disconnected interfaces appear.
-            invalidate_device_cache();
-            let fresh_input = refresh_input_devices(&chain_input_device_options);
-            let fresh_output = refresh_output_devices(&chain_output_device_options);
-            let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else {
-                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
-                return;
-            };
-            project_devices.set_vec(build_project_device_rows(
-                &fresh_input,
-                &fresh_output,
-                &session.project.device_settings,
-            ));
-            *audio_settings_mode.borrow_mut() = AudioSettingsMode::Project;
-            window.set_project_name_draft(session.project.name.clone().unwrap_or_default().into());
-            settings_window
-                .set_project_name_draft(session.project.name.clone().unwrap_or_default().into());
-            settings_window.set_status_message("".into());
-            clear_status(&window, &toast_timer);
-            if fullscreen {
-                // In fullscreen mode, render inline — set project-devices on main window
-                window.set_project_devices(settings_window.get_project_devices());
-                window.set_show_project_settings(true);
-            } else {
-                show_child_window(window.window(), settings_window.window());
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let project_session = project_session.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
-        window.on_update_project_name(move |value| {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            window.set_project_name_draft(value.clone());
-            if let Some(session) = project_session.borrow_mut().as_mut() {
-                let trimmed = value.trim();
-                session.project.name = if trimmed.is_empty() {
-                    None
-                } else {
-                    Some(trimmed.to_string())
-                };
-                sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let weak_settings = project_settings_window.as_weak();
-        let project_session = project_session.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
-        project_settings_window.on_update_project_name(move |value| {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let Some(settings_window) = weak_settings.upgrade() else {
-                return;
-            };
-            window.set_project_name_draft(value.clone());
-            settings_window.set_project_name_draft(value.clone());
-            if let Some(session) = project_session.borrow_mut().as_mut() {
-                let trimmed = value.trim();
-                session.project.name = if trimmed.is_empty() {
-                    None
-                } else {
-                    Some(trimmed.to_string())
-                };
-                sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let toast_timer = toast_timer.clone();
-        window.on_close_project_settings(move || {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            clear_status(&window, &toast_timer);
-            window.set_show_project_settings(false);
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let weak_settings = project_settings_window.as_weak();
-        let toast_timer = toast_timer.clone();
-        project_settings_window.on_close_project_settings(move || {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let Some(settings_window) = weak_settings.upgrade() else {
-                return;
-            };
-            settings_window.set_status_message("".into());
-            clear_status(&window, &toast_timer);
-            window.set_show_project_settings(false);
-            let _ = settings_window.hide();
-        });
-    }
+    // --- Project settings callbacks (extracted to project_settings_wiring) ---
+    crate::project_settings_wiring::wire(
+        &window,
+        &project_settings_window,
+        crate::project_settings_wiring::ProjectSettingsCtx {
+            project_session: project_session.clone(),
+            project_devices: project_devices.clone(),
+            chain_input_device_options: chain_input_device_options.clone(),
+            chain_output_device_options: chain_output_device_options.clone(),
+            audio_settings_mode: audio_settings_mode.clone(),
+            saved_project_snapshot: saved_project_snapshot.clone(),
+            project_dirty: project_dirty.clone(),
+            toast_timer: toast_timer.clone(),
+            auto_save,
+            fullscreen,
+        },
+    );
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
