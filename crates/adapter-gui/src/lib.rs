@@ -29,6 +29,7 @@ mod chain_editor_callbacks;
 mod chain_io_save_wiring;
 mod block_model_search_wiring;
 mod block_picker_wiring;
+mod block_drawer_close_wiring;
 pub(crate) use chain_editor_callbacks::setup_chain_editor_callbacks;
 
 use anyhow::{anyhow, Result};
@@ -3006,47 +3007,24 @@ pub fn run_desktop_app(
             block_editor_persist_timer: block_editor_persist_timer.clone(),
         },
     );
-    {
-        let weak_window = window.as_weak();
-        let selected_block = selected_block.clone();
-        let block_editor_draft = block_editor_draft.clone();
-        let block_model_options = block_model_options.clone();
-        let filtered_block_model_options = filtered_block_model_options.clone();
-        let block_model_option_labels = block_model_option_labels.clone();
-        let block_parameter_items = block_parameter_items.clone();
-        let multi_slider_points = multi_slider_points.clone();
-        let curve_editor_points = curve_editor_points.clone();
-        let eq_band_curves = eq_band_curves.clone();
-        let block_editor_persist_timer = block_editor_persist_timer.clone();
-        let weak_block_editor_window = block_editor_window.as_weak();
-        let inline_stream_timer = inline_stream_timer.clone();
-        window.on_close_block_drawer(move || {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            block_editor_persist_timer.stop();
-            *inline_stream_timer.borrow_mut() = None;
-            *selected_block.borrow_mut() = None;
-            *block_editor_draft.borrow_mut() = None;
-            block_model_options.set_vec(Vec::new());
-            filtered_block_model_options.set_vec(Vec::new());
-            block_model_option_labels.set_vec(Vec::new());
-            block_parameter_items.set_vec(Vec::new());
-            multi_slider_points.set_vec(Vec::new());
-            curve_editor_points.set_vec(Vec::new());
-            eq_band_curves.set_vec(Vec::new());
-            window.set_eq_total_curve("".into());
-            window.set_block_drawer_selected_model_index(-1);
-            window.set_block_drawer_selected_type_index(-1);
-            set_selected_block(&window, None, None);
-            window.set_show_block_type_picker(false);
-            window.set_show_block_drawer(false);
-            window.set_block_drawer_status_message("".into());
-            if let Some(block_editor_window) = weak_block_editor_window.upgrade() {
-                let _ = block_editor_window.hide();
-            }
-        });
-    }
+    // --- Block drawer close (extracted to block_drawer_close_wiring) ---
+    crate::block_drawer_close_wiring::wire(
+        &window,
+        &block_editor_window,
+        crate::block_drawer_close_wiring::BlockDrawerCloseCtx {
+            selected_block: selected_block.clone(),
+            block_editor_draft: block_editor_draft.clone(),
+            block_model_options: block_model_options.clone(),
+            filtered_block_model_options: filtered_block_model_options.clone(),
+            block_model_option_labels: block_model_option_labels.clone(),
+            block_parameter_items: block_parameter_items.clone(),
+            multi_slider_points: multi_slider_points.clone(),
+            curve_editor_points: curve_editor_points.clone(),
+            eq_band_curves: eq_band_curves.clone(),
+            block_editor_persist_timer: block_editor_persist_timer.clone(),
+            inline_stream_timer: inline_stream_timer.clone(),
+        },
+    );
     {
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
