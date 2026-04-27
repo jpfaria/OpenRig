@@ -7,6 +7,7 @@ mod tuner_wiring;
 mod insert_wiring;
 mod device_settings_wiring;
 mod chain_io_picker_wiring;
+mod block_editor_window_wiring;
 
 use anyhow::{anyhow, Result};
 
@@ -510,161 +511,14 @@ pub fn run_desktop_app(
     block_editor_window.set_block_drawer_selected_type_index(-1);
     block_editor_window.set_block_drawer_selected_model_index(-1);
     block_editor_window.set_block_drawer_enabled(true);
-    {
-        let weak_window = window.as_weak();
-        block_editor_window.on_choose_block_model(move |index| {
-            if let Some(window) = weak_window.upgrade() {
-                window.invoke_choose_block_model(index);
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        block_editor_window.on_close_block_drawer(move || {
-            if let Some(window) = weak_window.upgrade() {
-                window.invoke_close_block_drawer();
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        block_editor_window.on_save_block_drawer(move || {
-            if let Some(window) = weak_window.upgrade() {
-                window.invoke_save_block_drawer();
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        block_editor_window.on_delete_block_drawer(move || {
-            if let Some(window) = weak_window.upgrade() {
-                window.invoke_delete_block_drawer();
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let plugin_info_window = plugin_info_window.clone();
-        block_editor_window.on_show_plugin_info(move |effect_type, model_id| {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let effect_type = effect_type.to_string();
-            let model_id = model_id.to_string();
-
-            let display_name = model_display_name(&effect_type, &model_id);
-            let brand = model_brand(&effect_type, &model_id);
-            let type_label = model_type_label(&effect_type, &model_id);
-
-            let lang = system_language();
-            let meta = plugin_info::plugin_metadata(&lang, &model_id);
-
-            let (screenshot_img, has_screenshot) = load_screenshot_image(&effect_type, &model_id);
-
-            let info_win = match PluginInfoWindow::new() {
-                Ok(w) => w,
-                Err(e) => {
-                    log::error!("Failed to create PluginInfoWindow: {}", e);
-                    return;
-                }
-            };
-
-            info_win.set_plugin_name(display_name.into());
-            info_win.set_brand(brand.into());
-            info_win.set_type_label(type_label.into());
-            info_win.set_description(meta.description.into());
-            info_win.set_license(meta.license.into());
-            info_win.set_has_homepage(!meta.homepage.is_empty());
-            info_win.set_homepage(meta.homepage.clone().into());
-            info_win.set_screenshot(screenshot_img);
-            info_win.set_has_screenshot(has_screenshot);
-
-            {
-                let homepage = meta.homepage.clone();
-                info_win.on_open_homepage(move || {
-                    plugin_info::open_homepage(&homepage);
-                });
-            }
-
-            {
-                let win_weak = info_win.as_weak();
-                info_win.on_close_window(move || {
-                    if let Some(w) = win_weak.upgrade() {
-                        let _ = w.window().hide();
-                    }
-                });
-            }
-
-            *plugin_info_window.borrow_mut() = Some(info_win);
-            if let Some(w) = plugin_info_window.borrow().as_ref() {
-                show_child_window(window.window(), w.window());
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        block_editor_window.on_toggle_block_drawer_enabled(move || {
-            if let Some(window) = weak_window.upgrade() {
-                window.invoke_toggle_block_drawer_enabled();
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        block_editor_window.on_update_block_parameter_text(move |path, value| {
-            if let Some(window) = weak_window.upgrade() {
-                window.invoke_update_block_parameter_text(path, value);
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        block_editor_window.on_update_block_parameter_number(move |path, value| {
-            if let Some(window) = weak_window.upgrade() {
-                window.invoke_update_block_parameter_number(path, value);
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        block_editor_window.on_update_block_parameter_number_text(move |path, value| {
-            if let Some(window) = weak_window.upgrade() {
-                window.invoke_update_block_parameter_number_text(path, value);
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        block_editor_window.on_update_block_parameter_bool(move |path, value| {
-            if let Some(window) = weak_window.upgrade() {
-                window.invoke_update_block_parameter_bool(path, value);
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        block_editor_window.on_select_block_parameter_option(move |path, index| {
-            if let Some(window) = weak_window.upgrade() {
-                window.invoke_select_block_parameter_option(path, index);
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        block_editor_window.on_pick_block_parameter_file(move |path| {
-            if let Some(window) = weak_window.upgrade() {
-                window.invoke_pick_block_parameter_file(path);
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        block_editor_window.on_open_vst3_editor(move |model_id| {
-            if let Some(window) = weak_window.upgrade() {
-                window.invoke_open_vst3_editor(model_id);
-            }
-        });
-    }
+    // --- BlockEditorWindow callbacks (extracted to block_editor_window_wiring) ---
+    crate::block_editor_window_wiring::wire(
+        &window,
+        &block_editor_window,
+        crate::block_editor_window_wiring::BlockEditorWindowCtx {
+            plugin_info_window: plugin_info_window.clone(),
+        },
+    );
     // --- ChainInput/ChainOutput picker callbacks (extracted to chain_io_picker_wiring) ---
     crate::chain_io_picker_wiring::wire(
         &window,
@@ -7326,7 +7180,7 @@ fn assign_new_block_ids_recursive(block: &mut AudioBlock, chain_id: &ChainId) {
         }
     }
 }
-fn system_language() -> String {
+pub(crate) fn system_language() -> String {
     let lang = std::env::var("LANG").unwrap_or_default();
     let base = lang.split('.').next().unwrap_or("");
     // "C", "POSIX", empty, or too short = not a real locale → fall back to English
