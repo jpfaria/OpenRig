@@ -9,3 +9,4 @@ output/
 dist/
 coverage/
 .claude/scheduled_tasks.lock
+.playwright-mcp/

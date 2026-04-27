@@ -2,11 +2,11 @@ import "fonts/CooperHewitt-Semibold.ttf";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem, MultiSliderPoint, CurveEditorPoint } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
-import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage, TunerWindow, TunerPanel, TunerRow } from "pages/pages.slint";
+import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage, TunerWindow, TunerPanel, TunerRow, SpectrumWindow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
 import { PluginInfoWindow } from "pages/plugin_info_window.slint";
 
-export { PluginInfoWindow, TunerWindow, TunerRow }
+export { PluginInfoWindow, TunerWindow, TunerRow, SpectrumWindow, SpectrumRow }
 
 export component ProjectSettingsWindow inherits Window {
     icon: @image-url("assets/openrig-logomark.svg");
@@ -720,6 +720,12 @@ export component AppWindow inherits Window {
     callback close-tuner();
     callback toggle-tuner-mute(bool);
     callback toggle-tuner-enabled(bool);
+    callback open-spectrum-window();
+    in property <bool> show-spectrum;
+    in property <[SpectrumRow]> spectrum-rows;
+    in property <bool> spectrum-enabled: false;
+    callback close-spectrum();
+    callback toggle-spectrum-enabled(bool);
     callback remove-chain(int);
     callback toggle-chain-enabled(int);
     callback configure-chain(int);
@@ -934,6 +940,12 @@ export component AppWindow inherits Window {
         close-tuner => { root.close-tuner(); }
         toggle-tuner-mute(m) => { root.toggle-tuner-mute(m); }
         toggle-tuner-enabled(e) => { root.toggle-tuner-enabled(e); }
+        open-spectrum-window => { root.open-spectrum-window(); }
+        show-spectrum: root.show-spectrum;
+        spectrum-rows: root.spectrum-rows;
+        spectrum-enabled: root.spectrum-enabled;
+        close-spectrum => { root.close-spectrum(); }
+        toggle-spectrum-enabled(e) => { root.toggle-spectrum-enabled(e); }
         remove-chain(index) => { root.remove-chain(index); }
         toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
         configure-chain(index) => { root.configure-chain(index); }
@@ -1075,6 +1087,12 @@ export component AppWindow inherits Window {
         close-tuner => { root.close-tuner(); }
         toggle-tuner-mute(m) => { root.toggle-tuner-mute(m); }
         toggle-tuner-enabled(e) => { root.toggle-tuner-enabled(e); }
+        open-spectrum-window => { root.open-spectrum-window(); }
+        show-spectrum: root.show-spectrum;
+        spectrum-rows: root.spectrum-rows;
+        spectrum-enabled: root.spectrum-enabled;
+        close-spectrum => { root.close-spectrum(); }
+        toggle-spectrum-enabled(e) => { root.toggle-spectrum-enabled(e); }
         remove-chain(index) => { root.remove-chain(index); }
         toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
         configure-chain(index) => { root.configure-chain(index); }

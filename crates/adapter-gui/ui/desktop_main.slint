@@ -1,7 +1,7 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay } from "models.slint";
-import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage, TunerPanel, TunerRow } from "pages/pages.slint";
+import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage, TunerPanel, TunerRow, SpectrumPanel, SpectrumRow } from "pages/pages.slint";
 
 export component DesktopMain inherits Rectangle {
     in property <string> app-version;
@@ -99,6 +99,12 @@ export component DesktopMain inherits Rectangle {
     callback close-tuner();
     callback toggle-tuner-mute(bool);
     callback toggle-tuner-enabled(bool);
+    callback open-spectrum-window();
+    in property <bool> show-spectrum;
+    in property <[SpectrumRow]> spectrum-rows;
+    in property <bool> spectrum-enabled: false;
+    callback close-spectrum();
+    callback toggle-spectrum-enabled(bool);
     callback remove-chain(int);
     callback toggle-chain-enabled(int);
     callback configure-chain(int);
@@ -252,6 +258,7 @@ export component DesktopMain inherits Rectangle {
             save-project => { root.save-project(); }
             configure-project => { root.configure-project(); }
             open-tuner-window => { root.open-tuner-window(); }
+            open-spectrum-window => { root.open-spectrum-window(); }
             remove-chain(index) => { root.remove-chain(index); }
             toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
             configure-chain(index) => { root.configure-chain(index); }
@@ -314,6 +321,17 @@ export component DesktopMain inherits Rectangle {
             close-tuner => { root.close-tuner(); }
             toggle-mute(m) => { root.toggle-tuner-mute(m); }
             toggle-enabled(e) => { root.toggle-tuner-enabled(e); }
+        }
+
+        // Fullscreen inline spectrum overlay (windowed mode uses SpectrumWindow instead)
+        if root.fullscreen && root.show-spectrum : SpectrumPanel {
+            width: parent.width;
+            height: parent.height;
+            spectrum-rows: root.spectrum-rows;
+            spectrum-enabled: root.spectrum-enabled;
+            show-close-button: true;
+            close-spectrum => { root.close-spectrum(); }
+            toggle-enabled(e) => { root.toggle-spectrum-enabled(e); }
         }
 
         // Fullscreen inline chain editor

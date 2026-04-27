@@ -933,10 +933,7 @@ name = "block-util"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "arc-swap",
  "block-core",
- "crossbeam-queue",
- "rustfft",
 ]
 
 [[package]]
@@ -1900,6 +1897,9 @@ dependencies = [
 [[package]]
 name = "feature-dsp"
 version = "0.1.0"
+dependencies = [
+ "rustfft",
+]
 
 [[package]]
 name = "femtovg"
