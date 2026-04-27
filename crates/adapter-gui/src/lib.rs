@@ -2762,19 +2762,6 @@ pub fn run_desktop_app(
         });
     }
     {
-        let chain_draft = chain_draft.clone();
-        chain_input_window.on_select_input_mode(move |index| {
-            if let Some(draft) = chain_draft.borrow_mut().as_mut() {
-                if let Some(gi) = draft.editing_input_index {
-                    if let Some(input) = draft.inputs.get_mut(gi) {
-                        input.mode = input_mode_from_index(index);
-                        log::debug!("[select_input_mode] group={}, index={}, mode={:?}", gi, index, input.mode);
-                    }
-                }
-            }
-        });
-    }
-    {
         let weak_window = window.as_weak();
         let weak_input_window = chain_input_window.as_weak();
         let chain_editor_window_ref = chain_editor_window.clone();

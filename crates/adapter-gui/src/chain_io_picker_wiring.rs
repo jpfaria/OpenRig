@@ -13,7 +13,7 @@ use std::rc::Rc;
 
 use slint::ComponentHandle;
 
-use crate::chain_editor::output_mode_from_index;
+use crate::chain_editor::{input_mode_from_index, output_mode_from_index};
 use crate::state::ChainDraft;
 use crate::{AppWindow, ChainInputWindow, ChainOutputWindow};
 
@@ -58,6 +58,24 @@ pub(crate) fn wire(
         chain_output_window.on_toggle_channel(move |index, selected| {
             if let Some(window) = weak_window.upgrade() {
                 window.invoke_toggle_chain_output_channel(index, selected);
+            }
+        });
+    }
+    {
+        let chain_draft = chain_draft.clone();
+        chain_input_window.on_select_input_mode(move |index| {
+            if let Some(draft) = chain_draft.borrow_mut().as_mut() {
+                if let Some(gi) = draft.editing_input_index {
+                    if let Some(input) = draft.inputs.get_mut(gi) {
+                        input.mode = input_mode_from_index(index);
+                        log::debug!(
+                            "[select_input_mode] group={}, index={}, mode={:?}",
+                            gi,
+                            index,
+                            input.mode
+                        );
+                    }
+                }
             }
         });
     }
