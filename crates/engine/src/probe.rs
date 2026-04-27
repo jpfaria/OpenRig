@@ -70,13 +70,81 @@ pub fn measure_chain_dsp_latency_ms(
 
     // Diagnostic: log the chain shape and elapsed time so the user can
     // sanity-check that the probe is exercising every enabled block, not
-    // short-circuiting somewhere. UI thread; eprintln is fine here.
-    let enabled_blocks: Vec<&'static str> = chain
+    // short-circuiting somewhere. The variant name alone is too coarse —
+    // every effect (preamp NAM, gain LV2, delay native, etc.) lives under
+    // `Core`, so listing variants would print "core" eight times and tell
+    // the user nothing about which models are actually in the chain. We
+    // ask each block for its `model_ref()` (effect_type + model) and fall
+    // back to the variant label only for I/O blocks that have no model.
+    // UI thread; eprintln is fine here.
+    let enabled_blocks: Vec<String> = chain
         .blocks
         .iter()
         .filter(|b| b.enabled)
-        .map(|b| b.kind.label())
+        .map(|b| match b.model_ref() {
+            Some(r) => format!("{}:{}", r.effect_type, r.model),
+            None => b.kind.label().to_string(),
+        })
         .collect();
+
+    // Post-build inspection: count, per segment, how many runtime nodes
+    // ended up as real `Audio` processors vs silent `Bypass` (which costs
+    // zero to "process"). A fresh probe runtime can hit this path when
+    // a NAM/IR/LV2/VST3 block fails to materialise its asset in a brand
+    // new runtime instance — `build_block_runtime_node` swallows the
+    // error, inserts a `bypass_runtime_node` with `faulted=true`, and the
+    // chain looks fast because most blocks aren't actually running.
+    //
+    // Listing each non-Audio block by id+model lets the user spot which
+    // model is missing from a probe even though it works in the live
+    // runtime. We hold the lock briefly here, then drop it before
+    // calling `process_input_f32` (which takes the same lock).
+    let runtime_summary: String = {
+        let guard = match runtime.processing.try_lock() {
+            Ok(g) => g,
+            Err(_) => {
+                // Should not happen on a freshly built runtime — the lock
+                // is uncontended because we just created the Arc and no
+                // one else holds it. Be defensive anyway.
+                eprintln!("[probe] lock contention on fresh runtime — skipping summary");
+                return 0.0;
+            }
+        };
+        let mut parts: Vec<String> = Vec::with_capacity(guard.input_states.len());
+        for (i, seg) in guard.input_states.iter().enumerate() {
+            let total = seg.blocks.len();
+            let mut audio = 0;
+            let mut bypass = 0;
+            let mut select = 0;
+            let mut faulted_or_bypass: Vec<String> = Vec::new();
+            for node in &seg.blocks {
+                match node.processor.kind_label() {
+                    "audio" => audio += 1,
+                    "select" => select += 1,
+                    "bypass" => {
+                        bypass += 1;
+                        let model = node
+                            .block_snapshot
+                            .model_ref()
+                            .map(|r| format!("{}:{}", r.effect_type, r.model))
+                            .unwrap_or_else(|| node.block_snapshot.kind.label().to_string());
+                        let suffix = if node.faulted { "!" } else { "" };
+                        faulted_or_bypass.push(format!("{}({}){}", node.block_id.0, model, suffix));
+                    }
+                    _ => {}
+                }
+            }
+            parts.push(format!(
+                "seg{i}={total}/A{audio}/B{bypass}/S{select}{}",
+                if faulted_or_bypass.is_empty() {
+                    String::new()
+                } else {
+                    format!(" bypassed={faulted_or_bypass:?}")
+                }
+            ));
+        }
+        parts.join(" | ")
+    };
 
     let start = std::time::Instant::now();
     process_input_f32(&runtime, 0, &data, PROBE_BUFFER_CHANNELS);
@@ -84,12 +152,13 @@ pub fn measure_chain_dsp_latency_ms(
 
     let ms = elapsed.as_nanos() as f32 / 1_000_000.0;
     eprintln!(
-        "[probe] chain={} sr={} buf_frames={} enabled_blocks={:?} elapsed={:.3}ms",
+        "[probe] chain={} sr={} buf_frames={} enabled_blocks={:?} elapsed={:.3}ms {}",
         chain.id.0,
         sample_rate,
         buffer_frames,
         enabled_blocks,
-        ms
+        ms,
+        runtime_summary,
     );
     ms
 }

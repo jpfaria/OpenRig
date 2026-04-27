@@ -170,7 +170,7 @@ fn bits_to_frame(bits: u64, layout: AudioChannelLayout) -> AudioFrame {
     }
 }
 
-enum AudioProcessor {
+pub(crate) enum AudioProcessor {
     Mono(Box<dyn MonoProcessor>),
     DualMono {
         left: Box<dyn MonoProcessor>,
@@ -282,7 +282,7 @@ pub struct BlockError {
 }
 
 pub struct ChainRuntimeState {
-    processing: Mutex<ChainProcessingState>,
+    pub(crate) processing: Mutex<ChainProcessingState>,
     /// Per-route output state. Swapped atomically on chain rebuild so the
     /// RT callback sees a fresh snapshot without taking any lock.
     output_routes: ArcSwap<Vec<Arc<OutputRoutingState>>>,
@@ -558,11 +558,11 @@ impl ChainRuntimeState {
 /// Number of frames to fade in after a chain rebuild to avoid clicks/pops.
 const FADE_IN_FRAMES: usize = 128;
 
-struct InputProcessingState {
+pub(crate) struct InputProcessingState {
     input_read_layout: AudioChannelLayout,
     processing_layout: AudioChannelLayout,
     input_channels: Vec<usize>,
-    blocks: Vec<BlockRuntimeNode>,
+    pub(crate) blocks: Vec<BlockRuntimeNode>,
     frame_buffer: Vec<AudioFrame>,
     /// Remaining frames of fade-in after a rebuild (0 = no fade active).
     fade_in_remaining: usize,
@@ -571,8 +571,8 @@ struct InputProcessingState {
     output_route_indices: Vec<usize>,
 }
 
-struct ChainProcessingState {
-    input_states: Vec<InputProcessingState>,
+pub(crate) struct ChainProcessingState {
+    pub(crate) input_states: Vec<InputProcessingState>,
     /// Maps CPAL input_index → Vec of input_states indices to process.
     input_to_segments: Vec<Vec<usize>>,
     /// Pre-allocated scratch buffers used by `process_input_f32`, indexed by
@@ -620,10 +620,24 @@ struct OutputRoutingState {
     buffer: ElasticBuffer,
 }
 
-enum RuntimeProcessor {
+pub(crate) enum RuntimeProcessor {
     Audio(AudioProcessor),
     Select(SelectRuntimeState),
     Bypass,
+}
+
+impl RuntimeProcessor {
+    /// Stable label of the processor variant — for diagnostics. Keeps the
+    /// `AudioProcessor` and `SelectRuntimeState` types private to the
+    /// runtime module while letting sibling modules (e.g. the latency
+    /// probe) classify nodes without pattern-matching on the variants.
+    pub(crate) fn kind_label(&self) -> &'static str {
+        match self {
+            RuntimeProcessor::Audio(_) => "audio",
+            RuntimeProcessor::Select(_) => "select",
+            RuntimeProcessor::Bypass => "bypass",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -638,23 +652,23 @@ enum FadeState {
     Bypassed,
 }
 
-struct BlockRuntimeNode {
+pub(crate) struct BlockRuntimeNode {
     #[cfg_attr(not(test), allow(dead_code))]
     instance_serial: u64,
-    block_id: BlockId,
-    block_snapshot: project::block::AudioBlock,
+    pub(crate) block_id: BlockId,
+    pub(crate) block_snapshot: project::block::AudioBlock,
     input_layout: AudioChannelLayout,
     output_layout: AudioChannelLayout,
     scratch: ProcessorScratch,
-    processor: RuntimeProcessor,
+    pub(crate) processor: RuntimeProcessor,
     stream_handle: Option<StreamHandle>,
     fade_state: FadeState,
     /// Set to true if this block panicked during audio processing.
     /// Once faulted, the block is permanently bypassed to prevent repeated crashes.
-    faulted: bool,
+    pub(crate) faulted: bool,
 }
 
-struct SelectRuntimeState {
+pub(crate) struct SelectRuntimeState {
     selected_block_id: BlockId,
     options: Vec<BlockRuntimeNode>,
 }
