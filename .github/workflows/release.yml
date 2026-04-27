@@ -295,17 +295,22 @@ jobs:
                 repository(owner: $owner, name: $name) {
                   milestone(number: $number) {
                     issues(states: CLOSED, first: 100, orderBy: {field: CREATED_AT, direction: DESC}) {
-                      nodes { number title }
+                      nodes { number title labels(first: 20) { nodes { name } } }
                     }
                     pullRequests(states: MERGED, first: 100, orderBy: {field: CREATED_AT, direction: DESC}) {
-                      nodes { number title }
+                      nodes { number title labels(first: 20) { nodes { name } } }
                     }
                   }
                 }
               }' -F owner="$OWNER" -F name="$NAME" -F number="$MILESTONE_NUMBER")
 
-            PRS=$(echo "$ITEMS" | jq -r '.data.repository.milestone.pullRequests.nodes[] | "- " + .title + " (#" + (.number|tostring) + ")"')
-            ISSUES=$(echo "$ITEMS" | jq -r '.data.repository.milestone.issues.nodes[] | "- " + .title + " (#" + (.number|tostring) + ")"')
+            # Exclude items labeled "duplicate" (work shipped in the twin
+            # issue) or "internal" (CI, build, scripts, project tooling
+            # — not user-facing changes).
+            FILTER='select(([.labels.nodes[].name] | any(. == "duplicate" or . == "internal")) | not)'
+
+            PRS=$(echo "$ITEMS" | jq -r ".data.repository.milestone.pullRequests.nodes[] | $FILTER | \"- \" + .title + \" (#\" + (.number|tostring) + \")\"")
+            ISSUES=$(echo "$ITEMS" | jq -r ".data.repository.milestone.issues.nodes[] | $FILTER | \"- \" + .title + \" (#\" + (.number|tostring) + \")\"")
 
             NOTES="## What's Changed"
             if [ -n "$PRS" ]; then
