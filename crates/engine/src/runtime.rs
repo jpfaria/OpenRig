@@ -340,9 +340,9 @@ const PROBE_FIRED: u8 = 2;
 /// Number of audio frames the probe beep occupies. At 48 kHz this is
 /// 128 / 48000 ≈ 2.7 ms of a short 1 kHz sine burst — audible as a "tick"
 /// without being intrusive.
-const PROBE_BEEP_FRAMES: usize = 128;
+pub(crate) const PROBE_BEEP_FRAMES: usize = 128;
 /// Frequency of the sine used for the probe beep, in Hz.
-const PROBE_BEEP_FREQ: f32 = 1000.0;
+pub(crate) const PROBE_BEEP_FREQ: f32 = 1000.0;
 /// Output sample amplitude that counts as "the probe arrived". Set low
 /// enough to catch the beep even through an amp model that attenuates
 /// or filters the 1 kHz sine, but well above a realistic digital noise
