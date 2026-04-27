@@ -8,74 +8,57 @@
 // when in tune, dim ochre (#776633) when no signal.
 import { ScrollView } from "std-widgets.slint";
 
-// Power footswitch — sprite + label below, no LED.
+// Power footswitch — same sprite + size used by block FootSwitch
+// (see components/foot_switch.slint). No label, no LED.
 component PowerFootSwitch inherits Rectangle {
     in property <bool> active;
     callback toggled();
 
-    width: 36px;
-    height: 56px;
+    width: 48px;
+    height: 48px;
+    clip: true;
 
-    Rectangle {
-        x: 4px; y: 0;
-        width: 28px; height: 28px;
-        clip: true;
-        // Sprite is vertical: 88×176 px, two 88×88 frames stacked.
-        // Top = pressed/on, bottom = released/off (matches FootSwitch
-        // component in components/foot_switch.slint).
-        Image {
-            source: @image-url("../assets/sprites/footswitch.png");
-            x: 0;
-            y: root.active ? -parent.height : 0;
-            width: parent.width;
-            height: 2 * parent.height;
-            image-fit: fill;
-            image-rendering: smooth;
-        }
-        TouchArea {
-            mouse-cursor: pointer;
-            clicked => { root.toggled(); }
-        }
+    // Sprite is vertical: 88×176 px, two 88×88 frames stacked.
+    // Top = pressed/on, bottom = released/off.
+    Image {
+        source: @image-url("../assets/sprites/footswitch.png");
+        x: 0;
+        y: root.active ? -parent.height : 0;
+        width: parent.width;
+        height: 2 * parent.height;
+        image-fit: fill;
+        image-rendering: smooth;
     }
-
-    Text {
-        x: 0; y: 32px;
-        width: parent.width; height: 14px;
-        text: "POWER";
-        color: root.active ? #88c5ff : #6a7280;
-        font-family: "Bebas Neue";
-        font-size: 9px;
-        letter-spacing: 1.2px;
-        horizontal-alignment: center;
+    TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.toggled(); }
     }
 }
 
-// Mute switch — label on the left, vintage toggle sprite, red LED on the right.
-// All three elements share a single horizontal line so the label sits next to
-// the toggle, not below it.
+// Mute switch — label "MUTE" on top, vintage toggle below, red LED on
+// the right of the toggle.
 component MuteSwitch inherits Rectangle {
     in property <bool> active;
     callback toggled();
 
-    width: 86px;
-    height: 34px;
+    width: 50px;
+    height: 52px;
 
-    // Label — vertically centered against the 34 px toggle.
+    // Label above the toggle group.
     Text {
-        x: 0; y: (parent.height - self.height) / 2;
-        width: 36px; height: 14px;
+        x: 0; y: 0;
+        width: parent.width; height: 12px;
         text: "MUTE";
         color: root.active ? #ff7878 : #8a95a5;
         font-family: "Bebas Neue";
         font-size: 9px;
         letter-spacing: 1.2px;
-        horizontal-alignment: right;
-        vertical-alignment: center;
+        horizontal-alignment: center;
     }
 
-    // Toggle sprite
+    // Toggle sprite — left side of the row below the label.
     Rectangle {
-        x: 42px; y: 0;
+        x: 4px; y: 16px;
         width: 26px; height: 34px;
         clip: true;
         Image {
@@ -93,9 +76,9 @@ component MuteSwitch inherits Rectangle {
         }
     }
 
-    // Red LED on the right of the toggle
+    // Red LED on the right of the toggle, vertically centered with it.
     Rectangle {
-        x: 72px; y: (parent.height - self.height) / 2;
+        x: 36px; y: 26px;
         width: 14px; height: 14px;
         clip: true;
         Image {
@@ -304,23 +287,24 @@ export component TunerPanel inherits Rectangle {
             background: #1c2028;
         }
 
-        // Power footswitch — first thing in the header (no LED, label below)
+        // Power footswitch — first thing in the header. Same size as the
+        // FootSwitch used inside chain blocks. No LED, no label.
         PowerFootSwitch {
-            x: 14px; y: 8px;
+            x: 14px; y: (72px - self.height) / 2;
             active: root.tuner-enabled;
             toggled => { root.toggle-enabled(!root.tuner-enabled); }
         }
 
         // Tuner icon
         Image {
-            x: 70px; y: 24px;
+            x: 78px; y: 24px;
             width: 24px; height: 24px;
             source: @image-url("../assets/tuner.svg");
             colorize: #c5cdd9;
         }
 
         Text {
-            x: 100px; y: 0;
+            x: 110px; y: 0;
             width: 80px; height: parent.height;
             text: "TUNER";
             color: #e5ebf2;
@@ -332,7 +316,7 @@ export component TunerPanel inherits Rectangle {
 
         // Input count chip
         if root.tuner-rows.length > 0 : Rectangle {
-            x: 180px; y: 26px;
+            x: 190px; y: 26px;
             width: 70px; height: 20px;
             border-radius: 10px;
             background: #1a2230;
@@ -379,10 +363,9 @@ export component TunerPanel inherits Rectangle {
             }
         }
 
-        // Mute switch (right side) — label, toggle and LED on a single
-        // horizontal line. Vertically centered against the 72 px header.
+        // Mute switch (right side) — label "MUTE" on top, toggle + LED below.
         MuteSwitch {
-            x: root.show-close-button ? parent.width - 138px : parent.width - 98px;
+            x: root.show-close-button ? parent.width - 102px : parent.width - 62px;
             y: (72px - self.height) / 2;
             active: root.mute-active;
             toggled => { root.toggle-mute(!root.mute-active); }
