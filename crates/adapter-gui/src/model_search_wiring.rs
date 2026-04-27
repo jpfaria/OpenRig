@@ -54,9 +54,12 @@ pub(crate) fn wire_standalone_block_editor_window(
     let weak_win = win.as_weak();
     win.on_choose_block_model_by_id(move |model_id| {
         let Some(idx) = resolve_model_id_in_block_options(&win_full, model_id.as_str()) else {
+            log::warn!("[search] model_id '{}' not found in standalone window list", model_id);
             return;
         };
+        log::info!("[search] standalone window: resolved '{}' → idx {}", model_id, idx);
         if let Some(w) = weak_win.upgrade() {
+            w.set_block_drawer_selected_model_index(idx);
             w.invoke_choose_block_model(idx);
         }
     });
