@@ -21,6 +21,7 @@ mod chain_io_main_wiring;
 mod chain_input_groups_wiring;
 mod chain_output_groups_wiring;
 mod chain_row_wiring;
+mod chain_editor_forwarders_wiring;
 
 use anyhow::{anyhow, Result};
 
@@ -3830,62 +3831,8 @@ pub fn run_desktop_app(
         });
     }
     // Fullscreen inline chain editor callbacks — delegate to ChainEditorWindow
-    {
-        let chain_editor_window = chain_editor_window.clone();
-        window.on_edit_chain_input(move |index| {
-            if let Some(cew) = chain_editor_window.borrow().as_ref() {
-                cew.invoke_edit_input(index);
-            }
-        });
-    }
-    {
-        let chain_editor_window = chain_editor_window.clone();
-        window.on_remove_chain_input(move |index| {
-            if let Some(cew) = chain_editor_window.borrow().as_ref() {
-                cew.invoke_remove_input(index);
-            }
-        });
-    }
-    {
-        let chain_editor_window = chain_editor_window.clone();
-        window.on_add_chain_input(move || {
-            if let Some(cew) = chain_editor_window.borrow().as_ref() {
-                cew.invoke_add_input();
-            }
-        });
-    }
-    {
-        let chain_editor_window = chain_editor_window.clone();
-        window.on_edit_chain_output(move |index| {
-            if let Some(cew) = chain_editor_window.borrow().as_ref() {
-                cew.invoke_edit_output(index);
-            }
-        });
-    }
-    {
-        let chain_editor_window = chain_editor_window.clone();
-        window.on_remove_chain_output(move |index| {
-            if let Some(cew) = chain_editor_window.borrow().as_ref() {
-                cew.invoke_remove_output(index);
-            }
-        });
-    }
-    {
-        let chain_editor_window = chain_editor_window.clone();
-        window.on_add_chain_output(move || {
-            if let Some(cew) = chain_editor_window.borrow().as_ref() {
-                cew.invoke_add_output();
-            }
-        });
-    }
-    {
-        let chain_editor_window = chain_editor_window.clone();
-        window.on_select_chain_instrument(move |index| {
-            if let Some(cew) = chain_editor_window.borrow().as_ref() {
-                cew.invoke_select_instrument(index);
-            }
-        });
-    }
+    // --- Chain editor delegation forwarders (extracted to chain_editor_forwarders_wiring) ---
+    crate::chain_editor_forwarders_wiring::wire(&window, chain_editor_window.clone());
     // Fullscreen inline I/O endpoint editor callbacks — delegate based on flow
     {
         let chain_editor_window = chain_editor_window.clone();
