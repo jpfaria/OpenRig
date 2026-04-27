@@ -146,19 +146,37 @@ pub struct SpectrumSnapshot {
     pub peaks: [f32; N_BANDS],
 }
 
-/// 63-band spectrum analyzer. Feed `FFT_SIZE` samples per call to
-/// [`SpectrumAnalyzer::process`] and read back a [`SpectrumSnapshot`].
+/// 63-band spectrum analyzer with built-in 75 % overlap sliding window.
 ///
-/// The analyzer is sample-rate aware: bin ranges are pre-computed once at
-/// construction. To re-use across rates, build a new instance.
+/// Feed any number of samples through [`SpectrumAnalyzer::process_chunk`];
+/// the analyzer keeps a `FFT_SIZE`-sized circular history and returns
+/// `Some(snapshot)` every time `HOP_SIZE` samples have accumulated since
+/// the previous FFT (~23 Hz refresh @ 48 kHz). The snapshot reflects the
+/// **most recent** FFT in the chunk — if a chunk crosses several HOP_SIZE
+/// boundaries (large UI tick), only the last frame is materialised.
+///
+/// The legacy [`SpectrumAnalyzer::process`] one-shot API is preserved for
+/// tests and any caller that already hands over an `FFT_SIZE`-sized buffer.
+///
+/// The analyzer is sample-rate aware: bin ranges and smoother decay rates
+/// are pre-computed once at construction. To re-use across rates, build a
+/// new instance.
 pub struct SpectrumAnalyzer {
     fft: Arc<dyn Fft<f32>>,
     hann: Vec<f32>,
     bin_ranges: [(usize, usize); N_BANDS],
     smoother: BandSmoother,
     peaks: PeakHolder,
-    /// Reusable scratch buffer to avoid per-call allocation.
+    /// Reusable scratch buffer to avoid per-FFT allocation.
     scratch: Vec<Complex<f32>>,
+    /// Circular history of the last `FFT_SIZE` samples. Filled lazily by
+    /// `process_chunk`; the sliding window reads from this to avoid the
+    /// caller having to assemble a contiguous buffer.
+    history: Vec<f32>,
+    /// Next write position in `history` (wraps mod `FFT_SIZE`).
+    history_write: usize,
+    /// Sample counter since the last FFT dispatch.
+    hop_count: usize,
 }
 
 impl SpectrumAnalyzer {
@@ -185,6 +203,9 @@ impl SpectrumAnalyzer {
             smoother: BandSmoother::new(sample_rate),
             peaks: PeakHolder::new(sample_rate),
             scratch: vec![Complex::new(0.0, 0.0); FFT_SIZE],
+            history: vec![0.0; FFT_SIZE],
+            history_write: 0,
+            hop_count: 0,
         }
     }
 
@@ -192,10 +213,58 @@ impl SpectrumAnalyzer {
         FFT_SIZE
     }
 
-    /// Run one FFT pass over `buffer` and return the updated band snapshot.
-    /// `buffer.len()` must equal [`FFT_SIZE`]; shorter or longer slices are
-    /// processed against the leading `FFT_SIZE` samples (excess ignored,
-    /// missing samples treated as zero).
+    /// Run one FFT pass over the current window (read in chronological
+    /// order from `history_write`) and return the updated band snapshot.
+    fn run_fft(&mut self) -> SpectrumSnapshot {
+        let start = self.history_write;
+        for i in 0..FFT_SIZE {
+            let s = self.history[(start + i) % FFT_SIZE];
+            self.scratch[i] = Complex::new(s * self.hann[i], 0.0);
+        }
+        self.fft.process(&mut self.scratch);
+
+        let scale = 2.0 / FFT_SIZE as f32;
+        let mut new_levels = [0.0_f32; N_BANDS];
+        for (i, &(lo, hi)) in self.bin_ranges.iter().enumerate() {
+            let mag = self.scratch[lo..hi.min(FFT_SIZE / 2)]
+                .iter()
+                .map(|c| c.norm() * scale)
+                .fold(0.0_f32, f32::max);
+            let db = 20.0 * mag.max(1e-10).log10();
+            new_levels[i] = ((db + 80.0) / 80.0).clamp(0.0, 1.0);
+        }
+
+        self.smoother.update(&new_levels);
+        self.peaks.update(&self.smoother.levels);
+
+        SpectrumSnapshot {
+            levels: self.smoother.levels,
+            peaks: self.peaks.peaks,
+        }
+    }
+
+    /// Push samples through the sliding window. Returns the latest snapshot
+    /// if any `HOP_SIZE` boundary was crossed during this chunk; `None`
+    /// otherwise. Allocation-free (history + scratch are pre-allocated).
+    pub fn process_chunk(&mut self, samples: &[f32]) -> Option<SpectrumSnapshot> {
+        let mut latest: Option<SpectrumSnapshot> = None;
+        for &s in samples {
+            self.history[self.history_write] = s;
+            self.history_write = (self.history_write + 1) % FFT_SIZE;
+            self.hop_count += 1;
+            if self.hop_count >= HOP_SIZE {
+                self.hop_count = 0;
+                latest = Some(self.run_fft());
+            }
+        }
+        latest
+    }
+
+    /// Run one FFT pass over an externally supplied buffer of exactly
+    /// [`FFT_SIZE`] samples. Kept for tests and callers that pre-assemble
+    /// the window themselves; production paths should prefer
+    /// [`Self::process_chunk`] which manages the sliding history and
+    /// 75 % overlap automatically.
     pub fn process(&mut self, buffer: &[f32]) -> SpectrumSnapshot {
         for i in 0..FFT_SIZE {
             let s = buffer.get(i).copied().unwrap_or(0.0);
@@ -210,7 +279,6 @@ impl SpectrumAnalyzer {
                 .iter()
                 .map(|c| c.norm() * scale)
                 .fold(0.0_f32, f32::max);
-            // -80 dBFS..0 dBFS → 0.0..1.0
             let db = 20.0 * mag.max(1e-10).log10();
             new_levels[i] = ((db + 80.0) / 80.0).clamp(0.0, 1.0);
         }

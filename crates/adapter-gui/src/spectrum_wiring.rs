@@ -235,17 +235,37 @@ fn start_polling_timer(
         if needs_rebuild {
             let pj = project_session.borrow();
             let rt = project_runtime.borrow();
-            if let (Some(s), Some(rt)) = (pj.as_ref(), rt.as_ref()) {
-                let new_session = SpectrumSession::build(&s.project, rt);
-                let rows = new_session.rows_model_rc();
-                if let Some(sw) = spectrum_window_weak.upgrade() {
-                    sw.set_spectrum_rows(rows.clone());
+            match (pj.as_ref(), rt.as_ref()) {
+                (Some(s), Some(rt)) => {
+                    let new_session = SpectrumSession::build(&s.project, rt);
+                    let rows = new_session.rows_model_rc();
+                    if let Some(sw) = spectrum_window_weak.upgrade() {
+                        sw.set_spectrum_rows(rows.clone());
+                    }
+                    if let Some(mw) = main_window_weak.upgrade() {
+                        mw.set_spectrum_rows(rows);
+                    }
+                    *spectrum_session.borrow_mut() = Some(new_session);
+                    rt.prune_dead_output_taps();
                 }
-                if let Some(mw) = main_window_weak.upgrade() {
-                    mw.set_spectrum_rows(rows);
+                _ => {
+                    // No runtime (last chain disabled, runtime torn down).
+                    // Drop any stale session and clear the visible bars so
+                    // the window does not freeze on the last live frame.
+                    if let Some(session) = spectrum_session.borrow_mut().as_mut() {
+                        session.freeze_to_zero();
+                    }
+                    *spectrum_session.borrow_mut() = None;
+                    let empty: Rc<VecModel<SpectrumRow>> =
+                        Rc::new(VecModel::from(Vec::<SpectrumRow>::new()));
+                    let empty_rc = ModelRc::from(empty);
+                    if let Some(sw) = spectrum_window_weak.upgrade() {
+                        sw.set_spectrum_rows(empty_rc.clone());
+                    }
+                    if let Some(mw) = main_window_weak.upgrade() {
+                        mw.set_spectrum_rows(empty_rc);
+                    }
                 }
-                *spectrum_session.borrow_mut() = Some(new_session);
-                rt.prune_dead_output_taps();
             }
         }
     });
