@@ -1,0 +1,306 @@
+//! TunerWindow wiring — all callbacks and the polling timer for the
+//! top-bar Tuner feature. Extracted out of `adapter-gui/src/lib.rs`
+//! (god file, issue #276) so a feature lives in its own file.
+//!
+//! `wire_tuner` is the single entry point. `lib.rs` calls it once during
+//! window setup and never touches tuner logic again.
+
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use infra_cpal::ProjectRuntimeController;
+use slint::{ComponentHandle, ModelRc, Timer, TimerMode, VecModel};
+
+use crate::helpers::use_inline_block_editor;
+use crate::state::ProjectSession;
+use crate::tuner_session::TunerSession;
+use crate::{AppWindow, TunerRow, TunerWindow};
+
+const TICK_INTERVAL: std::time::Duration = std::time::Duration::from_millis(33);
+
+/// Wire every Tuner callback (open / close / mute / power) onto the
+/// supplied windows. Idempotent in spirit but should only be called
+/// once per `AppWindow + TunerWindow` pair during application startup.
+pub fn wire_tuner(
+    window: &AppWindow,
+    tuner_window: &TunerWindow,
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    tuner_session: &Rc<RefCell<Option<TunerSession>>>,
+    tuner_timer: &Rc<Timer>,
+) {
+    wire_open(
+        window,
+        tuner_window,
+        project_session,
+        project_runtime,
+        tuner_session,
+        tuner_timer,
+    );
+    wire_close_inline(window, project_runtime, tuner_session, tuner_timer);
+    wire_close_windowed(tuner_window, project_runtime, tuner_session, tuner_timer);
+    wire_mute_inline(window, project_runtime);
+    wire_mute_windowed(tuner_window, project_runtime);
+    wire_power(
+        window,
+        tuner_window,
+        project_session,
+        project_runtime,
+        tuner_session,
+        tuner_timer,
+    );
+}
+
+fn wire_open(
+    window: &AppWindow,
+    tuner_window: &TunerWindow,
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    tuner_session: &Rc<RefCell<Option<TunerSession>>>,
+    tuner_timer: &Rc<Timer>,
+) {
+    let project_session = project_session.clone();
+    let project_runtime = project_runtime.clone();
+    let tuner_window_weak = tuner_window.as_weak();
+    let main_window_weak = window.as_weak();
+    let tuner_session = tuner_session.clone();
+    let tuner_timer = tuner_timer.clone();
+    window.on_open_tuner_window(move || {
+        let Some(tw) = tuner_window_weak.upgrade() else {
+            return;
+        };
+        let Some(main_w) = main_window_weak.upgrade() else {
+            return;
+        };
+        let inline = use_inline_block_editor(&main_w);
+
+        let new_session = build_session(&project_session, &project_runtime);
+        let rows_model = new_session
+            .as_ref()
+            .map(TunerSession::rows_model_rc)
+            .unwrap_or_else(empty_rows_model);
+
+        if inline {
+            main_w.set_tuner_rows(rows_model);
+            main_w.set_tuner_mute_active(false);
+            main_w.set_show_tuner(true);
+        } else {
+            tw.set_tuner_rows(rows_model);
+            tw.set_mute_active(false);
+            let _ = tw.show();
+        }
+        *tuner_session.borrow_mut() = new_session;
+
+        start_polling_timer(
+            &tuner_timer,
+            &tuner_session,
+            &project_session,
+            &project_runtime,
+            &tuner_window_weak,
+            &main_window_weak,
+        );
+    });
+}
+
+fn wire_close_inline(
+    window: &AppWindow,
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    tuner_session: &Rc<RefCell<Option<TunerSession>>>,
+    tuner_timer: &Rc<Timer>,
+) {
+    let project_runtime = project_runtime.clone();
+    let tuner_session = tuner_session.clone();
+    let tuner_timer = tuner_timer.clone();
+    let main_window_weak = window.as_weak();
+    window.on_close_tuner(move || {
+        teardown_session(&tuner_timer, &tuner_session, &project_runtime);
+        if let Some(mw) = main_window_weak.upgrade() {
+            mw.set_show_tuner(false);
+            mw.set_tuner_mute_active(false);
+        }
+    });
+}
+
+fn wire_close_windowed(
+    tuner_window: &TunerWindow,
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    tuner_session: &Rc<RefCell<Option<TunerSession>>>,
+    tuner_timer: &Rc<Timer>,
+) {
+    let project_runtime = project_runtime.clone();
+    let tuner_session = tuner_session.clone();
+    let tuner_timer = tuner_timer.clone();
+    let tuner_window_weak = tuner_window.as_weak();
+    tuner_window.on_close_tuner_window(move || {
+        teardown_session(&tuner_timer, &tuner_session, &project_runtime);
+        if let Some(tw) = tuner_window_weak.upgrade() {
+            tw.set_mute_active(false);
+            let _ = tw.hide();
+        }
+    });
+}
+
+fn wire_mute_inline(
+    window: &AppWindow,
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+) {
+    let project_runtime = project_runtime.clone();
+    let main_window_weak = window.as_weak();
+    window.on_toggle_tuner_mute(move |muted| {
+        if let Some(rt) = project_runtime.borrow().as_ref() {
+            rt.set_output_muted(muted);
+        }
+        if let Some(mw) = main_window_weak.upgrade() {
+            mw.set_tuner_mute_active(muted);
+        }
+    });
+}
+
+fn wire_mute_windowed(
+    tuner_window: &TunerWindow,
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+) {
+    let project_runtime = project_runtime.clone();
+    let tuner_window_weak = tuner_window.as_weak();
+    tuner_window.on_toggle_mute(move |muted| {
+        if let Some(rt) = project_runtime.borrow().as_ref() {
+            rt.set_output_muted(muted);
+        }
+        // One-way `in property <bool>` — the caller has to push the new
+        // value back so the toggle sprite + LED render correctly.
+        if let Some(tw) = tuner_window_weak.upgrade() {
+            tw.set_mute_active(muted);
+        }
+    });
+}
+
+fn wire_power(
+    window: &AppWindow,
+    tuner_window: &TunerWindow,
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    tuner_session: &Rc<RefCell<Option<TunerSession>>>,
+    tuner_timer: &Rc<Timer>,
+) {
+    let project_session = project_session.clone();
+    let project_runtime = project_runtime.clone();
+    let tuner_session = tuner_session.clone();
+    let tuner_timer = tuner_timer.clone();
+    let main_window_weak = window.as_weak();
+    let tuner_window_weak = tuner_window.as_weak();
+
+    let on_toggle_enabled = move |enabled: bool| {
+        if enabled {
+            let new_session = build_session(&project_session, &project_runtime);
+            if let Some(ref session) = new_session {
+                let rows = session.rows_model_rc();
+                if let Some(tw) = tuner_window_weak.upgrade() {
+                    tw.set_tuner_rows(rows.clone());
+                    tw.set_tuner_enabled(true);
+                }
+                if let Some(mw) = main_window_weak.upgrade() {
+                    mw.set_tuner_rows(rows);
+                    mw.set_tuner_enabled(true);
+                }
+            }
+            *tuner_session.borrow_mut() = new_session;
+            start_polling_timer(
+                &tuner_timer,
+                &tuner_session,
+                &project_session,
+                &project_runtime,
+                &tuner_window_weak,
+                &main_window_weak,
+            );
+        } else {
+            teardown_session(&tuner_timer, &tuner_session, &project_runtime);
+            if let Some(tw) = tuner_window_weak.upgrade() {
+                tw.set_tuner_enabled(false);
+            }
+            if let Some(mw) = main_window_weak.upgrade() {
+                mw.set_tuner_enabled(false);
+            }
+        }
+    };
+    let cloned = on_toggle_enabled.clone();
+    window.on_toggle_tuner_enabled(move |e| cloned(e));
+    tuner_window.on_toggle_enabled(move |e| on_toggle_enabled(e));
+}
+
+// ── helpers ─────────────────────────────────────────────────────────────
+
+fn build_session(
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+) -> Option<TunerSession> {
+    let pj = project_session.borrow();
+    let rt = project_runtime.borrow();
+    match (pj.as_ref(), rt.as_ref()) {
+        (Some(session), Some(runtime)) => Some(TunerSession::build(&session.project, runtime)),
+        _ => None,
+    }
+}
+
+fn empty_rows_model() -> ModelRc<TunerRow> {
+    ModelRc::from(Rc::new(VecModel::from(Vec::<TunerRow>::new())))
+}
+
+fn teardown_session(
+    tuner_timer: &Rc<Timer>,
+    tuner_session: &Rc<RefCell<Option<TunerSession>>>,
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+) {
+    tuner_timer.stop();
+    *tuner_session.borrow_mut() = None;
+    if let Some(rt) = project_runtime.borrow().as_ref() {
+        rt.prune_dead_input_taps();
+        rt.set_output_muted(false);
+    }
+}
+
+/// Drive the per-frame loop: drain rings, run YIN detection, and rebuild
+/// the session if the project's input topology changed under us.
+fn start_polling_timer(
+    tuner_timer: &Rc<Timer>,
+    tuner_session: &Rc<RefCell<Option<TunerSession>>>,
+    project_session: &Rc<RefCell<Option<ProjectSession>>>,
+    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
+    tuner_window_weak: &slint::Weak<TunerWindow>,
+    main_window_weak: &slint::Weak<AppWindow>,
+) {
+    let tuner_session = tuner_session.clone();
+    let project_session = project_session.clone();
+    let project_runtime = project_runtime.clone();
+    let tuner_window_weak = tuner_window_weak.clone();
+    let main_window_weak = main_window_weak.clone();
+    tuner_timer.start(TimerMode::Repeated, TICK_INTERVAL, move || {
+        if let Some(session) = tuner_session.borrow_mut().as_mut() {
+            session.tick();
+        }
+        let needs_rebuild = {
+            let pj = project_session.borrow();
+            let session = tuner_session.borrow();
+            match (pj.as_ref(), session.as_ref()) {
+                (Some(s), Some(sess)) => sess.needs_rebuild(&s.project),
+                (Some(_), None) => true,
+                _ => false,
+            }
+        };
+        if needs_rebuild {
+            let pj = project_session.borrow();
+            let rt = project_runtime.borrow();
+            if let (Some(s), Some(rt)) = (pj.as_ref(), rt.as_ref()) {
+                let new_session = TunerSession::build(&s.project, rt);
+                let rows = new_session.rows_model_rc();
+                if let Some(tw) = tuner_window_weak.upgrade() {
+                    tw.set_tuner_rows(rows.clone());
+                }
+                if let Some(mw) = main_window_weak.upgrade() {
+                    mw.set_tuner_rows(rows);
+                }
+                *tuner_session.borrow_mut() = Some(new_session);
+                rt.prune_dead_input_taps();
+            }
+        }
+    });
+}

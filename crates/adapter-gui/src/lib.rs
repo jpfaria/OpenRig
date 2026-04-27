@@ -1,6 +1,7 @@
 mod thumbnails;
 mod plugin_info;
 mod tuner_session;
+mod tuner_wiring;
 
 use anyhow::{anyhow, Result};
 
@@ -2182,8 +2183,21 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let project_settings_window = project_settings_window.as_weak();
-        // ── Tuner window — top-bar feature, replaces tuner block ──
-        {
+        // ── Tuner window — top-bar feature ──
+        // All open / close / mute / power callbacks + the polling timer
+        // live in `tuner_wiring`. lib.rs only knows how to call into it.
+        tuner_wiring::wire_tuner(
+            &window,
+            &tuner_window,
+            &project_session,
+            &project_runtime,
+            &tuner_session,
+            &tuner_timer,
+        );
+        // (legacy inline block — kept dormant so the surrounding diff
+        //  is reviewable; remove with a follow-up cleanup commit.)
+        #[allow(unused)]
+        if false {
             let project_session_for_tuner = project_session.clone();
             let project_runtime_for_tuner = project_runtime.clone();
             let tuner_window_weak = tuner_window.as_weak();
