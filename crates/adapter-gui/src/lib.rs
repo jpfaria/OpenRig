@@ -15,6 +15,7 @@ mod audio_wizard_wiring;
 mod project_settings_wiring;
 mod back_to_launcher_wiring;
 mod chain_preset_wiring;
+mod audio_settings_save_wiring;
 
 use anyhow::{anyhow, Result};
 
@@ -23,11 +24,10 @@ const SELECT_SELECTED_BLOCK_ID: &str = "__select.selected_block_id";
 use application::validate::validate_project;
 use domain::ids::{BlockId, DeviceId, ChainId};
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
-use infra_filesystem::{FilesystemStorage, GuiAudioSettings};
+use infra_filesystem::FilesystemStorage;
 use project::block::{AudioBlock, AudioBlockKind, InputBlock, InputEntry, OutputBlock, OutputEntry};
 use project::catalog::{model_brand, model_display_name, model_type_label};
 use project::chain::{Chain, ChainInputMode, ChainOutputMode};
-use project::device::DeviceSettings;
 use project::param::ParameterSet;
 use rfd::FileDialog;
 use slint::{Model, ModelRc, SharedString, Timer, VecModel};
@@ -61,7 +61,7 @@ use audio_devices::{
     refresh_input_devices, refresh_output_devices, ensure_devices_loaded,
     selected_device_index, build_project_device_rows, build_input_channel_items,
     build_output_channel_items, replace_channel_options, build_insert_send_channel_items,
-    build_insert_return_channel_items, selected_device_settings,
+    build_insert_return_channel_items,
     default_device_settings, normalize_device_settings, mark_unselected_devices,
 };
 use block_editor::{
@@ -92,7 +92,7 @@ use project_ops::{
     open_cli_project, resolve_project_paths, load_and_sync_app_config,
     canonical_project_path, register_recent_project,
     recent_project_items, project_display_name,
-    build_device_settings_from_gui, project_session_snapshot,
+    project_session_snapshot,
     set_project_dirty, sync_project_dirty,
     project_title_for_path,
 };
@@ -607,260 +607,26 @@ pub fn run_desktop_app(
             toast_timer: toast_timer.clone(),
         },
     );
-    {
-        let weak_window = window.as_weak();
-        let input_devices = input_devices.clone();
-        let output_devices = output_devices.clone();
-        let project_devices = project_devices.clone();
-        let audio_settings_mode = audio_settings_mode.clone();
-        let project_session = project_session.clone();
-        let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
-        let input_chain_devices = input_chain_devices.clone();
-        let output_chain_devices = output_chain_devices.clone();
-        let toast_timer = toast_timer.clone();
-        window.on_save_audio_settings(move || {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            match *audio_settings_mode.borrow() {
-                AudioSettingsMode::Gui => {
-                    let input_devices = match selected_device_settings(&input_devices, "input") {
-                        Ok(devices) => devices,
-                        Err(error) => {
-                            set_status_error(&window, &toast_timer, &error.to_string());
-                            return;
-                        }
-                    };
-                    let output_devices = match selected_device_settings(&output_devices, "output") {
-                        Ok(devices) => devices,
-                        Err(error) => {
-                            set_status_error(&window, &toast_timer, &error.to_string());
-                            return;
-                        }
-                    };
-                    let settings = GuiAudioSettings {
-                        input_devices,
-                        output_devices,
-                    };
-                    if !settings.is_complete() {
-                        set_status_warning(&window, &toast_timer, "Selecione pelo menos um input e um output antes de continuar.");
-                        return;
-                    }
-                    match FilesystemStorage::save_gui_audio_settings(&settings) {
-                        Ok(()) => {
-                            // Update in-memory device settings and resync the
-                            // audio runtime so changes take effect immediately.
-                            // On Linux/JACK this will restart jackd if sample
-                            // rate or buffer size changed.
-                            if let Some(session) = project_session.borrow_mut().as_mut() {
-                                session.project.device_settings = build_device_settings_from_gui(
-                                    &settings.input_devices,
-                                    &settings.output_devices,
-                                );
-                                // Apply device config to hardware (works even without active chains)
-                                if let Err(e) = infra_cpal::apply_device_settings(&session.project.device_settings) {
-                                    log::warn!("apply_device_settings failed: {e}");
-                                }
-                                if let Err(e) = sync_project_runtime(&project_runtime, session) {
-                                    set_status_error(&window, &toast_timer, &e.to_string());
-                                    return;
-                                }
-                            }
-                            clear_status(&window, &toast_timer);
-                            window.set_show_audio_settings(false);
-                        }
-                        Err(error) => set_status_error(&window, &toast_timer, &error.to_string()),
-                    }
-                }
-                AudioSettingsMode::Project => {
-                    let project_device_settings =
-                        match selected_device_settings(&project_devices, "device") {
-                            Ok(devices) => devices,
-                            Err(error) => {
-                                set_status_error(&window, &toast_timer, &error.to_string());
-                                return;
-                            }
-                        };
-                    // Persist device settings to per-machine config
-                    let gui_settings = GuiAudioSettings {
-                        input_devices: project_device_settings.clone(),
-                        output_devices: project_device_settings.clone(),
-                    };
-                    if let Err(e) = FilesystemStorage::save_gui_audio_settings(&gui_settings) {
-                        log::warn!("failed to persist gui audio settings: {e}");
-                    }
-                    let mut session_borrow = project_session.borrow_mut();
-                    let Some(session) = session_borrow.as_mut() else {
-                        set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
-                        return;
-                    };
-                    session.project.device_settings = project_device_settings
-                        .into_iter()
-                        .map(|device| DeviceSettings {
-                            device_id: DeviceId(device.device_id),
-                            sample_rate: device.sample_rate,
-                            buffer_size_frames: device.buffer_size_frames,
-                            bit_depth: device.bit_depth,
-                            #[cfg(target_os = "linux")]
-                            realtime: device.realtime,
-                            #[cfg(target_os = "linux")]
-                            rt_priority: device.rt_priority,
-                            #[cfg(target_os = "linux")]
-                            nperiods: device.nperiods,
-                        })
-                        .collect();
-                    // Apply device config to hardware (works even without active chains)
-                    if let Err(e) = infra_cpal::apply_device_settings(&session.project.device_settings) {
-                        log::warn!("apply_device_settings failed: {e}");
-                    }
-                    if let Err(error) = sync_project_runtime(&project_runtime, session) {
-                        set_status_error(&window, &toast_timer, &error.to_string());
-                        return;
-                    }
-                    replace_project_chains(
-                        &project_chains,
-                        &session.project,
-                        &*input_chain_devices.borrow(),
-                        &*output_chain_devices.borrow(),
-                    );
-                    window.set_project_title(
-                        project_title_for_path(session.project_path.as_ref(), &session.project)
-                            .into(),
-                    );
-                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
-                    clear_status(&window, &toast_timer);
-                    window.set_show_project_chains(true);
-                    window.set_show_chain_editor(false);
-                    window.set_show_project_settings(false);
-                }
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let weak_settings = project_settings_window.as_weak();
-        let input_devices = input_devices.clone();
-        let output_devices = output_devices.clone();
-        let project_devices = project_devices.clone();
-        let audio_settings_mode = audio_settings_mode.clone();
-        let project_session = project_session.clone();
-        let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
-        let input_chain_devices = input_chain_devices.clone();
-        let output_chain_devices = output_chain_devices.clone();
-        let toast_timer = toast_timer.clone();
-        project_settings_window.on_save_audio_settings(move || {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let Some(settings_window) = weak_settings.upgrade() else {
-                return;
-            };
-            let project_device_settings = match selected_device_settings(&project_devices, "device")
-            {
-                Ok(devices) => devices,
-                Err(error) => {
-                    settings_window.set_status_message(error.to_string().into());
-                    return;
-                }
-            };
-            match *audio_settings_mode.borrow() {
-                AudioSettingsMode::Gui => {
-                    let input_devices = match selected_device_settings(&input_devices, "input") {
-                        Ok(devices) => devices,
-                        Err(error) => {
-                            settings_window.set_status_message(error.to_string().into());
-                            return;
-                        }
-                    };
-                    let output_devices = match selected_device_settings(&output_devices, "output") {
-                        Ok(devices) => devices,
-                        Err(error) => {
-                            settings_window.set_status_message(error.to_string().into());
-                            return;
-                        }
-                    };
-                    let settings = GuiAudioSettings {
-                        input_devices,
-                        output_devices,
-                    };
-                    if !settings.is_complete() {
-                        settings_window.set_status_message(
-                            "Selecione pelo menos um input e um output antes de continuar.".into(),
-                        );
-                        return;
-                    }
-                    match FilesystemStorage::save_gui_audio_settings(&settings) {
-                        Ok(()) => {
-                            settings_window.set_status_message("".into());
-                            clear_status(&window, &toast_timer);
-                            window.set_show_audio_settings(false);
-                            let _ = settings_window.hide();
-                        }
-                        Err(error) => settings_window.set_status_message(error.to_string().into()),
-                    }
-                }
-                AudioSettingsMode::Project => {
-                    // Persist device settings to per-machine config
-                    let gui_settings = GuiAudioSettings {
-                        input_devices: project_device_settings.clone(),
-                        output_devices: project_device_settings.clone(),
-                    };
-                    if let Err(e) = FilesystemStorage::save_gui_audio_settings(&gui_settings) {
-                        log::warn!("failed to persist gui audio settings: {e}");
-                    }
-                    let mut session_borrow = project_session.borrow_mut();
-                    let Some(session) = session_borrow.as_mut() else {
-                        settings_window.set_status_message("Nenhum projeto carregado.".into());
-                        return;
-                    };
-                    session.project.device_settings = project_device_settings
-                        .into_iter()
-                        .map(|device| DeviceSettings {
-                            device_id: DeviceId(device.device_id),
-                            sample_rate: device.sample_rate,
-                            buffer_size_frames: device.buffer_size_frames,
-                            bit_depth: device.bit_depth,
-                            #[cfg(target_os = "linux")]
-                            realtime: device.realtime,
-                            #[cfg(target_os = "linux")]
-                            rt_priority: device.rt_priority,
-                            #[cfg(target_os = "linux")]
-                            nperiods: device.nperiods,
-                        })
-                        .collect();
-                    // Apply device config to hardware (works even without active chains)
-                    if let Err(e) = infra_cpal::apply_device_settings(&session.project.device_settings) {
-                        log::warn!("apply_device_settings failed: {e}");
-                    }
-                    if let Err(error) = sync_project_runtime(&project_runtime, session) {
-                        settings_window.set_status_message(error.to_string().into());
-                        return;
-                    }
-                    replace_project_chains(
-                        &project_chains,
-                        &session.project,
-                        &*input_chain_devices.borrow(),
-                        &*output_chain_devices.borrow(),
-                    );
-                    window.set_project_title(
-                        project_title_for_path(session.project_path.as_ref(), &session.project)
-                            .into(),
-                    );
-                    sync_project_dirty(&window, session, &saved_project_snapshot, &project_dirty, auto_save);
-                    settings_window.set_status_message("".into());
-                    clear_status(&window, &toast_timer);
-                    window.set_show_project_settings(false);
-                    let _ = settings_window.hide();
-                }
-            }
-        });
-    }
+    // --- Audio settings save callbacks (extracted to audio_settings_save_wiring) ---
+    crate::audio_settings_save_wiring::wire(
+        &window,
+        &project_settings_window,
+        crate::audio_settings_save_wiring::AudioSettingsSaveCtx {
+            input_devices: input_devices.clone(),
+            output_devices: output_devices.clone(),
+            project_devices: project_devices.clone(),
+            audio_settings_mode: audio_settings_mode.clone(),
+            project_session: project_session.clone(),
+            project_chains: project_chains.clone(),
+            project_runtime: project_runtime.clone(),
+            saved_project_snapshot: saved_project_snapshot.clone(),
+            project_dirty: project_dirty.clone(),
+            input_chain_devices: input_chain_devices.clone(),
+            output_chain_devices: output_chain_devices.clone(),
+            toast_timer: toast_timer.clone(),
+            auto_save,
+        },
+    );
     // --- Project file dialog callbacks (extracted to project_file_dialog_wiring) ---
     crate::project_file_dialog_wiring::wire(
         &window,
@@ -6320,7 +6086,7 @@ pub(crate) fn stop_project_runtime(project_runtime: &Rc<RefCell<Option<ProjectRu
         runtime.stop();
     }
 }
-fn sync_project_runtime(
+pub(crate) fn sync_project_runtime(
     project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
     session: &ProjectSession,
 ) -> Result<()> {
@@ -7319,10 +7085,10 @@ fn setup_chain_editor_callbacks(
 #[cfg(test)]
 mod tests {
     use super::{
-        block_editor_data, block_parameter_items_for_editor, build_device_settings_from_gui,
-        open_cli_project, parse_cli_args_from,
+        block_editor_data, block_parameter_items_for_editor, open_cli_project, parse_cli_args_from,
         SELECT_SELECTED_BLOCK_ID,
     };
+    use crate::project_ops::build_device_settings_from_gui;
     use domain::ids::BlockId;
     use domain::value_objects::ParameterValue;
     use project::catalog::supported_block_models;
