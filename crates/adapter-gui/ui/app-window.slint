@@ -2,7 +2,7 @@ import "fonts/CooperHewitt-Semibold.ttf";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, BlockKnobOverlay, CompactBlockItem, BlockStreamData, BlockStreamEntry, IoGroupItem, MultiSliderPoint, CurveEditorPoint } from "models.slint";
 import { DesktopMain } from "desktop_main.slint";
 import { TouchMain } from "touch_main.slint";
-import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage, TunerWindow, TunerRow } from "pages/pages.slint";
+import { ProjectSettingsPage, ChainEditorPage, ChainEndpointEditorPage, ChainInsertEditorPage, BlockEditorPanel, BlockPanelEditor, CompactChainViewPage, ChainIoGroupsPage, TunerWindow, TunerPanel, TunerRow } from "pages/pages.slint";
 import { Toast } from "components/toast.slint";
 import { PluginInfoWindow } from "pages/plugin_info_window.slint";
 
@@ -713,6 +713,11 @@ export component AppWindow inherits Window {
     callback save-project();
     callback configure-project();
     callback open-tuner-window();
+    in property <bool> show-tuner;
+    in property <[TunerRow]> tuner-rows;
+    in property <bool> tuner-mute-active;
+    callback close-tuner();
+    callback toggle-tuner-mute(bool);
     callback remove-chain(int);
     callback toggle-chain-enabled(int);
     callback configure-chain(int);
@@ -920,6 +925,11 @@ export component AppWindow inherits Window {
         save-project => { root.save-project(); }
         configure-project => { root.configure-project(); }
         open-tuner-window => { root.open-tuner-window(); }
+        show-tuner: root.show-tuner;
+        tuner-rows: root.tuner-rows;
+        tuner-mute-active: root.tuner-mute-active;
+        close-tuner => { root.close-tuner(); }
+        toggle-tuner-mute(m) => { root.toggle-tuner-mute(m); }
         remove-chain(index) => { root.remove-chain(index); }
         toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
         configure-chain(index) => { root.configure-chain(index); }
@@ -1054,6 +1064,11 @@ export component AppWindow inherits Window {
         save-project => { root.save-project(); }
         configure-project => { root.configure-project(); }
         open-tuner-window => { root.open-tuner-window(); }
+        show-tuner: root.show-tuner;
+        tuner-rows: root.tuner-rows;
+        tuner-mute-active: root.tuner-mute-active;
+        close-tuner => { root.close-tuner(); }
+        toggle-tuner-mute(m) => { root.toggle-tuner-mute(m); }
         remove-chain(index) => { root.remove-chain(index); }
         toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
         configure-chain(index) => { root.configure-chain(index); }
