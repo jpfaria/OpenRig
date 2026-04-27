@@ -5,6 +5,7 @@ mod spectrum_wiring;
 mod tuner_session;
 mod tuner_wiring;
 mod insert_wiring;
+mod device_settings_wiring;
 
 use anyhow::{anyhow, Result};
 
@@ -52,8 +53,7 @@ use audio_devices::{
     refresh_input_devices, refresh_output_devices, ensure_devices_loaded,
     selected_device_index, build_project_device_rows, build_input_channel_items,
     build_output_channel_items, replace_channel_options, build_insert_send_channel_items,
-    build_insert_return_channel_items, toggle_device_row, update_device_sample_rate,
-    update_device_buffer_size, update_device_bit_depth, selected_device_settings,
+    build_insert_return_channel_items, selected_device_settings,
     default_device_settings, normalize_device_settings, mark_unselected_devices,
 };
 use block_editor::{
@@ -747,109 +747,16 @@ pub fn run_desktop_app(
             auto_save,
         },
     );
-    {
-        let input_devices = input_devices.clone();
-        window.on_toggle_input_device(move |index, selected| {
-            toggle_device_row(&input_devices, index as usize, selected);
-        });
-    }
-    {
-        let project_devices = project_devices.clone();
-        project_settings_window.on_toggle_project_device(move |index, selected| {
-            toggle_device_row(&project_devices, index as usize, selected);
-        });
-    }
-    {
-        let output_devices = output_devices.clone();
-        window.on_toggle_output_device(move |index, selected| {
-            toggle_device_row(&output_devices, index as usize, selected);
-        });
-    }
-    {
-        let input_devices = input_devices.clone();
-        window.on_update_input_sample_rate(move |index, value| {
-            update_device_sample_rate(&input_devices, index as usize, value);
-        });
-    }
-    {
-        let input_devices = input_devices.clone();
-        window.on_update_input_buffer_size(move |index, value| {
-            update_device_buffer_size(&input_devices, index as usize, value);
-        });
-    }
-    {
-        let project_devices = project_devices.clone();
-        project_settings_window.on_update_project_sample_rate(move |index, value| {
-            update_device_sample_rate(&project_devices, index as usize, value);
-        });
-    }
-    {
-        let output_devices = output_devices.clone();
-        window.on_update_output_sample_rate(move |index, value| {
-            update_device_sample_rate(&output_devices, index as usize, value);
-        });
-    }
-    {
-        let output_devices = output_devices.clone();
-        window.on_update_output_buffer_size(move |index, value| {
-            update_device_buffer_size(&output_devices, index as usize, value);
-        });
-    }
-    {
-        let project_devices = project_devices.clone();
-        project_settings_window.on_update_project_buffer_size(move |index, value| {
-            update_device_buffer_size(&project_devices, index as usize, value);
-        });
-    }
-    // Fullscreen inline project settings callbacks (mirror the ProjectSettingsWindow callbacks)
-    {
-        let project_devices = project_devices.clone();
-        window.on_toggle_project_device(move |index, selected| {
-            toggle_device_row(&project_devices, index as usize, selected);
-        });
-    }
-    {
-        let project_devices = project_devices.clone();
-        window.on_update_project_sample_rate(move |index, value| {
-            update_device_sample_rate(&project_devices, index as usize, value);
-        });
-    }
-    {
-        let project_devices = project_devices.clone();
-        window.on_update_project_buffer_size(move |index, value| {
-            update_device_buffer_size(&project_devices, index as usize, value);
-        });
-    }
-    {
-        let project_devices = project_devices.clone();
-        project_settings_window.on_update_project_bit_depth(move |index, value| {
-            update_device_bit_depth(&project_devices, index as usize, value);
-        });
-    }
-    {
-        let project_devices = project_devices.clone();
-        window.on_toggle_project_device(move |index, selected| {
-            toggle_device_row(&project_devices, index as usize, selected);
-        });
-    }
-    {
-        let project_devices = project_devices.clone();
-        window.on_update_project_sample_rate(move |index, value| {
-            update_device_sample_rate(&project_devices, index as usize, value);
-        });
-    }
-    {
-        let project_devices = project_devices.clone();
-        window.on_update_project_buffer_size(move |index, value| {
-            update_device_buffer_size(&project_devices, index as usize, value);
-        });
-    }
-    {
-        let project_devices = project_devices.clone();
-        window.on_update_project_bit_depth(move |index, value| {
-            update_device_bit_depth(&project_devices, index as usize, value);
-        });
-    }
+    // --- Device settings callbacks (extracted to device_settings_wiring) ---
+    crate::device_settings_wiring::wire(
+        &window,
+        &project_settings_window,
+        crate::device_settings_wiring::DeviceSettingsCtx {
+            input_devices: input_devices.clone(),
+            output_devices: output_devices.clone(),
+            project_devices: project_devices.clone(),
+        },
+    );
     // Refresh devices — re-enumerates audio interfaces after a USB hot-swap.
     // Wired on both the standalone settings window and the inline (fullscreen)
     // settings page on the main window. Safe to call: the underlying
