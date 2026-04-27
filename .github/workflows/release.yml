@@ -287,10 +287,25 @@ jobs:
             echo "milestone_number=${MILESTONE_NUMBER}" >> "$GITHUB_OUTPUT"
             echo "use_generated=false" >> "$GITHUB_OUTPUT"
 
-            ITEMS=$(gh api "repos/${REPO}/issues?milestone=${MILESTONE_NUMBER}&state=closed&per_page=100")
+            OWNER="${REPO%%/*}"
+            NAME="${REPO#*/}"
 
-            PRS=$(echo "$ITEMS" | jq -r '.[] | select(.pull_request) | "- " + .title + " (#" + (.number|tostring) + ")"')
-            ISSUES=$(echo "$ITEMS" | jq -r '.[] | select(.pull_request == null) | "- " + .title + " (#" + (.number|tostring) + ")"')
+            ITEMS=$(gh api graphql -f query='
+              query($owner: String!, $name: String!, $number: Int!) {
+                repository(owner: $owner, name: $name) {
+                  milestone(number: $number) {
+                    issues(states: CLOSED, first: 100, orderBy: {field: CREATED_AT, direction: DESC}) {
+                      nodes { number title }
+                    }
+                    pullRequests(states: MERGED, first: 100, orderBy: {field: CREATED_AT, direction: DESC}) {
+                      nodes { number title }
+                    }
+                  }
+                }
+              }' -F owner="$OWNER" -F name="$NAME" -F number="$MILESTONE_NUMBER")
+
+            PRS=$(echo "$ITEMS" | jq -r '.data.repository.milestone.pullRequests.nodes[] | "- " + .title + " (#" + (.number|tostring) + ")"')
+            ISSUES=$(echo "$ITEMS" | jq -r '.data.repository.milestone.issues.nodes[] | "- " + .title + " (#" + (.number|tostring) + ")"')
 
             NOTES="## What's Changed"
             if [ -n "$PRS" ]; then
