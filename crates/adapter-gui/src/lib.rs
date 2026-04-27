@@ -13,6 +13,7 @@ mod project_file_dialog_wiring;
 mod device_refresh_wiring;
 mod audio_wizard_wiring;
 mod project_settings_wiring;
+mod back_to_launcher_wiring;
 
 use anyhow::{anyhow, Result};
 
@@ -27,7 +28,6 @@ use project::catalog::{model_brand, model_display_name, model_type_label};
 use project::chain::{Chain, ChainInputMode, ChainOutputMode};
 use project::device::DeviceSettings;
 use project::param::ParameterSet;
-use project::project::Project;
 use rfd::FileDialog;
 use slint::{Model, ModelRc, SharedString, Timer, VecModel};
 
@@ -1198,79 +1198,41 @@ pub fn run_desktop_app(
             }
         });
     }
-    {
-        let weak_window = window.as_weak();
-        let project_session = project_session.clone();
-        let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
-        let project_settings_window = project_settings_window.as_weak();
-        // ── Tuner window — top-bar feature ──
-        // All open / close / mute / power callbacks + the polling timer
-        // live in `tuner_wiring`. lib.rs only knows how to call into it.
-        tuner_wiring::wire_tuner(
-            &window,
-            &tuner_window,
-            &project_session,
-            &project_runtime,
-            &tuner_session,
-            &tuner_timer,
-        );
-        // ── Spectrum window — top-bar feature ──
-        // Sibling of the tuner; same wiring shape, no mute path.
-        spectrum_wiring::wire_spectrum(
-            &window,
-            &spectrum_window,
-            &project_session,
-            &project_runtime,
-            &spectrum_session,
-            &spectrum_timer,
-        );
-
-        let chain_editor_window = chain_editor_window.clone();
-        let block_editor_window = block_editor_window.as_weak();
-        let input_chain_devices = input_chain_devices.clone();
-        let output_chain_devices = output_chain_devices.clone();
-        let toast_timer = toast_timer.clone();
-        window.on_back_to_launcher(move || {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            if let Some(settings_window) = project_settings_window.upgrade() {
-                let _ = settings_window.hide();
-            }
-            if let Some(editor_window) = chain_editor_window.borrow().as_ref() {
-                let _ = editor_window.hide();
-            }
-            if let Some(editor_window) = block_editor_window.upgrade() {
-                let _ = editor_window.hide();
-            }
-            stop_project_runtime(&project_runtime);
-            *project_session.borrow_mut() = None;
-            *saved_project_snapshot.borrow_mut() = None;
-            replace_project_chains(
-                &project_chains,
-                &Project {
-                    name: None,
-                    device_settings: Vec::new(),
-                    chains: Vec::new(),
-                },
-                &*input_chain_devices.borrow(),
-                &*output_chain_devices.borrow(),
-            );
-            clear_status(&window, &toast_timer);
-            set_project_dirty(&window, &project_dirty, false);
-            window.set_project_title("Projeto".into());
-            window.set_project_name_draft("".into());
-            window.set_project_path_label("".into());
-            window.set_show_project_settings(false);
-            window.set_show_chain_editor(false);
-            window.set_show_project_chains(false);
-            window.set_show_project_setup(false);
-            window.set_show_project_launcher(true);
-        });
-    }
+    // ── Tuner window — top-bar feature ──
+    tuner_wiring::wire_tuner(
+        &window,
+        &tuner_window,
+        &project_session,
+        &project_runtime,
+        &tuner_session,
+        &tuner_timer,
+    );
+    // ── Spectrum window — top-bar feature ──
+    spectrum_wiring::wire_spectrum(
+        &window,
+        &spectrum_window,
+        &project_session,
+        &project_runtime,
+        &spectrum_session,
+        &spectrum_timer,
+    );
+    // --- Back-to-launcher callback (extracted to back_to_launcher_wiring) ---
+    crate::back_to_launcher_wiring::wire(
+        &window,
+        &project_settings_window,
+        &block_editor_window,
+        crate::back_to_launcher_wiring::BackToLauncherCtx {
+            project_session: project_session.clone(),
+            project_chains: project_chains.clone(),
+            project_runtime: project_runtime.clone(),
+            saved_project_snapshot: saved_project_snapshot.clone(),
+            project_dirty: project_dirty.clone(),
+            chain_editor_window: chain_editor_window.clone(),
+            input_chain_devices: input_chain_devices.clone(),
+            output_chain_devices: output_chain_devices.clone(),
+            toast_timer: toast_timer.clone(),
+        },
+    );
     {
         let weak_window = window.as_weak();
         let project_session = project_session.clone();
