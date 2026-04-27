@@ -2,9 +2,7 @@
 name = "block-util"
 version.workspace = true
 edition.workspace = true
+
 [dependencies]
 anyhow.workspace = true
-arc-swap.workspace = true
-crossbeam-queue.workspace = true
 block-core = { path = "../block-core" }
-feature-dsp = { path = "../feature-dsp" }

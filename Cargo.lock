@@ -933,10 +933,7 @@ name = "block-util"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "arc-swap",
  "block-core",
- "crossbeam-queue",
- "feature-dsp",
 ]
 
 [[package]]

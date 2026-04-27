@@ -2582,7 +2582,6 @@ mod tests {
     use block_delay::supported_models as supported_delay_models;
     use block_dyn::compressor_supported_models;
     use block_reverb::supported_models as supported_reverb_models;
-    use block_util::supported_models as supported_tuner_models;
     use domain::ids::{BlockId, DeviceId, ChainId};
     use domain::value_objects::ParameterValue;
     use project::block::{
@@ -2949,19 +2948,26 @@ mod tests {
         }
     }
 
+    /// Test helper — builds a generic processing block. Originally backed by
+    /// the (now removed) `chromatic_tuner` / `spectrum_analyzer` utility
+    /// blocks, but those were promoted to top-bar features (#319, #320).
+    /// We now back it with a delay block so the tests still have a real
+    /// `BlockProcessor` in their chains; `reference_hz` is preserved as a
+    /// dummy `time_ms` for the delay so unique values per block survive
+    /// the rename.
     fn tuner_block(block_id: &str, reference_hz: f32) -> AudioBlock {
-        let tuner_model = supported_tuner_models()
+        let delay_model = supported_delay_models()
             .first()
-            .expect("block-util must expose at least one tuner model")
+            .expect("block-delay must expose at least one model")
             .to_string();
         let mut params = ParameterSet::default();
-        params.insert("reference_hz", ParameterValue::Float(reference_hz));
+        params.insert("time_ms", ParameterValue::Float(reference_hz));
         AudioBlock {
             id: BlockId(block_id.into()),
             enabled: true,
             kind: AudioBlockKind::Core(CoreBlock {
-                effect_type: "utility".to_string(),
-                model: tuner_model,
+                effect_type: "delay".to_string(),
+                model: delay_model,
                 params,
             }),
         }

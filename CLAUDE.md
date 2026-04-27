@@ -315,6 +315,7 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 - **Settings** — dispositivos de áudio (input/output), sample rate, buffer size
 - **Chain Editor** — nome da chain, instrumento, I/O blocks (Input/Output como blocos na cadeia)
 - **Tuner** — janela independente com lista de tuners (1 por canal ativo de cada Input habilitado). Acesso pelo botão "Tuner" na toolbar da tela Chains. Implementação: `crates/feature-dsp/src/pitch_yin.rs` (YIN pitch detection) + `crates/engine/src/input_tap.rs` (lock-free per-channel SPSC tap pre-FX) + `crates/adapter-gui/src/tuner_session.rs` (UI side, drains rings em timer 30 Hz)
+- **Spectrum** — janela independente com analisador 63-band 1/6 octava por canal de cada Output terminal de cada chain habilitada. Acesso pelo botão "Spectrum" na toolbar da tela Chains. Implementação: `crates/feature-dsp/src/spectrum_fft.rs` (FFT 8192 + Hann + binning) + `crates/engine/src/output_tap.rs` (lock-free per-channel SPSC tap post-FX, **antes** do output mute) + `crates/adapter-gui/src/spectrum_session.rs` (UI side, drains rings em timer 30 Hz)
 
 **Tamanhos de janela:** Janela principal iniciada em 1100×620px (lógicos) para caber em telas de ~1300×700px (notebooks Windows). Tamanhos mínimos no Slint permitem redimensionamento livre.
 
@@ -344,7 +345,7 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 | **Dynamics** | Compressor e gate | 9 | Studio Clean Compressor, Noise Gate, Brick Wall Limiter (native); TAP DeEsser/Dynamics/Limiter, ZamComp, ZamGate, ZaMultiComp (LV2) |
 | **Filter** | EQ e moldagem tonal | 13 | Three Band EQ, Guitar EQ, 8-Band Parametric EQ (native); TAP Equalizer/BW, ZamEQ2, ZamGEQ31, CAPS AutoFilter, FOMP Auto-Wah, MOD HPF/LPF, Filta, Mud (LV2) |
 | **Wah** | Pedal wah-wah | 2 | Cry Classic (native); GxQuack (LV2) |
-| **Utility** | Ferramentas | 1 | Spectrum Analyzer (native) — Chromatic Tuner virou feature de toolbar (TunerWindow), não mais um bloco |
+| **Utility** | Ferramentas | 0 | (vazio) — Chromatic Tuner virou feature de toolbar (TunerWindow); Spectrum Analyzer virou feature de toolbar (SpectrumWindow); ambos não são mais blocos da cadeia |
 | **Body** | Ressonância de corpo acústico | 114 | Martin (45), Taylor (30), Gibson (10), Yamaha (5), Guild (4), Takamine (4), Cort (4), Emerald (2), Rainsong (2), Lowden (2) + outros boutique (IR) |
 | **Pitch** | Pitch shifting e harmonização | 4 | Harmonizer, x42 Autotune, MDA Detune, MDA RePsycho (LV2) |
 | **Full Rig** | Rig completo com pedais + amp + cab | 0 | (reservado para capturas com cadeia completa incluindo pedais) |
@@ -354,7 +355,7 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 | **Output** | Saída de áudio (device + channels) | — | standard |
 | **Insert** | Loop de efeito externo (send/return) | — | external_loop |
 
-**Total: 361+ modelos em 16 tipos de bloco processadores (5 backends: Native 34, NAM 89, IR 127, LV2 105, VST3 6).**
+**Total: 360+ modelos em 16 tipos de bloco processadores (5 backends: Native 33, NAM 89, IR 127, LV2 105, VST3 6).**
 
 ### Parâmetros comuns
 

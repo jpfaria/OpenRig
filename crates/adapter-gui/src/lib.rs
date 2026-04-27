@@ -4424,18 +4424,16 @@ pub fn run_desktop_app(
                         let weak_win = window.as_weak();
                         let runtime = project_runtime.clone();
                         let bid = block_id_for_editor.clone();
-                        let stream_model = model_id.clone();
                         timer.start(
                             slint::TimerMode::Repeated,
                             std::time::Duration::from_millis(50),
                             move || {
                                 let Some(win) = weak_win.upgrade() else { return; };
                                 let runtime_borrow = runtime.borrow();
-                                let kind: slint::SharedString = if stream_model == "spectrum_analyzer" {
-                                    "spectrum".into()
-                                } else {
-                                    "stream".into()
-                                };
+                                // No utility block currently produces a "spectrum" stream
+                                // (the spectrum_analyzer block was promoted to a top-bar
+                                // feature in #320). Kept generic for future stream blocks.
+                                let kind: slint::SharedString = "stream".into();
                                 let Some(rt) = runtime_borrow.as_ref() else { return; };
                                 if let Some(entries) = rt.poll_stream(&bid) {
                                     let slint_entries: Vec<BlockStreamEntry> = entries.iter().map(|e| BlockStreamEntry {
@@ -4562,7 +4560,6 @@ pub fn run_desktop_app(
                     let weak_win_stream = win.as_weak();
                     let project_runtime_stream = project_runtime.clone();
                     let block_id_for_stream = block_id_for_editor.clone();
-                    let stream_model_id = model_id.clone();
                     let mut poll_count: u32 = 0;
                     stream_timer.start(
                         slint::TimerMode::Repeated,
@@ -4570,11 +4567,10 @@ pub fn run_desktop_app(
                         move || {
                             let Some(win) = weak_win_stream.upgrade() else { return; };
                             let runtime_borrow = project_runtime_stream.borrow();
-                            let kind: slint::SharedString = if stream_model_id == "spectrum_analyzer" {
-                                "spectrum".into()
-                            } else {
-                                "stream".into()
-                            };
+                            // No utility block currently produces a "spectrum" stream
+                            // (the spectrum_analyzer block was promoted to a top-bar
+                            // feature in #320). Kept generic for future stream blocks.
+                            let kind: slint::SharedString = "stream".into();
                             let Some(runtime) = runtime_borrow.as_ref() else {
                                 poll_count += 1;
                                 if poll_count % 40 == 0 {
