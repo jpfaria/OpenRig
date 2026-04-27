@@ -7,4 +7,4 @@ anyhow.workspace = true
 arc-swap.workspace = true
 crossbeam-queue.workspace = true
 block-core = { path = "../block-core" }
-rustfft.workspace = true
+feature-dsp = { path = "../feature-dsp" }
