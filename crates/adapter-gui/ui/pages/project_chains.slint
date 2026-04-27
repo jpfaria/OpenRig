@@ -1092,20 +1092,23 @@ component BlockChip inherits Rectangle {
 
         // ── Parameter table ───────────────────────────────────────────
         // Each entry is one row: LABEL (uppercase, dim) on the left,
-        // value (white) + unit (dim) on the right. Left and right
-        // columns split the body width 45/55 so labels rarely truncate.
+        // value (white) + unit (dim) on the right. Hardcoded widths
+        // because referencing `parent.width` from inside a `for` loop
+        // returned 0 in Slint, collapsing the label column and hiding
+        // the value column entirely. With the tooltip width fixed at
+        // 320px, hardcoding the columns is safe and explicit.
         for entry[i] in root.block.param_entries : Rectangle {
             x: 0px;
             y: 36px + 8px + i * 18px;
-            width: parent.width;
+            width: 320px;
             height: 18px;
             background: transparent;
 
             Text {
                 x: 12px;
                 y: 0px;
-                width: (parent.width - 24px) * 0.45;
-                height: parent.height;
+                width: 140px;
+                height: 18px;
                 text: entry.label;
                 color: #8fa0b6;
                 font-size: 10px;
@@ -1116,10 +1119,10 @@ component BlockChip inherits Rectangle {
             }
 
             HorizontalLayout {
-                x: 12px + (parent.width - 24px) * 0.45;
+                x: 156px;
                 y: 0px;
-                width: (parent.width - 24px) * 0.55;
-                height: parent.height;
+                width: 152px;
+                height: 18px;
                 spacing: 4px;
                 alignment: end;
 
