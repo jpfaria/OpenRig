@@ -37,6 +37,7 @@ use arc_swap::ArcSwap;
 use crossbeam_queue::ArrayQueue;
 
 use crate::input_tap::InputTap;
+use crate::output_tap::OutputTap;
 use crate::spsc::SpscRing;
 
 /// Bounded capacity for the lock-free error queue. The audio thread drops
@@ -316,6 +317,11 @@ pub struct ChainRuntimeState {
     /// windows). Empty by default. Hot-swapped via ArcSwap so the audio
     /// thread reads without locking. See `crate::input_tap::InputTap`.
     input_taps: ArcSwap<Vec<Arc<InputTap>>>,
+    /// Per-channel post-FX sample taps published to consumers (Spectrum
+    /// window). Same lock-free semantics as `input_taps`, but the data
+    /// is sniffed at the output stage *before* `output_muted` is applied
+    /// so muting the audio output does not blank the spectrum view.
+    output_taps: ArcSwap<Vec<Arc<OutputTap>>>,
     /// When true, the output stage zeros every frame before publishing.
     /// Toggled by any consumer that needs a silent output (e.g. the
     /// Tuner window). Auto-cleared on consumer close.
@@ -435,6 +441,61 @@ impl ChainRuntimeState {
         }
         if changed {
             self.input_taps.store(Arc::new(kept));
+        }
+    }
+
+    /// Subscribe a consumer to the post-FX output samples of `output_index`
+    /// on this chain runtime. Returns one `Arc<SpscRing<f32>>` per channel
+    /// listed in `subscribed_channels`, in the same order. The caller drops
+    /// the rings to unsubscribe.
+    ///
+    /// Same lock-free semantics as `subscribe_input_tap`. The dispatch
+    /// happens **before** `output_muted` is applied, so muting the audio
+    /// output does not blank the analyzer feed.
+    pub fn subscribe_output_tap(
+        &self,
+        output_index: usize,
+        total_channels: usize,
+        subscribed_channels: &[usize],
+        capacity_per_channel: usize,
+    ) -> Vec<Arc<SpscRing<f32>>> {
+        let (tap, handles) = OutputTap::new(
+            output_index,
+            total_channels,
+            subscribed_channels,
+            capacity_per_channel,
+        );
+        let mut new_taps: Vec<Arc<OutputTap>> = self
+            .output_taps
+            .load_full()
+            .iter()
+            .cloned()
+            .collect();
+        new_taps.push(Arc::new(tap));
+        self.output_taps.store(Arc::new(new_taps));
+        handles
+    }
+
+    /// Drop output taps whose consumer handles have all been released.
+    /// Mirrors `prune_dead_input_taps`.
+    pub fn prune_dead_output_taps(&self) {
+        let current = self.output_taps.load_full();
+        let mut kept: Vec<Arc<OutputTap>> = Vec::with_capacity(current.len());
+        let mut changed = false;
+        for tap in current.iter() {
+            let has_consumer = tap
+                .channel_rings
+                .iter()
+                .filter_map(|r| r.as_ref())
+                .any(|ring| Arc::strong_count(ring) > 1);
+            if has_consumer {
+                kept.push(Arc::clone(tap));
+            } else {
+                changed = true;
+            }
+        }
+        if changed {
+            self.output_taps.store(Arc::new(kept));
         }
     }
 
@@ -733,6 +794,7 @@ pub fn build_chain_runtime_state(
         probe_state: std::sync::atomic::AtomicU8::new(PROBE_IDLE),
         draining: std::sync::atomic::AtomicBool::new(false),
         input_taps: ArcSwap::from_pointee(Vec::new()),
+        output_taps: ArcSwap::from_pointee(Vec::new()),
         output_muted: std::sync::atomic::AtomicBool::new(false),
     })
 }
@@ -2323,6 +2385,27 @@ pub fn process_output_f32(
             frame,
             route.output_mixdown,
         );
+    }
+
+    // Spectrum / output taps: read-only sniff into pre-allocated SPSC
+    // rings. Dispatched **before** the output-mute zero-fill so the
+    // analyzer keeps receiving samples while the user has the audio
+    // muted. Single ArcSwap load + early-return when no subscribers.
+    // No allocation, no lock, no syscall — see `output_tap.rs`.
+    let taps = runtime.output_taps.load();
+    if !taps.is_empty() {
+        for tap in taps.iter() {
+            if tap.output_index != output_index {
+                continue;
+            }
+            for (ch_idx, ring_opt) in tap.channel_rings.iter().enumerate() {
+                if let Some(ring) = ring_opt {
+                    for f in 0..num_frames {
+                        ring.push(out[f * output_total_channels + ch_idx]);
+                    }
+                }
+            }
+        }
     }
 
     // Output mute: silence the entire output stage when toggled by any
@@ -4525,6 +4608,103 @@ mod tests {
         // ring Arc, so its strong_count == 1 and prune drops it.
         runtime.prune_dead_input_taps();
         assert_eq!(runtime.input_taps.load().len(), 0);
+    }
+
+    // ── output tap ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn subscribe_output_tap_receives_post_fx_samples() {
+        let chain = io_passthrough_chain("chain:0");
+        let runtime = Arc::new(
+            build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
+                .expect("runtime should build"),
+        );
+
+        // Subscribe to output 0, channel 0.
+        let rings = runtime.subscribe_output_tap(0, 1, &[0], 256);
+        assert_eq!(rings.len(), 1, "one ring per subscribed channel");
+
+        // Drive the chain so the output buffer has known data.
+        process_input_f32(&runtime, 0, &[0.1_f32, 0.2, 0.3, 0.4], 1);
+        let mut out = vec![0.0_f32; 4];
+        process_output_f32(&runtime, 0, &mut out, 1);
+
+        // The ring should contain whatever the output buffer ended with.
+        let mut received = Vec::new();
+        while let Some(s) = rings[0].pop() {
+            received.push(s);
+        }
+        assert_eq!(received.len(), 4, "got {received:?}");
+    }
+
+    #[test]
+    fn subscribe_output_tap_only_targets_matching_output_index() {
+        let chain = io_passthrough_chain("chain:0");
+        let runtime = Arc::new(
+            build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
+                .expect("runtime should build"),
+        );
+
+        let rings = runtime.subscribe_output_tap(0, 1, &[0], 256);
+        // Push to a different output index — tap should not see the samples.
+        let mut out = vec![0.0_f32; 4];
+        process_output_f32(&runtime, 99, &mut out, 1);
+        assert!(
+            rings[0].pop().is_none(),
+            "tap on output 0 must ignore output 99"
+        );
+    }
+
+    #[test]
+    fn output_tap_publishes_before_mute_zero_fill() {
+        let chain = io_passthrough_chain("chain:0");
+        let runtime = Arc::new(
+            build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
+                .expect("runtime should build"),
+        );
+
+        let rings = runtime.subscribe_output_tap(0, 1, &[0], 256);
+        // Mute the output — the buffer reaching the device will be all zero,
+        // but the tap is dispatched *before* the mute, so it must still
+        // capture the chain's processed samples.
+        runtime.set_output_muted(true);
+        process_input_f32(&runtime, 0, &[0.1_f32, 0.2, 0.3, 0.4], 1);
+        let mut out = vec![0.0_f32; 4];
+        process_output_f32(&runtime, 0, &mut out, 1);
+
+        // Output buffer is muted (zero) ...
+        assert!(
+            out.iter().all(|&s| s == 0.0),
+            "muted output buffer must be all zero, got {:?}",
+            out
+        );
+        // ... but the tap got 4 samples (post-FX, pre-mute).
+        let mut received = Vec::new();
+        while let Some(s) = rings[0].pop() {
+            received.push(s);
+        }
+        assert_eq!(
+            received.len(),
+            4,
+            "tap must capture post-FX samples even when output is muted"
+        );
+    }
+
+    #[test]
+    fn prune_dead_output_taps_removes_unused() {
+        let chain = io_passthrough_chain("chain:0");
+        let runtime = Arc::new(
+            build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
+                .expect("runtime should build"),
+        );
+
+        {
+            let rings = runtime.subscribe_output_tap(0, 1, &[0], 64);
+            assert_eq!(rings.len(), 1);
+            assert_eq!(runtime.output_taps.load().len(), 1);
+        }
+        runtime.prune_dead_output_taps();
+        assert_eq!(runtime.output_taps.load().len(), 0);
     }
 
     // ── output_muted flag ────────────────────────────────────────────────────

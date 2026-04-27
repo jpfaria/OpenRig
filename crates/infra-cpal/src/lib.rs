@@ -2337,6 +2337,38 @@ impl ProjectRuntimeController {
         }
     }
 
+    /// Subscribe to post-FX samples from a chain's terminal output. See
+    /// [`engine::runtime::ChainRuntimeState::subscribe_output_tap`] for the
+    /// full contract. Returns an empty `Vec` if the chain has no runtime.
+    ///
+    /// The tap publish happens **before** the output-mute zero-fill, so
+    /// muting the audio output does not blank the analyzer feed.
+    pub fn subscribe_output_tap(
+        &self,
+        chain_id: &ChainId,
+        output_index: usize,
+        total_channels: usize,
+        subscribed_channels: &[usize],
+        capacity_per_channel: usize,
+    ) -> Vec<Arc<engine::spsc::SpscRing<f32>>> {
+        match self.runtime_graph.chains.get(chain_id) {
+            Some(runtime) => runtime.subscribe_output_tap(
+                output_index,
+                total_channels,
+                subscribed_channels,
+                capacity_per_channel,
+            ),
+            None => Vec::new(),
+        }
+    }
+
+    /// Drop output taps with no surviving consumer handles across all chains.
+    pub fn prune_dead_output_taps(&self) {
+        for runtime in self.runtime_graph.chains.values() {
+            runtime.prune_dead_output_taps();
+        }
+    }
+
     /// Toggle the output-mute flag on every chain runtime. When true,
     /// the output stage zeros every frame — used by the Tuner window
     /// so the user can tune silently. Auto-cleared on window close.
