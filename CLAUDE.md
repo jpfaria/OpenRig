@@ -104,6 +104,10 @@ Issue → Branch (from develop) → Commits → PR → Review/Merge
 8. **NUNCA rebase** — sempre `git merge`, nunca `git pull --rebase`.
 9. **NUNCA fechar issues** — só quando o usuário pedir. **Ao fechar, sempre atribuir ao próximo milestone aberto antes do close** (`gh api "repos/<owner>/<repo>/milestones?state=open" --jq '.[].title'` para listar). Se houver só um aberto, é esse. Se houver mais de um, perguntar ao usuário qual deles é o "próximo". **Se nenhum estiver aberto, parar e perguntar** ao usuário qual deve ser o próximo (nome + descrição) — NUNCA criar milestone por conta própria. Comandos: `gh issue edit <N> --milestone "<title>"` para atribuir, `gh issue close <N>` para fechar. Issue fechada sem milestone não aparece nos relatórios de release.
 10. **Push imediato após cada commit.**
+11. **Labels que excluem das release notes** — duas labels controlam o que sai do gerador automático em `.github/workflows/release.yml`:
+    - **`duplicate`** — aplicar quando descobrir que a issue duplica outra existente (mesmo escopo, mesmo body). Cronologicamente: a duplicata é a mais nova; a original mantém o histórico. Se o trabalho foi entregue na duplicata por engano, marcar a duplicata com `duplicate` para sair do release notes; o trabalho aparece quando a original for fechada como `completed` no próximo ciclo.
+    - **`internal`** — aplicar em qualquer issue cujo escopo seja CI/CD, scripts, workflows, dependências de build, configs do projeto, processos de planejamento, ou qualquer outra mudança não visível ao usuário final do app.
+    - **Antes de criar issue nova:** `gh issue list --state all --search "..."` é regra #1; se houver duplicata, NÃO crie — comente na original. Se já criou e descobriu depois, aplique `duplicate` na nova e linke a original.
 
 ### Workspace isolado (.solvers/)
 
