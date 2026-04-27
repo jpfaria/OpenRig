@@ -11,6 +11,7 @@ mod block_editor_window_wiring;
 mod recent_projects_wiring;
 mod project_file_dialog_wiring;
 mod device_refresh_wiring;
+mod audio_wizard_wiring;
 
 use anyhow::{anyhow, Result};
 
@@ -596,39 +597,14 @@ pub fn run_desktop_app(
             toast_timer: toast_timer.clone(),
         },
     );
-    {
-        let weak_window = window.as_weak();
-        let input_devices = input_devices.clone();
-        let toast_timer = toast_timer.clone();
-        window.on_go_to_output_step(move || {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            match selected_device_settings(&input_devices, "input") {
-                Ok(devices) if !devices.is_empty() => {
-                    clear_status(&window, &toast_timer);
-                    window.set_wizard_step(1);
-                }
-                Ok(_) => {
-                    set_status_warning(&window, &toast_timer, "Selecione pelo menos um input antes de continuar.");
-                }
-                Err(error) => {
-                    set_status_error(&window, &toast_timer, &error.to_string());
-                }
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let toast_timer = toast_timer.clone();
-        window.on_go_to_input_step(move || {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            clear_status(&window, &toast_timer);
-            window.set_wizard_step(0);
-        });
-    }
+    // --- Audio wizard step nav callbacks (extracted to audio_wizard_wiring) ---
+    crate::audio_wizard_wiring::wire(
+        &window,
+        crate::audio_wizard_wiring::AudioWizardCtx {
+            input_devices: input_devices.clone(),
+            toast_timer: toast_timer.clone(),
+        },
+    );
     {
         let weak_window = window.as_weak();
         let input_devices = input_devices.clone();
