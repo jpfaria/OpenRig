@@ -27,6 +27,7 @@ mod virtual_keyboard_wiring;
 mod chain_name_wiring;
 mod chain_editor_callbacks;
 mod chain_io_save_wiring;
+mod block_model_search_wiring;
 pub(crate) use chain_editor_callbacks::setup_chain_editor_callbacks;
 
 use anyhow::{anyhow, Result};
@@ -2911,67 +2912,13 @@ pub fn run_desktop_app(
             }
         });
     }
-    // Block model search wiring: refilter the filtered_block_model_options
-    // VecModel on every keystroke; resolve clicked model_id back to its
-    // index in the full list and forward to the existing on_choose_block_model.
-    {
-        let block_model_options = block_model_options.clone();
-        let filtered_block_model_options = filtered_block_model_options.clone();
-        window.on_search_block_model(move |text| {
-            crate::model_search_wiring::refilter_block_model_options(
-                &block_model_options,
-                &filtered_block_model_options,
-                text.as_str(),
-            );
-        });
-    }
-    {
-        let block_model_options = block_model_options.clone();
-        let weak_window = window.as_weak();
-        window.on_choose_block_model_by_id(move |model_id| {
-            let Some(idx) = crate::model_search_wiring::resolve_model_id_in_block_options(
-                &block_model_options,
-                model_id.as_str(),
-            ) else {
-                log::warn!("[search] model_id '{}' not found in main window list", model_id);
-                return;
-            };
-            log::info!("[search] main window: resolved '{}' → idx {}", model_id, idx);
-            if let Some(win) = weak_window.upgrade() {
-                win.set_block_drawer_selected_model_index(idx);
-                win.invoke_choose_block_model(idx);
-            }
-        });
-    }
-    {
-        let block_model_options = block_model_options.clone();
-        let filtered_block_model_options = filtered_block_model_options.clone();
-        block_editor_window.on_search_block_model(move |text| {
-            crate::model_search_wiring::refilter_block_model_options(
-                &block_model_options,
-                &filtered_block_model_options,
-                text.as_str(),
-            );
-        });
-    }
-    {
-        let block_model_options = block_model_options.clone();
-        let weak_block_editor_window = block_editor_window.as_weak();
-        block_editor_window.on_choose_block_model_by_id(move |model_id| {
-            let Some(idx) = crate::model_search_wiring::resolve_model_id_in_block_options(
-                &block_model_options,
-                model_id.as_str(),
-            ) else {
-                log::warn!("[search] model_id '{}' not found in always-open block_editor_window list", model_id);
-                return;
-            };
-            log::info!("[search] block_editor_window: resolved '{}' → idx {}", model_id, idx);
-            if let Some(win) = weak_block_editor_window.upgrade() {
-                win.set_block_drawer_selected_model_index(idx);
-                win.invoke_choose_block_model(idx);
-            }
-        });
-    }
+    // --- Block model search callbacks (extracted to block_model_search_wiring) ---
+    crate::block_model_search_wiring::wire(
+        &window,
+        &block_editor_window,
+        block_model_options.clone(),
+        filtered_block_model_options.clone(),
+    );
     {
         let weak_window = window.as_weak();
         let block_editor_draft = block_editor_draft.clone();
