@@ -44,10 +44,10 @@ component MuteSwitch inherits Rectangle {
     width: 50px;
     height: 52px;
 
-    // Label above the toggle group.
+    // Label aligned over the toggle sprite only — not the toggle+LED row.
     Text {
-        x: 0; y: 0;
-        width: parent.width; height: 12px;
+        x: 4px; y: 0;
+        width: 26px; height: 12px;
         text: "MUTE";
         color: root.active ? #ff7878 : #8a95a5;
         font-family: "Bebas Neue";
