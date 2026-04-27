@@ -1,0 +1,28 @@
+label: Maestro Fuzz-Tone FZ-1
+tone3000_tone_id: 55250
+tone3000_url: https://www.tone3000.com/tones/55250
+make: Maestro Fuzz-Tone FZ-M 2022
+title: Maestro Fuzz-Tone FZ-M
+author: ibodog
+downloads: 297
+likes: 7
+tags:
+- fuzz
+- nam
+downloaded_at: '2026-04-27'
+models:
+- name: Maestro FZ-M Modern - mid gain
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/38ooppgmtho.nam
+- name: Maestro FZ-M Vintage - low gain
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/srms8v50b2a.nam
+- name: Maestro FZ-M Vintage - high gain
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/irbfbd9ntt.nam
+- name: Maestro FZ-M Modern - high gain
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/pk3azwen6zf.nam
+- name: Maestro FZ-M Vintage - mid gain
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/o1jc2h4993e.nam

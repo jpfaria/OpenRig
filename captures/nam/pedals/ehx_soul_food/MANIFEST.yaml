@@ -1,0 +1,38 @@
+label: EHX Soul Food
+tone3000_tone_id: 1088
+tone3000_url: https://www.tone3000.com/tones/1088
+make: Electro-Harmonix EH Soul Food
+title: Electro-Harmonix EH Soul Food Pack
+author: gpso
+downloads: 992
+likes: 68
+tags:
+- boost
+- guitar
+- nam
+- overdrive
+- pedal
+- standard-mdl
+downloaded_at: '2026-04-27'
+models:
+- name: GP EH Soul Food Vol 10 Treb 05 Drive 40
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/ed3c4a80ea27b202.nam
+- name: GP EH Soul Food Vol 10 Treb 05 Drive 00
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/3b4af72900076216.nam
+- name: GP EH Soul Food Vol 10 Treb 05 Drive 60
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/1f6acc38f235870e.nam
+- name: GP EH Soul Food Vol 10 Treb 05 Drive 75
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/7b9eba478e1a6ea8.nam
+- name: GP EH Soul Food Vol 10 Treb 05 Drive 50
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/5bcfa180ba5b7a80.nam
+- name: GP EH Soul Food Vol 10 Treb 05 Drive 100
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/fbd16b2ace817b43.nam
+- name: GP EH Soul Food Vol 10 Treb 05 Drive 25
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/cadea2d6f37de17e.nam

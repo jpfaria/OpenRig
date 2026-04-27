@@ -1,0 +1,36 @@
+label: MXR Distortion+
+tone3000_tone_id: 35412
+tone3000_url: https://www.tone3000.com/tones/35412
+make: MXR Distortion
+title: MXR Distortion +
+author: maestrodimusica
+downloads: 1818
+likes: 23
+tags:
+- classic rock
+- distortion
+- nam
+- rock
+downloaded_at: '2026-04-27'
+models:
+- name: MXR Distortion+ - Output300 Dist1030
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/f6khgll6nq6.nam
+- name: MXR Distortion+ - Output300 Dist1200
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/q1c9xzxin8n.nam
+- name: MXR Distortion+ - Output300 Dist300
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/evef00uml1.nam
+- name: MXR Distortion+ - Output300 Dist130
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/5c9m51expow.nam
+- name: MXR Distortion+ - Output300 Dist500
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/smhtijln87f.nam
+- name: MXR Distortion+ - Output300 Dist900
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/j1ngsjjaqx.nam
+- name: MXR Distortion+ - Output300 Dist700
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/itwdkhq1ljd.nam

@@ -1,0 +1,58 @@
+label: Way Huge Pork Pickle
+tone3000_tone_id: 36541
+tone3000_url: https://www.tone3000.com/tones/36541
+make: Way Huge Pork Pickle
+title: Way Huge Pork & Pickle Bass Overdrive & Fuzz
+author: johnbegone
+downloads: 855
+likes: 35
+tags:
+- bass
+- bass fuzz
+- bass overdrive
+- big muff
+- fuzzy
+- nam
+- overdrive
+- pork loin
+- russian big muff
+- russian pickle
+- swollen pickle
+downloaded_at: '2026-04-27'
+models:
+- name: Pickle:High drive no blend
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/dhhcnxu4gdi.nam
+- name: Pickle:Mid drive no blend
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/pmmmpob6rp.nam
+- name: Pickle:Low drive no blend
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/wpekxfftha.nam
+- name: Pickle:Low drive with blend
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/cd7c1b7ljje.nam
+- name: Pickle:Mid drive with blend
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/ozg85asvzg.nam
+- name: Pickle:High drive with blend
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/eflpb8yvyt.nam
+- name: Pork:Low Drive with blend
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/eco7g1bgkbj.nam
+- name: Pork:Mid Drive with blend
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/dgez5sg1cdg.nam
+- name: Pork:High Drive with blend
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/cm0ls023aa.nam
+- name: Pork:High Drive no blend
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/lkn86e3o3cn.nam
+- name: Pork:Mid Drive no blend
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/ewvy65f28v.nam
+- name: Pork:Low Drive no blend
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/qhyqdq2qtnq.nam

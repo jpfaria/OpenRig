@@ -1,0 +1,48 @@
+label: Chase Bliss Automatone
+tone3000_tone_id: 2016
+tone3000_url: https://www.tone3000.com/tones/2016
+make: Chase Bliss Automatone Preamp MkII
+title: Chase Bliss Automatone Preamp MkII Presets
+author: ideofunk
+downloads: 399
+likes: 45
+tags:
+- boost
+- breakup
+- clean
+- fuzzy
+- nam
+- overdrive
+- pedal
+downloaded_at: '2026-04-27'
+models:
+- name: PRE MKII 03
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/c897cdc559c950d0.nam
+- name: PRE MKII 09
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/c5cf695bde697247.nam
+- name: PRE MKII 00
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/9dc1bbb158ba153a.nam
+- name: PRE MKII 06
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/6d02a7556665aaa6.nam
+- name: PRE MKII 02
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/84743c5ab80f1d00.nam
+- name: PRE MKII 08
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/09c59c17fc2c78f6.nam
+- name: PRE MKII 07
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/49d8b3697571ad63.nam
+- name: PRE MKII 05
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/26900a2318247d48.nam
+- name: PRE MKII 01
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/f03345b812b47ace.nam
+- name: PRE MKII 04
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/44db81c643c18130.nam

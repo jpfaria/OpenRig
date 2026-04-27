@@ -1,0 +1,42 @@
+label: Fuzz Face
+tone3000_tone_id: 2243
+tone3000_url: https://www.tone3000.com/tones/2243
+make: Dunlop
+title: Dunlop Eric Johnson Fuzz Face
+author: ideofunk
+downloads: 1431
+likes: 66
+tags:
+- boost
+- breakup
+- distortion
+- fuzzy
+- nam
+- saturated
+- vintage
+downloaded_at: '2026-04-27'
+models:
+- name: Dunlop Eric Johnson Fuzz 06
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/da61655fa5bd8040.nam
+- name: Dunlop Eric Johnson Fuzz 08
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/0a42a5d5a8e0742b.nam
+- name: Dunlop Eric Johnson Fuzz 02
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/e2b8c1105d3538a2.nam
+- name: Dunlop Eric Johnson Fuzz 03
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/9eb97b2363168e93.nam
+- name: Dunlop Eric Johnson Fuzz 05
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/76512d03c3a17b5c.nam
+- name: Dunlop Eric Johnson Fuzz 04
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/1efa17a70d33bc4a.nam
+- name: Dunlop Eric Johnson Fuzz 01
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/9dc3f2f424ed8fae.nam
+- name: Dunlop Eric Johnson Fuzz 07
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/d8338e3d2fd6e04f.nam

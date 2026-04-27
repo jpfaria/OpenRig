@@ -1,0 +1,33 @@
+label: ZVEX Fuzz Factory
+tone3000_tone_id: 5849
+tone3000_url: https://www.tone3000.com/tones/5849
+make: ZVex Fuzz Factory Clone
+title: Fuzz Factory Clone (11.5dBu)
+author: outmodedelectronics
+downloads: 935
+likes: 34
+tags:
+- diy
+- experimental
+- fuzzy
+- nam
+downloaded_at: '2026-04-27'
+models:
+- name: Fuzz Factory Clone V-10_00 G-Min C-4_00 F-Max S-2_00
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/5f969cad53248171.nam
+- name: Fuzz Factory Clone V-10_00 G-9_00 C-4_00 F-9_00 S-Max
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/ffd6243eca58dfef.nam
+- name: Fuzz Factory Clone V-10_00 G-12_00 C-3_00 F-12_00 S-12_00
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/7486357e215d83ef.nam
+- name: Fuzz Factory Clone V-10_00 G-3_00 C-9_00 F-3_00 S-Max
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/5349964fa1976397.nam
+- name: Fuzz Factory Clone V-10_00 G-12_30 C-Min F-Min S-Max
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/3229ed69d77ac1b5.nam
+- name: Fuzz Factory Clone V-10_00 G-12_00 C-3_00 F-Min S-Min
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/9cb833fd9bcbe17e.nam

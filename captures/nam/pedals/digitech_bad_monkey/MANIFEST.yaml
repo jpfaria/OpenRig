@@ -1,0 +1,102 @@
+label: DigiTech Bad Monkey
+tone3000_tone_id: 696
+tone3000_url: https://www.tone3000.com/tones/696
+make: Digitech Bad Monkey
+title: Digitech Bad Monkey [feather/lite/std]
+author: northernfox
+downloads: 667
+likes: 51
+tags:
+- nam
+downloaded_at: '2026-04-27'
+models:
+- name: BadMonkey-fulltone-lite
+  size: lite
+  url: https://api.tone3000.com/storage/v1/object/public/models/d0d4e4e1d65af46b.nam
+- name: BadMonkey-Noble ODR 1-standard
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/e780efeaee469afd.nam
+- name: BadMonkey-Boost1-V10-B4-T6-G0-feather
+  size: feather
+  url: https://api.tone3000.com/storage/v1/object/public/models/7353873bd2db05e3.nam
+- name: BadMonkey-klon-standard
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/e3255fa1d92a874e.nam
+- name: BadMonkey-fulltone-standard
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/65cec7d6528a4e74.nam
+- name: BadMonkey-zen-standard
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/28a8018a3b951b56.nam
+- name: BadMonkey-zen-lite
+  size: lite
+  url: https://api.tone3000.com/storage/v1/object/public/models/e5074d6281942e0d.nam
+- name: BadMonkey-Boost3-V10-B7-T6-G0-standard
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/6263d1bc91092b09.nam
+- name: BadMonkey-ts10-feather
+  size: feather
+  url: https://api.tone3000.com/storage/v1/object/public/models/d095c2329aaddd41.nam
+- name: BadMonkey-Boost3-V10-B7-T6-G4-lite
+  size: lite
+  url: https://api.tone3000.com/storage/v1/object/public/models/82468d8a2261a5f5.nam
+- name: BadMonkey-Boost3-V10-B7-T6-G4-standard
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/4b97ee6b6f7a9450.nam
+- name: BadMonkey-Boost1-V10-B4-T6-G0-lite
+  size: lite
+  url: https://api.tone3000.com/storage/v1/object/public/models/7d193c4d2da8c4d3.nam
+- name: BadMonkey-klon-lite
+  size: lite
+  url: https://api.tone3000.com/storage/v1/object/public/models/470b4ddffaab6e39.nam
+- name: BadMonkey-klon-feather
+  size: feather
+  url: https://api.tone3000.com/storage/v1/object/public/models/12329453fb17a9cd.nam
+- name: BadMonkey-ts10-standard
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/618d8974ea99470f.nam
+- name: BadMonkey-glory-feather
+  size: feather
+  url: https://api.tone3000.com/storage/v1/object/public/models/9614b124fed6e2a8.nam
+- name: BadMonkey-Boost2-V10-B4-T6-G4-feather
+  size: feather
+  url: https://api.tone3000.com/storage/v1/object/public/models/009791284d05363f.nam
+- name: BadMonkey-fulltone-feather
+  size: feather
+  url: https://api.tone3000.com/storage/v1/object/public/models/8d7f9c8995627b51.nam
+- name: BadMonkey-Noble ODR 1-feather
+  size: feather
+  url: https://api.tone3000.com/storage/v1/object/public/models/7fdbaa2c51eefd30.nam
+- name: BadMonkey-glory-lite
+  size: lite
+  url: https://api.tone3000.com/storage/v1/object/public/models/e749ef9779c190e1.nam
+- name: BadMonkey-Boost3-V10-B7-T6-G0-lite
+  size: lite
+  url: https://api.tone3000.com/storage/v1/object/public/models/a72c9c90cc01c351.nam
+- name: BadMonkey-Boost3-V10-B7-T6-G0-feather
+  size: feather
+  url: https://api.tone3000.com/storage/v1/object/public/models/e62c289cdec6c852.nam
+- name: BadMonkey-Boost2-V10-B4-T6-G4-standard
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/032974b7872f2d2d.nam
+- name: BadMonkey-Noble ODR 1-lite
+  size: lite
+  url: https://api.tone3000.com/storage/v1/object/public/models/fc8d9485d9bd7bda.nam
+- name: BadMonkey-ts10-lite
+  size: lite
+  url: https://api.tone3000.com/storage/v1/object/public/models/ac5185f6d4d2edc6.nam
+- name: BadMonkey-Boost1-V10-B4-T6-G0-standard
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/205d9d836991556b.nam
+- name: BadMonkey-Boost2-V10-B4-T6-G4-lite
+  size: lite
+  url: https://api.tone3000.com/storage/v1/object/public/models/ebc4b8974a0f3b9d.nam
+- name: BadMonkey-glory-standard
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/2cf15fb867832013.nam
+- name: BadMonkey-zen-feather
+  size: feather
+  url: https://api.tone3000.com/storage/v1/object/public/models/dad8a572cc046c86.nam
+- name: BadMonkey-Boost3-V10-B7-T6-G4-feather
+  size: feather
+  url: https://api.tone3000.com/storage/v1/object/public/models/2ca7189d20bc2989.nam

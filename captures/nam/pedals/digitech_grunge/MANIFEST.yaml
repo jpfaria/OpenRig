@@ -1,0 +1,37 @@
+label: DigiTech Grunge
+tone3000_tone_id: 39647
+tone3000_url: https://www.tone3000.com/tones/39647
+make: DigiTech Grunge Distortion
+title: DigiTech Grunge Distortion
+author: doubleipa
+downloads: 573
+likes: 13
+tags:
+- grunge
+- nam
+downloaded_at: '2026-04-27'
+models:
+- name: Digitech_GRUNGE-Tone-5_Grunge-3
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/71fcf79sl16.nam
+- name: Digitech_GRUNGE-Tone-7_Grunge-9
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/f9c55w7us0i.nam
+- name: Digitech_GRUNGE-Tone-7_Grunge-5
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/qjbiauy4ac.nam
+- name: Digitech_GRUNGE-Tone-5_Grunge-9
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/2l61zqdgoz8.nam
+- name: Digitech_GRUNGE-Tone-5_Grunge-5
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/ld8drcqyihn.nam
+- name: Digitech_GRUNGE-Tone-5_Grunge-7
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/xtgiwicf1b.nam
+- name: Digitech_GRUNGE-Tone-7_Grunge-3
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/2c8iuule7mn.nam
+- name: Digitech_GRUNGE-Tone-7_Grunge-7
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/lh1cw7pk8xs.nam

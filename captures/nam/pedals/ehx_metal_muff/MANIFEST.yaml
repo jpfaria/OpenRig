@@ -1,0 +1,52 @@
+label: EHX Metal Muff
+tone3000_tone_id: 4975
+tone3000_url: https://www.tone3000.com/tones/4975
+make: Electro Harmonix Metal Muff With Top Boost
+title: Metal Muff big pack
+author: mat4k
+downloads: 683
+likes: 23
+tags:
+- dark
+- distortion
+- fuzzy
+- high-gain
+- metal
+- mid-forward
+- nam
+- overdrive
+- pedal
+- raw
+- scooped
+downloaded_at: '2026-04-27'
+models:
+- name: Metal Muff Tob Boost Low Distortion
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/4dfebc8a703f7e4b.nam
+- name: Metal Muff Swedish Chainsaw-ish
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/776c092ff5e0aa88.nam
+- name: Metal Muff Mega Scoop
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/49d591ec5b8ce2d8.nam
+- name: Metal Muff Trve Kult
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/a649f4b424744e1e.nam
+- name: Metal Muff Nattens Madrigal
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/48972a1c73935c4c.nam
+- name: Metal Muff My Settings
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/85a8ba04c32e3ae3.nam
+- name: Metal Muff as an overdrive
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/62873c387bbd506d.nam
+- name: Metal Muff eq Noon Full gain
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/0bfc4314e10702a2.nam
+- name: Metal Muff Evil
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/2c9698d9244c8890.nam
+- name: Metal Muff eq Noon
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/a4604b02ca0c5410.nam

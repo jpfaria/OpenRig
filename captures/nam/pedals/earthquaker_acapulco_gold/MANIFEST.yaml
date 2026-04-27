@@ -1,0 +1,25 @@
+label: EarthQuaker Acapulco Gold
+tone3000_tone_id: 4990
+tone3000_url: https://www.tone3000.com/tones/4990
+make: Earthquaker Devices Acapulco Gold Clone
+title: Earthquaker Devices Acapulco Gold Clone Pedal
+author: markswarbrick
+downloads: 422
+likes: 29
+tags:
+- distortion
+- feather-mdl
+- fuzzy
+- nam
+- pedal
+downloaded_at: '2026-04-27'
+models:
+- name: EQD Acapulco Gold Clone (Gain 1500 Hours)
+  size: feather
+  url: https://api.tone3000.com/storage/v1/object/public/models/30a1d02c4c7d7e08.nam
+- name: EQD Acapulco Gold Clone (Gain 12 Noon)
+  size: feather
+  url: https://api.tone3000.com/storage/v1/object/public/models/16c89ca53758bb85.nam
+- name: EQD Acapulco Gold Clone (Gain 0900 Hours)
+  size: feather
+  url: https://api.tone3000.com/storage/v1/object/public/models/774ec18170496742.nam

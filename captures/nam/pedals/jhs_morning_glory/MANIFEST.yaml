@@ -1,0 +1,52 @@
+label: JHS Morning Glory
+tone3000_tone_id: 2805
+tone3000_url: https://www.tone3000.com/tones/2805
+make: JHS Morning Glory v3 release v1
+title: JHS Morning Glory v3
+author: danielbernhardsson
+downloads: 5608
+likes: 163
+tags:
+- clean
+- crunch
+- distortion
+- nam
+- overdrive
+downloaded_at: '2026-04-27'
+models:
+- name: JHS Morning Glory no tone D4
+  size: lite
+  url: https://api.tone3000.com/storage/v1/object/public/models/50a4f9d2cccb90aa.nam
+- name: JHS Morning Glory D4 T8
+  size: lite
+  url: https://api.tone3000.com/storage/v1/object/public/models/421cc3942f750729.nam
+- name: JHS Morning Glory D8 T8
+  size: lite
+  url: https://api.tone3000.com/storage/v1/object/public/models/7a2c0ed94c7fbda1.nam
+- name: JHS Morning Glory no tone D8
+  size: lite
+  url: https://api.tone3000.com/storage/v1/object/public/models/71317de1d9a0d6da.nam
+- name: JHS Morning Glory D8 T8 high cut
+  size: lite
+  url: https://api.tone3000.com/storage/v1/object/public/models/42b957d437ad619c.nam
+- name: JHS Morning Glory D2 T8 high cut
+  size: lite
+  url: https://api.tone3000.com/storage/v1/object/public/models/863660cbe117cfb9.nam
+- name: JHS Morning Glory no tone D4 high cut
+  size: lite
+  url: https://api.tone3000.com/storage/v1/object/public/models/5f5172e8f95629da.nam
+- name: JHS Morning Glory D2 T8
+  size: lite
+  url: https://api.tone3000.com/storage/v1/object/public/models/c18153fc8232c73f.nam
+- name: JHS Morning Glory D4 T8 high cut
+  size: lite
+  url: https://api.tone3000.com/storage/v1/object/public/models/30b1f00f3881954a.nam
+- name: JHS Morning Glory no tone D2
+  size: lite
+  url: https://api.tone3000.com/storage/v1/object/public/models/4fd6af20c8eed8c6.nam
+- name: JHS Morning Glory no tone D8 high cut
+  size: lite
+  url: https://api.tone3000.com/storage/v1/object/public/models/84942b7911e43941.nam
+- name: JHS Morning Glory no tone D2 high cut
+  size: lite
+  url: https://api.tone3000.com/storage/v1/object/public/models/f594c8dfee6541be.nam

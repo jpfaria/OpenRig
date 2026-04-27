@@ -1,0 +1,63 @@
+label: Tone Bender
+tone3000_tone_id: 2316
+tone3000_url: https://www.tone3000.com/tones/2316
+make: Boss TB-2w Tone Bender
+title: Boss TB-2w Tone Bender fuzz pedal (pack)
+author: ideofunk
+downloads: 595
+likes: 50
+tags:
+- boost
+- breakup
+- distortion
+- fuzzy
+- high-gain
+- nam
+- saturated
+downloaded_at: '2026-04-27'
+models:
+- name: Boss TB-2w 02-7V
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/e24d8a39f8028766.nam
+- name: Boss TB-2w 01-7V
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/28be32a607652c18.nam
+- name: Boss TB-2w 04-12V
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/6a483bc2887f9fda.nam
+- name: Boss TB-2w 05-7V
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/d7d21de51f1e46c7.nam
+- name: Boss TB-2w 05-9V
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/ed8354f607ffb39a.nam
+- name: Boss TB-2w 02-12V
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/fb77073ec27998f8.nam
+- name: Boss TB-2w 02-9V
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/8552199aa87e4f0a.nam
+- name: Boss TB-2w 05-12V
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/0012f5319ad4f29f.nam
+- name: Boss TB-2w 03-12V
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/6c13bff8887ee592.nam
+- name: Boss TB-2w 04-9V
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/a30f54784af33176.nam
+- name: Boss TB-2w 01-12V
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/73381e46d4b35d99.nam
+- name: Boss TB-2w 01-9V
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/e31808e0c344461d.nam
+- name: Boss TB-2w 03-9V
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/ea572d236d7c1219.nam
+- name: Boss TB-2w 03-7V
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/f6991d6bd5e24c3d.nam
+- name: Boss TB-2w 04-7V
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/731c5fb9585baa19.nam

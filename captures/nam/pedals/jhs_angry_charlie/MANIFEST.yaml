@@ -1,0 +1,14 @@
+label: JHS Angry Charlie
+tone3000_tone_id: 37413
+tone3000_url: https://www.tone3000.com/tones/37413
+make: JHS Angry Charlie V2
+title: Angry Charlie
+author: miguelalves
+downloads: 475
+likes: 10
+tags: []
+downloaded_at: '2026-04-27'
+models:
+- name: Angry Charlie V2
+  size: standard
+  url: https://api.tone3000.com/storage/v1/object/public/models/mwp1twdokni.nam
