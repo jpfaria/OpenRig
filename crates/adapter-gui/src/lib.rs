@@ -40,19 +40,22 @@ mod compact_chain_param_handlers;
 mod block_insert_callbacks;
 mod block_choose_type_callback;
 mod chain_io_fullscreen_callbacks;
+mod runtime_lifecycle;
 pub(crate) use chain_editor_callbacks::setup_chain_editor_callbacks;
+pub(crate) use runtime_lifecycle::{
+    assign_new_block_ids, remove_live_chain_runtime, stop_project_runtime,
+    sync_live_chain_runtime, sync_project_runtime, system_language,
+    ui_index_to_real_block_index,
+};
 
 use anyhow::{anyhow, Result};
 
 const SELECT_PATH_PREFIX: &str = "__select.";
 const SELECT_SELECTED_BLOCK_ID: &str = "__select.selected_block_id";
-use application::validate::validate_project;
-use domain::ids::{BlockId, ChainId};
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use infra_filesystem::FilesystemStorage;
-use project::block::{AudioBlock, AudioBlockKind};
+use project::block::AudioBlockKind;
 use project::catalog::{model_brand, model_display_name, model_type_label};
-use project::chain::Chain;
 use project::param::ParameterSet;
 use rfd::FileDialog;
 use slint::{Model, ModelRc, SharedString, Timer, VecModel};
@@ -2227,110 +2230,6 @@ pub fn run_desktop_app(
 
     window.run().map_err(|error| anyhow!(error.to_string()))
 }
-pub(crate) fn stop_project_runtime(project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>) {
-    if let Some(mut runtime) = project_runtime.borrow_mut().take() {
-        runtime.stop();
-    }
-}
-pub(crate) fn sync_project_runtime(
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-    session: &ProjectSession,
-) -> Result<()> {
-    let mut borrow = project_runtime.borrow_mut();
-    if let Some(runtime) = borrow.as_mut() {
-        validate_project(&session.project)?;
-        runtime.sync_project(&session.project)?;
-    }
-    Ok(())
-}
-pub(crate) fn sync_live_chain_runtime(
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-    session: &ProjectSession,
-    chain_id: &ChainId,
-) -> Result<()> {
-    log::debug!("sync_live_chain_runtime: chain_id='{}'", chain_id.0);
-    let chain = session
-        .project
-        .chains
-        .iter()
-        .find(|c| &c.id == chain_id);
-    let chain_enabled = chain.map(|c| c.enabled).unwrap_or(false);
-    // If chain is being enabled and no runtime exists, create one
-    if chain_enabled {
-        let mut borrow = project_runtime.borrow_mut();
-        if borrow.is_none() {
-            *borrow = Some(ProjectRuntimeController::start(&session.project)?);
-            return Ok(()); // start() already processes all enabled chains via sync_project
-        }
-        drop(borrow);
-    }
-    // Normal sync
-    let mut borrow = project_runtime.borrow_mut();
-    if let Some(runtime) = borrow.as_mut() {
-        validate_project(&session.project)?;
-        if let Some(chain) = chain {
-            runtime.upsert_chain(&session.project, chain)?;
-        } else {
-            runtime.remove_chain(chain_id);
-        }
-        // If no chains are running, destroy runtime
-        if !runtime.is_running() {
-            *borrow = None;
-        }
-    }
-    Ok(())
-}
-pub(crate) fn remove_live_chain_runtime(
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-    chain_id: &ChainId,
-) {
-    if let Some(runtime) = project_runtime.borrow_mut().as_mut() {
-        runtime.remove_chain(chain_id);
-    }
-}
-pub(crate) fn assign_new_block_ids(chain: &mut Chain) {
-    for block in &mut chain.blocks {
-        assign_new_block_ids_recursive(block, &chain.id);
-    }
-}
-fn assign_new_block_ids_recursive(block: &mut AudioBlock, chain_id: &ChainId) {
-    block.id = BlockId::generate_for_chain(chain_id);
-    if let AudioBlockKind::Select(select) = &mut block.kind {
-        for option in &mut select.options {
-            assign_new_block_ids_recursive(option, chain_id);
-        }
-    }
-}
-pub(crate) fn system_language() -> String {
-    let lang = std::env::var("LANG").unwrap_or_default();
-    let base = lang.split('.').next().unwrap_or("");
-    // "C", "POSIX", empty, or too short = not a real locale → fall back to English
-    if base.is_empty() || base.len() < 2 || matches!(base, "C" | "POSIX") {
-        return "en-US".to_string();
-    }
-    base.replace('_', "-")
-}
-
-/// Map a UI block index (which excludes hidden first Input and last Output) to the real chain.blocks index.
-pub(crate) fn ui_index_to_real_block_index(chain: &Chain, ui_index: usize) -> usize {
-    let first_input_idx = chain.blocks.iter().position(|b| matches!(&b.kind, AudioBlockKind::Input(_)));
-    let last_output_idx = chain.blocks.iter().rposition(|b| matches!(&b.kind, AudioBlockKind::Output(_)));
-    let mut visible_count = 0;
-    for (real_idx, _) in chain.blocks.iter().enumerate() {
-        if Some(real_idx) == first_input_idx || Some(real_idx) == last_output_idx {
-            continue; // hidden
-        }
-        if visible_count == ui_index {
-            return real_idx;
-        }
-        visible_count += 1;
-    }
-    // If ui_index is past all visible blocks, return end (before last output)
-    last_output_idx.unwrap_or(chain.blocks.len())
-}
-/// Register all callbacks on a freshly-created `ChainEditorWindow`.
-/// Called each time the chain editor is opened so the window starts with clean state.
-#[allow(clippy::too_many_arguments)]
 #[cfg(test)]
 mod tests {
     use super::{
@@ -2416,7 +2315,7 @@ mod tests {
 
     // --- ui_index_to_real_block_index tests ---
 
-    use super::ui_index_to_real_block_index;
+    use crate::runtime_lifecycle::ui_index_to_real_block_index;
     use project::block::{InputBlock, InputEntry, OutputBlock, OutputEntry};
     use project::chain::{Chain, ChainInputMode, ChainOutputMode};
     use domain::ids::{ChainId, DeviceId};
