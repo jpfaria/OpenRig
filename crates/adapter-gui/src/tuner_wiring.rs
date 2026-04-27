@@ -192,16 +192,21 @@ fn wire_power(
     let on_toggle_enabled = move |enabled: bool| {
         if enabled {
             let new_session = build_session(&project_session, &project_runtime);
-            if let Some(ref session) = new_session {
-                let rows = session.rows_model_rc();
-                if let Some(tw) = tuner_window_weak.upgrade() {
-                    tw.set_tuner_rows(rows.clone());
-                    tw.set_tuner_enabled(true);
-                }
-                if let Some(mw) = main_window_weak.upgrade() {
-                    mw.set_tuner_rows(rows);
-                    mw.set_tuner_enabled(true);
-                }
+            let rows = new_session
+                .as_ref()
+                .map(TunerSession::rows_model_rc)
+                .unwrap_or_else(empty_rows_model);
+            // Always reflect the new enabled state on the UI, even when
+            // no session could be built (no runtime / no active chain).
+            // Otherwise the sprite would stay stuck at OFF and the user
+            // would have to find another way to power the tuner back on.
+            if let Some(tw) = tuner_window_weak.upgrade() {
+                tw.set_tuner_rows(rows.clone());
+                tw.set_tuner_enabled(true);
+            }
+            if let Some(mw) = main_window_weak.upgrade() {
+                mw.set_tuner_rows(rows);
+                mw.set_tuner_enabled(true);
             }
             *tuner_session.borrow_mut() = new_session;
             start_polling_timer(
