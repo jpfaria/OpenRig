@@ -2326,11 +2326,106 @@ pub fn run_desktop_app(
         }
         {
             let project_runtime_for_mute = project_runtime.clone();
+            let tuner_window_for_mute = tuner_window.as_weak();
             tuner_window.on_toggle_mute(move |muted| {
                 if let Some(runtime) = project_runtime_for_mute.borrow().as_ref() {
                     runtime.set_tuner_mute(muted);
                 }
+                // Reflect the new state back so the toggle sprite + LED
+                // update — without this, `mute-active` stays at its old
+                // value because the property is one-way input only.
+                if let Some(tw) = tuner_window_for_mute.upgrade() {
+                    tw.set_mute_active(muted);
+                }
             });
+        }
+        // Power on/off — pause the polling timer and drop the session
+        // when disabled so detection costs zero CPU. Re-arm on enable.
+        {
+            let project_session_for_en = project_session.clone();
+            let project_runtime_for_en = project_runtime.clone();
+            let tuner_session_for_en = tuner_session.clone();
+            let tuner_timer_for_en = tuner_timer.clone();
+            let main_w_weak_for_en = window.as_weak();
+            let tw_weak_for_en = tuner_window.as_weak();
+            let on_toggle_enabled = move |enabled: bool| {
+                if enabled {
+                    // Rebuild + restart timer
+                    let pj = project_session_for_en.borrow();
+                    let rt = project_runtime_for_en.borrow();
+                    if let (Some(s), Some(rt)) = (pj.as_ref(), rt.as_ref()) {
+                        let new_session =
+                            tuner_session::TunerSession::build(&s.project, rt);
+                        let rows = new_session.rows_model_rc();
+                        if let Some(tw) = tw_weak_for_en.upgrade() {
+                            tw.set_tuner_rows(rows.clone());
+                            tw.set_tuner_enabled(true);
+                        }
+                        if let Some(mw) = main_w_weak_for_en.upgrade() {
+                            mw.set_tuner_rows(rows);
+                            mw.set_tuner_enabled(true);
+                        }
+                        *tuner_session_for_en.borrow_mut() = Some(new_session);
+                    }
+                    // Re-start polling
+                    let session_for_tick = tuner_session_for_en.clone();
+                    let project_session_for_tick = project_session_for_en.clone();
+                    let project_runtime_for_tick = project_runtime_for_en.clone();
+                    let tw_weak_for_tick = tw_weak_for_en.clone();
+                    let main_w_weak_for_tick = main_w_weak_for_en.clone();
+                    tuner_timer_for_en.start(
+                        slint::TimerMode::Repeated,
+                        std::time::Duration::from_millis(33),
+                        move || {
+                            if let Some(session) = session_for_tick.borrow_mut().as_mut() {
+                                session.tick();
+                            }
+                            let needs_rebuild = {
+                                let pj = project_session_for_tick.borrow();
+                                let session_borrow = session_for_tick.borrow();
+                                match (pj.as_ref(), session_borrow.as_ref()) {
+                                    (Some(s), Some(sess)) => sess.needs_rebuild(&s.project),
+                                    (Some(_), None) => true,
+                                    _ => false,
+                                }
+                            };
+                            if needs_rebuild {
+                                let pj = project_session_for_tick.borrow();
+                                let rt = project_runtime_for_tick.borrow();
+                                if let (Some(s), Some(rt)) = (pj.as_ref(), rt.as_ref()) {
+                                    let new_session =
+                                        tuner_session::TunerSession::build(&s.project, rt);
+                                    let rows = new_session.rows_model_rc();
+                                    if let Some(tw) = tw_weak_for_tick.upgrade() {
+                                        tw.set_tuner_rows(rows.clone());
+                                    }
+                                    if let Some(mw) = main_w_weak_for_tick.upgrade() {
+                                        mw.set_tuner_rows(rows);
+                                    }
+                                    *session_for_tick.borrow_mut() = Some(new_session);
+                                    rt.prune_dead_input_taps();
+                                }
+                            }
+                        },
+                    );
+                } else {
+                    // Disable: stop timer + drop session + prune taps
+                    tuner_timer_for_en.stop();
+                    *tuner_session_for_en.borrow_mut() = None;
+                    if let Some(rt) = project_runtime_for_en.borrow().as_ref() {
+                        rt.prune_dead_input_taps();
+                    }
+                    if let Some(tw) = tw_weak_for_en.upgrade() {
+                        tw.set_tuner_enabled(false);
+                    }
+                    if let Some(mw) = main_w_weak_for_en.upgrade() {
+                        mw.set_tuner_enabled(false);
+                    }
+                }
+            };
+            let on_toggle_enabled_a = on_toggle_enabled.clone();
+            window.on_toggle_tuner_enabled(move |e| on_toggle_enabled_a(e));
+            tuner_window.on_toggle_enabled(move |e| on_toggle_enabled(e));
         }
 
         let chain_editor_window = chain_editor_window.clone();

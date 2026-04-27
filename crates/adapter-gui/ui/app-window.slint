@@ -716,8 +716,10 @@ export component AppWindow inherits Window {
     in property <bool> show-tuner;
     in property <[TunerRow]> tuner-rows;
     in property <bool> tuner-mute-active;
+    in property <bool> tuner-enabled: true;
     callback close-tuner();
     callback toggle-tuner-mute(bool);
+    callback toggle-tuner-enabled(bool);
     callback remove-chain(int);
     callback toggle-chain-enabled(int);
     callback configure-chain(int);
@@ -928,8 +930,10 @@ export component AppWindow inherits Window {
         show-tuner: root.show-tuner;
         tuner-rows: root.tuner-rows;
         tuner-mute-active: root.tuner-mute-active;
+        tuner-enabled: root.tuner-enabled;
         close-tuner => { root.close-tuner(); }
         toggle-tuner-mute(m) => { root.toggle-tuner-mute(m); }
+        toggle-tuner-enabled(e) => { root.toggle-tuner-enabled(e); }
         remove-chain(index) => { root.remove-chain(index); }
         toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
         configure-chain(index) => { root.configure-chain(index); }
@@ -1067,8 +1071,10 @@ export component AppWindow inherits Window {
         show-tuner: root.show-tuner;
         tuner-rows: root.tuner-rows;
         tuner-mute-active: root.tuner-mute-active;
+        tuner-enabled: root.tuner-enabled;
         close-tuner => { root.close-tuner(); }
         toggle-tuner-mute(m) => { root.toggle-tuner-mute(m); }
+        toggle-tuner-enabled(e) => { root.toggle-tuner-enabled(e); }
         remove-chain(index) => { root.remove-chain(index); }
         toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
         configure-chain(index) => { root.configure-chain(index); }

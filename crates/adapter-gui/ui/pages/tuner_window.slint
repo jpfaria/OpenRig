@@ -7,7 +7,69 @@
 // in front. LCD goes amber (#ccaa66) when active, vivid green (#ccff66)
 // when in tune, dim ochre (#776633) when no signal.
 import { ScrollView } from "std-widgets.slint";
-import { ToggleSwitch } from "../components/toggle_switch.slint";
+
+// Header switch — sprite toggle on the left, red LED on the right.
+// Reuses the same toggleswitch.png + led-red.png assets the block editor
+// uses for boolean parameters, but laid out horizontally instead of the
+// vertical (toggle-above-LED) form.
+component HeaderToggleWithLed inherits Rectangle {
+    in property <bool> active;
+    in property <bool> is-footswitch: false;
+    in property <string> label;
+    callback toggled();
+
+    width: 56px;
+    height: 50px;
+
+    Text {
+        x: 0; y: 0;
+        width: parent.width; height: 12px;
+        text: root.label;
+        color: root.active ? #ff7878 : #8a95a5;
+        font-family: "Bebas Neue";
+        font-size: 9px;
+        letter-spacing: 1.2px;
+        horizontal-alignment: center;
+    }
+
+    // Sprite (28×38)
+    Rectangle {
+        x: 4px; y: 14px;
+        width: 26px; height: 34px;
+        clip: true;
+        Image {
+            source: root.is-footswitch
+                ? @image-url("../assets/sprites/footswitch.png")
+                : @image-url("../assets/sprites/toggleswitch.png");
+            x: root.active ? -parent.width : 0;
+            y: 0;
+            width: 2 * parent.width;
+            height: parent.height;
+            image-fit: fill;
+            image-rendering: smooth;
+        }
+        TouchArea {
+            mouse-cursor: pointer;
+            clicked => { root.toggled(); }
+        }
+    }
+
+    // Red LED on the right
+    Rectangle {
+        x: 36px; y: 24px;
+        width: 14px; height: 14px;
+        clip: true;
+        Image {
+            source: @image-url("../assets/sprites/led-red.png");
+            x: root.active ? 0 : -parent.width;
+            y: 0;
+            width: 2 * parent.width;
+            height: parent.height;
+            image-fit: fill;
+            image-rendering: smooth;
+        }
+    }
+}
 
 export struct TunerRow {
     label: string,
@@ -182,9 +244,11 @@ component TunerCard inherits Rectangle {
 export component TunerPanel inherits Rectangle {
     in property <[TunerRow]> tuner-rows;
     in property <bool> mute-active;
+    in property <bool> tuner-enabled: true;
     in property <bool> show-close-button: false;
     callback close-tuner();
     callback toggle-mute(bool);
+    callback toggle-enabled(bool);
 
     background: @linear-gradient(180deg, #08090d 0%, #050608 100%);
 
@@ -269,32 +333,27 @@ export component TunerPanel inherits Rectangle {
             }
         }
 
-        // Mute output — vintage toggle + red LED below (same component
-        // used inside the block editor for boolean parameters).
-        Rectangle {
-            x: root.show-close-button ? parent.width - 100px : parent.width - 64px;
-            y: 4px;
-            width: 50px; height: 48px;
+        // Power on/off — footswitch sprite + red LED on the right.
+        // When off the polling timer pauses, taps are released, and the
+        // detector idles — saves CPU when the user does not need tuning.
+        HeaderToggleWithLed {
+            x: root.show-close-button ? parent.width - 184px : parent.width - 138px;
+            y: 3px;
+            width: 56px; height: 50px;
+            label: "POWER";
+            is-footswitch: true;
+            active: root.tuner-enabled;
+            toggled => { root.toggle-enabled(!root.tuner-enabled); }
+        }
 
-            Text {
-                x: 0; y: 0;
-                width: parent.width; height: 14px;
-                text: "MUTE";
-                color: root.mute-active ? #ff7878 : #8a95a5;
-                font-family: "Bebas Neue";
-                font-size: 9px;
-                letter-spacing: 1.2px;
-                horizontal-alignment: center;
-            }
-
-            ToggleSwitch {
-                x: (parent.width - 28px) / 2;
-                y: 14px;
-                width: 28px;
-                height: 34px;
-                checked: root.mute-active;
-                toggled => { root.toggle-mute(!root.mute-active); }
-            }
+        // Mute output — vintage toggle sprite + red LED on the right.
+        HeaderToggleWithLed {
+            x: root.show-close-button ? parent.width - 116px : parent.width - 70px;
+            y: 3px;
+            width: 56px; height: 50px;
+            label: "MUTE";
+            active: root.mute-active;
+            toggled => { root.toggle-mute(!root.mute-active); }
         }
     }
 
@@ -354,16 +413,20 @@ export component TunerWindow inherits Window {
 
     in property <[TunerRow]> tuner-rows;
     in property <bool> mute-active;
+    in property <bool> tuner-enabled: true;
     callback close-tuner-window();
     callback toggle-mute(bool);
+    callback toggle-enabled(bool);
 
     TunerPanel {
         width: 100%;
         height: 100%;
         tuner-rows: root.tuner-rows;
         mute-active: root.mute-active;
+        tuner-enabled: root.tuner-enabled;
         show-close-button: false;
         close-tuner => { root.close-tuner-window(); }
         toggle-mute(m) => { root.toggle-mute(m); }
+        toggle-enabled(e) => { root.toggle-enabled(e); }
     }
 }

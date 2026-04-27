@@ -86,8 +86,10 @@ export component TouchMain inherits Rectangle {
     in property <bool> show-tuner;
     in property <[TunerRow]> tuner-rows;
     in property <bool> tuner-mute-active;
+    in property <bool> tuner-enabled: true;
     callback close-tuner();
     callback toggle-tuner-mute(bool);
+    callback toggle-tuner-enabled(bool);
     callback remove-chain(int);
     callback toggle-chain-enabled(int);
     callback configure-chain(int);
@@ -301,9 +303,11 @@ export component TouchMain inherits Rectangle {
         height: parent.height;
         tuner-rows: root.tuner-rows;
         mute-active: root.tuner-mute-active;
+        tuner-enabled: root.tuner-enabled;
         show-close-button: true;
         close-tuner => { root.close-tuner(); }
         toggle-mute(m) => { root.toggle-tuner-mute(m); }
+        toggle-enabled(e) => { root.toggle-tuner-enabled(e); }
     }
 
     if root.show-project-settings : ProjectSettingsPage {
