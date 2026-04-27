@@ -7,6 +7,7 @@
 // in front. LCD goes amber (#ccaa66) when active, vivid green (#ccff66)
 // when in tune, dim ochre (#776633) when no signal.
 import { ScrollView } from "std-widgets.slint";
+import { ToggleSwitch } from "../components/toggle_switch.slint";
 
 export struct TunerRow {
     label: string,
@@ -15,47 +16,6 @@ export struct TunerRow {
     cents: float,
     frequency: float,
     active: bool,
-}
-
-// ── Header mute pill ─────────────────────────────────────────────────────
-component MutePill inherits Rectangle {
-    in-out property <bool> muted;
-    callback toggled(bool);
-
-    width: 110px;
-    height: 28px;
-    border-radius: 14px;
-    background: root.muted ? #5a1818 : #1c2028;
-    border-width: 1px;
-    border-color: root.muted ? #ff5050 : #2c323d;
-
-    Rectangle {
-        x: 8px;
-        y: 9px;
-        width: 10px;
-        height: 10px;
-        border-radius: 5px;
-        background: root.muted ? #ff7878 : #4a525e;
-    }
-
-    Text {
-        x: 26px; y: 0;
-        width: parent.width - 36px; height: parent.height;
-        text: root.muted ? "MUTED" : "MUTE OUT";
-        color: root.muted ? #ffe0e0 : #c5cdd9;
-        font-family: "Bebas Neue";
-        font-size: 11px;
-        letter-spacing: 1.5px;
-        vertical-alignment: center;
-    }
-
-    TouchArea {
-        mouse-cursor: pointer;
-        clicked => {
-            root.muted = !root.muted;
-            root.toggled(root.muted);
-        }
-    }
 }
 
 // ── Single-row tuner card — stompbox + LCD ───────────────────────────────
@@ -241,12 +201,12 @@ export component TunerPanel inherits Rectangle {
             background: #1c2028;
         }
 
-        // LED dot
-        Rectangle {
-            x: 20px; y: 18px;
-            width: 20px; height: 20px;
-            border-radius: 10px;
-            background: @radial-gradient(circle, #5cffaa 0%, #1a8855 60%, #08382a 100%);
+        // Tuner icon (same SVG used in the toolbar button)
+        Image {
+            x: 18px; y: 16px;
+            width: 24px; height: 24px;
+            source: @image-url("../assets/tuner.svg");
+            colorize: #c5cdd9;
         }
 
         Text {
@@ -309,12 +269,32 @@ export component TunerPanel inherits Rectangle {
             }
         }
 
-        // Mute pill — pushed left of close button when inline
-        MutePill {
-            x: root.show-close-button ? parent.width - 178px : parent.width - 130px;
-            y: 14px;
-            muted: root.mute-active;
-            toggled(m) => { root.toggle-mute(m); }
+        // Mute output — vintage toggle + red LED below (same component
+        // used inside the block editor for boolean parameters).
+        Rectangle {
+            x: root.show-close-button ? parent.width - 100px : parent.width - 64px;
+            y: 4px;
+            width: 50px; height: 48px;
+
+            Text {
+                x: 0; y: 0;
+                width: parent.width; height: 14px;
+                text: "MUTE";
+                color: root.mute-active ? #ff7878 : #8a95a5;
+                font-family: "Bebas Neue";
+                font-size: 9px;
+                letter-spacing: 1.2px;
+                horizontal-alignment: center;
+            }
+
+            ToggleSwitch {
+                x: (parent.width - 28px) / 2;
+                y: 14px;
+                width: 28px;
+                height: 34px;
+                checked: root.mute-active;
+                toggled => { root.toggle-mute(!root.mute-active); }
+            }
         }
     }
 
