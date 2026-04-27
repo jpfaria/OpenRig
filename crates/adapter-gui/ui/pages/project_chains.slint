@@ -980,36 +980,45 @@ component BlockInsertSlot inherits Rectangle {
         border-radius: 1px;
     }
 
+    // Insert affordance — small circle with a bold centred "+". Smaller
+    // disc than before, thicker plus, properly centred.
     if root.empty-slot || root.active-drop-target || (!root.move-target && hover-area.has-hover && !root.suppress-hover-affordance) : Rectangle {
-        x: (parent.width - 24px) / 2;
-        y: 0px;
-        width: 24px;
-        height: 24px;
-        background: root.empty-slot || root.active-drop-target ? #20252d : #252a33;
+        x: (parent.width - 18px) / 2;
+        y: (24px - 18px) / 2;
+        width: 18px;
+        height: 18px;
+        background: root.active-drop-target ? #2c3340 : #1c2029;
         border-width: 1px;
-        border-color: root.active-drop-target ? #a9b2bf : root.empty-slot ? #5a6577 : #7c8798;
-        border-radius: 12px;
+        border-color: root.active-drop-target ? #a9b2bf : root.empty-slot ? #5a6577 : #6f7a8b;
+        border-radius: 9px;
 
         if root.active-drop-target : Image {
             x: 2px;
             y: 2px;
-            width: 20px;
-            height: 20px;
+            width: 14px;
+            height: 14px;
             source: @image-url("../assets/block-drop-target.svg");
             image-fit: contain;
         }
 
-        if !root.active-drop-target : Text {
-            x: 0px;
-            y: -1px;
-            width: parent.width;
-            height: parent.height;
-            text: "+";
-            color: #eef2f8;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-            font-size: 15px;
-            font-weight: 700;
+        // Plus glyph drawn from two thick rectangles instead of a Text
+        // glyph — guarantees pixel-perfect centering and crisp strokes
+        // at any DPI. 10×2 horizontal + 2×10 vertical, intersected.
+        if !root.active-drop-target : Rectangle {
+            x: (parent.width - 10px) / 2;
+            y: (parent.height - 2px) / 2;
+            width: 10px;
+            height: 2px;
+            background: #eef2f8;
+            border-radius: 1px;
+        }
+        if !root.active-drop-target : Rectangle {
+            x: (parent.width - 2px) / 2;
+            y: (parent.height - 10px) / 2;
+            width: 2px;
+            height: 10px;
+            background: #eef2f8;
+            border-radius: 1px;
         }
     }
 
