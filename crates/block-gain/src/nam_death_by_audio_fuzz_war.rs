@@ -10,7 +10,7 @@ use block_core::{AudioChannelLayout, BlockProcessor};
 
 pub const MODEL_ID: &str = "nam_death_by_audio_fuzz_war";
 pub const DISPLAY_NAME: &str = "Death By Audio Fuzz War";
-const BRAND: &str = "dba";
+const BRAND: &str = "death_by_audio";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 

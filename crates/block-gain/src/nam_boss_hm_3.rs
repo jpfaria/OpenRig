@@ -21,13 +21,13 @@ struct NamCapture {
 
 const CAPTURES: &[NamCapture] = &[
     NamCapture { tone: "lows10_highs10_dist10_boss_hm3", model_path: "pedals/boss_hm_3/boss_hm3_lows10_highs10_dist10_boss_hm3.nam" },
-    NamCapture { tone: "lows10_highs10_dist5_boss_hm3",  model_path: "pedals/boss_hm_3/boss_hm3_lows10_highs10_dist5_boss_hm3.nam" },
-    NamCapture { tone: "lows10_highs5_dist10_boss_hm3",  model_path: "pedals/boss_hm_3/boss_hm3_lows10_highs5_dist10_boss_hm3.nam" },
-    NamCapture { tone: "lows10_highs5_dist5_boss_hm3",   model_path: "pedals/boss_hm_3/boss_hm3_lows10_highs5_dist5_boss_hm3.nam" },
-    NamCapture { tone: "lows5_highs10_dist10_boss_hm3",  model_path: "pedals/boss_hm_3/boss_hm3_lows5_highs10_dist10_boss_hm3.nam" },
-    NamCapture { tone: "lows5_highs10_dist5_boss_hm3",   model_path: "pedals/boss_hm_3/boss_hm3_lows5_highs10_dist5_boss_hm3.nam" },
-    NamCapture { tone: "lows5_highs5_dist10_boss_hm3",   model_path: "pedals/boss_hm_3/boss_hm3_lows5_highs5_dist10_boss_hm3.nam" },
-    NamCapture { tone: "lows5_highs5_dist5_boss_hm3",    model_path: "pedals/boss_hm_3/boss_hm3_lows5_highs5_dist5_boss_hm3.nam" },
+    NamCapture { tone: "lows10_highs10_dist5_boss_hm3", model_path: "pedals/boss_hm_3/boss_hm3_lows10_highs10_dist5_boss_hm3.nam" },
+    NamCapture { tone: "lows10_highs5_dist10_boss_hm3", model_path: "pedals/boss_hm_3/boss_hm3_lows10_highs5_dist10_boss_hm3.nam" },
+    NamCapture { tone: "lows10_highs5_dist5_boss_hm3", model_path: "pedals/boss_hm_3/boss_hm3_lows10_highs5_dist5_boss_hm3.nam" },
+    NamCapture { tone: "lows5_highs10_dist10_boss_hm3", model_path: "pedals/boss_hm_3/boss_hm3_lows5_highs10_dist10_boss_hm3.nam" },
+    NamCapture { tone: "lows5_highs10_dist5_boss_hm3", model_path: "pedals/boss_hm_3/boss_hm3_lows5_highs10_dist5_boss_hm3.nam" },
+    NamCapture { tone: "lows5_highs5_dist10_boss_hm3", model_path: "pedals/boss_hm_3/boss_hm3_lows5_highs5_dist10_boss_hm3.nam" },
+    NamCapture { tone: "lows5_highs5_dist5_boss_hm3", model_path: "pedals/boss_hm_3/boss_hm3_lows5_highs5_dist5_boss_hm3.nam" },
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -39,13 +39,13 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("lows10_highs10_dist10_boss_hm3"),
         &[
             ("lows10_highs10_dist10_boss_hm3", "Lows10 Highs10 Dist10 Boss Hm3"),
-            ("lows10_highs10_dist5_boss_hm3",  "Lows10 Highs10 Dist5 Boss Hm3"),
-            ("lows10_highs5_dist10_boss_hm3",  "Lows10 Highs5 Dist10 Boss Hm3"),
-            ("lows10_highs5_dist5_boss_hm3",   "Lows10 Highs5 Dist5 Boss Hm3"),
-            ("lows5_highs10_dist10_boss_hm3",  "Lows5 Highs10 Dist10 Boss Hm3"),
-            ("lows5_highs10_dist5_boss_hm3",   "Lows5 Highs10 Dist5 Boss Hm3"),
-            ("lows5_highs5_dist10_boss_hm3",   "Lows5 Highs5 Dist10 Boss Hm3"),
-            ("lows5_highs5_dist5_boss_hm3",    "Lows5 Highs5 Dist5 Boss Hm3"),
+            ("lows10_highs10_dist5_boss_hm3", "Lows10 Highs10 Dist5 Boss Hm3"),
+            ("lows10_highs5_dist10_boss_hm3", "Lows10 Highs5 Dist10 Boss Hm3"),
+            ("lows10_highs5_dist5_boss_hm3", "Lows10 Highs5 Dist5 Boss Hm3"),
+            ("lows5_highs10_dist10_boss_hm3", "Lows5 Highs10 Dist10 Boss Hm3"),
+            ("lows5_highs10_dist5_boss_hm3", "Lows5 Highs10 Dist5 Boss Hm3"),
+            ("lows5_highs5_dist10_boss_hm3", "Lows5 Highs5 Dist10 Boss Hm3"),
+            ("lows5_highs5_dist5_boss_hm3", "Lows5 Highs5 Dist5 Boss Hm3"),
         ],
     )];
     schema

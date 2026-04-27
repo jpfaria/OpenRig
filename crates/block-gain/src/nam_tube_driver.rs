@@ -32,8 +32,8 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("Pedal"),
         Some("boost_setting_8481_400ep"),
         &[
-            ("boost_setting_8481_400ep", "Boost Setting 8481 400Ep"),
-            ("drive_setting_4386_400ep", "Drive Setting 4386 400Ep"),
+            ("boost_setting_8481_400ep", "Boost Setting 8481 400ep"),
+            ("drive_setting_4386_400ep", "Drive Setting 4386 400ep"),
         ],
     )];
     schema

@@ -21,7 +21,7 @@ struct NamCapture {
 
 const CAPTURES: &[NamCapture] = &[
     NamCapture { tone: "off", model_path: "pedals/mxr_evh_5150_overdrive/mxr_evh_5150_overdrive_boost_off.nam" },
-    NamCapture { tone: "on",  model_path: "pedals/mxr_evh_5150_overdrive/mxr_evh_5150_overdrive_boost_on.nam" },
+    NamCapture { tone: "on", model_path: "pedals/mxr_evh_5150_overdrive/mxr_evh_5150_overdrive_boost_on.nam" },
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -33,7 +33,7 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("off"),
         &[
             ("off", "Off"),
-            ("on",  "On"),
+            ("on", "On"),
         ],
     )];
     schema

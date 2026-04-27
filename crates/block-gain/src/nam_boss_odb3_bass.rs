@@ -20,12 +20,12 @@ struct NamCapture {
 }
 
 const CAPTURES: &[NamCapture] = &[
-    NamCapture { tone: "100_gain_0",   model_path: "pedals/boss_odb3_bass/boss_odb3_v7_5_h5_l6_blend_100_gain_0.nam" },
-    NamCapture { tone: "100_gain_5",   model_path: "pedals/boss_odb3_bass/boss_odb3_v7_5_h5_l6_blend_100_gain_5.nam" },
+    NamCapture { tone: "100_gain_0", model_path: "pedals/boss_odb3_bass/boss_odb3_v7_5_h5_l6_blend_100_gain_0.nam" },
+    NamCapture { tone: "100_gain_5", model_path: "pedals/boss_odb3_bass/boss_odb3_v7_5_h5_l6_blend_100_gain_5.nam" },
     NamCapture { tone: "100_gain_7_5", model_path: "pedals/boss_odb3_bass/boss_odb3_v7_5_h5_l6_blend_100_gain_7_5.nam" },
-    NamCapture { tone: "25_gain_5",    model_path: "pedals/boss_odb3_bass/boss_odb3_v7_5_h5_l6_blend_25_gain_5.nam" },
-    NamCapture { tone: "25_gain_7_5",  model_path: "pedals/boss_odb3_bass/boss_odb3_v7_5_h5_l6_blend_25_gain_7_5.nam" },
-    NamCapture { tone: "70_gain_0",    model_path: "pedals/boss_odb3_bass/boss_odb3_v7_5_h5_l6_blend_70_gain_0.nam" },
+    NamCapture { tone: "25_gain_5", model_path: "pedals/boss_odb3_bass/boss_odb3_v7_5_h5_l6_blend_25_gain_5.nam" },
+    NamCapture { tone: "25_gain_7_5", model_path: "pedals/boss_odb3_bass/boss_odb3_v7_5_h5_l6_blend_25_gain_7_5.nam" },
+    NamCapture { tone: "70_gain_0", model_path: "pedals/boss_odb3_bass/boss_odb3_v7_5_h5_l6_blend_70_gain_0.nam" },
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -36,12 +36,12 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("Pedal"),
         Some("100_gain_0"),
         &[
-            ("100_gain_0",   "100 Gain 0"),
-            ("100_gain_5",   "100 Gain 5"),
+            ("100_gain_0", "100 Gain 0"),
+            ("100_gain_5", "100 Gain 5"),
             ("100_gain_7_5", "100 Gain 7 5"),
-            ("25_gain_5",    "25 Gain 5"),
-            ("25_gain_7_5",  "25 Gain 7 5"),
-            ("70_gain_0",    "70 Gain 0"),
+            ("25_gain_5", "25 Gain 5"),
+            ("25_gain_7_5", "25 Gain 7 5"),
+            ("70_gain_0", "70 Gain 0"),
         ],
     )];
     schema

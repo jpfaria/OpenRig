@@ -10,7 +10,7 @@ use block_core::{AudioChannelLayout, BlockProcessor};
 
 pub const MODEL_ID: &str = "nam_earthquaker_talons";
 pub const DISPLAY_NAME: &str = "EarthQuaker Talons";
-const BRAND: &str = "earthquaker";
+const BRAND: &str = "earthquaker_devices";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
@@ -20,10 +20,10 @@ struct NamCapture {
 }
 
 const CAPTURES: &[NamCapture] = &[
-    NamCapture { tone: "flat",           model_path: "pedals/earthquaker_talons/talons_gain_5_flat.nam" },
-    NamCapture { tone: "mid_boost",      model_path: "pedals/earthquaker_talons/talons_gain_5_mid_boost.nam" },
+    NamCapture { tone: "flat", model_path: "pedals/earthquaker_talons/talons_gain_5_flat.nam" },
+    NamCapture { tone: "mid_boost", model_path: "pedals/earthquaker_talons/talons_gain_5_mid_boost.nam" },
     NamCapture { tone: "presence_boost", model_path: "pedals/earthquaker_talons/talons_gain_5_presence_boost.nam" },
-    NamCapture { tone: "trebel_boost",   model_path: "pedals/earthquaker_talons/talons_gain_5_trebel_boost.nam" },
+    NamCapture { tone: "trebel_boost", model_path: "pedals/earthquaker_talons/talons_gain_5_trebel_boost.nam" },
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -34,10 +34,10 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("Pedal"),
         Some("flat"),
         &[
-            ("flat",           "Flat"),
-            ("mid_boost",      "Mid Boost"),
+            ("flat", "Flat"),
+            ("mid_boost", "Mid Boost"),
             ("presence_boost", "Presence Boost"),
-            ("trebel_boost",   "Trebel Boost"),
+            ("trebel_boost", "Trebel Boost"),
         ],
     )];
     schema

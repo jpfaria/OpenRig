@@ -368,6 +368,7 @@ OpenRig é um pedalboard virtual para músicos. O usuário monta sua cadeia de e
 - **EQ (Three Band / Guitar EQ)**: low, mid, high (0-100% → -24dB a +24dB)
 - **8-Band Parametric EQ** (`eq_eight_band_parametric`): por banda — `band{N}_enabled` (bool), `band{N}_type` (peak/low_shelf/high_shelf/low_pass/high_pass/notch), `band{N}_freq` (20–20000 Hz), `band{N}_gain` (-24/+24 dB), `band{N}_q` (0.1–10). Freqs padrão: 62/125/250/500/1k/2k/4k/8kHz. Suporta todos os instrumentos. DualMono.
 - **Gain pedals**: drive, tone, level
+- **NAM gain pedals com grid**: cada modelo expoe knobs reais (`tone`, `sustain`, `drive`, `volume`, `gain`, etc — variam por pedal) que mapeiam pra captura `.nam` mais proxima na grid. Sufixo de tamanho (`_feather`, `_lite`, `_nano`) vira enum opcional `size`. Pedais com nomes nominais (`chainsaw`, `medium`) ou `preset_N` mantem enum dropdown. Codegen: `tools/gen_pedal_models.py`
 - **Volume**: volume (0-100%), mute (on/off)
 - **Vibrato**: rate_hz (0.1-8.0Hz), depth (0-100%) — 100% wet, no dry signal
 - **Autotune Chromatic**: speed (0-100ms), mix (0-100%), detune (±50 cents), sensitivity (0-100%)

@@ -20,13 +20,13 @@ struct NamCapture {
 }
 
 const CAPTURES: &[NamCapture] = &[
-    NamCapture { tone: "00",  model_path: "pedals/ehx_soul_food/gp_eh_soul_food_vol_10_treb_05_drive_00.nam" },
+    NamCapture { tone: "00", model_path: "pedals/ehx_soul_food/gp_eh_soul_food_vol_10_treb_05_drive_00.nam" },
     NamCapture { tone: "100", model_path: "pedals/ehx_soul_food/gp_eh_soul_food_vol_10_treb_05_drive_100.nam" },
-    NamCapture { tone: "25",  model_path: "pedals/ehx_soul_food/gp_eh_soul_food_vol_10_treb_05_drive_25.nam" },
-    NamCapture { tone: "40",  model_path: "pedals/ehx_soul_food/gp_eh_soul_food_vol_10_treb_05_drive_40.nam" },
-    NamCapture { tone: "50",  model_path: "pedals/ehx_soul_food/gp_eh_soul_food_vol_10_treb_05_drive_50.nam" },
-    NamCapture { tone: "60",  model_path: "pedals/ehx_soul_food/gp_eh_soul_food_vol_10_treb_05_drive_60.nam" },
-    NamCapture { tone: "75",  model_path: "pedals/ehx_soul_food/gp_eh_soul_food_vol_10_treb_05_drive_75.nam" },
+    NamCapture { tone: "25", model_path: "pedals/ehx_soul_food/gp_eh_soul_food_vol_10_treb_05_drive_25.nam" },
+    NamCapture { tone: "40", model_path: "pedals/ehx_soul_food/gp_eh_soul_food_vol_10_treb_05_drive_40.nam" },
+    NamCapture { tone: "50", model_path: "pedals/ehx_soul_food/gp_eh_soul_food_vol_10_treb_05_drive_50.nam" },
+    NamCapture { tone: "60", model_path: "pedals/ehx_soul_food/gp_eh_soul_food_vol_10_treb_05_drive_60.nam" },
+    NamCapture { tone: "75", model_path: "pedals/ehx_soul_food/gp_eh_soul_food_vol_10_treb_05_drive_75.nam" },
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -37,13 +37,13 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("Pedal"),
         Some("00"),
         &[
-            ("00",  "00"),
+            ("00", "00"),
             ("100", "100"),
-            ("25",  "25"),
-            ("40",  "40"),
-            ("50",  "50"),
-            ("60",  "60"),
-            ("75",  "75"),
+            ("25", "25"),
+            ("40", "40"),
+            ("50", "50"),
+            ("60", "60"),
+            ("75", "75"),
         ],
     )];
     schema

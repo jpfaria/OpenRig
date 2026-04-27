@@ -5,8 +5,11 @@ use nam::{
     build_processor_with_assets_for_layout, model_schema_for,
     processor::{NamPluginParams, DEFAULT_PLUGIN_PARAMS},
 };
-use block_core::param::{enum_parameter, required_string, ModelParameterSchema, ParameterSet};
-use block_core::{AudioChannelLayout, BlockProcessor};
+use block_core::param::{
+    float_parameter, required_f32, 
+    ModelParameterSchema, ParameterSet, ParameterUnit,
+};
+use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode};
 
 pub const MODEL_ID: &str = "nam_mxr_classic_108_fuzz";
 pub const DISPLAY_NAME: &str = "MXR Classic 108 Fuzz";
@@ -14,64 +17,50 @@ const BRAND: &str = "mxr";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
-struct NamCapture {
-    tone: &'static str,
+#[derive(Clone, Copy)]
+struct GridCapture {
+    filter: f32,
+    size: NamSize,
     model_path: &'static str,
 }
 
-const CAPTURES: &[NamCapture] = &[
-    NamCapture { tone: "10_00_buffer_ttsv10", model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_10_00_buffer_ttsv10.nam" },
-    NamCapture { tone: "10_00_ttsv10",        model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_10_00_ttsv10.nam" },
-    NamCapture { tone: "11_00_buffer_ttsv10", model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_11_00_buffer_ttsv10.nam" },
-    NamCapture { tone: "11_00_ttsv10",        model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_11_00_ttsv10.nam" },
-    NamCapture { tone: "12_00_buffer_ttsv10", model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_12_00_buffer_ttsv10.nam" },
-    NamCapture { tone: "12_00_ttsv10",        model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_12_00_ttsv10.nam" },
-    NamCapture { tone: "1_00_buffer_ttsv10",  model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_1_00_buffer_ttsv10.nam" },
-    NamCapture { tone: "1_00_ttsv10",         model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_1_00_ttsv10.nam" },
-    NamCapture { tone: "2_00_buffer_ttsv10",  model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_2_00_buffer_ttsv10.nam" },
-    NamCapture { tone: "2_00_ttsv10",         model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_2_00_ttsv10.nam" },
-    NamCapture { tone: "3_00_buffer_ttsv10",  model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_3_00_buffer_ttsv10.nam" },
-    NamCapture { tone: "3_00_ttsv10",         model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_3_00_ttsv10.nam" },
-    NamCapture { tone: "4_00_buffer_ttsv10",  model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_4_00_buffer_ttsv10.nam" },
-    NamCapture { tone: "4_00_ttsv10",         model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_4_00_ttsv10.nam" },
-    NamCapture { tone: "9_00_buffer_ttsv10",  model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_9_00_buffer_ttsv10.nam" },
-    NamCapture { tone: "9_00_ttsv10",         model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_9_00_ttsv10.nam" },
-    NamCapture { tone: "max_buffer_ttsv10",   model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_max_buffer_ttsv10.nam" },
-    NamCapture { tone: "max_ttsv10",          model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_max_ttsv10.nam" },
-    NamCapture { tone: "min_buffer_ttsv10",   model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_min_buffer_ttsv10.nam" },
-    NamCapture { tone: "min_ttsv10",          model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_min_ttsv10.nam" },
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum NamSize {
+    Standard,
+}
+
+const FILTER_MIN: f32 = 1.0;
+const FILTER_MAX: f32 = 12.0;
+
+const CAPTURES: &[GridCapture] = &[
+    GridCapture { filter: 10.0, size: NamSize::Standard, model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_10_00_buffer_ttsv10.nam" },
+    GridCapture { filter: 10.0, size: NamSize::Standard, model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_10_00_ttsv10.nam" },
+    GridCapture { filter: 11.0, size: NamSize::Standard, model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_11_00_buffer_ttsv10.nam" },
+    GridCapture { filter: 11.0, size: NamSize::Standard, model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_11_00_ttsv10.nam" },
+    GridCapture { filter: 12.0, size: NamSize::Standard, model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_12_00_buffer_ttsv10.nam" },
+    GridCapture { filter: 12.0, size: NamSize::Standard, model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_12_00_ttsv10.nam" },
+    GridCapture { filter: 1.0, size: NamSize::Standard, model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_1_00_buffer_ttsv10.nam" },
+    GridCapture { filter: 1.0, size: NamSize::Standard, model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_1_00_ttsv10.nam" },
+    GridCapture { filter: 2.0, size: NamSize::Standard, model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_2_00_buffer_ttsv10.nam" },
+    GridCapture { filter: 2.0, size: NamSize::Standard, model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_2_00_ttsv10.nam" },
+    GridCapture { filter: 3.0, size: NamSize::Standard, model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_3_00_buffer_ttsv10.nam" },
+    GridCapture { filter: 3.0, size: NamSize::Standard, model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_3_00_ttsv10.nam" },
+    GridCapture { filter: 4.0, size: NamSize::Standard, model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_4_00_buffer_ttsv10.nam" },
+    GridCapture { filter: 4.0, size: NamSize::Standard, model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_4_00_ttsv10.nam" },
+    GridCapture { filter: 9.0, size: NamSize::Standard, model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_9_00_buffer_ttsv10.nam" },
+    GridCapture { filter: 9.0, size: NamSize::Standard, model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_9_00_ttsv10.nam" },
+    GridCapture { filter: 12.0, size: NamSize::Standard, model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_max_buffer_ttsv10.nam" },
+    GridCapture { filter: 12.0, size: NamSize::Standard, model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_max_ttsv10.nam" },
+    GridCapture { filter: 1.0, size: NamSize::Standard, model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_min_buffer_ttsv10.nam" },
+    GridCapture { filter: 1.0, size: NamSize::Standard, model_path: "pedals/mxr_classic_108_fuzz/mxr_108_fuzz_v_max_f_min_ttsv10.nam" },
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for(block_core::EFFECT_TYPE_GAIN, MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "tone",
-        "Tone",
-        Some("Pedal"),
-        Some("10_00_buffer_ttsv10"),
-        &[
-            ("10_00_buffer_ttsv10", "10 00 Buffer Ttsv10"),
-            ("10_00_ttsv10",        "10 00 Ttsv10"),
-            ("11_00_buffer_ttsv10", "11 00 Buffer Ttsv10"),
-            ("11_00_ttsv10",        "11 00 Ttsv10"),
-            ("12_00_buffer_ttsv10", "12 00 Buffer Ttsv10"),
-            ("12_00_ttsv10",        "12 00 Ttsv10"),
-            ("1_00_buffer_ttsv10",  "1 00 Buffer Ttsv10"),
-            ("1_00_ttsv10",         "1 00 Ttsv10"),
-            ("2_00_buffer_ttsv10",  "2 00 Buffer Ttsv10"),
-            ("2_00_ttsv10",         "2 00 Ttsv10"),
-            ("3_00_buffer_ttsv10",  "3 00 Buffer Ttsv10"),
-            ("3_00_ttsv10",         "3 00 Ttsv10"),
-            ("4_00_buffer_ttsv10",  "4 00 Buffer Ttsv10"),
-            ("4_00_ttsv10",         "4 00 Ttsv10"),
-            ("9_00_buffer_ttsv10",  "9 00 Buffer Ttsv10"),
-            ("9_00_ttsv10",         "9 00 Ttsv10"),
-            ("max_buffer_ttsv10",   "Max Buffer Ttsv10"),
-            ("max_ttsv10",          "Max Ttsv10"),
-            ("min_buffer_ttsv10",   "Min Buffer Ttsv10"),
-            ("min_ttsv10",          "Min Ttsv10"),
-        ],
-    )];
+    schema.audio_mode = ModelAudioMode::DualMono;
+    schema.parameters = vec![
+        float_parameter("filter", "Filter", Some("Pedal"), Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
+    ];
     schema
 }
 
@@ -99,12 +88,18 @@ pub fn asset_summary(params: &ParameterSet) -> Result<String> {
     Ok(format!("model='{}'", capture.model_path))
 }
 
-fn resolve_capture(params: &ParameterSet) -> Result<&'static NamCapture> {
-    let tone = required_string(params, "tone").map_err(anyhow::Error::msg)?;
-    CAPTURES
-        .iter()
-        .find(|c| c.tone == tone)
-        .ok_or_else(|| anyhow!("gain model '{}' does not support tone='{}'", MODEL_ID, tone))
+fn resolve_capture(params: &ParameterSet) -> Result<&'static GridCapture> {
+    let filter_pct = required_f32(params, "filter").map_err(anyhow::Error::msg)?;
+    let filter = FILTER_MIN + (filter_pct / 100.0) * (FILTER_MAX - FILTER_MIN);
+    let _size = NamSize::Standard;
+    let candidates = CAPTURES.iter().filter(|c| c.size == NamSize::Standard);
+    candidates
+        .min_by(|a, b| {
+            let da = (a.filter - filter).powi(2);
+            let db = (b.filter - filter).powi(2);
+            da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
+        })
+        .ok_or_else(|| anyhow!("no capture matches"))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
@@ -127,3 +122,4 @@ pub const MODEL_DEFINITION: GainModelDefinition = GainModelDefinition {
     supported_instruments: block_core::GUITAR_BASS,
     knob_layout: &[],
 };
+

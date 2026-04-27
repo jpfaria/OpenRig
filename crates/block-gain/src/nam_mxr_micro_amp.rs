@@ -21,8 +21,8 @@ struct NamCapture {
 
 const CAPTURES: &[NamCapture] = &[
     NamCapture { tone: "fullgain", model_path: "pedals/mxr_micro_amp/mxr_microamp_fullgain.nam" },
-    NamCapture { tone: "lowgain",  model_path: "pedals/mxr_micro_amp/mxr_microamp_lowgain.nam" },
-    NamCapture { tone: "midgain",  model_path: "pedals/mxr_micro_amp/mxr_microamp_midgain.nam" },
+    NamCapture { tone: "lowgain", model_path: "pedals/mxr_micro_amp/mxr_microamp_lowgain.nam" },
+    NamCapture { tone: "midgain", model_path: "pedals/mxr_micro_amp/mxr_microamp_midgain.nam" },
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -34,8 +34,8 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("fullgain"),
         &[
             ("fullgain", "Fullgain"),
-            ("lowgain",  "Lowgain"),
-            ("midgain",  "Midgain"),
+            ("lowgain", "Lowgain"),
+            ("midgain", "Midgain"),
         ],
     )];
     schema

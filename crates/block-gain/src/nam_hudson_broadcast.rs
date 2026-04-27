@@ -20,12 +20,12 @@ struct NamCapture {
 }
 
 const CAPTURES: &[NamCapture] = &[
-    NamCapture { tone: "level1200_g",   model_path: "pedals/hudson_broadcast/hudson_broadcast_bc_24v_ltd_low_cut900_level1200_g.nam" },
+    NamCapture { tone: "level1200_g", model_path: "pedals/hudson_broadcast/hudson_broadcast_bc_24v_ltd_low_cut900_level1200_g.nam" },
     NamCapture { tone: "level1200_g_1", model_path: "pedals/hudson_broadcast/hudson_broadcast_bc_24v_ltd_low_cut900_level1200_g_1.nam" },
     NamCapture { tone: "level1200_g_2", model_path: "pedals/hudson_broadcast/hudson_broadcast_bc_24v_ltd_low_cut900_level1200_g_2.nam" },
     NamCapture { tone: "level1200_g_3", model_path: "pedals/hudson_broadcast/hudson_broadcast_bc_24v_ltd_low_cut900_level1200_g_3.nam" },
     NamCapture { tone: "level1200_g_4", model_path: "pedals/hudson_broadcast/hudson_broadcast_bc_24v_ltd_low_cut900_level1200_g_4.nam" },
-    NamCapture { tone: "level130_ga",   model_path: "pedals/hudson_broadcast/hudson_broadcast_bc_24v_ltd_low_cut900_level130_ga.nam" },
+    NamCapture { tone: "level130_ga", model_path: "pedals/hudson_broadcast/hudson_broadcast_bc_24v_ltd_low_cut900_level130_ga.nam" },
     NamCapture { tone: "level130_ga_1", model_path: "pedals/hudson_broadcast/hudson_broadcast_bc_24v_ltd_low_cut900_level130_ga_1.nam" },
     NamCapture { tone: "level130_ga_2", model_path: "pedals/hudson_broadcast/hudson_broadcast_bc_24v_ltd_low_cut900_level130_ga_2.nam" },
     NamCapture { tone: "level130_ga_3", model_path: "pedals/hudson_broadcast/hudson_broadcast_bc_24v_ltd_low_cut900_level130_ga_3.nam" },
@@ -45,12 +45,12 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("Pedal"),
         Some("level1200_g"),
         &[
-            ("level1200_g",   "Level1200 G"),
+            ("level1200_g", "Level1200 G"),
             ("level1200_g_1", "Level1200 G 1"),
             ("level1200_g_2", "Level1200 G 2"),
             ("level1200_g_3", "Level1200 G 3"),
             ("level1200_g_4", "Level1200 G 4"),
-            ("level130_ga",   "Level130 Ga"),
+            ("level130_ga", "Level130 Ga"),
             ("level130_ga_1", "Level130 Ga 1"),
             ("level130_ga_2", "Level130 Ga 2"),
             ("level130_ga_3", "Level130 Ga 3"),

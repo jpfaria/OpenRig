@@ -20,16 +20,16 @@ struct NamCapture {
 }
 
 const CAPTURES: &[NamCapture] = &[
-    NamCapture { tone: "as_an_overdrive",          model_path: "pedals/ehx_metal_muff/metal_muff_as_an_overdrive.nam" },
-    NamCapture { tone: "eq_noon",                  model_path: "pedals/ehx_metal_muff/metal_muff_eq_noon.nam" },
-    NamCapture { tone: "eq_noon_full_gain",        model_path: "pedals/ehx_metal_muff/metal_muff_eq_noon_full_gain.nam" },
-    NamCapture { tone: "evil",                     model_path: "pedals/ehx_metal_muff/metal_muff_evil.nam" },
-    NamCapture { tone: "mega_scoop",               model_path: "pedals/ehx_metal_muff/metal_muff_mega_scoop.nam" },
-    NamCapture { tone: "my_settings",              model_path: "pedals/ehx_metal_muff/metal_muff_my_settings.nam" },
-    NamCapture { tone: "nattens_madrigal",         model_path: "pedals/ehx_metal_muff/metal_muff_nattens_madrigal.nam" },
-    NamCapture { tone: "swedish_chainsaw_ish",     model_path: "pedals/ehx_metal_muff/metal_muff_swedish_chainsaw_ish.nam" },
+    NamCapture { tone: "as_an_overdrive", model_path: "pedals/ehx_metal_muff/metal_muff_as_an_overdrive.nam" },
+    NamCapture { tone: "eq_noon", model_path: "pedals/ehx_metal_muff/metal_muff_eq_noon.nam" },
+    NamCapture { tone: "eq_noon_full_gain", model_path: "pedals/ehx_metal_muff/metal_muff_eq_noon_full_gain.nam" },
+    NamCapture { tone: "evil", model_path: "pedals/ehx_metal_muff/metal_muff_evil.nam" },
+    NamCapture { tone: "mega_scoop", model_path: "pedals/ehx_metal_muff/metal_muff_mega_scoop.nam" },
+    NamCapture { tone: "my_settings", model_path: "pedals/ehx_metal_muff/metal_muff_my_settings.nam" },
+    NamCapture { tone: "nattens_madrigal", model_path: "pedals/ehx_metal_muff/metal_muff_nattens_madrigal.nam" },
+    NamCapture { tone: "swedish_chainsaw_ish", model_path: "pedals/ehx_metal_muff/metal_muff_swedish_chainsaw_ish.nam" },
     NamCapture { tone: "tob_boost_low_distortion", model_path: "pedals/ehx_metal_muff/metal_muff_tob_boost_low_distortion.nam" },
-    NamCapture { tone: "trve_kult",                model_path: "pedals/ehx_metal_muff/metal_muff_trve_kult.nam" },
+    NamCapture { tone: "trve_kult", model_path: "pedals/ehx_metal_muff/metal_muff_trve_kult.nam" },
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -40,16 +40,16 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("Pedal"),
         Some("as_an_overdrive"),
         &[
-            ("as_an_overdrive",          "As An Overdrive"),
-            ("eq_noon",                  "Eq Noon"),
-            ("eq_noon_full_gain",        "Eq Noon Full Gain"),
-            ("evil",                     "Evil"),
-            ("mega_scoop",               "Mega Scoop"),
-            ("my_settings",              "My Settings"),
-            ("nattens_madrigal",         "Nattens Madrigal"),
-            ("swedish_chainsaw_ish",     "Swedish Chainsaw Ish"),
+            ("as_an_overdrive", "As An Overdrive"),
+            ("eq_noon", "Eq Noon"),
+            ("eq_noon_full_gain", "Eq Noon Full Gain"),
+            ("evil", "Evil"),
+            ("mega_scoop", "Mega Scoop"),
+            ("my_settings", "My Settings"),
+            ("nattens_madrigal", "Nattens Madrigal"),
+            ("swedish_chainsaw_ish", "Swedish Chainsaw Ish"),
             ("tob_boost_low_distortion", "Tob Boost Low Distortion"),
-            ("trve_kult",                "Trve Kult"),
+            ("trve_kult", "Trve Kult"),
         ],
     )];
     schema

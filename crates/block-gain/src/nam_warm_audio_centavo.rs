@@ -10,7 +10,7 @@ use block_core::{AudioChannelLayout, BlockProcessor};
 
 pub const MODEL_ID: &str = "nam_warm_audio_centavo";
 pub const DISPLAY_NAME: &str = "Warm Audio Centavo";
-const BRAND: &str = "warm";
+const BRAND: &str = "warm_audio";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
@@ -20,7 +20,7 @@ struct NamCapture {
 }
 
 const CAPTURES: &[NamCapture] = &[
-    NamCapture { tone: "clean",        model_path: "pedals/warm_audio_centavo/pedal_centavo_clean.nam" },
+    NamCapture { tone: "clean", model_path: "pedals/warm_audio_centavo/pedal_centavo_clean.nam" },
     NamCapture { tone: "low_clipping", model_path: "pedals/warm_audio_centavo/pedal_centavo_low_clipping.nam" },
 ];
 
@@ -32,7 +32,7 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("Pedal"),
         Some("clean"),
         &[
-            ("clean",        "Clean"),
+            ("clean", "Clean"),
             ("low_clipping", "Low Clipping"),
         ],
     )];

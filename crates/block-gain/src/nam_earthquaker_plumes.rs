@@ -10,7 +10,7 @@ use block_core::{AudioChannelLayout, BlockProcessor};
 
 pub const MODEL_ID: &str = "nam_earthquaker_plumes";
 pub const DISPLAY_NAME: &str = "EarthQuaker Plumes";
-const BRAND: &str = "earthquaker";
+const BRAND: &str = "earthquaker_devices";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
@@ -20,21 +20,21 @@ struct NamCapture {
 }
 
 const CAPTURES: &[NamCapture] = &[
-    NamCapture { tone: "100_gain_0_tone_0",   model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_100_gain_0_tone_0.nam" },
+    NamCapture { tone: "100_gain_0_tone_0", model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_100_gain_0_tone_0.nam" },
     NamCapture { tone: "100_gain_0_tone_100", model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_100_gain_0_tone_100.nam" },
-    NamCapture { tone: "100_gain_0_tone_25",  model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_100_gain_0_tone_25.nam" },
-    NamCapture { tone: "100_gain_0_tone_50",  model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_100_gain_0_tone_50.nam" },
-    NamCapture { tone: "100_gain_0_tone_75",  model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_100_gain_0_tone_75.nam" },
-    NamCapture { tone: "25_gain_75_tone_0",   model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_25_gain_75_tone_0.nam" },
+    NamCapture { tone: "100_gain_0_tone_25", model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_100_gain_0_tone_25.nam" },
+    NamCapture { tone: "100_gain_0_tone_50", model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_100_gain_0_tone_50.nam" },
+    NamCapture { tone: "100_gain_0_tone_75", model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_100_gain_0_tone_75.nam" },
+    NamCapture { tone: "25_gain_75_tone_0", model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_25_gain_75_tone_0.nam" },
     NamCapture { tone: "25_gain_75_tone_100", model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_25_gain_75_tone_100.nam" },
-    NamCapture { tone: "25_gain_75_tone_25",  model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_25_gain_75_tone_25.nam" },
-    NamCapture { tone: "25_gain_75_tone_50",  model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_25_gain_75_tone_50.nam" },
-    NamCapture { tone: "25_gain_75_tone_75",  model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_25_gain_75_tone_75.nam" },
-    NamCapture { tone: "50_gain_50_tone_0",   model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_50_gain_50_tone_0.nam" },
+    NamCapture { tone: "25_gain_75_tone_25", model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_25_gain_75_tone_25.nam" },
+    NamCapture { tone: "25_gain_75_tone_50", model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_25_gain_75_tone_50.nam" },
+    NamCapture { tone: "25_gain_75_tone_75", model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_25_gain_75_tone_75.nam" },
+    NamCapture { tone: "50_gain_50_tone_0", model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_50_gain_50_tone_0.nam" },
     NamCapture { tone: "50_gain_50_tone_100", model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_50_gain_50_tone_100.nam" },
-    NamCapture { tone: "50_gain_50_tone_25",  model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_50_gain_50_tone_25.nam" },
-    NamCapture { tone: "50_gain_50_tone_50",  model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_50_gain_50_tone_50.nam" },
-    NamCapture { tone: "50_gain_50_tone_75",  model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_50_gain_50_tone_75.nam" },
+    NamCapture { tone: "50_gain_50_tone_25", model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_50_gain_50_tone_25.nam" },
+    NamCapture { tone: "50_gain_50_tone_50", model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_50_gain_50_tone_50.nam" },
+    NamCapture { tone: "50_gain_50_tone_75", model_path: "pedals/earthquaker_plumes/plumes_switch_3_level_50_gain_50_tone_75.nam" },
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -45,21 +45,21 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("Pedal"),
         Some("100_gain_0_tone_0"),
         &[
-            ("100_gain_0_tone_0",   "100 Gain 0 Tone 0"),
+            ("100_gain_0_tone_0", "100 Gain 0 Tone 0"),
             ("100_gain_0_tone_100", "100 Gain 0 Tone 100"),
-            ("100_gain_0_tone_25",  "100 Gain 0 Tone 25"),
-            ("100_gain_0_tone_50",  "100 Gain 0 Tone 50"),
-            ("100_gain_0_tone_75",  "100 Gain 0 Tone 75"),
-            ("25_gain_75_tone_0",   "25 Gain 75 Tone 0"),
+            ("100_gain_0_tone_25", "100 Gain 0 Tone 25"),
+            ("100_gain_0_tone_50", "100 Gain 0 Tone 50"),
+            ("100_gain_0_tone_75", "100 Gain 0 Tone 75"),
+            ("25_gain_75_tone_0", "25 Gain 75 Tone 0"),
             ("25_gain_75_tone_100", "25 Gain 75 Tone 100"),
-            ("25_gain_75_tone_25",  "25 Gain 75 Tone 25"),
-            ("25_gain_75_tone_50",  "25 Gain 75 Tone 50"),
-            ("25_gain_75_tone_75",  "25 Gain 75 Tone 75"),
-            ("50_gain_50_tone_0",   "50 Gain 50 Tone 0"),
+            ("25_gain_75_tone_25", "25 Gain 75 Tone 25"),
+            ("25_gain_75_tone_50", "25 Gain 75 Tone 50"),
+            ("25_gain_75_tone_75", "25 Gain 75 Tone 75"),
+            ("50_gain_50_tone_0", "50 Gain 50 Tone 0"),
             ("50_gain_50_tone_100", "50 Gain 50 Tone 100"),
-            ("50_gain_50_tone_25",  "50 Gain 50 Tone 25"),
-            ("50_gain_50_tone_50",  "50 Gain 50 Tone 50"),
-            ("50_gain_50_tone_75",  "50 Gain 50 Tone 75"),
+            ("50_gain_50_tone_25", "50 Gain 50 Tone 25"),
+            ("50_gain_50_tone_50", "50 Gain 50 Tone 50"),
+            ("50_gain_50_tone_75", "50 Gain 50 Tone 75"),
         ],
     )];
     schema

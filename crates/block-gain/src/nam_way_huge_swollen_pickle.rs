@@ -10,7 +10,7 @@ use block_core::{AudioChannelLayout, BlockProcessor};
 
 pub const MODEL_ID: &str = "nam_way_huge_swollen_pickle";
 pub const DISPLAY_NAME: &str = "Way Huge Swollen Pickle";
-const BRAND: &str = "way_huge";
+const BRAND: &str = "boss";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
@@ -20,15 +20,15 @@ struct NamCapture {
 }
 
 const CAPTURES: &[NamCapture] = &[
-    NamCapture { tone: "boss_os_2",        model_path: "pedals/way_huge_swollen_pickle/boss_os_2.nam" },
-    NamCapture { tone: "buxom_boost_1",    model_path: "pedals/way_huge_swollen_pickle/buxom_boost_1.nam" },
-    NamCapture { tone: "buxom_boost_2",    model_path: "pedals/way_huge_swollen_pickle/buxom_boost_2.nam" },
-    NamCapture { tone: "buxom_boost_3",    model_path: "pedals/way_huge_swollen_pickle/buxom_boost_3.nam" },
-    NamCapture { tone: "gci_jugendstil",   model_path: "pedals/way_huge_swollen_pickle/gci_jugendstil.nam" },
+    NamCapture { tone: "boss_os_2", model_path: "pedals/way_huge_swollen_pickle/boss_os_2.nam" },
+    NamCapture { tone: "buxom_boost_1", model_path: "pedals/way_huge_swollen_pickle/buxom_boost_1.nam" },
+    NamCapture { tone: "buxom_boost_2", model_path: "pedals/way_huge_swollen_pickle/buxom_boost_2.nam" },
+    NamCapture { tone: "buxom_boost_3", model_path: "pedals/way_huge_swollen_pickle/buxom_boost_3.nam" },
+    NamCapture { tone: "gci_jugendstil", model_path: "pedals/way_huge_swollen_pickle/gci_jugendstil.nam" },
     NamCapture { tone: "pp_rot_mid_boost", model_path: "pedals/way_huge_swollen_pickle/pp_rot_mid_boost.nam" },
     NamCapture { tone: "pp_rot_mid_scoop", model_path: "pedals/way_huge_swollen_pickle/pp_rot_mid_scoop.nam" },
-    NamCapture { tone: "pp_wendigo",       model_path: "pedals/way_huge_swollen_pickle/pp_wendigo.nam" },
-    NamCapture { tone: "swollen_pickle",   model_path: "pedals/way_huge_swollen_pickle/swollen_pickle.nam" },
+    NamCapture { tone: "pp_wendigo", model_path: "pedals/way_huge_swollen_pickle/pp_wendigo.nam" },
+    NamCapture { tone: "swollen_pickle", model_path: "pedals/way_huge_swollen_pickle/swollen_pickle.nam" },
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -39,15 +39,15 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("Pedal"),
         Some("boss_os_2"),
         &[
-            ("boss_os_2",        "Boss Os 2"),
-            ("buxom_boost_1",    "Buxom Boost 1"),
-            ("buxom_boost_2",    "Buxom Boost 2"),
-            ("buxom_boost_3",    "Buxom Boost 3"),
-            ("gci_jugendstil",   "Gci Jugendstil"),
+            ("boss_os_2", "Boss Os 2"),
+            ("buxom_boost_1", "Buxom Boost 1"),
+            ("buxom_boost_2", "Buxom Boost 2"),
+            ("buxom_boost_3", "Buxom Boost 3"),
+            ("gci_jugendstil", "Gci Jugendstil"),
             ("pp_rot_mid_boost", "Pp Rot Mid Boost"),
             ("pp_rot_mid_scoop", "Pp Rot Mid Scoop"),
-            ("pp_wendigo",       "Pp Wendigo"),
-            ("swollen_pickle",   "Swollen Pickle"),
+            ("pp_wendigo", "Pp Wendigo"),
+            ("swollen_pickle", "Swollen Pickle"),
         ],
     )];
     schema

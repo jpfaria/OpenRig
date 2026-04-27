@@ -20,13 +20,13 @@ struct NamCapture {
 }
 
 const CAPTURES: &[NamCapture] = &[
-    NamCapture { tone: "69_hendrix_67_vol_2_contour_12_bias_and_",   model_path: "pedals/fulltone_69/69_hendrix_67_vol_2_contour_12_bias_and_fuzz_full.nam" },
-    NamCapture { tone: "69_high_contour_vol_2_contour_bias_and_f",   model_path: "pedals/fulltone_69/69_high_contour_vol_2_contour_bias_and_fuzz_full.nam" },
-    NamCapture { tone: "69_high_vol_low_contour_contour_off_vol_",   model_path: "pedals/fulltone_69/69_high_vol_low_contour_contour_off_vol_bias_and_f.nam" },
-    NamCapture { tone: "69_high_vol_mid_contour_contour_12_vol_b",   model_path: "pedals/fulltone_69/69_high_vol_mid_contour_contour_12_vol_bias_and_fu.nam" },
-    NamCapture { tone: "69_high_vol_mid_contour_contour_12_vol_b_1", model_path: "pedals/fulltone_69/69_high_vol_mid_contour_contour_12_vol_bias_and_fu_1.nam" },
-    NamCapture { tone: "69_maxx_fuzz_vol_contour_bias_and_fuzz_f",   model_path: "pedals/fulltone_69/69_maxx_fuzz_vol_contour_bias_and_fuzz_full_gain_t.nam" },
-    NamCapture { tone: "69_stock_fuzzface_vol_2_contour_off_bias",   model_path: "pedals/fulltone_69/69_stock_fuzzface_vol_2_contour_off_bias_and_fuzz_.nam" },
+    NamCapture { tone: "hendrix_67_vol_2_contour_12_bias_and_fuzz_full", model_path: "pedals/fulltone_69/69_hendrix_67_vol_2_contour_12_bias_and_fuzz_full.nam" },
+    NamCapture { tone: "high_contour_vol_2_contour_bias_and_fuzz_full", model_path: "pedals/fulltone_69/69_high_contour_vol_2_contour_bias_and_fuzz_full.nam" },
+    NamCapture { tone: "high_vol_low_contour_contour_off_vol_bias_and_f", model_path: "pedals/fulltone_69/69_high_vol_low_contour_contour_off_vol_bias_and_f.nam" },
+    NamCapture { tone: "high_vol_mid_contour_contour_12_vol_bias_and_fu", model_path: "pedals/fulltone_69/69_high_vol_mid_contour_contour_12_vol_bias_and_fu.nam" },
+    NamCapture { tone: "high_vol_mid_contour_contour_12_vol_bias_and_fu_1", model_path: "pedals/fulltone_69/69_high_vol_mid_contour_contour_12_vol_bias_and_fu_1.nam" },
+    NamCapture { tone: "maxx_fuzz_vol_contour_bias_and_fuzz_full_gain_t", model_path: "pedals/fulltone_69/69_maxx_fuzz_vol_contour_bias_and_fuzz_full_gain_t.nam" },
+    NamCapture { tone: "stock_fuzzface_vol_2_contour_off_bias_and_fuzz", model_path: "pedals/fulltone_69/69_stock_fuzzface_vol_2_contour_off_bias_and_fuzz_.nam" },
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -35,15 +35,15 @@ pub fn model_schema() -> ModelParameterSchema {
         "tone",
         "Tone",
         Some("Pedal"),
-        Some("69_hendrix_67_vol_2_contour_12_bias_and_"),
+        Some("hendrix_67_vol_2_contour_12_bias_and_fuzz_full"),
         &[
-            ("69_hendrix_67_vol_2_contour_12_bias_and_",   "69 Hendrix 67 Vol 2 Contour 12 Bias And Fuzz Full"),
-            ("69_high_contour_vol_2_contour_bias_and_f",   "69 High Contour Vol 2 Contour Bias And Fuzz Full"),
-            ("69_high_vol_low_contour_contour_off_vol_",   "69 High Vol Low Contour Contour Off Vol Bias And F"),
-            ("69_high_vol_mid_contour_contour_12_vol_b",   "69 High Vol Mid Contour Contour 12 Vol Bias And Fu"),
-            ("69_high_vol_mid_contour_contour_12_vol_b_1", "69 High Vol Mid Contour Contour 12 Vol Bias And Fu 1"),
-            ("69_maxx_fuzz_vol_contour_bias_and_fuzz_f",   "69 Maxx Fuzz Vol Contour Bias And Fuzz Full Gain T"),
-            ("69_stock_fuzzface_vol_2_contour_off_bias",   "69 Stock Fuzzface Vol 2 Contour Off Bias And Fuzz "),
+            ("hendrix_67_vol_2_contour_12_bias_and_fuzz_full", "Hendrix 67 Vol 2 Contour 12 Bias And Fuzz Full"),
+            ("high_contour_vol_2_contour_bias_and_fuzz_full", "High Contour Vol 2 Contour Bias And Fuzz Full"),
+            ("high_vol_low_contour_contour_off_vol_bias_and_f", "High Vol Low Contour Contour Off Vol Bias And F"),
+            ("high_vol_mid_contour_contour_12_vol_bias_and_fu", "High Vol Mid Contour Contour 12 Vol Bias And Fu"),
+            ("high_vol_mid_contour_contour_12_vol_bias_and_fu_1", "High Vol Mid Contour Contour 12 Vol Bias And Fu 1"),
+            ("maxx_fuzz_vol_contour_bias_and_fuzz_full_gain_t", "Maxx Fuzz Vol Contour Bias And Fuzz Full Gain T"),
+            ("stock_fuzzface_vol_2_contour_off_bias_and_fuzz", "Stock Fuzzface Vol 2 Contour Off Bias And Fuzz"),
         ],
     )];
     schema

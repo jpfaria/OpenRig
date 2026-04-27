@@ -20,11 +20,11 @@ struct NamCapture {
 }
 
 const CAPTURES: &[NamCapture] = &[
-    NamCapture { tone: "1_boost",          model_path: "pedals/boss_ds_2/ds2_1_boost.nam" },
-    NamCapture { tone: "1_default",        model_path: "pedals/boss_ds_2/ds2_1_default.nam" },
-    NamCapture { tone: "1_max_dist",       model_path: "pedals/boss_ds_2/ds2_1_max_dist.nam" },
-    NamCapture { tone: "2_boost",          model_path: "pedals/boss_ds_2/ds2_2_boost.nam" },
-    NamCapture { tone: "2_turbo_default",  model_path: "pedals/boss_ds_2/ds2_2_turbo_default.nam" },
+    NamCapture { tone: "1_boost", model_path: "pedals/boss_ds_2/ds2_1_boost.nam" },
+    NamCapture { tone: "1_default", model_path: "pedals/boss_ds_2/ds2_1_default.nam" },
+    NamCapture { tone: "1_max_dist", model_path: "pedals/boss_ds_2/ds2_1_max_dist.nam" },
+    NamCapture { tone: "2_boost", model_path: "pedals/boss_ds_2/ds2_2_boost.nam" },
+    NamCapture { tone: "2_turbo_default", model_path: "pedals/boss_ds_2/ds2_2_turbo_default.nam" },
     NamCapture { tone: "2_turbo_max_dist", model_path: "pedals/boss_ds_2/ds2_2_turbo_max_dist.nam" },
 ];
 
@@ -36,11 +36,11 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("Pedal"),
         Some("1_boost"),
         &[
-            ("1_boost",          "1 Boost"),
-            ("1_default",        "1 Default"),
-            ("1_max_dist",       "1 Max Dist"),
-            ("2_boost",          "2 Boost"),
-            ("2_turbo_default",  "2 Turbo Default"),
+            ("1_boost", "1 Boost"),
+            ("1_default", "1 Default"),
+            ("1_max_dist", "1 Max Dist"),
+            ("2_boost", "2 Boost"),
+            ("2_turbo_default", "2 Turbo Default"),
             ("2_turbo_max_dist", "2 Turbo Max Dist"),
         ],
     )];

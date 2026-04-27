@@ -24,10 +24,10 @@ const CAPTURES: &[NamCapture] = &[
     NamCapture { tone: "6_battery_powered", model_path: "pedals/boss_mt_2_metal_zone/boss_metalzone_clean_boost_6_battery_powered.nam" },
     NamCapture { tone: "7_battery_powered", model_path: "pedals/boss_mt_2_metal_zone/boss_metalzone_clean_boost_7_battery_powered.nam" },
     NamCapture { tone: "8_battery_powered", model_path: "pedals/boss_mt_2_metal_zone/boss_metalzone_clean_boost_8_battery_powered.nam" },
-    NamCapture { tone: "setting",           model_path: "pedals/boss_mt_2_metal_zone/boss_metalzone_clean_boost_setting.nam" },
-    NamCapture { tone: "setting_2",         model_path: "pedals/boss_mt_2_metal_zone/boss_metalzone_clean_boost_setting_2.nam" },
-    NamCapture { tone: "setting_3",         model_path: "pedals/boss_mt_2_metal_zone/boss_metalzone_clean_boost_setting_3.nam" },
-    NamCapture { tone: "setting_4",         model_path: "pedals/boss_mt_2_metal_zone/boss_metalzone_clean_boost_setting_4.nam" },
+    NamCapture { tone: "setting", model_path: "pedals/boss_mt_2_metal_zone/boss_metalzone_clean_boost_setting.nam" },
+    NamCapture { tone: "setting_2", model_path: "pedals/boss_mt_2_metal_zone/boss_metalzone_clean_boost_setting_2.nam" },
+    NamCapture { tone: "setting_3", model_path: "pedals/boss_mt_2_metal_zone/boss_metalzone_clean_boost_setting_3.nam" },
+    NamCapture { tone: "setting_4", model_path: "pedals/boss_mt_2_metal_zone/boss_metalzone_clean_boost_setting_4.nam" },
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -42,10 +42,10 @@ pub fn model_schema() -> ModelParameterSchema {
             ("6_battery_powered", "6 Battery Powered"),
             ("7_battery_powered", "7 Battery Powered"),
             ("8_battery_powered", "8 Battery Powered"),
-            ("setting",           "Setting"),
-            ("setting_2",         "Setting 2"),
-            ("setting_3",         "Setting 3"),
-            ("setting_4",         "Setting 4"),
+            ("setting", "Setting"),
+            ("setting_2", "Setting 2"),
+            ("setting_3", "Setting 3"),
+            ("setting_4", "Setting 4"),
         ],
     )];
     schema

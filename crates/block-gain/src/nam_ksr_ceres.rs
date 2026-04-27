@@ -21,7 +21,7 @@ struct NamCapture {
 
 const CAPTURES: &[NamCapture] = &[
     NamCapture { tone: "light_blue_channel_all_noon_eq", model_path: "pedals/ksr_ceres/jason_z_ksr_ceres_light_blue_channel_all_noon_eq.nam" },
-    NamCapture { tone: "purple_channel_all_noon_eq",     model_path: "pedals/ksr_ceres/jason_z_ksr_ceres_purple_channel_all_noon_eq.nam" },
+    NamCapture { tone: "purple_channel_all_noon_eq", model_path: "pedals/ksr_ceres/jason_z_ksr_ceres_purple_channel_all_noon_eq.nam" },
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -33,7 +33,7 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("light_blue_channel_all_noon_eq"),
         &[
             ("light_blue_channel_all_noon_eq", "Light Blue Channel All Noon Eq"),
-            ("purple_channel_all_noon_eq",     "Purple Channel All Noon Eq"),
+            ("purple_channel_all_noon_eq", "Purple Channel All Noon Eq"),
         ],
     )];
     schema

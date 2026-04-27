@@ -20,10 +20,10 @@ struct NamCapture {
 }
 
 const CAPTURES: &[NamCapture] = &[
-    NamCapture { tone: "8va",    model_path: "pedals/foxx_tone_machine/fox_tone_machine_8va.nam" },
-    NamCapture { tone: "hg",     model_path: "pedals/foxx_tone_machine/fox_tone_machine_hg.nam" },
+    NamCapture { tone: "8va", model_path: "pedals/foxx_tone_machine/fox_tone_machine_8va.nam" },
+    NamCapture { tone: "hg", model_path: "pedals/foxx_tone_machine/fox_tone_machine_hg.nam" },
     NamCapture { tone: "hg_8va", model_path: "pedals/foxx_tone_machine/fox_tone_machine_hg_8va.nam" },
-    NamCapture { tone: "lg",     model_path: "pedals/foxx_tone_machine/fox_tone_machine_lg.nam" },
+    NamCapture { tone: "lg", model_path: "pedals/foxx_tone_machine/fox_tone_machine_lg.nam" },
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -34,10 +34,10 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("Pedal"),
         Some("8va"),
         &[
-            ("8va",    "8Va"),
-            ("hg",     "Hg"),
-            ("hg_8va", "Hg 8Va"),
-            ("lg",     "Lg"),
+            ("8va", "8va"),
+            ("hg", "Hg"),
+            ("hg_8va", "Hg 8va"),
+            ("lg", "Lg"),
         ],
     )];
     schema

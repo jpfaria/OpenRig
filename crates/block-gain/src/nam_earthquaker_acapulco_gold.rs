@@ -10,7 +10,7 @@ use block_core::{AudioChannelLayout, BlockProcessor};
 
 pub const MODEL_ID: &str = "nam_earthquaker_acapulco_gold";
 pub const DISPLAY_NAME: &str = "EarthQuaker Acapulco Gold";
-const BRAND: &str = "earthquaker";
+const BRAND: &str = "earthquaker_devices";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
@@ -20,7 +20,7 @@ struct NamCapture {
 }
 
 const CAPTURES: &[NamCapture] = &[
-    NamCapture { tone: "clone",   model_path: "pedals/earthquaker_acapulco_gold/eqd_acapulco_gold_clone.nam" },
+    NamCapture { tone: "clone", model_path: "pedals/earthquaker_acapulco_gold/eqd_acapulco_gold_clone.nam" },
     NamCapture { tone: "clone_1", model_path: "pedals/earthquaker_acapulco_gold/eqd_acapulco_gold_clone_1.nam" },
     NamCapture { tone: "clone_2", model_path: "pedals/earthquaker_acapulco_gold/eqd_acapulco_gold_clone_2.nam" },
 ];
@@ -33,7 +33,7 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("Pedal"),
         Some("clone"),
         &[
-            ("clone",   "Clone"),
+            ("clone", "Clone"),
             ("clone_1", "Clone 1"),
             ("clone_2", "Clone 2"),
         ],

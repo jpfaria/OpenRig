@@ -20,11 +20,11 @@ struct NamCapture {
 }
 
 const CAPTURES: &[NamCapture] = &[
-    NamCapture { tone: "modern_high_gain",  model_path: "pedals/maestro_fuzz_tone_fz_1/maestro_fz_m_modern_high_gain.nam" },
-    NamCapture { tone: "modern_mid_gain",   model_path: "pedals/maestro_fuzz_tone_fz_1/maestro_fz_m_modern_mid_gain.nam" },
+    NamCapture { tone: "modern_high_gain", model_path: "pedals/maestro_fuzz_tone_fz_1/maestro_fz_m_modern_high_gain.nam" },
+    NamCapture { tone: "modern_mid_gain", model_path: "pedals/maestro_fuzz_tone_fz_1/maestro_fz_m_modern_mid_gain.nam" },
     NamCapture { tone: "vintage_high_gain", model_path: "pedals/maestro_fuzz_tone_fz_1/maestro_fz_m_vintage_high_gain.nam" },
-    NamCapture { tone: "vintage_low_gain",  model_path: "pedals/maestro_fuzz_tone_fz_1/maestro_fz_m_vintage_low_gain.nam" },
-    NamCapture { tone: "vintage_mid_gain",  model_path: "pedals/maestro_fuzz_tone_fz_1/maestro_fz_m_vintage_mid_gain.nam" },
+    NamCapture { tone: "vintage_low_gain", model_path: "pedals/maestro_fuzz_tone_fz_1/maestro_fz_m_vintage_low_gain.nam" },
+    NamCapture { tone: "vintage_mid_gain", model_path: "pedals/maestro_fuzz_tone_fz_1/maestro_fz_m_vintage_mid_gain.nam" },
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -35,11 +35,11 @@ pub fn model_schema() -> ModelParameterSchema {
         Some("Pedal"),
         Some("modern_high_gain"),
         &[
-            ("modern_high_gain",  "Modern High Gain"),
-            ("modern_mid_gain",   "Modern Mid Gain"),
+            ("modern_high_gain", "Modern High Gain"),
+            ("modern_mid_gain", "Modern Mid Gain"),
             ("vintage_high_gain", "Vintage High Gain"),
-            ("vintage_low_gain",  "Vintage Low Gain"),
-            ("vintage_mid_gain",  "Vintage Mid Gain"),
+            ("vintage_low_gain", "Vintage Low Gain"),
+            ("vintage_mid_gain", "Vintage Mid Gain"),
         ],
     )];
     schema

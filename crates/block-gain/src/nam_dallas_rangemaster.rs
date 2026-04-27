@@ -5,8 +5,11 @@ use nam::{
     build_processor_with_assets_for_layout, model_schema_for,
     processor::{NamPluginParams, DEFAULT_PLUGIN_PARAMS},
 };
-use block_core::param::{enum_parameter, required_string, ModelParameterSchema, ParameterSet};
-use block_core::{AudioChannelLayout, BlockProcessor};
+use block_core::param::{
+    float_parameter, required_f32, 
+    ModelParameterSchema, ParameterSet, ParameterUnit,
+};
+use block_core::{AudioChannelLayout, BlockProcessor, ModelAudioMode};
 
 pub const MODEL_ID: &str = "nam_dallas_rangemaster";
 pub const DISPLAY_NAME: &str = "Dallas Rangemaster";
@@ -14,132 +17,88 @@ const BRAND: &str = "dallas";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 
-struct NamCapture {
-    tone: &'static str,
+#[derive(Clone, Copy)]
+struct GridCapture {
+    tone: f32,
+    volume: f32,
+    size: NamSize,
     model_path: &'static str,
 }
 
-const CAPTURES: &[NamCapture] = &[
-    NamCapture { tone: "v10_t0_c",        model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t0_c.nam" },
-    NamCapture { tone: "v10_t0_s",        model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t0_s.nam" },
-    NamCapture { tone: "v10_t0_xs",       model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t0_xs.nam" },
-    NamCapture { tone: "v10_t10_main_c",  model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t10_main_c.nam" },
-    NamCapture { tone: "v10_t10_main_s",  model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t10_main_s.nam" },
-    NamCapture { tone: "v10_t10_main_xs", model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t10_main_xs.nam" },
-    NamCapture { tone: "v10_t3_c",        model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t3_c.nam" },
-    NamCapture { tone: "v10_t3_s",        model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t3_s.nam" },
-    NamCapture { tone: "v10_t3_xs",       model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t3_xs.nam" },
-    NamCapture { tone: "v10_t5_c",        model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t5_c.nam" },
-    NamCapture { tone: "v10_t5_s",        model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t5_s.nam" },
-    NamCapture { tone: "v10_t5_xs",       model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t5_xs.nam" },
-    NamCapture { tone: "v10_t7_c",        model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t7_c.nam" },
-    NamCapture { tone: "v10_t7_s",        model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t7_s.nam" },
-    NamCapture { tone: "v10_t7_xs",       model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t7_xs.nam" },
-    NamCapture { tone: "v3_t10_main_c",   model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v3_t10_main_c.nam" },
-    NamCapture { tone: "v3_t10_main_s",   model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v3_t10_main_s.nam" },
-    NamCapture { tone: "v3_t10_main_xs",  model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v3_t10_main_xs.nam" },
-    NamCapture { tone: "v3_t3_c",         model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v3_t3_c.nam" },
-    NamCapture { tone: "v3_t3_s",         model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v3_t3_s.nam" },
-    NamCapture { tone: "v3_t3_xs",        model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v3_t3_xs.nam" },
-    NamCapture { tone: "v3_t5_c",         model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v3_t5_c.nam" },
-    NamCapture { tone: "v3_t5_s",         model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v3_t5_s.nam" },
-    NamCapture { tone: "v3_t5_xs",        model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v3_t5_xs.nam" },
-    NamCapture { tone: "v3_t7_c",         model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v3_t7_c.nam" },
-    NamCapture { tone: "v3_t7_s",         model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v3_t7_s.nam" },
-    NamCapture { tone: "v3_t7_xs",        model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v3_t7_xs.nam" },
-    NamCapture { tone: "v5_t10_main_c",   model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v5_t10_main_c.nam" },
-    NamCapture { tone: "v5_t10_main_s",   model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v5_t10_main_s.nam" },
-    NamCapture { tone: "v5_t10_main_xs",  model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v5_t10_main_xs.nam" },
-    NamCapture { tone: "v5_t3_c",         model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v5_t3_c.nam" },
-    NamCapture { tone: "v5_t3_s",         model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v5_t3_s.nam" },
-    NamCapture { tone: "v5_t3_xs",        model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v5_t3_xs.nam" },
-    NamCapture { tone: "v5_t5_c",         model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v5_t5_c.nam" },
-    NamCapture { tone: "v5_t5_s",         model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v5_t5_s.nam" },
-    NamCapture { tone: "v5_t5_xs",        model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v5_t5_xs.nam" },
-    NamCapture { tone: "v5_t7_c",         model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v5_t7_c.nam" },
-    NamCapture { tone: "v5_t7_s",         model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v5_t7_s.nam" },
-    NamCapture { tone: "v5_t7_xs",        model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v5_t7_xs.nam" },
-    NamCapture { tone: "v7_t0_c",         model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t0_c.nam" },
-    NamCapture { tone: "v7_t0_s",         model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t0_s.nam" },
-    NamCapture { tone: "v7_t0_xs",        model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t0_xs.nam" },
-    NamCapture { tone: "v7_t10_main_c",   model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t10_main_c.nam" },
-    NamCapture { tone: "v7_t10_main_s",   model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t10_main_s.nam" },
-    NamCapture { tone: "v7_t10_main_xs",  model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t10_main_xs.nam" },
-    NamCapture { tone: "v7_t3_c",         model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t3_c.nam" },
-    NamCapture { tone: "v7_t3_s",         model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t3_s.nam" },
-    NamCapture { tone: "v7_t3_xs",        model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t3_xs.nam" },
-    NamCapture { tone: "v7_t5_c",         model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t5_c.nam" },
-    NamCapture { tone: "v7_t5_s",         model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t5_s.nam" },
-    NamCapture { tone: "v7_t5_xs",        model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t5_xs.nam" },
-    NamCapture { tone: "v7_t7_c",         model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t7_c.nam" },
-    NamCapture { tone: "v7_t7_s",         model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t7_s.nam" },
-    NamCapture { tone: "v7_t7_xs",        model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t7_xs.nam" },
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum NamSize {
+    Standard,
+}
+
+const TONE_MIN: f32 = 0.0;
+const TONE_MAX: f32 = 10.0;
+const VOLUME_MIN: f32 = 3.0;
+const VOLUME_MAX: f32 = 10.0;
+
+const CAPTURES: &[GridCapture] = &[
+    GridCapture { tone: 0.0, volume: 10.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t0_c.nam" },
+    GridCapture { tone: 0.0, volume: 10.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t0_s.nam" },
+    GridCapture { tone: 0.0, volume: 10.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t0_xs.nam" },
+    GridCapture { tone: 10.0, volume: 10.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t10_main_c.nam" },
+    GridCapture { tone: 10.0, volume: 10.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t10_main_s.nam" },
+    GridCapture { tone: 10.0, volume: 10.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t10_main_xs.nam" },
+    GridCapture { tone: 3.0, volume: 10.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t3_c.nam" },
+    GridCapture { tone: 3.0, volume: 10.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t3_s.nam" },
+    GridCapture { tone: 3.0, volume: 10.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t3_xs.nam" },
+    GridCapture { tone: 5.0, volume: 10.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t5_c.nam" },
+    GridCapture { tone: 5.0, volume: 10.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t5_s.nam" },
+    GridCapture { tone: 5.0, volume: 10.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t5_xs.nam" },
+    GridCapture { tone: 7.0, volume: 10.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t7_c.nam" },
+    GridCapture { tone: 7.0, volume: 10.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t7_s.nam" },
+    GridCapture { tone: 7.0, volume: 10.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v10_t7_xs.nam" },
+    GridCapture { tone: 10.0, volume: 3.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v3_t10_main_c.nam" },
+    GridCapture { tone: 10.0, volume: 3.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v3_t10_main_s.nam" },
+    GridCapture { tone: 10.0, volume: 3.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v3_t10_main_xs.nam" },
+    GridCapture { tone: 3.0, volume: 3.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v3_t3_c.nam" },
+    GridCapture { tone: 3.0, volume: 3.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v3_t3_s.nam" },
+    GridCapture { tone: 3.0, volume: 3.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v3_t3_xs.nam" },
+    GridCapture { tone: 5.0, volume: 3.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v3_t5_c.nam" },
+    GridCapture { tone: 5.0, volume: 3.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v3_t5_s.nam" },
+    GridCapture { tone: 5.0, volume: 3.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v3_t5_xs.nam" },
+    GridCapture { tone: 7.0, volume: 3.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v3_t7_c.nam" },
+    GridCapture { tone: 7.0, volume: 3.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v3_t7_s.nam" },
+    GridCapture { tone: 7.0, volume: 3.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v3_t7_xs.nam" },
+    GridCapture { tone: 10.0, volume: 5.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v5_t10_main_c.nam" },
+    GridCapture { tone: 10.0, volume: 5.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v5_t10_main_s.nam" },
+    GridCapture { tone: 10.0, volume: 5.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v5_t10_main_xs.nam" },
+    GridCapture { tone: 3.0, volume: 5.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v5_t3_c.nam" },
+    GridCapture { tone: 3.0, volume: 5.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v5_t3_s.nam" },
+    GridCapture { tone: 3.0, volume: 5.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v5_t3_xs.nam" },
+    GridCapture { tone: 5.0, volume: 5.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v5_t5_c.nam" },
+    GridCapture { tone: 5.0, volume: 5.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v5_t5_s.nam" },
+    GridCapture { tone: 5.0, volume: 5.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v5_t5_xs.nam" },
+    GridCapture { tone: 7.0, volume: 5.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v5_t7_c.nam" },
+    GridCapture { tone: 7.0, volume: 5.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v5_t7_s.nam" },
+    GridCapture { tone: 7.0, volume: 5.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v5_t7_xs.nam" },
+    GridCapture { tone: 0.0, volume: 7.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t0_c.nam" },
+    GridCapture { tone: 0.0, volume: 7.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t0_s.nam" },
+    GridCapture { tone: 0.0, volume: 7.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t0_xs.nam" },
+    GridCapture { tone: 10.0, volume: 7.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t10_main_c.nam" },
+    GridCapture { tone: 10.0, volume: 7.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t10_main_s.nam" },
+    GridCapture { tone: 10.0, volume: 7.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t10_main_xs.nam" },
+    GridCapture { tone: 3.0, volume: 7.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t3_c.nam" },
+    GridCapture { tone: 3.0, volume: 7.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t3_s.nam" },
+    GridCapture { tone: 3.0, volume: 7.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t3_xs.nam" },
+    GridCapture { tone: 5.0, volume: 7.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t5_c.nam" },
+    GridCapture { tone: 5.0, volume: 7.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t5_s.nam" },
+    GridCapture { tone: 5.0, volume: 7.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t5_xs.nam" },
+    GridCapture { tone: 7.0, volume: 7.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t7_c.nam" },
+    GridCapture { tone: 7.0, volume: 7.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t7_s.nam" },
+    GridCapture { tone: 7.0, volume: 7.0, size: NamSize::Standard, model_path: "pedals/dallas_rangemaster/slammin_dallas_boost_v7_t7_xs.nam" },
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
     let mut schema = model_schema_for(block_core::EFFECT_TYPE_GAIN, MODEL_ID, DISPLAY_NAME, false);
-    schema.parameters = vec![enum_parameter(
-        "tone",
-        "Tone",
-        Some("Pedal"),
-        Some("v10_t0_c"),
-        &[
-            ("v10_t0_c",        "V10 T0 C"),
-            ("v10_t0_s",        "V10 T0 S"),
-            ("v10_t0_xs",       "V10 T0 Xs"),
-            ("v10_t10_main_c",  "V10 T10 Main C"),
-            ("v10_t10_main_s",  "V10 T10 Main S"),
-            ("v10_t10_main_xs", "V10 T10 Main Xs"),
-            ("v10_t3_c",        "V10 T3 C"),
-            ("v10_t3_s",        "V10 T3 S"),
-            ("v10_t3_xs",       "V10 T3 Xs"),
-            ("v10_t5_c",        "V10 T5 C"),
-            ("v10_t5_s",        "V10 T5 S"),
-            ("v10_t5_xs",       "V10 T5 Xs"),
-            ("v10_t7_c",        "V10 T7 C"),
-            ("v10_t7_s",        "V10 T7 S"),
-            ("v10_t7_xs",       "V10 T7 Xs"),
-            ("v3_t10_main_c",   "V3 T10 Main C"),
-            ("v3_t10_main_s",   "V3 T10 Main S"),
-            ("v3_t10_main_xs",  "V3 T10 Main Xs"),
-            ("v3_t3_c",         "V3 T3 C"),
-            ("v3_t3_s",         "V3 T3 S"),
-            ("v3_t3_xs",        "V3 T3 Xs"),
-            ("v3_t5_c",         "V3 T5 C"),
-            ("v3_t5_s",         "V3 T5 S"),
-            ("v3_t5_xs",        "V3 T5 Xs"),
-            ("v3_t7_c",         "V3 T7 C"),
-            ("v3_t7_s",         "V3 T7 S"),
-            ("v3_t7_xs",        "V3 T7 Xs"),
-            ("v5_t10_main_c",   "V5 T10 Main C"),
-            ("v5_t10_main_s",   "V5 T10 Main S"),
-            ("v5_t10_main_xs",  "V5 T10 Main Xs"),
-            ("v5_t3_c",         "V5 T3 C"),
-            ("v5_t3_s",         "V5 T3 S"),
-            ("v5_t3_xs",        "V5 T3 Xs"),
-            ("v5_t5_c",         "V5 T5 C"),
-            ("v5_t5_s",         "V5 T5 S"),
-            ("v5_t5_xs",        "V5 T5 Xs"),
-            ("v5_t7_c",         "V5 T7 C"),
-            ("v5_t7_s",         "V5 T7 S"),
-            ("v5_t7_xs",        "V5 T7 Xs"),
-            ("v7_t0_c",         "V7 T0 C"),
-            ("v7_t0_s",         "V7 T0 S"),
-            ("v7_t0_xs",        "V7 T0 Xs"),
-            ("v7_t10_main_c",   "V7 T10 Main C"),
-            ("v7_t10_main_s",   "V7 T10 Main S"),
-            ("v7_t10_main_xs",  "V7 T10 Main Xs"),
-            ("v7_t3_c",         "V7 T3 C"),
-            ("v7_t3_s",         "V7 T3 S"),
-            ("v7_t3_xs",        "V7 T3 Xs"),
-            ("v7_t5_c",         "V7 T5 C"),
-            ("v7_t5_s",         "V7 T5 S"),
-            ("v7_t5_xs",        "V7 T5 Xs"),
-            ("v7_t7_c",         "V7 T7 C"),
-            ("v7_t7_s",         "V7 T7 S"),
-            ("v7_t7_xs",        "V7 T7 Xs"),
-        ],
-    )];
+    schema.audio_mode = ModelAudioMode::DualMono;
+    schema.parameters = vec![
+        float_parameter("tone", "Tone", Some("Pedal"), Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
+        float_parameter("volume", "Volume", Some("Pedal"), Some(50.0), 0.0, 100.0, 1.0, ParameterUnit::Percent),
+    ];
     schema
 }
 
@@ -167,12 +126,20 @@ pub fn asset_summary(params: &ParameterSet) -> Result<String> {
     Ok(format!("model='{}'", capture.model_path))
 }
 
-fn resolve_capture(params: &ParameterSet) -> Result<&'static NamCapture> {
-    let tone = required_string(params, "tone").map_err(anyhow::Error::msg)?;
-    CAPTURES
-        .iter()
-        .find(|c| c.tone == tone)
-        .ok_or_else(|| anyhow!("gain model '{}' does not support tone='{}'", MODEL_ID, tone))
+fn resolve_capture(params: &ParameterSet) -> Result<&'static GridCapture> {
+    let tone_pct = required_f32(params, "tone").map_err(anyhow::Error::msg)?;
+    let volume_pct = required_f32(params, "volume").map_err(anyhow::Error::msg)?;
+    let tone = TONE_MIN + (tone_pct / 100.0) * (TONE_MAX - TONE_MIN);
+    let volume = VOLUME_MIN + (volume_pct / 100.0) * (VOLUME_MAX - VOLUME_MIN);
+    let _size = NamSize::Standard;
+    let candidates = CAPTURES.iter().filter(|c| c.size == NamSize::Standard);
+    candidates
+        .min_by(|a, b| {
+            let da = (a.tone - tone).powi(2) + (a.volume - volume).powi(2);
+            let db = (b.tone - tone).powi(2) + (b.volume - volume).powi(2);
+            da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
+        })
+        .ok_or_else(|| anyhow!("no capture matches"))
 }
 
 fn schema() -> Result<ModelParameterSchema> {
@@ -195,3 +162,4 @@ pub const MODEL_DEFINITION: GainModelDefinition = GainModelDefinition {
     supported_instruments: block_core::GUITAR_BASS,
     knob_layout: &[],
 };
+

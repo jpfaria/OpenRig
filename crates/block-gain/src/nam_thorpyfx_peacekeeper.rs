@@ -10,7 +10,7 @@ use block_core::{AudioChannelLayout, BlockProcessor};
 
 pub const MODEL_ID: &str = "nam_thorpyfx_peacekeeper";
 pub const DISPLAY_NAME: &str = "ThorpyFX Peacekeeper";
-const BRAND: &str = "thorpyfx";
+const BRAND: &str = "thorpy_fx";
 
 pub const NAM_PLUGIN_FIXED_PARAMS: NamPluginParams = DEFAULT_PLUGIN_PARAMS;
 

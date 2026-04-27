@@ -22,11 +22,11 @@ struct NamCapture {
 const CAPTURES: &[NamCapture] = &[
     NamCapture { tone: "dist1030", model_path: "pedals/mxr_distortion/mxr_distortion_output300_dist1030.nam" },
     NamCapture { tone: "dist1200", model_path: "pedals/mxr_distortion/mxr_distortion_output300_dist1200.nam" },
-    NamCapture { tone: "dist130",  model_path: "pedals/mxr_distortion/mxr_distortion_output300_dist130.nam" },
-    NamCapture { tone: "dist300",  model_path: "pedals/mxr_distortion/mxr_distortion_output300_dist300.nam" },
-    NamCapture { tone: "dist500",  model_path: "pedals/mxr_distortion/mxr_distortion_output300_dist500.nam" },
-    NamCapture { tone: "dist700",  model_path: "pedals/mxr_distortion/mxr_distortion_output300_dist700.nam" },
-    NamCapture { tone: "dist900",  model_path: "pedals/mxr_distortion/mxr_distortion_output300_dist900.nam" },
+    NamCapture { tone: "dist130", model_path: "pedals/mxr_distortion/mxr_distortion_output300_dist130.nam" },
+    NamCapture { tone: "dist300", model_path: "pedals/mxr_distortion/mxr_distortion_output300_dist300.nam" },
+    NamCapture { tone: "dist500", model_path: "pedals/mxr_distortion/mxr_distortion_output300_dist500.nam" },
+    NamCapture { tone: "dist700", model_path: "pedals/mxr_distortion/mxr_distortion_output300_dist700.nam" },
+    NamCapture { tone: "dist900", model_path: "pedals/mxr_distortion/mxr_distortion_output300_dist900.nam" },
 ];
 
 pub fn model_schema() -> ModelParameterSchema {
@@ -39,11 +39,11 @@ pub fn model_schema() -> ModelParameterSchema {
         &[
             ("dist1030", "Dist1030"),
             ("dist1200", "Dist1200"),
-            ("dist130",  "Dist130"),
-            ("dist300",  "Dist300"),
-            ("dist500",  "Dist500"),
-            ("dist700",  "Dist700"),
-            ("dist900",  "Dist900"),
+            ("dist130", "Dist130"),
+            ("dist300", "Dist300"),
+            ("dist500", "Dist500"),
+            ("dist700", "Dist700"),
+            ("dist900", "Dist900"),
         ],
     )];
     schema
