@@ -41,6 +41,10 @@ mod block_insert_callbacks;
 mod block_choose_type_callback;
 mod chain_io_fullscreen_callbacks;
 mod runtime_lifecycle;
+mod select_chain_block_callback;
+mod block_editor_window_setup;
+mod block_editor_window_params;
+mod block_editor_window_lifecycle;
 pub(crate) use chain_editor_callbacks::setup_chain_editor_callbacks;
 pub(crate) use runtime_lifecycle::{
     assign_new_block_ids, remove_live_chain_runtime, stop_project_runtime,
@@ -54,17 +58,12 @@ const SELECT_PATH_PREFIX: &str = "__select.";
 const SELECT_SELECTED_BLOCK_ID: &str = "__select.selected_block_id";
 use infra_cpal::{AudioDeviceDescriptor, ProjectRuntimeController};
 use infra_filesystem::FilesystemStorage;
-use project::block::AudioBlockKind;
-use project::catalog::{model_brand, model_display_name, model_type_label};
-use project::param::ParameterSet;
-use rfd::FileDialog;
-use slint::{Model, ModelRc, SharedString, Timer, VecModel};
+use slint::{ModelRc, SharedString, Timer, VecModel};
 
 use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
 use std::rc::Rc;
 use ui_openrig::{AppRuntimeMode, InteractionMode, UiRuntimeContext};
-use ui_state::block_drawer_state;
 mod audio_devices;
 mod block_editor;
 mod chain_editor;
@@ -81,36 +80,19 @@ mod ui_state;
 mod visual_config;
 slint::include_modules!();
 use state::{
-    ProjectSession, InputGroupDraft, OutputGroupDraft,
+    ProjectSession,
     ChainDraft, SelectedBlock, BlockEditorDraft, IoBlockInsertDraft, InsertDraft,
     AudioSettingsMode, UNTITLED_PROJECT_NAME, BlockWindow,
 };
 use audio_devices::{
-    refresh_input_devices, refresh_output_devices,
-    selected_device_index, build_project_device_rows,
-    replace_channel_options, build_insert_send_channel_items,
-    build_insert_return_channel_items,
+    build_project_device_rows,
     default_device_settings, normalize_device_settings, mark_unselected_devices,
 };
-use block_editor::{
-    block_editor_data, block_parameter_extensions,
-    block_parameter_items_for_editor, block_parameter_items_for_model, build_knob_overlays,
-    build_params_from_items, persist_block_editor_draft,
-    schedule_block_editor_persist_for_block_win,
-    set_block_parameter_bool, set_block_parameter_number, set_block_parameter_option,
-    set_block_parameter_text,
-};
-use chain_editor::{
-    chain_draft_from_chain, chain_from_draft,
-    insert_mode_to_index,
-};
-use eq::{compute_eq_curves, build_multi_slider_points, build_curve_editor_points};
+use chain_editor::chain_from_draft;
 use helpers::{
-    show_child_window, use_inline_block_editor,
     set_status_error, set_status_info, set_status_warning,
     clear_status,
 };
-use io_groups::build_io_group_items;
 use project_ops::{
     open_cli_project, resolve_project_paths, load_and_sync_app_config,
     canonical_project_path, register_recent_project,
@@ -121,9 +103,6 @@ use project_ops::{
 };
 use project_view::{
     block_type_picker_items,
-    block_model_picker_items, block_model_picker_labels, set_selected_block, block_type_index,
-    block_model_index_from_items, block_model_index,
-    load_screenshot_image,
     replace_project_chains,
 };
 const DEFAULT_SAMPLE_RATE: u32 = 48_000;
@@ -863,983 +842,45 @@ pub fn run_desktop_app(
             auto_save,
         },
     );
-    {
-        let weak_main_window = window.as_weak();
-        let selected_block = selected_block.clone();
-        let block_editor_draft = block_editor_draft.clone();
-        let block_model_options = block_model_options.clone();
-        let filtered_block_model_options = filtered_block_model_options.clone();
-        let block_model_option_labels = block_model_option_labels.clone();
-        let block_parameter_items = block_parameter_items.clone();
-        let multi_slider_points = multi_slider_points.clone();
-        let curve_editor_points = curve_editor_points.clone();
-        let eq_band_curves = eq_band_curves.clone();
-        let project_session = project_session.clone();
-        let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
-        let input_chain_devices = input_chain_devices.clone();
-        let output_chain_devices = output_chain_devices.clone();
-        let chain_input_device_options_for_select = chain_input_device_options.clone();
-        let chain_output_device_options_for_select = chain_output_device_options.clone();
-        let open_block_windows = open_block_windows.clone();
-        let inline_stream_timer = inline_stream_timer.clone();
-        let toast_timer = toast_timer.clone();
-        let weak_input_groups_for_select = chain_input_groups_window.as_weak();
-        let weak_output_groups_for_select = chain_output_groups_window.as_weak();
-        let chain_draft_for_select = chain_draft.clone();
-        let weak_insert_window_for_select = chain_insert_window.as_weak();
-        let insert_draft_for_select = insert_draft.clone();
-        let insert_send_channels_for_select = insert_send_channels.clone();
-        let insert_return_channels_for_select = insert_return_channels.clone();
-        let block_type_options_for_select = block_type_options.clone();
-        let vst3_handles_for_select = vst3_editor_handles.clone();
-        let vst3_sr_for_select = vst3_sample_rate;
-        window.on_select_chain_block(move |chain_index, ui_block_index| {
-            let Some(window) = weak_main_window.upgrade() else {
-                return;
-            };
-            let session_borrow = project_session.borrow();
-            let Some(session) = session_borrow.as_ref() else {
-                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
-                return;
-            };
-            let Some(chain) = session.project.chains.get(chain_index as usize) else {
-                set_status_error(&window, &toast_timer, "Chain inválida.");
-                return;
-            };
-            // Convert UI index (position in filtered array without first Input/last Output)
-            // to real index in chain.blocks — always computed from current chain state
-            let block_index = ui_index_to_real_block_index(chain, ui_block_index as usize) as i32;
-            log::info!("[select_chain_block] ui_index={} → real_index={}", ui_block_index, block_index);
-            let Some(block) = chain.blocks.get(block_index as usize) else {
-                log::warn!("[select_chain_block] block_index={} out of bounds, chain has {} blocks", block_index, chain.blocks.len());
-                set_status_error(&window, &toast_timer, "Block inválido.");
-                return;
-            };
-            // Handle I/O blocks — open I/O groups window with entries of THIS specific block
-            match &block.kind {
-                AudioBlockKind::Input(ib) => {
-                    let fresh_input = refresh_input_devices(&chain_input_device_options_for_select);
-                    let fresh_output = refresh_output_devices(&chain_output_device_options_for_select);
-                    let inputs: Vec<InputGroupDraft> = ib.entries.iter().map(|e| InputGroupDraft {
-                        device_id: if e.device_id.0.is_empty() { None } else { Some(e.device_id.0.clone()) },
-                        channels: e.channels.clone(),
-                        mode: e.mode,
-                    }).collect();
-                    let mut draft = chain_draft_from_chain(chain_index as usize, chain);
-                    draft.inputs = inputs;
-                    draft.editing_io_block_index = Some(block_index as usize);
-                    let (input_items, _) = build_io_group_items(&draft, &fresh_input, &fresh_output);
-                    if let Some(gw) = weak_input_groups_for_select.upgrade() {
-                        gw.set_groups(ModelRc::from(Rc::new(VecModel::from(input_items))));
-                        gw.set_status_message("".into());
-                        gw.set_show_block_controls(true);
-                        gw.set_block_enabled(block.enabled);
-                        *chain_draft_for_select.borrow_mut() = Some(draft);
-                        drop(session_borrow);
-                        show_child_window(window.window(), gw.window());
-                    }
-                    return;
-                }
-                AudioBlockKind::Output(ob) => {
-                    let fresh_input = refresh_input_devices(&chain_input_device_options_for_select);
-                    let fresh_output = refresh_output_devices(&chain_output_device_options_for_select);
-                    let outputs: Vec<OutputGroupDraft> = ob.entries.iter().map(|e| OutputGroupDraft {
-                        device_id: if e.device_id.0.is_empty() { None } else { Some(e.device_id.0.clone()) },
-                        channels: e.channels.clone(),
-                        mode: e.mode,
-                    }).collect();
-                    let mut draft = chain_draft_from_chain(chain_index as usize, chain);
-                    draft.outputs = outputs;
-                    draft.editing_io_block_index = Some(block_index as usize);
-                    let (_, output_items) = build_io_group_items(&draft, &fresh_input, &fresh_output);
-                    if let Some(gw) = weak_output_groups_for_select.upgrade() {
-                        gw.set_groups(ModelRc::from(Rc::new(VecModel::from(output_items))));
-                        gw.set_status_message("".into());
-                        gw.set_show_block_controls(true);
-                        gw.set_block_enabled(block.enabled);
-                        *chain_draft_for_select.borrow_mut() = Some(draft);
-                        drop(session_borrow);
-                        show_child_window(window.window(), gw.window());
-                    }
-                    return;
-                }
-                AudioBlockKind::Insert(ib) => {
-                    let fresh_input = refresh_input_devices(&chain_input_device_options_for_select);
-                    let fresh_output = refresh_output_devices(&chain_output_device_options_for_select);
-                    log::info!("[select_chain_block] insert block at index {}: id='{}'", block_index, block.id.0);
-                    let draft = InsertDraft {
-                        chain_index: chain_index as usize,
-                        block_index: block_index as usize,
-                        send_device_id: if ib.send.device_id.0.is_empty() { None } else { Some(ib.send.device_id.0.clone()) },
-                        send_channels: ib.send.channels.clone(),
-                        send_mode: ib.send.mode,
-                        return_device_id: if ib.return_.device_id.0.is_empty() { None } else { Some(ib.return_.device_id.0.clone()) },
-                        return_channels: ib.return_.channels.clone(),
-                        return_mode: ib.return_.mode,
-                    };
-                    let is_middle = block_index > 0 && (block_index as usize) < chain.blocks.len() - 1;
-                    if let Some(iw) = weak_insert_window_for_select.upgrade() {
-                        let send_items = build_insert_send_channel_items(&draft, &fresh_output);
-                        let return_items = build_insert_return_channel_items(&draft, &fresh_input);
-                        replace_channel_options(&insert_send_channels_for_select, send_items);
-                        replace_channel_options(&insert_return_channels_for_select, return_items);
-                        iw.set_selected_send_device_index(selected_device_index(
-                            &fresh_output,
-                            draft.send_device_id.as_deref(),
-                        ));
-                        iw.set_selected_return_device_index(selected_device_index(
-                            &fresh_input,
-                            draft.return_device_id.as_deref(),
-                        ));
-                        iw.set_selected_send_mode_index(insert_mode_to_index(draft.send_mode));
-                        iw.set_selected_return_mode_index(insert_mode_to_index(draft.return_mode));
-                        iw.set_show_block_controls(is_middle);
-                        iw.set_block_enabled(block.enabled);
-                        iw.set_status_message("".into());
-                        *insert_draft_for_select.borrow_mut() = Some(draft);
-                        drop(session_borrow);
-                        show_child_window(window.window(), iw.window());
-                    }
-                    return;
-                }
-                _ => {}
-            }
-            log::info!("[select_chain_block] block at real_index={}: id='{}', kind={}", block_index, block.id.0, block.model_ref().map(|m| format!("{}/{}", m.effect_type, m.model)).unwrap_or_else(|| "io/insert".to_string()));
-            log::info!("[select_chain_block] chain has {} blocks:", chain.blocks.len());
-            for (i, b) in chain.blocks.iter().enumerate() {
-                log::info!("[select_chain_block]   [{}] id='{}' kind={}", i, b.id.0, b.model_ref().map(|m| format!("{}/{}", m.effect_type, m.model)).unwrap_or_else(|| "io/insert".to_string()));
-            }
-            let Some(editor_data) = block_editor_data(block) else {
-                set_status_error(&window, &toast_timer, "Esse block ainda não pode ser editado pela GUI.");
-                return;
-            };
-            let effect_type = editor_data.effect_type.clone();
-            let model_id = editor_data.model_id.clone();
-            let enabled = editor_data.enabled;
-            *selected_block.borrow_mut() = Some(SelectedBlock {
-                chain_index: chain_index as usize,
-                block_index: block_index as usize,
-            });
-            let instrument = chain.instrument.clone();
-            log::info!("[select_chain_block] chain_index={}, block_index={}, effect_type='{}', model_id='{}', enabled={}", chain_index, block_index, effect_type, model_id, enabled);
-            *block_editor_draft.borrow_mut() = Some(BlockEditorDraft {
-                chain_index: chain_index as usize,
-                block_index: Some(block_index as usize),
-                before_index: block_index as usize,
-                instrument: instrument.clone(),
-                effect_type: effect_type.clone(),
-                model_id: model_id.clone(),
-                enabled,
-                is_select: editor_data.is_select,
-            });
-            let items = block_model_picker_items(&effect_type, &instrument);
-            log::debug!("[select_chain_block] filtered models count={}", items.len());
-            for item in &items {
-                log::trace!("[select_chain_block]   model='{}'", item.model_id);
-            }
-            block_model_option_labels.set_vec(block_model_picker_labels(&items));
-            block_model_options.set_vec(items.clone());
-            filtered_block_model_options.set_vec(items);
-            block_parameter_items.set_vec(block_parameter_items_for_editor(&editor_data));
-            multi_slider_points.set_vec(build_multi_slider_points(&editor_data.effect_type, &editor_data.model_id, &editor_data.params));
-            curve_editor_points.set_vec(build_curve_editor_points(&editor_data.effect_type, &editor_data.model_id, &editor_data.params));
-            let (eq_total, eq_bands) = compute_eq_curves(&editor_data.effect_type, &editor_data.model_id, &editor_data.params);
-            eq_band_curves.set_vec(eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>());
-            window.set_eq_total_curve(eq_total.into());
-            set_selected_block(&window, selected_block.borrow().as_ref(), Some(chain));
-            let drawer_state =
-                block_drawer_state(Some(block_index as usize), &effect_type, Some(&model_id));
-            window.set_block_drawer_title(drawer_state.title.into());
-            window.set_block_drawer_confirm_label(drawer_state.confirm_label.into());
-            window.set_block_drawer_edit_mode(true);
-            block_type_options_for_select.set_vec(block_type_picker_items(&instrument));
-            window.set_block_drawer_selected_type_index(block_type_index(&effect_type, &instrument));
-            window
-                .set_block_drawer_selected_model_index(block_model_index(&effect_type, &model_id, &instrument));
-            window.set_block_drawer_enabled(enabled);
-            window.set_block_drawer_status_message("".into());
-            window.set_show_block_type_picker(false);
-            // Clone block_id before dropping session_borrow (needed by window editor stream timer)
-            let block_id_for_editor = block.id.clone();
-            let is_vst3_block = effect_type == block_core::EFFECT_TYPE_VST3;
-            drop(session_borrow);
-            // VST3 blocks: open the native plugin GUI directly — no Slint editor popup.
-            if is_vst3_block && !model_id.is_empty() {
-                match project::vst3_editor::open_vst3_editor(&model_id, vst3_sr_for_select) {
-                    Ok(handle) => { vst3_handles_for_select.borrow_mut().push(handle); }
-                    Err(e) => set_status_error(&window, &toast_timer, &format!("Erro ao abrir plugin VST3: {}", e)),
-                }
-                return;
-            }
-            if use_inline_block_editor(&window) {
-                let param_items_vec = block_parameter_items_for_editor(&editor_data);
-                let overlays = build_knob_overlays(project::catalog::model_knob_layout(&effect_type, &model_id), &param_items_vec);
-                window.set_block_knob_overlays(ModelRc::from(Rc::new(VecModel::from(overlays))));
-                // Start inline stream timer for utility blocks (tuner, spectrum analyzer)
-                {
-                    let mut timer_ref = inline_stream_timer.borrow_mut();
-                    *timer_ref = None; // stop previous timer
-                    let is_utility = effect_type == block_core::EFFECT_TYPE_UTILITY;
-                    if is_utility {
-                        let timer = Timer::default();
-                        let weak_win = window.as_weak();
-                        let runtime = project_runtime.clone();
-                        let bid = block_id_for_editor.clone();
-                        timer.start(
-                            slint::TimerMode::Repeated,
-                            std::time::Duration::from_millis(50),
-                            move || {
-                                let Some(win) = weak_win.upgrade() else { return; };
-                                let runtime_borrow = runtime.borrow();
-                                // No utility block currently produces a "spectrum" stream
-                                // (the spectrum_analyzer block was promoted to a top-bar
-                                // feature in #320). Kept generic for future stream blocks.
-                                let kind: slint::SharedString = "stream".into();
-                                let Some(rt) = runtime_borrow.as_ref() else { return; };
-                                if let Some(entries) = rt.poll_stream(&bid) {
-                                    let slint_entries: Vec<BlockStreamEntry> = entries.iter().map(|e| BlockStreamEntry {
-                                        key: e.key.clone().into(),
-                                        value: e.value,
-                                        text: e.text.clone().into(),
-                                        peak: e.peak,
-                                    }).collect();
-                                    win.set_block_stream_data(BlockStreamData {
-                                        active: true,
-                                        stream_kind: kind,
-                                        entries: ModelRc::from(Rc::new(VecModel::from(slint_entries))),
-                                    });
-                                } else {
-                                    win.set_block_stream_data(BlockStreamData {
-                                        active: false,
-                                        stream_kind: kind,
-                                        entries: ModelRc::default(),
-                                    });
-                                }
-                            },
-                        );
-                        *timer_ref = Some(timer);
-                    }
-                }
-                window.set_show_block_drawer(true);
-            } else {
-                window.set_show_block_drawer(false);
-                let ci = chain_index as usize;
-                let bi = block_index as usize;
-                // If this block already has an open editor, bring it to front.
-                {
-                    let borrow = open_block_windows.borrow();
-                    if let Some(bw) = borrow.iter().find(|bw| bw.chain_index == ci && bw.block_index == bi) {
-                        show_child_window(window.window(), bw.window.window());
-                        return;
-                    }
-                }
-                // Close any stale window for this block position before creating a fresh one.
-                // After add/remove operations the block at a given index may have changed.
-                {
-                    let borrow = open_block_windows.borrow();
-                    for bw in borrow.iter().filter(|bw| bw.chain_index == ci && bw.block_index == bi) {
-                        let _ = bw.window.hide();
-                    }
-                }
-                open_block_windows.borrow_mut().retain(|bw| {
-                    !(bw.chain_index == ci && bw.block_index == bi)
-                });
-                // Create new isolated window
-                let win = match BlockEditorWindow::new() {
-                    Ok(w) => w,
-                    Err(e) => {
-                        set_status_error(&window, &toast_timer, &format!("Erro ao abrir editor: {e}"));
-                        return;
-                    }
-                };
-                // Per-window models (independent copies of the data)
-                let win_model_options = Rc::new(VecModel::from(
-                    block_model_picker_items(&effect_type, &instrument)
-                ));
-                // Filtered list starts as a copy of the full list so the
-                // popup shows everything when first opened. The search
-                // callback below replaces it on every keystroke.
-                let win_filtered_model_options = Rc::new(VecModel::from(
-                    block_model_picker_items(&effect_type, &instrument)
-                ));
-                let win_model_labels = Rc::new(VecModel::from(
-                    block_model_picker_labels(&block_model_picker_items(&effect_type, &instrument))
-                ));
-                let win_param_items_vec = block_parameter_items_for_editor(&editor_data);
-                let win_knob_overlays = Rc::new(VecModel::from(
-                    build_knob_overlays(project::catalog::model_knob_layout(&effect_type, &model_id), &win_param_items_vec)
-                ));
-                let win_param_items = Rc::new(VecModel::from(win_param_items_vec));
-                let win_draft = Rc::new(RefCell::new(Some(BlockEditorDraft {
-                    chain_index: ci,
-                    block_index: Some(bi),
-                    before_index: bi,
-                    instrument: instrument.clone(),
-                    effect_type: effect_type.clone(),
-                    model_id: model_id.clone(),
-                    enabled,
-                    is_select: editor_data.is_select,
-                })));
-                let win_timer = Rc::new(Timer::default());
-                // Populate window — ALL data set independently (no sync from AppWindow)
-                let type_index = block_type_index(&effect_type, &instrument);
-                let model_index = block_model_index_from_items(&win_model_options, &model_id);
-                win.set_block_type_options(ModelRc::from(Rc::new(VecModel::from(block_type_picker_items(&instrument)))));
-                win.set_block_model_options(ModelRc::from(win_model_options.clone()));
-                win.set_filtered_block_model_options(ModelRc::from(win_filtered_model_options.clone()));
-                win.set_block_model_option_labels(ModelRc::from(win_model_labels.clone()));
-                crate::model_search_wiring::wire_standalone_block_editor_window(
-                    &win,
-                    win_model_options.clone(),
-                    win_filtered_model_options.clone(),
-                );
-                win.set_block_parameter_items(ModelRc::from(win_param_items.clone()));
-                win.set_block_knob_overlays(ModelRc::from(win_knob_overlays.clone()));
-                let win_multi_slider_pts = Rc::new(VecModel::from(
-                    build_multi_slider_points(&effect_type, &model_id, &editor_data.params)
-                ));
-                let win_curve_editor_pts = Rc::new(VecModel::from(
-                    build_curve_editor_points(&effect_type, &model_id, &editor_data.params)
-                ));
-                let (win_eq_total, win_eq_bands) = compute_eq_curves(&effect_type, &model_id, &editor_data.params);
-                let win_eq_band_curves = Rc::new(VecModel::from(
-                    win_eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>()
-                ));
-                win.set_multi_slider_points(ModelRc::from(win_multi_slider_pts.clone()));
-                win.set_curve_editor_points(ModelRc::from(win_curve_editor_pts.clone()));
-                win.set_eq_total_curve(win_eq_total.into());
-                win.set_eq_band_curves(ModelRc::from(win_eq_band_curves.clone()));
-                win.set_block_drawer_selected_type_index(type_index);
-                win.set_block_drawer_selected_model_index(model_index);
-                win.set_block_drawer_edit_mode(true);
-                win.set_block_drawer_enabled(enabled);
-                win.set_block_drawer_status_message("".into());
-                // Set window title
-                let title_label = win_model_options
-                    .row_data(model_index as usize)
-                    .map(|m| m.label.to_string())
-                    .unwrap_or_else(|| "Block".to_string());
-                win.set_block_window_title(format!("OpenRig · {}", title_label).into());
-
-                // Stream data timer — polls stream data when block produces it (e.g. tuner).
-                // Start the timer regardless of current enabled state: when the user enables
-                // the block while the popup is open, stream data must appear without reopening.
-                let mut block_stream_timer: Option<Rc<Timer>> = None;
-                let is_utility = effect_type == block_core::EFFECT_TYPE_UTILITY;
-                log::info!("[block-editor-stream] block='{}' effect_type='{}' model='{}' enabled={} is_utility={}", block_id_for_editor.0, effect_type, model_id, enabled, is_utility);
-                if is_utility {
-                    log::info!("[block-editor-stream] starting stream timer for block '{}'", block_id_for_editor.0);
-                    let stream_timer = Rc::new(Timer::default());
-                    let weak_win_stream = win.as_weak();
-                    let project_runtime_stream = project_runtime.clone();
-                    let block_id_for_stream = block_id_for_editor.clone();
-                    let mut poll_count: u32 = 0;
-                    stream_timer.start(
-                        slint::TimerMode::Repeated,
-                        std::time::Duration::from_millis(50),
-                        move || {
-                            let Some(win) = weak_win_stream.upgrade() else { return; };
-                            let runtime_borrow = project_runtime_stream.borrow();
-                            // No utility block currently produces a "spectrum" stream
-                            // (the spectrum_analyzer block was promoted to a top-bar
-                            // feature in #320). Kept generic for future stream blocks.
-                            let kind: slint::SharedString = "stream".into();
-                            let Some(runtime) = runtime_borrow.as_ref() else {
-                                poll_count += 1;
-                                if poll_count % 40 == 0 {
-                                    log::debug!("[block-editor-stream] runtime not available (poll #{})", poll_count);
-                                }
-                                return;
-                            };
-                            if let Some(entries) = runtime.poll_stream(&block_id_for_stream) {
-                                let slint_entries: Vec<BlockStreamEntry> = entries.iter().map(|e| BlockStreamEntry {
-                                    key: e.key.clone().into(),
-                                    value: e.value,
-                                    text: e.text.clone().into(),
-                                    peak: e.peak,
-                                }).collect();
-                                poll_count += 1;
-                                if poll_count % 40 == 1 {
-                                    log::debug!("[block-editor-stream] poll #{}: {} entries, first={:?}", poll_count, slint_entries.len(), entries.first().map(|e| &e.key));
-                                }
-                                win.set_block_stream_data(BlockStreamData {
-                                    active: true,
-                                    stream_kind: kind,
-                                    entries: ModelRc::from(Rc::new(VecModel::from(slint_entries))),
-                                });
-                            } else {
-                                poll_count += 1;
-                                if poll_count % 40 == 0 {
-                                    log::debug!("[block-editor-stream] poll #{}: no entries (silence or no runtime handle)", poll_count);
-                                }
-                                win.set_block_stream_data(BlockStreamData {
-                                    active: false,
-                                    stream_kind: kind.clone(),
-                                    entries: ModelRc::default(),
-                                });
-                            }
-                        },
-                    );
-                    block_stream_timer = Some(stream_timer);
-                }
-
-                // on_choose_block_model
-                {
-                    let win_draft = win_draft.clone();
-                    let win_param_items = win_param_items.clone();
-                    let win_knob_overlays = win_knob_overlays.clone();
-                    let win_multi_slider_pts = win_multi_slider_pts.clone();
-                    let win_curve_editor_pts = win_curve_editor_pts.clone();
-                    let win_eq_band_curves = win_eq_band_curves.clone();
-                    let win_timer = win_timer.clone();
-                    let project_session = project_session.clone();
-                    let project_chains = project_chains.clone();
-                    let project_runtime = project_runtime.clone();
-                    let saved_project_snapshot = saved_project_snapshot.clone();
-                    let project_dirty = project_dirty.clone();
-                    let input_chain_devices = input_chain_devices.clone();
-                    let output_chain_devices = output_chain_devices.clone();
-                    let weak_main = weak_main_window.clone();
-                    let weak_win = win.as_weak();
-                    win.on_choose_block_model(move |index| {
-                        let Some(win) = weak_win.upgrade() else { return; };
-                        let mut draft_borrow = win_draft.borrow_mut();
-                        let Some(draft) = draft_borrow.as_mut() else { return; };
-                        let models = block_model_picker_items(&draft.effect_type, &draft.instrument);
-                        let Some(model) = models.get(index as usize) else { return; };
-                        draft.model_id = model.model_id.to_string();
-                        draft.effect_type = model.effect_type.to_string();
-                        let new_params = block_parameter_items_for_model(
-                            &model.effect_type, &model.model_id, &ParameterSet::default(),
-                        );
-                        let overlays = build_knob_overlays(project::catalog::model_knob_layout(&model.effect_type, &model.model_id), &new_params);
-                        win_knob_overlays.set_vec(overlays);
-                        win_param_items.set_vec(new_params);
-                        // Update EQ widgets for the new model
-                        let default_params = build_params_from_items(&win_param_items);
-                        win_multi_slider_pts.set_vec(build_multi_slider_points(&model.effect_type, &model.model_id, &default_params));
-                        win_curve_editor_pts.set_vec(build_curve_editor_points(&model.effect_type, &model.model_id, &default_params));
-                        let (eq_total, eq_bands) = compute_eq_curves(&model.effect_type, &model.model_id, &default_params);
-                        win_eq_band_curves.set_vec(eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>());
-                        win.set_eq_total_curve(eq_total.into());
-                        drop(draft_borrow);
-                        if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
-                            schedule_block_editor_persist_for_block_win(
-                                &win_timer, weak_win.clone(), weak_main.clone(),
-                                win_draft.clone(), win_param_items.clone(),
-                                project_session.clone(), project_chains.clone(), project_runtime.clone(),
-                                saved_project_snapshot.clone(), project_dirty.clone(),
-                                input_chain_devices.clone(), output_chain_devices.clone(),
-                                "block-window.choose-model",
-                            auto_save,
-                            );
-                        }
-                    });
-                }
-                // on_toggle_block_drawer_enabled
-                {
-                    let win_draft = win_draft.clone();
-                    let project_session = project_session.clone();
-                    let project_chains = project_chains.clone();
-                    let project_runtime = project_runtime.clone();
-                    let saved_project_snapshot = saved_project_snapshot.clone();
-                    let project_dirty = project_dirty.clone();
-                    let input_chain_devices = input_chain_devices.clone();
-                    let output_chain_devices = output_chain_devices.clone();
-                    let weak_main = weak_main_window.clone();
-                    let weak_win = win.as_weak();
-                    win.on_toggle_block_drawer_enabled(move || {
-                        let Some(win) = weak_win.upgrade() else { return; };
-                        let Some(main) = weak_main.upgrade() else { return; };
-                        let (chain_idx, block_idx, chain_id_opt) = {
-                            let (chain_index, block_index) = {
-                                let draft_borrow = win_draft.borrow();
-                                let Some(draft) = draft_borrow.as_ref() else { return; };
-                                let Some(bi) = draft.block_index else { return; };
-                                (draft.chain_index, bi)
-                            };
-                            let mut session_borrow = project_session.borrow_mut();
-                            let Some(session) = session_borrow.as_mut() else { return; };
-                            let Some(chain) = session.project.chains.get_mut(chain_index) else { return; };
-                            let Some(block) = chain.blocks.get_mut(block_index) else { return; };
-                            block.enabled = !block.enabled;
-                            let new_enabled = block.enabled;
-                            let chain_id = chain.id.clone();
-                            drop(session_borrow);
-                            if let Some(draft) = win_draft.borrow_mut().as_mut() {
-                                draft.enabled = new_enabled;
-                            }
-                            (chain_index, block_index, Some(chain_id))
-                        };
-                        let new_enabled = {
-                            let session_borrow = project_session.borrow();
-                            let Some(session) = session_borrow.as_ref() else { return; };
-                            let Some(chain) = session.project.chains.get(chain_idx) else { return; };
-                            let Some(block) = chain.blocks.get(block_idx) else { return; };
-                            block.enabled
-                        };
-                        let Some(chain_id) = chain_id_opt else { return; };
-                        let mut session_borrow = project_session.borrow_mut();
-                        let Some(session) = session_borrow.as_mut() else { return; };
-                        if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                            log::error!("[adapter-gui] block-window.toggle-enabled: {e}");
-                            if let Some(w) = weak_main.upgrade() {
-                                w.set_block_drawer_status_message(e.to_string().into());
-                            }
-                            return;
-                        }
-                        replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
-                        sync_project_dirty(&main, session, &saved_project_snapshot, &project_dirty, auto_save);
-                        drop(session_borrow);
-                        win.set_block_drawer_enabled(new_enabled);
-                    });
-                }
-                // on_update_block_parameter_number
-                {
-                    let win_draft = win_draft.clone();
-                    let win_param_items = win_param_items.clone();
-                    let win_knob_overlays = win_knob_overlays.clone();
-                    let win_eq_band_curves = win_eq_band_curves.clone();
-                    let win_curve_editor_pts = win_curve_editor_pts.clone();
-                    let win_timer = win_timer.clone();
-                    let project_session = project_session.clone();
-                    let project_chains = project_chains.clone();
-                    let project_runtime = project_runtime.clone();
-                    let saved_project_snapshot = saved_project_snapshot.clone();
-                    let project_dirty = project_dirty.clone();
-                    let input_chain_devices = input_chain_devices.clone();
-                    let output_chain_devices = output_chain_devices.clone();
-                    let weak_main = weak_main_window.clone();
-                    let weak_win = win.as_weak();
-                    win.on_update_block_parameter_number(move |path, value| {
-                        let Some(win) = weak_win.upgrade() else { return; };
-                        set_block_parameter_number(&win_param_items, path.as_str(), value);
-                        // Update overlay value so the knob indicator re-renders instantly
-                        for i in 0..win_knob_overlays.row_count() {
-                            if let Some(mut overlay) = win_knob_overlays.row_data(i) {
-                                if overlay.path == path {
-                                    overlay.value = value;
-                                    win_knob_overlays.set_row_data(i, overlay);
-                                    break;
-                                }
-                            }
-                        }
-                        // Recompute EQ curves and update curve editor point values in-place.
-                        // Use set_row_data instead of set_vec to avoid recreating elements (which
-                        // would reset the TouchArea pressed state and break drag interactions).
-                        if let Some(draft) = win_draft.borrow().as_ref() {
-                            let params = build_params_from_items(&win_param_items);
-                            let (eq_total, eq_bands) = compute_eq_curves(&draft.effect_type, &draft.model_id, &params);
-                            win_eq_band_curves.set_vec(eq_bands.into_iter().map(SharedString::from).collect::<Vec<_>>());
-                            win.set_eq_total_curve(eq_total.into());
-                            // Update matching curve editor point in-place by path
-                            let path_str = path.as_str();
-                            for idx in 0..win_curve_editor_pts.row_count() {
-                                if let Some(mut pt) = win_curve_editor_pts.row_data(idx) {
-                                    if pt.y_path.as_str() == path_str {
-                                        pt.y_value = value;
-                                        pt.y_label = if value >= 0.0 {
-                                            format!("+{:.1}", value).into()
-                                        } else {
-                                            format!("{:.1}", value).into()
-                                        };
-                                        win_curve_editor_pts.set_row_data(idx, pt);
-                                        break;
-                                    } else if pt.has_x && pt.x_path.as_str() == path_str {
-                                        pt.x_value = value;
-                                        pt.x_label = if value >= 1000.0 {
-                                            format!("{:.1}k", value / 1000.0).into()
-                                        } else {
-                                            format!("{}Hz", value as i32).into()
-                                        };
-                                        win_curve_editor_pts.set_row_data(idx, pt);
-                                        break;
-                                    } else if pt.has_width && pt.width_path.as_str() == path_str {
-                                        pt.width_value = value;
-                                        win_curve_editor_pts.set_row_data(idx, pt);
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
-                            schedule_block_editor_persist_for_block_win(
-                                &win_timer, weak_win.clone(), weak_main.clone(),
-                                win_draft.clone(), win_param_items.clone(),
-                                project_session.clone(), project_chains.clone(), project_runtime.clone(),
-                                saved_project_snapshot.clone(), project_dirty.clone(),
-                                input_chain_devices.clone(), output_chain_devices.clone(),
-                                "block-window.number",
-                            auto_save,
-                            );
-                        }
-                    });
-                }
-                // on_update_block_parameter_number_text
-                {
-                    let win_draft = win_draft.clone();
-                    let win_param_items = win_param_items.clone();
-                    let win_timer = win_timer.clone();
-                    let project_session = project_session.clone();
-                    let project_chains = project_chains.clone();
-                    let project_runtime = project_runtime.clone();
-                    let saved_project_snapshot = saved_project_snapshot.clone();
-                    let project_dirty = project_dirty.clone();
-                    let input_chain_devices = input_chain_devices.clone();
-                    let output_chain_devices = output_chain_devices.clone();
-                    let weak_main = weak_main_window.clone();
-                    let weak_win = win.as_weak();
-                    win.on_update_block_parameter_number_text(move |path, value_text| {
-                        let Some(_win) = weak_win.upgrade() else { return; };
-                        let normalized = value_text.replace(',', ".");
-                        let Ok(value) = normalized.parse::<f32>() else { return; };
-                        set_block_parameter_number(&win_param_items, path.as_str(), value);
-                        if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
-                            schedule_block_editor_persist_for_block_win(
-                                &win_timer, weak_win.clone(), weak_main.clone(),
-                                win_draft.clone(), win_param_items.clone(),
-                                project_session.clone(), project_chains.clone(), project_runtime.clone(),
-                                saved_project_snapshot.clone(), project_dirty.clone(),
-                                input_chain_devices.clone(), output_chain_devices.clone(),
-                                "block-window.number-text",
-                            auto_save,
-                            );
-                        }
-                    });
-                }
-                // on_update_block_parameter_bool
-                {
-                    let win_draft = win_draft.clone();
-                    let win_param_items = win_param_items.clone();
-                    let win_timer = win_timer.clone();
-                    let project_session = project_session.clone();
-                    let project_chains = project_chains.clone();
-                    let project_runtime = project_runtime.clone();
-                    let saved_project_snapshot = saved_project_snapshot.clone();
-                    let project_dirty = project_dirty.clone();
-                    let input_chain_devices = input_chain_devices.clone();
-                    let output_chain_devices = output_chain_devices.clone();
-                    let weak_main = weak_main_window.clone();
-                    let weak_win = win.as_weak();
-                    win.on_update_block_parameter_bool(move |path, value| {
-                        let Some(_win) = weak_win.upgrade() else { return; };
-                        set_block_parameter_bool(&win_param_items, path.as_str(), value);
-                        if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
-                            schedule_block_editor_persist_for_block_win(
-                                &win_timer, weak_win.clone(), weak_main.clone(),
-                                win_draft.clone(), win_param_items.clone(),
-                                project_session.clone(), project_chains.clone(), project_runtime.clone(),
-                                saved_project_snapshot.clone(), project_dirty.clone(),
-                                input_chain_devices.clone(), output_chain_devices.clone(),
-                                "block-window.bool",
-                            auto_save,
-                            );
-                        }
-                    });
-                }
-                // on_update_block_parameter_text
-                {
-                    let win_draft = win_draft.clone();
-                    let win_param_items = win_param_items.clone();
-                    let win_timer = win_timer.clone();
-                    let project_session = project_session.clone();
-                    let project_chains = project_chains.clone();
-                    let project_runtime = project_runtime.clone();
-                    let saved_project_snapshot = saved_project_snapshot.clone();
-                    let project_dirty = project_dirty.clone();
-                    let input_chain_devices = input_chain_devices.clone();
-                    let output_chain_devices = output_chain_devices.clone();
-                    let weak_main = weak_main_window.clone();
-                    let weak_win = win.as_weak();
-                    win.on_update_block_parameter_text(move |path, value| {
-                        let Some(_win) = weak_win.upgrade() else { return; };
-                        set_block_parameter_text(&win_param_items, path.as_str(), value.as_str());
-                        if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
-                            schedule_block_editor_persist_for_block_win(
-                                &win_timer, weak_win.clone(), weak_main.clone(),
-                                win_draft.clone(), win_param_items.clone(),
-                                project_session.clone(), project_chains.clone(), project_runtime.clone(),
-                                saved_project_snapshot.clone(), project_dirty.clone(),
-                                input_chain_devices.clone(), output_chain_devices.clone(),
-                                "block-window.text",
-                            auto_save,
-                            );
-                        }
-                    });
-                }
-                // on_select_block_parameter_option
-                {
-                    let win_draft = win_draft.clone();
-                    let win_param_items = win_param_items.clone();
-                    let win_timer = win_timer.clone();
-                    let project_session = project_session.clone();
-                    let project_chains = project_chains.clone();
-                    let project_runtime = project_runtime.clone();
-                    let saved_project_snapshot = saved_project_snapshot.clone();
-                    let project_dirty = project_dirty.clone();
-                    let input_chain_devices = input_chain_devices.clone();
-                    let output_chain_devices = output_chain_devices.clone();
-                    let weak_main = weak_main_window.clone();
-                    let weak_win = win.as_weak();
-                    win.on_select_block_parameter_option(move |path, index| {
-                        let Some(_win) = weak_win.upgrade() else { return; };
-                        set_block_parameter_option(&win_param_items, path.as_str(), index);
-                        if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
-                            schedule_block_editor_persist_for_block_win(
-                                &win_timer, weak_win.clone(), weak_main.clone(),
-                                win_draft.clone(), win_param_items.clone(),
-                                project_session.clone(), project_chains.clone(), project_runtime.clone(),
-                                saved_project_snapshot.clone(), project_dirty.clone(),
-                                input_chain_devices.clone(), output_chain_devices.clone(),
-                                "block-window.option",
-                            auto_save,
-                            );
-                        }
-                    });
-                }
-                // on_pick_block_parameter_file
-                {
-                    let win_draft = win_draft.clone();
-                    let win_param_items = win_param_items.clone();
-                    let win_timer = win_timer.clone();
-                    let project_session = project_session.clone();
-                    let project_chains = project_chains.clone();
-                    let project_runtime = project_runtime.clone();
-                    let saved_project_snapshot = saved_project_snapshot.clone();
-                    let project_dirty = project_dirty.clone();
-                    let input_chain_devices = input_chain_devices.clone();
-                    let output_chain_devices = output_chain_devices.clone();
-                    let weak_main = weak_main_window.clone();
-                    let weak_win = win.as_weak();
-                    win.on_pick_block_parameter_file(move |path| {
-                        let Some(_win) = weak_win.upgrade() else { return; };
-                        let extensions = block_parameter_extensions(&win_param_items, path.as_str());
-                        let mut dialog = FileDialog::new();
-                        if !extensions.is_empty() {
-                            let refs: Vec<&str> = extensions.iter().map(|v| v.as_str()).collect();
-                            dialog = dialog.add_filter("Arquivos suportados", &refs);
-                        }
-                        let Some(file) = dialog.pick_file() else { return; };
-                        set_block_parameter_text(&win_param_items, path.as_str(), file.to_string_lossy().as_ref());
-                        if win_draft.borrow().as_ref().map(|d| d.block_index.is_some()).unwrap_or(false) {
-                            schedule_block_editor_persist_for_block_win(
-                                &win_timer, weak_win.clone(), weak_main.clone(),
-                                win_draft.clone(), win_param_items.clone(),
-                                project_session.clone(), project_chains.clone(), project_runtime.clone(),
-                                saved_project_snapshot.clone(), project_dirty.clone(),
-                                input_chain_devices.clone(), output_chain_devices.clone(),
-                                "block-window.file",
-                            auto_save,
-                            );
-                        }
-                    });
-                }
-                // on_open_vst3_editor (opens native plugin GUI window)
-                {
-                    let vst3_handles = vst3_editor_handles.clone();
-                    let vst3_sr = vst3_sample_rate;
-                    win.on_open_vst3_editor(move |model_id| {
-                        match project::vst3_editor::open_vst3_editor(model_id.as_str(), vst3_sr) {
-                            Ok(handle) => { vst3_handles.borrow_mut().push(handle); }
-                            Err(e) => { log::error!("VST3 editor: failed '{}': {}", model_id, e); }
-                        }
-                    });
-                }
-                // on_save_block_drawer (edit mode - saves and closes)
-                {
-                    let win_draft = win_draft.clone();
-                    let win_param_items = win_param_items.clone();
-                    let win_timer = win_timer.clone();
-                    let project_session = project_session.clone();
-                    let project_chains = project_chains.clone();
-                    let project_runtime = project_runtime.clone();
-                    let saved_project_snapshot = saved_project_snapshot.clone();
-                    let project_dirty = project_dirty.clone();
-                    let input_chain_devices = input_chain_devices.clone();
-                    let output_chain_devices = output_chain_devices.clone();
-                    let selected_block = selected_block.clone();
-                    let open_block_windows = open_block_windows.clone();
-                    let weak_main = weak_main_window.clone();
-                    let weak_win = win.as_weak();
-                    win.on_save_block_drawer(move || {
-                        let Some(win) = weak_win.upgrade() else { return; };
-                        let Some(main) = weak_main.upgrade() else { return; };
-                        win_timer.stop();
-                        let Some(draft) = win_draft.borrow().clone() else { return; };
-                        if let Err(e) = persist_block_editor_draft(
-                            &main, &draft, &win_param_items,
-                            &project_session, &project_chains, &project_runtime,
-                            &saved_project_snapshot, &project_dirty,
-                            &*input_chain_devices.borrow(), &*output_chain_devices.borrow(), true,
-                            auto_save,
-                        ) {
-                            log::error!("[adapter-gui] block-window.save: {e}");
-                            main.set_block_drawer_status_message(e.to_string().into());
-                            return;
-                        }
-                        *selected_block.borrow_mut() = None;
-                        set_selected_block(&main, None, None);
-                        open_block_windows.borrow_mut().retain(|bw| {
-                            bw.chain_index != draft.chain_index
-                                || bw.block_index != draft.block_index.unwrap_or(usize::MAX)
-                        });
-                        let _ = win.hide();
-                    });
-                }
-                // on_delete_block_drawer
-                {
-                    let win_draft = win_draft.clone();
-                    let win_timer = win_timer.clone();
-                    let project_session = project_session.clone();
-                    let project_chains = project_chains.clone();
-                    let project_runtime = project_runtime.clone();
-                    let saved_project_snapshot = saved_project_snapshot.clone();
-                    let project_dirty = project_dirty.clone();
-                    let input_chain_devices = input_chain_devices.clone();
-                    let output_chain_devices = output_chain_devices.clone();
-                    let selected_block = selected_block.clone();
-                    let open_block_windows = open_block_windows.clone();
-                    let weak_main = weak_main_window.clone();
-                    let weak_win = win.as_weak();
-                    win.on_delete_block_drawer(move || {
-                        let Some(win) = weak_win.upgrade() else { return; };
-                        let Some(main) = weak_main.upgrade() else { return; };
-                        win_timer.stop();
-                        let Some(draft) = win_draft.borrow().clone() else { return; };
-                        let Some(block_index) = draft.block_index else { return; };
-                        let confirmed = rfd::MessageDialog::new()
-                            .set_title("Excluir bloco")
-                            .set_description(format!("Excluir o bloco \"{}\"?", draft.model_id))
-                            .set_buttons(rfd::MessageButtons::YesNo)
-                            .set_level(rfd::MessageLevel::Warning)
-                            .show();
-                        if !matches!(confirmed, rfd::MessageDialogResult::Yes) {
-                            return;
-                        }
-                        let mut session_borrow = project_session.borrow_mut();
-                        let Some(session) = session_borrow.as_mut() else { return; };
-                        let Some(chain) = session.project.chains.get_mut(draft.chain_index) else { return; };
-                        if block_index >= chain.blocks.len() { return; }
-                        let chain_id = chain.id.clone();
-                        chain.blocks.remove(block_index);
-                        if let Err(e) = sync_live_chain_runtime(&project_runtime, session, &chain_id) {
-                            log::error!("[adapter-gui] block-window.delete: {e}");
-                            if let Some(w) = weak_main.upgrade() {
-                                w.set_block_drawer_status_message(e.to_string().into());
-                            }
-                            return;
-                        }
-                        replace_project_chains(&project_chains, &session.project, &*input_chain_devices.borrow(), &*output_chain_devices.borrow());
-                        sync_project_dirty(&main, session, &saved_project_snapshot, &project_dirty, auto_save);
-                        drop(session_borrow);
-                        *selected_block.borrow_mut() = None;
-                        set_selected_block(&main, None, None);
-                        open_block_windows.borrow_mut().retain(|bw| {
-                            bw.chain_index != draft.chain_index || bw.block_index != block_index
-                        });
-                        let _ = win.hide();
-                    });
-                }
-                // on_show_plugin_info
-                {
-                    let weak_window = window.as_weak();
-                    let plugin_info_window = plugin_info_window.clone();
-                    win.on_show_plugin_info(move |effect_type, model_id| {
-                        let Some(window) = weak_window.upgrade() else {
-                            return;
-                        };
-                        let effect_type = effect_type.to_string();
-                        let model_id = model_id.to_string();
-
-                        let display_name = model_display_name(&effect_type, &model_id);
-                        let brand = model_brand(&effect_type, &model_id);
-                        let type_label = model_type_label(&effect_type, &model_id);
-
-                        let lang = system_language();
-                        let meta = plugin_info::plugin_metadata(&lang, &model_id);
-            
-                        let (screenshot_img, has_screenshot) = load_screenshot_image(&effect_type, &model_id);
-
-                        let info_win = match PluginInfoWindow::new() {
-                            Ok(w) => w,
-                            Err(e) => {
-                                log::error!("Failed to create PluginInfoWindow: {}", e);
-                                return;
-                            }
-                        };
-
-                        info_win.set_plugin_name(display_name.into());
-                        info_win.set_brand(brand.into());
-                        info_win.set_type_label(type_label.into());
-                        info_win.set_description(meta.description.into());
-                        info_win.set_license(meta.license.into());
-                        info_win.set_has_homepage(!meta.homepage.is_empty());
-                        info_win.set_homepage(meta.homepage.clone().into());
-                        info_win.set_screenshot(screenshot_img);
-                        info_win.set_has_screenshot(has_screenshot);
-
-                        {
-                            let homepage = meta.homepage.clone();
-                            info_win.on_open_homepage(move || {
-                                plugin_info::open_homepage(&homepage);
-                            });
-                        }
-
-                        {
-                            let win_weak = info_win.as_weak();
-                            info_win.on_close_window(move || {
-                                if let Some(w) = win_weak.upgrade() {
-                                    let _ = w.window().hide();
-                                }
-                            });
-                        }
-
-                        *plugin_info_window.borrow_mut() = Some(info_win);
-                        if let Some(w) = plugin_info_window.borrow().as_ref() {
-                            show_child_window(window.window(), w.window());
-                        }
-                    });
-                }
-                // on_close_block_drawer (close without saving)
-                {
-                    let win_draft = win_draft.clone();
-                    let open_block_windows = open_block_windows.clone();
-                    let selected_block = selected_block.clone();
-                    let weak_main = weak_main_window.clone();
-                    let weak_win = win.as_weak();
-                    win.on_close_block_drawer(move || {
-                        let Some(win) = weak_win.upgrade() else { return; };
-                        let Some(main) = weak_main.upgrade() else { return; };
-                        let draft_borrow = win_draft.borrow();
-                        if let Some(draft) = draft_borrow.as_ref() {
-                            open_block_windows.borrow_mut().retain(|bw| {
-                                bw.chain_index != draft.chain_index || Some(bw.block_index) != draft.block_index
-                            });
-                        }
-                        drop(draft_borrow);
-                        *selected_block.borrow_mut() = None;
-                        set_selected_block(&main, None, None);
-                        let _ = win.hide();
-                    });
-                }
-                // Clean up stream timer when block editor is closed via the window X button.
-                {
-                    let open_block_windows_close = open_block_windows.clone();
-                    win.window().on_close_requested(move || {
-                        open_block_windows_close.borrow_mut().retain(|bw| {
-                            bw.chain_index != ci || bw.block_index != bi
-                        });
-                        slint::CloseRequestResponse::HideWindow
-                    });
-                }
-                show_child_window(window.window(), win.window());
-                open_block_windows.borrow_mut().push(BlockWindow { chain_index: ci, block_index: bi, window: win, stream_timer: block_stream_timer });
-            }
-        });
-    }
+    // --- on_select_chain_block (extracted to select_chain_block_callback + block_editor_window_*) ---
+    select_chain_block_callback::wire(
+        &window,
+        &chain_input_groups_window,
+        &chain_output_groups_window,
+        &chain_insert_window,
+        select_chain_block_callback::SelectChainBlockCallbackCtx {
+            selected_block: selected_block.clone(),
+            block_editor_draft: block_editor_draft.clone(),
+            chain_draft: chain_draft.clone(),
+            insert_draft: insert_draft.clone(),
+            block_type_options: block_type_options.clone(),
+            block_model_options: block_model_options.clone(),
+            filtered_block_model_options: filtered_block_model_options.clone(),
+            block_model_option_labels: block_model_option_labels.clone(),
+            block_parameter_items: block_parameter_items.clone(),
+            multi_slider_points: multi_slider_points.clone(),
+            curve_editor_points: curve_editor_points.clone(),
+            eq_band_curves: eq_band_curves.clone(),
+            project_session: project_session.clone(),
+            project_chains: project_chains.clone(),
+            project_runtime: project_runtime.clone(),
+            saved_project_snapshot: saved_project_snapshot.clone(),
+            project_dirty: project_dirty.clone(),
+            input_chain_devices: input_chain_devices.clone(),
+            output_chain_devices: output_chain_devices.clone(),
+            chain_input_device_options: chain_input_device_options.clone(),
+            chain_output_device_options: chain_output_device_options.clone(),
+            insert_send_channels: insert_send_channels.clone(),
+            insert_return_channels: insert_return_channels.clone(),
+            open_block_windows: open_block_windows.clone(),
+            inline_stream_timer: inline_stream_timer.clone(),
+            toast_timer: toast_timer.clone(),
+            plugin_info_window: plugin_info_window.clone(),
+            vst3_editor_handles: vst3_editor_handles.clone(),
+            vst3_sample_rate,
+            auto_save,
+        },
+    );
     // --- Chain block CRUD callbacks (extracted to chain_block_crud_wiring) ---
     crate::chain_block_crud_wiring::wire(
         &window,
@@ -2232,10 +1273,8 @@ pub fn run_desktop_app(
 }
 #[cfg(test)]
 mod tests {
-    use super::{
-        block_editor_data, block_parameter_items_for_editor, open_cli_project, parse_cli_args_from,
-        SELECT_SELECTED_BLOCK_ID,
-    };
+    use super::{open_cli_project, parse_cli_args_from, SELECT_SELECTED_BLOCK_ID};
+    use crate::block_editor::{block_editor_data, block_parameter_items_for_editor};
     use crate::project_ops::build_device_settings_from_gui;
     use domain::ids::BlockId;
     use domain::value_objects::ParameterValue;
@@ -2557,7 +1596,7 @@ mod tests {
 
     // --- insert_mode_to_index / insert_mode_from_index ---
 
-    use super::insert_mode_to_index;
+    use crate::chain_editor::insert_mode_to_index;
     use crate::chain_editor::insert_mode_from_index;
 
     #[test]
@@ -2679,7 +1718,7 @@ mod tests {
 
     // --- selected_device_index ---
 
-    use super::selected_device_index;
+    use crate::audio_devices::selected_device_index;
     use infra_cpal::AudioDeviceDescriptor;
 
     #[test]
@@ -3187,7 +2226,7 @@ mod tests {
 
     // --- block_model_index ---
 
-    use super::block_model_index;
+    use crate::project_view::block_model_index;
 
     #[test]
     fn block_model_index_finds_known_delay_model() {
@@ -3205,7 +2244,7 @@ mod tests {
 
     // --- block_type_index ---
 
-    use super::block_type_index;
+    use crate::project_view::block_type_index;
 
     #[test]
     fn block_type_index_finds_delay() {
