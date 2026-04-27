@@ -200,7 +200,7 @@ fn teardown_session(
     spectrum_timer.stop();
     *spectrum_session.borrow_mut() = None;
     if let Some(rt) = project_runtime.borrow().as_ref() {
-        rt.prune_dead_output_taps();
+        rt.prune_dead_stream_taps();
     }
 }
 
@@ -246,7 +246,7 @@ fn start_polling_timer(
                         mw.set_spectrum_rows(rows);
                     }
                     *spectrum_session.borrow_mut() = Some(new_session);
-                    rt.prune_dead_output_taps();
+                    rt.prune_dead_stream_taps();
                 }
                 _ => {
                     // No runtime (last chain disabled, runtime torn down).
