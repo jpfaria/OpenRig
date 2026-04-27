@@ -859,9 +859,7 @@ component BlockChip inherits Rectangle {
     border-width: 0px;
     border-radius: 6px;
 
-    // Type label sits on top of the artwork as an overlay so the
-    // thumbnail can use the full chip height. Without this, label +
-    // padding ate ~14px and the pedal looked cramped.
+    // Type label on top
     Text {
         x: 0px;
         y: 0px;
@@ -874,28 +872,32 @@ component BlockChip inherits Rectangle {
         letter-spacing: 1px;
         horizontal-alignment: center;
         vertical-alignment: center;
-        z: 2;
     }
 
-    // Block icon area — uses the chip's full height (with the label
-    // overlaid on top) so `image-fit: contain` can pick the bigger of
-    // the two dimensions and render the pedal as the dominant visual.
+    // Block icon area — base size at rest. On hover the artwork grows
+    // (replaces the old white outline as the hover affordance) by
+    // expanding upward over the type label and downward toward the
+    // LED. Animated so the change feels intentional, not a teleport.
     if root.block.has-thumbnail : Image {
         x: 0px;
-        y: 0px;
+        y: hover-area.has-hover ? 4px : 14px;
         width: parent.width;
-        height: parent.height - 6px;
+        height: hover-area.has-hover ? 90px : 78px;
         source: root.block.thumbnail;
         image-fit: contain;
+        animate y { duration: 120ms; easing: ease-out; }
+        animate height { duration: 120ms; easing: ease-out; }
     }
 
     if !root.block.has-thumbnail : EffectTypeIcon {
         x: 0px;
-        y: 0px;
+        y: hover-area.has-hover ? 4px : 14px;
         width: parent.width;
-        height: parent.height - 6px;
+        height: hover-area.has-hover ? 90px : 78px;
         icon-kind: root.block.icon-kind;
         tint: root.dragging ? #8b95a5 : root.block.enabled ? root.accent-color : #5c6678;
+        animate y { duration: 120ms; easing: ease-out; }
+        animate height { duration: 120ms; easing: ease-out; }
     }
 
     // LED status indicator (sprite: 64x32, 2 frames of 32x32, left=off right=on)
