@@ -6,8 +6,8 @@
 //! clicked model_id back to an index in the full list. These helpers
 //! keep that logic out of `lib.rs` (already a god file).
 
-use crate::{BlockModelPickerItem, CompactBlockItem};
-use slint::{Model, ModelRc, VecModel};
+use crate::{BlockEditorWindow, BlockModelPickerItem, CompactBlockItem};
+use slint::{ComponentHandle, Model, ModelRc, VecModel};
 use std::rc::Rc;
 
 /// Drawer / window: re-filter `full` according to `text` and publish into
@@ -32,6 +32,34 @@ pub(crate) fn resolve_model_id_in_block_options(
         .enumerate()
         .find(|(_, m)| m.model_id.as_str() == model_id)
         .map(|(i, _)| i as i32)
+}
+
+/// Standalone `BlockEditorWindow` (the per-block window opened by clicking
+/// an existing block) owns its own `block_model_options` /
+/// `filtered_block_model_options` pair, independent of the global ones
+/// shared by `AppWindow` and the always-open `BlockEditorWindow`. Wires
+/// search + choose-by-id callbacks for that local pair.
+pub(crate) fn wire_standalone_block_editor_window(
+    win: &BlockEditorWindow,
+    win_full: Rc<VecModel<BlockModelPickerItem>>,
+    win_filtered: Rc<VecModel<BlockModelPickerItem>>,
+) {
+    {
+        let win_full = win_full.clone();
+        let win_filtered = win_filtered.clone();
+        win.on_search_block_model(move |text| {
+            refilter_block_model_options(&win_full, &win_filtered, text.as_str());
+        });
+    }
+    let weak_win = win.as_weak();
+    win.on_choose_block_model_by_id(move |model_id| {
+        let Some(idx) = resolve_model_id_in_block_options(&win_full, model_id.as_str()) else {
+            return;
+        };
+        if let Some(w) = weak_win.upgrade() {
+            w.invoke_choose_block_model(idx);
+        }
+    });
 }
 
 /// Compact view: re-filter the `filtered_models` vector of the compact

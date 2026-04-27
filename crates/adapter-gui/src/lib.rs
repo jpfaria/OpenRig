@@ -4544,35 +4544,11 @@ pub fn run_desktop_app(
                 win.set_block_model_options(ModelRc::from(win_model_options.clone()));
                 win.set_filtered_block_model_options(ModelRc::from(win_filtered_model_options.clone()));
                 win.set_block_model_option_labels(ModelRc::from(win_model_labels.clone()));
-
-                // Wire search-block-model on the standalone window using
-                // the per-window full/filtered pair (not the global one).
-                {
-                    let win_full = win_model_options.clone();
-                    let win_filtered = win_filtered_model_options.clone();
-                    win.on_search_block_model(move |text| {
-                        crate::model_search_wiring::refilter_block_model_options(
-                            &win_full,
-                            &win_filtered,
-                            text.as_str(),
-                        );
-                    });
-                }
-                {
-                    let win_full = win_model_options.clone();
-                    let weak_win = win.as_weak();
-                    win.on_choose_block_model_by_id(move |model_id| {
-                        let Some(idx) = crate::model_search_wiring::resolve_model_id_in_block_options(
-                            &win_full,
-                            model_id.as_str(),
-                        ) else {
-                            return;
-                        };
-                        if let Some(w) = weak_win.upgrade() {
-                            w.invoke_choose_block_model(idx);
-                        }
-                    });
-                }
+                crate::model_search_wiring::wire_standalone_block_editor_window(
+                    &win,
+                    win_model_options.clone(),
+                    win_filtered_model_options.clone(),
+                );
                 win.set_block_parameter_items(ModelRc::from(win_param_items.clone()));
                 win.set_block_knob_overlays(ModelRc::from(win_knob_overlays.clone()));
                 let win_multi_slider_pts = Rc::new(VecModel::from(
