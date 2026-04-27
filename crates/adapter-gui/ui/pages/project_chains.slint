@@ -1,10 +1,11 @@
 import { ComboBox, ListView, ScrollView } from "std-widgets.slint";
-import { ProjectChainItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, ChainBlockItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockStreamEntry, BlockKnobOverlay } from "../models.slint";
+import { ProjectChainItem, BlockModelPickerItem, BlockParameterItem, BlockParamSummaryEntry, BlockTypePickerItem, ChainBlockItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockStreamEntry, BlockKnobOverlay } from "../models.slint";
 import { EffectTypeIcon } from "../components/effect_type_icon.slint";
 import { BlockPanelEditor } from "block_panel_editor.slint";
 import { CurveEditorControl } from "curve_editor_control.slint";
 import { MultiSliderControl } from "multi_slider_control.slint";
 import { PowerSwitch } from "../components/power_switch.slint";
+import { BrandLogo } from "../components/brand_logo.slint";
 
 component ToolbarButton inherits Rectangle {
     in property <string> label;
@@ -840,12 +841,19 @@ component BlockChip inherits Rectangle {
     callback clicked();
     callback drag-moved(float, float);
     callback drag-finished(float, float);
+    callback hover-state-changed(bool);
+    out property <bool> hovered: hover-area.has-hover;
+    // The tooltip itself is rendered by ChainRow (declared AFTER all
+    // BlockChips so it paints on top of every sibling), not by this chip.
+    // We just emit the hover state so the row knows which block is
+    // active and where to anchor the tooltip card.
+    changed hovered => { root.hover-state-changed(self.hovered); }
     property <bool> did-drag: false;
     property <bool> drag-origin-set: false;
     property <float> drag-origin-x: 0;
     property <float> drag-origin-y: 0;
 
-    width: 84px;
+    width: 100px;
     height: 100px;
     background: transparent;
     border-width: 0px;
@@ -866,56 +874,30 @@ component BlockChip inherits Rectangle {
         vertical-alignment: center;
     }
 
-    // Calculate rendered thumbnail size (image-fit: contain in 80x76 area)
-    property <float> img-aspect: root.block.thumb-height > 0 ? root.block.thumb-width / root.block.thumb-height : 1.0;
-    property <float> area-aspect: 80.0 / 76.0;
-    property <float> rendered-w: img-aspect > area-aspect ? 80.0 : 76.0 * img-aspect;
-    property <float> rendered-h: img-aspect > area-aspect ? 80.0 / img-aspect : 76.0;
-    property <length> rw: rendered-w * 1px;
-    property <length> rh: rendered-h * 1px;
-    property <length> rx: (84px - rw) / 2;
-    property <length> ry: 15px + (76px - rh) / 2;
-
+    // Block icon area — base size at rest. On hover the artwork grows
+    // (replaces the old white outline as the hover affordance) by
+    // expanding upward over the type label and downward toward the
+    // LED. Animated so the change feels intentional, not a teleport.
     if root.block.has-thumbnail : Image {
-        x: 2px;
-        y: 15px;
-        width: 80px;
-        height: 76px;
+        x: 0px;
+        y: hover-area.has-hover ? 4px : 14px;
+        width: parent.width;
+        height: hover-area.has-hover ? 90px : 78px;
         source: root.block.thumbnail;
         image-fit: contain;
+        animate y { duration: 120ms; easing: ease-out; }
+        animate height { duration: 120ms; easing: ease-out; }
     }
 
     if !root.block.has-thumbnail : EffectTypeIcon {
         x: 0px;
-        y: 17px;
+        y: hover-area.has-hover ? 4px : 14px;
         width: parent.width;
-        height: 72px;
+        height: hover-area.has-hover ? 90px : 78px;
         icon-kind: root.block.icon-kind;
         tint: root.dragging ? #8b95a5 : root.block.enabled ? root.accent-color : #5c6678;
-    }
-
-    // White hover outline — hugs the actual rendered thumbnail
-    if hover-area.has-hover && root.block.has-thumbnail : Rectangle {
-        x: root.rx - 2px;
-        y: root.ry - 2px;
-        width: root.rw + 4px;
-        height: root.rh + 4px;
-        background: transparent;
-        border-width: 1.5px;
-        border-color: #ffffff60;
-        border-radius: 4px;
-    }
-
-    // Fallback hover for non-thumbnail blocks
-    if hover-area.has-hover && !root.block.has-thumbnail : Rectangle {
-        x: 4px;
-        y: 15px;
-        width: parent.width - 8px;
-        height: 74px;
-        background: transparent;
-        border-width: 1.5px;
-        border-color: #ffffff60;
-        border-radius: 4px;
+        animate y { duration: 120ms; easing: ease-out; }
+        animate height { duration: 120ms; easing: ease-out; }
     }
 
     // LED status indicator (sprite: 64x32, 2 frames of 32x32, left=off right=on)
@@ -998,36 +980,45 @@ component BlockInsertSlot inherits Rectangle {
         border-radius: 1px;
     }
 
+    // Insert affordance — small circle with a bold centred "+". Smaller
+    // disc than before, thicker plus, properly centred.
     if root.empty-slot || root.active-drop-target || (!root.move-target && hover-area.has-hover && !root.suppress-hover-affordance) : Rectangle {
-        x: (parent.width - 24px) / 2;
-        y: 0px;
-        width: 24px;
-        height: 24px;
-        background: root.empty-slot || root.active-drop-target ? #20252d : #252a33;
+        x: (parent.width - 18px) / 2;
+        y: (24px - 18px) / 2;
+        width: 18px;
+        height: 18px;
+        background: root.active-drop-target ? #2c3340 : #1c2029;
         border-width: 1px;
-        border-color: root.active-drop-target ? #a9b2bf : root.empty-slot ? #5a6577 : #7c8798;
-        border-radius: 12px;
+        border-color: root.active-drop-target ? #a9b2bf : root.empty-slot ? #5a6577 : #6f7a8b;
+        border-radius: 9px;
 
         if root.active-drop-target : Image {
             x: 2px;
             y: 2px;
-            width: 20px;
-            height: 20px;
+            width: 14px;
+            height: 14px;
             source: @image-url("../assets/block-drop-target.svg");
             image-fit: contain;
         }
 
-        if !root.active-drop-target : Text {
-            x: 0px;
-            y: -1px;
-            width: parent.width;
-            height: parent.height;
-            text: "+";
-            color: #eef2f8;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-            font-size: 15px;
-            font-weight: 700;
+        // Plus glyph drawn from two thick rectangles instead of a Text
+        // glyph — guarantees pixel-perfect centering and crisp strokes
+        // at any DPI. 10×2 horizontal + 2×10 vertical, intersected.
+        if !root.active-drop-target : Rectangle {
+            x: (parent.width - 10px) / 2;
+            y: (parent.height - 2px) / 2;
+            width: 10px;
+            height: 2px;
+            background: #eef2f8;
+            border-radius: 1px;
+        }
+        if !root.active-drop-target : Rectangle {
+            x: (parent.width - 2px) / 2;
+            y: (parent.height - 10px) / 2;
+            width: 2px;
+            height: 10px;
+            background: #eef2f8;
+            border-radius: 1px;
         }
     }
 
@@ -1038,6 +1029,186 @@ component BlockInsertSlot inherits Rectangle {
         height: parent.height;
         mouse-cursor: pointer;
         clicked => { root.clicked(); }
+    }
+}
+
+// Hover tooltip card for a chain block. Lives in ChainRow, declared after
+// the BlockChip for-loop so the natural paint order keeps it above every
+// sibling block (the per-chip z-lift attempt did not work because z only
+// orders within the same parent — the tooltip was a child of the chip,
+// not a sibling of the next chip). Rendered only when ChainRow has a
+// hovered block; ChainRow drives `block`, `anchor-x` and `anchor-y`.
+component BlockHoverTooltip inherits Rectangle {
+    in property <ChainBlockItem> block;
+    in property <length> anchor-x;
+    in property <length> anchor-y;
+    in property <length> chip-width;
+    in property <length> chip-height;
+    in property <length> container-width;
+
+    property <length> row-height: 18px;
+    property <length> header-h: 36px;
+    property <length> body-padding: 8px;
+    property <int> entry-count: root.block.param_entries.length;
+    property <length> tooltip-h: header-h + body-padding + Math.max(1, entry-count) * row-height + body-padding;
+    property <length> tooltip-w: 320px;
+    property <length> gap: 6px;
+
+    // Pick the side that fits inside the row's blocks container. Right
+    // is the default (cards on the left of the chain are usually amps
+    // and benefit from seeing what comes after); flip to the left when
+    // the chip is close enough to the container edge that the tooltip
+    // would be clipped on the right (e.g. last block in the chain).
+    property <bool> fits-right:
+        root.anchor-x + root.chip-width + root.gap + root.tooltip-w
+            <= root.container-width;
+
+    x: root.fits-right
+        ? root.anchor-x + root.chip-width + root.gap
+        : root.anchor-x - root.gap - root.tooltip-w;
+    y: root.anchor-y + root.chip-height - root.tooltip-h;
+    width: root.tooltip-w;
+    height: root.tooltip-h;
+    background: #0e1218f5;
+    border-width: 1px;
+    border-color: #4d5868;
+    border-radius: 8px;
+    drop-shadow-blur: 18px;
+    drop-shadow-color: #000000a0;
+    drop-shadow-offset-y: 4px;
+    // Literal z — covers any sibling declared after the tooltip in the
+    // blocks container (insert-slot dashes, U-turn ticks, secondary
+    // routing artwork) that would otherwise paint a hairline through
+    // the card. Slint accepts literal z on for-loop-free elements.
+    z: 999;
+
+    // Header strip
+    Rectangle {
+        x: 0px;
+        y: 0px;
+        width: parent.width;
+        height: 36px;
+        background: #171d2c;
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
+    }
+
+    // Backend pill (NATIVE blue / NAM brown / IR purple / LV2 green).
+    Rectangle {
+        x: 10px;
+        y: 10px;
+        width: backend-text.preferred-width + 14px;
+        height: 16px;
+        border-radius: 3px;
+        background:
+            root.block.backend_label == "NATIVE" ? #1f6feb
+            : root.block.backend_label == "NAM" ? #b5651d
+            : root.block.backend_label == "IR" ? #6f42c1
+            : root.block.backend_label == "LV2" ? #2f7d32
+            : #4a5260;
+
+        backend-text := Text {
+            x: 7px;
+            y: 0px;
+            height: parent.height;
+            text: root.block.backend_label;
+            color: #ffffff;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.6px;
+            vertical-alignment: center;
+        }
+    }
+
+    // Brand text in dim small caps before the model name — helps even
+    // when the BrandLogo is absent for the brand. Empty string for
+    // unbranded models (native, generic) keeps the line clean.
+    brand-text := Text {
+        x: 10px + backend-text.preferred-width + 14px + 8px;
+        y: 0px;
+        height: 36px;
+        text: root.block.brand == "" || root.block.brand == "native" || root.block.brand == "generic"
+            ? ""
+            : root.block.brand;
+        color: #8fa0b6;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.6px;
+        vertical-alignment: center;
+    }
+
+    // Model name — sits to the right of the brand text, fills the
+    // remaining header space.
+    Text {
+        x: brand-text.x + brand-text.preferred-width + (brand-text.text == "" ? 0px : 6px);
+        y: 0px;
+        width: 320px - (brand-text.x + brand-text.preferred-width + 78px);
+        height: 36px;
+        text: root.block.display_name;
+        color: #f4f7fb;
+        font-size: 13px;
+        font-weight: 700;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    // Brand logo on the right — auto-hidden by BrandLogo for unknown brands.
+    BrandLogo {
+        x: 320px - 70px;
+        y: 8px;
+        width: 60px;
+        height: 20px;
+        brand: root.block.brand;
+        tint: #e6ecf5;
+    }
+
+    // Parameter table — one row per entry, fixed column widths because
+    // referencing parent.width inside a `for` loop returned 0.
+    for entry[i] in root.block.param_entries : Rectangle {
+        x: 0px;
+        y: 36px + 8px + i * 18px;
+        width: 320px;
+        height: 18px;
+        background: transparent;
+
+        Text {
+            x: 12px;
+            y: 0px;
+            width: 140px;
+            height: 18px;
+            text: entry.label;
+            color: #8fa0b6;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.4px;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+
+        HorizontalLayout {
+            x: 156px;
+            y: 0px;
+            width: 152px;
+            height: 18px;
+            spacing: 4px;
+            alignment: end;
+
+            Text {
+                text: entry.value;
+                color: #f4f7fb;
+                font-size: 11px;
+                font-weight: 700;
+                vertical-alignment: center;
+            }
+
+            Text {
+                text: entry.unit;
+                color: #8fa0b6;
+                font-size: 10px;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
+        }
     }
 }
 
@@ -1060,7 +1231,7 @@ component ChainRow inherits Rectangle {
     callback start-block-insert(int, int);
     callback reorder-chain-block(int, int, int);
     callback open-compact-chain-view(int);
-    property <int> blocks-per-row: Math.max(1, Math.floor((root.width - 188px) / 116px));
+    property <int> blocks-per-row: Math.max(1, Math.floor((root.width - 188px) / 132px));
     property <int> block-row-count: root.chain.blocks.length == 0 ? 1 : Math.floor((root.chain.blocks.length - 1) / root.blocks-per-row) + 1;
     property <int> insert-row-count: root.block-row-count;
     in-out property <int> dragging-chain-index: -1;
@@ -1073,13 +1244,20 @@ component ChainRow inherits Rectangle {
     property <length> out-chip-x: root.width - 108px;
     property <length> out-chip-y: root.last-block-row * 108px + 24px;
     out property <bool> any-chip-hovered: in-chip.is-hovered || out-chip.is-hovered;
+    // Tracks which BlockChip in the for-loop is currently hovered. -1
+    // means no block is hovered. Updated by `hover-state-changed` from
+    // each BlockChip — set when entering, clear only if the leaving chip
+    // is the current hovered one (so a fast move from one chip to the
+    // next does not flicker through -1 in between). Drives the
+    // BlockHoverTooltip render below the for-loop.
+    property <int> hovered-block-index: -1;
 
     pure function slot-index-for-position(pointer-x: float, pointer-y: float) -> int {
-        // Blocks start at x=120, each 116px wide.
-        // Slot 0 is before block 0 (x<172), slot N is after block N-1 center.
-        // Block N center = 172 + N*116. Crossing the center moves to slot N+1.
+        // Blocks start at x=120, each 132px wide (chip 100 + gap 32).
+        // Slot 0 is before block 0 (x<170), slot N is after block N-1 center.
+        // Block N center = 170 + N*132. Crossing the center moves to slot N+1.
         let row = Math.max(0, Math.min(root.insert-row-count - 1, Math.floor((pointer-y + 18) / 92)));
-        let col = Math.max(0, Math.min(root.blocks-per-row, Math.round((pointer-x - 172) / 116 + 0.5)));
+        let col = Math.max(0, Math.min(root.blocks-per-row, Math.round((pointer-x - 170) / 132 + 0.5)));
         let candidate = row * root.blocks-per-row + col;
         return Math.max(0, Math.min(root.chain.blocks.length, candidate));
     }
@@ -1345,7 +1523,7 @@ component ChainRow inherits Rectangle {
         }
 
         for block[block-index] in root.chain.blocks : BlockChip {
-            x: 120px + Math.mod(block-index, root.blocks-per-row) * 116px;
+            x: 120px + Math.mod(block-index, root.blocks-per-row) * 132px;
             y: Math.floor(block-index / root.blocks-per-row) * 108px;
             block: block;
             selected: root.dragging-chain-index == root.chain-index && root.dragging-block-index == block-index
@@ -1353,6 +1531,13 @@ component ChainRow inherits Rectangle {
                 : root.selected-block-chain-index == root.chain-index && root.selected-block-index == block-index;
             dragging: root.dragging-chain-index == root.chain-index && root.dragging-block-index == block-index;
             clicked => { root.select-chain-block(root.chain-index, block-index); }
+            hover-state-changed(is-hovered) => {
+                if (is-hovered) {
+                    root.hovered-block-index = block-index;
+                } else if (root.hovered-block-index == block-index) {
+                    root.hovered-block-index = -1;
+                }
+            }
             drag-moved(pointer-x, pointer-y) => {
                 root.suppress-insert-hover = false;
                 root.dragging-chain-index = root.chain-index;
@@ -1372,8 +1557,28 @@ component ChainRow inherits Rectangle {
             }
         }
 
+        // Hover tooltip for the currently hovered block — declared AFTER
+        // the BlockChip and BlockInsertSlot for-loops so the natural
+        // paint order keeps it on top of every sibling block. Hidden when
+        // no block is hovered or when the hovered block has no model
+        // (I/O / Insert blocks have empty display_name). Issue #333.
+        if root.hovered-block-index >= 0
+            && root.hovered-block-index < root.chain.blocks.length
+            && root.chain.blocks[root.hovered-block-index].display_name != ""
+            : BlockHoverTooltip {
+            block: root.chain.blocks[root.hovered-block-index];
+            anchor-x: 120px + Math.mod(root.hovered-block-index, root.blocks-per-row) * 132px;
+            anchor-y: Math.floor(root.hovered-block-index / root.blocks-per-row) * 108px;
+            chip-width: 100px;
+            chip-height: 100px;
+            // Pass the blocks-container width so the tooltip can flip to
+            // the left side when the chip is too close to the right edge
+            // (e.g. last chip in the row) and the card would overflow.
+            container-width: parent.width;
+        }
+
         for block[block-index] in root.chain.blocks : BlockInsertSlot {
-            x: 204px + Math.mod(block-index, root.blocks-per-row) * 116px;
+            x: 220px + Math.mod(block-index, root.blocks-per-row) * 132px;
             y: 41px + Math.floor(block-index / root.blocks-per-row) * 108px;
             move-target: root.dragging-chain-index == root.chain-index && root.dragging-block-index >= 0;
             suppress-hover-affordance: root.suppress-insert-hover;

@@ -7,6 +7,12 @@ export struct DeviceSelectionItem {
     bit_depth_text: string,
 }
 
+export struct BlockParamSummaryEntry {
+    label: string,    // parameter name in uppercase (e.g. "GAIN")
+    value: string,    // formatted current value (e.g. "65")
+    unit: string,     // optional unit suffix (e.g. "%", "ms", "dB")
+}
+
 export struct ChainBlockItem {
     kind: string,
     icon_kind: string,
@@ -21,6 +27,18 @@ export struct ChainBlockItem {
     thumb_height: float,
     accent_color: color,
     icon_source: image,
+    // Hover-tooltip metadata. `display_name` is the human model name;
+    // `backend_label` is the DSP backend in uppercase
+    // ("NATIVE"/"NAM"/"IR"/"LV2"); `brand` is the manufacturer slug used
+    // by `BrandLogo` (e.g. "marshall", "fender", "boss") to optionally
+    // render the logo; `param_entries` is the list of currently-set
+    // parameters split into label/value/unit so the tooltip can render
+    // each part with distinct typography. All four are empty for I/O and
+    // Insert blocks where the tooltip would add no signal.
+    display_name: string,
+    backend_label: string,
+    brand: string,
+    param_entries: [BlockParamSummaryEntry],
 }
 
 export struct ProjectChainItem {
