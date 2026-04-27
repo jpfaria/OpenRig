@@ -32,14 +32,6 @@ pedals:
 - slug: bluesbreaker
   nam_count: 1
   source: openrig-native
-- slug: bogner_ecstasy
-  nam_count: 52
-  label: Bogner Ecstasy
-  make: Bogner Ecstasy Red Pedal
-  tone3000_url: https://www.tone3000.com/tones/30595
-  author: mayronalencar
-  downloads: 1591
-  source: tone3000
 - slug: boss_blues_driver_bd_2
   nam_count: 3
   source: openrig-native
