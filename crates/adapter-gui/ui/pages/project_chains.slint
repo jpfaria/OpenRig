@@ -874,56 +874,26 @@ component BlockChip inherits Rectangle {
         vertical-alignment: center;
     }
 
-    // Calculate rendered thumbnail size (image-fit: contain in 80x76 area)
-    property <float> img-aspect: root.block.thumb-height > 0 ? root.block.thumb-width / root.block.thumb-height : 1.0;
-    property <float> area-aspect: 80.0 / 76.0;
-    property <float> rendered-w: img-aspect > area-aspect ? 80.0 : 76.0 * img-aspect;
-    property <float> rendered-h: img-aspect > area-aspect ? 80.0 / img-aspect : 76.0;
-    property <length> rw: rendered-w * 1px;
-    property <length> rh: rendered-h * 1px;
-    property <length> rx: (84px - rw) / 2;
-    property <length> ry: 15px + (76px - rh) / 2;
-
+    // Block icon area — bigger than before so the thumbnail/effect icon
+    // is the dominant visual. The hover outline that used to box this
+    // area was removed (looked like a frame around the pedal); the
+    // tooltip card is the explicit hover affordance now (#333).
     if root.block.has-thumbnail : Image {
-        x: 2px;
-        y: 15px;
-        width: 80px;
-        height: 76px;
+        x: 0px;
+        y: 14px;
+        width: parent.width;
+        height: 78px;
         source: root.block.thumbnail;
         image-fit: contain;
     }
 
     if !root.block.has-thumbnail : EffectTypeIcon {
         x: 0px;
-        y: 17px;
+        y: 14px;
         width: parent.width;
-        height: 72px;
+        height: 78px;
         icon-kind: root.block.icon-kind;
         tint: root.dragging ? #8b95a5 : root.block.enabled ? root.accent-color : #5c6678;
-    }
-
-    // White hover outline — hugs the actual rendered thumbnail
-    if hover-area.has-hover && root.block.has-thumbnail : Rectangle {
-        x: root.rx - 2px;
-        y: root.ry - 2px;
-        width: root.rw + 4px;
-        height: root.rh + 4px;
-        background: transparent;
-        border-width: 1.5px;
-        border-color: #ffffff60;
-        border-radius: 4px;
-    }
-
-    // Fallback hover for non-thumbnail blocks
-    if hover-area.has-hover && !root.block.has-thumbnail : Rectangle {
-        x: 4px;
-        y: 15px;
-        width: parent.width - 8px;
-        height: 74px;
-        background: transparent;
-        border-width: 1.5px;
-        border-color: #ffffff60;
-        border-radius: 4px;
     }
 
     // LED status indicator (sprite: 64x32, 2 frames of 32x32, left=off right=on)
