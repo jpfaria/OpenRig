@@ -9,6 +9,7 @@ mod device_settings_wiring;
 mod chain_io_picker_wiring;
 mod block_editor_window_wiring;
 mod recent_projects_wiring;
+mod project_file_dialog_wiring;
 
 use anyhow::{anyhow, Result};
 
@@ -87,9 +88,8 @@ use project_ops::{
     open_cli_project, resolve_project_paths, load_and_sync_app_config,
     canonical_project_path, register_recent_project,
     recent_project_items, project_display_name,
-    create_new_project_session, resolve_project_config_path,
-    build_device_settings_from_gui, load_project_session, project_session_snapshot,
-    set_project_dirty, sync_project_dirty, save_project_session, save_chain_blocks_to_preset,
+    build_device_settings_from_gui, project_session_snapshot,
+    set_project_dirty, sync_project_dirty, save_chain_blocks_to_preset,
     load_preset_file, project_title_for_path,
 };
 use project_view::{
@@ -922,225 +922,23 @@ pub fn run_desktop_app(
             }
         });
     }
-    {
-        let weak_window = window.as_weak();
-        let app_config = app_config.clone();
-        let project_session = project_session.clone();
-        let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
-        let recent_projects = recent_projects.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
-        let input_chain_devices = input_chain_devices.clone();
-        let output_chain_devices = output_chain_devices.clone();
-        let toast_timer = toast_timer.clone();
-        window.on_open_project_file(move || {
-            log::info!("on_open_project_file triggered");
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            ensure_devices_loaded(&input_chain_devices, &output_chain_devices);
-            let Some(path) = FileDialog::new()
-                .add_filter("OpenRig Project", &["yaml", "yml"])
-                .set_title("Abrir projeto")
-                .pick_file()
-            else {
-                return;
-            };
-            log::info!("opening project file: {:?}", path);
-            match load_project_session(&path, &resolve_project_config_path(&path)) {
-                Ok(session) => {
-                    let canonical_path = canonical_project_path(&path).unwrap_or(path.clone());
-                    let title = project_title_for_path(Some(&canonical_path), &session.project);
-                    let display_name = project_display_name(&session.project);
-                    stop_project_runtime(&project_runtime);
-                    replace_project_chains(
-                        &project_chains,
-                        &session.project,
-                        &*input_chain_devices.borrow(),
-                        &*output_chain_devices.borrow(),
-                    );
-                    let snapshot = project_session_snapshot(&session).ok();
-                    *project_session.borrow_mut() = Some(session);
-                    *saved_project_snapshot.borrow_mut() = snapshot;
-                    register_recent_project(
-                        &mut app_config.borrow_mut(),
-                        &canonical_path,
-                        &display_name,
-                    );
-                    let _ = FilesystemStorage::save_app_config(&app_config.borrow());
-                    recent_projects.set_vec(recent_project_items(
-                        &app_config.borrow().recent_projects,
-                        window.get_recent_project_search().as_str(),
-                    ));
-                    set_project_dirty(&window, &project_dirty, false);
-                    clear_status(&window, &toast_timer);
-                    window.set_project_title(title.into());
-                    window.set_project_name_draft(
-                        project_session
-                            .borrow()
-                            .as_ref()
-                            .and_then(|session| session.project.name.clone())
-                            .unwrap_or_default()
-                            .into(),
-                    );
-                    window.set_project_path_label(
-                        format!("Projeto: {}", canonical_path.display()).into(),
-                    );
-                    window.set_show_project_launcher(false);
-                    window.set_show_project_setup(false);
-                    window.set_show_project_chains(true);
-                    window.set_show_chain_editor(false);
-                    window.set_show_project_settings(false);
-                }
-                Err(error) => {
-                    set_status_error(&window, &toast_timer, &error.to_string());
-                }
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let toast_timer = toast_timer.clone();
-        window.on_create_project_file(move || {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            clear_status(&window, &toast_timer);
-            window.set_project_name_draft("".into());
-            window.set_show_project_launcher(false);
-            window.set_show_project_setup(true);
-            window.set_show_project_chains(false);
-            window.set_show_chain_editor(false);
-            window.set_show_project_settings(false);
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let project_paths = project_paths.clone();
-        let project_session = project_session.clone();
-        let project_chains = project_chains.clone();
-        let project_runtime = project_runtime.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
-        let input_chain_devices = input_chain_devices.clone();
-        let output_chain_devices = output_chain_devices.clone();
-        let toast_timer = toast_timer.clone();
-        window.on_confirm_new_project(move || {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let name = window.get_project_name_draft().trim().to_string();
-            if name.is_empty() {
-                set_status_error(&window, &toast_timer, "O nome do projeto é obrigatório.");
-                return;
-            }
-            ensure_devices_loaded(&input_chain_devices, &output_chain_devices);
-            stop_project_runtime(&project_runtime);
-            let mut session = create_new_project_session(&project_paths.default_config_path);
-            session.project.name = Some(name.clone());
-            replace_project_chains(
-                &project_chains,
-                &session.project,
-                &*input_chain_devices.borrow(),
-                &*output_chain_devices.borrow(),
-            );
-            *project_session.borrow_mut() = Some(session);
-            *saved_project_snapshot.borrow_mut() = None;
-            clear_status(&window, &toast_timer);
-            set_project_dirty(&window, &project_dirty, true);
-            window.set_project_title(name.into());
-            window.set_project_path_label("Projeto em memória".into());
-            window.set_show_project_setup(false);
-            window.set_show_project_launcher(false);
-            window.set_show_project_chains(true);
-            window.set_show_chain_editor(false);
-            window.set_show_project_settings(false);
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let toast_timer = toast_timer.clone();
-        window.on_cancel_new_project(move || {
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            clear_status(&window, &toast_timer);
-            window.set_show_project_setup(false);
-            window.set_show_project_launcher(true);
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        let app_config = app_config.clone();
-        let project_session = project_session.clone();
-        let recent_projects = recent_projects.clone();
-        let saved_project_snapshot = saved_project_snapshot.clone();
-        let project_dirty = project_dirty.clone();
-        let toast_timer = toast_timer.clone();
-        window.on_save_project(move || {
-            log::info!("on_save_project triggered");
-            let Some(window) = weak_window.upgrade() else {
-                return;
-            };
-            let mut session_borrow = project_session.borrow_mut();
-            let Some(session) = session_borrow.as_mut() else {
-                set_status_error(&window, &toast_timer, "Nenhum projeto carregado.");
-                return;
-            };
-            let project_path = if let Some(path) = session.project_path.clone() {
-                path
-            } else {
-                let Some(path) = FileDialog::new()
-                    .add_filter("OpenRig Project", &["yaml", "yml"])
-                    .set_title("Salvar projeto")
-                    .set_file_name("project.yaml")
-                    .save_file()
-                else {
-                    return;
-                };
-                session.project_path = Some(path.clone());
-                session.config_path = Some(resolve_project_config_path(&path));
-                session.presets_path = path
-                    .parent()
-                    .map(PathBuf::from)
-                    .unwrap_or_else(|| PathBuf::from("."))
-                    .join("presets");
-                path
-            };
-            match save_project_session(session, &project_path) {
-                Ok(()) => {
-                    let canonical_path =
-                        canonical_project_path(&project_path).unwrap_or(project_path.clone());
-                    register_recent_project(
-                        &mut app_config.borrow_mut(),
-                        &canonical_path,
-                        &project_display_name(&session.project),
-                    );
-                    let _ = FilesystemStorage::save_app_config(&app_config.borrow());
-                    recent_projects.set_vec(recent_project_items(
-                        &app_config.borrow().recent_projects,
-                        window.get_recent_project_search().as_str(),
-                    ));
-                    window.set_project_title(
-                        project_title_for_path(Some(&canonical_path), &session.project).into(),
-                    );
-                    window.set_project_name_draft(
-                        session.project.name.clone().unwrap_or_default().into(),
-                    );
-                    window.set_project_path_label(
-                        format!("Projeto: {}", project_path.display()).into(),
-                    );
-                    *saved_project_snapshot.borrow_mut() = project_session_snapshot(session).ok();
-                    set_project_dirty(&window, &project_dirty, false);
-                    clear_status(&window, &toast_timer);
-                }
-                Err(error) => {
-                    set_status_error(&window, &toast_timer, &error.to_string());
-                }
-            }
-        });
-    }
+    // --- Project file dialog callbacks (extracted to project_file_dialog_wiring) ---
+    crate::project_file_dialog_wiring::wire(
+        &window,
+        crate::project_file_dialog_wiring::ProjectFileDialogCtx {
+            project_paths: project_paths.clone(),
+            app_config: app_config.clone(),
+            recent_projects: recent_projects.clone(),
+            project_session: project_session.clone(),
+            project_chains: project_chains.clone(),
+            project_runtime: project_runtime.clone(),
+            saved_project_snapshot: saved_project_snapshot.clone(),
+            project_dirty: project_dirty.clone(),
+            input_chain_devices: input_chain_devices.clone(),
+            output_chain_devices: output_chain_devices.clone(),
+            toast_timer: toast_timer.clone(),
+        },
+    );
     // --- Recent projects callbacks (extracted to recent_projects_wiring) ---
     crate::recent_projects_wiring::wire(
         &window,
