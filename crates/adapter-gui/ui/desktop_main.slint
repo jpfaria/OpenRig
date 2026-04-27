@@ -1,7 +1,7 @@
 import { VerticalBox, HorizontalBox } from "std-widgets.slint";
 import { Theme } from "theme.slint";
 import { ChannelOptionItem, DeviceSelectionItem, ProjectChainItem, RecentProjectItem, BlockModelPickerItem, BlockParameterItem, BlockTypePickerItem, IoGroupItem, MultiSliderPoint, CurveEditorPoint, BlockStreamData, BlockKnobOverlay } from "models.slint";
-import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage } from "pages/pages.slint";
+import { ProjectLauncherPage, ProjectSetupPage, ProjectSettingsPage, ProjectChainsPage, ChainEditorPage, ChainEndpointEditorPage, ChainIoGroupsPage, TunerPanel, TunerRow } from "pages/pages.slint";
 
 export component DesktopMain inherits Rectangle {
     in property <string> app-version;
@@ -91,6 +91,14 @@ export component DesktopMain inherits Rectangle {
     callback add-chain();
     callback save-project();
     callback configure-project();
+    callback open-tuner-window();
+    in property <bool> show-tuner;
+    in property <[TunerRow]> tuner-rows;
+    in property <bool> tuner-mute-active;
+    in property <bool> tuner-enabled: false;
+    callback close-tuner();
+    callback toggle-tuner-mute(bool);
+    callback toggle-tuner-enabled(bool);
     callback remove-chain(int);
     callback toggle-chain-enabled(int);
     callback configure-chain(int);
@@ -243,6 +251,7 @@ export component DesktopMain inherits Rectangle {
             add-chain => { root.add-chain(); }
             save-project => { root.save-project(); }
             configure-project => { root.configure-project(); }
+            open-tuner-window => { root.open-tuner-window(); }
             remove-chain(index) => { root.remove-chain(index); }
             toggle-chain-enabled(index) => { root.toggle-chain-enabled(index); }
             configure-chain(index) => { root.configure-chain(index); }
@@ -292,6 +301,19 @@ export component DesktopMain inherits Rectangle {
             update-project-buffer-size(index, value) => { root.update-project-buffer-size(index, value); }
             update-project-bit-depth(index, value) => { root.update-project-bit-depth(index, value); }
             refresh-devices => { root.refresh-devices(); }
+        }
+
+        // Fullscreen inline tuner overlay (windowed mode uses TunerWindow instead)
+        if root.fullscreen && root.show-tuner : TunerPanel {
+            width: parent.width;
+            height: parent.height;
+            tuner-rows: root.tuner-rows;
+            mute-active: root.tuner-mute-active;
+            tuner-enabled: root.tuner-enabled;
+            show-close-button: true;
+            close-tuner => { root.close-tuner(); }
+            toggle-mute(m) => { root.toggle-tuner-mute(m); }
+            toggle-enabled(e) => { root.toggle-tuner-enabled(e); }
         }
 
         // Fullscreen inline chain editor

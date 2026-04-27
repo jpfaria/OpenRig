@@ -2123,6 +2123,7 @@ export component ProjectChainsPage inherits Rectangle {
     callback add-chain();
     callback save-project();
     callback configure-project();
+    callback open-tuner-window();
     callback remove-chain(int);
     callback toggle-chain-enabled(int);
     callback configure-chain(int);
@@ -2197,11 +2198,19 @@ export component ProjectChainsPage inherits Rectangle {
         }
 
         if !root.skip-launcher : HeaderIconAction {
-            x: parent.width - 160px;
+            x: parent.width - 200px;
             y: 14px;
             icon: @image-url("../assets/arrow-left.svg");
             tooltip: "Voltar";
             clicked => { root.back-to-launcher(); }
+        }
+
+        HeaderIconAction {
+            x: root.skip-launcher ? parent.width - 160px : parent.width - 160px;
+            y: 14px;
+            icon: @image-url("../assets/tuner.svg");
+            tooltip: "Tuner";
+            clicked => { root.open-tuner-window(); }
         }
 
         HeaderIconAction {

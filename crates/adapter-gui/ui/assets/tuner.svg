@@ -1,5 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none">
-<path d="M128 72V128L166 102" stroke="#E8E8E8" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M78 170C106 192 150 192 178 170" stroke="#E8E8E8" stroke-width="10" stroke-linecap="round"/>
-<path d="M68 160C88 118 112 94 128 94C144 94 168 118 188 160" stroke="#E8E8E8" stroke-width="10" stroke-linecap="round"/>
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Tuning fork: two prongs + handle -->
+  <path d="M8 3 V13 A4 4 0 0 0 16 13 V3" stroke="#F5F7FF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M12 17 V21" stroke="#F5F7FF" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M9 21 H15" stroke="#F5F7FF" stroke-width="1.8" stroke-linecap="round"/>
 </svg>

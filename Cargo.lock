@@ -134,6 +134,7 @@ dependencies = [
  "domain",
  "engine",
  "env_logger",
+ "feature-dsp",
  "image",
  "infra-cpal",
  "infra-filesystem",
@@ -1895,6 +1896,10 @@ checksum = "1e6853b52649d4ac5c0bd02320cddc5ba956bdb407c4b75a2c6b75bf51500f8c"
 dependencies = [
  "simd-adler32",
 ]
+
+[[package]]
+name = "feature-dsp"
+version = "0.1.0"
 
 [[package]]
 name = "femtovg"

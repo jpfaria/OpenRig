@@ -50,7 +50,6 @@ mod native_eq_three_band_basic;
 mod native_cry_classic;
 mod native_tremolo_sine;
 mod native_octave_simple;
-mod native_tuner_chromatic;
 
 /// Visual configuration for block models.
 ///
@@ -133,7 +132,6 @@ fn all_entries() -> Vec<VisualConfigEntry> {
     entries.push(native_cry_classic::entry());
     entries.push(native_tremolo_sine::entry());
     entries.push(native_octave_simple::entry());
-    entries.push(native_tuner_chromatic::entry());
     entries
 }
 
@@ -428,13 +426,6 @@ mod tests {
     }
 
     #[test]
-    fn visual_config_native_tuner_chromatic_returns_config() {
-        let config = visual_config_for_model("", "tuner_chromatic");
-        assert_eq!(config.panel_bg, [0x1a, 0x1a, 0x20]);
-        assert_eq!(config.model_font, "Orbitron");
-    }
-
-    #[test]
     fn visual_config_native_blackface_clean_returns_config() {
         let config = visual_config_for_model("", "blackface_clean");
         assert_ne!(config.panel_bg, DEFAULT_CONFIG.panel_bg);
@@ -650,7 +641,6 @@ mod tests {
             "cry_classic",
             "tremolo_sine",
             "octave_simple",
-            "tuner_chromatic",
         ];
         for model in &expected_native {
             assert!(

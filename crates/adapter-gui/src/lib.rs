@@ -1,5 +1,7 @@
 mod thumbnails;
 mod plugin_info;
+mod tuner_session;
+mod tuner_wiring;
 
 use anyhow::{anyhow, Result};
 
@@ -199,6 +201,11 @@ pub fn run_desktop_app(
     let insert_return_channels = Rc::new(VecModel::from(Vec::<ChannelOptionItem>::new()));
     let block_editor_window =
         BlockEditorWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    let tuner_window =
+        TunerWindow::new().map_err(|error| anyhow!(error.to_string()))?;
+    let tuner_session: Rc<RefCell<Option<tuner_session::TunerSession>>> =
+        Rc::new(RefCell::new(None));
+    let tuner_timer = Rc::new(Timer::default());
     window.set_app_version(env!("CARGO_PKG_VERSION").into());
     window.set_show_project_launcher(true);
     window.set_show_project_setup(false);
@@ -2176,6 +2183,18 @@ pub fn run_desktop_app(
         let saved_project_snapshot = saved_project_snapshot.clone();
         let project_dirty = project_dirty.clone();
         let project_settings_window = project_settings_window.as_weak();
+        // ── Tuner window — top-bar feature ──
+        // All open / close / mute / power callbacks + the polling timer
+        // live in `tuner_wiring`. lib.rs only knows how to call into it.
+        tuner_wiring::wire_tuner(
+            &window,
+            &tuner_window,
+            &project_session,
+            &project_runtime,
+            &tuner_session,
+            &tuner_timer,
+        );
+
         let chain_editor_window = chain_editor_window.clone();
         let block_editor_window = block_editor_window.as_weak();
         let input_chain_devices = input_chain_devices.clone();
