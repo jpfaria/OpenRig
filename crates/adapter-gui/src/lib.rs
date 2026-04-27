@@ -23,6 +23,7 @@ mod chain_output_groups_wiring;
 mod chain_row_wiring;
 mod chain_editor_forwarders_wiring;
 mod chain_block_crud_wiring;
+mod virtual_keyboard_wiring;
 
 use anyhow::{anyhow, Result};
 
@@ -4646,20 +4647,8 @@ pub fn run_desktop_app(
     );
 
     // Virtual keyboard: dispatch key events to the focused element
-    {
-        let weak_window = window.as_weak();
-        window.on_virtual_key_pressed(move |label| {
-            let Some(win) = weak_window.upgrade() else { return; };
-            let text: slint::SharedString = match label.as_str() {
-                "⌫" => slint::platform::Key::Backspace.into(),
-                "⏎" => slint::platform::Key::Return.into(),
-                "⎵" => " ".into(),
-                s => s.into(),
-            };
-            let _ = win.window().dispatch_event(slint::platform::WindowEvent::KeyPressed { text: text.clone() });
-            let _ = win.window().dispatch_event(slint::platform::WindowEvent::KeyReleased { text });
-        });
-    }
+    // Virtual keyboard (extracted to virtual_keyboard_wiring)
+    crate::virtual_keyboard_wiring::wire(&window);
 
     window.run().map_err(|error| anyhow!(error.to_string()))
 }
