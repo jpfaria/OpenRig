@@ -859,7 +859,9 @@ component BlockChip inherits Rectangle {
     border-width: 0px;
     border-radius: 6px;
 
-    // Type label on top
+    // Type label sits on top of the artwork as an overlay so the
+    // thumbnail can use the full chip height. Without this, label +
+    // padding ate ~14px and the pedal looked cramped.
     Text {
         x: 0px;
         y: 0px;
@@ -872,26 +874,26 @@ component BlockChip inherits Rectangle {
         letter-spacing: 1px;
         horizontal-alignment: center;
         vertical-alignment: center;
+        z: 2;
     }
 
-    // Block icon area — bigger than before. Chip width grew from 84 to
-    // 100 so the artwork has more room laterally; height stays at 100
-    // because routing-line y positions in ChainRow are tuned to the
-    // 108px row stride.
+    // Block icon area — uses the chip's full height (with the label
+    // overlaid on top) so `image-fit: contain` can pick the bigger of
+    // the two dimensions and render the pedal as the dominant visual.
     if root.block.has-thumbnail : Image {
         x: 0px;
-        y: 14px;
+        y: 0px;
         width: parent.width;
-        height: 78px;
+        height: parent.height - 6px;
         source: root.block.thumbnail;
         image-fit: contain;
     }
 
     if !root.block.has-thumbnail : EffectTypeIcon {
         x: 0px;
-        y: 14px;
+        y: 0px;
         width: parent.width;
-        height: 78px;
+        height: parent.height - 6px;
         icon-kind: root.block.icon-kind;
         tint: root.dragging ? #8b95a5 : root.block.enabled ? root.accent-color : #5c6678;
     }
