@@ -18,14 +18,17 @@ component PowerFootSwitch inherits Rectangle {
 
     Rectangle {
         x: 4px; y: 0;
-        width: 28px; height: 36px;
+        width: 28px; height: 28px;
         clip: true;
+        // Sprite is vertical: 88×176 px, two 88×88 frames stacked.
+        // Top = pressed/on, bottom = released/off (matches FootSwitch
+        // component in components/foot_switch.slint).
         Image {
             source: @image-url("../assets/sprites/footswitch.png");
-            x: root.active ? -parent.width : 0;
-            y: 0;
-            width: 2 * parent.width;
-            height: parent.height;
+            x: 0;
+            y: root.active ? -parent.height : 0;
+            width: parent.width;
+            height: 2 * parent.height;
             image-fit: fill;
             image-rendering: smooth;
         }
@@ -36,7 +39,7 @@ component PowerFootSwitch inherits Rectangle {
     }
 
     Text {
-        x: 0; y: 38px;
+        x: 0; y: 32px;
         width: parent.width; height: 14px;
         text: "POWER";
         color: root.active ? #88c5ff : #6a7280;
