@@ -273,7 +273,7 @@ component TunerCard inherits Rectangle {
 export component TunerPanel inherits Rectangle {
     in property <[TunerRow]> tuner-rows;
     in property <bool> mute-active;
-    in property <bool> tuner-enabled: true;
+    in property <bool> tuner-enabled: false;
     in property <bool> show-close-button: false;
     callback close-tuner();
     callback toggle-mute(bool);
@@ -414,7 +414,7 @@ export component TunerWindow inherits Window {
 
     in property <[TunerRow]> tuner-rows;
     in property <bool> mute-active;
-    in property <bool> tuner-enabled: true;
+    in property <bool> tuner-enabled: false;
     callback close-tuner-window();
     callback toggle-mute(bool);
     callback toggle-enabled(bool);

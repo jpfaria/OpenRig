@@ -716,7 +716,7 @@ export component AppWindow inherits Window {
     in property <bool> show-tuner;
     in property <[TunerRow]> tuner-rows;
     in property <bool> tuner-mute-active;
-    in property <bool> tuner-enabled: true;
+    in property <bool> tuner-enabled: false;
     callback close-tuner();
     callback toggle-tuner-mute(bool);
     callback toggle-tuner-enabled(bool);

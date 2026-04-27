@@ -29,14 +29,7 @@ pub fn wire_tuner(
     tuner_session: &Rc<RefCell<Option<TunerSession>>>,
     tuner_timer: &Rc<Timer>,
 ) {
-    wire_open(
-        window,
-        tuner_window,
-        project_session,
-        project_runtime,
-        tuner_session,
-        tuner_timer,
-    );
+    wire_open(window, tuner_window);
     wire_close_inline(window, project_runtime, tuner_session, tuner_timer);
     wire_close_windowed(tuner_window, project_runtime, tuner_session, tuner_timer);
     wire_mute_inline(window, project_runtime);
@@ -51,20 +44,9 @@ pub fn wire_tuner(
     );
 }
 
-fn wire_open(
-    window: &AppWindow,
-    tuner_window: &TunerWindow,
-    project_session: &Rc<RefCell<Option<ProjectSession>>>,
-    project_runtime: &Rc<RefCell<Option<ProjectRuntimeController>>>,
-    tuner_session: &Rc<RefCell<Option<TunerSession>>>,
-    tuner_timer: &Rc<Timer>,
-) {
-    let project_session = project_session.clone();
-    let project_runtime = project_runtime.clone();
+fn wire_open(window: &AppWindow, tuner_window: &TunerWindow) {
     let tuner_window_weak = tuner_window.as_weak();
     let main_window_weak = window.as_weak();
-    let tuner_session = tuner_session.clone();
-    let tuner_timer = tuner_timer.clone();
     window.on_open_tuner_window(move || {
         let Some(tw) = tuner_window_weak.upgrade() else {
             return;
@@ -74,31 +56,22 @@ fn wire_open(
         };
         let inline = use_inline_block_editor(&main_w);
 
-        let new_session = build_session(&project_session, &project_runtime);
-        let rows_model = new_session
-            .as_ref()
-            .map(TunerSession::rows_model_rc)
-            .unwrap_or_else(empty_rows_model);
-
+        // Open the tuner in the powered-off resting state: no session,
+        // no polling timer, no rows, mute disengaged. The user has to
+        // press POWER to start detection — that's where the session is
+        // built and the timer armed (see `wire_power`).
+        let empty = empty_rows_model();
         if inline {
-            main_w.set_tuner_rows(rows_model);
+            main_w.set_tuner_rows(empty);
             main_w.set_tuner_mute_active(false);
+            main_w.set_tuner_enabled(false);
             main_w.set_show_tuner(true);
         } else {
-            tw.set_tuner_rows(rows_model);
+            tw.set_tuner_rows(empty);
             tw.set_mute_active(false);
+            tw.set_tuner_enabled(false);
             let _ = tw.show();
         }
-        *tuner_session.borrow_mut() = new_session;
-
-        start_polling_timer(
-            &tuner_timer,
-            &tuner_session,
-            &project_session,
-            &project_runtime,
-            &tuner_window_weak,
-            &main_window_weak,
-        );
     });
 }
 
@@ -210,16 +183,23 @@ fn wire_power(
                 .as_ref()
                 .map(TunerSession::rows_model_rc)
                 .unwrap_or_else(empty_rows_model);
+            // Powering on auto-engages mute so the user can tune silently
+            // without an extra click. They can still toggle it off after.
+            if let Some(rt) = project_runtime.borrow().as_ref() {
+                rt.set_output_muted(true);
+            }
             // Always reflect the new enabled state on the UI, even when
             // no session could be built (no runtime / no active chain).
             // Otherwise the sprite would stay stuck at OFF and the user
             // would have to find another way to power the tuner back on.
             if let Some(tw) = tuner_window_weak.upgrade() {
                 tw.set_tuner_rows(rows.clone());
+                tw.set_mute_active(true);
                 tw.set_tuner_enabled(true);
             }
             if let Some(mw) = main_window_weak.upgrade() {
                 mw.set_tuner_rows(rows);
+                mw.set_tuner_mute_active(true);
                 mw.set_tuner_enabled(true);
             }
             *tuner_session.borrow_mut() = new_session;
