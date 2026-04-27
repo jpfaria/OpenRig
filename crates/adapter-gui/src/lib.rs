@@ -6,6 +6,7 @@ mod tuner_session;
 mod tuner_wiring;
 mod insert_wiring;
 mod device_settings_wiring;
+mod chain_io_picker_wiring;
 
 use anyhow::{anyhow, Result};
 
@@ -664,51 +665,15 @@ pub fn run_desktop_app(
             }
         });
     }
-    {
-        let weak_window = window.as_weak();
-        chain_input_window.on_select_device(move |index| {
-            if let Some(window) = weak_window.upgrade() {
-                window.invoke_select_chain_input_device(index);
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        chain_input_window.on_toggle_channel(move |index, selected| {
-            if let Some(window) = weak_window.upgrade() {
-                window.invoke_toggle_chain_input_channel(index, selected);
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        chain_output_window.on_select_device(move |index| {
-            if let Some(window) = weak_window.upgrade() {
-                window.invoke_select_chain_output_device(index);
-            }
-        });
-    }
-    {
-        let weak_window = window.as_weak();
-        chain_output_window.on_toggle_channel(move |index, selected| {
-            if let Some(window) = weak_window.upgrade() {
-                window.invoke_toggle_chain_output_channel(index, selected);
-            }
-        });
-    }
-    {
-        let chain_draft = chain_draft.clone();
-        chain_output_window.on_select_output_mode(move |index| {
-            if let Some(draft) = chain_draft.borrow_mut().as_mut() {
-                if let Some(gi) = draft.editing_output_index {
-                    if let Some(output) = draft.outputs.get_mut(gi) {
-                        output.mode = output_mode_from_index(index);
-                        log::debug!("[select_output_mode] group={}, index={}, mode={:?}", gi, index, output.mode);
-                    }
-                }
-            }
-        });
-    }
+    // --- ChainInput/ChainOutput picker callbacks (extracted to chain_io_picker_wiring) ---
+    crate::chain_io_picker_wiring::wire(
+        &window,
+        &chain_input_window,
+        &chain_output_window,
+        crate::chain_io_picker_wiring::ChainIoPickerCtx {
+            chain_draft: chain_draft.clone(),
+        },
+    );
     project_settings_window.set_project_devices(ModelRc::from(project_devices.clone()));
     window.set_project_devices(ModelRc::from(project_devices.clone()));
     project_settings_window.set_sample_rate_options(window.get_sample_rate_options());
