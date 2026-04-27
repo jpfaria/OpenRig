@@ -147,12 +147,19 @@ fn wire_mute_inline(
     let project_runtime = project_runtime.clone();
     let main_window_weak = window.as_weak();
     window.on_toggle_tuner_mute(move |muted| {
+        // Defense in depth: mute is only meaningful while the tuner is
+        // powered on. If the click somehow reaches the handler with the
+        // tuner off, ignore it instead of silencing the output.
+        let Some(mw) = main_window_weak.upgrade() else {
+            return;
+        };
+        if !mw.get_tuner_enabled() {
+            return;
+        }
         if let Some(rt) = project_runtime.borrow().as_ref() {
             rt.set_output_muted(muted);
         }
-        if let Some(mw) = main_window_weak.upgrade() {
-            mw.set_tuner_mute_active(muted);
-        }
+        mw.set_tuner_mute_active(muted);
     });
 }
 
@@ -163,14 +170,21 @@ fn wire_mute_windowed(
     let project_runtime = project_runtime.clone();
     let tuner_window_weak = tuner_window.as_weak();
     tuner_window.on_toggle_mute(move |muted| {
+        // Defense in depth: mute is only meaningful while the tuner is
+        // powered on. If the click somehow reaches the handler with the
+        // tuner off, ignore it instead of silencing the output.
+        let Some(tw) = tuner_window_weak.upgrade() else {
+            return;
+        };
+        if !tw.get_tuner_enabled() {
+            return;
+        }
         if let Some(rt) = project_runtime.borrow().as_ref() {
             rt.set_output_muted(muted);
         }
         // One-way `in property <bool>` — the caller has to push the new
         // value back so the toggle sprite + LED render correctly.
-        if let Some(tw) = tuner_window_weak.upgrade() {
-            tw.set_mute_active(muted);
-        }
+        tw.set_mute_active(muted);
     });
 }
 
@@ -219,10 +233,18 @@ fn wire_power(
             );
         } else {
             teardown_session(&tuner_timer, &tuner_session, &project_runtime);
+            // Power off also clears the row list and mute toggle so the
+            // window reflects the "stopped" state instead of stale rows
+            // or a stuck red LED.
+            let empty = empty_rows_model();
             if let Some(tw) = tuner_window_weak.upgrade() {
+                tw.set_tuner_rows(empty.clone());
+                tw.set_mute_active(false);
                 tw.set_tuner_enabled(false);
             }
             if let Some(mw) = main_window_weak.upgrade() {
+                mw.set_tuner_rows(empty);
+                mw.set_tuner_mute_active(false);
                 mw.set_tuner_enabled(false);
             }
         }

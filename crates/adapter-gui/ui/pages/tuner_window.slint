@@ -36,13 +36,16 @@ component PowerFootSwitch inherits Rectangle {
 }
 
 // Mute switch — label "MUTE" on top, vintage toggle below, red LED on
-// the right of the toggle.
+// the right of the toggle. Disabled (dimmed, non-interactive) when
+// the tuner is powered off.
 component MuteSwitch inherits Rectangle {
     in property <bool> active;
+    in property <bool> enabled: true;
     callback toggled();
 
     width: 50px;
     height: 52px;
+    opacity: root.enabled ? 1.0 : 0.35;
 
     // Label aligned over the toggle sprite only — not the toggle+LED row.
     Text {
@@ -71,8 +74,12 @@ component MuteSwitch inherits Rectangle {
             image-rendering: smooth;
         }
         TouchArea {
-            mouse-cursor: pointer;
-            clicked => { root.toggled(); }
+            mouse-cursor: root.enabled ? MouseCursor.pointer : MouseCursor.default;
+            clicked => {
+                if (root.enabled) {
+                    root.toggled();
+                }
+            }
         }
     }
 
@@ -314,29 +321,6 @@ export component TunerPanel inherits Rectangle {
             vertical-alignment: center;
         }
 
-        // Input count chip
-        if root.tuner-rows.length > 0 : Rectangle {
-            x: 190px; y: 26px;
-            width: 70px; height: 20px;
-            border-radius: 10px;
-            background: #1a2230;
-            border-width: 1px;
-            border-color: #2a3340;
-
-            Text {
-                x: 0; y: 0;
-                width: parent.width; height: parent.height;
-                text: root.tuner-rows.length
-                    + (root.tuner-rows.length == 1 ? " INPUT" : " INPUTS");
-                color: #88a3c7;
-                font-family: "Bebas Neue";
-                font-size: 10px;
-                letter-spacing: 1.4px;
-                vertical-alignment: center;
-                horizontal-alignment: center;
-            }
-        }
-
         // Close button (inline mode only)
         if root.show-close-button : Rectangle {
             x: parent.width - 40px; y: 22px;
@@ -364,10 +348,12 @@ export component TunerPanel inherits Rectangle {
         }
 
         // Mute switch (right side) — label "MUTE" on top, toggle + LED below.
+        // Only interactive while the tuner is powered on; dimmed otherwise.
         MuteSwitch {
             x: root.show-close-button ? parent.width - 102px : parent.width - 62px;
             y: (72px - self.height) / 2;
             active: root.mute-active;
+            enabled: root.tuner-enabled;
             toggled => { root.toggle-mute(!root.mute-active); }
         }
     }
