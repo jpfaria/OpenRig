@@ -1003,13 +1003,20 @@ component BlockChip inherits Rectangle {
         property <int> entry-count: root.block.param_entries.length;
         property <length> tooltip-h: header-h + body-padding + Math.max(1, entry-count) * row-height + body-padding;
 
-        // Anchor ABOVE the chip and inside the row's own space — same
-        // strategy the In/Out chip tooltips use. Going down would cross
-        // into the next ChainRow's space inside the ListView and get
-        // covered by that row's blocks (#333). Up stays within the row,
-        // so z-lift on the chip alone is enough to win the paint order.
-        x: -118px;
-        y: -tooltip-h - 6px;
+        // Anchor LATERAL to the chip, inside the row's own block-row
+        // band — same strategy as the In/Out chip tooltips. Going up
+        // collides with the project header (always paints on top); going
+        // down crosses into the next ChainRow's space and the next
+        // chain's blocks paint over it. Lateral keeps everything inside
+        // the row and z-lift on the chip wins the paint order against
+        // sibling blocks (#333).
+        //
+        // Width 320px overlaps ~3 sibling blocks horizontally — the
+        // z-lift covers them. The tooltip starts to the right of the
+        // chip and rises just above the chip's top so its taller body
+        // does not get clipped by the chip itself.
+        x: parent.width + 6px;
+        y: -tooltip-h + parent.height;
         width: 320px;
         height: tooltip-h;
         background: #0e1218f5;
