@@ -4527,6 +4527,78 @@ mod tests {
         assert_eq!(runtime.input_taps.load().len(), 0);
     }
 
+    // ── output_muted flag ────────────────────────────────────────────────────
+
+    #[test]
+    fn output_muted_defaults_to_false() {
+        let chain = io_passthrough_chain("chain:0");
+        let runtime = Arc::new(
+            build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
+                .expect("runtime should build"),
+        );
+
+        assert!(!runtime.is_output_muted());
+    }
+
+    #[test]
+    fn set_output_muted_round_trips() {
+        let chain = io_passthrough_chain("chain:0");
+        let runtime = Arc::new(
+            build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
+                .expect("runtime should build"),
+        );
+
+        runtime.set_output_muted(true);
+        assert!(runtime.is_output_muted());
+
+        runtime.set_output_muted(false);
+        assert!(!runtime.is_output_muted());
+    }
+
+    #[test]
+    fn output_muted_zeros_process_output_buffer() {
+        let chain = io_passthrough_chain("chain:0");
+        let runtime = Arc::new(
+            build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
+                .expect("runtime should build"),
+        );
+
+        // Push some samples through the input so the chain has data
+        // available when process_output_f32 runs.
+        process_input_f32(&runtime, 0, &[0.1, 0.2, 0.3, 0.4], 1);
+
+        runtime.set_output_muted(true);
+        let mut out = vec![0.5_f32; 4];
+        process_output_f32(&runtime, 0, &mut out, 1);
+        assert!(
+            out.iter().all(|&s| s == 0.0),
+            "muted output must be all zero, got {:?}",
+            out
+        );
+    }
+
+    #[test]
+    fn output_muted_unset_does_not_zero_buffer() {
+        let chain = io_passthrough_chain("chain:0");
+        let runtime = Arc::new(
+            build_chain_runtime_state(&chain, 48_000.0, &[DEFAULT_ELASTIC_TARGET])
+                .expect("runtime should build"),
+        );
+
+        // Drive a known signal through input → passthrough → output.
+        process_input_f32(&runtime, 0, &[0.1, 0.2, 0.3, 0.4], 1);
+        let mut out = vec![0.0_f32; 4];
+        process_output_f32(&runtime, 0, &mut out, 1);
+
+        // With the mute flag off, the output buffer must contain the
+        // forwarded samples — at least one frame is non-zero.
+        assert!(
+            out.iter().any(|&s| s != 0.0),
+            "unmuted passthrough output must have non-zero samples, got {:?}",
+            out
+        );
+    }
+
     // ── effective_inputs with stereo entry does not split ────────────────────
 
     #[test]
