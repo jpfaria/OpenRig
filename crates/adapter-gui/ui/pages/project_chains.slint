@@ -853,7 +853,7 @@ component BlockChip inherits Rectangle {
     property <float> drag-origin-x: 0;
     property <float> drag-origin-y: 0;
 
-    width: 84px;
+    width: 100px;
     height: 100px;
     background: transparent;
     border-width: 0px;
@@ -874,10 +874,10 @@ component BlockChip inherits Rectangle {
         vertical-alignment: center;
     }
 
-    // Block icon area — bigger than before so the thumbnail/effect icon
-    // is the dominant visual. The hover outline that used to box this
-    // area was removed (looked like a frame around the pedal); the
-    // tooltip card is the explicit hover affordance now (#333).
+    // Block icon area — bigger than before. Chip width grew from 84 to
+    // 100 so the artwork has more room laterally; height stays at 100
+    // because routing-line y positions in ChainRow are tuned to the
+    // 108px row stride.
     if root.block.has-thumbnail : Image {
         x: 0px;
         y: 14px;
@@ -1218,7 +1218,7 @@ component ChainRow inherits Rectangle {
     callback start-block-insert(int, int);
     callback reorder-chain-block(int, int, int);
     callback open-compact-chain-view(int);
-    property <int> blocks-per-row: Math.max(1, Math.floor((root.width - 188px) / 116px));
+    property <int> blocks-per-row: Math.max(1, Math.floor((root.width - 188px) / 132px));
     property <int> block-row-count: root.chain.blocks.length == 0 ? 1 : Math.floor((root.chain.blocks.length - 1) / root.blocks-per-row) + 1;
     property <int> insert-row-count: root.block-row-count;
     in-out property <int> dragging-chain-index: -1;
@@ -1240,11 +1240,11 @@ component ChainRow inherits Rectangle {
     property <int> hovered-block-index: -1;
 
     pure function slot-index-for-position(pointer-x: float, pointer-y: float) -> int {
-        // Blocks start at x=120, each 116px wide.
-        // Slot 0 is before block 0 (x<172), slot N is after block N-1 center.
-        // Block N center = 172 + N*116. Crossing the center moves to slot N+1.
+        // Blocks start at x=120, each 132px wide (chip 100 + gap 32).
+        // Slot 0 is before block 0 (x<170), slot N is after block N-1 center.
+        // Block N center = 170 + N*132. Crossing the center moves to slot N+1.
         let row = Math.max(0, Math.min(root.insert-row-count - 1, Math.floor((pointer-y + 18) / 92)));
-        let col = Math.max(0, Math.min(root.blocks-per-row, Math.round((pointer-x - 172) / 116 + 0.5)));
+        let col = Math.max(0, Math.min(root.blocks-per-row, Math.round((pointer-x - 170) / 132 + 0.5)));
         let candidate = row * root.blocks-per-row + col;
         return Math.max(0, Math.min(root.chain.blocks.length, candidate));
     }
@@ -1510,7 +1510,7 @@ component ChainRow inherits Rectangle {
         }
 
         for block[block-index] in root.chain.blocks : BlockChip {
-            x: 120px + Math.mod(block-index, root.blocks-per-row) * 116px;
+            x: 120px + Math.mod(block-index, root.blocks-per-row) * 132px;
             y: Math.floor(block-index / root.blocks-per-row) * 108px;
             block: block;
             selected: root.dragging-chain-index == root.chain-index && root.dragging-block-index == block-index
@@ -1554,9 +1554,9 @@ component ChainRow inherits Rectangle {
             && root.chain.blocks[root.hovered-block-index].display_name != ""
             : BlockHoverTooltip {
             block: root.chain.blocks[root.hovered-block-index];
-            anchor-x: 120px + Math.mod(root.hovered-block-index, root.blocks-per-row) * 116px;
+            anchor-x: 120px + Math.mod(root.hovered-block-index, root.blocks-per-row) * 132px;
             anchor-y: Math.floor(root.hovered-block-index / root.blocks-per-row) * 108px;
-            chip-width: 84px;
+            chip-width: 100px;
             chip-height: 100px;
             // Pass the blocks-container width so the tooltip can flip to
             // the left side when the chip is too close to the right edge
@@ -1565,7 +1565,7 @@ component ChainRow inherits Rectangle {
         }
 
         for block[block-index] in root.chain.blocks : BlockInsertSlot {
-            x: 204px + Math.mod(block-index, root.blocks-per-row) * 116px;
+            x: 220px + Math.mod(block-index, root.blocks-per-row) * 132px;
             y: 41px + Math.floor(block-index / root.blocks-per-row) * 108px;
             move-target: root.dragging-chain-index == root.chain-index && root.dragging-block-index >= 0;
             suppress-hover-affordance: root.suppress-insert-hover;
